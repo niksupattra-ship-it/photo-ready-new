@@ -1,29 +1,23 @@
-# PhotoID Studio TH — v2 restored from prior Work state
+# PhotoID Studio TH — v5 Reference-Locked Pipeline
 
-เวอร์ชันนี้ปรับกลับให้ตรงกับสถานะที่อนุมัติใน Work:
+เวอร์ชันนี้เปลี่ยนหลักการสร้างภาพให้ตรงกับการทดสอบในแชท:
 
-- UI ซ้ายเมนู / กลางพรีวิว / ขวาตัวเลือก ตามหน้าเดิม
-- ชุดเริ่มต้น = สมัครงาน → สูทหญิงสุภาพ
-- ใช้ไฟล์ `public/assets/suit-female-formal.jpg` เป็น reference ชุดจริง
-- ทรงเริ่มต้น = ประบ่า / แบบ 20
-- ผลลัพธ์ล็อกมาตรฐานรูปสมัครงาน 3:4
-- พื้นหลังฟ้ามาตรฐาน
-- ระยะ: เห็นช่วงตัวและความกว้างไหล่, ศีรษะไม่ซูมแน่น, มีพื้นที่เหนือศีรษะ
-- มี approved result เป็น reference การจัดเฟรม
-- API pipeline ถูกเตรียมไว้แล้ว แม้ยังไม่ใส่ `OPENAI_API_KEY`
-- Server บังคับ crop ผล AI เป็น 1200×1600 (3:4)
+1. รูปที่ผู้ใช้อัปโหลด = แหล่งใบหน้า/ตัวตนเพียงแหล่งเดียว
+2. การ์ดชุดที่เลือก = ส่ง "ไฟล์รูปชุดจริง" เข้า AI และใช้เป็นทั้งแบบชุด + ระยะช่วงตัว/ไหล่/คอ
+3. ทรงผม 01–29 = ส่ง `hair-XX.png` ตัวจริงเข้า AI ทุกครั้ง ไม่ใช้ชื่อทรงเพื่อเดา
+4. พื้นหลัง = ใช้ตัวเลือกเดียวกับหน้าเว็บ
+5. ส่งเข้า OpenAI Images Edit ตามลำดับ:
+   - IMAGE 1 customer identity
+   - IMAGE 2 selected outfit reference
+   - IMAGE 3 selected hairstyle reference
+6. Prompt ห้าม AI นำหน้า/ผิว/เมกอัพจากรูปชุดหรือรูปผมมาใช้
+7. Output ถูกบังคับเป็น 1200×1600 (3:4)
 
-## Deploy Render
-Build Command:
-npm install
+ตัวอย่าง:
+`รูปคน + shirt-woman + 07 + blue`
+จะส่ง:
+- รูปคนจริง
+- `assets/ui/outfit-07.jpg`
+- `assets/hairstyles/hair-07.png`
 
-Start Command:
-npm start
-
-ยังไม่ต้องเพิ่ม API key หากต้องการดู UI ก่อน
-
-เมื่อพร้อมใช้ AI:
-Environment → Add Environment Variable
-OPENAI_API_KEY = คีย์ของคุณ
-
-จากนั้น Save Changes / Redeploy
+ดังนั้น “แบบ 07” ไม่ได้แปลเป็นข้อความบรรยายทรงผม แต่ใช้ไฟล์ `hair-07.png` จริง
