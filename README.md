@@ -58,3 +58,13 @@
 4. IMAGE 4 = Master Framing 3:4
 
 ห้าม IMAGE 4 มีผลต่อใบหน้า ทรงผม หรือชุด
+
+
+## v8 — Preserve Master Framing / No Crop
+
+ปรับ post-process หลัง AI สร้างภาพ:
+- เดิม: `fit: "cover"` อาจครอปหัว/ไหล่/ช่วงตัว
+- ใหม่: `fit: "contain"` ไม่ครอปภาพ
+- เติมพื้นที่ที่เหลือด้วยฟ้ามาตรฐาน
+- เป้าหมายคือรักษา Master Framing ให้ใกล้กับผลจาก AI มากที่สุด
+- Output ยังคง 1200×1600 (3:4)

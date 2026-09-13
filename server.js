@@ -234,7 +234,11 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
 
     // Lock final exported file to exact 3:4 without stretching.
     const finalPng=await sharp(raw)
-      .resize(1200,1600,{fit:"cover",position:"centre"})
+      .resize(1200,1600,{
+        fit:"contain",
+        position:"centre",
+        background:{r:30,g:132,b:232,alpha:1}
+      })
       .png()
       .toBuffer();
 
@@ -246,6 +250,7 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
         background,
         size:"3:4",
         referenceMode:"strict-29",
+        framingPostProcess:"contain-no-crop",
         hairReference:hairPath?path.basename(hairPath):"original",
         outfitReference:path.basename(outfitPath),
         framingReference:path.basename(MASTER_REF)
