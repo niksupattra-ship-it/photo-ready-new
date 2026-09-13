@@ -1,141 +1,130 @@
 <!doctype html>
 <html lang="th">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#f7f8fb" />
-  <title>Photo ID Studio TH</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PhotoID Studio — รูปพร้อมใช้</title>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">ID</div>
-      <div>
-        <div class="brand-title">Photo ID Studio TH</div>
-        <div class="brand-subtitle">รูปพร้อมใช้ — จัดรูปสมัครงานและรูปทางการ</div>
-      </div>
-    </div>
-    <div class="ai-status" id="aiStatus">กำลังตรวจสอบ AI…</div>
-  </header>
+  <aside class="sidebar">
+    <div class="side-main active">สร้างรูปใหม่</div>
+    <a>งานของฉัน</a>
+    <a>ขนาดรูปและข้อกำหนด</a>
+    <div class="side-bottom">PhotoID Studio TH</div>
+  </aside>
 
-  <main class="app-shell">
-    <section class="controls card">
-      <div class="section-heading">
-        <span class="step">1</span>
-        <div>
-          <h2>อัปโหลดรูปใบหน้า</h2>
-          <p>ใช้รูปหน้าตรง แสงชัด ไม่ต้องตัดพื้นหลัง</p>
-        </div>
+  <main class="workspace">
+    <section class="preview-card panel">
+      <div class="panel-title">
+        <h2>ภาพตัวอย่าง</h2>
+        <span class="safe-badge">✓ รักษาใบหน้าจริง</span>
       </div>
 
-      <label class="upload-box" id="uploadBox">
-        <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" />
-        <span class="upload-icon">＋</span>
-        <strong>เลือกรูปจากเครื่อง</strong>
-        <small>JPG, PNG หรือ WEBP</small>
-      </label>
-
-      <div class="section-divider"></div>
-
-      <div class="section-heading compact">
-        <span class="step">2</span>
-        <div>
-          <h2>เลือกชุด</h2>
-          <p>เวอร์ชันนี้ตั้งค่าตามตัวอย่างล่าสุด</p>
-        </div>
-      </div>
-
-      <div class="option-grid two">
-        <button class="option-card active" data-suit="female-formal">
-          <div class="suit-thumb">
-            <span class="head-dot"></span>
-            <span class="jacket"></span>
+      <div class="preview-area">
+        <div class="photo-frame" id="photoFrame">
+          <div class="empty-preview" id="emptyPreview">
+            <div class="empty-icon">👤</div>
+            <b>เลือกรูปเพื่อเริ่มต้น</b>
+            <span>ระบบจะจัดระยะเป็นรูปสมัครงาน 3:4</span>
           </div>
-          <span>สูทหญิงสุภาพ</span>
-          <small>แนะนำ</small>
-        </button>
-        <button class="option-card disabled" disabled>
-          <div class="placeholder-thumb">+</div>
-          <span>ชุดอื่น</span>
-          <small>เพิ่มภายหลัง</small>
-        </button>
-      </div>
-
-      <div class="section-divider"></div>
-
-      <div class="section-heading compact">
-        <span class="step">3</span>
-        <div>
-          <h2>เลือกทรงผม</h2>
-          <p>ค่าเริ่มต้นเป็นทรง 20 ตามที่อนุมัติ</p>
+          <img id="sourcePreview" alt="">
+          <img id="resultPreview" alt="">
+          <div class="crop-guide" id="cropGuide">
+            <div class="face-guide"></div>
+          </div>
         </div>
       </div>
 
-      <div class="hair-grid" id="hairGrid"></div>
-
-      <div class="section-divider"></div>
-
-      <div class="section-heading compact">
-        <span class="step">4</span>
+      <div class="approved-strip">
+        <span>มาตรฐานผลลัพธ์</span>
+        <img src="/assets/approved-result-2.png" alt="ตัวอย่างมาตรฐาน">
         <div>
-          <h2>พื้นหลัง</h2>
-          <p>เปลี่ยนได้ก่อนสร้างภาพจริง</p>
+          <b>ระยะสมัครงาน 3:4</b>
+          <small>ช่วงตัวและไหล่คงที่ • พื้นหลังฟ้ามาตรฐาน</small>
         </div>
       </div>
-      <div class="segmented" id="backgroundPicker">
-        <button class="active" data-bg="white"><i class="swatch white"></i>ขาว</button>
-        <button data-bg="blue"><i class="swatch blue"></i>ฟ้า</button>
-        <button data-bg="gray"><i class="swatch gray"></i>เทาอ่อน</button>
-      </div>
-
-      <button class="generate-btn" id="generateBtn" disabled>
-        <span>✦</span> สร้างรูปด้วย AI
-      </button>
-      <p class="hint" id="generateHint">อัปโหลดรูปก่อนเริ่มใช้งาน</p>
     </section>
 
-    <section class="preview card">
-      <div class="preview-top">
-        <div>
-          <h2>ตัวอย่างระยะภาพ</h2>
-          <p>ยึดระยะนี้เป็นค่าเริ่มต้นทุกภาพ</p>
+    <section class="control-card panel">
+      <h2>สร้างรูปติดบัตร</h2>
+
+      <label class="upload-row">
+        <img id="fileThumb" src="/assets/hair20-reference.jpg" alt="">
+        <div class="upload-info">
+          <b id="fileName">ยังไม่ได้เลือกรูป</b>
+          <span id="fileMeta">JPG / PNG / WEBP • พร้อมจัดองค์ประกอบ</span>
         </div>
-        <button class="ghost-btn" id="resetBtn">เริ่มใหม่</button>
+        <span class="choose-btn">เลือกรูป</span>
+        <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp">
+      </label>
+
+      <div class="divider"></div>
+
+      <div class="section-head">
+        <b>1. เลือกประเภทชุด</b>
+        <span>เปลี่ยนเฉพาะชุด</span>
       </div>
 
-      <div class="stage-wrap">
-        <div class="photo-stage bg-white" id="photoStage">
-          <div class="safe-top"></div>
-          <div class="guide eye-guide"></div>
-          <div class="guide shoulder-guide"></div>
-
-          <div class="empty-state" id="emptyState">
-            <div class="person-icon">♙</div>
-            <strong>รูปตัวอย่างจะแสดงที่นี่</strong>
-            <span>อัปโหลดรูปใบหน้าเพื่อดูระยะ</span>
-          </div>
-
-          <img id="previewImage" alt="ตัวอย่างรูป" />
-          <img id="resultImage" alt="ผลลัพธ์จาก AI" />
-        </div>
+      <div class="suit-grid">
+        <button class="choice active" data-suit="female-formal">
+          <div class="icon">💼</div><b>สมัครงาน</b><span>สูทสุภาพ</span>
+        </button>
+        <button class="choice"><div class="icon">🏛️</div><b>ข้าราชการ</b><span>ชุดปกติขาว</span></button>
+        <button class="choice"><div class="icon">🎒</div><b>นักเรียน</b><span>ตามระดับชั้น</span></button>
+        <button class="choice"><div class="icon">🎓</div><b>นักศึกษา</b><span>มหาวิทยาลัย</span></button>
+        <button class="choice"><div class="icon">📜</div><b>ชุดครุย</b><span>รับปริญญา</span></button>
+        <button class="choice"><div class="icon">👕</div><b>ชุดเดิม</b><span>ปรับเฉพาะภาพ</span></button>
       </div>
 
-      <div class="preview-caption">
-        <span><b>ระยะ:</b> เห็นศีรษะและหัวไหล่ ไม่ซูมหน้าแน่น</span>
-        <span><b>ชุด:</b> สูทหญิงสุภาพ</span>
-        <span><b>ผม:</b> <span id="selectedHairText">ทรง 20</span></span>
+      <div class="selected-ref">
+        <img src="/assets/suit-female-formal.jpg" alt="">
+        <div><b>สูทหญิงสุภาพ</b><span>ใช้แพตเทิร์นชุดต้นแบบจริง</span></div>
+        <span class="locked">ล็อก</span>
       </div>
 
-      <div class="result-actions" id="resultActions">
-        <a id="downloadBtn" class="download-btn" download="photo-id-studio-th.png">ดาวน์โหลดภาพ</a>
-        <button class="ghost-btn" id="backToOriginalBtn">ดูรูปต้นฉบับ</button>
+      <div class="divider"></div>
+
+      <div class="section-head">
+        <b>2. เลือกทรงผม</b>
+        <span>ไม่เปลี่ยนใบหน้า</span>
       </div>
+
+      <div class="hair-grid" id="hairGrid">
+        <button data-hair="original"><i></i><span>ผมเดิม</span></button>
+        <button data-hair="polite"><i></i><span>สุภาพ</span></button>
+        <button data-hair="tied"><i></i><span>มัดสั้น</span></button>
+        <button data-hair="side"><i></i><span>เสยข้าง</span></button>
+        <button data-hair="ponytail"><i></i><span>รวบผม</span></button>
+        <button data-hair="smooth"><i></i><span>สั้นเรียบ</span></button>
+        <button data-hair="long"><i></i><span>ยาวตรง</span></button>
+        <button class="active" data-hair="shoulder20"><i></i><span>ประบ่า</span><em>แบบ 20</em></button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="section-head">
+        <b>3. ขนาดรูป</b>
+        <span>ระบบจัดระยะให้อัตโนมัติ</span>
+      </div>
+      <div class="size-grid">
+        <button class="active">1 นิ้ว</button>
+        <button>1.5 นิ้ว</button>
+        <button>2 นิ้ว</button>
+        <button>กำหนดเอง</button>
+      </div>
+
+      <div class="engine-box">
+        <b>🛡️ Natural Photo Engine</b>
+        <span>AI แก้เฉพาะผม คอ และรอยต่อ ส่วนใบหน้ารักษาลักษณะจากต้นฉบับ</span>
+      </div>
+
+      <button class="generate" id="generateBtn" disabled>สร้างรูปตามมาตรฐาน</button>
+      <div class="status" id="statusText">เลือกรูปก่อนเริ่มสร้าง</div>
     </section>
   </main>
 
   <div class="toast" id="toast"></div>
-
   <script src="/app.js" type="module"></script>
 </body>
 </html>

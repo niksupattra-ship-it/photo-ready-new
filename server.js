@@ -4,168 +4,172 @@ import multer from "multer";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import sharp from "sharp";
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
+const MODEL = process.env.IMAGE_MODEL || "gpt-image-1";
 
 app.use(express.static("public"));
 app.use(express.json({ limit: "2mb" }));
 
 const upload = multer({
-  dest: path.join(os.tmpdir(), "photoid-studio-th"),
+  dest: path.join(os.tmpdir(), "photo-ready-new"),
   limits: { fileSize: 15 * 1024 * 1024 }
 });
 
-const HAIR_PROMPTS = {
-  "1": "short neat professional haircut",
-  "2": "soft shoulder-length straight hair",
-  "3": "chin-length bob haircut",
-  "4": "long straight hair tucked behind ears",
-  "5": "soft layered shoulder-length hair",
-  "6": "low ponytail, tidy and professional",
-  "7": "medium-length inward-curled hair",
-  "8": "short pixie style, neat and formal",
-  "9": "long hair tied back neatly",
-  "10": "soft bob with side part",
-  "11": "shoulder-length hair with natural volume",
-  "12": "long straight hair with center part",
-  "13": "medium-length soft waves, restrained",
-  "14": "short layered professional hair",
-  "15": "smooth low bun, official photo style",
-  "16": "straight bob ending below jaw",
-  "17": "shoulder-length straight hair with side part",
-  "18": "long hair pulled behind shoulders",
-  "19": "medium-length neat layered hair",
-  "20": "neat shoulder-length dark hair, softly layered, natural volume, subtle side part, ears only slightly visible"
+const PUBLIC = path.resolve("public");
+const SUIT_REF = path.join(PUBLIC, "assets", "suit-female-formal.jpg");
+const HAIR20_REF = path.join(PUBLIC, "assets", "hair20-reference.jpg");
+const STANDARD_REF = path.join(PUBLIC, "assets", "approved-result-2.png");
+
+const STYLE_MAP = {
+  original: "keep the original hairstyle unchanged",
+  polite: "formal neat hairstyle suitable for an official application photo",
+  tied: "hair tied back neatly and naturally",
+  side: "hair swept neatly to one side",
+  ponytail: "low professional ponytail",
+  smooth: "sleek straight professional hairstyle",
+  long: "long straight hair kept tidy behind shoulders",
+  shoulder20: "hairstyle style 20: neat shoulder-length dark hair, natural soft layers, balanced volume, clean center-to-soft-side part, professional appearance"
 };
 
-function buildPrompt({ hairStyle = "20", suit = "female-formal", background = "white" }) {
-  const hair = HAIR_PROMPTS[String(hairStyle)] || HAIR_PROMPTS["20"];
-  const suitText = suit === "female-formal"
-    ? "formal Thai office portrait attire: conservative dark women's suit jacket over a clean light blouse, modest and official"
-    : "formal conservative office attire";
-
-  const bgMap = {
-    white: "clean pure white studio background",
-    blue: "clean official light blue studio background",
-    gray: "clean very light gray studio background"
-  };
-  const bg = bgMap[background] || bgMap.white;
-
+function promptFor({ hairstyle = "shoulder20" }) {
   return `
-Edit the uploaded portrait into a realistic Thai official ID / application photo.
+Create a realistic Thai job-application ID portrait using the uploaded person's identity.
 
-ABSOLUTE IDENTITY RULE:
-- Preserve the person's identity, facial structure, eyes, nose, lips, eyebrows, skin tone, expression, age, and all recognizable facial details.
-- Do NOT beautify, reshape, slim, enlarge eyes, alter jaw, change nose, change smile, or replace the face.
-- Do NOT change the camera angle of the face.
-- The result must still clearly be the exact same person.
+REFERENCE PRIORITY:
+1. FIRST uploaded image = the customer's original portrait. Preserve identity and all face/makeup characteristics.
+2. SECOND image = exact female formal suit template. Use this suit pattern; do not redesign the suit.
+3. THIRD image = hairstyle style reference / style 20 guidance.
+4. FOURTH image = approved composition reference. Match its framing, body scale and blue background.
+
+IDENTITY LOCK:
+- Keep the exact same person.
+- Preserve facial proportions, eyes, nose, lips, eyebrows, makeup, skin tone, expression and recognizable marks.
+- Do not beautify, slim, reshape jaw, enlarge eyes, alter nose or change makeup.
+- Do not age or de-age.
+- Face should look like the original photograph, not a newly invented face.
 
 HAIR:
-- Change only the hairstyle to: ${hair}.
-- Hair should look natural, realistic, tidy, and physically attached to the original head.
-- Keep the hairline believable. Do not cover important facial features.
-- Hair should not be excessively thick.
+- ${STYLE_MAP[hairstyle] || STYLE_MAP.shoulder20}
+- Modify hair only around the preserved face.
+- Natural hairline, realistic strands, moderate volume.
+- Do not cover important facial features.
 
 CLOTHING:
-- Replace clothing below the neck with ${suitText}.
-- Keep shoulders level and natural.
-- Adjust the visible neck only as needed so it connects naturally between the unchanged face and the new clothing.
-- Neck skin tone must match the face naturally.
+- Use the same black women's suit jacket and white shirt pattern as the suit reference image.
+- Keep the suit design stable between users.
+- Natural neck connection and matching skin tone.
+- Shoulders level and symmetrical.
 
-COMPOSITION / DISTANCE:
-- Vertical portrait.
-- Head and upper shoulders visible.
-- Keep the head smaller in frame than a tight passport crop: leave comfortable space above the hair and visible shoulder width.
-- Eye line should sit slightly above the vertical center.
-- Match a clean official-photo framing, not a close-up selfie.
-- Subject centered, upright, looking forward.
+COMPOSITION STANDARD — LOCK THIS:
+- Final ratio exactly 3:4.
+- Job-application framing, not a tight passport crop.
+- Show full head, neck, shoulders and upper torso like the approved reference.
+- Keep comfortable space above the head.
+- Shoulder width and torso size should match the approved reference.
+- Head must not become larger because the uploaded photo is close-up.
+- Subject centered and facing forward.
 
 BACKGROUND:
-- ${bg}.
-- No shadows, no objects, no text, no borders.
+- Standard clean bright official blue matching the approved reference.
+- Uniform flat blue, no objects, no texture, no shadows.
 
 QUALITY:
-- Photorealistic, studio lighting, neutral exposure, natural skin texture.
-- No painterly effect, no cartoon look, no artificial plastic skin.
-- Do not add accessories.
+- Photorealistic studio portrait.
+- Natural skin texture and lighting.
+- No painterly or plastic look.
+- No text, watermark, border or accessories.
 `;
 }
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    ok: true,
-    aiConfigured: Boolean(process.env.OPENAI_API_KEY),
-    model: process.env.IMAGE_MODEL || "gpt-image-1"
-  });
+app.get("/api/health", (_, res) => {
+  res.json({ ok: true, aiConfigured: Boolean(process.env.OPENAI_API_KEY), model: MODEL });
 });
 
 app.post("/api/generate", upload.single("image"), async (req, res) => {
-  const tempPath = req.file?.path;
+  const temp = req.file?.path;
   try {
+    if (!req.file) return res.status(400).json({ error: "กรุณาเลือกรูป" });
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({
         error: "AI_NOT_CONFIGURED",
-        message: "ยังไม่ได้ตั้งค่า OPENAI_API_KEY เว็บส่วนพรีวิวใช้งานได้ แต่ยังไม่เรียก AI"
+        message: "ยังไม่ได้เพิ่ม OPENAI_API_KEY แต่โค้ดและไฟล์อ้างอิงพร้อมแล้ว"
       });
     }
-    if (!req.file) {
-      return res.status(400).json({ error: "กรุณาอัปโหลดรูปใบหน้า" });
-    }
 
-    const prompt = buildPrompt({
-      hairStyle: req.body.hairStyle,
-      suit: req.body.suit,
-      background: req.body.background
-    });
-
-    const fileBytes = await fs.promises.readFile(req.file.path);
     const form = new FormData();
-    form.append("model", process.env.IMAGE_MODEL || "gpt-image-1");
-    form.append("prompt", prompt);
-    form.append("image", new Blob([fileBytes], { type: req.file.mimetype || "image/jpeg" }), req.file.originalname || "portrait.jpg");
+    form.append("model", MODEL);
+    form.append("prompt", promptFor({ hairstyle: req.body.hairstyle || "shoulder20" }));
     form.append("size", "1024x1536");
     form.append("quality", "high");
     form.append("output_format", "png");
-    // Supported by gpt-image-1 and useful for face fidelity.
-    if ((process.env.IMAGE_MODEL || "gpt-image-1") === "gpt-image-1") {
-      form.append("input_fidelity", "high");
-    }
+    if (MODEL === "gpt-image-1") form.append("input_fidelity", "high");
 
-    const response = await fetch("https://api.openai.com/v1/images/edits", {
+    const addImage = async (p, name, type="image/png") => {
+      const bytes = await fs.promises.readFile(p);
+      form.append("image[]", new Blob([bytes], { type }), name);
+    };
+
+    await addImage(req.file.path, req.file.originalname || "customer.jpg", req.file.mimetype || "image/jpeg");
+    await addImage(SUIT_REF, "female-suit-reference.jpg", "image/jpeg");
+    await addImage(HAIR20_REF, "hair20-reference.jpg", "image/jpeg");
+    await addImage(STANDARD_REF, "approved-standard.png", "image/png");
+
+    const api = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-      },
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
       body: form
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json({
+    const data = await api.json();
+    if (!api.ok) {
+      return res.status(api.status).json({
         error: "OPENAI_ERROR",
         message: data?.error?.message || "สร้างภาพไม่สำเร็จ",
         details: data?.error || data
       });
     }
 
+    let bytes;
     const b64 = data?.data?.[0]?.b64_json;
     const url = data?.data?.[0]?.url;
-    if (b64) {
-      return res.json({ image: `data:image/png;base64,${b64}` });
+    if (b64) bytes = Buffer.from(b64, "base64");
+    else if (url) {
+      const r = await fetch(url);
+      bytes = Buffer.from(await r.arrayBuffer());
+    } else {
+      return res.status(500).json({ error: "ไม่พบภาพจาก AI" });
     }
-    if (url) {
-      return res.json({ image: url });
+
+    // Force final output to exact 3:4, centered, matching the approved standard.
+    const meta = await sharp(bytes).metadata();
+    const w = meta.width || 1024;
+    const h = meta.height || 1536;
+    const targetRatio = 3 / 4;
+    let cropW = w, cropH = Math.round(w / targetRatio);
+    if (cropH > h) {
+      cropH = h;
+      cropW = Math.round(h * targetRatio);
     }
-    return res.status(500).json({ error: "ไม่พบข้อมูลภาพจาก API" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "SERVER_ERROR", message: err?.message || "เกิดข้อผิดพลาด" });
+    const left = Math.max(0, Math.round((w - cropW) / 2));
+    const top = Math.max(0, Math.round((h - cropH) / 2));
+    const finalPng = await sharp(bytes)
+      .extract({ left, top, width: cropW, height: cropH })
+      .resize(1200, 1600, { fit: "fill" })
+      .png()
+      .toBuffer();
+
+    res.json({ image: `data:image/png;base64,${finalPng.toString("base64")}` });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "SERVER_ERROR", message: e?.message || "เกิดข้อผิดพลาด" });
   } finally {
-    if (tempPath) fs.promises.unlink(tempPath).catch(() => {});
+    if (temp) fs.promises.unlink(temp).catch(() => {});
   }
 });
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Photo ID Studio TH running on http://localhost:${port}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Photo Ready running on ${PORT}`);
 });
