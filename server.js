@@ -22,6 +22,7 @@ const PUBLIC = path.resolve("public");
 const SUIT_REF = path.join(PUBLIC, "assets", "suit-female-formal.jpg");
 const HAIR20_REF = path.join(PUBLIC, "assets", "hair20-reference.jpg");
 const STANDARD_REF = path.join(PUBLIC, "assets", "approved-result-2.png");
+const HAIR_DIR = path.join(PUBLIC, "assets", "hairstyles");
 
 const STYLE_MAP = {
   original: "keep the original hairstyle unchanged",
@@ -52,7 +53,7 @@ IDENTITY LOCK:
 - Face should look like the original photograph, not a newly invented face.
 
 HAIR:
-- ${STYLE_MAP[hairstyle] || STYLE_MAP.shoulder20}
+- Match the dedicated selected-hairstyle reference image as closely as possible: silhouette, parting, bangs, length, volume, direction and overall shape.
 - Modify hair only around the preserved face.
 - Natural hairline, realistic strands, moderate volume.
 - Do not cover important facial features.
@@ -116,6 +117,16 @@ app.post("/api/generate", upload.single("image"), async (req, res) => {
     await addImage(SUIT_REF, "female-suit-reference.jpg", "image/jpeg");
     await addImage(HAIR20_REF, "hair20-reference.jpg", "image/jpeg");
     await addImage(STANDARD_REF, "approved-standard.png", "image/png");
+    if (req.body.hairstyle !== "original") {
+      const n = String(req.body.hairstyle || "29").padStart(2, "0");
+      const match = fs.readdirSync(HAIR_DIR).find(name => name.startsWith(`hair-${n}.`));
+      if (match) {
+        const hp = path.join(HAIR_DIR, match);
+        const ext = path.extname(hp).toLowerCase();
+        const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+        await addImage(hp, `selected-hairstyle-${n}${ext}`, mime);
+      }
+    }
 
     const api = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
