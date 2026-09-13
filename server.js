@@ -68,75 +68,158 @@ function getHairRef(value){
 }
 
 function buildPrompt({outfitLabel,hair,background,size}){
-  const hairInstruction = hair==="original"
-    ? "Keep the hairstyle from IMAGE 1 unchanged."
-    : `IMAGE 3 is the authoritative hairstyle reference and must control the hairstyle.
-Do not infer the hairstyle from the number or from text.
-Visually copy IMAGE 3's actual hairstyle: parting, fringe/bangs, hairline shape, side pieces, length, volume, contour, tied/untied structure and direction.
-Do not substitute another hairstyle. IMAGE 3 is hair-${String(hair).padStart(2,"0")}. Match its parting, bangs/fringe, silhouette, length, volume, direction, side pieces and tied/untied structure. Do not invent a different hairstyle.`;
+  const hairNumber = hair==="original" ? null : String(hair).padStart(2,"0");
+
+  const hairRule = hair==="original"
+    ? `
+HAIR — ORIGINAL MODE:
+- KEEP THE CUSTOMER'S ORIGINAL HAIRSTYLE FROM IMAGE 1.
+- Do not restyle, lengthen, shorten, add bangs, remove bangs, tie, untie, curl, straighten, thicken, thin, recolor, or otherwise change the hairstyle.
+- Only clean stray edges if necessary for the background replacement.
+`
+    : `
+HAIR — SELECTED REFERENCE MODE:
+- IMAGE 3 is the ONLY hairstyle reference and is authoritative.
+- Selected hairstyle file: hair-${hairNumber}.
+- Reproduce the actual hairstyle visible in IMAGE 3 as closely as possible.
+- Match: parting, fringe/bangs, hairline shape, side pieces, length, volume, contour, direction, tied/untied structure, and how much of the ears are visible.
+- DO NOT infer the hairstyle from the number or from text.
+- DO NOT invent, simplify, substitute, or choose a different hairstyle.
+- DO NOT copy the face, skin, eyes, nose, lips, jaw, makeup, or identity of the model in IMAGE 3.
+`;
 
   return `
-You are editing one real customer's portrait for a Thai ID/job-application photo.
+PHOTO ID STUDIO TH — STRICT IDENTITY-PRESERVING EDIT
 
-THE INPUT IMAGES HAVE FIXED ROLES:
-- IMAGE 1 = CUSTOMER PORTRAIT. This is the ONLY identity source.
-- IMAGE 2 = SELECTED OUTFIT REFERENCE: "${outfitLabel}". Use this exact clothing design only.
-- IMAGE 4 = MASTER FRAMING REFERENCE. Use IMAGE 4 ONLY for head size, head position, top headroom, neck position, shoulder level, shoulder width, upper-torso scale, and overall camera distance.
-${hair==="original" ? "" : `- IMAGE 3 = SELECTED HAIRSTYLE REFERENCE: hair-${String(hair).padStart(2,"0")}. Use ONLY its hairstyle, never its face.`}
+You are NOT creating a new person.
+You are editing the CUSTOMER in IMAGE 1 while preserving that same person's identity.
 
-NON-NEGOTIABLE IDENTITY RULE:
-- The final face must remain the same person as IMAGE 1.
-- Preserve face shape, eyes, eyebrows, nose, lips, smile/expression, skin tone, makeup and recognizable facial details from IMAGE 1.
-- Do NOT copy any face, skin, makeup or identity from IMAGE 2 or IMAGE 3.
-- Do NOT beautify, slim, reshape, enlarge eyes, alter nose, alter jaw, age/de-age, or change the person's expression.
-- IMAGE 2 and IMAGE 3 are style references only.
+INPUT IMAGE ROLES — MUST FOLLOW:
+- IMAGE 1 = CUSTOMER ORIGINAL. This is the ONLY source for identity, face, skin, makeup, facial expression, age, and personal appearance.
+- IMAGE 2 = SELECTED OUTFIT REFERENCE: "${outfitLabel}". Use IMAGE 2 ONLY for the clothing design.
+${hair==="original" ? "" : `- IMAGE 3 = SELECTED HAIRSTYLE REFERENCE: hair-${hairNumber}. Use IMAGE 3 ONLY for hairstyle design.`}
+- IMAGE 4 = MASTER FRAMING REFERENCE. Use IMAGE 4 ONLY for camera distance, head size, head position, top headroom, neck position, shoulder level, shoulder width, and visible upper-torso scale.
 
-OUTFIT RULE:
-- Use the clothing shown in IMAGE 2 as the exact selected outfit.
-- Match collar, lapel, shirt opening, jacket shape, neckline and garment silhouette as closely as possible.
-- Do not redesign or substitute another outfit.
-- Do NOT use IMAGE 2 to decide zoom, head size, body scale, shoulder level, or camera distance. Those are controlled by IMAGE 4.
+ABSOLUTE IDENTITY LOCK — HIGHEST PRIORITY:
+- The final person MUST remain the exact same person as IMAGE 1.
+- Preserve IMAGE 1's:
+  * face shape
+  * forehead shape
+  * eyebrows
+  * eye shape and eye size
+  * eye spacing
+  * nose shape and nose width
+  * lips and mouth shape
+  * jawline and chin
+  * cheek structure
+  * ears where visible
+  * skin tone
+  * natural skin texture
+  * moles, marks, freckles, and recognizable facial details
+  * makeup style and makeup intensity
+  * expression
+  * age
+- DO NOT beautify the face.
+- DO NOT smooth the skin into plastic/AI skin.
+- DO NOT make the face more symmetrical.
+- DO NOT slim or widen the face.
+- DO NOT enlarge or shrink the eyes.
+- DO NOT change the nose.
+- DO NOT change the lips.
+- DO NOT change the jaw or chin.
+- DO NOT alter the customer's ethnicity or apparent age.
+- DO NOT replace the customer's face with a face from any reference image.
+- DO NOT generate a new face that merely looks similar.
+- The result must be recognizably the SAME PERSON from IMAGE 1.
 
-HAIR RULE:
-- ${hairInstruction}
-- Adapt the hairstyle naturally to the head of the person from IMAGE 1 while keeping IMAGE 1's face untouched.
-- Hair may change around the face, but facial features must not.
+EDIT ONLY THESE AREAS:
+- clothing below the neck
+- hairstyle only when a hairstyle reference is selected
+- neck/clothing seam only where needed to make the composite natural
+- shoulders only as required to fit the selected outfit
+- background
+- lighting balance and edge cleanup
+- minor blending around hair, neck, collar, and shoulders
 
-COMPOSITION — MASTER LOCK:
+OUTFIT — STRICT REFERENCE:
+- Use IMAGE 2 as the authoritative clothing reference.
+- Match the selected clothing design as closely as possible:
+  * collar
+  * lapels
+  * shirt opening
+  * jacket shape
+  * neckline
+  * fabric layout
+  * visible buttons
+  * shoulder garment shape
+- DO NOT invent another outfit.
+- DO NOT alter the customer's face to fit the outfit.
+- DO NOT use IMAGE 2's face, head, hair, skin, or identity.
+- IMAGE 2 controls clothing only.
+
+${hairRule}
+
+MASTER FRAMING — STRICT:
 - Final aspect ratio: ${size==="3:4" ? "3:4" : size}.
-- IMAGE 4 is the authoritative framing reference.
-- Match IMAGE 4's head size, head position, top headroom, neck height, shoulder level, shoulder width, upper-torso scale and camera distance.
-- Keep the subject centered exactly like IMAGE 4.
-- The uploaded customer image must NOT control zoom or crop.
-- Changing outfit or hairstyle must NOT change the framing.
-- Do not zoom the face closer than IMAGE 4.
-- Show the same amount of upper torso as IMAGE 4.
+- IMAGE 4 is the authoritative composition reference.
+- Match IMAGE 4's:
+  * head size
+  * head vertical position
+  * top headroom
+  * neck height
+  * shoulder level
+  * shoulder width
+  * amount of upper torso visible
+  * overall camera distance
+- The uploaded customer's original crop MUST NOT control the final zoom.
+- Changing outfit or hairstyle MUST NOT change the framing.
+- DO NOT zoom the face closer than IMAGE 4.
+- DO NOT crop off the top of the hair.
+- Keep the subject centered and upright.
 
 BACKGROUND:
 - Replace the original background with ${BACKGROUNDS[background]||BACKGROUNDS.blue}.
-- Flat, clean, uniform background with no objects or texture.
+- Background must be flat, clean, uniform, studio-like, with no objects, texture, wall details, shadows, cars, furniture, text, logos, or scenery.
 
-QUALITY:
-- Photorealistic studio photograph.
-- Natural skin texture.
-- Even lighting.
-- No text, watermark, jewelry additions, logos or decorative elements.
+LIGHTING / REALISM:
+- Keep the face looking photographic and natural.
+- Preserve real skin texture from IMAGE 1.
+- Match face lighting gently to the new background and clothing.
+- Do not add dramatic beauty lighting.
+- Do not over-retouch.
+- Do not create glossy plastic skin.
+- No illustration, painting, CGI, anime, or synthetic portrait look.
+
+NECK / SHOULDERS:
+- Keep neck width and anatomy natural for the same person.
+- Only adjust the visible neck if required to join the original face to the selected outfit naturally.
+- Neck skin tone must match the face.
+- Keep shoulders level and natural.
+- Do not change apparent body size except what is necessary to match IMAGE 4 framing.
+
+FINAL VALIDATION BEFORE OUTPUT:
+1. Is this clearly the same person as IMAGE 1?
+2. Are eyes, nose, lips, face shape, jaw, skin tone, makeup, and expression unchanged?
+3. Is the selected outfit from IMAGE 2 used correctly?
+4. ${hair==="original" ? "Is the original hairstyle from IMAGE 1 unchanged?" : `Does the hairstyle visually match hair-${hairNumber} from IMAGE 3?`}
+5. Does framing match IMAGE 4?
+6. Is the background ${BACKGROUNDS[background]||BACKGROUNDS.blue}?
+7. Does the image still look like a real photograph rather than an AI-generated person?
 
 PRIORITY ORDER:
-1) identity and face from IMAGE 1,
-2) exact selected outfit from IMAGE 2,
-3) exact selected hairstyle from IMAGE 3 if provided,
-4) exact framing / camera distance / head-and-body scale from IMAGE 4,
-5) selected background and final 3:4 output.
+1) SAME PERSON / FACE from IMAGE 1
+2) selected OUTFIT from IMAGE 2
+3) ${hair==="original" ? "original HAIR from IMAGE 1" : `selected HAIR from IMAGE 3 (hair-${hairNumber})`}
+4) MASTER FRAMING from IMAGE 4
+5) selected BACKGROUND
+6) realistic blending only
 
-IMPORTANT:
-- Never copy the person, face, hair, clothing, skin, or identity from IMAGE 4.
-- IMAGE 4 controls composition only.
+If any reference conflicts with the customer's identity, preserve IMAGE 1 identity first.
 `;
 }
 
 app.get("/api/health",(_,res)=>{
-  res.json({ok:true,aiConfigured:Boolean(process.env.OPENAI_API_KEY),model:MODEL,referenceMode:"strict-29"});
+  res.json({ok:true,aiConfigured:Boolean(process.env.OPENAI_API_KEY),model:MODEL,referenceMode:"strict-29",promptVersion:"v9-identity-lock"});
 });
 
 app.post("/api/generate",upload.single("image"),async(req,res)=>{
@@ -163,6 +246,16 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
     if(hairValue!=="original" && !hairPath){
       return res.status(400).json({error:`ไม่พบไฟล์ทรงผมแบบ ${hairValue}`});
     }
+
+    console.log("AI_PREFLIGHT", {
+      suit:req.body.suit||"female-formal",
+      outfitFile:path.basename(outfitPath),
+      hairstyle:hairValue,
+      hairFile:hairPath?path.basename(hairPath):"original",
+      framingFile:path.basename(MASTER_REF),
+      background,
+      size
+    });
 
     const form=new FormData();
     form.append("model",MODEL);
@@ -249,7 +342,7 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
         hairstyle:hairValue,
         background,
         size:"3:4",
-        referenceMode:"strict-29",
+        referenceMode:"strict-29",promptVersion:"v9-identity-lock",
         framingPostProcess:"contain-no-crop",
         hairReference:hairPath?path.basename(hairPath):"original",
         outfitReference:path.basename(outfitPath),
