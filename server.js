@@ -20,6 +20,7 @@ const upload=multer({
 
 const PUBLIC=path.resolve("public");
 const HAIR_DIR=path.join(PUBLIC,"assets","hairstyles");
+const MASTER_REF=path.join(PUBLIC,"assets","master-framing-3x4.png");
 
 const OUTFITS={
   "female-formal": {file:"assets/suit-female-formal.jpg", label:"สูทหญิงสุภาพ"},
@@ -79,7 +80,8 @@ You are editing one real customer's portrait for a Thai ID/job-application photo
 
 THE INPUT IMAGES HAVE FIXED ROLES:
 - IMAGE 1 = CUSTOMER PORTRAIT. This is the ONLY identity source.
-- IMAGE 2 = SELECTED OUTFIT REFERENCE: "${outfitLabel}". Use this exact clothing design AND use its body/shoulder/neck scale as the composition reference.
+- IMAGE 2 = SELECTED OUTFIT REFERENCE: "${outfitLabel}". Use this exact clothing design only.
+- IMAGE 4 = MASTER FRAMING REFERENCE. Use IMAGE 4 ONLY for head size, head position, top headroom, neck position, shoulder level, shoulder width, upper-torso scale, and overall camera distance.
 ${hair==="original" ? "" : `- IMAGE 3 = SELECTED HAIRSTYLE REFERENCE: hair-${String(hair).padStart(2,"0")}. Use ONLY its hairstyle, never its face.`}
 
 NON-NEGOTIABLE IDENTITY RULE:
@@ -91,22 +93,24 @@ NON-NEGOTIABLE IDENTITY RULE:
 
 OUTFIT RULE:
 - Use the clothing shown in IMAGE 2 as the exact selected outfit.
-- Match collar, lapel, shirt opening, jacket shape, shoulder width, neckline and overall garment silhouette as closely as possible.
+- Match collar, lapel, shirt opening, jacket shape, neckline and garment silhouette as closely as possible.
 - Do not redesign or substitute another outfit.
-- Critically: match IMAGE 2's body scale and outfit framing. The selected outfit image is the composition template.
+- Do NOT use IMAGE 2 to decide zoom, head size, body scale, shoulder level, or camera distance. Those are controlled by IMAGE 4.
 
 HAIR RULE:
 - ${hairInstruction}
 - Adapt the hairstyle naturally to the head of the person from IMAGE 1 while keeping IMAGE 1's face untouched.
 - Hair may change around the face, but facial features must not.
 
-COMPOSITION:
+COMPOSITION — MASTER LOCK:
 - Final aspect ratio: ${size==="3:4" ? "3:4" : size}.
-- Use the body/shoulder/neck scale of IMAGE 2.
-- Center the subject.
-- Keep comfortable space above the head.
-- Do not make the head larger just because IMAGE 1 was a close-up.
-- Show a professional head-and-upper-torso framing appropriate for a job application.
+- IMAGE 4 is the authoritative framing reference.
+- Match IMAGE 4's head size, head position, top headroom, neck height, shoulder level, shoulder width, upper-torso scale and camera distance.
+- Keep the subject centered exactly like IMAGE 4.
+- The uploaded customer image must NOT control zoom or crop.
+- Changing outfit or hairstyle must NOT change the framing.
+- Do not zoom the face closer than IMAGE 4.
+- Show the same amount of upper torso as IMAGE 4.
 
 BACKGROUND:
 - Replace the original background with ${BACKGROUNDS[background]||BACKGROUNDS.blue}.
@@ -120,9 +124,14 @@ QUALITY:
 
 PRIORITY ORDER:
 1) identity and face from IMAGE 1,
-2) exact selected outfit + body scale from IMAGE 2,
+2) exact selected outfit from IMAGE 2,
 3) exact selected hairstyle from IMAGE 3 if provided,
-4) selected background and final 3:4 output.
+4) exact framing / camera distance / head-and-body scale from IMAGE 4,
+5) selected background and final 3:4 output.
+
+IMPORTANT:
+- Never copy the person, face, hair, clothing, skin, or identity from IMAGE 4.
+- IMAGE 4 controls composition only.
 `;
 }
 
@@ -192,6 +201,12 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
       );
     }
 
+    await appendImage(
+      MASTER_REF,
+      "04-master-framing-3x4.png",
+      "image/png"
+    );
+
     const api=await fetch("https://api.openai.com/v1/images/edits",{
       method:"POST",
       headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},
@@ -232,7 +247,8 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
         size:"3:4",
         referenceMode:"strict-29",
         hairReference:hairPath?path.basename(hairPath):"original",
-        outfitReference:path.basename(outfitPath)
+        outfitReference:path.basename(outfitPath),
+        framingReference:path.basename(MASTER_REF)
       }
     });
   }catch(err){
