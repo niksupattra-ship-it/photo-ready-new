@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#f7f8fb" />
+  <title>Photo ID Studio TH</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">ID</div>
+      <div>
+        <div class="brand-title">Photo ID Studio TH</div>
+        <div class="brand-subtitle">รูปพร้อมใช้ — จัดรูปสมัครงานและรูปทางการ</div>
+      </div>
+    </div>
+    <div class="ai-status" id="aiStatus">กำลังตรวจสอบ AI…</div>
+  </header>
+
+  <main class="app-shell">
+    <section class="controls card">
+      <div class="section-heading">
+        <span class="step">1</span>
+        <div>
+          <h2>อัปโหลดรูปใบหน้า</h2>
+          <p>ใช้รูปหน้าตรง แสงชัด ไม่ต้องตัดพื้นหลัง</p>
+        </div>
+      </div>
+
+      <label class="upload-box" id="uploadBox">
+        <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" />
+        <span class="upload-icon">＋</span>
+        <strong>เลือกรูปจากเครื่อง</strong>
+        <small>JPG, PNG หรือ WEBP</small>
+      </label>
+
+      <div class="section-divider"></div>
+
+      <div class="section-heading compact">
+        <span class="step">2</span>
+        <div>
+          <h2>เลือกชุด</h2>
+          <p>เวอร์ชันนี้ตั้งค่าตามตัวอย่างล่าสุด</p>
+        </div>
+      </div>
+
+      <div class="option-grid two">
+        <button class="option-card active" data-suit="female-formal">
+          <div class="suit-thumb">
+            <span class="head-dot"></span>
+            <span class="jacket"></span>
+          </div>
+          <span>สูทหญิงสุภาพ</span>
+          <small>แนะนำ</small>
+        </button>
+        <button class="option-card disabled" disabled>
+          <div class="placeholder-thumb">+</div>
+          <span>ชุดอื่น</span>
+          <small>เพิ่มภายหลัง</small>
+        </button>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <div class="section-heading compact">
+        <span class="step">3</span>
+        <div>
+          <h2>เลือกทรงผม</h2>
+          <p>ค่าเริ่มต้นเป็นทรง 20 ตามที่อนุมัติ</p>
+        </div>
+      </div>
+
+      <div class="hair-grid" id="hairGrid"></div>
+
+      <div class="section-divider"></div>
+
+      <div class="section-heading compact">
+        <span class="step">4</span>
+        <div>
+          <h2>พื้นหลัง</h2>
+          <p>เปลี่ยนได้ก่อนสร้างภาพจริง</p>
+        </div>
+      </div>
+      <div class="segmented" id="backgroundPicker">
+        <button class="active" data-bg="white"><i class="swatch white"></i>ขาว</button>
+        <button data-bg="blue"><i class="swatch blue"></i>ฟ้า</button>
+        <button data-bg="gray"><i class="swatch gray"></i>เทาอ่อน</button>
+      </div>
+
+      <button class="generate-btn" id="generateBtn" disabled>
+        <span>✦</span> สร้างรูปด้วย AI
+      </button>
+      <p class="hint" id="generateHint">อัปโหลดรูปก่อนเริ่มใช้งาน</p>
+    </section>
+
+    <section class="preview card">
+      <div class="preview-top">
+        <div>
+          <h2>ตัวอย่างระยะภาพ</h2>
+          <p>ยึดระยะนี้เป็นค่าเริ่มต้นทุกภาพ</p>
+        </div>
+        <button class="ghost-btn" id="resetBtn">เริ่มใหม่</button>
+      </div>
+
+      <div class="stage-wrap">
+        <div class="photo-stage bg-white" id="photoStage">
+          <div class="safe-top"></div>
+          <div class="guide eye-guide"></div>
+          <div class="guide shoulder-guide"></div>
+
+          <div class="empty-state" id="emptyState">
+            <div class="person-icon">♙</div>
+            <strong>รูปตัวอย่างจะแสดงที่นี่</strong>
+            <span>อัปโหลดรูปใบหน้าเพื่อดูระยะ</span>
+          </div>
+
+          <img id="previewImage" alt="ตัวอย่างรูป" />
+          <img id="resultImage" alt="ผลลัพธ์จาก AI" />
+        </div>
+      </div>
+
+      <div class="preview-caption">
+        <span><b>ระยะ:</b> เห็นศีรษะและหัวไหล่ ไม่ซูมหน้าแน่น</span>
+        <span><b>ชุด:</b> สูทหญิงสุภาพ</span>
+        <span><b>ผม:</b> <span id="selectedHairText">ทรง 20</span></span>
+      </div>
+
+      <div class="result-actions" id="resultActions">
+        <a id="downloadBtn" class="download-btn" download="photo-id-studio-th.png">ดาวน์โหลดภาพ</a>
+        <button class="ghost-btn" id="backToOriginalBtn">ดูรูปต้นฉบับ</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
