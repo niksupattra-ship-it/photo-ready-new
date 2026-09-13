@@ -21,3 +21,17 @@
 - `assets/hairstyles/hair-07.png`
 
 ดังนั้น “แบบ 07” ไม่ได้แปลเป็นข้อความบรรยายทรงผม แต่ใช้ไฟล์ `hair-07.png` จริง
+
+
+## v6 strict hairstyle reference mode
+
+กฎใหม่:
+- แบบ 01 ต้องใช้ `hair-01.*`
+- ...
+- แบบ 29 ต้องใช้ `hair-29.*`
+- Backend ต้องพบไฟล์ของหมายเลขที่เลือกเพียง 1 ไฟล์เท่านั้น
+- ถ้าหาย/ซ้ำ/เลขผิด ระบบ error ทันที
+- ห้าม fallback ไปใช้ prompt บรรยายทรงผม
+- IMAGE 3 เป็น authoritative hairstyle reference
+- หน้าและตัวตนยังมาจาก IMAGE 1 เท่านั้น
+- ชุดและระยะช่วงตัวมาจาก IMAGE 2

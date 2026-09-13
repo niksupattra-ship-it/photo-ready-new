@@ -47,17 +47,32 @@ function mimeFromPath(p){
 }
 
 function getHairRef(value){
-  if(value==="original")return null;
-  const n=String(value||"07").padStart(2,"0");
-  if(!/^\d{2}$/.test(n))return null;
-  const name=fs.readdirSync(HAIR_DIR).find(x=>x.startsWith(`hair-${n}.`));
-  return name ? path.join(HAIR_DIR,name) : null;
+  if(value==="original") return null;
+
+  const n=String(value||"").padStart(2,"0");
+  if(!/^(0[1-9]|1[0-9]|2[0-9])$/.test(n)){
+    throw new Error(`INVALID_HAIR_NUMBER:${n}`);
+  }
+
+  const files=fs.readdirSync(HAIR_DIR).filter(name =>
+    name.toLowerCase().match(new RegExp(`^hair-${n}\.(png|jpg|jpeg|webp)$`))
+  );
+
+  // Strict mode: exactly one file must exist. Never guess/fallback.
+  if(files.length!==1){
+    throw new Error(`HAIR_REFERENCE_REQUIRED:${n}`);
+  }
+
+  return path.join(HAIR_DIR,files[0]);
 }
 
 function buildPrompt({outfitLabel,hair,background,size}){
   const hairInstruction = hair==="original"
     ? "Keep the hairstyle from IMAGE 1 unchanged."
-    : `Copy the hairstyle design from IMAGE 3 exactly as the hairstyle reference for this job. IMAGE 3 is hair-${String(hair).padStart(2,"0")}. Match its parting, bangs/fringe, silhouette, length, volume, direction, side pieces and tied/untied structure. Do not invent a different hairstyle.`;
+    : `IMAGE 3 is the authoritative hairstyle reference and must control the hairstyle.
+Do not infer the hairstyle from the number or from text.
+Visually copy IMAGE 3's actual hairstyle: parting, fringe/bangs, hairline shape, side pieces, length, volume, contour, tied/untied structure and direction.
+Do not substitute another hairstyle. IMAGE 3 is hair-${String(hair).padStart(2,"0")}. Match its parting, bangs/fringe, silhouette, length, volume, direction, side pieces and tied/untied structure. Do not invent a different hairstyle.`;
 
   return `
 You are editing one real customer's portrait for a Thai ID/job-application photo.
@@ -112,7 +127,7 @@ PRIORITY ORDER:
 }
 
 app.get("/api/health",(_,res)=>{
-  res.json({ok:true,aiConfigured:Boolean(process.env.OPENAI_API_KEY),model:MODEL});
+  res.json({ok:true,aiConfigured:Boolean(process.env.OPENAI_API_KEY),model:MODEL,referenceMode:"strict-29"});
 });
 
 app.post("/api/generate",upload.single("image"),async(req,res)=>{
@@ -214,7 +229,10 @@ app.post("/api/generate",upload.single("image"),async(req,res)=>{
         suit:req.body.suit||"female-formal",
         hairstyle:hairValue,
         background,
-        size:"3:4"
+        size:"3:4",
+        referenceMode:"strict-29",
+        hairReference:hairPath?path.basename(hairPath):"original",
+        outfitReference:path.basename(outfitPath)
       }
     });
   }catch(err){

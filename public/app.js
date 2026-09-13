@@ -1,7 +1,7 @@
 const state={
   file:null,
   url:null,
-  hair:"07",
+  hair:"20",
   suit:"female-formal",
   suitLabel:"สูทหญิงสุภาพ",
   background:"blue",
@@ -42,7 +42,7 @@ function renderHairGrid(){
     const b=document.createElement("button");
     b.type="button";
     b.dataset.hair=String(n).padStart(2,"0");
-    if(n===7)b.classList.add("active");
+    if(n===20)b.classList.add("active");
     b.innerHTML=`<img class="hair-thumb" src="${u}" alt="ทรงผมแบบ ${String(n).padStart(2,"0")}"><span>แบบ ${String(n).padStart(2,"0")}</span>`;
     grid.appendChild(b);
   });
