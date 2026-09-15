@@ -382,18 +382,22 @@ function App(){
  const transparentCache=useRef({key:'',blob:null});
  const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const go=async()=>{setBusy(true);setMsg('');try{
-  // V40 ORDER LOCK: source -> AI skin/hair -> remove.bg -> extract transparent head -> final V38/V39 placement.
-  // Never remove the source background before AI, and never paste AI's background/body into the final image.
-  const aiResult=hairId ? await aiFinishPortrait(f,hairId) : f;
-  const d=new FormData();d.append('image',aiResult,'ai-head.png');
-  const r=await fetch('/api/remove-background',{method:'POST',body:d});
-  if(!r.ok)throw Error(await r.text());
-  const transparent=await r.blob();
+  const fileKey=[f.name,f.size,f.lastModified].join(':');
+  let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
+  if(!transparent){
+   const d=new FormData();d.append('image',f);
+   const r=await fetch('/api/remove-background',{method:'POST',body:d});
+   if(!r.ok)throw Error(await r.text());
+   transparent=await r.blob();
+   transparentCache.current={key:fileKey,blob:transparent};
+  }
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
-  setB(URL.createObjectURL(composed.blob));
+  const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
+  const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock,composed.blob) : aiResult;
+  setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V40: AI First → Remove Background → Transparent Head → Final Placement; V38/V39 geometry retained — Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V39: V38 System + Transparent Head Matte + Head Lift 10% — Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>

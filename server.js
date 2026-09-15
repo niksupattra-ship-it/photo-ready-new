@@ -74,7 +74,8 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
     const hairBuf=fs.readFileSync(hairPath);
 
-    const prompt=`PHOTOREALISTIC ID-PHOTO HEAD EDIT. The first image is the ORIGINAL uploaded person photo BEFORE background removal. The second image is ONLY the selected hairstyle reference. The output will be background-removed AFTER this AI step and ONLY the transparent head/hair/neck will be used in the final V28/V39 composition.
+    const prompt=`PHOTOREALISTIC ID-PHOTO LOCAL EDIT. V28 COMPOSITION IS LOCKED.
+The first image is the final V28 composition. The second image is ONLY the selected hairstyle reference.
 
 SKIN-LIGHT — EXACT V9 METHOD (natural preset, strength 15%): Perform an effective, clearly visible professional camera-lighting correction across the whole photograph while preserving the original face and real skin texture. Correct exposure, white balance, highlight recovery, and shadow balance without smoothing, repainting, whitening, beautifying, or changing facial anatomy. APPLY A VISIBLE LIGHTING RESULT. Natural-light preset: ธรรมชาติ. The user selected 15% on a true 0–100 adjustment scale. Apply a gentle but visible exposure and white-balance correction. Create neutral true-to-life camera exposure and accurate white balance with the original complexion unchanged. Preserve pores, fine lines, blemishes, under-eye detail, facial contrast, and every real skin feature. The change must be noticeable in overall luminosity and balance, but must come only from photographic light correction—never skin smoothing, denoising, repainting, makeup, reshaping, or face regeneration.
 
@@ -82,9 +83,9 @@ PROFESSIONAL CAMERA DETAIL LOCK — EXACT V9: render the finished photograph wit
 
 HAIR: replace only the hairstyle with image 2 as the authoritative hairstyle target. Match its parting, fringe, side shape, crown, volume, length, tied/untied structure and silhouette. Remove source-hair remnants that conflict with the selected style. Adapt the style to the subject's own skull, hairline, ears and head angle. Do not copy the reference face or anatomy. Hair must remain photographic, with natural roots, strands, density variation and soft flyaways.
 
-HARD LOCK: do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age, identity, or facial proportions. Do not intentionally rescale or reshape the head. Only V9 skin/camera correction and the selected hairstyle may change. The body/background in this AI output are disposable and MUST NOT be relied upon, because remove.bg runs immediately after AI and only the extracted transparent head/hair/neck is composited onto the fixed real uniform template.
+HARD LOCK: do not move, rescale, crop, zoom or redesign the V28 head position, neck socket, shoulders, uniform, collar, tie, insignia, epaulettes, buttons, body proportions, background or framing. Do not regenerate the uniform or background. Do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age or facial proportions. Only the V9 skin/camera correction, hairstyle, and narrow hair/neck seam may change.
 
-FINAL: preserve the original person identity exactly. Produce a photorealistic head/hair result suitable for clean background removal; no beautification and no artificial skin.`;
+FINAL: preserve V28 geometry and composition exactly. The result must look like a real professional ID photograph, not AI-generated.`;
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");

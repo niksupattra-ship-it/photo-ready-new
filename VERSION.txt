@@ -1,2 +1,1 @@
-V40
-AI first -> remove.bg -> transparent head -> final placement. All V38/V39 geometry retained.
+V39\n
