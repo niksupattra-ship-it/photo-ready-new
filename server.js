@@ -51,7 +51,7 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     const hairBuf=fs.readFileSync(hairPath);
 
     const prompt=`STRICT PHOTO COMPOSITING / SEAM FINISH ONLY.
-The first image already contains a TEMPLATE-NORMALIZED preserved head at a fixed canonical optical size and a fixed short neck socket against a fixed Thai ceremonial uniform template. The second image is the selected hairstyle reference.
+The first image already contains a TEMPLATE-NORMALIZED preserved head at a fixed canonical optical size and a fixed VERY SHORT neck socket against a fixed Thai ceremonial uniform template. The second image is the selected hairstyle reference.
 
 ABSOLUTE IDENTITY LOCK: preserve every pixel-level identity characteristic of the existing face. Do not regenerate, enlarge, shrink, stretch, project forward, beautify or reshape the face. Keep eyes, gaze, eyebrows, nose, lips, jaw, cheeks, skin texture, pores, marks, expression and apparent age unchanged. Natural camera skin only; no smoothing, whitening, makeup enhancement or plastic AI skin.
 
@@ -59,7 +59,7 @@ ABSOLUTE TEMPLATE LOCK: do not alter the uniform, collar, tie, insignia, epaulet
 
 EDIT ONLY: (A) the empty anatomical connection between the preserved jaw/chin and the fixed collar, and (B) hair outside the protected face region.
 
-NECK: ignore/delete all neck proportions from the source photograph. Construct a NEW anatomically plausible adult neck ONLY inside the short fixed gap from the jaw to the collar. The collar and jaw are immutable anchors. Neck width at the jaw must visually support the existing jaw and widen naturally toward the collar; keep the neck compact, centered and anatomically continuous. DO NOT move the chin upward, move the collar downward, or create extra neck length. Never make a pencil neck, long neck, stretched neck, tiny neck, or forward-projecting head. Blend skin tone, pores, light and camera grain to the preserved face.
+NECK: ignore/delete all neck proportions from the source photograph. Construct a NEW anatomically plausible adult neck ONLY inside the very short fixed gap from the jaw to the collar. The chin is intentionally positioned close to the collar; fill that small bridge only. The collar and jaw are immutable anchors. Neck width at the jaw must visually support the existing jaw and widen naturally toward the collar; keep the neck compact, centered and anatomically continuous. DO NOT move the chin upward, move the head upward, move the collar downward, or create extra neck length. Keep the completed chin-to-collar distance exactly as short as supplied. Never make a pencil neck, long neck, stretched neck, tiny neck, or forward-projecting head. Blend skin tone, pores, light and camera grain to the preserved face.
 
 HAIR: follow the second image hairstyle reference around the existing normalized head. Do not move the hairline in a way that changes perceived face length or width. Do not cover or redraw facial features.
 

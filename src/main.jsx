@@ -182,8 +182,11 @@ async function composePortrait(headBlob){
   // ช่องคอสั้นปานกลาง ลดปัญหาคอยาวและใบหน้าลอย
   // V12 FIXED NECK SOCKET: visible neck is derived from normalized head, not source neck or source crop.
   // Hard limits prevent long/thin necks. For this template the chin sits only a short anatomical gap above collar.
-  const targetNeckVisible=Math.max(H*.028,Math.min(H*.040,targetFaceW*.135));
-  const chinTargetY=collarTop-targetNeckVisible;
+  // V13 COLLAR-GAP LOCK: move the normalized head down so AI never has a tall empty neck area.
+  // Keep only a very small anatomical bridge between chin and the real collar edge.
+  // This is intentionally template-relative and independent of the source photo/crop.
+  const targetNeckVisible=Math.max(H*.012,Math.min(H*.018,targetFaceW*.060));
+  const chinTargetY=collarTop-targetNeckVisible; // hard anchor: chin stays close to collar
   const hX=collarCX-faceCX*scale;
   const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
