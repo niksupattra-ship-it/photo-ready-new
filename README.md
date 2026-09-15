@@ -1,3 +1,10 @@
+# V42 — V38 + Remove AI Background Before Final Placement
+
+- Base is the user-provided V38 ZIP.
+- Everything else remains V38.
+- New order: V38 compose -> AI skin/hair/neck -> remove.bg on AI result -> transparent generated person including neck -> V38 final identity/composite placement.
+- No additional head scaling, lifting, uniform geometry, skin method, hair method, or template changes.
+
 # V37 — Final Head Proportion Fit
 
 - ฐาน V36 เดิมทั้งหมด
@@ -196,4 +203,3 @@ Changes from V20: skin tone/light/detail only, matched toward the approved earli
 - Final head layer is scaled to 80% of V37 (uniform X/Y; no distortion).
 - Full-frame AI pixels are no longer the base. V28 locked composition is the base, and AI is clipped to a narrow central head/hair/neck window. This removes AI-generated duplicate uniform/epaulettes behind the real uniform.
 - Original uniform.png remains the final overlay layer.
-\n## V39\n- Keep V38 except final head placement.\n- Head is already remove.bg transparent before composition; AI head contribution is now alpha-masked by the transparent head matte so no rectangular/background pixels can be pasted.\n- Final placed head moves upward by 10% of its placed head-layer height; scale stays identical to V38.\n

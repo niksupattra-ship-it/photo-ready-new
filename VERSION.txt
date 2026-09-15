@@ -1,1 +1,3 @@
-V41 - keep transparent AI neck after remove.bg before final head placement; all V40 geometry/skin/uniform behavior retained
+V42
+Base: V38
+Change only: remove background from AI output after AI finishing, preserving the generated person including neck, before final placement.
