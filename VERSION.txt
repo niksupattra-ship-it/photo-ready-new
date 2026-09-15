@@ -1,2 +1,2 @@
-v31
-V28 layout + local V9 skin/hair + Railway upload transport fix
+V32
+V31 system unchanged + exact V9 skin/camera method only
