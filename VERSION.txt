@@ -1,1 +1,1 @@
-V46 - post-AI Remove.bg head + hair + narrow skin-neck only; no AI uniform pixels in editable layer
+V46-head-neck-clavicle-v9-skin-template-lock

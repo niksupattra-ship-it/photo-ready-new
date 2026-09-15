@@ -361,6 +361,19 @@ async function makeEditableHeadLayer(finishedBlob,personMaskBlob,lock){
   return c;
  }finally{URL.revokeObjectURL(fu)}
 }
+async function makePlacedHeadNeckLayer(personBlob,lock){
+ const url=URL.createObjectURL(personBlob);
+ try{
+  const im=await loadImage(url);
+  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+  // AI result is already background-removed and contains only head + hair + bare neck/clavicle.
+  // Place this transparent anatomy layer at the exact normalized geometry; no uniform pixels can enter this layer.
+  x.drawImage(im,lock.hX,lock.hY,lock.headW*lock.scale,lock.headH*lock.scale);
+  return c;
+ }finally{URL.revokeObjectURL(url)}
+}
+
 async function renderAdjustedFinal(headLayer,lock,adjust){
  const bg=await loadImage('/assets/background.jpg'),uniform=await loadImage('/assets/uniform.png');
  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
@@ -424,13 +437,20 @@ function App(){
  const go=async()=>{setBusy(true);setMsg('');try{
   const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
   if(!transparent){const d=new FormData();d.append('image',f);const r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());transparent=await r.blob();transparentCache.current={key:fileKey,blob:transparent};}
-  const head=await headOnly(transparent);const composed=await composePortrait(head,{scale:1,x:0,y:0});
-  const aiResult=hairId?await aiFinishPortrait(composed.blob,hairId):composed.blob;
-  const aiPersonTransparent=hairId?await removeBackgroundBlob(aiResult):aiResult;
-  const finished=hairId?await restoreIdentityCore(aiPersonTransparent,head,composed.lock,composed.blob):aiPersonTransparent;
-  const layer=await makeEditableHeadLayer(finished,aiPersonTransparent,composed.lock);editCache.current={layer,lock:composed.lock};setHeadAdjust({scale:1,x:0,y:0});showBlob(finished);
+  // V46 PIPELINE: original -> remove.bg -> cut away original neck/body -> AI head+hair+BARE neck/clavicle only
+  // -> remove AI temporary background -> normalize against the real fixed uniform -> place UNDER uniform.
+  // The AI never receives the uniform template, so it cannot generate a duplicate uniform.
+  const sourceHead=await headOnly(transparent);
+  const aiHeadNeck=hairId?await aiFinishPortrait(sourceHead,hairId):sourceHead;
+  const headNeckTransparent=hairId?await removeBackgroundBlob(aiHeadNeck):aiHeadNeck;
+  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
+  const layer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
+  editCache.current={layer,lock:composed.lock};
+  setHeadAdjust({scale:1,x:0,y:0});
+  const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0});
+  showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V45: คงระบบ V44 เดิม แต่เลเยอร์ที่ปรับได้มีเฉพาะหัว ผม และคอเท่านั้น — ไม่มีชุด/ไหล่จาก AI</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V46: คงการปรับผิวแบบ V9 จากเวอร์ชันนี้ แต่ AI ทำเฉพาะหัว + ผม + คอเปล่าถึงไหปลาร้า แล้วลบพื้นหลังก่อนวางใต้ Template ชุดจริง</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options"><div className="hair-title">ทรงผม</div>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}><img src={h.src}/><span>{h.name}</span></button>)}</div>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
