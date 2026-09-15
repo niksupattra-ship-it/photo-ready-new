@@ -1,1 +1,2 @@
-V29 - V28 layout/geometry + exact V9 skin/camera and hairstyle method
+V30
+V28 geometry/layout/template pipeline retained. V9-style skin/hair is localized to the head; V28 body/uniform is restored after AI finishing. No random layout changes.

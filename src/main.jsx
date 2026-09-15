@@ -242,12 +242,12 @@ async function composePortrait(headBlob){
 }
 
 
-async function restoreIdentityCore(aiBlob,headBlob,lock){
+async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  // AI ใช้เพื่อเติมคอ/ผมเท่านั้น จากนั้นวางใบหน้าต้นฉบับที่ normalize แล้วกลับคืน
  // ขั้นนี้เป็น geometry lock จริง จึงไม่ปล่อยให้ AI เปลี่ยน scale/ยืดหน้าในภาพสุดท้าย
- const aiURL=URL.createObjectURL(aiBlob),headURL=URL.createObjectURL(headBlob);
+ const aiURL=URL.createObjectURL(aiBlob),headURL=URL.createObjectURL(headBlob),baseURL=URL.createObjectURL(composedBlob);
  try{
-  const ai=await loadImage(aiURL),head=await loadImage(headURL);
+  const ai=await loadImage(aiURL),head=await loadImage(headURL),base=await loadImage(baseURL);
   const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
   if(!face)return aiBlob;
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
@@ -276,15 +276,15 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   // V28: NATURAL STUDIO SKIN — keep the real photographed face, then use a restrained
   // optical complexion blend to match the approved sample: smooth tonal transitions without
   // wax/plastic skin. This is local canvas processing, not AI face regeneration.
-  ctx.globalAlpha=1;ctx.drawImage(m,0,0);
-  const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
-  const sc=soft.getContext('2d');
-  // Slightly wider optical diffusion than V27, but low opacity keeps pores/marks/identity.
-  sc.filter='blur(0.58px)';sc.drawImage(m,0,0);sc.filter='none';
-  ctx.globalAlpha=.16;ctx.drawImage(soft,0,0);ctx.globalAlpha=1;
+  // V30: retain the AI/V9-style skin inside the face core instead of replacing it with V28 source pixels.
+  // Restore the V28 template/body below the neck so AI cannot regenerate the uniform/body.
+  const restoreY=Math.max(0,Math.round(lock.hY + lock.chinY*lock.headH*lock.scale + lock.W*0.035));
+  ctx.save();
+  ctx.beginPath();ctx.rect(0,restoreY,lock.W,lock.H-restoreY);ctx.clip();
+  ctx.drawImage(base,0,0,lock.W,lock.H);ctx.restore();
 
-  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
- }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกองค์ประกอบ V28 ขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
 }
 
 async function aiFinishPortrait(composedBlob,hairId){
@@ -317,12 +317,10 @@ function App(){
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
   const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
-  // V29: keep V9 high-fidelity camera/skin + hairstyle result. Restoring V28 source-face pixels here would erase the V9 skin treatment.
-  // V28 geometry/layout is preserved upstream in composeHeadOnTemplate() and hard-locked in the AI prompt.
-  const finished=aiResult;
+  const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock,composed.blob) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V28: Natural Studio Skin — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V30: V28 Layout + Local V9 Skin/Hair — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
