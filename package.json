@@ -15,6 +15,6 @@
     "react-dom": "latest",
     "express": "latest",
     "multer": "latest",
-    "@mediapipe/tasks-vision": "0.10.22"
+    "@mediapipe/tasks-vision": "1.0.1"
   }
 }
