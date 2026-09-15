@@ -1,3 +1,20 @@
+V24 — APPROVED RIGHT-SIDE SKIN MATCH
+
+- เป้าหมายผิว: ฝั่งขวาของภาพเปรียบเทียบที่ผู้ใช้ยืนยัน
+- ลด yellow/orange จาก V23 อีก โดยไม่ฟอกขาวและไม่ทำให้ชมพู/เทา
+- คุม highlight หน้าผาก จมูก แก้ม ให้เป็นแสงสตูดิโอนุ่ม
+- คง pores / fine lines / marks / texture และรายละเอียดกล้องจริง
+- ปรับเฉพาะ skin color/light response; geometry, head-neck placement, hair, uniform, insignia, background, framing คงเดิม
+
+V23 — LESS YELLOW SKIN ONLY
+
+Changes from V22:
+- reduces remaining yellow/orange warmth more strongly
+- neutral-to-slightly-cool professional studio white balance
+- preserves original pores, marks, texture and identity
+- does not whiten, beautify, blur, reshape, or alter face geometry
+- head/neck placement, proportions, hairstyle logic, uniform/template, insignia, background and framing remain unchanged
+
 V22 — REFERENCE SKIN MATCH ONLY
 
 Base: V21. No geometry/layout/template/hair changes.

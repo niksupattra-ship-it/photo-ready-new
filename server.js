@@ -1,15 +1,29 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
 
+// V25: cache remove.bg output by exact original image bytes. Re-processing the same upload
+// during this server lifetime does not consume another remove.bg credit.
+const removeBgCache=new Map();
+const MAX_REMOVE_BG_CACHE=100;
+
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
   try{
     if(!req.file) return res.status(400).send("กรุณาเลือกรูป");
+    const imageHash=crypto.createHash("sha256").update(req.file.buffer).digest("hex");
+    const cached=removeBgCache.get(imageHash);
+    if(cached){
+      res.set("Content-Type","image/png");
+      res.set("X-RemoveBG-Cache","HIT");
+      return res.send(cached);
+    }
+
     const key=process.env.REMOVEBG_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า REMOVEBG_API_KEY ใน Render");
 
@@ -28,7 +42,13 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
       return res.status(r.status).send("remove.bg: "+msg);
     }
     const data=Buffer.from(await r.arrayBuffer());
+    if(removeBgCache.size>=MAX_REMOVE_BG_CACHE){
+      const oldest=removeBgCache.keys().next().value;
+      removeBgCache.delete(oldest);
+    }
+    removeBgCache.set(imageHash,data);
     res.set("Content-Type","image/png");
+    res.set("X-RemoveBG-Cache","MISS");
     res.set("Cache-Control","no-store");
     res.send(data);
   }catch(e){
@@ -72,10 +92,9 @@ SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes 
 TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
 
 FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.
-V22 REFERENCE-MATCHED SKIN FINISH: match the skin/light character of the approved earlier test reference: match the approved reference image 2 more strongly: slightly lower/denser exposure, neutral-to-cool professional camera white balance, clearly controlled forehead/nose/cheek shine, softer broad tonal transitions, and crisp natural microtexture. Do not leave the skin as bright, warm or glossy as V21. Preserve pores, fine lines, moles, real uneven texture, identity, facial geometry and camera detail. Reduce excess warm/yellow cast, bright facial exposure and harsh shiny micro-contrast. Keep real pores and fine tonal variation visible; the target is natural camera skin, not smoothing. Do NOT beautify, reshape, whiten, blur, denoise, airbrush, or create waxy/plastic/AI skin. This instruction applies to skin appearance only; all geometry, placement, hair, neck length/width, uniform, insignia, background and framing remain exactly as V20.
-Use a neutral professional portrait-studio white balance. Remove unwanted yellow/orange cast from skin and neck without making skin pink, gray, pale or artificially white.
-Match face and newly generated neck to the same neutral skin tone and exposure. Lighting should resemble a professional photo studio: soft diffused key light, gentle natural fill, controlled highlights, realistic soft shadows and smooth tonal roll-off.
-Do not use beauty retouching, waxy/plastic skin, airbrushing, heavy denoise, fake HDR, excessive sharpening, excessive saturation, yellow skin, orange skin, whitening, or makeup enhancement.
+V24 APPROVED-SKIN REFERENCE: target the RIGHT side of the supplied before/after comparison. Skin must read as neutral professional-studio skin: visibly less yellow/orange than V23, slightly cooler and denser, but still naturally warm enough to remain human. Preserve authentic pores, fine lines, small marks, uneven tone and camera microtexture. Control oily highlights on forehead, nose and upper cheeks; use soft diffused illumination and smooth tonal roll-off. Do not brighten or whiten the face. Do not turn skin pink, blue, gray or desaturated. The face and generated neck must share the same neutral white balance and exposure. This instruction changes SKIN COLOR/LIGHT RESPONSE ONLY; face identity/geometry, head/neck placement and scale, hairstyle logic, uniform/template, insignia, background and framing remain locked exactly as before.
+COLOR PRIORITY: suppress excess yellow/orange primarily in skin midtones and highlights while retaining natural red/blood-tone variation in lips and cheeks. Avoid global color changes to uniform, insignia, hair or background.
+TEXTURE PRIORITY: no beauty smoothing, airbrush, denoise-smearing, wax/plastic finish, fake HDR, excessive sharpening, makeup enhancement or synthetic skin detail.
 `;
 
     const form=new FormData();

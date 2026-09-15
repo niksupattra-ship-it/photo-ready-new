@@ -1,4 +1,4 @@
-import React,{useState}from'react';
+import React,{useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker}from'@mediapipe/tasks-vision';
 import'./style.css';
@@ -269,7 +269,7 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   const feather=Math.max(3,Math.min(7,lock.W*.0045));
   x.filter=`blur(${feather}px)`;x.drawImage(tmp,0,0);x.filter='none';
   mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
-  // V22 SKIN ONLY: stronger reference-match to the approved earlier portrait (reference image 2).
+  // V24 SKIN ONLY: match approved right-side reference — neutral studio skin, less yellow/orange, preserve real texture.
   // Keep geometry and real source texture locked, but correct the restored ORIGINAL face pixels
   // toward the reference's lower exposure, neutral/cool white balance and controlled highlights.
   const skinTone=document.createElement('canvas');skinTone.width=lock.W;skinTone.height=lock.H;
@@ -283,15 +283,17 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
     // Compress bright/oily highlights more than midtones; preserve pores and local texture.
     const hi=Math.max(0,(y-145)/110);
     const gain=.965-.035*Math.min(1,hi);
-    r=r*gain-3.2; g=g*gain-1.2; b=b*gain+1.8;
+    // V24: stronger yellow/orange neutralization toward approved right-side reference.
+    // Reduce red/green warmth without whitening; modest blue compensation keeps skin neutral.
+    r=r*gain-7.0; g=g*gain-5.5; b=b*gain+5.0;
     // Restrained chroma only: remove yellow/orange cast without whitening or pinking skin.
     const yy=.2126*r+.7152*g+.0722*b;
-    r=yy+(r-yy)*.94; g=yy+(g-yy)*.94; b=yy+(b-yy)*.97;
+    r=yy+(r-yy)*.87; g=yy+(g-yy)*.87; b=yy+(b-yy)*1.00;
     d[i]=Math.max(0,Math.min(255,r));d[i+1]=Math.max(0,Math.min(255,g));d[i+2]=Math.max(0,Math.min(255,b));
   }
   sc.putImageData(im,0,0);
   // Apply the reference grade decisively while retaining a small share of untouched source color.
-  ctx.globalAlpha=.18;ctx.drawImage(m,0,0);ctx.globalAlpha=.82;ctx.drawImage(skinTone,0,0);ctx.globalAlpha=1;
+  ctx.globalAlpha=.10;ctx.drawImage(m,0,0);ctx.globalAlpha=.90;ctx.drawImage(skinTone,0,0);ctx.globalAlpha=1;
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
@@ -312,19 +314,25 @@ const HAIR_OPTIONS=[
 
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
- const pick=e=>{const v=e.target.files?.[0];if(v){setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const transparentCache=useRef({key:'',blob:null});
+ const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const go=async()=>{setBusy(true);setMsg('');try{
-  const d=new FormData();d.append('image',f);
-  const r=await fetch('/api/remove-background',{method:'POST',body:d});
-  if(!r.ok)throw Error(await r.text());
-  const transparent=await r.blob();
+  const fileKey=[f.name,f.size,f.lastModified].join(':');
+  let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
+  if(!transparent){
+   const d=new FormData();d.append('image',f);
+   const r=await fetch('/api/remove-background',{method:'POST',body:d});
+   if(!r.ok)throw Error(await r.text());
+   transparent=await r.blob();
+   transparentCache.current={key:fileKey,blob:transparent};
+  }
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
   const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
   const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V25: ลบพื้นหลังเพียงครั้งเดียวต่อรูปต้นฉบับ แล้วใช้ PNG โปร่งใสเดิมซ้ำในการประมวลผล/เปลี่ยนทรงผม โดยไม่เสียเครดิต remove.bg ซ้ำ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
@@ -332,7 +340,7 @@ function App(){
    <img src={h.src}/><span>{h.name}</span>
  </button>)}
 </div>
-<button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
+<button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
  {b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div>}
  {b&&<a className="save" href={b} download="photo-composed.jpg">ดาวน์โหลดภาพ</a>}
