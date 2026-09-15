@@ -323,6 +323,36 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
 }
 
+async function makeEditableHeadLayer(finishedBlob,personMaskBlob,lock){
+ const fu=URL.createObjectURL(finishedBlob),mu=URL.createObjectURL(personMaskBlob);
+ try{
+  const finalImg=await loadImage(fu),maskImg=await loadImage(mu);
+  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
+  const x=c.getContext('2d');x.drawImage(finalImg,0,0,lock.W,lock.H);
+  x.globalCompositeOperation='destination-in';
+  // use the already-created transparent AI person as alpha; no new API call
+  x.drawImage(maskImg,0,0,lock.W,lock.H);
+  x.globalCompositeOperation='destination-in';
+  const clip=document.createElement('canvas');clip.width=lock.W;clip.height=lock.H;
+  const q=clip.getContext('2d');
+  const left=Math.max(0,lock.hX+lock.headW*lock.scale*.08), right=Math.min(lock.W,lock.hX+lock.headW*lock.scale*.92);
+  const top=Math.max(0,lock.hY), bottom=Math.min(lock.H,lock.hY+lock.chinY*lock.headH*lock.scale+lock.W*.06);
+  q.fillStyle='#fff';q.fillRect(left,top,Math.max(1,right-left),Math.max(1,bottom-top));
+  x.drawImage(clip,0,0);
+  return c;
+ }finally{URL.revokeObjectURL(fu);URL.revokeObjectURL(mu)}
+}
+async function renderAdjustedFinal(headLayer,lock,adjust){
+ const bg=await loadImage('/assets/background.jpg'),uniform=await loadImage('/assets/uniform.png');
+ const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
+ const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
+ const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H;
+ const cx=lock.hX+(lock.headW*lock.scale)/2, cy=lock.hY+(lock.headH*lock.scale)/2;
+ x.save();x.translate(cx+dx,cy+dy);x.scale(s,s);x.translate(-cx,-cy);x.drawImage(headLayer,0,0);x.restore();
+ x.drawImage(uniform,lock.uX,lock.uY,lock.uW,lock.uH);
+ return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
+}
+
 async function makeAiUploadBlob(composedBlob){
  // V31 transport-only fix: Railway was aborting the large lossless PNG multipart upload.
  // Keep the V28 composition itself untouched; only create a high-quality JPEG copy for the AI request.
@@ -367,52 +397,28 @@ const HAIR_OPTIONS=[
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0});
- const transparentCache=useRef({key:'',blob:null});
- const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
+ const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
+ const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0});setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,next);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
+ const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.55,Math.min(1.45,v.scale));applyAdjust(v)};
  const go=async()=>{setBusy(true);setMsg('');try{
-  const fileKey=[f.name,f.size,f.lastModified].join(':');
-  let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
-  if(!transparent){
-   const d=new FormData();d.append('image',f);
-   const r=await fetch('/api/remove-background',{method:'POST',body:d});
-   if(!r.ok)throw Error(await r.text());
-   transparent=await r.blob();
-   transparentCache.current={key:fileKey,blob:transparent};
-  }
-  const head=await headOnly(transparent);
-  const composed=await composePortrait(head,headAdjust);
-  const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
-  // V42: keep V38 pipeline/geometry, but remove the AI output background AFTER AI finishing.
-  // This preserves the complete generated person silhouette, including the neck, before final placement.
-  const aiPersonTransparent=hairId ? await removeBackgroundBlob(aiResult) : aiResult;
-  const finished=hairId ? await restoreIdentityCore(aiPersonTransparent,head,composed.lock,composed.blob) : aiPersonTransparent;
-  setB(URL.createObjectURL(finished));
+  const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
+  if(!transparent){const d=new FormData();d.append('image',f);const r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());transparent=await r.blob();transparentCache.current={key:fileKey,blob:transparent};}
+  const head=await headOnly(transparent);const composed=await composePortrait(head,{scale:1,x:0,y:0});
+  const aiResult=hairId?await aiFinishPortrait(composed.blob,hairId):composed.blob;
+  const aiPersonTransparent=hairId?await removeBackgroundBlob(aiResult):aiResult;
+  const finished=hairId?await restoreIdentityCore(aiPersonTransparent,head,composed.lock,composed.blob):aiPersonTransparent;
+  const layer=await makeEditableHeadLayer(finished,aiPersonTransparent,composed.lock);editCache.current={layer,lock:composed.lock};setHeadAdjust({scale:1,x:0,y:0});showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V43: คงระบบ V42 เดิมทั้งหมด + เพิ่มเครื่องมือปรับส่วนหัว ซ้าย ขวา บน ล่าง ลด และขยาย ก่อนประมวลผล</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V44: คงระบบ V43 เดิม และปรับหัวที่ลบพื้นหลัง/ประกอบเสร็จแล้วได้ทันที โดยไม่เรียก AI หรือ Remove.bg ซ้ำ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
- <div className="hair-options">
- <div className="hair-title">ทรงผม</div>
- {HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}>
-   <img src={h.src}/><span>{h.name}</span>
- </button>)}
-</div>
-<div className="head-tools">
- <div className="head-tools-title">ปรับตำแหน่งและขนาดส่วนหัว</div>
- <div className="head-tools-grid">
-  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,y:v.y-.02}))}>↑ บน</button>
-  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,y:v.y+.02}))}>↓ ล่าง</button>
-  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,x:v.x-.02}))}>← ซ้าย</button>
-  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,x:v.x+.02}))}>→ ขวา</button>
-  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,scale:Math.max(.55,v.scale-.05)}))}>− ลดหัว</button>
-  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,scale:Math.min(1.45,v.scale+.05)}))}>＋ ขยายหัว</button>
-  <button type="button" className="reset-head" onClick={()=>setHeadAdjust({scale:1,x:0,y:0})}>คืนค่ามาตรฐาน</button>
- </div>
- <small>ขนาด {Math.round(headAdjust.scale*100)}% · ซ้าย/ขวา {Math.round(headAdjust.x*100)}% · บน/ล่าง {Math.round(headAdjust.y*100)}%</small>
-</div>
-<button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
+ <div className="hair-options"><div className="hair-title">ทรงผม</div>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}><img src={h.src}/><span>{h.name}</span></button>)}</div>
+ <button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
- {b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div>}
- {b&&<a className="save" href={b} download="photo-composed.jpg">ดาวน์โหลดภาพ</a>}
+ {b&&<><div className="head-tools"><div className="head-tools-title">ปรับส่วนหัวที่วางแล้ว</div><div className="head-tools-grid">
+  <button type="button" onClick={()=>nudge('y',-.01)}>↑ บน</button><button type="button" onClick={()=>nudge('y',.01)}>↓ ล่าง</button><button type="button" onClick={()=>nudge('x',-.01)}>← ซ้าย</button><button type="button" onClick={()=>nudge('x',.01)}>→ ขวา</button><button type="button" onClick={()=>nudge('scale',-.05)}>− ลดหัว</button><button type="button" onClick={()=>nudge('scale',.05)}>＋ ขยายหัว</button><button type="button" className="reset-head" onClick={()=>applyAdjust({scale:1,x:0,y:0})}>คืนค่ามาตรฐาน</button></div><small>ขนาด {Math.round(headAdjust.scale*100)}% · ซ้าย/ขวา {Math.round(headAdjust.x*100)}% · บน/ล่าง {Math.round(headAdjust.y*100)}%</small></div>
+ <div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div><a className="save" href={b} download="photo-composed.png">ดาวน์โหลดภาพ</a></>}
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<App/>);
