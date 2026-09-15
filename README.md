@@ -1,3 +1,7 @@
+V21 — SKIN/LIGHT ONLY UPDATE
+
+Changes from V20: skin tone/light/detail only, matched toward the approved earlier-test look. All geometry, head/neck placement, hair logic, uniform/template, background and framing remain unchanged.
+
 # Photo Compose V6 — Native Transparent Uniform
 
 ฐาน: V5 Auto Head Scale
