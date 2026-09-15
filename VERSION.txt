@@ -1,2 +1,1 @@
-V32
-V31 system unchanged + exact V9 skin/camera method only
+V33 - V31 system preserved; exact V9 skin engine settings only: gpt-image-1.5, input_fidelity high, quality high, 1024x1536, natural skin-light 15%.

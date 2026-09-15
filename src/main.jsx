@@ -340,7 +340,7 @@ function App(){
   const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock,composed.blob) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V32: V31 System + Exact V9 Skin Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V33: V31 System + Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
