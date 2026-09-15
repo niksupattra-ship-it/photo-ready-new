@@ -51,3 +51,13 @@
 - ขยายหัวมากกว่าเวอร์ชันก่อน แต่ยังยืดหยุ่นกับคน/ระยะภาพที่ต่างกัน
 - ลด vertical down-offset จาก 13.5% เป็น 10.5% เพื่อไม่ให้คอสั้นเกินเมื่อหัวใหญ่ขึ้น
 - AI neck/hair economy pipeline อื่นคงเดิม
+
+## Adaptive Head Fit v2
+แก้จากผลทดสอบจริงที่ v1 ทำหัวใหญ่เกิน:
+- ยกเลิก shoulder/head target 1.88 และ blend 78/22
+- กลับไปยึด collar opening ของ template เป็น baseline
+- ใช้ alpha bounds เพื่อ normalize ความต่างของภาพต้นฉบับ
+- aspect correction จำกัดเพียง ±3.5%
+- จำกัดความกว้างหัว 30–36% ของความกว้าง template
+- vertical offset = 12.5% เพื่อรักษาระยะคอ
+- AI finishing / hair / background / uniform / economy settings คงเดิม
