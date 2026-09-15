@@ -131,3 +131,11 @@
 - AI ต้องวิเคราะห์กรอบหน้า/หน้าผาก/ขมับ/กราม/แนวผม/ศีรษะจากภาพบุคคล แล้วปรับความกว้าง ความโค้ง volume และแนวเส้นผมของทรงที่เลือกให้เข้ากับคนนั้น
 - ห้ามดัดกรอบหน้าเพื่อให้เข้ากับทรงผม และห้ามคัดลอกหน้า/หัว/สัดส่วนจากนางแบบทรงผม
 - ทรงที่เลือกยังต้องดูเป็นทรงเดิม แต่ fit กับโครงศีรษะจริงและดูเหมือนถ่ายจริง
+
+
+## V20 — Natural skin refinement
+- ต่อจาก V19 Face-adaptive hairstyle โดยไม่เปลี่ยน geometry, head/neck placement, uniform, background หรือ hairstyle fitting
+- เกลี่ยผิวเพิ่มขึ้นเพียงเล็กน้อยจาก V19 เฉพาะ tonal blotchiness / micro-contrast ที่แข็งเกินไป
+- ยังคง pores, fine lines, moles, texture และรายละเอียดจริงของใบหน้า
+- ลด micro-contrast boost ของ restored original face เพื่อให้ผิวดูนุ่มเป็นภาพถ่ายมากขึ้นโดยไม่เบลอ
+- ห้าม airbrush / waxy / plastic / heavy denoise / beauty filter / whitening

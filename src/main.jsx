@@ -269,12 +269,12 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   const feather=Math.max(3,Math.min(7,lock.W*.0045));
   x.filter=`blur(${feather}px)`;x.drawImage(tmp,0,0);x.filter='none';
   mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
-  // V19: very restrained photographic micro-contrast on the ORIGINAL restored pixels only.
+  // V20: softer photographic micro-contrast on ORIGINAL restored pixels; keeps texture while reducing harshness slightly.
   // This does not synthesize/beautify skin; it keeps pores and genuine texture readable after compositing.
   const sharp=document.createElement('canvas');sharp.width=lock.W;sharp.height=lock.H;
-  const sc=sharp.getContext('2d');sc.filter='contrast(1.035) saturate(0.995)';sc.drawImage(m,0,0);sc.filter='none';
+  const sc=sharp.getContext('2d');sc.filter='contrast(1.018) saturate(0.995)';sc.drawImage(m,0,0);sc.filter='none';
   // Blend mostly original pixels with a small micro-contrast lift; mask/geometry stay unchanged.
-  ctx.globalAlpha=.82;ctx.drawImage(m,0,0);ctx.globalAlpha=.18;ctx.drawImage(sharp,0,0);ctx.globalAlpha=1;
+  ctx.globalAlpha=.90;ctx.drawImage(m,0,0);ctx.globalAlpha=.10;ctx.drawImage(sharp,0,0);ctx.globalAlpha=1;
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
