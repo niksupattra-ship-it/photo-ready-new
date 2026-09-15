@@ -1,3 +1,2 @@
-v26
-Real-skin source lock: original face pixels restored after AI edit; no skin beauty/color grading.
-V25 remove.bg cache retained.
+V28
+Natural Studio Skin: real face pixels retained; 16% 0.58px optical tonal blend for smoother studio-like skin while preserving pores, marks and identity. V25 remove.bg cache and geometry retained.

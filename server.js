@@ -8,7 +8,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
 
-// V26: preserve V25 remove.bg cache; skin pipeline now restores real source face pixels without AI beauty grading.
+// V27: preserve V25 remove.bg cache and geometry; natural-camera skin is finished locally after source-face restoration.
 // Cache remove.bg output by exact original image bytes. Re-processing the same upload
 // during this server lifetime does not consume another remove.bg credit.
 const removeBgCache=new Map();
@@ -93,7 +93,7 @@ SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes 
 TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
 
 FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.
-V26 REAL-SKIN SOURCE LOCK: the face interior must remain the supplied real photograph, not an AI interpretation. Do not perform a skin-quality, beauty, cleanup, relighting, complexion, denoise, smoothing, pore-generation, sharpening, or synthetic-detail pass on the face. Do not infer a reference look that is not actually supplied. For any newly generated neck pixels only, match the adjacent real jaw skin in white balance, exposure, local contrast, fine texture and camera noise so the transition is photographic and invisible. Never make the generated neck cleaner or smoother than the real face.
+V28 NATURAL-STUDIO SKIN TARGET: the face interior must remain the supplied real photograph, not an AI interpretation. Do not perform AI beauty, cleanup, relighting, complexion replacement, pore-generation, sharpening, or synthetic-detail generation on the face. Keep skin photographic with softly rolled tonal transitions like a professional ID-photo studio exposure; retain pores and real marks but avoid harsh micro-contrast, waxy highlights, plastic smoothing, or hyper-detailed AI texture. Do not infer a reference look that is not actually supplied. For any newly generated neck pixels only, match the adjacent real jaw skin in white balance, exposure, local contrast, fine texture and camera noise so the transition is photographic and invisible. Never make the generated neck cleaner or smoother than the real face.
 COLOR PRIORITY: keep the photographed face color unchanged. Only generated transition pixels may be color-matched to neighboring real skin. Do not globally alter the uniform, insignia, hair or background.
 TEXTURE PRIORITY: preserve source-camera microtexture exactly in the face; no beauty smoothing, airbrush, denoise-smearing, wax/plastic finish, fake HDR, excessive sharpening, makeup enhancement or invented skin detail.
 `;
