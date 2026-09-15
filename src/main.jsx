@@ -232,8 +232,11 @@ async function composePortrait(headBlob){
   const v17Lift=H*.05;
   const chinTargetY=collarSocketY-targetNeckVisible-v17Lift;
   const hX=collarCX-faceCX*scale;
-  const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
+  // V39: move the FINAL transparent head block upward by 10% of its placed height.
+  // Scale and every other V38 geometry remain unchanged.
+  const v39HeadLift=hH*.10;
+  const hY=chinTargetY-chinY*scale-v39HeadLift;
 
   // background -> normalized head only -> original uniform template
   ctx.drawImage(head,hX,hY,hW,hH);
@@ -275,9 +278,27 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
   const headRight=Math.min(lock.W,Math.ceil(lock.hX + lock.headW*lock.scale*.88));
   const headTop=Math.max(0,Math.floor(lock.hY));
   const aiBottom=Math.min(lock.H,Math.round(lock.hY + lock.chinY*lock.headH*lock.scale + lock.W*.035));
+  // V39: NEVER paste the rectangular AI background. Build a transparent head matte first.
+  // The source head has already passed remove.bg; reuse that alpha and expand it only slightly
+  // around hair so the AI hairstyle can survive without bringing any blue/background rectangle.
+  const headMatte=document.createElement('canvas'); headMatte.width=lock.W; headMatte.height=lock.H;
+  const hm=headMatte.getContext('2d');
+  hm.drawImage(head,lock.hX,lock.hY,lock.headW*lock.scale,lock.headH*lock.scale);
+  hm.globalCompositeOperation='source-in'; hm.fillStyle='#fff'; hm.fillRect(0,0,lock.W,lock.H);
+  // softly dilate alpha for changed flyaways/hair silhouette, still head-only
+  const expanded=document.createElement('canvas'); expanded.width=lock.W; expanded.height=lock.H;
+  const ex=expanded.getContext('2d');
+  const grow=Math.max(5,Math.round(lock.W*.008));
+  ex.filter=`blur(${grow}px)`; ex.drawImage(headMatte,0,0); ex.filter='none';
+  ex.globalCompositeOperation='source-over'; ex.drawImage(headMatte,0,0);
+
+  const aiHead=document.createElement('canvas'); aiHead.width=lock.W; aiHead.height=lock.H;
+  const ah=aiHead.getContext('2d'); ah.drawImage(aiCanvas,0,0);
+  ah.globalCompositeOperation='destination-in'; ah.drawImage(expanded,0,0);
+
   ctx.save();
   ctx.beginPath(); ctx.rect(headLeft,headTop,Math.max(1,headRight-headLeft),Math.max(1,aiBottom-headTop)); ctx.clip();
-  ctx.drawImage(aiCanvas,0,0); ctx.restore();
+  ctx.drawImage(aiHead,0,0); ctx.restore();
   const m=document.createElement('canvas');m.width=lock.W;m.height=lock.H;
   const mc=m.getContext('2d');
   mc.drawImage(head,lock.hX,lock.hY,lock.headW*lock.scale,lock.headH*lock.scale);
@@ -361,22 +382,18 @@ function App(){
  const transparentCache=useRef({key:'',blob:null});
  const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const go=async()=>{setBusy(true);setMsg('');try{
-  const fileKey=[f.name,f.size,f.lastModified].join(':');
-  let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
-  if(!transparent){
-   const d=new FormData();d.append('image',f);
-   const r=await fetch('/api/remove-background',{method:'POST',body:d});
-   if(!r.ok)throw Error(await r.text());
-   transparent=await r.blob();
-   transparentCache.current={key:fileKey,blob:transparent};
-  }
+  // V40 ORDER LOCK: source -> AI skin/hair -> remove.bg -> extract transparent head -> final V38/V39 placement.
+  // Never remove the source background before AI, and never paste AI's background/body into the final image.
+  const aiResult=hairId ? await aiFinishPortrait(f,hairId) : f;
+  const d=new FormData();d.append('image',aiResult,'ai-head.png');
+  const r=await fetch('/api/remove-background',{method:'POST',body:d});
+  if(!r.ok)throw Error(await r.text());
+  const transparent=await r.blob();
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
-  const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
-  const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock,composed.blob) : aiResult;
-  setB(URL.createObjectURL(finished));
+  setB(URL.createObjectURL(composed.blob));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V33: V31 System + Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V40: AI First → Remove Background → Transparent Head → Final Placement; V38/V39 geometry retained — Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
