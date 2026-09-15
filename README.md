@@ -1,25 +1,16 @@
-# GovPhoto v4 Pixel-Locked Photoshop Engine
+# GovPhoto v5 — Head Cutout + Auto Proportion + Neck Zone
 
-## เปลี่ยนจาก v3
-- ชุดราชการไม่ถูกส่งเข้า Generative AI
-- เข็ม / อินทรธนู / กระดุม / ปก / เนกไท / texture เป็น source pixels ของ Template จริง
-- Composite และ export ด้วย Sharp
-- Canvas 900×1200, 3:4
-- AI calls ใน baseline = 0
+โครงสร้างตามที่กำหนด:
+1. รูปบุคคล -> head/hair layer (รองรับ mask)
+2. Template ชุด -> Pixel Locked, ไม่ผ่าน Generative AI
+3. Auto proportion -> คำนวณจาก shoulder/head ratio เป้าหมาย 2.15
+4. Auto placement -> จัดศูนย์หัวเข้าช่องคอ
+5. Neck zone -> สร้างกรอบเฉพาะพื้นที่คอสำหรับ inpainting
+6. Final composite -> 900x1200
 
-## สิ่งที่ v4 baseline ทำได้
-Pixel-locked resize + layer compositing + optional mask
-
-## สิ่งที่ต้องเพิ่มก่อน production เพื่อให้คอเนียนอัตโนมัติทุกคน
-ต้องมี deterministic segmentation + face/jaw/neck/shoulder landmarks + adaptive neck mask +
-local color/exposure matching + protected-region mesh warp + quality checks.
-ห้ามอ้างว่า baseline นี้ทำสิ่งเหล่านั้นแล้ว เพราะยังไม่ได้ใส่ detector/landmark engine จริง
-
-แนวทาง production:
-1. ตรวจ face/jaw/neck/shoulder landmarks
-2. สร้าง person/hair mask
-3. คำนวณ head-to-shoulder ratio
-4. Scale/position template โดยไม่แตะ protected insignia regions
-5. Feather neck edge และ local exposure/white-balance match
-6. QC: giant head, floating neck, cropped shoulders, seam/halo
-7. Export 900×1200
+สำคัญ:
+- เวอร์ชันนี้ทำ deterministic compositing จริงและกำหนด neck-only zone แล้ว
+- ENABLE_NECK_AI ปิดเป็นค่าเริ่มต้น
+- ยังไม่ได้อ้างว่ามี Photoshop Select Subject จริง: การตัดผมคุณภาพ production ต้องต่อ segmentation/matting engine
+- ยังไม่ได้ส่ง neck patch เข้า Generative API เพราะต้องใช้ endpoint/workflow ที่รับเฉพาะ crop+mask แล้วคืนเฉพาะ patch เพื่อรับประกันว่าชุดไม่ถูกแตะ
+- ห้ามส่งทั้งภาพเข้า Generative AI ในรุ่น production
