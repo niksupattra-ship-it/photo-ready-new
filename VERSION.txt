@@ -1,1 +1,1 @@
-v34 — V33 skin engine unchanged; fixes AI 2:3 -> V28 3:4 aspect distortion by center-crop + uniform scale.
+V35 — V34 skin/aspect retained; V28 original uniform is composited LAST after AI so insignia/epaulettes/tie/collar/buttons never use AI pixels. Remove.bg remains before composition.

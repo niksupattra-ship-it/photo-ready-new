@@ -237,7 +237,7 @@ async function composePortrait(headBlob){
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
   const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
-  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight}};
+  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,uX,uY,uW,uH}};
  }finally{URL.revokeObjectURL(headURL)}
 }
 
@@ -284,12 +284,22 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
   // V28: NATURAL STUDIO SKIN — keep the real photographed face, then use a restrained
   // optical complexion blend to match the approved sample: smooth tonal transitions without
   // wax/plastic skin. This is local canvas processing, not AI face regeneration.
-  // V30: retain the AI/V9-style skin inside the face core instead of replacing it with V28 source pixels.
-  // Restore the V28 template/body below the neck so AI cannot regenerate the uniform/body.
+  // V35 PIPELINE LOCK:
+  // Remove.bg has already been applied to the uploaded person BEFORE composePortrait().
+  // AI is allowed to contribute only the head/skin/hair/very narrow neck transition.
+  // Everything below the neck is restored from the untouched V28 composition.
   const restoreY=Math.max(0,Math.round(lock.hY + lock.chinY*lock.headH*lock.scale + lock.W*0.035));
   ctx.save();
   ctx.beginPath();ctx.rect(0,restoreY,lock.W,lock.H-restoreY);ctx.clip();
   ctx.drawImage(base,0,0,lock.W,lock.H);ctx.restore();
+
+  // CRITICAL: overlay the ORIGINAL uniform PNG as the final pixel layer.
+  // This happens AFTER AI and AFTER the neck seam. Therefore insignia, epaulettes, tie,
+  // collar, buttons and every opaque uniform pixel never come from AI and retain the
+  // exact sharpness/detail of the source template. Transparent neck socket remains open.
+  const uniform=await loadImage('/assets/uniform.png');
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(uniform,lock.uX,lock.uY,lock.uW,lock.uH);
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกองค์ประกอบ V28 ขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
