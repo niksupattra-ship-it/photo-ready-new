@@ -1,16 +1,11 @@
-# GovPhoto v5 — Head Cutout + Auto Proportion + Neck Zone
+# GovPhoto v5.1 Auto Head Extraction
+แก้ปัญหารูปต้นฉบับเป็นกรอบสี่เหลี่ยมทับชุด:
+- ผู้ใช้ไม่ต้องอัปโหลด mask
+- ใช้ background-removal segmentation สร้าง alpha อัตโนมัติ
+- crop ส่วนบนของ segmented person เพื่อเอาลำตัวออก
+- วาง PNG โปร่งใสบน Template ชุด
+- ชุด Pixel Locked และไม่ใช้ Generative AI
+- AI calls = 0 ในขั้นตอนนี้
 
-โครงสร้างตามที่กำหนด:
-1. รูปบุคคล -> head/hair layer (รองรับ mask)
-2. Template ชุด -> Pixel Locked, ไม่ผ่าน Generative AI
-3. Auto proportion -> คำนวณจาก shoulder/head ratio เป้าหมาย 2.15
-4. Auto placement -> จัดศูนย์หัวเข้าช่องคอ
-5. Neck zone -> สร้างกรอบเฉพาะพื้นที่คอสำหรับ inpainting
-6. Final composite -> 900x1200
-
-สำคัญ:
-- เวอร์ชันนี้ทำ deterministic compositing จริงและกำหนด neck-only zone แล้ว
-- ENABLE_NECK_AI ปิดเป็นค่าเริ่มต้น
-- ยังไม่ได้อ้างว่ามี Photoshop Select Subject จริง: การตัดผมคุณภาพ production ต้องต่อ segmentation/matting engine
-- ยังไม่ได้ส่ง neck patch เข้า Generative API เพราะต้องใช้ endpoint/workflow ที่รับเฉพาะ crop+mask แล้วคืนเฉพาะ patch เพื่อรับประกันว่าชุดไม่ถูกแตะ
-- ห้ามส่งทั้งภาพเข้า Generative AI ในรุ่น production
+ข้อจำกัดปัจจุบัน: การหาเส้นใต้คาง/ช่องคอเป็น heuristic; Neck-only inpainting ยังไม่เปิดในไฟล์นี้
+เพื่อไม่ให้ระบบอ้างว่าล็อกชุดแต่กลับส่งทั้งภาพให้ AI
