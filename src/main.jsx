@@ -25,42 +25,89 @@ async function headOnly(blob){
   const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
   const c=document.createElement('canvas');c.width=W;c.height=H;
   const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
-  const data=ctx.getImageData(0,0,W,H);
+  const data=ctx.getImageData(0,0,W,H),px=data.data;
   const lm=(await getLandmarker()).detect(im).faceLandmarks?.[0];
   if(!lm) throw Error('ตรวจจับกรอบหน้าไม่สำเร็จ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัด');
 
-  // แนวกราม MediaPipe: ใต้หูซ้าย -> กราม -> คาง -> กราม -> ใต้หูขวา
+  // MediaPipe ใช้เพื่อหา ROI/ตำแหน่งเท่านั้น ไม่ใช้เส้น landmark เป็นขอบตัดสุดท้าย
   const jawIdx=[234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454];
-  let jaw=jawIdx.map(i=>({x:lm[i].x*W,y:lm[i].y*H})).sort((a,b)=>a.x-b.x);
+  const jaw=jawIdx.map(i=>({x:lm[i].x*W,y:lm[i].y*H})).sort((a,b)=>a.x-b.x);
+  const left=jaw[0],right=jaw[jaw.length-1],faceW=right.x-left.x;
+  const band=Math.max(10,faceW*.07), search=Math.max(7,faceW*.045);
 
-  // ขยายจุดเริ่ม/จบเล็กน้อยไปถึงใต้ใบหู เพื่อไม่เหลือเศษคอด้านข้าง
-  const faceW=jaw[jaw.length-1].x-jaw[0].x;
-  const pad=Math.max(2,faceW*.025);
-  jaw[0].x-=pad;jaw[jaw.length-1].x+=pad;
+  // หา "ขอบ alpha จริง" ใกล้แนวกราม: ไล่จากด้านล่างขึ้นบนจนพบ foreground
+  // จึงเกาะ pixel ของผิวจริงแทนการตัดตามเส้นเรขาคณิต
+  const samples=[];
+  const x0=Math.max(0,Math.floor(left.x-faceW*.025)),x1=Math.min(W-1,Math.ceil(right.x+faceW*.025));
+  for(let x=x0;x<=x1;x++){
+   let seed;
+   if(x>=left.x&&x<=right.x) seed=interp(jaw,x);
+   else seed=x<left.x?left.y:right.y;
+   if(seed==null)continue;
+   const top=Math.max(0,Math.floor(seed-search)),bot=Math.min(H-1,Math.ceil(seed+band));
+   let edge=null;
+   // หา pixel สุดท้ายของ foreground ที่ต่อเนื่องกับใบหน้าในแถบ ROI
+   for(let y=bot;y>=top;y--){
+    const a=px[(y*W+x)*4+3];
+    if(a>=24){edge=y;break;}
+   }
+   if(edge!=null)samples.push({x,y:edge});
+  }
+  if(samples.length<Math.max(20,faceW*.25)) throw Error('วิเคราะห์ขอบกรามจริงไม่สำเร็จ');
 
-  // V2: เก็บ alpha เดิมของ remove.bg ทั้งศีรษะ/ผม/หู และแก้เฉพาะรอยตัดใต้กราม
-  // ใช้ขอบนุ่มระดับ sub-pixel 1.5–2.5 px ตามขนาดใบหน้า เพื่อลดฟันเลื่อยโดยไม่ทำให้กรามฟุ้ง
-  const left=jaw[0],right=jaw[jaw.length-1];
-  const feather=Math.max(1.25,Math.min(2.5,faceW*.008));
-  const eraseMargin=Math.max(.35,faceW*.0015);
+  // median filter ป้องกันรู/เส้นผม/เศษ alpha ทำให้ contour กระโดด
+  const raw=new Map(samples.map(q=>[q.x,q.y])), contour=[];
+  const radius=Math.max(2,Math.round(faceW*.008));
+  for(const q of samples){
+   const ys=[];
+   for(let xx=q.x-radius;xx<=q.x+radius;xx++)if(raw.has(xx))ys.push(raw.get(xx));
+   ys.sort((a,b)=>a-b);
+   contour.push({x:q.x,y:ys[Math.floor(ys.length/2)]});
+  }
+
+  // จำกัด contour ให้อยู่ใกล้ anatomy ของกราม ป้องกัน alpha ของคอถูกเข้าใจเป็นหน้า
+  for(const q of contour){
+   let seed=q.x>=left.x&&q.x<=right.x?interp(jaw,q.x):(q.x<left.x?left.y:right.y);
+   const maxDown=seed+faceW*.035;
+   q.y=Math.min(q.y,maxDown);
+  }
+
+  // V3 matte: เก็บ alpha remove.bg เดิมทั้งหมดเหนือ contour
+  // และทำ coverage anti-alias เฉพาะ 1 pixel รอบขอบจริงเท่านั้น
+  const edgeAA=Math.max(.75,Math.min(1.35,faceW*.004));
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-   const ai=(y*W+x)*4+3,origA=data.data[ai];if(origA===0)continue;
+   const ai=(y*W+x)*4+3,orig=px[ai];if(orig===0)continue;
    let boundary=null;
-   if(x>=left.x&&x<=right.x) boundary=interp(jaw,x);
-   else if(x<left.x) boundary=left.y + Math.min(0,(x-left.x)*.12);
-   else boundary=right.y + Math.min(0,(right.x-x)*.12);
-   if(boundary===null)continue;
-   const d=y-(boundary+eraseMargin);
-   if(d>=feather){data.data[ai]=0;}
-   else if(d>-feather){
-    // smoothstep: premultiplied-like alpha transition, RGB ไม่ถูกสร้างหรือแก้
-    const t=(d+feather)/(2*feather);
-    const smooth=t*t*(3-2*t);
-    data.data[ai]=Math.round(origA*(1-smooth));
+   if(x>=contour[0].x&&x<=contour[contour.length-1].x)boundary=interp(contour,x);
+   else if(x<contour[0].x)boundary=contour[0].y;
+   else boundary=contour[contour.length-1].y;
+   if(boundary==null)continue;
+   const d=y-boundary;
+   if(d>edgeAA)px[ai]=0;
+   else if(d>-edgeAA){
+    const coverage=Math.max(0,Math.min(1,(edgeAA-d)/(2*edgeAA)));
+    // preserve original remove.bg alpha; only multiply coverage
+    px[ai]=Math.round(orig*coverage);
    }
   }
+
+  // RGB decontamination เฉพาะ pixel กึ่งโปร่งใสที่ขอบกราม:
+  // ดึงสีจาก pixel ด้านใน 2px ลด halo โดยไม่แตะใบหน้าส่วนทึบ
+  const copy=new Uint8ClampedArray(px);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+   const i=(y*W+x)*4,a=px[i+3];
+   if(a<=0||a>=245)continue;
+   let best=null,bestA=a;
+   for(let dy=-3;dy<=0;dy++)for(let dx=-2;dx<=2;dx++){
+    const yy=y+dy,xx=x+dx;if(yy<0||xx<0||yy>=H||xx>=W)continue;
+    const j=(yy*W+xx)*4,aa=copy[j+3];
+    if(aa>bestA){bestA=aa;best=j;}
+   }
+   if(best!=null&&bestA>180){px[i]=copy[best];px[i+1]=copy[best+1];px[i+2]=copy[best+2];}
+  }
+
   ctx.putImageData(data,0,0);
-  return await new Promise(ok=>c.toBlob(ok,'image/png'));
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้าง PNG ไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(url)}
 }
 function App(){
@@ -74,7 +121,7 @@ function App(){
   const head=await headOnly(transparent);
   setB(URL.createObjectURL(head));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>แยกศีรษะอัตโนมัติ · ขอบกรามเนียน V2</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบคอและลำตัวตามแนวกรามอัตโนมัติ</p><section>
+ return <main><h1>แยกศีรษะอัตโนมัติ · Jaw Matte V3</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → วิเคราะห์ขอบผิวจริงบริเวณกราม → ลบคอและลำตัวอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
