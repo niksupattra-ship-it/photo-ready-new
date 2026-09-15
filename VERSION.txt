@@ -1,2 +1,1 @@
-v29
-V9 skin + hair method transplanted into V28; all other V28 systems retained.
+v29.1 - V9 skin+hair only; OpenAI image-edit request repaired; explicit size/n; robust upstream diagnostics

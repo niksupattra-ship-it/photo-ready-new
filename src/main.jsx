@@ -312,7 +312,7 @@ function App(){
   const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V29: ใช้วิธีล็อกผิวและการสร้างผมจากโปรเจ็กต์ V9 เท่านั้น โดยคงระบบจัดวาง ชุด คอ พื้นหลัง และ Remove.bg ของ V28</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V29.1: ใช้วิธีล็อกผิวและการสร้างผมจากโปรเจ็กต์ V9 เท่านั้น โดยคงระบบจัดวาง ชุด คอ พื้นหลัง และ Remove.bg ของ V28</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>

@@ -92,27 +92,50 @@ FINAL TEST: if the edit changes facial skin texture or makes the face smoother, 
     form.append("input_fidelity","high");
     form.append("quality","high");
     form.append("output_format","png");
+    form.append("size","1024x1536");
+    form.append("n","1");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
     form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
-    const r=await fetch("https://api.openai.com/v1/images/edits",{
-      method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
-    });
-    const body=await r.json();
-    if(!r.ok) return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
+    console.log(`[ai-finish] start hair=${hairId} portrait=${req.file.size}B ref=${hairBuf.length}B`);
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),240000);
+    let r;
+    try {
+      r=await fetch("https://api.openai.com/v1/images/edits",{
+        method:"POST",
+        headers:{Authorization:`Bearer ${key}`},
+        body:form,
+        signal:controller.signal
+      });
+    } finally { clearTimeout(timer); }
+
+    const raw=await r.text();
+    let body;
+    try { body=JSON.parse(raw); } catch { body=null; }
+    if(!r.ok){
+      const detail=body?.error?.message || body?.message || raw || `HTTP ${r.status}`;
+      console.error(`[ai-finish] OpenAI ${r.status}:`, detail);
+      return res.status(r.status).type("text/plain").send(`OpenAI image edit (${r.status}): ${detail}`);
+    }
     const b64=body?.data?.[0]?.b64_json;
-    if(!b64) return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา");
+    if(!b64){
+      console.error("[ai-finish] missing b64_json; response:", raw.slice(0,1000));
+      return res.status(502).type("text/plain").send("OpenAI ตอบกลับสำเร็จ แต่ไม่มีข้อมูลภาพ b64_json");
+    }
+    console.log("[ai-finish] success");
     const data=Buffer.from(b64,"base64");
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
     res.send(data);
   }catch(e){
-    console.error(e);
-    res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
+    console.error("[ai-finish] failed:",e);
+    const msg=e?.name==="AbortError" ? "OpenAI ใช้เวลาประมวลผลเกิน 240 วินาที" : (e?.message||String(e));
+    res.status(502).type("text/plain").send("AI finishing ไม่สำเร็จ: "+msg);
   }
 });
 
-app.get("/api/health",(req,res)=>res.json({ok:true,provider:"remove.bg",configured:!!process.env.REMOVEBG_API_KEY}));
+app.get("/api/health",(req,res)=>res.json({ok:true,removeBgConfigured:!!process.env.REMOVEBG_API_KEY,openAIConfigured:!!process.env.OPENAI_API_KEY,version:"v29.1"}));
 app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
