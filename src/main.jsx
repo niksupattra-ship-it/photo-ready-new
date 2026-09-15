@@ -147,14 +147,24 @@ async function composePortrait(headBlob){
   // วัดจาก landmark บนใบหน้าจริง (ขมับ/กราม) ไม่ใช้กรอบภาพ ไม่ใช้คอเดิม และไม่ใช้ alpha ของทรงผม
   // ดังนั้นภาพที่ถ่ายใกล้/ไกลจะถูก normalize ให้ขนาดหัวมาตรฐานเดียวกันก่อนประกอบ
   const L=face[234],R=face[454],chin=face[152],forehead=face[10];
+  const le=face[33],re=face[263]; // outer eye anchors: stable even when jaw/hair shapes differ
   const sourceFaceW=Math.hypot((R.x-L.x)*head.naturalWidth,(R.y-L.y)*head.naturalHeight);
   const sourceFaceH=Math.hypot((chin.x-forehead.x)*head.naturalWidth,(chin.y-forehead.y)*head.naturalHeight);
-  if(sourceFaceW<20||sourceFaceH<20) throw Error('วัดขนาดใบหน้าไม่สำเร็จ');
+  const sourceEyeW=Math.hypot((re.x-le.x)*head.naturalWidth,(re.y-le.y)*head.naturalHeight);
+  if(sourceFaceW<20||sourceFaceH<20||sourceEyeW<12) throw Error('วัดขนาดใบหน้าไม่สำเร็จ');
 
-  // เป้าหมายอิง BODY TEMPLATE เท่านั้น: shoulder : face ≈ 2.55
-  // clamp แคบเพื่อให้คนทุกคนได้ระยะภาพเดียวกัน แต่ยังรักษาความกว้างใบหน้าตามธรรมชาติ
-  const targetFaceW=Math.max(uW*.305,Math.min(uW*.335,shoulderSpan/2.55));
-  let scale=targetFaceW/sourceFaceW;
+  // V11 CANONICAL FACE NORMALIZATION
+  // ไม่ใช้ค่าจุดเดียวตัดสิน scale เพราะรูปหน้าแต่ละคนกว้าง/แคบและ AI อาจตีกรามต่างกัน
+  // ใช้ 3 anchor อิสระ (ตา, ความสูงหน้า, ความกว้างขมับ) แล้วหา median scale
+  // ทำให้ภาพ close-up / ครึ่งตัว / ถ่ายไกล เข้าสู่ระยะใบหน้ามาตรฐานเดียวกัน
+  const targetFaceW=shoulderSpan/2.55;
+  const targetEyeW=targetFaceW*.455;
+  const targetFaceH=targetFaceW*1.16;
+  const candidates=[targetEyeW/sourceEyeW,targetFaceH/sourceFaceH,targetFaceW/sourceFaceW].sort((a,b)=>a-b);
+  let scale=candidates[1];
+  // ป้องกัน landmark outlier: scale สุดท้ายต้องไม่หนีจาก eye-anchor มากเกิน 7%
+  const eyeScale=targetEyeW/sourceEyeW;
+  scale=Math.max(eyeScale*.93,Math.min(eyeScale*1.07,scale));
   scale=Math.max(.25,Math.min(4.0,scale));
 
   // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
@@ -173,8 +183,39 @@ async function composePortrait(headBlob){
   ctx.drawImage(head,hX,hY,hW,hH);
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
-  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
+  const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
+  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight}};
  }finally{URL.revokeObjectURL(headURL)}
+}
+
+
+async function restoreIdentityCore(aiBlob,headBlob,lock){
+ // AI ใช้เพื่อเติมคอ/ผมเท่านั้น จากนั้นวางใบหน้าต้นฉบับที่ normalize แล้วกลับคืน
+ // ขั้นนี้เป็น geometry lock จริง จึงไม่ปล่อยให้ AI เปลี่ยน scale/ยืดหน้าในภาพสุดท้าย
+ const aiURL=URL.createObjectURL(aiBlob),headURL=URL.createObjectURL(headBlob);
+ try{
+  const ai=await loadImage(aiURL),head=await loadImage(headURL);
+  const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
+  if(!face)return aiBlob;
+  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
+  const ctx=c.getContext('2d');ctx.drawImage(ai,0,0,lock.W,lock.H);
+  const m=document.createElement('canvas');m.width=lock.W;m.height=lock.H;
+  const mc=m.getContext('2d');
+  mc.drawImage(head,lock.hX,lock.hY,lock.headW*lock.scale,lock.headH*lock.scale);
+  // protected face core: forehead -> cheeks -> jaw, feather edge; exclude outer hairstyle so AI hair remains visible
+  const pts=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
+  const mask=document.createElement('canvas');mask.width=lock.W;mask.height=lock.H;
+  const x=mask.getContext('2d');x.beginPath();
+  pts.forEach((id,i)=>{const q=face[id],px=lock.hX+q.x*lock.headW*lock.scale,py=lock.hY+q.y*lock.headH*lock.scale;(i?x.lineTo(px,py):x.moveTo(px,py));});
+  x.closePath();x.fillStyle='#fff';x.fill();
+  x.globalCompositeOperation='destination-in';
+  // soften only the mask boundary without changing face geometry
+  const tmp=document.createElement('canvas');tmp.width=lock.W;tmp.height=lock.H;tmp.getContext('2d').drawImage(mask,0,0);
+  x.clearRect(0,0,lock.W,lock.H);x.filter='blur(2px)';x.drawImage(tmp,0,0);x.filter='none';
+  mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
+  ctx.drawImage(m,0,0);
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
 }
 
 async function aiFinishPortrait(composedBlob,hairId){
@@ -200,7 +241,8 @@ function App(){
   const transparent=await r.blob();
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
-  const finished=hairId ? await aiFinishPortrait(composed,hairId) : composed;
+  const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
+  const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
