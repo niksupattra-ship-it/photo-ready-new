@@ -110,45 +110,80 @@ async function headOnly(blob){
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้าง PNG ไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(url)}
 }
+async function alphaBounds(img){
+ const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+ const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
+ const d=x.getImageData(0,0,c.width,c.height).data;
+ let l=c.width,t=c.height,r=-1,b=-1;
+ for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){
+  if(d[(y*c.width+xx)*4+3]>12){if(xx<l)l=xx;if(xx>r)r=xx;if(y<t)t=y;if(y>b)b=y;}
+ }
+ return r>=l?{l,t,r,b,w:r-l+1,h:b-t+1}:{l:0,t:0,r:c.width-1,b:c.height-1,w:c.width,h:c.height};
+}
+async function keyedUniform(img){
+ // ไฟล์ชุดที่ผู้ใช้ให้เป็น PNG RGB พื้นดำ จึงเปลี่ยนเฉพาะ "พื้นดำ" เป็น alpha
+ // รายละเอียด/สี/เครื่องหมายของชุดไม่ถูกสร้างใหม่หรือ warp
+ const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+ const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
+ const id=x.getImageData(0,0,c.width,c.height),d=id.data;
+ for(let i=0;i<d.length;i+=4){
+  const r=d[i],g=d[i+1],b=d[i+2],mx=Math.max(r,g,b);
+  if(mx<12)d[i+3]=0;
+  else if(mx<38)d[i+3]=Math.round(255*(mx-12)/26);
+ }
+ x.putImageData(id,0,0);return c;
+}
 async function composePortrait(headBlob){
  const bg=await loadImage('/assets/background.jpg');
- const uniform=await loadImage('/assets/uniform.png');
+ const uniformImg=await loadImage('/assets/uniform.png');
  const headURL=URL.createObjectURL(headBlob);
  try{
-  const head=await loadImage(headURL);
-  // Canvas size follows the supplied background exactly.
+  const head=await loadImage(headURL), uniform=await keyedUniform(uniformImg);
+  const hb=await alphaBounds(head);
   const W=bg.naturalWidth,H=bg.naturalHeight;
   const c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d',{alpha:false});
+  const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  // Uniform placement calibrated from the supplied reference layout.
-  // Keep template aspect ratio; do not redraw/warp uniform details.
-  const uW=W*.94, uScale=uW/uniform.naturalWidth, uH=uniform.naturalHeight*uScale;
-  const uX=(W-uW)/2, uY=H*.425;
+  // ชุด: ยึดไฟล์ PNG จริงและวางตำแหน่งตาม reference #3
+  const uW=W*.94,uScale=uW/uniform.width,uH=uniform.height*uScale;
+  const uX=(W-uW)/2,uY=H*.425;
 
-  // Estimate collar opening from template geometry.
-  const collarCenterX=W*.5;
-  const collarTopY=uY+uH*.015;
-  const collarWidth=uW*.235;
+  // Geometry ของ template นี้: ช่องคออยู่กึ่งกลางชุด
+  const collarCX=W*.5;
+  const collarTop=uY+uH*.015;
+  const collarOpening=uW*.235;
 
-  // Head scale is driven by collar width, not source-photo size.
-  // Target jaw width slightly wider than collar opening for natural overlap.
-  const targetHeadW=collarWidth*2.02;
-  const hScale=targetHeadW/head.naturalWidth;
-  const hW=head.naturalWidth*hScale,hH=head.naturalHeight*hScale;
-  const hX=collarCenterX-hW/2;
-  // place chin under collar layer so the collar hides the lower seam
-  const hY=collarTopY-hH+uH*.085;
+  // ใช้ "ขอบศีรษะจริง" หลังตัด alpha ไม่ใช้ขนาด canvas ต้นฉบับ
+  // เป้าหมาย: ความกว้างหัวสัมพันธ์กับช่องคอและความกว้างไหล่ของชุด
+  const targetVisibleHeadW=collarOpening*2.02;
+  let scale=targetVisibleHeadW/hb.w;
 
-  // Head is intentionally drawn BEFORE uniform: "หัวอยู่ใต้ชุด".
+  // จำกัดช่วงเพื่อกันรูปต้นฉบับที่ crop/zoom ผิดปกติ
+  const minHeadW=uW*.285,maxHeadW=uW*.37;
+  const proposed=hb.w*scale;
+  if(proposed<minHeadW)scale=minHeadW/hb.w;
+  if(proposed>maxHeadW)scale=maxHeadW/hb.w;
+
+  const visibleW=hb.w*scale,visibleH=hb.h*scale;
+  const visibleLeft=collarCX-visibleW/2;
+
+  // คางซ้อนลงใต้ปกเสื้อเล็กน้อย เพื่อให้ชุดเป็น foreground ซ่อนรอยต่อ
+  const overlap=uH*.052;
+  const visibleTop=collarTop-visibleH+overlap;
+
+  // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
+  const hX=visibleLeft-hb.l*scale;
+  const hY=visibleTop-hb.t*scale;
+  const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
+
+  // ลำดับเลเยอร์: background -> head -> uniform
   ctx.drawImage(head,hX,hY,hW,hH);
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
-  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/jpeg',.96));
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/jpeg',.97));
  }finally{URL.revokeObjectURL(headURL)}
 }
-
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
  const pick=e=>{const v=e.target.files?.[0];if(v){setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
@@ -161,7 +196,7 @@ function App(){
   const composed=await composePortrait(head);
   setB(URL.createObjectURL(composed));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบรูปติดบัตรอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → ปรับขนาดตามช่องคอ → วางใต้ชุดอัตโนมัติ</p><section>
+ return <main><h1>ประกอบหัวกับชุดอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}

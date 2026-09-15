@@ -1,14 +1,16 @@
-# Photo Compose V4
-ต่อจาก Jaw Matte V3
+# Photo Compose V5 — Auto Head Scale
 
-อัตโนมัติในคลิกเดียว:
-1. remove.bg
-2. แยกศีรษะ
-3. ใช้ขนาด canvas จาก background ที่ผู้ใช้ให้
-4. วาง uniform template ตาม layout ตัวอย่าง
-5. คำนวณสเกลหัวจากความกว้างช่องคอของชุด ไม่ยึดขนาดรูปต้นฉบับ
-6. วาดหัวก่อน แล้ววาดชุดทับ เพื่อให้หัวอยู่ใต้ปกเสื้อและซ่อนรอยต่อ
-7. แสดงผลสุดท้าย
+ฐาน: bg-remover-photo-compose-v4.zip
 
-ไฟล์จริงของ background และ uniform ถูก bundle ใน public/assets
-ยังไม่มี AI finishing pass ใน V4 นี้
+การเปลี่ยนแปลง:
+- ใช้ IMG_20260914_135935.png ที่ผู้ใช้อัปโหลดล่าสุดเป็น uniform template จริง
+- PNG ชุดเป็น RGB พื้นดำ ระบบจึง key เฉพาะพื้นดำให้โปร่งใสตอน runtime
+- ไม่สร้าง/warp/แก้รายละเอียดชุด
+- วัด alpha bounds ของหัวจริงหลังแยกหัว แทนการใช้ความกว้าง canvas ต้นฉบับ
+- คำนวณขนาดหัวจาก collar opening + shoulder/template width
+- จำกัดช่วงสัดส่วนเพื่อกันหัวใหญ่/เล็กผิดปกติ
+- จัดหัวกึ่งกลางช่องคอ
+- วางหัวก่อนชุด ให้ปกเสื้อทับรอยต่อบริเวณคาง/คอ
+- background ใช้ไฟล์เดิมและขนาด canvas ตาม background
+
+ยังเป็น one-click pipeline เดิม
