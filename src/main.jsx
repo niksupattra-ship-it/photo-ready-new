@@ -269,31 +269,11 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   const feather=Math.max(3,Math.min(7,lock.W*.0045));
   x.filter=`blur(${feather}px)`;x.drawImage(tmp,0,0);x.filter='none';
   mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
-  // V24 SKIN ONLY: match approved right-side reference — neutral studio skin, less yellow/orange, preserve real texture.
-  // Keep geometry and real source texture locked, but correct the restored ORIGINAL face pixels
-  // toward the reference's lower exposure, neutral/cool white balance and controlled highlights.
-  const skinTone=document.createElement('canvas');skinTone.width=lock.W;skinTone.height=lock.H;
-  const sc=skinTone.getContext('2d');
-  sc.drawImage(m,0,0);
-  const im=sc.getImageData(0,0,lock.W,lock.H),d=im.data;
-  for(let i=0;i<d.length;i+=4){
-    if(!d[i+3])continue;
-    let r=d[i],g=d[i+1],b=d[i+2];
-    const y=.2126*r+.7152*g+.0722*b;
-    // Compress bright/oily highlights more than midtones; preserve pores and local texture.
-    const hi=Math.max(0,(y-145)/110);
-    const gain=.965-.035*Math.min(1,hi);
-    // V24: stronger yellow/orange neutralization toward approved right-side reference.
-    // Reduce red/green warmth without whitening; modest blue compensation keeps skin neutral.
-    r=r*gain-7.0; g=g*gain-5.5; b=b*gain+5.0;
-    // Restrained chroma only: remove yellow/orange cast without whitening or pinking skin.
-    const yy=.2126*r+.7152*g+.0722*b;
-    r=yy+(r-yy)*.87; g=yy+(g-yy)*.87; b=yy+(b-yy)*1.00;
-    d[i]=Math.max(0,Math.min(255,r));d[i+1]=Math.max(0,Math.min(255,g));d[i+2]=Math.max(0,Math.min(255,b));
-  }
-  sc.putImageData(im,0,0);
-  // Apply the reference grade decisively while retaining a small share of untouched source color.
-  ctx.globalAlpha=.10;ctx.drawImage(m,0,0);ctx.globalAlpha=.90;ctx.drawImage(skinTone,0,0);ctx.globalAlpha=1;
+  // V26 REAL-SKIN LOCK: restore the original photographed face pixels directly.
+  // No beauty pass, denoise, blur, synthetic texture, contrast remapping or heavy skin recoloring.
+  // This is intentionally a pixel-preservation step: the AI may create only hair/neck transitions,
+  // while the face interior comes back from the real source photo.
+  ctx.globalAlpha=1;ctx.drawImage(m,0,0);ctx.globalAlpha=1;
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}

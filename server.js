@@ -8,7 +8,8 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
 
-// V25: cache remove.bg output by exact original image bytes. Re-processing the same upload
+// V26: preserve V25 remove.bg cache; skin pipeline now restores real source face pixels without AI beauty grading.
+// Cache remove.bg output by exact original image bytes. Re-processing the same upload
 // during this server lifetime does not consume another remove.bg credit.
 const removeBgCache=new Map();
 const MAX_REMOVE_BG_CACHE=100;
@@ -92,9 +93,9 @@ SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes 
 TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
 
 FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.
-V24 APPROVED-SKIN REFERENCE: target the RIGHT side of the supplied before/after comparison. Skin must read as neutral professional-studio skin: visibly less yellow/orange than V23, slightly cooler and denser, but still naturally warm enough to remain human. Preserve authentic pores, fine lines, small marks, uneven tone and camera microtexture. Control oily highlights on forehead, nose and upper cheeks; use soft diffused illumination and smooth tonal roll-off. Do not brighten or whiten the face. Do not turn skin pink, blue, gray or desaturated. The face and generated neck must share the same neutral white balance and exposure. This instruction changes SKIN COLOR/LIGHT RESPONSE ONLY; face identity/geometry, head/neck placement and scale, hairstyle logic, uniform/template, insignia, background and framing remain locked exactly as before.
-COLOR PRIORITY: suppress excess yellow/orange primarily in skin midtones and highlights while retaining natural red/blood-tone variation in lips and cheeks. Avoid global color changes to uniform, insignia, hair or background.
-TEXTURE PRIORITY: no beauty smoothing, airbrush, denoise-smearing, wax/plastic finish, fake HDR, excessive sharpening, makeup enhancement or synthetic skin detail.
+V26 REAL-SKIN SOURCE LOCK: the face interior must remain the supplied real photograph, not an AI interpretation. Do not perform a skin-quality, beauty, cleanup, relighting, complexion, denoise, smoothing, pore-generation, sharpening, or synthetic-detail pass on the face. Do not infer a reference look that is not actually supplied. For any newly generated neck pixels only, match the adjacent real jaw skin in white balance, exposure, local contrast, fine texture and camera noise so the transition is photographic and invisible. Never make the generated neck cleaner or smoother than the real face.
+COLOR PRIORITY: keep the photographed face color unchanged. Only generated transition pixels may be color-matched to neighboring real skin. Do not globally alter the uniform, insignia, hair or background.
+TEXTURE PRIORITY: preserve source-camera microtexture exactly in the face; no beauty smoothing, airbrush, denoise-smearing, wax/plastic finish, fake HDR, excessive sharpening, makeup enhancement or invented skin detail.
 `;
 
     const form=new FormData();

@@ -1,0 +1,3 @@
+v26
+Real-skin source lock: original face pixels restored after AI edit; no skin beauty/color grading.
+V25 remove.bg cache retained.
