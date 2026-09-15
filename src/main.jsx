@@ -240,7 +240,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0}){
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
   const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
-  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,uX,uY,uW,uH}};
+  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,uX,uY,uW,uH,collarSocketY}};
  }finally{URL.revokeObjectURL(headURL)}
 }
 
@@ -324,23 +324,42 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
 }
 
 async function makeEditableHeadLayer(finishedBlob,personMaskBlob,lock){
- const fu=URL.createObjectURL(finishedBlob),mu=URL.createObjectURL(personMaskBlob);
+ // V45: editable layer must contain ONLY hair + head + generated neck.
+ // Never use the full remove.bg person silhouette here because AI may have painted a uniform/body.
+ const fu=URL.createObjectURL(finishedBlob);
  try{
-  const finalImg=await loadImage(fu),maskImg=await loadImage(mu);
+  const finalImg=await loadImage(fu);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.drawImage(finalImg,0,0,lock.W,lock.H);
-  x.globalCompositeOperation='destination-in';
-  // use the already-created transparent AI person as alpha; no new API call
-  x.drawImage(maskImg,0,0,lock.W,lock.H);
-  x.globalCompositeOperation='destination-in';
-  const clip=document.createElement('canvas');clip.width=lock.W;clip.height=lock.H;
-  const q=clip.getContext('2d');
-  const left=Math.max(0,lock.hX+lock.headW*lock.scale*.08), right=Math.min(lock.W,lock.hX+lock.headW*lock.scale*.92);
-  const top=Math.max(0,lock.hY), bottom=Math.min(lock.H,lock.hY+lock.chinY*lock.headH*lock.scale+lock.W*.06);
-  q.fillStyle='#fff';q.fillRect(left,top,Math.max(1,right-left),Math.max(1,bottom-top));
-  x.drawImage(clip,0,0);
+
+  // Build a strict anatomy mask: broad head/hair region + narrow central neck bridge only.
+  // The neck stops at the real collar socket; shoulders, lapels, tie, insignia and epaulettes are excluded.
+  const mask=document.createElement('canvas');mask.width=lock.W;mask.height=lock.H;
+  const m=mask.getContext('2d');m.fillStyle='#fff';
+  const headL=Math.max(0,lock.hX+lock.headW*lock.scale*.08);
+  const headR=Math.min(lock.W,lock.hX+lock.headW*lock.scale*.92);
+  const headT=Math.max(0,lock.hY);
+  const chinY=lock.hY+lock.chinY*lock.headH*lock.scale;
+  // Head/hair: stop just below jaw so no AI clothing can enter this block.
+  m.fillRect(headL,headT,Math.max(1,headR-headL),Math.max(1,chinY-headT+lock.W*.012));
+  // Neck: narrow trapezoid centered on the fixed collar, from under chin to collar socket.
+  const faceW=(headR-headL);
+  const neckTopW=Math.max(lock.W*.075,faceW*.25);
+  const neckBotW=Math.max(lock.W*.060,faceW*.20);
+  const neckTop=chinY-lock.W*.004;
+  const neckBottom=Math.min(lock.H,lock.collarSocketY ?? (chinY+lock.W*.055));
+  const cx=lock.W*.5;
+  m.beginPath();
+  m.moveTo(cx-neckTopW/2,neckTop);
+  m.lineTo(cx+neckTopW/2,neckTop);
+  m.lineTo(cx+neckBotW/2,neckBottom);
+  m.lineTo(cx-neckBotW/2,neckBottom);
+  m.closePath();m.fill();
+
+  x.globalCompositeOperation='destination-in';x.drawImage(mask,0,0);
+  x.globalCompositeOperation='source-over';
   return c;
- }finally{URL.revokeObjectURL(fu);URL.revokeObjectURL(mu)}
+ }finally{URL.revokeObjectURL(fu)}
 }
 async function renderAdjustedFinal(headLayer,lock,adjust){
  const bg=await loadImage('/assets/background.jpg'),uniform=await loadImage('/assets/uniform.png');
@@ -411,7 +430,7 @@ function App(){
   const finished=hairId?await restoreIdentityCore(aiPersonTransparent,head,composed.lock,composed.blob):aiPersonTransparent;
   const layer=await makeEditableHeadLayer(finished,aiPersonTransparent,composed.lock);editCache.current={layer,lock:composed.lock};setHeadAdjust({scale:1,x:0,y:0});showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V44: คงระบบ V43 เดิม และปรับหัวที่ลบพื้นหลัง/ประกอบเสร็จแล้วได้ทันที โดยไม่เรียก AI หรือ Remove.bg ซ้ำ</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V45: คงระบบ V44 เดิม แต่เลเยอร์ที่ปรับได้มีเฉพาะหัว ผม และคอเท่านั้น — ไม่มีชุด/ไหล่จาก AI</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options"><div className="hair-title">ทรงผม</div>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}><img src={h.src}/><span>{h.name}</span></button>)}</div>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>

@@ -1,1 +1,1 @@
-V43 - V42 unchanged + manual head position/scale controls before processing
+V45 - V44 unchanged; editable post-result layer strictly hair + head + neck only; no AI uniform/body pixels
