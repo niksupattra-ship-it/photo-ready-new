@@ -83,10 +83,26 @@ async function headOnly(blob){
    else boundary=contour[contour.length-1].y;
    if(boundary==null)continue;
    const d=y-boundary;
-   if(d>edgeAA)px[ai]=0;
+   // V41: keep a real transparent NECK after AI + remove.bg instead of cutting at the jaw.
+   // The neck is a narrow central continuation only; shoulders/body remain discarded.
+   const faceCX=(left.x+right.x)/2;
+   const chinY=lm[152].y*H;
+   const neckHalf=faceW*.205;
+   const neckBottom=chinY+faceW*.42;
+   const neckFeather=Math.max(1.5,faceW*.012);
+   const nx=Math.abs(x-faceCX);
+   const inNeckY=y>=chinY-faceW*.015 && y<=neckBottom;
+   let neckCoverage=0;
+   if(inNeckY){
+    if(nx<=neckHalf-neckFeather) neckCoverage=1;
+    else if(nx<neckHalf+neckFeather) neckCoverage=(neckHalf+neckFeather-nx)/(2*neckFeather);
+   }
+   if(neckCoverage>0){
+    // preserve the post-AI remove.bg neck pixels; collar/uniform will cover the lower seam later.
+    px[ai]=Math.round(orig*Math.max(0,Math.min(1,neckCoverage)));
+   }else if(d>edgeAA)px[ai]=0;
    else if(d>-edgeAA){
     const coverage=Math.max(0,Math.min(1,(edgeAA-d)/(2*edgeAA)));
-    // preserve original remove.bg alpha; only multiply coverage
     px[ai]=Math.round(orig*coverage);
    }
   }
@@ -382,22 +398,18 @@ function App(){
  const transparentCache=useRef({key:'',blob:null});
  const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const go=async()=>{setBusy(true);setMsg('');try{
-  const fileKey=[f.name,f.size,f.lastModified].join(':');
-  let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
-  if(!transparent){
-   const d=new FormData();d.append('image',f);
-   const r=await fetch('/api/remove-background',{method:'POST',body:d});
-   if(!r.ok)throw Error(await r.text());
-   transparent=await r.blob();
-   transparentCache.current={key:fileKey,blob:transparent};
-  }
+  // V40 ORDER LOCK: source -> AI skin/hair -> remove.bg -> extract transparent head -> final V38/V39 placement.
+  // Never remove the source background before AI, and never paste AI's background/body into the final image.
+  const aiResult=hairId ? await aiFinishPortrait(f,hairId) : f;
+  const d=new FormData();d.append('image',aiResult,'ai-head.png');
+  const r=await fetch('/api/remove-background',{method:'POST',body:d});
+  if(!r.ok)throw Error(await r.text());
+  const transparent=await r.blob();
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
-  const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
-  const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock,composed.blob) : aiResult;
-  setB(URL.createObjectURL(finished));
+  setB(URL.createObjectURL(composed.blob));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V39: V38 System + Transparent Head Matte + Head Lift 10% — Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V41: AI First → Remove Background → Transparent Head + Real Neck → Final Placement; V38/V39 geometry retained — Exact V9 Skin Engine Only — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
