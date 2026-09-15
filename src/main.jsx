@@ -173,8 +173,22 @@ async function composePortrait(headBlob){
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/jpeg',.97));
  }finally{URL.revokeObjectURL(headURL)}
 }
+
+async function aiFinishPortrait(composedBlob,hairId){
+ const fd=new FormData();
+ fd.append('image',composedBlob,'portrait.png');
+ fd.append('hairId',hairId);
+ const r=await fetch('/api/ai-finish',{method:'POST',body:fd});
+ if(!r.ok) throw Error(await r.text());
+ return await r.blob();
+}
+
+const HAIR_OPTIONS=[
+ {id:'hair-01',name:'ทรงผม 01',src:'/assets/hair/hair-01.png'}
+];
+
 function App(){
- const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+ const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
  const pick=e=>{const v=e.target.files?.[0];if(v){setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const go=async()=>{setBusy(true);setMsg('');try{
   const d=new FormData();d.append('image',f);
@@ -183,11 +197,18 @@ function App(){
   const transparent=await r.blob();
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
-  setB(URL.createObjectURL(composed));
+  const finished=hairId ? await aiFinishPortrait(composed,hairId) : composed;
+  setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
- <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
+ <div className="hair-options">
+ <div className="hair-title">ทรงผม</div>
+ {HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}>
+   <img src={h.src}/><span>{h.name}</span>
+ </button>)}
+</div>
+<button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
  {b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div>}
  {b&&<a className="save" href={b} download="photo-composed.jpg">ดาวน์โหลดภาพ</a>}
