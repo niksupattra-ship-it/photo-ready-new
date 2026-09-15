@@ -101,3 +101,9 @@
 - บังคับให้มี visible clearance ระหว่างใต้คางกับขอบช่องคอประมาณ 2.2–3.2% ของความสูง canvas (ปรับตามความกว้างใบหน้าในช่วงที่จำกัด)
 - ตำแหน่งอิง template/collar socket จึงไม่ขึ้นกับว่ารูปต้นฉบับเป็น close-up, ครึ่งตัว หรือถ่ายไกล
 - ขั้นนี้เป็นการ 'วางไว้ก่อน' ตามสเปก: ยังไม่เพิ่มการปรับ scale/shoulder balance รอบใหม่
+
+## V18 photorealistic finishing
+- Keeps V17 geometry/placement unchanged.
+- AI may create only the short missing neck bridge and selected hairstyle outside the protected face.
+- Strong original-skin lock: pores, marks, uneven tone, highlights, shadows and camera grain must remain photographic; no beauty/plastic skin.
+- Face restoration mask uses a slightly wider local feather to hide cutout halos while restoring original face pixels after AI finishing.

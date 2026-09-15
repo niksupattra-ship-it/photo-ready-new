@@ -50,20 +50,20 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
     const hairBuf=fs.readFileSync(hairPath);
 
-    const prompt=`STRICT PHOTO COMPOSITING / SEAM FINISH ONLY.
-The first image already contains a TEMPLATE-NORMALIZED preserved head at a fixed canonical optical size and a fixed REAL CENTER-COLLAR neck socket against a fixed Thai ceremonial uniform template. The second image is the selected hairstyle reference.
+    const prompt=`PHOTOREALISTIC ID-PHOTO COMPOSITING. LOCAL EDITS ONLY.
+The first image is already geometrically placed and scaled. Treat its face, head position, uniform, shoulders, collar, background and framing as locked photographic source material. The second image is ONLY the hairstyle shape/reference.
 
-ABSOLUTE IDENTITY LOCK: preserve every pixel-level identity characteristic of the existing face. Do not regenerate, enlarge, shrink, stretch, project forward, beautify or reshape the face. Keep eyes, gaze, eyebrows, nose, lips, jaw, cheeks, skin texture, pores, marks, expression and apparent age unchanged. Natural camera skin only; no smoothing, whitening, makeup enhancement or plastic AI skin.
+IDENTITY / SKIN LOCK — HIGHEST PRIORITY: Do not redraw, beautify, retouch or synthesize the facial skin. Preserve the existing face geometry and photographic texture: pores, fine lines, natural uneven tone, small marks, highlights, shadows, sharpness and sensor/camera grain. No skin smoothing, no porcelain/waxy/plastic skin, no beauty filter, no whitening, no makeup enhancement, no HDR glow, no CGI/illustration appearance. Do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age or facial proportions.
 
-ABSOLUTE TEMPLATE LOCK: do not alter the uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body width, background, crop or framing. The uniform template is the body master and must remain pixel-consistent.
+EDIT REGION 1 — SHORT NECK CONNECTION ONLY: create only the missing short anatomical bridge between the fixed underside of the jaw and the fixed center collar opening. Do not use the source-photo neck as a proportion reference. Keep the neck compact and naturally broad enough to support this jaw, with subtle natural widening toward the collar. Preserve realistic skin texture and copy the face's local color, pores, lighting direction, contrast and camera grain onto the generated neck. Do not lengthen the neck, thin it, move the head, move the chin, move the collar, or alter the uniform.
 
-EDIT ONLY: (A) the empty anatomical connection between the preserved jaw/chin and the fixed collar, and (B) hair outside the protected face region.
+EDIT REGION 2 — HAIRSTYLE OUTSIDE THE FACE: change only hair required to match the second image's hairstyle silhouette and flow. Keep the original forehead boundary / natural hairline relationship and do not reshape the face. Hair must be photographic: individual strands, natural density, flyaways, realistic roots and lighting; no painted, helmet-like, overly perfect or synthetic AI hair.
 
-NECK: ignore/delete all neck proportions from the source photograph. Construct a NEW anatomically plausible adult neck ONLY inside the very short fixed gap from the jaw to the collar. The chin is intentionally positioned immediately above the REAL CENTER COLLAR OPENING (not the shoulder/collar-tip height); fill only that short bridge. Do not reinterpret the collar opening or move either anchor. The collar and jaw are immutable anchors. Neck width at the jaw must visually support the existing jaw and widen naturally toward the collar; keep the neck compact, centered and anatomically continuous. DO NOT move the chin upward, move the head upward, move the collar downward, or create extra neck length. Keep the completed chin-to-collar distance exactly as short as supplied. Never make a pencil neck, long neck, stretched neck, tiny neck, or forward-projecting head. Blend skin tone, pores, light and camera grain to the preserved face.
+SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes and pasted-on boundaries around temples, ears, jaw sides and hair. Blend only a narrow transition band. Preserve the original pixels throughout the interior of the face. Match edge sharpness, local light, color temperature and camera grain so the composite looks optically photographed in one shot. Do not blur the whole face to hide seams.
 
-HAIR: follow the second image hairstyle reference around the existing normalized head. Do not move the hairline in a way that changes perceived face length or width. Do not cover or redraw facial features.
+TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
 
-FINAL CHECK BEFORE OUTPUT: head-to-shoulder scale must remain exactly as supplied by the first image; face must not become larger or smaller; neck must visually connect head and collar without changing either anchor. Result must look like a professional real-camera ID photo, not generated art.`;
+FINAL QUALITY TEST: the result must look like an unretouched real-camera ID photograph. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.`;
 
     const form=new FormData();
     form.append("model","gpt-image-2");

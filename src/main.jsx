@@ -264,7 +264,10 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   x.globalCompositeOperation='destination-in';
   // soften only the mask boundary without changing face geometry
   const tmp=document.createElement('canvas');tmp.width=lock.W;tmp.height=lock.H;tmp.getContext('2d').drawImage(mask,0,0);
-  x.clearRect(0,0,lock.W,lock.H);x.filter='blur(2px)';x.drawImage(tmp,0,0);x.filter='none';
+  x.clearRect(0,0,lock.W,lock.H);
+  // V18: broader but still local feather. It hides cutout/halo seams without blurring face pixels themselves.
+  const feather=Math.max(3,Math.min(7,lock.W*.0045));
+  x.filter=`blur(${feather}px)`;x.drawImage(tmp,0,0);x.filter='none';
   mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
   ctx.drawImage(m,0,0);
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
