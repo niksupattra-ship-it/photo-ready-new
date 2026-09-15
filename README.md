@@ -189,3 +189,10 @@ Changes from V20: skin tone/light/detail only, matched toward the approved earli
 - ยังคง pores, fine lines, moles, texture และรายละเอียดจริงของใบหน้า
 - ลด micro-contrast boost ของ restored original face เพื่อให้ผิวดูนุ่มเป็นภาพถ่ายมากขึ้นโดยไม่เบลอ
 - ห้าม airbrush / waxy / plastic / heavy denoise / beauty filter / whitening
+
+
+## V38
+- Keep V37/V28 pipeline unchanged except final placement fixes.
+- Final head layer is scaled to 80% of V37 (uniform X/Y; no distortion).
+- Full-frame AI pixels are no longer the base. V28 locked composition is the base, and AI is clipped to a narrow central head/hair/neck window. This removes AI-generated duplicate uniform/epaulettes behind the real uniform.
+- Original uniform.png remains the final overlay layer.

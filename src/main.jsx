@@ -203,7 +203,7 @@ async function composePortrait(headBlob){
   // V37 FINAL HEAD PROPORTION: after canonical face normalization and shoulder fitting,
   // reduce the final head block slightly so head/neck reads naturally against the fixed real uniform.
   // Uniform geometry is untouched; only the head layer scale changes, uniformly in X/Y.
-  const v37FinalHeadScale=1.00; // replaces V17's 1.10 oversize boost (~9.1% smaller final head)
+  const v37FinalHeadScale=0.80; // V38: reduce the FINAL placed head uniformly by an additional 20% vs V37
   let scale=canonicalScale*corrected*v37FinalHeadScale;
   scale=Math.max(.25,Math.min(4.0,scale));
 
@@ -262,7 +262,22 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
   let sx=0,sy=0,sw=ai.naturalWidth,sh=ai.naturalHeight;
   if(aiAR<targetAR){ sh=sw/targetAR; sy=(ai.naturalHeight-sh)/2; }
   else if(aiAR>targetAR){ sw=sh*targetAR; sx=(ai.naturalWidth-sw)/2; }
-  ctx.drawImage(ai,sx,sy,sw,sh,0,0,lock.W,lock.H);
+  // V38: start from the locked V28 composition, never from a full-frame AI result.
+  // This prevents any AI-generated uniform/epaulette/background from surviving behind the real template.
+  ctx.drawImage(base,0,0,lock.W,lock.H);
+
+  // AI may contribute ONLY inside a narrow central head/hair/neck window.
+  // The window deliberately stops before the shoulder/epaulette zones.
+  const aiCanvas=document.createElement('canvas'); aiCanvas.width=lock.W; aiCanvas.height=lock.H;
+  const ac=aiCanvas.getContext('2d');
+  ac.drawImage(ai,sx,sy,sw,sh,0,0,lock.W,lock.H);
+  const headLeft=Math.max(0,Math.floor(lock.hX + lock.headW*lock.scale*.12));
+  const headRight=Math.min(lock.W,Math.ceil(lock.hX + lock.headW*lock.scale*.88));
+  const headTop=Math.max(0,Math.floor(lock.hY));
+  const aiBottom=Math.min(lock.H,Math.round(lock.hY + lock.chinY*lock.headH*lock.scale + lock.W*.035));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(headLeft,headTop,Math.max(1,headRight-headLeft),Math.max(1,aiBottom-headTop)); ctx.clip();
+  ctx.drawImage(aiCanvas,0,0); ctx.restore();
   const m=document.createElement('canvas');m.width=lock.W;m.height=lock.H;
   const mc=m.getContext('2d');
   mc.drawImage(head,lock.hX,lock.hY,lock.headW*lock.scale,lock.headH*lock.scale);
