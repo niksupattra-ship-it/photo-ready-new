@@ -462,7 +462,7 @@ function App(){
  const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0});setCollarWarp(0);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,next,collarWarp);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.55,Math.min(1.45,v.scale));applyAdjust(v)};
- const applyCollarWarp=async amount=>{const v=Math.max(-.45,Math.min(.45,amount));setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,headAdjust,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
+ const applyCollarWarp=async amount=>{const v=Math.max(-1,Math.min(1,amount));setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,headAdjust,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
  const go=async()=>{setBusy(true);setMsg('');try{
   const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
