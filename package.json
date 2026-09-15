@@ -1,17 +1,16 @@
 {
-  "name": "govphoto-v5-1-auto-head-extraction",
-  "version": "5.1.1",
+  "name": "govphoto-v5-2-browser-cutout",
+  "version": "5.2.0",
   "type": "module",
   "scripts": {
     "start": "node server.js"
   },
+  "engines": {
+    "node": ">=20 <25"
+  },
   "dependencies": {
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "sharp": "^0.34.3",
-    "@imgly/background-removal-node": "1.4.5"
-  },
-  "engines": {
-    "node": ">=20 <25"
+    "sharp": "^0.34.3"
   }
 }

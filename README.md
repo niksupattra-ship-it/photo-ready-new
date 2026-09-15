@@ -1,16 +1,5 @@
-# GovPhoto v5.1 Auto Head Extraction
-แก้ปัญหารูปต้นฉบับเป็นกรอบสี่เหลี่ยมทับชุด:
-- ผู้ใช้ไม่ต้องอัปโหลด mask
-- ใช้ background-removal segmentation สร้าง alpha อัตโนมัติ
-- crop ส่วนบนของ segmented person เพื่อเอาลำตัวออก
-- วาง PNG โปร่งใสบน Template ชุด
-- ชุด Pixel Locked และไม่ใช้ Generative AI
-- AI calls = 0 ในขั้นตอนนี้
-
-ข้อจำกัดปัจจุบัน: การหาเส้นใต้คาง/ช่องคอเป็น heuristic; Neck-only inpainting ยังไม่เปิดในไฟล์นี้
-เพื่อไม่ให้ระบบอ้างว่าล็อกชุดแต่กลับส่งทั้งภาพให้ AI
-
-## v5.1.1 Render build fix
-- แก้ @imgly/background-removal-node จากเวอร์ชันที่ไม่มีอยู่จริง เป็น 1.4.5
-- รองรับ Node 20–24
-- ไม่เปลี่ยน pipeline การตัดหัว/Pixel Locked จาก v5.1
+# v5.2 Browser Cutout
+เอา background-removal-node ออกจาก Render backend แล้ว
+การลบพื้นหลังทำใน browser; server ทำเฉพาะ Sharp compositing.
+ชุด Pixel Locked, AI=0 ในขั้นนี้.
+หมายเหตุ: IMG.LY browser package ใช้ AGPL; ตรวจเงื่อนไข license ก่อนใช้งานเชิงพาณิชย์.
