@@ -35,3 +35,9 @@
 - เปลี่ยน output quality จาก high -> low เพื่อลดค่า image output อย่างมาก
 - prompt ล็อกใบหน้า/ผิว/แววตา/ชุด/เครื่องหมายเหมือนเดิม
 - ขั้นต่อไปหากต้องลดอีก: crop+mask เฉพาะ head/neck ROI แล้ว composite กลับ
+
+## Compatibility fix
+- ลบ input_fidelity parameter ออกจาก gpt-image-2 เพราะ endpoint/model นี้ตอบกลับว่าไม่รองรับ
+- quality=low ยังคงเดิม
+- prompt รักษาใบหน้า/ผิว/แววตา/ชุดยังคงเดิม
+- pipeline อื่นไม่เปลี่ยน

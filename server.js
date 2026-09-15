@@ -64,7 +64,6 @@ Result must look like a real professional camera photograph, natural RAW-like sk
     const form=new FormData();
     form.append("model","gpt-image-2");
     form.append("prompt",prompt);
-    form.append("input_fidelity","high"); // keep face/reference fidelity
     form.append("quality","low");
     form.append("output_format","png");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
