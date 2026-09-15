@@ -123,61 +123,87 @@ async function alphaBounds(img){
 
 async function composePortrait(headBlob){
  const bg=await loadImage('/assets/background.jpg');
- const uniformImg=await loadImage('/assets/uniform.png');
+ const uniform=await loadImage('/assets/uniform.png');
  const headURL=URL.createObjectURL(headBlob);
  try{
-  const head=await loadImage(headURL), uniform=uniformImg;
+  const head=await loadImage(headURL);
   const hb=await alphaBounds(head);
   const W=bg.naturalWidth,H=bg.naturalHeight;
   const c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  const ctx=c.getContext('2d',{alpha:false});
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  // ชุด: ยึดไฟล์ PNG จริงและวางตำแหน่งตาม reference #3
+  // V9 ANATOMICAL ANCHOR FIT
+  // Template anchors are calibrated once for this exact transparent uniform.
+  // All coordinates are normalized to the rendered uniform box.
+  const A={
+    neckCenterX:.500,
+    collarTopY:.012,
+    collarBottomY:.175,
+    shoulderLeftX:.055,
+    shoulderRightX:.945,
+    shoulderY:.145
+  };
+
+  // Render uniform at reference framing. Its pixels are never warped.
   const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
-  const uX=(W-uW)/2,uY=H*.425;
+  const uX=(W-uW)/2,uY=H*.365;
 
-  // Geometry ของ template นี้: ช่องคออยู่กึ่งกลางชุด
-  const collarCX=W*.5;
-  const collarTop=uY+uH*.015;
-  const collarOpening=uW*.235;
+  const neckCX=uX+A.neckCenterX*uW;
+  const collarTop=uY+A.collarTopY*uH;
+  const collarBottom=uY+A.collarBottomY*uH;
+  const shoulderY=uY+A.shoulderY*uH;
+  const shoulderSpan=(A.shoulderRightX-A.shoulderLeftX)*uW;
 
-  // ใช้ "ขอบศีรษะจริง" หลังตัด alpha ไม่ใช้ขนาด canvas ต้นฉบับ
-  // เป้าหมาย: ความกว้างหัวสัมพันธ์กับช่องคอและความกว้างไหล่ของชุด
-  // สเกลหัวจากความกว้างเท่านั้น เพื่อไม่ให้ความสูงคอของต้นฉบับมีผลต่อสเกล
-  const targetVisibleHeadW=collarOpening*2.02;
-  let scale=targetVisibleHeadW/hb.w;
+  // Head scale: shoulder span is primary. Collar geometry is NOT the main scale driver.
+  // Female frontal portrait target: shoulder/head width ≈ 1.8–2.0.
+  const targetRatio=1.90;
+  let visibleHeadW=shoulderSpan/targetRatio;
 
-  // จำกัดช่วงเพื่อกันรูปต้นฉบับที่ crop/zoom ผิดปกติ
-  const minHeadW=uW*.285,maxHeadW=uW*.37;
-  const proposed=hb.w*scale;
-  if(proposed<minHeadW)scale=minHeadW/hb.w;
-  if(proposed>maxHeadW)scale=maxHeadW/hb.w;
+  // Guard rails keep unusual source crops from producing giant/tiny heads.
+  const minW=shoulderSpan/2.02,maxW=shoulderSpan/1.78;
+  visibleHeadW=Math.max(minW,Math.min(maxW,visibleHeadW));
+  const scale=visibleHeadW/hb.w;
+  const visibleHeadH=hb.h*scale;
 
-  const visibleW=hb.w*scale,visibleH=hb.h*scale;
-  const visibleLeft=collarCX-visibleW/2;
+  // AI neck zone: deliberately leave anatomically useful space.
+  // It is not treated as an existing neck; it is a reserved synthesis zone.
+  const collarDepth=Math.max(1,collarBottom-collarTop);
+  let neckZoneH=visibleHeadH*.145;
+  neckZoneH=Math.max(visibleHeadH*.12,Math.min(visibleHeadH*.18,neckZoneH));
+  neckZoneH=Math.min(neckZoneH,collarDepth*.72);
 
-  // V7: ควบคุม "ระยะคอที่มองเห็น" จากสัดส่วนหัวและช่องคอ
-  // ห้ามยกหัวสูงตามภาพต้นฉบับ เพราะจะทำให้คอยาว
-  // ใช้คางเป็น anchor แล้วฝังคางลงในช่องคอในสัดส่วนคงที่ตามขนาดหัว
-  const desiredNeckVisible=Math.max(
-    collarOpening*.10,
-    Math.min(collarOpening*.18, visibleH*.045)
-  );
-  const chinTargetY=collarTop-desiredNeckVisible;
+  // Chin anchor: chin sits above collar opening by the reserved neck-zone height.
+  const chinY=collarTop-neckZoneH;
+  const visibleTop=chinY-visibleHeadH;
+  const visibleLeft=neckCX-visibleHeadW/2;
 
-  // visibleTop + visibleH = ตำแหน่งคางของ head-only
-  // จึงวางคางให้สัมพันธ์กับปกเสื้อโดยตรง
-  const visibleTop=chinTargetY-visibleH;
-
-  // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
   const hX=visibleLeft-hb.l*scale;
   const hY=visibleTop-hb.t*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
-  // ลำดับเลเยอร์: background -> head -> uniform
-  ctx.drawImage(head,hX,hY,hW,hH);
+  // Body geometry sanity check:
+  // shoulder must remain below chin; if template geometry violates it,
+  // shift head down only enough to preserve a minimum anatomical relation.
+  const minShoulderBelowChin=visibleHeadH*.20;
+  let correctedHY=hY;
+  if(shoulderY-chinY<minShoulderBelowChin){
+    const delta=minShoulderBelowChin-(shoulderY-chinY);
+    correctedHY-=Math.min(delta,visibleHeadH*.06);
+  }
+
+  // Layer order: background -> head -> uniform.
+  // The blank zone between chin and collar is intentionally reserved for AI neck finishing.
+  ctx.drawImage(head,hX,correctedHY,hW,hH);
   ctx.drawImage(uniform,uX,uY,uW,uH);
+
+  // Store geometry for the next AI-finishing stage without changing the image.
+  window.__PHOTO_GEOMETRY__={
+    head:{x:hX,y:correctedHY,w:hW,h:hH,visibleW:visibleHeadW,visibleH:visibleHeadH},
+    neckZone:{centerX:neckCX,top:chinY,bottom:collarTop,height:neckZoneH},
+    template:{x:uX,y:uY,w:uW,h:uH,shoulderY,collarTop,collarBottom,shoulderSpan}
+  };
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/jpeg',.97));
  }finally{URL.revokeObjectURL(headURL)}
@@ -194,7 +220,7 @@ function App(){
   const composed=await composePortrait(head);
   setB(URL.createObjectURL(composed));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัว + ปรับระยะคออัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
+ return <main><h1>Anatomical Anchor Fitting</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดหัวจริง → Fit จากความกว้างไหล่ → สร้างพื้นที่คอสำหรับ AI → วางกับ Template อัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}

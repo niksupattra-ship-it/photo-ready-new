@@ -1,20 +1,27 @@
-# Photo Compose V8 — Head / Shoulder / Collar Geometry
+# V9 Anatomical Anchor Fitting
 
-ฐาน: V7 Auto Neck Fit
+รื้อระบบ positioning ของ V8 แล้ว
 
-ปัญหาจากผลทดสอบ 1128×1536:
-- head-only จบที่คางและไม่มี neck pixels
-- V7 วางช่องคอต่ำเกินไป จึงเห็นพื้นหลังฟ้าระหว่างคางกับปกเหมือนคอยาว/หัวลอย
+คงเดิม:
+- remove.bg
+- head extraction / jaw matte
+- background
+- transparent uniform PNG
+- one-click pipeline
 
-V8:
-- วัด visible head alpha bounds
-- ใช้ visible head height เป็น headUnit
-- คำนวณ collarTop, collarBottom, collarDepth และ shoulderY จาก template
-- เป้าหมาย shoulder อยู่ ~0.20–0.27 head-height ต่ำกว่าคาง
-- เพราะ head-only ไม่มีคอ จึงให้ปกซ้อนใต้คางเล็กน้อย ~1.5–3% head-height
-- เลื่อนระดับชุดขึ้นจาก V7 เพื่อให้ช่องคอรับกับหัว
-- scale หัวยังอิง collar opening/shoulder width และมี clamp ป้องกันหัวใหญ่/เล็ก
-- Layer: background -> head -> transparent uniform
-- ไม่แก้ใบหน้า ไม่ warp ชุด
+ใหม่:
+1. Template มี anatomical anchors แบบ normalized:
+   neck center, collar top/bottom, shoulder left/right, shoulder Y
+2. Scale หัวจาก shoulder span เป็นหลัก
+   target shoulder/head width ≈ 1.90
+   clamp 1.78–2.02
+3. ไม่เอาช่องคอเป็นตัวกำหนดขนาดหัวหลัก
+4. สร้าง AI Neck Zone ระหว่างคางกับ collar top
+   target ≈ 12–18% ของ visible head height
+5. คาง/หัวจัดกลางกับ neck center
+6. sanity check ระยะ shoulder-to-chin
+7. เก็บ geometry ไว้ใน window.__PHOTO_GEOMETRY__
+   เพื่อใช้สร้าง mask สำหรับ AI neck finishing ขั้นต่อไป
+8. ไม่ warp / redraw ชุด และไม่แก้ใบหน้า
 
-หมายเหตุ: หากต้องการเห็นคอจริงอย่างเป็นธรรมชาติ ขั้นถัดไปควรเก็บ short-neck pixels จากภาพต้นฉบับหรือใช้ AI finishing เฉพาะรอยต่อ
+ขั้นนี้ยังไม่เรียก AI; เป็น geometry foundation สำหรับ AI เติมคอ/เกลี่ยขอบในขั้นถัดไป
