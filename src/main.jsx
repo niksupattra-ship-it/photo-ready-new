@@ -1,12 +1,5 @@
-import React,{useState} from "react";import{createRoot}from"react-dom/client";import"./style.css";
-function App(){
- const[file,setFile]=useState(null),[before,setBefore]=useState(""),[after,setAfter]=useState(""),[busy,setBusy]=useState(false),[err,setErr]=useState("");
- const choose=e=>{const f=e.target.files?.[0];if(!f)return;setFile(f);setBefore(URL.createObjectURL(f));setAfter("");setErr("")};
- async function remove(){if(!file)return;setBusy(true);setErr("");try{const fd=new FormData();fd.append("image",file);const r=await fetch("/api/remove-background",{method:"POST",body:fd});if(!r.ok)throw new Error(await r.text());const b=await r.blob();setAfter(URL.createObjectURL(b))}catch(e){setErr(e.message||"ลบพื้นหลังไม่สำเร็จ")}finally{setBusy(false)}}
- return <main><section className="hero"><span className="tag">BACKGROUND REMOVER</span><h1>ลบพื้นหลังรูปบุคคล</h1><p>คงพิกเซลของบุคคลจากภาพต้นฉบับ และเปลี่ยนเฉพาะพื้นหลังเป็นโปร่งใส</p></section>
- <section className="card"><label className="drop"><input type="file" accept="image/*" onChange={choose}/>{before?<img src={before}/>:<><b>เพิ่มรูปภาพ</b><span>JPG / PNG / WEBP</span></>}</label>
- <button disabled={!file||busy} onClick={remove}>{busy?"กำลังแยกบุคคล…":"ลบพื้นหลัง"}</button>{err&&<p className="error">{err}</p>}
- {after&&<div className="result"><div><h3>ต้นฉบับ</h3><img src={before}/></div><div><h3>พื้นหลังโปร่งใส</h3><div className="checker"><img src={after}/></div></div></div>}
- {after&&<a className="download" href={after} download="background-removed.png">ดาวน์โหลด PNG</a>}</section>
- <p className="note">ระบบนี้ไม่ใช้ Generative AI วาดใบหน้าใหม่</p></main>}
-createRoot(document.getElementById("root")).render(<App/>);
+import React,{useState}from'react';import{createRoot}from'react-dom/client';import'./style.css';
+function App(){const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+const pick=e=>{let x=e.target.files?.[0];if(x){setF(x);setA(URL.createObjectURL(x));setB();setMsg('')}};
+const go=async()=>{setBusy(true);setMsg('');try{let d=new FormData();d.append('image',f);let r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());setB(URL.createObjectURL(await r.blob()))}catch(e){setMsg(e.message)}finally{setBusy(false)}};
+return <main><h1>ลบพื้นหลังรูปบุคคล</h1><p>แยกบุคคลออกจากพื้นหลังและบันทึกเป็น PNG โปร่งใส</p><section><label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label><button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลัง…':'ลบพื้นหลัง'}</button>{msg&&<div className="err">{msg}</div>}{b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์</figcaption><div className="check"><img src={b}/></div></figure></div>}{b&&<a className="save" href={b} download="removed-background.png">ดาวน์โหลด PNG</a>}</section></main>}createRoot(document.getElementById('root')).render(<App/>);
