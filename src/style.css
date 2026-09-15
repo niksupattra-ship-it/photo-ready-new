@@ -5,3 +5,5 @@
 .hair-card.selected{border-color:#315bea!important}
 .hair-card img{width:94px;height:110px;object-fit:contain;display:block;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 50%/14px 14px;border-radius:8px}
 .hair-card span{display:block;margin-top:5px;font-size:13px}
+
+.head-tools{margin:16px 0;padding:14px;border:1px solid #d8deea;border-radius:14px;background:#f8faff;text-align:left}.head-tools-title{font-weight:700;margin-bottom:10px}.head-tools-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.head-tools-grid button{margin:0!important;padding:11px!important;background:#fff!important;color:#24324a!important;border:1px solid #cbd5e1!important}.head-tools-grid button:hover{border-color:#315bea!important}.head-tools-grid .reset-head{grid-column:1/-1;background:#eef2ff!important;color:#315bea!important}.head-tools small{display:block;margin-top:9px;color:#667085;text-align:center}@media(max-width:650px){.head-tools-grid{grid-template-columns:repeat(2,1fr)}}

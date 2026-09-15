@@ -121,7 +121,7 @@ async function alphaBounds(img){
  return r>=l?{l,t,r,b,w:r-l+1,h:b-t+1}:{l:0,t:0,r:c.width-1,b:c.height-1,w:c.width,h:c.height};
 }
 
-async function composePortrait(headBlob){
+async function composePortrait(headBlob,adjust={scale:1,x:0,y:0}){
  const bg=await loadImage('/assets/background.jpg');
  const uniformImg=await loadImage('/assets/uniform.png');
  const headURL=URL.createObjectURL(headBlob);
@@ -204,7 +204,7 @@ async function composePortrait(headBlob){
   // reduce the final head block slightly so head/neck reads naturally against the fixed real uniform.
   // Uniform geometry is untouched; only the head layer scale changes, uniformly in X/Y.
   const v37FinalHeadScale=0.80; // V38: reduce the FINAL placed head uniformly by an additional 20% vs V37
-  let scale=canonicalScale*corrected*v37FinalHeadScale;
+  let scale=canonicalScale*corrected*v37FinalHeadScale*(adjust.scale||1);
   scale=Math.max(.25,Math.min(4.0,scale));
 
   // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
@@ -231,8 +231,8 @@ async function composePortrait(headBlob){
   // offset อิงความสูง canvas/template เพื่อให้ทุก input ได้ตำแหน่งเดียวกัน
   const v17Lift=H*.05;
   const chinTargetY=collarSocketY-targetNeckVisible-v17Lift;
-  const hX=collarCX-faceCX*scale;
-  const hY=chinTargetY-chinY*scale;
+  const hX=collarCX-faceCX*scale + (adjust.x||0)*W;
+  const hY=chinTargetY-chinY*scale + (adjust.y||0)*H;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
   // background -> normalized head only -> original uniform template
@@ -366,6 +366,7 @@ const HAIR_OPTIONS=[
 
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
+ const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0});
  const transparentCache=useRef({key:'',blob:null});
  const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const go=async()=>{setBusy(true);setMsg('');try{
@@ -379,7 +380,7 @@ function App(){
    transparentCache.current={key:fileKey,blob:transparent};
   }
   const head=await headOnly(transparent);
-  const composed=await composePortrait(head);
+  const composed=await composePortrait(head,headAdjust);
   const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
   // V42: keep V38 pipeline/geometry, but remove the AI output background AFTER AI finishing.
   // This preserves the complete generated person silhouette, including the neck, before final placement.
@@ -387,13 +388,26 @@ function App(){
   const finished=hairId ? await restoreIdentityCore(aiPersonTransparent,head,composed.lock,composed.blob) : aiPersonTransparent;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V42: V38 เดิม + ลบพื้นหลังหลัง AI ให้เหลือคนที่สร้างรวมคอ ก่อนวางกลับ โดยระบบอื่นคงเดิม</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V43: คงระบบ V42 เดิมทั้งหมด + เพิ่มเครื่องมือปรับส่วนหัว ซ้าย ขวา บน ล่าง ลด และขยาย ก่อนประมวลผล</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
  {HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}>
    <img src={h.src}/><span>{h.name}</span>
  </button>)}
+</div>
+<div className="head-tools">
+ <div className="head-tools-title">ปรับตำแหน่งและขนาดส่วนหัว</div>
+ <div className="head-tools-grid">
+  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,y:v.y-.02}))}>↑ บน</button>
+  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,y:v.y+.02}))}>↓ ล่าง</button>
+  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,x:v.x-.02}))}>← ซ้าย</button>
+  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,x:v.x+.02}))}>→ ขวา</button>
+  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,scale:Math.max(.55,v.scale-.05)}))}>− ลดหัว</button>
+  <button type="button" onClick={()=>setHeadAdjust(v=>({...v,scale:Math.min(1.45,v.scale+.05)}))}>＋ ขยายหัว</button>
+  <button type="button" className="reset-head" onClick={()=>setHeadAdjust({scale:1,x:0,y:0})}>คืนค่ามาตรฐาน</button>
+ </div>
+ <small>ขนาด {Math.round(headAdjust.scale*100)}% · ซ้าย/ขวา {Math.round(headAdjust.x*100)}% · บน/ล่าง {Math.round(headAdjust.y*100)}%</small>
 </div>
 <button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}

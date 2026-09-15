@@ -1,3 +1,1 @@
-V42
-Base: V38
-Change only: remove background from AI output after AI finishing, preserving the generated person including neck, before final placement.
+V43 - V42 unchanged + manual head position/scale controls before processing
