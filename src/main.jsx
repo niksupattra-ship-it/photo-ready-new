@@ -273,15 +273,15 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   // No beauty pass, denoise, blur, synthetic texture, contrast remapping or heavy skin recoloring.
   // This is intentionally a pixel-preservation step: the AI may create only hair/neck transitions,
   // while the face interior comes back from the real source photo.
-  // V29 SKIN ONLY — geometry/layout remains byte-for-byte V28 logic above.
-  // Keep the photographed face as the master layer. Apply only a very light optical tonal blend
-  // so skin stays natural and camera-like; never regenerate or reshape facial pixels.
+  // V28: NATURAL STUDIO SKIN — keep the real photographed face, then use a restrained
+  // optical complexion blend to match the approved sample: smooth tonal transitions without
+  // wax/plastic skin. This is local canvas processing, not AI face regeneration.
   ctx.globalAlpha=1;ctx.drawImage(m,0,0);
   const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
   const sc=soft.getContext('2d');
-  // V29 approved natural-skin finish: weaker diffusion than V28 to retain pores and avoid waxy AI skin.
-  sc.filter='blur(0.42px)';sc.drawImage(m,0,0);sc.filter='none';
-  ctx.globalAlpha=.10;ctx.drawImage(soft,0,0);ctx.globalAlpha=1;
+  // Slightly wider optical diffusion than V27, but low opacity keeps pores/marks/identity.
+  sc.filter='blur(0.58px)';sc.drawImage(m,0,0);sc.filter='none';
+  ctx.globalAlpha=.16;ctx.drawImage(soft,0,0);ctx.globalAlpha=1;
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
@@ -317,10 +317,12 @@ function App(){
   const head=await headOnly(transparent);
   const composed=await composePortrait(head);
   const aiResult=hairId ? await aiFinishPortrait(composed.blob,hairId) : composed.blob;
-  const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock) : aiResult;
+  // V29: keep V9 high-fidelity camera/skin + hairstyle result. Restoring V28 source-face pixels here would erase the V9 skin treatment.
+  // V28 geometry/layout is preserved upstream in composeHeadOnTemplate() and hard-locked in the AI prompt.
+  const finished=aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V29: ผิวธรรมชาติแบบภาพถ่ายจริง + การวางภาพ/สเกล/คอ/ไหล่/ชุด/กรอบภาพคงระบบ V28</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V28: Natural Studio Skin — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>

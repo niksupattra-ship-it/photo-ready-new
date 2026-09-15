@@ -1,2 +1,1 @@
-V29
-Skin-only update on V28 geometry. V28 composition, head placement, scale, neck/collar geometry, uniform/template placement, framing, crop, background and remove.bg flow are unchanged. Final face remains original photographed pixels with a restrained 10% / 0.42px optical tonal blend to preserve pores and natural camera texture while reducing waxy/AI skin.
+V29 - V28 layout/geometry + exact V9 skin/camera and hairstyle method
