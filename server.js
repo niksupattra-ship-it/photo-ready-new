@@ -56,7 +56,7 @@ Preserve the person's identity and original face exactly: do not change facial g
 Do not beautify, smooth, retouch, whiten, reshape, or make the skin plastic.
 Keep the uniform, insignia, epaulettes, tie, buttons, background, framing and body template unchanged.
 Edit only these regions:
-1) create a short anatomically natural neck between the existing chin/jaw and uniform collar, matching the person's existing skin tone, texture, lighting and camera grain;
+1) create an entirely NEW anatomically natural neck in the empty gap between the preserved chin/jaw and the fixed uniform collar. Ignore any neck proportions from the original source photo. The new neck must be proportioned to BOTH the preserved head and the fixed body template: natural adult neck width, gently tapering from the jaw to the collar, and short-to-moderate vertical length. It must not be pencil-thin, long, stretched, or narrower than anatomically plausible. Match the person's existing skin tone, texture, lighting and camera grain;
 2) replace/finish only the hair so it follows the second image hairstyle reference naturally around the existing head, while keeping the forehead, face and ears consistent;
 3) blend only the jaw/neck and hair-edge seams.
 Result must look like a real professional camera photograph, natural RAW-like skin, realistic fine hair strands, no AI/plastic look, no face regeneration.`;

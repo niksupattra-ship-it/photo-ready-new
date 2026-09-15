@@ -137,42 +137,38 @@ async function composePortrait(headBlob){
   const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
   const uX=(W-uW)/2,uY=H*.425;
 
-  // Geometry ของ template: ให้ "โครงลำตัว/ไหล่ของชุด" เป็นมาตรฐานหลัก
+  // Geometry V9: Template ชุดเป็นโครงหลัก 100%
+  // ไม่ใช้คอ/ไหล่/ระยะถ่ายจากต้นฉบับในการกำหนดสัดส่วนอีกต่อไป
   const collarCX=W*.5;
   const collarTop=uY+uH*.015;
-  const collarOpening=uW*.235;
+  const shoulderSpan=uW*.84; // anchor ไหล่ของ template จริง
 
-  // Adaptive Head Fit v3 - corrected body/head proportion:
-  // ยึดชุดเป็นหลัก แต่ไม่ใช้ shoulder/head ratio ที่ทำให้หัวโตเกินใน v1
-  // alpha bounds ทำหน้าที่ normalize ระยะภาพต้นฉบับเท่านั้น
+  // Head normalization: ใช้เฉพาะ alpha bounds ของ "ศีรษะที่ตัดถึงกราม"
+  // เพื่อวัดหัวจริง ไม่ใช้กรอบภาพต้นฉบับและไม่ใช้คอเดิม
   const headAspect=hb.w/Math.max(1,hb.h);
-
-  // baseline กลับมาใกล้สัดส่วนเวอร์ชันก่อน Adaptive ซึ่งสมดุลกว่า
-  const collarTargetW=collarOpening*2.28;
-
-  // ปรับเพียงเล็กน้อยตาม aspect ของหัวจริง ห้ามชดเชยแรง
-  // หน้ากว้าง -> ลด scale เล็กน้อย, หน้าแคบ -> เพิ่มเล็กน้อย
   const referenceAspect=.74;
   const rawAdjust=referenceAspect/Math.max(.62,Math.min(.88,headAspect));
-  const shapeAdjust=Math.max(.965,Math.min(1.035,rawAdjust));
+  const shapeAdjust=Math.max(.975,Math.min(1.025,rawAdjust));
 
-  let targetVisibleHeadW=collarTargetW*shapeAdjust;
-
-  // ช่วงสัดส่วนแก้ใหม่: 34.5–39.5% ของความกว้าง template
-  // ผลทดสอบจริง v2 อยู่เล็กเกินเมื่อเทียบไหล่ จึงเพิ่มประมาณ 15–20%
-  const minHeadW=uW*.345,maxHeadW=uW*.395;
+  // สัดส่วนมาตรฐาน: ความกว้างไหล่ประมาณ 2.10–2.25 เท่าของความกว้างศีรษะ
+  // ใช้ 2.16 เป็นค่ากลาง แล้ว clamp ป้องกันหัวโต/เล็กผิดธรรมชาติ
+  let targetVisibleHeadW=(shoulderSpan/2.16)*shapeAdjust;
+  const minHeadW=uW*.375,maxHeadW=uW*.415;
   targetVisibleHeadW=Math.max(minHeadW,Math.min(maxHeadW,targetVisibleHeadW));
-  let scale=targetVisibleHeadW/hb.w;
+  const scale=targetVisibleHeadW/hb.w;
 
   const visibleW=hb.w*scale,visibleH=hb.h*scale;
   const visibleLeft=collarCX-visibleW/2;
 
-  // คางซ้อนลงใต้ปกเสื้อเล็กน้อย เพื่อให้ชุดเป็น foreground ซ่อนรอยต่อ
-  const overlap=uH*.052;
-  const headDownOffset=visibleH*.105; // v3: หัวใหญ่ขึ้น จึงลดการกดหัวลงเพื่อคงคอสั้นและสมส่วน
-  const visibleTop=collarTop-visibleH+overlap+headDownOffset;
+  // สำคัญ: ไม่เอาคอจากต้นฉบับมาใช้
+  // เว้นช่องใต้คางสำหรับสร้างคอใหม่ โดยความสูงสัมพันธ์กับ "หัว + ช่องคอชุด"
+  // ไม่สัมพันธ์กับระยะภาพต้นฉบับ
+  const neckGap=Math.max(uH*.045,Math.min(uH*.075,visibleW*.19));
+  const collarOverlap=uH*.010;
+  const chinTargetY=collarTop-neckGap+collarOverlap;
+  const visibleTop=chinTargetY-visibleH;
 
-  // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
+  // แปลง visible bounds กลับเป็นตำแหน่ง canvas ของ head
   const hX=visibleLeft-hb.l*scale;
   const hY=visibleTop-hb.t*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
