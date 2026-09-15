@@ -217,8 +217,11 @@ async function composePortrait(headBlob){
   // V15 CHIN ANCHOR: scaling must NOT pull the head upward. Keep the final chin close to the
   // real center collar socket, leaving only a small bridge for AI. Gap is proportional to final face scale.
   const finalFaceW=sourceFaceW*scale;
-  const targetNeckVisible=Math.max(H*.0065,Math.min(H*.0115,finalFaceW*.032));
-  const chinTargetY=collarSocketY-targetNeckVisible; // re-anchor AFTER shoulder-relative scaling
+  // V16 HEAD+NECK PRE-PLACEMENT: ยกก้อนหัว/คอขึ้นก่อน โดยยังไม่เปลี่ยน scale
+  // ต้องเหลือช่องว่างที่มองเห็นได้ระหว่างใต้คางกับขอบช่องคอของชุด เพื่อไม่ให้ปกเสื้อชนคาง
+  // ระยะนี้อิง canvas/template ไม่อิง crop หรือคอจากภาพต้นฉบับ
+  const targetNeckVisible=Math.max(H*.022,Math.min(H*.032,finalFaceW*.10));
+  const chinTargetY=collarSocketY-targetNeckVisible; // V16: fixed pre-placement above collar socket
   const hX=collarCX-faceCX*scale;
   const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
