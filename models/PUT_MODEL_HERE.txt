@@ -1,1 +1,0 @@
-Place BiRefNet ONNX here as birefnet.onnx

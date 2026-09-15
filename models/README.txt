@@ -1,1 +1,0 @@
-ใส่ไฟล์โมเดล BiRefNet ONNX ที่นี่ และตั้งชื่อ birefnet.onnx
