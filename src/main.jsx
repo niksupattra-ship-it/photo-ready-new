@@ -287,13 +287,33 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
 }
 
+async function makeAiUploadBlob(composedBlob){
+ // V31 transport-only fix: Railway was aborting the large lossless PNG multipart upload.
+ // Keep the V28 composition itself untouched; only create a high-quality JPEG copy for the AI request.
+ const url=URL.createObjectURL(composedBlob);
+ try{
+  const img=await loadImage(url);
+  const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+  c.getContext('2d').drawImage(img,0,0);
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('เตรียมไฟล์ส่ง AI ไม่สำเร็จ')),'image/jpeg',0.95));
+ }finally{URL.revokeObjectURL(url)}
+}
+
 async function aiFinishPortrait(composedBlob,hairId){
+ const uploadBlob=await makeAiUploadBlob(composedBlob);
  const fd=new FormData();
- fd.append('image',composedBlob,'portrait.png');
+ fd.append('image',uploadBlob,'portrait.jpg');
  fd.append('hairId',hairId);
- const r=await fetch('/api/ai-finish',{method:'POST',body:fd});
- if(!r.ok) throw Error(await r.text());
- return await r.blob();
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),120000);
+ try{
+  const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
+  if(!r.ok) throw Error(await r.text());
+  return await r.blob();
+ }catch(e){
+  if(e?.name==='AbortError') throw Error('AI ใช้เวลานานเกิน 120 วินาที กรุณาลองใหม่');
+  throw e;
+ }finally{clearTimeout(timer)}
 }
 
 const HAIR_OPTIONS=[
@@ -320,7 +340,7 @@ function App(){
   const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock,composed.blob) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V30: V28 Layout + Local V9 Skin/Hair — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V31: V28 Layout + Local V9 Skin/Hair + Railway Upload Fix — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>

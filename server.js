@@ -6,7 +6,10 @@ import { fileURLToPath } from "url";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
-const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
+const upload=multer({
+  storage:multer.memoryStorage(),
+  limits:{fileSize:20*1024*1024,files:1,fields:10,parts:12}
+});
 
 // V27: preserve V25 remove.bg cache and geometry; natural-camera skin is finished locally after source-face restoration.
 // Cache remove.bg output by exact original image bytes. Re-processing the same upload
@@ -105,6 +108,19 @@ FINAL: preserve V28 geometry and composition exactly. The result must look like 
     console.error(e);
     res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
+});
+
+// V31: return a useful response for multipart failures instead of a generic Railway upstream error.
+app.use((err,req,res,next)=>{
+  if(err instanceof multer.MulterError){
+    console.error("Upload error:",err.code,err.message);
+    return res.status(413).send("อัปโหลดภาพไม่สำเร็จ: "+err.message);
+  }
+  if(err){
+    console.error("Request error:",err);
+    if(!res.headersSent) return res.status(400).send("รับข้อมูลภาพไม่สำเร็จ: "+(err.message||"request error"));
+  }
+  next(err);
 });
 
 app.get("/api/health",(req,res)=>res.json({ok:true,provider:"remove.bg",configured:!!process.env.REMOVEBG_API_KEY}));
