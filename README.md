@@ -1,11 +1,14 @@
-# Photo Compose V6 — Native Transparent Uniform
+# Photo Compose V7 — Auto Neck Fit
 
-ฐาน: V5 Auto Head Scale
+ฐาน: V6 Transparent Uniform
 
-- เปลี่ยน uniform asset เป็น official-female-practitioner-finance.png ล่าสุดของผู้ใช้
-- ตรวจไฟล์แล้วเป็น RGBA 2048×1731 และมี alpha 0–255 จริง
-- ยกเลิก black-key/background removal ของชุดทั้งหมด
-- ใช้ alpha ดั้งเดิมของ PNG โดยตรง จึงรักษาขอบชุด/ปก/บ่า/เครื่องหมาย
-- ระบบปรับหัวตาม alpha bounds + collar/shoulder geometry เดิม
-- Layer: background -> scaled head -> transparent uniform
-- ชุดอยู่ด้านหน้าหัวเพื่อซ่อนรอยต่อบริเวณช่องคอ
+แก้เฉพาะการวางหัว/ระยะคอ:
+- หัว scale จากความกว้าง alpha bounds เทียบกับช่องคอเหมือนเดิม
+- เปลี่ยน vertical anchor ให้ยึด "คาง -> ปกเสื้อ" โดยตรง
+- คำนวณระยะคอที่มองเห็นจาก collar opening + visible head height
+- clamp ระยะคอเพื่อไม่ให้คอยาวผิดสัดส่วน
+- ไม่ยกหัวตามความสูง canvas ของรูปต้นฉบับ
+- ชุด PNG โปร่งใสยังวางทับหัวด้านหน้าเพื่อซ่อนรอยต่อ
+- ไม่แก้หน้า ไม่แก้ชุด ไม่ warp template
+
+Pipeline อื่นของ V6 คงเดิมทั้งหมด

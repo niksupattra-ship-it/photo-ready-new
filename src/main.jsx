@@ -144,6 +144,7 @@ async function composePortrait(headBlob){
 
   // ใช้ "ขอบศีรษะจริง" หลังตัด alpha ไม่ใช้ขนาด canvas ต้นฉบับ
   // เป้าหมาย: ความกว้างหัวสัมพันธ์กับช่องคอและความกว้างไหล่ของชุด
+  // สเกลหัวจากความกว้างเท่านั้น เพื่อไม่ให้ความสูงคอของต้นฉบับมีผลต่อสเกล
   const targetVisibleHeadW=collarOpening*2.02;
   let scale=targetVisibleHeadW/hb.w;
 
@@ -156,9 +157,18 @@ async function composePortrait(headBlob){
   const visibleW=hb.w*scale,visibleH=hb.h*scale;
   const visibleLeft=collarCX-visibleW/2;
 
-  // คางซ้อนลงใต้ปกเสื้อเล็กน้อย เพื่อให้ชุดเป็น foreground ซ่อนรอยต่อ
-  const overlap=uH*.052;
-  const visibleTop=collarTop-visibleH+overlap;
+  // V7: ควบคุม "ระยะคอที่มองเห็น" จากสัดส่วนหัวและช่องคอ
+  // ห้ามยกหัวสูงตามภาพต้นฉบับ เพราะจะทำให้คอยาว
+  // ใช้คางเป็น anchor แล้วฝังคางลงในช่องคอในสัดส่วนคงที่ตามขนาดหัว
+  const desiredNeckVisible=Math.max(
+    collarOpening*.10,
+    Math.min(collarOpening*.18, visibleH*.045)
+  );
+  const chinTargetY=collarTop-desiredNeckVisible;
+
+  // visibleTop + visibleH = ตำแหน่งคางของ head-only
+  // จึงวางคางให้สัมพันธ์กับปกเสื้อโดยตรง
+  const visibleTop=chinTargetY-visibleH;
 
   // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
   const hX=visibleLeft-hb.l*scale;
@@ -184,7 +194,7 @@ function App(){
   const composed=await composePortrait(head);
   setB(URL.createObjectURL(composed));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
+ return <main><h1>ประกอบหัว + ปรับระยะคออัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
