@@ -1,1 +1,2 @@
-V35 — V34 skin/aspect retained; V28 original uniform is composited LAST after AI so insignia/epaulettes/tie/collar/buttons never use AI pixels. Remove.bg remains before composition.
+V37 — Final Head Proportion Fit
+Based on V36. Final head block is uniformly reduced ~9.1% versus V36 after canonical/template shoulder fitting. Uniform, insignia, background, V9 skin method, AI head-only mask, and all other V36 pipeline stages remain unchanged.

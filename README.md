@@ -1,3 +1,19 @@
+# V37 — Final Head Proportion Fit
+
+- ฐาน V36 เดิมทั้งหมด
+- ขั้นวางส่วนหัวสุดท้ายลดขนาดลงประมาณ 9.1% จาก V36 โดยย่อ X/Y เท่ากัน จึงไม่บีบ/ยืดใบหน้า
+- ตำแหน่งคางยัง anchor กับช่องคอจริงของชุด และคำนวณใหม่ตาม scale ที่ลดลง
+- ไม่แก้ ไม่สร้าง และไม่ resize ชุดจริง; uniform.png ยังเป็น final layer
+- วิธีผิว V9, AI head-only, ลบพื้นหลัง, ตรา/อินทรธนู/เนกไท/พื้นหลัง และ pipeline อื่นคง V36
+
+# V36 — AI Head Only / No AI Uniform Behind
+
+- V28 composition is drawn first as immutable full-frame master.
+- AI output is clipped to head/hair and a narrow neck socket only.
+- AI cannot contribute shoulders, epaulettes, jacket, tie, lower body, or outer background.
+- Original uniform.png is still composited as the final layer.
+- V35/V9 skin behavior and V34 aspect-ratio correction are retained.
+
 V24 — APPROVED RIGHT-SIDE SKIN MATCH
 
 - เป้าหมายผิว: ฝั่งขวาของภาพเปรียบเทียบที่ผู้ใช้ยืนยัน
