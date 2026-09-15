@@ -1,16 +1,11 @@
-# Photo Compose V5 — Auto Head Scale
+# Photo Compose V6 — Native Transparent Uniform
 
-ฐาน: bg-remover-photo-compose-v4.zip
+ฐาน: V5 Auto Head Scale
 
-การเปลี่ยนแปลง:
-- ใช้ IMG_20260914_135935.png ที่ผู้ใช้อัปโหลดล่าสุดเป็น uniform template จริง
-- PNG ชุดเป็น RGB พื้นดำ ระบบจึง key เฉพาะพื้นดำให้โปร่งใสตอน runtime
-- ไม่สร้าง/warp/แก้รายละเอียดชุด
-- วัด alpha bounds ของหัวจริงหลังแยกหัว แทนการใช้ความกว้าง canvas ต้นฉบับ
-- คำนวณขนาดหัวจาก collar opening + shoulder/template width
-- จำกัดช่วงสัดส่วนเพื่อกันหัวใหญ่/เล็กผิดปกติ
-- จัดหัวกึ่งกลางช่องคอ
-- วางหัวก่อนชุด ให้ปกเสื้อทับรอยต่อบริเวณคาง/คอ
-- background ใช้ไฟล์เดิมและขนาด canvas ตาม background
-
-ยังเป็น one-click pipeline เดิม
+- เปลี่ยน uniform asset เป็น official-female-practitioner-finance.png ล่าสุดของผู้ใช้
+- ตรวจไฟล์แล้วเป็น RGBA 2048×1731 และมี alpha 0–255 จริง
+- ยกเลิก black-key/background removal ของชุดทั้งหมด
+- ใช้ alpha ดั้งเดิมของ PNG โดยตรง จึงรักษาขอบชุด/ปก/บ่า/เครื่องหมาย
+- ระบบปรับหัวตาม alpha bounds + collar/shoulder geometry เดิม
+- Layer: background -> scaled head -> transparent uniform
+- ชุดอยู่ด้านหน้าหัวเพื่อซ่อนรอยต่อบริเวณช่องคอ

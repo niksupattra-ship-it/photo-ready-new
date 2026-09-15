@@ -120,25 +120,13 @@ async function alphaBounds(img){
  }
  return r>=l?{l,t,r,b,w:r-l+1,h:b-t+1}:{l:0,t:0,r:c.width-1,b:c.height-1,w:c.width,h:c.height};
 }
-async function keyedUniform(img){
- // ไฟล์ชุดที่ผู้ใช้ให้เป็น PNG RGB พื้นดำ จึงเปลี่ยนเฉพาะ "พื้นดำ" เป็น alpha
- // รายละเอียด/สี/เครื่องหมายของชุดไม่ถูกสร้างใหม่หรือ warp
- const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
- const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0);
- const id=x.getImageData(0,0,c.width,c.height),d=id.data;
- for(let i=0;i<d.length;i+=4){
-  const r=d[i],g=d[i+1],b=d[i+2],mx=Math.max(r,g,b);
-  if(mx<12)d[i+3]=0;
-  else if(mx<38)d[i+3]=Math.round(255*(mx-12)/26);
- }
- x.putImageData(id,0,0);return c;
-}
+
 async function composePortrait(headBlob){
  const bg=await loadImage('/assets/background.jpg');
  const uniformImg=await loadImage('/assets/uniform.png');
  const headURL=URL.createObjectURL(headBlob);
  try{
-  const head=await loadImage(headURL), uniform=await keyedUniform(uniformImg);
+  const head=await loadImage(headURL), uniform=uniformImg;
   const hb=await alphaBounds(head);
   const W=bg.naturalWidth,H=bg.naturalHeight;
   const c=document.createElement('canvas');c.width=W;c.height=H;
@@ -146,7 +134,7 @@ async function composePortrait(headBlob){
   ctx.drawImage(bg,0,0,W,H);
 
   // ชุด: ยึดไฟล์ PNG จริงและวางตำแหน่งตาม reference #3
-  const uW=W*.94,uScale=uW/uniform.width,uH=uniform.height*uScale;
+  const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
   const uX=(W-uW)/2,uY=H*.425;
 
   // Geometry ของ template นี้: ช่องคออยู่กึ่งกลางชุด
@@ -196,7 +184,7 @@ function App(){
   const composed=await composePortrait(head);
   setB(URL.createObjectURL(composed));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุดอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → วัดขอบหัวจริง → ปรับสัดส่วนกับช่องคอ/ไหล่ → วางหัวใต้ชุดอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
