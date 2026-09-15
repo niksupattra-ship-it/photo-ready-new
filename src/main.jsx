@@ -38,15 +38,26 @@ async function headOnly(blob){
   const pad=Math.max(2,faceW*.025);
   jaw[0].x-=pad;jaw[jaw.length-1].x+=pad;
 
-  // ลบแบบ "ยางลบคม": alpha = 0 ใต้เส้นกรามจริง ไม่มีเส้นตัดแนวนอนผ่านคาง
+  // V2: เก็บ alpha เดิมของ remove.bg ทั้งศีรษะ/ผม/หู และแก้เฉพาะรอยตัดใต้กราม
+  // ใช้ขอบนุ่มระดับ sub-pixel 1.5–2.5 px ตามขนาดใบหน้า เพื่อลดฟันเลื่อยโดยไม่ทำให้กรามฟุ้ง
   const left=jaw[0],right=jaw[jaw.length-1];
+  const feather=Math.max(1.25,Math.min(2.5,faceW*.008));
+  const eraseMargin=Math.max(.35,faceW*.0015);
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-   const ai=(y*W+x)*4+3;if(data.data[ai]===0)continue;
+   const ai=(y*W+x)*4+3,origA=data.data[ai];if(origA===0)continue;
    let boundary=null;
    if(x>=left.x&&x<=right.x) boundary=interp(jaw,x);
-   else if(x<left.x) boundary=left.y; // ด้านนอกใบหู: ลบทุกอย่างที่ต่ำกว่าระดับใต้หู
-   else boundary=right.y;
-   if(boundary!==null && y>boundary+1) data.data[ai]=0;
+   else if(x<left.x) boundary=left.y + Math.min(0,(x-left.x)*.12);
+   else boundary=right.y + Math.min(0,(right.x-x)*.12);
+   if(boundary===null)continue;
+   const d=y-(boundary+eraseMargin);
+   if(d>=feather){data.data[ai]=0;}
+   else if(d>-feather){
+    // smoothstep: premultiplied-like alpha transition, RGB ไม่ถูกสร้างหรือแก้
+    const t=(d+feather)/(2*feather);
+    const smooth=t*t*(3-2*t);
+    data.data[ai]=Math.round(origA*(1-smooth));
+   }
   }
   ctx.putImageData(data,0,0);
   return await new Promise(ok=>c.toBlob(ok,'image/png'));
@@ -63,7 +74,7 @@ function App(){
   const head=await headOnly(transparent);
   setB(URL.createObjectURL(head));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>แยกศีรษะอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบคอและลำตัวตามแนวกรามอัตโนมัติ</p><section>
+ return <main><h1>แยกศีรษะอัตโนมัติ · ขอบกรามเนียน V2</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบคอและลำตัวตามแนวกรามอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
