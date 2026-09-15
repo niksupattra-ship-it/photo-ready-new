@@ -71,71 +71,59 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
     const hairBuf=fs.readFileSync(hairPath);
 
-    const prompt=`V29 — V9 SKIN + HAIR METHOD ONLY. EDIT THE EXISTING COMPOSITE IN PLACE.
-Image 1 is the finished V28 composite and is the absolute source of truth for face, identity, geometry, head position, neck position, uniform, insignia, shoulders, background, crop and lighting. Image 2 is hairstyle reference ONLY.
+    const prompt=`PHOTOREALISTIC ID-PHOTO COMPOSITING. LOCAL EDITS ONLY.
+The first image is already geometrically placed and scaled. Treat its face, head position, uniform, shoulders, collar, background and framing as locked photographic source material. The second image is ONLY the hairstyle shape/reference.
 
-CRITICAL FACE / SKIN LOCK (copied from the proven V9 method): preserve the entire face, forehead, ears and visible facial skin from image 1 exactly as photographed. Treat those pixels as protected source material, not areas to redesign, regenerate, restore, beautify or retouch. Keep identical facial geometry, expression, eyes, eyebrows, nose, lips, jaw, age, complexion, pores, blemishes, fine lines, under-eye detail, makeup, natural asymmetry, highlights, shadows and camera texture. Do not smooth, denoise, blur, airbrush, whiten, brighten skin separately, add glow, add makeup, remove marks, sharpen facial features, invent pores, or create porcelain, waxy, flawless, synthetic, illustrated or AI-looking skin. Do NOT perform a skin-generation pass. The face should look like the same untouched real photograph.
+IDENTITY / SKIN LOCK — HIGHEST PRIORITY: Do not redraw, beautify, retouch or synthesize the facial skin. Preserve the existing face geometry and ALL real photographic micro-detail: pores, fine lines, natural uneven tone, small marks, tiny texture transitions and sensor/camera grain. The desired finish is a sharply focused professional-camera portrait, NOT smoother skin. Keep pores and genuine texture crisp and locally defined without inventing detail. Use natural optical sharpness only: no oversharpen halos, crunchy edges, clarity/HDR look, denoise-smearing, porcelain/waxy/plastic skin, beauty filter, whitening, makeup enhancement or CGI/illustration appearance. Do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age or facial proportions.
 
-PHOTOGRAPHIC SKIN RESPONSE: do not force a new skin style. Preserve source skin texture and local contrast. Any unavoidable generated skin in the SHORT neck seam only must sample and match the adjacent jaw skin for white balance, exposure, texture, grain, highlight softness and shadow density. Never make neck skin cleaner, smoother or more uniform than the real face.
+REALISTIC LIGHTING / CAMERA RESPONSE: preserve the subject's believable skin reflectance and original identity while making newly generated neck/hair transitions obey one coherent photographic light source. Highlights must be soft and physically plausible, shadows gradual, skin neither flat nor glossy, and color temperature consistent across face, ears, jaw and neck. No studio-glamour relighting, no fake rim light, no bloom, no excessive dynamic-range compression. The final image should resemble a well-focused professional camera exposure with natural lens rendering and restrained contrast.
 
-HAIRSTYLE CHANGE (adapted only from V9): transfer only the hairstyle design from image 2 — parting, outline, length, direction, arrangement and volume character — onto the person in image 1. Never copy the reference model's face, forehead, ears, skin, skull proportions, neck, lighting or color. Keep the exact original face, identity, forehead size, natural hairline position, ears, neck and head angle from image 1. Adapt the reference hair anatomically to this person's real head and face shape with natural width, height, length, volume, density and gravity. The hairstyle must remain recognizable as the selected reference but fit this subject rather than behaving like a rigid overlay.
+EDIT REGION 1 — SHORT NECK CONNECTION ONLY: create only the missing short anatomical bridge between the fixed underside of the jaw and the fixed center collar opening. Do not use the source-photo neck as a proportion reference. Keep the neck compact and naturally broad enough to support this jaw, with subtle natural widening toward the collar. Preserve realistic skin texture and copy the face's local color, pores, lighting direction, contrast and camera grain onto the generated neck. Do not lengthen the neck, thin it, move the head, move the chin, move the collar, or alter the uniform.
 
-HAIR PHOTOREALISM (V9 behavior): preserve realistic dark-brown/charcoal micro-variation, individual strands, translucent edge hairs, natural roots and soft non-uniform camera highlights. Do not make hair flat jet-black. Hair must look naturally photographed, never overly smooth, glossy-plastic, painted, pasted, helmet-like or wig-like. Do not cover the eyes or distort ears/face. Blend hair naturally behind the neck and shoulders. Refine only the outer hair edges with realistic fine strands; avoid hard cut-out edges and halos.
+EDIT REGION 2 — FACE-ADAPTIVE HAIRSTYLE OUTSIDE THE FACE: the second image defines the hairstyle DESIGN (parting, length class, fringe/bangs concept, volume pattern, direction and overall character), but it is NOT a rigid overlay and its model's skull/face proportions must NEVER be copied. First infer the fixed subject's own forehead width, temple positions, cheek/jaw width, ear positions, natural hairline and head silhouette from the FIRST image. Then fit/reconstruct the selected hairstyle around THAT subject's anatomy.
 
-ABSOLUTE NON-HAIR LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background, crop and all non-hair pixels must remain unchanged. Do not recompose, zoom, move, resize, rotate or redesign anything.
+FACE-SHAPE FIT RULES: preserve the subject's exact face outline and forehead; do not narrow, widen, lengthen, shorten or otherwise reshape the face to make the hairstyle fit. Adapt only the hair. Keep the selected style recognizably the same while allowing natural local changes in width, curvature, root position, side volume and strand direction so it follows this person's skull and frames this person's temples/cheeks/jaw naturally. The hair must meet the subject's own hairline and temples without covering or exposing an unnatural amount of forehead. Side locks/bangs must sit outside the fixed facial contour and must not intrude into eyes, brows, cheeks or jaw. Do not paste the reference hairstyle at its original scale. Do not copy the reference model's face, forehead, ears, head size, skin or identity.
 
-FINAL TEST: if the edit changes facial skin texture or makes the face smoother, cleaner, sharper, more symmetrical, more beautiful or more AI-looking than image 1, reject that change and preserve image 1 instead.`;
+HAIR SCALE / BALANCE: derive hairstyle scale from the FIRST image's head, not from canvas size and not from the reference image. The finished outer hair silhouette must be anatomically plausible for the subject's existing skull and balanced with the fixed head/neck/shoulders. Avoid an oversized wig, tiny cap, flat top, excessive side width, excessive crown height, or floating hair. Preserve a believable amount of crown volume for the chosen style.
+
+HAIR PHOTOREALISM: roots must emerge naturally from the subject's own scalp/hairline. Preserve realistic occlusion around ears and temples. Hair must be photographic with individual strands, natural density variation, subtle flyaways, realistic roots, coherent lighting and camera grain; no painted, helmet-like, overly perfect, synthetic or pasted-on AI hair.
+
+SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes and pasted-on boundaries around temples, ears, jaw sides and hair. Blend only a narrow transition band. Preserve the original pixels throughout the interior of the face. Match edge sharpness, local light, color temperature and camera grain so the composite looks optically photographed in one shot. Do not blur the whole face to hide seams.
+
+TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
+
+FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.
+V28 NATURAL-STUDIO SKIN TARGET: the face interior must remain the supplied real photograph, not an AI interpretation. Do not perform AI beauty, cleanup, relighting, complexion replacement, pore-generation, sharpening, or synthetic-detail generation on the face. Keep skin photographic with softly rolled tonal transitions like a professional ID-photo studio exposure; retain pores and real marks but avoid harsh micro-contrast, waxy highlights, plastic smoothing, or hyper-detailed AI texture. Do not infer a reference look that is not actually supplied. For any newly generated neck pixels only, match the adjacent real jaw skin in white balance, exposure, local contrast, fine texture and camera noise so the transition is photographic and invisible. Never make the generated neck cleaner or smoother than the real face.
+COLOR PRIORITY: keep the photographed face color unchanged. Only generated transition pixels may be color-matched to neighboring real skin. Do not globally alter the uniform, insignia, hair or background.
+TEXTURE PRIORITY: preserve source-camera microtexture exactly in the face; no beauty smoothing, airbrush, denoise-smearing, wax/plastic finish, fake HDR, excessive sharpening, makeup enhancement or invented skin detail.
+`;
 
     const form=new FormData();
-    form.append("model","gpt-image-1.5");
+    form.append("model","gpt-image-2");
     form.append("prompt",prompt);
-    form.append("input_fidelity","high");
-    form.append("quality","high");
+    form.append("quality","low");
     form.append("output_format","png");
-    form.append("size","1024x1536");
-    form.append("n","1");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
     form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
-    console.log(`[ai-finish] start hair=${hairId} portrait=${req.file.size}B ref=${hairBuf.length}B`);
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),240000);
-    let r;
-    try {
-      r=await fetch("https://api.openai.com/v1/images/edits",{
-        method:"POST",
-        headers:{Authorization:`Bearer ${key}`},
-        body:form,
-        signal:controller.signal
-      });
-    } finally { clearTimeout(timer); }
-
-    const raw=await r.text();
-    let body;
-    try { body=JSON.parse(raw); } catch { body=null; }
-    if(!r.ok){
-      const detail=body?.error?.message || body?.message || raw || `HTTP ${r.status}`;
-      console.error(`[ai-finish] OpenAI ${r.status}:`, detail);
-      return res.status(r.status).type("text/plain").send(`OpenAI image edit (${r.status}): ${detail}`);
-    }
+    const r=await fetch("https://api.openai.com/v1/images/edits",{
+      method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
+    });
+    const body=await r.json();
+    if(!r.ok) return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     const b64=body?.data?.[0]?.b64_json;
-    if(!b64){
-      console.error("[ai-finish] missing b64_json; response:", raw.slice(0,1000));
-      return res.status(502).type("text/plain").send("OpenAI ตอบกลับสำเร็จ แต่ไม่มีข้อมูลภาพ b64_json");
-    }
-    console.log("[ai-finish] success");
+    if(!b64) return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา");
     const data=Buffer.from(b64,"base64");
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
     res.send(data);
   }catch(e){
-    console.error("[ai-finish] failed:",e);
-    const msg=e?.name==="AbortError" ? "OpenAI ใช้เวลาประมวลผลเกิน 240 วินาที" : (e?.message||String(e));
-    res.status(502).type("text/plain").send("AI finishing ไม่สำเร็จ: "+msg);
+    console.error(e);
+    res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
 });
 
-app.get("/api/health",(req,res)=>res.json({ok:true,removeBgConfigured:!!process.env.REMOVEBG_API_KEY,openAIConfigured:!!process.env.OPENAI_API_KEY,version:"v29.1"}));
+app.get("/api/health",(req,res)=>res.json({ok:true,provider:"remove.bg",configured:!!process.env.REMOVEBG_API_KEY}));
 app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));

@@ -269,11 +269,19 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   const feather=Math.max(3,Math.min(7,lock.W*.0045));
   x.filter=`blur(${feather}px)`;x.drawImage(tmp,0,0);x.filter='none';
   mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
-  // V29 — use the proven V9 skin principle: protected source pixels stay untouched.
-  // No local blur, beauty smoothing, complexion blending, sharpening or synthetic texture.
-  // AI is allowed to work on hairstyle and the narrow neck seam only; the face core is restored
-  // pixel-for-pixel from the normalized source image after the AI edit.
+  // V26 REAL-SKIN LOCK: restore the original photographed face pixels directly.
+  // No beauty pass, denoise, blur, synthetic texture, contrast remapping or heavy skin recoloring.
+  // This is intentionally a pixel-preservation step: the AI may create only hair/neck transitions,
+  // while the face interior comes back from the real source photo.
+  // V29 SKIN ONLY — geometry/layout remains byte-for-byte V28 logic above.
+  // Keep the photographed face as the master layer. Apply only a very light optical tonal blend
+  // so skin stays natural and camera-like; never regenerate or reshape facial pixels.
   ctx.globalAlpha=1;ctx.drawImage(m,0,0);
+  const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
+  const sc=soft.getContext('2d');
+  // V29 approved natural-skin finish: weaker diffusion than V28 to retain pores and avoid waxy AI skin.
+  sc.filter='blur(0.42px)';sc.drawImage(m,0,0);sc.filter='none';
+  ctx.globalAlpha=.10;ctx.drawImage(soft,0,0);ctx.globalAlpha=1;
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
@@ -312,7 +320,7 @@ function App(){
   const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V29.1: ใช้วิธีล็อกผิวและการสร้างผมจากโปรเจ็กต์ V9 เท่านั้น โดยคงระบบจัดวาง ชุด คอ พื้นหลัง และ Remove.bg ของ V28</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V29: ผิวธรรมชาติแบบภาพถ่ายจริง + การวางภาพ/สเกล/คอ/ไหล่/ชุด/กรอบภาพคงระบบ V28</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>
