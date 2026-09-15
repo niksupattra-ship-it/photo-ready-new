@@ -1,1 +1,1 @@
-V33 - V31 system preserved; exact V9 skin engine settings only: gpt-image-1.5, input_fidelity high, quality high, 1024x1536, natural skin-light 15%.
+v34 — V33 skin engine unchanged; fixes AI 2:3 -> V28 3:4 aspect distortion by center-crop + uniform scale.

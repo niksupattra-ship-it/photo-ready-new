@@ -251,7 +251,15 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
   const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
   if(!face)return aiBlob;
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
-  const ctx=c.getContext('2d');ctx.drawImage(ai,0,0,lock.W,lock.H);
+  const ctx=c.getContext('2d');
+  // V34 ASPECT-RATIO LOCK: OpenAI returns 1024x1536 (2:3), while the V28 final canvas is 3:4.
+  // Never stretch the AI image to the V28 canvas because that deforms the face/body horizontally.
+  // Center-crop the AI output to the exact V28 aspect ratio first, then scale uniformly.
+  const targetAR=lock.W/lock.H, aiAR=ai.naturalWidth/ai.naturalHeight;
+  let sx=0,sy=0,sw=ai.naturalWidth,sh=ai.naturalHeight;
+  if(aiAR<targetAR){ sh=sw/targetAR; sy=(ai.naturalHeight-sh)/2; }
+  else if(aiAR>targetAR){ sw=sh*targetAR; sx=(ai.naturalWidth-sw)/2; }
+  ctx.drawImage(ai,sx,sy,sw,sh,0,0,lock.W,lock.H);
   const m=document.createElement('canvas');m.width=lock.W;m.height=lock.H;
   const mc=m.getContext('2d');
   mc.drawImage(head,lock.hX,lock.hY,lock.headW*lock.scale,lock.headH*lock.scale);
