@@ -14,8 +14,6 @@
     "react": "latest",
     "react-dom": "latest",
     "express": "latest",
-    "multer": "latest",
-    "sharp": "latest",
-    "onnxruntime-node": "latest"
+    "multer": "latest"
   }
 }

@@ -1,4 +1,43 @@
-import express from'express';import multer from'multer';import sharp from'sharp';import ort from'onnxruntime-node';import fs from'fs';import path from'path';import{fileURLToPath}from'url';
-const dir=path.dirname(fileURLToPath(import.meta.url)),app=express(),up=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});let sess;
-async function getModel(){if(sess)return sess;let p=process.env.MODEL_PATH||path.join(dir,'models','birefnet.onnx');if(!fs.existsSync(p))throw Error('ไม่พบ models/birefnet.onnx');sess=await ort.InferenceSession.create(p);return sess}
-app.post('/api/remove-background',up.single('image'),async(req,res)=>{try{if(!req.file)return res.status(400).send('กรุณาเลือกรูป');let s=await getModel(),m=await sharp(req.file.buffer).metadata(),N=1024,{data}=await sharp(req.file.buffer).removeAlpha().resize(N,N,{fit:'fill'}).raw().toBuffer({resolveWithObject:true}),x=new Float32Array(3*N*N),mean=[.485,.456,.406],std=[.229,.224,.225];for(let p=0;p<N*N;p++)for(let c=0;c<3;c++)x[c*N*N+p]=(data[p*3+c]/255-mean[c])/std[c];let o=await s.run({[s.inputNames[0]]:new ort.Tensor('float32',x,[1,3,N,N])}),z=o[s.outputNames[0]].data,mask=Buffer.alloc(N*N);for(let i=0;i<mask.length;i++){let v=z[i];if(v<0||v>1)v=1/(1+Math.exp(-v));mask[i]=Math.max(0,Math.min(255,Math.round(v*255)))}let alpha=await sharp(mask,{raw:{width:N,height:N,channels:1}}).resize(m.width,m.height).blur(.3).raw().toBuffer(),rgb=await sharp(req.file.buffer).removeAlpha().raw().toBuffer(),rgba=Buffer.alloc(m.width*m.height*4);for(let i=0;i<alpha.length;i++){rgba[i*4]=rgb[i*3];rgba[i*4+1]=rgb[i*3+1];rgba[i*4+2]=rgb[i*3+2];rgba[i*4+3]=alpha[i]}res.type('png').send(await sharp(rgba,{raw:{width:m.width,height:m.height,channels:4}}).png().toBuffer())}catch(e){res.status(500).send(e.message)}});app.use(express.static(path.join(dir,'dist')));app.use((req,res)=>res.sendFile(path.join(dir,'dist','index.html')));app.listen(process.env.PORT||3000);
+import express from "express";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const dir=path.dirname(fileURLToPath(import.meta.url));
+const app=express();
+const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024}});
+
+app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
+  try{
+    if(!req.file) return res.status(400).send("กรุณาเลือกรูป");
+    const key=process.env.REMOVEBG_API_KEY;
+    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า REMOVEBG_API_KEY ใน Render");
+
+    const form=new FormData();
+    form.append("size","auto");
+    form.append("format","png");
+    form.append("image_file",new Blob([req.file.buffer],{type:req.file.mimetype}),req.file.originalname||"image.jpg");
+
+    const r=await fetch("https://api.remove.bg/v1.0/removebg",{
+      method:"POST",
+      headers:{"X-Api-Key":key},
+      body:form
+    });
+    if(!r.ok){
+      let msg=await r.text();
+      return res.status(r.status).send("remove.bg: "+msg);
+    }
+    const data=Buffer.from(await r.arrayBuffer());
+    res.set("Content-Type","image/png");
+    res.set("Cache-Control","no-store");
+    res.send(data);
+  }catch(e){
+    console.error(e);
+    res.status(500).send("ลบพื้นหลังไม่สำเร็จ: "+e.message);
+  }
+});
+
+app.get("/api/health",(req,res)=>res.json({ok:true,provider:"remove.bg",configured:!!process.env.REMOVEBG_API_KEY}));
+app.use(express.static(path.join(dir,"dist")));
+app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
+app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));

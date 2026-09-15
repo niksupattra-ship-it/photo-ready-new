@@ -1,16 +1,20 @@
-# BG Remover Ready
-Node.js 20+
+# BG Remover — Render Ready
 
-## รัน
-npm install
-npm run build
+เวอร์ชันนี้ไม่ต้องใช้ไฟล์ birefnet.onnx และไม่ต้องติดตั้งโมเดลบน Render
+
+## ตั้งค่า Render
+Build Command:
+npm install && npm run build
+
+Start Command:
 npm start
 
-ก่อนรันระบบลบพื้นหลังจริง ให้วางโมเดล BiRefNet ONNX:
-models/birefnet.onnx
+Environment Variable:
+REMOVEBG_API_KEY = API key จาก remove.bg
 
-## Render
-Build: npm install && npm run build
-Start: npm start
+หลังเพิ่ม Secret แล้ว Redeploy
 
-หมายเหตุ: ZIP นี้ไม่รวมไฟล์น้ำหนักโมเดล BiRefNet ขนาดใหญ่
+## การทำงาน
+Browser -> Backend ของเรา -> remove.bg API -> PNG โปร่งใส
+
+API key อยู่เฉพาะฝั่ง server และไม่ถูกส่งไป browser
