@@ -157,7 +157,12 @@ async function composePortrait(headBlob){
     if(opaque>=(cx1-cx0+1)*.12){ socketY=y; break outer; }
   }
   const collarSocketY=uY+socketY*uScale;
+  // V15: SHOULDER-RELATIVE BODY MASTER
+  // หลังวางตำแหน่งคางแล้ว ขนาดหัวขั้นสุดท้ายต้องอิงไหล่ของชุด ไม่ใช่กรอบ input
+  // ใช้ช่วงไหล่ของ template เป็น physical reference คงที่สำหรับทุกภาพต้นฉบับ
   const shoulderSpan=uW*.84;
+  const targetHeadToShoulder=.385; // optical adult ID-photo balance for this fixed template
+  const targetHeadW=shoulderSpan*targetHeadToShoulder;
 
   // FACE MASTER SCALE V10
   // วัดจาก landmark บนใบหน้าจริง (ขมับ/กราม) ไม่ใช้กรอบภาพ ไม่ใช้คอเดิม และไม่ใช้ alpha ของทรงผม
@@ -184,7 +189,16 @@ async function composePortrait(headBlob){
   const heightScale=targetFaceH/sourceFaceH;
   // eye anchor 70%, face geometry 30%; clamp geometry correction to stop narrow/wide faces changing apparent head size
   const geomScale=(widthScale+heightScale)*.5;
-  let scale=eyeScale*.70+Math.max(eyeScale*.92,Math.min(eyeScale*1.08,geomScale))*.30;
+  let canonicalScale=eyeScale*.70+Math.max(eyeScale*.92,Math.min(eyeScale*1.08,geomScale))*.30;
+
+  // V15 SECOND PASS — PLACE FIRST, THEN BALANCE HEAD AGAINST TEMPLATE SHOULDERS.
+  // hb.w is the extracted head/hair silhouette width. It is used only after facial normalization,
+  // so close-up / distant / half-body source framing cannot make the final head small or huge.
+  const normalizedHeadW=hb.w*canonicalScale;
+  const shoulderCorrection=targetHeadW/Math.max(1,normalizedHeadW);
+  // conservative correction: preserve identity geometry while eliminating visibly tiny/oversized heads
+  const corrected=Math.max(.90,Math.min(1.18,shoulderCorrection));
+  let scale=canonicalScale*corrected;
   scale=Math.max(.25,Math.min(4.0,scale));
 
   // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
@@ -200,8 +214,11 @@ async function composePortrait(headBlob){
   // This is intentionally template-relative and independent of the source photo/crop.
   // V14: ระยะคอคำนวณจากช่องคอกลางจริง ไม่ใช่ยอดปกเสื้อ
   // จำกัดให้เป็นคอสั้นสมส่วน และ normalize เหมือนกันทุก input โดยไม่สนขนาด/ระยะภาพต้นฉบับ
-  const targetNeckVisible=Math.max(H*.010,Math.min(H*.016,targetFaceW*.055));
-  const chinTargetY=collarSocketY-targetNeckVisible; // hard anchor to REAL center collar socket
+  // V15 CHIN ANCHOR: scaling must NOT pull the head upward. Keep the final chin close to the
+  // real center collar socket, leaving only a small bridge for AI. Gap is proportional to final face scale.
+  const finalFaceW=sourceFaceW*scale;
+  const targetNeckVisible=Math.max(H*.0065,Math.min(H*.0115,finalFaceW*.032));
+  const chinTargetY=collarSocketY-targetNeckVisible; // re-anchor AFTER shoulder-relative scaling
   const hX=collarCX-faceCX*scale;
   const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
