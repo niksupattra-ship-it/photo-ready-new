@@ -1,1 +1,1 @@
-V45 - V44 unchanged; editable post-result layer strictly hair + head + neck only; no AI uniform/body pixels
+V46 - post-AI Remove.bg head + hair + narrow skin-neck only; no AI uniform pixels in editable layer
