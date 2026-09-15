@@ -1,10 +1,10 @@
-# BG Remover + Auto Head
+# Auto Head — Jaw Contour
+ฐาน: bg-remover-auto-head-render-fixed.zip
 
-ขั้นตอนเดียว: อัปโหลดรูป -> กดประมวลผล -> remove.bg ลบพื้นหลัง -> MediaPipe ตรวจจับใบหน้า -> ตัดคอ/ไหล่/ลำตัวอัตโนมัติ -> PNG เฉพาะศีรษะ
+Pipeline เดียว:
+1. remove.bg ลบพื้นหลัง
+2. MediaPipe FaceLandmarker วิเคราะห์กรอบหน้า
+3. ลบคอ/ไหล่/ลำตัวด้วย alpha eraser แบบคมตามแนวใต้หู-กราม-คาง
+4. แสดงผลลัพธ์สุดท้ายเท่านั้น
 
-Render:
-- Build: npm install && npm run build
-- Start: npm start
-- Environment: REMOVEBG_API_KEY
-
-ไม่มีปุ่มแยกขั้นตอน และไม่มี Generative AI แก้ใบหน้า
+ไม่มีปุ่มแยกขั้นตอน และไม่ใช้ Generative AI

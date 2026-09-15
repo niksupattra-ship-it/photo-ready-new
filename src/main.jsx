@@ -1,16 +1,74 @@
-import React,{useState}from'react';import{createRoot}from'react-dom/client';import{FilesetResolver,FaceDetector}from'@mediapipe/tasks-vision';import'./style.css';
-let detectorPromise;
-async function getDetector(){if(!detectorPromise)detectorPromise=(async()=>{const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');return FaceDetector.createFromOptions(vision,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'IMAGE',minDetectionConfidence:.5})})();return detectorPromise}
+import React,{useState}from'react';
+import{createRoot}from'react-dom/client';
+import{FilesetResolver,FaceLandmarker}from'@mediapipe/tasks-vision';
+import'./style.css';
+
+let landmarkerPromise;
+async function getLandmarker(){
+ if(!landmarkerPromise) landmarkerPromise=(async()=>{
+  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  return FaceLandmarker.createFromOptions(vision,{
+   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'},
+   runningMode:'IMAGE',numFaces:1,minFaceDetectionConfidence:.5,minFacePresenceConfidence:.5
+  });
+ })();
+ return landmarkerPromise;
+}
 function loadImage(src){return new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src})}
-async function headOnly(blob){const url=URL.createObjectURL(blob);try{const im=await loadImage(url);let box=null;try{const det=await getDetector();const r=det.detect(im);box=r.detections?.[0]?.boundingBox||null}catch(e){console.warn('face detector fallback',e)}
- const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);const d=x.getImageData(0,0,c.width,c.height);
- let minX=c.width,minY=c.height,maxX=0,maxY=0;for(let yy=0;yy<c.height;yy++)for(let xx=0;xx<c.width;xx++){if(d.data[(yy*c.width+xx)*4+3]>20){minX=Math.min(minX,xx);maxX=Math.max(maxX,xx);minY=Math.min(minY,yy);maxY=Math.max(maxY,yy)}}
- let cutY;if(box){const faceBottom=box.originY+box.height;cutY=Math.round(faceBottom+box.height*.12)}else{const personH=Math.max(1,maxY-minY);cutY=Math.round(minY+personH*.34)}
- cutY=Math.max(1,Math.min(c.height-1,cutY));const fade=Math.max(2,Math.round(c.height*.003));
- for(let yy=cutY-fade;yy<c.height;yy++)for(let xx=0;xx<c.width;xx++){const i=(yy*c.width+xx)*4+3;if(yy>=cutY)d.data[i]=0;else d.data[i]=Math.round(d.data[i]*(cutY-yy)/fade)}
- x.putImageData(d,0,0);return await new Promise(ok=>c.toBlob(ok,'image/png'))}finally{URL.revokeObjectURL(url)}}
-function App(){const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
-const pick=e=>{let v=e.target.files?.[0];if(v){setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
-const go=async()=>{setBusy(true);setMsg('');try{let d=new FormData();d.append('image',f);let r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());const transparent=await r.blob();const head=await headOnly(transparent);setB(URL.createObjectURL(head))}catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
-return <main><h1>แยกศีรษะอัตโนมัติ</h1><p>กดครั้งเดียว ระบบลบพื้นหลัง วิเคราะห์ตำแหน่งใบหน้า และตัดคอ/ไหล่/ลำตัวออกอัตโนมัติ</p><section><label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label><button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและแยกศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>{msg&&<div className="err">{msg}</div>}{b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ — เฉพาะศีรษะ</figcaption><div className="check"><img src={b}/></div></figure></div>}{b&&<a className="save" href={b} download="head-only.png">ดาวน์โหลด PNG</a>}</section></main>}
+function interp(points,x){
+ for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(x>=a.x&&x<=b.x){const t=(x-a.x)/Math.max(1,b.x-a.x);return a.y+(b.y-a.y)*t}}
+ return null;
+}
+async function headOnly(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
+  const data=ctx.getImageData(0,0,W,H);
+  const lm=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+  if(!lm) throw Error('ตรวจจับกรอบหน้าไม่สำเร็จ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัด');
+
+  // แนวกราม MediaPipe: ใต้หูซ้าย -> กราม -> คาง -> กราม -> ใต้หูขวา
+  const jawIdx=[234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454];
+  let jaw=jawIdx.map(i=>({x:lm[i].x*W,y:lm[i].y*H})).sort((a,b)=>a.x-b.x);
+
+  // ขยายจุดเริ่ม/จบเล็กน้อยไปถึงใต้ใบหู เพื่อไม่เหลือเศษคอด้านข้าง
+  const faceW=jaw[jaw.length-1].x-jaw[0].x;
+  const pad=Math.max(2,faceW*.025);
+  jaw[0].x-=pad;jaw[jaw.length-1].x+=pad;
+
+  // ลบแบบ "ยางลบคม": alpha = 0 ใต้เส้นกรามจริง ไม่มีเส้นตัดแนวนอนผ่านคาง
+  const left=jaw[0],right=jaw[jaw.length-1];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+   const ai=(y*W+x)*4+3;if(data.data[ai]===0)continue;
+   let boundary=null;
+   if(x>=left.x&&x<=right.x) boundary=interp(jaw,x);
+   else if(x<left.x) boundary=left.y; // ด้านนอกใบหู: ลบทุกอย่างที่ต่ำกว่าระดับใต้หู
+   else boundary=right.y;
+   if(boundary!==null && y>boundary+1) data.data[ai]=0;
+  }
+  ctx.putImageData(data,0,0);
+  return await new Promise(ok=>c.toBlob(ok,'image/png'));
+ }finally{URL.revokeObjectURL(url)}
+}
+function App(){
+ const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
+ const pick=e=>{const v=e.target.files?.[0];if(v){setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const go=async()=>{setBusy(true);setMsg('');try{
+  const d=new FormData();d.append('image',f);
+  const r=await fetch('/api/remove-background',{method:'POST',body:d});
+  if(!r.ok)throw Error(await r.text());
+  const transparent=await r.blob();
+  const head=await headOnly(transparent);
+  setB(URL.createObjectURL(head));
+ }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
+ return <main><h1>แยกศีรษะอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบคอและลำตัวตามแนวกรามอัตโนมัติ</p><section>
+ <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
+ <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
+ {msg&&<div className="err">{msg}</div>}
+ {b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์หลัง 2 ขั้นตอน</figcaption><div className="check"><img src={b}/></div></figure></div>}
+ {b&&<a className="save" href={b} download="head-only.png">ดาวน์โหลด PNG</a>}
+ </section></main>
+}
 createRoot(document.getElementById('root')).render(<App/>);
