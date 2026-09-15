@@ -128,56 +128,52 @@ async function composePortrait(headBlob){
  try{
   const head=await loadImage(headURL), uniform=uniformImg;
   const hb=await alphaBounds(head);
+  const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
+  if(!face) throw Error('ตรวจจับสัดส่วนใบหน้าหลังตัดศีรษะไม่สำเร็จ');
+
   const W=bg.naturalWidth,H=bg.naturalHeight;
   const c=document.createElement('canvas');c.width=W;c.height=H;
   const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  // ชุด: ยึดไฟล์ PNG จริงและวางตำแหน่งตาม reference #3
+  // BODY MASTER: ชุดเป็นแม่แบบคงที่เสมอ ไม่ปรับตามระยะภาพต้นฉบับ
   const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
   const uX=(W-uW)/2,uY=H*.425;
-
-  // Geometry V9: Template ชุดเป็นโครงหลัก 100%
-  // ไม่ใช้คอ/ไหล่/ระยะถ่ายจากต้นฉบับในการกำหนดสัดส่วนอีกต่อไป
   const collarCX=W*.5;
   const collarTop=uY+uH*.015;
-  const shoulderSpan=uW*.84; // anchor ไหล่ของ template จริง
+  const shoulderSpan=uW*.84;
 
-  // Head normalization: ใช้เฉพาะ alpha bounds ของ "ศีรษะที่ตัดถึงกราม"
-  // เพื่อวัดหัวจริง ไม่ใช้กรอบภาพต้นฉบับและไม่ใช้คอเดิม
-  const headAspect=hb.w/Math.max(1,hb.h);
-  const referenceAspect=.74;
-  const rawAdjust=referenceAspect/Math.max(.62,Math.min(.88,headAspect));
-  const shapeAdjust=Math.max(.975,Math.min(1.025,rawAdjust));
+  // FACE MASTER SCALE V10
+  // วัดจาก landmark บนใบหน้าจริง (ขมับ/กราม) ไม่ใช้กรอบภาพ ไม่ใช้คอเดิม และไม่ใช้ alpha ของทรงผม
+  // ดังนั้นภาพที่ถ่ายใกล้/ไกลจะถูก normalize ให้ขนาดหัวมาตรฐานเดียวกันก่อนประกอบ
+  const L=face[234],R=face[454],chin=face[152],forehead=face[10];
+  const sourceFaceW=Math.hypot((R.x-L.x)*head.naturalWidth,(R.y-L.y)*head.naturalHeight);
+  const sourceFaceH=Math.hypot((chin.x-forehead.x)*head.naturalWidth,(chin.y-forehead.y)*head.naturalHeight);
+  if(sourceFaceW<20||sourceFaceH<20) throw Error('วัดขนาดใบหน้าไม่สำเร็จ');
 
-  // สัดส่วนมาตรฐาน: ความกว้างไหล่ประมาณ 2.10–2.25 เท่าของความกว้างศีรษะ
-  // ใช้ 2.16 เป็นค่ากลาง แล้ว clamp ป้องกันหัวโต/เล็กผิดธรรมชาติ
-  let targetVisibleHeadW=(shoulderSpan/2.16)*shapeAdjust;
-  const minHeadW=uW*.375,maxHeadW=uW*.415;
-  targetVisibleHeadW=Math.max(minHeadW,Math.min(maxHeadW,targetVisibleHeadW));
-  const scale=targetVisibleHeadW/hb.w;
+  // เป้าหมายอิง BODY TEMPLATE เท่านั้น: shoulder : face ≈ 2.55
+  // clamp แคบเพื่อให้คนทุกคนได้ระยะภาพเดียวกัน แต่ยังรักษาความกว้างใบหน้าตามธรรมชาติ
+  const targetFaceW=Math.max(uW*.305,Math.min(uW*.335,shoulderSpan/2.55));
+  let scale=targetFaceW/sourceFaceW;
+  scale=Math.max(.25,Math.min(4.0,scale));
 
-  const visibleW=hb.w*scale,visibleH=hb.h*scale;
-  const visibleLeft=collarCX-visibleW/2;
+  // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
+  const faceCX=((L.x+R.x)/2)*head.naturalWidth;
+  const chinX=chin.x*head.naturalWidth, chinY=chin.y*head.naturalHeight;
 
-  // สำคัญ: ไม่เอาคอจากต้นฉบับมาใช้
-  // เว้นช่องใต้คางสำหรับสร้างคอใหม่ โดยความสูงสัมพันธ์กับ "หัว + ช่องคอชุด"
-  // ไม่สัมพันธ์กับระยะภาพต้นฉบับ
-  const neckGap=Math.max(uH*.045,Math.min(uH*.075,visibleW*.19));
-  const collarOverlap=uH*.010;
-  const chinTargetY=collarTop-neckGap+collarOverlap;
-  const visibleTop=chinTargetY-visibleH;
-
-  // แปลง visible bounds กลับเป็นตำแหน่ง canvas ของ head
-  const hX=visibleLeft-hb.l*scale;
-  const hY=visibleTop-hb.t*scale;
+  // สร้างคอใหม่ทั้งหมดภายหลัง: ตำแหน่งคางถูกกำหนดจากชุด ไม่ใช่คอ/ระยะต้นฉบับ
+  // ช่องคอสั้นปานกลาง ลดปัญหาคอยาวและใบหน้าลอย
+  const targetNeckVisible=Math.max(uH*.040,Math.min(uH*.058,targetFaceW*.145));
+  const chinTargetY=collarTop-targetNeckVisible;
+  const hX=collarCX-faceCX*scale;
+  const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
-  // ลำดับเลเยอร์: background -> head -> uniform
+  // background -> normalized head only -> original uniform template
   ctx.drawImage(head,hX,hY,hW,hH);
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
-  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/jpeg',.97));
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(headURL)}
 }
 

@@ -50,16 +50,20 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
     const hairBuf=fs.readFileSync(hairPath);
 
-    const prompt=`Professional Thai ID portrait finishing.
-The first image is the already-composited portrait and uniform. The second image is the selected hairstyle reference.
-Preserve the person's identity and original face exactly: do not change facial geometry, eyes, gaze, eyelids, eyebrows, nose, lips, teeth, jaw shape, cheek shape, skin texture, pores, moles, makeup, expression, or apparent age.
-Do not beautify, smooth, retouch, whiten, reshape, or make the skin plastic.
-Keep the uniform, insignia, epaulettes, tie, buttons, background, framing and body template unchanged.
-Edit only these regions:
-1) create an entirely NEW anatomically natural neck in the empty gap between the preserved chin/jaw and the fixed uniform collar. Ignore any neck proportions from the original source photo. The new neck must be proportioned to BOTH the preserved head and the fixed body template: natural adult neck width, gently tapering from the jaw to the collar, and short-to-moderate vertical length. It must not be pencil-thin, long, stretched, or narrower than anatomically plausible. Match the person's existing skin tone, texture, lighting and camera grain;
-2) replace/finish only the hair so it follows the second image hairstyle reference naturally around the existing head, while keeping the forehead, face and ears consistent;
-3) blend only the jaw/neck and hair-edge seams.
-Result must look like a real professional camera photograph, natural RAW-like skin, realistic fine hair strands, no AI/plastic look, no face regeneration.`;
+    const prompt=`STRICT PHOTO COMPOSITING / SEAM FINISH ONLY.
+The first image already contains a geometrically normalized, fixed-size preserved head placed against a fixed Thai ceremonial uniform template. The second image is the selected hairstyle reference.
+
+ABSOLUTE IDENTITY LOCK: preserve every pixel-level identity characteristic of the existing face. Do not regenerate, enlarge, shrink, stretch, project forward, beautify or reshape the face. Keep eyes, gaze, eyebrows, nose, lips, jaw, cheeks, skin texture, pores, marks, expression and apparent age unchanged. Natural camera skin only; no smoothing, whitening, makeup enhancement or plastic AI skin.
+
+ABSOLUTE TEMPLATE LOCK: do not alter the uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body width, background, crop or framing. The uniform template is the body master and must remain pixel-consistent.
+
+EDIT ONLY: (A) the empty anatomical connection between the preserved jaw/chin and the fixed collar, and (B) hair outside the protected face region.
+
+NECK: ignore/delete all neck proportions from the source photograph. Construct a NEW anatomically plausible adult neck from the fixed jaw to the fixed collar. Its width and height must be jointly proportional to the normalized head AND the fixed shoulders/collar. Keep it short-to-moderate, centered, with natural sternocleidomastoid transitions. Never make a pencil neck, long neck, stretched neck, tiny neck, or forward-projecting head. Blend skin tone, pores, light and camera grain to the preserved face.
+
+HAIR: follow the second image hairstyle reference around the existing normalized head. Do not move the hairline in a way that changes perceived face length or width. Do not cover or redraw facial features.
+
+FINAL CHECK BEFORE OUTPUT: head-to-shoulder scale must remain exactly as supplied by the first image; face must not become larger or smaller; neck must visually connect head and collar without changing either anchor. Result must look like a professional real-camera ID photo, not generated art.`;
 
     const form=new FormData();
     form.append("model","gpt-image-2");
