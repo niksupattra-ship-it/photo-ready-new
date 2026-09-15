@@ -198,7 +198,10 @@ async function composePortrait(headBlob){
   const shoulderCorrection=targetHeadW/Math.max(1,normalizedHeadW);
   // conservative correction: preserve identity geometry while eliminating visibly tiny/oversized heads
   const corrected=Math.max(.90,Math.min(1.18,shoulderCorrection));
-  let scale=canonicalScale*corrected;
+  // V17: หลังได้ตำแหน่ง V16 แล้ว เพิ่ม optical head size เล็กน้อยให้สัมพันธ์กับช่วงไหล่มากขึ้น
+  // ใช้ multiplier ภายใน ไม่ผูกกับขนาด/crop ของภาพต้นฉบับ
+  const v17HeadBoost=1.10;
+  let scale=canonicalScale*corrected*v17HeadBoost;
   scale=Math.max(.25,Math.min(4.0,scale));
 
   // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
@@ -221,7 +224,10 @@ async function composePortrait(headBlob){
   // ต้องเหลือช่องว่างที่มองเห็นได้ระหว่างใต้คางกับขอบช่องคอของชุด เพื่อไม่ให้ปกเสื้อชนคาง
   // ระยะนี้อิง canvas/template ไม่อิง crop หรือคอจากภาพต้นฉบับ
   const targetNeckVisible=Math.max(H*.022,Math.min(H*.032,finalFaceW*.10));
-  const chinTargetY=collarSocketY-targetNeckVisible; // V16: fixed pre-placement above collar socket
+  // V17: ยกก้อนหัวขึ้นอีกเล็กน้อยจากตำแหน่ง V16 หลังจากขยายหัวแล้ว
+  // offset อิงความสูง canvas/template เพื่อให้ทุก input ได้ตำแหน่งเดียวกัน
+  const v17Lift=H*.05;
+  const chinTargetY=collarSocketY-targetNeckVisible-v17Lift;
   const hX=collarCX-faceCX*scale;
   const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
