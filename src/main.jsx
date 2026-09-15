@@ -143,7 +143,20 @@ async function composePortrait(headBlob){
   // V12: anchor the anatomy to the REAL first opaque row of the uniform PNG.
   // The old .015 estimate pointed into transparent padding and made AI invent a long neck.
   const ub=await alphaBounds(uniform);
-  const collarTop=uY+ub.t*uScale;
+  // V14: COLLAR SOCKET ANCHOR — ห้ามใช้ pixel ทึบแถวแรกของทั้งชุด เพราะนั่นคือปลายปก/บ่า
+  // ซึ่งอยู่สูงกว่าช่องคอกลางจริงมากและเป็นสาเหตุหลักที่ทำให้ AI เติมคอยาว
+  // หา pixel ทึบแถวแรกเฉพาะบริเวณกึ่งกลางชุด (ช่องคอ/ปมเนกไท) แล้วใช้เป็น socket จริง
+  const uc=document.createElement('canvas'); uc.width=uniform.naturalWidth; uc.height=uniform.naturalHeight;
+  const ux=uc.getContext('2d',{willReadFrequently:true}); ux.drawImage(uniform,0,0);
+  const ud=ux.getImageData(0,0,uc.width,uc.height).data;
+  const cx0=Math.floor(uc.width*.46), cx1=Math.ceil(uc.width*.54);
+  let socketY=ub.t;
+  outer: for(let y=ub.t;y<=ub.b;y++){
+    let opaque=0;
+    for(let x=cx0;x<=cx1;x++){ if(ud[(y*uc.width+x)*4+3]>48) opaque++; }
+    if(opaque>=(cx1-cx0+1)*.12){ socketY=y; break outer; }
+  }
+  const collarSocketY=uY+socketY*uScale;
   const shoulderSpan=uW*.84;
 
   // FACE MASTER SCALE V10
@@ -163,7 +176,7 @@ async function composePortrait(headBlob){
   // V12 TEMPLATE-DRIVEN CANONICAL HEAD SCALE
   // ทุก input ถูก normalize เข้าสู่ optical size เดียวกันบน template ก่อนเสมอ
   // outer-eye distance เป็น master เพราะไม่ขึ้นกับทรงผม/คอ/ระยะกล้องต้นฉบับ
-  const targetEyeW=W*.154;
+  const targetEyeW=W*.160;
   const targetFaceW=targetEyeW/.455;
   const targetFaceH=targetFaceW*1.16;
   const eyeScale=targetEyeW/sourceEyeW;
@@ -185,8 +198,10 @@ async function composePortrait(headBlob){
   // V13 COLLAR-GAP LOCK: move the normalized head down so AI never has a tall empty neck area.
   // Keep only a very small anatomical bridge between chin and the real collar edge.
   // This is intentionally template-relative and independent of the source photo/crop.
-  const targetNeckVisible=Math.max(H*.012,Math.min(H*.018,targetFaceW*.060));
-  const chinTargetY=collarTop-targetNeckVisible; // hard anchor: chin stays close to collar
+  // V14: ระยะคอคำนวณจากช่องคอกลางจริง ไม่ใช่ยอดปกเสื้อ
+  // จำกัดให้เป็นคอสั้นสมส่วน และ normalize เหมือนกันทุก input โดยไม่สนขนาด/ระยะภาพต้นฉบับ
+  const targetNeckVisible=Math.max(H*.010,Math.min(H*.016,targetFaceW*.055));
+  const chinTargetY=collarSocketY-targetNeckVisible; // hard anchor to REAL center collar socket
   const hX=collarCX-faceCX*scale;
   const hY=chinTargetY-chinY*scale;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
