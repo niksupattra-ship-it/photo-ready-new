@@ -158,7 +158,8 @@ async function composePortrait(headBlob){
 
   // คางซ้อนลงใต้ปกเสื้อเล็กน้อย เพื่อให้ชุดเป็น foreground ซ่อนรอยต่อ
   const overlap=uH*.052;
-  const visibleTop=collarTop-visibleH+overlap;
+  const headDownOffset=visibleH*.035; // ขยับหัวลง 3.5% ของความสูงหัว
+  const visibleTop=collarTop-visibleH+overlap+headDownOffset;
 
   // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
   const hX=visibleLeft-hb.l*scale;
