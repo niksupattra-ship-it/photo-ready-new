@@ -41,3 +41,13 @@
 - quality=low ยังคงเดิม
 - prompt รักษาใบหน้า/ผิว/แววตา/ชุดยังคงเดิม
 - pipeline อื่นไม่เปลี่ยน
+
+## Adaptive Head-to-Body Fit
+- ยึด template ชุดและช่วงไหล่เป็นมาตรฐานหลัก
+- วัด alpha bounds ของหัวจริง จึงไม่ใช้ขนาด canvas/ระยะซูมต้นฉบับ
+- head width = 78% shoulder-based target + 22% collar constraint
+- shoulder/head target เริ่มที่ประมาณ 1.88 และปรับเล็กน้อยตาม aspect ของหัว
+- clamp ความกว้างหัวไว้ 40.5–48.5% ของความกว้าง template
+- ขยายหัวมากกว่าเวอร์ชันก่อน แต่ยังยืดหยุ่นกับคน/ระยะภาพที่ต่างกัน
+- ลด vertical down-offset จาก 13.5% เป็น 10.5% เพื่อไม่ให้คอสั้นเกินเมื่อหัวใหญ่ขึ้น
+- AI neck/hair economy pipeline อื่นคงเดิม

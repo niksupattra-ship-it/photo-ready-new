@@ -137,28 +137,38 @@ async function composePortrait(headBlob){
   const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
   const uX=(W-uW)/2,uY=H*.425;
 
-  // Geometry ของ template นี้: ช่องคออยู่กึ่งกลางชุด
+  // Geometry ของ template: ให้ "โครงลำตัว/ไหล่ของชุด" เป็นมาตรฐานหลัก
   const collarCX=W*.5;
   const collarTop=uY+uH*.015;
   const collarOpening=uW*.235;
 
-  // ใช้ "ขอบศีรษะจริง" หลังตัด alpha ไม่ใช้ขนาด canvas ต้นฉบับ
-  // เป้าหมาย: ความกว้างหัวสัมพันธ์กับช่องคอและความกว้างไหล่ของชุด
-  const targetVisibleHeadW=collarOpening*2.02;
-  let scale=targetVisibleHeadW/hb.w;
+  // Adaptive Body-Fit:
+  // 1) วัดเฉพาะ alpha bounds ของหัวจริง จึงไม่ขึ้นกับขนาด/การซูมของภาพต้นฉบับ
+  // 2) ใช้ความกว้างช่วงไหล่ที่มองเห็นของ template เป็นตัวกำหนดขนาดหัวหลัก
+  // 3) ใช้ช่องคอเป็น constraint รอง ไม่ใช่ตัวกำหนดขนาดหัวเพียงอย่างเดียว
+  const shoulderSpan=uW*.86;
+  const headAspect=hb.w/Math.max(1,hb.h);
 
-  // จำกัดช่วงเพื่อกันรูปต้นฉบับที่ crop/zoom ผิดปกติ
-  const minHeadW=uW*.285,maxHeadW=uW*.37;
-  const proposed=hb.w*scale;
-  if(proposed<minHeadW)scale=minHeadW/hb.w;
-  if(proposed>maxHeadW)scale=maxHeadW/hb.w;
+  // เป้าหมายกลาง: ไหล่ประมาณ 1.88 เท่าของความกว้างหัว
+  // ปรับเล็กน้อยตามรูปทรงหัว เพื่อไม่ให้คนหน้ากว้างถูกขยายเกิน และคนหน้าแคบดูหัวเล็ก
+  const shapeAdjust=Math.max(.96,Math.min(1.045,.78/Math.max(.58,Math.min(.92,headAspect))));
+  const bodyTargetW=(shoulderSpan/1.88)*shapeAdjust;
+  const collarTargetW=collarOpening*2.10;
+
+  // blend โดยให้ body 78% / collar 22% เพื่อยึดโครงชุดเป็นหลัก
+  let targetVisibleHeadW=bodyTargetW*.78+collarTargetW*.22;
+
+  // guard rails อิง template เท่านั้น รองรับต้นฉบับที่ crop/zoom ต่างกัน
+  const minHeadW=uW*.405,maxHeadW=uW*.485;
+  targetVisibleHeadW=Math.max(minHeadW,Math.min(maxHeadW,targetVisibleHeadW));
+  let scale=targetVisibleHeadW/hb.w;
 
   const visibleW=hb.w*scale,visibleH=hb.h*scale;
   const visibleLeft=collarCX-visibleW/2;
 
   // คางซ้อนลงใต้ปกเสื้อเล็กน้อย เพื่อให้ชุดเป็น foreground ซ่อนรอยต่อ
   const overlap=uH*.052;
-  const headDownOffset=visibleH*.135; // จาก 23.5% ขยับขึ้น 10% = เหลือลง 13.5% จากตำแหน่งเดิม
+  const headDownOffset=visibleH*.105; // adaptive scale ทำให้หัวใหญ่ขึ้น จึงลด down-offset เพื่อรักษาระยะคอ/ไหล่
   const visibleTop=collarTop-visibleH+overlap+headDownOffset;
 
   // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
