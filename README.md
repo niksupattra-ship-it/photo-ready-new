@@ -107,3 +107,10 @@
 - AI may create only the short missing neck bridge and selected hairstyle outside the protected face.
 - Strong original-skin lock: pores, marks, uneven tone, highlights, shadows and camera grain must remain photographic; no beauty/plastic skin.
 - Face restoration mask uses a slightly wider local feather to hide cutout halos while restoring original face pixels after AI finishing.
+
+
+## V19 professional-camera skin/detail finish
+- Keeps V18 geometry, head placement, neck bridge, hairstyle and face identity lock unchanged.
+- Restores the normalized ORIGINAL face pixels after AI finishing, then applies only a restrained micro-contrast lift to those original pixels so pores and genuine skin texture remain crisp.
+- AI prompt now requires coherent natural photographic lighting on generated neck/hair transitions and explicitly rejects plastic skin, beauty smoothing, HDR/clarity halos, fake gloss, bloom and CGI rendering.
+- No whitening, face reshaping, makeup enhancement or synthetic skin detail.

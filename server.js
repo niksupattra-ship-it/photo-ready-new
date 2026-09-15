@@ -53,7 +53,9 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     const prompt=`PHOTOREALISTIC ID-PHOTO COMPOSITING. LOCAL EDITS ONLY.
 The first image is already geometrically placed and scaled. Treat its face, head position, uniform, shoulders, collar, background and framing as locked photographic source material. The second image is ONLY the hairstyle shape/reference.
 
-IDENTITY / SKIN LOCK — HIGHEST PRIORITY: Do not redraw, beautify, retouch or synthesize the facial skin. Preserve the existing face geometry and photographic texture: pores, fine lines, natural uneven tone, small marks, highlights, shadows, sharpness and sensor/camera grain. No skin smoothing, no porcelain/waxy/plastic skin, no beauty filter, no whitening, no makeup enhancement, no HDR glow, no CGI/illustration appearance. Do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age or facial proportions.
+IDENTITY / SKIN LOCK — HIGHEST PRIORITY: Do not redraw, beautify, retouch or synthesize the facial skin. Preserve the existing face geometry and ALL real photographic micro-detail: pores, fine lines, natural uneven tone, small marks, tiny texture transitions and sensor/camera grain. The desired finish is a sharply focused professional-camera portrait, NOT smoother skin. Keep pores and genuine texture crisp and locally defined without inventing detail. Use natural optical sharpness only: no oversharpen halos, crunchy edges, clarity/HDR look, denoise-smearing, porcelain/waxy/plastic skin, beauty filter, whitening, makeup enhancement or CGI/illustration appearance. Do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age or facial proportions.
+
+REALISTIC LIGHTING / CAMERA RESPONSE: preserve the subject's believable skin reflectance and original identity while making newly generated neck/hair transitions obey one coherent photographic light source. Highlights must be soft and physically plausible, shadows gradual, skin neither flat nor glossy, and color temperature consistent across face, ears, jaw and neck. No studio-glamour relighting, no fake rim light, no bloom, no excessive dynamic-range compression. The final image should resemble a well-focused professional camera exposure with natural lens rendering and restrained contrast.
 
 EDIT REGION 1 — SHORT NECK CONNECTION ONLY: create only the missing short anatomical bridge between the fixed underside of the jaw and the fixed center collar opening. Do not use the source-photo neck as a proportion reference. Keep the neck compact and naturally broad enough to support this jaw, with subtle natural widening toward the collar. Preserve realistic skin texture and copy the face's local color, pores, lighting direction, contrast and camera grain onto the generated neck. Do not lengthen the neck, thin it, move the head, move the chin, move the collar, or alter the uniform.
 
@@ -63,7 +65,7 @@ SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes 
 
 TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
 
-FINAL QUALITY TEST: the result must look like an unretouched real-camera ID photograph. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.`;
+FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.`;
 
     const form=new FormData();
     form.append("model","gpt-image-2");
