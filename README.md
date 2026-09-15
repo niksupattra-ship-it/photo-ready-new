@@ -1,12 +1,14 @@
-# Jaw Matte V3
-ฐาน: bg-remover-auto-head-jaw-contour-v2.zip
+# Photo Compose V4
+ต่อจาก Jaw Matte V3
 
-ปรับเฉพาะขั้นตอนหลัง remove.bg:
-- MediaPipe ใช้หา ROI ของกราม ไม่ใช้ landmark เป็นเส้นตัดสุดท้าย
-- ค้นหา alpha contour จริงจาก PNG ของ remove.bg ใน ROI
-- median-filter contour ลดขอบกระโดด
-- coverage anti-alias ประมาณ 1px
-- edge RGB decontamination เฉพาะ pixel กึ่งโปร่งใส ลด halo
-- RGB ใบหน้าส่วนทึบไม่ถูกแก้ และไม่ใช้ Generative AI
+อัตโนมัติในคลิกเดียว:
+1. remove.bg
+2. แยกศีรษะ
+3. ใช้ขนาด canvas จาก background ที่ผู้ใช้ให้
+4. วาง uniform template ตาม layout ตัวอย่าง
+5. คำนวณสเกลหัวจากความกว้างช่องคอของชุด ไม่ยึดขนาดรูปต้นฉบับ
+6. วาดหัวก่อน แล้ววาดชุดทับ เพื่อให้หัวอยู่ใต้ปกเสื้อและซ่อนรอยต่อ
+7. แสดงผลสุดท้าย
 
-Pipeline ยังเป็นคลิกเดียว: remove.bg -> jaw matte -> head-only PNG
+ไฟล์จริงของ background และ uniform ถูก bundle ใน public/assets
+ยังไม่มี AI finishing pass ใน V4 นี้

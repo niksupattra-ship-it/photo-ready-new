@@ -110,6 +110,45 @@ async function headOnly(blob){
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้าง PNG ไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(url)}
 }
+async function composePortrait(headBlob){
+ const bg=await loadImage('/assets/background.jpg');
+ const uniform=await loadImage('/assets/uniform.png');
+ const headURL=URL.createObjectURL(headBlob);
+ try{
+  const head=await loadImage(headURL);
+  // Canvas size follows the supplied background exactly.
+  const W=bg.naturalWidth,H=bg.naturalHeight;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const ctx=c.getContext('2d',{alpha:false});
+  ctx.drawImage(bg,0,0,W,H);
+
+  // Uniform placement calibrated from the supplied reference layout.
+  // Keep template aspect ratio; do not redraw/warp uniform details.
+  const uW=W*.94, uScale=uW/uniform.naturalWidth, uH=uniform.naturalHeight*uScale;
+  const uX=(W-uW)/2, uY=H*.425;
+
+  // Estimate collar opening from template geometry.
+  const collarCenterX=W*.5;
+  const collarTopY=uY+uH*.015;
+  const collarWidth=uW*.235;
+
+  // Head scale is driven by collar width, not source-photo size.
+  // Target jaw width slightly wider than collar opening for natural overlap.
+  const targetHeadW=collarWidth*2.02;
+  const hScale=targetHeadW/head.naturalWidth;
+  const hW=head.naturalWidth*hScale,hH=head.naturalHeight*hScale;
+  const hX=collarCenterX-hW/2;
+  // place chin under collar layer so the collar hides the lower seam
+  const hY=collarTopY-hH+uH*.085;
+
+  // Head is intentionally drawn BEFORE uniform: "หัวอยู่ใต้ชุด".
+  ctx.drawImage(head,hX,hY,hW,hH);
+  ctx.drawImage(uniform,uX,uY,uW,uH);
+
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/jpeg',.96));
+ }finally{URL.revokeObjectURL(headURL)}
+}
+
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState('');
  const pick=e=>{const v=e.target.files?.[0];if(v){setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
@@ -119,14 +158,15 @@ function App(){
   if(!r.ok)throw Error(await r.text());
   const transparent=await r.blob();
   const head=await headOnly(transparent);
-  setB(URL.createObjectURL(head));
+  const composed=await composePortrait(head);
+  setB(URL.createObjectURL(composed));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>แยกศีรษะอัตโนมัติ · Jaw Matte V3</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → วิเคราะห์ขอบผิวจริงบริเวณกราม → ลบคอและลำตัวอัตโนมัติ</p><section>
+ return <main><h1>ประกอบรูปติดบัตรอัตโนมัติ</h1><p>กดครั้งเดียว: ลบพื้นหลัง → วิเคราะห์กรอบหน้า → ลบพื้นหลัง → แยกศีรษะ → ปรับขนาดตามช่องคอ → วางใต้ชุดอัตโนมัติ</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังลบพื้นหลังและเก็บเฉพาะศีรษะ…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
- {b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์หลัง 2 ขั้นตอน</figcaption><div className="check"><img src={b}/></div></figure></div>}
- {b&&<a className="save" href={b} download="head-only.png">ดาวน์โหลด PNG</a>}
+ {b&&<div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div>}
+ {b&&<a className="save" href={b} download="photo-composed.jpg">ดาวน์โหลดภาพ</a>}
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<App/>);
