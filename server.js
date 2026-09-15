@@ -65,7 +65,12 @@ SEAM / EDGE FINISH: remove visible cutout halos, hard mask edges, color fringes 
 
 TEMPLATE LOCK: uniform, collar, tie, insignia, epaulettes, buttons, shoulders, body proportions, background and crop are immutable.
 
-FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.`;
+FINAL QUALITY TEST: the result must look like a sharply focused, naturally lit, unretouched professional-camera ID photograph with visible authentic skin microtexture and no AI/plastic finish. If an edit would make the face smoother, cleaner, more symmetrical, more beautiful, more three-dimensional, more projected, or more AI-looking than the supplied face, DO NOT APPLY THAT EDIT. Preserve identity and real skin over aesthetic improvement.
+Skin finishing must be extremely subtle: lightly even only tiny local tonal irregularities while preserving pores, fine lines, natural texture, moles, facial contours and all identity details.
+Use a neutral professional portrait-studio white balance. Remove unwanted yellow/orange cast from skin and neck without making skin pink, gray, pale or artificially white.
+Match face and newly generated neck to the same neutral skin tone and exposure. Lighting should resemble a professional photo studio: soft diffused key light, gentle natural fill, controlled highlights, realistic soft shadows and smooth tonal roll-off.
+Do not use beauty retouching, waxy/plastic skin, airbrushing, heavy denoise, fake HDR, excessive sharpening, excessive saturation, yellow skin, orange skin, whitening, or makeup enhancement.
+`;
 
     const form=new FormData();
     form.append("model","gpt-image-2");

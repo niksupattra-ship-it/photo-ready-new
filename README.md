@@ -114,3 +114,12 @@
 - Restores the normalized ORIGINAL face pixels after AI finishing, then applies only a restrained micro-contrast lift to those original pixels so pores and genuine skin texture remain crisp.
 - AI prompt now requires coherent natural photographic lighting on generated neck/hair transitions and explicitly rejects plastic skin, beauty smoothing, HDR/clarity halos, fake gloss, bloom and CGI rendering.
 - No whitening, face reshaping, makeup enhancement or synthetic skin detail.
+
+## V19 Studio Skin refinement
+- คง geometry / head placement / neck / hair pipeline ของ V19 เดิม
+- เกลี่ยผิวเพียงเล็กน้อย ไม่ลบ pores / fine lines / moles / texture
+- neutral studio white balance ลด yellow/orange cast
+- ไม่ฟอกขาว ไม่ทำชมพู/เทา ไม่เพิ่ม makeup
+- คอใหม่ต้อง match สีผิวและ exposure ของหน้า
+- soft studio key + natural fill + realistic shadow/highlight roll-off
+- ห้าม plastic/waxy/airbrush/heavy denoise/HDR look
