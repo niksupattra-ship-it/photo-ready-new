@@ -269,19 +269,11 @@ async function restoreIdentityCore(aiBlob,headBlob,lock){
   const feather=Math.max(3,Math.min(7,lock.W*.0045));
   x.filter=`blur(${feather}px)`;x.drawImage(tmp,0,0);x.filter='none';
   mc.globalCompositeOperation='destination-in';mc.drawImage(mask,0,0);
-  // V26 REAL-SKIN LOCK: restore the original photographed face pixels directly.
-  // No beauty pass, denoise, blur, synthetic texture, contrast remapping or heavy skin recoloring.
-  // This is intentionally a pixel-preservation step: the AI may create only hair/neck transitions,
-  // while the face interior comes back from the real source photo.
-  // V28: NATURAL STUDIO SKIN — keep the real photographed face, then use a restrained
-  // optical complexion blend to match the approved sample: smooth tonal transitions without
-  // wax/plastic skin. This is local canvas processing, not AI face regeneration.
+  // V29 — use the proven V9 skin principle: protected source pixels stay untouched.
+  // No local blur, beauty smoothing, complexion blending, sharpening or synthetic texture.
+  // AI is allowed to work on hairstyle and the narrow neck seam only; the face core is restored
+  // pixel-for-pixel from the normalized source image after the AI edit.
   ctx.globalAlpha=1;ctx.drawImage(m,0,0);
-  const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
-  const sc=soft.getContext('2d');
-  // Slightly wider optical diffusion than V27, but low opacity keeps pores/marks/identity.
-  sc.filter='blur(0.58px)';sc.drawImage(m,0,0);sc.filter='none';
-  ctx.globalAlpha=.16;ctx.drawImage(soft,0,0);ctx.globalAlpha=1;
 
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ล็อกใบหน้าขั้นสุดท้ายไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL)}
@@ -320,7 +312,7 @@ function App(){
   const finished=hairId ? await restoreIdentityCore(aiResult,head,composed.lock) : aiResult;
   setB(URL.createObjectURL(finished));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V28: Natural Studio Skin — ผิวเนียนแบบภาพถ่ายจริงโดยคงรายละเอียดผิวและใบหน้าเดิม พร้อมระบบลบพื้นหลังครั้งเดียวต่อรูป</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V29: ใช้วิธีล็อกผิวและการสร้างผมจากโปรเจ็กต์ V9 เท่านั้น โดยคงระบบจัดวาง ชุด คอ พื้นหลัง และ Remove.bg ของ V28</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options">
  <div className="hair-title">ทรงผม</div>

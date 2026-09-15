@@ -1,2 +1,2 @@
-V28
-Natural Studio Skin: real face pixels retained; 16% 0.58px optical tonal blend for smoother studio-like skin while preserving pores, marks and identity. V25 remove.bg cache and geometry retained.
+v29
+V9 skin + hair method transplanted into V28; all other V28 systems retained.
