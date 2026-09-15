@@ -1,3 +1,16 @@
+V22 — REFERENCE SKIN MATCH ONLY
+
+Base: V21. No geometry/layout/template/hair changes.
+
+V22 changes only skin/light rendering to match the approved reference image 2 more strongly:
+- slightly lower, denser facial exposure instead of the brighter V21 look
+- neutral/cool camera white balance; reduced yellow/orange cast
+- controlled forehead/nose/cheek shine and softer highlight roll-off
+- keeps real pores, marks, fine texture and facial identity
+- no whitening, beauty filter, plastic/waxy skin, blur or heavy denoise
+- generated neck is instructed to match the same skin exposure/tone
+- head scale/position, neck geometry, hairstyle logic, uniform, insignia, background and framing remain V21
+
 V21 — SKIN/LIGHT ONLY UPDATE
 
 Changes from V20: skin tone/light/detail only, matched toward the approved earlier-test look. All geometry, head/neck placement, hair logic, uniform/template, background and framing remain unchanged.
