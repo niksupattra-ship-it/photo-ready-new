@@ -1,4 +1,20 @@
-import express from"express";import multer from"multer";import fs from"fs/promises";import sharp from"sharp";
-const app=express(),up=multer({dest:"tmp/",limits:{fileSize:25*1024*1024}}),W=900,H=1200;app.use(express.static("public"));app.get("/api/health",(q,r)=>r.json({ok:true,version:"5.2.0"}));
-app.post("/api/create",up.fields([{name:"head",maxCount:1},{name:"uniform",maxCount:1}]),async(q,r)=>{let h=q.files?.head?.[0],u=q.files?.uniform?.[0];if(!h||!u)return r.status(400).json({error:"ต้องมีรูปหัวและชุด"});try{let hm=await sharp(h.path).metadata(),um=await sharp(u.path).rotate().metadata();let us=Math.min(860/um.width,760/um.height),uw=Math.round(um.width*us),uh=Math.round(um.height*us),uni=await sharp(u.path).rotate().resize(uw,uh).ensureAlpha().png().toBuffer(),ux=Math.round((W-uw)/2),uy=H-uh,sw=uw*.78,tw=Math.max(245,Math.min(365,sw/2.15)),hs=tw/hm.width,hw=Math.round(hm.width*hs),hh=Math.round(hm.height*hs),head=await sharp(h.path).resize(hw,hh).png().toBuffer(),nx=W/2,ny=uy+118,hx=Math.round(nx-hw/2),hy=Math.round(ny-hh+70),bg=await sharp({create:{width:W,height:H,channels:4,background:{r:24,g:105,b:205,alpha:1}}}).png().toBuffer(),out=await sharp(bg).composite([{input:uni,left:ux,top:uy},{input:head,left:hx,top:hy}]).png().toBuffer();r.json({image:`data:image/png;base64,${out.toString("base64")}`,aiCalls:0,uniformLocked:true,metrics:{ratio:+(sw/hw).toFixed(2)}})}catch(e){console.error("CREATE_ERROR",e);r.status(500).json({error:e.message})}finally{for(let a of Object.values(q.files||{}))for(let f of a)fs.unlink(f.path).catch(()=>{})}});
-app.use((e,q,r,n)=>{console.error(e);r.status(500).json({error:e.message||"Server error"})});app.listen(process.env.PORT||3000,()=>console.log("GovPhoto v5.2 ready"));
+import express from "express";import multer from "multer";import sharp from "sharp";import ort from "onnxruntime-node";import path from "path";import fs from "fs";import {fileURLToPath}from"url";
+const __dirname=path.dirname(fileURLToPath(import.meta.url));const app=express();const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:15*1024*1024}});
+let session;
+async function model(){if(!session){const p=process.env.MODEL_PATH||path.join(__dirname,"models","birefnet.onnx");if(!fs.existsSync(p))throw new Error("MODEL_NOT_FOUND");session=await ort.InferenceSession.create(p,{executionProviders:["cpu"]})}return session}
+app.post("/api/remove-background",upload.single("image"),async(req,res)=>{try{
+ if(!req.file)return res.status(400).send("กรุณาเลือกรูป");
+ const s=await model(); const meta=await sharp(req.file.buffer).metadata(); const size=1024;
+ const {data,info}=await sharp(req.file.buffer).removeAlpha().resize(size,size,{fit:"fill"}).raw().toBuffer({resolveWithObject:true});
+ const input=new Float32Array(3*size*size);const mean=[.485,.456,.406],std=[.229,.224,.225];
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){const i=(y*size+x)*3,p=y*size+x;for(let c=0;c<3;c++)input[c*size*size+p]=(data[i+c]/255-mean[c])/std[c]}
+ const names=s.inputNames;const out=await s.run({[names[0]]:new ort.Tensor("float32",input,[1,3,size,size])});let arr=out[s.outputNames[0]].data;
+ let min=Infinity,max=-Infinity;for(const v of arr){if(v<min)min=v;if(v>max)max=v}
+ const mask=Buffer.alloc(size*size);for(let i=0;i<mask.length;i++){let v=arr[i];if(min<0||max>1)v=1/(1+Math.exp(-v));mask[i]=Math.max(0,Math.min(255,Math.round(v*255)))}
+ const alpha=await sharp(mask,{raw:{width:size,height:size,channels:1}}).resize(meta.width,meta.height,{fit:"fill",kernel:"lanczos3"}).blur(.35).raw().toBuffer();
+ const rgb=await sharp(req.file.buffer).removeAlpha().raw().toBuffer();const rgba=Buffer.alloc(meta.width*meta.height*4);
+ for(let i=0,j=0;i<alpha.length;i++,j+=3){const k=i*4;rgba[k]=rgb[j];rgba[k+1]=rgb[j+1];rgba[k+2]=rgb[j+2];rgba[k+3]=alpha[i]}
+ const png=await sharp(rgba,{raw:{width:meta.width,height:meta.height,channels:4}}).png().toBuffer();res.type("png").send(png)
+ }catch(e){console.error(e);res.status(500).send(e.message==="MODEL_NOT_FOUND"?"ยังไม่มีโมเดล: วาง BiRefNet ONNX ที่ models/birefnet.onnx":("ประมวลผลไม่สำเร็จ: "+e.message))}});
+app.use(express.static(path.join(__dirname,"dist")));app.get("*",(req,res)=>res.sendFile(path.join(__dirname,"dist","index.html")));
+app.listen(process.env.PORT||3000,()=>console.log("Background Remover TH ready"));
