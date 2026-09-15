@@ -142,55 +142,40 @@ async function composePortrait(headBlob){
   const collarTop=uY+uH*.015;
   const collarOpening=uW*.235;
 
-  // Template-Normalized Head Fitting v3
-  // ไม่ใช้ขนาดหัว/ระยะกล้องของภาพต้นฉบับเป็นตัวกำหนด scale อีกต่อไป
-  // วัดโครงหน้าใน head cutout แล้ว normalize เข้ากับ geometry ของชุดโดยตรง
-  let faceLm=null;
-  try{ faceLm=(await getLandmarker()).detect(head).faceLandmarks?.[0]||null; }catch{}
+  // Adaptive Head Fit v3 - corrected body/head proportion:
+  // ยึดชุดเป็นหลัก แต่ไม่ใช้ shoulder/head ratio ที่ทำให้หัวโตเกินใน v1
+  // alpha bounds ทำหน้าที่ normalize ระยะภาพต้นฉบับเท่านั้น
+  const headAspect=hb.w/Math.max(1,hb.h);
 
-  let scale, hX, hY, hW, hH;
-  if(faceLm){
-    const P=i=>({x:faceLm[i].x*head.naturalWidth,y:faceLm[i].y*head.naturalHeight});
-    const L=P(234),R=P(454),chin=P(152),eyeL=P(33),eyeR=P(263);
-    const faceW=Math.max(1,Math.hypot(R.x-L.x,R.y-L.y));
-    const eyeW=Math.max(1,Math.hypot(eyeR.x-eyeL.x,eyeR.y-eyeL.y));
+  // baseline กลับมาใกล้สัดส่วนเวอร์ชันก่อน Adaptive ซึ่งสมดุลกว่า
+  const collarTargetW=collarOpening*2.28;
 
-    // Template เป็นมาตรฐาน: facial width คงที่ตามลำตัว ไม่ตามระยะภาพต้นฉบับ
-    // eye/face ratio ใช้ปรับเล็กน้อยเพื่อรักษาความต่างของโครงหน้าจริง โดยไม่ขยายแรง
-    const refEyeFace=.455;
-    const anatomyAdjust=Math.max(.975,Math.min(1.025,(eyeW/faceW)/refEyeFace));
-    const targetFaceW=uW*.255*anatomyAdjust;
-    scale=targetFaceW/faceW;
+  // ปรับเพียงเล็กน้อยตาม aspect ของหัวจริง ห้ามชดเชยแรง
+  // หน้ากว้าง -> ลด scale เล็กน้อย, หน้าแคบ -> เพิ่มเล็กน้อย
+  const referenceAspect=.74;
+  const rawAdjust=referenceAspect/Math.max(.62,Math.min(.88,headAspect));
+  const shapeAdjust=Math.max(.965,Math.min(1.035,rawAdjust));
 
-    // ป้องกัน detection ผิดพลาด แต่ไม่ผูกกับ alpha head size
-    const visibleW=hb.w*scale;
-    if(visibleW<uW*.285) scale*=uW*.285/visibleW;
-    if(visibleW>uW*.345) scale*=uW*.345/visibleW;
+  let targetVisibleHeadW=collarTargetW*shapeAdjust;
 
-    hW=head.naturalWidth*scale; hH=head.naturalHeight*scale;
+  // ช่วงสัดส่วนแก้ใหม่: 34.5–39.5% ของความกว้าง template
+  // ผลทดสอบจริง v2 อยู่เล็กเกินเมื่อเทียบไหล่ จึงเพิ่มประมาณ 15–20%
+  const minHeadW=uW*.345,maxHeadW=uW*.395;
+  targetVisibleHeadW=Math.max(minHeadW,Math.min(maxHeadW,targetVisibleHeadW));
+  let scale=targetVisibleHeadW/hb.w;
 
-    // จัดกึ่งกลางด้วย midpoint ของโครงหน้า ไม่ใช่กรอบ PNG/ผม
-    const faceCX=((L.x+R.x)/2)*scale;
-    hX=collarCX-faceCX;
+  const visibleW=hb.w*scale,visibleH=hb.h*scale;
+  const visibleLeft=collarCX-visibleW/2;
 
-    // chin-to-collar anchor: สร้างช่องคอสั้นคงที่ตาม template
-    // AI จะเติมเฉพาะคอในช่องนี้ จึงไม่เกิดคอยาวตามภาพต้นฉบับ
-    const scaledFaceW=faceW*scale;
-    const targetChinY=collarTop + uH*.050 + scaledFaceW*.105;
-    hY=targetChinY-chin.y*scale;
-  }else{
-    // fallback เฉพาะกรณี landmark รอบสองไม่สำเร็จ: ใช้ baseline v2 ที่ปลอดภัย
-    const headAspect=hb.w/Math.max(1,hb.h);
-    const rawAdjust=.74/Math.max(.62,Math.min(.88,headAspect));
-    const shapeAdjust=Math.max(.965,Math.min(1.035,rawAdjust));
-    let targetVisibleHeadW=Math.max(uW*.300,Math.min(uW*.345,collarOpening*2.02*shapeAdjust));
-    scale=targetVisibleHeadW/hb.w;
-    const visibleW=hb.w*scale,visibleH=hb.h*scale;
-    const visibleLeft=collarCX-visibleW/2;
-    const visibleTop=collarTop-visibleH+uH*.052+visibleH*.125;
-    hX=visibleLeft-hb.l*scale; hY=visibleTop-hb.t*scale;
-    hW=head.naturalWidth*scale; hH=head.naturalHeight*scale;
-  }
+  // คางซ้อนลงใต้ปกเสื้อเล็กน้อย เพื่อให้ชุดเป็น foreground ซ่อนรอยต่อ
+  const overlap=uH*.052;
+  const headDownOffset=visibleH*.105; // v3: หัวใหญ่ขึ้น จึงลดการกดหัวลงเพื่อคงคอสั้นและสมส่วน
+  const visibleTop=collarTop-visibleH+overlap+headDownOffset;
+
+  // แปลงตำแหน่ง visible bounds กลับเป็นตำแหน่ง canvas ของ head
+  const hX=visibleLeft-hb.l*scale;
+  const hY=visibleTop-hb.t*scale;
+  const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
   // ลำดับเลเยอร์: background -> head -> uniform
   ctx.drawImage(head,hX,hY,hW,hH);
