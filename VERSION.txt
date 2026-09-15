@@ -1,1 +1,1 @@
-V47 - V46 preserved + deterministic local collar mesh-warp controls\n
+V49 - visible collar warp controls; image pipeline unchanged

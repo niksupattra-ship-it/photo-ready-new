@@ -374,14 +374,41 @@ async function makePlacedHeadNeckLayer(personBlob,lock){
  }finally{URL.revokeObjectURL(url)}
 }
 
-async function renderAdjustedFinal(headLayer,lock,adjust){
+async function warpUniformCollar(uniform,amount=0){
+ // V47 deterministic Photoshop-like local mesh warp. No AI, no redraw.
+ // Only pixels around the upper collar/neck opening move; epaulettes/body stay untouched.
+ if(Math.abs(amount)<.001)return uniform;
+ const W=uniform.naturalWidth,H=uniform.naturalHeight;
+ const src=document.createElement('canvas');src.width=W;src.height=H;
+ const sx=src.getContext('2d',{willReadFrequently:true});sx.drawImage(uniform,0,0);
+ const out=document.createElement('canvas');out.width=W;out.height=H;
+ const ox=out.getContext('2d');ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';ox.drawImage(uniform,0,0);
+ // Fixed template anchors: center collar only. Influence fades to zero before insignia/shoulders.
+ const cx=W*.50, roiL=W*.285, roiR=W*.715, roiT=H*.015, roiB=H*.36;
+ const rows=90, cols=120, sh=(roiB-roiT)/rows, sw=(roiR-roiL)/cols;
+ for(let r=0;r<rows;r++){
+  const y=roiT+r*sh, yn=(y-roiT)/(roiB-roiT);
+  const yFall=Math.pow(Math.max(0,1-yn),1.35);
+  for(let q=0;q<cols;q++){
+   const x=roiL+q*sw, xn=(x-cx)/((roiR-roiL)/2);
+   const xFall=Math.pow(Math.max(0,1-Math.abs(xn)),1.8);
+   // positive amount opens/widens collar; negative closes it. Max displacement is bounded.
+   const dx=Math.sign(xn||1)*amount*W*.075*xFall*yFall;
+   ox.drawImage(src,x,y,sw+1,sh+1,x+dx,y,sw+1,sh+1);
+  }
+ }
+ return out;
+}
+
+async function renderAdjustedFinal(headLayer,lock,adjust,collarWarp=0){
  const bg=await loadImage('/assets/background.jpg'),uniform=await loadImage('/assets/uniform.png');
+ const warpedUniform=await warpUniformCollar(uniform,collarWarp);
  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
  const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H;
  const cx=lock.hX+(lock.headW*lock.scale)/2, cy=lock.hY+(lock.headH*lock.scale)/2;
  x.save();x.translate(cx+dx,cy+dy);x.scale(s,s);x.translate(-cx,-cy);x.drawImage(headLayer,0,0);x.restore();
- x.drawImage(uniform,lock.uX,lock.uY,lock.uW,lock.uH);
+ x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
 }
 
@@ -429,11 +456,14 @@ const HAIR_OPTIONS=[
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0});
+ const[collarWarp,setCollarWarp]=useState(0);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0});setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
- const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,next);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0});setCollarWarp(0);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,next,collarWarp);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.55,Math.min(1.45,v.scale));applyAdjust(v)};
+ const applyCollarWarp=async amount=>{const v=Math.max(-.45,Math.min(.45,amount));setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,headAdjust,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
+ const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
  const go=async()=>{setBusy(true);setMsg('');try{
   const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
   if(!transparent){const d=new FormData();d.append('image',f);const r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());transparent=await r.blob();transparentCache.current={key:fileKey,blob:transparent};}
@@ -446,17 +476,18 @@ function App(){
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const layer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   editCache.current={layer,lock:composed.lock};
-  setHeadAdjust({scale:1,x:0,y:0});
-  const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0});
+  setHeadAdjust({scale:1,x:0,y:0});setCollarWarp(0);
+  const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V46: คงการปรับผิวแบบ V9 จากเวอร์ชันนี้ แต่ AI ทำเฉพาะหัว + ผม + คอเปล่าถึงไหปลาร้า แล้วลบพื้นหลังก่อนวางใต้ Template ชุดจริง</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V49: คงการปรับผิวแบบ V9 จากเวอร์ชันนี้ แต่ AI ทำเฉพาะหัว + ผม + คอเปล่าถึงไหปลาร้า แล้วลบพื้นหลังก่อนวางใต้ Template ชุดจริง</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options"><div className="hair-title">ทรงผม</div>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}><img src={h.src}/><span>{h.name}</span></button>)}</div>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
  {b&&<><div className="head-tools"><div className="head-tools-title">ปรับส่วนหัวที่วางแล้ว</div><div className="head-tools-grid">
   <button type="button" onClick={()=>nudge('y',-.01)}>↑ บน</button><button type="button" onClick={()=>nudge('y',.01)}>↓ ล่าง</button><button type="button" onClick={()=>nudge('x',-.01)}>← ซ้าย</button><button type="button" onClick={()=>nudge('x',.01)}>→ ขวา</button><button type="button" onClick={()=>nudge('scale',-.05)}>− ลดหัว</button><button type="button" onClick={()=>nudge('scale',.05)}>＋ ขยายหัว</button><button type="button" className="reset-head" onClick={()=>applyAdjust({scale:1,x:0,y:0})}>คืนค่ามาตรฐาน</button></div><small>ขนาด {Math.round(headAdjust.scale*100)}% · ซ้าย/ขวา {Math.round(headAdjust.x*100)}% · บน/ล่าง {Math.round(headAdjust.y*100)}%</small></div>
+ <div className="collar-warp-panel"><div className="collar-warp-title">ปรับช่องคอของชุดจริง</div><button type="button" className="collar-auto" onClick={autoFitCollar}>ปรับช่องคอให้พอดีกับคออัตโนมัติ</button><div className="collar-warp-grid"><button type="button" onClick={()=>applyCollarWarp(collarWarp-.05)}>− หุบช่องคอ</button><button type="button" onClick={()=>applyCollarWarp(collarWarp+.05)}>＋ ขยายช่องคอ</button><button type="button" onClick={()=>applyCollarWarp(0)}>คืนรูปชุดเดิม</button></div><small>Warp {Math.round(collarWarp*100)}% · ปรับเฉพาะ Template ชุด ไม่ใช้ AI</small></div>
  <div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div><a className="save" href={b} download="photo-composed.png">ดาวน์โหลดภาพ</a></>}
  </section></main>
 }

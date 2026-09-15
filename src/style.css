@@ -7,3 +7,12 @@
 .hair-card span{display:block;margin-top:5px;font-size:13px}
 
 .head-tools{margin:16px 0;padding:14px;border:1px solid #d8deea;border-radius:14px;background:#f8faff;text-align:left}.head-tools-title{font-weight:700;margin-bottom:10px}.head-tools-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.head-tools-grid button{margin:0!important;padding:11px!important;background:#fff!important;color:#24324a!important;border:1px solid #cbd5e1!important}.head-tools-grid button:hover{border-color:#315bea!important}.head-tools-grid .reset-head{grid-column:1/-1;background:#eef2ff!important;color:#315bea!important}.head-tools small{display:block;margin-top:9px;color:#667085;text-align:center}@media(max-width:650px){.head-tools-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* V49: make collar-warp controls unmistakably visible after processing */
+.collar-warp-panel{margin:18px 0;padding:16px;border:2px solid #315bea;border-radius:16px;background:#f5f7ff;text-align:left}
+.collar-warp-title{font-size:18px;font-weight:800;color:#1f3fb8;margin-bottom:10px}
+.collar-auto{margin:0 0 10px!important;background:#315bea!important;color:#fff!important;font-size:17px!important}
+.collar-warp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.collar-warp-grid button{margin:0!important;background:#fff!important;color:#24324a!important;border:1px solid #b8c4df!important}
+.collar-warp-panel small{display:block;margin-top:9px;text-align:center;color:#667085}
+@media(max-width:650px){.collar-warp-grid{grid-template-columns:1fr}}
