@@ -1,27 +1,11 @@
-# V9 Anatomical Anchor Fitting
+# Photo Compose V6 — Native Transparent Uniform
 
-รื้อระบบ positioning ของ V8 แล้ว
+ฐาน: V5 Auto Head Scale
 
-คงเดิม:
-- remove.bg
-- head extraction / jaw matte
-- background
-- transparent uniform PNG
-- one-click pipeline
-
-ใหม่:
-1. Template มี anatomical anchors แบบ normalized:
-   neck center, collar top/bottom, shoulder left/right, shoulder Y
-2. Scale หัวจาก shoulder span เป็นหลัก
-   target shoulder/head width ≈ 1.90
-   clamp 1.78–2.02
-3. ไม่เอาช่องคอเป็นตัวกำหนดขนาดหัวหลัก
-4. สร้าง AI Neck Zone ระหว่างคางกับ collar top
-   target ≈ 12–18% ของ visible head height
-5. คาง/หัวจัดกลางกับ neck center
-6. sanity check ระยะ shoulder-to-chin
-7. เก็บ geometry ไว้ใน window.__PHOTO_GEOMETRY__
-   เพื่อใช้สร้าง mask สำหรับ AI neck finishing ขั้นต่อไป
-8. ไม่ warp / redraw ชุด และไม่แก้ใบหน้า
-
-ขั้นนี้ยังไม่เรียก AI; เป็น geometry foundation สำหรับ AI เติมคอ/เกลี่ยขอบในขั้นถัดไป
+- เปลี่ยน uniform asset เป็น official-female-practitioner-finance.png ล่าสุดของผู้ใช้
+- ตรวจไฟล์แล้วเป็น RGBA 2048×1731 และมี alpha 0–255 จริง
+- ยกเลิก black-key/background removal ของชุดทั้งหมด
+- ใช้ alpha ดั้งเดิมของ PNG โดยตรง จึงรักษาขอบชุด/ปก/บ่า/เครื่องหมาย
+- ระบบปรับหัวตาม alpha bounds + collar/shoulder geometry เดิม
+- Layer: background -> scaled head -> transparent uniform
+- ชุดอยู่ด้านหน้าหัวเพื่อซ่อนรอยต่อบริเวณช่องคอ
