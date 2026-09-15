@@ -74,9 +74,9 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
     const hairBuf=fs.readFileSync(hairPath);
 
-    const prompt=`PHOTOREALISTIC ID-PHOTO HEAD+NECK GENERATION. INPUT 1 IS HEAD-ONLY SOURCE. INPUT 2 IS ONLY THE SELECTED HAIRSTYLE REFERENCE.
+    const prompt=`PROFESSIONAL ID-PORTRAIT ASSET EDIT. Image 1 is the subject portrait crop. Image 2 is only the selected hairstyle reference. This is a standard non-sensitive ID-photo editing task.
 
-ABSOLUTE OUTPUT CONTENT LOCK: Generate ONLY the same person's hair, complete head/face/ears, and a natural bare neck extending down to the clavicles / very top of the shoulders. NO CLOTHING OF ANY KIND. NO SHIRT, NO COLLAR, NO TIE, NO JACKET, NO UNIFORM, NO EPAULETTES, NO INSIGNIA, NO BUTTONS, NO FABRIC. Do not infer or reconstruct any garment from the source. The bottom of the generated anatomy must be bare skin at the clavicle/upper-shoulder region so it can later be placed underneath a separate real uniform PNG template. Keep the person front-facing with the neck straight and anatomically balanced for a professional half-body ID-photo composition.
+OUTPUT REGION: Keep the same person's complete head, ears, selected hairstyle, and a natural straight neck ending at the normal base-of-neck line. Crop the output before the torso so no garment is included in this editable portrait layer. Do not reconstruct, copy, invent, or include any shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons, or fabric from the source. This portrait layer will later be composited behind a separate clothing template by the application. Keep a centered, front-facing professional ID-photo pose and natural anatomical proportions.
 
 IDENTITY LOCK: Preserve the exact identity and facial anatomy from image 1. Do not change eyes, brows, nose, mouth, cheeks, jaw, expression, age, facial proportions, complexion, moles, freckles, blemishes, asymmetry, or other identifying details.
 
@@ -86,9 +86,9 @@ PROFESSIONAL CAMERA DETAIL LOCK — EXACT V9: render with crisp professional-cam
 
 HAIR: replace only the hairstyle with image 2 as the authoritative hairstyle target. Match its parting, fringe, side shape, crown, volume, length, tied/untied structure and silhouette. Remove source-hair remnants that conflict with the selected style. Adapt the style to the subject's own skull, hairline, ears and head angle. Do not copy the reference face or anatomy. Hair must remain photographic, with natural roots, strands, density variation and soft flyaways.
 
-BACKGROUND: use a simple clean solid background only as temporary generation space. Do not add scenery or objects. The application will remove this background immediately after generation.
+BACKGROUND: use a simple clean solid background only as temporary generation space. Do not add scenery or objects. The application removes this background immediately after generation.
 
-FINAL CHECK BEFORE OUTPUT: the image must contain the same person's head + selected hair + BARE NECK TO CLAVICLES ONLY. ZERO CLOTHING. ZERO UNIFORM. ZERO COLLAR. ZERO TIE. The skin rendering must follow the EXACT V9 method above.`;
+FINAL CHECK: output only the same person's head, selected hairstyle, and natural neck region as a professional ID-portrait asset. Exclude all garments and uniform elements from this layer. Keep the EXACT V9 skin-light and camera-detail method above.`;
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");
@@ -104,7 +104,15 @@ FINAL CHECK BEFORE OUTPUT: the image must contain the same person's head + selec
       method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
     });
     const body=await r.json();
-    if(!r.ok) return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
+    if(!r.ok){
+      const code=body?.error?.code || "image_edit_failed";
+      const stage=body?.error?.moderation_details?.moderation_stage;
+      if(code==="moderation_blocked" || code==="safety_violations"){
+        console.error("OpenAI image edit safety block", JSON.stringify(body));
+        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. กรุณาลองประมวลผลอีกครั้งด้วยภาพบุคคลสำหรับรูปติดบัตร`);
+      }
+      return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
+    }
     const b64=body?.data?.[0]?.b64_json;
     if(!b64) return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา");
     const data=Buffer.from(b64,"base64");
