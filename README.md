@@ -61,3 +61,14 @@
 - จำกัดความกว้างหัว 30–36% ของความกว้าง template
 - vertical offset = 12.5% เพื่อรักษาระยะคอ
 - AI finishing / hair / background / uniform / economy settings คงเดิม
+
+
+## Template-Normalized Head Fitting v3
+- เปลี่ยนการ scale หัวจาก alpha bounds/ระยะต้นฉบับ เป็น FaceLandmarker facial anchors
+- ใช้ template ชุดเป็นมาตรฐานหลัก: facial width target อิงความกว้างชุด
+- ใช้ cheek anchors 234/454, eye anchors 33/263 และ chin 152
+- รูป close-up / ครึ่งตัว / ถ่ายไกล จะถูก normalize เข้าสเกลเดียวกันก่อน AI finishing
+- รักษาความกว้าง/รูปทรงใบหน้าจริง ไม่ stretch X/Y แยกกัน
+- ตำแหน่งแนวตั้งใช้ chin-to-collar anchor เพื่อให้ช่องคอสั้นและสม่ำเสมอ
+- AI finishing เดิมยังคงทำเฉพาะคอ ผม และขอบรอยต่อ ไม่แก้กลางใบหน้า
+- มี fallback ไป baseline v2 หาก landmark รอบ compose ตรวจไม่สำเร็จ
