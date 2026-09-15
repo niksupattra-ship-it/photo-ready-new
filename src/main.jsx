@@ -140,7 +140,10 @@ async function composePortrait(headBlob){
   const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
   const uX=(W-uW)/2,uY=H*.425;
   const collarCX=W*.5;
-  const collarTop=uY+uH*.015;
+  // V12: anchor the anatomy to the REAL first opaque row of the uniform PNG.
+  // The old .015 estimate pointed into transparent padding and made AI invent a long neck.
+  const ub=await alphaBounds(uniform);
+  const collarTop=uY+ub.t*uScale;
   const shoulderSpan=uW*.84;
 
   // FACE MASTER SCALE V10
@@ -157,14 +160,18 @@ async function composePortrait(headBlob){
   // ไม่ใช้ค่าจุดเดียวตัดสิน scale เพราะรูปหน้าแต่ละคนกว้าง/แคบและ AI อาจตีกรามต่างกัน
   // ใช้ 3 anchor อิสระ (ตา, ความสูงหน้า, ความกว้างขมับ) แล้วหา median scale
   // ทำให้ภาพ close-up / ครึ่งตัว / ถ่ายไกล เข้าสู่ระยะใบหน้ามาตรฐานเดียวกัน
-  const targetFaceW=shoulderSpan/2.55;
-  const targetEyeW=targetFaceW*.455;
+  // V12 TEMPLATE-DRIVEN CANONICAL HEAD SCALE
+  // ทุก input ถูก normalize เข้าสู่ optical size เดียวกันบน template ก่อนเสมอ
+  // outer-eye distance เป็น master เพราะไม่ขึ้นกับทรงผม/คอ/ระยะกล้องต้นฉบับ
+  const targetEyeW=W*.154;
+  const targetFaceW=targetEyeW/.455;
   const targetFaceH=targetFaceW*1.16;
-  const candidates=[targetEyeW/sourceEyeW,targetFaceH/sourceFaceH,targetFaceW/sourceFaceW].sort((a,b)=>a-b);
-  let scale=candidates[1];
-  // ป้องกัน landmark outlier: scale สุดท้ายต้องไม่หนีจาก eye-anchor มากเกิน 7%
   const eyeScale=targetEyeW/sourceEyeW;
-  scale=Math.max(eyeScale*.93,Math.min(eyeScale*1.07,scale));
+  const widthScale=targetFaceW/sourceFaceW;
+  const heightScale=targetFaceH/sourceFaceH;
+  // eye anchor 70%, face geometry 30%; clamp geometry correction to stop narrow/wide faces changing apparent head size
+  const geomScale=(widthScale+heightScale)*.5;
+  let scale=eyeScale*.70+Math.max(eyeScale*.92,Math.min(eyeScale*1.08,geomScale))*.30;
   scale=Math.max(.25,Math.min(4.0,scale));
 
   // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
@@ -173,7 +180,9 @@ async function composePortrait(headBlob){
 
   // สร้างคอใหม่ทั้งหมดภายหลัง: ตำแหน่งคางถูกกำหนดจากชุด ไม่ใช่คอ/ระยะต้นฉบับ
   // ช่องคอสั้นปานกลาง ลดปัญหาคอยาวและใบหน้าลอย
-  const targetNeckVisible=Math.max(uH*.040,Math.min(uH*.058,targetFaceW*.145));
+  // V12 FIXED NECK SOCKET: visible neck is derived from normalized head, not source neck or source crop.
+  // Hard limits prevent long/thin necks. For this template the chin sits only a short anatomical gap above collar.
+  const targetNeckVisible=Math.max(H*.028,Math.min(H*.040,targetFaceW*.135));
   const chinTargetY=collarTop-targetNeckVisible;
   const hX=collarCX-faceCX*scale;
   const hY=chinTargetY-chinY*scale;
