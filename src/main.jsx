@@ -513,7 +513,7 @@ const HAIR_OPTIONS=[
 
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
- const[uniformCategory,setUniformCategory]=useState('government'),[screen,setScreen]=useState('home'),[selectedStyle,setSelectedStyle]=useState(''),[ministry,setMinistry]=useState('กระทรวงการคลัง'),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
+ const[uniformCategory,setUniformCategory]=useState('government'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState('home'),[selectedStyle,setSelectedStyle]=useState(''),[ministry,setMinistry]=useState('กระทรวงการคลัง'),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0});
  const[collarWarp,setCollarWarp]=useState(0);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
@@ -540,28 +540,33 @@ function App(){
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  if(screen==='home'){
-  const homeCategoryName=uniformCategory==='job'?'สมัครงาน':uniformCategory==='government'?'ข้าราชการ':uniformCategory==='student'?'นักศึกษา':'ชุดครุย';
-  const homeCategoryCards=uniformCategory==='job'?[
-   {title:'สูทหญิงเรียบร้อย',img:'/assets/hairstyle-previews/hair-03.png',cat:'job'},
-   {title:'สูทหญิงคอแบะ',img:'/assets/hairstyle-previews/hair-09.png',cat:'job'},
-   {title:'สูทชาย แบบ 1',img:'/assets/hairstyle-previews/hair-16.png',cat:'job'},
-   {title:'สูทชาย แบบ 2',img:'/assets/hairstyle-previews/hair-24.png',cat:'job'}
-  ]:uniformCategory==='government'?[
-   {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
-   {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
-   {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}
-  ]:uniformCategory==='student'?[
-   {title:'นักศึกษา หญิง',img:'/assets/hairstyle-previews/hair-12.png',cat:'student'},
-   {title:'นักศึกษา ชาย',img:'/assets/hairstyle-previews/hair-18.png',cat:'student'}
-  ]:[
-   {title:'เลือกมหาวิทยาลัย',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}
+  const rows=[
+   {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
+    {title:'สูทสมัครงาน',img:'/assets/hairstyle-previews/hair-01.png',cat:'job'},
+    {title:'ข้าราชการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'นักศึกษา',img:'/assets/hairstyle-previews/hair-07.png',cat:'student'},
+    {title:'ชุดครุย',img:'/assets/hairstyle-previews/hair-20.png',cat:'gown'}]},
+   {id:'job',tag:'สมัครงาน',title:'รูปสมัครงาน พร้อมใช้',cards:[
+    {title:'สูทหญิงเรียบร้อย',img:'/assets/hairstyle-previews/hair-03.png',cat:'job'},
+    {title:'สูทหญิงคอแบะ',img:'/assets/hairstyle-previews/hair-09.png',cat:'job'},
+    {title:'สูทชาย แบบ 1',img:'/assets/hairstyle-previews/hair-16.png',cat:'job'},
+    {title:'สูทชาย แบบ 2',img:'/assets/hairstyle-previews/hair-24.png',cat:'job'}]},
+   {id:'government',tag:'ข้าราชการ',title:'ชุดราชการ',cards:[
+    {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}]},
+   {id:'student',tag:'นักศึกษา',title:'รูปนักศึกษา',cards:[
+    {title:'นักศึกษา หญิง',img:'/assets/hairstyle-previews/hair-12.png',cat:'student'},
+    {title:'นักศึกษา ชาย',img:'/assets/hairstyle-previews/hair-18.png',cat:'student'}]},
+   {id:'gown',tag:'ชุดครุย',title:'ชุดครุยมหาวิทยาลัย',cards:[
+    {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}
   ];
-  const homeCategoryTitle=uniformCategory==='job'?'รูปสมัครงาน พร้อมใช้':uniformCategory==='government'?'ชุดราชการ':uniformCategory==='student'?'รูปนักศึกษา':'ชุดครุยมหาวิทยาลัย';
+  const visibleRows=homeFilter==='all'?rows:rows.filter(r=>r.id===homeFilter);
   return <main className="profile-home">
    <header className="profile-home-header"><div className="home-spacer"></div><h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
-   <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={uniformCategory===id?'active':''} onClick={()=>setUniformCategory(id)}>{n}</button>)}</nav>
-   <section className="home-content category-inline-content">
-    <HomeRow tag={homeCategoryName} title={homeCategoryTitle} cards={homeCategoryCards}/>
+   <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={homeFilter===id?'active':''} onClick={()=>{setUniformCategory(id);setHomeFilter(id)}}>{n}</button>)}</nav>
+   <section className="home-content">
+    {visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
    </section>
   </main>;
  }
