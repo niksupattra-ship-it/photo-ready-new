@@ -373,3 +373,78 @@
   .style-detail-card .hero-preview{max-width:470px}
   .style-detail-card:has(.tool-choice-sheet) .hero-preview{max-width:370px}
 }
+
+/* V69 — UI/LAYOUT ONLY: processing CTA is visually attached to preview.
+   Normal state keeps the complete 3:4 composition visible. When a tool opens,
+   the preview grows toward the available viewport (not shrinks); no image/output
+   transform state or processing logic is changed. */
+:root{--v69-dock-h:86px;--v69-panel-h:min(30svh,250px)}
+.style-detail-card .hero-preview{
+  position:relative;
+  overflow:hidden;
+  width:min(100%,calc((100svh - 230px) * .75),520px)!important;
+  max-width:520px!important;
+  aspect-ratio:3/4!important;
+  margin:8px auto 0!important;
+}
+.style-detail-card .hero-preview img{
+  width:100%!important;height:100%!important;
+  object-fit:contain!important;
+}
+/* Attach existing processing button to the lower edge of the preview without changing its handler. */
+.style-detail-card .process-first{
+  position:relative;
+  z-index:8;
+  display:block;
+  width:min(calc(100% - 28px),480px)!important;
+  max-width:480px!important;
+  margin:-64px auto 18px!important;
+  min-height:52px;
+  border-radius:18px!important;
+  box-shadow:0 8px 22px rgba(47,91,234,.22);
+}
+/* Opening a tool must bring the image closer/larger. The sheet overlays the lower viewport,
+   so the preview does not surrender layout height to it. */
+.style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  width:min(100%,calc((100svh - 145px) * .75),620px)!important;
+  max-width:620px!important;
+  min-width:0!important;
+  margin-top:2px!important;
+}
+.style-detail-card:has(.tool-choice-sheet) .hero-preview img{
+  object-fit:cover!important;
+  object-position:50% 36%;
+}
+.style-detail-card:has(.tool-choice-sheet) .process-first{
+  width:min(calc(100% - 24px),500px)!important;
+  max-width:500px!important;
+  margin:-62px auto 12px!important;
+}
+/* Dock remains at the bottom of the device; tool content overlays above it. */
+.style-detail-card .simple-line-tools{min-height:var(--v69-dock-h)!important}
+.style-detail-card .tool-choice-sheet{bottom:calc(var(--v69-dock-h) + env(safe-area-inset-bottom))!important;max-height:var(--v69-panel-h)!important}
+
+@media(max-width:650px){
+  :root{--v69-dock-h:82px;--v69-panel-h:min(31svh,240px)}
+  .style-detail-card .hero-preview{
+    width:min(100%,calc((100svh - 180px) * .75))!important;
+    max-width:460px!important;
+    min-width:0!important;
+  }
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    width:min(100%,calc((100svh - 94px) * .75))!important;
+    max-width:560px!important;
+  }
+  .style-detail-card .process-first,
+  .style-detail-card:has(.tool-choice-sheet) .process-first{
+    width:calc(100% - 28px)!important;
+    max-width:430px!important;
+    min-height:50px;
+    margin:-60px auto 10px!important;
+  }
+}
+@media(min-width:651px) and (max-width:1100px){
+  :root{--v69-dock-h:86px;--v69-panel-h:min(30svh,250px)}
+  .style-detail-card .hero-preview{max-width:540px!important}
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{max-width:660px!important}
+}
