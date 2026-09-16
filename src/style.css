@@ -62,3 +62,22 @@
  .style-detail-card{max-width:760px}
  .style-detail-card .hero-preview{width:min(100%,440px)}
 }
+
+/* V58: visual-only line tool bar + choice sheet; processing/state handlers unchanged */
+.simple-line-tools{border-top:1px solid #eef0f3;border-bottom:1px solid #eef0f3;padding:14px 2px 10px!important;gap:22px!important}
+.style-detail-card .simple-line-tools button{border:0;background:transparent;border-radius:0;padding:4px 8px;min-width:88px;box-shadow:none;color:#20242b;gap:6px}
+.style-detail-card .simple-line-tools button.active{border:0;color:#e93461;background:transparent}
+.style-detail-card .simple-line-tools button strong{font-size:12px;font-weight:600;white-space:nowrap}
+.line-tool-icon{width:38px!important;height:38px!important;border:0!important;border-radius:0!important;background:transparent!important;display:grid;place-items:center}
+.line-tool-icon svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tool-choice-sheet{width:100%;background:#fff;padding:12px 0 0;border-top:1px solid #f0f1f3}
+.tool-choice-tabs{display:flex;gap:28px;align-items:center;overflow-x:auto;white-space:nowrap;padding:2px 2px 14px;color:#9aa0aa;font-size:14px;scrollbar-width:none}
+.tool-choice-tabs::-webkit-scrollbar{display:none}.tool-choice-tabs .active{color:#1e232b;font-weight:700}
+.tool-choice-sheet .process-thumbnail-strip{padding-bottom:14px}
+.tool-choice-sheet .hair-card{border-radius:16px!important;overflow:hidden;position:relative}
+.tool-choice-sheet .hair-card.selected{outline:2px solid #20242b;outline-offset:1px}
+.tool-choice-sheet .hair-card.selected:after{content:'✓';position:absolute;right:5px;top:5px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:#ef3b6b;color:white;font-size:12px;font-weight:900}
+.tool-choice-footer{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;border-top:1px solid #eceef1;margin-top:4px;padding:10px 0 2px;text-align:center}
+.tool-choice-footer button{border:0;background:transparent;font-size:34px;line-height:1;color:#171a20;cursor:pointer;padding:5px}
+.tool-choice-footer span{font-weight:700;font-size:14px}.tool-choice-footer .sheet-confirm{font-size:29px}.tool-choice-footer .sheet-close{font-weight:300}
+@media(max-width:650px){.simple-line-tools{margin-left:-12px!important;margin-right:-12px!important;padding-left:12px!important;padding-right:12px!important;overflow-x:auto}.style-detail-card .simple-line-tools button{flex:0 0 84px;min-width:84px}.tool-choice-sheet{margin-left:-12px;width:calc(100% + 24px);padding-left:12px;padding-right:12px}.tool-choice-tabs{margin-right:-12px}.tool-choice-footer{margin-left:-12px;margin-right:-12px;padding-left:8px;padding-right:8px}}
