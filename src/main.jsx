@@ -324,11 +324,12 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
 }
 
 async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHeadBlob,lock){
- // V77 FEATURE-LOCK — NO FULL-FACE OVERLAY.
- // Exact cause fixed: V74-V76 composited one large photographed face patch over the AI result.
- // Even with feathering, different lighting/exposure made that patch visible on the forehead/cheeks.
- // V77 restores only identity-critical facial zones with independent soft masks; there is no
- // forehead/full-face sheet to paste. AI remains responsible for hairline, hair and neck.
+ // V80 SINGLE-SKIN IDENTITY LOCK.
+ // Root cause of V79's visible "face mask": several separate ellipses restored photographed pixels
+ // over an AI face. Each ellipse had its own alpha/tone transition, so their overlaps became visible
+ // as circular/rectangular patches. V80 removes those patches completely.
+ // One continuous anatomical face-skin mask is used instead. Original photographed RGB is preserved;
+ // AI is used outside that mask for hairstyle + neck only.
  const ou=URL.createObjectURL(originalHeadBlob),au=URL.createObjectURL(aiHeadBlob);
  try{
   const original=await loadImage(ou),ai=await loadImage(au);
@@ -343,63 +344,45 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   const tx=ae.cx-(ca*oe.cx-sa*oe.cy),ty=ae.cy-(sa*oe.cx+ca*oe.cy);
   const A=lock.scale*ca,B=lock.scale*sa,C=-lock.scale*sa,D=lock.scale*ca,E=lock.hX+lock.scale*tx,F=lock.hY+lock.scale*ty;
 
+  // Place the full-resolution photographed source once. No AI sharpening/beauty regeneration touches it.
   const placed=document.createElement('canvas');placed.width=lock.W;placed.height=lock.H;
   const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
   pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
 
-  // Build several overlapping organic identity zones instead of one large face oval.
-  // No zone reaches the forehead/hairline, so the horizontal pasted-face band cannot exist.
+  // A single MediaPipe anatomical contour: hairline/temples -> cheeks -> jaw -> chin -> opposite side.
+  // Unlike V79 there are NO eye/nose/mouth/jaw ellipses, therefore no overlapping "mask" shapes can appear.
+  const contour=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
   const srcMask=document.createElement('canvas');srcMask.width=original.naturalWidth;srcMask.height=original.naturalHeight;
-  const sm=srcMask.getContext('2d');sm.fillStyle='#fff';
-  const W=original.naturalWidth,H=original.naturalHeight;
-  const P=i=>({x:of[i].x*W,y:of[i].y*H});
-  const le=P(33),re=P(263),nose=P(1),mouth=P(13),chin=P(152),lj=P(234),rj=P(454);
-  const eyeW=Math.max(24,Math.hypot(re.x-le.x,re.y-le.y));
-  const ellipse=(cx,cy,rx,ry)=>{sm.beginPath();sm.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);sm.fill()};
-  // eyes + brows together: preserves eye shape, spacing and brow identity
-  ellipse((le.x+re.x)/2,(le.y+re.y)/2-eyeW*.055,eyeW*.61,eyeW*.25);
-  // nose/central mid-face
-  ellipse(nose.x,nose.y+eyeW*.06,eyeW*.29,eyeW*.34);
-  // mouth/perioral area
-  ellipse(mouth.x,mouth.y+eyeW*.035,eyeW*.38,eyeW*.22);
-  // lower cheeks/jaw identity, deliberately starts below the eyes and ends before the neck
-  const jawCX=(lj.x+rj.x)/2,jawCY=(mouth.y+chin.y)/2;
-  // V78 CHIN/NECK SEAM FIX: the old V77 jaw ellipse extended ~22% BELOW landmark 152 (chin).
-  // After the 24-46px alpha feather this carried photographed neck/under-chin pixels into the AI neck,
-  // which is the visible skin patch at the chin/neck junction. Keep the identity zone inside the jaw only.
-  // V79 JAW EDGE DECONTAMINATION: keep the photographed lower-face restore strictly INSIDE skin.
-  // V78's lower ellipse still reached the photographed jaw silhouette; those edge pixels are mixed with
-  // dark hair/background antialiasing in the source photo and became the thin dark jaw-to-neck halo.
-  // Inset only this lower-cheek/jaw restore zone. Eyes/nose/mouth geometry is unchanged.
-  ellipse(jawCX,jawCY,Math.max(eyeW*.50,(rj.x-lj.x)*.36),Math.max(eyeW*.22,(chin.y-mouth.y)*.38));
+  const sm=srcMask.getContext('2d');sm.beginPath();
+  contour.forEach((id,i)=>{const q=of[id],x=q.x*original.naturalWidth,y=q.y*original.naturalHeight;(i?sm.lineTo(x,y):sm.moveTo(x,y));});
+  sm.closePath();sm.fillStyle='#fff';sm.fill();
 
-  const finalMask=document.createElement('canvas');finalMask.width=lock.W;finalMask.height=lock.H;
-  const fm=finalMask.getContext('2d');fm.setTransform(A,B,C,D,E,F);fm.drawImage(srcMask,0,0);fm.setTransform(1,0,0,1,0,0);
-  // Alpha-only feather for the feature zones. Face RGB pixels are never blurred.
-  const feather=Math.max(24,Math.min(46,lock.W*.032));
+  const hard=document.createElement('canvas');hard.width=lock.W;hard.height=lock.H;
+  const hm=hard.getContext('2d');hm.setTransform(A,B,C,D,E,F);hm.drawImage(srcMask,0,0);hm.setTransform(1,0,0,1,0,0);
+
+  // Small continuous feather only. V79 used 24-46 px on multiple patches, which made tone islands visible.
+  // 8-14 px is enough for anti-aliased photographic blending while retaining pores and source sharpness.
+  const feather=Math.max(8,Math.min(14,lock.W*.010));
   const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
-  const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(finalMask,0,0);sf.filter='none';
-  // Gaussian blur expands alpha OUTSIDE a mask. On a face cutout that expansion picks up contaminated
-  // jaw-edge RGB (dark hair/background matte). Clip the blurred alpha back to the original interior mask:
-  // feather now happens inward, like Photoshop's contract + feather, and cannot create an outer dark fringe.
-  sf.globalCompositeOperation='destination-in';sf.drawImage(finalMask,0,0);sf.globalCompositeOperation='source-over';
+  const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(hard,0,0);sf.filter='none';
 
-  // Strict anatomical lower boundary: photographed identity pixels may blend TO the chin, never into the neck.
-  // Use transformed landmark 152 so this remains correct after scale/rotation/placement.
-  const chinOutX=A*chin.x+C*chin.y+E,chinOutY=B*chin.x+D*chin.y+F;
-  const cutoff=document.createElement('canvas');cutoff.width=lock.W;cutoff.height=lock.H;
-  const cc=cutoff.getContext('2d');
-  const fade=Math.max(10,Math.min(20,feather*.45));
-  const grad=cc.createLinearGradient(0,chinOutY-fade,0,chinOutY+2);
+  // At the jaw/chin, feather must stay inside the photographed skin so dark matte/hair RGB cannot leak
+  // onto the generated neck. This is the only contracted edge; the rest uses the normal soft contour.
+  const chin=of[152],chinOutY=B*(chin.x*original.naturalWidth)+D*(chin.y*original.naturalHeight)+F;
+  const jawGuard=document.createElement('canvas');jawGuard.width=lock.W;jawGuard.height=lock.H;
+  const jg=jawGuard.getContext('2d');
+  const fade=Math.max(8,Math.min(14,feather));
+  const grad=jg.createLinearGradient(0,chinOutY-fade,0,chinOutY+1);
   grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(1,'rgba(255,255,255,0)');
-  cc.fillStyle=grad;cc.fillRect(0,0,lock.W,chinOutY+2);
-  sf.globalCompositeOperation='destination-in';sf.drawImage(cutoff,0,0);sf.globalCompositeOperation='source-over';
+  jg.fillStyle=grad;jg.fillRect(0,0,lock.W,chinOutY+1);
+  sf.globalCompositeOperation='destination-in';sf.drawImage(jawGuard,0,0);sf.globalCompositeOperation='source-over';
 
   pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);pc.globalCompositeOperation='source-over';
 
   const out=document.createElement('canvas');out.width=lock.W;out.height=lock.H;
   const oc=out.getContext('2d');oc.imageSmoothingEnabled=true;oc.imageSmoothingQuality='high';
-  oc.drawImage(aiLayerCanvas,0,0);oc.drawImage(placed,0,0);
+  oc.drawImage(aiLayerCanvas,0,0);
+  oc.drawImage(placed,0,0);
   return out;
  }finally{URL.revokeObjectURL(ou);URL.revokeObjectURL(au)}
 }
