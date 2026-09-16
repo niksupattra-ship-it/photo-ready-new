@@ -34,6 +34,11 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
     const form=new FormData();
     form.append("size","auto");
     form.append("format","png");
+    // V75: this endpoint is used only for portrait/person assets.
+    // Tell remove.bg the foreground type explicitly instead of asking its auto classifier
+    // to infer a person from cropped/generated ID-portrait layers. This directly avoids
+    // the documented unknown_foreground failure without changing the image pipeline.
+    form.append("type","person");
     form.append("image_file",new Blob([req.file.buffer],{type:req.file.mimetype}),req.file.originalname||"image.jpg");
 
     const r=await fetch("https://api.remove.bg/v1.0/removebg",{
