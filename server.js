@@ -94,7 +94,7 @@ FINAL CHECK: output only the same person's head, selected hairstyle, and natural
     form.append("model","gpt-image-1.5");
     form.append("prompt",prompt);
     form.append("input_fidelity","high");
-    form.append("quality","high");
+    form.append("quality","medium");
     form.append("size","1024x1536");
     form.append("output_format","png");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
