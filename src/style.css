@@ -222,3 +222,154 @@
   .style-detail-card .hero-preview{width:min(100%,calc(60svh * .75),525px);height:auto;aspect-ratio:3/4}
   .style-detail-card:has(.tool-choice-sheet) .hero-preview{width:min(100%,calc(39svh * .75),440px);height:auto;aspect-ratio:3/4}
 }
+
+/* V68 — UI/LAYOUT ONLY.
+   One clean workspace: preview + one floating tool panel + one fixed tool dock.
+   No processing handlers, state, API, canvas, AI, transform math or output logic changed. */
+:root{
+  --v68-dock-h:86px;
+  --v68-panel-max:250px;
+  --v68-workspace-w:820px;
+}
+.style-detail-card{
+  position:relative;
+  max-width:var(--v68-workspace-w);
+  margin-inline:auto;
+  padding:18px 20px calc(var(--v68-dock-h) + 28px)!important;
+  border-radius:24px;
+  overflow:visible;
+}
+.style-detail-card .detail-title{margin-bottom:8px}
+.style-detail-card .hero-preview{
+  width:min(100%,calc((100svh - 245px) * .75),500px)!important;
+  max-width:500px;
+  min-width:220px;
+  height:auto!important;
+  aspect-ratio:3/4!important;
+  margin:10px auto 14px!important;
+  border-radius:24px;
+  transition:width .24s cubic-bezier(.2,.8,.2,1),max-width .24s cubic-bezier(.2,.8,.2,1),margin .24s cubic-bezier(.2,.8,.2,1)!important;
+}
+.style-detail-card .hero-preview img{width:100%!important;height:100%!important;object-fit:contain!important}
+.style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  width:min(100%,calc((100svh - var(--v68-dock-h) - min(30svh,var(--v68-panel-max)) - 230px) * .75),390px)!important;
+  max-width:390px;
+}
+.style-detail-card .process-first{margin:10px auto 14px!important;max-width:640px}
+
+/* One dock, always in the same place. */
+.style-detail-card .simple-line-tools{
+  position:fixed!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:0!important;
+  transform:translateX(-50%)!important;
+  z-index:100!important;
+  width:min(calc(100% - 24px),var(--v68-workspace-w))!important;
+  min-height:var(--v68-dock-h)!important;
+  height:auto!important;
+  margin:0!important;
+  padding:9px 10px calc(8px + env(safe-area-inset-bottom))!important;
+  border:1px solid #e8edf4!important;
+  border-bottom:0!important;
+  border-radius:20px 20px 0 0!important;
+  background:rgba(255,255,255,.97)!important;
+  box-shadow:0 -8px 28px rgba(20,35,60,.08)!important;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  justify-content:center;
+  gap:2px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.style-detail-card .simple-line-tools::-webkit-scrollbar{display:none}
+.style-detail-card .simple-line-tools button{
+  flex:1 0 74px!important;
+  min-width:74px!important;
+  max-width:118px;
+  padding:4px 5px 3px!important;
+  gap:2px!important;
+}
+.style-detail-card .simple-line-tools .line-tool-icon{width:28px;height:28px}
+.style-detail-card .simple-line-tools strong{font-size:11px;white-space:nowrap}
+
+/* The selected tool uses ONE sheet directly above the dock. */
+.style-detail-card .tool-choice-sheet{
+  position:fixed!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:calc(var(--v68-dock-h) + env(safe-area-inset-bottom))!important;
+  transform:translateX(-50%)!important;
+  z-index:99!important;
+  width:min(calc(100% - 24px),var(--v68-workspace-w))!important;
+  max-height:min(30svh,var(--v68-panel-max))!important;
+  margin:0!important;
+  padding:10px 16px 12px!important;
+  border:1px solid #e8edf4!important;
+  border-bottom:0!important;
+  border-radius:20px 20px 0 0!important;
+  background:rgba(255,255,255,.985)!important;
+  box-shadow:0 -10px 30px rgba(20,35,60,.08)!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+}
+.style-detail-card .tool-choice-tabs{
+  min-height:24px!important;
+  margin:0 0 5px!important;
+  padding:0!important;
+  gap:12px!important;
+  border:0!important;
+}
+.style-detail-card .tool-choice-tabs span{font-size:12px}
+.style-detail-card .compact-tool-panel{padding:0!important}
+.style-detail-card .compact-slider-list label{
+  min-height:30px!important;
+  grid-template-columns:66px minmax(120px,1fr) 52px!important;
+  gap:8px!important;
+  padding:0!important;
+}
+.style-detail-card .process-thumbnail-strip{padding:2px 0 4px!important;gap:8px!important}
+.style-detail-card .process-thumbnail-strip .hair-card{flex-basis:76px!important;min-width:76px!important}
+.style-detail-card .ribbon-choice-preview{padding:2px 0 4px!important}
+
+@media(max-width:650px){
+  :root{--v68-dock-h:82px;--v68-panel-max:230px}
+  .style-detail-card{
+    width:100%;
+    padding:12px 12px calc(var(--v68-dock-h) + 20px)!important;
+    border-left:0;border-right:0;border-radius:0;
+  }
+  .style-detail-card .detail-title{padding-inline:2px}
+  .style-detail-card .hero-preview{
+    width:min(100%,calc((100svh - 205px) * .75))!important;
+    max-width:430px;
+    min-width:190px;
+    margin:8px auto 12px!important;
+    border-radius:20px;
+  }
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    width:min(100%,calc((100svh - var(--v68-dock-h) - min(29svh,var(--v68-panel-max)) - 185px) * .75),330px)!important;
+    min-width:170px;
+  }
+  .style-detail-card .simple-line-tools{
+    width:100%!important;
+    border-left:0!important;border-right:0!important;
+    border-radius:18px 18px 0 0!important;
+    padding-left:max(6px,env(safe-area-inset-left))!important;
+    padding-right:max(6px,env(safe-area-inset-right))!important;
+  }
+  .style-detail-card .simple-line-tools button{flex:1 0 68px!important;min-width:68px!important}
+  .style-detail-card .simple-line-tools strong{font-size:10px}
+  .style-detail-card .tool-choice-sheet{
+    left:0!important;transform:none!important;width:100%!important;
+    max-height:min(29svh,var(--v68-panel-max))!important;
+    border-left:0!important;border-right:0!important;
+    padding:9px 12px 10px!important;
+  }
+  .style-detail-card .compact-slider-list label{grid-template-columns:58px minmax(90px,1fr) 48px!important;gap:6px!important}
+}
+@media(min-width:651px) and (max-width:1100px){
+  :root{--v68-dock-h:86px;--v68-panel-max:245px}
+  .style-detail-card .hero-preview{max-width:470px}
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{max-width:370px}
+}
