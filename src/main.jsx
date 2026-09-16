@@ -612,10 +612,14 @@ async function removeBackgroundBlob(blob){
  return removeBackgroundRobust(blob,'ai-person.png');
 }
 
-async function aiFinishPortrait(composedBlob,hairId){
- const uploadBlob=await makeAiUploadBlob(composedBlob);
+async function aiFinishPortrait(sourceBlob,hairId){
+ // V50 DETAIL-PRESERVATION FIX: send the untouched uploaded source bytes to OpenAI.
+ // Do not route the source through headOnly/remove.bg/canvas/JPEG before the high-fidelity edit.
+ // This matches the V9 input path and prevents source pores, eyelashes, hair strands and
+ // low-contrast facial micro-detail from being discarded before input_fidelity=high can use them.
  const fd=new FormData();
- fd.append('image',uploadBlob,'portrait.jpg');
+ const sourceName=sourceBlob?.name||'portrait-source';
+ fd.append('image',sourceBlob,sourceName);
  fd.append('hairId',hairId||'original');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
@@ -694,9 +698,11 @@ function App(){
   // -> remove AI temporary background -> normalize against the real fixed uniform -> place UNDER uniform.
   // The AI never receives the uniform template, so it cannot generate a duplicate uniform.
   const sourceHead=await headOnly(transparent);
-  // V72: even when the user chooses original hair, keep the same AI neck-generation/skin-light pipeline.
-  // Only the hairstyle replacement is disabled; the original hair must be preserved.
-  const aiHeadNeck=await aiFinishPortrait(sourceHead,hairId||'');
+  // V50: AI receives the ORIGINAL upload, byte-for-byte, exactly as V9's high-fidelity path.
+  // sourceHead remains in the existing geometry/remove.bg path only; it is no longer an AI input.
+  // This is the targeted fix for the soft downloaded face: V49 still sent a remove.bg head crop
+  // that was then canvas-converted to JPEG 0.95 before AI, losing micro-detail before generation.
+  const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
