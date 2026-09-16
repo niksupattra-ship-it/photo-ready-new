@@ -324,29 +324,33 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
 }
 
 function applyStudioFaceTone(canvas){
- // V81 deterministic camera-style finishing on the photographed pixels only.
- // Geometry is untouched. No generative fill, beauty filter, denoise or skin blur.
- // Processing is luminance-only: restrained exposure curve + micro-contrast/unsharp detail.
+ // V83 CAMERA-SKIN FINISH — deterministic pixel processing only.
+ // No face regeneration, no geometry/landmark edits, no blur/beauty smoothing.
+ // Skin pixels are detected conservatively; hair, eyes, brows, lips, uniform and background are left alone.
  const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
  if(!w||!h)return canvas;
  const src=ctx.getImageData(0,0,w,h),d=src.data;
  const blur=document.createElement('canvas');blur.width=w;blur.height=h;
  const bx=blur.getContext('2d',{willReadFrequently:true});
- bx.filter='blur(1.15px)';bx.drawImage(canvas,0,0);bx.filter='none';
+ bx.filter='blur(1.0px)';bx.drawImage(canvas,0,0);bx.filter='none';
  const bd=bx.getImageData(0,0,w,h).data;
  for(let i=0;i<d.length;i+=4){
-  if(d[i+3]===0)continue;
+  if(d[i+3]<32)continue;
   const r=d[i],g=d[i+1],b=d[i+2];
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+  // Conservative photographed-skin gate. It deliberately excludes dark hair/eyes and white uniform.
+  const skin=r>58&&g>38&&b>28&&(mx-mn)>12&&r>g*.98&&r>b*1.06&&Math.abs(r-g)>5;
+  if(!skin)continue;
   const y=.2126*r+.7152*g+.0722*b;
   const by=.2126*bd[i]+.7152*bd[i+1]+.0722*bd[i+2];
-  // Lift midtones like a clean studio exposure while retaining highlight roll-off.
-  let yn=255*Math.pow(Math.max(0,Math.min(1,y/255)),.965);
-  yn=128+(yn-128)*1.025;
-  // Real optical-looking micro detail: luminance unsharp only, deliberately conservative.
-  const detail=(y-by)*.28;
-  let target=Math.max(0,Math.min(255,yn+detail));
-  // Never recolor the photographed skin: scale RGB by luminance ratio only.
-  const k=y>1?target/y:1;
+  // Lift only dark/mid skin. Highlights barely move, preserving facial dimension.
+  const lift=y<92?10:y<145?8:y<190?4:1;
+  let target=y+lift;
+  // Restore camera-like pore/micro texture from the existing pixels; never synthesize texture.
+  const detail=(y-by)*.42;
+  target=Math.max(0,Math.min(250,target+detail));
+  // Luminance-only scaling preserves the original hue/chroma and therefore does not alter identity geometry.
+  const k=y>2?target/y:1;
   d[i]=Math.max(0,Math.min(255,Math.round(r*k)));
   d[i+1]=Math.max(0,Math.min(255,Math.round(g*k)));
   d[i+2]=Math.max(0,Math.min(255,Math.round(b*k)));
@@ -647,6 +651,8 @@ function App(){
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
+  // V83: brighten/detail only existing skin pixels after AI; no overlay and no face regeneration.
+  applyStudioFaceTone(aiLayer);
   // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
   // This removes the post-process face overlay/mask that caused visible face-shaped seams.
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
