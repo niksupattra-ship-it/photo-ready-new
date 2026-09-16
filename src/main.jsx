@@ -323,6 +323,61 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
 }
 
+async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHeadBlob,lock){
+ // V74 HIGH-RES IDENTITY LOCK:
+ // AI supplies hairstyle + neck only. The final face pixels come directly from the
+ // full-resolution original head cutout, aligned to the AI head with a similarity
+ // transform derived from stable eye landmarks. This avoids AI face regeneration and
+ // avoids repeated low-resolution resampling of the photographed face.
+ const ou=URL.createObjectURL(originalHeadBlob),au=URL.createObjectURL(aiHeadBlob);
+ try{
+  const original=await loadImage(ou),ai=await loadImage(au);
+  const detector=await getLandmarker();
+  const of=detector.detect(original).faceLandmarks?.[0],af=detector.detect(ai).faceLandmarks?.[0];
+  if(!of||!af)return aiLayerCanvas;
+  const eyePair=(lm,W,H)=>{
+   const a=lm[33],b=lm[263];
+   const ax=a.x*W,ay=a.y*H,bx=b.x*W,by=b.y*H;
+   return {cx:(ax+bx)/2,cy:(ay+by)/2,dx:bx-ax,dy:by-ay,d:Math.hypot(bx-ax,by-ay)};
+  };
+  const oe=eyePair(of,original.naturalWidth,original.naturalHeight),ae=eyePair(af,ai.naturalWidth,ai.naturalHeight);
+  if(oe.d<8||ae.d<8)return aiLayerCanvas;
+  const ratio=ae.d/oe.d;
+  const ang=Math.atan2(ae.dy,ae.dx)-Math.atan2(oe.dy,oe.dx);
+  const ca=Math.cos(ang)*ratio,sa=Math.sin(ang)*ratio;
+  // source pixel -> AI-native pixel
+  const tx=ae.cx-(ca*oe.cx-sa*oe.cy),ty=ae.cy-(sa*oe.cx+ca*oe.cy);
+  // source pixel -> final canvas pixel (AI layer is placed with lock geometry)
+  const A=lock.scale*ca,B=lock.scale*sa,C=-lock.scale*sa,D=lock.scale*ca;
+  const E=lock.hX+lock.scale*tx,F=lock.hY+lock.scale*ty;
+
+  const placed=document.createElement('canvas');placed.width=lock.W;placed.height=lock.H;
+  const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
+  pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
+
+  // Protect the real identity region: forehead, temples, cheeks and jaw. Keep the mask
+  // inside the hairline so the selected AI hairstyle remains visible. No skin blur is
+  // applied; only the mask boundary is feathered.
+  const oval=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
+  const srcMask=document.createElement('canvas');srcMask.width=original.naturalWidth;srcMask.height=original.naturalHeight;
+  const sm=srcMask.getContext('2d');sm.beginPath();
+  oval.forEach((id,i)=>{const q=of[id],x=q.x*original.naturalWidth,y=q.y*original.naturalHeight;(i?sm.lineTo(x,y):sm.moveTo(x,y));});
+  sm.closePath();sm.fillStyle='#fff';sm.fill();
+
+  const finalMask=document.createElement('canvas');finalMask.width=lock.W;finalMask.height=lock.H;
+  const fm=finalMask.getContext('2d');fm.setTransform(A,B,C,D,E,F);fm.drawImage(srcMask,0,0);fm.setTransform(1,0,0,1,0,0);
+  const feather=Math.max(2,Math.min(4,lock.W*.0025));
+  const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
+  const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(finalMask,0,0);sf.filter='none';
+  pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);pc.globalCompositeOperation='source-over';
+
+  const out=document.createElement('canvas');out.width=lock.W;out.height=lock.H;
+  const oc=out.getContext('2d');oc.imageSmoothingEnabled=true;oc.imageSmoothingQuality='high';
+  oc.drawImage(aiLayerCanvas,0,0);oc.drawImage(placed,0,0);
+  return out;
+ }finally{URL.revokeObjectURL(ou);URL.revokeObjectURL(au)}
+}
+
 async function makeEditableHeadLayer(finishedBlob,personMaskBlob,lock){
  // V45: editable layer must contain ONLY hair + head + generated neck.
  // Never use the full remove.bg person silhouette here because AI may have painted a uniform/body.
@@ -549,7 +604,10 @@ function App(){
   const aiHeadNeck=await aiFinishPortrait(sourceHead,hairId||'');
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
-  const layer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
+  const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
+  // V74: restore the photographed face from the full-resolution original source.
+  // AI remains authoritative only for hairstyle and generated neck.
+  const layer=await restoreOriginalIdentityLayer(aiLayer,sourceHead,headNeckTransparent,composed.lock);
   editCache.current={layer,lock:composed.lock};
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});setCollarWarp(0);
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
