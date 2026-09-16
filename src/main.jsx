@@ -466,7 +466,7 @@ async function aiFinishPortrait(composedBlob,hairId){
  const uploadBlob=await makeAiUploadBlob(composedBlob);
  const fd=new FormData();
  fd.append('image',uploadBlob,'portrait.jpg');
- fd.append('hairId',hairId);
+ fd.append('hairId',hairId||'original');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
  try{
@@ -544,8 +544,10 @@ function App(){
   // -> remove AI temporary background -> normalize against the real fixed uniform -> place UNDER uniform.
   // The AI never receives the uniform template, so it cannot generate a duplicate uniform.
   const sourceHead=await headOnly(transparent);
-  const aiHeadNeck=hairId?await aiFinishPortrait(sourceHead,hairId):sourceHead;
-  const headNeckTransparent=hairId?await removeBackgroundBlob(aiHeadNeck):aiHeadNeck;
+  // V72: even when the user chooses original hair, keep the same AI neck-generation/skin-light pipeline.
+  // Only the hairstyle replacement is disabled; the original hair must be preserved.
+  const aiHeadNeck=await aiFinishPortrait(sourceHead,hairId||'');
+  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const layer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   editCache.current={layer,lock:composed.lock};
