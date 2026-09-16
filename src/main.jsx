@@ -539,37 +539,33 @@ function App(){
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- if(screen==='home') return <main className="profile-home">
-  <header className="profile-home-header"><div className="home-spacer"></div><h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
-  <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={uniformCategory===id?'active':''} onClick={()=>{setUniformCategory(id);setScreen('category')}}>{n}</button>)}</nav>
-  <section className="home-content">
-   <HomeRow title="ตัวเลือกยอดนิยม 🔥" onMore={()=>{setUniformCategory('job');setScreen('detail')}} cards={[
-    {title:'สูทสมัครงาน',img:'/assets/hairstyle-previews/hair-01.png',cat:'job'},
-    {title:'ข้าราชการ',img:'/assets/uniform.png',cat:'government',uniform:true},
-    {title:'นักศึกษา',img:'/assets/hairstyle-previews/hair-07.png',cat:'student'},
-    {title:'ชุดครุย',img:'/assets/hairstyle-previews/hair-20.png',cat:'gown'}]}/>
-   <HomeRow tag="สมัครงาน" title="รูปสมัครงาน พร้อมใช้" onMore={()=>{setUniformCategory('job');setScreen('detail')}} cards={[
-    {title:'สูทหญิงเรียบร้อย',img:'/assets/hairstyle-previews/hair-03.png',cat:'job'},
-    {title:'สูทหญิงคอแบะ',img:'/assets/hairstyle-previews/hair-09.png',cat:'job'},
-    {title:'สูทชาย แบบ 1',img:'/assets/hairstyle-previews/hair-16.png',cat:'job'},
-    {title:'สูทชาย แบบ 2',img:'/assets/hairstyle-previews/hair-24.png',cat:'job'}]}/>
-   <HomeRow tag="ข้าราชการ" title="ชุดราชการ" onMore={()=>{setUniformCategory('government');setScreen('detail')}} cards={[
-    {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
-    {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
-    {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}]}/>
-   <HomeRow tag="นักศึกษา" title="รูปนักศึกษา" onMore={()=>{setUniformCategory('student');setScreen('detail')}} cards={[
-    {title:'นักศึกษา หญิง',img:'/assets/hairstyle-previews/hair-12.png',cat:'student'},
-    {title:'นักศึกษา ชาย',img:'/assets/hairstyle-previews/hair-18.png',cat:'student'}]}/>
-   <HomeRow tag="ชุดครุย" title="ชุดครุยมหาวิทยาลัย" onMore={()=>{setUniformCategory('gown');setScreen('detail')}} cards={[
-    {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}/>
-  </section>
- </main>;
- if(screen==='category'){
-  const categoryName=uniformCategory==='job'?'สมัครงาน':uniformCategory==='government'?'ข้าราชการ':uniformCategory==='student'?'นักศึกษา':'ชุดครุย';
-  const categoryItems=uniformCategory==='job'?[{title:'สูทหญิงเรียบร้อย',sub:'หญิง',img:'/assets/hairstyle-previews/hair-03.png'},{title:'สูทหญิงคอแบะ',sub:'หญิง',img:'/assets/hairstyle-previews/hair-09.png'},{title:'สูทชาย แบบ 1',sub:'ชาย',img:'/assets/hairstyle-previews/hair-16.png'},{title:'สูทชาย แบบ 2',sub:'ชาย',img:'/assets/hairstyle-previews/hair-24.png'}]:uniformCategory==='government'?[{title:'ปฏิบัติงาน',sub:'ชาย / หญิง',img:'/assets/uniform.png',uniform:true},{title:'ปฏิบัติการ',sub:'ชาย / หญิง',img:'/assets/uniform.png',uniform:true},{title:'ชำนาญการ / อาวุโส',sub:'ชาย / หญิง',img:'/assets/uniform.png',uniform:true}]:uniformCategory==='student'?[{title:'นักศึกษา หญิง',sub:'หญิง',img:'/assets/hairstyle-previews/hair-12.png'},{title:'นักศึกษา ชาย',sub:'ชาย',img:'/assets/hairstyle-previews/hair-18.png'}]:[{title:'เลือกมหาวิทยาลัย',sub:'ชาย / หญิง · เพิ่มแบบภายหลัง',img:'/assets/hairstyle-previews/hair-28.png'}];
-  return <main className="category-page"><header className="category-page-header"><button type="button" onClick={()=>setScreen('home')}>‹</button><div><small>รูปโปรไฟล์</small><h1>{categoryName}</h1></div><span></span></header><div className="category-page-body">{uniformCategory==='government'&&<div className="category-note"><strong>ชุดข้าราชการ</strong><span>เลือกแบบก่อน แล้วกำหนดกระทรวง เพศ และระดับในหน้าถัดไป</span></div>}<div className="category-card-grid">{categoryItems.map((c,i)=><button type="button" className="category-choice-card" key={c.title} onClick={()=>{setSelectedStyle(c.title);setScreen('process')}}><div className={'category-choice-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/></div><div><strong>{c.title}</strong><span>{c.sub}</span></div><b>›</b></button>)}</div></div></main>;
+ if(screen==='home'){
+  const homeCategoryName=uniformCategory==='job'?'สมัครงาน':uniformCategory==='government'?'ข้าราชการ':uniformCategory==='student'?'นักศึกษา':'ชุดครุย';
+  const homeCategoryCards=uniformCategory==='job'?[
+   {title:'สูทหญิงเรียบร้อย',img:'/assets/hairstyle-previews/hair-03.png',cat:'job'},
+   {title:'สูทหญิงคอแบะ',img:'/assets/hairstyle-previews/hair-09.png',cat:'job'},
+   {title:'สูทชาย แบบ 1',img:'/assets/hairstyle-previews/hair-16.png',cat:'job'},
+   {title:'สูทชาย แบบ 2',img:'/assets/hairstyle-previews/hair-24.png',cat:'job'}
+  ]:uniformCategory==='government'?[
+   {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
+   {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+   {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}
+  ]:uniformCategory==='student'?[
+   {title:'นักศึกษา หญิง',img:'/assets/hairstyle-previews/hair-12.png',cat:'student'},
+   {title:'นักศึกษา ชาย',img:'/assets/hairstyle-previews/hair-18.png',cat:'student'}
+  ]:[
+   {title:'เลือกมหาวิทยาลัย',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}
+  ];
+  const homeCategoryTitle=uniformCategory==='job'?'รูปสมัครงาน พร้อมใช้':uniformCategory==='government'?'ชุดราชการ':uniformCategory==='student'?'รูปนักศึกษา':'ชุดครุยมหาวิทยาลัย';
+  return <main className="profile-home">
+   <header className="profile-home-header"><div className="home-spacer"></div><h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
+   <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={uniformCategory===id?'active':''} onClick={()=>setUniformCategory(id)}>{n}</button>)}</nav>
+   <section className="home-content category-inline-content">
+    <HomeRow tag={homeCategoryName} title={homeCategoryTitle} cards={homeCategoryCards}/>
+   </section>
+  </main>;
  }
- function HomeRow({title,tag,cards,onMore}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div><button type="button" onClick={onMore}>เพิ่มเติม ›</button></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);setScreen('category')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
+ function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
  return <main className="app-shell modern-shell"><header className="mobile-topbar"><button type="button" className="detail-back" onClick={()=>setScreen('category')}>‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
   <section className="style-detail-card"><div className="detail-title"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label className="hero-preview preview-upload"><input type="file" accept="image/*" onChange={pick}/>{b?<img src={b}/>:a?<><img src={a} className="source-preview"/><span className="change-photo">เปลี่ยนรูป</span></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}</label>
    <div className="quick-config">
