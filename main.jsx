@@ -361,6 +361,35 @@ async function makeEditableHeadLayer(finishedBlob,personMaskBlob,lock){
   return c;
  }finally{URL.revokeObjectURL(fu)}
 }
+
+async function sharpenTransparentHead(blob,amount=.42){
+ // V51 deterministic optical-detail pass on the transparent AI head only.
+ // Geometry, alpha, skin colour and composition are untouched; only genuine local RGB contrast is restored.
+ const url=URL.createObjectURL(blob);
+ try{
+  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+  const id=x.getImageData(0,0,W,H),src=id.data,out=new Uint8ClampedArray(src);
+  // Mild 4-neighbour unsharp mask. Restrict to opaque/semi-opaque subject pixels so transparent edges never halo.
+  for(let y=1;y<H-1;y++)for(let xx=1;xx<W-1;xx++){
+   const i=(y*W+xx)*4,a=src[i+3];
+   if(a<96)continue;
+   const n=i-W*4,s=i+W*4,l=i-4,r=i+4;
+   // Fade sharpening near alpha edges; strongest only inside real head/skin/hair pixels.
+   const edge=Math.min(a,src[n+3],src[s+3],src[l+3],src[r+3])/255;
+   const k=amount*edge;
+   if(k<=.03)continue;
+   for(let ch=0;ch<3;ch++){
+    const blur=(src[n+ch]+src[s+ch]+src[l+ch]+src[r+ch]+src[i+ch]*4)/8;
+    out[i+ch]=Math.max(0,Math.min(255,Math.round(src[i+ch]+(src[i+ch]-blur)*k)));
+   }
+  }
+  id.data.set(out);x.putImageData(id,0,0);
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('เพิ่มรายละเอียดส่วนหัวไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(url)}
+}
+
 async function makePlacedHeadNeckLayer(personBlob,lock){
  const url=URL.createObjectURL(personBlob);
  try{
@@ -475,7 +504,9 @@ function App(){
   // Then remove the temporary AI background to recover the same editable transparent Head PNG layer.
   // Uniform/template composition and every downstream adjustment tool remain unchanged.
   const aiHeadNeck=await aiFinishPortrait(f,hairId);
-  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
+  const headNeckTransparentRaw=await removeBackgroundBlob(aiHeadNeck);
+  // V51: restore optical micro-contrast after AI + background removal, before any resize/composite.
+  const headNeckTransparent=await sharpenTransparentHead(headNeckTransparentRaw,.42);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const layer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   editCache.current={layer,lock:composed.lock};
