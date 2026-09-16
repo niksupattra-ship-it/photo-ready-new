@@ -647,9 +647,10 @@ function App(){
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
-  // V74: restore the photographed face from the full-resolution original source.
-  // AI remains authoritative only for hairstyle and generated neck.
-  const layer=await restoreOriginalIdentityLayer(aiLayer,sourceHead,headNeckTransparent,composed.lock);
+  // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
+  // This removes the post-process face overlay/mask that caused visible face-shaped seams.
+  // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
+  const layer=aiLayer;
   editCache.current={layer,lock:composed.lock};
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});setCollarWarp(0);
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
