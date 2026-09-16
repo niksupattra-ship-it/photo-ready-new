@@ -562,11 +562,14 @@ function App(){
     {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}
   ];
   const visibleRows=homeFilter==='all'?rows:rows.filter(r=>r.id===homeFilter);
+  const governmentLevels=[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']];
+  const governmentAffiliations=[{id:'finance',name:'กระทรวงการคลัง',img:'/assets/uniform.png'}];
   return <main className="profile-home">
-   <header className="profile-home-header"><div className="home-spacer"></div><h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
+   <header className="profile-home-header">{homeFilter!=='all'?<button type="button" className="home-back-button" onClick={()=>setHomeFilter('all')} aria-label="กลับหน้าแรก">‹ <span>หน้าแรก</span></button>:<div className="home-spacer"></div>}<h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
    <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={homeFilter===id?'active':''} onClick={()=>{setUniformCategory(id);setHomeFilter(id)}}>{n}</button>)}</nav>
    <section className="home-content">
-    {visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
+    {homeFilter==='government'&&<section className="government-filter-panel"><div className="government-filter-title"><span>ข้าราชการ</span><h2>เลือกแบบชุด</h2></div><div className="government-gender-tabs"><button type="button" className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button type="button" className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div><div className="government-level-grid">{governmentLevels.map(([id,n])=><button type="button" key={id} className={level===id?'selected':''} onClick={()=>{setLevel(id);setSelectedStyle(n)}}><img src="/assets/uniform.png"/><strong>{n}</strong><span className="selected-mark">✓</span></button>)}</div><div className="affiliation-section"><div className="affiliation-heading"><h3>เลือกสังกัด</h3><span>แสดงตามระดับที่เลือก</span></div><div className="affiliation-list">{governmentAffiliations.map(a=><button type="button" key={a.id} className="affiliation-card" onClick={()=>{setMinistry(a.name);setUniformCategory('government');setSelectedStyle((governmentLevels.find(x=>x[0]===level)?.[1]||'ชุดราชการ')+' · '+a.name);setScreen('process')}}><img src={a.img}/><div><strong>{a.name}</strong><small>{gender==='male'?'ชาย':'หญิง'} · {governmentLevels.find(x=>x[0]===level)?.[1]}</small></div><b>›</b></button>)}</div></div></section>}
+    {homeFilter!=='government'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
    </section>
   </main>;
  }
