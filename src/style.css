@@ -92,3 +92,12 @@
 /* V62: original-hair choice; selection is immediate */
 .no-hair-card{min-width:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#fff}
 .no-hair-icon{width:52px;height:52px;border:2px solid currentColor;border-radius:16px;display:grid;place-items:center;font-size:25px;line-height:1}
+
+/* V63 — direct Move/Free Transform interaction in preview; processing pipeline unchanged. */
+.direct-edit-preview{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;overscroll-behavior:contain}
+.direct-edit-preview:active{cursor:grabbing}
+.direct-edit-preview .editable-result-image{transform-origin:50% 50%;transition:none;will-change:transform;pointer-events:none}
+.preview-edit-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);font-size:10px;font-weight:700;color:#475467;white-space:nowrap;pointer-events:none}
+.process-head-adjust .compact-slider-list label{min-height:31px}
+.style-detail-card .simple-line-tools button{flex:0 0 90px;min-width:90px}
+@media(max-width:650px){.preview-edit-hint{font-size:9px;bottom:7px}.style-detail-card .simple-line-tools button{flex-basis:82px;min-width:82px}}
