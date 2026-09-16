@@ -432,10 +432,12 @@ async function removeBackgroundBlob(blob){
  return await r.blob();
 }
 
-async function aiFinishPortrait(composedBlob,hairId){
- const uploadBlob=await makeAiUploadBlob(composedBlob);
+async function aiFinishPortrait(sourceFile,hairId){
+ // V48: send the original uploaded photograph directly to GPT Image.
+ // Do not send a remove.bg/headOnly/JPEG derivative: V9 keeps identity and micro-detail
+ // better when the model receives the untouched source pixels with input_fidelity=high.
  const fd=new FormData();
- fd.append('image',uploadBlob,'portrait.jpg');
+ fd.append('image',sourceFile,sourceFile.name||'portrait.png');
  fd.append('hairId',hairId);
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
@@ -467,12 +469,13 @@ function App(){
  const go=async()=>{setBusy(true);setMsg('');try{
   const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
   if(!transparent){const d=new FormData();d.append('image',f);const r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());transparent=await r.blob();transparentCache.current={key:fileKey,blob:transparent};}
-  // V46 PIPELINE: original -> remove.bg -> cut away original neck/body -> AI head+hair+BARE neck/clavicle only
-  // -> remove AI temporary background -> normalize against the real fixed uniform -> place UNDER uniform.
-  // The AI never receives the uniform template, so it cannot generate a duplicate uniform.
-  const sourceHead=await headOnly(transparent);
-  const aiHeadNeck=hairId?await aiFinishPortrait(sourceHead,hairId):sourceHead;
-  const headNeckTransparent=hairId?await removeBackgroundBlob(aiHeadNeck):aiHeadNeck;
+  // V48 PIPELINE: preserve V9 identity/detail behavior by giving AI the ORIGINAL source file.
+  // remove.bg above is retained for the existing cache/system path, but its head crop is NOT fed to AI.
+  // AI edits hair only when requested and completes only the neck outside the protected face region.
+  // Then remove the temporary AI background to recover the same editable transparent Head PNG layer.
+  // Uniform/template composition and every downstream adjustment tool remain unchanged.
+  const aiHeadNeck=await aiFinishPortrait(f,hairId);
+  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const layer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   editCache.current={layer,lock:composed.lock};
