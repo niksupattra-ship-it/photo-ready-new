@@ -68,13 +68,17 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     const key=process.env.OPENAI_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY ใน Render");
 
-    const hairId=req.body?.hairId||"hair-01";
-    const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
-    const fs=await import("fs");
-    if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
-    const hairBuf=fs.readFileSync(hairPath);
+    const hairId=req.body?.hairId||"original";
+    const keepOriginalHair=hairId==="original";
+    let hairBuf=null;
+    if(!keepOriginalHair){
+      const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
+      const fs=await import("fs");
+      if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
+      hairBuf=fs.readFileSync(hairPath);
+    }
 
-    const prompt=`PROFESSIONAL ID-PORTRAIT ASSET EDIT. Image 1 is the subject portrait crop. Image 2 is only the selected hairstyle reference. This is a standard non-sensitive ID-photo editing task.
+    const prompt=`PROFESSIONAL ID-PORTRAIT ASSET EDIT. Image 1 is the subject portrait crop.${keepOriginalHair?" Preserve the subject's original hairstyle from image 1 exactly; there is no hairstyle reference image.":" Image 2 is only the selected hairstyle reference."} This is a standard non-sensitive ID-photo editing task.
 
 OUTPUT REGION: Keep the same person's complete head, ears, selected hairstyle, and a natural straight neck ending at the normal base-of-neck line. Crop the output before the torso so no garment is included in this editable portrait layer. Do not reconstruct, copy, invent, or include any shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons, or fabric from the source. This portrait layer will later be composited behind a separate clothing template by the application. Keep a centered, front-facing professional ID-photo pose and natural anatomical proportions.
 
@@ -84,11 +88,11 @@ SKIN-LIGHT — EXACT V9 METHOD (natural preset, strength 15%): Perform an effect
 
 PROFESSIONAL CAMERA DETAIL LOCK — EXACT V9: render with crisp professional-camera micro-detail and natural optical sharpness comparable to a high-quality studio portrait. Increase perceived clarity only through realistic lens focus, clean edge definition, fine hair strands, eyelashes, eyebrow hairs, and naturally resolved skin micro-texture. Preserve every real pore, fine line, blemish, subtle under-eye texture, natural tonal transition, tiny asymmetry, and original skin character from image 1. Do NOT smooth, airbrush, denoise away texture, over-sharpen halos, add fake pores, add plastic gloss, repaint skin, beautify, whiten, change makeup, or alter facial anatomy.
 
-HAIR: replace only the hairstyle with image 2 as the authoritative hairstyle target. Match its parting, fringe, side shape, crown, volume, length, tied/untied structure and silhouette. Remove source-hair remnants that conflict with the selected style. Adapt the style to the subject's own skull, hairline, ears and head angle. Do not copy the reference face or anatomy. Hair must remain photographic, with natural roots, strands, density variation and soft flyaways.
+HAIR: ${keepOriginalHair?"KEEP THE ORIGINAL HAIR FROM IMAGE 1 EXACTLY. Do not restyle, replace, lengthen, shorten, recolor, thicken, thin, move the parting, change the fringe, change tied/untied structure, or alter the original hair silhouette. Preserve the subject's real hairline, roots, strands, flyaways, volume and visible hairstyle. The AI edit is required only so the natural neck region is generated while the original hair remains unchanged.":"replace only the hairstyle with image 2 as the authoritative hairstyle target. Match its parting, fringe, side shape, crown, volume, length, tied/untied structure and silhouette. Remove source-hair remnants that conflict with the selected style. Adapt the style to the subject's own skull, hairline, ears and head angle. Do not copy the reference face or anatomy. Hair must remain photographic, with natural roots, strands, density variation and soft flyaways."}
 
 BACKGROUND: use a simple clean solid background only as temporary generation space. Do not add scenery or objects. The application removes this background immediately after generation.
 
-FINAL CHECK: output only the same person's head, selected hairstyle, and natural neck region as a professional ID-portrait asset. Exclude all garments and uniform elements from this layer. Keep the EXACT V9 skin-light and camera-detail method above.`;
+FINAL CHECK: output only the same person's head, ${keepOriginalHair?"original unchanged hairstyle":"selected hairstyle"}, and natural neck region as a professional ID-portrait asset. Exclude all garments and uniform elements from this layer. Keep the EXACT V9 skin-light and camera-detail method above.`;
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");
@@ -98,7 +102,7 @@ FINAL CHECK: output only the same person's head, selected hairstyle, and natural
     form.append("size","1024x1536");
     form.append("output_format","png");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
-    form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
+    if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
     const r=await fetch("https://api.openai.com/v1/images/edits",{
       method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
