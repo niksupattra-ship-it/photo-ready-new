@@ -513,7 +513,7 @@ const HAIR_OPTIONS=[
 
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState('hair-01');
- const[uniformCategory,setUniformCategory]=useState('government'),[ministry,setMinistry]=useState('กระทรวงการคลัง'),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
+ const[uniformCategory,setUniformCategory]=useState('government'),[screen,setScreen]=useState('home'),[ministry,setMinistry]=useState('กระทรวงการคลัง'),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0});
  const[collarWarp,setCollarWarp]=useState(0);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
@@ -539,7 +539,33 @@ function App(){
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main className="app-shell modern-shell"><header className="mobile-topbar"><div><div className="eyebrow">PHOTO READY</div><h1>รูปพร้อมใช้</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
+ if(screen==='home') return <main className="profile-home">
+  <header className="profile-home-header"><div className="home-spacer"></div><h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
+  <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={uniformCategory===id?'active':''} onClick={()=>setUniformCategory(id)}>{n}</button>)}</nav>
+  <section className="home-content">
+   <HomeRow title="ตัวเลือกยอดนิยม 🔥" onMore={()=>{setUniformCategory('job');setScreen('detail')}} cards={[
+    {title:'สูทสมัครงาน',img:'/assets/hairstyle-previews/hair-01.png',cat:'job'},
+    {title:'ข้าราชการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'นักศึกษา',img:'/assets/hairstyle-previews/hair-07.png',cat:'student'},
+    {title:'ชุดครุย',img:'/assets/hairstyle-previews/hair-20.png',cat:'gown'}]}/>
+   <HomeRow tag="สมัครงาน" title="รูปสมัครงาน พร้อมใช้" onMore={()=>{setUniformCategory('job');setScreen('detail')}} cards={[
+    {title:'สูทหญิงเรียบร้อย',img:'/assets/hairstyle-previews/hair-03.png',cat:'job'},
+    {title:'สูทหญิงคอแบะ',img:'/assets/hairstyle-previews/hair-09.png',cat:'job'},
+    {title:'สูทชาย แบบ 1',img:'/assets/hairstyle-previews/hair-16.png',cat:'job'},
+    {title:'สูทชาย แบบ 2',img:'/assets/hairstyle-previews/hair-24.png',cat:'job'}]}/>
+   <HomeRow tag="ข้าราชการ" title="ชุดราชการ" onMore={()=>{setUniformCategory('government');setScreen('detail')}} cards={[
+    {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}]}/>
+   <HomeRow tag="นักศึกษา" title="รูปนักศึกษา" onMore={()=>{setUniformCategory('student');setScreen('detail')}} cards={[
+    {title:'นักศึกษา หญิง',img:'/assets/hairstyle-previews/hair-12.png',cat:'student'},
+    {title:'นักศึกษา ชาย',img:'/assets/hairstyle-previews/hair-18.png',cat:'student'}]}/>
+   <HomeRow tag="ชุดครุย" title="ชุดครุยมหาวิทยาลัย" onMore={()=>{setUniformCategory('gown');setScreen('detail')}} cards={[
+    {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}/>
+  </section>
+ </main>;
+ function HomeRow({title,tag,cards,onMore}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div><button type="button" onClick={onMore}>เพิ่มเติม ›</button></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);setScreen('detail')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
+ return <main className="app-shell modern-shell"><header className="mobile-topbar"><button type="button" className="detail-back" onClick={()=>setScreen('home')}>‹</button><div><div className="eyebrow">PHOTO READY</div><h1>เลือกสไตล์</h1></div><div className="step-badge">ของฉัน</div></header><div><div className="eyebrow">PHOTO READY</div><h1>รูปพร้อมใช้</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
   <nav className="category-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={uniformCategory===id?'active':''} onClick={()=>setUniformCategory(id)}>{n}</button>)}</nav>
   <section className="gallery-section"><div className="gallery-heading"><div><h2>{uniformCategory==='job'?'ชุดสมัครงาน':uniformCategory==='government'?'ชุดข้าราชการ':uniformCategory==='student'?'ชุดนักศึกษา':'ชุดครุย'}</h2><p>เลือกแบบที่ต้องการ</p></div><span>เพิ่มเติม ›</span></div><div className="style-strip">
    {uniformCategory==='government'&&<><button type="button" className="style-card selected"><div className="style-image uniform-thumb"><img src="/assets/uniform.png"/></div><strong>ข้าราชการ</strong><small>แบบปัจจุบัน</small></button><button type="button" className="style-card future"><div className="style-placeholder">+</div><strong>แบบเพิ่มเติม</strong><small>เพิ่มภายหลัง</small></button></>}
