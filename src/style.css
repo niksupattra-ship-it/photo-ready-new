@@ -88,3 +88,7 @@
 /* V60: option preview tray sits above the selected tool icons */
 .tool-choice-sheet{margin:10px 0 6px!important;border-bottom:0!important;border-top:1px solid #edf0f4!important;padding-top:10px!important}
 .process-option-bar{margin-top:0!important;border-top:1px solid #edf0f4}
+
+/* V62: original-hair choice; selection is immediate */
+.no-hair-card{min-width:88px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#fff}
+.no-hair-icon{width:52px;height:52px;border:2px solid currentColor;border-radius:16px;display:grid;place-items:center;font-size:25px;line-height:1}
