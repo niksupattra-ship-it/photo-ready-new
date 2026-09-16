@@ -16,3 +16,17 @@
 .collar-warp-grid button{margin:0!important;background:#fff!important;color:#24324a!important;border:1px solid #b8c4df!important}
 .collar-warp-panel small{display:block;margin-top:9px;text-align:center;color:#667085}
 @media(max-width:650px){.collar-warp-grid{grid-template-columns:1fr}}
+
+/* V52: slider-only transform controls. Visual/UI change only. */
+.tool-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.tool-subtitle{margin-top:3px;color:#667085;font-size:13px;font-weight:400}
+.tool-reset{width:auto!important;min-width:82px!important;margin:0!important;padding:8px 12px!important;border:1px solid #d0d5dd!important;background:#fff!important;color:#344054!important;border-radius:10px!important;font-size:13px!important}
+.slider-stack{display:grid;gap:16px}
+.slider-row{display:block;padding:12px 14px;border:1px solid #e4e7ec;border-radius:12px;background:#fff}
+.slider-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;font-size:14px;color:#344054}
+.slider-meta strong{min-width:64px;text-align:right;color:#315bea;font-variant-numeric:tabular-nums}
+.slider-row input[type="range"]{width:100%;height:6px;margin:0;display:block;cursor:ew-resize;accent-color:#315bea}
+.slider-ends{display:flex;justify-content:space-between;margin-top:6px;color:#98a2b3;font-size:11px}
+.collar-slider{margin-top:12px}
+.head-tools,.collar-warp-panel{box-shadow:0 4px 14px rgba(16,24,40,.04)}
+@media(max-width:650px){.tool-panel-header{align-items:center}.slider-row{padding:11px 12px}.tool-subtitle{font-size:12px}}

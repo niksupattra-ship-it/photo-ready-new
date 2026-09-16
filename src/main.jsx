@@ -406,6 +406,7 @@ async function renderAdjustedFinal(headLayer,lock,adjust,collarWarp=0){
  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
  const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H;
+ x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
  const cx=lock.hX+(lock.headW*lock.scale)/2, cy=lock.hY+(lock.headH*lock.scale)/2;
  x.save();x.translate(cx+dx,cy+dy);x.scale(s,s);x.translate(-cx,-cy);x.drawImage(headLayer,0,0);x.restore();
  x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
@@ -461,7 +462,7 @@ function App(){
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
  const pick=e=>{const v=e.target.files?.[0];if(v){transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0});setCollarWarp(0);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,next,collarWarp);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
- const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.55,Math.min(1.45,v.scale));applyAdjust(v)};
+ const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=async amount=>{const v=Math.max(-1,Math.min(1,amount));setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,headAdjust,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
  const go=async()=>{setBusy(true);setMsg('');try{
@@ -480,14 +481,17 @@ function App(){
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
- return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V49: คงการปรับผิวแบบ V9 จากเวอร์ชันนี้ แต่ AI ทำเฉพาะหัว + ผม + คอเปล่าถึงไหปลาร้า แล้วลบพื้นหลังก่อนวางใต้ Template ชุดจริง</p><section>
+ return <main><h1>ประกอบหัวกับชุด PNG โปร่งใสอัตโนมัติ</h1><p>V52: คงการปรับผิวแบบ V9 จากเวอร์ชันนี้ แต่ AI ทำเฉพาะหัว + ผม + คอเปล่าถึงไหปลาร้า แล้วลบพื้นหลังก่อนวางใต้ Template ชุดจริง</p><section>
  <label className="upload"><input type="file" accept="image/*" onChange={pick}/>{a?<img src={a}/>:<><strong>เลือกรูปภาพ</strong><small>JPG · PNG · WEBP</small></>}</label>
  <div className="hair-options"><div className="hair-title">ทรงผม</div>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}><img src={h.src}/><span>{h.name}</span></button>)}</div>
  <button disabled={!f||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลอัตโนมัติ'}</button>
  {msg&&<div className="err">{msg}</div>}
- {b&&<><div className="head-tools"><div className="head-tools-title">ปรับส่วนหัวที่วางแล้ว</div><div className="head-tools-grid">
-  <button type="button" onClick={()=>nudge('y',-.01)}>↑ บน</button><button type="button" onClick={()=>nudge('y',.01)}>↓ ล่าง</button><button type="button" onClick={()=>nudge('x',-.01)}>← ซ้าย</button><button type="button" onClick={()=>nudge('x',.01)}>→ ขวา</button><button type="button" onClick={()=>nudge('scale',-.05)}>− ลดหัว</button><button type="button" onClick={()=>nudge('scale',.05)}>＋ ขยายหัว</button><button type="button" className="reset-head" onClick={()=>applyAdjust({scale:1,x:0,y:0})}>คืนค่ามาตรฐาน</button></div><small>ขนาด {Math.round(headAdjust.scale*100)}% · ซ้าย/ขวา {Math.round(headAdjust.x*100)}% · บน/ล่าง {Math.round(headAdjust.y*100)}%</small></div>
- <div className="collar-warp-panel"><div className="collar-warp-title">ปรับช่องคอของชุดจริง</div><button type="button" className="collar-auto" onClick={autoFitCollar}>ปรับช่องคอให้พอดีกับคออัตโนมัติ</button><div className="collar-warp-grid"><button type="button" onClick={()=>applyCollarWarp(collarWarp-.05)}>− หุบช่องคอ</button><button type="button" onClick={()=>applyCollarWarp(collarWarp+.05)}>＋ ขยายช่องคอ</button><button type="button" onClick={()=>applyCollarWarp(0)}>คืนรูปชุดเดิม</button></div><small>Warp {Math.round(collarWarp*100)}% · ปรับเฉพาะ Template ชุด ไม่ใช้ AI</small></div>
+ {b&&<><div className="head-tools"><div className="tool-panel-header"><div><div className="head-tools-title">ปรับส่วนหัวที่วางแล้ว</div><div className="tool-subtitle">เลื่อนแถบเพื่อจัดตำแหน่งและขนาดอย่างละเอียด</div></div><button type="button" className="tool-reset" onClick={()=>applyAdjust({scale:1,x:0,y:0})}>คืนค่า</button></div><div className="slider-stack">
+  <label className="slider-row"><div className="slider-meta"><span>ขนาด</span><strong>{Math.round(headAdjust.scale*100)}%</strong></div><input type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>applyAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><div className="slider-ends"><span>20%</span><span>200%</span></div></label>
+  <label className="slider-row"><div className="slider-meta"><span>ซ้าย — ขวา</span><strong>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}%</strong></div><input type="range" min="-50" max="50" step="0.5" value={headAdjust.x*100} onChange={e=>applyAdjust({...headAdjust,x:Number(e.target.value)/100})}/><div className="slider-ends"><span>ซ้าย</span><span>ขวา</span></div></label>
+  <label className="slider-row"><div className="slider-meta"><span>บน — ล่าง</span><strong>{headAdjust.y>=0?'+':''}{(headAdjust.y*100).toFixed(1)}%</strong></div><input type="range" min="-50" max="50" step="0.5" value={headAdjust.y*100} onChange={e=>applyAdjust({...headAdjust,y:Number(e.target.value)/100})}/><div className="slider-ends"><span>บน</span><span>ล่าง</span></div></label>
+ </div></div>
+ <div className="collar-warp-panel"><div className="tool-panel-header"><div><div className="collar-warp-title">ปรับช่องคอของชุดจริง</div><div className="tool-subtitle">บิดเฉพาะ Template ชุด ไม่ใช้ AI</div></div><button type="button" className="tool-reset" onClick={()=>applyCollarWarp(0)}>คืนค่า</button></div><button type="button" className="collar-auto" onClick={autoFitCollar}>ปรับช่องคอให้พอดีกับคออัตโนมัติ</button><label className="slider-row collar-slider"><div className="slider-meta"><span>หุบ — ขยายช่องคอ</span><strong>{Math.round(collarWarp*100)}%</strong></div><input type="range" min="-100" max="100" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><div className="slider-ends"><span>หุบ -100%</span><span>ขยาย +100%</span></div></label></div>
  <div className="grid"><figure><figcaption>ต้นฉบับ</figcaption><img src={a}/></figure><figure><figcaption>ผลลัพธ์ประกอบอัตโนมัติ</figcaption><div className="check"><img src={b}/></div></figure></div><a className="save" href={b} download="photo-composed.png">ดาวน์โหลดภาพ</a></>}
  </section></main>
 }

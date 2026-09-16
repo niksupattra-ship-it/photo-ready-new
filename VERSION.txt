@@ -1,1 +1,1 @@
-V49 - visible collar warp controls; image pipeline unchanged
+V52 - Slider controls UI only; image pipeline unchanged from V51.
