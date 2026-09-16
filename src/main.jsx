@@ -568,12 +568,48 @@ async function makeAiUploadBlob(composedBlob){
  }finally{URL.revokeObjectURL(url)}
 }
 
+async function makeForegroundFocusedRetryBlob(blob){
+ // V85 fallback only: if remove.bg says unknown_foreground, retry with a face-centred crop.
+ // The successful crop is restored to the ORIGINAL canvas size afterwards, so the normal pipeline is unchanged.
+ const url=URL.createObjectURL(blob);
+ try{
+  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
+  const lm=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+  if(!lm)return null;
+  let minX=1,minY=1,maxX=0,maxY=0;
+  for(const q of lm){minX=Math.min(minX,q.x);minY=Math.min(minY,q.y);maxX=Math.max(maxX,q.x);maxY=Math.max(maxY,q.y)}
+  const fw=(maxX-minX)*W,fh=(maxY-minY)*H,cx=(minX+maxX)*W/2,cy=(minY+maxY)*H/2;
+  // Include complete hair, ears and enough upper torso for remove.bg to recognise a person.
+  const cw=Math.min(W,Math.max(fw*3.0,Math.min(W,H)*.48));
+  const ch=Math.min(H,Math.max(fh*4.0,Math.min(W,H)*.64));
+  let sx=Math.round(cx-cw/2),sy=Math.round(cy-fh*1.35);
+  sx=Math.max(0,Math.min(W-Math.round(cw),sx));sy=Math.max(0,Math.min(H-Math.round(ch),sy));
+  const sw=Math.min(W-sx,Math.round(cw)),sh=Math.min(H-sy,Math.round(ch));
+  const c=document.createElement('canvas');c.width=sw;c.height=sh;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(im,sx,sy,sw,sh,0,0,sw,sh);
+  const retryBlob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('เตรียมภาพสำรองไม่สำเร็จ')),'image/png'));
+  return{blob:retryBlob,W,H,sx,sy,sw,sh};
+ }finally{URL.revokeObjectURL(url)}
+}
+async function removeBackgroundRobust(blob,filename='person.png'){
+ const call=async input=>{const fd=new FormData();fd.append('image',input,filename);return fetch('/api/remove-background',{method:'POST',body:fd})};
+ let r=await call(blob);
+ if(r.ok)return r.blob();
+ const firstText=await r.text();
+ if(!/unknown_foreground|Could not identify foreground/i.test(firstText))throw Error(firstText);
+ const focus=await makeForegroundFocusedRetryBlob(blob);
+ if(!focus)throw Error(firstText);
+ r=await call(focus.blob);
+ if(!r.ok)throw Error(await r.text());
+ const cut=await r.blob(),u=URL.createObjectURL(cut);
+ try{
+  const im=await loadImage(u),c=document.createElement('canvas');c.width=focus.W;c.height=focus.H;
+  const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.drawImage(im,focus.sx,focus.sy,focus.sw,focus.sh);
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ประกอบภาพสำรองไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(u)}
+}
 async function removeBackgroundBlob(blob){
- const fd=new FormData();
- fd.append('image',blob,'ai-person.png');
- const r=await fetch('/api/remove-background',{method:'POST',body:fd});
- if(!r.ok) throw Error(await r.text());
- return await r.blob();
+ return removeBackgroundRobust(blob,'ai-person.png');
 }
 
 async function aiFinishPortrait(composedBlob,hairId){
@@ -653,7 +689,7 @@ function App(){
  const previewTouchEnd=e=>{if(e.touches.length<2)gestureRef.current.pinch=false;if(e.touches.length===0&&gestureRef.current.drag){gestureRef.current.drag=false;clearTimeout(renderTimer.current);applyAdjust(headAdjust)}};
  const go=async()=>{setBusy(true);setMsg('');try{
   const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
-  if(!transparent){const d=new FormData();d.append('image',f);const r=await fetch('/api/remove-background',{method:'POST',body:d});if(!r.ok)throw Error(await r.text());transparent=await r.blob();transparentCache.current={key:fileKey,blob:transparent};}
+  if(!transparent){transparent=await removeBackgroundRobust(f,f.name||'portrait.png');transparentCache.current={key:fileKey,blob:transparent};}
   // V46 PIPELINE: original -> remove.bg -> cut away original neck/body -> AI head+hair+BARE neck/clavicle only
   // -> remove AI temporary background -> normalize against the real fixed uniform -> place UNDER uniform.
   // The AI never receives the uniform template, so it cannot generate a duplicate uniform.
