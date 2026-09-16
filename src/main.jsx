@@ -364,15 +364,29 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   ellipse(mouth.x,mouth.y+eyeW*.035,eyeW*.38,eyeW*.22);
   // lower cheeks/jaw identity, deliberately starts below the eyes and ends before the neck
   const jawCX=(lj.x+rj.x)/2,jawCY=(mouth.y+chin.y)/2;
-  ellipse(jawCX,jawCY,Math.max(eyeW*.53,(rj.x-lj.x)*.43),Math.max(eyeW*.28,(chin.y-mouth.y)*.72));
+  // V78 CHIN/NECK SEAM FIX: the old V77 jaw ellipse extended ~22% BELOW landmark 152 (chin).
+  // After the 24-46px alpha feather this carried photographed neck/under-chin pixels into the AI neck,
+  // which is the visible skin patch at the chin/neck junction. Keep the identity zone inside the jaw only.
+  ellipse(jawCX,jawCY,Math.max(eyeW*.53,(rj.x-lj.x)*.43),Math.max(eyeW*.24,(chin.y-mouth.y)*.44));
 
   const finalMask=document.createElement('canvas');finalMask.width=lock.W;finalMask.height=lock.H;
   const fm=finalMask.getContext('2d');fm.setTransform(A,B,C,D,E,F);fm.drawImage(srcMask,0,0);fm.setTransform(1,0,0,1,0,0);
-  // Large alpha-only feather merges the small zones into one seamless identity core.
-  // Face RGB pixels are never blurred.
+  // Alpha-only feather for the feature zones. Face RGB pixels are never blurred.
   const feather=Math.max(24,Math.min(46,lock.W*.032));
   const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
   const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(finalMask,0,0);sf.filter='none';
+
+  // Strict anatomical lower boundary: photographed identity pixels may blend TO the chin, never into the neck.
+  // Use transformed landmark 152 so this remains correct after scale/rotation/placement.
+  const chinOutX=A*chin.x+C*chin.y+E,chinOutY=B*chin.x+D*chin.y+F;
+  const cutoff=document.createElement('canvas');cutoff.width=lock.W;cutoff.height=lock.H;
+  const cc=cutoff.getContext('2d');
+  const fade=Math.max(10,Math.min(20,feather*.45));
+  const grad=cc.createLinearGradient(0,chinOutY-fade,0,chinOutY+2);
+  grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(1,'rgba(255,255,255,0)');
+  cc.fillStyle=grad;cc.fillRect(0,0,lock.W,chinOutY+2);
+  sf.globalCompositeOperation='destination-in';sf.drawImage(cutoff,0,0);sf.globalCompositeOperation='source-over';
+
   pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);pc.globalCompositeOperation='source-over';
 
   const out=document.createElement('canvas');out.width=lock.W;out.height=lock.H;
