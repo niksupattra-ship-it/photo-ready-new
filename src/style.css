@@ -448,3 +448,24 @@
   .style-detail-card .hero-preview{max-width:540px!important}
   .style-detail-card:has(.tool-choice-sheet) .hero-preview{max-width:660px!important}
 }
+
+/* V70 — UI placement only. Processing pipeline/functions remain unchanged. */
+/* CTA sits OUTSIDE the image, directly attached below the preview; after a result exists it disappears so editing is unobstructed. */
+.style-detail-card .process-first{
+  position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;
+  transform:none!important;z-index:1!important;
+  display:block;width:min(100%,640px)!important;margin:10px auto 14px!important;
+  border-radius:14px!important;
+}
+.style-detail-card .process-first.processed-hidden{display:none!important}
+
+/* Floating work-area actions: top-right, never over the face center. */
+.style-detail-card .hero-preview{position:relative!important}
+.preview-floating-actions{position:absolute;z-index:8;top:12px;right:12px;display:grid;gap:8px;pointer-events:auto}
+.preview-floating-actions button{width:58px;height:58px;border:1px solid rgba(219,227,238,.95);border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 5px 18px rgba(15,23,42,.10);display:grid;place-items:center;align-content:center;gap:1px;color:#172033;font:inherit;cursor:pointer;backdrop-filter:blur(8px)}
+.preview-floating-actions button span{font-size:22px;line-height:1}.preview-floating-actions button small{font-size:8px;font-weight:700;line-height:1.05}.preview-floating-actions button.active{color:#315bea;border-color:#b8c7ff;background:#f5f7ff}
+
+/* Background tool is added to the same existing bottom dock; no image/background processing is introduced here. */
+.background-choice-preview{display:flex;align-items:center;gap:12px;min-height:88px;padding:4px 2px 8px;color:#667085}.background-choice-preview>small{font-size:11px}.background-swatch{border:1px solid #dce3ec;background:#fff;border-radius:14px;padding:8px;display:grid;gap:5px;justify-items:center;font:inherit;color:#344054}.background-swatch span{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#2f80ed,#56ccf2);border:1px solid #d5dce6}.background-swatch strong{font-size:10px}
+
+@media(max-width:650px){.preview-floating-actions{top:9px;right:9px;gap:6px}.preview-floating-actions button{width:48px;height:48px}.preview-floating-actions button span{font-size:19px}.preview-floating-actions button small{font-size:7px}.style-detail-card .process-first{width:calc(100% - 24px)!important;margin:8px auto 12px!important}.background-choice-preview{min-height:76px}}
