@@ -324,38 +324,51 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
 }
 
 function applyStudioFaceTone(canvas){
- // V83 CAMERA-SKIN FINISH — deterministic pixel processing only.
- // No face regeneration, no geometry/landmark edits, no blur/beauty smoothing.
- // Skin pixels are detected conservatively; hair, eyes, brows, lips, uniform and background are left alone.
+ // V84 SKIN METHOD PORTED FROM photoid-studio-th-v9-export-sharpness-only.
+ // Scope is deliberately limited to skin finishing only. No AI regeneration, no face overlay,
+ // no landmark/geometry edits, no smoothing/denoise/beauty pass and no pipeline/UI changes.
+ // Method: restrained RAW-like luminance correction + conservative local micro sharpening.
  const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
  if(!w||!h)return canvas;
- const src=ctx.getImageData(0,0,w,h),d=src.data;
- const blur=document.createElement('canvas');blur.width=w;blur.height=h;
- const bx=blur.getContext('2d',{willReadFrequently:true});
- bx.filter='blur(1.0px)';bx.drawImage(canvas,0,0);bx.filter='none';
- const bd=bx.getImageData(0,0,w,h).data;
- for(let i=0;i<d.length;i+=4){
-  if(d[i+3]<32)continue;
-  const r=d[i],g=d[i+1],b=d[i+2];
-  const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-  // Conservative photographed-skin gate. It deliberately excludes dark hair/eyes and white uniform.
-  const skin=r>58&&g>38&&b>28&&(mx-mn)>12&&r>g*.98&&r>b*1.06&&Math.abs(r-g)>5;
-  if(!skin)continue;
+ const image=ctx.getImageData(0,0,w,h),src=image.data;
+ const base=new Uint8ClampedArray(src),out=new Uint8ClampedArray(src);
+ const isSkinAt=i=>{
+  if(base[i+3]<32)return false;
+  const r=base[i],g=base[i+1],b=base[i+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+  // Keep the existing conservative skin isolation so this V84 change cannot touch hair,
+  // uniform, background, insignia or transparent pixels.
+  return r>58&&g>38&&b>28&&(mx-mn)>12&&r>g*.98&&r>b*1.06&&Math.abs(r-g)>5;
+ };
+ // Pass 1 — RAW-like exposure only on skin luminance. Preserve hue/chroma and taper the lift
+ // toward highlights so forehead/nose/cheek specular detail remains dimensional, not flat.
+ for(let i=0;i<base.length;i+=4){
+  if(!isSkinAt(i))continue;
+  const r=base[i],g=base[i+1],b=base[i+2];
   const y=.2126*r+.7152*g+.0722*b;
-  const by=.2126*bd[i]+.7152*bd[i+1]+.0722*bd[i+2];
-  // Lift only dark/mid skin. Highlights barely move, preserving facial dimension.
-  const lift=y<92?10:y<145?8:y<190?4:1;
-  let target=y+lift;
-  // Restore camera-like pore/micro texture from the existing pixels; never synthesize texture.
-  const detail=(y-by)*.42;
-  target=Math.max(0,Math.min(250,target+detail));
-  // Luminance-only scaling preserves the original hue/chroma and therefore does not alter identity geometry.
+  const taper=y<150?1:y<215?(215-y)/65:0;
+  const target=Math.min(250,y*(1+0.035*taper));
   const k=y>2?target/y:1;
-  d[i]=Math.max(0,Math.min(255,Math.round(r*k)));
-  d[i+1]=Math.max(0,Math.min(255,Math.round(g*k)));
-  d[i+2]=Math.max(0,Math.min(255,Math.round(b*k)));
+  out[i]=Math.max(0,Math.min(255,Math.round(r*k)));
+  out[i+1]=Math.max(0,Math.min(255,Math.round(g*k)));
+  out[i+2]=Math.max(0,Math.min(255,Math.round(b*k)));
  }
- ctx.putImageData(src,0,0);return canvas;
+ // Pass 2 — same conservative 4-neighbour unsharp principle as the reference project:
+ // strength 0.18 and delta capped at +/-10. It restores existing pore/camera micro-detail;
+ // it does not invent texture and cannot move facial features.
+ const exposed=new Uint8ClampedArray(out),strength=.18,maxDelta=10;
+ for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+  const i=(y*w+x)*4;if(!isSkinAt(i))continue;
+  const left=i-4,right=i+4,up=i-w*4,down=i+w*4;
+  for(let c=0;c<3;c++){
+   const center=exposed[i+c];
+   const blur=(exposed[left+c]+exposed[right+c]+exposed[up+c]+exposed[down+c])/4;
+   let delta=(center-blur)*strength;
+   delta=Math.max(-maxDelta,Math.min(maxDelta,delta));
+   out[i+c]=Math.max(0,Math.min(255,Math.round(center+delta)));
+  }
+  out[i+3]=exposed[i+3];
+ }
+ image.data.set(out);ctx.putImageData(image,0,0);return canvas;
 }
 
 async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHeadBlob,lock){
