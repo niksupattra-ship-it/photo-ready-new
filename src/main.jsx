@@ -367,7 +367,11 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   // V78 CHIN/NECK SEAM FIX: the old V77 jaw ellipse extended ~22% BELOW landmark 152 (chin).
   // After the 24-46px alpha feather this carried photographed neck/under-chin pixels into the AI neck,
   // which is the visible skin patch at the chin/neck junction. Keep the identity zone inside the jaw only.
-  ellipse(jawCX,jawCY,Math.max(eyeW*.53,(rj.x-lj.x)*.43),Math.max(eyeW*.24,(chin.y-mouth.y)*.44));
+  // V79 JAW EDGE DECONTAMINATION: keep the photographed lower-face restore strictly INSIDE skin.
+  // V78's lower ellipse still reached the photographed jaw silhouette; those edge pixels are mixed with
+  // dark hair/background antialiasing in the source photo and became the thin dark jaw-to-neck halo.
+  // Inset only this lower-cheek/jaw restore zone. Eyes/nose/mouth geometry is unchanged.
+  ellipse(jawCX,jawCY,Math.max(eyeW*.50,(rj.x-lj.x)*.36),Math.max(eyeW*.22,(chin.y-mouth.y)*.38));
 
   const finalMask=document.createElement('canvas');finalMask.width=lock.W;finalMask.height=lock.H;
   const fm=finalMask.getContext('2d');fm.setTransform(A,B,C,D,E,F);fm.drawImage(srcMask,0,0);fm.setTransform(1,0,0,1,0,0);
@@ -375,6 +379,10 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   const feather=Math.max(24,Math.min(46,lock.W*.032));
   const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
   const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(finalMask,0,0);sf.filter='none';
+  // Gaussian blur expands alpha OUTSIDE a mask. On a face cutout that expansion picks up contaminated
+  // jaw-edge RGB (dark hair/background matte). Clip the blurred alpha back to the original interior mask:
+  // feather now happens inward, like Photoshop's contract + feather, and cannot create an outer dark fringe.
+  sf.globalCompositeOperation='destination-in';sf.drawImage(finalMask,0,0);sf.globalCompositeOperation='source-over';
 
   // Strict anatomical lower boundary: photographed identity pixels may blend TO the chin, never into the neck.
   // Use transformed landmark 152 so this remains correct after scale/rotation/placement.
