@@ -375,31 +375,60 @@ async function makePlacedHeadNeckLayer(personBlob,lock){
 }
 
 async function warpUniformCollar(uniform,amount=0){
- // V47 deterministic Photoshop-like local mesh warp. No AI, no redraw.
- // Only pixels around the upper collar/neck opening move; epaulettes/body stay untouched.
+ // V53: deterministic inverse-mapped collar warp.
+ // Rebuild the collar ROI from the ORIGINAL template pixels instead of drawing shifted tiles
+ // over the untouched collar. This removes the duplicated lower collar/neck edge.
  if(Math.abs(amount)<.001)return uniform;
  const W=uniform.naturalWidth,H=uniform.naturalHeight;
  const src=document.createElement('canvas');src.width=W;src.height=H;
  const sx=src.getContext('2d',{willReadFrequently:true});sx.drawImage(uniform,0,0);
  const out=document.createElement('canvas');out.width=W;out.height=H;
  const ox=out.getContext('2d');ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';ox.drawImage(uniform,0,0);
- // Fixed template anchors: center collar only. Influence fades to zero before insignia/shoulders.
- const cx=W*.50, roiL=W*.285, roiR=W*.715, roiT=H*.015, roiB=H*.36;
- const rows=90, cols=120, sh=(roiB-roiT)/rows, sw=(roiR-roiL)/cols;
- for(let r=0;r<rows;r++){
-  const y=roiT+r*sh, yn=(y-roiT)/(roiB-roiT);
+
+ // Keep exactly the same V52 collar ROI/strength geometry.
+ const cx=W*.50, roiL=Math.floor(W*.285), roiR=Math.ceil(W*.715), roiT=Math.floor(H*.015), roiB=Math.ceil(H*.36);
+ const rw=roiR-roiL, rh=roiB-roiT;
+ const source=sx.getImageData(roiL,roiT,rw,rh);
+ const dest=new ImageData(rw,rh);
+ const sd=source.data, dd=dest.data;
+ const half=(roiR-roiL)/2;
+
+ const displacement=(absX,absY)=>{
+  const yn=(absY-roiT)/(roiB-roiT);
   const yFall=Math.pow(Math.max(0,1-yn),1.35);
-  for(let q=0;q<cols;q++){
-   const x=roiL+q*sw, xn=(x-cx)/((roiR-roiL)/2);
-   const xFall=Math.pow(Math.max(0,1-Math.abs(xn)),1.8);
-   // positive amount opens/widens collar; negative closes it. Max displacement is bounded.
-   const dx=Math.sign(xn||1)*amount*W*.075*xFall*yFall;
-   ox.drawImage(src,x,y,sw+1,sh+1,x+dx,y,sw+1,sh+1);
+  const xn=(absX-cx)/half;
+  const xFall=Math.pow(Math.max(0,1-Math.abs(xn)),1.8);
+  return Math.sign(xn||1)*amount*W*.075*xFall*yFall;
+ };
+ const sample=(fx,fy,di)=>{
+  fx=Math.max(0,Math.min(rw-1,fx)); fy=Math.max(0,Math.min(rh-1,fy));
+  const x0=Math.floor(fx), y0=Math.floor(fy), x1=Math.min(rw-1,x0+1), y1=Math.min(rh-1,y0+1);
+  const tx=fx-x0, ty=fy-y0;
+  const i00=(y0*rw+x0)*4, i10=(y0*rw+x1)*4, i01=(y1*rw+x0)*4, i11=(y1*rw+x1)*4;
+  for(let c=0;c<4;c++){
+   const a=sd[i00+c]*(1-tx)+sd[i10+c]*tx;
+   const b=sd[i01+c]*(1-tx)+sd[i11+c]*tx;
+   dd[di+c]=Math.round(a*(1-ty)+b*ty);
+  }
+ };
+
+ for(let yy=0;yy<rh;yy++){
+  const absY=roiT+yy;
+  for(let xx=0;xx<rw;xx++){
+   const absX=roiL+xx;
+   // Invert xDest = xSource + displacement(xSource,y). A few fixed-point iterations
+   // are deterministic and prevent source pixels from remaining underneath moved pixels.
+   let srcX=absX;
+   for(let k=0;k<5;k++) srcX=absX-displacement(srcX,absY);
+   sample(srcX-roiL,yy,(yy*rw+xx)*4);
   }
  }
+
+ // Replace the ROI once. Falloff reaches zero at its lower/side boundaries, so it joins
+ // the untouched template continuously without accumulating or double-drawing pixels.
+ ox.putImageData(dest,roiL,roiT);
  return out;
 }
-
 async function renderAdjustedFinal(headLayer,lock,adjust,collarWarp=0){
  const bg=await loadImage('/assets/background.jpg'),uniform=await loadImage('/assets/uniform.png');
  const warpedUniform=await warpUniformCollar(uniform,collarWarp);
