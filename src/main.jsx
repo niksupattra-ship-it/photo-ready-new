@@ -355,18 +355,28 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
   pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
 
-  // Protect the real identity region: forehead, temples, cheeks and jaw. Keep the mask
-  // inside the hairline so the selected AI hairstyle remains visible. No skin blur is
-  // applied; only the mask boundary is feathered.
-  const oval=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
+  // V76 SEAMLESS IDENTITY CORE:
+  // V74/V75 restored the whole face oval with only a 2-4 px feather. When the AI hair edit
+  // changed exposure around the forehead, that produced a visible pasted-on face patch.
+  // Preserve the photographed identity where it matters (eyes/nose/mouth/cheeks/jaw), but
+  // keep the protection boundary safely inside the hairline and use a broad optical feather.
+  // This removes the rectangular/forehead seam without asking AI to redraw facial features.
   const srcMask=document.createElement('canvas');srcMask.width=original.naturalWidth;srcMask.height=original.naturalHeight;
-  const sm=srcMask.getContext('2d');sm.beginPath();
-  oval.forEach((id,i)=>{const q=of[id],x=q.x*original.naturalWidth,y=q.y*original.naturalHeight;(i?sm.lineTo(x,y):sm.moveTo(x,y));});
-  sm.closePath();sm.fillStyle='#fff';sm.fill();
+  const sm=srcMask.getContext('2d');
+  const L=of[234],R=of[454],T=of[10],C=of[152];
+  const lx=L.x*original.naturalWidth,rx=R.x*original.naturalWidth;
+  const top=T.y*original.naturalHeight,chin=C.y*original.naturalHeight;
+  const fw=Math.max(1,rx-lx),fh=Math.max(1,chin-top);
+  const cx=(lx+rx)/2;
+  // Start below the hairline so no straight/tonal forehead edge can be pasted over AI hair.
+  const cy=top+fh*.57;
+  const radiusX=fw*.47,radiusY=fh*.49;
+  sm.beginPath();sm.ellipse(cx,cy,radiusX,radiusY,0,0,Math.PI*2);sm.fillStyle='#fff';sm.fill();
 
   const finalMask=document.createElement('canvas');finalMask.width=lock.W;finalMask.height=lock.H;
   const fm=finalMask.getContext('2d');fm.setTransform(A,B,C,D,E,F);fm.drawImage(srcMask,0,0);fm.setTransform(1,0,0,1,0,0);
-  const feather=Math.max(2,Math.min(4,lock.W*.0025));
+  // Wide feather blends lighting/colour gradually; it blurs only mask alpha, never face pixels.
+  const feather=Math.max(18,Math.min(34,lock.W*.024));
   const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
   const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(finalMask,0,0);sf.filter='none';
   pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);pc.globalCompositeOperation='source-over';
