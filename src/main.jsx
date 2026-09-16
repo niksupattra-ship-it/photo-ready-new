@@ -324,59 +324,53 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
 }
 
 async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHeadBlob,lock){
- // V74 HIGH-RES IDENTITY LOCK:
- // AI supplies hairstyle + neck only. The final face pixels come directly from the
- // full-resolution original head cutout, aligned to the AI head with a similarity
- // transform derived from stable eye landmarks. This avoids AI face regeneration and
- // avoids repeated low-resolution resampling of the photographed face.
+ // V77 FEATURE-LOCK — NO FULL-FACE OVERLAY.
+ // Exact cause fixed: V74-V76 composited one large photographed face patch over the AI result.
+ // Even with feathering, different lighting/exposure made that patch visible on the forehead/cheeks.
+ // V77 restores only identity-critical facial zones with independent soft masks; there is no
+ // forehead/full-face sheet to paste. AI remains responsible for hairline, hair and neck.
  const ou=URL.createObjectURL(originalHeadBlob),au=URL.createObjectURL(aiHeadBlob);
  try{
   const original=await loadImage(ou),ai=await loadImage(au);
   const detector=await getLandmarker();
   const of=detector.detect(original).faceLandmarks?.[0],af=detector.detect(ai).faceLandmarks?.[0];
   if(!of||!af)return aiLayerCanvas;
-  const eyePair=(lm,W,H)=>{
-   const a=lm[33],b=lm[263];
-   const ax=a.x*W,ay=a.y*H,bx=b.x*W,by=b.y*H;
-   return {cx:(ax+bx)/2,cy:(ay+by)/2,dx:bx-ax,dy:by-ay,d:Math.hypot(bx-ax,by-ay)};
-  };
+  const eyePair=(lm,W,H)=>{const a=lm[33],b=lm[263];const ax=a.x*W,ay=a.y*H,bx=b.x*W,by=b.y*H;return{cx:(ax+bx)/2,cy:(ay+by)/2,dx:bx-ax,dy:by-ay,d:Math.hypot(bx-ax,by-ay)}};
   const oe=eyePair(of,original.naturalWidth,original.naturalHeight),ae=eyePair(af,ai.naturalWidth,ai.naturalHeight);
   if(oe.d<8||ae.d<8)return aiLayerCanvas;
-  const ratio=ae.d/oe.d;
-  const ang=Math.atan2(ae.dy,ae.dx)-Math.atan2(oe.dy,oe.dx);
+  const ratio=ae.d/oe.d,ang=Math.atan2(ae.dy,ae.dx)-Math.atan2(oe.dy,oe.dx);
   const ca=Math.cos(ang)*ratio,sa=Math.sin(ang)*ratio;
-  // source pixel -> AI-native pixel
   const tx=ae.cx-(ca*oe.cx-sa*oe.cy),ty=ae.cy-(sa*oe.cx+ca*oe.cy);
-  // source pixel -> final canvas pixel (AI layer is placed with lock geometry)
-  const A=lock.scale*ca,B=lock.scale*sa,C=-lock.scale*sa,D=lock.scale*ca;
-  const E=lock.hX+lock.scale*tx,F=lock.hY+lock.scale*ty;
+  const A=lock.scale*ca,B=lock.scale*sa,C=-lock.scale*sa,D=lock.scale*ca,E=lock.hX+lock.scale*tx,F=lock.hY+lock.scale*ty;
 
   const placed=document.createElement('canvas');placed.width=lock.W;placed.height=lock.H;
   const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
   pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
 
-  // V76 SEAMLESS IDENTITY CORE:
-  // V74/V75 restored the whole face oval with only a 2-4 px feather. When the AI hair edit
-  // changed exposure around the forehead, that produced a visible pasted-on face patch.
-  // Preserve the photographed identity where it matters (eyes/nose/mouth/cheeks/jaw), but
-  // keep the protection boundary safely inside the hairline and use a broad optical feather.
-  // This removes the rectangular/forehead seam without asking AI to redraw facial features.
+  // Build several overlapping organic identity zones instead of one large face oval.
+  // No zone reaches the forehead/hairline, so the horizontal pasted-face band cannot exist.
   const srcMask=document.createElement('canvas');srcMask.width=original.naturalWidth;srcMask.height=original.naturalHeight;
-  const sm=srcMask.getContext('2d');
-  const L=of[234],R=of[454],T=of[10],C=of[152];
-  const lx=L.x*original.naturalWidth,rx=R.x*original.naturalWidth;
-  const top=T.y*original.naturalHeight,chin=C.y*original.naturalHeight;
-  const fw=Math.max(1,rx-lx),fh=Math.max(1,chin-top);
-  const cx=(lx+rx)/2;
-  // Start below the hairline so no straight/tonal forehead edge can be pasted over AI hair.
-  const cy=top+fh*.57;
-  const radiusX=fw*.47,radiusY=fh*.49;
-  sm.beginPath();sm.ellipse(cx,cy,radiusX,radiusY,0,0,Math.PI*2);sm.fillStyle='#fff';sm.fill();
+  const sm=srcMask.getContext('2d');sm.fillStyle='#fff';
+  const W=original.naturalWidth,H=original.naturalHeight;
+  const P=i=>({x:of[i].x*W,y:of[i].y*H});
+  const le=P(33),re=P(263),nose=P(1),mouth=P(13),chin=P(152),lj=P(234),rj=P(454);
+  const eyeW=Math.max(24,Math.hypot(re.x-le.x,re.y-le.y));
+  const ellipse=(cx,cy,rx,ry)=>{sm.beginPath();sm.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);sm.fill()};
+  // eyes + brows together: preserves eye shape, spacing and brow identity
+  ellipse((le.x+re.x)/2,(le.y+re.y)/2-eyeW*.055,eyeW*.61,eyeW*.25);
+  // nose/central mid-face
+  ellipse(nose.x,nose.y+eyeW*.06,eyeW*.29,eyeW*.34);
+  // mouth/perioral area
+  ellipse(mouth.x,mouth.y+eyeW*.035,eyeW*.38,eyeW*.22);
+  // lower cheeks/jaw identity, deliberately starts below the eyes and ends before the neck
+  const jawCX=(lj.x+rj.x)/2,jawCY=(mouth.y+chin.y)/2;
+  ellipse(jawCX,jawCY,Math.max(eyeW*.53,(rj.x-lj.x)*.43),Math.max(eyeW*.28,(chin.y-mouth.y)*.72));
 
   const finalMask=document.createElement('canvas');finalMask.width=lock.W;finalMask.height=lock.H;
   const fm=finalMask.getContext('2d');fm.setTransform(A,B,C,D,E,F);fm.drawImage(srcMask,0,0);fm.setTransform(1,0,0,1,0,0);
-  // Wide feather blends lighting/colour gradually; it blurs only mask alpha, never face pixels.
-  const feather=Math.max(18,Math.min(34,lock.W*.024));
+  // Large alpha-only feather merges the small zones into one seamless identity core.
+  // Face RGB pixels are never blurred.
+  const feather=Math.max(24,Math.min(46,lock.W*.032));
   const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
   const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(finalMask,0,0);sf.filter='none';
   pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);pc.globalCompositeOperation='source-over';
