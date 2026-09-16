@@ -128,3 +128,40 @@
  .style-detail-card .tool-choice-sheet{margin-left:-12px!important;width:calc(100% + 24px)!important;padding-left:12px!important;padding-right:12px!important}
  .style-detail-card .simple-line-tools{margin-left:-12px!important;margin-right:-12px!important;padding-left:12px!important;padding-right:12px!important}
 }
+
+/* V66: fixed tool rail + adaptive preview workspace, matching reference-video behavior. UI/layout only. */
+.style-detail-card .simple-line-tools{
+  position:sticky;
+  bottom:0;
+  z-index:30;
+  background:rgba(255,255,255,.98);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.style-detail-card .hero-preview{
+  height:clamp(420px,62vh,720px);
+  width:min(100%,540px);
+  aspect-ratio:auto;
+  transition:height .22s ease,width .22s ease;
+}
+.style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  height:clamp(280px,40vh,470px);
+  width:min(100%,480px);
+}
+.style-detail-card .tool-choice-sheet{
+  max-height:min(34vh,310px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+@media(max-width:650px){
+  .style-detail-card .hero-preview{height:clamp(360px,58svh,620px);width:100%}
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{height:clamp(230px,34svh,390px);width:100%}
+  .style-detail-card .tool-choice-sheet{max-height:32svh}
+  .style-detail-card .simple-line-tools{bottom:0}
+}
+@media(min-width:651px) and (max-width:1100px){
+  .style-detail-card .hero-preview{height:clamp(460px,60svh,700px)}
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{height:clamp(300px,39svh,460px)}
+  .style-detail-card .tool-choice-sheet{max-height:33svh}
+}
