@@ -323,6 +323,37 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
 }
 
+function applyStudioFaceTone(canvas){
+ // V81 deterministic camera-style finishing on the photographed pixels only.
+ // Geometry is untouched. No generative fill, beauty filter, denoise or skin blur.
+ // Processing is luminance-only: restrained exposure curve + micro-contrast/unsharp detail.
+ const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
+ if(!w||!h)return canvas;
+ const src=ctx.getImageData(0,0,w,h),d=src.data;
+ const blur=document.createElement('canvas');blur.width=w;blur.height=h;
+ const bx=blur.getContext('2d',{willReadFrequently:true});
+ bx.filter='blur(1.15px)';bx.drawImage(canvas,0,0);bx.filter='none';
+ const bd=bx.getImageData(0,0,w,h).data;
+ for(let i=0;i<d.length;i+=4){
+  if(d[i+3]===0)continue;
+  const r=d[i],g=d[i+1],b=d[i+2];
+  const y=.2126*r+.7152*g+.0722*b;
+  const by=.2126*bd[i]+.7152*bd[i+1]+.0722*bd[i+2];
+  // Lift midtones like a clean studio exposure while retaining highlight roll-off.
+  let yn=255*Math.pow(Math.max(0,Math.min(1,y/255)),.965);
+  yn=128+(yn-128)*1.025;
+  // Real optical-looking micro detail: luminance unsharp only, deliberately conservative.
+  const detail=(y-by)*.28;
+  let target=Math.max(0,Math.min(255,yn+detail));
+  // Never recolor the photographed skin: scale RGB by luminance ratio only.
+  const k=y>1?target/y:1;
+  d[i]=Math.max(0,Math.min(255,Math.round(r*k)));
+  d[i+1]=Math.max(0,Math.min(255,Math.round(g*k)));
+  d[i+2]=Math.max(0,Math.min(255,Math.round(b*k)));
+ }
+ ctx.putImageData(src,0,0);return canvas;
+}
+
 async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHeadBlob,lock){
  // V80 SINGLE-SKIN IDENTITY LOCK.
  // Root cause of V79's visible "face mask": several separate ellipses restored photographed pixels
@@ -348,6 +379,8 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   const placed=document.createElement('canvas');placed.width=lock.W;placed.height=lock.H;
   const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
   pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
+  // V81: finish only the real photographed face pixels after placement; identity geometry remains pixel-locked.
+  applyStudioFaceTone(placed);
 
   // A single MediaPipe anatomical contour: hairline/temples -> cheeks -> jaw -> chin -> opposite side.
   // Unlike V79 there are NO eye/nose/mouth/jaw ellipses, therefore no overlapping "mask" shapes can appear.
