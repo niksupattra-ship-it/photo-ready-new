@@ -566,3 +566,10 @@
 .line-tool-icon{width:42px!important;height:42px!important}
 .style-detail-card .simple-line-tools .line-tool-icon{width:42px!important;height:42px!important}
 .style-detail-card .process-option-bar .line-tool-icon{width:42px!important;height:42px!important}
+
+/* V70 diagnostic downloads only — no image-processing changes. */
+.diagnostic-downloads{margin:14px 0 0;padding:14px;border:1px dashed #9aa9c7;border-radius:14px;background:#f8faff;display:grid;gap:5px}
+.diagnostic-downloads strong{font-size:14px}.diagnostic-downloads small{font-size:12px;color:#667085}
+.diagnostic-downloads>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:6px}
+.diagnostic-downloads a{padding:9px 8px;border:1px solid #d6def0;border-radius:10px;background:#fff;text-align:center;text-decoration:none;color:#2448a8;font-size:12px;font-weight:700}
+@media(max-width:560px){.diagnostic-downloads>div{grid-template-columns:1fr}}
