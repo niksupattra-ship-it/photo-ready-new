@@ -432,17 +432,30 @@ async function warpUniformCollar(uniform,amount=0){
  ox.putImageData(dest,roiL,roiT);
  return out;
 }
-async function renderAdjustedFinal(headLayer,lock,adjust,collarWarp=0){
+async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0){
+ // V80 MASTER-RESOLUTION COMPOSITE:
+ // Always render the FINAL from the untouched full-resolution transparent head master (02).
+ // Never use the already-resampled 03 placed-head canvas as a source for final/export.
  const bg=await loadImage('/assets/background.jpg'),uniform=await loadImage('/assets/uniform.png');
  const warpedUniform=await warpUniformCollar(uniform,collarWarp);
- const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
- const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
- const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
- x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
- const cx=lock.hX+(lock.headW*lock.scale)/2, cy=lock.hY+(lock.headH*lock.scale)/2;
- x.save();x.translate(cx+dx,cy+dy);x.rotate(rotation);x.scale(s,s);x.translate(-cx,-cy);x.drawImage(headLayer,0,0);x.restore();
- x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
- return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
+ const masterURL=URL.createObjectURL(headMasterBlob);
+ try{
+  const head=await loadImage(masterURL);
+  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
+  const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
+  // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
+  const finalScale=lock.scale*s;
+  const baseCX=lock.hX+(lock.headW*lock.scale)/2, baseCY=lock.hY+(lock.headH*lock.scale)/2;
+  x.save();
+  x.translate(baseCX+dx,baseCY+dy);
+  x.rotate(rotation);
+  x.translate(-baseCX,-baseCY);
+  x.drawImage(head,lock.hX,lock.hY,lock.headW*finalScale,lock.headH*finalScale);
+  x.restore();
+  x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(masterURL)}
 }
 
 async function makeAiUploadBlob(composedBlob){
@@ -579,9 +592,9 @@ function App(){
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
  const pick=e=>{const v=e.target.files?.[0];if(v){clearDiag();transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});setCollarWarp(0);setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
- const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,next,collarWarp);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
+ const applyAdjust=async next=>{setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,collarWarp);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
- const applyCollarWarp=async amount=>{const v=Math.max(-1,Math.min(1,amount));setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.layer,editCache.current.lock,headAdjust,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
+ const applyCollarWarp=async amount=>{const v=Math.max(-1,Math.min(1,amount));setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,headAdjust,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
  const scheduleAdjust=next=>{setHeadAdjust(next);clearTimeout(renderTimer.current);renderTimer.current=setTimeout(()=>applyAdjust(next),55)};
  const previewPointerDown=e=>{if(!b||e.pointerType==='touch')return;e.preventDefault();e.currentTarget.setPointerCapture?.(e.pointerId);gestureRef.current={...gestureRef.current,drag:true,x:e.clientX,y:e.clientY,startAdjust:{...headAdjust},startPan:{...previewPan},editHead:optionTool==='head'}};
@@ -609,9 +622,9 @@ function App(){
   // This removes the post-process face overlay/mask that caused visible face-shaped seams.
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
   const layer=aiLayer;
-  editCache.current={layer,lock:composed.lock};
+  editCache.current={master:headNeckTransparent,lock:composed.lock};
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});setCollarWarp(0);
-  const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
+  const finished=await renderAdjustedFinal(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0);
   // 03 = transparent head layer immediately after Canvas placement/resize. 04 = exact final output.
   const placedHeadBlob=await canvasBlob(aiLayer);
   setDiagnosticBlobs([['01-AI-RAW.png',aiHeadNeck],['02-REMOVE-BG.png',headNeckTransparent],['03-PLACED-HEAD.png',placedHeadBlob],['04-FINAL.png',finished]]);
