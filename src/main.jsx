@@ -396,8 +396,8 @@ async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHea
   const placed=document.createElement('canvas');placed.width=lock.W;placed.height=lock.H;
   const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
   pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
-  // V81: finish only the real photographed face pixels after placement; identity geometry remains pixel-locked.
-  applyStudioFaceTone(placed);
+  // V65 SOURCE-SKIN LOCK: keep the photographed face pixels byte-derived from the source layer.
+  // Do NOT run any skin tone, smoothing, exposure, sharpening, denoise or beauty pass here.
 
   // A single MediaPipe anatomical contour: hairline/temples -> cheeks -> jaw -> chin -> opposite side.
   // Unlike V79 there are NO eye/nose/mouth/jaw ellipses, therefore no overlapping "mask" shapes can appear.
@@ -716,12 +716,10 @@ function App(){
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
-  // V83: brighten/detail only existing skin pixels after AI; no overlay and no face regeneration.
-  applyStudioFaceTone(aiLayer);
-  // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
-  // This removes the post-process face overlay/mask that caused visible face-shaped seams.
-  // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
-  const layer=aiLayer;
+  // V65 SOURCE-SKIN LOCK: hairstyle AI is allowed to supply hair + neck, but NOT the final face skin.
+  // Restore one continuous anatomical face region from the real sourceHead after the hairstyle edit.
+  // No skin finishing is applied before or after this restore, so pores/blemishes/local contrast remain source-derived.
+  const layer=await restoreOriginalIdentityLayer(aiLayer,sourceHead,headNeckTransparent,composed.lock);
   editCache.current={layer,lock:composed.lock};
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});setCollarWarp(0);
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);

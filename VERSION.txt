@@ -1,1 +1,1 @@
-V61 - V60 UI/icons + V51 processing baseline restored
+V65 - source skin lock; hairstyle AI cannot become final face skin
