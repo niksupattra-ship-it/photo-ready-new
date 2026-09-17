@@ -79,12 +79,25 @@ async function modnetRemoveBackground(input){
     const v=Number(matte[i]);
     alphaSmall[i]=Math.max(0,Math.min(255,Math.round((Number.isFinite(v)?v:0)*255)));
   }
-  const alpha=await sharp(alphaSmall,{raw:{width:ow,height:oh,channels:1}})
-    .resize(W,H,{fit:"fill",kernel:"lanczos3"}).raw().toBuffer();
+  // V79: resize ONLY the matte. Force the resized result back to one grayscale channel.
+  // Sharp may otherwise expand a raw 1-channel image to multiple channels on some builds.
+  const alphaResult=await sharp(alphaSmall,{raw:{width:ow,height:oh,channels:1}})
+    .resize(W,H,{fit:"fill",kernel:"lanczos3"})
+    .greyscale()
+    .raw()
+    .toBuffer({resolveWithObject:true});
+  const alpha=alphaResult.data;
+  if(alphaResult.info.width!==W || alphaResult.info.height!==H || alphaResult.info.channels!==1 || alpha.length!==W*H){
+    throw new Error(`MODNet alpha resize ผิดขนาด: ${alphaResult.info.width}x${alphaResult.info.height} ch=${alphaResult.info.channels}`);
+  }
 
-  // Keep the exact decoded RGB from 01-AI-RAW. Only the fourth (alpha) byte is new.
-  const rgb=await sharp(input).removeAlpha().raw().toBuffer();
-  if(rgb.length!==W*H*3 || alpha.length!==W*H) throw new Error("ขนาด RGB/alpha ไม่ตรงกับภาพต้นฉบับ");
+  // Keep the 01-AI-RAW image at full W×H. Never resize/downsample the portrait RGB.
+  // Converting the decoded pixels to sRGB only guarantees a stable 3-channel raw layout for RGBA packing.
+  const rgbResult=await sharp(input).toColourspace("srgb").removeAlpha().raw().toBuffer({resolveWithObject:true});
+  const rgb=rgbResult.data;
+  if(rgbResult.info.width!==W || rgbResult.info.height!==H || rgbResult.info.channels!==3 || rgb.length!==W*H*3){
+    throw new Error(`MODNet RGB decode ผิดขนาด: ${rgbResult.info.width}x${rgbResult.info.height} ch=${rgbResult.info.channels}`);
+  }
   const rgba=Buffer.allocUnsafe(W*H*4);
   for(let i=0,j=0,k=0;i<W*H;i++,j+=3,k+=4){
     rgba[k]=rgb[j];rgba[k+1]=rgb[j+1];rgba[k+2]=rgb[j+2];rgba[k+3]=alpha[i];
