@@ -581,7 +581,3 @@
 .head-stage-person{transform-origin:50% 50%;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .head-stage-uniform{z-index:3}
 .head-stage-person{z-index:2}.head-stage-bg{z-index:1}
-/* V85 — viewport zoom is display-only; it never changes head geometry or final render. */
-.preview-viewport-layer{position:absolute;inset:0;transform-origin:50% 50%;will-change:transform;transition:none!important;pointer-events:none;overflow:visible}
-.preview-viewport-layer .head-live-stage{overflow:visible}
-.hero-preview.direct-edit-preview{overflow:visible}
