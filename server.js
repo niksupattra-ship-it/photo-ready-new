@@ -122,6 +122,7 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
 
 app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
   try{
+    const sharp=(await import("sharp")).default;
     if(!req.file) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
     const key=process.env.OPENAI_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY ใน Render");
