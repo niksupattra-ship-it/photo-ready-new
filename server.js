@@ -136,6 +136,31 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
       hairBuf=fs.readFileSync(hairPath);
     }
 
+    // V86: hard face-lock mask. GPT Image may still re-render a face even when the prompt says
+    // "hair only".  The edit mask therefore makes the central face region physically non-editable.
+    // Transparent pixels may be edited; opaque pixels are protected.  This changes only the AI
+    // edit permission map -- the V85 MODNet / 02 master / preview / final pipeline is untouched.
+    const meta=await sharp(req.file.buffer).metadata();
+    const mw=Math.max(1,Number(meta.width)||1024);
+    const mh=Math.max(1,Number(meta.height)||1536);
+    // The app's AI-finishing input is a front-facing portrait. Keep the protected oval comfortably
+    // inside the hairline so crown/sides/fringe can still be generated, while eyes/nose/cheeks/
+    // lips/jaw remain source pixels. A second protected neck bridge keeps skin continuity.
+    const faceCx=Math.round(mw*0.50);
+    const faceCy=Math.round(mh*0.385);
+    const faceRx=Math.round(mw*0.255);
+    const faceRy=Math.round(mh*0.245);
+    const neckX=Math.round(mw*0.39);
+    const neckY=Math.round(mh*0.545);
+    const neckW=Math.round(mw*0.22);
+    const neckH=Math.round(mh*0.16);
+    const maskSvg=`<svg width="${mw}" height="${mh}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="rgba(255,255,255,0)"/>
+      <ellipse cx="${faceCx}" cy="${faceCy}" rx="${faceRx}" ry="${faceRy}" fill="rgba(255,255,255,1)"/>
+      <rect x="${neckX}" y="${neckY}" width="${neckW}" height="${neckH}" rx="${Math.round(neckW*0.42)}" fill="rgba(255,255,255,1)"/>
+    </svg>`;
+    const editMask=await sharp(Buffer.from(maskSvg)).png().toBuffer();
+
     const prompt=`PROFESSIONAL ID-PORTRAIT REFERENCE EDIT. Image 1 is the ORIGINAL FULL-QUALITY photograph of the subject. It is the sole authority for identity, face, skin, complexion, facial anatomy, expression and photographic skin texture.${keepOriginalHair?" There is no hairstyle reference: preserve the original hairstyle from Image 1.":" Image 2 is a HAIRSTYLE REFERENCE ONLY. Use it only for hairstyle geometry and appearance; never transfer its face, skin, lighting, makeup, head shape or identity."}
 
 GOAL: create one continuous, photorealistic head + hair + ears + natural bare neck layer of the SAME PERSON for an ID portrait. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
@@ -164,6 +189,7 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     form.append("size","1024x1536");
     form.append("output_format","png");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
+    form.append("mask",new Blob([editMask],{type:"image/png"}),"hair-edit-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
     const r=await fetch("https://api.openai.com/v1/images/edits",{
