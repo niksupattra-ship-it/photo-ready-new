@@ -497,8 +497,48 @@ async function removeBackgroundRobust(blob,filename='person.png'){
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ประกอบภาพสำรองไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(u)}
 }
+// V74: local full-resolution background removal for the POST-AI image only.
+// The V70/V71 AI request remains unchanged. GPT is still asked for its same simple
+// temporary solid background, then this function removes only pixels connected to
+// the canvas border that match that background. Foreground RGB (face/skin/hair/neck)
+// is never filtered, sharpened, smoothed, recolored or regenerated.
+async function removePostAiSolidBackgroundLocal(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
+  const c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.drawImage(im,0,0,W,H);
+  const id=x.getImageData(0,0,W,H),d=id.data;
+  // Estimate the temporary background from many border samples (median is resistant
+  // to a few hair/shoulder pixels touching an edge).
+  const rs=[],gs=[],bs=[],step=Math.max(1,Math.floor(Math.min(W,H)/180));
+  const sample=(px,py)=>{const i=(py*W+px)*4;if(d[i+3]>0){rs.push(d[i]);gs.push(d[i+1]);bs.push(d[i+2])}};
+  for(let px=0;px<W;px+=step){sample(px,0);sample(px,H-1)}
+  for(let py=0;py<H;py+=step){sample(0,py);sample(W-1,py)}
+  const med=a=>{a.sort((m,n)=>m-n);return a[Math.floor(a.length/2)]||0};
+  const br=med(rs),bg=med(gs),bb=med(bs);
+  const dist=i=>Math.hypot(d[i]-br,d[i+1]-bg,d[i+2]-bb);
+  // Flood only from the outside. This is deliberately conservative so similarly
+  // coloured skin inside the portrait can never be selected merely by colour.
+  const seen=new Uint8Array(W*H),q=new Int32Array(W*H);let qh=0,qt=0;
+  const hard=34,soft=58;
+  const push=(px,py)=>{if(px<0||py<0||px>=W||py>=H)return;const n=py*W+px;if(seen[n])return;const i=n*4;if(dist(i)>soft)return;seen[n]=1;q[qt++]=n};
+  for(let px=0;px<W;px++){push(px,0);push(px,H-1)}
+  for(let py=1;py<H-1;py++){push(0,py);push(W-1,py)}
+  while(qh<qt){const n=q[qh++],px=n%W,py=(n/W)|0;push(px-1,py);push(px+1,py);push(px,py-1);push(px,py+1)}
+  // Change alpha only. Keep every foreground RGB byte exactly as AI returned it.
+  for(let n=0;n<seen.length;n++)if(seen[n]){
+   const i=n*4,dd=dist(i);
+   d[i+3]=dd<=hard?0:Math.max(0,Math.min(255,Math.round(255*(dd-hard)/(soft-hard))));
+  }
+  x.putImageData(id,0,0);
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้าง PNG โปร่งใสไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(url)}
+}
 async function removeBackgroundBlob(blob){
- return removeBackgroundRobust(blob,'ai-person.png');
+ // POST-AI only: no remove.bg call and therefore no remove.bg credit.
+ return removePostAiSolidBackgroundLocal(blob);
 }
 
 async function aiFinishPortrait(originalFile,hairId){
@@ -598,12 +638,21 @@ function App(){
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
   // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
-  // V72: GPT Image now returns the AI head/neck directly as a full-resolution transparent PNG.
-  // IMPORTANT: no remove.bg call after AI. This preserves the exact AI pixels/resolution
-  // and avoids the 1024x1536 -> preview-size -> upscale quality loss found in V70/V71.
-  // Face/skin/hair instructions, model, quality and input_fidelity remain unchanged.
-  const headNeckTransparent=aiHeadNeck;
-  // 02 = exact transparent AI master before the single placement/downscale.
+  // 01 = exact bytes returned by GPT Image before local background removal / Canvas / resize.
+  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
+  // V74 QUALITY GUARD: local cutout must preserve the AI canvas dimensions exactly.
+  // If the service ever returns a preview-sized result again, stop here instead of
+  // silently enlarging a low-resolution cutout into the final portrait.
+  {
+   const rawURL=URL.createObjectURL(aiHeadNeck), cutURL=URL.createObjectURL(headNeckTransparent);
+   try{
+    const raw=await loadImage(rawURL),cut=await loadImage(cutURL);
+    if(raw.naturalWidth!==cut.naturalWidth||raw.naturalHeight!==cut.naturalHeight){
+     throw Error(`ขั้นตัดพื้นหลังในเครื่องเปลี่ยนความละเอียด ${cut.naturalWidth}×${cut.naturalHeight} จาก ${raw.naturalWidth}×${raw.naturalHeight} — ระบบหยุดเพื่อไม่ให้ภาพเสียความคม`);
+    }
+   }finally{URL.revokeObjectURL(rawURL);URL.revokeObjectURL(cutURL)}
+  }
+  // 02 = full-resolution local transparent PNG; foreground RGB is unchanged from 01.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
@@ -617,7 +666,7 @@ function App(){
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
   // 03 = transparent head layer immediately after Canvas placement/resize. 04 = exact final output.
   const placedHeadBlob=await canvasBlob(aiLayer);
-  setDiagnosticBlobs([['01-AI-RAW.png',aiHeadNeck],['02-AI-TRANSPARENT-MASTER.png',headNeckTransparent],['03-PLACED-HEAD.png',placedHeadBlob],['04-FINAL.png',finished]]);
+  setDiagnosticBlobs([['01-AI-RAW.png',aiHeadNeck],['02-LOCAL-TRANSPARENT.png',headNeckTransparent],['03-PLACED-HEAD.png',placedHeadBlob],['04-FINAL.png',finished]]);
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  if(screen==='home'){
