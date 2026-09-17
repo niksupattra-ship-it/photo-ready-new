@@ -577,6 +577,7 @@ function App(){
  const[headMasterPreview,setHeadMasterPreview]=useState(null);
  const[headPreviewLock,setHeadPreviewLock]=useState(null);
  const headLayerRef=useRef(null);
+ const previewViewportRef=useRef(null);
  const previewStageRef=useRef(null);
  const liveAdjustRef=useRef(headAdjust);
  const rafRef=useRef(0);
@@ -589,6 +590,8 @@ function App(){
  const toolBarRef=useRef(null);
  const choiceRailRef=useRef(null);
  const toggleOptionTool=(name,beforeOpen)=>{setOptionTool(current=>{const next=current===name?null:name;if(next&&beforeOpen)beforeOpen();return next})};
+ const paintViewport=(zoom=previewZoom,pan=previewPan)=>{const el=previewViewportRef.current;if(el)el.style.transform=`translate3d(${pan.x}px,${pan.y}px,0) scale(${zoom})`};
+ useEffect(()=>{paintViewport(previewZoom,previewPan)},[previewZoom,previewPan]);
  const scrollToolBar=direction=>{const el=toolBarRef.current;if(!el)return;el.scrollBy({left:direction*Math.max(180,el.clientWidth*.55),behavior:'smooth'})};
  const scrollChoiceRail=direction=>{const el=choiceRailRef.current;if(!el)return;el.scrollBy({left:direction*Math.max(180,el.clientWidth*.72),behavior:'smooth'})};
  const gestureRef=useRef({drag:false,x:0,y:0,startX:0,startY:0,startAdjust:null,pinch:false,distance:0,zoom:1,midX:0,midY:0,startPan:{x:0,y:0}});
@@ -618,28 +621,37 @@ function App(){
  const scheduleAdjust=next=>{paintHeadTransform(next);setHeadAdjust(next)};
  const sliderAdjust=next=>{paintHeadTransform(next);setHeadAdjust(next);clearTimeout(renderTimer.current);renderTimer.current=setTimeout(()=>commitAdjust(next),140)};
  const previewPointerDown=e=>{
-  if(!b||optionTool!=='head'||comparePreview)return;
+  if(!b||comparePreview)return;
   e.preventDefault();e.stopPropagation();
   e.currentTarget.setPointerCapture?.(e.pointerId);
   const g=gestureRef.current;
   if(!g.pointers)g.pointers=new Map();g.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(g.pointers.size===1){g.drag=true;g.primary=e.pointerId;g.x=e.clientX;g.y=e.clientY;g.startAdjust={...liveAdjustRef.current};g.pinch=false}
-  else if(g.pointers.size===2){const pts=[...g.pointers.values()];g.pinch=true;g.drag=false;g.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);g.startAdjust={...liveAdjustRef.current};g.midX=(pts[0].x+pts[1].x)/2;g.midY=(pts[0].y+pts[1].y)/2}
+  if(g.pointers.size===1){g.drag=(optionTool===null||optionTool==='head');g.primary=e.pointerId;g.x=e.clientX;g.y=e.clientY;g.startAdjust={...liveAdjustRef.current};g.pinch=false}
+  else if(g.pointers.size===2){const pts=[...g.pointers.values()];g.pinch=true;g.drag=false;g.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);g.zoom=previewZoom;g.startPan={...previewPan};g.midX=(pts[0].x+pts[1].x)/2;g.midY=(pts[0].y+pts[1].y)/2}
  };
  const previewPointerMove=e=>{
-  const g=gestureRef.current;if(!g.pointers?.has(e.pointerId)||optionTool!=='head')return;
+  const g=gestureRef.current;if(!g.pointers?.has(e.pointerId)||comparePreview)return;
   e.preventDefault();g.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   const rect=e.currentTarget.getBoundingClientRect();
-  if(g.pointers.size>=2&&g.pinch){const pts=[...g.pointers.values()].slice(0,2),dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),mx=(pts[0].x+pts[1].x)/2,my=(pts[0].y+pts[1].y)/2;const ratio=dist/Math.max(1,g.distance);const scale=Math.max(.20,Math.min(2,g.startAdjust.scale*ratio));const next={...g.startAdjust,scale,x:g.startAdjust.x+(mx-g.midX)/rect.width,y:g.startAdjust.y+(my-g.midY)/rect.height};paintHeadTransform(next)}
-  else if(g.drag&&e.pointerId===g.primary){const next={...g.startAdjust,x:g.startAdjust.x+(e.clientX-g.x)/rect.width,y:g.startAdjust.y+(e.clientY-g.y)/rect.height};paintHeadTransform(next)}
+  if(g.pointers.size>=2&&g.pinch){
+   const pts=[...g.pointers.values()].slice(0,2),dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),mx=(pts[0].x+pts[1].x)/2,my=(pts[0].y+pts[1].y)/2;
+   const zoom=Math.max(.5,Math.min(4,g.zoom*(dist/Math.max(1,g.distance))));
+   const pan={x:g.startPan.x+(mx-g.midX),y:g.startPan.y+(my-g.midY)};
+   paintViewport(zoom,pan);g.liveZoom=zoom;g.livePan=pan;
+  } else if(g.drag&&e.pointerId===g.primary){
+   const next={...g.startAdjust,x:g.startAdjust.x+(e.clientX-g.x)/(rect.width*previewZoom),y:g.startAdjust.y+(e.clientY-g.y)/(rect.height*previewZoom)};paintHeadTransform(next)
+  }
  };
  const previewPointerUp=e=>{
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId))return;
   e.preventDefault();g.pointers.delete(e.pointerId);
-  if(g.pointers.size===0){g.drag=false;g.pinch=false;commitAdjust({...liveAdjustRef.current})}
-  else if(g.pointers.size===1){const [id,p]=[...g.pointers.entries()][0];g.drag=true;g.pinch=false;g.primary=id;g.x=p.x;g.y=p.y;g.startAdjust={...liveAdjustRef.current}}
+  if(g.pointers.size===0){
+   if(g.pinch){const z=g.liveZoom??previewZoom,p=g.livePan??previewPan;setPreviewZoom(z);setPreviewPan(p);g.liveZoom=null;g.livePan=null}
+   else if(g.drag)commitAdjust({...liveAdjustRef.current});
+   g.drag=false;g.pinch=false;
+  } else if(g.pointers.size===1){const [id,p]=[...g.pointers.entries()][0];g.drag=(optionTool===null||optionTool==='head');g.pinch=false;g.primary=id;g.x=p.x;g.y=p.y;g.startAdjust={...liveAdjustRef.current}}
  };
- const previewWheel=e=>{if(!b||optionTool!=='head'||comparePreview)return;e.preventDefault();const old=liveAdjustRef.current;const factor=Math.exp(-e.deltaY*.0015);const next={...old,scale:Math.max(.20,Math.min(2,old.scale*factor))};paintHeadTransform(next);clearTimeout(renderTimer.current);renderTimer.current=setTimeout(()=>commitAdjust({...liveAdjustRef.current}),140)};
+ const previewWheel=e=>{if(!b||comparePreview)return;e.preventDefault();const factor=Math.exp(-e.deltaY*.0015);const zoom=Math.max(.5,Math.min(4,previewZoom*factor));setPreviewZoom(zoom)};
  const go=async()=>{setBusy(true);setMsg('');try{
   // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
@@ -702,7 +714,7 @@ function App(){
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
  return <main className="app-shell modern-shell adaptive-editor"><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
-  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick}/>{b?<>{!comparePreview&&optionTool==='head'&&headMasterPreview&&headPreviewLock?<div className="head-live-stage"><img src="/assets/background.jpg" className="head-stage-bg" draggable="false"/><img ref={headLayerRef} src={headMasterPreview} className="head-stage-person" draggable="false" style={{left:`${headPreviewLock.hX/headPreviewLock.W*100}%`,top:`${headPreviewLock.hY/headPreviewLock.H*100}%`,width:`${headPreviewLock.headW*headPreviewLock.scale/headPreviewLock.W*100}%`,height:`${headPreviewLock.headH*headPreviewLock.scale/headPreviewLock.H*100}%`,transform:headTransformCss(headAdjust)}}/><img src="/assets/uniform.png" className="head-stage-uniform" draggable="false" style={{left:`${headPreviewLock.uX/headPreviewLock.W*100}%`,top:`${headPreviewLock.uY/headPreviewLock.H*100}%`,width:`${headPreviewLock.uW/headPreviewLock.W*100}%`,height:`${headPreviewLock.uH/headPreviewLock.H*100}%`}}/></div>:<img src={comparePreview&&a?a:b} className="editable-result-image" style={{transform:`translate3d(${comparePreview?0:previewPan.x}px,${comparePreview?0:previewPan.y}px,0) scale(${comparePreview?1:previewZoom})`}}/>}<div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button><button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">เลือก “ปรับหัว” แล้วลากเพื่อย้ายหัว · โหมดอื่นลากมุมมองเมื่อซูม · สองนิ้ว/ล้อเมาส์เพื่อซูม</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}</label>
+  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick}/>{b?<>{!comparePreview&&headMasterPreview&&headPreviewLock?<div ref={previewViewportRef} className="preview-viewport-layer" style={{transform:`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}}><div className="head-live-stage"><img src="/assets/background.jpg" className="head-stage-bg" draggable="false"/><img ref={headLayerRef} src={headMasterPreview} className="head-stage-person" draggable="false" style={{left:`${headPreviewLock.hX/headPreviewLock.W*100}%`,top:`${headPreviewLock.hY/headPreviewLock.H*100}%`,width:`${headPreviewLock.headW*headPreviewLock.scale/headPreviewLock.W*100}%`,height:`${headPreviewLock.headH*headPreviewLock.scale/headPreviewLock.H*100}%`,transform:headTransformCss(headAdjust)}}/><img src="/assets/uniform.png" className="head-stage-uniform" draggable="false" style={{left:`${headPreviewLock.uX/headPreviewLock.W*100}%`,top:`${headPreviewLock.uY/headPreviewLock.H*100}%`,width:`${headPreviewLock.uW/headPreviewLock.W*100}%`,height:`${headPreviewLock.uH/headPreviewLock.H*100}%`}}/></div></div>:<img src={comparePreview&&a?a:b} className="editable-result-image" style={{transform:`translate3d(${comparePreview?0:previewPan.x}px,${comparePreview?0:previewPan.y}px,0) scale(${comparePreview?1:previewZoom})`}}/>}<div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button><button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">แตะและลากหัวเพื่อย้ายได้ทันที · กด “ปรับหัว” เมื่อต้องการเปิดแถบเครื่องมือ · สองนิ้ว/ล้อเมาส์เพื่อซูมพรีวิว</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}</label>
    <div className="quick-config">
     {uniformCategory==='government'&&<><label className="field-label">กระทรวง / สังกัด<select value={ministry} onChange={e=>setMinistry(e.target.value)}><option>กระทรวงการคลัง</option><option disabled>เพิ่มกระทรวงอื่นภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>setLevel(id)}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div>}
