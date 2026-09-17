@@ -64,13 +64,32 @@ async function modnetRemoveBackground(input){
   const session=await getModnetSession();
   const inputName=session.inputNames[0];
   const out=await session.run({[inputName]:new ort.Tensor("float32",tensorData,[1,3,nh,nw])});
-  const matte=out[session.outputNames[0]].data;
-  const alphaSmall=Buffer.alloc(plane);
-  for(let i=0;i<plane;i++) alphaSmall[i]=Math.max(0,Math.min(255,Math.round(Number(matte[i])*255)));
-  // Upscale ONLY the matte to the original AI dimensions. The source RGB itself is never resized.
-  const alpha=await sharp(alphaSmall,{raw:{width:nw,height:nh,channels:1}}).resize(W,H,{fit:"fill",kernel:"lanczos3"}).raw().toBuffer();
+  const output=out[session.outputNames[0]];
+  const matte=output.data;
+  const dims=output.dims||[];
+  const oh=Number(dims[dims.length-2]||nh),ow=Number(dims[dims.length-1]||nw);
+  if(!Number.isFinite(ow)||!Number.isFinite(oh)||ow*oh!==matte.length){
+    throw new Error(`MODNet output shape ผิดปกติ: ${JSON.stringify(dims)} / ${matte.length}`);
+  }
+
+  // V78: build the alpha image explicitly. Do not join a raw one-channel Buffer directly:
+  // that path produced row-stride/banding artefacts on the WASM deployment.
+  const alphaSmall=Buffer.alloc(ow*oh);
+  for(let i=0;i<alphaSmall.length;i++){
+    const v=Number(matte[i]);
+    alphaSmall[i]=Math.max(0,Math.min(255,Math.round((Number.isFinite(v)?v:0)*255)));
+  }
+  const alpha=await sharp(alphaSmall,{raw:{width:ow,height:oh,channels:1}})
+    .resize(W,H,{fit:"fill",kernel:"lanczos3"}).raw().toBuffer();
+
+  // Keep the exact decoded RGB from 01-AI-RAW. Only the fourth (alpha) byte is new.
   const rgb=await sharp(input).removeAlpha().raw().toBuffer();
-  return sharp(rgb,{raw:{width:W,height:H,channels:3}}).joinChannel(alpha,{raw:{width:W,height:H,channels:1}}).png().toBuffer();
+  if(rgb.length!==W*H*3 || alpha.length!==W*H) throw new Error("ขนาด RGB/alpha ไม่ตรงกับภาพต้นฉบับ");
+  const rgba=Buffer.allocUnsafe(W*H*4);
+  for(let i=0,j=0,k=0;i<W*H;i++,j+=3,k+=4){
+    rgba[k]=rgb[j];rgba[k+1]=rgb[j+1];rgba[k+2]=rgb[j+2];rgba[k+3]=alpha[i];
+  }
+  return sharp(rgba,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
 }
 
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
