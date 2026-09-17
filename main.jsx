@@ -323,119 +323,8 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  }finally{URL.revokeObjectURL(aiURL);URL.revokeObjectURL(headURL);URL.revokeObjectURL(baseURL)}
 }
 
-function applyStudioFaceTone(canvas){
- // V84 SKIN METHOD PORTED FROM photoid-studio-th-v9-export-sharpness-only.
- // Scope is deliberately limited to skin finishing only. No AI regeneration, no face overlay,
- // no landmark/geometry edits, no smoothing/denoise/beauty pass and no pipeline/UI changes.
- // Method: restrained RAW-like luminance correction + conservative local micro sharpening.
- const w=canvas.width,h=canvas.height,ctx=canvas.getContext('2d',{willReadFrequently:true});
- if(!w||!h)return canvas;
- const image=ctx.getImageData(0,0,w,h),src=image.data;
- const base=new Uint8ClampedArray(src),out=new Uint8ClampedArray(src);
- const isSkinAt=i=>{
-  if(base[i+3]<32)return false;
-  const r=base[i],g=base[i+1],b=base[i+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-  // Keep the existing conservative skin isolation so this V84 change cannot touch hair,
-  // uniform, background, insignia or transparent pixels.
-  return r>58&&g>38&&b>28&&(mx-mn)>12&&r>g*.98&&r>b*1.06&&Math.abs(r-g)>5;
- };
- // Pass 1 — RAW-like exposure only on skin luminance. Preserve hue/chroma and taper the lift
- // toward highlights so forehead/nose/cheek specular detail remains dimensional, not flat.
- for(let i=0;i<base.length;i+=4){
-  if(!isSkinAt(i))continue;
-  const r=base[i],g=base[i+1],b=base[i+2];
-  const y=.2126*r+.7152*g+.0722*b;
-  const taper=y<150?1:y<215?(215-y)/65:0;
-  const target=Math.min(250,y*(1+0.035*taper));
-  const k=y>2?target/y:1;
-  out[i]=Math.max(0,Math.min(255,Math.round(r*k)));
-  out[i+1]=Math.max(0,Math.min(255,Math.round(g*k)));
-  out[i+2]=Math.max(0,Math.min(255,Math.round(b*k)));
- }
- // Pass 2 — same conservative 4-neighbour unsharp principle as the reference project:
- // strength 0.18 and delta capped at +/-10. It restores existing pore/camera micro-detail;
- // it does not invent texture and cannot move facial features.
- const exposed=new Uint8ClampedArray(out),strength=.18,maxDelta=10;
- for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
-  const i=(y*w+x)*4;if(!isSkinAt(i))continue;
-  const left=i-4,right=i+4,up=i-w*4,down=i+w*4;
-  for(let c=0;c<3;c++){
-   const center=exposed[i+c];
-   const blur=(exposed[left+c]+exposed[right+c]+exposed[up+c]+exposed[down+c])/4;
-   let delta=(center-blur)*strength;
-   delta=Math.max(-maxDelta,Math.min(maxDelta,delta));
-   out[i+c]=Math.max(0,Math.min(255,Math.round(center+delta)));
-  }
-  out[i+3]=exposed[i+3];
- }
- image.data.set(out);ctx.putImageData(image,0,0);return canvas;
-}
-
-async function restoreOriginalIdentityLayer(aiLayerCanvas,originalHeadBlob,aiHeadBlob,lock){
- // V80 SINGLE-SKIN IDENTITY LOCK.
- // Root cause of V79's visible "face mask": several separate ellipses restored photographed pixels
- // over an AI face. Each ellipse had its own alpha/tone transition, so their overlaps became visible
- // as circular/rectangular patches. V80 removes those patches completely.
- // One continuous anatomical face-skin mask is used instead. Original photographed RGB is preserved;
- // AI is used outside that mask for hairstyle + neck only.
- const ou=URL.createObjectURL(originalHeadBlob),au=URL.createObjectURL(aiHeadBlob);
- try{
-  const original=await loadImage(ou),ai=await loadImage(au);
-  const detector=await getLandmarker();
-  const of=detector.detect(original).faceLandmarks?.[0],af=detector.detect(ai).faceLandmarks?.[0];
-  if(!of||!af)return aiLayerCanvas;
-  const eyePair=(lm,W,H)=>{const a=lm[33],b=lm[263];const ax=a.x*W,ay=a.y*H,bx=b.x*W,by=b.y*H;return{cx:(ax+bx)/2,cy:(ay+by)/2,dx:bx-ax,dy:by-ay,d:Math.hypot(bx-ax,by-ay)}};
-  const oe=eyePair(of,original.naturalWidth,original.naturalHeight),ae=eyePair(af,ai.naturalWidth,ai.naturalHeight);
-  if(oe.d<8||ae.d<8)return aiLayerCanvas;
-  const ratio=ae.d/oe.d,ang=Math.atan2(ae.dy,ae.dx)-Math.atan2(oe.dy,oe.dx);
-  const ca=Math.cos(ang)*ratio,sa=Math.sin(ang)*ratio;
-  const tx=ae.cx-(ca*oe.cx-sa*oe.cy),ty=ae.cy-(sa*oe.cx+ca*oe.cy);
-  const A=lock.scale*ca,B=lock.scale*sa,C=-lock.scale*sa,D=lock.scale*ca,E=lock.hX+lock.scale*tx,F=lock.hY+lock.scale*ty;
-
-  // Place the full-resolution photographed source once. No AI sharpening/beauty regeneration touches it.
-  const placed=document.createElement('canvas');placed.width=lock.W;placed.height=lock.H;
-  const pc=placed.getContext('2d');pc.imageSmoothingEnabled=true;pc.imageSmoothingQuality='high';
-  pc.setTransform(A,B,C,D,E,F);pc.drawImage(original,0,0);pc.setTransform(1,0,0,1,0,0);
-  // V81: finish only the real photographed face pixels after placement; identity geometry remains pixel-locked.
-  applyStudioFaceTone(placed);
-
-  // A single MediaPipe anatomical contour: hairline/temples -> cheeks -> jaw -> chin -> opposite side.
-  // Unlike V79 there are NO eye/nose/mouth/jaw ellipses, therefore no overlapping "mask" shapes can appear.
-  const contour=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
-  const srcMask=document.createElement('canvas');srcMask.width=original.naturalWidth;srcMask.height=original.naturalHeight;
-  const sm=srcMask.getContext('2d');sm.beginPath();
-  contour.forEach((id,i)=>{const q=of[id],x=q.x*original.naturalWidth,y=q.y*original.naturalHeight;(i?sm.lineTo(x,y):sm.moveTo(x,y));});
-  sm.closePath();sm.fillStyle='#fff';sm.fill();
-
-  const hard=document.createElement('canvas');hard.width=lock.W;hard.height=lock.H;
-  const hm=hard.getContext('2d');hm.setTransform(A,B,C,D,E,F);hm.drawImage(srcMask,0,0);hm.setTransform(1,0,0,1,0,0);
-
-  // Small continuous feather only. V79 used 24-46 px on multiple patches, which made tone islands visible.
-  // 8-14 px is enough for anti-aliased photographic blending while retaining pores and source sharpness.
-  const feather=Math.max(8,Math.min(14,lock.W*.010));
-  const soft=document.createElement('canvas');soft.width=lock.W;soft.height=lock.H;
-  const sf=soft.getContext('2d');sf.filter=`blur(${feather}px)`;sf.drawImage(hard,0,0);sf.filter='none';
-
-  // At the jaw/chin, feather must stay inside the photographed skin so dark matte/hair RGB cannot leak
-  // onto the generated neck. This is the only contracted edge; the rest uses the normal soft contour.
-  const chin=of[152],chinOutY=B*(chin.x*original.naturalWidth)+D*(chin.y*original.naturalHeight)+F;
-  const jawGuard=document.createElement('canvas');jawGuard.width=lock.W;jawGuard.height=lock.H;
-  const jg=jawGuard.getContext('2d');
-  const fade=Math.max(8,Math.min(14,feather));
-  const grad=jg.createLinearGradient(0,chinOutY-fade,0,chinOutY+1);
-  grad.addColorStop(0,'rgba(255,255,255,1)');grad.addColorStop(1,'rgba(255,255,255,0)');
-  jg.fillStyle=grad;jg.fillRect(0,0,lock.W,chinOutY+1);
-  sf.globalCompositeOperation='destination-in';sf.drawImage(jawGuard,0,0);sf.globalCompositeOperation='source-over';
-
-  pc.globalCompositeOperation='destination-in';pc.drawImage(soft,0,0);pc.globalCompositeOperation='source-over';
-
-  const out=document.createElement('canvas');out.width=lock.W;out.height=lock.H;
-  const oc=out.getContext('2d');oc.imageSmoothingEnabled=true;oc.imageSmoothingQuality='high';
-  oc.drawImage(aiLayerCanvas,0,0);
-  oc.drawImage(placed,0,0);
-  return out;
- }finally{URL.revokeObjectURL(ou);URL.revokeObjectURL(au)}
-}
+// V68: no face/skin overlay or post-process mask.
+// Keep the V66 AI head/face/skin/hair pixels as one continuous layer.
 
 async function makeEditableHeadLayer(finishedBlob,personMaskBlob,lock){
  // V45: editable layer must contain ONLY hair + head + generated neck.
@@ -710,8 +599,8 @@ function App(){
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
-  // V83: brighten/detail only existing skin pixels after AI; no overlay and no face regeneration.
-  applyStudioFaceTone(aiLayer);
+  // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
+  // skin-isolation overlay, tone pass, or post-process face layer is applied.
   // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
   // This removes the post-process face overlay/mask that caused visible face-shaped seams.
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
