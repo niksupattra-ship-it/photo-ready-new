@@ -1,1 +1,1 @@
-V76 - V70 skin/AI pipeline + local MODNet portrait matting (no remove.bg credit)
+V77 - V70 skin/AI pipeline + MODNet via ONNX Runtime WebAssembly (deploy-safe, no remove.bg credit)

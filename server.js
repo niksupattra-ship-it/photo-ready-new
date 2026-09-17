@@ -11,7 +11,8 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:1,fields:10,parts:12}
 });
 
-// V76: zero-per-image-cost portrait matting after AI using local MODNet ONNX.
+// V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
+// Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
 // The model only predicts an alpha matte. RGB pixels from the exact AI PNG are retained;
 // no beauty/skin/sharpen/denoise/color pass is applied here.
 const MODNET_URL="https://github.com/yakhyo/modnet/releases/download/weights/modnet_photographic.onnx";
@@ -31,15 +32,18 @@ async function getModnetSession(){
       await fsp.writeFile(tmp,Buffer.from(await r.arrayBuffer()));
       await fsp.rename(tmp,MODNET_PATH);
     }
-    const ort=await import("onnxruntime-node");
-    return ort.InferenceSession.create(MODNET_PATH,{executionProviders:["cpu"]});
+    const ort=await import("onnxruntime-web/wasm");
+    ort.env.wasm.numThreads=1;
+    ort.env.wasm.proxy=false;
+    const modelBytes=new Uint8Array(await fsp.readFile(MODNET_PATH));
+    return ort.InferenceSession.create(modelBytes,{executionProviders:["wasm"]});
   })().catch(e=>{modnetSessionPromise=null;throw e});
   return modnetSessionPromise;
 }
 
 async function modnetRemoveBackground(input){
   const sharp=(await import("sharp")).default;
-  const ort=await import("onnxruntime-node");
+  const ort=await import("onnxruntime-web/wasm");
   const src=sharp(input,{failOn:"none"});
   const meta=await src.metadata();
   const W=meta.width,H=meta.height;
