@@ -573,11 +573,11 @@
 .diagnostic-downloads>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:6px}
 .diagnostic-downloads a{padding:9px 8px;border:1px solid #d6def0;border-radius:10px;background:#fff;text-align:center;text-decoration:none;color:#2448a8;font-size:12px;font-weight:700}
 @media(max-width:560px){.diagnostic-downloads>div{grid-template-columns:1fr}}
-
-/* V82 Photoshop-like live head transform: GPU-only during drag; final renders once on release. */
-.live-head-stage{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;transform-origin:center center;will-change:transform;pointer-events:none}
-.live-head-stage>img{position:absolute;display:block;max-width:none;pointer-events:none;-webkit-user-drag:none;user-select:none}
-.live-bg-layer{inset:0;width:100%;height:100%;object-fit:fill;z-index:0}
-.live-head-layer{z-index:1;transform-origin:0 0;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden;image-rendering:auto}
-.live-uniform-layer{inset:0;width:100%;height:100%;object-fit:fill;z-index:2}
-.direct-edit-preview{contain:layout paint;}
+/* V84 Photoshop-like direct head transform layer. Preview-only; export still uses 02 master. */
+.direct-edit-preview{touch-action:none!important;overscroll-behavior:contain;user-select:none;-webkit-user-select:none}
+.head-live-stage{position:absolute;inset:0;overflow:hidden;background:#eef3f4;touch-action:none;pointer-events:none}
+.head-live-stage img{position:absolute!important;max-width:none!important;object-fit:fill!important;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.head-stage-bg{inset:0!important;width:100%!important;height:100%!important}
+.head-stage-person{transform-origin:50% 50%;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.head-stage-uniform{z-index:3}
+.head-stage-person{z-index:2}.head-stage-bg{z-index:1}
