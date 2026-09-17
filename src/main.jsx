@@ -600,7 +600,19 @@ function App(){
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  // 02 = exact remove.bg result before placement/resampling.
+  // V71 QUALITY GUARD: full-resolution remove.bg must preserve the AI canvas dimensions.
+  // If the service ever returns a preview-sized result again, stop here instead of
+  // silently enlarging a low-resolution cutout into the final portrait.
+  {
+   const rawURL=URL.createObjectURL(aiHeadNeck), cutURL=URL.createObjectURL(headNeckTransparent);
+   try{
+    const raw=await loadImage(rawURL),cut=await loadImage(cutURL);
+    if(raw.naturalWidth!==cut.naturalWidth||raw.naturalHeight!==cut.naturalHeight){
+     throw Error(`remove.bg ส่งภาพความละเอียดลดลง ${cut.naturalWidth}×${cut.naturalHeight} จาก ${raw.naturalWidth}×${raw.naturalHeight} — ระบบหยุดเพื่อไม่ให้ภาพเสียความคม`);
+    }
+   }finally{URL.revokeObjectURL(rawURL);URL.revokeObjectURL(cutURL)}
+  }
+  // 02 = exact full-resolution remove.bg result before the single placement/downscale.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
