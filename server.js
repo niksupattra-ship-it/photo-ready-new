@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import crypto from "crypto";
+import sharp from "sharp";
 import { fileURLToPath } from "url";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
@@ -42,7 +43,6 @@ async function getModnetSession(){
 }
 
 async function modnetRemoveBackground(input){
-  const sharp=(await import("sharp")).default;
   const ort=await import("onnxruntime-web/wasm");
   const src=sharp(input,{failOn:"none"});
   const meta=await src.metadata();
