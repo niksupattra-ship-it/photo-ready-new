@@ -484,3 +484,34 @@
   .style-detail-card .process-option-bar .line-tool-icon{width:30px!important;height:30px!important}
   .download-below-tools{width:100%!important;margin:8px auto calc(18px + env(safe-area-inset-bottom))!important}
 }
+
+/* V54 — capability-responsive editor, shared by phone/tablet/desktop */
+.adaptive-editor .editor-context-header,
+.adaptive-editor .editor-preview-heading{display:none!important}
+.adaptive-editor .style-detail-card{padding-top:clamp(10px,1.5vw,18px)}
+.adaptive-editor .hero-preview{touch-action:none!important;overscroll-behavior:contain!important;user-select:none!important;-webkit-user-select:none!important}
+.adaptive-editor .editable-result-image{will-change:transform;transform-origin:center center;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.adaptive-editor .process-option-bar{display:flex!important;visibility:visible!important;opacity:1!important;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:clamp(6px,1.2vw,12px)}
+.adaptive-editor .process-option-bar::-webkit-scrollbar{display:none}
+.adaptive-editor .process-option-bar button{display:flex!important;visibility:visible!important;flex:0 0 clamp(76px,10vw,104px);min-width:0!important}
+.adaptive-editor .download-below-tools{display:block!important;position:relative!important;inset:auto!important;width:min(100%,640px)!important;margin:10px auto 20px!important;z-index:2!important}
+@media (pointer:fine){
+ .adaptive-editor .direct-edit-preview{cursor:grab}
+ .adaptive-editor .direct-edit-preview:active{cursor:grabbing}
+ .adaptive-editor .preview-edit-hint{display:block}
+}
+@media (pointer:coarse){
+ .adaptive-editor .process-option-bar button{flex-basis:88px}
+ .adaptive-editor input[type="range"]{min-height:34px}
+ .adaptive-editor .preview-floating-actions button{min-width:48px;min-height:48px}
+}
+@media (min-width:701px){
+ .adaptive-editor .process-option-bar{justify-content:center}
+ .adaptive-editor .style-detail-card{padding-left:clamp(16px,3vw,28px);padding-right:clamp(16px,3vw,28px)}
+}
+@media (max-width:700px){
+ .adaptive-editor .style-detail-card{padding-left:10px!important;padding-right:10px!important}
+ .adaptive-editor .hero-preview{margin-top:4px!important}
+ .adaptive-editor .process-option-bar{justify-content:flex-start;margin-left:-10px!important;margin-right:-10px!important;padding-left:10px!important;padding-right:10px!important}
+ .adaptive-editor .download-below-tools{width:calc(100% - 4px)!important;margin-bottom:calc(18px + env(safe-area-inset-bottom))!important}
+}
