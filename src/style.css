@@ -515,3 +515,24 @@
  .adaptive-editor .process-option-bar{justify-content:flex-start;margin-left:-10px!important;margin-right:-10px!important;padding-left:10px!important;padding-right:10px!important}
  .adaptive-editor .download-below-tools{width:calc(100% - 4px)!important;margin-bottom:calc(18px + env(safe-area-inset-bottom))!important}
 }
+
+/* V55 — restore navigation header and make the tool rail genuinely swipeable on touch devices. */
+.adaptive-editor .editor-context-header{display:flex!important}
+.adaptive-editor .editor-preview-heading{display:none!important}
+.adaptive-editor .process-option-bar{
+  justify-content:flex-start!important;
+  overflow-x:scroll!important;
+  overflow-y:hidden!important;
+  touch-action:pan-x!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior-x:contain!important;
+  scroll-snap-type:none!important;
+  scroll-behavior:auto!important;
+  cursor:grab;
+}
+.adaptive-editor .process-option-bar:active{cursor:grabbing}
+.adaptive-editor .process-option-bar button{touch-action:pan-x!important;flex-shrink:0!important}
+@media(max-width:700px){
+  .adaptive-editor .editor-context-header{display:flex!important}
+  .adaptive-editor .process-option-bar{width:calc(100% + 20px)!important;max-width:none!important}
+}
