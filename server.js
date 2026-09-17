@@ -32,7 +32,11 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า REMOVEBG_API_KEY ใน Render");
 
     const form=new FormData();
-    form.append("size","auto");
+    // V71 LOSSLESS REMOVE.BG: force full-resolution output.
+    // `auto` can legally fall back to the 0.25 MP preview when full credits are not
+    // available (the observed 408x612 diagnostic result is ~0.25 MP exactly).
+    // Never silently trade portrait detail for a preview-sized cutout.
+    form.append("size","full");
     form.append("format","png");
     // V75: this endpoint is used only for portrait/person assets.
     // Tell remove.bg the foreground type explicitly instead of asking its auto classifier
