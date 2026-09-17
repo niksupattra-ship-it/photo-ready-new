@@ -581,3 +581,29 @@
 .head-stage-person{transform-origin:50% 50%;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .head-stage-uniform{z-index:3}
 .head-stage-person{z-index:2}.head-stage-bg{z-index:1}
+
+/* V84 menu-no-zoom lock — opening/closing any tool must never resize/crop the preview. */
+.style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  width:min(100%,calc((100svh - 230px) * .75),520px)!important;
+  max-width:520px!important;
+  min-width:0!important;
+  aspect-ratio:3/4!important;
+  margin:8px auto 0!important;
+}
+.style-detail-card:has(.tool-choice-sheet) .hero-preview img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  object-position:50% 50%!important;
+}
+@media(max-width:650px){
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    width:min(100%,calc((100svh - 180px) * .75))!important;
+    max-width:460px!important;
+  }
+}
+@media(min-width:651px) and (max-width:1100px){
+  .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    max-width:540px!important;
+  }
+}
