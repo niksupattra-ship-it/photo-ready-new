@@ -32,10 +32,6 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า REMOVEBG_API_KEY ใน Render");
 
     const form=new FormData();
-    // V71 LOSSLESS REMOVE.BG: force full-resolution output.
-    // `auto` can legally fall back to the 0.25 MP preview when full credits are not
-    // available (the observed 408x612 diagnostic result is ~0.25 MP exactly).
-    // Never silently trade portrait detail for a preview-sized cutout.
     form.append("size","full");
     form.append("format","png");
     // V75: this endpoint is used only for portrait/person assets.
@@ -97,7 +93,7 @@ SKIN SOURCE LOCK: Image 1 is authoritative. Preserve the real skin character vis
 
 HAIR: ${keepOriginalHair?"preserve the original hair from Image 1, including hairline, parting, volume, strand character and silhouette.":"change ONLY the hairstyle to follow Image 2. Match its parting, fringe, side shape, crown, volume, length, tied/untied structure and silhouette while adapting it naturally to the subject's own skull, hairline and ears. Hair must have real roots, individual strands, density variation and flyaways. The hairstyle reference has ZERO authority over face, skin, complexion or lighting."}
 
-OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, plus a natural straight neck ending before the torso/clothing. No shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons or fabric. Return the head, hair, ears, neck and upper bare shoulder area on a fully transparent background (alpha), with no backdrop pixels. Keep natural camera detail without halos or artificial sharpening.
+OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, plus a natural straight neck ending before the torso/clothing. No shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons or fabric. Use a simple temporary solid background. Keep natural camera detail without halos or artificial sharpening.
 
 FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture from Image 1, (3) selected hairstyle only from Image 2 when supplied, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
@@ -108,7 +104,6 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     form.append("quality","high");
     form.append("size","1024x1536");
     form.append("output_format","png");
-    form.append("background","transparent");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
