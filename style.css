@@ -560,3 +560,9 @@
 
 /* V60 — user supplied toolbar SVG icons only */
 .line-tool-icon img{width:28px;height:28px;display:block;object-fit:contain}
+
+/* V62 — toolbar SVG icons +50% only; all other systems unchanged. */
+.line-tool-icon img{width:42px;height:42px}
+.line-tool-icon{width:42px!important;height:42px!important}
+.style-detail-card .simple-line-tools .line-tool-icon{width:42px!important;height:42px!important}
+.style-detail-card .process-option-bar .line-tool-icon{width:42px!important;height:42px!important}
