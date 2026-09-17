@@ -444,14 +444,14 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0){
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
-  // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
-  const finalScale=lock.scale*s;
-  const baseCX=lock.hX+(lock.headW*lock.scale)/2, baseCY=lock.hY+(lock.headH*lock.scale)/2;
+  // Preview/export transform lock: reproduce the CSS head transform exactly on the final canvas.
+  // Base placement stays untouched; user scale/rotation happen around the placed head center, then X/Y translation is applied.
+  const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
+  const baseCX=lock.hX+baseW/2, baseCY=lock.hY+baseH/2;
   x.save();
   x.translate(baseCX+dx,baseCY+dy);
   x.rotate(rotation);
-  x.translate(-baseCX,-baseCY);
-  x.drawImage(head,lock.hX,lock.hY,lock.headW*finalScale,lock.headH*finalScale);
+  x.drawImage(head,-(baseW*s)/2,-(baseH*s)/2,baseW*s,baseH*s);
   x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
