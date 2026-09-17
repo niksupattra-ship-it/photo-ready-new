@@ -355,7 +355,7 @@ function applyStudioFaceTone(canvas){
  // Pass 2 — same conservative 4-neighbour unsharp principle as the reference project:
  // strength 0.18 and delta capped at +/-10. It restores existing pore/camera micro-detail;
  // it does not invent texture and cannot move facial features.
- const exposed=new Uint8ClampedArray(out),strength=.18,maxDelta=10;
+ const exposed=new Uint8ClampedArray(out),strength=.34,maxDelta=16;
  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
   const i=(y*w+x)*4;if(!isSkinAt(i))continue;
   const left=i-4,right=i+4,up=i-w*4,down=i+w*4;
@@ -367,6 +367,35 @@ function applyStudioFaceTone(canvas){
    out[i+c]=Math.max(0,Math.min(255,Math.round(center+delta)));
   }
   out[i+3]=exposed[i+3];
+ }
+ // Pass 3 — V52 "Pro black" hair finish. Work only on dark, low-chroma pixels in the upper
+ // head region of this transparent head layer. This cannot move/repaint the face; it only makes
+ // existing hair deeper neutral-black, adds strand separation, and preserves natural highlights.
+ const skinFinished=new Uint8ClampedArray(out);
+ const hairLimit=Math.floor(h*.58);
+ const isHairAt=(i,x,y)=>{
+  if(y>=hairLimit||skinFinished[i+3]<32)return false;
+  const r=skinFinished[i],g=skinFinished[i+1],b=skinFinished[i+2];
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),lum=.2126*r+.7152*g+.0722*b;
+  return lum<112 && (mx-mn)<58 && !isSkinAt(i);
+ };
+ for(let y=1;y<hairLimit-1;y++)for(let x=1;x<w-1;x++){
+  const i=(y*w+x)*4;if(!isHairAt(i,x,y))continue;
+  const r=skinFinished[i],g=skinFinished[i+1],b=skinFinished[i+2];
+  const lum=.2126*r+.7152*g+.0722*b;
+  // Darken midtones more than highlights, neutralize warm/brown cast without crushing blacks.
+  const dark=lum<32?.96:lum<78?.84:.88;
+  let nr=r*dark,ng=g*dark,nb=b*dark;
+  const neutral=(nr+ng+nb)/3,neutralMix=.22;
+  nr=nr*(1-neutralMix)+neutral*neutralMix;
+  ng=ng*(1-neutralMix)+neutral*neutralMix;
+  nb=nb*(1-neutralMix)+neutral*neutralMix;
+  const left=i-4,right=i+4,up=i-w*4,down=i+w*4;
+  for(const [c,v] of [[0,nr],[1,ng],[2,nb]]){
+   const blur=(skinFinished[left+c]+skinFinished[right+c]+skinFinished[up+c]+skinFinished[down+c])/4;
+   const delta=Math.max(-12,Math.min(12,(skinFinished[i+c]-blur)*.28));
+   out[i+c]=Math.max(0,Math.min(255,Math.round(v+delta)));
+  }
  }
  image.data.set(out);ctx.putImageData(image,0,0);return canvas;
 }
@@ -706,7 +735,7 @@ function App(){
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
-  // V83: brighten/detail only existing skin pixels after AI; no overlay and no face regeneration.
+  // V52: stronger source-supported optical detail + Pro-black hair tone; no geometry/face regeneration.
   applyStudioFaceTone(aiLayer);
   // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
   // This removes the post-process face overlay/mask that caused visible face-shaped seams.
