@@ -598,23 +598,12 @@ function App(){
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
   // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
-  // V72 NO-REMOVEBG PIPELINE: GPT Image returns the full 1024x1536 person layer as transparent PNG.
-  // Do not call remove.bg here: no second paid background-removal request and no preview-size downscale.
+  // V72: GPT Image now returns the AI head/neck directly as a full-resolution transparent PNG.
+  // IMPORTANT: no remove.bg call after AI. This preserves the exact AI pixels/resolution
+  // and avoids the 1024x1536 -> preview-size -> upscale quality loss found in V70/V71.
+  // Face/skin/hair instructions, model, quality and input_fidelity remain unchanged.
   const headNeckTransparent=aiHeadNeck;
-  // Validate that GPT actually returned alpha before composition. If not, stop rather than
-  // silently compositing an opaque backdrop into the fixed uniform template.
-  {
-   const u=URL.createObjectURL(headNeckTransparent);
-   try{
-    const im=await loadImage(u),c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;
-    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
-    const d=x.getImageData(0,0,c.width,c.height).data;let hasAlpha=false;
-    const step=Math.max(4,Math.floor((c.width*c.height)/50000)*4);
-    for(let i=3;i<d.length;i+=step){if(d[i]<250){hasAlpha=true;break}}
-    if(!hasAlpha)throw Error('AI ไม่ได้ส่งพื้นหลังโปร่งใสกลับมา ระบบหยุดก่อนประกอบภาพเพื่อไม่ให้พื้นหลังทับ Template');
-   }finally{URL.revokeObjectURL(u)}
-  }
-  // 02 = the same full-resolution transparent AI master, before the single placement/downscale.
+  // 02 = exact transparent AI master before the single placement/downscale.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
