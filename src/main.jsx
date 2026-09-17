@@ -598,21 +598,23 @@ function App(){
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
   // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
-  // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
-  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  // V71 QUALITY GUARD: full-resolution remove.bg must preserve the AI canvas dimensions.
-  // If the service ever returns a preview-sized result again, stop here instead of
-  // silently enlarging a low-resolution cutout into the final portrait.
+  // V72 NO-REMOVEBG PIPELINE: GPT Image returns the full 1024x1536 person layer as transparent PNG.
+  // Do not call remove.bg here: no second paid background-removal request and no preview-size downscale.
+  const headNeckTransparent=aiHeadNeck;
+  // Validate that GPT actually returned alpha before composition. If not, stop rather than
+  // silently compositing an opaque backdrop into the fixed uniform template.
   {
-   const rawURL=URL.createObjectURL(aiHeadNeck), cutURL=URL.createObjectURL(headNeckTransparent);
+   const u=URL.createObjectURL(headNeckTransparent);
    try{
-    const raw=await loadImage(rawURL),cut=await loadImage(cutURL);
-    if(raw.naturalWidth!==cut.naturalWidth||raw.naturalHeight!==cut.naturalHeight){
-     throw Error(`remove.bg ส่งภาพความละเอียดลดลง ${cut.naturalWidth}×${cut.naturalHeight} จาก ${raw.naturalWidth}×${raw.naturalHeight} — ระบบหยุดเพื่อไม่ให้ภาพเสียความคม`);
-    }
-   }finally{URL.revokeObjectURL(rawURL);URL.revokeObjectURL(cutURL)}
+    const im=await loadImage(u),c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;
+    const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+    const d=x.getImageData(0,0,c.width,c.height).data;let hasAlpha=false;
+    const step=Math.max(4,Math.floor((c.width*c.height)/50000)*4);
+    for(let i=3;i<d.length;i+=step){if(d[i]<250){hasAlpha=true;break}}
+    if(!hasAlpha)throw Error('AI ไม่ได้ส่งพื้นหลังโปร่งใสกลับมา ระบบหยุดก่อนประกอบภาพเพื่อไม่ให้พื้นหลังทับ Template');
+   }finally{URL.revokeObjectURL(u)}
   }
-  // 02 = exact full-resolution remove.bg result before the single placement/downscale.
+  // 02 = the same full-resolution transparent AI master, before the single placement/downscale.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
@@ -626,7 +628,7 @@ function App(){
   const finished=await renderAdjustedFinal(layer,composed.lock,{scale:1,x:0,y:0},0);
   // 03 = transparent head layer immediately after Canvas placement/resize. 04 = exact final output.
   const placedHeadBlob=await canvasBlob(aiLayer);
-  setDiagnosticBlobs([['01-AI-RAW.png',aiHeadNeck],['02-REMOVE-BG.png',headNeckTransparent],['03-PLACED-HEAD.png',placedHeadBlob],['04-FINAL.png',finished]]);
+  setDiagnosticBlobs([['01-AI-RAW.png',aiHeadNeck],['02-AI-TRANSPARENT-MASTER.png',headNeckTransparent],['03-PLACED-HEAD.png',placedHeadBlob],['04-FINAL.png',finished]]);
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  if(screen==='home'){
