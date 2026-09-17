@@ -469,3 +469,18 @@
 .background-choice-preview{display:flex;align-items:center;gap:12px;min-height:88px;padding:4px 2px 8px;color:#667085}.background-choice-preview>small{font-size:11px}.background-swatch{border:1px solid #dce3ec;background:#fff;border-radius:14px;padding:8px;display:grid;gap:5px;justify-items:center;font:inherit;color:#344054}.background-swatch span{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#2f80ed,#56ccf2);border:1px solid #d5dce6}.background-swatch strong{font-size:10px}
 
 @media(max-width:650px){.preview-floating-actions{top:9px;right:9px;gap:6px}.preview-floating-actions button{width:48px;height:48px}.preview-floating-actions button span{font-size:19px}.preview-floating-actions button small{font-size:7px}.style-detail-card .process-first{width:calc(100% - 24px)!important;margin:8px auto 12px!important}.background-choice-preview{min-height:76px}}
+
+/* V53 mobile editor UX — presentation/gestures only; image-processing pipeline is unchanged. */
+.direct-edit-preview{touch-action:none!important;overscroll-behavior:contain!important;user-select:none;-webkit-user-select:none}
+.direct-edit-preview .editable-result-image{transform-origin:center center;will-change:transform;transition:none!important;pointer-events:none}
+.download-below-tools{display:block!important;width:min(100%,640px)!important;margin:8px auto 18px!important;position:relative!important;z-index:1!important}
+@media(max-width:650px){
+  .process-mobile-topbar{display:none!important}
+  .process-page-title{display:none!important}
+  .style-detail-card{padding-top:8px!important}
+  .style-detail-card .process-option-bar{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important;overflow:visible!important;width:100%!important}
+  .style-detail-card .process-option-bar button{min-width:0!important;width:100%!important;flex:none!important;padding:8px 4px!important}
+  .style-detail-card .process-option-bar button strong{font-size:10px!important;white-space:nowrap}
+  .style-detail-card .process-option-bar .line-tool-icon{width:30px!important;height:30px!important}
+  .download-below-tools{width:100%!important;margin:8px auto calc(18px + env(safe-area-inset-bottom))!important}
+}
