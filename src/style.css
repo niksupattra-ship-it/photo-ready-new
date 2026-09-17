@@ -585,13 +585,3 @@
 .preview-viewport-layer{position:absolute;inset:0;transform-origin:50% 50%;will-change:transform;transition:none!important;pointer-events:none;overflow:hidden}
 .preview-viewport-layer .head-live-stage{overflow:hidden}
 .hero-preview.direct-edit-preview{overflow:hidden}
-
-/* V88 — Photoshop-like workspace gestures.
-   The card around the 3:4 frame is an interaction surface, while the image frame stays clipped. */
-.style-detail-card.preview-workspace{
-  touch-action:none!important;
-  overscroll-behavior:contain!important;
-}
-.style-detail-card.preview-workspace .hero-preview.direct-edit-preview{
-  overflow:hidden!important;
-}
