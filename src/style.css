@@ -557,3 +557,6 @@
 .choice-rail-arrow:active{transform:translateY(1px)}
 @media (hover:hover) and (pointer:fine){.choice-rail-arrow{display:flex}.choice-rail-left{margin-right:7px}.choice-rail-right{margin-left:7px}}
 @media (hover:none),(pointer:coarse){.choice-rail-arrow{display:none!important}.choice-rail-wrap .choice-scroll-rail{width:100%;-webkit-overflow-scrolling:touch;touch-action:pan-x}}
+
+/* V60 — user supplied toolbar SVG icons only */
+.line-tool-icon img{width:28px;height:28px;display:block;object-fit:contain}

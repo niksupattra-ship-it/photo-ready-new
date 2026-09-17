@@ -536,3 +536,27 @@
   .adaptive-editor .editor-context-header{display:flex!important}
   .adaptive-editor .process-option-bar{width:calc(100% + 20px)!important;max-width:none!important}
 }
+
+/* V57 — universal tool toggle/dismiss behavior + desktop-only rail arrows. */
+.adaptive-editor .tool-rail-wrap{position:relative;width:100%;display:flex;align-items:center;min-width:0}
+.adaptive-editor .tool-rail-wrap .process-option-bar{flex:1 1 auto;min-width:0}
+.adaptive-editor .tool-rail-arrow{display:none;border:0;background:rgba(255,255,255,.96);box-shadow:0 1px 7px rgba(15,23,42,.16);width:28px;height:36px;border-radius:999px;font-size:25px;line-height:1;color:#172033;align-items:center;justify-content:center;cursor:pointer;z-index:4;flex:0 0 28px;padding:0}
+@media (hover:hover) and (pointer:fine){
+ .adaptive-editor .tool-rail-arrow{display:flex}
+ .adaptive-editor .tool-rail-left{margin-right:5px}
+ .adaptive-editor .tool-rail-right{margin-left:5px}
+}
+@media (hover:none), (pointer:coarse){
+ .adaptive-editor .tool-rail-arrow{display:none!important}
+}
+
+/* V58: desktop arrows belong to the SUB-OPTION thumbnail rail (hair/ribbon/background choices), not preview/tool icons. */
+.choice-rail-wrap{position:relative;display:flex;align-items:center;min-width:0;width:100%}
+.choice-rail-wrap .choice-scroll-rail{flex:1 1 auto;min-width:0;scroll-behavior:smooth}
+.choice-rail-arrow{display:none;flex:0 0 28px;width:28px;height:44px;border:1px solid #dfe4ea;background:rgba(255,255,255,.96);border-radius:9px;color:#344054;font-size:22px;line-height:1;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(16,24,40,.08);z-index:2;padding:0}
+.choice-rail-arrow:active{transform:translateY(1px)}
+@media (hover:hover) and (pointer:fine){.choice-rail-arrow{display:flex}.choice-rail-left{margin-right:7px}.choice-rail-right{margin-left:7px}}
+@media (hover:none),(pointer:coarse){.choice-rail-arrow{display:none!important}.choice-rail-wrap .choice-scroll-rail{width:100%;-webkit-overflow-scrolling:touch;touch-action:pan-x}}
+
+/* V60 — user supplied toolbar SVG icons only */
+.line-tool-icon img{width:28px;height:28px;display:block;object-fit:contain}
