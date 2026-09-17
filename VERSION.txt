@@ -1,1 +1,1 @@
-V60 - user supplied toolbar SVG icons; no processing changes
+V61 - V60 UI/icons + V51 processing baseline restored
