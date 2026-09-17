@@ -1,1 +1,1 @@
-V66 - V63 UI + exact supplied-reference face/skin/hair pipeline
+V69 — reference-guided full-quality face/skin/hair; fixed clothing template unchanged

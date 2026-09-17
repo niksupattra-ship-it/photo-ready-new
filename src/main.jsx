@@ -501,10 +501,11 @@ async function removeBackgroundBlob(blob){
  return removeBackgroundRobust(blob,'ai-person.png');
 }
 
-async function aiFinishPortrait(composedBlob,hairId){
- const uploadBlob=await makeAiUploadBlob(composedBlob);
+async function aiFinishPortrait(originalFile,hairId){
+ // V69: send the user's original full-quality file directly to the image editor.
+ // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
  const fd=new FormData();
- fd.append('image',uploadBlob,'portrait.jpg');
+ fd.append('image',originalFile,originalFile?.name||'portrait.png');
  fd.append('hairId',hairId||'original');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
@@ -587,15 +588,10 @@ function App(){
  const previewTouchEnd=e=>{if(e.touches.length<2)gestureRef.current.pinch=false;if(e.touches.length===0&&gestureRef.current.drag){const wasHead=gestureRef.current.editHead;gestureRef.current.drag=false;clearTimeout(renderTimer.current);if(wasHead)applyAdjust(headAdjust)}};
  const previewWheel=e=>{if(!b)return;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();const old=previewZoom;const factor=Math.exp(-e.deltaY*0.0015);const z=Math.max(1,Math.min(4,old*factor));if(Math.abs(z-old)<.001)return;const cx=e.clientX-rect.left-rect.width/2,cy=e.clientY-rect.top-rect.height/2;const ratio=z/old;setPreviewZoom(z);setPreviewPan(z<=1?{x:0,y:0}:{x:cx-(cx-previewPan.x)*ratio,y:cy-(cy-previewPan.y)*ratio})};
  const go=async()=>{setBusy(true);setMsg('');try{
-  const fileKey=[f.name,f.size,f.lastModified].join(':');let transparent=transparentCache.current.key===fileKey?transparentCache.current.blob:null;
-  if(!transparent){transparent=await removeBackgroundRobust(f,f.name||'portrait.png');transparentCache.current={key:fileKey,blob:transparent};}
-  // V46 PIPELINE: original -> remove.bg -> cut away original neck/body -> AI head+hair+BARE neck/clavicle only
-  // -> remove AI temporary background -> normalize against the real fixed uniform -> place UNDER uniform.
-  // The AI never receives the uniform template, so it cannot generate a duplicate uniform.
-  const sourceHead=await headOnly(transparent);
-  // Reference pipeline lock: use the normalized source-head input exactly like the supplied reference project.
-  // This keeps its face / skin / hair behavior while leaving V63 UI and all unrelated systems unchanged.
-  const aiHeadNeck=await aiFinishPortrait(sourceHead,hairId||'');
+  // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
+  // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
+  // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
+  const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
