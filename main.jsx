@@ -707,9 +707,7 @@ function App(){
   // Reference pipeline lock: use the normalized source-head input exactly like the supplied reference project.
   // This keeps its face / skin / hair behavior while leaving V63 UI and all unrelated systems unchanged.
   const aiHeadNeck=await aiFinishPortrait(sourceHead,hairId||'');
-  // V67: /api/ai-finish now returns PNG with alpha directly. Do NOT send the AI result to remove.bg again.
-  // The first remove.bg pass on the real uploaded portrait remains unchanged.
-  const headNeckTransparent=aiHeadNeck;
+  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V83: brighten/detail only existing skin pixels after AI; no overlay and no face regeneration.
