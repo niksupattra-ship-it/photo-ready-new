@@ -11,58 +11,75 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:1,fields:10,parts:12}
 });
 
-// V27: preserve V25 remove.bg cache and geometry; natural-camera skin is finished locally after source-face restoration.
-// Cache remove.bg output by exact original image bytes. Re-processing the same upload
-// during this server lifetime does not consume another remove.bg credit.
-const removeBgCache=new Map();
-const MAX_REMOVE_BG_CACHE=100;
+// V76: zero-per-image-cost portrait matting after AI using local MODNet ONNX.
+// The model only predicts an alpha matte. RGB pixels from the exact AI PNG are retained;
+// no beauty/skin/sharpen/denoise/color pass is applied here.
+const MODNET_URL="https://github.com/yakhyo/modnet/releases/download/weights/modnet_photographic.onnx";
+const MODNET_PATH=path.join(dir,".cache","modnet_photographic.onnx");
+let modnetSessionPromise=null;
+
+async function getModnetSession(){
+  if(modnetSessionPromise) return modnetSessionPromise;
+  modnetSessionPromise=(async()=>{
+    const fs=await import("fs");
+    const fsp=fs.promises;
+    await fsp.mkdir(path.dirname(MODNET_PATH),{recursive:true});
+    if(!fs.existsSync(MODNET_PATH) || fs.statSync(MODNET_PATH).size<20*1024*1024){
+      const r=await fetch(MODNET_URL,{redirect:"follow"});
+      if(!r.ok) throw new Error(`ดาวน์โหลด MODNet ไม่สำเร็จ (${r.status})`);
+      const tmp=MODNET_PATH+".tmp";
+      await fsp.writeFile(tmp,Buffer.from(await r.arrayBuffer()));
+      await fsp.rename(tmp,MODNET_PATH);
+    }
+    const ort=await import("onnxruntime-node");
+    return ort.InferenceSession.create(MODNET_PATH,{executionProviders:["cpu"]});
+  })().catch(e=>{modnetSessionPromise=null;throw e});
+  return modnetSessionPromise;
+}
+
+async function modnetRemoveBackground(input){
+  const sharp=(await import("sharp")).default;
+  const ort=await import("onnxruntime-node");
+  const src=sharp(input,{failOn:"none"});
+  const meta=await src.metadata();
+  const W=meta.width,H=meta.height;
+  if(!W||!H) throw new Error("อ่านขนาดภาพไม่ได้");
+  const target=512;
+  let nw,nh;
+  if(Math.max(H,W)<target || Math.min(H,W)>target){
+    if(W>=H){nh=target;nw=Math.floor(W/H*target)}else{nw=target;nh=Math.floor(H/W*target)}
+  }else{nw=W;nh=H}
+  nw=Math.max(32,nw-(nw%32));nh=Math.max(32,nh-(nh%32));
+  const {data}=await sharp(input).removeAlpha().resize(nw,nh,{fit:"fill",kernel:"lanczos3"}).raw().toBuffer({resolveWithObject:true});
+  const plane=nw*nh,tensorData=new Float32Array(3*plane);
+  for(let i=0;i<plane;i++){
+    tensorData[i]=(data[i*3]/255-.5)/.5;
+    tensorData[plane+i]=(data[i*3+1]/255-.5)/.5;
+    tensorData[2*plane+i]=(data[i*3+2]/255-.5)/.5;
+  }
+  const session=await getModnetSession();
+  const inputName=session.inputNames[0];
+  const out=await session.run({[inputName]:new ort.Tensor("float32",tensorData,[1,3,nh,nw])});
+  const matte=out[session.outputNames[0]].data;
+  const alphaSmall=Buffer.alloc(plane);
+  for(let i=0;i<plane;i++) alphaSmall[i]=Math.max(0,Math.min(255,Math.round(Number(matte[i])*255)));
+  // Upscale ONLY the matte to the original AI dimensions. The source RGB itself is never resized.
+  const alpha=await sharp(alphaSmall,{raw:{width:nw,height:nh,channels:1}}).resize(W,H,{fit:"fill",kernel:"lanczos3"}).raw().toBuffer();
+  const rgb=await sharp(input).removeAlpha().raw().toBuffer();
+  return sharp(rgb,{raw:{width:W,height:H,channels:3}}).joinChannel(alpha,{raw:{width:W,height:H,channels:1}}).png().toBuffer();
+}
 
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
   try{
     if(!req.file) return res.status(400).send("กรุณาเลือกรูป");
-    const imageHash=crypto.createHash("sha256").update(req.file.buffer).digest("hex");
-    const cached=removeBgCache.get(imageHash);
-    if(cached){
-      res.set("Content-Type","image/png");
-      res.set("X-RemoveBG-Cache","HIT");
-      return res.send(cached);
-    }
-
-    const key=process.env.REMOVEBG_API_KEY;
-    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า REMOVEBG_API_KEY ใน Render");
-
-    const form=new FormData();
-    form.append("size","full");
-    form.append("format","png");
-    // V75: this endpoint is used only for portrait/person assets.
-    // Tell remove.bg the foreground type explicitly instead of asking its auto classifier
-    // to infer a person from cropped/generated ID-portrait layers. This directly avoids
-    // the documented unknown_foreground failure without changing the image pipeline.
-    form.append("type","person");
-    form.append("image_file",new Blob([req.file.buffer],{type:req.file.mimetype}),req.file.originalname||"image.jpg");
-
-    const r=await fetch("https://api.remove.bg/v1.0/removebg",{
-      method:"POST",
-      headers:{"X-Api-Key":key},
-      body:form
-    });
-    if(!r.ok){
-      let msg=await r.text();
-      return res.status(r.status).send("remove.bg: "+msg);
-    }
-    const data=Buffer.from(await r.arrayBuffer());
-    if(removeBgCache.size>=MAX_REMOVE_BG_CACHE){
-      const oldest=removeBgCache.keys().next().value;
-      removeBgCache.delete(oldest);
-    }
-    removeBgCache.set(imageHash,data);
+    const data=await modnetRemoveBackground(req.file.buffer);
     res.set("Content-Type","image/png");
-    res.set("X-RemoveBG-Cache","MISS");
+    res.set("X-Background-Provider","MODNet-local");
     res.set("Cache-Control","no-store");
     res.send(data);
   }catch(e){
     console.error(e);
-    res.status(500).send("ลบพื้นหลังไม่สำเร็จ: "+e.message);
+    res.status(500).send("MODNet ลบพื้นหลังไม่สำเร็จ: "+e.message);
   }
 });
 
@@ -145,7 +162,7 @@ app.use((err,req,res,next)=>{
   next(err);
 });
 
-app.get("/api/health",(req,res)=>res.json({ok:true,provider:"remove.bg",configured:!!process.env.REMOVEBG_API_KEY}));
+app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",configured:true,removeBgCreditRequired:false}));
 app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
