@@ -536,3 +536,16 @@
   .adaptive-editor .editor-context-header{display:flex!important}
   .adaptive-editor .process-option-bar{width:calc(100% + 20px)!important;max-width:none!important}
 }
+
+/* V57 — universal tool toggle/dismiss behavior + desktop-only rail arrows. */
+.adaptive-editor .tool-rail-wrap{position:relative;width:100%;display:flex;align-items:center;min-width:0}
+.adaptive-editor .tool-rail-wrap .process-option-bar{flex:1 1 auto;min-width:0}
+.adaptive-editor .tool-rail-arrow{display:none;border:0;background:rgba(255,255,255,.96);box-shadow:0 1px 7px rgba(15,23,42,.16);width:28px;height:36px;border-radius:999px;font-size:25px;line-height:1;color:#172033;align-items:center;justify-content:center;cursor:pointer;z-index:4;flex:0 0 28px;padding:0}
+@media (hover:hover) and (pointer:fine){
+ .adaptive-editor .tool-rail-arrow{display:flex}
+ .adaptive-editor .tool-rail-left{margin-right:5px}
+ .adaptive-editor .tool-rail-right{margin-left:5px}
+}
+@media (hover:none), (pointer:coarse){
+ .adaptive-editor .tool-rail-arrow{display:none!important}
+}
