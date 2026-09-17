@@ -95,7 +95,7 @@ PROFESSIONAL CAMERA DETAIL LOCK — EXACT V9: render with crisp professional-cam
 
 HAIR: ${keepOriginalHair?"KEEP THE ORIGINAL HAIR FROM IMAGE 1 EXACTLY. Do not restyle, replace, lengthen, shorten, recolor, thicken, thin, move the parting, change the fringe, change tied/untied structure, or alter the original hair silhouette. Preserve the subject's real hairline, roots, strands, flyaways, volume and visible hairstyle. The AI edit is required only so the natural neck region is generated while the original hair remains unchanged.":"replace only the hairstyle with image 2 as the authoritative hairstyle target. Match its parting, fringe, side shape, crown, volume, length, tied/untied structure and silhouette. Remove source-hair remnants that conflict with the selected style. Adapt the style to the subject's own skull, hairline, ears and head angle. Do not copy the reference face or anatomy. Hair must remain photographic, with natural roots, strands, density variation and soft flyaways."}
 
-BACKGROUND: use a simple clean solid background only as temporary generation space. Do not add scenery or objects. The application removes this background immediately after generation.
+BACKGROUND: output a transparent PNG background (alpha). Do not add scenery, objects, solid backdrop, halo, or background fill. The returned image itself must already be the transparent head/hair/neck layer.
 
 FINAL CHECK: output only the same person's head, ${keepOriginalHair?"original unchanged hairstyle":"selected hairstyle"}, and natural neck region as a professional ID-portrait asset. Exclude all garments and uniform elements from this layer. Keep the EXACT V9 skin-light and camera-detail method above.`;
 
@@ -106,6 +106,9 @@ FINAL CHECK: output only the same person's head, ${keepOriginalHair?"original un
     form.append("quality","medium");
     form.append("size","1024x1536");
     form.append("output_format","png");
+    // V67: request alpha directly from the image edit. This output is already the head/hair/neck layer,
+    // so sending it through remove.bg a second time is unnecessary and can fail with unknown_foreground.
+    form.append("background","transparent");
     form.append("image[]",new Blob([req.file.buffer],{type:req.file.mimetype||"image/png"}),"portrait.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 

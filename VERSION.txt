@@ -1,1 +1,1 @@
-V66 - V63 UI + exact supplied-reference face/skin/hair pipeline
+V67 — transparent AI layer; remove.bg only on original upload
