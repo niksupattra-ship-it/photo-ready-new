@@ -302,3 +302,42 @@
  object-fit:contain!important;object-position:center!important;transform:none!important;
  max-width:none!important;max-height:none!important;
 }
+
+/* V87 TOOL PREVIEW RESTORE — keep the choice/example panel in normal document flow.
+   The previous fixed positioning detached it from the tool rail, so hair/tool examples
+   could render outside the visible editor. The document stage geometry above remains fixed. */
+.adaptive-editor .style-detail-card .tool-choice-sheet{
+ position:relative!important;
+ inset:auto!important;
+ top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+ z-index:20!important;
+ display:block!important;
+ visibility:visible!important;
+ opacity:1!important;
+ overflow:visible!important;
+}
+.adaptive-editor .style-detail-card .tool-choice-sheet .choice-rail-wrap,
+.adaptive-editor .style-detail-card .tool-choice-sheet .process-thumbnail-strip,
+.adaptive-editor .style-detail-card .tool-choice-sheet .ribbon-choice-preview,
+.adaptive-editor .style-detail-card .tool-choice-sheet .background-choice-preview,
+.adaptive-editor .style-detail-card .tool-choice-sheet .compact-tool-panel{
+ visibility:visible!important;
+ opacity:1!important;
+}
+.adaptive-editor .style-detail-card .tool-choice-sheet .process-thumbnail-strip{
+ display:flex!important;
+ min-height:112px!important;
+ overflow-x:auto!important;
+ overflow-y:hidden!important;
+}
+.adaptive-editor .style-detail-card .tool-choice-sheet .hair-card{
+ display:flex!important;
+ flex:0 0 88px!important;
+ min-width:88px!important;
+}
+.adaptive-editor .style-detail-card .tool-choice-sheet .hair-card img{
+ display:block!important;
+ width:100%!important;
+ height:100px!important;
+ object-fit:cover!important;
+}
