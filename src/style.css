@@ -257,20 +257,48 @@
 .head-stage-person{z-index:2}.head-stage-bg{z-index:1}
 
 
-/* V84 CANONICAL DOCUMENT VIEW — background.jpg is 1128x1536 = 47:64.
-   One viewport for upload/result/tools; tool opening never resizes the document. */
+/* V84 DOCUMENT STAGE — single geometry before/after processing.
+   Do not size from viewport height: that was the source of the apparent zoom/crop.
+   background.jpg is 1128x1536 (47:64), so the editor stage uses that exact ratio. */
 .adaptive-editor .style-detail-card .hero-preview,
 .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
- box-sizing:border-box!important;position:relative!important;
- width:min(calc(100% - 4px),calc((100dvh - 150px) * 47 / 64),690px)!important;
- height:auto!important;aspect-ratio:47/64!important;max-width:690px!important;max-height:calc(100dvh - 150px)!important;
- margin:8px auto 12px!important;overflow:hidden!important;transform:none!important;flex:0 0 auto!important;
+ box-sizing:border-box!important;
+ position:relative!important;
+ width:min(100%,520px)!important;
+ height:auto!important;
+ aspect-ratio:47/64!important;
+ max-width:520px!important;
+ max-height:none!important;
+ margin:12px auto 16px!important;
+ overflow:hidden!important;
+ transform:none!important;
+ flex:0 0 auto!important;
 }
 .adaptive-editor .style-detail-card .hero-preview>.source-preview,
 .adaptive-editor .style-detail-card .hero-preview>.editable-result-image{
- position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;
+ position:absolute!important;inset:0!important;
+ width:100%!important;height:100%!important;
+ object-fit:contain!important;object-position:center!important;
+ transform-origin:50% 50%!important;
 }
-.adaptive-editor .head-live-stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;overflow:hidden!important}
+.adaptive-editor .head-live-stage{
+ position:absolute!important;inset:0!important;
+ width:100%!important;height:100%!important;
+ overflow:hidden!important;transform:none!important;
+}
+.adaptive-editor .head-stage-bg{object-fit:fill!important}
 .adaptive-editor .tool-choice-sheet{position:fixed!important}
 .adaptive-editor .download-below-tools{appearance:none;border:0;cursor:pointer}
-@media(max-width:700px){.adaptive-editor .style-detail-card .hero-preview,.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{width:min(calc(100% - 4px),calc((100dvh - 138px) * 47 / 64))!important;max-height:calc(100dvh - 138px)!important}}
+@media(max-width:700px){
+ .adaptive-editor .style-detail-card .hero-preview,
+ .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  width:100%!important;max-width:520px!important;max-height:none!important;
+ }
+}
+
+/* V85 SINGLE-RENDERER PREVIEW — Preview is the exact final bitmap renderer output. */
+.adaptive-editor .hero-preview > .final-render-preview{
+ position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+ object-fit:contain!important;object-position:center!important;transform:none!important;
+ max-width:none!important;max-height:none!important;
+}
