@@ -609,3 +609,24 @@
   .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{min-height:70px!important}
   .adaptive-editor .editor-tool-dock .line-tool-icon{width:36px!important;height:36px!important}
 }
+
+
+/* V92 PERSON NECK TOOL — seven tools; preserve large touch targets with horizontal scroll. */
+@media (max-width:999px){
+ .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{
+   display:flex!important;overflow-x:auto!important;overflow-y:hidden!important;scrollbar-width:none!important;
+   gap:0!important;justify-content:flex-start!important;scroll-snap-type:x proximity;
+ }
+ .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools::-webkit-scrollbar{display:none!important}
+ .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button{
+   flex:0 0 clamp(78px,15.5vw,112px)!important;width:auto!important;min-width:78px!important;scroll-snap-align:start;
+ }
+}
+
+/* V93 LOCKED PLACEMENT — freeze user geometry before hairstyle-only regeneration. */
+.placement-lock-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:8px 12px 6px;background:rgba(255,255,255,.98);border-top:1px solid rgba(15,23,42,.08)}
+.placement-lock-btn{min-height:42px;padding:9px 16px;border:1px solid #2563eb;border-radius:12px;background:#fff;color:#1d4ed8;font-weight:700;cursor:pointer}
+.placement-lock-btn.locked{background:#eff6ff;border-color:#1d4ed8}
+.placement-lock-btn:disabled{opacity:.55;cursor:not-allowed}
+.placement-lock-row small{font-size:12px;color:#475569}
+@media(max-width:640px){.placement-lock-row{padding:7px 8px 5px}.placement-lock-btn{width:100%;min-height:44px}}

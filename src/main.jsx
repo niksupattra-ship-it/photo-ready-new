@@ -1,9 +1,43 @@
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{FilesetResolver,FaceLandmarker}from'@mediapipe/tasks-vision';
+import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
 import'./style.css';
 
 let landmarkerPromise;
+let segmenterPromise;
+async function getPersonSegmenter(){
+ if(!segmenterPromise) segmenterPromise=(async()=>{
+  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  return ImageSegmenter.createFromOptions(vision,{
+   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},
+   runningMode:'IMAGE',outputCategoryMask:true,outputConfidenceMasks:false
+  });
+ })();
+ return segmenterPromise;
+}
+async function semanticProtectedSkinMask(image,W,H){
+ // MediaPipe selfie-multiclass labels: 0 background, 1 hair, 2 body-skin,
+ // 3 face-skin, 4 clothes, 5 other/accessories. Protect skin + clothes exactly;
+ // hair deliberately remains editable. If segmentation is unavailable the caller
+ // keeps the landmark hard-protection fallback instead of weakening protection.
+ const seg=await getPersonSegmenter();
+ const result=await new Promise((ok,bad)=>{try{seg.segment(image,r=>ok(r))}catch(e){bad(e)}});
+ const mask=result?.categoryMask;if(!mask)return null;
+ try{
+  const mw=mask.width||256,mh=mask.height||256,cat=mask.getAsUint8Array();
+  const small=document.createElement('canvas');small.width=mw;small.height=mh;
+  const sc=small.getContext('2d'),id=sc.createImageData(mw,mh);
+  for(let i=0;i<cat.length;i++){
+   const v=cat[i],a=(v===2||v===3||v===4)?255:0,j=i*4;
+   id.data[j]=id.data[j+1]=id.data[j+2]=255;id.data[j+3]=a;
+  }
+  sc.putImageData(id,0,0);
+  const out=document.createElement('canvas');out.width=W;out.height=H;
+  const oc=out.getContext('2d');oc.imageSmoothingEnabled=false;oc.drawImage(small,0,0,W,H);
+  return out;
+ }finally{mask.close?.()}
+}
+
 async function getLandmarker(){
  if(!landmarkerPromise) landmarkerPromise=(async()=>{
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
@@ -432,7 +466,86 @@ async function warpUniformCollar(uniform,amount=0){
  ox.putImageData(dest,roiL,roiT);
  return out;
 }
-async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0){
+
+async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
+ const width=Math.max(-1,Math.min(1,neckAdjust?.width||0));
+ const length=Math.max(-1,Math.min(1,neckAdjust?.length||0));
+ if(Math.abs(width)<.001&&Math.abs(length)<.001)return head;
+ const W=head.naturalWidth||head.width,H=head.naturalHeight||head.height;
+ const src=document.createElement('canvas');src.width=W;src.height=H;
+ const sx=src.getContext('2d',{willReadFrequently:true});sx.drawImage(head,0,0,W,H);
+ const out=document.createElement('canvas');out.width=W;out.height=H;
+ const ox=out.getContext('2d');ox.drawImage(head,0,0,W,H);
+
+ // FACE + HAIR PROTECTION MASK.
+ // `chinY` is normalized in the transparent AI head master. Everything through the
+ // jaw/chin plus a safety band remains untouched. The editable area is a narrow
+ // anatomical neck bridge only; the broad head/hair silhouette is never warped.
+ const safeChin=Math.max(.35,Math.min(.82,chinY||.62));
+ const protectedBottom=Math.min(H-2,Math.round((safeChin+.050)*H));
+ const neckBottom=Math.min(H-1,Math.round(protectedBottom+H*.205));
+ const neckH=Math.max(2,neckBottom-protectedBottom);
+ const cx=W*.5;
+ // Narrower than the old rectangular ROI: top/bottom widths approximate the central
+ // neck bridge and deliberately exclude side hair, jaw corners and shoulders.
+ const topHalf=W*.082;
+ const bottomHalf=W*.070;
+ const feather=Math.max(2,Math.round(W*.008));
+ const roiHalf=Math.ceil(Math.max(topHalf,bottomHalf)+feather+2);
+ const left=Math.max(0,Math.floor(cx-roiHalf)),right=Math.min(W,Math.ceil(cx+roiHalf));
+ const rw=right-left,rh=neckH;
+ if(rw<4||rh<4)return head;
+ const si=sx.getImageData(left,protectedBottom,rw,rh);
+ const warped=sx.createImageData(rw,rh),sd=si.data,wd=warped.data;
+ const sample=(fx,fy,idx)=>{
+  fx=Math.max(0,Math.min(rw-1,fx));fy=Math.max(0,Math.min(rh-1,fy));
+  const x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(rw-1,x0+1),y1=Math.min(rh-1,y0+1),tx=fx-x0,ty=fy-y0;
+  const a=(y0*rw+x0)*4,b=(y0*rw+x1)*4,c=(y1*rw+x0)*4,d=(y1*rw+x1)*4;
+  for(let k=0;k<4;k++){const u=sd[a+k]*(1-tx)+sd[b+k]*tx,v=sd[c+k]*(1-tx)+sd[d+k]*tx;wd[idx+k]=Math.round(u*(1-ty)+v*ty)}
+ };
+ for(let yy=0;yy<rh;yy++){
+  const yn=yy/Math.max(1,rh-1);
+  // Zero deformation at both protected boundaries, strongest in the neck middle.
+  const yInfluence=Math.pow(Math.sin(Math.PI*yn),1.15);
+  const halfAtY=topHalf+(bottomHalf-topHalf)*yn;
+  for(let xx=0;xx<rw;xx++){
+   const absX=left+xx,dist=Math.abs(absX-cx);
+   const inside=Math.max(0,1-dist/Math.max(1,halfAtY));
+   const influence=yInfluence*Math.pow(inside,1.35);
+   const scaleX=1+width*.30*influence;
+   const scaleY=1+length*.24*influence;
+   const srcX=(cx-left)+(xx-(cx-left))/Math.max(.62,scaleX);
+   // Keep top and bottom fixed so neither chin nor collar edge is pulled.
+   const centeredY=yy-(rh-1)/2;
+   const srcY=(rh-1)/2+centeredY/Math.max(.70,scaleY);
+   sample(srcX,srcY,(yy*rw+xx)*4);
+  }
+ }
+
+ // Composite the warped pixels ONLY through the neck mask. Outside this mask the
+ // original master remains byte-for-byte untouched. A small inner feather prevents
+ // a hard seam without allowing the mask to enter the protected face/hair region.
+ const wi=warped.data;
+ const base=si.data;
+ const merged=ox.createImageData(rw,rh),md=merged.data;
+ for(let yy=0;yy<rh;yy++){
+  const yn=yy/Math.max(1,rh-1),halfAtY=topHalf+(bottomHalf-topHalf)*yn;
+  const yGuard=Math.min(1,yy/Math.max(1,feather),(rh-1-yy)/Math.max(1,feather));
+  for(let xx=0;xx<rw;xx++){
+   const absX=left+xx,dist=Math.abs(absX-cx);
+   const edge=(halfAtY-dist)/Math.max(1,feather);
+   const mask=Math.max(0,Math.min(1,edge))*Math.max(0,Math.min(1,yGuard));
+   const i=(yy*rw+xx)*4;
+   // Transparent pixels stay transparent; the mask never invents anatomy outside
+   // the existing person alpha silhouette.
+   const alphaMask=mask*(base[i+3]/255);
+   for(let k=0;k<4;k++)md[i+k]=Math.round(base[i+k]*(1-alphaMask)+wi[i+k]*alphaMask);
+  }
+ }
+ ox.putImageData(merged,left,protectedBottom);
+ return out;
+}
+async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0}){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
@@ -441,6 +554,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0){
  const masterURL=URL.createObjectURL(headMasterBlob);
  try{
   const head=await loadImage(masterURL);
+  const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -454,7 +568,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0){
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
-  x.drawImage(head,-drawW/2,-drawH/2,drawW,drawH);
+  x.drawImage(neckHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
@@ -517,6 +631,85 @@ async function removeBackgroundBlob(blob){
  return removeBackgroundRobust(blob,'ai-person.png');
 }
 
+async function compositeHairOnLockedMaster(aiMasterBlob,lockedMasterBlob){
+ // V95 LOCKED ANATOMY + FEATHERED HAIR-ONLY COMPOSITOR
+ // Locked master is the sole authority for face/skin/ears/jaw/chin/neck pixels.
+ // AI is aligned only as a donor for hairstyle pixels. Protected anatomy is
+ // subtracted AFTER feathering and restored again at the end as a hard guarantee.
+ const au=URL.createObjectURL(aiMasterBlob),lu=URL.createObjectURL(lockedMasterBlob);
+ try{
+  const [ai,locked]=await Promise.all([loadImage(au),loadImage(lu)]),lm=await getLandmarker();
+  const af=lm.detect(ai).faceLandmarks?.[0],lf=lm.detect(locked).faceLandmarks?.[0];
+  if(!af||!lf)throw Error('ตรวจจับตำแหน่งใบหน้าสำหรับเปลี่ยนทรงผมไม่สำเร็จ');
+  const W=locked.naturalWidth,H=locked.naturalHeight;
+  const out=document.createElement('canvas');out.width=W;out.height=H;const oc=out.getContext('2d');oc.drawImage(locked,0,0,W,H);
+
+  // Align ONLY the AI donor to the locked coordinate system. Locked pixels never move.
+  const aa=af[33],ab=af[263],la=lf[33],lb=lf[263];
+  const ad=Math.hypot((ab.x-aa.x)*ai.naturalWidth,(ab.y-aa.y)*ai.naturalHeight)||1;
+  const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||ad;
+  const sc=ld/ad,ar=Math.atan2((ab.y-aa.y)*ai.naturalHeight,(ab.x-aa.x)*ai.naturalWidth),lr=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W),rot=lr-ar;
+  const amx=(aa.x+ab.x)*.5*ai.naturalWidth,amy=(aa.y+ab.y)*.5*ai.naturalHeight,lmx=(la.x+lb.x)*.5*W,lmy=(la.y+lb.y)*.5*H;
+  const aligned=document.createElement('canvas');aligned.width=W;aligned.height=H;const ac=aligned.getContext('2d');
+  ac.imageSmoothingEnabled=true;ac.imageSmoothingQuality='high';ac.translate(lmx,lmy);ac.rotate(rot);ac.scale(sc,sc);ac.translate(-amx,-amy);ac.drawImage(ai,0,0);
+
+  const eyeD=Math.max(1,Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H));
+  const chin=lf[152],top=lf[10],cx=lmx;
+
+  // 1) Candidate hairstyle zone: broad enough for long/short hair changes.
+  const hairMask=document.createElement('canvas');hairMask.width=W;hairMask.height=H;const hc=hairMask.getContext('2d');
+  hc.fillStyle='#fff';hc.beginPath();
+  const rx=eyeD*1.55,yTop=Math.max(0,top.y*H-eyeD*1.05),yBottom=Math.min(H,chin.y*H+eyeD*1.75);
+  hc.ellipse(cx,(yTop+yBottom)/2,rx,(yBottom-yTop)/2,0,0,Math.PI*2);hc.fill();
+
+  // 2) HARD protected anatomy. It intentionally extends beyond the face oval to
+  // cover both ears, complete jaw/chin, under-chin skin and the full central neck.
+  const protect=document.createElement('canvas');protect.width=W;protect.height=H;const pc=protect.getContext('2d');pc.fillStyle='#fff';
+  const faceIds=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
+  pc.save();pc.translate(cx,chin.y*H);pc.scale(1.16,1.10);pc.translate(-cx,-chin.y*H);
+  pc.beginPath();faceIds.forEach((id,i)=>{const q=lf[id],x=q.x*W,y=q.y*H;i?pc.lineTo(x,y):pc.moveTo(x,y)});pc.closePath();pc.fill();pc.restore();
+  // Ear/side-jaw shields: keep skin beside the face outside the landmark oval immutable.
+  const leftSide=lf[234],rightSide=lf[454];
+  pc.beginPath();pc.ellipse(leftSide.x*W,leftSide.y*H,eyeD*.34,eyeD*.62,0,0,Math.PI*2);pc.fill();
+  pc.beginPath();pc.ellipse(rightSide.x*W,rightSide.y*H,eyeD*.34,eyeD*.62,0,0,Math.PI*2);pc.fill();
+  // Full neck shield. Hair may pass visually over it only where donor hair has alpha,
+  // but AI can never replace the locked skin pixels themselves.
+  const neckTop=chin.y*H-eyeD*.08,neckBottom=Math.min(H,chin.y*H+eyeD*1.55),neckHalf=eyeD*.64;
+  pc.beginPath();pc.moveTo(cx-neckHalf*.58,neckTop);pc.bezierCurveTo(cx-neckHalf*.96,neckTop+eyeD*.28,cx-neckHalf,neckBottom-eyeD*.22,cx-neckHalf*.92,neckBottom);pc.lineTo(cx+neckHalf*.92,neckBottom);pc.bezierCurveTo(cx+neckHalf,neckBottom-eyeD*.22,cx+neckHalf*.96,neckTop+eyeD*.28,cx+neckHalf*.58,neckTop);pc.closePath();pc.fill();
+
+  // Semantic hard protection from the LOCKED MASTER itself. Union body-skin,
+  // face-skin and clothes with the landmark shields. Hair is intentionally not
+  // protected so it can be replaced. This closes the side-neck/jaw gaps that a
+  // geometry-only FaceMesh shield cannot reliably cover on every portrait.
+  try{
+   const semantic=await semanticProtectedSkinMask(locked,W,H);
+   if(semantic){pc.globalCompositeOperation='source-over';pc.drawImage(semantic,0,0)}
+  }catch(e){console.warn('semantic skin protection fallback:',e)}
+
+  // 3) Feather candidate HAIR boundary first, then subtract HARD anatomy afterwards.
+  // This avoids the old hard ellipse seam while ensuring feathering can never leak
+  // AI pixels back into face/ear/jaw/chin/neck protection.
+  const feathered=document.createElement('canvas');feathered.width=W;feathered.height=H;const fc=feathered.getContext('2d');
+  fc.filter=`blur(${Math.max(2,Math.round(eyeD*.055))}px)`;fc.drawImage(hairMask,0,0);fc.filter='none';
+  fc.globalCompositeOperation='destination-out';fc.drawImage(protect,0,0);fc.globalCompositeOperation='source-over';
+
+  // 4) Alpha-aware donor mask: transparent/non-person pixels from remove.bg cannot
+  // paint over the locked image. The donor's own alpha is intersected with feathered hair zone.
+  const donorMask=document.createElement('canvas');donorMask.width=W;donorMask.height=H;const dc=donorMask.getContext('2d');
+  dc.drawImage(aligned,0,0);dc.globalCompositeOperation='destination-in';dc.drawImage(feathered,0,0);dc.globalCompositeOperation='source-over';
+
+  // Remove old editable hairstyle softly, then lay in only donor hairstyle/person alpha.
+  // Protected anatomy is not part of feathered, so it is never cleared here.
+  oc.globalCompositeOperation='destination-out';oc.drawImage(feathered,0,0);oc.globalCompositeOperation='source-over';oc.drawImage(donorMask,0,0);
+
+  // 5) FINAL hard guarantee: exact protected pixels are copied back from untouched
+  // locked master after every operation. No AI/resampling is used for these pixels.
+  const anatomy=document.createElement('canvas');anatomy.width=W;anatomy.height=H;const xc=anatomy.getContext('2d');
+  xc.drawImage(locked,0,0,W,H);xc.globalCompositeOperation='destination-in';xc.drawImage(protect,0,0);xc.globalCompositeOperation='source-over';oc.drawImage(anatomy,0,0);
+  return await new Promise((ok,bad)=>out.toBlob(v=>v?ok(v):bad(Error('ประกอบทรงผมบนภาพที่ล็อกไม่สำเร็จ')),'image/png'));
+ }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(lu)}
+}
+
 async function aiFinishPortrait(originalFile,hairId){
  // V69: send the user's original full-quality file directly to the image editor.
  // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
@@ -572,6 +765,11 @@ function App(){
  const[uniformCategory,setUniformCategory]=useState('government'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState('home'),[selectedStyle,setSelectedStyle]=useState(''),[ministry,setMinistry]=useState('กระทรวงการคลัง'),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational'),[affiliationPreview,setAffiliationPreview]=useState(false);
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0,rotation:0});
  const[collarWarp,setCollarWarp]=useState(0);
+ const[neckAdjust,setNeckAdjust]=useState({width:0,length:0});
+ const[placementLocked,setPlacementLocked]=useState(false);
+ const[hairBusy,setHairBusy]=useState(false);
+ const lockedPlacementRef=useRef(null);
+ const lockedMasterRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
  const[downloadBusy,setDownloadBusy]=useState(false);
  const[resultTool,setResultTool]=useState('head');
@@ -584,6 +782,7 @@ function App(){
  const previewStageRef=useRef(null);
  const liveAdjustRef=useRef(headAdjust);
  const liveCollarWarpRef=useRef(collarWarp);
+ const liveNeckAdjustRef=useRef(neckAdjust);
  const rafRef=useRef(0);
  const toolBarRef=useRef(null);
  const choiceRailRef=useRef(null);
@@ -596,11 +795,12 @@ function App(){
  const renderTimer=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setCollarWarp(0);liveCollarWarpRef.current=0;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
- const applyAdjust=async next=>{liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
- const applyCollarWarp=async amount=>{const v=Math.max(-1,Math.min(1,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},v);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
+ const applyCollarWarp=async amount=>{if(placementLocked)return;const v=Math.max(-1,Math.min(1,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},v,liveNeckAdjustRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
+ const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,v);showBlob(out)}catch(e){setMsg(e.message||'ปรับคอไม่สำเร็จ')}};
  const headTransformCss=(adj=liveAdjustRef.current)=>{
   const lock=headPreviewLock;if(!lock)return '';
   const s=adj.scale||1,rot=adj.rotation||0,stage=previewStageRef.current;
@@ -613,7 +813,7 @@ function App(){
   if(!editCache.current)return;
   const seq=++renderSeqRef.current;
   try{
-   const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current);
+   const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current);
    if(seq===renderSeqRef.current)showBlob(out);
   }catch(e){if(seq===renderSeqRef.current)setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}
  };
@@ -627,6 +827,7 @@ function App(){
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
  const previewPointerDown=e=>{
+  if(placementLocked)return;
   if(!b||(optionTool&&optionTool!=='head')||comparePreview)return;
   e.preventDefault();e.stopPropagation();
   e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -648,13 +849,48 @@ function App(){
   if(g.pointers.size===0){g.drag=false;g.pinch=false;commitAdjust({...liveAdjustRef.current})}
   else if(g.pointers.size===1){const [id,p]=[...g.pointers.entries()][0];g.drag=true;g.pinch=false;g.primary=id;g.x=p.x;g.y=p.y;g.startAdjust={...liveAdjustRef.current}}
  };
- const previewWheel=e=>{if(!b||(optionTool&&optionTool!=='head')||comparePreview)return;e.preventDefault();const old=liveAdjustRef.current;const factor=Math.exp(-e.deltaY*.0015);const next={...old,scale:Math.max(.20,Math.min(2,old.scale*factor))};paintHeadTransform(next)};
+ const previewWheel=e=>{if(placementLocked)return;if(!b||(optionTool&&optionTool!=='head')||comparePreview)return;e.preventDefault();const old=liveAdjustRef.current;const factor=Math.exp(-e.deltaY*.0015);const next={...old,scale:Math.max(.20,Math.min(2,old.scale*factor))};paintHeadTransform(next)};
+ const lockPlacement=()=>{
+  if(!editCache.current||!b)return;
+  const snapshot={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+  lockedPlacementRef.current=snapshot;lockedMasterRef.current=editCache.current.master;setPlacementLocked(true);setOptionTool(null);setMsg('ล็อกตำแหน่งและ Master แล้ว — เปลี่ยนได้เฉพาะทรงผม');
+ };
+ const unlockPlacement=()=>{setPlacementLocked(false);setMsg('ปลดล็อกแล้ว — สามารถปรับหัวและคอได้อีกครั้ง')};
+ const changeHair=async id=>{
+  setHairId(id);
+  if(!placementLocked||!editCache.current||hairBusy)return;
+  setHairBusy(true);setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
+  try{
+   const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+   // Every hairstyle starts from the SAME immutable master captured at Lock time.
+   // This prevents AI drift from accumulating across hair-01 -> hair-07 -> hair-20.
+   const src=lockedMasterRef.current||editCache.current.master;
+   let nextMaster;
+   if(!id){
+    // "ผมเดิม" is a zero-credit restore: no AI request at all.
+    nextMaster=src;
+   }else{
+    const named=new File([src],'locked-person.png',{type:src.type||'image/png'});
+    const ai=await aiFinishPortrait(named,id);
+    const aiMaster=await removeBackgroundBlob(ai);
+    nextMaster=await compositeHairOnLockedMaster(aiMaster,src);
+   }
+   // Keep the immutable locked master separate. editCache.master is only the currently
+   // displayed hairstyle result and is never used as the source for the next hairstyle.
+   editCache.current={...editCache.current,master:nextMaster};
+   liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
+   liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
+   liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
+   const out=await renderAdjustedFinal(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust);
+   showBlob(out);setMsg('เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{setHairBusy(false)}
+ };
  const downloadCurrentFinal=async()=>{
   if(!editCache.current||downloadBusy)return;
   setDownloadBusy(true);setMsg('');
   try{
    clearTimeout(renderTimer.current);
-   const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current);
+   const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current);
    showBlob(out);
    const url=URL.createObjectURL(out),link=document.createElement('a');
    link.href=url;link.download='photo-ready.png';document.body.appendChild(link);link.click();link.remove();
@@ -680,8 +916,8 @@ function App(){
   editCache.current={master:headNeckTransparent,lock:composed.lock};
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
-  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setCollarWarp(0);liveCollarWarpRef.current=0;
-  const finished=await renderAdjustedFinal(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0);
+  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  const finished=await renderAdjustedFinal(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0});
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  if(screen==='home'){
@@ -726,7 +962,7 @@ function App(){
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div>}
     {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>เพิ่มมหาวิทยาลัยภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div></>}
    </div>
-   <button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<><div className="tool-choice-tabs"><span className="active">ปรับหัว</span><span>ขนาดและตำแหน่ง</span></div><div className="compact-tool-panel process-head-adjust"><div className="compact-slider-list"><label><span>ขนาด</span><input type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><b>{Math.round(headAdjust.scale*100)}%</b></label><label><span>ซ้าย–ขวา</span><input type="range" min="-50" max="50" step="0.5" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><b>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}%</b></label><label><span>บน–ล่าง</span><input type="range" min="-50" max="50" step="0.5" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><b>{(-headAdjust.y)>0?'+':''}{(-headAdjust.y*100).toFixed(1)}%{(-headAdjust.y)>0?' ขึ้น':(-headAdjust.y)<0?' ลง':''}</b></label><label><span>เอียง</span><input type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><b>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</b></label></div></div></>:optionTool==='collar'?<><div className="tool-choice-tabs"><span className="active">ช่องคอ</span><span>บิดเฉพาะ Template ชุด</span></div><div className="compact-tool-panel"><div className="collar-compact-actions"><button type="button" className="collar-auto compact-auto" onClick={autoFitCollar}>พอดีอัตโนมัติ</button></div><div className="compact-slider-list"><label><span>หุบ–ขยาย</span><input type="range" min="-100" max="100" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><b>{Math.round(collarWarp*100)}%</b></label></div></div></>:<><div className="tool-choice-tabs"><span className="active">{optionTool==='ribbon'?'แพรแถบ':optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='ribbon'?'เลือกแบบ':optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>{optionTool==='background'?<div className="background-choice-preview"><button type="button" className="background-swatch current" aria-label="พื้นหลังปัจจุบัน"><span></span><strong>พื้นหลังปัจจุบัน</strong></button><small>โครง UI พร้อมสำหรับตัวเลือกพื้นหลังเดิม/ที่จะเพิ่มภายหลัง</small></div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} onClick={()=>setHairId('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>setHairId(h.id)}><img src={h.src}/><span>{h.name.replace('ทรงผม ','')}</span></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:<div className="ribbon-choice-preview"><div className="ribbon-empty-thumb"><span>▤</span><strong>แพรแถบ</strong><small>รอเพิ่มไฟล์ PNG ตัวเลือก</small></div></div>}</>}</div>}<div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button><button type="button" className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ช่องคอ</strong></button><button type="button" className={optionTool==='male-hair'?'active':''} onClick={()=>toggleOptionTool('male-hair',()=>setGender('male'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button><button type="button" className={optionTool==='female-hair'?'active':''} onClick={()=>toggleOptionTool('female-hair',()=>setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button><button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button><button type="button" className={optionTool==='background'?'active':''} onClick={()=>toggleOptionTool('background')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>{b&&<button type="button" className="primary-action download-below-tools" disabled={downloadBusy} onClick={downloadCurrentFinal}>{downloadBusy?'กำลังสร้างไฟล์…':'ดาวน์โหลด'}</button>}
+   <button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<><div className="tool-choice-tabs"><span className="active">ปรับหัว</span><span>ขนาดและตำแหน่ง</span></div><div className="compact-tool-panel process-head-adjust"><div className="compact-slider-list"><label><span>ขนาด</span><input type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><b>{Math.round(headAdjust.scale*100)}%</b></label><label><span>ซ้าย–ขวา</span><input type="range" min="-50" max="50" step="0.5" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><b>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}%</b></label><label><span>บน–ล่าง</span><input type="range" min="-50" max="50" step="0.5" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><b>{(-headAdjust.y)>0?'+':''}{(-headAdjust.y*100).toFixed(1)}%{(-headAdjust.y)>0?' ขึ้น':(-headAdjust.y)<0?' ลง':''}</b></label><label><span>เอียง</span><input type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><b>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</b></label></div></div></>:optionTool==='neck'?<><div className="tool-choice-tabs"><span className="active">ปรับคอ</span><span>ปรับเฉพาะคอของบุคคล</span></div><div className="compact-tool-panel"><div className="compact-slider-list"><label><span>กว้าง–แคบ</span><input type="range" min="-100" max="100" step="1" value={Math.round(neckAdjust.width*100)} onChange={e=>applyNeckAdjust({...neckAdjust,width:Number(e.target.value)/100})}/><b>{neckAdjust.width>0?'+':''}{Math.round(neckAdjust.width*100)}%</b></label><label><span>ยาว–สั้น</span><input type="range" min="-100" max="100" step="1" value={Math.round(neckAdjust.length*100)} onChange={e=>applyNeckAdjust({...neckAdjust,length:Number(e.target.value)/100})}/><b>{neckAdjust.length>0?'+':''}{Math.round(neckAdjust.length*100)}%</b></label></div></div></>:optionTool==='collar'?<><div className="tool-choice-tabs"><span className="active">ช่องคอ</span><span>บิดเฉพาะ Template ชุด</span></div><div className="compact-tool-panel"><div className="collar-compact-actions"><button type="button" className="collar-auto compact-auto" onClick={autoFitCollar}>พอดีอัตโนมัติ</button></div><div className="compact-slider-list"><label><span>หุบ–ขยาย</span><input type="range" min="-100" max="100" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><b>{Math.round(collarWarp*100)}%</b></label></div></div></>:<><div className="tool-choice-tabs"><span className="active">{optionTool==='ribbon'?'แพรแถบ':optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='ribbon'?'เลือกแบบ':optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>{optionTool==='background'?<div className="background-choice-preview"><button type="button" className="background-swatch current" aria-label="พื้นหลังปัจจุบัน"><span></span><strong>พื้นหลังปัจจุบัน</strong></button><small>โครง UI พร้อมสำหรับตัวเลือกพื้นหลังเดิม/ที่จะเพิ่มภายหลัง</small></div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} onClick={()=>changeHair('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>changeHair(h.id)}><img src={h.src}/><span>{h.name.replace('ทรงผม ','')}</span></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:<div className="ribbon-choice-preview"><div className="ribbon-empty-thumb"><span>▤</span><strong>แพรแถบ</strong><small>รอเพิ่มไฟล์ PNG ตัวเลือก</small></div></div>}</>}</div>}<div className="placement-lock-row"><button type="button" className={placementLocked?"placement-lock-btn locked":"placement-lock-btn"} disabled={!b||hairBusy} onClick={placementLocked?unlockPlacement:lockPlacement}>{placementLocked?"🔓 ปลดล็อกเพื่อแก้ตำแหน่ง":"✓ ยืนยันและล็อกตำแหน่ง"}</button>{placementLocked&&<small>หน้า · ตำแหน่งหัว · คอ · ช่องคอ ถูกล็อกไว้</small>}{hairBusy&&<small>กำลังเปลี่ยนทรงผม…</small>}</div><div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button><button type="button" disabled={placementLocked} className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ช่องคอ</strong></button><button type="button" disabled={placementLocked} className={optionTool==='neck'?'active':''} onClick={()=>toggleOptionTool('neck')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ปรับคอ</strong></button><button type="button" className={optionTool==='male-hair'?'active':''} onClick={()=>toggleOptionTool('male-hair',()=>setGender('male'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button><button type="button" className={optionTool==='female-hair'?'active':''} onClick={()=>toggleOptionTool('female-hair',()=>setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button><button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button><button type="button" className={optionTool==='background'?'active':''} onClick={()=>toggleOptionTool('background')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>{b&&<button type="button" className="primary-action download-below-tools" disabled={downloadBusy} onClick={downloadCurrentFinal}>{downloadBusy?'กำลังสร้างไฟล์…':'ดาวน์โหลด'}</button>}
   </section>
 
  </section></main>
