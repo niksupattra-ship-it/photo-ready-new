@@ -341,3 +341,75 @@
  height:100px!important;
  object-fit:cover!important;
 }
+
+/* V88 RESPONSIVE UPWARD TOOL DOCK — keep the main tool rail in place.
+   Sub-options open upward as an overlay and never participate in document flow. */
+.adaptive-editor .editor-tool-dock{
+  position:relative!important;
+  width:100%!important;
+  min-width:0!important;
+  isolation:isolate;
+  z-index:30;
+}
+.adaptive-editor .editor-tool-dock > .tool-rail-wrap{
+  position:relative!important;
+  z-index:32!important;
+  background:#fff;
+}
+.adaptive-editor .editor-tool-dock > .tool-choice-sheet{
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  top:auto!important;
+  bottom:calc(100% + 6px)!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  box-sizing:border-box!important;
+  z-index:31!important;
+  max-height:min(42dvh,360px)!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch;
+  border:1px solid #e7ebf0!important;
+  border-radius:14px!important;
+  box-shadow:0 -8px 28px rgba(15,23,42,.14)!important;
+  background:#fff!important;
+}
+.adaptive-editor .editor-tool-dock > .tool-choice-sheet .process-thumbnail-strip{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-x:contain!important;
+  -webkit-overflow-scrolling:touch;
+}
+@media (max-width:700px){
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet{
+    left:-10px!important;
+    right:auto!important;
+    width:calc(100% + 20px)!important;
+    max-height:min(38dvh,300px)!important;
+    border-radius:12px 12px 0 0!important;
+    padding-left:10px!important;
+    padding-right:10px!important;
+  }
+}
+@media (max-width:420px){
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet{
+    max-height:min(36dvh,260px)!important;
+  }
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet .hair-card{
+    flex-basis:78px!important;
+    min-width:78px!important;
+  }
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet .hair-card img{
+    height:88px!important;
+  }
+}
+@media (min-width:1000px){
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet{
+    max-height:min(46dvh,400px)!important;
+  }
+}
