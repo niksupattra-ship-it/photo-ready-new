@@ -581,3 +581,21 @@
 .head-stage-person{transform-origin:50% 50%;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .head-stage-uniform{z-index:3}
 .head-stage-person{z-index:2}.head-stage-bg{z-index:1}
+
+
+/* V84 direct-result work view lock — keep the processed 3:4 canvas in the same view while tools open. */
+.adaptive-editor .style-detail-card .hero-preview,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  width:min(calc(100% - 4px),690px)!important;
+  height:auto!important;
+  aspect-ratio:3/4!important;
+  max-width:690px!important;
+  margin:4px auto 10px!important;
+  transform:none!important;
+}
+.adaptive-editor .head-live-stage{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+.adaptive-editor .download-below-tools{appearance:none;border:0;cursor:pointer}
+@media(max-width:700px){
+ .adaptive-editor .style-detail-card .hero-preview,
+ .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{width:calc(100% - 4px)!important;max-width:none!important}
+}
