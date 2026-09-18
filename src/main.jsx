@@ -670,7 +670,6 @@ function App(){
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});setCollarWarp(0);
   const finished=await renderAdjustedFinal(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0);
   showBlob(finished);
-  requestAnimationFrame(()=>previewStageRef.current?.scrollIntoView({block:'start',behavior:'auto'}));
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
  if(screen==='home'){
   const rows=[
