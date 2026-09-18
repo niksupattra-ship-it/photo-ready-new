@@ -593,3 +593,63 @@
  .adaptive-editor .style-detail-card .hero-preview,
  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{width:calc(100% - 4px)!important;max-width:none!important}
 }
+
+/* V84 FINAL WORKSPACE RESET — layout only. Keep processing + direct-touch code untouched.
+   The result uses exactly one 3:4 preview model in every state. Tool panels overlay;
+   they never resize, crop, zoom or reframe the document. */
+.adaptive-editor .style-detail-card .hero-preview,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview {
+  position: relative !important;
+  width: min(calc(100% - 4px), 690px) !important;
+  max-width: 690px !important;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  aspect-ratio: 3 / 4 !important;
+  margin: 8px auto 12px !important;
+  overflow: hidden !important;
+  transform: none !important;
+}
+.adaptive-editor .style-detail-card .hero-preview > img,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview > img,
+.adaptive-editor .style-detail-card .hero-preview .source-preview,
+.adaptive-editor .style-detail-card .hero-preview .editable-result-image {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: 50% 50% !important;
+}
+.adaptive-editor .style-detail-card .head-live-stage,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .head-live-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  transform: none !important;
+}
+/* Never let an opened tool alter the document viewport. */
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview img {
+  object-fit: contain !important;
+  object-position: 50% 50% !important;
+}
+/* Keep the tool UI outside document layout; direct touch remains on .direct-edit-preview. */
+.adaptive-editor .tool-choice-sheet {
+  position: fixed !important;
+}
+/* Process and result occupy the same preview slot. */
+.adaptive-editor .preview-upload { align-self: center !important; }
+@media (max-width: 760px) {
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview {
+    width: min(calc(100% - 4px), 690px) !important;
+    max-width: 100% !important;
+    aspect-ratio: 3 / 4 !important;
+    height: auto !important;
+    margin: 8px auto 12px !important;
+  }
+}
