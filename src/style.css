@@ -599,3 +599,30 @@
  .adaptive-editor .style-detail-card .hero-preview,
  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{width:calc(100% - 4px)!important;max-width:none!important}
 }
+
+/* V84.1 — keep the ORIGINAL full-pattern 3:4 preview distance while editing.
+   Opening any tool must never enlarge/cover-crop the preview. Direct head touch stays active. */
+.adaptive-editor .style-detail-card .hero-preview,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+  width:min(100%,calc((100svh - 245px) * .75),500px)!important;
+  max-width:500px!important;
+  height:auto!important;
+  aspect-ratio:3/4!important;
+  margin:10px auto 14px!important;
+  transform:none!important;
+  overflow:hidden!important;
+}
+.adaptive-editor .style-detail-card .hero-preview img,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  object-position:50% 50%!important;
+}
+@media(max-width:650px){
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    width:min(100%,calc((100svh - 245px) * .75))!important;
+    max-width:500px!important;
+  }
+}
