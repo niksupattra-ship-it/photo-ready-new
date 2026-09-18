@@ -445,14 +445,16 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0){
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
+  // V81-quality direct sampling: draw the untouched transparent master directly to
+  // its final destination rectangle. This avoids scaling the whole canvas CTM and
+  // keeps face/skin/hair pixels on the same one-resample path used by V81.
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
-  const baseCX=lock.hX+baseW/2, baseCY=lock.hY+baseH/2;
+  const drawW=baseW*s, drawH=baseH*s;
+  const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
   x.save();
-  x.translate(baseCX+dx,baseCY+dy);
+  x.translate(centerX,centerY);
   x.rotate(rotation);
-  x.scale(s,s);
-  x.translate(-baseCX,-baseCY);
-  x.drawImage(head,lock.hX,lock.hY,baseW,baseH);
+  x.drawImage(head,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
