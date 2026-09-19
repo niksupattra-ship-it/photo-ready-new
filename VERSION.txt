@@ -1,1 +1,1 @@
-V77 - V70 skin/AI pipeline + MODNet via ONNX Runtime WebAssembly (deploy-safe, no remove.bg credit)
+V86 — Reconstruct skin/clothing only under removed old hair; reset lock cache on unlock.

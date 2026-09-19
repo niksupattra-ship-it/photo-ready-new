@@ -38,6 +38,21 @@ async function semanticProtectedSkinMask(image,W,H){
  }finally{mask.close?.()}
 }
 
+
+async function semanticClassMask(image,W,H,classes){
+ const seg=await getPersonSegmenter();
+ const result=await new Promise((ok,bad)=>{try{seg.segment(image,r=>ok(r))}catch(e){bad(e)}});
+ const mask=result?.categoryMask;if(!mask)return null;
+ try{
+  const mw=mask.width||256,mh=mask.height||256,cat=mask.getAsUint8Array(),wanted=new Set(classes);
+  const small=document.createElement('canvas');small.width=mw;small.height=mh;
+  const sc=small.getContext('2d'),id=sc.createImageData(mw,mh);
+  for(let i=0;i<cat.length;i++){const a=wanted.has(cat[i])?255:0,j=i*4;id.data[j]=id.data[j+1]=id.data[j+2]=255;id.data[j+3]=a}
+  sc.putImageData(id,0,0);
+  const out=document.createElement('canvas');out.width=W;out.height=H;const oc=out.getContext('2d');oc.imageSmoothingEnabled=false;oc.drawImage(small,0,0,W,H);return out;
+ }finally{mask.close?.()}
+}
+
 async function getLandmarker(){
  if(!landmarkerPromise) landmarkerPromise=(async()=>{
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
@@ -631,11 +646,62 @@ async function removeBackgroundBlob(blob){
  return removeBackgroundRobust(blob,'ai-person.png');
 }
 
-async function compositeHairOnLockedMaster(aiMasterBlob,lockedMasterBlob){
- // V95 LOCKED ANATOMY + FEATHERED HAIR-ONLY COMPOSITOR
- // Locked master is the sole authority for face/skin/ears/jaw/chin/neck pixels.
- // AI is aligned only as a donor for hairstyle pixels. Protected anatomy is
- // subtracted AFTER feathering and restored again at the end as a hard guarantee.
+// Extend low-resolution hair segmentation along connected, hair-coloured pixels of
+// the LOCKED transparent master. This catches long strands mislabelled as clothes.
+// It is deliberately bounded and never crosses the immutable anatomy mask.
+function refineOldHairMask(locked,semanticHair,protect,eyeD,chinY,centerX){
+ const W=locked.naturalWidth,H=locked.naturalHeight,N=W*H;
+ const src=document.createElement('canvas');src.width=W;src.height=H;
+ const sx=src.getContext('2d',{willReadFrequently:true});sx.drawImage(locked,0,0);
+ const px=sx.getImageData(0,0,W,H).data;
+ const mx=semanticHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ const shield=protect.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ const keep=new Uint8Array(N),distance=new Uint16Array(N),queue=new Int32Array(N);
+ let n=0,meanR=0,meanG=0,meanB=0,samples=0;
+ // Hair colour is measured only in reliable opaque hair seeds above the chin.
+ for(let y=0;y<Math.min(H,Math.round(chinY));y+=2)for(let x=0;x<W;x+=2){
+  const i=y*W+x,j=i*4;
+  if(mx[j+3]>230&&px[j+3]>220&&shield[j+3]<32){meanR+=px[j];meanG+=px[j+1];meanB+=px[j+2];samples++}
+ }
+ if(samples<20)throw Error('ตรวจจับผมเดิมไม่ชัดเจน กรุณาใช้รูปที่เห็นเส้นผมชัด');
+ meanR/=samples;meanG/=samples;meanB/=samples;
+ // Follow connected strands to the bottom of the transparent master; do not
+ // truncate long hair at an arbitrary 90px / 3.2-eye-distance boundary.
+ const maxDist=Math.max(H,W);
+ const maxY=H;
+ const valid=(i)=>{
+  const j=i*4,y=Math.floor(i/W),x=i-y*W;
+  if(y>=maxY||px[j+3]<28||shield[j+3]>96||Math.abs(x-centerX)>eyeD*2.7)return false;
+  // Below the chin, never flood through a dark tie or other central uniform parts.
+  if(y>chinY+eyeD*.5&&Math.abs(x-centerX)<eyeD*.39)return false;
+  const r=px[j],g=px[j+1],b=px[j+2];
+  const brightness=(r+g+b)/3;
+  const difference=Math.hypot(r-meanR,g-meanG,b-meanB);
+  return brightness<Math.max(85,(meanR+meanG+meanB)/3+47)&&difference<105;
+ };
+ // Start with all confident hair pixels, then follow adjoining dark hair strands.
+ for(let i=0;i<N;i++){
+  const j=i*4;
+  if(mx[j+3]>128&&px[j+3]>24&&shield[j+3]<96){keep[i]=255;queue[n++]=i}
+ }
+ if(n<Math.max(40,Math.round(N*.001)))throw Error('ตรวจจับผมเดิมไม่เพียงพอ จึงไม่เปลี่ยนภาพที่ล็อกไว้');
+ let head=0;
+ while(head<n){
+  const i=queue[head++],d=distance[i];if(d>=maxDist)continue;
+  const x=i%W,y=(i-x)/W;
+  const neighbors=[x>0?i-1:-1,x<W-1?i+1:-1,y>0?i-W:-1,y<H-1?i+W:-1];
+  for(const next of neighbors){if(next<0||keep[next]||!valid(next))continue;keep[next]=255;distance[next]=d+1;queue[n++]=next}
+ }
+ const c=document.createElement('canvas');c.width=W;c.height=H;
+ const ctx=c.getContext('2d'),out=ctx.createImageData(W,H);
+ for(let i=0;i<N;i++){const j=i*4;out.data[j]=out.data[j+1]=out.data[j+2]=255;out.data[j+3]=keep[i]?Math.min(255,px[j+3]):0}
+ ctx.putImageData(out,0,0);return c;
+}
+
+async function compositeHairOnLockedMaster(aiMasterBlob,lockedMasterBlob,preparedRef){
+ // V97 TRUE OLD-HAIR REPLACEMENT. The locked master stays immutable. We remove
+ // the semantic OLD hair first, then composite semantic NEW hair only. Face/jaw/
+ // ears/chin/visible neck pixels are restored 1:1 from the locked master at the end.
  const au=URL.createObjectURL(aiMasterBlob),lu=URL.createObjectURL(lockedMasterBlob);
  try{
   const [ai,locked]=await Promise.all([loadImage(au),loadImage(lu)]),lm=await getLandmarker();
@@ -644,68 +710,83 @@ async function compositeHairOnLockedMaster(aiMasterBlob,lockedMasterBlob){
   const W=locked.naturalWidth,H=locked.naturalHeight;
   const out=document.createElement('canvas');out.width=W;out.height=H;const oc=out.getContext('2d');oc.drawImage(locked,0,0,W,H);
 
-  // Align ONLY the AI donor to the locked coordinate system. Locked pixels never move.
   const aa=af[33],ab=af[263],la=lf[33],lb=lf[263];
   const ad=Math.hypot((ab.x-aa.x)*ai.naturalWidth,(ab.y-aa.y)*ai.naturalHeight)||1;
-  const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||ad;
-  const sc=ld/ad,ar=Math.atan2((ab.y-aa.y)*ai.naturalHeight,(ab.x-aa.x)*ai.naturalWidth),lr=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W),rot=lr-ar;
+  const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||ad,sc=ld/ad;
+  const ar=Math.atan2((ab.y-aa.y)*ai.naturalHeight,(ab.x-aa.x)*ai.naturalWidth),lr=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W),rot=lr-ar;
   const amx=(aa.x+ab.x)*.5*ai.naturalWidth,amy=(aa.y+ab.y)*.5*ai.naturalHeight,lmx=(la.x+lb.x)*.5*W,lmy=(la.y+lb.y)*.5*H;
-  const aligned=document.createElement('canvas');aligned.width=W;aligned.height=H;const ac=aligned.getContext('2d');
-  ac.imageSmoothingEnabled=true;ac.imageSmoothingQuality='high';ac.translate(lmx,lmy);ac.rotate(rot);ac.scale(sc,sc);ac.translate(-amx,-amy);ac.drawImage(ai,0,0);
+  const alignInto=(source)=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.translate(lmx,lmy);x.rotate(rot);x.scale(sc,sc);x.translate(-amx,-amy);x.drawImage(source,0,0);return c};
+  const aligned=alignInto(ai);
+  const eyeD=Math.max(1,Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)),chin=lf[152],cx=lmx;
 
-  const eyeD=Math.max(1,Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H));
-  const chin=lf[152],top=lf[10],cx=lmx;
-
-  // 1) Candidate hairstyle zone: broad enough for long/short hair changes.
-  const hairMask=document.createElement('canvas');hairMask.width=W;hairMask.height=H;const hc=hairMask.getContext('2d');
-  hc.fillStyle='#fff';hc.beginPath();
-  const rx=eyeD*1.55,yTop=Math.max(0,top.y*H-eyeD*1.05),yBottom=Math.min(H,chin.y*H+eyeD*1.75);
-  hc.ellipse(cx,(yTop+yBottom)/2,rx,(yBottom-yTop)/2,0,0,Math.PI*2);hc.fill();
-
-  // 2) HARD protected anatomy. It intentionally extends beyond the face oval to
-  // cover both ears, complete jaw/chin, under-chin skin and the full central neck.
+  // Hard anatomy shield. These exact locked pixels can never be replaced by AI.
   const protect=document.createElement('canvas');protect.width=W;protect.height=H;const pc=protect.getContext('2d');pc.fillStyle='#fff';
   const faceIds=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
-  pc.save();pc.translate(cx,chin.y*H);pc.scale(1.16,1.10);pc.translate(-cx,-chin.y*H);
-  pc.beginPath();faceIds.forEach((id,i)=>{const q=lf[id],x=q.x*W,y=q.y*H;i?pc.lineTo(x,y):pc.moveTo(x,y)});pc.closePath();pc.fill();pc.restore();
-  // Ear/side-jaw shields: keep skin beside the face outside the landmark oval immutable.
+  pc.save();pc.translate(cx,chin.y*H);pc.scale(1.035,1.025);pc.translate(-cx,-chin.y*H);pc.beginPath();faceIds.forEach((id,i)=>{const q=lf[id],x=q.x*W,y=q.y*H;i?pc.lineTo(x,y):pc.moveTo(x,y)});pc.closePath();pc.fill();pc.restore();
   const leftSide=lf[234],rightSide=lf[454];
-  pc.beginPath();pc.ellipse(leftSide.x*W,leftSide.y*H,eyeD*.34,eyeD*.62,0,0,Math.PI*2);pc.fill();
-  pc.beginPath();pc.ellipse(rightSide.x*W,rightSide.y*H,eyeD*.34,eyeD*.62,0,0,Math.PI*2);pc.fill();
-  // Full neck shield. Hair may pass visually over it only where donor hair has alpha,
-  // but AI can never replace the locked skin pixels themselves.
+  pc.beginPath();pc.ellipse(leftSide.x*W,leftSide.y*H,eyeD*.23,eyeD*.43,0,0,Math.PI*2);pc.fill();
+  pc.beginPath();pc.ellipse(rightSide.x*W,rightSide.y*H,eyeD*.23,eyeD*.43,0,0,Math.PI*2);pc.fill();
   const neckTop=chin.y*H-eyeD*.08,neckBottom=Math.min(H,chin.y*H+eyeD*1.55),neckHalf=eyeD*.64;
   pc.beginPath();pc.moveTo(cx-neckHalf*.58,neckTop);pc.bezierCurveTo(cx-neckHalf*.96,neckTop+eyeD*.28,cx-neckHalf,neckBottom-eyeD*.22,cx-neckHalf*.92,neckBottom);pc.lineTo(cx+neckHalf*.92,neckBottom);pc.bezierCurveTo(cx+neckHalf,neckBottom-eyeD*.22,cx+neckHalf*.96,neckTop+eyeD*.28,cx+neckHalf*.58,neckTop);pc.closePath();pc.fill();
+  try{const skin=await semanticClassMask(locked,W,H,[2,3]);if(skin)pc.drawImage(skin,0,0)}catch(e){console.warn('locked skin protection fallback:',e)}
 
-  // Semantic hard protection from the LOCKED MASTER itself. Union body-skin,
-  // face-skin and clothes with the landmark shields. Hair is intentionally not
-  // protected so it can be replaced. This closes the side-neck/jaw gaps that a
-  // geometry-only FaceMesh shield cannot reliably cover on every portrait.
-  try{
-   const semantic=await semanticProtectedSkinMask(locked,W,H);
-   if(semantic){pc.globalCompositeOperation='source-over';pc.drawImage(semantic,0,0)}
-  }catch(e){console.warn('semantic skin protection fallback:',e)}
+  // Build the old-hair-free base ONCE per locked master. All subsequent hairstyles
+  // reuse the identical base, not the previous AI result or a fresh old-hair guess.
+  let prepared=preparedRef?.current;
+  if(!prepared||prepared.source!==lockedMasterBlob){
+   const oldHair=await semanticClassMask(locked,W,H,[1]);
+   if(!oldHair)throw Error('แยกผมเดิมไม่สำเร็จ กรุณาลองใหม่');
+   const refined=refineOldHairMask(locked,oldHair,protect,eyeD,chin.y*H,cx);
+   const base=document.createElement('canvas');base.width=W;base.height=H;
+   const bc=base.getContext('2d');bc.drawImage(locked,0,0,W,H);
+   // Keep the protected skin as it is. Hair, including connected long strands,
+   // is transparent so the existing background and uniform layers show through.
+   bc.globalCompositeOperation='destination-out';bc.drawImage(refined,0,0);
+   bc.globalCompositeOperation='source-over';
+   prepared={source:lockedMasterBlob,base,oldHair:refined};
+   if(preparedRef)preparedRef.current=prepared;
+  }
+  oc.clearRect(0,0,W,H);oc.drawImage(prepared.base,0,0);
+  const newHairRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[1]);
+  if(!newHairRaw)throw Error('แยกทรงผมใหม่ไม่สำเร็จ กรุณาลองใหม่');
+  const newHair=alignInto(newHairRaw);
+  // Clip the NEW hair mask to actual donor alpha: transparent areas cannot become
+  // opaque halos after a semantic mask is enlarged from 256px.
+  const alphaNew=document.createElement('canvas');alphaNew.width=W;alphaNew.height=H;
+  const anc=alphaNew.getContext('2d');anc.drawImage(newHair,0,0);
+  anc.globalCompositeOperation='destination-in';anc.drawImage(aligned,0,0);
+  anc.globalCompositeOperation='source-over';
 
-  // 3) Feather candidate HAIR boundary first, then subtract HARD anatomy afterwards.
-  // This avoids the old hard ellipse seam while ensuring feathering can never leak
-  // AI pixels back into face/ear/jaw/chin/neck protection.
-  const feathered=document.createElement('canvas');feathered.width=W;feathered.height=H;const fc=feathered.getContext('2d');
-  fc.filter=`blur(${Math.max(2,Math.round(eyeD*.055))}px)`;fc.drawImage(hairMask,0,0);fc.filter='none';
-  fc.globalCompositeOperation='destination-out';fc.drawImage(protect,0,0);fc.globalCompositeOperation='source-over';
+  // Slight feather only at hair edges. Subtract protected anatomy AFTER feathering.
+  const prep=(m,blur)=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.filter=`blur(${blur}px)`;x.drawImage(m,0,0);x.filter='none';x.globalCompositeOperation='destination-out';x.drawImage(protect,0,0);x.globalCompositeOperation='source-over';return c};
+  const newEditable=prep(alphaNew,Math.max(1,Math.round(eyeD*.010)));
 
-  // 4) Alpha-aware donor mask: transparent/non-person pixels from remove.bg cannot
-  // paint over the locked image. The donor's own alpha is intersected with feathered hair zone.
-  const donorMask=document.createElement('canvas');donorMask.width=W;donorMask.height=H;const dc=donorMask.getContext('2d');
-  dc.drawImage(aligned,0,0);dc.globalCompositeOperation='destination-in';dc.drawImage(feathered,0,0);dc.globalCompositeOperation='source-over';
+  // Reconstruct ONLY pixels that were hidden by old hair. Include donor clothes
+  // as well as skin: long hair can cover a shoulder/collar, not just the neck.
+  // Visible locked pixels and the original uniform template remain untouched.
+  const donorSurfaceRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[2,3,4]);
+  if(donorSurfaceRaw){
+   const donorSurface=alignInto(donorSurfaceRaw);
+   const fillMask=document.createElement('canvas');fillMask.width=W;fillMask.height=H;
+   const fc=fillMask.getContext('2d');fc.drawImage(prepared.oldHair,0,0);
+   fc.globalCompositeOperation='destination-in';fc.drawImage(donorSurface,0,0);
+   fc.globalCompositeOperation='destination-out';fc.drawImage(protect,0,0);
+   // Reject transparent donor pixels, including holes near wispy hair edges.
+   fc.globalCompositeOperation='destination-in';fc.drawImage(aligned,0,0);
+   fc.globalCompositeOperation='source-over';
+   const fill=document.createElement('canvas');fill.width=W;fill.height=H;
+   const fctx=fill.getContext('2d');fctx.drawImage(aligned,0,0);
+   fctx.globalCompositeOperation='destination-in';fctx.drawImage(fillMask,0,0);
+   oc.drawImage(fill,0,0);
+  }
 
-  // Remove old editable hairstyle softly, then lay in only donor hairstyle/person alpha.
-  // Protected anatomy is not part of feathered, so it is never cleared here.
-  oc.globalCompositeOperation='destination-out';oc.drawImage(feathered,0,0);oc.globalCompositeOperation='source-over';oc.drawImage(donorMask,0,0);
+  // NEW HAIR ONLY: intersect aligned AI donor with semantic new-hair mask. No donor
+  // face pixels are allowed, eliminating the dark cheek/face discs seen previously.
+  const donorHair=document.createElement('canvas');donorHair.width=W;donorHair.height=H;const dc=donorHair.getContext('2d');dc.drawImage(aligned,0,0);dc.globalCompositeOperation='destination-in';dc.drawImage(newEditable,0,0);dc.globalCompositeOperation='source-over';oc.drawImage(donorHair,0,0);
 
-  // 5) FINAL hard guarantee: exact protected pixels are copied back from untouched
-  // locked master after every operation. No AI/resampling is used for these pixels.
-  const anatomy=document.createElement('canvas');anatomy.width=W;anatomy.height=H;const xc=anatomy.getContext('2d');
-  xc.drawImage(locked,0,0,W,H);xc.globalCompositeOperation='destination-in';xc.drawImage(protect,0,0);xc.globalCompositeOperation='source-over';oc.drawImage(anatomy,0,0);
+  // Final 1:1 restore from untouched locked master. Face/skin/jaw/chin/neck do not
+  // inherit alignment, resampling, colour or geometry from the AI hairstyle result.
+  const anatomy=document.createElement('canvas');anatomy.width=W;anatomy.height=H;const xc=anatomy.getContext('2d');xc.drawImage(locked,0,0,W,H);xc.globalCompositeOperation='destination-in';xc.drawImage(protect,0,0);xc.globalCompositeOperation='source-over';oc.drawImage(anatomy,0,0);
   return await new Promise((ok,bad)=>out.toBlob(v=>v?ok(v):bad(Error('ประกอบทรงผมบนภาพที่ล็อกไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(lu)}
 }
@@ -770,6 +851,7 @@ function App(){
  const[hairBusy,setHairBusy]=useState(false);
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
+ const preparedHairBaseRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
  const[downloadBusy,setDownloadBusy]=useState(false);
  const[resultTool,setResultTool]=useState('head');
@@ -795,7 +877,7 @@ function App(){
  const renderTimer=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;preparedHairBaseRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=async amount=>{if(placementLocked)return;const v=Math.max(-1,Math.min(1,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},v,liveNeckAdjustRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
@@ -853,12 +935,12 @@ function App(){
  const lockPlacement=()=>{
   if(!editCache.current||!b)return;
   const snapshot={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  lockedPlacementRef.current=snapshot;lockedMasterRef.current=editCache.current.master;setPlacementLocked(true);setOptionTool(null);setMsg('ล็อกตำแหน่งและ Master แล้ว — เปลี่ยนได้เฉพาะทรงผม');
+  lockedPlacementRef.current=snapshot;lockedMasterRef.current=editCache.current.master;preparedHairBaseRef.current=null;setPlacementLocked(true);setOptionTool(null);setMsg('ล็อกตำแหน่งและ Master แล้ว — เปลี่ยนได้เฉพาะทรงผม');
  };
- const unlockPlacement=()=>{setPlacementLocked(false);setMsg('ปลดล็อกแล้ว — สามารถปรับหัวและคอได้อีกครั้ง')};
+ const unlockPlacement=()=>{lockedMasterRef.current=null;lockedPlacementRef.current=null;preparedHairBaseRef.current=null;setPlacementLocked(false);setMsg('ปลดล็อกแล้ว — สามารถปรับหัวและคอได้อีกครั้ง')};
  const changeHair=async id=>{
-  setHairId(id);
-  if(!placementLocked||!editCache.current||hairBusy)return;
+  if(hairBusy)return;
+  if(!placementLocked||!editCache.current){setHairId(id);return;}
   setHairBusy(true);setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
   try{
    const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
@@ -873,7 +955,7 @@ function App(){
     const named=new File([src],'locked-person.png',{type:src.type||'image/png'});
     const ai=await aiFinishPortrait(named,id);
     const aiMaster=await removeBackgroundBlob(ai);
-    nextMaster=await compositeHairOnLockedMaster(aiMaster,src);
+    nextMaster=await compositeHairOnLockedMaster(aiMaster,src,preparedHairBaseRef);
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
@@ -882,7 +964,7 @@ function App(){
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
    const out=await renderAdjustedFinal(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust);
-   showBlob(out);setMsg('เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{setHairBusy(false)}
  };
  const downloadCurrentFinal=async()=>{
@@ -916,7 +998,7 @@ function App(){
   editCache.current={master:headNeckTransparent,lock:composed.lock};
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
-  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;preparedHairBaseRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
   const finished=await renderAdjustedFinal(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0});
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
