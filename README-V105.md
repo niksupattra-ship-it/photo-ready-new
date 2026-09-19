@@ -1,10 +1,3 @@
-# V105 — Source Face & Ear Guard
+# V105 — fix rectangular forehead patch
 
-Based directly on V104.
-
-- Expand source-face protection to temples, jaw, and landmark-based ear regions, intersected with both skin segmentations and excluding donor hair.
-- Verify all fully protected facial pixels, not only the central oval; stop before committing the AI master on mismatch.
-- Keep the V103/V104 cached Final PNG and download behavior.
-- No additional AI or background-removal calls.
-
-Limits: segmentation may still omit parts of ears, and this is not an identity guarantee; browser/image integration must be tested with the user's original photos.
+Review of V104 found that softening the hairstyle alpha alone cannot remove the rectangular AI temporary-background patch retained by the background remover in the clean-head master. Before source-face restoration, intersect the aligned clean-head alpha with an anatomical MediaPipe segmentation mask (hair, body skin and face skin), feathering only its silhouette. Preserve the original face, fixed uniform, editor transforms, and API model/call count. This is a targeted code correction, not a claim of verified live-image photorealism.

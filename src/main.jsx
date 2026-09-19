@@ -1107,6 +1107,78 @@ async function aiFinishPortrait(originalFile,hairId){
  }finally{clearTimeout(timer)}
 }
 
+// V107: Inpaint the immutable head master directly; no bald-head reconstruction.
+// Mask is white/opaque to preserve, transparent to edit. Both images are identical size.
+async function makeHairInpaintInput(source){
+ const u=URL.createObjectURL(source);
+ try{
+  const im=await loadImage(u),W=im.naturalWidth,H=im.naturalHeight;
+  const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+  if(!face)throw Error('ไม่พบใบหน้าสำหรับกำหนดบริเวณเปลี่ยนทรงผม');
+  const hair=await semanticClassMask(im,W,H,[1]);
+  if(!hair)throw Error('ไม่สามารถแยกบริเวณผมได้ จึงไม่เรียก API');
+  const eyeD=Math.hypot((face[33].x-face[263].x)*W,(face[33].y-face[263].y)*H);
+  const cx=(face[33].x+face[263].x)*W/2, brow=face[10].y*H;
+  const chin=face[152].y*H;
+  const original=canvasFor(W,H),ox=original.getContext('2d',{willReadFrequently:true});ox.drawImage(im,0,0);
+  const hairPixels=hair.getContext('2d').getImageData(0,0,W,H).data;
+  const mask=canvasFor(W,H),mx=mask.getContext('2d',{willReadFrequently:true});
+  const data=mx.createImageData(W,H);
+  // Wide edit area removes old long hair, while the central face/neck remains opaque.
+  // Hair segmentation expands edit area above the forehead and beside the face.
+  let editable=0;
+  const left=face[234].x*W,right=face[454].x*W;
+  const forehead=face[10].y*H;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+   const j=(y*W+x)*4;
+   const dx=(x-cx)/Math.max(1,(right-left)*.52);
+   const faceEnvelope=(dx*dx+Math.pow((y-(forehead+chin)*.5)/Math.max(1,(chin-forehead)*.57),2))<1;
+   const upper=y<forehead+eyeD*.14&&Math.abs(x-cx)<eyeD*2.6;
+   const sides=y<chin+eyeD*.6&&Math.abs(x-cx)<eyeD*2.55&&!faceEnvelope;
+   const oldHair=hairPixels[j+3]>80;
+   const edit=(oldHair||upper||sides)&&!faceEnvelope;
+   data.data[j]=data.data[j+1]=data.data[j+2]=255;
+   data.data[j+3]=edit?0:255;
+   if(edit)editable++;
+  }
+  if(editable<Math.max(100,W*H*.008))throw Error('ไม่พบบริเวณผมเพียงพอสำหรับเปลี่ยนทรง');
+  mx.putImageData(data,0,0);
+  // API edit mask is deliberately hard: final compositing restores the original face.
+  return {image:await canvasPng(original),mask:await canvasPng(mask)};
+ }finally{URL.revokeObjectURL(u)}
+}
+async function aiInpaintHair(source,id){
+ const prepared=await makeHairInpaintInput(source);
+ const fd=new FormData();fd.append('image',new File([prepared.image],'portrait.png',{type:'image/png'}));
+ fd.append('mask',new File([prepared.mask],'hair-mask.png',{type:'image/png'}));
+ fd.append('hairId',id);fd.append('mode','hair-inpaint');
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
+ try{
+  const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
+  if(!r.ok)throw Error(await r.text());return await r.blob();
+ }finally{clearTimeout(timer)}
+}
+async function restoreInpaintFace(aiBlob,originalBlob){
+ const au=URL.createObjectURL(aiBlob),ou=URL.createObjectURL(originalBlob);
+ try{
+  const [ai,original]=await Promise.all([loadImage(au),loadImage(ou)]);
+  const lm=await getLandmarker(),af=lm.detect(ai).faceLandmarks?.[0],of=lm.detect(original).faceLandmarks?.[0];
+  if(!af||!of)throw Error('ตรวจจับใบหน้าเพื่อคืนใบหน้าเดิมไม่สำเร็จ');
+  const W=original.naturalWidth,H=original.naturalHeight;
+  const aligned=alignFaceCanvas(ai,af,of,W,H);
+  const result=canvasFor(W,H),ctx=result.getContext('2d');ctx.drawImage(aligned,0,0);
+  // Keep the exact original face pixels. Feather only the edge, never draw a rectangle.
+  const eyeD=Math.hypot((of[33].x-of[263].x)*W,(of[33].y-of[263].y)*H);
+  const x=(of[234].x+of[454].x)*W*.5;
+  const top=of[10].y*H,bot=of[152].y*H;
+  const skin=canvasFor(W,H),sc=skin.getContext('2d');sc.drawImage(original,0,0);
+  sc.globalCompositeOperation='destination-in';sc.filter=`blur(${Math.max(1,eyeD*.018)}px)`;
+  sc.beginPath();sc.ellipse(x,(top+bot)*.5,(of[454].x-of[234].x)*W*.49,(bot-top)*.54,0,0,Math.PI*2);
+  sc.fillStyle='#fff';sc.fill();sc.filter='none';sc.globalCompositeOperation='source-over';
+  ctx.drawImage(skin,0,0);
+  return await canvasPng(result);
+ }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(ou)}
+}
 const HAIR_OPTIONS=[
  {id:'hair-01',name:'ทรงผม 01',src:'/assets/hairstyle-previews/hair-01.png'},
  {id:'hair-02',name:'ทรงผม 02',src:'/assets/hairstyle-previews/hair-02.png'},
@@ -1261,24 +1333,12 @@ function App(){
     // "ผมเดิม" is a zero-credit restore: no AI request at all.
     nextMaster=src;
    }else{
-    // First change only: generate a hair-free scalp/ears/neck master, cache it.
-    // Later changes reuse it, so old long hair can never be composited back.
-    let prepared=preparedHairBaseRef.current;
-    if(!prepared||prepared.source!==src){
-     setMsg('กำลังสร้างภาพฐานไม่มีผมเดิม (ทำครั้งเดียวหลังล็อก)…');
-     const original=new File([src],'locked-person.png',{type:src.type||'image/png'});
-     const bald=await aiFinishPortrait(original,'clean-head');
-     const baldTransparent=await removeBackgroundBlob(bald);
-     prepared=await makeCleanHeadMaster(baldTransparent,src);
-     preparedHairBaseRef.current=prepared;
-    }
-    setMsg('กำลังใส่ทรงผมใหม่บน Clean Head Master…');
-    const cleanFile=new File([prepared.blob],'clean-head.png',{type:'image/png'});
-    const ai=await aiFinishPortrait(cleanFile,id);
-    const aiMaster=await removeBackgroundBlob(ai);
-    // Diagnostic only: retain the actual AI hairstyle layer for inspection.
-    lastHairDonorRef.current=aiMaster;
-    nextMaster=await compositeHairOnCleanMaster(aiMaster,prepared);
+    // V107: single inpainting call on immutable locked master; no Clean Head,
+    // no scalp generation, no old rectangular donor compositing.
+    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานเดิมด้วย AI Inpainting…');
+    const edited=await aiInpaintHair(src,id);
+    const transparent=await removeBackgroundBlob(edited);
+    nextMaster=await restoreInpaintFace(transparent,src);
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
@@ -1290,7 +1350,7 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg(preparedHairBaseRef.current?.darkStrandWarning?'เปลี่ยนทรงผมแล้ว · ตรวจภาพฐาน Clean Head เพิ่มเติม: พบเงาสีเข้มข้างคอ':'เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
