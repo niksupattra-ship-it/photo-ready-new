@@ -644,3 +644,9 @@
 .interior-template-picker button img{width:100%;height:92px;object-fit:contain;background:#eef3fc;border-radius:8px}
 .interior-template-picker button span{font-size:12px}
 .interior-template-picker button:disabled{opacity:.6;cursor:not-allowed}
+
+/* V126 ribbon choices; applies to male and female government uniforms. */
+.ribbon-choice-preview .ribbon-option{flex:0 0 146px;min-height:105px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;padding:10px;border:1px solid #dbe2ef;border-radius:13px;background:#fff;color:#344054;cursor:pointer;font:inherit;font-size:12px}
+.ribbon-choice-preview .ribbon-option.selected{border:2px solid #315bea;background:#f5f7ff}
+.ribbon-choice-preview .ribbon-option img{width:100%;height:55px;object-fit:contain}
+.ribbon-choice-preview .ribbon-option strong{font-size:12px}
