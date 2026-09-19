@@ -1,1 +1,1 @@
-V102 — Final PNG preview/download parity, imported hair state, unified halo path
+V100 — Preserve hairline and original face core; AI donor diagnostics
