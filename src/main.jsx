@@ -1155,51 +1155,75 @@ async function aiInpaintHair(source,id){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{
   const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
-  if(!r.ok)throw Error(await r.text());return await r.blob();
+  if(!r.ok)throw Error(await r.text());return {edited:await r.blob(),mask:prepared.mask};
  }finally{clearTimeout(timer)}
 }
-// V110: protect the actual face/ears and neck, not a narrow oval or a low-res
-// semantic skin patch. Generated dark cheek strips in V108 were outside both.
-// Keep the original pixels across the complete facial contour; feather only
-// the contour, never the image texture. The AI is allowed to replace hair.
-async function restoreInpaintFace(aiBlob,originalBlob){
- const au=URL.createObjectURL(aiBlob),ou=URL.createObjectURL(originalBlob);
+// V111: replace ONLY pixels authorized by the original hair-edit mask.
+// V108-V110 pasted an entire AI portrait underneath a face-shaped patch;
+// that changed the neck, uniform edges and background and caused visible seams.
+// The inpainting mask is the edit contract. All pixels outside it are source pixels.
+async function restoreInpaintFace(aiBlob,originalBlob,editMaskBlob){
+ const au=URL.createObjectURL(aiBlob),ou=URL.createObjectURL(originalBlob),mu=URL.createObjectURL(editMaskBlob);
  try{
-  const [ai,original]=await Promise.all([loadImage(au),loadImage(ou)]);
-  const lm=await getLandmarker(),af=lm.detect(ai).faceLandmarks?.[0],of=lm.detect(original).faceLandmarks?.[0];
-  if(!af||!of)throw Error('ตรวจจับใบหน้าเพื่อคืนใบหน้าเดิมไม่สำเร็จ');
+  const [ai,original,mask]=await Promise.all([loadImage(au),loadImage(ou),loadImage(mu)]);
   const W=original.naturalWidth,H=original.naturalHeight;
-  const aligned=alignFaceCanvas(ai,af,of,W,H);
+  if(mask.naturalWidth!==W||mask.naturalHeight!==H)throw Error('ขนาด Mask ไม่ตรงกับภาพฐาน — คงภาพเดิม');
+  const lm=await getLandmarker(),of=lm.detect(original).faceLandmarks?.[0];
+  if(!of)throw Error('ตรวจจับใบหน้าเพื่อรักษาภาพเดิมไม่สำเร็จ');
   const eyeD=Math.hypot((of[33].x-of[263].x)*W,(of[33].y-of[263].y)*H);
-  const skin=await semanticClassMask(original,W,H,[2,3]);
-  if(!skin)throw Error('ไม่สามารถตรวจขอบผิวเดิมได้ จึงคงภาพเดิม');
-  const protect=canvasFor(W,H),pc=protect.getContext('2d');
-  pc.drawImage(skin,0,0);
-  // Face oval includes both cheek edges and chin; extend to ear outlines.
-  // The forehead boundary follows the actual forehead landmark rather than
-  // a horizontal rectangle, so a new fringe can meet the original skin.
-  const contour=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
-  pc.fillStyle='#fff';pc.beginPath();
-  contour.forEach((idx,i)=>{const q=of[idx];if(i===0)pc.moveTo(q.x*W,q.y*H);else pc.lineTo(q.x*W,q.y*H)});
-  pc.closePath();pc.fill();
-  // Ears are part of the identity; don't leave AI-generated dark skin/hair
-  // strips between the cheek contour and the ear edge.
-  for(const [ear,cheek] of [[234,93],[454,323]]){
-   const ex=of[ear].x*W,ey=of[ear].y*H,cy=of[cheek].y*H;
-   pc.beginPath();pc.ellipse(ex,(ey+cy)*.5,eyeD*.22,eyeD*.38,0,0,Math.PI*2);pc.fill();
+  const aligned=canvasFor(W,H),ac=aligned.getContext('2d');
+  // Do not geometrically warp a same-sized inpaint result using a new AI face.
+  // The former alignment shifted the neck/background and made a double outline.
+  if(ai.naturalWidth===W&&ai.naturalHeight===H)ac.drawImage(ai,0,0);
+  else{
+   const af=lm.detect(ai).faceLandmarks?.[0];
+   if(!af)throw Error('AI ส่งภาพต่างขนาดและไม่พบใบหน้าเพื่อจัดแนว');
+   ac.drawImage(alignFaceCanvas(ai,af,of,W,H),0,0);
   }
-  // Never let the protected layer paint an artificial opaque background.
-  const originalAlpha=canvasFor(W,H),ac=originalAlpha.getContext('2d');ac.drawImage(original,0,0);
-  const soft=canvasFor(W,H),sf=soft.getContext('2d');
-  sf.filter=`blur(${Math.max(1.2,Math.min(3,eyeD*.009))}px)`;
-  sf.drawImage(protect,0,0);sf.filter='none';
-  sf.globalCompositeOperation='destination-in';sf.drawImage(originalAlpha,0,0);
-  const preserved=canvasFor(W,H),pr=preserved.getContext('2d');pr.drawImage(original,0,0);
-  pr.globalCompositeOperation='destination-in';pr.drawImage(soft,0,0);
-  const result=canvasFor(W,H),ctx=result.getContext('2d');
-  ctx.drawImage(aligned,0,0);ctx.drawImage(preserved,0,0);
-  return await canvasPng(result);
- }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(ou)}
+  const base=canvasFor(W,H),bc=base.getContext('2d',{willReadFrequently:true});bc.drawImage(original,0,0);
+  const edit=canvasFor(W,H),ec=edit.getContext('2d',{willReadFrequently:true});ec.drawImage(mask,0,0);
+  const donor=ac.getImageData(0,0,W,H).data,src=bc.getImageData(0,0,W,H),dst=src.data;
+  const mp=ec.getImageData(0,0,W,H).data;
+  // The face oval is a hard exclusion, including the ears. It is not a visible
+  // pasted layer, so there is no face-shaped texture/lighting boundary.
+  const faceProtect=canvasFor(W,H),fc=faceProtect.getContext('2d');
+  const contour=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+  fc.fillStyle='#fff';fc.beginPath();contour.forEach((idx,i)=>{const q=of[idx];if(i)fc.lineTo(q.x*W,q.y*H);else fc.moveTo(q.x*W,q.y*H)});fc.closePath();fc.fill();
+  for(const idx of [234,454]){const q=of[idx];fc.beginPath();fc.ellipse(q.x*W,q.y*H,eyeD*.22,eyeD*.38,0,0,Math.PI*2);fc.fill()}
+  const chin=of[152].y*H,cx=(of[33].x+of[263].x)*W/2;
+  // Preserve the visible neck and every part of the clothing; old side hair
+  // outside the neck can still be removed by the editable mask.
+  fc.fillRect(cx-eyeD*.54,chin-eyeD*.02,eyeD*1.08,H-chin+eyeD*.02);
+  // Preserve original skin and clothing even outside the landmark contour.
+  // This prevents generated cheek/neck strips and the uniform shoulder artifact.
+  const semanticProtect=await semanticClassMask(original,W,H,[2,3,4]).catch(()=>null);
+  if(semanticProtect)fc.drawImage(semanticProtect,0,0);
+  const protectedPixels=fc.getImageData(0,0,W,H).data;
+  // Feather the EDIT boundary, not the face texture. Alpha-aware replacement
+  // can remove old long hair when the AI has reconstructed empty background.
+  const editAlpha=canvasFor(W,H),ea=editAlpha.getContext('2d');
+  const md=ea.createImageData(W,H);
+  for(let i=0;i<W*H;i++){const j=i*4;md.data[j]=md.data[j+1]=md.data[j+2]=255;md.data[j+3]=255-mp[j+3]}
+  ea.putImageData(md,0,0);
+  const soft=canvasFor(W,H),sc=soft.getContext('2d',{willReadFrequently:true});
+  sc.filter=`blur(${Math.max(1.5,Math.min(3,eyeD*.008))}px)`;sc.drawImage(editAlpha,0,0);sc.filter='none';
+  const weights=sc.getImageData(0,0,W,H).data;
+  let changed=0;
+  for(let i=0;i<W*H;i++){
+   const j=i*4;
+   if(protectedPixels[j+3]>0)continue;
+   const t=weights[j+3]/255;
+   if(t<.005)continue;
+   // In premultiplied alpha space, mixing a transparent AI pixel with source
+   // removes the original hair instead of leaving a dark fringe behind.
+   const sa=dst[j+3]/255,da=donor[j+3]/255,oa=sa*(1-t)+da*t;
+   for(let c=0;c<3;c++)dst[j+c]=oa>1e-6?Math.round((dst[j+c]*sa*(1-t)+donor[j+c]*da*t)/oa):0;
+   dst[j+3]=Math.round(oa*255);changed++;
+  }
+  if(changed<Math.max(100,W*H*.002))throw Error('Mask ไม่ได้เปลี่ยนบริเวณผมอย่างเพียงพอ — คงภาพเดิม');
+  bc.putImageData(src,0,0);
+  return await canvasPng(base);
+ }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(ou);URL.revokeObjectURL(mu)}
 }
 
 const HAIR_OPTIONS=[
@@ -1359,9 +1383,9 @@ function App(){
     // V107: single inpainting call on immutable locked master; no Clean Head,
     // no scalp generation, no old rectangular donor compositing.
     setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานเดิมด้วย AI Inpainting…');
-    const edited=await aiInpaintHair(src,id);
+    const {edited,mask}=await aiInpaintHair(src,id);
     const transparent=await removeBackgroundBlob(edited);
-    nextMaster=await restoreInpaintFace(transparent,src);
+    nextMaster=await restoreInpaintFace(transparent,src,mask);
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
