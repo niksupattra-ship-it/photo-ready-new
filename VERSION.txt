@@ -1,1 +1,1 @@
-V100 — Preserve hairline and original face core; AI donor diagnostics
+V101 — Post-process hairstyle selection automatically locks the current placement; preserves original face and final preview/export alignment.
