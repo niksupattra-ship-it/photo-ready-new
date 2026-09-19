@@ -648,7 +648,7 @@ async function removeBackgroundBlob(blob){
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
 // the LOCKED transparent master. This catches long strands mislabelled as clothes.
-// It is deliberately bounded and never crosses the immutable anatomy mask.
+// It is bounded by the skin/anatomy shield, and never traverses the central neck.
 function refineOldHairMask(locked,semanticHair,protect,eyeD,chinY,centerX){
  const W=locked.naturalWidth,H=locked.naturalHeight,N=W*H;
  const src=document.createElement('canvas');src.width=W;src.height=H;
@@ -694,100 +694,215 @@ function refineOldHairMask(locked,semanticHair,protect,eyeD,chinY,centerX){
  }
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const ctx=c.getContext('2d'),out=ctx.createImageData(W,H);
- for(let i=0;i<N;i++){const j=i*4;out.data[j]=out.data[j+1]=out.data[j+2]=255;out.data[j+3]=keep[i]?Math.min(255,px[j+3]):0}
+ // Expand a few pixels into partially transparent old-hair edges; never expand
+ // into locked skin/neck. The previous hard cut left long blue/black hair trails.
+ const radius=Math.max(2,Math.min(5,Math.round(eyeD*.018)));
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+  const i=y*W+x,j=i*4;
+  let hit=keep[i]===255;
+  if(!hit&&px[j+3]>0&&shield[j+3]<32){
+   for(let dy=-radius;dy<=radius&&!hit;dy++)for(let dx=-radius;dx<=radius;dx++){
+    if(dx*dx+dy*dy>radius*radius)continue;
+    const xx=x+dx,yy=y+dy;
+    if(xx>=0&&xx<W&&yy>=0&&yy<H&&keep[yy*W+xx]){hit=true;break}
+   }
+  }
+  out.data[j]=out.data[j+1]=out.data[j+2]=255;
+  out.data[j+3]=hit&&shield[j+3]<32?255:0;
+ }
  ctx.putImageData(out,0,0);return c;
 }
 
+// V88: build a clean, immutable old-hair-free head, then layer the new hairstyle.
+// This intentionally does not use the AI face as a replacement for the locked face.
 async function compositeHairOnLockedMaster(aiMasterBlob,lockedMasterBlob,preparedRef){
- // V97 TRUE OLD-HAIR REPLACEMENT. The locked master stays immutable. We remove
- // the semantic OLD hair first, then composite semantic NEW hair only. Face/jaw/
- // ears/chin/visible neck pixels are restored 1:1 from the locked master at the end.
  const au=URL.createObjectURL(aiMasterBlob),lu=URL.createObjectURL(lockedMasterBlob);
  try{
-  const [ai,locked]=await Promise.all([loadImage(au),loadImage(lu)]),lm=await getLandmarker();
+  const [ai,locked]=await Promise.all([loadImage(au),loadImage(lu)]);
+  const lm=await getLandmarker();
   const af=lm.detect(ai).faceLandmarks?.[0],lf=lm.detect(locked).faceLandmarks?.[0];
-  if(!af||!lf)throw Error('ตรวจจับตำแหน่งใบหน้าสำหรับเปลี่ยนทรงผมไม่สำเร็จ');
+  if(!af||!lf)throw Error('ตรวจจับใบหน้าสำหรับเปลี่ยนทรงผมไม่สำเร็จ');
   const W=locked.naturalWidth,H=locked.naturalHeight;
-  const out=document.createElement('canvas');out.width=W;out.height=H;const oc=out.getContext('2d');oc.drawImage(locked,0,0,W,H);
-
+  const canvas=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;return c};
   const aa=af[33],ab=af[263],la=lf[33],lb=lf[263];
   const ad=Math.hypot((ab.x-aa.x)*ai.naturalWidth,(ab.y-aa.y)*ai.naturalHeight)||1;
   const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||ad,sc=ld/ad;
-  const ar=Math.atan2((ab.y-aa.y)*ai.naturalHeight,(ab.x-aa.x)*ai.naturalWidth),lr=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W),rot=lr-ar;
-  const amx=(aa.x+ab.x)*.5*ai.naturalWidth,amy=(aa.y+ab.y)*.5*ai.naturalHeight,lmx=(la.x+lb.x)*.5*W,lmy=(la.y+lb.y)*.5*H;
-  const alignInto=(source)=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.translate(lmx,lmy);x.rotate(rot);x.scale(sc,sc);x.translate(-amx,-amy);x.drawImage(source,0,0);return c};
-  const aligned=alignInto(ai);
-  const eyeD=Math.max(1,Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)),chin=lf[152],cx=lmx;
-
-  // Hard anatomy shield. These exact locked pixels can never be replaced by AI.
-  const protect=document.createElement('canvas');protect.width=W;protect.height=H;const pc=protect.getContext('2d');pc.fillStyle='#fff';
+  const ar=Math.atan2((ab.y-aa.y)*ai.naturalHeight,(ab.x-aa.x)*ai.naturalWidth);
+  const lr=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W),rot=lr-ar;
+  const amx=(aa.x+ab.x)*.5*ai.naturalWidth,amy=(aa.y+ab.y)*.5*ai.naturalHeight;
+  const lmx=(la.x+lb.x)*.5*W,lmy=(la.y+lb.y)*.5*H;
+  const alignInto=source=>{const c=canvas(),x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.translate(lmx,lmy);x.rotate(rot);x.scale(sc,sc);x.translate(-amx,-amy);x.drawImage(source,0,0);return c};
+  const donor=alignInto(ai);
+  const eyeD=Math.max(1,ld),chin=lf[152],cx=lmx;
+  const oldHairSemantic=await semanticClassMask(locked,W,H,[1]);
+  if(!oldHairSemantic)throw Error('แยกผมเดิมไม่สำเร็จ จึงคงภาพที่ล็อกไว้');
+  // Hard face-core and central neck protection; unlike the old ellipse, the
+  // mask does not include ears, sideburns, or a wide ring of the OLD hairstyle.
+  const hard=canvas(),hc=hard.getContext('2d');hc.fillStyle='#fff';
   const faceIds=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
-  pc.save();pc.translate(cx,chin.y*H);pc.scale(1.035,1.025);pc.translate(-cx,-chin.y*H);pc.beginPath();faceIds.forEach((id,i)=>{const q=lf[id],x=q.x*W,y=q.y*H;i?pc.lineTo(x,y):pc.moveTo(x,y)});pc.closePath();pc.fill();pc.restore();
-  const leftSide=lf[234],rightSide=lf[454];
-  pc.beginPath();pc.ellipse(leftSide.x*W,leftSide.y*H,eyeD*.23,eyeD*.43,0,0,Math.PI*2);pc.fill();
-  pc.beginPath();pc.ellipse(rightSide.x*W,rightSide.y*H,eyeD*.23,eyeD*.43,0,0,Math.PI*2);pc.fill();
+  hc.beginPath();faceIds.forEach((id,i)=>{const q=lf[id];i?hc.lineTo(q.x*W,q.y*H):hc.moveTo(q.x*W,q.y*H)});hc.closePath();hc.fill();
   const neckTop=chin.y*H-eyeD*.08,neckBottom=Math.min(H,chin.y*H+eyeD*1.55),neckHalf=eyeD*.64;
-  pc.beginPath();pc.moveTo(cx-neckHalf*.58,neckTop);pc.bezierCurveTo(cx-neckHalf*.96,neckTop+eyeD*.28,cx-neckHalf,neckBottom-eyeD*.22,cx-neckHalf*.92,neckBottom);pc.lineTo(cx+neckHalf*.92,neckBottom);pc.bezierCurveTo(cx+neckHalf,neckBottom-eyeD*.22,cx+neckHalf*.96,neckTop+eyeD*.28,cx+neckHalf*.58,neckTop);pc.closePath();pc.fill();
-  try{const skin=await semanticClassMask(locked,W,H,[2,3]);if(skin)pc.drawImage(skin,0,0)}catch(e){console.warn('locked skin protection fallback:',e)}
-
-  // Build the old-hair-free base ONCE per locked master. All subsequent hairstyles
-  // reuse the identical base, not the previous AI result or a fresh old-hair guess.
+  hc.beginPath();hc.moveTo(cx-neckHalf*.58,neckTop);hc.bezierCurveTo(cx-neckHalf*.96,neckTop+eyeD*.28,cx-neckHalf,neckBottom-eyeD*.22,cx-neckHalf*.92,neckBottom);hc.lineTo(cx+neckHalf*.92,neckBottom);hc.bezierCurveTo(cx+neckHalf,neckBottom-eyeD*.22,cx+neckHalf*.96,neckTop+eyeD*.28,cx+neckHalf*.58,neckTop);hc.closePath();hc.fill();
+  // Do not restore any old hair just because the face polygon or low-resolution
+  // semantic skin mask included it. Preserve the central eyes/nose/mouth core.
+  hc.globalCompositeOperation='destination-out';hc.drawImage(oldHairSemantic,0,0);
+  hc.globalCompositeOperation='source-over';
+  const forehead=lf[10].y*H;
+  hc.beginPath();hc.ellipse(cx,(forehead+chin.y*H)*.5,eyeD*.52,(chin.y*H-forehead)*.28,0,0,Math.PI*2);hc.fill();
+  // V92: segment the OLD hair before building the final skin protection.
+  // Using the entire skin mask as a flood-fill shield preserves strands that
+  // the low-resolution segmenter mistakenly labels as skin beside the ears.
+  // Only the central visible face and central neck are inviolable during flood.
+  const centralCore=canvas(),cc=centralCore.getContext('2d');cc.fillStyle='#fff';
+  cc.beginPath();cc.ellipse(cx,(forehead+chin.y*H)*.5,eyeD*.52,(chin.y*H-forehead)*.28,0,0,Math.PI*2);cc.fill();
+  cc.beginPath();cc.ellipse(cx,chin.y*H+eyeD*.54,eyeD*.32,eyeD*.65,0,0,Math.PI*2);cc.fill();
   let prepared=preparedRef?.current;
   if(!prepared||prepared.source!==lockedMasterBlob){
-   const oldHair=await semanticClassMask(locked,W,H,[1]);
-   if(!oldHair)throw Error('แยกผมเดิมไม่สำเร็จ กรุณาลองใหม่');
-   const refined=refineOldHairMask(locked,oldHair,protect,eyeD,chin.y*H,cx);
-   const base=document.createElement('canvas');base.width=W;base.height=H;
-   const bc=base.getContext('2d');bc.drawImage(locked,0,0,W,H);
-   // Keep the protected skin as it is. Hair, including connected long strands,
-   // is transparent so the existing background and uniform layers show through.
-   bc.globalCompositeOperation='destination-out';bc.drawImage(refined,0,0);
+   const oldHair=refineOldHairMask(locked,oldHairSemantic,centralCore,eyeD,chin.y*H,cx);
+   const base=canvas(),bc=base.getContext('2d');bc.drawImage(locked,0,0);
+   bc.globalCompositeOperation='destination-out';bc.drawImage(oldHair,0,0);
    bc.globalCompositeOperation='source-over';
-   prepared={source:lockedMasterBlob,base,oldHair:refined};
+   prepared={source:lockedMasterBlob,base,oldHair};
    if(preparedRef)preparedRef.current=prepared;
   }
-  oc.clearRect(0,0,W,H);oc.drawImage(prepared.base,0,0);
-  const newHairRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[1]);
-  if(!newHairRaw)throw Error('แยกทรงผมใหม่ไม่สำเร็จ กรุณาลองใหม่');
-  const newHair=alignInto(newHairRaw);
-  // Clip the NEW hair mask to actual donor alpha: transparent areas cannot become
-  // opaque halos after a semantic mask is enlarged from 256px.
-  const alphaNew=document.createElement('canvas');alphaNew.width=W;alphaNew.height=H;
-  const anc=alphaNew.getContext('2d');anc.drawImage(newHair,0,0);
-  anc.globalCompositeOperation='destination-in';anc.drawImage(aligned,0,0);
-  anc.globalCompositeOperation='source-over';
-
-  // Slight feather only at hair edges. Subtract protected anatomy AFTER feathering.
-  const prep=(m,blur)=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.filter=`blur(${blur}px)`;x.drawImage(m,0,0);x.filter='none';x.globalCompositeOperation='destination-out';x.drawImage(protect,0,0);x.globalCompositeOperation='source-over';return c};
-  const newEditable=prep(alphaNew,Math.max(1,Math.round(eyeD*.010)));
-
-  // Reconstruct ONLY pixels that were hidden by old hair. Include donor clothes
-  // as well as skin: long hair can cover a shoulder/collar, not just the neck.
-  // Visible locked pixels and the original uniform template remain untouched.
-  const donorSurfaceRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[2,3,4]);
-  if(donorSurfaceRaw){
-   const donorSurface=alignInto(donorSurfaceRaw);
-   const fillMask=document.createElement('canvas');fillMask.width=W;fillMask.height=H;
-   const fc=fillMask.getContext('2d');fc.drawImage(prepared.oldHair,0,0);
-   fc.globalCompositeOperation='destination-in';fc.drawImage(donorSurface,0,0);
+  // Protect skin only AFTER removing all detected old hair, including strands
+  // incorrectly labelled as skin. Central visible features remain unchanged.
+  const skin=await semanticClassMask(locked,W,H,[2,3]);
+  const protect=canvas(),pc=protect.getContext('2d');
+  if(skin)pc.drawImage(skin,0,0);
+  pc.drawImage(hard,0,0);
+  pc.globalCompositeOperation='destination-out';pc.drawImage(prepared.oldHair,0,0);
+  pc.globalCompositeOperation='source-over';pc.drawImage(centralCore,0,0);
+  const out=canvas(),oc=out.getContext('2d');oc.drawImage(prepared.base,0,0);
+  // Fill ONLY missing surface behind removed hair. Transparent gaps remain
+  // transparent for the original studio background, not a new AI background.
+  const surfaceRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[2,3,4]);
+  if(surfaceRaw){
+   const surface=alignInto(surfaceRaw),fillMask=canvas(),fc=fillMask.getContext('2d');
+   fc.drawImage(prepared.oldHair,0,0);
+   fc.globalCompositeOperation='destination-in';fc.drawImage(surface,0,0);
    fc.globalCompositeOperation='destination-out';fc.drawImage(protect,0,0);
-   // Reject transparent donor pixels, including holes near wispy hair edges.
-   fc.globalCompositeOperation='destination-in';fc.drawImage(aligned,0,0);
-   fc.globalCompositeOperation='source-over';
-   const fill=document.createElement('canvas');fill.width=W;fill.height=H;
-   const fctx=fill.getContext('2d');fctx.drawImage(aligned,0,0);
-   fctx.globalCompositeOperation='destination-in';fctx.drawImage(fillMask,0,0);
+   fc.globalCompositeOperation='destination-in';fc.drawImage(donor,0,0);
+   const fill=canvas(),fx=fill.getContext('2d');fx.drawImage(donor,0,0);
+   fx.globalCompositeOperation='destination-in';fx.drawImage(fillMask,0,0);
    oc.drawImage(fill,0,0);
   }
+  // V89: Separate the new hairstyle into disjoint BACK and FRONT canvases.
+  // Drawing the same full hair layer on both sides of the face restores unwanted
+  // overlaps and creates dark halos at the forehead/cheeks.
+  const newRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[1]);
+  if(!newRaw)throw Error('แยกทรงผมใหม่ไม่สำเร็จ จึงคงภาพเดิม');
+  const newMask=alignInto(newRaw);
+  const matte=canvas(),mc=matte.getContext('2d');
+  mc.filter=`blur(${Math.max(.6,Math.min(1.5,eyeD*.003))}px)`;
+  mc.drawImage(newMask,0,0);mc.filter='none';
+  mc.globalCompositeOperation='destination-in';mc.drawImage(donor,0,0);
+  // Keep the donor hair intact here; occlusion is resolved separately per layer.
+  // Cutting both layers with the anatomy mask produced blue gaps at the hairline.
+  mc.globalCompositeOperation='source-over';
+  const newHair=canvas(),nc=newHair.getContext('2d');nc.drawImage(donor,0,0);
+  nc.globalCompositeOperation='destination-in';nc.drawImage(matte,0,0);
+  nc.globalCompositeOperation='source-over';
 
-  // NEW HAIR ONLY: intersect aligned AI donor with semantic new-hair mask. No donor
-  // face pixels are allowed, eliminating the dark cheek/face discs seen previously.
-  const donorHair=document.createElement('canvas');donorHair.width=W;donorHair.height=H;const dc=donorHair.getContext('2d');dc.drawImage(aligned,0,0);dc.globalCompositeOperation='destination-in';dc.drawImage(newEditable,0,0);dc.globalCompositeOperation='source-over';oc.drawImage(donorHair,0,0);
+  // V91: split the NEW hair independently of the OLD hairstyle. A donor hair
+  // pixel is front only above the original forehead or on the outer temple
+  // silhouette. Exposed face/neck skin is never an allowed front-hair target.
+  const foreheadY=lf[10].y*H;
+  const templeL=Math.min(lf[234].x,lf[127].x)*W;
+  const templeR=Math.max(lf[454].x,lf[356].x)*W;
+  const frontWindow=canvas(),fw=frontWindow.getContext('2d');
+  fw.fillStyle='#fff';
+  fw.fillRect(0,0,W,Math.max(0,foreheadY+eyeD*.025));
+  // Small outer-temple sideburn regions, derived from the locked FACE rather
+  // than the old hair. Keep the cheeks, ears and neck behind the locked skin.
+  const sideBottom=Math.min(H,lf[234].y*H+eyeD*.22);
+  const sideTop=Math.max(0,foreheadY-eyeD*.04);
+  fw.fillRect(Math.max(0,templeL-eyeD*.43),sideTop,eyeD*.43,Math.max(0,sideBottom-sideTop));
+  fw.fillRect(templeR,sideTop,eyeD*.43,Math.max(0,sideBottom-sideTop));
+  // A front-hair candidate must be classified as hair in the NEW donor.
+  fw.globalCompositeOperation='destination-in';fw.drawImage(newMask,0,0);
+  fw.globalCompositeOperation='destination-out';fw.drawImage(protect,0,0);
+  fw.globalCompositeOperation='source-over';
+  const backHair=canvas(),bh=backHair.getContext('2d');bh.drawImage(newHair,0,0);
+  bh.globalCompositeOperation='destination-out';bh.drawImage(frontWindow,0,0);
+  bh.drawImage(protect,0,0);bh.globalCompositeOperation='source-over';
+  const frontHair=canvas(),fh=frontHair.getContext('2d');fh.drawImage(newHair,0,0);
+  fh.globalCompositeOperation='destination-in';fh.drawImage(frontWindow,0,0);
+  fh.globalCompositeOperation='source-over';
+  oc.drawImage(backHair,0,0);
+  const anatomy=canvas(),ac=anatomy.getContext('2d');ac.drawImage(locked,0,0);
+  ac.globalCompositeOperation='destination-in';ac.drawImage(protect,0,0);
+  oc.drawImage(anatomy,0,0);
+  oc.drawImage(frontHair,0,0);
+  // V92: do not redraw anatomy over front hair: frontWindow already excludes
+  // protected pixels and a second anatomy pass creates a harsh double edge.
 
-  // Final 1:1 restore from untouched locked master. Face/skin/jaw/chin/neck do not
-  // inherit alignment, resampling, colour or geometry from the AI hairstyle result.
-  const anatomy=document.createElement('canvas');anatomy.width=W;anatomy.height=H;const xc=anatomy.getContext('2d');xc.drawImage(locked,0,0,W,H);xc.globalCompositeOperation='destination-in';xc.drawImage(protect,0,0);xc.globalCompositeOperation='source-over';oc.drawImage(anatomy,0,0);
-  return await new Promise((ok,bad)=>out.toBlob(v=>v?ok(v):bad(Error('ประกอบทรงผมบนภาพที่ล็อกไม่สำเร็จ')),'image/png'));
+  // Check that removal has not left unexplained gaps inside the opaque head
+  // around the forehead and ears. Empty background outside the head is valid.
+  const resultPixels=oc.getImageData(0,0,W,H).data;
+  const originalPixels=canvas();originalPixels.getContext('2d').drawImage(locked,0,0);
+  const originalData=originalPixels.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const oldHairData=prepared.oldHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const newHairData=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const protectData=protect.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let exposedMissing=0, headPixels=0;
+  const checkLeft=Math.max(0,Math.floor(templeL-eyeD*.35));
+  const checkRight=Math.min(W,Math.ceil(templeR+eyeD*.35));
+  const checkTop=Math.max(0,Math.floor(foreheadY-eyeD*.25));
+  const checkBottom=Math.min(H,Math.ceil(chin.y*H+eyeD*.25));
+  for(let y=checkTop;y<checkBottom;y++)for(let x=checkLeft;x<checkRight;x++){
+   const j=(y*W+x)*4;
+   if(originalData[j+3]<245||oldHairData[j+3]>128||protectData[j+3]>128)continue;
+   headPixels++;
+   if(resultPixels[j+3]<235&&newHairData[j+3]<100)exposedMissing++;
+  }
+  if(headPixels>100&&exposedMissing>Math.max(16,headPixels*.001))
+   throw Error('พบช่องว่างบริเวณขอบใบหน้าหรือไรผม จึงคงภาพที่ล็อกไว้แทนการแสดงภาพเสีย');
+  // V92: detect donor hair mistakenly covering a removed old-hair region
+  // where the source was opaque skin/neck. Do not accept hair as reconstructed
+  // skin merely because the resulting alpha is nonzero.
+  const donorSurfaceData=surfaceRaw?alignInto(surfaceRaw).getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data:null;
+  let unsupportedSkin=0,skinCandidates=0;
+  if(donorSurfaceData){
+   for(let y=Math.max(0,Math.floor(chin.y*H-eyeD*.12));y<Math.min(H,Math.ceil(chin.y*H+eyeD*.85));y++){
+    for(let x=Math.max(0,Math.floor(cx-eyeD*.55));x<Math.min(W,Math.ceil(cx+eyeD*.55));x++){
+     const j=(y*W+x)*4;
+     if(oldHairData[j+3]<200||originalData[j+3]<220||protectData[j+3]>128)continue;
+     skinCandidates++;
+     if(donorSurfaceData[j+3]<96&&newHairData[j+3]<96)unsupportedSkin++;
+    }
+   }
+  }
+  if(skinCandidates>100&&unsupportedSkin>Math.max(40,skinCandidates*.12))
+   throw Error('AI เติมผิวบริเวณคอหรือข้างแก้มที่ผมเดิมบังไม่ครบ จึงคงภาพที่ล็อกไว้');
+  // V91: verify that removed hair has a valid replacement wherever it
+  // intersects the inner face/neck corridor. Transparent studio background
+  // outside this corridor is intentional, not a failed reconstruction.
+  let missingReconstruction=0,requiredReconstruction=0;
+  for(let y=Math.max(0,Math.floor(foreheadY));y<Math.min(H,Math.ceil(chin.y*H+eyeD*1.35));y++){
+   for(let x=Math.max(0,Math.floor(cx-eyeD*.77));x<Math.min(W,Math.ceil(cx+eyeD*.77));x++){
+    const j=(y*W+x)*4;
+    if(oldHairData[j+3]<200||originalData[j+3]<220||protectData[j+3]>128)continue;
+    requiredReconstruction++;
+    if(resultPixels[j+3]<32)missingReconstruction++;
+   }
+  }
+  if(requiredReconstruction>80&&missingReconstruction>Math.max(32,requiredReconstruction*.06))
+   throw Error('พื้นที่ที่ผมเดิมบังใบหน้าหรือคอยังเติมไม่ครบ กรุณาเลือกทรงใหม่หรือใช้ภาพต้นฉบับที่เห็นคอชัด');
+  // V89 safety check: an unfilled hole INSIDE the locked central neck is a
+  // failed replacement, not an image that should silently be offered for download.
+  // Outside the locked anatomy transparency is intentional (studio background).
+  const lockedCanvas=canvas();lockedCanvas.getContext('2d').drawImage(locked,0,0);
+  const op=oc.getImageData(0,0,W,H).data;
+  const lp=lockedCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const pp=protect.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let protectedMissing=0;
+  for(let i=0;i<W*H;i++){
+   const j=i*4;
+   if(pp[j+3]>245&&lp[j+3]>245&&op[j+3]<240)protectedMissing++;
+  }
+  if(protectedMissing>0)throw Error('พบช่องโปร่งใสในใบหน้าหรือคอที่ล็อกไว้ จึงยกเลิกผลลัพธ์เพื่อป้องกันภาพเสีย');
+  return await new Promise((ok,bad)=>out.toBlob(v=>v?ok(v):bad(Error('ประกอบทรงผมไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(lu)}
 }
 
@@ -959,11 +1074,12 @@ function App(){
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
+   const out=await renderAdjustedFinal(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust);
+   // Commit only after the new composite and final render have both succeeded.
    editCache.current={...editCache.current,master:nextMaster};
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   const out=await renderAdjustedFinal(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust);
    showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{setHairBusy(false)}
  };

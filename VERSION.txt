@@ -1,1 +1,1 @@
-V86 — Reconstruct skin/clothing only under removed old hair; reset lock cache on unlock.
+V92 — old-hair-first segmentation, skin protection, and donor-surface guard
