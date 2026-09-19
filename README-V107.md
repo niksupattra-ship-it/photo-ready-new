@@ -1,0 +1,3 @@
+# V107 — original ear pixels and face mask correction
+
+Base: V106. In `restoreSourceFaceOnAi`, separate face and ear envelopes. The facial region remains the intersection of aligned original skin, AI skin, hair exclusion and feathered face. The original ear region is intersected with the ORIGINAL skin and visible source pixels, then added as an independent layer: the AI's incorrect ear segmentation can no longer remove the user's visible ear pixels. Explicitly verify all fully protected ear pixels in the resulting master. No extra API or background-removal requests. This is not a pixel-perfect anatomical ear segmentation, and actual image QA is still needed.
