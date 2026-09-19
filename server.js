@@ -8,7 +8,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 const upload=multer({
   storage:multer.memoryStorage(),
-  limits:{fileSize:20*1024*1024,files:1,fields:10,parts:12}
+  limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
@@ -127,8 +127,9 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
     const inpaint=req.body?.mode==="hair-inpaint";
     const maskFile=req.files?.mask?.[0];
     if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
+    if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
     const key=process.env.OPENAI_API_KEY;
-    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY ใน Render");
+    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
 
     const hairId=req.body?.hairId||"original";
     const cleanHead=hairId==="clean-head";

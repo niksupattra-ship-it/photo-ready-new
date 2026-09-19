@@ -1,7 +1,5 @@
-# V108 — Fix false face/ear preservation failure
+# V108 — fix multipart upload Too many files
 
-The red error "ตรวจใบหน้า กรอบหน้า และใบหูต้นฉบับไม่ผ่าน" could occur even when face restoration was successful: V107 compared source RGB to output RGB for pixels with alpha >= 250. Canvas `source-over` legitimately blends a partially transparent source (alpha 250–254) with AI, so those RGB values are not identical.
+Root cause verified in V107 server.js: the global Multer configuration had `files:1` while `/api/ai-finish` uses `upload.fields` with `image` and `mask` for hair-inpaint. The second uploaded file triggers `LIMIT_FILE_COUNT` before any OpenAI call. Changed `files:2`, keeping the route field allowlist at one `image` and one `mask`. Added a guard against masks in non-inpaint requests. This does not modify the number of images sent to OpenAI; image[] remains portrait + hairstyle reference and mask is a separate multipart field.
 
-V108 validates only genuinely opaque source-owned pixels (originalLayer alpha 255, aligned source alpha 255, protected/core/ear mask alpha 255). It keeps the minimum protected face coverage and still rejects any changed opaque source pixels. No changes to paid AI/background removal calls, hairstyle, uniform templates, or Final PNG download flow.
-
-This fixes the identified false-positive verification path; real photo quality still needs browser testing.
+Local multipart tests are not equivalent to a live OpenAI image generation test. No API key is bundled.

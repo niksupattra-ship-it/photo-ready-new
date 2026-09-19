@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const code=fs.readFileSync(new URL('./server.js',import.meta.url),'utf8');
+assert.match(code,/limits:\{fileSize:20\*1024\*1024,files:2,fields:10,parts:12\}/);
+assert.match(code,/upload\.fields\(\[\{name:"image",maxCount:1\},\{name:"mask",maxCount:1\}\]\)/);
+const form=new FormData();
+form.append('image',new Blob([Buffer.from('image')],{type:'image/png'}),'portrait.png');
+form.append('mask',new Blob([Buffer.from('mask')],{type:'image/png'}),'hair-mask.png');
+form.append('hairId','hair-20');form.append('mode','hair-inpaint');
+const req=new Request('http://localhost/api/ai-finish',{method:'POST',body:form});
+const parsed=await req.formData();
+assert.deepEqual([...parsed.keys()],['image','mask','hairId','mode']);
+assert.equal([...parsed.values()].filter(v=>v instanceof File).length,2);
+assert.equal(parsed.get('image').name,'portrait.png');
+assert.equal(parsed.get('mask').name,'hair-mask.png');
+console.log('PASS: V108 allows 2 files, route accepts image+mask, multipart request encodes exactly 2 files.');
+console.log('NOT TESTED: live Express/Multer route or OpenAI API (dependencies/API key unavailable).');
