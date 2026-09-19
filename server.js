@@ -125,7 +125,8 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
     const inpaint=req.body?.mode==="hair-inpaint";
-    const hairDonor=req.body?.mode==="hair-donor";
+    const hairDonor=false; // V113: obsolete donor endpoint disabled
+    if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
     const maskFile=req.files?.mask?.[0];
     if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
     if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
