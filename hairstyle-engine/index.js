@@ -20,7 +20,7 @@ const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
 function cacheKey(portrait,reference,hairId,provider){
- return crypto.createHash('sha256').update('v115|gpt-image-1.5|high|high|1024x1536|png|prompt-v116-no-unrequested-bun|')
+ return crypto.createHash('sha256').update('v117|gpt-image-1.5|high|high|1024x1536|png|preview-reference-long-hair|')
  .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
 }
 export async function editHairstyle({portrait,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
@@ -30,7 +30,7 @@ export async function editHairstyle({portrait,hairId,root=process.cwd(),env=proc
  if(!PROVIDERS.includes(provider))throw Object.assign(Error('HAIRSTYLE_PROVIDER ไม่ถูกต้อง'),{status:503});
  if(provider!=='openai')throw Object.assign(Error(`${provider}: ยังไม่ได้รับ API contract ที่ยืนยันแล้ว จึงไม่เรียกบริการอื่นแทน`),{status:503});
  if(!env.OPENAI_API_KEY)throw Object.assign(Error('ยังไม่ได้ตั้งค่า OPENAI_API_KEY'),{status:503});
- const reference=path.join(root,'public','assets','hair',`${hairId}.png`);
+ const reference=path.join(root,'public','assets','hairstyle-previews',`${hairId}.png`);
  if(!fs.existsSync(reference))throw Object.assign(Error('ไม่พบภาพอ้างอิงทรงผม'),{status:400});
  const referenceBytes=fs.readFileSync(reference);
  const key=cacheKey(portrait.buffer,referenceBytes,hairId,provider);
@@ -47,7 +47,10 @@ export async function editHairstyle({portrait,hairId,root=process.cwd(),env=proc
  form.append('quality','high');
  form.append('size','1024x1536');
  form.append('output_format','png');
- form.append('prompt',`Professional portrait hairstyle transfer. Image 1 is the original person and the sole identity and anatomical reference. Image 2 is HAIRSTYLE REFERENCE ONLY, never its face or skin. Match the exact visible hairstyle silhouette of image 2, including the side part, hairline, fringe, crown height, side volume and visible back hair. The reference is a strict style specification, NOT a suggestion: do not blend it with the original hairstyle. CRITICAL: Never invent a bun, topknot, hair knob, raised crown lump, ponytail or tied-up tuft above the head unless that exact protrusion is visibly present in image 2. For a smooth or swept-back reference, the top outline must be smooth and continuous, with NO bump or bun on top; any gathered hair must stay behind the head and must not protrude above the crown. Remove the original hairstyle completely wherever it differs from the selected reference, including any pre-existing bun on top or long hair at the sides; reconstruct the original plain background where needed. Keep the original person's eyes, eyebrows, nose, lips, ears, jaw, skin texture, expression, neck, head position and framing. Do not create clothing or change any insignia. Natural photographic roots, flyaways and studio lighting; no visible pasted edges, gaps, halos, or rectangular patches. Output one coherent head and short neck on a simple solid background. No torso or shoulders.`);
+ const styleInstruction=hairId==='hair-04'
+  ? 'STYLE 04 IS A LONG, HALF-UP HAIRSTYLE: middle part, subtly braided/pinned sections at both temples, and TWO long straight sections hanging down on the left and right past the ears to the shoulders. DO NOT turn it into a swept-back updo, bun, cropped bob or tucked-away hair. The long dark side lengths are mandatory and must be visibly present in the final image.'
+  : 'Read the precise hairstyle from Image 2, including whether the lengths hang below the ears and shoulders. If Image 2 has loose hair down the sides, it MUST remain visibly down the sides; never turn loose hair into an updo.';
+ form.append('prompt',`STRICT HAIRSTYLE REFERENCE TRANSFER for an ID portrait. Image 1 is the ORIGINAL SUBJECT. Image 2 is the EXACT FULL-COLOR THUMBNAIL the user selected in the app, with a model wearing the desired hairstyle. The subject in Image 1 MUST remain the same person; do not transfer the reference model's face or clothing. ${styleInstruction} Match Image 2's parting, braid or twist details, fringe, top silhouette, crown height, hair texture, left/right side lengths, and where the hair falls behind the ears and shoulders. The user chose this exact thumbnail, not a generic similar hairstyle. DO NOT default to a smooth tied-back hairstyle or preserve Image 1's old hair when it conflicts with Image 2. No topknot or bun unless visibly present in Image 2. Preserve Image 1's face, skin, eyes, nose, mouth, ears, expression, head placement and neck. Remove replaced hair and reconstruct natural background where necessary. Preserve head and short-neck crop; no torso, clothing, insignia or reference-model face. Output a natural coherent photographic portrait with no seams or halos.`);
  form.append('image[]',new Blob([portrait.buffer],{type:portrait.mimetype||'image/png'}),'portrait.png');
  form.append('image[]',new Blob([referenceBytes],{type:'image/png'}),`${hairId}.png`);
  const response=await fetcher('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:form});
