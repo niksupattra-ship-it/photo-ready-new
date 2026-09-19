@@ -630,15 +630,3 @@
 .placement-lock-btn:disabled{opacity:.55;cursor:not-allowed}
 .placement-lock-row small{font-size:12px;color:#475569}
 @media(max-width:640px){.placement-lock-row{padding:7px 8px 5px}.placement-lock-btn{width:100%;min-height:44px}}
-
-/* V119: show actual male/female hairstyle preview portraits before processing, like the female picker. */
-.initial-hair-picker{width:min(100%,680px);margin:8px auto 14px;padding:12px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;min-width:0}
-.initial-hair-picker .hair-picker-head{margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
-.initial-hair-picker .hair-picker-head h3{margin:0;font-size:16px}
-.initial-hair-picker .hair-picker-head span{font-size:12px;color:#667085}
-.initial-hair-carousel{width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;display:flex;gap:9px;padding:3px 2px 12px;scroll-snap-type:x proximity}
-.initial-hair-carousel .hair-card{flex:0 0 88px!important;min-width:88px;overflow:hidden;position:relative;scroll-snap-align:start}
-.initial-hair-carousel .hair-card img{width:100%;height:105px;aspect-ratio:auto;object-fit:cover;object-position:50% 18%;display:block}
-.initial-hair-carousel .hair-card.selected{outline:2px solid #315bea;outline-offset:1px}
-.initial-hair-carousel .no-hair-card{min-height:130px;justify-content:center}
-@media(max-width:650px){.initial-hair-picker{padding:10px}.initial-hair-carousel .hair-card{flex-basis:78px!important;min-width:78px}.initial-hair-carousel .hair-card img{height:96px}}
