@@ -128,6 +128,7 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
   const result=await editHairstyle({portrait:req.file,hairId:req.body?.hairId,root:dir});
   res.set("Content-Type","image/png");res.set("Cache-Control","no-store");
   res.set("X-Hairstyle-Provider",result.provider);
+  res.set("X-Hairstyle-Cache",result.cache||"MISS");
   if(result.requestId)res.set("X-Request-Id",result.requestId);
   res.send(result.png);
  }catch(error){

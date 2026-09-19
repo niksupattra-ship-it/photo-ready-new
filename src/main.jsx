@@ -1242,6 +1242,7 @@ function App(){
  const[hairBusy,setHairBusy]=useState(false);
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
+ const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
  const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
  const[downloadBusy,setDownloadBusy]=useState(false);
@@ -1268,7 +1269,7 @@ function App(){
  const renderTimer=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=async amount=>{if(placementLocked)return;const v=Math.max(-1,Math.min(1,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(!editCache.current)return;try{const out=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},v,liveNeckAdjustRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
@@ -1326,11 +1327,11 @@ function App(){
  const lockPlacement=()=>{
   if(!editCache.current||!b)return;
   const snapshot={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  lockedPlacementRef.current=snapshot;lockedMasterRef.current=editCache.current.master;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setPlacementLocked(true);setOptionTool(null);setMsg('ล็อกตำแหน่งและ Master แล้ว — เปลี่ยนได้เฉพาะทรงผม');
+  lockedPlacementRef.current=snapshot;lockedMasterRef.current=editCache.current.master;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();setPlacementLocked(true);setOptionTool(null);setMsg('ล็อกตำแหน่งและ Master แล้ว — เปลี่ยนได้เฉพาะทรงผม');
  };
- const unlockPlacement=()=>{++renderSeqRef.current;lockedMasterRef.current=null;lockedPlacementRef.current=null;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setPlacementLocked(false);setMsg('ปลดล็อกแล้ว — สามารถปรับหัวและคอได้อีกครั้ง')};
+ const unlockPlacement=()=>{++renderSeqRef.current;lockedMasterRef.current=null;lockedPlacementRef.current=null;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();setPlacementLocked(false);setMsg('ปลดล็อกแล้ว — สามารถปรับหัวและคอได้อีกครั้ง')};
  const changeHair=async id=>{
-  if(hairBusy||busy)return;
+  if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
   // A processed portrait can change hair immediately: capture the CURRENT editor
   // placement even when the user has not pressed the explicit lock button.
@@ -1340,10 +1341,10 @@ function App(){
    ++renderSeqRef.current;
    lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
    lockedMasterRef.current=editCache.current.master;
-   preparedHairBaseRef.current=null;lastHairDonorRef.current=null;
+   preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
    setPlacementLocked(true);
   }
-  setHairBusy(true);setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
+  hairRequestRef.current=true;setHairBusy(true);setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
   try{
    const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
    // Every hairstyle starts from the SAME immutable master captured at Lock time.
@@ -1357,9 +1358,15 @@ function App(){
     // V114: no client-side hair mask, no donor and no face-patch compositing.
     // Provider output is a coherent head; MODNet removes only its temporary background.
     setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานที่ล็อกไว้…');
-    const edited=await requestHairstyleEngine(src,id);
-    setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
-    nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
+    const cached=hairResultCacheRef.current.get(id);
+    if(cached){nextMaster=cached;setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
+    else{
+     const edited=await requestHairstyleEngine(src,id);
+     setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
+     nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
+     // Cache only successfully processed images. Never cache errors or intermediate AI output.
+     hairResultCacheRef.current.set(id,nextMaster);
+    }
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
@@ -1372,7 +1379,7 @@ function App(){
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
    showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{setHairBusy(false)}
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -1420,7 +1427,7 @@ function App(){
   editCache.current={master:headNeckTransparent,lock:composed.lock};
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
-  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
   const finished=await renderAdjustedFinal(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0});
   showBlob(finished);
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
