@@ -137,10 +137,10 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
       hairBuf=fs.readFileSync(hairPath);
     }
 
-    const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples, behind the ears, sides of the neck and shoulders. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Do not create clothes, uniform, badges or background decoration. Return the same centered person with bare scalp, visible ears and neck on a plain temporary background. This is an intermediate layer, not the final portrait.`;
+    const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Return a neutral professional head-and-short-neck crop on a plain temporary background; no torso or shoulders. This is an intermediate layer, not the final portrait.`;
     const prompt=cleanHead?cleanPrompt:`PROFESSIONAL ID-PORTRAIT REFERENCE EDIT. Image 1 is the ORIGINAL FULL-QUALITY photograph of the subject. It is the sole authority for identity, face, skin, complexion, facial anatomy, expression and photographic skin texture.${keepOriginalHair?" There is no hairstyle reference: preserve the original hairstyle from Image 1.":" Image 2 is a HAIRSTYLE REFERENCE ONLY. Use it only for hairstyle geometry and appearance; never transfer its face, skin, lighting, makeup, head shape or identity."}
 
-GOAL: create one continuous, photorealistic head + hair + ears + natural bare neck layer of the SAME PERSON for an ID portrait. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
+GOAL: create one continuous, photorealistic head + hair + ears + short neck layer of the SAME PERSON for an ID portrait. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
 
 IDENTITY / FACE LOCK: preserve Image 1's exact facial structure and recognizable identity: eye shape and spacing, brows, nose, lips, cheeks, jaw, chin, ears, asymmetry, expression, age and proportions. Do not idealize, reshape, beautify or substitute facial features.
 
@@ -154,7 +154,7 @@ HAIR COLOR — PRO BLACK 50%: apply a restrained professional deep-black appeara
 
 ABSOLUTE EXCLUSION MASK INSTRUCTION: every pixel belonging to forehead skin, temples, eyebrows, eyelashes, eyes, nose, cheeks, ears, lips, jaw, chin and neck is protected and must remain governed exclusively by Image 1. Hair balancing, strand refinement and Pro Black 50% must affect HAIR PIXELS ONLY. Do not resize, warp, retouch, recolor or regenerate the face to make it fit the hairstyle; fit the hairstyle to the unchanged face instead.
 
-OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, plus a natural straight neck ending before the torso/clothing. No shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons or fabric. Use a simple temporary solid background. Keep natural camera detail without halos or artificial sharpening.
+OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, plus a short natural neck; do not generate shoulders or torso. No shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons or fabric. Use a simple temporary solid background. Keep natural camera detail without halos or artificial sharpening.
 
 FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture from Image 1, (3) selected hairstyle only from Image 2 when supplied, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
@@ -176,8 +176,8 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
       const code=body?.error?.code || "image_edit_failed";
       const stage=body?.error?.moderation_details?.moderation_stage;
       if(code==="moderation_blocked" || code==="safety_violations"){
-        console.error("OpenAI image edit safety block", JSON.stringify(body));
-        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. กรุณาลองประมวลผลอีกครั้งด้วยภาพบุคคลสำหรับรูปติดบัตร`);
+        console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
+        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (ไม่ใช่เครดิตหมด) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
       }
       return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     }
