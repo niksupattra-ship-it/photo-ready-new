@@ -819,32 +819,36 @@ async function restoreSourceFaceOnAi(aiBlob,sourceBlob){
   const originalLayer=canvasFor(W,H),oc=originalLayer.getContext('2d');oc.drawImage(sourceAligned,0,0);
   oc.globalCompositeOperation='destination-in';oc.drawImage(mask,0,0);
   const out=canvasFor(W,H),outc=out.getContext('2d');outc.drawImage(ai,0,0);outc.drawImage(originalLayer,0,0);
+  // V108: Validate only pixels that are genuinely 100% source-owned.
+  // V107 tested alpha >=250 as if it were fully opaque. A source pixel at
+  // alpha 250 is blended with AI by source-over, so RGB legitimately differs.
+  // That false positive blocked processing with the face/ear error.
   const md=core.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const protectedPixels=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const earAlpha=earSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const layerData=originalLayer.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const od=sourceAligned.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const rd=outc.getImageData(0,0,W,H).data;
-  let n=0,bad=0,wide=0,wideBad=0;
+  let coreCount=0,protectedCount=0,earCount=0,bad=0;
   for(let i=0;i<W*H;i++){
    const j=i*4;
-   // Fully protected source face is checked pixel-for-pixel; the soft outer
-   // boundary is excluded because alpha blending is expected there.
-   if(protectedPixels[j+3]>=250&&od[j+3]>=250){
-    wide++;
-    if(rd[j+3]<250||Math.abs(rd[j]-od[j])>2||Math.abs(rd[j+1]-od[j+1])>2||Math.abs(rd[j+2]-od[j+2])>2)wideBad++;
-   }
-   if(md[j+3]<250)continue;n++;
-   if(rd[j+3]<250||Math.abs(rd[j]-od[j])>2||Math.abs(rd[j+1]-od[j+1])>2||Math.abs(rd[j+2]-od[j+2])>2)bad++;
+   // Only an opaque originalLayer can fully replace the AI pixel. Do not
+   // mistake antialiased mask edges for face mutations.
+   if(layerData[j+3]!==255||od[j+3]!==255)continue;
+   const inCore=md[j+3]===255;
+   const inFace=protectedPixels[j+3]===255;
+   const inEar=earAlpha[j+3]===255;
+   if(!inCore&&!inFace&&!inEar)continue;
+   if(inCore)coreCount++;
+   if(inFace)protectedCount++;
+   if(inEar)earCount++;
+   if(rd[j+3]!==255||
+      Math.abs(rd[j]-od[j])>2||
+      Math.abs(rd[j+1]-od[j+1])>2||
+      Math.abs(rd[j+2]-od[j+2])>2)bad++;
   }
-  const earAlpha=earSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  let earCount=0,earBad=0;
-  for(let i=0;i<W*H;i++){
-   const j=i*4;
-   if(earAlpha[j+3]<250||od[j+3]<250)continue;
-   earCount++;
-   if(rd[j+3]<250||Math.abs(rd[j]-od[j])>2||Math.abs(rd[j+1]-od[j+1])>2||Math.abs(rd[j+2]-od[j+2])>2)earBad++;
-  }
-  if(n<100||bad||wide<Math.max(100,n)||wideBad||earBad)
-   throw Error('ตรวจใบหน้า กรอบหน้า และใบหูต้นฉบับไม่ผ่าน — ไม่เผยแพร่ภาพ AI เป็น Master');
+  if(coreCount<100||protectedCount<coreCount||bad)
+   throw Error('ตรวจพิกเซลใบหน้าต้นฉบับไม่ผ่าน — ไม่เผยแพร่ภาพ AI เป็น Master');
   return canvasPng(out);
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(su)}
 }
@@ -1088,14 +1092,16 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
   let originalMissing=0,coreCount=0;
   for(let i=0;i<W*H;i++){
    const j=i*4;
-   if(coreData[j+3]<250)continue;
+   // Only fully opaque original-owned pixels are exact RGB invariants.
+   // Antialiased alpha 250–254 is legitimately blended by Canvas.
+   if(coreData[j+3]!==255||originalData[j+3]!==255)continue;
    coreCount++;
-   if(originalData[j+3]<250||cd[j+3]<250||
+   if(cd[j+3]!==255||
       Math.abs(cd[j]-originalData[j])>2||
       Math.abs(cd[j+1]-originalData[j+1])>2||
       Math.abs(cd[j+2]-originalData[j+2])>2)originalMissing++;
   }
-  if(coreCount<100||originalMissing)throw Error('ภาพฐานไม่รักษาพิกเซลใบหน้าต้นฉบับครบ จึงคงภาพเดิม');
+  if(coreCount<100||originalMissing)throw Error('ขั้นตอนเปลี่ยนทรงผม: ภาพฐานไม่รักษาพิกเซลใบหน้าต้นฉบับครบ จึงคงภาพเดิม');
   // V100: keep original skin where it is truly visible, but never paint
   // the original forehead/temple layer OVER the selected hairstyle. The
   // immutable facial core is exempt from the donor-hair subtraction.
@@ -1129,10 +1135,11 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
    throw Error('ทรงผมใหม่หายระหว่างประกอบภาพ — ยังคงรูปเดิมที่ล็อกไว้');
   const result=oc.getImageData(0,0,W,H).data;
   for(let i=0;i<W*H;i++){
-   const j=i*4;if(coreData[j+3]<250)continue;
-   if(result[j+3]<250||Math.abs(result[j]-originalData[j])>2||
+   const j=i*4;
+   if(coreData[j+3]!==255||originalData[j+3]!==255)continue;
+   if(result[j+3]!==255||Math.abs(result[j]-originalData[j])>2||
       Math.abs(result[j+1]-originalData[j+1])>2||Math.abs(result[j+2]-originalData[j+2])>2)
-    throw Error('ใบหน้าต้นฉบับเปลี่ยนไปหลังประกอบผม จึงคงภาพเดิม');
+    throw Error('ขั้นตอนเปลี่ยนทรงผม: ใบหน้าต้นฉบับเปลี่ยนไปหลังประกอบผม จึงคงภาพเดิม');
   }
   return canvasPng(out);
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(cu)}

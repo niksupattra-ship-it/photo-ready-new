@@ -1,1 +1,1 @@
-V107 — preserve source ear skin independently of AI ear segmentation; based on V106.
+V108 — correct false face/ear verification on partially transparent mask edges; based on V107.\n
