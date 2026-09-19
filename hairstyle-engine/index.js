@@ -20,7 +20,7 @@ const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
 function cacheKey(portrait,reference,hairId,provider){
- return crypto.createHash('sha256').update('v115|gpt-image-1.5|high|high|1024x1536|png|prompt-v114|')
+ return crypto.createHash('sha256').update('v115|gpt-image-1.5|high|high|1024x1536|png|prompt-v116-no-unrequested-bun|')
  .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
 }
 export async function editHairstyle({portrait,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
@@ -47,7 +47,7 @@ export async function editHairstyle({portrait,hairId,root=process.cwd(),env=proc
  form.append('quality','high');
  form.append('size','1024x1536');
  form.append('output_format','png');
- form.append('prompt',`Professional portrait hairstyle transfer. Image 1 is the original person and the sole identity and anatomical reference. Image 2 is HAIRSTYLE REFERENCE ONLY, never its face or skin. Change the original hairstyle to match image 2 including part, hairline, fringe, crown, volume and tied/loose length. Remove any former long hair that no longer belongs to the selected style; reconstruct the original plain background where needed. Keep the original person's eyes, eyebrows, nose, lips, ears, jaw, skin texture, expression, neck, head position and framing. Do not create clothing or change any insignia. Natural photographic roots, flyaways and studio lighting; no visible pasted edges, gaps, halos, or rectangular patches. Output one coherent head and short neck on a simple solid background. No torso or shoulders.`);
+ form.append('prompt',`Professional portrait hairstyle transfer. Image 1 is the original person and the sole identity and anatomical reference. Image 2 is HAIRSTYLE REFERENCE ONLY, never its face or skin. Match the exact visible hairstyle silhouette of image 2, including the side part, hairline, fringe, crown height, side volume and visible back hair. The reference is a strict style specification, NOT a suggestion: do not blend it with the original hairstyle. CRITICAL: Never invent a bun, topknot, hair knob, raised crown lump, ponytail or tied-up tuft above the head unless that exact protrusion is visibly present in image 2. For a smooth or swept-back reference, the top outline must be smooth and continuous, with NO bump or bun on top; any gathered hair must stay behind the head and must not protrude above the crown. Remove the original hairstyle completely wherever it differs from the selected reference, including any pre-existing bun on top or long hair at the sides; reconstruct the original plain background where needed. Keep the original person's eyes, eyebrows, nose, lips, ears, jaw, skin texture, expression, neck, head position and framing. Do not create clothing or change any insignia. Natural photographic roots, flyaways and studio lighting; no visible pasted edges, gaps, halos, or rectangular patches. Output one coherent head and short neck on a simple solid background. No torso or shoulders.`);
  form.append('image[]',new Blob([portrait.buffer],{type:portrait.mimetype||'image/png'}),'portrait.png');
  form.append('image[]',new Blob([referenceBytes],{type:'image/png'}),`${hairId}.png`);
  const response=await fetcher('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:form});
