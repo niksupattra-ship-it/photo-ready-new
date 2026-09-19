@@ -12,7 +12,7 @@ export function providerStatus(env=process.env){
   specialized:{configured:false,referenceImage:null,reason:'Awaiting selected model, deployment and license'}
  }};
 }
-export function validateHairId(id){return /^hair-(0[1-9]|1[0-9]|2[0-9])$/.test(id||'');}
+export function validateHairId(id){return /^(?:hair-(?:0[1-9]|1[0-9]|2[0-9])|manhair-(?:0[1-9]|1[0-2]))$/.test(id||'');}
 // Short-lived, bounded memory cache. Stores generated output only, never source portraits.
 // Cache key includes portrait bytes, selected reference bytes and exact generation settings.
 const MAX_CACHE_ENTRIES=8, CACHE_TTL_MS=15*60*1000;
@@ -20,7 +20,7 @@ const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
 function cacheKey(portrait,reference,hairId,provider){
- return crypto.createHash('sha256').update('v117|gpt-image-1.5|high|high|1024x1536|png|preview-reference-long-hair|')
+ return crypto.createHash('sha256').update('v118|gpt-image-1.5|high|high|1024x1536|png|preview-reference-long-hair|')
  .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
 }
 export async function editHairstyle({portrait,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
@@ -47,7 +47,9 @@ export async function editHairstyle({portrait,hairId,root=process.cwd(),env=proc
  form.append('quality','high');
  form.append('size','1024x1536');
  form.append('output_format','png');
- const styleInstruction=hairId==='hair-04'
+ const styleInstruction=hairId.startsWith('manhair-')
+  ? 'Image 2 is the selected MENS HAIRSTYLE reference. Match its specific short-hair silhouette, fade/taper, part, fringe, sideburns and crown. Do not add a bun, ponytail, long hair or a generic hairstyle unless clearly present in Image 2.'
+  : hairId==='hair-04'
   ? 'STYLE 04 IS A LONG, HALF-UP HAIRSTYLE: middle part, subtly braided/pinned sections at both temples, and TWO long straight sections hanging down on the left and right past the ears to the shoulders. DO NOT turn it into a swept-back updo, bun, cropped bob or tucked-away hair. The long dark side lengths are mandatory and must be visibly present in the final image.'
   : 'Read the precise hairstyle from Image 2, including whether the lengths hang below the ears and shoulders. If Image 2 has loose hair down the sides, it MUST remain visibly down the sides; never turn loose hair into an updo.';
  form.append('prompt',`STRICT HAIRSTYLE REFERENCE TRANSFER for an ID portrait. Image 1 is the ORIGINAL SUBJECT. Image 2 is the EXACT FULL-COLOR THUMBNAIL the user selected in the app, with a model wearing the desired hairstyle. The subject in Image 1 MUST remain the same person; do not transfer the reference model's face or clothing. ${styleInstruction} Match Image 2's parting, braid or twist details, fringe, top silhouette, crown height, hair texture, left/right side lengths, and where the hair falls behind the ears and shoulders. The user chose this exact thumbnail, not a generic similar hairstyle. DO NOT default to a smooth tied-back hairstyle or preserve Image 1's old hair when it conflicts with Image 2. No topknot or bun unless visibly present in Image 2. Preserve Image 1's face, skin, eyes, nose, mouth, ears, expression, head placement and neck. Remove replaced hair and reconstruct natural background where necessary. Preserve head and short-neck crop; no torso, clothing, insignia or reference-model face. Output a natural coherent photographic portrait with no seams or halos.`);
