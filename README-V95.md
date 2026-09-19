@@ -1,0 +1,1 @@
+V95: preserve and validate original face pixels separately from Clean Head Master; detect connected long-hair remnants across jaw/shoulders; use donor-hair-constrained cheek wisps. Existing locked position and uniform renderer unchanged. API image quality not verified.

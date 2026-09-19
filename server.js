@@ -127,7 +127,8 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY ใน Render");
 
     const hairId=req.body?.hairId||"original";
-    const keepOriginalHair=hairId==="original";
+    const cleanHead=hairId==="clean-head";
+    const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
     if(!keepOriginalHair){
       const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
@@ -136,7 +137,8 @@ app.post("/api/ai-finish",upload.single("image"),async(req,res)=>{
       hairBuf=fs.readFileSync(hairPath);
     }
 
-    const prompt=`PROFESSIONAL ID-PORTRAIT REFERENCE EDIT. Image 1 is the ORIGINAL FULL-QUALITY photograph of the subject. It is the sole authority for identity, face, skin, complexion, facial anatomy, expression and photographic skin texture.${keepOriginalHair?" There is no hairstyle reference: preserve the original hairstyle from Image 1.":" Image 2 is a HAIRSTYLE REFERENCE ONLY. Use it only for hairstyle geometry and appearance; never transfer its face, skin, lighting, makeup, head shape or identity."}
+    const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples, behind the ears, sides of the neck and shoulders. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Do not create clothes, uniform, badges or background decoration. Return the same centered person with bare scalp, visible ears and neck on a plain temporary background. This is an intermediate layer, not the final portrait.`;
+    const prompt=cleanHead?cleanPrompt:`PROFESSIONAL ID-PORTRAIT REFERENCE EDIT. Image 1 is the ORIGINAL FULL-QUALITY photograph of the subject. It is the sole authority for identity, face, skin, complexion, facial anatomy, expression and photographic skin texture.${keepOriginalHair?" There is no hairstyle reference: preserve the original hairstyle from Image 1.":" Image 2 is a HAIRSTYLE REFERENCE ONLY. Use it only for hairstyle geometry and appearance; never transfer its face, skin, lighting, makeup, head shape or identity."}
 
 GOAL: create one continuous, photorealistic head + hair + ears + natural bare neck layer of the SAME PERSON for an ID portrait. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
 

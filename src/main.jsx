@@ -713,199 +713,250 @@ function refineOldHairMask(locked,semanticHair,protect,eyeD,chinY,centerX){
  ctx.putImageData(out,0,0);return c;
 }
 
-// V88: build a clean, immutable old-hair-free head, then layer the new hairstyle.
-// This intentionally does not use the AI face as a replacement for the locked face.
-async function compositeHairOnLockedMaster(aiMasterBlob,lockedMasterBlob,preparedRef){
- const au=URL.createObjectURL(aiMasterBlob),lu=URL.createObjectURL(lockedMasterBlob);
+// V93: A genuinely hair-free immutable master. Never paste the old long-hair
+// master beneath a new hairstyle. Generate missing ears/scalp/neck once and
+// restore ONLY originally visible face/neck pixels that are also skin in donor.
+function canvasFor(W,H){const c=document.createElement('canvas');c.width=W;c.height=H;return c}
+function canvasPng(c){return new Promise((ok,bad)=>c.toBlob(b=>b?ok(b):bad(Error('บันทึก Clean Head Master ไม่สำเร็จ')),'image/png'))}
+function alignFaceCanvas(source,from,to,W,H){
+ const c=canvasFor(W,H),x=c.getContext('2d');
+ const a=from[33],b=from[263],la=to[33],lb=to[263];
+ const sw=source.naturalWidth,sh=source.naturalHeight;
+ const d=Math.hypot((b.x-a.x)*sw,(b.y-a.y)*sh)||1;
+ const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||d;
+ const rot=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W)-Math.atan2((b.y-a.y)*sh,(b.x-a.x)*sw);
+ x.translate((la.x+lb.x)*W*.5,(la.y+lb.y)*H*.5);x.rotate(rot);x.scale(ld/d,ld/d);
+ x.translate(-(a.x+b.x)*sw*.5,-(a.y+b.y)*sh*.5);x.drawImage(source,0,0);
+ return c;
+}
+async function makeCleanHeadMaster(baldBlob,originalBlob){
+ const bu=URL.createObjectURL(baldBlob),ou=URL.createObjectURL(originalBlob);
  try{
-  const [ai,locked]=await Promise.all([loadImage(au),loadImage(lu)]);
-  const lm=await getLandmarker();
-  const af=lm.detect(ai).faceLandmarks?.[0],lf=lm.detect(locked).faceLandmarks?.[0];
-  if(!af||!lf)throw Error('ตรวจจับใบหน้าสำหรับเปลี่ยนทรงผมไม่สำเร็จ');
-  const W=locked.naturalWidth,H=locked.naturalHeight;
-  const canvas=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;return c};
-  const aa=af[33],ab=af[263],la=lf[33],lb=lf[263];
-  const ad=Math.hypot((ab.x-aa.x)*ai.naturalWidth,(ab.y-aa.y)*ai.naturalHeight)||1;
-  const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||ad,sc=ld/ad;
-  const ar=Math.atan2((ab.y-aa.y)*ai.naturalHeight,(ab.x-aa.x)*ai.naturalWidth);
-  const lr=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W),rot=lr-ar;
-  const amx=(aa.x+ab.x)*.5*ai.naturalWidth,amy=(aa.y+ab.y)*.5*ai.naturalHeight;
-  const lmx=(la.x+lb.x)*.5*W,lmy=(la.y+lb.y)*.5*H;
-  const alignInto=source=>{const c=canvas(),x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.translate(lmx,lmy);x.rotate(rot);x.scale(sc,sc);x.translate(-amx,-amy);x.drawImage(source,0,0);return c};
-  const donor=alignInto(ai);
-  const eyeD=Math.max(1,ld),chin=lf[152],cx=lmx;
-  const oldHairSemantic=await semanticClassMask(locked,W,H,[1]);
-  if(!oldHairSemantic)throw Error('แยกผมเดิมไม่สำเร็จ จึงคงภาพที่ล็อกไว้');
-  // Hard face-core and central neck protection; unlike the old ellipse, the
-  // mask does not include ears, sideburns, or a wide ring of the OLD hairstyle.
-  const hard=canvas(),hc=hard.getContext('2d');hc.fillStyle='#fff';
-  const faceIds=[10,338,297,332,284,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,54,103,67,109];
-  hc.beginPath();faceIds.forEach((id,i)=>{const q=lf[id];i?hc.lineTo(q.x*W,q.y*H):hc.moveTo(q.x*W,q.y*H)});hc.closePath();hc.fill();
-  const neckTop=chin.y*H-eyeD*.08,neckBottom=Math.min(H,chin.y*H+eyeD*1.55),neckHalf=eyeD*.64;
-  hc.beginPath();hc.moveTo(cx-neckHalf*.58,neckTop);hc.bezierCurveTo(cx-neckHalf*.96,neckTop+eyeD*.28,cx-neckHalf,neckBottom-eyeD*.22,cx-neckHalf*.92,neckBottom);hc.lineTo(cx+neckHalf*.92,neckBottom);hc.bezierCurveTo(cx+neckHalf,neckBottom-eyeD*.22,cx+neckHalf*.96,neckTop+eyeD*.28,cx+neckHalf*.58,neckTop);hc.closePath();hc.fill();
-  // Do not restore any old hair just because the face polygon or low-resolution
-  // semantic skin mask included it. Preserve the central eyes/nose/mouth core.
-  hc.globalCompositeOperation='destination-out';hc.drawImage(oldHairSemantic,0,0);
-  hc.globalCompositeOperation='source-over';
-  const forehead=lf[10].y*H;
-  hc.beginPath();hc.ellipse(cx,(forehead+chin.y*H)*.5,eyeD*.52,(chin.y*H-forehead)*.28,0,0,Math.PI*2);hc.fill();
-  // V92: segment the OLD hair before building the final skin protection.
-  // Using the entire skin mask as a flood-fill shield preserves strands that
-  // the low-resolution segmenter mistakenly labels as skin beside the ears.
-  // Only the central visible face and central neck are inviolable during flood.
-  const centralCore=canvas(),cc=centralCore.getContext('2d');cc.fillStyle='#fff';
-  cc.beginPath();cc.ellipse(cx,(forehead+chin.y*H)*.5,eyeD*.52,(chin.y*H-forehead)*.28,0,0,Math.PI*2);cc.fill();
-  cc.beginPath();cc.ellipse(cx,chin.y*H+eyeD*.54,eyeD*.32,eyeD*.65,0,0,Math.PI*2);cc.fill();
-  let prepared=preparedRef?.current;
-  if(!prepared||prepared.source!==lockedMasterBlob){
-   const oldHair=refineOldHairMask(locked,oldHairSemantic,centralCore,eyeD,chin.y*H,cx);
-   const base=canvas(),bc=base.getContext('2d');bc.drawImage(locked,0,0);
-   bc.globalCompositeOperation='destination-out';bc.drawImage(oldHair,0,0);
-   bc.globalCompositeOperation='source-over';
-   prepared={source:lockedMasterBlob,base,oldHair};
-   if(preparedRef)preparedRef.current=prepared;
-  }
-  // Protect skin only AFTER removing all detected old hair, including strands
-  // incorrectly labelled as skin. Central visible features remain unchanged.
-  const skin=await semanticClassMask(locked,W,H,[2,3]);
-  const protect=canvas(),pc=protect.getContext('2d');
-  if(skin)pc.drawImage(skin,0,0);
-  pc.drawImage(hard,0,0);
-  pc.globalCompositeOperation='destination-out';pc.drawImage(prepared.oldHair,0,0);
-  pc.globalCompositeOperation='source-over';pc.drawImage(centralCore,0,0);
-  const out=canvas(),oc=out.getContext('2d');oc.drawImage(prepared.base,0,0);
-  // Fill ONLY missing surface behind removed hair. Transparent gaps remain
-  // transparent for the original studio background, not a new AI background.
-  const surfaceRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[2,3,4]);
-  if(surfaceRaw){
-   const surface=alignInto(surfaceRaw),fillMask=canvas(),fc=fillMask.getContext('2d');
-   fc.drawImage(prepared.oldHair,0,0);
-   fc.globalCompositeOperation='destination-in';fc.drawImage(surface,0,0);
-   fc.globalCompositeOperation='destination-out';fc.drawImage(protect,0,0);
-   fc.globalCompositeOperation='destination-in';fc.drawImage(donor,0,0);
-   const fill=canvas(),fx=fill.getContext('2d');fx.drawImage(donor,0,0);
-   fx.globalCompositeOperation='destination-in';fx.drawImage(fillMask,0,0);
-   oc.drawImage(fill,0,0);
-  }
-  // V89: Separate the new hairstyle into disjoint BACK and FRONT canvases.
-  // Drawing the same full hair layer on both sides of the face restores unwanted
-  // overlaps and creates dark halos at the forehead/cheeks.
-  const newRaw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[1]);
-  if(!newRaw)throw Error('แยกทรงผมใหม่ไม่สำเร็จ จึงคงภาพเดิม');
-  const newMask=alignInto(newRaw);
-  const matte=canvas(),mc=matte.getContext('2d');
-  mc.filter=`blur(${Math.max(.6,Math.min(1.5,eyeD*.003))}px)`;
-  mc.drawImage(newMask,0,0);mc.filter='none';
-  mc.globalCompositeOperation='destination-in';mc.drawImage(donor,0,0);
-  // Keep the donor hair intact here; occlusion is resolved separately per layer.
-  // Cutting both layers with the anatomy mask produced blue gaps at the hairline.
-  mc.globalCompositeOperation='source-over';
-  const newHair=canvas(),nc=newHair.getContext('2d');nc.drawImage(donor,0,0);
-  nc.globalCompositeOperation='destination-in';nc.drawImage(matte,0,0);
-  nc.globalCompositeOperation='source-over';
-
-  // V91: split the NEW hair independently of the OLD hairstyle. A donor hair
-  // pixel is front only above the original forehead or on the outer temple
-  // silhouette. Exposed face/neck skin is never an allowed front-hair target.
-  const foreheadY=lf[10].y*H;
-  const templeL=Math.min(lf[234].x,lf[127].x)*W;
-  const templeR=Math.max(lf[454].x,lf[356].x)*W;
-  const frontWindow=canvas(),fw=frontWindow.getContext('2d');
-  fw.fillStyle='#fff';
-  fw.fillRect(0,0,W,Math.max(0,foreheadY+eyeD*.025));
-  // Small outer-temple sideburn regions, derived from the locked FACE rather
-  // than the old hair. Keep the cheeks, ears and neck behind the locked skin.
-  const sideBottom=Math.min(H,lf[234].y*H+eyeD*.22);
-  const sideTop=Math.max(0,foreheadY-eyeD*.04);
-  fw.fillRect(Math.max(0,templeL-eyeD*.43),sideTop,eyeD*.43,Math.max(0,sideBottom-sideTop));
-  fw.fillRect(templeR,sideTop,eyeD*.43,Math.max(0,sideBottom-sideTop));
-  // A front-hair candidate must be classified as hair in the NEW donor.
-  fw.globalCompositeOperation='destination-in';fw.drawImage(newMask,0,0);
-  fw.globalCompositeOperation='destination-out';fw.drawImage(protect,0,0);
-  fw.globalCompositeOperation='source-over';
-  const backHair=canvas(),bh=backHair.getContext('2d');bh.drawImage(newHair,0,0);
-  bh.globalCompositeOperation='destination-out';bh.drawImage(frontWindow,0,0);
-  bh.drawImage(protect,0,0);bh.globalCompositeOperation='source-over';
-  const frontHair=canvas(),fh=frontHair.getContext('2d');fh.drawImage(newHair,0,0);
-  fh.globalCompositeOperation='destination-in';fh.drawImage(frontWindow,0,0);
-  fh.globalCompositeOperation='source-over';
-  oc.drawImage(backHair,0,0);
-  const anatomy=canvas(),ac=anatomy.getContext('2d');ac.drawImage(locked,0,0);
-  ac.globalCompositeOperation='destination-in';ac.drawImage(protect,0,0);
-  oc.drawImage(anatomy,0,0);
-  oc.drawImage(frontHair,0,0);
-  // V92: do not redraw anatomy over front hair: frontWindow already excludes
-  // protected pixels and a second anatomy pass creates a harsh double edge.
-
-  // Check that removal has not left unexplained gaps inside the opaque head
-  // around the forehead and ears. Empty background outside the head is valid.
-  const resultPixels=oc.getImageData(0,0,W,H).data;
-  const originalPixels=canvas();originalPixels.getContext('2d').drawImage(locked,0,0);
-  const originalData=originalPixels.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const oldHairData=prepared.oldHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const newHairData=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const protectData=protect.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  let exposedMissing=0, headPixels=0;
-  const checkLeft=Math.max(0,Math.floor(templeL-eyeD*.35));
-  const checkRight=Math.min(W,Math.ceil(templeR+eyeD*.35));
-  const checkTop=Math.max(0,Math.floor(foreheadY-eyeD*.25));
-  const checkBottom=Math.min(H,Math.ceil(chin.y*H+eyeD*.25));
-  for(let y=checkTop;y<checkBottom;y++)for(let x=checkLeft;x<checkRight;x++){
-   const j=(y*W+x)*4;
-   if(originalData[j+3]<245||oldHairData[j+3]>128||protectData[j+3]>128)continue;
-   headPixels++;
-   if(resultPixels[j+3]<235&&newHairData[j+3]<100)exposedMissing++;
-  }
-  if(headPixels>100&&exposedMissing>Math.max(16,headPixels*.001))
-   throw Error('พบช่องว่างบริเวณขอบใบหน้าหรือไรผม จึงคงภาพที่ล็อกไว้แทนการแสดงภาพเสีย');
-  // V92: detect donor hair mistakenly covering a removed old-hair region
-  // where the source was opaque skin/neck. Do not accept hair as reconstructed
-  // skin merely because the resulting alpha is nonzero.
-  const donorSurfaceData=surfaceRaw?alignInto(surfaceRaw).getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data:null;
-  let unsupportedSkin=0,skinCandidates=0;
-  if(donorSurfaceData){
-   for(let y=Math.max(0,Math.floor(chin.y*H-eyeD*.12));y<Math.min(H,Math.ceil(chin.y*H+eyeD*.85));y++){
-    for(let x=Math.max(0,Math.floor(cx-eyeD*.55));x<Math.min(W,Math.ceil(cx+eyeD*.55));x++){
-     const j=(y*W+x)*4;
-     if(oldHairData[j+3]<200||originalData[j+3]<220||protectData[j+3]>128)continue;
-     skinCandidates++;
-     if(donorSurfaceData[j+3]<96&&newHairData[j+3]<96)unsupportedSkin++;
+  const [bald,original]=await Promise.all([loadImage(bu),loadImage(ou)]);
+  const lm=await getLandmarker();const bf=lm.detect(bald).faceLandmarks?.[0],of=lm.detect(original).faceLandmarks?.[0];
+  if(!bf||!of)throw Error('ตรวจจับใบหน้าเพื่อสร้าง Clean Head Master ไม่สำเร็จ');
+  const W=original.naturalWidth,H=original.naturalHeight;
+  const aligned=alignFaceCanvas(bald,bf,of,W,H);
+  // Reject bald edits that still contain a long hairstyle. This must not be
+  // silently cached as a "clean" base or every later hairstyle will ghost.
+  const hair=await semanticClassMask(bald,bald.naturalWidth,bald.naturalHeight,[1]);
+  if(!hair)throw Error('ตรวจ Clean Head Master ไม่สำเร็จ');
+  const hd=hair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,hair.width,hair.height).data;
+  // A bald head may still have tiny false-positive hair labels on eyebrows/scalp.
+  // Reject specifically the long strands below the jaw, rather than counting
+  // all hair-like pixels across the entire portrait.
+  const originalW=original.naturalWidth,originalH=original.naturalHeight;
+  const jawY=Math.round(of[152].y*originalH),eyeSpan=Math.hypot((of[263].x-of[33].x)*originalW,(of[263].y-of[33].y)*originalH);
+  const center=(of[33].x+of[263].x)*originalW*.5;
+  const alignedHair=alignFaceCanvas(hair,bf,of,originalW,originalH);
+  const ah=alignedHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,originalW,originalH).data;
+  // Scan connected hair components over the whole visible side/shoulder area.
+  // A percentage in a narrow jaw box missed strands beyond that box.
+  const visited=new Uint8Array(originalW*originalH),queue=new Int32Array(originalW*originalH);
+  let residualComponents=0;
+  const minY=Math.max(0,Math.floor(jawY-eyeSpan*.12));
+  for(let y=minY;y<originalH;y++)for(let x=0;x<originalW;x++){
+   const seed=y*originalW+x;
+   if(visited[seed]||ah[seed*4+3]<160)continue;
+   let n=0,read=0,minX=x,maxX=x,minCompY=y,maxCompY=y;
+   queue[n++]=seed;visited[seed]=1;
+   while(read<n){
+    const i=queue[read++],xx=i%originalW,yy=(i-xx)/originalW;
+    minX=Math.min(minX,xx);maxX=Math.max(maxX,xx);
+    minCompY=Math.min(minCompY,yy);maxCompY=Math.max(maxCompY,yy);
+    for(const j of [xx>0?i-1:-1,xx+1<originalW?i+1:-1,yy>minY?i-originalW:-1,yy+1<originalH?i+originalW:-1]){
+     if(j<0||visited[j]||ah[j*4+3]<160)continue;
+     visited[j]=1;queue[n++]=j;
     }
    }
+   const side=(minX<center-eyeSpan*.37||maxX>center+eyeSpan*.37);
+   const extendsBelowJaw=maxCompY>jawY+eyeSpan*.35;
+   const longEnough=maxCompY-minCompY>eyeSpan*.30;
+   const enoughPixels=n>Math.max(24,eyeSpan*eyeSpan*.0025);
+   if(side&&extendsBelowJaw&&longEnough&&enoughPixels)residualComponents++;
   }
-  if(skinCandidates>100&&unsupportedSkin>Math.max(40,skinCandidates*.12))
-   throw Error('AI เติมผิวบริเวณคอหรือข้างแก้มที่ผมเดิมบังไม่ครบ จึงคงภาพที่ล็อกไว้');
-  // V91: verify that removed hair has a valid replacement wherever it
-  // intersects the inner face/neck corridor. Transparent studio background
-  // outside this corridor is intentional, not a failed reconstruction.
-  let missingReconstruction=0,requiredReconstruction=0;
-  for(let y=Math.max(0,Math.floor(foreheadY));y<Math.min(H,Math.ceil(chin.y*H+eyeD*1.35));y++){
-   for(let x=Math.max(0,Math.floor(cx-eyeD*.77));x<Math.min(W,Math.ceil(cx+eyeD*.77));x++){
-    const j=(y*W+x)*4;
-    if(oldHairData[j+3]<200||originalData[j+3]<220||protectData[j+3]>128)continue;
-    requiredReconstruction++;
-    if(resultPixels[j+3]<32)missingReconstruction++;
+  if(residualComponents)throw Error('ภาพฐานยังตรวจพบผมยาวต่อเนื่องถึงข้างคอหรือไหล่ จึงคงภาพเดิมไว้');
+  // Independent pixel heuristic for dark side strands that the segmenter may
+  // label as background. This is deliberately conservative: only inspect
+  // transparent-head pixels outside the central neck and above the uniform.
+  const baldData=aligned.getContext('2d',{willReadFrequently:true}).getImageData(0,0,originalW,originalH).data;
+  const darkVisited=new Uint8Array(originalW*originalH);
+  const strandTop=Math.max(0,Math.floor(jawY-eyeSpan*.10));
+  const strandBottom=Math.min(originalH,Math.ceil(jawY+eyeSpan*.95));
+  let darkStrands=0;
+  const isDarkSide=i=>{
+   const y=(i/originalW)|0,x=i-y*originalW,j=i*4;
+   if(y<strandTop||y>=strandBottom||Math.abs(x-center)<eyeSpan*.49||Math.abs(x-center)>eyeSpan*1.65)return false;
+   if(baldData[j+3]<220)return false;
+   const r=baldData[j],g=baldData[j+1],b=baldData[j+2];
+   return Math.max(r,g,b)<78&&Math.max(r,g,b)-Math.min(r,g,b)<35;
+  };
+  for(let y=strandTop;y<strandBottom;y++)for(let x=0;x<originalW;x++){
+   const seed=y*originalW+x;if(darkVisited[seed]||!isDarkSide(seed))continue;
+   let n=0,read=0,minY=y,maxY=y,minX=x,maxX=x;
+   queue[n++]=seed;darkVisited[seed]=1;
+   while(read<n){const i=queue[read++],xx=i%originalW,yy=(i-xx)/originalW;
+    minY=Math.min(minY,yy);maxY=Math.max(maxY,yy);minX=Math.min(minX,xx);maxX=Math.max(maxX,xx);
+    for(const j of [xx>0?i-1:-1,xx+1<originalW?i+1:-1,yy>strandTop?i-originalW:-1,yy+1<strandBottom?i+originalW:-1]){
+     if(j<0||darkVisited[j]||!isDarkSide(j))continue;darkVisited[j]=1;queue[n++]=j;
+    }
    }
+   if(minY<jawY+eyeSpan*.15&&maxY>jawY+eyeSpan*.55&&maxY-minY>eyeSpan*.47&&
+      maxX-minX<eyeSpan*.49&&n>Math.max(28,eyeSpan*eyeSpan*.003))darkStrands++;
   }
-  if(requiredReconstruction>80&&missingReconstruction>Math.max(32,requiredReconstruction*.06))
-   throw Error('พื้นที่ที่ผมเดิมบังใบหน้าหรือคอยังเติมไม่ครบ กรุณาเลือกทรงใหม่หรือใช้ภาพต้นฉบับที่เห็นคอชัด');
-  // V89 safety check: an unfilled hole INSIDE the locked central neck is a
-  // failed replacement, not an image that should silently be offered for download.
-  // Outside the locked anatomy transparency is intentional (studio background).
-  const lockedCanvas=canvas();lockedCanvas.getContext('2d').drawImage(locked,0,0);
-  const op=oc.getImageData(0,0,W,H).data;
-  const lp=lockedCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const pp=protect.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  let protectedMissing=0;
+  // Darkness alone cannot distinguish hair from a naturally dark neck shadow.
+  // Semantic connected hair below the jaw remains a hard failure above;
+  // preserve this heuristic as a warning for diagnostic review instead.
+  const darkStrandWarning=darkStrands>0;
+  const donorSkinRaw=await semanticClassMask(bald,bald.naturalWidth,bald.naturalHeight,[2,3]);
+  const originalSkin=await semanticClassMask(original,W,H,[2,3]);
+  if(!donorSkinRaw||!originalSkin)throw Error('ตรวจผิวใบหน้าสำหรับ Clean Head Master ไม่สำเร็จ');
+  const donorSkin=alignFaceCanvas(donorSkinRaw,bf,of,W,H);
+  const originalHair=await semanticClassMask(original,W,H,[1]);
+  if(!originalHair)throw Error('แยกผมเดิมก่อนป้องกันใบหน้าไม่สำเร็จ');
+  const face=canvasFor(W,H),fc=face.getContext('2d');fc.drawImage(originalSkin,0,0);
+  fc.globalCompositeOperation='destination-in';fc.drawImage(donorSkin,0,0);
+  // A segmenter's skin label must not paste back a strand explicitly labeled
+  // as original hair. Preserve the immutable central facial core separately.
+  fc.globalCompositeOperation='destination-out';fc.drawImage(originalHair,0,0);
+  // Protect the central originally visible facial pixels even if the 256px
+  // segmenter makes a small classification error at the eyes or nose.
+  fc.globalCompositeOperation='source-over';fc.fillStyle='#fff';
+  const eyeD=Math.hypot((of[263].x-of[33].x)*W,(of[263].y-of[33].y)*H);
+  const cx=(of[33].x+of[263].x)*W*.5,forehead=of[10].y*H,chin=of[152].y*H;
+  fc.beginPath();fc.ellipse(cx,(forehead+chin)*.53,eyeD*.48,(chin-forehead)*.31,0,0,Math.PI*2);fc.fill();
+  // Keep the immutable visible skin (face AND neck) independently of the AI.
+  // Both skin segmentations must agree, so hair mislabeled as skin by only one
+  // model pass is not blindly pasted back onto the clean master.
+  // The central core is checked strictly; feathered hairline pixels are not.
+  const core=canvasFor(W,H),coreCtx=core.getContext('2d');
+  coreCtx.fillStyle='#fff';coreCtx.beginPath();
+  coreCtx.ellipse(cx,(forehead+chin)*.55,eyeD*.38,(chin-forehead)*.25,0,0,Math.PI*2);coreCtx.fill();
+  coreCtx.globalCompositeOperation='destination-in';coreCtx.drawImage(face,0,0);
+  const originalPixels=canvasFor(W,H),opc=originalPixels.getContext('2d');opc.drawImage(original,0,0);
+  opc.globalCompositeOperation='destination-in';opc.drawImage(face,0,0);
+  const clean=canvasFor(W,H),cc=clean.getContext('2d');cc.drawImage(aligned,0,0);cc.drawImage(originalPixels,0,0);
+  // Check the actual cached image AFTER restoration, not just the AI donor.
+  const mergedHair=await semanticClassMask(clean,W,H,[1]);
+  if(!mergedHair)throw Error('ตรวจภาพฐานหลังประกอบไม่สำเร็จ');
+  const mh=mergedHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const mergedPixels=cc.getImageData(0,0,W,H).data;
+  let residualSideHair=0;
+  for(let y=Math.max(0,Math.floor(jawY+eyeSpan*.18));y<Math.min(H,Math.ceil(jawY+eyeSpan*1.10));y++)
+   for(let x=0;x<W;x++){
+    if(Math.abs(x-center)<eyeSpan*.48||Math.abs(x-center)>eyeSpan*2.25)continue;
+    const j=(y*W+x)*4;
+    if(mh[j+3]>200&&mergedPixels[j+3]>180)residualSideHair++;
+   }
+  if(residualSideHair>Math.max(70,eyeSpan*eyeSpan*.045))
+   throw Error('ภาพฐานหลังประกอบยังมีผมยาวข้างคอ กรุณาตรวจภาพต้นฉบับก่อนลองใหม่');
+  const data=cc.getImageData(0,0,W,H).data,fd=face.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const od=canvasFor(W,H);od.getContext('2d').drawImage(original,0,0);
+  const orig=od.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let missing=0,needed=0;
+  for(let i=0;i<W*H;i++){const j=i*4;if(fd[j+3]>245&&orig[j+3]>245){needed++;if(data[j+3]<240)missing++}}
+  if(missing>0||needed<100)throw Error('Clean Head Master ไม่สามารถรักษาใบหน้าเดิมได้ครบ จึงคงภาพที่ล็อกไว้');
+  // Reject transparent holes in the reconstructed side-of-face/neck area.
+  // Limit the scan to the head and neck; transparent background is intentional.
+  const donorPixels=aligned.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let headSamples=0,headHoles=0;
+  const left=Math.max(0,Math.floor(cx-eyeD*.91)),right=Math.min(W,Math.ceil(cx+eyeD*.91));
+  const top=Math.max(0,Math.floor(forehead-eyeD*.12)),bottom=Math.min(H,Math.ceil(chin+eyeD*.43));
+  for(let y=top;y<bottom;y++)for(let x=left;x<right;x++){
+   const j=(y*W+x)*4;
+   // Only require donor coverage near visible original skin; never demand a
+   // filled rectangular background or invent skin outside the person.
+   if(orig[j+3]<245||fd[j+3]<245)continue;
+   headSamples++;
+   if(donorPixels[j+3]<230)headHoles++;
+  }
+  if(headSamples<100||headHoles>Math.max(12,headSamples*.01))
+   throw Error('ภาพฐานมีช่องว่างบริเวณใบหน้าหรือคอ กรุณาลองภาพอื่น — ยังไม่ใช้เครดิตสร้างทรงผมใหม่');
+  return {source:originalBlob,blob:await canvasPng(clean),faceMask:face,originalFace:originalPixels,originalCore:core,eyeD,forehead,chin,cx,darkStrandWarning};
+ }finally{URL.revokeObjectURL(bu);URL.revokeObjectURL(ou)}
+}
+async function compositeHairOnCleanMaster(aiBlob,prepared){
+ const au=URL.createObjectURL(aiBlob),cu=URL.createObjectURL(prepared.blob);
+ try{
+  const [ai,clean]=await Promise.all([loadImage(au),loadImage(cu)]);
+  const lm=await getLandmarker(),af=lm.detect(ai).faceLandmarks?.[0],cf=lm.detect(clean).faceLandmarks?.[0];
+  if(!af||!cf)throw Error('ตรวจจับใบหน้าเพื่อวางผมใหม่ไม่สำเร็จ');
+  const W=clean.naturalWidth,H=clean.naturalHeight;
+  const donor=alignFaceCanvas(ai,af,cf,W,H);
+  const raw=await semanticClassMask(ai,ai.naturalWidth,ai.naturalHeight,[1]);
+  if(!raw)throw Error('แยกผมใหม่ไม่สำเร็จ จึงคงภาพเดิม');
+  const hairMask=alignFaceCanvas(raw,af,cf,W,H);
+  const hair=canvasFor(W,H),hc=hair.getContext('2d');hc.drawImage(donor,0,0);
+  hc.globalCompositeOperation='destination-in';hc.drawImage(hairMask,0,0);
+  // Use a soft curved forehead/temple envelope, intersected with the actual
+  // donor hair segmentation. No hard rectangular cut across the face.
+  const frontRegion=canvasFor(W,H),fr=frontRegion.getContext('2d');
+  const foreheadY=prepared.forehead,eyeD=prepared.eyeD;
+  const foreheadGradient=fr.createRadialGradient(prepared.cx,foreheadY-eyeD*.35,eyeD*.18,prepared.cx,foreheadY-eyeD*.35,eyeD*1.13);
+  foreheadGradient.addColorStop(0,'rgba(255,255,255,1)');
+  foreheadGradient.addColorStop(.75,'rgba(255,255,255,1)');
+  foreheadGradient.addColorStop(1,'rgba(255,255,255,0)');
+  fr.fillStyle=foreheadGradient;
+  fr.beginPath();fr.ellipse(prepared.cx,foreheadY-eyeD*.35,eyeD*1.13,eyeD*.92,0,0,Math.PI*2);fr.fill();
+  for(const temple of [cf[234],cf[454]]){
+   const tx=temple.x*W,ty=temple.y*H;
+   const g=fr.createRadialGradient(tx,ty-eyeD*.12,eyeD*.07,tx,ty-eyeD*.12,eyeD*.49);
+   g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.72,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');
+   fr.fillStyle=g;fr.beginPath();fr.ellipse(tx,ty-eyeD*.12,eyeD*.49,eyeD*.68,0,0,Math.PI*2);fr.fill();
+  }
+  // Allow actual segmented wisps beside the cheeks, not inside protected skin.
+  // The donor hair mask is intersected later, so this cannot create hair by itself.
+  for(const temple of [cf[234],cf[454]]){
+   const tx=temple.x*W,ty=temple.y*H;
+   const g=fr.createRadialGradient(tx,ty+eyeD*.23,eyeD*.08,tx,ty+eyeD*.23,eyeD*.78);
+   g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.65,'rgba(255,255,255,.9)');g.addColorStop(1,'rgba(255,255,255,0)');
+   fr.fillStyle=g;fr.beginPath();fr.ellipse(tx,ty+eyeD*.23,eyeD*.46,eyeD*.84,0,0,Math.PI*2);fr.fill();
+  }
+  fr.globalCompositeOperation='destination-out';fr.drawImage(prepared.faceMask,0,0);
+  const front=canvasFor(W,H),fc=front.getContext('2d');fc.drawImage(hair,0,0);
+  fc.globalCompositeOperation='destination-in';fc.drawImage(frontRegion,0,0);
+  const back=canvasFor(W,H),bc=back.getContext('2d');bc.drawImage(hair,0,0);
+  bc.globalCompositeOperation='destination-out';bc.drawImage(frontRegion,0,0);
+  // Subtract the protected anatomy from BACK hair once, explicitly. The
+  // face mask is an alpha stencil; it is never painted as visible content.
+  bc.globalCompositeOperation='destination-out';
+  bc.drawImage(prepared.faceMask,0,0);
+  bc.globalCompositeOperation='source-over';
+  // Clean scalp must sit UNDER donor hair: drawing the opaque clean scalp
+  // after back hair erased the new hairstyle except inside the front envelope.
+  // Both hair layers are segmented donor pixels; the original visible skin is
+  // restored last and never sourced from the hairstyle AI.
+  const out=canvasFor(W,H),oc=out.getContext('2d');oc.drawImage(clean,0,0);oc.drawImage(back,0,0);oc.drawImage(front,0,0);
+  // Reapply immutable originally visible face AND neck pixels, then compare against
+  // the ORIGINAL source (not against the AI-generated clean base).
+  const coreData=prepared.originalCore.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const originalData=prepared.originalFace.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const cleanData=canvasFor(W,H);cleanData.getContext('2d').drawImage(clean,0,0);
+  const cd=cleanData.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  let originalMissing=0,coreCount=0;
   for(let i=0;i<W*H;i++){
    const j=i*4;
-   if(pp[j+3]>245&&lp[j+3]>245&&op[j+3]<240)protectedMissing++;
+   if(coreData[j+3]<250)continue;
+   coreCount++;
+   if(originalData[j+3]<250||cd[j+3]<250||
+      Math.abs(cd[j]-originalData[j])>2||
+      Math.abs(cd[j+1]-originalData[j+1])>2||
+      Math.abs(cd[j+2]-originalData[j+2])>2)originalMissing++;
   }
-  if(protectedMissing>0)throw Error('พบช่องโปร่งใสในใบหน้าหรือคอที่ล็อกไว้ จึงยกเลิกผลลัพธ์เพื่อป้องกันภาพเสีย');
-  return await new Promise((ok,bad)=>out.toBlob(v=>v?ok(v):bad(Error('ประกอบทรงผมไม่สำเร็จ')),'image/png'));
- }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(lu)}
+  if(coreCount<100||originalMissing)throw Error('ภาพฐานไม่รักษาพิกเซลใบหน้าต้นฉบับครบ จึงคงภาพเดิม');
+  // Original skin has priority, but only where BOTH original and clean-head
+  // skin masks agreed during preparation. Do not reintroduce old hair.
+  oc.save();oc.globalCompositeOperation='source-over';oc.drawImage(prepared.originalFace,0,0);oc.restore();
+  const result=oc.getImageData(0,0,W,H).data;
+  for(let i=0;i<W*H;i++){
+   const j=i*4;if(coreData[j+3]<250)continue;
+   if(result[j+3]<250||Math.abs(result[j]-originalData[j])>2||
+      Math.abs(result[j+1]-originalData[j+1])>2||Math.abs(result[j+2]-originalData[j+2])>2)
+    throw Error('ใบหน้าต้นฉบับเปลี่ยนไปหลังประกอบผม จึงคงภาพเดิม');
+  }
+  return canvasPng(out);
+ }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(cu)}
 }
-
 async function aiFinishPortrait(originalFile,hairId){
  // V69: send the user's original full-quality file directly to the image editor.
  // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
@@ -1067,10 +1118,22 @@ function App(){
     // "ผมเดิม" is a zero-credit restore: no AI request at all.
     nextMaster=src;
    }else{
-    const named=new File([src],'locked-person.png',{type:src.type||'image/png'});
-    const ai=await aiFinishPortrait(named,id);
+    // First change only: generate a hair-free scalp/ears/neck master, cache it.
+    // Later changes reuse it, so old long hair can never be composited back.
+    let prepared=preparedHairBaseRef.current;
+    if(!prepared||prepared.source!==src){
+     setMsg('กำลังสร้างภาพฐานไม่มีผมเดิม (ทำครั้งเดียวหลังล็อก)…');
+     const original=new File([src],'locked-person.png',{type:src.type||'image/png'});
+     const bald=await aiFinishPortrait(original,'clean-head');
+     const baldTransparent=await removeBackgroundBlob(bald);
+     prepared=await makeCleanHeadMaster(baldTransparent,src);
+     preparedHairBaseRef.current=prepared;
+    }
+    setMsg('กำลังใส่ทรงผมใหม่บน Clean Head Master…');
+    const cleanFile=new File([prepared.blob],'clean-head.png',{type:'image/png'});
+    const ai=await aiFinishPortrait(cleanFile,id);
     const aiMaster=await removeBackgroundBlob(ai);
-    nextMaster=await compositeHairOnLockedMaster(aiMaster,src,preparedHairBaseRef);
+    nextMaster=await compositeHairOnCleanMaster(aiMaster,prepared);
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
@@ -1080,8 +1143,15 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
+   showBlob(out);setHairId(id);setMsg(preparedHairBaseRef.current?.darkStrandWarning?'เปลี่ยนทรงผมแล้ว · ตรวจภาพฐาน Clean Head เพิ่มเติม: พบเงาสีเข้มข้างคอ':'เปลี่ยนทรงผมแล้ว · ตำแหน่งหัวและคอยังคงล็อก');
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{setHairBusy(false)}
+ };
+ const downloadCleanHead=()=>{
+  const prepared=preparedHairBaseRef.current;
+  if(!prepared?.blob){setMsg('ยังไม่มีภาพฐาน Clean Head — ล็อกตำแหน่งและลองเลือกทรงผมก่อน');return;}
+  const url=URL.createObjectURL(prepared.blob),link=document.createElement('a');
+  link.href=url;link.download='clean-head-master-v98.png';document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
  };
  const downloadCurrentFinal=async()=>{
   if(!editCache.current||downloadBusy)return;
@@ -1160,7 +1230,7 @@ function App(){
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div>}
     {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>เพิ่มมหาวิทยาลัยภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div></>}
    </div>
-   <button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<><div className="tool-choice-tabs"><span className="active">ปรับหัว</span><span>ขนาดและตำแหน่ง</span></div><div className="compact-tool-panel process-head-adjust"><div className="compact-slider-list"><label><span>ขนาด</span><input type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><b>{Math.round(headAdjust.scale*100)}%</b></label><label><span>ซ้าย–ขวา</span><input type="range" min="-50" max="50" step="0.5" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><b>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}%</b></label><label><span>บน–ล่าง</span><input type="range" min="-50" max="50" step="0.5" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><b>{(-headAdjust.y)>0?'+':''}{(-headAdjust.y*100).toFixed(1)}%{(-headAdjust.y)>0?' ขึ้น':(-headAdjust.y)<0?' ลง':''}</b></label><label><span>เอียง</span><input type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><b>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</b></label></div></div></>:optionTool==='neck'?<><div className="tool-choice-tabs"><span className="active">ปรับคอ</span><span>ปรับเฉพาะคอของบุคคล</span></div><div className="compact-tool-panel"><div className="compact-slider-list"><label><span>กว้าง–แคบ</span><input type="range" min="-100" max="100" step="1" value={Math.round(neckAdjust.width*100)} onChange={e=>applyNeckAdjust({...neckAdjust,width:Number(e.target.value)/100})}/><b>{neckAdjust.width>0?'+':''}{Math.round(neckAdjust.width*100)}%</b></label><label><span>ยาว–สั้น</span><input type="range" min="-100" max="100" step="1" value={Math.round(neckAdjust.length*100)} onChange={e=>applyNeckAdjust({...neckAdjust,length:Number(e.target.value)/100})}/><b>{neckAdjust.length>0?'+':''}{Math.round(neckAdjust.length*100)}%</b></label></div></div></>:optionTool==='collar'?<><div className="tool-choice-tabs"><span className="active">ช่องคอ</span><span>บิดเฉพาะ Template ชุด</span></div><div className="compact-tool-panel"><div className="collar-compact-actions"><button type="button" className="collar-auto compact-auto" onClick={autoFitCollar}>พอดีอัตโนมัติ</button></div><div className="compact-slider-list"><label><span>หุบ–ขยาย</span><input type="range" min="-100" max="100" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><b>{Math.round(collarWarp*100)}%</b></label></div></div></>:<><div className="tool-choice-tabs"><span className="active">{optionTool==='ribbon'?'แพรแถบ':optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='ribbon'?'เลือกแบบ':optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>{optionTool==='background'?<div className="background-choice-preview"><button type="button" className="background-swatch current" aria-label="พื้นหลังปัจจุบัน"><span></span><strong>พื้นหลังปัจจุบัน</strong></button><small>โครง UI พร้อมสำหรับตัวเลือกพื้นหลังเดิม/ที่จะเพิ่มภายหลัง</small></div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} onClick={()=>changeHair('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>changeHair(h.id)}><img src={h.src}/><span>{h.name.replace('ทรงผม ','')}</span></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:<div className="ribbon-choice-preview"><div className="ribbon-empty-thumb"><span>▤</span><strong>แพรแถบ</strong><small>รอเพิ่มไฟล์ PNG ตัวเลือก</small></div></div>}</>}</div>}<div className="placement-lock-row"><button type="button" className={placementLocked?"placement-lock-btn locked":"placement-lock-btn"} disabled={!b||hairBusy} onClick={placementLocked?unlockPlacement:lockPlacement}>{placementLocked?"🔓 ปลดล็อกเพื่อแก้ตำแหน่ง":"✓ ยืนยันและล็อกตำแหน่ง"}</button>{placementLocked&&<small>หน้า · ตำแหน่งหัว · คอ · ช่องคอ ถูกล็อกไว้</small>}{hairBusy&&<small>กำลังเปลี่ยนทรงผม…</small>}</div><div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button><button type="button" disabled={placementLocked} className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ช่องคอ</strong></button><button type="button" disabled={placementLocked} className={optionTool==='neck'?'active':''} onClick={()=>toggleOptionTool('neck')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ปรับคอ</strong></button><button type="button" className={optionTool==='male-hair'?'active':''} onClick={()=>toggleOptionTool('male-hair',()=>setGender('male'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button><button type="button" className={optionTool==='female-hair'?'active':''} onClick={()=>toggleOptionTool('female-hair',()=>setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button><button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button><button type="button" className={optionTool==='background'?'active':''} onClick={()=>toggleOptionTool('background')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>{b&&<button type="button" className="primary-action download-below-tools" disabled={downloadBusy} onClick={downloadCurrentFinal}>{downloadBusy?'กำลังสร้างไฟล์…':'ดาวน์โหลด'}</button>}
+   <button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<><div className="tool-choice-tabs"><span className="active">ปรับหัว</span><span>ขนาดและตำแหน่ง</span></div><div className="compact-tool-panel process-head-adjust"><div className="compact-slider-list"><label><span>ขนาด</span><input type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><b>{Math.round(headAdjust.scale*100)}%</b></label><label><span>ซ้าย–ขวา</span><input type="range" min="-50" max="50" step="0.5" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><b>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}%</b></label><label><span>บน–ล่าง</span><input type="range" min="-50" max="50" step="0.5" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><b>{(-headAdjust.y)>0?'+':''}{(-headAdjust.y*100).toFixed(1)}%{(-headAdjust.y)>0?' ขึ้น':(-headAdjust.y)<0?' ลง':''}</b></label><label><span>เอียง</span><input type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><b>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</b></label></div></div></>:optionTool==='neck'?<><div className="tool-choice-tabs"><span className="active">ปรับคอ</span><span>ปรับเฉพาะคอของบุคคล</span></div><div className="compact-tool-panel"><div className="compact-slider-list"><label><span>กว้าง–แคบ</span><input type="range" min="-100" max="100" step="1" value={Math.round(neckAdjust.width*100)} onChange={e=>applyNeckAdjust({...neckAdjust,width:Number(e.target.value)/100})}/><b>{neckAdjust.width>0?'+':''}{Math.round(neckAdjust.width*100)}%</b></label><label><span>ยาว–สั้น</span><input type="range" min="-100" max="100" step="1" value={Math.round(neckAdjust.length*100)} onChange={e=>applyNeckAdjust({...neckAdjust,length:Number(e.target.value)/100})}/><b>{neckAdjust.length>0?'+':''}{Math.round(neckAdjust.length*100)}%</b></label></div></div></>:optionTool==='collar'?<><div className="tool-choice-tabs"><span className="active">ช่องคอ</span><span>บิดเฉพาะ Template ชุด</span></div><div className="compact-tool-panel"><div className="collar-compact-actions"><button type="button" className="collar-auto compact-auto" onClick={autoFitCollar}>พอดีอัตโนมัติ</button></div><div className="compact-slider-list"><label><span>หุบ–ขยาย</span><input type="range" min="-100" max="100" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><b>{Math.round(collarWarp*100)}%</b></label></div></div></>:<><div className="tool-choice-tabs"><span className="active">{optionTool==='ribbon'?'แพรแถบ':optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='ribbon'?'เลือกแบบ':optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>{optionTool==='background'?<div className="background-choice-preview"><button type="button" className="background-swatch current" aria-label="พื้นหลังปัจจุบัน"><span></span><strong>พื้นหลังปัจจุบัน</strong></button><small>โครง UI พร้อมสำหรับตัวเลือกพื้นหลังเดิม/ที่จะเพิ่มภายหลัง</small></div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} onClick={()=>changeHair('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{HAIR_OPTIONS.map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} onClick={()=>changeHair(h.id)}><img src={h.src}/><span>{h.name.replace('ทรงผม ','')}</span></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:<div className="ribbon-choice-preview"><div className="ribbon-empty-thumb"><span>▤</span><strong>แพรแถบ</strong><small>รอเพิ่มไฟล์ PNG ตัวเลือก</small></div></div>}</>}</div>}<div className="placement-lock-row"><button type="button" className={placementLocked?"placement-lock-btn locked":"placement-lock-btn"} disabled={!b||hairBusy} onClick={placementLocked?unlockPlacement:lockPlacement}>{placementLocked?"🔓 ปลดล็อกเพื่อแก้ตำแหน่ง":"✓ ยืนยันและล็อกตำแหน่ง"}</button>{placementLocked&&<small>หน้า · ตำแหน่งหัว · คอ · ช่องคอ ถูกล็อกไว้</small>}{placementLocked&&<button type="button" className="placement-lock-btn" disabled={hairBusy} onClick={downloadCleanHead}>ตรวจภาพฐาน Clean Head (PNG)</button>}{hairBusy&&<small>กำลังเปลี่ยนทรงผม…</small>}</div><div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button><button type="button" disabled={placementLocked} className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ช่องคอ</strong></button><button type="button" disabled={placementLocked} className={optionTool==='neck'?'active':''} onClick={()=>toggleOptionTool('neck')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ปรับคอ</strong></button><button type="button" className={optionTool==='male-hair'?'active':''} onClick={()=>toggleOptionTool('male-hair',()=>setGender('male'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button><button type="button" className={optionTool==='female-hair'?'active':''} onClick={()=>toggleOptionTool('female-hair',()=>setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button><button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button><button type="button" className={optionTool==='background'?'active':''} onClick={()=>toggleOptionTool('background')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>{b&&<button type="button" className="primary-action download-below-tools" disabled={downloadBusy} onClick={downloadCurrentFinal}>{downloadBusy?'กำลังสร้างไฟล์…':'ดาวน์โหลด'}</button>}
   </section>
 
  </section></main>
