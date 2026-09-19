@@ -1158,6 +1158,10 @@ async function aiInpaintHair(source,id){
   if(!r.ok)throw Error(await r.text());return await r.blob();
  }finally{clearTimeout(timer)}
 }
+// V110: protect the actual face/ears and neck, not a narrow oval or a low-res
+// semantic skin patch. Generated dark cheek strips in V108 were outside both.
+// Keep the original pixels across the complete facial contour; feather only
+// the contour, never the image texture. The AI is allowed to replace hair.
 async function restoreInpaintFace(aiBlob,originalBlob){
  const au=URL.createObjectURL(aiBlob),ou=URL.createObjectURL(originalBlob);
  try{
@@ -1166,19 +1170,38 @@ async function restoreInpaintFace(aiBlob,originalBlob){
   if(!af||!of)throw Error('ตรวจจับใบหน้าเพื่อคืนใบหน้าเดิมไม่สำเร็จ');
   const W=original.naturalWidth,H=original.naturalHeight;
   const aligned=alignFaceCanvas(ai,af,of,W,H);
-  const result=canvasFor(W,H),ctx=result.getContext('2d');ctx.drawImage(aligned,0,0);
-  // Keep the exact original face pixels. Feather only the edge, never draw a rectangle.
   const eyeD=Math.hypot((of[33].x-of[263].x)*W,(of[33].y-of[263].y)*H);
-  const x=(of[234].x+of[454].x)*W*.5;
-  const top=of[10].y*H,bot=of[152].y*H;
-  const skin=canvasFor(W,H),sc=skin.getContext('2d');sc.drawImage(original,0,0);
-  sc.globalCompositeOperation='destination-in';sc.filter=`blur(${Math.max(1,eyeD*.018)}px)`;
-  sc.beginPath();sc.ellipse(x,(top+bot)*.5,(of[454].x-of[234].x)*W*.49,(bot-top)*.54,0,0,Math.PI*2);
-  sc.fillStyle='#fff';sc.fill();sc.filter='none';sc.globalCompositeOperation='source-over';
-  ctx.drawImage(skin,0,0);
+  const skin=await semanticClassMask(original,W,H,[2,3]);
+  if(!skin)throw Error('ไม่สามารถตรวจขอบผิวเดิมได้ จึงคงภาพเดิม');
+  const protect=canvasFor(W,H),pc=protect.getContext('2d');
+  pc.drawImage(skin,0,0);
+  // Face oval includes both cheek edges and chin; extend to ear outlines.
+  // The forehead boundary follows the actual forehead landmark rather than
+  // a horizontal rectangle, so a new fringe can meet the original skin.
+  const contour=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+  pc.fillStyle='#fff';pc.beginPath();
+  contour.forEach((idx,i)=>{const q=of[idx];if(i===0)pc.moveTo(q.x*W,q.y*H);else pc.lineTo(q.x*W,q.y*H)});
+  pc.closePath();pc.fill();
+  // Ears are part of the identity; don't leave AI-generated dark skin/hair
+  // strips between the cheek contour and the ear edge.
+  for(const [ear,cheek] of [[234,93],[454,323]]){
+   const ex=of[ear].x*W,ey=of[ear].y*H,cy=of[cheek].y*H;
+   pc.beginPath();pc.ellipse(ex,(ey+cy)*.5,eyeD*.22,eyeD*.38,0,0,Math.PI*2);pc.fill();
+  }
+  // Never let the protected layer paint an artificial opaque background.
+  const originalAlpha=canvasFor(W,H),ac=originalAlpha.getContext('2d');ac.drawImage(original,0,0);
+  const soft=canvasFor(W,H),sf=soft.getContext('2d');
+  sf.filter=`blur(${Math.max(1.2,Math.min(3,eyeD*.009))}px)`;
+  sf.drawImage(protect,0,0);sf.filter='none';
+  sf.globalCompositeOperation='destination-in';sf.drawImage(originalAlpha,0,0);
+  const preserved=canvasFor(W,H),pr=preserved.getContext('2d');pr.drawImage(original,0,0);
+  pr.globalCompositeOperation='destination-in';pr.drawImage(soft,0,0);
+  const result=canvasFor(W,H),ctx=result.getContext('2d');
+  ctx.drawImage(aligned,0,0);ctx.drawImage(preserved,0,0);
   return await canvasPng(result);
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(ou)}
 }
+
 const HAIR_OPTIONS=[
  {id:'hair-01',name:'ทรงผม 01',src:'/assets/hairstyle-previews/hair-01.png'},
  {id:'hair-02',name:'ทรงผม 02',src:'/assets/hairstyle-previews/hair-02.png'},
