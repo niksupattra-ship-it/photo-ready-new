@@ -737,6 +737,19 @@ async function makeCleanHeadMaster(baldBlob,originalBlob){
   if(!bf||!of)throw Error('ตรวจจับใบหน้าเพื่อสร้าง Clean Head Master ไม่สำเร็จ');
   const W=original.naturalWidth,H=original.naturalHeight;
   const aligned=alignFaceCanvas(bald,bf,of,W,H);
+  // V105: MODNet can retain a rectangular patch of the AI temporary background
+  // around the forehead. Alpha alone is NOT an anatomical matte. Intersect it
+  // with MediaPipe's actual scalp/face/neck/hair silhouette before restoring
+  // immutable source skin; otherwise the patch is visible on the blue ID backdrop.
+  const anatomicalRaw=await semanticClassMask(bald,bald.naturalWidth,bald.naturalHeight,[1,2,3]);
+  if(!anatomicalRaw)throw Error('แยกขอบศีรษะของภาพฐานไม่สำเร็จ — คงพรีวิวเดิม');
+  const anatomicalAligned=alignFaceCanvas(anatomicalRaw,bf,of,W,H);
+  const anatomicalSoft=canvasFor(W,H),as=anatomicalSoft.getContext('2d');
+  as.filter=`blur(${Math.max(1,Math.min(3,W*.002))}px)`;
+  as.drawImage(anatomicalAligned,0,0);as.filter='none';
+  const ax=aligned.getContext('2d');
+  ax.globalCompositeOperation='destination-in';ax.drawImage(anatomicalSoft,0,0);
+  ax.globalCompositeOperation='source-over';
   // Reject bald edits that still contain a long hairstyle. This must not be
   // silently cached as a "clean" base or every later hairstyle will ghost.
   const hair=await semanticClassMask(bald,bald.naturalWidth,bald.naturalHeight,[1]);
@@ -916,26 +929,42 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
    const brightness=Math.max(r,g,b),min=Math.min(r,g,b);
    // Reject the white cutout fringe and skin; the fallback only accepts
    // sufficiently dark, near-neutral hair above the brow or beside temples.
-   const nearCrown=y<=prepared.forehead+prepared.eyeD*.10;
-   const sideHair=y<prepared.chin&&Math.abs(x-prepared.cx)>prepared.eyeD*.88;
-   const hairRegion=nearCrown||sideHair;
+   // V106: no horizontal forehead/temple crop. V105's nearCrown
+   // y-threshold produced a visibly straight cut across the hairline.
+   // The semantic hair matte defines the actual silhouette. For dark hair
+   // missed by segmentation, admit only pixels outside a smooth facial
+   // envelope; do not substitute a rectangular image crop for a hair mask.
+   const dx=Math.abs(x-prepared.cx)/prepared.eyeD;
+   const foreheadCurve=prepared.forehead+prepared.eyeD*(.035+.16*Math.min(1,dx*dx));
+   const aboveFace=y<foreheadCurve;
+   const besideFace=dx>.82&&y<prepared.chin+prepared.eyeD*.12;
+   const hairRegion=aboveFace||besideFace;
    const darkStrand=brightness<115&&brightness-min<68;
+   const semantic=maskPixels[j+3]>100&&brightness<190;
    const fallback=hairRegion&&darkStrand;
-   const semantic=maskPixels[j+3]>100&&hairRegion&&brightness<190;
-   const keep=fallback||semantic;
+   const keep=semantic||fallback;
    maskPixels[j+3]=keep?Math.min(255,alpha):0;
    if(!keep||maskPixels[j+3]<160)continue;
    donorHair++;
    if(y>=crownTop&&y<crownBottom&&x>=crownLeft&&x<crownRight)donorCrown++;
   }
   maskCtx.putImageData(maskImage,0,0);
+  // V106: feather the actual hair silhouette, not a rectangular face crop.
+  // The previous binary mask left a visible box across the forehead/temples.
+  const softenedMask=canvasFor(W,H),sm=softenedMask.getContext('2d');
+  const edgeBlur=Math.max(1.2,Math.min(3.5,prepared.eyeD*.008));
+  sm.filter=`blur(${edgeBlur}px)`;sm.drawImage(hairMask,0,0);sm.filter='none';
+  // Keep the donor's real alpha: a blurred mask must never invent pixels
+  // outside the original hair cutout or turn the white matte into a halo.
+  sm.globalCompositeOperation='destination-in';sm.drawImage(donor,0,0);
+  sm.globalCompositeOperation='source-over';
   // Count actual donor strands rather than the segmentation model alone.
   // Never commit a bald result if both methods failed to find new hair.
   const minCrown=Math.max(45,Math.round(prepared.eyeD*prepared.eyeD*.012));
   if(donorCrown<minCrown||donorHair<minCrown*2)
    throw Error('ไม่พบเส้นผมใหม่ในภาพ AI ที่ใช้ประกอบได้ — ยังคงพรีวิวเดิม');
   const hair=canvasFor(W,H),hc=hair.getContext('2d');hc.drawImage(donor,0,0);
-  hc.globalCompositeOperation='destination-in';hc.drawImage(hairMask,0,0);
+  hc.globalCompositeOperation='destination-in';hc.drawImage(softenedMask,0,0);
   // Use a soft curved forehead/temple envelope, intersected with the actual
   // donor hair segmentation. No hard rectangular cut across the face.
   const frontRegion=canvasFor(W,H),fr=frontRegion.getContext('2d');
@@ -998,9 +1027,12 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
   // immutable facial core is exempt from the donor-hair subtraction.
   // A segmented hair pixel is not permission to overwrite eyes/nose/mouth.
   const restoredSkin=canvasFor(W,H),rsc=restoredSkin.getContext('2d');
-  rsc.drawImage(prepared.originalFace,0,0);
+  const skinEdge=canvasFor(W,H),sec=skinEdge.getContext('2d');
+  sec.filter=`blur(${Math.max(2,Math.min(6,prepared.eyeD*.016))}px)`;
+  sec.drawImage(prepared.originalFace,0,0);sec.filter='none';
+  rsc.drawImage(skinEdge,0,0);
   const hairOverSkin=canvasFor(W,H),hos=hairOverSkin.getContext('2d');
-  hos.drawImage(hairMask,0,0);
+  hos.drawImage(softenedMask,0,0);
   hos.globalCompositeOperation='destination-out';hos.drawImage(prepared.originalCore,0,0);
   rsc.globalCompositeOperation='destination-out';rsc.drawImage(hairOverSkin,0,0);
   rsc.globalCompositeOperation='source-over';
