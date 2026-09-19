@@ -1034,11 +1034,34 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
   return canvasPng(out);
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(cu)}
 }
+// V103: supply only the head and a short neck to the AI edit endpoint.
+// Keep the full-resolution original/master untouched for pixel-safe compositing.
+async function headOnlyAIEditFile(file){
+ const url=URL.createObjectURL(file);
+ try{
+  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
+  const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+  if(!face)throw Error('ไม่พบใบหน้าในภาพสำหรับเตรียมทรงผม');
+  const eyeD=Math.hypot((face[263].x-face[33].x)*W,(face[263].y-face[33].y)*H);
+  const chin=face[152].y*H;
+  // Keep the jaw and a small amount of neck; exclude shoulders/chest entirely.
+  const cutoff=Math.min(H,Math.max(1,Math.round(chin+eyeD*.60)));
+  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#f2f2f2';ctx.fillRect(0,0,W,H);
+  ctx.drawImage(im,0,0,W,cutoff,0,0,W,cutoff);
+  // A visible lower-body portion would be a preprocessing error, not a reason
+  // to silently submit the unmodified image or consume another API request.
+  if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
+  const png=await canvasPng(canvas);
+  return new File([png],'head-only-ai-input.png',{type:'image/png'});
+ }finally{URL.revokeObjectURL(url)}
+}
 async function aiFinishPortrait(originalFile,hairId){
  // V69: send the user's original full-quality file directly to the image editor.
  // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
  const fd=new FormData();
- fd.append('image',originalFile,originalFile?.name||'portrait.png');
+ const aiInput=await headOnlyAIEditFile(originalFile);
+ fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
