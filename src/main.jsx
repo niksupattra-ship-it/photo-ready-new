@@ -170,9 +170,9 @@ async function alphaBounds(img){
  return r>=l?{l,t,r,b,w:r-l+1,h:b-t+1}:{l:0,t:0,r:c.width-1,b:c.height-1,w:c.width,h:c.height};
 }
 
-async function composePortrait(headBlob,adjust={scale:1,x:0,y:0}){
+async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png'){
  const bg=await loadImage('/assets/background.jpg');
- const uniformImg=await loadImage('/assets/uniform.png');
+ const uniformImg=await loadImage(templatePath);
  const headURL=URL.createObjectURL(headBlob);
  try{
   const head=await loadImage(headURL), uniform=uniformImg;
@@ -289,7 +289,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0}){
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
   const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
-  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,uX,uY,uW,uH,collarSocketY}};
+  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,uX,uY,uW,uH,collarSocketY,templatePath}};
  }finally{URL.revokeObjectURL(headURL)}
 }
 
@@ -364,7 +364,7 @@ async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
   // This happens AFTER AI and AFTER the neck seam. Therefore insignia, epaulettes, tie,
   // collar, buttons and every opaque uniform pixel never come from AI and retain the
   // exact sharpness/detail of the source template. Transparent neck socket remains open.
-  const uniform=await loadImage('/assets/uniform.png');
+  const uniform=await loadImage(lock.templatePath||'/assets/uniform.png');
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(uniform,lock.uX,lock.uY,lock.uW,lock.uH);
 
@@ -564,7 +564,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
- const bg=await loadImage(backgroundPath),uniform=await loadImage('/assets/uniform.png');
+ const bg=await loadImage(backgroundPath),uniform=await loadImage(lock.templatePath||'/assets/uniform.png');
  const warpedUniform=await warpUniformCollar(uniform,collarWarp);
  const masterURL=URL.createObjectURL(headMasterBlob);
  try{
@@ -1234,8 +1234,19 @@ const HAIR_OPTIONS=[
  {id:'hair-29',name:'ทรงผม 29',src:'/assets/hairstyle-previews/hair-29.png'}
 ];
 
+const JOB_UNIFORMS=[
+ {id:'male-white-shirt',title:'เชิ้ตขาวชาย',img:'/assets/job-uniforms/male-white-shirt.png',cat:'job',gender:'male'},
+ {id:'female-white-shirt',title:'เชิ้ตขาวหญิง',img:'/assets/job-uniforms/female-white-shirt.png',cat:'job',gender:'female'},
+ {id:'male-navy-suit',title:'สูทกรมชาย',img:'/assets/job-uniforms/male-navy-suit.png',cat:'job',gender:'male'},
+ {id:'male-navy-tie',title:'สูทกรมชายพร้อมเนกไท',img:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
+ {id:'female-navy-suit-1',title:'สูทกรมหญิง แบบ 1',img:'/assets/job-uniforms/female-navy-suit-1.png',cat:'job',gender:'female'},
+ {id:'female-navy-suit-2',title:'สูทกรมหญิง แบบ 2',img:'/assets/job-uniforms/female-navy-suit-2.png',cat:'job',gender:'female'},
+ {id:'female-navy-suit-3',title:'สูทกรมหญิง แบบ 3',img:'/assets/job-uniforms/female-navy-suit-3.png',cat:'job',gender:'female'},
+];
+
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
+ const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].img);
  const[uniformCategory,setUniformCategory]=useState('government'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState('home'),[selectedStyle,setSelectedStyle]=useState(''),[ministry,setMinistry]=useState('กระทรวงการคลัง'),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational'),[affiliationPreview,setAffiliationPreview]=useState(false);
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0,rotation:0});
  const[collarWarp,setCollarWarp]=useState(0);
@@ -1430,7 +1441,7 @@ function App(){
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   // 02 = exact remove.bg result before placement/resampling.
-  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0});
+  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformCategory==='job'?selectedJobTemplate:'/assets/uniform.png');
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
   // skin-isolation overlay, tone pass, or post-process face layer is applied.
@@ -1448,15 +1459,11 @@ function App(){
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
-    {title:'สูทสมัครงาน',img:'/assets/hairstyle-previews/hair-01.png',cat:'job'},
+    {...JOB_UNIFORMS[2],title:'สูทสมัครงาน'},
     {title:'ข้าราชการ',img:'/assets/uniform.png',cat:'government',uniform:true},
     {title:'นักศึกษา',img:'/assets/hairstyle-previews/hair-07.png',cat:'student'},
     {title:'ชุดครุย',img:'/assets/hairstyle-previews/hair-20.png',cat:'gown'}]},
-   {id:'job',tag:'สมัครงาน',title:'รูปสมัครงาน พร้อมใช้',cards:[
-    {title:'สูทหญิงเรียบร้อย',img:'/assets/hairstyle-previews/hair-03.png',cat:'job'},
-    {title:'สูทหญิงคอแบะ',img:'/assets/hairstyle-previews/hair-09.png',cat:'job'},
-    {title:'สูทชาย แบบ 1',img:'/assets/hairstyle-previews/hair-16.png',cat:'job'},
-    {title:'สูทชาย แบบ 2',img:'/assets/hairstyle-previews/hair-24.png',cat:'job'}]},
+   {id:'job',tag:'สมัครงาน',title:'รูปสมัครงาน พร้อมใช้',cards:JOB_UNIFORMS},
    {id:'government',tag:'ข้าราชการ',title:'ชุดราชการ',cards:[
     {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
     {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
@@ -1479,9 +1486,10 @@ function App(){
    </section>
   </main>;
  }
- function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
+ function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&c.img?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.img);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
  return <main className="app-shell modern-shell adaptive-editor"><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
   <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick}/>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button><button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">แตะและลากที่รูปเพื่อย้ายส่วนหัว · ใช้สองนิ้วเพื่อย่อ–ขยาย · หรือเลือก “ปรับหัว” ที่เมนู</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}</label>
+   {uniformCategory==='job'&&<div className="selected-job-uniform"><img src={selectedJobTemplate} alt={selectedStyle||'ชุดสมัครงานที่เลือก'}/><span>ชุดที่เลือก: {selectedStyle}</span></div>}
    <div className="quick-config">
     {uniformCategory==='government'&&<><label className="field-label">กระทรวง / สังกัด<select value={ministry} onChange={e=>setMinistry(e.target.value)}><option>กระทรวงการคลัง</option><option disabled>เพิ่มกระทรวงอื่นภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>setLevel(id)}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>setGender('female')}>หญิง</button></div>}
