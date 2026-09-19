@@ -1154,14 +1154,11 @@ async function prepareHairEdit(masterBlob){
   return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,originalHair:hc,protectedSkin:skin,faceShield:shield};
  }finally{URL.revokeObjectURL(url)}
 }
-async function requestHairEdit(prepared,id){
- const fd=new FormData();
- fd.append('image',new File([prepared.input],'head.png',{type:'image/png'}));
- fd.append('mask',new File([prepared.mask],'hair-edit-mask.png',{type:'image/png'}));
- fd.append('hairId',id);fd.append('mode','hair-inpaint');
+// V114: provider-agnostic direct hairstyle transfer. One immutable portrait, one style ID.
+async function requestHairstyleEngine(master,id){
+ const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
- try{
-  const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
+ try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal});
   if(!r.ok)throw Error(await r.text());return await r.blob();
  }catch(e){if(e?.name==='AbortError')throw Error('เปลี่ยนทรงผมใช้เวลานานเกิน 120 วินาที');throw e}
  finally{clearTimeout(timer)}
@@ -1357,13 +1354,12 @@ function App(){
     // "ผมเดิม" is a zero-credit restore: no AI request at all.
     nextMaster=src;
    }else{
-    // V107: single inpainting call on immutable locked master; no Clean Head,
-    // no scalp generation, no old rectangular donor compositing.
-    setMsg('กำลังตรวจเส้นผมและแนวใบหน้า ก่อนแก้เฉพาะทรงผม…');
-    const prepared=await prepareHairEdit(src);
-    setMsg('กำลังแก้เฉพาะพื้นที่ทรงผมด้วย AI…');
-    const edited=await requestHairEdit(prepared,id);
-    nextMaster=await composeHairEdit(edited,src,prepared);
+    // V114: no client-side hair mask, no donor and no face-patch compositing.
+    // Provider output is a coherent head; MODNet removes only its temporary background.
+    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานที่ล็อกไว้…');
+    const edited=await requestHairstyleEngine(src,id);
+    setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
+    nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
    }
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.

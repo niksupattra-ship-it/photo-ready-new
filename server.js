@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import crypto from "crypto";
+import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
@@ -119,6 +120,21 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
   }
 });
 
+
+// V114: separate provider engine; no Hair Donor, no mask upload, no implicit fallback.
+app.get("/api/hairstyle/providers",(req,res)=>res.json(providerStatus()));
+app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
+ try{
+  const result=await editHairstyle({portrait:req.file,hairId:req.body?.hairId,root:dir});
+  res.set("Content-Type","image/png");res.set("Cache-Control","no-store");
+  res.set("X-Hairstyle-Provider",result.provider);
+  if(result.requestId)res.set("X-Request-Id",result.requestId);
+  res.send(result.png);
+ }catch(error){
+  console.error("Hairstyle engine:",error.message,error.requestId||"");
+  res.status(error.status>=400&&error.status<600?error.status:500).send(error.message);
+ }
+});
 
 app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),async(req,res)=>{
   try{
