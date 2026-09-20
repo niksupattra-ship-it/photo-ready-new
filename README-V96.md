@@ -1,1 +1,0 @@
-V96: Explicitly subtract face protection from back-hair alpha; preserve immutable original visible face/neck; check clean donor coverage; add conservative connected dark-side-strand detection alongside semantic residual detection; keep locked transforms and uniform unchanged. API image quality not verified.
