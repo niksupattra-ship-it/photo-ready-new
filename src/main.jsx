@@ -578,32 +578,30 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
-// V160: retain a feathered strip of the photographed neck below the jaw. It
-// dissolves gradually into the extended neck texture instead of ending on a
-// horizontal line. Hair remains original; shoulders and old clothes are removed.
-function isolateHeadHairAndNeck(image,faceCX,chinY){
+// V161: the AI now generates the complete long neck. This function only removes
+// possible background/shoulder remnants outside a continuous anatomical mask;
+// it never repaints, stretches or colour-samples the AI skin.
+function isolateHeadHairAndNeck(image,faceCX,chinY,neckBottomY){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
  const start=Math.max(0,Math.floor(chinY-H*.012));
- const solidEnd=Math.min(H,Math.ceil(chinY+H*.035));
- const fadeEnd=Math.min(H,Math.ceil(chinY+H*.125));
- const hairLimit=Math.min(H,Math.ceil(chinY+H*.34));
+ const bottom=Math.max(chinY+H*.24,Math.min(H-1,neckBottomY||chinY+H*.42));
+ const hairLimit=Math.min(H,Math.ceil(Math.max(chinY+H*.38,bottom)));
  for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
   const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
   const r=d[i],g=d[i+1],b=d[i+2],dist=Math.abs(xx-faceCX);
   const brightness=(r*299+g*587+b*114)/1000;
-  const hair=yy<hairLimit&&dist<W*.32&&brightness<155&&Math.max(r,g,b)-Math.min(r,g,b)<105;
-  const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
-  const neckHalf=W*(.19-.075*neckProgress);
-  const neck=yy<=fadeEnd&&dist<neckHalf;
+  const hair=yy<hairLimit&&dist<W*.32&&brightness<170&&Math.max(r,g,b)-Math.min(r,g,b)<112;
+  const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,bottom-start)));
+  const neckHalf=W*(.115+.025*neckProgress);
+  const edgeFeather=Math.max(3,W*.008);
+  const neckAlpha=Math.max(0,Math.min(1,(neckHalf-dist)/edgeFeather));
+  const neck=yy<=bottom&&neckAlpha>0;
   if(hair)continue;
   if(!neck){d[i+3]=0;continue}
-  if(yy>solidEnd){
-   const feather=1-(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd);
-   d[i+3]=Math.round(a*Math.max(0,Math.min(1,feather)));
-  }
+  d[i+3]=Math.round(a*neckAlpha);
  }
  x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
 }
@@ -618,7 +616,10 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  try{
   const head=await loadImage(masterURL);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
-  const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY);
+  // Convert the deepest collar position back to master-image coordinates and
+  // retain AI neck pixels beyond it. The uniform drawn last hides the lower end.
+  const neckBottomSource=(lock.collarSocketY+lock.H*.23-lock.hY)/Math.max(.001,lock.scale);
+  const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,neckBottomSource);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -629,28 +630,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V160 PHOTOGRAPHED NECK TEXTURE: stretch real neck pixels rather than painting
-  // a flat sampled colour. The feathered original neck above blends over this
-  // layer, preserving the person's real skin tone, lighting and fine texture.
-  const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
-  const collarLocalY=lock.collarSocketY-centerY;
-  const neckTop=chinLocalY-lock.H*.022;
-  const neckBottom=Math.max(neckTop+lock.H*.23,collarLocalY+lock.H*.21);
-  const neckTopHalf=lock.W*.105*s,neckBottomHalf=lock.W*.135*s;
-  x.save();x.translate(centerX,centerY);x.rotate(rotation);
-  x.beginPath();
-  x.moveTo(-neckTopHalf,neckTop);
-  x.bezierCurveTo(-neckTopHalf*1.04,neckTop+lock.H*.045,-neckBottomHalf,neckBottom-lock.H*.055,-neckBottomHalf,neckBottom);
-  x.quadraticCurveTo(0,neckBottom+lock.H*.022,neckBottomHalf,neckBottom);
-  x.bezierCurveTo(neckBottomHalf,neckBottom-lock.H*.055,neckTopHalf*1.04,neckTop+lock.H*.045,neckTopHalf,neckTop);
-  x.closePath();x.clip();
-  const sourceW=neckHead.naturalWidth||neckHead.width,sourceH=neckHead.naturalHeight||neckHead.height;
-  const sourceX=Math.max(0,lock.faceCX-sourceW*.09);
-  const sourceY=Math.max(0,lock.chinY-sourceH*.018);
-  const sourceCropW=Math.min(sourceW-sourceX,sourceW*.18);
-  const sourceCropH=Math.min(sourceH-sourceY,sourceH*.105);
-  x.drawImage(neckHead,sourceX,sourceY,sourceCropW,sourceCropH,-neckBottomHalf,neckTop,neckBottomHalf*2,neckBottom-neckTop+lock.H*.025);
-  x.restore();
+  // V161: no post-process neck synthesis. Use the single continuous neck that
+  // came from the same AI generation as the face/hair, preserving its texture.
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
