@@ -578,47 +578,34 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
-// V159: keep the face/jaw and hair, but remove the old neck/shoulder pixels as a
-// whole below the jaw. Do not classify the two neck edges by skin colour: that
-// caused the blue notches seen in V158. A single continuous neck is drawn later.
+// V160: retain a feathered strip of the photographed neck below the jaw. It
+// dissolves gradually into the extended neck texture instead of ending on a
+// horizontal line. Hair remains original; shoulders and old clothes are removed.
 function isolateHeadHairAndNeck(image,faceCX,chinY){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
  const start=Math.max(0,Math.floor(chinY-H*.012));
- const jawEnd=Math.min(H,Math.ceil(chinY+H*.035));
+ const solidEnd=Math.min(H,Math.ceil(chinY+H*.035));
+ const fadeEnd=Math.min(H,Math.ceil(chinY+H*.125));
  const hairLimit=Math.min(H,Math.ceil(chinY+H*.34));
  for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
   const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
   const r=d[i],g=d[i+1],b=d[i+2],dist=Math.abs(xx-faceCX);
   const brightness=(r*299+g*587+b*114)/1000;
   const hair=yy<hairLimit&&dist<W*.32&&brightness<155&&Math.max(r,g,b)-Math.min(r,g,b)<105;
-  const jawProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,jawEnd-start)));
-  const jawHalf=W*(.19-.075*jawProgress);
-  const jaw=yy<=jawEnd&&dist<jawHalf;
-  if(!hair&&!jaw)d[i+3]=0;
+  const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
+  const neckHalf=W*(.19-.075*neckProgress);
+  const neck=yy<=fadeEnd&&dist<neckHalf;
+  if(hair)continue;
+  if(!neck){d[i+3]=0;continue}
+  if(yy>solidEnd){
+   const feather=1-(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd);
+   d[i+3]=Math.round(a*Math.max(0,Math.min(1,feather)));
+  }
  }
  x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
-}
-
-function sampleNeckSkin(image,faceCX,chinY){
- const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- const c=document.createElement('canvas');c.width=W;c.height=H;
- const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
- const l=Math.max(0,Math.floor(faceCX-W*.11)),t=Math.max(0,Math.floor(chinY-H*.14));
- const r=Math.min(W,Math.ceil(faceCX+W*.11)),b=Math.min(H,Math.ceil(chinY-H*.025));
- const data=x.getImageData(l,t,Math.max(1,r-l),Math.max(1,b-t)).data,p=[];
- for(let i=0;i<data.length;i+=4){
-  const rr=data[i],gg=data[i+1],bb=data[i+2],aa=data[i+3];
-  if(aa>210&&rr>70&&gg>48&&bb>38&&rr>gg*.91&&gg>bb*.92&&rr-bb>8&&rr+gg+bb<720)p.push([rr,gg,bb]);
- }
- p.sort((a,b)=>(a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]));
- const q=p.slice(Math.floor(p.length*.18),Math.max(Math.floor(p.length*.18)+1,Math.ceil(p.length*.82)));
- let rr=0,gg=0,bb=0;for(const v of q){rr+=v[0];gg+=v[1];bb+=v[2]}
- const n=q.length||1,base=q.length?[Math.round(rr/n),Math.round(gg/n),Math.round(bb/n)]:[214,170,146];
- const tone=(f,o=0)=>base.map(v=>Math.max(0,Math.min(255,Math.round(v*f+o))));
- return{base,shadow:tone(.88,-2),light:tone(1.045,3)};
 }
 
 async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1}){
@@ -632,7 +619,6 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const head=await loadImage(masterURL);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
   const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY);
-  const skin=sampleNeckSkin(neckHead,lock.faceCX,lock.chinY);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -643,27 +629,28 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V159 FULL-COLLAR NECK: one uninterrupted neck runs from behind the jaw to
-  // beyond the deepest collar opening. The wider lower edge reaches both collar
-  // sides; the uniform covers its bottom, so no cut edge or blue notch is visible.
+  // V160 PHOTOGRAPHED NECK TEXTURE: stretch real neck pixels rather than painting
+  // a flat sampled colour. The feathered original neck above blends over this
+  // layer, preserving the person's real skin tone, lighting and fine texture.
   const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
   const collarLocalY=lock.collarSocketY-centerY;
   const neckTop=chinLocalY-lock.H*.022;
   const neckBottom=Math.max(neckTop+lock.H*.23,collarLocalY+lock.H*.21);
   const neckTopHalf=lock.W*.105*s,neckBottomHalf=lock.W*.135*s;
   x.save();x.translate(centerX,centerY);x.rotate(rotation);
-  const neckGradient=x.createLinearGradient(-neckBottomHalf,0,neckBottomHalf,0);
-  neckGradient.addColorStop(0,`rgb(${skin.shadow.join(',')})`);
-  neckGradient.addColorStop(.28,`rgb(${skin.base.join(',')})`);
-  neckGradient.addColorStop(.52,`rgb(${skin.light.join(',')})`);
-  neckGradient.addColorStop(.76,`rgb(${skin.base.join(',')})`);
-  neckGradient.addColorStop(1,`rgb(${skin.shadow.join(',')})`);
-  x.fillStyle=neckGradient;x.beginPath();
+  x.beginPath();
   x.moveTo(-neckTopHalf,neckTop);
   x.bezierCurveTo(-neckTopHalf*1.04,neckTop+lock.H*.045,-neckBottomHalf,neckBottom-lock.H*.055,-neckBottomHalf,neckBottom);
   x.quadraticCurveTo(0,neckBottom+lock.H*.022,neckBottomHalf,neckBottom);
   x.bezierCurveTo(neckBottomHalf,neckBottom-lock.H*.055,neckTopHalf*1.04,neckTop+lock.H*.045,neckTopHalf,neckTop);
-  x.closePath();x.fill();x.restore();
+  x.closePath();x.clip();
+  const sourceW=neckHead.naturalWidth||neckHead.width,sourceH=neckHead.naturalHeight||neckHead.height;
+  const sourceX=Math.max(0,lock.faceCX-sourceW*.09);
+  const sourceY=Math.max(0,lock.chinY-sourceH*.018);
+  const sourceCropW=Math.min(sourceW-sourceX,sourceW*.18);
+  const sourceCropH=Math.min(sourceH-sourceY,sourceH*.105);
+  x.drawImage(neckHead,sourceX,sourceY,sourceCropW,sourceCropH,-neckBottomHalf,neckTop,neckBottomHalf*2,neckBottom-neckTop+lock.H*.025);
+  x.restore();
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
