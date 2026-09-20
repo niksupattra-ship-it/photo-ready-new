@@ -568,31 +568,6 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
-// V154: keep only the original head, hair and the uppermost natural neck.
-// Everything lower (old chest, neck extension and clothing) is removed before
-// the selected uniform is composited. This prevents remnants of the old outfit
-// from appearing through an open collar while preserving the upper pixels.
-function maskNaturalUpperBody(image,faceCX,chinY){
- const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- const c=document.createElement('canvas');c.width=W;c.height=H;
- const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
- const startY=Math.max(0,Math.floor(chinY-H*.012));
- const sideY=Math.min(H-1,chinY+H*.018);
- const centreY=Math.min(H-1,chinY+H*.105);
- const neckHalf=W*.145,feather=Math.max(5,H*.012);
- const data=x.getImageData(0,0,W,H);
- for(let yy=startY;yy<H;yy++)for(let xx=0;xx<W;xx++){
-  const distance=Math.abs(xx-faceCX);
-  const t=Math.max(0,Math.min(1,distance/neckHalf));
-  // A compact V/U transition retains hair tips and the upper neck only. Pixels
-  // farther out or lower down (shoulders, chest and previous clothes) disappear.
-  const lowerEdge=sideY+(centreY-sideY)*Math.pow(1-t,1.18);
-  const keep=Math.max(0,Math.min(1,(lowerEdge-yy)/feather+.5));
-  const i=(yy*W+xx)*4;data.data[i+3]=Math.round(data.data[i+3]*keep);
- }
- x.clearRect(0,0,W,H);x.putImageData(data,0,0);
- return c;
-}
 async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1}){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
@@ -603,7 +578,6 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  try{
   const head=await loadImage(masterURL);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
-  const naturalHead=maskNaturalUpperBody(neckHead,lock.faceCX,lock.chinY);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -614,33 +588,13 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V154 NECK BRIDGE: sample the original skin, but draw only a narrow tapered
-  // connector behind the selected collar. There is deliberately no chest patch.
-  const skin=sampleOriginalNeckTone(naturalHead,lock.faceCX,lock.chinY);
-  const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
+  // V155: draw the person's original neck exactly as supplied. No generated
+  // skin rectangle/bridge is added beneath it; the selected uniform stays last.
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
-  x.drawImage(naturalHead,-drawW/2,-drawH/2,drawW,drawH);
+  x.drawImage(neckHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
-  const collarLocalY=(lock.collarSocketY-centerY);
-  const skinTopLocalY=chinLocalY-lock.H*.008;
-  const neckEndLocalY=Math.max(skinTopLocalY+lock.H*.075,collarLocalY+lock.H*.04);
-  const topHalf=lock.W*.052*s,bottomHalf=lock.W*.082*s;
-  x.save();
-  x.translate(centerX,centerY);x.rotate(rotation);
-  const skinGradient=x.createLinearGradient(-bottomHalf,0,bottomHalf,0);
-  skinGradient.addColorStop(0,`rgb(${skin.edge.join(',')})`);
-  skinGradient.addColorStop(.25,`rgb(${skin.base.join(',')})`);
-  skinGradient.addColorStop(.5,`rgb(${skin.light.join(',')})`);
-  skinGradient.addColorStop(.75,`rgb(${skin.base.join(',')})`);
-  skinGradient.addColorStop(1,`rgb(${skin.edge.join(',')})`);
-  x.fillStyle=skinGradient;x.beginPath();
-  x.moveTo(-topHalf,skinTopLocalY);
-  x.bezierCurveTo(-topHalf*1.04,skinTopLocalY+lock.H*.035,-bottomHalf,neckEndLocalY-lock.H*.035,-bottomHalf,neckEndLocalY);
-  x.quadraticCurveTo(0,neckEndLocalY+lock.H*.018,bottomHalf,neckEndLocalY);
-  x.bezierCurveTo(bottomHalf,neckEndLocalY-lock.H*.035,topHalf*1.04,skinTopLocalY+lock.H*.035,topHalf,skinTopLocalY);
-  x.closePath();x.fill();x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
   // never baked into the AI head or moved with head adjustments.
@@ -656,29 +610,6 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   }
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(masterURL)}
-}
-
-function sampleOriginalNeckTone(image,faceCX,chinY){
- const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- const c=document.createElement('canvas');c.width=W;c.height=H;
- const cx=c.getContext('2d',{willReadFrequently:true});cx.drawImage(image,0,0,W,H);
- const left=Math.max(0,Math.floor(faceCX-W*.095)),right=Math.min(W,Math.ceil(faceCX+W*.095));
- const top=Math.max(0,Math.floor(chinY-H*.15)),bottom=Math.min(H,Math.ceil(chinY-H*.035));
- const rw=Math.max(1,right-left),rh=Math.max(1,bottom-top),data=cx.getImageData(left,top,rw,rh).data;
- const pixels=[];
- for(let yy=0;yy<rh;yy++)for(let xx=0;xx<rw;xx++){
-  const absoluteX=left+xx;
-  if(Math.abs(absoluteX-faceCX)<W*.028)continue;
-  const i=(yy*rw+xx)*4,rr=data[i],gg=data[i+1],bb=data[i+2],aa=data[i+3];
-  if(aa<210||rr<78||gg<55||bb<42||rr<gg*.92||gg<bb*.98||rr-bb<8||rr+gg+bb>710)continue;
-  pixels.push([rr,gg,bb,rr+gg+bb]);
- }
- pixels.sort((a,b)=>a[3]-b[3]);
- const trimmed=pixels.slice(Math.floor(pixels.length*.15),Math.max(Math.floor(pixels.length*.15)+1,Math.ceil(pixels.length*.85)));
- let r=0,g=0,b=0;for(const pixel of trimmed){r+=pixel[0];g+=pixel[1];b+=pixel[2]}
- const n=trimmed.length,base=n?[Math.round(r/n),Math.round(g/n),Math.round(b/n)]:[214,170,146];
- const tune=(factor,offset=0)=>base.map(v=>Math.max(0,Math.min(255,Math.round(v*factor+offset))));
- return {base,edge:tune(.88,-2),light:tune(1.04,3)};
 }
 
 async function makeAiUploadBlob(composedBlob){
