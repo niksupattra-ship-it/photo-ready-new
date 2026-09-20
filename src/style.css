@@ -635,6 +635,9 @@
 /* V138: hairstyle selection preserves current placement automatically. */
 .placement-lock-row{display:none!important}
 
+/* V141: dedicated neck-adjust icon; keep the collar icon unchanged. */
+.simple-line-tools>button:nth-of-type(3) .line-tool-icon img{content:url('/app-icons/tool-neck-adjust.svg')}
+
 /* V122: four supplied background images, selectable without AI; original remains available. */
 .background-choice-preview{display:flex;gap:10px;overflow-x:auto;align-items:stretch;min-height:unset;padding:4px 2px 9px;scrollbar-width:thin}.background-choice-preview .background-swatch{flex:0 0 92px;min-width:92px;position:relative;padding:6px;cursor:pointer}.background-choice-preview .background-swatch img{display:block;width:100%;height:94px;object-fit:cover;border-radius:9px;border:1px solid #e3e7ef}.background-choice-preview .background-swatch strong{font-size:11px;white-space:nowrap}.background-choice-preview .background-swatch.selected{outline:2px solid #315bea;outline-offset:1px}.background-choice-preview .background-swatch.selected:after{content:"✓";position:absolute;top:9px;right:9px;width:19px;height:19px;border-radius:50%;background:#ef3b6b;color:white;font-size:12px;display:grid;place-items:center}.background-choice-preview .background-swatch:disabled{opacity:.6;cursor:wait}
 /* V123: selected job template confirmation, without changing existing editor controls. */
