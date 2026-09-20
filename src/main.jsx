@@ -578,28 +578,26 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
-// V157: remove opaque rectangular remnants left below the generated head layer.
-// Below the jaw, retain only photographed skin and dark hair; shoulders, old
-// clothes and white/blue rectangular pixels are discarded. Pixels above the
-// jaw are untouched, so the face and upper hairstyle remain identical.
+// V159: keep the face/jaw and hair, but remove the old neck/shoulder pixels as a
+// whole below the jaw. Do not classify the two neck edges by skin colour: that
+// caused the blue notches seen in V158. A single continuous neck is drawn later.
 function isolateHeadHairAndNeck(image,faceCX,chinY){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
  const start=Math.max(0,Math.floor(chinY-H*.012));
+ const jawEnd=Math.min(H,Math.ceil(chinY+H*.035));
  const hairLimit=Math.min(H,Math.ceil(chinY+H*.34));
  for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
   const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
   const r=d[i],g=d[i+1],b=d[i+2],dist=Math.abs(xx-faceCX);
   const brightness=(r*299+g*587+b*114)/1000;
-  const hair=yy<hairLimit&&dist<W*.31&&brightness<128&&Math.max(r,g,b)-Math.min(r,g,b)<92;
-  const skin=r>62&&g>43&&b>34&&r>g*.91&&g>b*.92&&r-b>7&&r+g+b<735;
-  const progress=Math.max(0,Math.min(1,(yy-start)/(H*.18)));
-  const neckHalf=W*(.105-.025*progress);
-  const jawHalf=W*(.19-.085*Math.min(1,progress/.34));
-  const anatomyHalf=Math.max(neckHalf,jawHalf);
-  if(!hair&&!(dist<anatomyHalf&&skin))d[i+3]=0;
+  const hair=yy<hairLimit&&dist<W*.32&&brightness<155&&Math.max(r,g,b)-Math.min(r,g,b)<105;
+  const jawProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,jawEnd-start)));
+  const jawHalf=W*(.19-.075*jawProgress);
+  const jaw=yy<=jawEnd&&dist<jawHalf;
+  if(!hair&&!jaw)d[i+3]=0;
  }
  x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
 }
@@ -645,14 +643,14 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V157 NATURAL NECK EXTENSION: begin behind the real jaw and continue well
-  // underneath the collar. Both ends are covered by the head/uniform layers,
-  // so the neck has no visible straight cut edge.
+  // V159 FULL-COLLAR NECK: one uninterrupted neck runs from behind the jaw to
+  // beyond the deepest collar opening. The wider lower edge reaches both collar
+  // sides; the uniform covers its bottom, so no cut edge or blue notch is visible.
   const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
   const collarLocalY=lock.collarSocketY-centerY;
-  const neckTop=chinLocalY-lock.H*.025;
-  const neckBottom=Math.max(neckTop+lock.H*.16,collarLocalY+lock.H*.15);
-  const neckTopHalf=lock.W*.052*s,neckBottomHalf=lock.W*.075*s;
+  const neckTop=chinLocalY-lock.H*.022;
+  const neckBottom=Math.max(neckTop+lock.H*.23,collarLocalY+lock.H*.21);
+  const neckTopHalf=lock.W*.105*s,neckBottomHalf=lock.W*.135*s;
   x.save();x.translate(centerX,centerY);x.rotate(rotation);
   const neckGradient=x.createLinearGradient(-neckBottomHalf,0,neckBottomHalf,0);
   neckGradient.addColorStop(0,`rgb(${skin.shadow.join(',')})`);
