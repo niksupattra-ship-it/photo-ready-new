@@ -1277,10 +1277,10 @@ const JOB_UNIFORMS=[
 ];
 
 const STUDENT_UNIFORMS=[
- {id:'student-female-01',title:'นักศึกษาหญิง แบบ 1',img:'/assets/student-uniforms/female-01.png',template:'/assets/student-uniforms/female-01.png',cat:'student',gender:'female'},
- {id:'student-female-02',title:'นักศึกษาหญิง แบบ 2',img:'/assets/student-uniforms/female-02.png',template:'/assets/student-uniforms/female-02.png',cat:'student',gender:'female'},
- {id:'student-male-01',title:'นักศึกษาชาย แบบ 1',img:'/assets/student-uniforms/male-01.png',template:'/assets/student-uniforms/male-01.png',cat:'student',gender:'male'},
- {id:'student-male-02',title:'นักศึกษาชาย แบบ 2',img:'/assets/student-uniforms/male-02.png',template:'/assets/student-uniforms/male-02.png',cat:'student',gender:'male'},
+ {id:'student-female-01',title:'นักศึกษาหญิง แบบ 1',img:'/assets/student-uniforms/previews/female-01.jpg',template:'/assets/student-uniforms/female-01.png',cat:'student',gender:'female'},
+ {id:'student-female-02',title:'นักศึกษาหญิง แบบ 2',img:'/assets/student-uniforms/previews/female-02.jpg',template:'/assets/student-uniforms/female-02.png',cat:'student',gender:'female'},
+ {id:'student-male-01',title:'นักศึกษาชาย แบบ 1',img:'/assets/student-uniforms/previews/male-01.jpg',template:'/assets/student-uniforms/male-01.png',cat:'student',gender:'male'},
+ {id:'student-male-02',title:'นักศึกษาชาย แบบ 2',img:'/assets/student-uniforms/previews/male-02.jpg',template:'/assets/student-uniforms/male-02.png',cat:'student',gender:'male'},
 ];
 
 const INTERIOR_UNIFORMS=[
