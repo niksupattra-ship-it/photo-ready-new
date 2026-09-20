@@ -671,3 +671,8 @@
 .ribbon-adjust-panel{display:grid;gap:10px;margin-top:10px;min-width:0}
 .ribbon-adjust-panel small{font-size:12px;color:#536179}
 .ribbon-adjust-panel .compact-slider-list{min-width:0}
+
+/* V144: ribbon choices use the same arrow rail as hairstyle choices. */
+.ribbon-choice-preview{scrollbar-width:none}
+.ribbon-choice-preview::-webkit-scrollbar{display:none}
+.ribbon-choice-rail-wrap .ribbon-choice-preview{flex:1 1 auto;min-width:0;scroll-behavior:smooth}
