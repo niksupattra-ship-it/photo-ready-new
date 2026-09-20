@@ -1412,27 +1412,23 @@ function App(){
   else if(g.pointers.size===1){const [id,p]=[...g.pointers.entries()][0];g.drag=true;g.pinch=false;g.primary=id;g.x=p.x;g.y=p.y;g.startAdjust={...liveAdjustRef.current}}
  };
  const previewWheel=e=>{if(placementLocked)return;if(!b||(optionTool&&optionTool!=='head')||comparePreview)return;e.preventDefault();const old=liveAdjustRef.current;const factor=Math.exp(-e.deltaY*.0015);const next={...old,scale:Math.max(.20,Math.min(2,old.scale*factor))};paintHeadTransform(next)};
- const lockPlacement=()=>{
-  if(!editCache.current||!b)return;
-  const snapshot={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  lockedPlacementRef.current=snapshot;lockedMasterRef.current=editCache.current.master;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();setPlacementLocked(true);setOptionTool(null);setMsg('ล็อกตำแหน่งและ Master แล้ว — เปลี่ยนได้เฉพาะทรงผม');
- };
- const unlockPlacement=()=>{++renderSeqRef.current;lockedMasterRef.current=null;lockedPlacementRef.current=null;preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();setPlacementLocked(false);setMsg('ปลดล็อกแล้ว — สามารถปรับหัวและคอได้อีกครั้ง')};
+ // Kept only for compatibility with the hidden legacy row in this build.
+ const lockPlacement=()=>{};
+ const unlockPlacement=()=>{};
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // A processed portrait can change hair immediately: capture the CURRENT editor
-  // placement even when the user has not pressed the explicit lock button.
-  // The same snapshot is reused across all subsequent hairstyle selections.
-  if(!placementLocked){
-   clearTimeout(renderTimer.current);
-   ++renderSeqRef.current;
-   lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+  // V138 DIRECT HAIR CHANGE: capture the current geometry automatically on every
+  // selection. Keep one immutable source master to prevent AI drift, but never lock
+  // the editor controls or require a separate confirmation button.
+  clearTimeout(renderTimer.current);
+  ++renderSeqRef.current;
+  lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+  if(!lockedMasterRef.current){
    lockedMasterRef.current=editCache.current.master;
    preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
-   setPlacementLocked(true);
   }
-  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
+  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งปัจจุบันไว้…');
   let completed=false;
   try{
    const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
@@ -1446,7 +1442,7 @@ function App(){
    }else{
     // V114: no client-side hair mask, no donor and no face-patch compositing.
     // Provider output is a coherent head; MODNet removes only its temporary background.
-    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานที่ล็อกไว้…');
+    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานเดิม…');
     const cached=hairResultCacheRef.current.get(id);
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
     else{
