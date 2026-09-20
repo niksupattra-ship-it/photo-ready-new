@@ -587,33 +587,35 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V150 WIDE-COLLAR SKIN UNDERLAY:
-  // Sample the person's own neck colour and extend it behind the clothing template.
-  // The real head remains above this layer and the untouched uniform remains above both,
-  // so the extension is visible only through a genuinely open collar/neckline.
+  // V151 WIDE-COLLAR SKIN PATCH:
+  // Read skin only from the lower cheeks (never from the shirt below the chin).
+  // The patch is painted after the person layer to cover residual white clothing,
+  // then the untouched uniform is painted last so only its open neckline reveals skin.
   const skin=sampleOriginalNeckTone(neckHead,lock.faceCX,lock.chinY);
   const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
-  const chestLocalY=Math.max(chinLocalY+lock.H*.22,(lock.uY+lock.uH*.52)-centerY);
-  const topHalf=lock.W*.058*s,bottomHalf=lock.W*.145*s;
-  x.save();
-  x.translate(centerX,centerY);x.rotate(rotation);
-  const skinGradient=x.createLinearGradient(-bottomHalf,0,bottomHalf,0);
-  skinGradient.addColorStop(0,`rgb(${skin.edge.join(',')})`);
-  skinGradient.addColorStop(.28,`rgb(${skin.base.join(',')})`);
-  skinGradient.addColorStop(.5,`rgb(${skin.light.join(',')})`);
-  skinGradient.addColorStop(.72,`rgb(${skin.base.join(',')})`);
-  skinGradient.addColorStop(1,`rgb(${skin.edge.join(',')})`);
-  x.fillStyle=skinGradient;x.beginPath();
-  x.moveTo(-topHalf,chinLocalY-lock.H*.012);
-  x.bezierCurveTo(-topHalf*1.04,chinLocalY+lock.H*.045,-bottomHalf*.82,chestLocalY-lock.H*.055,-bottomHalf,chestLocalY);
-  x.lineTo(bottomHalf,chestLocalY);
-  x.bezierCurveTo(bottomHalf*.82,chestLocalY-lock.H*.055,topHalf*1.04,chinLocalY+lock.H*.045,topHalf,chinLocalY-lock.H*.012);
-  x.closePath();x.fill();x.restore();
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
   x.drawImage(neckHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
+  const collarLocalY=(lock.collarSocketY-centerY);
+  const skinTopLocalY=Math.max(chinLocalY+lock.H*.035,collarLocalY-lock.H*.055);
+  const chestLocalY=Math.max(skinTopLocalY+lock.H*.30,(lock.uY+lock.uH*.68)-centerY);
+  const topHalf=lock.W*.072*s,bottomHalf=lock.W*.18*s;
+  x.save();
+  x.translate(centerX,centerY);x.rotate(rotation);
+  const skinGradient=x.createLinearGradient(-bottomHalf,0,bottomHalf,0);
+  skinGradient.addColorStop(0,`rgb(${skin.edge.join(',')})`);
+  skinGradient.addColorStop(.25,`rgb(${skin.base.join(',')})`);
+  skinGradient.addColorStop(.5,`rgb(${skin.light.join(',')})`);
+  skinGradient.addColorStop(.75,`rgb(${skin.base.join(',')})`);
+  skinGradient.addColorStop(1,`rgb(${skin.edge.join(',')})`);
+  x.fillStyle=skinGradient;x.beginPath();
+  x.moveTo(-topHalf,skinTopLocalY-lock.H*.012);
+  x.bezierCurveTo(-topHalf*1.06,skinTopLocalY+lock.H*.05,-bottomHalf*.86,chestLocalY-lock.H*.07,-bottomHalf,chestLocalY);
+  x.lineTo(bottomHalf,chestLocalY);
+  x.bezierCurveTo(bottomHalf*.86,chestLocalY-lock.H*.07,topHalf*1.06,skinTopLocalY+lock.H*.05,topHalf,skinTopLocalY-lock.H*.012);
+  x.closePath();x.fill();x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
   // never baked into the AI head or moved with head adjustments.
@@ -635,16 +637,21 @@ function sampleOriginalNeckTone(image,faceCX,chinY){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const cx=c.getContext('2d',{willReadFrequently:true});cx.drawImage(image,0,0,W,H);
- const left=Math.max(0,Math.floor(faceCX-W*.055)),right=Math.min(W,Math.ceil(faceCX+W*.055));
- const top=Math.max(0,Math.floor(chinY+H*.008)),bottom=Math.min(H,Math.ceil(chinY+H*.09));
- const data=cx.getImageData(left,top,Math.max(1,right-left),Math.max(1,bottom-top)).data;
- let r=0,g=0,b=0,n=0;
- for(let i=0;i<data.length;i+=4){
-  const rr=data[i],gg=data[i+1],bb=data[i+2],aa=data[i+3];
-  if(aa<180||rr<55||gg<40||bb<32||Math.max(rr,gg,bb)-Math.min(rr,gg,bb)>125)continue;
-  r+=rr;g+=gg;b+=bb;n++;
+ const left=Math.max(0,Math.floor(faceCX-W*.095)),right=Math.min(W,Math.ceil(faceCX+W*.095));
+ const top=Math.max(0,Math.floor(chinY-H*.15)),bottom=Math.min(H,Math.ceil(chinY-H*.035));
+ const rw=Math.max(1,right-left),rh=Math.max(1,bottom-top),data=cx.getImageData(left,top,rw,rh).data;
+ const pixels=[];
+ for(let yy=0;yy<rh;yy++)for(let xx=0;xx<rw;xx++){
+  const absoluteX=left+xx;
+  if(Math.abs(absoluteX-faceCX)<W*.028)continue;
+  const i=(yy*rw+xx)*4,rr=data[i],gg=data[i+1],bb=data[i+2],aa=data[i+3];
+  if(aa<210||rr<78||gg<55||bb<42||rr<gg*.92||gg<bb*.98||rr-bb<8||rr+gg+bb>710)continue;
+  pixels.push([rr,gg,bb,rr+gg+bb]);
  }
- const base=n?[Math.round(r/n),Math.round(g/n),Math.round(b/n)]:[214,170,146];
+ pixels.sort((a,b)=>a[3]-b[3]);
+ const trimmed=pixels.slice(Math.floor(pixels.length*.15),Math.max(Math.floor(pixels.length*.15)+1,Math.ceil(pixels.length*.85)));
+ let r=0,g=0,b=0;for(const pixel of trimmed){r+=pixel[0];g+=pixel[1];b+=pixel[2]}
+ const n=trimmed.length,base=n?[Math.round(r/n),Math.round(g/n),Math.round(b/n)]:[214,170,146];
  const tune=(factor,offset=0)=>base.map(v=>Math.max(0,Math.min(255,Math.round(v*factor+offset))));
  return {base,edge:tune(.88,-2),light:tune(1.04,3)};
 }
