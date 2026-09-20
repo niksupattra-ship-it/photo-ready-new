@@ -1,1 +1,0 @@
-V94: Clean Head Master composite fixes: curved feathered hair-front region, remove white mask rendering, pixel RGB identity check, side-neck residual hair test. Runtime API image quality not yet verified.
