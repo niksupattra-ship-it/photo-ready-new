@@ -1219,7 +1219,20 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
   oc.putImageData(out,0,0);return await canvasPng(oldC);
  }finally{URL.revokeObjectURL(au);URL.revokeObjectURL(mu)}
 }
-const RIBBON_OPTIONS=[{id:'2543-2547',name:'แพรแถบ 2543–2547',src:'/assets/ribbons/2543-2547.png'}];
+const RIBBON_OPTIONS=[
+ {id:'2504-2514',name:'2504-2514',src:'/assets/ribbons/2504-2514.png'},
+ {id:'2515',name:'2515',src:'/assets/ribbons/2515.png'},
+ {id:'2516-2520',name:'2516-2520',src:'/assets/ribbons/2516-2520.png'},
+ {id:'2521-2525',name:'2521-2525',src:'/assets/ribbons/2521-2525.png'},
+ {id:'2526-2527',name:'2526-2527',src:'/assets/ribbons/2526-2527.png'},
+ {id:'2528-2530',name:'2528-2530',src:'/assets/ribbons/2528-2530.png'},
+ {id:'2531',name:'2531',src:'/assets/ribbons/2531.png'},
+ {id:'2532-2535',name:'2532-2535',src:'/assets/ribbons/2532-2535.png'},
+ {id:'2536-2539',name:'2536-2539',src:'/assets/ribbons/2536-2539.png'},
+ {id:'2540-2542',name:'2540-2542',src:'/assets/ribbons/2540-2542.png'},
+ {id:'2543-2547',name:'2543-2547',src:'/assets/ribbons/2543-2547.png'},
+ {id:'2548-2549',name:'2548-2549',src:'/assets/ribbons/2548-2549.png'}
+];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=Array.from({length:12},(_,i)=>{const number=String(i+1).padStart(2,'0');return {id:`manhair-${number}`,name:`ทรงผม ${number}`,src:`/assets/hairstyle-previews/manhair-${number}.png`};});
 const HAIR_OPTIONS=[
