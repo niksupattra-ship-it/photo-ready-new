@@ -568,24 +568,25 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
-// V153: keep the original face/hair untouched, but give the lower person layer a
-// natural shoulder-to-chest silhouette. Some generated masters contain an opaque
-// rectangular torso; without this mask its straight lower edge remains visible
-// above wide/open collars. The feathered U curve follows the reference cut-out.
+// V154: keep only the original head, hair and the uppermost natural neck.
+// Everything lower (old chest, neck extension and clothing) is removed before
+// the selected uniform is composited. This prevents remnants of the old outfit
+// from appearing through an open collar while preserving the upper pixels.
 function maskNaturalUpperBody(image,faceCX,chinY){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
- const startY=Math.max(0,Math.floor(chinY-H*.018));
- const shoulderY=Math.min(H-1,chinY+H*.075);
- const chestY=Math.min(H-1,chinY+H*.335);
- const shoulderHalf=W*.445,feather=Math.max(5,H*.014);
+ const startY=Math.max(0,Math.floor(chinY-H*.012));
+ const sideY=Math.min(H-1,chinY+H*.018);
+ const centreY=Math.min(H-1,chinY+H*.105);
+ const neckHalf=W*.145,feather=Math.max(5,H*.012);
  const data=x.getImageData(0,0,W,H);
  for(let yy=startY;yy<H;yy++)for(let xx=0;xx<W;xx++){
   const distance=Math.abs(xx-faceCX);
-  const t=Math.max(0,Math.min(1,distance/shoulderHalf));
-  // Centre extends towards the chest; the sides rise smoothly to the shoulders.
-  const lowerEdge=shoulderY+(chestY-shoulderY)*Math.pow(1-t,1.32);
+  const t=Math.max(0,Math.min(1,distance/neckHalf));
+  // A compact V/U transition retains hair tips and the upper neck only. Pixels
+  // farther out or lower down (shoulders, chest and previous clothes) disappear.
+  const lowerEdge=sideY+(centreY-sideY)*Math.pow(1-t,1.18);
   const keep=Math.max(0,Math.min(1,(lowerEdge-yy)/feather+.5));
   const i=(yy*W+xx)*4;data.data[i+3]=Math.round(data.data[i+3]*keep);
  }
@@ -613,10 +614,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V151 WIDE-COLLAR SKIN PATCH:
-  // Read skin only from the lower cheeks (never from the shirt below the chin).
-  // The patch is painted after the person layer to cover residual white clothing,
-  // then the untouched uniform is painted last so only its open neckline reveals skin.
+  // V154 NECK BRIDGE: sample the original skin, but draw only a narrow tapered
+  // connector behind the selected collar. There is deliberately no chest patch.
   const skin=sampleOriginalNeckTone(naturalHead,lock.faceCX,lock.chinY);
   const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
   x.save();
@@ -625,9 +624,9 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   x.drawImage(naturalHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
   const collarLocalY=(lock.collarSocketY-centerY);
-  const skinTopLocalY=Math.max(chinLocalY+lock.H*.035,collarLocalY-lock.H*.055);
-  const chestLocalY=Math.max(skinTopLocalY+lock.H*.30,(lock.uY+lock.uH*.68)-centerY);
-  const topHalf=lock.W*.072*s,bottomHalf=lock.W*.18*s;
+  const skinTopLocalY=chinLocalY-lock.H*.008;
+  const neckEndLocalY=Math.max(skinTopLocalY+lock.H*.075,collarLocalY+lock.H*.04);
+  const topHalf=lock.W*.052*s,bottomHalf=lock.W*.082*s;
   x.save();
   x.translate(centerX,centerY);x.rotate(rotation);
   const skinGradient=x.createLinearGradient(-bottomHalf,0,bottomHalf,0);
@@ -637,12 +636,10 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   skinGradient.addColorStop(.75,`rgb(${skin.base.join(',')})`);
   skinGradient.addColorStop(1,`rgb(${skin.edge.join(',')})`);
   x.fillStyle=skinGradient;x.beginPath();
-  x.moveTo(-topHalf,skinTopLocalY-lock.H*.012);
-  const chestSideY=chestLocalY-lock.H*.105;
-  x.bezierCurveTo(-topHalf*1.06,skinTopLocalY+lock.H*.05,-bottomHalf*.88,chestSideY-lock.H*.035,-bottomHalf,chestSideY);
-  x.bezierCurveTo(-bottomHalf*.72,chestLocalY-lock.H*.015,-bottomHalf*.34,chestLocalY+lock.H*.018,0,chestLocalY+lock.H*.026);
-  x.bezierCurveTo(bottomHalf*.34,chestLocalY+lock.H*.018,bottomHalf*.72,chestLocalY-lock.H*.015,bottomHalf,chestSideY);
-  x.bezierCurveTo(bottomHalf*.88,chestSideY-lock.H*.035,topHalf*1.06,skinTopLocalY+lock.H*.05,topHalf,skinTopLocalY-lock.H*.012);
+  x.moveTo(-topHalf,skinTopLocalY);
+  x.bezierCurveTo(-topHalf*1.04,skinTopLocalY+lock.H*.035,-bottomHalf,neckEndLocalY-lock.H*.035,-bottomHalf,neckEndLocalY);
+  x.quadraticCurveTo(0,neckEndLocalY+lock.H*.018,bottomHalf,neckEndLocalY);
+  x.bezierCurveTo(bottomHalf,neckEndLocalY-lock.H*.035,topHalf*1.04,skinTopLocalY+lock.H*.035,topHalf,skinTopLocalY);
   x.closePath();x.fill();x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
