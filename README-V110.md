@@ -1,1 +1,0 @@
-V110: Restore original facial contour and ears instead of V109 low-resolution skin-only mask; feather seam while retaining source facial texture. No extra API call. Real API image result not tested in this environment.
