@@ -185,13 +185,19 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  // BODY MASTER: ชุดเป็นแม่แบบคงที่เสมอ ไม่ปรับตามระยะภาพต้นฉบับ
-  const uW=W*.94,uScale=uW/uniform.naturalWidth,uH=uniform.naturalHeight*uScale;
-  const uX=(W-uW)/2,uY=H*.425;
+  // V156 EDGE-FIT BODY MASTER:
+  // Keep the established vertical scale/collar position, but fit the REAL opaque
+  // left/right bounds of every template to the canvas edges. This removes the old
+  // 3% gutters and also handles PNGs that contain transparent side padding.
+  const ub=await alphaBounds(uniform);
+  const uScaleY=(W*.94)/uniform.naturalWidth;
+  const edgeBleed=2;
+  const uScaleX=(W+edgeBleed*2)/Math.max(1,ub.w);
+  const uW=uniform.naturalWidth*uScaleX,uH=uniform.naturalHeight*uScaleY;
+  const uX=-edgeBleed-ub.l*uScaleX,uY=H*.425;
   const collarCX=W*.5;
   // V12: anchor the anatomy to the REAL first opaque row of the uniform PNG.
   // The old .015 estimate pointed into transparent padding and made AI invent a long neck.
-  const ub=await alphaBounds(uniform);
   // V14: COLLAR SOCKET ANCHOR — ห้ามใช้ pixel ทึบแถวแรกของทั้งชุด เพราะนั่นคือปลายปก/บ่า
   // ซึ่งอยู่สูงกว่าช่องคอกลางจริงมากและเป็นสาเหตุหลักที่ทำให้ AI เติมคอยาว
   // หา pixel ทึบแถวแรกเฉพาะบริเวณกึ่งกลางชุด (ช่องคอ/ปมเนกไท) แล้วใช้เป็น socket จริง
@@ -205,11 +211,13 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
     for(let x=cx0;x<=cx1;x++){ if(ud[(y*uc.width+x)*4+3]>48) opaque++; }
     if(opaque>=(cx1-cx0+1)*.12){ socketY=y; break outer; }
   }
-  const collarSocketY=uY+socketY*uScale;
+  const collarSocketY=uY+socketY*uScaleY;
   // V15: SHOULDER-RELATIVE BODY MASTER
   // หลังวางตำแหน่งคางแล้ว ขนาดหัวขั้นสุดท้ายต้องอิงไหล่ของชุด ไม่ใช่กรอบ input
   // ใช้ช่วงไหล่ของ template เป็น physical reference คงที่สำหรับทุกภาพต้นฉบับ
-  const shoulderSpan=uW*.84;
+  // Head normalization stays tied to the approved 94% body master. Horizontal
+  // edge fitting must not make the person's head larger.
+  const shoulderSpan=W*.94*.84;
   const targetHeadToShoulder=.385; // optical adult ID-photo balance for this fixed template
   const targetHeadW=shoulderSpan*targetHeadToShoulder;
 
