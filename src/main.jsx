@@ -185,16 +185,12 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  // V156 EDGE-FIT BODY MASTER:
-  // Keep the established vertical scale/collar position, but fit the REAL opaque
-  // left/right bounds of every template to the canvas edges. This removes the old
-  // 3% gutters and also handles PNGs that contain transparent side padding.
+  // V158 PROPORTIONAL EDGE-FIT BODY MASTER:
+  // Fit the REAL opaque width to the frame with one uniform X/Y scale. The collar
+  // socket is re-anchored after scaling, so the outfit reaches both side edges
+  // without looking horizontally stretched or vertically compressed.
   const ub=await alphaBounds(uniform);
-  const uScaleY=(W*.94)/uniform.naturalWidth;
   const edgeBleed=2;
-  const uScaleX=(W+edgeBleed*2)/Math.max(1,ub.w);
-  const uW=uniform.naturalWidth*uScaleX,uH=uniform.naturalHeight*uScaleY;
-  const uX=-edgeBleed-ub.l*uScaleX,uY=H*.425;
   const collarCX=W*.5;
   // V12: anchor the anatomy to the REAL first opaque row of the uniform PNG.
   // The old .015 estimate pointed into transparent padding and made AI invent a long neck.
@@ -211,7 +207,13 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
     for(let x=cx0;x<=cx1;x++){ if(ud[(y*uc.width+x)*4+3]>48) opaque++; }
     if(opaque>=(cx1-cx0+1)*.12){ socketY=y; break outer; }
   }
-  const collarSocketY=uY+socketY*uScaleY;
+  const approvedScale=(W*.94)/uniform.naturalWidth;
+  const approvedCollarSocketY=H*.425+socketY*approvedScale;
+  const uScale=(W+edgeBleed*2)/Math.max(1,ub.w);
+  const uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale;
+  const uX=-edgeBleed-ub.l*uScale;
+  const uY=approvedCollarSocketY-socketY*uScale;
+  const collarSocketY=approvedCollarSocketY;
   // V15: SHOULDER-RELATIVE BODY MASTER
   // หลังวางตำแหน่งคางแล้ว ขนาดหัวขั้นสุดท้ายต้องอิงไหล่ของชุด ไม่ใช่กรอบ input
   // ใช้ช่วงไหล่ของ template เป็น physical reference คงที่สำหรับทุกภาพต้นฉบับ
@@ -576,6 +578,51 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
+// V157: remove opaque rectangular remnants left below the generated head layer.
+// Below the jaw, retain only photographed skin and dark hair; shoulders, old
+// clothes and white/blue rectangular pixels are discarded. Pixels above the
+// jaw are untouched, so the face and upper hairstyle remain identical.
+function isolateHeadHairAndNeck(image,faceCX,chinY){
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const c=document.createElement('canvas');c.width=W;c.height=H;
+ const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
+ const out=x.getImageData(0,0,W,H),d=out.data;
+ const start=Math.max(0,Math.floor(chinY-H*.012));
+ const hairLimit=Math.min(H,Math.ceil(chinY+H*.34));
+ for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
+  const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
+  const r=d[i],g=d[i+1],b=d[i+2],dist=Math.abs(xx-faceCX);
+  const brightness=(r*299+g*587+b*114)/1000;
+  const hair=yy<hairLimit&&dist<W*.31&&brightness<128&&Math.max(r,g,b)-Math.min(r,g,b)<92;
+  const skin=r>62&&g>43&&b>34&&r>g*.91&&g>b*.92&&r-b>7&&r+g+b<735;
+  const progress=Math.max(0,Math.min(1,(yy-start)/(H*.18)));
+  const neckHalf=W*(.105-.025*progress);
+  const jawHalf=W*(.19-.085*Math.min(1,progress/.34));
+  const anatomyHalf=Math.max(neckHalf,jawHalf);
+  if(!hair&&!(dist<anatomyHalf&&skin))d[i+3]=0;
+ }
+ x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
+}
+
+function sampleNeckSkin(image,faceCX,chinY){
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const c=document.createElement('canvas');c.width=W;c.height=H;
+ const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
+ const l=Math.max(0,Math.floor(faceCX-W*.11)),t=Math.max(0,Math.floor(chinY-H*.14));
+ const r=Math.min(W,Math.ceil(faceCX+W*.11)),b=Math.min(H,Math.ceil(chinY-H*.025));
+ const data=x.getImageData(l,t,Math.max(1,r-l),Math.max(1,b-t)).data,p=[];
+ for(let i=0;i<data.length;i+=4){
+  const rr=data[i],gg=data[i+1],bb=data[i+2],aa=data[i+3];
+  if(aa>210&&rr>70&&gg>48&&bb>38&&rr>gg*.91&&gg>bb*.92&&rr-bb>8&&rr+gg+bb<720)p.push([rr,gg,bb]);
+ }
+ p.sort((a,b)=>(a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]));
+ const q=p.slice(Math.floor(p.length*.18),Math.max(Math.floor(p.length*.18)+1,Math.ceil(p.length*.82)));
+ let rr=0,gg=0,bb=0;for(const v of q){rr+=v[0];gg+=v[1];bb+=v[2]}
+ const n=q.length||1,base=q.length?[Math.round(rr/n),Math.round(gg/n),Math.round(bb/n)]:[214,170,146];
+ const tone=(f,o=0)=>base.map(v=>Math.max(0,Math.min(255,Math.round(v*f+o))));
+ return{base,shadow:tone(.88,-2),light:tone(1.045,3)};
+}
+
 async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1}){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
@@ -586,6 +633,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  try{
   const head=await loadImage(masterURL);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
+  const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY);
+  const skin=sampleNeckSkin(neckHead,lock.faceCX,lock.chinY);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -596,12 +645,31 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const baseW=lock.headW*lock.scale, baseH=lock.headH*lock.scale;
   const drawW=baseW*s, drawH=baseH*s;
   const centerX=lock.hX+baseW/2+dx, centerY=lock.hY+baseH/2+dy;
-  // V155: draw the person's original neck exactly as supplied. No generated
-  // skin rectangle/bridge is added beneath it; the selected uniform stays last.
+  // V157 NATURAL NECK EXTENSION: begin behind the real jaw and continue well
+  // underneath the collar. Both ends are covered by the head/uniform layers,
+  // so the neck has no visible straight cut edge.
+  const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
+  const collarLocalY=lock.collarSocketY-centerY;
+  const neckTop=chinLocalY-lock.H*.025;
+  const neckBottom=Math.max(neckTop+lock.H*.16,collarLocalY+lock.H*.15);
+  const neckTopHalf=lock.W*.052*s,neckBottomHalf=lock.W*.075*s;
+  x.save();x.translate(centerX,centerY);x.rotate(rotation);
+  const neckGradient=x.createLinearGradient(-neckBottomHalf,0,neckBottomHalf,0);
+  neckGradient.addColorStop(0,`rgb(${skin.shadow.join(',')})`);
+  neckGradient.addColorStop(.28,`rgb(${skin.base.join(',')})`);
+  neckGradient.addColorStop(.52,`rgb(${skin.light.join(',')})`);
+  neckGradient.addColorStop(.76,`rgb(${skin.base.join(',')})`);
+  neckGradient.addColorStop(1,`rgb(${skin.shadow.join(',')})`);
+  x.fillStyle=neckGradient;x.beginPath();
+  x.moveTo(-neckTopHalf,neckTop);
+  x.bezierCurveTo(-neckTopHalf*1.04,neckTop+lock.H*.045,-neckBottomHalf,neckBottom-lock.H*.055,-neckBottomHalf,neckBottom);
+  x.quadraticCurveTo(0,neckBottom+lock.H*.022,neckBottomHalf,neckBottom);
+  x.bezierCurveTo(neckBottomHalf,neckBottom-lock.H*.055,neckTopHalf*1.04,neckTop+lock.H*.045,neckTopHalf,neckTop);
+  x.closePath();x.fill();x.restore();
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
-  x.drawImage(neckHead,-drawW/2,-drawH/2,drawW,drawH);
+  x.drawImage(cleanHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
