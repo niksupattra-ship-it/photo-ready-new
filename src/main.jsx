@@ -493,46 +493,48 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  const ox=out.getContext('2d');ox.drawImage(head,0,0,W,H);
 
  // FACE + HAIR PROTECTION MASK.
- // `chinY` is normalized in the transparent AI head master. Everything through the
- // jaw/chin plus a safety band remains untouched. The editable area is a narrow
- // anatomical neck bridge only; the broad head/hair silhouette is never warped.
- const safeChin=Math.max(.35,Math.min(.82,chinY||.62));
- const protectedBottom=Math.min(H-2,Math.round((safeChin+.050)*H));
- const neckBottom=Math.min(H-1,Math.round(protectedBottom+H*.205));
+ // `chinY` is stored in source-image pixels by composePortrait. Older code treated
+ // it as a normalized 0..1 value, clamped it to .82 and consequently warped the
+ // almost-empty bottom edge of the master instead of the actual neck.
+ const rawChin=Number(chinY);
+ const chinPx=Number.isFinite(rawChin)
+  ?(rawChin<=1?rawChin*H:rawChin)
+  :H*.62;
+ const safeChinPx=Math.max(H*.35,Math.min(H*.82,chinPx));
+ // Begin just below the chin: the face is untouched while the visible neck bridge
+ // participates in the edit. The uniform is composited later and hides the far end.
+ const protectedBottom=Math.min(H-2,Math.round(safeChinPx+H*.012));
+ const neckBottom=Math.min(H-1,Math.round(protectedBottom+H*.255));
  const neckH=Math.max(2,neckBottom-protectedBottom);
  const cx=W*.5;
  // Narrower than the old rectangular ROI: top/bottom widths approximate the central
  // neck bridge and deliberately exclude side hair, jaw corners and shoulders.
- const topHalf=W*.082;
- const bottomHalf=W*.070;
+ const topHalf=W*.105;
+ const bottomHalf=W*.088;
  const feather=Math.max(2,Math.round(W*.008));
- const roiHalf=Math.ceil(Math.max(topHalf,bottomHalf)+feather+2);
+ const expandedScale=1+Math.max(0,width)*.52;
+ const roiHalf=Math.ceil(Math.max(topHalf,bottomHalf)*expandedScale+feather+2);
  const left=Math.max(0,Math.floor(cx-roiHalf)),right=Math.min(W,Math.ceil(cx+roiHalf));
  const rw=right-left,rh=neckH;
  if(rw<4||rh<4)return head;
  const si=sx.getImageData(left,protectedBottom,rw,rh);
  const warped=sx.createImageData(rw,rh),sd=si.data,wd=warped.data;
  const sample=(fx,fy,idx)=>{
-  fx=Math.max(0,Math.min(rw-1,fx));fy=Math.max(0,Math.min(rh-1,fy));
+  if(fx<0||fx>rw-1||fy<0||fy>rh-1){wd[idx]=0;wd[idx+1]=0;wd[idx+2]=0;wd[idx+3]=0;return}
   const x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(rw-1,x0+1),y1=Math.min(rh-1,y0+1),tx=fx-x0,ty=fy-y0;
   const a=(y0*rw+x0)*4,b=(y0*rw+x1)*4,c=(y1*rw+x0)*4,d=(y1*rw+x1)*4;
   for(let k=0;k<4;k++){const u=sd[a+k]*(1-tx)+sd[b+k]*tx,v=sd[c+k]*(1-tx)+sd[d+k]*tx;wd[idx+k]=Math.round(u*(1-ty)+v*ty)}
  };
  for(let yy=0;yy<rh;yy++){
   const yn=yy/Math.max(1,rh-1);
-  // Zero deformation at both protected boundaries, strongest in the neck middle.
-  const yInfluence=Math.pow(Math.sin(Math.PI*yn),1.15);
-  const halfAtY=topHalf+(bottomHalf-topHalf)*yn;
+  // Ramp in below the protected chin, then retain the requested change through the
+  // collar join. Anchoring the vertical transform at the top makes length visible.
+  const yInfluence=Math.pow(Math.sin(Math.PI*.5*Math.min(1,yn/.38)),1.1);
   for(let xx=0;xx<rw;xx++){
-   const absX=left+xx,dist=Math.abs(absX-cx);
-   const inside=Math.max(0,1-dist/Math.max(1,halfAtY));
-   const influence=yInfluence*Math.pow(inside,1.35);
-   const scaleX=1+width*.30*influence;
-   const scaleY=1+length*.24*influence;
+   const scaleX=1+width*.52*yInfluence;
    const srcX=(cx-left)+(xx-(cx-left))/Math.max(.62,scaleX);
-   // Keep top and bottom fixed so neither chin nor collar edge is pulled.
-   const centeredY=yy-(rh-1)/2;
-   const srcY=(rh-1)/2+centeredY/Math.max(.70,scaleY);
+   const lengthScale=1+length*.48*yInfluence;
+   const srcY=yy/Math.max(.52,lengthScale);
    sample(srcX,srcY,(yy*rw+xx)*4);
   }
  }
@@ -544,16 +546,21 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  const base=si.data;
  const merged=ox.createImageData(rw,rh),md=merged.data;
  for(let yy=0;yy<rh;yy++){
-  const yn=yy/Math.max(1,rh-1),halfAtY=topHalf+(bottomHalf-topHalf)*yn;
-  const yGuard=Math.min(1,yy/Math.max(1,feather),(rh-1-yy)/Math.max(1,feather));
+  const yn=yy/Math.max(1,rh-1),yInfluence=Math.pow(Math.sin(Math.PI*.5*Math.min(1,yn/.38)),1.1);
+  const halfAtY=topHalf+(bottomHalf-topHalf)*yn;
+  // Expansion needs a wider destination mask; narrowing retains the original mask
+  // so pixels from the former outer edge can be cleared.
+  const maskHalf=halfAtY*(1+Math.max(0,width)*.52*yInfluence);
+  const yGuard=Math.min(1,yy/Math.max(1,feather));
   for(let xx=0;xx<rw;xx++){
    const absX=left+xx,dist=Math.abs(absX-cx);
-   const edge=(halfAtY-dist)/Math.max(1,feather);
+   const edge=(maskHalf-dist)/Math.max(1,feather);
    const mask=Math.max(0,Math.min(1,edge))*Math.max(0,Math.min(1,yGuard));
    const i=(yy*rw+xx)*4;
-   // Transparent pixels stay transparent; the mask never invents anatomy outside
-   // the existing person alpha silhouette.
-   const alphaMask=mask*(base[i+3]/255);
+   // The geometric mask, rather than the old alpha-only mask, lets the silhouette
+   // actually widen or narrow. Sampled transparent pixels also clear the old edge
+   // when the neck is shortened or narrowed.
+   const alphaMask=mask;
    for(let k=0;k<4;k++)md[i+k]=Math.round(base[i+k]*(1-alphaMask)+wi[i+k]*alphaMask);
   }
  }
@@ -1348,7 +1355,7 @@ function App(){
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=async amount=>{if(placementLocked)return;const v=Math.max(-1,Math.min(1,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},v,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับช่องคอไม่สำเร็จ')}};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
- const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,v,backgroundRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับคอไม่สำเร็จ')}};
+ const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;const seq=++renderSeqRef.current;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,v,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}catch(e){if(seq===renderSeqRef.current)setMsg(e.message||'ปรับคอไม่สำเร็จ')}};
  const headTransformCss=(adj=liveAdjustRef.current)=>{
   const lock=headPreviewLock;if(!lock)return '';
   const s=adj.scale||1,rot=adj.rotation||0,stage=previewStageRef.current;
