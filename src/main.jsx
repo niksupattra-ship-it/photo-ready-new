@@ -1288,6 +1288,27 @@ function App(){
  const[neckAdjust,setNeckAdjust]=useState({width:0,length:0});
  const[placementLocked,setPlacementLocked]=useState(false);
  const[hairBusy,setHairBusy]=useState(false);
+ const[processProgress,setProcessProgress]=useState({active:false,value:0,label:''});
+ const progressTimerRef=useRef(null);
+ const beginProgress=label=>{
+  clearInterval(progressTimerRef.current);
+  setProcessProgress({active:true,value:3,label});
+  progressTimerRef.current=setInterval(()=>setProcessProgress(current=>{
+   if(!current.active||current.value>=94)return current;
+   const step=current.value<45?2:current.value<75?1:.4;
+   return {...current,value:Math.min(94,current.value+step)};
+  }),350);
+ };
+ const setProgressStage=(value,label)=>setProcessProgress(current=>({active:true,value:Math.max(current.value,value),label}));
+ const finishProgress=async success=>{
+  clearInterval(progressTimerRef.current);
+  progressTimerRef.current=null;
+  if(!success){setProcessProgress({active:false,value:0,label:''});return;}
+  setProcessProgress(current=>({...current,active:true,value:100,label:'เสร็จเรียบร้อย'}));
+  await new Promise(resolve=>setTimeout(resolve,280));
+  setProcessProgress({active:false,value:0,label:''});
+ };
+ useEffect(()=>()=>clearInterval(progressTimerRef.current),[]);
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
@@ -1411,7 +1432,8 @@ function App(){
    preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
    setPlacementLocked(true);
   }
-  hairRequestRef.current=true;setHairBusy(true);setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
+  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งที่ล็อกไว้…');
+  let completed=false;
   try{
    const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
    // Every hairstyle starts from the SAME immutable master captured at Lock time.
@@ -1420,17 +1442,19 @@ function App(){
    let nextMaster;
    if(!id){
     // "ผมเดิม" is a zero-credit restore: no AI request at all.
-    nextMaster=src;
+    nextMaster=src;setProgressStage(78,'กำลังคืนทรงผมเดิม');
    }else{
     // V114: no client-side hair mask, no donor and no face-patch compositing.
     // Provider output is a coherent head; MODNet removes only its temporary background.
     setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานที่ล็อกไว้…');
     const cached=hairResultCacheRef.current.get(id);
-    if(cached){nextMaster=cached;setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
+    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
     else{
      const edited=await requestHairstyleEngine(src,id);
+     setProgressStage(68,'กำลังเตรียมทรงผม');
      setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
      nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
+     setProgressStage(86,'กำลังประกอบภาพ');
      // Cache only successfully processed images. Never cache errors or intermediate AI output.
      hairResultCacheRef.current.set(id,nextMaster);
     }
@@ -1438,6 +1462,7 @@ function App(){
    // Keep the immutable locked master separate. editCache.master is only the currently
    // displayed hairstyle result and is never used as the source for the next hairstyle.
    const out=await renderWithRibbon(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   setProgressStage(97,'กำลังแสดงผล');
    // Invalidate editor renders started before the new hairstyle was selected.
    ++renderSeqRef.current;
    // Commit only after the new composite and final render have both succeeded.
@@ -1445,8 +1470,8 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{hairRequestRef.current=false;setHairBusy(false)}
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');completed=true;
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -1508,15 +1533,18 @@ function App(){
    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){setMsg(e.message||'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);setMsg('');try{
+ const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
   // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
+  setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
+  setProgressStage(78,'กำลังประกอบกับชุด');
   // 02 = exact remove.bg result before placement/resampling.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},activeUniformTemplate);
+  setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
   const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
   // skin-isolation overlay, tone pass, or post-process face layer is applied.
@@ -1529,8 +1557,9 @@ function App(){
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
-  showBlob(finished);
- }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{setBusy(false)}};
+  setProgressStage(97,'กำลังแสดงผล');
+  showBlob(finished);completed=true;
+ }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
@@ -1562,10 +1591,7 @@ function App(){
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
  return <main className="app-shell modern-shell adaptive-editor"><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
-  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick}/>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button><button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'แตะและลากแพรแถบเพื่อย้ายตำแหน่ง · ปรับละเอียดได้ในเมนูแพรแถบ':'แตะและลากที่รูปเพื่อย้ายส่วนหัว · ใช้สองนิ้วเพื่อย่อ–ขยาย · หรือเลือก “ปรับหัว” ที่เมนู'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}</label>
-   {uniformCategory==='government'&&<div className="selected-job-uniform"><img src={selectedGovernmentTemplate} alt="ชุดข้าราชการที่เลือก"/><span>ชุดที่เลือก: {gender==='male'?'ชุดข้าราชการชาย '+(INTERIOR_UNIFORMS.find(t=>t.img===selectedInteriorTemplate)?.name||''):'ชุดข้าราชการหญิง '+(FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===level)?.name||'')}</span></div>}
-   {uniformCategory==='government'&&<div className="interior-template-picker process-interior-templates">{(gender==='male'?INTERIOR_UNIFORMS:FEMALE_GOVERNMENT_UNIFORMS).map(t=><button type="button" key={t.id} className={selectedGovernmentTemplate===t.img?'selected':''} onClick={()=>{setLevel(t.level);if(gender==='male')setSelectedInteriorTemplate(t.img)}} disabled={busy||hairBusy||Boolean(b)} aria-label={t.name} aria-pressed={selectedGovernmentTemplate===t.img}><img src={t.img} alt={t.name}/><span>{t.name}</span></button>)}</div>}
-   {uniformCategory==='job'&&<div className="selected-job-uniform"><img src={JOB_UNIFORMS.find(t=>(t.template||t.img)===selectedJobTemplate)?.img||selectedJobTemplate} alt={selectedStyle||'ชุดสมัครงานที่เลือก'}/><span>ชุดที่เลือก: {selectedStyle}</span></div>}
+  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button><button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'แตะและลากแพรแถบเพื่อย้ายตำแหน่ง · ปรับละเอียดได้ในเมนูแพรแถบ':'แตะและลากที่รูปเพื่อย้ายส่วนหัว · ใช้สองนิ้วเพื่อย่อ–ขยาย · หรือเลือก “ปรับหัว” ที่เมนู'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</label>
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
