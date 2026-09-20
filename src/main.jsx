@@ -567,6 +567,31 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  ox.putImageData(merged,left,protectedBottom);
  return out;
 }
+
+// V153: keep the original face/hair untouched, but give the lower person layer a
+// natural shoulder-to-chest silhouette. Some generated masters contain an opaque
+// rectangular torso; without this mask its straight lower edge remains visible
+// above wide/open collars. The feathered U curve follows the reference cut-out.
+function maskNaturalUpperBody(image,faceCX,chinY){
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const c=document.createElement('canvas');c.width=W;c.height=H;
+ const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
+ const startY=Math.max(0,Math.floor(chinY-H*.018));
+ const shoulderY=Math.min(H-1,chinY+H*.075);
+ const chestY=Math.min(H-1,chinY+H*.335);
+ const shoulderHalf=W*.445,feather=Math.max(5,H*.014);
+ const data=x.getImageData(0,0,W,H);
+ for(let yy=startY;yy<H;yy++)for(let xx=0;xx<W;xx++){
+  const distance=Math.abs(xx-faceCX);
+  const t=Math.max(0,Math.min(1,distance/shoulderHalf));
+  // Centre extends towards the chest; the sides rise smoothly to the shoulders.
+  const lowerEdge=shoulderY+(chestY-shoulderY)*Math.pow(1-t,1.32);
+  const keep=Math.max(0,Math.min(1,(lowerEdge-yy)/feather+.5));
+  const i=(yy*W+xx)*4;data.data[i+3]=Math.round(data.data[i+3]*keep);
+ }
+ x.clearRect(0,0,W,H);x.putImageData(data,0,0);
+ return c;
+}
 async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1}){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
@@ -577,6 +602,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  try{
   const head=await loadImage(masterURL);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
+  const naturalHead=maskNaturalUpperBody(neckHead,lock.faceCX,lock.chinY);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -591,12 +617,12 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // Read skin only from the lower cheeks (never from the shirt below the chin).
   // The patch is painted after the person layer to cover residual white clothing,
   // then the untouched uniform is painted last so only its open neckline reveals skin.
-  const skin=sampleOriginalNeckTone(neckHead,lock.faceCX,lock.chinY);
+  const skin=sampleOriginalNeckTone(naturalHead,lock.faceCX,lock.chinY);
   const chinLocalY=(lock.chinY-lock.headH/2)*lock.scale*s;
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
-  x.drawImage(neckHead,-drawW/2,-drawH/2,drawW,drawH);
+  x.drawImage(naturalHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
   const collarLocalY=(lock.collarSocketY-centerY);
   const skinTopLocalY=Math.max(chinLocalY+lock.H*.035,collarLocalY-lock.H*.055);
@@ -612,9 +638,11 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   skinGradient.addColorStop(1,`rgb(${skin.edge.join(',')})`);
   x.fillStyle=skinGradient;x.beginPath();
   x.moveTo(-topHalf,skinTopLocalY-lock.H*.012);
-  x.bezierCurveTo(-topHalf*1.06,skinTopLocalY+lock.H*.05,-bottomHalf*.86,chestLocalY-lock.H*.07,-bottomHalf,chestLocalY);
-  x.lineTo(bottomHalf,chestLocalY);
-  x.bezierCurveTo(bottomHalf*.86,chestLocalY-lock.H*.07,topHalf*1.06,skinTopLocalY+lock.H*.05,topHalf,skinTopLocalY-lock.H*.012);
+  const chestSideY=chestLocalY-lock.H*.105;
+  x.bezierCurveTo(-topHalf*1.06,skinTopLocalY+lock.H*.05,-bottomHalf*.88,chestSideY-lock.H*.035,-bottomHalf,chestSideY);
+  x.bezierCurveTo(-bottomHalf*.72,chestLocalY-lock.H*.015,-bottomHalf*.34,chestLocalY+lock.H*.018,0,chestLocalY+lock.H*.026);
+  x.bezierCurveTo(bottomHalf*.34,chestLocalY+lock.H*.018,bottomHalf*.72,chestLocalY-lock.H*.015,bottomHalf,chestSideY);
+  x.bezierCurveTo(bottomHalf*.88,chestSideY-lock.H*.035,topHalf*1.06,skinTopLocalY+lock.H*.05,topHalf,skinTopLocalY-lock.H*.012);
   x.closePath();x.fill();x.restore();
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
@@ -1593,8 +1621,19 @@ function App(){
    if(seq===renderSeqRef.current)showBlob(out);
   }catch(e){if(seq===renderSeqRef.current){backgroundRef.current=previousPath;setBackgroundId(previousId);setMsg(e.message||'เปลี่ยนพื้นหลังไม่สำเร็จ')}}
  };
+ const commitUniformSelection=option=>{
+  if(option.cat==='job')setSelectedJobTemplate(option.template);
+  if(option.cat==='student')setSelectedStudentTemplate(option.template);
+  if(option.cat==='government'&&option.gender==='male')setSelectedInteriorTemplate(option.template);
+  setUniformCategory(option.cat);setGender(option.gender);if(option.level)setLevel(option.level);setSelectedStyle(option.title||option.name);
+ };
  const selectProcessedUniform=async option=>{
-  if(!editCache.current||busy||hairBusy||downloadBusy||uniformChanging)return;
+  if(busy||hairBusy||downloadBusy||uniformChanging)return;
+  if(!editCache.current){
+   commitUniformSelection(option);
+   setMsg(`เลือกชุด ${option.title||option.name} แล้ว · เพิ่มรูปเพื่อเริ่มประมวลผล`);
+   return;
+  }
   const previousLock=editCache.current.lock;
   setUniformChanging(true);beginProgress('กำลังเปลี่ยนชุด');setMsg('กำลังวางแพทเทิร์นชุดใหม่…');
   let completed=false;
@@ -1605,10 +1644,7 @@ function App(){
    const out=await renderWithRibbon(editCache.current.master,composed.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
    if(seq!==renderSeqRef.current)return;
    editCache.current={...editCache.current,lock:composed.lock};
-   if(option.cat==='job')setSelectedJobTemplate(option.template);
-   if(option.cat==='student')setSelectedStudentTemplate(option.template);
-   if(option.cat==='government'&&option.gender==='male')setSelectedInteriorTemplate(option.template);
-   setUniformCategory(option.cat);setGender(option.gender);if(option.level)setLevel(option.level);setSelectedStyle(option.title||option.name);
+   commitUniformSelection(option);
    setProgressStage(97,'กำลังแสดงผล');showBlob(out);setMsg('เปลี่ยนชุดแล้ว · คงใบหน้า ทรงผม และตำแหน่งเดิม');completed=true;
   }catch(e){editCache.current={...editCache.current,lock:previousLock};setMsg(e.message||'เปลี่ยนชุดไม่สำเร็จ')}
   finally{await finishProgress(completed);setUniformChanging(false)}
@@ -1702,7 +1738,7 @@ function App(){
    <button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>
 {msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<><div className="tool-choice-tabs"><span className="active">ปรับหัว</span><span>ขนาดและตำแหน่ง</span></div><div className="compact-tool-panel process-head-adjust"><div className="compact-slider-list"><label><span>ขนาด</span><input type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><b>{Math.round(headAdjust.scale*100)}%</b></label><label><span>ซ้าย–ขวา</span><input type="range" min="-50" max="50" step="0.1" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><b>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}%</b></label><label><span>บน–ล่าง</span><input type="range" min="-50" max="50" step="0.1" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><b>{(-headAdjust.y)>0?'+':''}{(-headAdjust.y*100).toFixed(1)}%{(-headAdjust.y)>0?' ขึ้น':(-headAdjust.y)<0?' ลง':''}</b></label><label><span>เอียง</span><input type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><b>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</b></label></div></div></>:
 optionTool==='collar'?<><div className="tool-choice-tabs"><span className="active">ช่องคอ</span><span>บิดเฉพาะ Template ชุด</span></div><div className="compact-tool-panel"><div className="collar-compact-actions"><button type="button" className="collar-auto compact-auto" onClick={autoFitCollar}>พอดีอัตโนมัติ</button></div><div className="compact-slider-list"><label><span>หุบ–ขยาย</span><input type="range" min="-100" max="100" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><b>{Math.round(collarWarp*100)}%</b></label></div></div></>:
-optionTool==='uniform'?<><div className="tool-choice-tabs"><span className="active">เปลี่ยนชุด</span><span>เลือกแพทเทิร์นใหม่</span></div><div className="uniform-switch-tabs">{UNIFORM_GROUPS.map(group=><button type="button" key={group.id} className={uniformPickerTab===group.id?'active':''} onClick={()=>setUniformPickerTab(group.id)}>{group.name}</button>)}</div><div className="uniform-switch-grid">{(UNIFORM_GROUPS.find(group=>group.id===uniformPickerTab)?.items||[]).map(option=><button type="button" key={option.id} className={editCache.current?.lock?.templatePath===option.template?'selected':''} disabled={uniformChanging||busy||hairBusy||downloadBusy} onClick={()=>selectProcessedUniform(option)}><img src={option.preview} alt=""/><strong>{option.title||option.name}</strong><span className="selected-mark">✓</span></button>)}</div></>:
+optionTool==='uniform'?<><div className="tool-choice-tabs"><span className="active">เปลี่ยนชุด</span><span>เลือกแพทเทิร์นใหม่</span></div><div className="uniform-switch-tabs">{UNIFORM_GROUPS.map(group=><button type="button" key={group.id} className={uniformPickerTab===group.id?'active':''} onClick={()=>setUniformPickerTab(group.id)}>{group.name}</button>)}</div><div className="uniform-switch-grid">{(UNIFORM_GROUPS.find(group=>group.id===uniformPickerTab)?.items||[]).map(option=><button type="button" key={option.id} className={(editCache.current?.lock?.templatePath||activeUniformTemplate)===option.template?'selected':''} disabled={uniformChanging||busy||hairBusy||downloadBusy} onClick={()=>selectProcessedUniform(option)}><img src={option.preview} alt=""/><strong>{option.title||option.name}</strong><span className="selected-mark">✓</span></button>)}</div></>:
 <><div className="tool-choice-tabs"><span className="active">{optionTool==='ribbon'?'แพรแถบ':optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='ribbon'?'เลือกแบบ':optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>{optionTool==='background'?<div className="background-choice-preview">{BACKGROUND_OPTIONS.map(option=><button type="button" key={option.id} className={"background-swatch "+(backgroundId===option.id?"selected":"")} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectBackground(option)} aria-label={option.name} aria-pressed={backgroundId===option.id}><img src={option.src} alt=""/><strong>{option.name}</strong></button>)}</div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} disabled={hairBusy||busy} onClick={()=>changeHair('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{(optionTool==='male-hair'?MALE_HAIR_OPTIONS:HAIR_OPTIONS).map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} disabled={hairBusy||busy} onClick={()=>changeHair(h.id)} aria-label={h.name} title={h.name}><img src={h.src} alt={h.name}/></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:<div className="choice-rail-wrap ribbon-choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนแพรแถบไปทางซ้าย">‹</button><div ref={choiceRailRef} className="ribbon-choice-preview choice-scroll-rail"><button type="button" className={"ribbon-option "+(!ribbonId?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectRibbon(null)} aria-pressed={!ribbonId}>ไม่ติดแพรแถบ</button>{RIBBON_OPTIONS.map(option=><button type="button" key={option.id} className={"ribbon-option "+(ribbonId===option.id?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectRibbon(option)} aria-label={option.name} aria-pressed={ribbonId===option.id}><img src={option.src} alt=""/><strong>{option.name}</strong></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนแพรแถบไปทางขวา">›</button></div>}{optionTool==='ribbon'&&ribbonId&&<div className="compact-tool-panel ribbon-adjust-panel"><div className="compact-slider-list"><label><span>ซ้าย–ขวา</span><input type="range" min="-35" max="35" step=".5" value={ribbonAdjust.x*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,x:Number(e.target.value)/100})}/><b>{Math.round(ribbonAdjust.x*100)}%</b></label><label><span>ขึ้น–ลง</span><input type="range" min="-35" max="35" step=".5" value={-ribbonAdjust.y*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,y:-Number(e.target.value)/100})}/><b>{Math.round(-ribbonAdjust.y*100)}%</b></label><label><span>ขนาด</span><input type="range" min="45" max="200" step="1" value={ribbonAdjust.scale*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,scale:Number(e.target.value)/100})}/><b>{Math.round(ribbonAdjust.scale*100)}%</b></label></div><button type="button" className="ribbon-option" onClick={()=>applyRibbonAdjust({x:0,y:0,scale:1})}>คืนค่าตำแหน่งแพรแถบ</button><small>แตะและลากบนแพรแถบในภาพเพื่อย้ายตำแหน่ง</small></div>}</>}</div>}<div className="placement-lock-row"><button type="button" className={placementLocked?"placement-lock-btn locked":"placement-lock-btn"} disabled={!b||hairBusy} onClick={placementLocked?unlockPlacement:lockPlacement}>{placementLocked?"🔓 ปลดล็อกเพื่อแก้ตำแหน่ง":"✓ ยืนยันและล็อกตำแหน่ง"}</button>{placementLocked&&<small>หน้า · ตำแหน่งหัว · คอ · ช่องคอ ถูกล็อกไว้</small>}{hairBusy&&<small>กำลังเปลี่ยนทรงผม…</small>}</div>
 <div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button>
 <button type="button" disabled={placementLocked} className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ช่องคอ</strong></button>
@@ -1710,7 +1746,7 @@ optionTool==='uniform'?<><div className="tool-choice-tabs"><span className="acti
 <button type="button" className={optionTool==='female-hair'?'active':''} onClick={()=>toggleOptionTool('female-hair',()=>uniformCategory==='government'?selectGovernmentGender('female'):setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button>
 <button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button>
 <button type="button" className={optionTool==='background'?'active':''} onClick={()=>toggleOptionTool('background')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button>
-<button type="button" disabled={!b||uniformChanging} className={optionTool==='uniform'?'active':''} onClick={()=>toggleOptionTool('uniform')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-uniform-change.svg" alt=""/></span><strong>เปลี่ยนชุด</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>{b&&<button type="button" className="primary-action download-below-tools" disabled={downloadBusy||hairBusy||busy||uniformChanging} onClick={downloadCurrentFinal}>{downloadBusy?'กำลังสร้างไฟล์…':'ดาวน์โหลด'}</button>}
+<button type="button" disabled={uniformChanging} className={optionTool==='uniform'?'active':''} onClick={()=>toggleOptionTool('uniform',()=>setUniformPickerTab(uniformCategory==='government'?`government-${gender}`:uniformCategory))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-uniform-change.svg" alt=""/></span><strong>เปลี่ยนชุด</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>{b&&<button type="button" className="primary-action download-below-tools" disabled={downloadBusy||hairBusy||busy||uniformChanging} onClick={downloadCurrentFinal}>{downloadBusy?'กำลังสร้างไฟล์…':'ดาวน์โหลด'}</button>}
   </section>
 
  </section></main>
