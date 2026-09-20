@@ -635,8 +635,20 @@
 /* V138: hairstyle selection preserves current placement automatically. */
 .placement-lock-row{display:none!important}
 
-/* V141: dedicated neck-adjust icon; keep the collar icon unchanged. */
-.simple-line-tools>button:nth-of-type(3) .line-tool-icon img{content:url('/app-icons/tool-neck-adjust.svg')}
+/* V149: switch uniform after processing without another AI request. */
+.uniform-switch-tabs{display:flex;gap:7px;overflow-x:auto;padding:2px 1px 10px;scrollbar-width:none}
+.uniform-switch-tabs::-webkit-scrollbar{display:none}
+.uniform-switch-tabs button{flex:0 0 auto;border:1px solid #d9e1ee;border-radius:999px;background:#f7f9fc;color:#475569;padding:8px 13px;font:700 12px/1.2 inherit;cursor:pointer}
+.uniform-switch-tabs button.active{background:#315bea;border-color:#315bea;color:#fff;box-shadow:0 5px 14px #315bea2e}
+.uniform-switch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:9px;max-height:285px;overflow-y:auto;padding:2px 2px 8px}
+.uniform-switch-grid button{position:relative;min-width:0;border:1px solid #dbe3ef;border-radius:13px;background:#fff;padding:6px;color:#172b48;cursor:pointer}
+.uniform-switch-grid button img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top center;border-radius:9px;background:#eef3f8}
+.uniform-switch-grid button strong{display:block;padding:7px 2px 3px;font-size:11px;line-height:1.25}
+.uniform-switch-grid button.selected{border:2px solid #315bea;box-shadow:0 0 0 2px #dce6ff}
+.uniform-switch-grid button .selected-mark{display:none;position:absolute;right:9px;top:9px;width:20px;height:20px;border-radius:50%;background:#315bea;color:#fff;place-items:center;font-size:12px}
+.uniform-switch-grid button.selected .selected-mark{display:grid}
+.uniform-switch-grid button:disabled{opacity:.58;cursor:wait}
+@media(max-width:640px){.uniform-switch-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-height:245px}.uniform-switch-tabs button{padding:8px 11px}}
 
 /* V122: four supplied background images, selectable without AI; original remains available. */
 .background-choice-preview{display:flex;gap:10px;overflow-x:auto;align-items:stretch;min-height:unset;padding:4px 2px 9px;scrollbar-width:thin}.background-choice-preview .background-swatch{flex:0 0 92px;min-width:92px;position:relative;padding:6px;cursor:pointer}.background-choice-preview .background-swatch img{display:block;width:100%;height:94px;object-fit:cover;border-radius:9px;border:1px solid #e3e7ef}.background-choice-preview .background-swatch strong{font-size:11px;white-space:nowrap}.background-choice-preview .background-swatch.selected{outline:2px solid #315bea;outline-offset:1px}.background-choice-preview .background-swatch.selected:after{content:"✓";position:absolute;top:9px;right:9px;width:19px;height:19px;border-radius:50%;background:#ef3b6b;color:white;font-size:12px;display:grid;place-items:center}.background-choice-preview .background-swatch:disabled{opacity:.6;cursor:wait}
