@@ -807,3 +807,33 @@
  .head-adjust-glyph,.head-row-reset{width:32px;height:32px}
  .head-adjust-glyph svg,.head-row-reset svg{width:19px;height:19px}
 }
+
+/* V168 OLD-SIZE / NEW-STYLE CONTROLS — same compact sizing for head and neck. */
+.head-adjust-modern,
+.collar-adjust-modern{gap:3px;padding:0}
+.head-adjust-row,
+.collar-adjust-modern .head-adjust-row{
+ grid-template-columns:34px minmax(96px,1fr) 54px 32px;
+ gap:5px;
+ min-height:38px;
+ padding:3px 6px;
+ border-radius:10px
+}
+.head-adjust-glyph{width:30px;height:30px;border-radius:8px}
+.head-adjust-glyph svg{width:20px;height:20px;stroke-width:2.1}
+.head-adjust-row input[type=range]{height:20px}
+.head-adjust-row output{padding:4px 3px;border-radius:7px;font-size:11px;line-height:1.2}
+.head-row-reset{width:30px;height:30px}
+.head-row-reset svg{width:18px;height:18px;stroke-width:2.3}
+@media(max-width:650px){
+ .head-adjust-modern,.collar-adjust-modern{gap:3px}
+ .head-adjust-row,.collar-adjust-modern .head-adjust-row{grid-template-columns:32px minmax(66px,1fr) 48px 30px;gap:4px;min-height:36px;padding:3px 4px;border-radius:9px}
+ .head-adjust-glyph,.head-row-reset{width:28px;height:28px}
+ .head-adjust-glyph svg,.head-row-reset svg{width:17px;height:17px}
+ .head-adjust-row output{padding:4px 2px;font-size:10px}
+}
+@media(max-width:380px){
+ .head-adjust-row,.collar-adjust-modern .head-adjust-row{grid-template-columns:30px minmax(56px,1fr) 44px 28px;gap:3px;padding-left:3px;padding-right:3px}
+ .head-adjust-glyph,.head-row-reset{width:26px;height:26px}
+ .head-adjust-glyph svg,.head-row-reset svg{width:16px;height:16px}
+}
