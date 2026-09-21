@@ -970,7 +970,7 @@
 .collar-pin-pair{height:50px;display:flex;align-items:center;justify-content:center;gap:2px}
 .collar-pin-pair img{width:48px;height:48px;object-fit:contain}
 .no-pin-symbol{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#eef2f7;color:#6e7a8d;font-size:27px;font-weight:300}
-.collar-pin-tool-icon img{object-fit:contain!important;transform:scale(1.25)}
+.collar-pin-tool-icon img{object-fit:contain!important;transform:none}
 .collar-pin-modern-adjust{padding-top:2px;padding-bottom:2px}
 .pin-side-adjust{display:grid;grid-template-columns:62px 1fr;align-items:center;border-bottom:1px solid #eef2f7}
 .pin-side-adjust:last-child{border-bottom:0}
