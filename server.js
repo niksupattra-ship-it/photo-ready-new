@@ -168,7 +168,7 @@ GOAL: create one continuous, photorealistic head + hair + ears + short neck laye
 
 IDENTITY / FACE LOCK: preserve Image 1's exact facial structure and recognizable identity: eye shape and spacing, brows, nose, lips, cheeks, jaw, chin, ears, asymmetry, expression, age and proportions. Do not idealize, reshape, beautify or substitute facial features.
 
-SKIN SOURCE LOCK: Image 1 is authoritative. Preserve the real skin character visible in Image 1: pores, fine texture, tiny blemishes, fine lines, under-eye texture, natural tonal variation and non-uniform surface detail. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, synthesize fake pores, whiten, add makeup, add plastic gloss or apply a beauty filter. Keep the original complexion. Only make the minimal global photographic exposure/white-balance normalization needed for a clean professional ID portrait; never turn that correction into skin retouching.
+SKIN RETOUCH — PORES MUST REMAIN: Image 1 is authoritative. Remove only visible acne/pimples and isolated dark spots with a restrained professional photo retouch. Preserve real pores, fine skin grain, fine lines, under-eye texture, natural tonal variation, facial contours and all identity-bearing detail. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, synthesize fake pores, whiten, add makeup, add plastic gloss or apply a beauty filter. Keep the original complexion and natural skin character. The application applies its own measured skin-only brightness adjustment after generation, so do not overexpose or whiten the face.
 
 HAIR ONLY — STRICT FACE-SAFE EDIT: ${keepOriginalHair?"preserve the original hairstyle geometry from Image 1, but refine only the hair itself so its overall volume and outer silhouette look naturally balanced with the subject's existing face and skull. Do not change the hairline where it touches forehead/temples, and do not alter any face or skin pixels.":"change ONLY the hair region to follow Image 2. Match its parting, fringe, side shape, crown, length and tied/untied structure, but adapt ONLY the hair volume and outer silhouette so the hairstyle is naturally proportioned to Image 1's existing face, skull, ears and head size. The hairstyle reference has ZERO authority over face, skin, complexion, lighting or head/face geometry."}
 
@@ -176,11 +176,13 @@ HAIR REALISM: render photographic human hair with natural root direction, fine i
 
 HAIR COLOR — PRO BLACK 50%: apply a restrained professional deep-black appearance comparable in visual strength to a 50% "Pro Black" hair adjustment: approximately halfway between the subject/reference's natural dark hair and neutral professional black. Keep realistic brown/charcoal tonal variation and specular highlights; do NOT make the hair flat jet-black, crush shadow detail, tint the skin, or darken eyebrows/eyelashes.
 
+NECK-SKIN CLEARANCE — MANDATORY FOR EVERY HAIRSTYLE: no hair strand, hair panel, braid, ponytail or loose end may lie across any visible neck-skin pixel. Keep the complete front and side neck skin unobstructed. Long hair must route outside the neck silhouette and fall behind the shoulders/clothing-template area, with naturally tapered individual ends; never terminate in a straight horizontal or vertical cut line.
+
 ABSOLUTE EXCLUSION MASK INSTRUCTION: every pixel belonging to forehead skin, temples, eyebrows, eyelashes, eyes, nose, cheeks, ears, lips, jaw, chin and neck is protected and must remain governed exclusively by Image 1. Hair balancing, strand refinement and Pro Black 50% must affect HAIR PIXELS ONLY. Do not resize, warp, retouch, recolor or regenerate the face to make it fit the hairstyle; fit the hairstyle to the unchanged face instead.
 
 OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, plus a short natural neck; do not generate shoulders or torso. No shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons or fabric. Use a simple temporary solid background. Keep natural camera detail without halos or artificial sharpening.
 
-FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture from Image 1, (3) selected hairstyle only from Image 2 when supplied, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
+FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dark-spot cleanup while retaining real pores and skin texture, (3) selected hairstyle only from Image 2 when supplied with the neck fully clear, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");
