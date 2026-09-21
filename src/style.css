@@ -909,6 +909,29 @@
  .head-adjust-glyph svg,.head-row-reset svg{width:15px;height:15px}
 }
 
+/* V189 TABLET TOUCH — native dragging without long-press menus or render backlog. */
+.adaptive-editor,
+.adaptive-editor img,
+.adaptive-editor button,
+.adaptive-editor .tool-choice-sheet{
+ -webkit-touch-callout:none;
+ -webkit-user-select:none;
+ user-select:none
+}
+.adaptive-editor img{-webkit-user-drag:none;user-drag:none}
+.adaptive-editor .head-adjust-row input[type=range]{
+ height:25px!important;
+ min-height:25px!important;
+ touch-action:none!important;
+ -webkit-touch-callout:none!important;
+ user-select:none!important;
+ -webkit-user-select:none!important;
+ cursor:ew-resize
+}
+.adaptive-editor .head-adjust-row input[type=range]::-webkit-slider-thumb{touch-action:none}
+.adaptive-editor .head-adjust-row input[type=range]::-moz-range-thumb{touch-action:none}
+.adaptive-editor .head-adjust-modern,.adaptive-editor .tool-choice-sheet{overscroll-behavior:contain}
+
 /* V174 WHOLE-FRAME VIEW ZOOM — the complete preview frame (border, background,
    person and uniform) moves as one view-only surface. Editor menus and export
    geometry stay unchanged. */
@@ -957,6 +980,14 @@
  font-weight:800;
  cursor:pointer
 }
+.process-photo-input{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important}
+.preview-file-actions label{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:48px;padding:9px 15px;
+ border:1px solid #d9e1eb;border-radius:11px;background:#fff;color:#25324a;
+ box-shadow:0 3px 10px rgba(15,23,42,.06);font:inherit;font-size:12px;font-weight:800;cursor:pointer
+}
+.preview-file-actions label:hover{background:#f5f8ff;border-color:#b9c9ef}
+.preview-file-actions label.disabled{opacity:.55;cursor:not-allowed;pointer-events:auto}
 .preview-file-actions button:hover{background:#f5f8ff;border-color:#b9c9ef}
 .preview-file-actions button:disabled{opacity:.55;cursor:not-allowed}
 .preview-file-actions svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -972,12 +1003,12 @@
  background:#fff
 }
 .process-action-row .process-first{width:auto!important;max-width:none!important;margin:0!important;padding:13px 20px!important}
-.process-action-row .preview-file-actions button{height:100%;white-space:nowrap}
+.process-action-row .preview-file-actions button,.process-action-row .preview-file-actions label{height:100%;white-space:nowrap}
 .process-action-row.processed-state{display:flex;justify-content:flex-end}
 @media(max-width:650px){
  .process-action-row{width:calc(100% - 24px);gap:8px;margin:8px auto 12px}
  .process-action-row .process-first{width:auto!important;margin:0!important;padding:12px 10px!important;font-size:15px!important}
- .preview-file-actions button{min-height:44px;padding:7px 11px;font-size:11px}
+ .preview-file-actions button,.preview-file-actions label{min-height:44px;padding:7px 11px;font-size:11px}
  .preview-file-actions svg{width:16px;height:16px}
 }
 

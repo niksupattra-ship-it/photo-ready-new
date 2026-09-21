@@ -1522,6 +1522,8 @@ function App(){
  useEffect(()=>{if(b&&toolBarRef.current)toolBarRef.current.scrollLeft=0},[b]);
  useEffect(()=>{if(!optionTool)return;const dismiss=e=>{const t=e.target;if(t?.closest?.('.tool-choice-sheet,.process-option-bar,.tool-rail-arrow,.direct-edit-preview'))return;setOptionTool(null)};document.addEventListener('pointerdown',dismiss,true);return()=>document.removeEventListener('pointerdown',dismiss,true)},[optionTool]);
  const renderTimer=useRef(null);
+ const adjustRenderBusyRef=useRef(false);
+ const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
  const pick=e=>{const v=e.target.files?.[0];if(v){ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
@@ -1540,18 +1542,26 @@ function App(){
  const commitAdjust=async next=>{
   liveAdjustRef.current=next;setHeadAdjust(next);
   if(!editCache.current)return;
-  const seq=++renderSeqRef.current;
+  if(adjustRenderBusyRef.current){pendingAdjustRef.current={...next};return}
+  adjustRenderBusyRef.current=true;
+  let current={...next};
   try{
-   const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-   if(seq===renderSeqRef.current)showBlob(out);
-  }catch(e){if(seq===renderSeqRef.current)setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}
+   while(current){
+    pendingAdjustRef.current=null;
+    const seq=++renderSeqRef.current;
+    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,current,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
+    if(!pendingAdjustRef.current&&seq===renderSeqRef.current)showBlob(out);
+    current=pendingAdjustRef.current;
+   }
+  }catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}
+  finally{adjustRenderBusyRef.current=false;if(pendingAdjustRef.current){const latest=pendingAdjustRef.current;pendingAdjustRef.current=null;commitAdjust(latest)}}
  };
  // V85 SINGLE-RENDERER EDITOR: the bitmap visible in Preview is produced by the
  // exact same renderAdjustedFinal() used by Download. No CSS-only head layer remains.
  const paintHeadTransform=next=>{
   liveAdjustRef.current=next;setHeadAdjust(next);
-  clearTimeout(renderTimer.current);
-  renderTimer.current=setTimeout(()=>commitAdjust({...liveAdjustRef.current}),16);
+  if(renderTimer.current)return;
+  renderTimer.current=setTimeout(()=>{renderTimer.current=null;commitAdjust({...liveAdjustRef.current})},34);
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
@@ -1844,7 +1854,7 @@ function App(){
   </main>;
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
- return <main className="app-shell modern-shell adaptive-editor"><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
+ return <main className="app-shell modern-shell adaptive-editor" onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
   <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}else fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'ลากหัวเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
    <div className="quick-config">
