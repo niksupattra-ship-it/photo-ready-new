@@ -897,3 +897,14 @@
  .head-adjust-glyph,.head-row-reset{width:23px;height:23px}
  .head-adjust-glyph svg,.head-row-reset svg{width:16px;height:16px}
 }
+
+/* V172 EXACT 25PX ROWS — consistent across every adjustment panel and screen. */
+.head-adjust-row,.collar-adjust-modern .head-adjust-row,.ribbon-modern-adjust .head-adjust-row{height:25px;min-height:25px;padding:0 3px}
+.head-adjust-glyph,.head-row-reset{width:21px;height:21px}
+.head-adjust-glyph svg,.head-row-reset svg{width:15px;height:15px}
+.head-adjust-row input[type=range]{height:14px}
+@media(max-width:650px){
+ .head-adjust-row,.collar-adjust-modern .head-adjust-row,.ribbon-modern-adjust .head-adjust-row{height:25px;min-height:25px;padding:0 2px}
+ .head-adjust-glyph,.head-row-reset{width:21px;height:21px}
+ .head-adjust-glyph svg,.head-row-reset svg{width:15px;height:15px}
+}
