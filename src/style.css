@@ -932,6 +932,40 @@
 .adaptive-editor .editor-tool-dock,.adaptive-editor .download-below-tools{
  position:relative;z-index:10;background:#fff
 }
+.preview-file-actions{
+ position:relative;
+ z-index:10;
+ width:min(100%,480px);
+ display:flex;
+ justify-content:flex-end;
+ margin:-7px auto 12px;
+ padding:0 2px;
+ background:#fff
+}
+.preview-file-actions button{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:7px;
+ min-height:38px;
+ padding:7px 14px;
+ border:1px solid #d9e1eb;
+ border-radius:11px;
+ background:#fff;
+ color:#25324a;
+ box-shadow:0 3px 10px rgba(15,23,42,.06);
+ font:inherit;
+ font-size:12px;
+ font-weight:800;
+ cursor:pointer
+}
+.preview-file-actions button:hover{background:#f5f8ff;border-color:#b9c9ef}
+.preview-file-actions button:disabled{opacity:.55;cursor:not-allowed}
+.preview-file-actions svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:650px){
+ .preview-file-actions{width:100%;margin:-5px auto 10px;padding:0 3px}
+ .preview-file-actions button{min-height:36px;padding:6px 12px;font-size:11px}
+}
 
 /* V176 VIEW RANGE — normal view is 100%, with 20%–200% view-only zoom. */
 /* V178 DIRECT TOUCH VIEW — no zoom bar. Empty-area drag pans the whole frame;
