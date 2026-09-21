@@ -908,3 +908,44 @@
  .head-adjust-glyph,.head-row-reset{width:21px;height:21px}
  .head-adjust-glyph svg,.head-row-reset svg{width:15px;height:15px}
 }
+
+/* V174 WHOLE-FRAME VIEW ZOOM — the complete preview frame (border, background,
+   person and uniform) moves as one view-only surface. Editor menus and export
+   geometry stay unchanged. */
+.adaptive-editor .style-detail-card .hero-preview.preview-view-mode,
+.adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview.preview-view-mode{
+ cursor:grab;
+ transform:var(--preview-view-transform)!important;
+ transform-origin:50% 50%!important;
+ transition:transform .08s linear!important;
+ will-change:transform;
+ z-index:2
+}
+.adaptive-editor .hero-preview.preview-view-mode:active{cursor:grabbing}
+.adaptive-editor .hero-preview.preview-view-mode>.source-preview,
+.adaptive-editor .hero-preview.preview-view-mode>.final-render-preview{
+ transform:none!important;
+ transition:none!important;
+ will-change:auto
+}
+.preview-view-controls{
+ position:absolute;left:10px;top:10px;z-index:8;
+ display:flex;align-items:center;gap:4px;
+ padding:4px;border-radius:999px;
+ background:rgba(255,255,255,.9);backdrop-filter:blur(7px);
+ box-shadow:0 2px 10px rgba(15,23,42,.12)
+}
+.preview-view-controls button{
+ appearance:none;border:0;background:transparent;color:#17233f;
+ min-width:30px;height:30px;padding:0 7px;border-radius:999px;
+ display:grid;place-items:center;cursor:pointer;font-weight:800
+}
+.preview-view-controls button.active{background:#2f65ef;color:#fff}
+.preview-view-controls button span{font-size:17px;line-height:1}
+.preview-view-controls button small{font-size:8px;line-height:1}
+.preview-view-controls output{min-width:42px;color:#087cff;text-align:center;font-size:11px;font-weight:800}
+@media(max-width:650px){
+ .preview-view-controls{left:7px;top:7px;gap:2px;padding:3px}
+ .preview-view-controls button{min-width:27px;height:27px;padding:0 5px}
+ .preview-view-controls output{min-width:36px;font-size:10px}
+}
