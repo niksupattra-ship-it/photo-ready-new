@@ -935,11 +935,9 @@
 .preview-file-actions{
  position:relative;
  z-index:10;
- width:min(100%,480px);
  display:flex;
- justify-content:flex-end;
- margin:-7px auto 12px;
- padding:0 2px;
+ margin:0;
+ padding:0;
  background:#fff
 }
 .preview-file-actions button{
@@ -947,8 +945,8 @@
  align-items:center;
  justify-content:center;
  gap:7px;
- min-height:38px;
- padding:7px 14px;
+ min-height:48px;
+ padding:9px 15px;
  border:1px solid #d9e1eb;
  border-radius:11px;
  background:#fff;
@@ -962,9 +960,25 @@
 .preview-file-actions button:hover{background:#f5f8ff;border-color:#b9c9ef}
 .preview-file-actions button:disabled{opacity:.55;cursor:not-allowed}
 .preview-file-actions svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.process-action-row{
+ position:relative;
+ z-index:10;
+ width:min(100%,640px);
+ display:grid;
+ grid-template-columns:minmax(0,1fr) auto;
+ align-items:stretch;
+ gap:10px;
+ margin:0 auto 18px;
+ background:#fff
+}
+.process-action-row .process-first{width:auto!important;max-width:none!important;margin:0!important;padding:13px 20px!important}
+.process-action-row .preview-file-actions button{height:100%;white-space:nowrap}
+.process-action-row.processed-state{display:flex;justify-content:flex-end}
 @media(max-width:650px){
- .preview-file-actions{width:100%;margin:-5px auto 10px;padding:0 3px}
- .preview-file-actions button{min-height:36px;padding:6px 12px;font-size:11px}
+ .process-action-row{width:calc(100% - 24px);gap:8px;margin:8px auto 12px}
+ .process-action-row .process-first{width:auto!important;margin:0!important;padding:12px 10px!important;font-size:15px!important}
+ .preview-file-actions button{min-height:44px;padding:7px 11px;font-size:11px}
+ .preview-file-actions svg{width:16px;height:16px}
 }
 
 /* V176 VIEW RANGE — normal view is 100%, with 20%–200% view-only zoom. */
