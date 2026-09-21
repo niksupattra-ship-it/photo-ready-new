@@ -837,3 +837,33 @@
  .head-adjust-glyph,.head-row-reset{width:26px;height:26px}
  .head-adjust-glyph svg,.head-row-reset svg{width:16px;height:16px}
 }
+
+/* V169 RIBBON TABS — selection and adjustment share one compact panel. */
+.ribbon-panel-tabs{gap:20px!important;border-bottom:1px solid #e7edf5}
+.ribbon-panel-tabs button{
+ appearance:none;
+ border:0;
+ border-bottom:2px solid transparent;
+ background:transparent;
+ color:#9aa0aa;
+ padding:4px 2px 7px;
+ font:inherit;
+ font-weight:600;
+ cursor:pointer
+}
+.ribbon-panel-tabs button.active{
+ border-bottom-color:#2f65ef;
+ color:#1e232b;
+ font-weight:800
+}
+.ribbon-modern-adjust{padding-top:1px;padding-bottom:2px}
+.ribbon-adjust-empty{
+ min-height:54px;
+ display:grid;
+ place-items:center;
+ border-radius:10px;
+ background:#f5f8fc;
+ color:#778397;
+ font-size:12px;
+ font-weight:700
+}
