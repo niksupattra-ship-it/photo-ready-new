@@ -1474,7 +1474,6 @@ function App(){
  const[resultTool,setResultTool]=useState('head');
  const[previewZoom,setPreviewZoom]=useState(1);
  const[previewPan,setPreviewPan]=useState({x:0,y:0});
- const[viewMode,setViewMode]=useState(false);
  const[comparePreview,setComparePreview]=useState(false);
  const[headMasterPreview,setHeadMasterPreview]=useState(null);
  const[headPreviewLock,setHeadPreviewLock]=useState(null);
@@ -1486,7 +1485,7 @@ function App(){
  const rafRef=useRef(0);
  const toolBarRef=useRef(null);
  const choiceRailRef=useRef(null);
- const toggleOptionTool=(name,beforeOpen)=>{setViewMode(false);setOptionTool(current=>{const next=current===name?null:name;if(next&&beforeOpen)beforeOpen();return next})};
+ const toggleOptionTool=(name,beforeOpen)=>{setOptionTool(current=>{const next=current===name?null:name;if(next&&beforeOpen)beforeOpen();return next})};
  const scrollToolBar=direction=>{const el=toolBarRef.current;if(!el)return;el.scrollBy({left:direction*Math.max(180,el.clientWidth*.55),behavior:'smooth'})};
  const scrollChoiceRail=direction=>{const el=choiceRailRef.current;if(!el)return;el.scrollBy({left:direction*Math.max(180,el.clientWidth*.72),behavior:'smooth'})};
  const gestureRef=useRef({drag:false,x:0,y:0,startX:0,startY:0,startAdjust:null,pinch:false,distance:0,zoom:1,midX:0,midY:0,startPan:{x:0,y:0}});
@@ -1496,7 +1495,7 @@ function App(){
  const renderTimer=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setViewMode(false);setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=async amount=>{if(placementLocked)return;const v=Math.max(-1,Math.min(1,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},v,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับคอไม่สำเร็จ')}};
@@ -1527,17 +1526,12 @@ function App(){
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
- const clampPreviewPan=(pan,zoom=previewZoom)=>{const stage=previewStageRef.current;const maxX=Math.max(0,(stage?.clientWidth||0)*(zoom-1)/2),maxY=Math.max(0,(stage?.clientHeight||0)*(zoom-1)/2);return{x:Math.max(-maxX,Math.min(maxX,pan.x)),y:Math.max(-maxY,Math.min(maxY,pan.y))}};
- const setPreviewViewZoom=next=>{const zoom=Math.max(.2,Math.min(2,next));setPreviewZoom(zoom);setPreviewPan(current=>zoom<=1?{x:0,y:0}:clampPreviewPan(current,zoom))};
- const resetPreviewView=()=>{setPreviewZoom(1);setPreviewPan({x:0,y:0});setViewMode(false);viewGestureRef.current={pointers:new Map(),drag:false,pinch:false,x:0,y:0,distance:0,startZoom:1,startPan:{x:0,y:0},midX:0,midY:0}};
+ const clampPreviewPan=(pan,zoom=previewZoom)=>{const stage=previewStageRef.current;const maxX=(stage?.clientWidth||0)*Math.abs(zoom-1)/2,maxY=(stage?.clientHeight||0)*Math.abs(zoom-1)/2;return{x:Math.max(-maxX,Math.min(maxX,pan.x)),y:Math.max(-maxY,Math.min(maxY,pan.y))}};
+ const setPreviewViewZoom=next=>{const zoom=Math.max(.2,Math.min(2,next));setPreviewZoom(zoom);setPreviewPan(current=>clampPreviewPan(current,zoom))};
+ const previewCanvasPoint=e=>{const rect=e.currentTarget.getBoundingClientRect(),lock=editCache.current?.lock;return !lock?null:{rect,lock,x:(e.clientX-rect.left)/rect.width*lock.W,y:(e.clientY-rect.top)/rect.height*lock.H}};
+ const isHeadTouch=e=>{if(!b||comparePreview||placementLocked||optionTool!=='head')return false;const p=previewCanvasPoint(e);if(!p)return false;const {lock,x,y}=p,adj=liveAdjustRef.current,s=adj.scale||1,baseW=lock.headW*lock.scale,baseH=lock.headH*lock.scale,cx=lock.hX+baseW/2+(adj.x||0)*lock.W,cy=lock.hY+baseH/2+(adj.y||0)*lock.H;return x>=cx-baseW*s*.52&&x<=cx+baseW*s*.52&&y>=cy-baseH*s*.52&&y<=cy+baseH*s*.38};
+ const beginViewGesture=e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);const v=viewGestureRef.current;if(!v.pointers)v.pointers=new Map();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(v.pointers.size===1){v.drag=true;v.pinch=false;v.x=e.clientX;v.y=e.clientY;v.startPan={...previewPan}}else{const pts=[...v.pointers.values()].slice(0,2);v.drag=false;v.pinch=true;v.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);v.startZoom=previewZoom;v.startPan={...previewPan};v.midX=(pts[0].x+pts[1].x)/2;v.midY=(pts[0].y+pts[1].y)/2}};
  const previewPointerDown=e=>{
-  if(viewMode&&(a||b)){
-   e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);
-   const v=viewGestureRef.current;if(!v.pointers)v.pointers=new Map();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-   if(v.pointers.size===1){v.drag=true;v.pinch=false;v.x=e.clientX;v.y=e.clientY;v.startPan={...previewPan}}
-   else if(v.pointers.size>=2){const pts=[...v.pointers.values()].slice(0,2);v.drag=false;v.pinch=true;v.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);v.startZoom=previewZoom;v.startPan={...previewPan};v.midX=(pts[0].x+pts[1].x)/2;v.midY=(pts[0].y+pts[1].y)/2}
-   return;
-  }
   if(optionTool==='ribbon'&&ribbonRef.current&&b&&!comparePreview){
    const rect=e.currentTarget.getBoundingClientRect();
    const lock=editCache.current?.lock;
@@ -1545,12 +1539,11 @@ function App(){
    const px=(e.clientX-rect.left)/rect.width*lock.W,py=(e.clientY-rect.top)/rect.height*lock.H;
    const v=ribbonAdjustRef.current,w=lock.uW*.205*v.scale,h=w*(2/7);
    const cx=lock.uX+lock.uW*(.73+v.x),top=lock.uY+lock.uH*(.495+v.y);
-   if(px<cx-w*.8||px>cx+w*.8||py<top-h||py>top+h*2)return;
+   if(px<cx-w*.8||px>cx+w*.8||py<top-h||py>top+h*2){beginViewGesture(e);return}
    e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);
    ribbonDragRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,start:{...v}};return;
   }
-  if(placementLocked)return;
-  if(!b||(optionTool&&optionTool!=='head')||comparePreview)return;
+  if(!isHeadTouch(e)){if(a||b)beginViewGesture(e);return}
   e.preventDefault();e.stopPropagation();
   e.currentTarget.setPointerCapture?.(e.pointerId);
   const g=gestureRef.current;
@@ -1559,9 +1552,10 @@ function App(){
   else if(g.pointers.size===2){const pts=[...g.pointers.values()];g.pinch=true;g.drag=false;g.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);g.startAdjust={...liveAdjustRef.current};g.midX=(pts[0].x+pts[1].x)/2;g.midY=(pts[0].y+pts[1].y)/2}
  };
  const previewPointerMove=e=>{
-  if(viewMode){
-   const v=viewGestureRef.current;if(!v.pointers?.has(e.pointerId))return;e.preventDefault();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-   if(v.pointers.size>=2&&v.pinch){const pts=[...v.pointers.values()].slice(0,2),distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),midX=(pts[0].x+pts[1].x)/2,midY=(pts[0].y+pts[1].y)/2,zoom=Math.max(.2,Math.min(2,v.startZoom*distance/Math.max(1,v.distance)));setPreviewZoom(zoom);setPreviewPan(zoom<=1?{x:0,y:0}:clampPreviewPan({x:v.startPan.x+(midX-v.midX),y:v.startPan.y+(midY-v.midY)},zoom))}
+  const v=viewGestureRef.current;
+  if(v.pointers?.has(e.pointerId)){
+   e.preventDefault();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+   if(v.pointers.size>=2&&v.pinch){const pts=[...v.pointers.values()].slice(0,2),distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),midX=(pts[0].x+pts[1].x)/2,midY=(pts[0].y+pts[1].y)/2,zoom=Math.max(.2,Math.min(2,v.startZoom*distance/Math.max(1,v.distance)));setPreviewZoom(zoom);setPreviewPan(clampPreviewPan({x:v.startPan.x+(midX-v.midX),y:v.startPan.y+(midY-v.midY)},zoom))}
    else if(v.drag&&v.pointers.size===1){setPreviewPan(clampPreviewPan({x:v.startPan.x+(e.clientX-v.x),y:v.startPan.y+(e.clientY-v.y)},previewZoom))}
    return;
   }
@@ -1574,8 +1568,9 @@ function App(){
   else if(g.drag&&e.pointerId===g.primary){const next={...g.startAdjust,x:g.startAdjust.x+(e.clientX-g.x)/rect.width,y:g.startAdjust.y+(e.clientY-g.y)/rect.height};paintHeadTransform(next)}
  };
  const previewPointerUp=e=>{
-  if(viewMode){
-   const v=viewGestureRef.current;if(!v.pointers?.has(e.pointerId))return;e.preventDefault();v.pointers.delete(e.pointerId);
+  const v=viewGestureRef.current;
+  if(v.pointers?.has(e.pointerId)){
+   e.preventDefault();v.pointers.delete(e.pointerId);
    if(v.pointers.size===0){v.drag=false;v.pinch=false}
    else if(v.pointers.size===1){const [,point]=[...v.pointers.entries()][0];v.drag=true;v.pinch=false;v.x=point.x;v.y=point.y;v.startPan={...previewPan}}
    return;
@@ -1586,7 +1581,7 @@ function App(){
   if(g.pointers.size===0){g.drag=false;g.pinch=false;commitAdjust({...liveAdjustRef.current})}
   else if(g.pointers.size===1){const [id,p]=[...g.pointers.entries()][0];g.drag=true;g.pinch=false;g.primary=id;g.x=p.x;g.y=p.y;g.startAdjust={...liveAdjustRef.current}}
  };
- const previewWheel=e=>{if(viewMode&&(a||b)){e.preventDefault();setPreviewViewZoom(previewZoom*Math.exp(-e.deltaY*.0015));return}if(placementLocked)return;if(!b||(optionTool&&optionTool!=='head')||comparePreview)return;e.preventDefault();const old=liveAdjustRef.current;const factor=Math.exp(-e.deltaY*.0015);const next={...old,scale:Math.max(.20,Math.min(2,old.scale*factor))};paintHeadTransform(next)};
+ const previewWheel=e=>{if(a||b){e.preventDefault();setPreviewViewZoom(previewZoom*Math.exp(-e.deltaY*.0015))}};
  // Kept only for compatibility with the hidden legacy row in this build.
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
@@ -1798,8 +1793,8 @@ function App(){
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
  return <main className="app-shell modern-shell adaptive-editor"><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
-  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(viewMode?" preview-view-mode":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});setViewMode(false);applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
-<button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{viewMode?'กำลังซูมทั้งกรอบ 20–200% · ลากเพื่อเลื่อน · เลือกเครื่องมือเพื่อปรับต่อในมุมซูม':optionTool==='ribbon'?'แตะและลากแพรแถบเพื่อย้ายตำแหน่ง · ปรับละเอียดได้ในเมนูแพรแถบ':'แตะและลากที่รูปเพื่อย้ายส่วนหัว · ใช้สองนิ้วเพื่อย่อ–ขยาย · หรือเลือก “ปรับหัว” ที่เมนู'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}{(a||b)&&<div className="preview-view-controls" onPointerDown={e=>{e.preventDefault();e.stopPropagation()}} onClick={e=>{e.preventDefault();e.stopPropagation()}}><button type="button" className={viewMode?'active':''} onClick={()=>setViewMode(v=>!v)} aria-label={viewMode?'กลับไปปรับภาพโดยคงระดับซูม':'เปิดโหมดซูมทั้งกรอบ'}><span>⌕</span><small>{viewMode?'ปรับต่อ':'ซูม'}</small></button>{viewMode&&<><button type="button" disabled={previewZoom<=.2} onClick={()=>setPreviewViewZoom(previewZoom-.1)} aria-label="ซูมออก ต่ำสุด 20 เปอร์เซ็นต์">−</button><output>{Math.round(previewZoom*100)}%</output><button type="button" disabled={previewZoom>=2} onClick={()=>setPreviewViewZoom(previewZoom+.1)} aria-label="ซูมเข้า สูงสุด 200 เปอร์เซ็นต์">+</button><button type="button" onClick={resetPreviewView} aria-label="คืนมุมมอง 100%">100%</button></>}</div>}</label>
+  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><label ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){e.preventDefault();if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}}}><input type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({scale:1,x:0,y:0,rotation:0});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
+<button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'ลากหัวเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</label>
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&uniformCategory!=='student'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
