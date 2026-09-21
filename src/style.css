@@ -756,6 +756,8 @@
 .head-row-reset{width:44px;height:44px;border:0;border-radius:50%;background:#fff;color:#263b68;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 12px rgba(32,60,98,.14);transition:transform .12s ease,box-shadow .12s ease}
 .head-row-reset:active{transform:scale(.94);box-shadow:0 2px 6px rgba(32,60,98,.14)}
 .head-row-reset svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.collar-adjust-modern{padding-top:4px;padding-bottom:4px}
+.collar-adjust-modern .head-adjust-row{min-height:66px}
 @media(max-width:650px){
  .head-adjust-modern{gap:6px}
  .head-adjust-row{grid-template-columns:44px minmax(78px,1fr) 57px 40px;gap:7px;min-height:54px;padding:6px 7px;border-radius:15px}
@@ -764,9 +766,44 @@
  .head-adjust-row output{padding:8px 4px;border-radius:10px;font-size:12px}
  .head-row-reset{width:38px;height:38px}
  .head-row-reset svg{width:23px;height:23px}
+ .collar-adjust-modern .head-adjust-row{min-height:56px}
 }
 @media(max-width:380px){
  .head-adjust-row{grid-template-columns:38px minmax(64px,1fr) 52px 36px;gap:5px;padding-left:5px;padding-right:5px}
  .head-adjust-glyph,.head-row-reset{width:34px;height:34px}
  .head-adjust-glyph svg,.head-row-reset svg{width:21px;height:21px}
+}
+
+/* V167 COMPACT HEAD / NECK CONTROLS — denser rows without sacrificing touch use. */
+.head-adjust-modern{gap:4px;padding:0 0 2px}
+.head-adjust-row{
+ grid-template-columns:40px minmax(100px,1fr) 62px 38px;
+ gap:7px;
+ min-height:44px;
+ padding:4px 8px;
+ border-radius:13px;
+ box-shadow:inset 0 1px 0 #fff,0 2px 8px rgba(36,65,105,.045)
+}
+.head-adjust-glyph{width:34px;height:34px;border-radius:10px}
+.head-adjust-glyph svg{width:24px;height:24px;stroke-width:2.15}
+.head-adjust-row input[type=range]{height:24px}
+.head-adjust-row output{padding:6px 5px;border-radius:9px;font-size:13px}
+.head-row-reset{width:34px;height:34px;box-shadow:0 2px 8px rgba(32,60,98,.12)}
+.head-row-reset svg{width:21px;height:21px;stroke-width:2.35}
+.collar-adjust-modern{padding-top:1px;padding-bottom:1px}
+.collar-adjust-modern .head-adjust-row{min-height:44px}
+@media(max-width:650px){
+ .head-adjust-modern{gap:3px}
+ .head-adjust-row{grid-template-columns:38px minmax(72px,1fr) 54px 36px;gap:5px;min-height:42px;padding:3px 6px;border-radius:11px}
+ .head-adjust-glyph{width:34px;height:34px;border-radius:9px}
+ .head-adjust-glyph svg{width:23px;height:23px}
+ .head-adjust-row output{padding:5px 3px;border-radius:8px;font-size:11px}
+ .head-row-reset{width:34px;height:34px}
+ .head-row-reset svg{width:20px;height:20px}
+ .collar-adjust-modern .head-adjust-row{min-height:42px}
+}
+@media(max-width:380px){
+ .head-adjust-row{grid-template-columns:34px minmax(60px,1fr) 49px 34px;gap:4px;padding-left:4px;padding-right:4px}
+ .head-adjust-glyph,.head-row-reset{width:32px;height:32px}
+ .head-adjust-glyph svg,.head-row-reset svg{width:19px;height:19px}
 }
