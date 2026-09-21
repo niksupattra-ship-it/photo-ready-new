@@ -936,3 +936,43 @@
 /* V176 VIEW RANGE — normal view is 100%, with 20%–200% view-only zoom. */
 /* V178 DIRECT TOUCH VIEW — no zoom bar. Empty-area drag pans the whole frame;
    empty-area pinch zooms it from 20% to 200%; selected head/ribbon keeps editing. */
+
+/* V180 GOVERNMENT COLLAR PINS — one selection always represents a matched pair. */
+.collar-pin-choice-preview{
+ display:flex;
+ gap:10px;
+ overflow-x:auto;
+ padding:5px 2px 7px;
+ scrollbar-width:none;
+ touch-action:pan-x
+}
+.collar-pin-choice-preview::-webkit-scrollbar{display:none}
+.collar-pin-option{
+ position:relative;
+ flex:0 0 142px;
+ min-height:92px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:3px;
+ border:1px solid #dce4ef;
+ border-radius:12px;
+ background:#fff;
+ color:#1a2740;
+ padding:7px;
+ font:inherit;
+ cursor:pointer
+}
+.collar-pin-option.selected{border:2px solid #2f65ef;background:#f5f8ff;padding:6px}
+.collar-pin-option strong{font-size:12px;line-height:1.2}
+.collar-pin-option small{font-size:9px;color:#7b8799;line-height:1.2}
+.collar-pin-pair{height:50px;display:flex;align-items:center;justify-content:center;gap:2px}
+.collar-pin-pair img{width:48px;height:48px;object-fit:contain}
+.no-pin-symbol{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#eef2f7;color:#6e7a8d;font-size:27px;font-weight:300}
+.collar-pin-tool-icon img{object-fit:contain!important;transform:scale(1.25)}
+@media(max-width:650px){
+ .collar-pin-option{flex-basis:126px;min-height:84px}
+ .collar-pin-pair{height:44px}
+ .collar-pin-pair img{width:42px;height:42px}
+}
