@@ -941,6 +941,7 @@
  display:grid;place-items:center;cursor:pointer;font-weight:800
 }
 .preview-view-controls button.active{background:#2f65ef;color:#fff}
+.preview-view-controls button:disabled{opacity:.35;cursor:not-allowed}
 .preview-view-controls button span{font-size:14px;line-height:1}
 .preview-view-controls button small{font-size:7px;line-height:1}
 .preview-view-controls output{min-width:34px;color:#087cff;text-align:center;font-size:9px;font-weight:800}
@@ -948,6 +949,8 @@
 .adaptive-editor .editor-tool-dock,.adaptive-editor .download-below-tools{
  position:relative;z-index:10;background:#fff
 }
+
+/* V176 VIEW RANGE — normal view is 100%, with 20%–200% view-only zoom. */
 @media(max-width:650px){
  .preview-view-controls{left:5px;top:5px;gap:1px;padding:2px}
  .preview-view-controls button{min-width:22px;height:22px;padding:0 4px}
