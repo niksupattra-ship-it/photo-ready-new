@@ -578,14 +578,49 @@ async function warpPersonNeck(head,chinY,neckAdjust={width:0,length:0}){
  return out;
 }
 
+const v192MasterMaskCache=new WeakMap();
+async function getV192MasterMasks(blob,image){
+ let pending=v192MasterMaskCache.get(blob);
+ if(!pending){
+  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+  pending=(async()=>{
+   const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
+   const hairMask=await semanticClassMask(image,W,H,[1]).catch(()=>null);
+   return {skinMask,hairMask};
+  })();
+  v192MasterMaskCache.set(blob,pending);
+ }
+ return pending;
+}
+async function applySkinBrightness(image,factor=1.10,skinMask=null){
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ if(!skinMask)try{skinMask=await semanticClassMask(image,W,H,[2,3])}catch{return image}
+ if(!skinMask)return image;
+ const soft=canvasFor(W,H),sc=soft.getContext('2d');
+ sc.filter=`blur(${Math.max(1,Math.min(4,W*.002))}px)`;sc.drawImage(skinMask,0,0);sc.filter='none';
+ const c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
+ const out=x.getImageData(0,0,W,H),d=out.data;
+ const md=sc.getImageData(0,0,W,H).data;
+ const lift=Math.max(0,Math.min(.25,factor-1));
+ for(let i=0;i<W*H;i++){
+  const j=i*4;if(!d[j+3]||!md[j+3])continue;
+  const strength=lift*(md[j+3]/255)*(d[j+3]/255);
+  d[j]=Math.min(255,Math.round(d[j]*(1+strength)));
+  d[j+1]=Math.min(255,Math.round(d[j+1]*(1+strength)));
+  d[j+2]=Math.min(255,Math.round(d[j+2]*(1+strength)));
+ }
+ x.putImageData(out,0,0);return c;
+}
+
 // V163: retain a longer, softly feathered strip of the photographed neck below
 // the jaw. The smoothstep fade removes the horizontal join without repainting
 // face pixels or introducing a flat sampled skin colour.
-function isolateHeadHairAndNeck(image,faceCX,chinY){
+function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
+ const semanticHair=semanticHairMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
  const start=Math.max(0,Math.floor(chinY-H*.012));
  const solidEnd=Math.min(H,Math.ceil(chinY+H*.045));
  const fadeEnd=Math.min(H,Math.ceil(chinY+H*.165));
@@ -595,12 +630,25 @@ function isolateHeadHairAndNeck(image,faceCX,chinY){
   const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
   const r=d[i],g=d[i+1],b=d[i+2],dist=Math.abs(xx-faceCX);
   const brightness=(r*299+g*587+b*114)/1000;
-  const hair=yy<hairFadeEnd&&dist<W*.34&&brightness<155&&Math.max(r,g,b)-Math.min(r,g,b)<105;
+  const segmentedHair=Boolean(semanticHair&&semanticHair[i+3]>96);
+  const hair=yy<hairFadeEnd&&dist<W*.34&&((brightness<155&&Math.max(r,g,b)-Math.min(r,g,b)<105)||segmentedHair);
   const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
   const neckHalf=W*(.185-.075*neckProgress);
   const sideFeather=Math.max(3,W*.008);
   const sideAlpha=Math.max(0,Math.min(1,(neckHalf-dist)/sideFeather));
   const neck=yy<=fadeEnd&&sideAlpha>0;
+  // V192: deterministic neck-skin clearance. Remove positively segmented hair
+  // from the central anatomical neck corridor. The photographed neck extension
+  // below this layer fills the opening; long side hair remains naturally tapered.
+  if(segmentedHair&&yy>chinY+H*.006){
+   const p=Math.max(0,Math.min(1,(yy-chinY)/Math.max(1,H*.22)));
+   const clearHalf=W*(.112+.022*p),clearFeather=Math.max(3,W*.008);
+   if(dist<clearHalf){
+    const keep=Math.max(0,Math.min(1,(dist-(clearHalf-clearFeather))/clearFeather));
+    d[i+3]=Math.round(a*keep);
+    if(d[i+3]===0)continue;
+   }
+  }
   if(hair){
    if(yy<=hairSolidEnd)continue;
    const ht=Math.max(0,Math.min(1,(yy-hairSolidEnd)/Math.max(1,hairFadeEnd-hairSolidEnd)));
@@ -676,9 +724,13 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  const warpedUniform=await warpUniformCollar(uniform,collarWarp);
  const masterURL=URL.createObjectURL(headMasterBlob);
  try{
-  const head=await loadImage(masterURL);
+ const head=await loadImage(masterURL);
+  const masterMasks=await getV192MasterMasks(headMasterBlob,head);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
-  const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY);
+  // V192: apply the requested exact +10% only to semantic skin. Multiplicative
+  // RGB lift preserves local contrast, pores and fine texture.
+  const skinBalancedHead=await applySkinBrightness(neckHead,1.10,masterMasks.skinMask);
+  const cleanHead=isolateHeadHairAndNeck(skinBalancedHead,lock.faceCX,lock.chinY,masterMasks.hairMask);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -700,7 +752,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const extensionH=neckBottom-neckTop+lock.H*.025;
   const extensionW=neckBottomHalf*2+Math.max(8,lock.W*.012);
   const extension=makeNaturalNeckExtension(
-   neckHead,lock.faceCX,lock.chinY,extensionW,extensionH,
+   skinBalancedHead,lock.faceCX,lock.chinY,extensionW,extensionH,
    neckTopHalf,neckBottomHalf
   );
   x.save();x.translate(centerX,centerY);x.rotate(rotation);
