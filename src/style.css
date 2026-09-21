@@ -1005,11 +1005,16 @@
 .process-action-row .process-first{width:auto!important;max-width:none!important;margin:0!important;padding:13px 20px!important}
 .process-action-row .preview-file-actions button,.process-action-row .preview-file-actions label{height:100%;white-space:nowrap}
 .process-action-row.processed-state{display:flex;justify-content:flex-end}
+.process-action-row.processed-state .preview-file-actions{width:100%;justify-content:flex-end;gap:8px}
+.preview-file-actions .inline-download-button{background:#315bea;color:#fff;border-color:#315bea;min-width:132px}
+.preview-file-actions .inline-download-button:hover{background:#244bd1;border-color:#244bd1}
 @media(max-width:650px){
  .process-action-row{width:calc(100% - 24px);gap:8px;margin:8px auto 12px}
  .process-action-row .process-first{width:auto!important;margin:0!important;padding:12px 10px!important;font-size:15px!important}
  .preview-file-actions button,.preview-file-actions label{min-height:44px;padding:7px 11px;font-size:11px}
  .preview-file-actions svg{width:16px;height:16px}
+ .process-action-row.processed-state .preview-file-actions{display:grid;grid-template-columns:minmax(0,1fr) auto}
+ .preview-file-actions .inline-download-button{min-width:0}
 }
 
 /* V176 VIEW RANGE — normal view is 100%, with 20%–200% view-only zoom. */
