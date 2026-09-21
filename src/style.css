@@ -688,3 +688,60 @@
 .ribbon-choice-preview{scrollbar-width:none}
 .ribbon-choice-preview::-webkit-scrollbar{display:none}
 .ribbon-choice-rail-wrap .ribbon-choice-preview{flex:1 1 auto;min-width:0;scroll-behavior:smooth}
+
+/* V164 MOBILE/TOUCH CHOICE RAILS — every visual option row is swiped directly
+   with a finger. Native scrollbars stay hidden without disabling horizontal
+   scrolling or taps. Desktop arrow controls remain available on mouse devices. */
+@media (max-width:900px), (hover:none), (pointer:coarse){
+ .adaptive-editor .uniform-switch-tabs,
+ .adaptive-editor .uniform-switch-grid,
+ .adaptive-editor .background-choice-preview,
+ .adaptive-editor .process-thumbnail-strip,
+ .adaptive-editor .ribbon-choice-preview,
+ .adaptive-editor .tool-choice-tabs{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-x:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-x!important;
+  scrollbar-width:none!important;
+  -ms-overflow-style:none!important;
+  scroll-behavior:smooth;
+ }
+ .adaptive-editor .uniform-switch-tabs::-webkit-scrollbar,
+ .adaptive-editor .uniform-switch-grid::-webkit-scrollbar,
+ .adaptive-editor .background-choice-preview::-webkit-scrollbar,
+ .adaptive-editor .process-thumbnail-strip::-webkit-scrollbar,
+ .adaptive-editor .ribbon-choice-preview::-webkit-scrollbar,
+ .adaptive-editor .tool-choice-tabs::-webkit-scrollbar{
+  display:none!important;
+  width:0!important;
+  height:0!important;
+  background:transparent!important;
+ }
+ .adaptive-editor .uniform-switch-grid{
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  gap:10px!important;
+  max-height:none!important;
+  padding:2px 2px 10px!important;
+  scroll-snap-type:x proximity;
+ }
+ .adaptive-editor .uniform-switch-grid>button{
+  flex:0 0 clamp(132px,38vw,170px)!important;
+  width:auto!important;
+  min-width:132px!important;
+  scroll-snap-align:start;
+ }
+ .adaptive-editor .background-choice-preview,
+ .adaptive-editor .process-thumbnail-strip,
+ .adaptive-editor .ribbon-choice-preview{
+  scroll-snap-type:x proximity;
+ }
+ .adaptive-editor .background-choice-preview>* ,
+ .adaptive-editor .process-thumbnail-strip>* ,
+ .adaptive-editor .ribbon-choice-preview>*{
+  scroll-snap-align:start;
+ }
+ .adaptive-editor .choice-rail-arrow{display:none!important}
+}
