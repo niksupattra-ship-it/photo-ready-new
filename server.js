@@ -142,11 +142,11 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
 });
 
 
-// V114: separate provider engine; no Hair Donor, no mask upload, no implicit fallback.
+// V204: exact transparent hair reference + hard face/body mask, no implicit fallback.
 app.get("/api/hairstyle/providers",(req,res)=>res.json(providerStatus()));
-app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
+app.post("/api/hairstyle/edit",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),async(req,res)=>{
  try{
-  const result=await editHairstyle({portrait:req.file,hairId:req.body?.hairId,root:dir});
+  const result=await editHairstyle({portrait:req.files?.image?.[0],mask:req.files?.mask?.[0],hairId:req.body?.hairId,root:dir});
   res.set("Content-Type","image/png");res.set("Cache-Control","no-store");
   res.set("X-Hairstyle-Provider",result.provider);
   res.set("X-Hairstyle-Cache",result.cache||"MISS");
