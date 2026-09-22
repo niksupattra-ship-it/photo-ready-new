@@ -1966,9 +1966,9 @@ function App(){
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // V209 AI HAIR-ONLY EDIT: every new style is generated against the same
-  // immutable master, then only validated hair pixels are composited back.
-  // The photographed face, skin, neck and uniform never come from the AI edit.
+  // V215: re-run the exact FIRST-PROCESSING AI pipeline from the uploaded
+  // original File, never from the currently rendered/segmented/composited head.
+  // The editor placement snapshot and uniform template remain untouched.
   clearTimeout(renderTimer.current);
   ++renderSeqRef.current;
   lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
@@ -1987,16 +1987,18 @@ function App(){
    if(!id){
     nextMaster=initialStyledHairRef.current||src;setProgressStage(78,'กำลังคืนทรงเริ่มต้น');
    }else{
-    setMsg('กำลังให้ AI สร้างและเกลี่ยเฉพาะทรงผม โดยล็อกใบหน้าเดิม…');
+    setMsg('กำลังใช้รูปต้นฉบับเปลี่ยนทรงผมด้วยคำสั่งเดียวกับการประมวลผลครั้งแรก…');
     const cached=hairResultCacheRef.current.get(id);
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำผลทรงผมที่ผ่านการล็อกใบหน้าแล้วกลับมาใช้ · ไม่เสียเครดิตซ้ำ');}
     else{
-     setProgressStage(38,'กำลังสร้าง Mask ล็อกใบหน้า');
-     const prepared=await prepareHairEdit(src);
-     setProgressStage(52,'AI กำลังเกลี่ยทรงผมให้เข้ากับโครงหน้า');
-     const generated=await requestHairstyleEngine(prepared.input,id,prepared.mask);
-     setProgressStage(82,'กำลังตรวจและประกอบเฉพาะพิกเซลผม');
-     nextMaster=await composeHairEdit(generated,src,prepared);
+     if(!f)throw Error('ไม่พบรูปต้นฉบับ กรุณาอัปโหลดรูปใหม่');
+     setProgressStage(38,'กำลังใช้รูปต้นฉบับและคำสั่งประมวลผลครั้งแรก');
+     // Same function, source file and mode as go(): face-lock + selected hair.
+     const aiHeadNeck=await aiFinishPortrait(f,id);
+     setProgressStage(65,'กำลังลบพื้นหลังเหมือนประมวลผลครั้งแรก');
+     const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
+     setProgressStage(78,'กำลังเก็บรายละเอียดผิวเหมือนประมวลผลครั้งแรก');
+     nextMaster=await refineSkinTextureBlob(removedHeadNeck);
      // Cache only successfully processed images. Never cache errors or intermediate AI output.
      hairResultCacheRef.current.set(id,nextMaster);
     }
@@ -2012,7 +2014,7 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนเฉพาะทรงผมแล้ว · ใบหน้าเดิมถูกล็อกไว้');completed=true;
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากรูปต้นฉบับแล้ว · คงตำแหน่งชุดและหัวเดิม');completed=true;
   }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
