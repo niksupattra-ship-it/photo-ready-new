@@ -1580,6 +1580,8 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
   const fresh=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const newFaceSkin=await semanticClassMask(ai,W,H,[3]);
   const generatedSkin=newFaceSkin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  // V214: AI generates the selected hairstyle; segmentation is used ONLY to extract its hair.
+  // The original photographed face/skin and its texture remain immutable.
   // V213: 256px segmentation misses thin roots and braids at full resolution.
   // Reclaim only genuinely dark, neutral donor pixels immediately next to a
   // confirmed hair pixel, within the already permitted hair edit region.
@@ -1622,7 +1624,20 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
     // the surrounding background becomes transparent for the chosen backdrop.
     if(faceRegion?.[j+3]>0&&generatedSkin?.[j+3]>64){
      out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];out.data[j+3]=255;
-    }else out.data[j+3]=0;
+    }else {
+     // A missing segmentation pixel must never punch a blue hole through a
+     // photographic hairline. Retain source strands touching AI hair; remove
+     // genuinely displaced old hair elsewhere so the selected style is visible.
+     const x=i%W,y=Math.floor(i/W);
+     let touchesNew=false;
+     if(y<prepared.forehead+prepared.eyeD*.32){
+      for(let dy=-3;dy<=3&&!touchesNew;dy++)for(let dx=-3;dx<=3;dx++){
+       const xx=x+dx,yy=y+dy;if(xx>=0&&xx<W&&yy>=0&&yy<H&&matte[yy*W+xx]>0){touchesNew=true;break;}
+      }
+     }
+     if(touchesNew)continue;
+     out.data[j+3]=0;
+    }
     changed++;continue
    }
    if(newPx){
