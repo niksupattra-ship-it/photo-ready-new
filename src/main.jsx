@@ -1878,8 +1878,10 @@ function App(){
  // exact same renderAdjustedFinal() used by Download. No CSS-only head layer remains.
  const paintHeadTransform=next=>{
   liveAdjustRef.current=next;setHeadAdjust(next);
-  if(renderTimer.current)return;
-  renderTimer.current=setTimeout(()=>{renderTimer.current=null;commitAdjust({...liveAdjustRef.current})},34);
+  // V222: match V160 slider responsiveness: reset the debounce on every move,
+  // then render the latest adjustment after one ~60fps frame (16 ms).
+  clearTimeout(renderTimer.current);
+  renderTimer.current=setTimeout(()=>{renderTimer.current=null;commitAdjust({...liveAdjustRef.current})},16);
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
