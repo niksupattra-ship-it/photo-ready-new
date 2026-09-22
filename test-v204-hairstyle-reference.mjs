@@ -18,9 +18,9 @@ assert.match(engine,/exact FACELESS TRANSPARENT HAIRSTYLE CUTOUT/,
 assert.match(server,/upload\.fields\(\[\{name:"image",maxCount:1\},\{name:"mask",maxCount:1\}\]\)/,
  'hairstyle endpoint must accept both portrait and hard mask');
 assert.match(client,/requestHairstyleEngine\(prepared\.input,id,prepared\.mask\)/,
- 'client must send the face\/body lock mask with every hairstyle request');
-assert.match(client,/composeHairEdit\(edited,src,prepared\)/,
- 'client must composite only generated hair back onto the immutable source');
+ 'post-processing hairstyle changes must use AI with the exact protected-face mask');
+assert.match(client,/composeHairEdit\(generated,src,prepared\)/,
+ 'the provider result must contribute validated hair pixels only');
 assert.doesNotMatch(client,/nextMaster=await removeBackgroundRobust\(edited,'hairstyle-result\.png'\)/,
  'client must not replace the complete master with the provider image');
 
@@ -33,4 +33,4 @@ for(let i=1;i<=12;i++){
  assert.ok(fs.existsSync(path.join(root,'public','assets','hair',`${id}.png`)),`${id} cutout missing`);
 }
 
-console.log('V204 hairstyle reference and face-lock regression checks passed');
+console.log('V209 exact hairstyle reference and face-lock regression checks passed');
