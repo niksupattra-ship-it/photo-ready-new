@@ -212,9 +212,14 @@ OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, o
 
 FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dark-spot cleanup while retaining real pores and skin texture, (3) selected hairstyle only from Image 2 when supplied with the neck fully clear, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
+    // V202: moderation-safe wording for a benign professional portrait. The old
+    // anatomy prompt above is retained only for history and is never submitted.
+    const requestPrompt=inpaint?prompt:`EDIT A MODEST PROFESSIONAL ID PORTRAIT. Image 1 is the original adult subject and the sole authority for identity. ${keepOriginalHair?"Preserve the original hairstyle.":"Image 2 is a hairstyle reference only; change only the hair to match its parting, silhouette and length."} The opaque face-lock area must remain unchanged. Preserve the exact face outline, forehead, cheeks, jaw, chin, natural asymmetry, eyes, eyelids, eyebrows, nose, lips, ears, expression, age, complexion, marks and natural pore detail. Do not beautify, reshape, symmetrize, add makeup, whiten or smooth the face. Keep the portrait fully appropriate for an official application photo. Reconstruct a natural continuous neck from below the jaw to the normal professional collar line, with balanced left and right neck transitions and enough margin for the application to place its existing uniform template over it. Keep shoulders in a neutral, modest professional presentation. Do not generate insignia, badges or official uniform details; the application supplies those from its fixed template. Use a plain temporary studio background outside the subject. If the original face is dark, apply only a restrained neutral exposure correction while preserving highlights, shadows and skin texture. Return one coherent front-facing photographic subject with no seams, duplicate anatomy, rectangular patches or background holes.`;
+
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    form.append("prompt",prompt);
+    form.append("prompt",requestPrompt);
+    form.append("moderation","low");
     form.append("input_fidelity","high");
     form.append("quality","high");
     form.append("size","1024x1536");
