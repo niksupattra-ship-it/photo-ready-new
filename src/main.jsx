@@ -609,21 +609,18 @@ async function applySkinBrightness(image,factor=null,skinMask=null){
    if(luma>35&&luma<235){sum+=luma;count++}
   }
   const mean=count?sum/count:160;
-  // V210: soft fill flash is strongest in mid/shadow tones, never highlights.
-  factor=mean<170?Math.min(1.15,170/Math.max(1,mean)):1;
+  factor=mean<150?Math.min(1.12,150/Math.max(1,mean)):1;
  }
  const lift=Math.max(0,Math.min(.25,factor-1));
  for(let i=0;i<W*H;i++){
   const j=i*4;if(!d[j+3]||!md[j+3])continue;
-  const y=.2126*d[j]+.7152*d[j+1]+.0722*d[j+2];
-  // Apply a common RGB offset to retain local pore contrast and skin hue.
-  // Fade smoothly toward highlights so white uniform and shiny skin never clip.
-  const shadowWeight=Math.max(0,Math.min(1,(232-y)/102));
-  const strength=lift*(md[j+3]/255)*(d[j+3]/255)*shadowWeight;
-  const delta=Math.min(18,(255-y)*strength*.42);
-  d[j]=Math.min(255,Math.round(d[j]+delta));
-  d[j+1]=Math.min(255,Math.round(d[j+1]+delta));
-  d[j+2]=Math.min(255,Math.round(d[j+2]+delta));
+  // Shadow-weighted neutral fill: preserve pores/local contrast and protect highlights.
+  const luma=.2126*d[j]+.7152*d[j+1]+.0722*d[j+2];
+  const shadowWeight=Math.max(0,Math.min(1,(235-luma)/145));
+  const strength=lift*shadowWeight*(md[j+3]/255)*(d[j+3]/255);
+  d[j]=Math.min(255,Math.round(d[j]*(1+strength)));
+  d[j+1]=Math.min(255,Math.round(d[j+1]*(1+strength)));
+  d[j+2]=Math.min(255,Math.round(d[j+2]*(1+strength)));
  }
  x.putImageData(out,0,0);return c;
 }
@@ -667,10 +664,10 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   let anatomical;
   if(neckProgress<.10){
    const q=neckProgress/.10,eased=q*q*(3-2*q);
-   anatomical=W*(.205-(.020*eased));
+   anatomical=W*(.190-(.015*eased));
   }else if(neckProgress<.35){
    const q=(neckProgress-.10)/.25,eased=q*q*(3-2*q);
-   anatomical=W*(.185+.155*eased);
+   anatomical=W*(.175+.165*eased);
   }else{
    const q=(neckProgress-.35)/.65,eased=q*q*(3-2*q);
    anatomical=W*(.340+.120*eased);
@@ -684,7 +681,8 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // V192: deterministic neck-skin clearance. Remove positively segmented hair
   // from the central anatomical neck corridor. The photographed neck extension
   // below this layer fills the opening; long side hair remains naturally tapered.
-  if(segmentedHair&&yy>chinY+H*.006){
+  // A stray hair classification must never punch a hole through confirmed neck skin.
+  if(segmentedHair&&skinAlpha<.45&&yy>chinY+H*.006){
    const p=Math.max(0,Math.min(1,(yy-chinY)/Math.max(1,H*.22)));
    const clearHalf=W*(.112+.022*p),clearFeather=Math.max(3,W*.008);
    if(dist<clearHalf){
@@ -729,7 +727,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
   // V201: lift only genuinely dark skin, capped at +12%. Correct exposure stays
   // unchanged; hair, uniform and background are never adjusted.
-  const skinBalancedHead=await applySkinBrightness(neckHead,null,masterMasks.skinMask);
+  // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
+  const skinBalancedHead=await applySkinBrightness(neckHead,1.20,masterMasks.skinMask);
   const cleanHead=isolateHeadHairAndNeck(skinBalancedHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
