@@ -1367,7 +1367,7 @@ async function aiFinishPortrait(originalFile,hairId){
  try{
   const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
   if(!r.ok) throw Error(await r.text());
-  return await r.blob();
+  return {blob:await r.blob(),fallback:r.headers.get('X-AI-Fallback')||''};
  }catch(e){
   if(e?.name==='AbortError') throw Error('AI ใช้เวลานานเกิน 120 วินาที กรุณาลองใหม่');
   throw e;
@@ -1839,7 +1839,7 @@ function App(){
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
    showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');completed=true;
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+  }catch(e){if(/safety block|ปฏิเสธผลลัพธ์ภาพ|moderation|ตัวกรองผลลัพธ์/i.test(e.message||''))setMsg('หมายเหตุ: ระบบคงภาพและทรงผมเดิมไว้อัตโนมัติ กรุณาเลือกรูปหรือทรงอื่น โดยไม่มีการลองซ้ำ');else setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -1956,7 +1956,8 @@ function App(){
   // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
   // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
-  const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
+  const aiResult=await aiFinishPortrait(f,hairId||'');
+  const aiHeadNeck=aiResult.blob;
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
@@ -1979,7 +1980,9 @@ function App(){
   setHeadAdjust(initialFit);liveAdjustRef.current={...initialFit};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,initialFit,0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');
-  showBlob(finished);completed=true;
+  showBlob(finished);
+  if(aiResult.fallback){setHairId('');setMsg('หมายเหตุ: ระบบจัดทำรูปต่อจากภาพต้นฉบับให้อัตโนมัติ โดยไม่เรียก AI ซ้ำและไม่คิดค่าซ้ำ');}
+  completed=true;
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
  if(screen==='home'){
   const rows=[
