@@ -325,3 +325,9 @@ Changes from V20: skin tone/light/detail only, matched toward the approved earli
 - Final head layer is scaled to 80% of V37 (uniform X/Y; no distortion).
 - Full-frame AI pixels are no longer the base. V28 locked composition is the base, and AI is clipped to a narrow central head/hair/neck window. This removes AI-generated duplicate uniform/epaulettes behind the real uniform.
 - Original uniform.png remains the final overlay layer.
+
+
+## V210 — Studio fill flash and natural neck proportions
+- Skin-only, highlight-protected shadow fill; original pore-scale detail is not blurred or synthesized.
+- AI neck-fit guidance based on original jaw width and a slightly wider under-jaw compositing corridor.
+- The face-lock mask, selected hairstyles, uniforms, and export pipeline are unchanged.
