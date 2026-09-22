@@ -1404,12 +1404,7 @@ async function headOnlyAIEditFile(file){
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
   const png=await canvasPng(canvas);
-  const faceLock=faceProtection(face,W,H);
-  const faceLockPng=await canvasPng(faceLock);
-  return {
-   image:new File([png],'head-only-ai-input.png',{type:'image/png'}),
-   mask:new File([faceLockPng],'face-lock-mask.png',{type:'image/png'})
-  };
+  return new File([png],'head-only-ai-input.png',{type:'image/png'});
  }finally{URL.revokeObjectURL(url)}
 }
 async function aiFinishPortrait(originalFile,hairId){
@@ -1417,15 +1412,13 @@ async function aiFinishPortrait(originalFile,hairId){
  // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile);
- fd.append('image',aiInput.image,aiInput.image.name);
- fd.append('mask',aiInput.mask,aiInput.mask.name);
- fd.append('mode','face-lock');
+ fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
  try{
   const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
-  if(!r.ok) throw await responseError(r,'ประมวลผลรูปไม่สำเร็จ');
+  if(!r.ok) throw Error(await r.text());
   return await r.blob();
  }catch(e){
   if(e?.name==='AbortError') throw Error('AI ใช้เวลานานเกิน 120 วินาที กรุณาลองใหม่');
@@ -1551,14 +1544,11 @@ async function prepareHairEdit(masterBlob){
  }finally{URL.revokeObjectURL(url)}
 }
 // V204: provider receives one immutable portrait, one exact style and one hard mask.
-async function requestHairstyleEngine(master,id,mask){
- const fd=new FormData();
- fd.append('image',new File([master],'head.png',{type:'image/png'}));
- fd.append('mask',new File([mask],'hair-edit-mask.png',{type:'image/png'}));
- fd.append('hairId',id);
+async function requestHairstyleEngine(master,id){
+ const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal});
-  if(!r.ok)throw await responseError(r,'เปลี่ยนทรงผมไม่สำเร็จ');return await r.blob();
+  if(!r.ok)throw Error(await r.text());return await r.blob();
  }catch(e){if(e?.name==='AbortError')throw Error('เปลี่ยนทรงผมใช้เวลานานเกิน 120 วินาที');throw e}
  finally{clearTimeout(timer)}
 }
@@ -1965,45 +1955,39 @@ function App(){
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // V216: re-edit the immutable approved first-pass head, NOT the raw upload
-  // or a previously edited hairstyle. Keep the editor placement/template unchanged.
+  // V138 DIRECT HAIR CHANGE: capture the current geometry automatically on every
+  // selection. Keep one immutable source master to prevent AI drift, but never lock
+  // the editor controls or require a separate confirmation button.
   clearTimeout(renderTimer.current);
   ++renderSeqRef.current;
   lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
   if(!lockedMasterRef.current){
-   lockedMasterRef.current=initialStyledHairRef.current||editCache.current.master;
+   lockedMasterRef.current=editCache.current.master;
    preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
   }
   hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งปัจจุบันไว้…');
   let completed=false;
   try{
    const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-   // Every hairstyle starts from the SAME immutable master. Results never
-   // become the source for another AI request, preventing accumulated drift.
-   const src=lockedMasterRef.current||initialStyledHairRef.current||editCache.current.master;
+   // Every hairstyle starts from the SAME immutable master captured at Lock time.
+   // This prevents AI drift from accumulating across hair-01 -> hair-07 -> hair-20.
+   const src=lockedMasterRef.current||editCache.current.master;
    let nextMaster;
    if(!id){
-    nextMaster=initialStyledHairRef.current||src;setProgressStage(78,'กำลังคืนทรงเริ่มต้น');
+    // "ผมเดิม" is a zero-credit restore: no AI request at all.
+    nextMaster=src;setProgressStage(78,'กำลังคืนทรงผมเดิม');
    }else{
-    setMsg('กำลังเปลี่ยนทรงผมจากภาพรอบแรก โดยล็อกผิวและใบหน้าเดิม…');
+    // V114: no client-side hair mask, no donor and no face-patch compositing.
+    // Provider output is a coherent head; MODNet removes only its temporary background.
+    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานเดิม…');
     const cached=hairResultCacheRef.current.get(id);
-    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำผลทรงผมที่ผ่านการล็อกใบหน้าแล้วกลับมาใช้ · ไม่เสียเครดิตซ้ำ');}
+    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
     else{
-     // V216: use the APPROVED first-pass portrait as the image authority.
-     // Re-editing the raw upload re-runs beauty/lighting decisions and changes skin.
-     // The immutable first pass already has the correct face, complexion and neck.
-     const firstPass=initialStyledHairRef.current;
-     if(!firstPass)throw Error('ไม่พบภาพรอบแรกที่ใช้ล็อกผิว กรุณาประมวลผลภาพใหม่');
-     const firstPassFile=new File([firstPass],'approved-first-pass.png',{type:'image/png'});
-     setProgressStage(38,'กำลังเปลี่ยนเฉพาะผมจากภาพรอบแรกที่ผิวถูกต้อง');
-     const aiHeadNeck=await aiFinishPortrait(firstPassFile,id);
-     setProgressStage(65,'กำลังลบพื้นหลัง');
-     const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
-     setProgressStage(78,'กำลังคืนผิวและรายละเอียดใบหน้าจากภาพรอบแรก');
-     // A prompt/mask alone is not a pixel lock: restore photographed skin
-     // from the approved image AFTER the AI edit and background removal.
-     // Do not run the skin sharpening pass a second time.
-     nextMaster=await restoreOriginalFacePixels(removedHeadNeck,firstPassFile);
+     const edited=await requestHairstyleEngine(src,id);
+     setProgressStage(68,'กำลังเตรียมทรงผม');
+     setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
+     nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
+     setProgressStage(86,'กำลังประกอบภาพ');
      // Cache only successfully processed images. Never cache errors or intermediate AI output.
      hairResultCacheRef.current.set(id,nextMaster);
     }
@@ -2019,8 +2003,8 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คืนผิวใบหน้าจากภาพรอบแรกและคงตำแหน่งเดิม');completed=true;
-  }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');completed=true;
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -2133,15 +2117,14 @@ function App(){
    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);setSafetyBlocked(false);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
-  // V209: generate the selected hairstyle together with the coherent head/neck
-  // in one AI edit. This removes the faceless PNG overlay that produced hard
-  // hairline edges and a pasted-looking face while the opaque mask locks the face.
-  const aiHeadNeck=await aiFinishPortrait(f,hairId||'original');
+ const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
+  // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
+  // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
+  // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
+  const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
-  const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await refineSkinTextureBlob(removedHeadNeck);
+  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   setProgressStage(78,'กำลังประกอบกับชุด');
   // 02 = exact remove.bg result before placement/resampling.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},activeUniformTemplate);
@@ -2154,17 +2137,13 @@ function App(){
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
   const layer=aiLayer;
   editCache.current={master:headNeckTransparent,lock:composed.lock};
-  cleanHairBaseRef.current=null;
-  initialStyledHairRef.current=headNeckTransparent;
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
-  const initialFit=firstFitHeadAdjust(composed.lock,gender);
-  initialHeadAdjustRef.current=initialFit;
-  const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
-  setHeadAdjust(initialFit);liveAdjustRef.current={...initialFit};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=headNeckTransparent;hairResultCacheRef.current.clear();if(hairId)hairResultCacheRef.current.set(hairId,headNeckTransparent);preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
-  const finished=await renderWithRibbon(headNeckTransparent,composed.lock,initialFit,0,{width:0,length:0},backgroundRef.current);
+  const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
+  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');
   showBlob(finished);completed=true;
- }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
+ }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
