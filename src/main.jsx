@@ -645,12 +645,16 @@ async function gentlyWarmCheeksAndLips(image,skinMask){
   const blush=Math.min(1,cheeks.reduce((v,q)=>v+gaussian(x,y,q),0));
   const lipTint=lip?gaussian(x,y,lip):0;
   // 10% is a ceiling on a subtle color correction, NOT 10% solid pink paint.
-  const w=.10*Math.max(blush*.70,lipTint*.55);
-  if(w<.001)continue;
   const r=d[j],g=d[j+1],b=d[j+2];
-  d[j]=Math.min(255,Math.round(r+w*9));
-  d[j+1]=Math.max(0,Math.round(g-w*4));
-  d[j+2]=Math.min(255,Math.round(b+w*2));
+  // A 10% blend toward a mild healthy rosy tone; no blur, no replacement
+  // texture, no change in geometry. Apply lip tint only on naturally reddish
+  // lip pixels, not on the surrounding chin or face.
+  const actualLip=(r>g*1.045&&r>b*1.025)?lipTint:0;
+  const w=.10*Math.min(1,blush*.85+actualLip*.75);
+  if(w<.001)continue;
+  d[j]=Math.min(255,Math.round(r+w*38));
+  d[j+1]=Math.max(0,Math.round(g-w*12));
+  d[j+2]=Math.min(255,Math.round(b+w*8));
  }
  ctx.putImageData(data,0,0);return c;
 }
@@ -1544,7 +1548,7 @@ async function prepareHairEdit(masterBlob){
   mx.putImageData(md,0,0);
   const input=canvasFor(W,H),ix=input.getContext('2d');
   ix.fillStyle='#349cf0';ix.fillRect(0,0,W,H);ix.drawImage(image,0,0);
-  return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,originalHair:hc,protectedSkin:immutable,faceShield:shield,faceRegion};
+  return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,forehead,originalHair:hc,protectedSkin:immutable,faceShield:shield,faceRegion};
  }finally{URL.revokeObjectURL(url)}
 }
 // V204: provider receives one immutable portrait, one exact style and one hard mask.
@@ -1576,11 +1580,43 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
   const fresh=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const newFaceSkin=await semanticClassMask(ai,W,H,[3]);
   const generatedSkin=newFaceSkin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  // V213: 256px segmentation misses thin roots and braids at full resolution.
+  // Reclaim only genuinely dark, neutral donor pixels immediately next to a
+  // confirmed hair pixel, within the already permitted hair edit region.
+  // Blue background and face skin are never used as hair fill.
+  const refined=new Uint8Array(W*H);
+  const isDonorHair=i=>{
+   const j=i*4,r=generated[j],g=generated[j+1],b=generated[j+2];
+   return generated[j+3]>245&&Math.max(r,g,b)<155&&Math.abs(r-g)<52&&b<r+30;
+  };
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+   const i=y*W+x,j=i*4;
+   if(!allowed[i]||protectedSkin[j+3]>128||faceShield[j+3]>0)continue;
+   if(fresh[j+3]>64){refined[i]=255;continue}
+   if(!isDonorHair(i))continue;
+   const nearby=[i-1,i+1,i-W,i+W,i-W-1,i-W+1,i+W-1,i+W+1];
+   if(nearby.some(k=>fresh[k*4+3]>64))refined[i]=255;
+  }
+  // Feather only the outermost hair boundary (not the whole hairstyle).
+  // Retain real strand contrast and protect the photographed skin exactly.
+  const matte=new Uint8Array(W*H);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+   const i=y*W+x;if(!refined[i])continue;
+   let neighbors=0;
+   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)neighbors+=refined[i+dy*W+dx]?1:0;
+   matte[i]=neighbors===9?255:Math.max(110,Math.round(neighbors/9*255));
+  }
+  const hairlineY=(prepared.forehead||0),hairlineHalf=prepared.eyeD*.14;
   let changed=0;
   for(let i=0;i<W*H;i++){
    if(!allowed[i])continue;
-   const j=i*4,old=originalHair[j+3]>96,newPx=fresh[j+3]>64;
+   const j=i*4,old=originalHair[j+3]>96,newPx=matte[i]>0;
    if(old&&!newPx){
+    // V213: never punch a blue hole in the photographed hairline when the
+    // coarse segmenter drops a few roots at the forehead. Keep the original
+    // strand there, but only in this narrow anatomical transition band.
+    const x=i%W,y=Math.floor(i/W);
+    if(Math.abs(y-hairlineY)<hairlineHalf&&Math.abs(x-W/2)<prepared.eyeD*1.3)continue;
     // When a shorter/newly parted style exposes upper forehead, keep the AI's
     // skin fill only inside that tiny permitted face region. Removed hair in
     // the surrounding background becomes transparent for the chosen backdrop.
@@ -1591,7 +1627,7 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
    }
    if(newPx){
     out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];
-    out.data[j+3]=Math.max(0,Math.min(255,Math.round(fresh[j+3]*generated[j+3]/255)));
+    out.data[j+3]=Math.max(0,Math.min(255,Math.round(matte[i]*generated[j+3]/255)));
     changed++;
    }
   }
