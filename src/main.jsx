@@ -1307,7 +1307,7 @@ async function responseError(response,fallback){
  return error;
 }
 
-// V113: segment + landmark guided EDIT of the immutable head master.
+// V204: segment + landmark guided EDIT of the immutable head master.
 // The AI edits an image, never supplies a separately aligned donor face.
 const HAIR_FACE_CONTOUR=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
 function faceProtection(face,W,H){
@@ -1322,16 +1322,20 @@ async function prepareHairEdit(masterBlob){
   const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   if(!face)throw Error('ตรวจใบหน้าในภาพฐานไม่สำเร็จ — ยังไม่เรียก AI');
   const hair=await semanticClassMask(image,W,H,[1]);
-  const protectedAreas=await semanticClassMask(image,W,H,[2,3,4]);
-  if(!hair||!protectedAreas)throw Error('โมเดลแยกผมหรือผิวไม่พร้อม — ยังไม่เรียก AI');
+  const faceSkinMask=await semanticClassMask(image,W,H,[3]);
+  const bodyAndClothesMask=await semanticClassMask(image,W,H,[2,4]);
+  if(!hair||!faceSkinMask||!bodyAndClothesMask)throw Error('โมเดลแยกผมหรือผิวไม่พร้อม — ยังไม่เรียก AI');
   const hc=hair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const skin=protectedAreas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const faceSkin=faceSkinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const bodyAndClothes=bodyAndClothesMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const shield=faceProtection(face,W,H).getContext('2d').getImageData(0,0,W,H).data;
+  const faceRegion=new Uint8ClampedArray(shield);
   const eyeD=Math.hypot((face[33].x-face[263].x)*W,(face[33].y-face[263].y)*H);
   let count=0;for(let i=0;i<W*H;i++)if(hc[i*4+3]>128&&shield[i*4+3]===0)count++;
   if(count<Math.max(120,eyeD*eyeD*.025))throw Error('ไม่พบผมในภาพฐานเพียงพอ — ยังไม่เรียก AI');
-  // Dilate the existing hair to include wisps and newly exposed background.
-  // A separate upper-head allowance makes larger updos possible.
+  // Dilate existing hair and add bounded top/side corridors. The corridors let
+  // a selected long style extend past short source hair without opening the
+  // face, neck or uniform to the model.
   const expanded=canvasFor(W,H),ex=expanded.getContext('2d');
   const radius=Math.max(3,Math.round(eyeD*.085));
   for(let dy=-radius;dy<=radius;dy+=Math.max(2,Math.round(radius/3)))
@@ -1339,10 +1343,21 @@ async function prepareHairEdit(masterBlob){
     if(dx*dx+dy*dy<=radius*radius)ex.drawImage(hair,dx,dy);
   const forehead=face[10].y*H,cx=(face[33].x+face[263].x)*W/2;
   ex.fillStyle='#fff';ex.beginPath();ex.ellipse(cx,forehead-eyeD*.43,eyeD*1.55,eyeD*.85,0,0,Math.PI*2);ex.fill();
+  const jawY=face[152].y*H,sideTop=forehead-eyeD*.25,sideBottom=Math.min(H,jawY+eyeD*2.75);
+  ex.beginPath();ex.roundRect(cx-eyeD*1.78,sideTop,eyeD*.92,sideBottom-sideTop,eyeD*.35);ex.fill();
+  ex.beginPath();ex.roundRect(cx+eyeD*.86,sideTop,eyeD*.92,sideBottom-sideTop,eyeD*.35);ex.fill();
   const edit=ex.getImageData(0,0,W,H),mask=canvasFor(W,H),mx=mask.getContext('2d');
-  const md=mx.createImageData(W,H),allowed=new Uint8Array(W*H);
+  const md=mx.createImageData(W,H),allowed=new Uint8Array(W*H),immutable=new Uint8ClampedArray(W*H*4);
+  const browIds=[70,63,105,66,107,336,296,334,293,300];
+  const browY=browIds.reduce((sum,index)=>sum+face[index].y*H,0)/browIds.length;
+  const fringeLimit=browY-eyeD*.12;
   for(let i=0;i<W*H;i++){
-   const j=i*4,protect=shield[j+3]>0||skin[j+3]>128;
+   const j=i*4,y=Math.floor(i/W);
+   // Upper forehead may receive fringe; everything from the brow line down,
+   // plus neck/body/clothes, is immutable at the pixel level.
+   const protect=bodyAndClothes[j+3]>128||(faceSkin[j+3]>128&&y>=fringeLimit)||(shield[j+3]>0&&y>=fringeLimit);
+   immutable[j]=immutable[j+1]=immutable[j+2]=255;immutable[j+3]=protect?255:0;
+   if(y<fringeLimit)shield[j+3]=0;
    allowed[i]=!protect&&edit.data[j+3]>0?1:0;
    md.data[j]=md.data[j+1]=md.data[j+2]=255;
    // OpenAI mask: transparent = editable; opaque = protected.
@@ -1351,12 +1366,15 @@ async function prepareHairEdit(masterBlob){
   mx.putImageData(md,0,0);
   const input=canvasFor(W,H),ix=input.getContext('2d');
   ix.fillStyle='#349cf0';ix.fillRect(0,0,W,H);ix.drawImage(image,0,0);
-  return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,originalHair:hc,protectedSkin:skin,faceShield:shield};
+  return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,originalHair:hc,protectedSkin:immutable,faceShield:shield,faceRegion};
  }finally{URL.revokeObjectURL(url)}
 }
-// V114: provider-agnostic direct hairstyle transfer. One immutable portrait, one style ID.
-async function requestHairstyleEngine(master,id){
- const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
+// V204: provider receives one immutable portrait, one exact style and one hard mask.
+async function requestHairstyleEngine(master,id,mask){
+ const fd=new FormData();
+ fd.append('image',new File([master],'head.png',{type:'image/png'}));
+ fd.append('mask',new File([mask],'hair-edit-mask.png',{type:'image/png'}));
+ fd.append('hairId',id);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal});
   if(!r.ok)throw await responseError(r,'เปลี่ยนทรงผมไม่สำเร็จ');return await r.blob();
@@ -1367,7 +1385,7 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
  const au=URL.createObjectURL(aiBlob),mu=URL.createObjectURL(masterBlob);
  try{
   const [ai,master]=await Promise.all([loadImage(au),loadImage(mu)]);
-  const {W,H,allowed,originalHair,protectedSkin,faceShield}=prepared;
+  const {W,H,allowed,originalHair,protectedSkin,faceShield,faceRegion}=prepared;
   const oldC=canvasFor(W,H),oc=oldC.getContext('2d',{willReadFrequently:true});oc.drawImage(master,0,0);
   const original=oc.getImageData(0,0,W,H),out=oc.createImageData(W,H);
   out.data.set(original.data);
@@ -1378,11 +1396,21 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
   const newHair=await semanticClassMask(ai,W,H,[1]);
   if(!newHair)throw Error('โมเดลตรวจผมผลลัพธ์ไม่พร้อม — คงภาพเดิม');
   const fresh=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const newFaceSkin=await semanticClassMask(ai,W,H,[3]);
+  const generatedSkin=newFaceSkin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   let changed=0;
   for(let i=0;i<W*H;i++){
    if(!allowed[i])continue;
    const j=i*4,old=originalHair[j+3]>96,newPx=fresh[j+3]>64;
-   if(old&&!newPx){out.data[j+3]=0;changed++;continue}
+   if(old&&!newPx){
+    // When a shorter/newly parted style exposes upper forehead, keep the AI's
+    // skin fill only inside that tiny permitted face region. Removed hair in
+    // the surrounding background becomes transparent for the chosen backdrop.
+    if(faceRegion?.[j+3]>0&&generatedSkin?.[j+3]>64){
+     out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];out.data[j+3]=255;
+    }else out.data[j+3]=0;
+    changed++;continue
+   }
    if(newPx){
     out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];
     out.data[j+3]=Math.max(0,Math.min(255,Math.round(fresh[j+3]*generated[j+3]/255)));
@@ -1709,7 +1737,7 @@ function App(){
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // V138 DIRECT HAIR CHANGE: capture the current geometry automatically on every
+  // V204 EXACT HAIR CHANGE: capture the current geometry automatically on every
   // selection. Keep one immutable source master to prevent AI drift, but never lock
   // the editor controls or require a separate confirmation button.
   clearTimeout(renderTimer.current);
@@ -1731,16 +1759,18 @@ function App(){
     // "ผมเดิม" is a zero-credit restore: no AI request at all.
     nextMaster=src;setProgressStage(78,'กำลังคืนทรงผมเดิม');
    }else{
-    // V114: no client-side hair mask, no donor and no face-patch compositing.
-    // Provider output is a coherent head; MODNet removes only its temporary background.
-    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานเดิม…');
+    // The provider can write only inside the hair mask. The client then copies
+    // only pixels classified as hair back onto the immutable source portrait.
+    setMsg('กำลังเปลี่ยนเฉพาะทรงผมบนภาพฐานเดิม…');
     const cached=hairResultCacheRef.current.get(id);
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
     else{
-     const edited=await requestHairstyleEngine(src,id);
-     setProgressStage(68,'กำลังเตรียมทรงผม');
-     setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
-     nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
+     let prepared=preparedHairBaseRef.current;
+     if(!prepared){setProgressStage(22,'กำลังล็อกใบหน้าและชุด');prepared=await prepareHairEdit(src);preparedHairBaseRef.current=prepared;}
+     const edited=await requestHairstyleEngine(prepared.input,id,prepared.mask);
+     setProgressStage(68,'กำลังแยกเฉพาเส้นผม');
+     setMsg('กำลังประกอบเฉพาะทรงผม โดยคงใบหน้าเดิม…');
+     nextMaster=await composeHairEdit(edited,src,prepared);
      setProgressStage(86,'กำลังประกอบภาพ');
      // Cache only successfully processed images. Never cache errors or intermediate AI output.
      hairResultCacheRef.current.set(id,nextMaster);
