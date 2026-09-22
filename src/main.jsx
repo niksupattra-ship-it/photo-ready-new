@@ -631,6 +631,14 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
  const semanticHair=semanticHairMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
+ const expandedSkin=canvasFor(W,H),esc=expandedSkin.getContext('2d');
+ if(semanticSkinMask){
+  const spread=Math.max(2,Math.round(W*.006));
+  for(let dy=-spread;dy<=spread;dy+=spread)for(let dx=-spread;dx<=spread;dx+=spread)esc.drawImage(semanticSkinMask,dx,dy);
+ }
+ const skinSoft=canvasFor(W,H),ssc=skinSoft.getContext('2d');
+ if(semanticSkinMask){ssc.filter=`blur(${Math.max(2,Math.min(6,W*.004))}px)`;ssc.drawImage(expandedSkin,0,0);ssc.filter='none'}
+ const semanticSkin=semanticSkinMask?ssc.getImageData(0,0,W,H).data:null;
  const start=Math.max(0,Math.floor(chinY-H*.012));
  // V199: retain the real AI-generated neck and clavicle field. Canvas only
  // feathers its outer alpha; it never synthesizes, stretches or repaints skin.
@@ -642,6 +650,7 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
   const dist=Math.abs(xx-faceCX);
   const segmentedHair=Boolean(semanticHair&&semanticHair[i+3]>96);
+  const skinAlpha=semanticSkin?semanticSkin[i+3]/255:1;
   // V194: below the jaw only confirmed hair can survive. The previous darkness
   // heuristic misread black shirts as hair and kept a duplicate torso layer.
   const hair=yy<hairFadeEnd&&dist<W*.38&&segmentedHair;
@@ -687,8 +696,10 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
    d[i+3]=Math.round(a*hairAlpha);
    if(d[i+3]>0)continue;
   }
-  if(!neck){d[i+3]=0;continue}
-  let alpha=sideAlpha;
+  // Keep only skin or confirmed hair below the jaw. Any AI-created shirt,
+  // collar and lower torso are removed before the real template is applied.
+  if(!neck||(!segmentedHair&&skinAlpha<.10)){d[i+3]=0;continue}
+  let alpha=sideAlpha*Math.min(1,skinAlpha*1.35);
   if(yy>solidEnd){
    const t=Math.max(0,Math.min(1,(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd)));
    const smooth=t*t*(3-2*t);
@@ -909,6 +920,51 @@ function alignFaceCanvas(source,from,to,W,H){
  x.translate((la.x+lb.x)*W*.5,(la.y+lb.y)*H*.5);x.rotate(rot);x.scale(ld/d,ld/d);
  x.translate(-(a.x+b.x)*sw*.5,-(a.y+b.y)*sh*.5);x.drawImage(source,0,0);
  return c;
+}
+function opaqueBounds(canvas){
+ const W=canvas.width,H=canvas.height,d=canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ let minX=W,minY=H,maxX=-1,maxY=-1;
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(d[(y*W+x)*4+3]<20)continue;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}
+ return maxX<minX?null:{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};
+}
+const localHairAnchorCache=new Map();
+async function localHairstyleOnCleanMaster(cleanBlob,hairId){
+ if(!hairId)return cleanBlob;
+ const cu=URL.createObjectURL(cleanBlob);
+ try{
+  const clean=await loadImage(cu),W=clean.naturalWidth,H=clean.naturalHeight;
+  const [cutout,preview]=await Promise.all([loadImage(`/assets/hair/${hairId}.png`),loadImage(`/assets/hairstyle-previews/${hairId}.png`)]);
+  const landmarker=await getLandmarker(),targetFace=landmarker.detect(clean).faceLandmarks?.[0];
+  let cached=localHairAnchorCache.get(hairId);
+  if(!cached){
+   const previewFace=landmarker.detect(preview).faceLandmarks?.[0];
+   const previewHair=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+   if(!previewFace||!previewHair)throw Error('เตรียมจุดยึดทรงผมไม่สำเร็จ');
+   const sourceCanvas=canvasFor(cutout.naturalWidth,cutout.naturalHeight);sourceCanvas.getContext('2d').drawImage(cutout,0,0);
+   const sourceBounds=opaqueBounds(sourceCanvas),previewBounds=opaqueBounds(previewHair);
+   if(!sourceBounds||!previewBounds)throw Error('ไฟล์ทรงผมไม่มีพื้นที่ทึบ');
+   const normalized=canvasFor(preview.naturalWidth,preview.naturalHeight),nx=normalized.getContext('2d');
+   nx.imageSmoothingEnabled=true;nx.imageSmoothingQuality='high';
+   nx.drawImage(cutout,sourceBounds.x,sourceBounds.y,sourceBounds.w,sourceBounds.h,previewBounds.x,previewBounds.y,previewBounds.w,previewBounds.h);
+   cached={normalized,previewFace};localHairAnchorCache.set(hairId,cached);
+  }
+  if(!targetFace)throw Error('ไม่พบใบหน้าบนภาพฐาน');
+  const aligned=alignFaceCanvas(cached.normalized,cached.previewFace,targetFace,W,H);
+  const bodySkin=await semanticClassMask(clean,W,H,[2]),faceSkin=await semanticClassMask(clean,W,H,[3]);
+  if(!bodySkin||!faceSkin)throw Error('ล็อกผิวก่อนวางผมไม่สำเร็จ');
+  const ad=aligned.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H);
+  const bd=bodySkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const fd=faceSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const eyeD=Math.hypot((targetFace[263].x-targetFace[33].x)*W,(targetFace[263].y-targetFace[33].y)*H),cx=(targetFace[33].x+targetFace[263].x)*W*.5;
+  const browIds=[70,63,105,66,107,336,296,334,293,300],browY=browIds.reduce((sum,index)=>sum+targetFace[index].y*H,0)/browIds.length;
+  for(let i=0;i<W*H;i++){
+   const j=i*4,x=i%W,y=(i-x)/W,centralFace=fd[j+3]>96&&y>=browY-eyeD*.10&&Math.abs(x-cx)<eyeD*.69;
+   if(bd[j+3]>80||centralFace)ad.data[j+3]=0;
+  }
+  aligned.getContext('2d').putImageData(ad,0,0);
+  const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(clean,0,0);ox.drawImage(aligned,0,0);
+  return await canvasPng(out);
+ }finally{URL.revokeObjectURL(cu)}
 }
 async function makeCleanHeadMaster(baldBlob,originalBlob){
  const bu=URL.createObjectURL(baldBlob),ou=URL.createObjectURL(originalBlob);
@@ -1295,6 +1351,28 @@ async function aiFinishPortrait(originalFile,hairId){
  }finally{clearTimeout(timer)}
 }
 
+// V206: provider edit masks are not a pixel-identity guarantee. Restore the
+// photographed face after background removal, aligned from the original eyes.
+async function restoreOriginalFacePixels(processedBlob,originalFile){
+ const pu=URL.createObjectURL(processedBlob),ou=URL.createObjectURL(originalFile);
+ try{
+  const [processed,original]=await Promise.all([loadImage(pu),loadImage(ou)]);
+  const landmarker=await getLandmarker(),pf=landmarker.detect(processed).faceLandmarks?.[0],of=landmarker.detect(original).faceLandmarks?.[0];
+  if(!pf||!of)throw Error('ล็อกใบหน้าต้นฉบับไม่สำเร็จ');
+  const W=processed.naturalWidth,H=processed.naturalHeight;
+  const aligned=alignFaceCanvas(original,of,pf,W,H);
+  const hard=faceProtection(pf,W,H),hx=hard.getContext('2d');
+  const eyeD=Math.hypot((pf[263].x-pf[33].x)*W,(pf[263].y-pf[33].y)*H);
+  hx.fillStyle='#fff';
+  for(const ear of [pf[234],pf[454]]){hx.beginPath();hx.ellipse(ear.x*W,ear.y*H,eyeD*.14,eyeD*.28,0,0,Math.PI*2);hx.fill()}
+  const soft=canvasFor(W,H),sx=soft.getContext('2d');
+  sx.filter=`blur(${Math.max(1.5,Math.min(4,eyeD*.012))}px)`;sx.drawImage(hard,0,0);sx.filter='none';
+  const originalFace=canvasFor(W,H),fx=originalFace.getContext('2d');fx.drawImage(aligned,0,0);fx.globalCompositeOperation='destination-in';fx.drawImage(soft,0,0);
+  const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(processed,0,0);ox.drawImage(originalFace,0,0);
+  return await canvasPng(out);
+ }finally{URL.revokeObjectURL(pu);URL.revokeObjectURL(ou)}
+}
+
 async function responseError(response,fallback){
  let data=null;
  try{
@@ -1580,7 +1658,7 @@ function App(){
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
- const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null);
+ const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null),cleanHairBaseRef=useRef(null),initialStyledHairRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
  const[downloadBusy,setDownloadBusy]=useState(false);
  const[backgroundId,setBackgroundId]=useState('default');const backgroundRef=useRef('/assets/background.jpg');
@@ -1626,7 +1704,7 @@ function App(){
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){suppressUiError(e,'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current)paintHeadTransform({...liveAdjustRef.current})};
@@ -1737,14 +1815,13 @@ function App(){
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // V204 EXACT HAIR CHANGE: capture the current geometry automatically on every
-  // selection. Keep one immutable source master to prevent AI drift, but never lock
-  // the editor controls or require a separate confirmation button.
+  // V205 DETERMINISTIC LOCAL HAIR: reuse one clean master. Changing styles does
+  // not call AI, spend another credit or accumulate facial drift.
   clearTimeout(renderTimer.current);
   ++renderSeqRef.current;
   lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
   if(!lockedMasterRef.current){
-   lockedMasterRef.current=editCache.current.master;
+   lockedMasterRef.current=cleanHairBaseRef.current||editCache.current.master;
    preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
   }
   hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งปัจจุบันไว้…');
@@ -1753,25 +1830,18 @@ function App(){
    const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
    // Every hairstyle starts from the SAME immutable master captured at Lock time.
    // This prevents AI drift from accumulating across hair-01 -> hair-07 -> hair-20.
-   const src=lockedMasterRef.current||editCache.current.master;
+   const src=cleanHairBaseRef.current||lockedMasterRef.current||editCache.current.master;
    let nextMaster;
    if(!id){
-    // "ผมเดิม" is a zero-credit restore: no AI request at all.
-    nextMaster=src;setProgressStage(78,'กำลังคืนทรงผมเดิม');
+    nextMaster=initialStyledHairRef.current||src;setProgressStage(78,'กำลังคืนทรงเริ่มต้น');
    }else{
-    // The provider can write only inside the hair mask. The client then copies
-    // only pixels classified as hair back onto the immutable source portrait.
-    setMsg('กำลังเปลี่ยนเฉพาะทรงผมบนภาพฐานเดิม…');
+    setMsg('กำลังวางไฟล์ทรงผมที่เลือกบนใบหน้าเดิม…');
     const cached=hairResultCacheRef.current.get(id);
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
     else{
-     let prepared=preparedHairBaseRef.current;
-     if(!prepared){setProgressStage(22,'กำลังล็อกใบหน้าและชุด');prepared=await prepareHairEdit(src);preparedHairBaseRef.current=prepared;}
-     const edited=await requestHairstyleEngine(prepared.input,id,prepared.mask);
-     setProgressStage(68,'กำลังแยกเฉพาเส้นผม');
-     setMsg('กำลังประกอบเฉพาะทรงผม โดยคงใบหน้าเดิม…');
-     nextMaster=await composeHairEdit(edited,src,prepared);
-     setProgressStage(86,'กำลังประกอบภาพ');
+     setProgressStage(54,'กำลังจัดตำแหน่งทรงผม');
+     nextMaster=await localHairstyleOnCleanMaster(src,id);
+     setProgressStage(86,'กำลังประกอบเส้นผม');
      // Cache only successfully processed images. Never cache errors or intermediate AI output.
      hairResultCacheRef.current.set(id,nextMaster);
     }
@@ -1787,7 +1857,7 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');completed=true;
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · ไม่เรียก AI · ไม่เสียเครดิตเพิ่ม');completed=true;
   }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
@@ -1902,13 +1972,15 @@ function App(){
   }catch(e){suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
  const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);setSafetyBlocked(false);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
-  // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
-  // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
-  // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
-  const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
+  // V205: ONE AI call creates a reusable clean head/neck base. The selected
+  // hairstyle and every later change use the exact local transparent PNG.
+  const useLocalHair=Boolean(hairId);
+  const aiHeadNeck=await aiFinishPortrait(f,useLocalHair?'clean-head':'original');
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
-  const headNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
+  const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
+  const cleanHeadNeck=await restoreOriginalFacePixels(removedHeadNeck,f);
+  const headNeckTransparent=useLocalHair?await localHairstyleOnCleanMaster(cleanHeadNeck,hairId):cleanHeadNeck;
   setProgressStage(78,'กำลังประกอบกับชุด');
   // 02 = exact remove.bg result before placement/resampling.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},activeUniformTemplate);
@@ -1921,11 +1993,13 @@ function App(){
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
   const layer=aiLayer;
   editCache.current={master:headNeckTransparent,lock:composed.lock};
+  cleanHairBaseRef.current=useLocalHair?cleanHeadNeck:null;
+  initialStyledHairRef.current=headNeckTransparent;
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const initialFit=firstFitHeadAdjust(composed.lock,gender);
   initialHeadAdjustRef.current=initialFit;
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
-  setHeadAdjust(initialFit);liveAdjustRef.current={...initialFit};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  setHeadAdjust(initialFit);liveAdjustRef.current={...initialFit};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=useLocalHair?cleanHeadNeck:null;hairResultCacheRef.current.clear();if(useLocalHair)hairResultCacheRef.current.set(hairId,headNeckTransparent);preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,initialFit,0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');
   showBlob(finished);completed=true;
