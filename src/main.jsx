@@ -1966,9 +1966,8 @@ function App(){
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // V215: re-run the exact FIRST-PROCESSING AI pipeline from the uploaded
-  // original File, never from the currently rendered/segmented/composited head.
-  // The editor placement snapshot and uniform template remain untouched.
+  // V216: re-edit the immutable approved first-pass head, NOT the raw upload
+  // or a previously edited hairstyle. Keep the editor placement/template unchanged.
   clearTimeout(renderTimer.current);
   ++renderSeqRef.current;
   lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
@@ -1987,18 +1986,25 @@ function App(){
    if(!id){
     nextMaster=initialStyledHairRef.current||src;setProgressStage(78,'กำลังคืนทรงเริ่มต้น');
    }else{
-    setMsg('กำลังใช้รูปต้นฉบับเปลี่ยนทรงผมด้วยคำสั่งเดียวกับการประมวลผลครั้งแรก…');
+    setMsg('กำลังเปลี่ยนทรงผมจากภาพรอบแรก โดยล็อกผิวและใบหน้าเดิม…');
     const cached=hairResultCacheRef.current.get(id);
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำผลทรงผมที่ผ่านการล็อกใบหน้าแล้วกลับมาใช้ · ไม่เสียเครดิตซ้ำ');}
     else{
-     if(!f)throw Error('ไม่พบรูปต้นฉบับ กรุณาอัปโหลดรูปใหม่');
-     setProgressStage(38,'กำลังใช้รูปต้นฉบับและคำสั่งประมวลผลครั้งแรก');
-     // Same function, source file and mode as go(): face-lock + selected hair.
-     const aiHeadNeck=await aiFinishPortrait(f,id);
-     setProgressStage(65,'กำลังลบพื้นหลังเหมือนประมวลผลครั้งแรก');
+     // V216: use the APPROVED first-pass portrait as the image authority.
+     // Re-editing the raw upload re-runs beauty/lighting decisions and changes skin.
+     // The immutable first pass already has the correct face, complexion and neck.
+     const firstPass=initialStyledHairRef.current;
+     if(!firstPass)throw Error('ไม่พบภาพรอบแรกที่ใช้ล็อกผิว กรุณาประมวลผลภาพใหม่');
+     const firstPassFile=new File([firstPass],'approved-first-pass.png',{type:'image/png'});
+     setProgressStage(38,'กำลังเปลี่ยนเฉพาะผมจากภาพรอบแรกที่ผิวถูกต้อง');
+     const aiHeadNeck=await aiFinishPortrait(firstPassFile,id);
+     setProgressStage(65,'กำลังลบพื้นหลัง');
      const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
-     setProgressStage(78,'กำลังเก็บรายละเอียดผิวเหมือนประมวลผลครั้งแรก');
-     nextMaster=await refineSkinTextureBlob(removedHeadNeck);
+     setProgressStage(78,'กำลังคืนผิวและรายละเอียดใบหน้าจากภาพรอบแรก');
+     // A prompt/mask alone is not a pixel lock: restore photographed skin
+     // from the approved image AFTER the AI edit and background removal.
+     // Do not run the skin sharpening pass a second time.
+     nextMaster=await restoreOriginalFacePixels(removedHeadNeck,firstPassFile);
      // Cache only successfully processed images. Never cache errors or intermediate AI output.
      hairResultCacheRef.current.set(id,nextMaster);
     }
@@ -2014,7 +2020,7 @@ function App(){
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากรูปต้นฉบับแล้ว · คงตำแหน่งชุดและหัวเดิม');completed=true;
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คืนผิวใบหน้าจากภาพรอบแรกและคงตำแหน่งเดิม');completed=true;
   }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
