@@ -609,15 +609,21 @@ async function applySkinBrightness(image,factor=null,skinMask=null){
    if(luma>35&&luma<235){sum+=luma;count++}
   }
   const mean=count?sum/count:160;
-  factor=mean<150?Math.min(1.12,150/Math.max(1,mean)):1;
+  // V210: soft fill flash is strongest in mid/shadow tones, never highlights.
+  factor=mean<170?Math.min(1.15,170/Math.max(1,mean)):1;
  }
  const lift=Math.max(0,Math.min(.25,factor-1));
  for(let i=0;i<W*H;i++){
   const j=i*4;if(!d[j+3]||!md[j+3])continue;
-  const strength=lift*(md[j+3]/255)*(d[j+3]/255);
-  d[j]=Math.min(255,Math.round(d[j]*(1+strength)));
-  d[j+1]=Math.min(255,Math.round(d[j+1]*(1+strength)));
-  d[j+2]=Math.min(255,Math.round(d[j+2]*(1+strength)));
+  const y=.2126*d[j]+.7152*d[j+1]+.0722*d[j+2];
+  // Apply a common RGB offset to retain local pore contrast and skin hue.
+  // Fade smoothly toward highlights so white uniform and shiny skin never clip.
+  const shadowWeight=Math.max(0,Math.min(1,(232-y)/102));
+  const strength=lift*(md[j+3]/255)*(d[j+3]/255)*shadowWeight;
+  const delta=Math.min(18,(255-y)*strength*.42);
+  d[j]=Math.min(255,Math.round(d[j]+delta));
+  d[j+1]=Math.min(255,Math.round(d[j+1]+delta));
+  d[j+2]=Math.min(255,Math.round(d[j+2]+delta));
  }
  x.putImageData(out,0,0);return c;
 }
@@ -661,10 +667,10 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   let anatomical;
   if(neckProgress<.10){
    const q=neckProgress/.10,eased=q*q*(3-2*q);
-   anatomical=W*(.185-(.025*eased));
+   anatomical=W*(.205-(.020*eased));
   }else if(neckProgress<.35){
    const q=(neckProgress-.10)/.25,eased=q*q*(3-2*q);
-   anatomical=W*(.160+.180*eased);
+   anatomical=W*(.185+.155*eased);
   }else{
    const q=(neckProgress-.35)/.65,eased=q*q*(3-2*q);
    anatomical=W*(.340+.120*eased);
