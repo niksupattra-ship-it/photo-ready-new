@@ -19,22 +19,21 @@ const MAX_CACHE_ENTRIES=8, CACHE_TTL_MS=15*60*1000;
 const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
-function cacheKey(portrait,mask,reference,hairId,provider){
- return crypto.createHash('sha256').update('v218|gpt-image-1.5|high|high|1024x1536|png|ai-hair-only-face-pixel-lock|')
- .update(provider).update(hairId).update(portrait).update(mask).update(reference).digest('hex');
+function cacheKey(portrait,reference,hairId,provider){
+ return crypto.createHash('sha256').update('v120|gpt-image-1.5|high|high|1024x1536|png|preview-reference-long-hair|')
+ .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
 }
-export async function editHairstyle({portrait,mask,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
+export async function editHairstyle({portrait,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
  if(!portrait?.buffer?.length)throw Object.assign(Error('กรุณาส่งภาพฐาน'),{status:400});
- if(!mask?.buffer?.length)throw Object.assign(Error('กรุณาส่ง mask ล็อกใบหน้า'),{status:400});
  if(!validateHairId(hairId))throw Object.assign(Error('หมายเลขทรงผมไม่ถูกต้อง'),{status:400});
  const provider=env.HAIRSTYLE_PROVIDER||'openai';
  if(!PROVIDERS.includes(provider))throw Object.assign(Error('HAIRSTYLE_PROVIDER ไม่ถูกต้อง'),{status:503});
  if(provider!=='openai')throw Object.assign(Error(`${provider}: ยังไม่ได้รับ API contract ที่ยืนยันแล้ว จึงไม่เรียกบริการอื่นแทน`),{status:503});
  if(!env.OPENAI_API_KEY)throw Object.assign(Error('ยังไม่ได้ตั้งค่า OPENAI_API_KEY'),{status:503});
- const reference=path.join(root,'public','assets','hair',`${hairId}.png`);
+ const reference=path.join(root,'public','assets',hairId.startsWith('manhair-')?'hair':'hairstyle-previews',`${hairId}.png`);
  if(!fs.existsSync(reference))throw Object.assign(Error('ไม่พบภาพอ้างอิงทรงผม'),{status:400});
  const referenceBytes=fs.readFileSync(reference);
- const key=cacheKey(portrait.buffer,mask.buffer,referenceBytes,hairId,provider);
+ const key=cacheKey(portrait.buffer,referenceBytes,hairId,provider);
  const existing=results.get(key);
  if(existing){
   if(Date.now()-existing.created<CACHE_TTL_MS){results.delete(key);results.set(key,existing);return {...existing.result,cache:'HIT'};}
@@ -53,21 +52,14 @@ export async function editHairstyle({portrait,mask,hairId,root=process.cwd(),env
   : hairId==='hair-04'
   ? 'STYLE 04 IS A LONG, HALF-UP HAIRSTYLE: middle part, subtly braided/pinned sections at both temples, and TWO long straight sections hanging down on the left and right past the ears to the shoulders. DO NOT turn it into a swept-back updo, bun, cropped bob or tucked-away hair. The long dark side lengths are mandatory and must be visibly present in the final image.'
   : 'Read the precise hairstyle from Image 2, including whether the lengths hang below the ears and shoulders. If Image 2 has loose hair down the sides, it MUST remain visibly down the sides; never turn loose hair into an updo.';
- form.append('prompt',`EDIT ONLY THE HAIRSTYLE IN IMAGE 1. Image 2 is the exact FACELESS TRANSPARENT HAIRSTYLE CUTOUT selected by the user, not a general inspiration image. ${styleInstruction} This is a REAL AI HAIRSTYLE REPLACEMENT, not a pasted transparent PNG or a generic restyling. Reconstruct the selected hairstyle as realistic strands attached to the SAME person's original scalp. Reproduce Image 2's identifying geometry as closely as possible: exact part location, fringe or braid pattern, crown height, side volume, outline, length, direction and tapered ends. Adapt ONLY HAIR width, crown height and side volume to Image 1's unchanged skull and face: maintain a believable head-to-hair ratio without enlarging the face, moving eyes or narrowing the jaw. Never copy the reference's face or skin. Keep the original photographed skin pixels and pore texture exactly unchanged; do not apply beauty filters, blush, lip tint, exposure changes or skin regeneration during hairstyle replacement. Create a photographic hairline with individual roots and fine strands that blend naturally into the existing forehead boundary; use HAIR PIXELS ONLY for this transition. Do not paint, patch, recolour or regenerate any forehead or face skin. The transparent pixels of the supplied mask are the only editable area; every opaque pixel must remain unchanged. Preserve the exact face, eyes, gaze, eyebrows, nose, mouth, jaw, ears, complexion, neck, shoulders, clothing and placement from Image 1. Never insert a face layer, skin rectangle, overlay band or hard geometric edge. SKIN SOURCE LOCK: Image 1 is authoritative. Preserve the real skin character visible in Image 1: pores, fine texture, tiny blemishes, fine lines, under-eye texture, natural tonal variation and non-uniform surface detail. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, synthesize fake pores, whiten, add makeup, add plastic gloss or apply a beauty filter. Keep the original complexion. Only make the minimal global photographic exposure/white-balance normalization needed for a clean professional ID portrait; never turn that correction into skin retouching. HAIR REALISM: render photographic human hair with natural root direction, fine individual strands, strand separation, irregular density, subtle flyaways and realistic overlapping layers. Avoid a solid hair mass, painted texture, plastic shine, overly smooth strands, artificial edge halos or excessive sharpening. Preserve believable studio-light highlights so strand detail remains visible. HAIR COLOR — PRO BLACK 50%: apply a restrained professional deep-black appearance comparable in visual strength to a 50% "Pro Black" hair adjustment: approximately halfway between the subject/reference's natural dark hair and neutral professional black. Keep realistic brown/charcoal tonal variation and specular highlights; do NOT make the hair flat jet-black, crush shadow detail, tint the skin, or darken eyebrows/eyelashes. Keep long hair outside the visible neck silhouette. This is a modest professional ID portrait. Return the same canvas size, framing and background with realistic roots, strand separation, subtle flyaways and no seams, halos or rectangular patches. Preserve a continuous, strand-by-strand photographic transition across the hairline; do not expose blue background holes above the forehead, temples or ears, and do not create straight side cut lines. Fill every former-hair area either with the selected new hairstyle or with naturally reconstructed background only OUTSIDE the original face/skin. Keep the hairline naturally attached to the ORIGINAL forehead skin, with no transparent wedge or bright halo.`);
- form.set('moderation','low');
+ form.append('prompt',`STRICT HAIRSTYLE REFERENCE TRANSFER for an ID portrait. Image 1 is the ORIGINAL SUBJECT. Image 2 is ${hairId.startsWith('manhair-')?'the FACELESS transparent hairstyle-only PNG corresponding to the male portrait thumbnail selected in the app':'the EXACT FULL-COLOR THUMBNAIL the user selected in the app, with a model wearing the desired hairstyle'}. The subject in Image 1 MUST remain the same person; do not transfer any reference-model face or clothing. ${styleInstruction} Match Image 2's parting, braid or twist details, fringe, top silhouette, crown height, hair texture, left/right side lengths, and where the hair falls behind the ears and shoulders. The user chose this exact thumbnail, not a generic similar hairstyle. DO NOT default to a smooth tied-back hairstyle or preserve Image 1's old hair when it conflicts with Image 2. No topknot or bun unless visibly present in Image 2. Preserve Image 1's face, skin, eyes, nose, mouth, ears, expression, head placement and neck. Remove replaced hair and reconstruct natural background where necessary. Preserve head and short-neck crop; no torso, clothing, insignia or reference-model face. Output a natural coherent photographic portrait with no seams or halos.`);
  form.append('image[]',new Blob([portrait.buffer],{type:portrait.mimetype||'image/png'}),'portrait.png');
- form.append('mask',new Blob([mask.buffer],{type:'image/png'}),'hair-edit-mask.png');
  form.append('image[]',new Blob([referenceBytes],{type:'image/png'}),`${hairId}.png`);
  const response=await fetcher('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:form});
  const body=await response.json();
  if(!response.ok){
   const code=body?.error?.code||'image_edit_failed';
-  const safetyBlocked=code==='moderation_blocked'||code==='safety_violations';
-  const error=Error(safetyBlocked?'ภาพนี้ไม่ผ่านการตรวจสอบความปลอดภัย กรุณาเปลี่ยนภาพใหม่แล้วประมวลผลอีกครั้ง':`OpenAI image edit: ${code}`);
-  if(safetyBlocked){
-   error.code='IMAGE_SAFETY_BLOCK';
-   error.moderationStage=body?.error?.moderation_details?.moderation_stage||'unknown';
-  }
+  const error=Error(code==='moderation_blocked'?'OpenAI ปฏิเสธผลลัพธ์ภาพ (safety block) — คงภาพเดิม':`OpenAI image edit: ${code}`);
   error.status=response.status;error.requestId=response.headers?.get?.('x-request-id');throw error;
  }
  const b64=body?.data?.[0]?.b64_json;
