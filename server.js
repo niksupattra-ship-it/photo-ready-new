@@ -274,6 +274,16 @@ app.use((err,req,res,next)=>{
 });
 
 app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",configured:true,removeBgCreditRequired:false}));
-app.use(express.static(path.join(dir,"dist")));
-app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
+// V219: HTML must never remain pinned to an earlier deployment. Hashed Vite assets
+// can be cached; the entry document and its fallback must be revalidated.
+app.get("/api/version",(req,res)=>{
+  res.set("Cache-Control","no-store");
+  res.json({version:"V219",ui:"gender-separated-government-uniforms",skinHair:"V218"});
+});
+app.use(express.static(path.join(dir,"dist"),{
+  setHeaders(res,filePath){
+    if(filePath.endsWith("index.html"))res.set("Cache-Control","no-store, max-age=0, must-revalidate");
+  }
+}));
+app.use((req,res)=>res.set("Cache-Control","no-store, max-age=0, must-revalidate").sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));

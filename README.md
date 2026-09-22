@@ -333,3 +333,6 @@ Changes from V20: skin tone/light/detail only, matched toward the approved earli
 - The face-lock mask, selected hairstyles, uniforms, and export pipeline are unchanged.
 
 V218: Restored V160 skin/hairstyle prompt profile for initial generation and subsequent hairstyle edit; retained V217 templates, positioning, and UI. No API image call was made during packaging.
+
+
+V219: Retain V218 skin/hair pipeline. Confirmed V217 and V218 main.jsx/style.css/assets are byte-identical. Government selector already uses gender-specific 3 uniforms and has no ministry selector. Added no-store HTML/fallback headers, /api/version, and visible V219 UI marker to diagnose stale deployments. Redeploy the full ZIP and confirm /api/version reports V219 and the home header shows V219.
