@@ -592,6 +592,30 @@ async function getV192MasterMasks(blob,image){
  }
  return pending;
 }
+// V211: a very light (10%) skin-only low-frequency blend. The original
+// photograph supplies 90% of every pixel, retaining real pores and identity.
+// Hair, eye/lip detail, clothes and alpha are never softened.
+async function gentlyEvenSkin(image,skinMask){
+ if(!skinMask)return image;
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const blur=canvasFor(W,H),bc=blur.getContext('2d');
+ bc.filter=`blur(${Math.max(1,Math.min(2,W*.0015))}px)`;
+ bc.drawImage(image,0,0,W,H);bc.filter='none';
+ const c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});
+ x.drawImage(image,0,0,W,H);
+ const orig=x.getImageData(0,0,W,H),d=orig.data;
+ const bd=bc.getImageData(0,0,W,H).data;
+ const md=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ for(let i=0;i<d.length;i+=4){
+  if(d[i+3]<240||md[i+3]<220)continue;
+  // Do not smooth sharp features or high-contrast skin edges.
+  const delta=Math.max(Math.abs(d[i]-bd[i]),Math.abs(d[i+1]-bd[i+1]),Math.abs(d[i+2]-bd[i+2]));
+  if(delta>18)continue;
+  for(let k=0;k<3;k++)d[i+k]=Math.round(d[i+k]*.90+bd[i+k]*.10);
+ }
+ x.putImageData(orig,0,0);return c;
+}
+
 async function applySkinBrightness(image,factor=null,skinMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  if(!skinMask)try{skinMask=await semanticClassMask(image,W,H,[2,3])}catch{return image}
@@ -678,19 +702,10 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // Do not intersect this mandatory neck/shoulder field with the low-resolution
   // semantic skin mask: that intersection caused the blue bites on both sides.
   const neck=yy<=fadeEnd&&sideAlpha>0;
-  // V192: deterministic neck-skin clearance. Remove positively segmented hair
-  // from the central anatomical neck corridor. The photographed neck extension
-  // below this layer fills the opening; long side hair remains naturally tapered.
-  // A stray hair classification must never punch a hole through confirmed neck skin.
-  if(segmentedHair&&skinAlpha<.45&&yy>chinY+H*.006){
-   const p=Math.max(0,Math.min(1,(yy-chinY)/Math.max(1,H*.22)));
-   const clearHalf=W*(.112+.022*p),clearFeather=Math.max(3,W*.008);
-   if(dist<clearHalf){
-    const keep=Math.max(0,Math.min(1,(dist-(clearHalf-clearFeather))/clearFeather));
-    d[i+3]=Math.round(a*keep);
-    if(d[i+3]===0)continue;
-   }
-  }
+  // V211: NEVER erase pixels inside the anatomical neck to clear hair.
+  // Hair segmentation sometimes labels shadowed neck as hair; the old clearing
+  // branch punched transparent holes that revealed the blue background.
+  // The template covers the lower margin; keep the continuous AI skin here.
   if(hair){
    if(yy<=hairSolidEnd)continue;
    const ht=Math.max(0,Math.min(1,(yy-hairSolidEnd)/Math.max(1,hairFadeEnd-hairSolidEnd)));
@@ -702,8 +717,10 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   }
   // Keep only skin or confirmed hair below the jaw. Any AI-created shirt,
   // collar and lower torso are removed before the real template is applied.
-  if(!neck||(!segmentedHair&&skinAlpha<.10)){d[i+3]=0;continue}
-  let alpha=sideAlpha*Math.min(1,skinAlpha*1.35);
+  if(!neck){d[i+3]=0;continue}
+  // Keep original MODNet opacity throughout the required neck fill. Semantic
+  // skin classification is advisory, never allowed to cut away neck pixels.
+  let alpha=sideAlpha;
   if(yy>solidEnd){
    const t=Math.max(0,Math.min(1,(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd)));
    const smooth=t*t*(3-2*t);
@@ -729,7 +746,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // unchanged; hair, uniform and background are never adjusted.
   // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
   const skinBalancedHead=await applySkinBrightness(neckHead,1.20,masterMasks.skinMask);
-  const cleanHead=isolateHeadHairAndNeck(skinBalancedHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
+  const softlyEvenHead=await gentlyEvenSkin(skinBalancedHead,masterMasks.skinMask);
+  const cleanHead=isolateHeadHairAndNeck(softlyEvenHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
