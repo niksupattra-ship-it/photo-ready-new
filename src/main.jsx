@@ -788,10 +788,9 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // V201: lift only genuinely dark skin, capped at +12%. Correct exposure stays
   // unchanged; hair, uniform and background are never adjusted.
   // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
-  const skinBalancedHead=await applySkinBrightness(neckHead,1.20,masterMasks.skinMask);
-  const softlyEvenHead=await gentlyEvenSkin(skinBalancedHead,masterMasks.skinMask);
-  const gentlyTintedHead=await gentlyWarmCheeksAndLips(softlyEvenHead,masterMasks.skinMask);
-  const cleanHead=isolateHeadHairAndNeck(gentlyTintedHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
+  // V217: V116 skin fidelity. No post-AI skin brightening, smoothing or makeup.
+  // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
+  const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
