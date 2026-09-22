@@ -913,7 +913,12 @@ function canvasPng(c){return new Promise((ok,bad)=>c.toBlob(b=>b?ok(b):bad(Error
 function alignFaceCanvas(source,from,to,W,H){
  const c=canvasFor(W,H),x=c.getContext('2d');
  const a=from[33],b=from[263],la=to[33],lb=to[263];
- const sw=source.naturalWidth,sh=source.naturalHeight;
+ // Images expose naturalWidth/naturalHeight, while the normalized hairstyle
+ // reference is a Canvas and exposes width/height. Reading only naturalWidth
+ // made sw/sh undefined for local PNG hairstyles, producing a NaN transform
+ // and a completely empty (bald) composite even though a style was selected.
+ const sw=source.naturalWidth||source.width,sh=source.naturalHeight||source.height;
+ if(!sw||!sh)throw Error('ขนาดภาพสำหรับจัดตำแหน่งทรงผมไม่ถูกต้อง');
  const d=Math.hypot((b.x-a.x)*sw,(b.y-a.y)*sh)||1;
  const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||d;
  const rot=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W)-Math.atan2((b.y-a.y)*sh,(b.x-a.x)*sw);
@@ -965,6 +970,13 @@ async function localHairstyleOnCleanMaster(cleanBlob,hairId){
    const neckOrShoulder=bd[j+3]>80&&y>chinY-eyeD*.04;
    if(neckOrShoulder||centralFace)ad.data[j+3]=0;
   }
+  // Never accept a selected hairstyle that became empty after alignment/mask.
+  // This check happens locally and before the preview is committed, so a NaN,
+  // off-canvas transform or an over-aggressive mask cannot return a bald head.
+  let visibleHair=0;
+  for(let i=0;i<W*H;i++)if(ad.data[i*4+3]>48)visibleHair++;
+  if(visibleHair<Math.max(180,Math.round(eyeD*eyeD*.12)))
+   throw Error('ทรงผมที่เลือกไม่ปรากฏครบ — คงภาพก่อนหน้า');
   aligned.getContext('2d').putImageData(ad,0,0);
   const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(clean,0,0);ox.drawImage(aligned,0,0);
   return await canvasPng(out);
