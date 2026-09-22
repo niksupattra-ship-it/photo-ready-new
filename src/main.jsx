@@ -957,9 +957,13 @@ async function localHairstyleOnCleanMaster(cleanBlob,hairId){
   const fd=faceSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const eyeD=Math.hypot((targetFace[263].x-targetFace[33].x)*W,(targetFace[263].y-targetFace[33].y)*H),cx=(targetFace[33].x+targetFace[263].x)*W*.5;
   const browIds=[70,63,105,66,107,336,296,334,293,300],browY=browIds.reduce((sum,index)=>sum+targetFace[index].y*H,0)/browIds.length;
+  const chinY=targetFace[152].y*H;
   for(let i=0;i<W*H;i++){
    const j=i*4,x=i%W,y=(i-x)/W,centralFace=fd[j+3]>96&&y>=browY-eyeD*.10&&Math.abs(x-cx)<eyeD*.69;
-   if(bd[j+3]>80||centralFace)ad.data[j+3]=0;
+   // Body-skin on a bald clean base often includes the scalp. Protect it only
+   // from the jaw downward; otherwise every selected PNG hairstyle disappears.
+   const neckOrShoulder=bd[j+3]>80&&y>chinY-eyeD*.04;
+   if(neckOrShoulder||centralFace)ad.data[j+3]=0;
   }
   aligned.getContext('2d').putImageData(ad,0,0);
   const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(clean,0,0);ox.drawImage(aligned,0,0);
@@ -1371,6 +1375,27 @@ async function restoreOriginalFacePixels(processedBlob,originalFile){
   const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(processed,0,0);ox.drawImage(originalFace,0,0);
   return await canvasPng(out);
  }finally{URL.revokeObjectURL(pu);URL.revokeObjectURL(ou)}
+}
+
+// V207: one coherent image layer, with a restrained local unsharp-mask only on
+// segmented skin. It clarifies real pore texture without pasting another face,
+// reshaping landmarks, whitening skin or touching hair/background/clothing.
+async function refineSkinTextureBlob(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const skin=await semanticClassMask(image,W,H,[2,3]);
+  if(!skin)return blob;
+  const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(image,0,0);
+  const blur=canvasFor(W,H),ux=blur.getContext('2d',{willReadFrequently:true});ux.filter=`blur(${Math.max(.7,Math.min(1.4,W*.0011))}px)`;ux.drawImage(image,0,0);ux.filter='none';
+  const out=bx.getImageData(0,0,W,H),soft=ux.getImageData(0,0,W,H).data,mask=skin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  for(let i=0;i<W*H;i++){
+   const j=i*4;if(out.data[j+3]<32||mask[j+3]<32)continue;
+   const amount=.24*(mask[j+3]/255);
+   for(let c=0;c<3;c++)out.data[j+c]=Math.max(0,Math.min(255,Math.round(out.data[j+c]+(out.data[j+c]-soft[j+c])*amount)));
+  }
+  bx.putImageData(out,0,0);return await canvasPng(base);
+ }finally{URL.revokeObjectURL(url)}
 }
 
 async function responseError(response,fallback){
@@ -1979,7 +2004,7 @@ function App(){
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
-  const cleanHeadNeck=await restoreOriginalFacePixels(removedHeadNeck,f);
+  const cleanHeadNeck=await refineSkinTextureBlob(removedHeadNeck);
   const headNeckTransparent=useLocalHair?await localHairstyleOnCleanMaster(cleanHeadNeck,hairId):cleanHeadNeck;
   setProgressStage(78,'กำลังประกอบกับชุด');
   // 02 = exact remove.bg result before placement/resampling.
