@@ -12,6 +12,27 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 
+function isImageSafetyBlock(code){
+  return code==="moderation_blocked" || code==="safety_violations";
+}
+
+function sendImageSafetyBlock(res,{stage="unknown",requestId="",source="portrait"}={}){
+  res.set("Cache-Control","no-store");
+  res.set("X-AI-Error-Code","IMAGE_SAFETY_BLOCK");
+  res.set("X-App-Credit-Charged","false");
+  if(requestId)res.set("X-Request-Id",requestId);
+  return res.status(422).json({
+    ok:false,
+    code:"IMAGE_SAFETY_BLOCK",
+    stage,
+    source,
+    retryable:false,
+    appCreditCharged:false,
+    keepOriginal:true,
+    message:"ภาพนี้ไม่ผ่านการตรวจสอบความปลอดภัย กรุณาเปลี่ยนภาพใหม่แล้วประมวลผลอีกครั้ง"
+  });
+}
+
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
 // The model only predicts an alpha matte. RGB pixels from the exact AI PNG are retained;
@@ -133,6 +154,9 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
   res.send(result.png);
  }catch(error){
   console.error("Hairstyle engine:",error.message,error.requestId||"");
+  if(error.code==="IMAGE_SAFETY_BLOCK"){
+   return sendImageSafetyBlock(res,{stage:error.moderationStage,requestId:error.requestId,source:"hairstyle"});
+  }
   res.status(error.status>=400&&error.status<600?error.status:500).send(error.message);
  }
 });
@@ -142,11 +166,13 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
     const inpaint=req.body?.mode==="hair-inpaint";
+    const faceLock=req.body?.mode==="face-lock";
+    const maskedEdit=inpaint||faceLock;
     const hairDonor=false; // V113: obsolete donor endpoint disabled
     if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
     const maskFile=req.files?.mask?.[0];
-    if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
-    if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
+    if(maskedEdit&&!maskFile) return res.status(400).send("ไม่มี edit protection mask");
+    if(!maskedEdit&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมดแก้ไขที่รองรับ");
     const key=process.env.OPENAI_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
 
@@ -166,9 +192,9 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
 
 GOAL: create one continuous, photorealistic head + hair + ears + neck + BOTH COMPLETE CLAVICLES + skin-only upper shoulders + upper-chest layer of the SAME PERSON for an ID portrait. The real skin must extend below both clavicles and across the full upper-shoulder span so every deep collar opening is completely filled; there must be NO empty background between the neck, collarbones, shoulders or upper chest. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this anatomy layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
 
-IDENTITY / FACE LOCK: preserve Image 1's exact facial structure and recognizable identity: eye shape and spacing, brows, nose, lips, cheeks, jaw, chin, ears, asymmetry, expression, age and proportions. Do not idealize, reshape, beautify or substitute facial features.
+IDENTITY / FACE LOCK — PIXEL-LEVEL PRIORITY: preserve Image 1's exact face geometry and recognizable identity. Keep the original face outline, forehead height, temples, cheek width, jaw angle, chin size, left/right asymmetry, eye shape and spacing, eyelids, eyebrows including thickness and arch, nose bridge/tip/nostrils, mouth width, lip shape, ears, expression and age. Do not make the face slimmer, rounder, younger, more symmetrical or conventionally attractive. Do not enlarge eyes, raise brows, narrow the nose, reshape lips or jaw, or transfer any feature from Image 2. Treat all facial landmarks from Image 1 as immutable.
 
-SKIN RETOUCH — PORES MUST REMAIN: Image 1 is authoritative. Remove only visible acne/pimples and isolated dark spots with a restrained professional photo retouch. Preserve real pores, fine skin grain, fine lines, under-eye texture, natural tonal variation, facial contours and all identity-bearing detail. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, synthesize fake pores, whiten, add makeup, add plastic gloss or apply a beauty filter. Keep the original complexion and natural skin character. The application applies its own measured skin-only brightness adjustment after generation, so do not overexpose or whiten the face.
+SKIN FIDELITY — DETAIL ONLY, NO BEAUTIFICATION: Image 1 is authoritative. Preserve the same complexion, freckles, moles, marks, natural under-eye tone, fine lines and tonal variation. Improve only the photographic resolution and clarity of the subject's existing real pore texture so pores remain fine, natural and continuous; do not erase or invent skin features. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, whiten, recolor, add foundation, blush, lipstick, eyeliner, eyeshadow, false eyelashes or any makeup, add plastic gloss, or apply a beauty filter. If Image 1 is dark, use only a restrained neutral exposure lift while retaining highlight and shadow detail; otherwise keep its exposure. The application performs a measured skin-only dark-image correction after generation, so do not overexpose the face.
 
 HAIR ONLY — STRICT FACE-SAFE EDIT: ${keepOriginalHair?"preserve the original hairstyle geometry from Image 1, but refine only the hair itself so its overall volume and outer silhouette look naturally balanced with the subject's existing face and skull. Do not change the hairline where it touches forehead/temples, and do not alter any face or skin pixels.":"change ONLY the hair region to follow Image 2. Match its parting, fringe, side shape, crown, length and tied/untied structure, but adapt ONLY the hair volume and outer silhouette so the hairstyle is naturally proportioned to Image 1's existing face, skull, ears and head size. The hairstyle reference has ZERO authority over face, skin, complexion, lighting or head/face geometry."}
 
@@ -194,7 +220,7 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dar
     form.append("size","1024x1536");
     form.append("output_format","png");
     form.append("image[]",new Blob([inputFile.buffer],{type:inputFile.mimetype||"image/png"}),"portrait.png");
-    if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
+    if(maskedEdit) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),faceLock?"face-lock-mask.png":"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
     const r=await fetch("https://api.openai.com/v1/images/edits",{
@@ -204,9 +230,9 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dar
     if(!r.ok){
       const code=body?.error?.code || "image_edit_failed";
       const stage=body?.error?.moderation_details?.moderation_stage;
-      if(code==="moderation_blocked" || code==="safety_violations"){
+      if(isImageSafetyBlock(code)){
         console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
-        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (ไม่ใช่เครดิตหมด) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
+        return sendImageSafetyBlock(res,{stage:stage||"unknown",requestId:r.headers.get("x-request-id")||"",source:"portrait"});
       }
       return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     }
