@@ -592,7 +592,7 @@ async function getV192MasterMasks(blob,image){
  }
  return pending;
 }
-async function applySkinBrightness(image,factor=1.10,skinMask=null){
+async function applySkinBrightness(image,factor=null,skinMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  if(!skinMask)try{skinMask=await semanticClassMask(image,W,H,[2,3])}catch{return image}
  if(!skinMask)return image;
@@ -601,6 +601,16 @@ async function applySkinBrightness(image,factor=1.10,skinMask=null){
  const c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
  const md=sc.getImageData(0,0,W,H).data;
+ if(factor==null){
+  let sum=0,count=0;
+  for(let i=0;i<W*H;i++){
+   const j=i*4;if(d[j+3]<128||md[j+3]<180)continue;
+   const luma=.2126*d[j]+.7152*d[j+1]+.0722*d[j+2];
+   if(luma>35&&luma<235){sum+=luma;count++}
+  }
+  const mean=count?sum/count:160;
+  factor=mean<150?Math.min(1.12,150/Math.max(1,mean)):1;
+ }
  const lift=Math.max(0,Math.min(.25,factor-1));
  for(let i=0;i<W*H;i++){
   const j=i*4;if(!d[j+3]||!md[j+3])continue;
@@ -697,9 +707,9 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  const head=await loadImage(masterURL);
   const masterMasks=await getV192MasterMasks(headMasterBlob,head);
   const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
-  // V192: apply the requested exact +10% only to semantic skin. Multiplicative
-  // RGB lift preserves local contrast, pores and fine texture.
-  const skinBalancedHead=await applySkinBrightness(neckHead,1.10,masterMasks.skinMask);
+  // V201: lift only genuinely dark skin, capped at +12%. Correct exposure stays
+  // unchanged; hair, uniform and background are never adjusted.
+  const skinBalancedHead=await applySkinBrightness(neckHead,null,masterMasks.skinMask);
   const cleanHead=isolateHeadHairAndNeck(skinBalancedHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
@@ -1253,7 +1263,12 @@ async function headOnlyAIEditFile(file){
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
   const png=await canvasPng(canvas);
-  return new File([png],'head-only-ai-input.png',{type:'image/png'});
+  const faceLock=faceProtection(face,W,H);
+  const faceLockPng=await canvasPng(faceLock);
+  return {
+   image:new File([png],'head-only-ai-input.png',{type:'image/png'}),
+   mask:new File([faceLockPng],'face-lock-mask.png',{type:'image/png'})
+  };
  }finally{URL.revokeObjectURL(url)}
 }
 async function aiFinishPortrait(originalFile,hairId){
@@ -1261,18 +1276,32 @@ async function aiFinishPortrait(originalFile,hairId){
  // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile);
- fd.append('image',aiInput,aiInput.name);
+ fd.append('image',aiInput.image,aiInput.image.name);
+ fd.append('mask',aiInput.mask,aiInput.mask.name);
+ fd.append('mode','face-lock');
  fd.append('hairId',hairId||'original');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
  try{
   const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
-  if(!r.ok) throw Error(await r.text());
+  if(!r.ok) throw await responseError(r,'ประมวลผลรูปไม่สำเร็จ');
   return await r.blob();
  }catch(e){
   if(e?.name==='AbortError') throw Error('AI ใช้เวลานานเกิน 120 วินาที กรุณาลองใหม่');
   throw e;
  }finally{clearTimeout(timer)}
+}
+
+async function responseError(response,fallback){
+ let data=null;
+ try{
+  data=(response.headers.get('content-type')||'').includes('application/json')?await response.json():await response.text();
+ }catch{}
+ const error=Error((typeof data==='string'?data:data?.message)||fallback);
+ error.code=typeof data==='object'&&data?data.code:'';
+ error.appCreditCharged=typeof data==='object'&&data?data.appCreditCharged:undefined;
+ error.keepOriginal=typeof data==='object'&&data?data.keepOriginal:undefined;
+ return error;
 }
 
 // V113: segment + landmark guided EDIT of the immutable head master.
@@ -1327,7 +1356,7 @@ async function requestHairstyleEngine(master,id){
  const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal});
-  if(!r.ok)throw Error(await r.text());return await r.blob();
+  if(!r.ok)throw await responseError(r,'เปลี่ยนทรงผมไม่สำเร็จ');return await r.blob();
  }catch(e){if(e?.name==='AbortError')throw Error('เปลี่ยนทรงผมใช้เวลานานเกิน 120 วินาที');throw e}
  finally{clearTimeout(timer)}
 }
@@ -1480,6 +1509,7 @@ function firstFitHeadAdjust(lock,gender='female'){
 
 function App(){
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
+ const[safetyBlocked,setSafetyBlocked]=useState(false);
  const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
  const[selectedStudentTemplate,setSelectedStudentTemplate]=useState(STUDENT_UNIFORMS[0].template);
  const[selectedInteriorTemplate,setSelectedInteriorTemplate]=useState(INTERIOR_UNIFORMS[0].img);
@@ -1540,6 +1570,10 @@ function App(){
  const headLayerRef=useRef(null);
  const previewStageRef=useRef(null);
  const fileInputRef=useRef(null);
+ const showSafetyBlock=message=>{
+  setSafetyBlocked(true);
+  setMsg(<div className="safety-block-content"><span>{message||'ภาพนี้ไม่ผ่านการตรวจสอบความปลอดภัย กรุณาเปลี่ยนภาพใหม่แล้วประมวลผลอีกครั้ง'}</span><small>คงภาพเดิมไว้ · ไม่มีการลองซ้ำอัตโนมัติ · ไม่หักเครดิตของระบบ</small><button type="button" onClick={()=>{const input=fileInputRef.current;if(input){input.value='';input.click()}}}>เปลี่ยนภาพใหม่</button></div>);
+ };
  const liveAdjustRef=useRef(headAdjust);
  const liveCollarWarpRef=useRef(collarWarp);
  const liveNeckAdjustRef=useRef(neckAdjust);
@@ -1559,7 +1593,7 @@ function App(){
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){setMsg(e.message||'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current)paintHeadTransform({...liveAdjustRef.current})};
@@ -1719,7 +1753,7 @@ function App(){
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
    showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');completed=true;
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+  }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -1832,7 +1866,7 @@ function App(){
    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){setMsg(e.message||'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
+ const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);setSafetyBlocked(false);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
   // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
   // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
@@ -1860,7 +1894,7 @@ function App(){
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,initialFit,0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');
   showBlob(finished);completed=true;
- }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
+ }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
