@@ -278,7 +278,7 @@ app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",confi
 // can be cached; the entry document and its fallback must be revalidated.
 app.get("/api/version",(req,res)=>{
   res.set("Cache-Control","no-store");
-  res.json({version:"V219",ui:"gender-separated-government-uniforms",skinHair:"V218"});
+  res.json({version:"V220",ui:"V215",skinHair:"V219"});
 });
 app.use(express.static(path.join(dir,"dist"),{
   setHeaders(res,filePath){
