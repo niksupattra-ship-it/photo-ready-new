@@ -1,0 +1,2 @@
+V221 = V220 web UI, styles, templates, preview assets and editor; V160 original AI finishing and hairstyle engine. Replaced src/main.jsx headOnlyAIEditFile, aiFinishPortrait, requestHairstyleEngine, changeHair and go; restored V160 server.js and hairstyle-engine/index.js. No V219 skin sharpening/face-paste-back in active go/changeHair. Live AI not tested.
+package-lock.json copied from V160 for reproducible install; npm build not run because npm cache is missing dependencies in this environment.

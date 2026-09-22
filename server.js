@@ -12,27 +12,6 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 
-function isImageSafetyBlock(code){
-  return code==="moderation_blocked" || code==="safety_violations";
-}
-
-function sendImageSafetyBlock(res,{stage="unknown",requestId="",source="portrait"}={}){
-  res.set("Cache-Control","no-store");
-  res.set("X-AI-Error-Code","IMAGE_SAFETY_BLOCK");
-  res.set("X-App-Credit-Charged","false");
-  if(requestId)res.set("X-Request-Id",requestId);
-  return res.status(422).json({
-    ok:false,
-    code:"IMAGE_SAFETY_BLOCK",
-    stage,
-    source,
-    retryable:false,
-    appCreditCharged:false,
-    keepOriginal:true,
-    message:"ภาพนี้ไม่ผ่านการตรวจสอบความปลอดภัย กรุณาเปลี่ยนภาพใหม่แล้วประมวลผลอีกครั้ง"
-  });
-}
-
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
 // The model only predicts an alpha matte. RGB pixels from the exact AI PNG are retained;
@@ -142,11 +121,11 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
 });
 
 
-// V204: exact transparent hair reference + hard face/body mask, no implicit fallback.
+// V114: separate provider engine; no Hair Donor, no mask upload, no implicit fallback.
 app.get("/api/hairstyle/providers",(req,res)=>res.json(providerStatus()));
-app.post("/api/hairstyle/edit",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),async(req,res)=>{
+app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
  try{
-  const result=await editHairstyle({portrait:req.files?.image?.[0],mask:req.files?.mask?.[0],hairId:req.body?.hairId,root:dir});
+  const result=await editHairstyle({portrait:req.file,hairId:req.body?.hairId,root:dir});
   res.set("Content-Type","image/png");res.set("Cache-Control","no-store");
   res.set("X-Hairstyle-Provider",result.provider);
   res.set("X-Hairstyle-Cache",result.cache||"MISS");
@@ -154,9 +133,6 @@ app.post("/api/hairstyle/edit",upload.fields([{name:"image",maxCount:1},{name:"m
   res.send(result.png);
  }catch(error){
   console.error("Hairstyle engine:",error.message,error.requestId||"");
-  if(error.code==="IMAGE_SAFETY_BLOCK"){
-   return sendImageSafetyBlock(res,{stage:error.moderationStage,requestId:error.requestId,source:"hairstyle"});
-  }
   res.status(error.status>=400&&error.status<600?error.status:500).send(error.message);
  }
 });
@@ -166,13 +142,11 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
     const inpaint=req.body?.mode==="hair-inpaint";
-    const faceLock=req.body?.mode==="face-lock";
-    const maskedEdit=inpaint||faceLock;
     const hairDonor=false; // V113: obsolete donor endpoint disabled
     if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
     const maskFile=req.files?.mask?.[0];
-    if(maskedEdit&&!maskFile) return res.status(400).send("ไม่มี edit protection mask");
-    if(!maskedEdit&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมดแก้ไขที่รองรับ");
+    if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
+    if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
     const key=process.env.OPENAI_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
 
@@ -187,12 +161,12 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
       hairBuf=fs.readFileSync(hairPath);
     }
 
-    const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears, one continuous natural neck, BOTH COMPLETE CLAVICLES, the skin-only upper shoulders and enough upper-chest skin to fill a deep open uniform collar. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail, hairline, shirt, jacket or rectangular image patch. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Build the neck in proportion to Image 1: the visible chin-to-clavicle length should normally be about 28–40% of the face height, adapted to this person's actual anatomy; the narrow middle-neck width should normally be about 65–80% of the jaw width; then widen smoothly and symmetrically into both clavicles and upper shoulders. These are guardrails, not fixed dimensions. Match the face's skin colour, texture, white balance, shadows and directional lighting continuously. The lower output must contain real continuous shoulder and upper-chest skin, not empty background. Return a neutral professional head-neck-shoulder-upper-chest crop on a plain temporary background; no clothing. This is an intermediate layer, not the final portrait.`;
+    const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Return a neutral professional head-and-short-neck crop on a plain temporary background; no torso or shoulders. This is an intermediate layer, not the final portrait.`;
     const prompt=hairDonor?`Create a photographic hairstyle DONOR for the same adult subject in image 1. Image 2 is the hairstyle reference. Change ONLY hair to match image 2: parting, fringe, volume, length, tied or untied shape. Preserve head orientation, eye positions, size, camera framing and background exactly. Natural hair roots, hairline, fine flyaways and studio lighting. Do not add hair over eyes, cheeks, ears, neck or clothing. The app extracts ONLY hair pixels from this result; face, skin, neck, ears and clothes from this AI output are discarded. Do not change the identity.`:inpaint?`EDIT ONLY THE HAIRSTYLE of the same adult person in image 1. Image 2 is a hairstyle reference ONLY. Follow the selected reference hairstyle, including parting, crown, fringe, silhouette and length. The transparent regions of the supplied mask are editable; preserve the opaque region, especially the entire face, forehead skin, eyebrows, ears, neck and uniform. Reconstruct any scalp and blue studio background previously covered by long hair as needed. Real photographic hair roots and fine flyaways, no hard cut lines, no rectangular patches or halos. Keep face identity and all uniform insignia unchanged. Return the same framing and scale.`:cleanHead?cleanPrompt:`PROFESSIONAL ID-PORTRAIT REFERENCE EDIT. Image 1 is the ORIGINAL FULL-QUALITY photograph of the subject. It is the sole authority for identity, face, skin, complexion, facial anatomy, expression and photographic skin texture.${keepOriginalHair?" There is no hairstyle reference: preserve the original hairstyle from Image 1.":" Image 2 is a HAIRSTYLE REFERENCE ONLY. Use it only for hairstyle geometry and appearance; never transfer its face, skin, lighting, makeup, head shape or identity."}
 
-GOAL: create one continuous, photorealistic head + hair + ears + neck + BOTH COMPLETE CLAVICLES + skin-only upper shoulders + upper-chest layer of the SAME PERSON for an ID portrait. The real skin must extend below both clavicles and across the full upper-shoulder span so every deep collar opening is completely filled; there must be NO empty background between the neck, collarbones, shoulders or upper chest. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this anatomy layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
+GOAL: create one continuous, photorealistic head + hair + ears + short neck layer of the SAME PERSON for an ID portrait. Preserve the subject as a real photographed person, not a beautified or re-rendered face. The application will place this layer behind its existing fixed clothing template, so DO NOT create or modify any clothing.
 
-IDENTITY / FACE LOCK — PIXEL-LEVEL PRIORITY: preserve Image 1's exact face geometry and recognizable identity. Keep the original face outline, forehead height, temples, cheek width, jaw angle, chin size, left/right asymmetry, eye shape and spacing, eyelids, eyebrows including thickness and arch, nose bridge/tip/nostrils, mouth width, lip shape, ears, expression and age. Do not make the face slimmer, rounder, younger, more symmetrical or conventionally attractive. Do not enlarge eyes, raise brows, narrow the nose, reshape lips or jaw, or transfer any feature from Image 2. Treat all facial landmarks from Image 1 as immutable.
+IDENTITY / FACE LOCK: preserve Image 1's exact facial structure and recognizable identity: eye shape and spacing, brows, nose, lips, cheeks, jaw, chin, ears, asymmetry, expression, age and proportions. Do not idealize, reshape, beautify or substitute facial features.
 
 SKIN SOURCE LOCK: Image 1 is authoritative. Preserve the real skin character visible in Image 1: pores, fine texture, tiny blemishes, fine lines, under-eye texture, natural tonal variation and non-uniform surface detail. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, synthesize fake pores, whiten, add makeup, add plastic gloss or apply a beauty filter. Keep the original complexion. Only make the minimal global photographic exposure/white-balance normalization needed for a clean professional ID portrait; never turn that correction into skin retouching.
 
@@ -202,37 +176,21 @@ HAIR REALISM: render photographic human hair with natural root direction, fine i
 
 HAIR COLOR — PRO BLACK 50%: apply a restrained professional deep-black appearance comparable in visual strength to a 50% "Pro Black" hair adjustment: approximately halfway between the subject/reference's natural dark hair and neutral professional black. Keep realistic brown/charcoal tonal variation and specular highlights; do NOT make the hair flat jet-black, crush shadow detail, tint the skin, or darken eyebrows/eyelashes.
 
-NECK-SKIN CLEARANCE — MANDATORY FOR EVERY HAIRSTYLE: no hair strand, hair panel, braid, ponytail or loose end may lie across any visible neck-skin pixel. Keep the complete front and side neck skin unobstructed. Long hair must route outside the neck silhouette and fall behind the shoulders/clothing-template area, with naturally tapered individual ends; never terminate in a straight horizontal or vertical cut line.
-
 ABSOLUTE EXCLUSION MASK INSTRUCTION: every pixel belonging to forehead skin, temples, eyebrows, eyelashes, eyes, nose, cheeks, ears, lips, jaw, chin and neck is protected and must remain governed exclusively by Image 1. Hair balancing, strand refinement and Pro Black 50% must affect HAIR PIXELS ONLY. Do not resize, warp, retouch, recolor or regenerate the face to make it fit the hairstyle; fit the hairstyle to the unchanged face instead.
 
-NECK PROPORTION — MATCH IMAGE 1: construct the neck as one coherent photographic anatomy generated together with the head, never as a pasted or repeated texture. Use Image 1's jaw width, face height, head size, camera angle and body alignment to determine the result. The visible chin-to-clavicle length should normally fall around 28–40% of Image 1's face height and the narrow middle-neck width around 65–80% of its jaw width, but adapt within those guardrails to the person's actual anatomy. Both sides must descend smoothly from below the ears and jaw, taper slightly inward through the middle, then widen gradually and symmetrically into visible left and right clavicles. Do not copy another person's neck dimensions. Do not make it pencil-thin, excessively long, cylindrical, abruptly flared or wider than the head. Preserve a continuous natural skin field from chin through neck to below the clavicles, with the same complexion, pores, tonal variation, white balance, exposure and left/right lighting as the original face. No blotches, repeated texture, horizontal seam, doubled neck or rectangular patch.
+OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, plus a short natural neck; do not generate shoulders or torso. No shirt, collar, tie, jacket, uniform, epaulettes, insignia, buttons or fabric. Use a simple temporary solid background. Keep natural camera detail without halos or artificial sharpening.
 
-OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, one natural neck, both complete clavicles, full skin-only upper shoulders from left to right, and continuous upper-chest skin extending well below the clavicle line. Neck, shoulder and chest colour, white balance, exposure, texture and side lighting must be continuous with the face, with no seam, doubled anatomy, pasted rectangle, hard horizontal edge or background hole. Generate the person's real upper-shoulder and upper-chest anatomy but NO clothing and no lower torso. No shirt, collar, tie, jacket, uniform, black garment, epaulettes, insignia, buttons or fabric. Use a simple temporary solid background outside the body. Keep natural camera detail without halos or artificial sharpening.
+FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture from Image 1, (3) selected hairstyle only from Image 2 when supplied, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
-FINAL PRIORITY: (1) same identity and face from Image 1, (2) unchanged original skin complexion, marks, pores and texture, (3) selected hairstyle only from Image 2 when supplied with the neck fully clear, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
-
-    // V202: moderation-safe wording for a benign professional portrait. The old
-    // anatomy prompt above is retained only for history and is never submitted.
-    const requestPrompt=cleanHead?`CREATE A TECHNICAL HEAD-AND-COLLAR FITTING LAYER FOR AN ID-PHOTO COMPOSITOR. Image 1 is the original adult subject and the sole authority for identity. Remove only the existing hair and reconstruct a natural clean scalp and complete ears so the application can place its own transparent hairstyle PNG over this result. The opaque face-lock area is immutable: do not redraw, reinterpret or replace any pixel of the face. Preserve the exact original face outline, forehead height, temples, cheeks, jaw, chin, natural asymmetry, gaze direction, eye shape and spacing, eyelids, eyebrows, nose, lips, ears, expression, age, complexion, moles, marks and photographic pore texture. The result must remain recognizably the same person, not an idealized similar person. Do not beautify, reshape, symmetrize, add makeup, whiten, blur, airbrush or make plastic skin. Keep natural fine pores and professional-camera micro-detail without inventing texture. Continue one natural neck below the jaw, opening gradually and symmetrically into both complete collarbones. Provide a continuous skin-coloured fitting margin as wide as the midpoint between the neck and each shoulder joint and deep enough to extend slightly below the collarbones for a deep open collar. Stop the person layer immediately below this upper-collar fitting area: no lower torso. Do not generate hair, wigs, shirt, collar, jacket, clothing, insignia or badges. Use a plain temporary studio background outside the subject. Return one single coherent photographic layer with no pasted face, overlay band, horizontal rectangle, seams, duplicate anatomy or background holes.`:inpaint?prompt:`EDIT A MODEST PROFESSIONAL ID PORTRAIT. Image 1 is the original adult subject and the sole authority for identity. ${keepOriginalHair?"Preserve the original hairstyle.":"Image 2 is the exact selected hairstyle reference; change only the hair to match its parting, crown, fringe, side volume, silhouette, length and tapered ends. Adapt only the hair scale and volume to the unchanged skull, ears and face proportions. Blend a photographic hairline into the forehead boundary using individual hair roots and fine strands only—never repaint skin."} The opaque face-lock area is immutable and must remain pixel-for-pixel unchanged. Preserve the exact face outline, forehead skin, cheeks, jaw, chin, natural asymmetry, gaze, eyes, eyelids, eyebrows, nose, lips, ears, expression, age, complexion, marks and natural pore detail. Do not insert a face layer, skin patch, rectangular overlay or horizontal band. Do not beautify, reshape, symmetrize, add makeup, whiten or smooth the face. Hair must have realistic root direction, strand separation, irregular density, subtle flyaways and natural studio highlights, with no wig edge, halo or pasted cutout appearance. Keep the portrait fully appropriate for an official application photo. Reconstruct a natural continuous neck from below the jaw to the normal professional collar line, with balanced left and right neck transitions and enough margin for the application to place its existing uniform template over it. Keep shoulders in a neutral, modest professional presentation. Do not generate insignia, badges or official uniform details; the application supplies those from its fixed template. Use a plain temporary studio background outside the subject. Keep Image 1 skin exposure, white balance, highlights, shadows and texture unchanged. Return one coherent front-facing photographic subject with no seams, duplicate anatomy, rectangular patches or background holes.`;
-
-    const requestPromptWithCoverage=`${requestPrompt} Keep the complete throat, both sides of the neck and the V-shaped open collar area filled with continuous real-looking skin down beyond the shirt collar: never expose temporary blue background within the collar opening. The neck must join the jaw naturally without pinching or sudden width changes. Balance hairstyle width and crown volume to the original unchanged face, never modify the face to fit the hair. Preserve Image 1 skin tone and microtexture without any skin-evening or beauty treatment. The generated person layer must contain an unbroken lower-neck fill region on both sides, widening naturally from the neck to approximately the midpoint between the neck and each shoulder joint, and continuing below the future collar edge. This covered compositing margin must match the face complexion and lighting and must not contain transparent gaps or background-coloured cut-outs. Keep the neck proportionate to the ORIGINAL jaw and head width, neither pinched nor oversized; connect both sides continuously beneath the jaw and extend intact skin past both collar edges. Never create notches, missing neck skin or gaps at the collar. Keep the original face and its photographic pore texture unchanged; do not brighten, recolor, smooth or reconstruct the face for this instruction.`;
-
-    // V212: replace the submitted prompt only; leave the historic prompts and endpoints intact.
-    // The shirt comes exclusively from the PNG compositor, NEVER from the AI layer.
-    const v212Prompt=`${requestPromptWithCoverage} CRITICAL TEMPLATE-COLLAR EXCLUSION: the generated layer is a BARE HEAD, BARE NECK and BARE UPPER CHEST ONLY. No inner shirt, white undershirt, collar, placket, lapel, white V-shaped fabric, clothing edge or garment shadow anywhere below the chin. The app overlays its own real shirt PNG after removing the temporary background. Keep uninterrupted natural skin from both jaw corners down to the upper chest, wide enough to fill the entire deep V-neck opening, with skin extending well BELOW its lowest point and to both sides behind the lapels. A white strip at either side of the neck is a FAILED result: replace it with anatomically continuous neck skin, not another shirt. Never paint skin over the real template; the real garment will be composited afterward. HAIR FIT: preserve the selected braid/parting/length and the original facial outline, but keep the crown and side volume proportional to the subject's ORIGINAL face, neither a large wig nor an overly narrow cap. SKIN FIDELITY: retain Image 1 complexion, marks, pores and natural tonal variation; no blush, lip tint, makeup, skin evening or beauty treatment. Do not change face geometry, eyes, nose, lips shape, skin identity or expression.`;
-    const v218Prompt=v212Prompt+`
-V160 SKIN AND HAIR PROFILE (override any contradictory cosmetic styling): SKIN SOURCE LOCK: Image 1 is authoritative. Preserve the real skin character visible in Image 1: pores, fine texture, tiny blemishes, fine lines, under-eye texture, natural tonal variation and non-uniform surface detail. Do not smooth, airbrush, denoise, blur, wax, porcelainize, repaint, synthesize fake pores, whiten, add makeup, add plastic gloss or apply a beauty filter. Keep the original complexion. Only make the minimal global photographic exposure/white-balance normalization needed for a clean professional ID portrait; never turn that correction into skin retouching. HAIR REALISM: render photographic human hair with natural root direction, fine individual strands, strand separation, irregular density, subtle flyaways and realistic overlapping layers. Avoid a solid hair mass, painted texture, plastic shine, overly smooth strands, artificial edge halos or excessive sharpening. Preserve believable studio-light highlights so strand detail remains visible. HAIR COLOR — PRO BLACK 50%: apply a restrained professional deep-black appearance comparable in visual strength to a 50% "Pro Black" hair adjustment: approximately halfway between the subject/reference's natural dark hair and neutral professional black. Keep realistic brown/charcoal tonal variation and specular highlights; do NOT make the hair flat jet-black, crush shadow detail, tint the skin, or darken eyebrows/eyelashes. Skin on the face must remain the original photographed skin, without lipstick, blush or added skin treatment. Deep-black adjustment is confined to hair pixels; never darken eyebrows or face. `;
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    form.append("prompt",v218Prompt);
-    form.append("moderation","low");
+    form.append("prompt",prompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
     form.append("size","1024x1536");
     form.append("output_format","png");
     form.append("image[]",new Blob([inputFile.buffer],{type:inputFile.mimetype||"image/png"}),"portrait.png");
-    if(maskedEdit) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),faceLock?"face-lock-mask.png":"hair-mask.png");
+    if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
     const r=await fetch("https://api.openai.com/v1/images/edits",{
@@ -242,9 +200,9 @@ V160 SKIN AND HAIR PROFILE (override any contradictory cosmetic styling): SKIN S
     if(!r.ok){
       const code=body?.error?.code || "image_edit_failed";
       const stage=body?.error?.moderation_details?.moderation_stage;
-      if(isImageSafetyBlock(code)){
+      if(code==="moderation_blocked" || code==="safety_violations"){
         console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
-        return sendImageSafetyBlock(res,{stage:stage||"unknown",requestId:r.headers.get("x-request-id")||"",source:"portrait"});
+        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (ไม่ใช่เครดิตหมด) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
       }
       return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     }
@@ -274,16 +232,6 @@ app.use((err,req,res,next)=>{
 });
 
 app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",configured:true,removeBgCreditRequired:false}));
-// V219: HTML must never remain pinned to an earlier deployment. Hashed Vite assets
-// can be cached; the entry document and its fallback must be revalidated.
-app.get("/api/version",(req,res)=>{
-  res.set("Cache-Control","no-store");
-  res.json({version:"V220",ui:"V215",skinHair:"V219"});
-});
-app.use(express.static(path.join(dir,"dist"),{
-  setHeaders(res,filePath){
-    if(filePath.endsWith("index.html"))res.set("Cache-Control","no-store, max-age=0, must-revalidate");
-  }
-}));
-app.use((req,res)=>res.set("Cache-Control","no-store, max-age=0, must-revalidate").sendFile(path.join(dir,"dist","index.html")));
+app.use(express.static(path.join(dir,"dist")));
+app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
