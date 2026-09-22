@@ -184,9 +184,13 @@ OUTPUT / ANATOMY: centered front-facing ID-photo head, complete hair and ears, o
 
 FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dark-spot cleanup while retaining real pores and skin texture, (3) selected hairstyle only from Image 2 when supplied with the neck fully clear, (4) natural neck transition. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
+    // V196 moderation-hardened request: OpenAI edits only a conventional adult
+    // professional headshot. Deep neck/clavicle fill is produced locally later.
+    const safetyHardenedPrompt=`Create a conventional professional ID headshot of the same adult person in Image 1. Preserve the exact identity, facial structure, expression, age, complexion, natural pores and photographic detail. Remove only isolated acne or dark spots; do not beautify, reshape, whiten, blur, add makeup or change facial features. ${keepOriginalHair?"Preserve the original hairstyle and hairline.":"Image 2 is a hairstyle reference only. Change only the hairstyle to match its parting, fringe, crown, silhouette and length; never transfer the reference face, clothing or lighting."} Keep hair away from the visible neck and taper long ends naturally outside the neck outline. Show only the complete head, hair, ears and a normal visible neck, centered and front-facing on a simple neutral studio background. Do not add clothing, shoulders, torso, insignia, jewelry or extra objects. Keep the same framing and head placement. The application will perform background removal, neck extension and clothing composition locally after this edit.`;
+
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    form.append("prompt",prompt);
+    form.append("prompt",safetyHardenedPrompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
     form.append("size","1024x1536");
@@ -204,7 +208,13 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dar
       const stage=body?.error?.moderation_details?.moderation_stage;
       if(code==="moderation_blocked" || code==="safety_violations"){
         console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
-        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (ไม่ใช่เครดิตหมด) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
+        // Continue with the prepared head-only input. No automatic retry means
+        // no second image request and no duplicate API charge.
+        res.set("Content-Type",inputFile.mimetype||"image/png");
+        res.set("Cache-Control","no-store");
+        res.set("X-AI-Fallback","safety-original-head");
+        if(stage)res.set("X-AI-Moderation-Stage",stage);
+        return res.send(inputFile.buffer);
       }
       return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     }
