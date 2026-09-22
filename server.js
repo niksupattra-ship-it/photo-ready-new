@@ -216,9 +216,11 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) restrained acne/dar
     // anatomy prompt above is retained only for history and is never submitted.
     const requestPrompt=inpaint?prompt:`EDIT A MODEST PROFESSIONAL ID PORTRAIT. Image 1 is the original adult subject and the sole authority for identity. ${keepOriginalHair?"Preserve the original hairstyle.":"Image 2 is a hairstyle reference only; change only the hair to match its parting, silhouette and length."} The opaque face-lock area must remain unchanged. Preserve the exact face outline, forehead, cheeks, jaw, chin, natural asymmetry, eyes, eyelids, eyebrows, nose, lips, ears, expression, age, complexion, marks and natural pore detail. Do not beautify, reshape, symmetrize, add makeup, whiten or smooth the face. Keep the portrait fully appropriate for an official application photo. Reconstruct a natural continuous neck from below the jaw to the normal professional collar line, with balanced left and right neck transitions and enough margin for the application to place its existing uniform template over it. Keep shoulders in a neutral, modest professional presentation. Do not generate insignia, badges or official uniform details; the application supplies those from its fixed template. Use a plain temporary studio background outside the subject. If the original face is dark, apply only a restrained neutral exposure correction while preserving highlights, shadows and skin texture. Return one coherent front-facing photographic subject with no seams, duplicate anatomy, rectangular patches or background holes.`;
 
+    const requestPromptWithCoverage=`${requestPrompt} The generated person layer must contain an unbroken lower-neck fill region on both sides, widening naturally from the neck to approximately the midpoint between the neck and each shoulder joint, and continuing below the future collar edge. This covered compositing margin must match the face complexion and lighting and must not contain transparent gaps or background-coloured cut-outs.`;
+
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    form.append("prompt",requestPrompt);
+    form.append("prompt",requestPromptWithCoverage);
     form.append("moderation","low");
     form.append("input_fidelity","high");
     form.append("quality","high");
