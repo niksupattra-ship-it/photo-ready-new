@@ -625,8 +625,8 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
  const start=Math.max(0,Math.floor(chinY-H*.012));
  // V199: retain the real AI-generated neck and clavicle field. Canvas only
  // feathers its outer alpha; it never synthesizes, stretches or repaints skin.
- const solidEnd=Math.min(H,Math.ceil(chinY+H*.38));
- const fadeEnd=Math.min(H,Math.ceil(chinY+H*.48));
+ const solidEnd=Math.min(H,Math.ceil(chinY+H*.58));
+ const fadeEnd=Math.min(H,Math.ceil(chinY+H*.70));
  const hairSolidEnd=Math.min(H,Math.ceil(chinY+H*.29));
  const hairFadeEnd=Math.min(H,Math.ceil(chinY+H*.46));
  for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
@@ -638,7 +638,17 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // heuristic misread black shirts as hair and kept a duplicate torso layer.
   const hair=yy<hairFadeEnd&&dist<W*.38&&segmentedHair;
   const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
-  const anatomical=W*(.105+.220*(neckProgress*neckProgress*(3-2*neckProgress)));
+  // V200: preserve the jaw first, taper into the middle neck, then open into
+  // complete clavicles, upper shoulders and upper chest like the reference.
+  // The previous monotonic corridor started too narrow and cut all of this off.
+  let anatomical;
+  if(neckProgress<.22){
+   const q=neckProgress/.22,eased=q*q*(3-2*q);
+   anatomical=W*(.175-(.060*eased));
+  }else{
+   const q=(neckProgress-.22)/.78,eased=q*q*(3-2*q);
+   anatomical=W*(.115+.360*eased);
+  }
   const sideFeather=Math.max(3,W*.008);
   const sideAlpha=Math.max(0,Math.min(1,(anatomical-dist)/sideFeather));
   const neck=yy<=fadeEnd&&sideAlpha>0&&(!semanticSkin||segmentedSkin);
