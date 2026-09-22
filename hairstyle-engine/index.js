@@ -19,21 +19,22 @@ const MAX_CACHE_ENTRIES=8, CACHE_TTL_MS=15*60*1000;
 const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
-function cacheKey(portrait,reference,hairId,provider){
- return crypto.createHash('sha256').update('v203|gpt-image-1.5|high|high|1024x1536|png|full-neck-covered-collar-margin|')
- .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
+function cacheKey(portrait,mask,reference,hairId,provider){
+ return crypto.createHash('sha256').update('v204|gpt-image-1.5|high|high|1024x1536|png|exact-transparent-hair-reference|')
+ .update(provider).update(hairId).update(portrait).update(mask).update(reference).digest('hex');
 }
-export async function editHairstyle({portrait,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
+export async function editHairstyle({portrait,mask,hairId,root=process.cwd(),env=process.env,fetcher=fetch}){
  if(!portrait?.buffer?.length)throw Object.assign(Error('กรุณาส่งภาพฐาน'),{status:400});
+ if(!mask?.buffer?.length)throw Object.assign(Error('กรุณาส่ง mask ล็อกใบหน้า'),{status:400});
  if(!validateHairId(hairId))throw Object.assign(Error('หมายเลขทรงผมไม่ถูกต้อง'),{status:400});
  const provider=env.HAIRSTYLE_PROVIDER||'openai';
  if(!PROVIDERS.includes(provider))throw Object.assign(Error('HAIRSTYLE_PROVIDER ไม่ถูกต้อง'),{status:503});
  if(provider!=='openai')throw Object.assign(Error(`${provider}: ยังไม่ได้รับ API contract ที่ยืนยันแล้ว จึงไม่เรียกบริการอื่นแทน`),{status:503});
  if(!env.OPENAI_API_KEY)throw Object.assign(Error('ยังไม่ได้ตั้งค่า OPENAI_API_KEY'),{status:503});
- const reference=path.join(root,'public','assets',hairId.startsWith('manhair-')?'hair':'hairstyle-previews',`${hairId}.png`);
+ const reference=path.join(root,'public','assets','hair',`${hairId}.png`);
  if(!fs.existsSync(reference))throw Object.assign(Error('ไม่พบภาพอ้างอิงทรงผม'),{status:400});
  const referenceBytes=fs.readFileSync(reference);
- const key=cacheKey(portrait.buffer,referenceBytes,hairId,provider);
+ const key=cacheKey(portrait.buffer,mask.buffer,referenceBytes,hairId,provider);
  const existing=results.get(key);
  if(existing){
   if(Date.now()-existing.created<CACHE_TTL_MS){results.delete(key);results.set(key,existing);return {...existing.result,cache:'HIT'};}
@@ -52,11 +53,10 @@ export async function editHairstyle({portrait,hairId,root=process.cwd(),env=proc
   : hairId==='hair-04'
   ? 'STYLE 04 IS A LONG, HALF-UP HAIRSTYLE: middle part, subtly braided/pinned sections at both temples, and TWO long straight sections hanging down on the left and right past the ears to the shoulders. DO NOT turn it into a swept-back updo, bun, cropped bob or tucked-away hair. The long dark side lengths are mandatory and must be visibly present in the final image.'
   : 'Read the precise hairstyle from Image 2, including whether the lengths hang below the ears and shoulders. If Image 2 has loose hair down the sides, it MUST remain visibly down the sides; never turn loose hair into an updo.';
- form.append('prompt',`STRICT HAIRSTYLE REFERENCE TRANSFER for an ID portrait. Image 1 is the ORIGINAL SUBJECT. Image 2 is ${hairId.startsWith('manhair-')?'the FACELESS transparent hairstyle-only PNG corresponding to the male portrait thumbnail selected in the app':'the EXACT FULL-COLOR THUMBNAIL the user selected in the app, with a model wearing the desired hairstyle'}. The subject in Image 1 MUST remain the same person; do not transfer any reference-model face or clothing. ${styleInstruction} Match Image 2's parting, braid or twist details, fringe, top silhouette, crown height, hair texture, left/right side lengths, and where the hair falls behind the ears and shoulders. DO NOT default to another hairstyle. MANDATORY NECK-SKIN CLEARANCE: no hair may overlap visible neck skin; route long hair outside the neck and behind the shoulder area with naturally tapered ends. Preserve Image 1's exact face, skin, pores, eyes, nose, mouth, ears, expression and head placement. Generate one coherent neck in proportion to Image 1: visible chin-to-clavicle length normally around 28–40% of face height and narrow middle-neck width around 65–80% of jaw width, adapted to the person. The neck must taper gently below the jaw, then widen smoothly into BOTH COMPLETE CLAVICLES, full skin-only upper shoulders from left to right, and enough continuous upper-chest skin to fill a deep open uniform collar. There must be NO empty background hole between neck, collarbones, shoulders or upper chest. Keep the same complexion, pores, white balance, shadows and left/right lighting as the face. No pencil-thin neck, abrupt flare, blotches, repeated texture, seam, doubled anatomy or rectangular patch. Do not add any shirt, jacket, uniform, insignia or fabric; generate real shoulder and upper-chest anatomy but no lower torso. Do not smooth, whiten, recolor or reshape the face. Output one natural coherent photographic head-neck-shoulder-upper-chest portrait with no seams or halos.`);
- form.set('prompt',`EDIT A MODEST PROFESSIONAL ID PORTRAIT. Image 1 is the original adult subject and the sole authority for identity. Image 2 is a hairstyle reference only. Change only the hair to match the selected parting, fringe, silhouette, crown and length, while keeping hair clear of the visible neck. Preserve Image 1's exact face outline, forehead, cheeks, jaw, chin, natural asymmetry, eye shape and spacing, eyelids, eyebrows, nose, lips, ears, expression, age, complexion, marks and natural pore detail. Do not beautify, reshape, symmetrize, add makeup, whiten or smooth the face. Keep the result fully appropriate for an official application photo. Maintain a natural continuous neck to the normal professional collar line and a neutral modest shoulder presentation for placement behind the application's fixed uniform template. Do not generate badges, insignia or official uniform details. If the original face is dark, apply only a restrained neutral exposure correction while preserving skin texture. Return one coherent front-facing photographic subject with no seams, duplicate anatomy, rectangular patches or background holes.`);
- form.set('prompt',`${form.get('prompt')} Keep an unbroken lower-neck fill region on both sides, widening naturally to approximately the midpoint between the neck and each shoulder joint and continuing below the future collar edge. Match the face complexion and lighting with no transparent gaps or background-coloured cut-outs.`);
+ form.append('prompt',`EDIT ONLY THE HAIRSTYLE IN IMAGE 1. Image 2 is the exact FACELESS TRANSPARENT HAIRSTYLE CUTOUT selected by the user, not a general inspiration image. ${styleInstruction} Reproduce Image 2's identifying geometry as closely as possible: exact part location, fringe or braid pattern, crown height, side volume, outline, length, direction and tapered ends. Adapt only its scale to Image 1's existing skull and ears. Do not replace it with a generic, similar or simplified hairstyle. The transparent pixels of the supplied mask are the only editable area; every opaque pixel must remain unchanged. Preserve the exact face, eyes, eyebrows, nose, mouth, jaw, ears, complexion, neck, shoulders, clothing and placement from Image 1. Keep long hair outside the visible neck silhouette. This is a modest professional ID portrait. Return the same canvas size, framing and background with no seams, halos or rectangular patches.`);
  form.set('moderation','low');
  form.append('image[]',new Blob([portrait.buffer],{type:portrait.mimetype||'image/png'}),'portrait.png');
+ form.append('mask',new Blob([mask.buffer],{type:'image/png'}),'hair-edit-mask.png');
  form.append('image[]',new Blob([referenceBytes],{type:'image/png'}),`${hairId}.png`);
  const response=await fetcher('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:form});
  const body=await response.json();
