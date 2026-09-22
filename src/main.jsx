@@ -616,6 +616,45 @@ async function gentlyEvenSkin(image,skinMask){
  x.putImageData(orig,0,0);return c;
 }
 
+// V212: localized, low-strength tonal tint on the existing RGB pixels only.
+// No AI face regeneration, landmark movement, blur or flat-color skin replacement.
+async function gentlyWarmCheeksAndLips(image,skinMask){
+ if(!skinMask)return image;
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ let landmarks;
+ try{landmarks=(await getLandmarker()).detect(image).faceLandmarks?.[0]}catch{return image}
+ if(!landmarks)return image;
+ const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,W,H);
+ const data=ctx.getImageData(0,0,W,H),d=data.data;
+ const m=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ const a=landmarks[234],b=landmarks[454],top=landmarks[10],chin=landmarks[152];
+ if(!a||!b||!top||!chin)return image;
+ const fw=Math.abs(b.x-a.x)*W,fh=Math.abs(chin.y-top.y)*H;
+ if(fw<20||fh<20)return image;
+ const cheeks=[landmarks[117],landmarks[346]].filter(Boolean).map(v=>[v.x*W,v.y*H,fw*.16,fh*.105]);
+ const lip=landmarks[13]&&landmarks[14]&&landmarks[61]&&landmarks[291]?
+  [((landmarks[13].x+landmarks[14].x)/2)*W,((landmarks[13].y+landmarks[14].y)/2)*H,
+   Math.abs(landmarks[291].x-landmarks[61].x)*W*.55,fh*.045]:null;
+ const gaussian=(x,y,shape)=>{const dx=(x-shape[0])/Math.max(1,shape[2]),dy=(y-shape[1])/Math.max(1,shape[3]);return Math.exp(-2.6*(dx*dx+dy*dy))};
+ const x0=Math.max(0,Math.floor(Math.min(...cheeks.map(v=>v[0]-v[2]*2),lip?lip[0]-lip[2]*2:W)));
+ const x1=Math.min(W,Math.ceil(Math.max(...cheeks.map(v=>v[0]+v[2]*2),lip?lip[0]+lip[2]*2:0)));
+ const y0=Math.max(0,Math.floor(Math.min(...cheeks.map(v=>v[1]-v[3]*2),lip?lip[1]-lip[3]*2:H)));
+ const y1=Math.min(H,Math.ceil(Math.max(...cheeks.map(v=>v[1]+v[3]*2),lip?lip[1]+lip[3]*2:0)));
+ for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+  const j=(y*W+x)*4;if(d[j+3]<245||m[j+3]<230)continue;
+  const blush=Math.min(1,cheeks.reduce((v,q)=>v+gaussian(x,y,q),0));
+  const lipTint=lip?gaussian(x,y,lip):0;
+  // 10% is a ceiling on a subtle color correction, NOT 10% solid pink paint.
+  const w=.10*Math.max(blush*.70,lipTint*.55);
+  if(w<.001)continue;
+  const r=d[j],g=d[j+1],b=d[j+2];
+  d[j]=Math.min(255,Math.round(r+w*9));
+  d[j+1]=Math.max(0,Math.round(g-w*4));
+  d[j+2]=Math.min(255,Math.round(b+w*2));
+ }
+ ctx.putImageData(data,0,0);return c;
+}
+
 async function applySkinBrightness(image,factor=null,skinMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  if(!skinMask)try{skinMask=await semanticClassMask(image,W,H,[2,3])}catch{return image}
@@ -747,7 +786,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
   const skinBalancedHead=await applySkinBrightness(neckHead,1.20,masterMasks.skinMask);
   const softlyEvenHead=await gentlyEvenSkin(skinBalancedHead,masterMasks.skinMask);
-  const cleanHead=isolateHeadHairAndNeck(softlyEvenHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
+  const gentlyTintedHead=await gentlyWarmCheeksAndLips(softlyEvenHead,masterMasks.skinMask);
+  const cleanHead=isolateHeadHairAndNeck(gentlyTintedHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
   const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
