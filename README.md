@@ -331,3 +331,5 @@ Changes from V20: skin tone/light/detail only, matched toward the approved earli
 - Skin-only, highlight-protected shadow fill; original pore-scale detail is not blurred or synthesized.
 - AI neck-fit guidance based on original jaw width and a slightly wider under-jaw compositing corridor.
 - The face-lock mask, selected hairstyles, uniforms, and export pipeline are unchanged.
+
+V218: Restored V160 skin/hairstyle prompt profile for initial generation and subsequent hairstyle edit; retained V217 templates, positioning, and UI. No API image call was made during packaging.
