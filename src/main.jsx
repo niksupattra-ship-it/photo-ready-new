@@ -710,10 +710,12 @@ async function optionalHealthySkin10(masterBlob,sourceBlob){
   // Darker source photographs receive the full extra lift. Already-bright
   // photographs receive less, preventing blown-out skin and lost pore detail.
   const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
-  const brighter=await applySkinBrightness(image,1.10+.10*exposureWeight,skinMask);
+  // V231: modest extra studio fill, adapting to original exposure; keep the
+  // per-pixel shadow/highlight protection and original high-frequency texture.
+  const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
   const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile);
   return await canvasPng(tinted);
- }catch(e){console.warn('V230 automatic skin enhancement skipped',e);return masterBlob}
+ }catch(e){console.warn('V231 automatic skin enhancement skipped',e);return masterBlob}
  finally{URL.revokeObjectURL(url)}
 }
 
@@ -856,7 +858,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // V217: V116 skin fidelity. No post-AI skin brightening, smoothing or makeup.
   // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
   const cleanHead=cache.cleanHead||(cache.cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask));
-  const c=liveCanvas||document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(420,Math.round(liveCanvas?.clientWidth||420)*2)/lock.W):1;c.width=Math.round(lock.W*ratio);c.height=Math.round(lock.H*ratio);
+  // V231: compose offscreen. Resizing the visible canvas clears it on every slider tick.
+ const c=document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(420,Math.round(liveCanvas?.clientWidth||420)*2)/lock.W):1;c.width=Math.round(lock.W*ratio);c.height=Math.round(lock.H*ratio);
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';x.scale(ratio,ratio);x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
@@ -909,7 +912,13 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const topY=lock.uY+lock.uH*(.495+(ribbonAdjust.y||0));
    x.drawImage(ribbon,centerX-ribbonWidth/2,topY,ribbonWidth,ribbonHeight);
   }
-  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),preview?'image/jpeg':'image/png',preview?.86:undefined));
+  if(preview&&liveCanvas){
+   // Draw the completed frame in one operation; never encode during dragging.
+   if(liveCanvas.width!==c.width||liveCanvas.height!==c.height){liveCanvas.width=c.width;liveCanvas.height=c.height}
+   liveCanvas.getContext('2d').drawImage(c,0,0);
+   return null;
+  }
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(masterURL)}
 }
 
@@ -1981,7 +1990,11 @@ function App(){
     while(seq===renderSeqRef.current&&(previewDrawingRef.current||previewFrame.current||previewDirtyRef.current)){
      await new Promise(resolve=>requestAnimationFrame(resolve));
     }
-    if(seq===renderSeqRef.current&&!activeSliderPointersRef.current.size){showBlob(out);setLiveCanvasVisible(false)}
+    if(seq===renderSeqRef.current&&!activeSliderPointersRef.current.size){
+     // Keep one visible rendering surface: switching canvas <-> img changes
+     // rasterisation/scale and makes the portrait appear to zoom back and forth.
+     showBlob(out);
+    }
    }catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับภาพไม่สำเร็จ')}
   },180);
  };
