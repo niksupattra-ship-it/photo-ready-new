@@ -1,0 +1,1 @@
+V230 based on V229. V227 automatic skin enhancement now runs on each initial portrait (no checkbox). Natural 50% professional-black hair rendering instructions apply to first generation and hairstyle donor/inpaint. Other UI, templates and controls unchanged. No paid API image test performed.
