@@ -1929,6 +1929,22 @@ function App(){
  // V225: draw straight into a persistent canvas. No image encoding or React
  // image-src replacement while moving a slider, finger or mouse.
  const finishTimer=useRef(null);
+ // Keep the canvas visible throughout a range-pointer gesture. Switching to
+ // the encoded image mid-drag caused the preview to jump between two frames.
+ const activeSliderPointersRef=useRef(new Set());
+ const finishSliderRef=useRef(null);
+ useEffect(()=>{
+  const finish=e=>{
+   if(!activeSliderPointersRef.current.delete(e.pointerId))return;
+   if(activeSliderPointersRef.current.size===0)finishSliderRef.current?.();
+  };
+  document.addEventListener('pointerup',finish,true);
+  document.addEventListener('pointercancel',finish,true);
+  return()=>{document.removeEventListener('pointerup',finish,true);document.removeEventListener('pointercancel',finish,true)};
+ },[]);
+ const captureSliderPointer=e=>{
+  if(e.target?.matches?.('input[type="range"]'))activeSliderPointersRef.current.add(e.pointerId);
+ };
  const previewFrame=useRef(null);
  const previewDrawingRef=useRef(false);
  const previewDirtyRef=useRef(false);
@@ -1954,16 +1970,23 @@ function App(){
  const commitAdjust=()=>{
   if(placementLocked||!editCache.current)return;
   clearTimeout(finishTimer.current);
+  if(activeSliderPointersRef.current.size)return;
   const seq=++renderSeqRef.current;
   finishTimer.current=setTimeout(async()=>{
    if(seq!==renderSeqRef.current||!editCache.current)return;
    const current=editCache.current;
    try{
     const out=await renderWithRibbon(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
-    if(seq===renderSeqRef.current){showBlob(out);setLiveCanvasVisible(false)}
+    // The asynchronous canvas painter must finish before the image/canvas swap.
+    // Otherwise an old canvas frame can reappear after the final PNG arrives.
+    while(seq===renderSeqRef.current&&(previewDrawingRef.current||previewFrame.current||previewDirtyRef.current)){
+     await new Promise(resolve=>requestAnimationFrame(resolve));
+    }
+    if(seq===renderSeqRef.current&&!activeSliderPointersRef.current.size){showBlob(out);setLiveCanvasVisible(false)}
    }catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับภาพไม่สำเร็จ')}
   },180);
  };
+ finishSliderRef.current=commitAdjust;
  const paintHeadTransform=next=>{
   if(placementLocked)return;
   liveAdjustRef.current=next;setHeadAdjust(next);
@@ -2259,7 +2282,7 @@ function App(){
   </main>;
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
- return <main className="app-shell modern-shell adaptive-editor" onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
+ return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
   <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}else fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
    <div className="quick-config">
