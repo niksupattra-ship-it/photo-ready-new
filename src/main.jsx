@@ -843,8 +843,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  let cache=editorPreparedCache.get(headMasterBlob);
  if(!cache){cache={};editorPreparedCache.set(headMasterBlob,cache)}
  const collarKey=`${lock.templatePath}|${collarWarp}`;
- if(cache.collarKey!==collarKey){cache.collarKey=collarKey;cache.uniform=await warpUniformCollar(uniform,collarWarp)}
- const warpedUniform=cache.uniform;
+ if(cache.collarKey!==collarKey){cache.collarKey=collarKey;cache.uniformPromise=warpUniformCollar(uniform,collarWarp)}
+ const warpedUniform=await cache.uniformPromise;
  const masterURL=URL.createObjectURL(headMasterBlob);
  try{
  const head=cache.head||(cache.head=await loadImage(masterURL));
@@ -2211,7 +2211,16 @@ function App(){
    if(seq!==renderSeqRef.current)return;
    editCache.current={...editCache.current,lock:composed.lock};
    commitUniformSelection(option);
-   setProgressStage(97,'กำลังแสดงผล');showBlob(out);setMsg('เปลี่ยนชุดแล้ว · คงใบหน้า ทรงผม และตำแหน่งเดิม');completed=true;
+   // V232: V231 keeps the live canvas visible after editing. Updating only the
+   // hidden PNG made a successful uniform change look like it did nothing.
+   // Redraw that same visible surface using the NEW template lock, without
+   // changing the slider renderer or the face/hair/skin pipeline.
+   setProgressStage(97,'กำลังแสดงผล');showBlob(out);
+   if(liveCanvasVisible){
+    previewDirtyRef.current=true;
+    drawLivePreview();
+   }
+   setMsg('เปลี่ยนชุดแล้ว · คงใบหน้า ทรงผม และตำแหน่งเดิม');completed=true;
   }catch(e){editCache.current={...editCache.current,lock:previousLock};suppressUiError(e,'เปลี่ยนชุดไม่สำเร็จ')}
   finally{await finishProgress(completed);setUniformChanging(false)}
  };
