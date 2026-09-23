@@ -263,7 +263,9 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   // V37 FINAL HEAD PROPORTION: after canonical face normalization and shoulder fitting,
   // reduce the final head block slightly so head/neck reads naturally against the fixed real uniform.
   // Uniform geometry is untouched; only the head layer scale changes, uniformly in X/Y.
-  const v37FinalHeadScale=0.80; // V38: reduce the FINAL placed head uniformly by an additional 20% vs V37
+  // V228: return to V226's original placement; proportion is handled when
+  // the AI creates the hair and neck, not by shrinking the finished layer.
+  const v37FinalHeadScale=0.80;
   let scale=canonicalScale*corrected*v37FinalHeadScale*(adjust.scale||1);
   scale=Math.max(.25,Math.min(4.0,scale));
 
