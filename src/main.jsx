@@ -156,6 +156,7 @@ async function headOnly(blob){
   }
 
   ctx.putImageData(data,0,0);
+  if(liveCanvas)return c; // Display directly: no JPEG/PNG encoding while the pointer is moving.
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้าง PNG ไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(url)}
 }
@@ -790,25 +791,32 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
  x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
 }
 
-async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}}){
+const editorPreparedCache=new WeakMap();
+async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}},preview=false,liveCanvas=null){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
  const bg=await loadImage(backgroundPath),uniform=await loadImage(lock.templatePath||'/assets/uniform.png');
- const warpedUniform=await warpUniformCollar(uniform,collarWarp);
+ let cache=editorPreparedCache.get(headMasterBlob);
+ if(!cache){cache={};editorPreparedCache.set(headMasterBlob,cache)}
+ const collarKey=`${lock.templatePath}|${collarWarp}`;
+ if(cache.collarKey!==collarKey){cache.collarKey=collarKey;cache.uniform=await warpUniformCollar(uniform,collarWarp)}
+ const warpedUniform=cache.uniform;
  const masterURL=URL.createObjectURL(headMasterBlob);
  try{
- const head=await loadImage(masterURL);
-  const masterMasks=await getV192MasterMasks(headMasterBlob,head);
-  const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
+ const head=cache.head||(cache.head=await loadImage(masterURL));
+  const masterMasks=await (cache.masksPromise||(cache.masksPromise=getV192MasterMasks(headMasterBlob,head)));
+  const neckKey=`${lock.chinY}|${neckAdjust.width||0}|${neckAdjust.length||0}`;
+  if(cache.neckKey!==neckKey){cache.neckKey=neckKey;cache.neckPromise=warpPersonNeck(head,lock.chinY,neckAdjust);cache.cleanHead=null}
+  const neckHead=await cache.neckPromise;
   // V201: lift only genuinely dark skin, capped at +12%. Correct exposure stays
   // unchanged; hair, uniform and background are never adjusted.
   // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
   // V217: V116 skin fidelity. No post-AI skin brightening, smoothing or makeup.
   // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
-  const cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
-  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
-  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
+  const cleanHead=cache.cleanHead||(cache.cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask));
+  const c=liveCanvas||document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(420,Math.round(liveCanvas?.clientWidth||420)*2)/lock.W):1;c.width=Math.round(lock.W*ratio);c.height=Math.round(lock.H*ratio);
+  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';x.scale(ratio,ratio);x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
   // V81-quality direct sampling: draw the untouched transparent master directly to
@@ -860,7 +868,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const topY=lock.uY+lock.uH*(.495+(ribbonAdjust.y||0));
    x.drawImage(ribbon,centerX-ribbonWidth/2,topY,ribbonWidth,ribbonHeight);
   }
-  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
+  return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),preview?'image/jpeg':'image/png',preview?.86:undefined));
  }finally{URL.revokeObjectURL(masterURL)}
 }
 
@@ -1827,6 +1835,7 @@ function App(){
  const[ribbonPanelTab,setRibbonPanelTab]=useState('select');
  const ribbonDragRef=useRef(null);
  const renderWithRibbon=(...args)=>renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current);
+ const renderQuickPreview=(...args)=>renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,true);
  const[resultTool,setResultTool]=useState('head');
  const[previewZoom,setPreviewZoom]=useState(1);
  const[previewPan,setPreviewPan]=useState({x:0,y:0});
@@ -1834,6 +1843,8 @@ function App(){
  const[headMasterPreview,setHeadMasterPreview]=useState(null);
  const[headPreviewLock,setHeadPreviewLock]=useState(null);
  const headLayerRef=useRef(null);
+ const liveCanvasRef=useRef(null);
+ const [liveCanvasVisible,setLiveCanvasVisible]=useState(false);
  const previewStageRef=useRef(null);
  const fileInputRef=useRef(null);
  const showSafetyBlock=message=>{
@@ -1861,12 +1872,12 @@ function App(){
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
- const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){suppressUiError(e,'ปรับส่วนหัวไม่สำเร็จ')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const applyAdjust=next=>{if(placementLocked)return;paintHeadTransform(next)};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
- const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current)paintHeadTransform({...liveAdjustRef.current})};
+ const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current){drawLivePreview();commitAdjust()}};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
- const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;const seq=++renderSeqRef.current;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,v,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับคอไม่สำเร็จ')}};
+ const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;drawLivePreview();commitAdjust()};
  const headTransformCss=(adj=liveAdjustRef.current)=>{
   const lock=headPreviewLock;if(!lock)return '';
   const s=adj.scale||1,rot=adj.rotation||0,stage=previewStageRef.current;
@@ -1874,31 +1885,49 @@ function App(){
   return `translate3d(${dx}px,${dy}px,0) rotate(${rot}deg) scale(${s})`;
  };
  const renderSeqRef=useRef(0);
- const commitAdjust=async next=>{
-  liveAdjustRef.current=next;setHeadAdjust(next);
-  if(!editCache.current)return;
-  if(adjustRenderBusyRef.current){pendingAdjustRef.current={...next};return}
-  adjustRenderBusyRef.current=true;
-  let current={...next};
-  try{
-   while(current){
-    pendingAdjustRef.current=null;
-    const seq=++renderSeqRef.current;
-    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,current,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-    if(!pendingAdjustRef.current&&seq===renderSeqRef.current)showBlob(out);
-    current=pendingAdjustRef.current;
-   }
-  }catch(e){suppressUiError(e,'ปรับส่วนหัวไม่สำเร็จ')}
-  finally{adjustRenderBusyRef.current=false;if(pendingAdjustRef.current){const latest=pendingAdjustRef.current;pendingAdjustRef.current=null;commitAdjust(latest)}}
+ // V225: draw straight into a persistent canvas. No image encoding or React
+ // image-src replacement while moving a slider, finger or mouse.
+ const finishTimer=useRef(null);
+ const previewFrame=useRef(null);
+ const previewDrawingRef=useRef(false);
+ const previewDirtyRef=useRef(false);
+ const drawLivePreview=()=>{
+  if(!editCache.current||!liveCanvasRef.current)return;
+  previewDirtyRef.current=true;
+  if(previewFrame.current||previewDrawingRef.current)return;
+  previewFrame.current=requestAnimationFrame(async()=>{
+   previewFrame.current=null;
+   if(previewDrawingRef.current)return;
+   previewDrawingRef.current=true;
+   try{
+    while(previewDirtyRef.current&&editCache.current&&liveCanvasRef.current){
+     previewDirtyRef.current=false;
+     const current=editCache.current;
+     await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,liveCanvasRef.current);
+     setLiveCanvasVisible(true);
+    }
+   }catch(e){suppressUiError(e,'แสดงภาพขณะลากไม่สำเร็จ')}
+   finally{previewDrawingRef.current=false;if(previewDirtyRef.current)drawLivePreview()}
+  });
  };
- // V85 SINGLE-RENDERER EDITOR: the bitmap visible in Preview is produced by the
- // exact same renderAdjustedFinal() used by Download. No CSS-only head layer remains.
+ const commitAdjust=()=>{
+  if(placementLocked||!editCache.current)return;
+  clearTimeout(finishTimer.current);
+  const seq=++renderSeqRef.current;
+  finishTimer.current=setTimeout(async()=>{
+   if(seq!==renderSeqRef.current||!editCache.current)return;
+   const current=editCache.current;
+   try{
+    const out=await renderWithRibbon(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
+    if(seq===renderSeqRef.current){showBlob(out);setLiveCanvasVisible(false)}
+   }catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับภาพไม่สำเร็จ')}
+  },180);
+ };
  const paintHeadTransform=next=>{
+  if(placementLocked)return;
   liveAdjustRef.current=next;setHeadAdjust(next);
-  // V222: match V160 slider responsiveness: reset the debounce on every move,
-  // then render the latest adjustment after one ~60fps frame (16 ms).
-  clearTimeout(renderTimer.current);
-  renderTimer.current=setTimeout(()=>{renderTimer.current=null;commitAdjust({...liveAdjustRef.current})},16);
+  ++renderSeqRef.current;clearTimeout(finishTimer.current);
+  drawLivePreview();commitAdjust();
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
@@ -1964,7 +1993,7 @@ function App(){
   if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;return;}
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId))return;
   e.preventDefault();clearTimeout(g.holdTimer);g.holdTimer=null;g.pointers.delete(e.pointerId);
-  if(g.pointers.size===0){const changed=g.drag||g.pinch;g.drag=false;g.pending=false;g.pinch=false;if(changed)commitAdjust({...liveAdjustRef.current})}
+  if(g.pointers.size===0){const changed=g.drag||g.pinch;g.drag=false;g.pending=false;g.pinch=false;if(changed)commitAdjust()}
   else if(g.pointers.size===1){g.drag=false;g.pending=false;g.pinch=false;g.primary=[...g.pointers.keys()][0]}
  };
  const previewWheel=e=>{if(a||b){e.preventDefault();setPreviewViewZoom(previewZoom*Math.exp(-e.deltaY*.0015))}};
@@ -2041,14 +2070,7 @@ function App(){
  };
  const applyRibbonAdjust=next=>{
   const v={x:Math.max(-.35,Math.min(.35,next.x)),y:Math.max(-.35,Math.min(.35,next.y)),scale:Math.max(.45,Math.min(2,next.scale))};
-  ribbonAdjustRef.current=v;setRibbonAdjust(v);
-  clearTimeout(renderTimer.current);
-  const seq=++renderSeqRef.current;
-  renderTimer.current=setTimeout(async()=>{
-   if(!editCache.current||!ribbonRef.current)return;
-   try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}
-   catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับแพรแถบไม่สำเร็จ')}
-  },20);
+  ribbonAdjustRef.current=v;setRibbonAdjust(v);drawLivePreview();commitAdjust();
  };
  const selectRibbon=async option=>{
   if(busy||hairBusy||downloadBusy)return;
@@ -2075,13 +2097,7 @@ function App(){
  const applyCollarPinAdjust=next=>{
   const clampSide=side=>({x:Math.max(-.2,Math.min(.2,side?.x||0)),y:Math.max(-.2,Math.min(.2,side?.y||0))});
   const v={left:clampSide(next.left),right:clampSide(next.right)};
-  collarPinAdjustRef.current=v;setCollarPinAdjust(v);
-  clearTimeout(renderTimer.current);const seq=++renderSeqRef.current;
-  renderTimer.current=setTimeout(async()=>{
-   if(!editCache.current||!collarPinRef.current)return;
-   try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}
-   catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับตำแหน่งเข็มไม่สำเร็จ')}
-  },20);
+  collarPinAdjustRef.current=v;setCollarPinAdjust(v);drawLivePreview();commitAdjust();
  };
  const pinSideControls=(side,label)=>{const value=collarPinAdjust[side];return <section className="pin-side-adjust"><strong>{label}</strong><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><input aria-label={`${label} เลื่อนซ้ายขวา`} type="range" min="-20" max="20" step=".5" value={value.x*100} onChange={e=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,x:Number(e.target.value)/100}})}/><output>{value.x>=0?'+':''}{Math.round(value.x*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,x:0}})} aria-label={`${label} คืนค่าซ้ายขวา`}><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขึ้น–ลง"><HeadAdjustGlyph type="vertical"/></span><input aria-label={`${label} เลื่อนขึ้นลง`} type="range" min="-20" max="20" step=".5" value={-value.y*100} onChange={e=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,y:-Number(e.target.value)/100}})}/><output>{-value.y>=0?'+':''}{Math.round(-value.y*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,y:0}})} aria-label={`${label} คืนค่าขึ้นลง`}><ResetGlyph/></button></div></section>};
  const selectBackground=async option=>{
@@ -2156,7 +2172,7 @@ function App(){
   // This removes the post-process face overlay/mask that caused visible face-shaped seams.
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
   const layer=aiLayer;
-  editCache.current={master:headNeckTransparent,lock:composed.lock};
+  editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
@@ -2203,7 +2219,7 @@ function App(){
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
  return <main className="app-shell modern-shell adaptive-editor" onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
-  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}else fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
+  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}else fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}

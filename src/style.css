@@ -1074,3 +1074,6 @@
  .pin-side-adjust{grid-template-columns:52px 1fr}
  .pin-side-adjust>strong{font-size:9px;padding-left:2px}
 }
+
+/* V225: canvas draws immediately, while full-resolution export remains unchanged. */
+.direct-edit-preview .live-editor-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;transform:var(--preview-view-transform,none);transform-origin:center center;will-change:contents;z-index:1}
