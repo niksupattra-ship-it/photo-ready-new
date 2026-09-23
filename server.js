@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import crypto from "crypto";
+import {cleanDarkHairFringe} from "./hair-edge-matte.js";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 
@@ -103,6 +104,9 @@ async function modnetRemoveBackground(input){
   for(let i=0,j=0,k=0;i<W*H;i++,j+=3,k+=4){
     rgba[k]=rgb[j];rgba[k+1]=rgb[j+1];rgba[k+2]=rgb[j+2];rgba[k+3]=alpha[i];
   }
+  // V234: eliminate pale/white matte contamination on dark flyaway hair before
+  // compositing over the blue background. Keep alpha and all opaque pixels intact.
+  cleanDarkHairFringe(rgba,alpha,W,H);
   return sharp(rgba,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
 }
 
