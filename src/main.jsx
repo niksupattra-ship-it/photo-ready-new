@@ -772,8 +772,11 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
  const start=Math.max(0,Math.floor(chinY-H*.012));
  // V199: retain the real AI-generated neck and clavicle field. Canvas only
  // feathers its outer alpha; it never synthesizes, stretches or repaints skin.
- const solidEnd=Math.min(H,Math.ceil(chinY+H*.64));
- const fadeEnd=Math.min(H,Math.ceil(chinY+H*.78));
+ // V233: retain 20% more of the actual generated lower-neck pixels so the
+ // open-collar V is filled with skin rather than fading to white/background.
+ // Never invent or stretch pixels: this only preserves AI-generated anatomy.
+ const solidEnd=Math.min(H,Math.ceil(chinY+H*.64*1.20));
+ const fadeEnd=Math.min(H,Math.ceil(chinY+H*.78*1.20));
  const hairSolidEnd=Math.min(H,Math.ceil(chinY+H*.29));
  const hairFadeEnd=Math.min(H,Math.ceil(chinY+H*.46));
  for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
