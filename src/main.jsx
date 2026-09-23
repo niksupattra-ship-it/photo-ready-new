@@ -619,7 +619,7 @@ async function gentlyEvenSkin(image,skinMask){
 
 // V212: localized, low-strength tonal tint on the existing RGB pixels only.
 // No AI face regeneration, landmark movement, blur or flat-color skin replacement.
-async function gentlyWarmCheeksAndLips(image,skinMask){
+async function gentlyWarmCheeksAndLips(image,skinMask,sourceProfile=null){
  if(!skinMask)return image;
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  let landmarks;
@@ -642,7 +642,7 @@ async function gentlyWarmCheeksAndLips(image,skinMask){
  const y0=Math.max(0,Math.floor(Math.min(...cheeks.map(v=>v[1]-v[3]*2),lip?lip[1]-lip[3]*2:H)));
  const y1=Math.min(H,Math.ceil(Math.max(...cheeks.map(v=>v[1]+v[3]*2),lip?lip[1]+lip[3]*2:0)));
  for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-  const j=(y*W+x)*4;if(d[j+3]<245||m[j+3]<230)continue;
+  const j=(y*W+x)*4;if(d[j+3]<245)continue;
   const blush=Math.min(1,cheeks.reduce((v,q)=>v+gaussian(x,y,q),0));
   const lipTint=lip?gaussian(x,y,lip):0;
   // 10% is a ceiling on a subtle color correction, NOT 10% solid pink paint.
@@ -651,8 +651,15 @@ async function gentlyWarmCheeksAndLips(image,skinMask){
   // texture, no change in geometry. Apply lip tint only on naturally reddish
   // lip pixels, not on the surrounding chin or face.
   const actualLip=(r>g*1.045&&r>b*1.025)?lipTint:0;
-  const w=.10*Math.min(1,blush*.85+actualLip*.75);
+  // Cheeks require the skin segmentation. Lips are frequently labeled as
+  // "other" by MediaPipe, so use the landmark-defined lip region instead.
+  const cheekStrength=(m[j+3]/255)*blush;
+  const naturalRosiness=Math.max(0,Math.min(1,(r-g-4)/35));
+  const sourceRosiness=sourceProfile?.rosiness??naturalRosiness;
+  const tintNeed=Math.max(.20,1-Math.max(naturalRosiness,sourceRosiness)*.60);
+  const w=.10*Math.min(1,cheekStrength*.85+actualLip*.75)*tintNeed;
   if(w<.001)continue;
+  // Add color to the existing RGB channels; never flatten or blur texture.
   d[j]=Math.min(255,Math.round(r+w*38));
   d[j+1]=Math.max(0,Math.round(g-w*12));
   d[j+2]=Math.min(255,Math.round(b+w*8));
@@ -660,19 +667,51 @@ async function gentlyWarmCheeksAndLips(image,skinMask){
  ctx.putImageData(data,0,0);return c;
 }
 
-// V223 optional, local, non-destructive enhancement. Never edits the uploaded
-// source or the AI prompt. No new AI call; return original pixels if masks fail.
-async function optionalHealthySkin10(masterBlob){
+// V226: measure the actual uploaded photograph before the AI edit, so the
+// optional enhancement responds to each person's existing exposure/rosiness.
+// No source pixels are altered; if detection fails, use conservative defaults.
+async function originalSkinProfile(sourceBlob){
+ if(!sourceBlob)return null;
+ const url=URL.createObjectURL(sourceBlob);
+ try{
+  const image=await loadImage(url),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  if(!face?.[117]||!face?.[346]||!face?.[234]||!face?.[454])return null;
+  const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,W,H);
+  const pixels=ctx.getImageData(0,0,W,H).data;
+  const fw=Math.abs(face[454].x-face[234].x)*W,radius=Math.max(2,Math.round(fw*.065));
+  let light=0,red=0,count=0;
+  for(const pt of [face[117],face[346]]){
+   const cx=Math.round(pt.x*W),cy=Math.round(pt.y*H);
+   for(let y=Math.max(0,cy-radius);y<Math.min(H,cy+radius);y+=3)
+    for(let x=Math.max(0,cx-radius);x<Math.min(W,cx+radius);x+=3){
+     if(((x-cx)**2+(y-cy)**2)>radius**2)continue;
+     const i=(y*W+x)*4;if(pixels[i+3]<240)continue;
+     light+=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];
+     red+=Math.max(0,Math.min(1,(pixels[i]-pixels[i+1]-4)/35));count++;
+    }
+  }
+  return count?{luma:light/count,rosiness:red/count}:null;
+ }catch{return null}finally{URL.revokeObjectURL(url)}
+}
+
+// Optional enhancement on the existing transparent AI portrait, not the
+// original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
+// bounded by original exposure and highlight protection; preserve pores.
+async function optionalHealthySkin10(masterBlob,sourceBlob){
  const url=URL.createObjectURL(masterBlob);
  try{
   const image=await loadImage(url),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
   const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
   if(!skinMask)return masterBlob;
-  const brighter=await applySkinBrightness(image,1.10,skinMask);
-  // The blush function works on original RGB detail; it does not blur pores.
-  const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask);
+  const profile=await originalSkinProfile(sourceBlob);
+  // Darker source photographs receive the full extra lift. Already-bright
+  // photographs receive less, preventing blown-out skin and lost pore detail.
+  const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
+  const brighter=await applySkinBrightness(image,1.10+.10*exposureWeight,skinMask);
+  const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile);
   return await canvasPng(tinted);
- }catch(e){console.warn('V223 optional skin enhancement skipped',e);return masterBlob}
+ }catch(e){console.warn('V226 optional skin enhancement skipped',e);return masterBlob}
  finally{URL.revokeObjectURL(url)}
 }
 
@@ -2160,7 +2199,7 @@ function App(){
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=healthySkin10?await optionalHealthySkin10(originalHeadNeckTransparent):originalHeadNeckTransparent;
+  const headNeckTransparent=healthySkin10?await optionalHealthySkin10(originalHeadNeckTransparent,f):originalHeadNeckTransparent;
   setProgressStage(78,'กำลังประกอบกับชุด');
   // 02 = exact remove.bg result before placement/resampling.
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},activeUniformTemplate);
@@ -2226,7 +2265,7 @@ function App(){
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&uniformCategory!=='student'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
     {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>เพิ่มมหาวิทยาลัยภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div></>}
    </div>
-   {!b&&<label className="healthy-skin-v223" style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0",fontSize:14}}><input type="checkbox" checked={healthySkin10} disabled={busy||hairBusy} onChange={e=>setHealthySkin10(e.target.checked)}/><span>ผิวใสสุขภาพดี +10% · แก้มและปากอมชมพู +10% (เลือกเพิ่ม ไม่เปลี่ยนภาพต้นฉบับ)</span></label>}<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label></div>}</div>
+   {!b&&<label className="healthy-skin-v223" style={{display:"flex",alignItems:"center",gap:8,margin:"10px 0",fontSize:14}}><input type="checkbox" checked={healthySkin10} disabled={busy||hairBusy} onChange={e=>setHealthySkin10(e.target.checked)}/><span>ผิวใสสุขภาพดีเพิ่มอีก +10% · แก้มและปากชมพูอ่อนตามสีผิวต้นฉบับ (เลือกเพิ่ม ไม่เปลี่ยนภาพต้นฉบับ)</span></label>}<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label></div>}</div>
 {msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<div className="head-adjust-modern" role="group" aria-label="ปรับขนาดและตำแหน่งศีรษะ"><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขนาด"><HeadAdjustGlyph type="scale"/></span><input aria-label="ขนาดศีรษะ" type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><output>{Math.round(headAdjust.scale*100)}%</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,scale:1})} aria-label="คืนค่าขนาด"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><input aria-label="เลื่อนซ้ายขวา" type="range" min="-50" max="50" step="0.1" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><output>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,x:0})} aria-label="คืนค่าตำแหน่งซ้ายขวา"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="บน–ล่าง"><HeadAdjustGlyph type="vertical"/></span><input aria-label="เลื่อนขึ้นลง" type="range" min="-50" max="50" step="0.1" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><output>{(-headAdjust.y)>=0?'+':''}{(-headAdjust.y*100).toFixed(1)}</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,y:0})} aria-label="คืนค่าตำแหน่งบนล่าง"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="เอียง"><HeadAdjustGlyph type="rotation"/></span><input aria-label="ปรับองศาเอียง" type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><output>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,rotation:0})} aria-label="คืนค่าองศาเอียง"><ResetGlyph/></button></div></div>:
 optionTool==='collar'?<div className="head-adjust-modern collar-adjust-modern" role="group" aria-label="ปรับคอ"><div className="head-adjust-row"><span className="head-adjust-glyph" title="ปรับคอ"><HeadAdjustGlyph type="horizontal"/></span><input aria-label="หุบหรือขยายคอ" type="range" min="-160" max="120" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><output>{collarWarp>=0?'+':''}{Math.round(collarWarp*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarWarp(0)} aria-label="คืนค่าการปรับคอ"><ResetGlyph/></button></div></div>:
 optionTool==='uniform'?<><div className="tool-choice-tabs"><span className="active">เปลี่ยนชุด</span><span>เลือกแพทเทิร์นใหม่</span></div><div className="uniform-switch-tabs">{UNIFORM_GROUPS.map(group=><button type="button" key={group.id} className={uniformPickerTab===group.id?'active':''} onClick={()=>setUniformPickerTab(group.id)}>{group.name}</button>)}</div><div className="uniform-switch-grid">{(UNIFORM_GROUPS.find(group=>group.id===uniformPickerTab)?.items||[]).map(option=><button type="button" key={option.id} className={(editCache.current?.lock?.templatePath||activeUniformTemplate)===option.template?'selected':''} disabled={uniformChanging||busy||hairBusy||downloadBusy} onClick={()=>selectProcessedUniform(option)}><img src={option.preview} alt=""/><strong>{option.title||option.name}</strong><span className="selected-mark">✓</span></button>)}</div></>:
