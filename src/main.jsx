@@ -1959,6 +1959,15 @@ function App(){
  const previewFrame=useRef(null);
  const previewDrawingRef=useRef(false);
  const previewDirtyRef=useRef(false);
+ const previewEpochRef=useRef(0);
+ // An option click replaces the displayed composite; do not leave the old live canvas over it.
+ const beginOptionRender=()=>{
+  clearTimeout(renderTimer.current);clearTimeout(finishTimer.current);
+  previewEpochRef.current++;previewDirtyRef.current=false;
+  if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
+  setLiveCanvasVisible(false);
+  return ++renderSeqRef.current;
+ };
  const drawLivePreview=()=>{
   if(!editCache.current||!liveCanvasRef.current)return;
   previewDirtyRef.current=true;
@@ -1970,9 +1979,9 @@ function App(){
    try{
     while(previewDirtyRef.current&&editCache.current&&liveCanvasRef.current){
      previewDirtyRef.current=false;
-     const current=editCache.current;
+     const current=editCache.current,epoch=previewEpochRef.current;
      await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,liveCanvasRef.current);
-     setLiveCanvasVisible(true);
+     if(epoch===previewEpochRef.current)setLiveCanvasVisible(true);
     }
    }catch(e){suppressUiError(e,'แสดงภาพขณะลากไม่สำเร็จ')}
    finally{previewDrawingRef.current=false;if(previewDirtyRef.current)drawLivePreview()}
@@ -2156,22 +2165,22 @@ function App(){
   const previous=ribbonRef.current,previousId=ribbonId;
   ribbonRef.current=option?.src||null;setRibbonId(option?.id||'');
   if(!editCache.current)return;
-  const seq=++renderSeqRef.current;clearTimeout(renderTimer.current);
+  const seq=beginOptionRender();
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
    if(seq===renderSeqRef.current)showBlob(out);
-  }catch(e){if(seq===renderSeqRef.current){ribbonRef.current=previous;setRibbonId(previousId);suppressUiError(e,'เปลี่ยนแพรแถบไม่สำเร็จ')}}
+  }catch(e){if(seq===renderSeqRef.current){ribbonRef.current=previous;setRibbonId(previousId);drawLivePreview();suppressUiError(e,'เปลี่ยนแพรแถบไม่สำเร็จ')}}
  };
  const selectCollarPins=async option=>{
   if(busy||hairBusy||downloadBusy)return;
   const previous=collarPinRef.current,previousId=collarPinId;
   collarPinRef.current=option?{left:option.left,right:option.right}:null;setCollarPinId(option?.id||'');
   if(!editCache.current){setMsg(option?'เลือกเข็มคู่แล้ว · ระบบจะวางตามชุดชายหรือหญิงเมื่อประมวลผล':'เลือกไม่ติดเข็มแล้ว');return;}
-  const seq=++renderSeqRef.current;clearTimeout(renderTimer.current);
+  const seq=beginOptionRender();
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
    if(seq===renderSeqRef.current){showBlob(out);setMsg(option?'วางเข็มซ้าย–ขวาตามตำแหน่งปกเสื้อแล้ว':'นำเข็มออกแล้ว')}
-  }catch(e){if(seq===renderSeqRef.current){collarPinRef.current=previous;setCollarPinId(previousId);suppressUiError(e,'วางเข็มไม่สำเร็จ')}}
+  }catch(e){if(seq===renderSeqRef.current){collarPinRef.current=previous;setCollarPinId(previousId);drawLivePreview();suppressUiError(e,'วางเข็มไม่สำเร็จ')}}
  };
  const applyCollarPinAdjust=next=>{
   const clampSide=side=>({x:Math.max(-.2,Math.min(.2,side?.x||0)),y:Math.max(-.2,Math.min(.2,side?.y||0))});
@@ -2184,11 +2193,11 @@ function App(){
   const previousPath=backgroundRef.current,previousId=backgroundId;
   backgroundRef.current=option.src;setBackgroundId(option.id);
   if(!editCache.current)return;
-  const seq=++renderSeqRef.current;clearTimeout(renderTimer.current);
+  const seq=beginOptionRender();
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,option.src);
    if(seq===renderSeqRef.current)showBlob(out);
-  }catch(e){if(seq===renderSeqRef.current){backgroundRef.current=previousPath;setBackgroundId(previousId);suppressUiError(e,'เปลี่ยนพื้นหลังไม่สำเร็จ')}}
+  }catch(e){if(seq===renderSeqRef.current){backgroundRef.current=previousPath;setBackgroundId(previousId);drawLivePreview();suppressUiError(e,'เปลี่ยนพื้นหลังไม่สำเร็จ')}}
  };
  const commitUniformSelection=option=>{
   if(option.cat==='job')setSelectedJobTemplate(option.template);
