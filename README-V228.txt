@@ -1,1 +1,0 @@
-V228: V227 base; revert V227 post-generation head scale to V226 0.80. Modify only primary AI generation prompt to construct proportionate hair/neck and adaptively reduce broad skin shadows/discoloration ~15% while retaining pores, identity and skin detail. No change to UI, patterns, optional skin pass, slider or export. No paid AI call performed.
