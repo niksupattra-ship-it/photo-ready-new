@@ -1495,13 +1495,14 @@ async function headOnlyAIEditFile(file){
   return new File([png],'head-only-ai-input.png',{type:'image/png'});
  }finally{URL.revokeObjectURL(url)}
 }
-async function aiFinishPortrait(originalFile,hairId){
+async function aiFinishPortrait(originalFile,hairId,options={}){
  // V69: send the user's original full-quality file directly to the image editor.
  // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
+ if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
  try{
@@ -2124,7 +2125,7 @@ function App(){
     const cached=hairResultCacheRef.current.get(id||'original');
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
     else{
-     const aiHeadNeck=await aiFinishPortrait(f,id||'');
+     const aiHeadNeck=await aiFinishPortrait(f,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id)});
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
