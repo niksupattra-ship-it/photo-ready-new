@@ -151,6 +151,7 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
 
     const hairId=req.body?.hairId||"original";
+    const maleHairReplacement=req.body?.maleHairReplacement==="1" && /^manhair-\d{2}$/.test(hairId);
     const cleanHead=hairId==="clean-head";
     const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
@@ -159,6 +160,15 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
       const fs=await import("fs");
       if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
       hairBuf=fs.readFileSync(hairPath);
+      // A transparent floating cutout is an ambiguous reference for image edits.
+      // For post-processing male hairstyle changes, flatten ONLY the hair reference
+      // onto a neutral studio background. No user's face or uniform is changed.
+      if(maleHairReplacement){
+        const sharp=(await import("sharp")).default;
+        const meta=await sharp(hairBuf).metadata();
+        hairBuf=await sharp(hairBuf).flatten({background:"#d5dbe3"}).png().toBuffer();
+        if(!meta.width||!meta.height)throw Error("อ่านไฟล์อ้างอิงทรงผมชายไม่ได้");
+      }
     }
 
     const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Return a neutral professional head-and-short-neck crop on a plain temporary background; no torso or shoulders. This is an intermediate layer, not the final portrait.`;
@@ -190,7 +200,12 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    form.append("prompt",prompt);
+    // Male post-processing only: original image remains the identity authority;
+    // the chosen hair cutout is a mandatory geometry reference, not a face donor.
+    const finalPrompt=maleHairReplacement?`${prompt}
+
+MALE HAIRSTYLE REPLACEMENT (POST-PROCESSING): This is a NEW hairstyle selection, NOT a request to preserve the hairstyle in Image 1. Fully REPLACE the old hairstyle visible in Image 1, including its fringe, crown, temples and side silhouette, with the haircut pictured in Image 2. Treat Image 2 as the mandatory haircut design: copy its parting direction, fringe shape, top height, side volume and overall silhouette. Remove the old hairstyle where it conflicts with that design. Image 2 contains a hair-only cutout on a neutral background; do NOT interpret its neutral background as hair and do NOT paste a rectangular image patch. Preserve the exact subject from Image 1: face, eyes, brows, skin, ears, jaw, neck and expression. Do not copy any facial identity from a reference. A result with the original haircut still present is NOT a successful edit.`:prompt;
+    form.append("prompt",finalPrompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
     form.append("size","1024x1536");
