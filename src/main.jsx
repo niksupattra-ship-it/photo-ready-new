@@ -2308,9 +2308,9 @@ function App(){
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
   const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setScreen('process')};
   const homeCategories=[
-   {id:'job',icon:'▣',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:JOB_UNIFORMS[2].img},
-   {id:'government',icon:'♜',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ',image:FEMALE_GOVERNMENT_UNIFORMS[0].preview},
-   {id:'student',icon:'◆',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:STUDENT_UNIFORMS[0].img},
+   {id:'job',icon:'▣',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
+   {id:'government',icon:'♜',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ',image:'/assets/home-cutouts/government.png'},
+   {id:'student',icon:'◆',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
    {id:'gown',icon:'✦',title:'ชุดครุย',desc:'ชุดครุยปริญญา\nทุกสถาบัน',image:null}
   ];
   const featured=[JOB_UNIFORMS[2],JOB_UNIFORMS[3],JOB_UNIFORMS[5],JOB_UNIFORMS[0],JOB_UNIFORMS[1],JOB_UNIFORMS[4],
