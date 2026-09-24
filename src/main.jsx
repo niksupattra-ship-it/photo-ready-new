@@ -2289,14 +2289,14 @@ function App(){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
     {...JOB_UNIFORMS[2],title:'สูทสมัครงาน'},
-    {title:'ข้าราชการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ข้าราชการ',img:'/assets/government-uniforms/female-operational-example.jpg',cat:'government',uniform:true},
     {...STUDENT_UNIFORMS[0],title:'นักศึกษา'},
     {title:'ชุดครุย',img:'/assets/hairstyle-previews/hair-20.png',cat:'gown'}]},
    {id:'job',tag:'สมัครงาน',title:'รูปสมัครงาน พร้อมใช้',cards:JOB_UNIFORMS},
    {id:'government',tag:'ข้าราชการ',title:'ชุดราชการ',cards:[
-    {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
-    {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
-    {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}]},
+    {title:'ปฏิบัติงาน',img:'/assets/government-uniforms/female-operational-example.jpg',cat:'government',uniform:true},
+    {title:'ปฏิบัติการ',img:'/assets/government-uniforms/female-academic-example.jpg',cat:'government',uniform:true},
+    {title:'ชำนาญการ / อาวุโส',img:'/assets/government-uniforms/female-senior-example.jpg',cat:'government',uniform:true}]},
    {id:'student',tag:'นักศึกษา',title:'รูปนักศึกษา',cards:STUDENT_UNIFORMS},
    {id:'gown',tag:'ชุดครุย',title:'ชุดครุยมหาวิทยาลัย',cards:[
     {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}
