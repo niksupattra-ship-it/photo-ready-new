@@ -799,21 +799,23 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // heuristic misread black shirts as hair and kept a duplicate torso layer.
   const hair=yy<hairFadeEnd&&dist<W*.38&&segmentedHair;
   const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
-  // V200: preserve the jaw first, taper into the middle neck, then open into
-  // complete clavicles, upper shoulders and upper chest like the reference.
-  // The previous monotonic corridor started too narrow and cut all of this off.
+  // Neck-edge repair: keep the generated neck, but exclude the AI's bare
+  // shoulders. The former corridor widened to 46% of the canvas on EACH side,
+  // allowing a second, angular shoulder silhouette to appear above the real
+  // uniform. Taper gently beneath the jaw, then widen only enough to back the
+  // open shirt neckline. Feather the outer edge to avoid a straight cut.
   let anatomical;
   if(neckProgress<.10){
    const q=neckProgress/.10,eased=q*q*(3-2*q);
-   anatomical=W*(.190-(.015*eased));
+   anatomical=W*(.190-.035*eased);
   }else if(neckProgress<.35){
    const q=(neckProgress-.10)/.25,eased=q*q*(3-2*q);
-   anatomical=W*(.175+.165*eased);
+   anatomical=W*(.155-.025*eased);
   }else{
    const q=(neckProgress-.35)/.65,eased=q*q*(3-2*q);
-   anatomical=W*(.340+.120*eased);
+   anatomical=W*(.130+.040*eased);
   }
-  const sideFeather=Math.max(3,W*.008);
+  const sideFeather=Math.max(5,W*.018);
   const sideAlpha=Math.max(0,Math.min(1,(anatomical-dist)/sideFeather));
   // V203: the MODNet master alpha already identifies the generated person.
   // Do not intersect this mandatory neck/shoulder field with the low-resolution
