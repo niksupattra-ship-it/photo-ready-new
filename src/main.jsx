@@ -1874,6 +1874,7 @@ function App(){
  useEffect(()=>()=>{clearInterval(progressTimerRef.current);clearTimeout(gestureRef.current?.holdTimer)},[]);
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
+ const initialProcessedMasterRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
  const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null),cleanHairBaseRef=useRef(null),initialStyledHairRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
@@ -1924,7 +1925,7 @@ function App(){
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;initialProcessedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=next=>{if(placementLocked)return;paintHeadTransform(next)};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current){drawLivePreview();commitAdjust()}};
@@ -2091,56 +2092,48 @@ function App(){
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current){setHairId(id);return;}
-  // V138 DIRECT HAIR CHANGE: capture the current geometry automatically on every
-  // selection. Keep one immutable source master to prevent AI drift, but never lock
-  // the editor controls or require a separate confirmation button.
-  clearTimeout(renderTimer.current);
-  ++renderSeqRef.current;
-  lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  if(!lockedMasterRef.current){
-   lockedMasterRef.current=editCache.current.master;
-   preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
-  }
-  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งปัจจุบันไว้…');
+  if(!f){setMsg('ไม่พบรูปต้นฉบับ กรุณาเพิ่มรูปใหม่');return;}
+  // Re-run the SAME first-processing pipeline from the untouched uploaded File.
+  // Never send the previously AI-generated head or the completed uniform portrait
+  // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
+  const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg('กำลังสร้างทรงผมจากรูปต้นฉบับ…');
   let completed=false;
   try{
-   const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-   // Every hairstyle starts from the SAME immutable master captured at Lock time.
-   // This prevents AI drift from accumulating across hair-01 -> hair-07 -> hair-20.
-   const src=lockedMasterRef.current||editCache.current.master;
    let nextMaster;
-   if(!id){
-    // "ผมเดิม" is a zero-credit restore: no AI request at all.
-    nextMaster=src;setProgressStage(78,'กำลังคืนทรงผมเดิม');
+   if(!id&&initialProcessedMasterRef.current){
+    // Return to the exact first processed result without a second paid API call.
+    nextMaster=initialProcessedMasterRef.current;
+    setProgressStage(78,'กำลังคืนภาพแรก');
    }else{
-    // V114: no client-side hair mask, no donor and no face-patch compositing.
-    // Provider output is a coherent head; MODNet removes only its temporary background.
-    setMsg('กำลังเปลี่ยนทรงผมบนภาพฐานเดิม…');
-    const cached=hairResultCacheRef.current.get(id);
-    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำทรงผมที่เคยสร้างแล้วกลับมาใช้ · ไม่เรียก AI');}
+    const cached=hairResultCacheRef.current.get(id||'original');
+    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
     else{
-     const edited=await requestHairstyleEngine(src,id);
-     setProgressStage(68,'กำลังเตรียมทรงผม');
-     setMsg('กำลังเตรียมภาพศีรษะสำหรับพรีวิว…');
-     nextMaster=await removeBackgroundRobust(edited,'hairstyle-result.png');
-     setProgressStage(86,'กำลังประกอบภาพ');
-     // Cache only successfully processed images. Never cache errors or intermediate AI output.
-     hairResultCacheRef.current.set(id,nextMaster);
+     const aiHeadNeck=await aiFinishPortrait(f,id||'');
+     setProgressStage(60,'กำลังแยกพื้นหลัง');
+     const transparent=await removeBackgroundBlob(aiHeadNeck);
+     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
+     nextMaster=await optionalHealthySkin10(transparent,f);
+     hairResultCacheRef.current.set(id||'original',nextMaster);
     }
    }
-   // Keep the immutable locked master separate. editCache.master is only the currently
-   // displayed hairstyle result and is never used as the source for the next hairstyle.
-   const out=await renderWithRibbon(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
-   setProgressStage(97,'กำลังแสดงผล');
-   // Invalidate editor renders started before the new hairstyle was selected.
-   ++renderSeqRef.current;
-   // Commit only after the new composite and final render have both succeeded.
-   editCache.current={...editCache.current,master:nextMaster};
+   setProgressStage(88,'กำลังประกอบกับชุดเดิม');
+   const current=editCache.current;
+   if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
+   const out=await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   // The old editor canvas may otherwise cover the newly generated PNG.
+   beginOptionRender();
+   editCache.current={...current,master:nextMaster};
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมแล้ว · คงใบหน้าและตำแหน่งเดิม');completed=true;
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
+   setHeadMasterPreview(URL.createObjectURL(nextMaster));
+   setHeadPreviewLock(current.lock);
+   setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
+  finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -2269,6 +2262,7 @@ function App(){
   // This removes the post-process face overlay/mask that caused visible face-shaped seams.
   // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
   const layer=aiLayer;
+  initialProcessedMasterRef.current=headNeckTransparent;
   editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
