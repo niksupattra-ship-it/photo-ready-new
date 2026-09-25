@@ -203,7 +203,12 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     // Both genders use the same edit prompt and two-image ordering:
     // Image 1 = the customer's first upload, Image 2 = selected hair PNG.
     // No reference-model face is sent to the image editor.
-    const finalPrompt=prompt;
+    // Female hairstyle guidance uses only the selected hair cutout, never a model face.
+    // Keep the existing face/skin/neck processing prompt unchanged.
+    const femaleSelectedHair=/^hair-\d{2}$/.test(hairId);
+    const finalPrompt=femaleSelectedHair && !keepOriginalHair
+      ? prompt+`\n\nHAIRSTYLE MATCH (IMAGE 2 ONLY): Match the selected cutout's part, fringe, crown, outer silhouette and length. Replace old hair outside the chosen silhouette, including strands behind shoulders. The customer's original photo (Image 1) remains the ONLY face and skin source; do not change face shape, features, complexion, skin texture, or existing skin processing.`
+      : prompt;
     form.append("prompt",finalPrompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
