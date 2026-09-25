@@ -151,33 +151,17 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
 
     const hairId=req.body?.hairId||"original";
-    const maleHairReplacement=req.body?.maleHairReplacement==="1" && /^manhair-\d{2}$/.test(hairId);
+    const maleHairReplacement=/^manhair-\d{2}$/.test(hairId);
     const cleanHead=hairId==="clean-head";
     const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
-    let maleHairPreviewBuf=null;
     if(!keepOriginalHair){
       const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
       const fs=await import("fs");
       if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
-      hairBuf=fs.readFileSync(hairPath);
-      // A transparent floating cutout is an ambiguous reference for image edits.
-      // For post-processing male hairstyle changes, flatten ONLY the hair reference
-      // onto a neutral studio background. No user's face or uniform is changed.
-      if(maleHairReplacement){
-        const sharp=(await import("sharp")).default;
-        const meta=await sharp(hairBuf).metadata();
-        hairBuf=await sharp(hairBuf).flatten({background:"#d5dbe3"}).png().toBuffer();
-        if(!meta.width||!meta.height)throw Error("อ่านไฟล์อ้างอิงทรงผมชายไม่ได้");
-        // The isolated PNG is a hollow hairpiece; the image editor often preserves
-        // the source haircut when it sees only this ambiguous reference. Supply
-        // the EXISTING numbered preview as a third, hairstyle-only visual guide.
-        // Never use its face as an identity reference.
-        const previewPath=path.join(dir,"public","assets","hairstyle-previews",`${hairId}.png`);
-        if(!fs.existsSync(previewPath))return res.status(400).send("ไม่พบภาพตัวอย่างทรงผมชายที่เลือก");
-        maleHairPreviewBuf=await sharp(fs.readFileSync(previewPath))
-          .flatten({background:"#d5dbe3"}).png().toBuffer();
-      }
+      // Use the identical hair-reference pipeline for men and women.  Do not
+      // flatten male RGBA cutouts or supply a model face as an extra reference:
+      // Use the original transparent PNG, as in the female path.      hairBuf=fs.readFileSync(hairPath);
     }
 
     const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Return a neutral professional head-and-short-neck crop on a plain temporary background; no torso or shoulders. This is an intermediate layer, not the final portrait.`;
@@ -209,11 +193,10 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    // Male post-processing only: original image remains the identity authority;
-    // the chosen hair cutout is a mandatory geometry reference, not a face donor.
-    const finalPrompt=maleHairReplacement?`${prompt}
-
-MALE HAIRSTYLE REPLACEMENT (POST-PROCESSING): This is a NEW hairstyle selection, NOT a request to preserve the hairstyle in Image 1. Fully REPLACE the old hairstyle visible in Image 1, including its fringe, crown, temples and side silhouette, with the haircut pictured in Image 2. Treat Image 2 as the mandatory haircut design: copy its parting direction, fringe shape, top height, side volume and overall silhouette. Remove the old hairstyle where it conflicts with that design. Image 2 contains a hair-only cutout on a neutral background. Image 3 is the EXISTING numbered hairstyle preview showing how that exact cutout should look when worn; use ONLY its haircut, fringe, parting and silhouette, never its face or skin. The selected haircut in Images 2 and 3 overrides the original hair geometry in Image 1. Do NOT interpret the neutral background as hair and do NOT paste a rectangular image patch. Preserve the exact subject from Image 1: face, eyes, brows, skin, ears, jaw, neck and expression. Do not copy any facial identity from a reference. A result with the original haircut still present is NOT a successful edit.`:prompt;
+    // Both genders use the same edit prompt and two-image ordering:
+    // Image 1 = the customer's first upload, Image 2 = selected hair PNG.
+    // No reference-model face is sent to the image editor.
+    const finalPrompt=prompt;
     form.append("prompt",finalPrompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
@@ -222,7 +205,6 @@ MALE HAIRSTYLE REPLACEMENT (POST-PROCESSING): This is a NEW hairstyle selection,
     form.append("image[]",new Blob([inputFile.buffer],{type:inputFile.mimetype||"image/png"}),"portrait.png");
     if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
-    if(maleHairReplacement && maleHairPreviewBuf) form.append("image[]",new Blob([maleHairPreviewBuf],{type:"image/png"}),`${hairId}-preview.png`);
 
     const r=await fetch("https://api.openai.com/v1/images/edits",{
       method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
