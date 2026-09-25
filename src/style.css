@@ -1103,3 +1103,7 @@
  .adaptive-editor .editor-tool-dock .tool-rail-arrow{display:flex!important;visibility:visible!important;opacity:1!important;flex:0 0 28px!important;min-width:28px!important;pointer-events:auto!important;touch-action:manipulation!important}
  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{width:auto!important;max-width:none!important;min-width:0!important;flex:1 1 0!important;margin-left:0!important;margin-right:0!important;scroll-behavior:smooth!important}
 }
+
+/* V243: keep the original floating controls; show undo/redo directly after compare. */
+.preview-floating-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+.preview-floating-actions button:disabled{opacity:.38;cursor:default}

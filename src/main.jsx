@@ -1964,7 +1964,7 @@ function App(){
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){firstUploadedPhotoRef.current=v;setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;initialProcessedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){undoStackRef.current=[];redoStackRef.current=[];historyRefresh();firstUploadedPhotoRef.current=v;setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;initialProcessedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=next=>{if(placementLocked)return;paintHeadTransform(next)};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current){drawLivePreview();commitAdjust()}};
@@ -1994,9 +1994,63 @@ function App(){
   document.addEventListener('pointercancel',finish,true);
   return()=>{document.removeEventListener('pointerup',finish,true);document.removeEventListener('pointercancel',finish,true)};
  },[]);
+ // V243: one history entry per pointer gesture (not one per slider animation frame).
+ const undoStackRef=useRef([]),redoStackRef=useRef([]);
+ const[historyCounts,setHistoryCounts]=useState({undo:0,redo:0});
+ const historySnapshot=()=>({
+  master:editCache.current?.master,lock:editCache.current?.lock,
+  adjust:{...liveAdjustRef.current},warp:liveCollarWarpRef.current,height:liveCollarHeightRef.current,
+  neck:{...liveNeckAdjustRef.current},ribbon:ribbonRef.current,ribbonId,
+  ribbonAdjust:{...ribbonAdjustRef.current},pins:collarPinRef.current,pinId:collarPinId,
+  pinAdjust:{left:{...collarPinAdjustRef.current.left},right:{...collarPinAdjustRef.current.right}},
+  background:backgroundRef.current,backgroundId,hairId,placementLocked,
+  category:uniformCategory,gender,level,style:selectedStyle,
+  job:selectedJobTemplate,student:selectedStudentTemplate,interior:selectedInteriorTemplate
+ });
+ const historySignature=s=>JSON.stringify({...s,master:undefined,lock:undefined});
+ const historyRefresh=()=>setHistoryCounts({undo:undoStackRef.current.length,redo:redoStackRef.current.length});
+ const rememberEdit=()=>{
+  if(!editCache.current||busy||hairBusy||uniformChanging||downloadBusy)return;
+  const snap=historySnapshot(),stack=undoStackRef.current;
+  if(stack.length&&stack[stack.length-1].master===snap.master&&stack[stack.length-1].lock===snap.lock&&historySignature(stack[stack.length-1])===historySignature(snap))return;
+  stack.push(snap);if(stack.length>60)stack.shift();redoStackRef.current=[];historyRefresh();
+ };
+ const restoreHistory=async(direction)=>{
+  if(busy||hairBusy||uniformChanging||downloadBusy||!editCache.current)return;
+  const from=direction==='undo'?undoStackRef.current:redoStackRef.current;
+  const to=direction==='undo'?redoStackRef.current:undoStackRef.current;
+  // Skip clicks that did not actually modify the editor.
+  let snap;
+  const current=historySnapshot();
+  while(from.length){const candidate=from.pop();if(candidate.master!==current.master||candidate.lock!==current.lock||historySignature(candidate)!==historySignature(current)){snap=candidate;break;}}
+  if(!snap){historyRefresh();return;}
+  to.push(current);if(to.length>60)to.shift();historyRefresh();
+  beginOptionRender();editCache.current={...editCache.current,master:snap.master,lock:snap.lock};
+  liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
+  liveCollarWarpRef.current=snap.warp;setCollarWarp(snap.warp);
+  liveCollarHeightRef.current=snap.height;setCollarHeight(snap.height);
+  liveNeckAdjustRef.current={...snap.neck};setNeckAdjust({...snap.neck});
+  ribbonRef.current=snap.ribbon;setRibbonId(snap.ribbonId);
+  ribbonAdjustRef.current={...snap.ribbonAdjust};setRibbonAdjust({...snap.ribbonAdjust});
+  collarPinRef.current=snap.pins;setCollarPinId(snap.pinId);
+  collarPinAdjustRef.current={left:{...snap.pinAdjust.left},right:{...snap.pinAdjust.right}};setCollarPinAdjust(collarPinAdjustRef.current);
+  backgroundRef.current=snap.background;setBackgroundId(snap.backgroundId);setHairId(snap.hairId);
+  setPlacementLocked(snap.placementLocked);setUniformCategory(snap.category);setGender(snap.gender);
+  setLevel(snap.level);setSelectedStyle(snap.style);setSelectedJobTemplate(snap.job);
+  setSelectedStudentTemplate(snap.student);setSelectedInteriorTemplate(snap.interior);
+  setHeadPreviewLock(snap.lock);
+  if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
+  setHeadMasterPreview(URL.createObjectURL(snap.master));
+  try{const seq=renderSeqRef.current;
+   const out=await renderWithRibbon(snap.master,snap.lock,snap.adjust,snap.warp,snap.neck,snap.background);
+   if(seq===renderSeqRef.current)showBlob(out);
+  }catch(e){suppressUiError(e,'ย้อนกลับ/คืนค่าไม่สำเร็จ')}
+ };
  const captureSliderPointer=e=>{
   if(e.target?.matches?.('input[type="range"]'))activeSliderPointersRef.current.add(e.pointerId);
+  if(e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.placement-lock-btn,.uniform-option,.uniform-card')||(e.target?.closest?.('.hero-preview')&&!e.target?.closest?.('button,input')&&!comparePreview)||e.target?.closest?.('.preview-floating-actions button[aria-label="รีเซ็ต"]'))rememberEdit();
  };
+
  const previewFrame=useRef(null);
  const previewDrawingRef=useRef(false);
  const previewDirtyRef=useRef(false);
@@ -2374,9 +2428,9 @@ function App(){
   </main>;
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
- return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
+ return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
   <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}else fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
-<button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
+<button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&uniformCategory!=='student'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
