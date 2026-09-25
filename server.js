@@ -162,7 +162,7 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
       if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
       hairBuf=fs.readFileSync(hairPath);
       // A transparent floating cutout is an ambiguous reference for image edits.
-      // For all male hairstyle selections (first processing and later changes), flatten ONLY the hair reference
+      // For post-processing male hairstyle changes, flatten ONLY the hair reference
       // onto a neutral studio background. No user's face or uniform is changed.
       if(maleHairReplacement){
         const sharp=(await import("sharp")).default;
@@ -209,11 +209,11 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
 
     const form=new FormData();
     form.append("model","gpt-image-1.5");
-    // All male hairstyle selections: original image remains the identity authority;
+    // Male post-processing only: original image remains the identity authority;
     // the chosen hair cutout is a mandatory geometry reference, not a face donor.
     const finalPrompt=maleHairReplacement?`${prompt}
 
-MALE HAIRSTYLE SELECTION (FIRST PROCESSING OR LATER REPLACEMENT): This is an explicit selected hairstyle, NOT a request to preserve the hairstyle in Image 1. Fully REPLACE the old hairstyle visible in Image 1, including its fringe, crown, temples and side silhouette, with the haircut pictured in Image 2. Treat Image 2 as the mandatory haircut design: copy its parting direction, fringe shape, top height, side volume and overall silhouette. Remove the old hairstyle where it conflicts with that design. Image 2 contains a hair-only cutout on a neutral background. Image 3 is the EXISTING numbered hairstyle preview showing how that exact cutout should look when worn; use ONLY its haircut, fringe, parting and silhouette, never its face or skin. The selected haircut in Images 2 and 3 overrides the original hair geometry in Image 1. Do NOT interpret the neutral background as hair and do NOT paste a rectangular image patch. Preserve the exact subject from Image 1: face, eyes, brows, skin, ears, jaw, neck and expression. Do not copy any facial identity from a reference. A result with the original haircut still present is NOT a successful edit.`:prompt;
+MALE HAIRSTYLE REPLACEMENT (POST-PROCESSING): This is a NEW hairstyle selection, NOT a request to preserve the hairstyle in Image 1. Fully REPLACE the old hairstyle visible in Image 1, including its fringe, crown, temples and side silhouette, with the haircut pictured in Image 2. Treat Image 2 as the mandatory haircut design: copy its parting direction, fringe shape, top height, side volume and overall silhouette. Remove the old hairstyle where it conflicts with that design. Image 2 contains a hair-only cutout on a neutral background. Image 3 is the EXISTING numbered hairstyle preview showing how that exact cutout should look when worn; use ONLY its haircut, fringe, parting and silhouette, never its face or skin. The selected haircut in Images 2 and 3 overrides the original hair geometry in Image 1. Do NOT interpret the neutral background as hair and do NOT paste a rectangular image patch. Preserve the exact subject from Image 1: face, eyes, brows, skin, ears, jaw, neck and expression. Do not copy any facial identity from a reference. A result with the original haircut still present is NOT a successful edit.`:prompt;
     form.append("prompt",finalPrompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
