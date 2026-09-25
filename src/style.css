@@ -1086,3 +1086,11 @@
 @media(max-width:390px){.studio-home-brand small{display:none}.studio-category-card{min-height:190px}.studio-category-card>strong{font-size:17px}.studio-category-card>small{font-size:10px}.studio-featured-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .studio-gown-placeholder{position:absolute;right:11%;bottom:13%;font-size:clamp(80px,10vw,160px);opacity:.78;pointer-events:none}
+
+/* V235: Head adjustment only — minus before slider, plus after slider. */
+.head-adjust-with-steps .head-adjust-row{grid-template-columns:32px 25px minmax(60px,1fr) 25px 52px 30px;gap:5px}
+.head-adjust-with-steps .head-slider-step{display:grid;place-items:center;width:25px;height:25px;padding:0;border:1px solid #e0e8f3;border-radius:7px;background:#fff;color:#1683ff;font:700 17px/1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;box-shadow:0 1px 3px rgba(36,65,105,.05)}
+.head-adjust-with-steps .head-slider-step:hover{background:#eff6ff;border-color:#b8d8ff}
+.head-adjust-with-steps .head-slider-step:active{background:#dcecff}
+.head-adjust-with-steps .head-slider-step:focus-visible{outline:2px solid #1683ff;outline-offset:2px}
+@media(max-width:650px){.head-adjust-with-steps .head-adjust-row{grid-template-columns:26px 23px minmax(40px,1fr) 23px 46px 26px;gap:3px;padding:0 2px}.head-adjust-with-steps .head-slider-step{width:23px;height:23px;font-size:16px}}
