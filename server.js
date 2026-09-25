@@ -161,7 +161,8 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
       if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
       // Use the identical hair-reference pipeline for men and women.  Do not
       // flatten male RGBA cutouts or supply a model face as an extra reference:
-      // Use the original transparent PNG, as in the female path.      hairBuf=fs.readFileSync(hairPath);
+      // Use the original transparent PNG, as in the female path.
+      hairBuf=fs.readFileSync(hairPath);
     }
 
     const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Return a neutral professional head-and-short-neck crop on a plain temporary background; no torso or shoulders. This is an intermediate layer, not the final portrait.`;
