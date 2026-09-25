@@ -1094,3 +1094,12 @@
 .head-adjust-with-steps .head-slider-step:active{background:#dcecff}
 .head-adjust-with-steps .head-slider-step:focus-visible{outline:2px solid #1683ff;outline-offset:2px}
 @media(max-width:650px){.head-adjust-with-steps .head-adjust-row{grid-template-columns:26px 23px minmax(40px,1fr) 23px 46px 26px;gap:3px;padding:0 2px}.head-adjust-with-steps .head-slider-step{width:23px;height:23px;font-size:16px}}
+
+/* V241: Keep collar pins in their original position after ribbons.
+   The rail was scrollable but its arrows were hidden on touch devices,
+   leaving the sixth tool undiscoverable on phone/tablet. */
+@media (max-width:999px){
+ .adaptive-editor .editor-tool-dock > .tool-rail-wrap{min-width:0!important;box-sizing:border-box!important}
+ .adaptive-editor .editor-tool-dock .tool-rail-arrow{display:flex!important;visibility:visible!important;opacity:1!important;flex:0 0 28px!important;min-width:28px!important;pointer-events:auto!important;touch-action:manipulation!important}
+ .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{width:auto!important;max-width:none!important;min-width:0!important;flex:1 1 0!important;margin-left:0!important;margin-right:0!important;scroll-behavior:smooth!important}
+}
