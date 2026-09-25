@@ -206,8 +206,18 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     // Female hairstyle guidance uses only the selected hair cutout, never a model face.
     // Keep the existing face/skin/neck processing prompt unchanged.
     const femaleSelectedHair=/^hair-\d{2}$/.test(hairId);
+    // Hairstyle-specific silhouette guidance, NOT a new face/skin pipeline.
+    // The cutout for hair-25 is a SHORT pixie: without explicit removal of the
+    // original back hair, image editing may keep the uploaded long hairstyle.
+    const femaleShortCut=hairId==='hair-25';
+    const femaleTiedCut=/^hair-(18|20|21|22|23|24|26|27|28|29)$/.test(hairId);
+    const selectedHairGeometry=femaleShortCut
+      ? `SELECTED CUT hair-25 IS SHORT: swept side fringe and a short tapered pixie silhouette. NO long hair behind ears, NO hair behind neck, NO hair falling onto shoulders or uniform. Fully REMOVE the original long back/side hair and reconstruct only the studio background where that old hair was. Preserve the existing forehead SKIN and original face; change only hair pixels and formerly hair-covered background.`
+      : femaleTiedCut
+        ? `SELECTED CUT IS TIED/PULLED BACK: do not retain the original loose long hair falling down either side of the neck or over shoulders. Follow the selected cutout's actual back-hair silhouette and keep the existing face and skin unchanged.`
+        : `Replace the uploaded hairstyle's old side and back silhouette, not only the fringe; use the selected cutout's actual length and shape.`;
     const finalPrompt=femaleSelectedHair && !keepOriginalHair
-      ? prompt+`\n\nHAIRSTYLE MATCH (IMAGE 2 ONLY): Match the selected cutout's part, fringe, crown, outer silhouette and length. Replace old hair outside the chosen silhouette, including strands behind shoulders. The customer's original photo (Image 1) remains the ONLY face and skin source; do not change face shape, features, complexion, skin texture, or existing skin processing.`
+      ? prompt+`\n\nHAIRSTYLE MATCH (IMAGE 2 ONLY): Match the selected cutout's part, fringe, crown, outer silhouette and length. ${selectedHairGeometry} The customer's original photo (Image 1) remains the ONLY face and skin source; do not change face shape, features, complexion, skin texture, or existing skin processing.`
       : prompt;
     form.append("prompt",finalPrompt);
     form.append("input_fidelity","high");
