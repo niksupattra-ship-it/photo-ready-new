@@ -799,23 +799,22 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // heuristic misread black shirts as hair and kept a duplicate torso layer.
   const hair=yy<hairFadeEnd&&dist<W*.38&&segmentedHair;
   const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
-  // Neck-edge repair: keep the generated neck, but exclude the AI's bare
-  // shoulders. The former corridor widened to 46% of the canvas on EACH side,
-  // allowing a second, angular shoulder silhouette to appear above the real
-  // uniform. Taper gently beneath the jaw, then widen only enough to back the
-  // open shirt neckline. Feather the outer edge to avoid a straight cut.
+  // Neck/half-shoulder repair: do not pinch the neck into a narrow central
+  // strip. Keep the AI's real neck and skin up to the midpoint of each
+  // shoulder, then taper only the covered lower margin behind the uniform.
+  // The old .190 -> .130 half-width cut away both sides of the neck and
+  // exposed a blue V at the standing collar. Never manufacture skin pixels.
+  const smoothstep=t=>{const q=Math.max(0,Math.min(1,t));return q*q*(3-2*q)};
   let anatomical;
-  if(neckProgress<.10){
-   const q=neckProgress/.10,eased=q*q*(3-2*q);
-   anatomical=W*(.190-.035*eased);
-  }else if(neckProgress<.35){
-   const q=(neckProgress-.10)/.25,eased=q*q*(3-2*q);
-   anatomical=W*(.155-.025*eased);
+  if(neckProgress<.12){
+   anatomical=W*(.245+.025*smoothstep(neckProgress/.12));
+  }else if(neckProgress<.36){
+   anatomical=W*(.270+.090*smoothstep((neckProgress-.12)/.24));
   }else{
-   const q=(neckProgress-.35)/.65,eased=q*q*(3-2*q);
-   anatomical=W*(.130+.040*eased);
+   anatomical=W*(.360-.075*smoothstep((neckProgress-.36)/.64));
   }
-  const sideFeather=Math.max(5,W*.018);
+  // Only soften the outer silhouette, never the central skin/neck bridge.
+  const sideFeather=Math.max(3,W*.010);
   const sideAlpha=Math.max(0,Math.min(1,(anatomical-dist)/sideFeather));
   // V203: the MODNet master alpha already identifies the generated person.
   // Do not intersect this mandatory neck/shoulder field with the low-resolution
