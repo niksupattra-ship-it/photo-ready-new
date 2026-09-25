@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import crypto from "crypto";
+import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 
@@ -163,6 +164,11 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
       // flatten male RGBA cutouts or supply a model face as an extra reference:
       // Use the original transparent PNG, as in the female path.
       hairBuf=fs.readFileSync(hairPath);
+      // Normalize only male reference for image-edit API: auxiliary RGBA
+      // cutouts can trigger "invalid image file or mode for image 2".
+      if(maleHairReplacement){
+        hairBuf=await sharp(hairBuf,{failOn:"error"}).rotate().flatten({background:"#ffffff"}).toColourspace("srgb").png().toBuffer();
+      }
     }
 
     const cleanPrompt=`CLEAN HEAD MASTER FOR A PROFESSIONAL ID PHOTO. This is a one-time anatomical reconstruction before hairstyle replacement. Remove ALL existing hair from the scalp, forehead, temples and behind the ears. Create a natural BALD scalp, complete anatomically plausible ears and uncovered neck wherever hair used to obscure them. Absolutely no remaining long strands, dark hair panels, sideburns, ponytail or hairline. Keep the person's face, expression, eyes, nose, mouth, jaw, original visible skin texture, complexion and head placement unchanged. Return a neutral professional head-and-short-neck crop on a plain temporary background; no torso or shoulders. This is an intermediate layer, not the final portrait.`;
@@ -203,7 +209,11 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     form.append("quality","high");
     form.append("size","1024x1536");
     form.append("output_format","png");
-    form.append("image[]",new Blob([inputFile.buffer],{type:inputFile.mimetype||"image/png"}),"portrait.png");
+    // Match PNG MIME and filename to actual bytes in the male-hair path.
+    const portraitBytes=maleHairReplacement
+      ?await sharp(inputFile.buffer,{failOn:"error"}).rotate().toColourspace("srgb").png().toBuffer()
+      :inputFile.buffer;
+    form.append("image[]",new Blob([portraitBytes],{type:maleHairReplacement?"image/png":(inputFile.mimetype||"image/png")}),maleHairReplacement?"portrait.png":(inputFile.originalname||"portrait.png"));
     if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
