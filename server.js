@@ -164,6 +164,14 @@ app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",
       // flatten male RGBA cutouts or supply a model face as an extra reference:
       // Use the original transparent PNG, as in the female path.
       hairBuf=fs.readFileSync(hairPath);
+      // Female references are transparent cutouts with a face-shaped empty area.
+      // Give the image editor an opaque, valid visual reference while keeping
+      // the original assets untouched; the matching preview supplies the
+      // hairstyle as worn on a head (not the preview model's identity).
+      if(/^hair-\d{2}$/.test(hairId)){
+        hairBuf=await sharp(hairBuf,{failOn:"error"}).rotate()
+          .flatten({background:"#ffffff"}).toColourspace("srgb").png().toBuffer();
+      }
       // Normalize only male reference for image-edit API: auxiliary RGBA
       // cutouts can trigger "invalid image file or mode for image 2".
       if(maleHairReplacement){
@@ -203,7 +211,8 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     // Both genders use the same edit prompt and two-image ordering:
     // Image 1 = the customer's first upload, Image 2 = selected hair PNG.
     // No reference-model face is sent to the image editor.
-    const finalPrompt=prompt;
+    const femaleSelectedHair=/^hair-\d{2}$/.test(hairId);
+    const finalPrompt=femaleSelectedHair ? prompt+`\n\nFEMALE HAIRSTYLE REFERENCE CLARIFICATION: Image 2 is the selected hairstyle cutout on white; Image 3 shows that EXACT selected hairstyle worn by a reference model. Match the hair geometry visible in BOTH images, including the part, fringe, hairline, silhouette, length, and whether the hair is tied or loose. If the subject's original hair differs, REPLACE its old hair silhouette, including long strands behind shoulders, instead of preserving the old hairstyle. Image 3 is NOT an identity, face, skin, makeup or lighting reference: never copy its model's face. Preserve Image 1's identity, facial features and complexion.` : prompt;
     form.append("prompt",finalPrompt);
     form.append("input_fidelity","high");
     form.append("quality","high");
@@ -216,6 +225,14 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     form.append("image[]",new Blob([portraitBytes],{type:maleHairReplacement?"image/png":(inputFile.mimetype||"image/png")}),maleHairReplacement?"portrait.png":(inputFile.originalname||"portrait.png"));
     if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
+    if(femaleSelectedHair){
+      const previewPath=path.join(dir,"public","assets","hairstyle-previews",`${hairId}.png`);
+      const fs=await import("fs");
+      if(!fs.existsSync(previewPath))return res.status(400).send("ไม่พบภาพตัวอย่างทรงผมที่เลือก");
+      const previewBuf=await sharp(fs.readFileSync(previewPath),{failOn:"error"})
+        .rotate().toColourspace("srgb").png().toBuffer();
+      form.append("image[]",new Blob([previewBuf],{type:"image/png"}),`${hairId}-preview.png`);
+    }
 
     const r=await fetch("https://api.openai.com/v1/images/edits",{
       method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
