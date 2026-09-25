@@ -1526,13 +1526,33 @@ async function restoreOriginalFacePixels(processedBlob,originalFile){
   if(!pf||!of)throw Error('ล็อกใบหน้าต้นฉบับไม่สำเร็จ');
   const W=processed.naturalWidth,H=processed.naturalHeight;
   const aligned=alignFaceCanvas(original,of,pf,W,H);
-  const hard=faceProtection(pf,W,H),hx=hard.getContext('2d');
+  // Protect only actual facial skin, not the scalp/hair inside the old
+  // face-contour polygon. The old polygon pasted a second hairline/forehead
+  // over the newly generated hairstyle, producing a visible mask-shaped seam.
   const eyeD=Math.hypot((pf[263].x-pf[33].x)*W,(pf[263].y-pf[33].y)*H);
-  hx.fillStyle='#fff';
-  for(const ear of [pf[234],pf[454]]){hx.beginPath();hx.ellipse(ear.x*W,ear.y*H,eyeD*.14,eyeD*.28,0,0,Math.PI*2);hx.fill()}
+  const [newSkin,oldSkin]=await Promise.all([
+   semanticClassMask(processed,W,H,[3]),
+   semanticClassMask(aligned,W,H,[3])
+  ]);
+  if(!newSkin||!oldSkin)throw Error('ตรวจบริเวณผิวหน้าก่อนเปลี่ยนทรงผมไม่สำเร็จ');
+  const contour=faceProtection(pf,W,H);
+  const a=newSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const b=oldSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const c=contour.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const stencil=canvasFor(W,H),st=stencil.getContext('2d');
+  const pixels=st.createImageData(W,H);
+  for(let j=0;j<pixels.data.length;j+=4){
+   pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=255;
+   pixels.data[j+3]=Math.min(a[j+3],b[j+3],c[j+3]);
+  }
+  st.putImageData(pixels,0,0);
+  // Broad feather makes the transition gradual, rather than a sharp oval
+  // or a horizontal stripe across the forehead. Never draw the stencil itself.
   const soft=canvasFor(W,H),sx=soft.getContext('2d');
-  sx.filter=`blur(${Math.max(1.5,Math.min(4,eyeD*.012))}px)`;sx.drawImage(hard,0,0);sx.filter='none';
-  const originalFace=canvasFor(W,H),fx=originalFace.getContext('2d');fx.drawImage(aligned,0,0);fx.globalCompositeOperation='destination-in';fx.drawImage(soft,0,0);
+  sx.filter=`blur(${Math.max(8,Math.min(28,eyeD*.085))}px)`;
+  sx.drawImage(stencil,0,0);sx.filter='none';
+  const originalFace=canvasFor(W,H),fx=originalFace.getContext('2d');
+  fx.drawImage(aligned,0,0);fx.globalCompositeOperation='destination-in';fx.drawImage(soft,0,0);
   const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(processed,0,0);ox.drawImage(originalFace,0,0);
   return await canvasPng(out);
  }finally{URL.revokeObjectURL(pu);URL.revokeObjectURL(ou)}
