@@ -1503,7 +1503,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const aiInput=await headOnlyAIEditFile(originalFile);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
- if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
+ if(/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),120000);
  try{
