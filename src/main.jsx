@@ -1774,7 +1774,21 @@ const COLLAR_PIN_OPTIONS=[
  {id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},
  {id:'education-pair',name:'ศึกษาธิการ',left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'},
  {id:'public-health-pair',name:'สาธารณสุข',left:'/assets/government-insignia/public-health-left.png',right:'/assets/government-insignia/public-health-right.png'},
- {id:'finance-pair',name:'การคลัง',left:'/assets/government-insignia/finance-left.png',right:'/assets/government-insignia/finance-right.png'}
+ {id:'finance-pair',name:'การคลัง',left:'/assets/government-insignia/finance-left.png',right:'/assets/government-insignia/finance-right.png'},
+ {id:'agriculture-pair',name:'เกษตร',left:'/assets/government-insignia/agriculture-left.png',right:'/assets/government-insignia/agriculture-right.png'},
+ {id:'transport-pair',name:'คมนาคม',left:'/assets/government-insignia/transport-left.png',right:'/assets/government-insignia/transport-right.png'} ,
+ {id:'labor-pair',name:'แรงงาน',left:'/assets/government-insignia/labor-left.png',right:'/assets/government-insignia/labor-right.png'},
+ {id:'higher-education-pair',name:'อุดมศึกษา',left:'/assets/government-insignia/higher-education-left.png',right:'/assets/government-insignia/higher-education-right.png'},
+ {id:'justice-pair',name:'ยุติธรรม',left:'/assets/government-insignia/justice-left.png',right:'/assets/government-insignia/justice-right.png'},
+ {id:'industry-pair',name:'อุตสาหกรรม',left:'/assets/government-insignia/industry-left.png',right:'/assets/government-insignia/industry-right.png'},
+ {id:'culture-pair',name:'วัฒนธรรม',left:'/assets/government-insignia/culture-left.png',right:'/assets/government-insignia/culture-right.png'},
+ {id:'energy-pair',name:'พลังงาน',left:'/assets/government-insignia/energy-left.png',right:'/assets/government-insignia/energy-right.png'},
+ {id:'audit-pair',name:'สตง.',left:'/assets/government-insignia/audit-left.png',right:'/assets/government-insignia/audit-right.png'},
+ {id:'court-of-justice-pair',name:'ศาลยุติธรรม',left:'/assets/government-insignia/court-of-justice-left.png',right:'/assets/government-insignia/court-of-justice-right.png'},
+ {id:'environment-pair',name:'สิ่งแวดล้อม',left:'/assets/government-insignia/environment-left.png',right:'/assets/government-insignia/environment-right.png'},
+ {id:'administrative-court-pair',name:'ศาลปกครอง',left:'/assets/government-insignia/administrative-court-left.png',right:'/assets/government-insignia/administrative-court-right.png'},
+ {id:'digital-pair',name:'ดิจิทัล',left:'/assets/government-insignia/digital-left.png',right:'/assets/government-insignia/digital-right.png'},
+ {id:'nacc-pair',name:'ป.ป.ช.',left:'/assets/government-insignia/nacc-left.png',right:'/assets/government-insignia/nacc-right.png'}
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=Array.from({length:12},(_,i)=>{const number=String(i+1).padStart(2,'0');return {id:`manhair-${number}`,name:`ทรงผม ${number}`,src:`/assets/hairstyle-previews/manhair-${number}.png`};});
