@@ -920,7 +920,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const chestPin=await loadImage(chestPinPath);
    const w=lock.uW*.073*(chestPinAdjust.scale||1);
    const h=w*(chestPin.naturalHeight/chestPin.naturalWidth);
-   const cx=lock.uX+lock.uW*(.72+(chestPinAdjust.x||0));
+   const cx=lock.uX+lock.uW*(.28+(chestPinAdjust.x||0));
    const cy=lock.uY+lock.uH*(.405+(chestPinAdjust.y||0));
    x.drawImage(chestPin,cx-w/2,cy-h/2,w,h);
   }
