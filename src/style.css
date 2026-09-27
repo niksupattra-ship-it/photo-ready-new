@@ -1107,3 +1107,15 @@
 /* V244: stack the existing floating controls vertically in their original order. */
 .preview-floating-actions{grid-template-columns:minmax(0,1fr)}
 .preview-floating-actions button:disabled{opacity:.38;cursor:default}
+
+/* V283: Show the entire outfit thumbnail in the selected home category on phones/tablets only. */
+@media (max-width:1100px){
+  .studio-home-results .government-level-grid>button img,
+  .studio-home-results .home-card-image img,
+  .studio-home-results .home-card-image.uniform-card img,
+  .studio-home-results .category-choice-image img,
+  .studio-home-results .category-choice-image.uniform-card img{
+    object-fit:contain;
+    object-position:center center;
+  }
+}
