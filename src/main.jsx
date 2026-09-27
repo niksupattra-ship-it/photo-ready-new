@@ -1863,11 +1863,13 @@ const INTERIOR_UNIFORMS=[
  {id:'interior-01',name:'ปฏิบัติงาน',level:'operational',img:'/assets/government-uniforms/interior-01.png',preview:'/assets/government-uniforms/male-operational-example.png'},
  {id:'interior-02',name:'ปฏิบัติการ',level:'academic',img:'/assets/government-uniforms/interior-02.png',preview:'/assets/government-uniforms/male-academic-example.png'},
  {id:'interior-03',name:'ชำนาญการ / อาวุโส',level:'senior',img:'/assets/government-uniforms/interior-03.png',preview:'/assets/government-uniforms/male-senior-example.png'},
+ {id:'male-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/male-government-employee.png',preview:'/assets/government-uniforms/male-government-employee-example.jpg'},
 ];
 const FEMALE_GOVERNMENT_UNIFORMS=[
  {id:'female-operational',name:'ปฏิบัติงาน',level:'operational',img:'/assets/government-uniforms/female-operational.png',preview:'/assets/government-uniforms/female-operational-example.jpg'},
  {id:'female-academic',name:'ปฏิบัติการ',level:'academic',img:'/assets/government-uniforms/female-academic.png',preview:'/assets/government-uniforms/female-academic-example.jpg'},
  {id:'female-senior',name:'ชำนาญการ / อาวุโส',level:'senior',img:'/assets/government-uniforms/female-senior.png',preview:'/assets/government-uniforms/female-senior-example.jpg'},
+ {id:'female-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/female-government-employee.png',preview:'/assets/government-uniforms/female-government-employee-example.jpg'},
 ];
 const UNIFORM_GROUPS=[
  {id:'job',name:'สมัครงาน',items:JOB_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
