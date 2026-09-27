@@ -1169,3 +1169,14 @@
   .studio-home .studio-steps>span{gap:5px;}
   .studio-home .studio-steps i{top:6px;}
 }
+
+/* V292: local beauty controls; scoped to new panel only. */
+.local-beauty-panel{padding:10px 14px;display:grid;gap:9px;width:100%;box-sizing:border-box}
+.local-beauty-panel .beauty-control{display:grid;gap:5px;font-size:13px;color:#172c49}
+.local-beauty-panel .beauty-control>span{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.local-beauty-panel .beauty-control output{color:#1675e8;font-variant-numeric:tabular-nums}
+.local-beauty-panel input[type=range]{width:100%;accent-color:#1675e8;touch-action:pan-x}
+.beauty-lip-swatches{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.beauty-lip-swatches button{width:30px;height:30px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #d7dfeb;cursor:pointer}
+.beauty-lip-swatches button.selected{box-shadow:0 0 0 2px #1675e8}
+.beauty-reset{justify-self:start;border:1px solid #d7dfeb;background:#fff;border-radius:9px;padding:7px 12px;color:#172c49;cursor:pointer}
