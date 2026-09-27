@@ -860,9 +860,12 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  const collarKey=`${lock.templatePath}|${collarWarp}|${collarHeight}`;
  if(cache.collarKey!==collarKey){cache.collarKey=collarKey;cache.uniformPromise=warpUniformCollar(uniform,collarWarp,collarHeight)}
  const warpedUniform=await cache.uniformPromise;
- const masterURL=URL.createObjectURL(headMasterBlob);
- try{
- const head=cache.head||(cache.head=await loadImage(masterURL));
+ const previewGeneration=preview&&liveCanvas?liveCanvas.__editorGeneration:null;
+ const head=cache.head||(cache.head=await (async()=>{
+  const url=URL.createObjectURL(headMasterBlob);
+  try{return await loadImage(url)}finally{URL.revokeObjectURL(url)}
+ })());
+ {
   const masterMasks=await (cache.masksPromise||(cache.masksPromise=getV192MasterMasks(headMasterBlob,head)));
   const neckKey=`${lock.chinY}|${neckAdjust.width||0}|${neckAdjust.length||0}`;
   if(cache.neckKey!==neckKey){cache.neckKey=neckKey;cache.neckPromise=warpPersonNeck(head,lock.chinY,neckAdjust);cache.cleanHead=null}
@@ -874,7 +877,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
   const cleanHead=cache.cleanHead||(cache.cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask));
   // V231: compose offscreen. Resizing the visible canvas clears it on every slider tick.
- const c=document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(420,Math.round(liveCanvas?.clientWidth||420)*2)/lock.W):1;c.width=Math.round(lock.W*ratio);c.height=Math.round(lock.H*ratio);
+ const c=preview&&liveCanvas?(cache.previewCanvas||(cache.previewCanvas=document.createElement('canvas'))):document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(320,Math.round(liveCanvas?.clientWidth||320)*Math.min(1.5,window.devicePixelRatio||1))/lock.W):1;const targetW=Math.round(lock.W*ratio),targetH=Math.round(lock.H*ratio);if(c.width!==targetW||c.height!==targetH){c.width=targetW;c.height=targetH}
   const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';x.scale(ratio,ratio);x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
@@ -938,12 +941,13 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   }
   if(preview&&liveCanvas){
    // Draw the completed frame in one operation; never encode during dragging.
+   if(liveCanvas.__editorGeneration!==previewGeneration)return null;
    if(liveCanvas.width!==c.width||liveCanvas.height!==c.height){liveCanvas.width=c.width;liveCanvas.height=c.height}
    liveCanvas.getContext('2d').drawImage(c,0,0);
    return null;
   }
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
- }finally{URL.revokeObjectURL(masterURL)}
+ }
 }
 
 async function makeAiUploadBlob(composedBlob){
@@ -2180,23 +2184,28 @@ function App(){
   setLiveCanvasVisible(false);
   return ++renderSeqRef.current;
  };
+ // V297: one preview frame at a time. Never queue a while-loop of stale
+ // full composites behind pointer events; a released finger must remain responsive.
  const drawLivePreview=()=>{
   if(!editCache.current||!liveCanvasRef.current)return;
   previewDirtyRef.current=true;
   if(previewFrame.current||previewDrawingRef.current)return;
   previewFrame.current=requestAnimationFrame(async()=>{
    previewFrame.current=null;
-   if(previewDrawingRef.current)return;
+   if(previewDrawingRef.current||!previewDirtyRef.current)return;
+   previewDirtyRef.current=false;
    previewDrawingRef.current=true;
+   const current=editCache.current,epoch=previewEpochRef.current;
+   const canvas=liveCanvasRef.current;
+   canvas.__editorGeneration=epoch;
    try{
-    while(previewDirtyRef.current&&editCache.current&&liveCanvasRef.current){
-     previewDirtyRef.current=false;
-     const current=editCache.current,epoch=previewEpochRef.current;
-     await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,liveCanvasRef.current,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
-     if(epoch===previewEpochRef.current)setLiveCanvasVisible(true);
-    }
+    await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,canvas,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
+    if(epoch===previewEpochRef.current)setLiveCanvasVisible(true);
    }catch(e){suppressUiError(e,'แสดงภาพขณะลากไม่สำเร็จ')}
-   finally{previewDrawingRef.current=false;if(previewDirtyRef.current)drawLivePreview()}
+   finally{
+    previewDrawingRef.current=false;
+    if(previewDirtyRef.current)drawLivePreview();
+   }
   });
  };
  const commitAdjust=()=>{
@@ -2209,15 +2218,17 @@ function App(){
    const current=editCache.current;
    try{
     const out=await renderWithRibbon(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
-    // The asynchronous canvas painter must finish before the image/canvas swap.
-    // Otherwise an old canvas frame can reappear after the final PNG arrives.
-    while(seq===renderSeqRef.current&&(previewDrawingRef.current||previewFrame.current||previewDirtyRef.current)){
-     await new Promise(resolve=>requestAnimationFrame(resolve));
+    // Invalidate old preview work rather than waiting on a render queue.
+    if(seq===renderSeqRef.current){
+     previewEpochRef.current++;previewDirtyRef.current=false;
+     if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
+     if(liveCanvasRef.current)liveCanvasRef.current.__editorGeneration=previewEpochRef.current;
     }
     if(seq===renderSeqRef.current&&!activeSliderPointersRef.current.size){
      // Keep one visible rendering surface: switching canvas <-> img changes
      // rasterisation/scale and makes the portrait appear to zoom back and forth.
      showBlob(out);
+     setLiveCanvasVisible(false);
     }
    }catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับภาพไม่สำเร็จ')}
   },180);
@@ -2227,7 +2238,9 @@ function App(){
   if(placementLocked)return;
   liveAdjustRef.current=next;setHeadAdjust(next);
   ++renderSeqRef.current;clearTimeout(finishTimer.current);
-  drawLivePreview();commitAdjust();
+  drawLivePreview();
+  // During a held pointer, commit once on release, not after every move.
+  if(!gestureRef.current.drag)commitAdjust();
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
@@ -2284,8 +2297,31 @@ function App(){
   if(optionTool==='head')return false; // keep existing hold-to-drag behavior once selected
   setOptionTool('head');return true;
  };
+ const previewTapRef=useRef(null);
+ // All touch pointers share one viewport pinch, regardless of the layer under either finger.
+ const startPreviewPinch=e=>{
+  const v=viewGestureRef.current,g=gestureRef.current,drag=ribbonDragRef.current;
+  const points=new Map(v.pointers||[]);
+  for(const [id,point] of g.pointers||[])points.set(id,point);
+  if(drag)points.set(drag.id,{x:drag.lastX??drag.x,y:drag.lastY??drag.y});
+  points.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(points.size<2)return false;
+  e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);
+  clearTimeout(g.holdTimer);g.holdTimer=null;g.pending=false;g.drag=false;g.pinch=false;
+  g.pointers.clear();ribbonDragRef.current=null;previewTapRef.current=null;
+  v.pointers=points;v.drag=false;v.pinch=true;v.wasPinch=true;
+  const pts=[...points.values()].slice(0,2);
+  v.distance=Math.max(1,Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y));
+  v.startZoom=previewZoom;v.startPan={...previewPan};
+  v.midX=(pts[0].x+pts[1].x)/2;v.midY=(pts[0].y+pts[1].y)/2;
+  return true;
+ };
  const previewPointerDown=e=>{
-  if(selectPreviewLayer(e)){e.preventDefault();e.stopPropagation();return;}
+  if(e.pointerType==='touch'){
+   if(startPreviewPinch(e))return;
+   previewTapRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};
+  }
+  if(e.pointerType!=='touch'&&selectPreviewLayer(e)){e.preventDefault();e.stopPropagation();return;}
   if(optionTool==='ribbon'&&ribbonRef.current&&b&&!comparePreview){
    const rect=e.currentTarget.getBoundingClientRect();
    const lock=editCache.current?.lock;
@@ -2295,7 +2331,7 @@ function App(){
    const cx=lock.uX+lock.uW*(.73+v.x),top=lock.uY+lock.uH*(.495+v.y);
    if(px<cx-w*.8||px>cx+w*.8||py<top-h||py>top+h*2){beginViewGesture(e);return}
    e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);
-   ribbonDragRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,start:{...v}};return;
+   ribbonDragRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,start:{...v}};return;
   }
   if(!isHeadTouch(e)){if(a||b)beginViewGesture(e);return}
   e.preventDefault();e.stopPropagation();
@@ -2312,10 +2348,10 @@ function App(){
     navigator.vibrate?.(10);
    },320);
   }
-  else if(g.pointers.size===2){clearTimeout(g.holdTimer);g.pending=false;const pts=[...g.pointers.values()];g.pinch=true;g.drag=false;g.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);g.startAdjust={...liveAdjustRef.current};g.midX=(pts[0].x+pts[1].x)/2;g.midY=(pts[0].y+pts[1].y)/2}
  };
  const previewPointerMove=e=>{
   const v=viewGestureRef.current;
+  if(previewTapRef.current?.id===e.pointerId&&Math.hypot(e.clientX-previewTapRef.current.x,e.clientY-previewTapRef.current.y)>8)previewTapRef.current.moved=true;
   if(v.pointers?.has(e.pointerId)){
    e.preventDefault();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(v.pointers.size>=2&&v.pinch){const pts=[...v.pointers.values()].slice(0,2),distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),midX=(pts[0].x+pts[1].x)/2,midY=(pts[0].y+pts[1].y)/2,zoom=Math.max(.2,Math.min(2,v.startZoom*distance/Math.max(1,v.distance)));setPreviewZoom(zoom);setPreviewPan(clampPreviewPan({x:v.startPan.x+(midX-v.midX),y:v.startPan.y+(midY-v.midY)},zoom))}
@@ -2323,23 +2359,25 @@ function App(){
    return;
   }
   const drag=ribbonDragRef.current;
-  if(drag&&drag.id===e.pointerId){e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();const lock=editCache.current?.lock;if(lock)applyRibbonAdjust({...drag.start,x:drag.start.x+(e.clientX-drag.x)/rect.width*lock.W/lock.uW,y:drag.start.y+(e.clientY-drag.y)/rect.height*lock.H/lock.uH});return;}
+  if(drag&&drag.id===e.pointerId){drag.lastX=e.clientX;drag.lastY=e.clientY;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();const lock=editCache.current?.lock;if(lock)applyRibbonAdjust({...drag.start,x:drag.start.x+(e.clientX-drag.x)/rect.width*lock.W/lock.uW,y:drag.start.y+(e.clientY-drag.y)/rect.height*lock.H/lock.uH});return;}
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId)||(optionTool&&optionTool!=='head'))return;
   e.preventDefault();g.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   const rect=e.currentTarget.getBoundingClientRect();
-  if(g.pointers.size>=2&&g.pinch){const pts=[...g.pointers.values()].slice(0,2),dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),mx=(pts[0].x+pts[1].x)/2,my=(pts[0].y+pts[1].y)/2;const ratio=dist/Math.max(1,g.distance);const scale=Math.max(.20,Math.min(2,g.startAdjust.scale*ratio));const next={...g.startAdjust,scale,x:g.startAdjust.x+(mx-g.midX)/rect.width,y:g.startAdjust.y+(my-g.midY)/rect.height};paintHeadTransform(next)}
-  else if(g.pending&&e.pointerId===g.primary){if(Math.hypot(e.clientX-g.downX,e.clientY-g.downY)>10){clearTimeout(g.holdTimer);g.pending=false}return}
+  if(g.pending&&e.pointerId===g.primary){if(Math.hypot(e.clientX-g.downX,e.clientY-g.downY)>10){clearTimeout(g.holdTimer);g.pending=false}return}
   else if(g.drag&&e.pointerId===g.primary){const next={...g.startAdjust,x:g.startAdjust.x+(e.clientX-g.x)/rect.width,y:g.startAdjust.y+(e.clientY-g.y)/rect.height};paintHeadTransform(next)}
  };
  const previewPointerUp=e=>{
+  const tap=previewTapRef.current;
+  if(tap?.id===e.pointerId){previewTapRef.current=null;if(!tap.moved&&e.type!=='pointercancel'&&!viewGestureRef.current.wasPinch){selectPreviewLayer(e)}}
   const v=viewGestureRef.current;
   if(v.pointers?.has(e.pointerId)){
    e.preventDefault();v.pointers.delete(e.pointerId);
-   if(v.pointers.size===0){v.drag=false;v.pinch=false}
+   if(v.pointers.size===0){v.drag=false;v.pinch=false;v.wasPinch=false}
+   else if(v.wasPinch){v.drag=false;v.pinch=false} // Lift remaining finger before starting a new gesture.
    else if(v.pointers.size===1){const [,point]=[...v.pointers.entries()][0];v.drag=true;v.pinch=false;v.x=point.x;v.y=point.y;v.startPan={...previewPan}}
    return;
   }
-  if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;return;}
+  if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;commitAdjust();return;}
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId))return;
   e.preventDefault();clearTimeout(g.holdTimer);g.holdTimer=null;g.pointers.delete(e.pointerId);
   if(g.pointers.size===0){const changed=g.drag||g.pinch;g.drag=false;g.pending=false;g.pinch=false;if(changed)commitAdjust()}
@@ -2416,7 +2454,8 @@ function App(){
  };
  const applyRibbonAdjust=next=>{
   const v={x:Math.max(-.35,Math.min(.35,next.x)),y:Math.max(-.35,Math.min(.35,next.y)),scale:Math.max(.45,Math.min(2,next.scale))};
-  ribbonAdjustRef.current=v;setRibbonAdjust(v);drawLivePreview();commitAdjust();
+  ribbonAdjustRef.current=v;setRibbonAdjust(v);drawLivePreview();
+  if(!ribbonDragRef.current)commitAdjust();
  };
  const selectRibbon=async option=>{
   if(busy||hairBusy||downloadBusy)return;
