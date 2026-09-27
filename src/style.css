@@ -1191,3 +1191,11 @@
 @keyframes hair-guide-glow{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,0)}50%{box-shadow:0 0 0 5px rgba(59,130,246,.2)}}
 @keyframes hair-guide-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media (prefers-reduced-motion:reduce){.hair-selection-guide,.hair-selection-guide-icon,.adaptive-editor .process-option-bar button.hair-tool-attention{animation:none}}
+
+/* V298: accept two-finger viewport gestures on empty editor space around the portrait. */
+@media (pointer: coarse) {
+ .adaptive-editor .style-detail-card.preview-gesture-area { touch-action: none; overscroll-behavior: contain; }
+ .adaptive-editor .style-detail-card.preview-gesture-area button,
+ .adaptive-editor .style-detail-card.preview-gesture-area input,
+ .adaptive-editor .style-detail-card.preview-gesture-area .tool-choice-sheet { touch-action: manipulation; }
+}
