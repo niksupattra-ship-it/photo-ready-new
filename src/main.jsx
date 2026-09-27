@@ -860,9 +860,12 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  const collarKey=`${lock.templatePath}|${collarWarp}|${collarHeight}`;
  if(cache.collarKey!==collarKey){cache.collarKey=collarKey;cache.uniformPromise=warpUniformCollar(uniform,collarWarp,collarHeight)}
  const warpedUniform=await cache.uniformPromise;
- const masterURL=URL.createObjectURL(headMasterBlob);
- try{
- const head=cache.head||(cache.head=await loadImage(masterURL));
+ const previewGeneration=preview&&liveCanvas?liveCanvas.__editorGeneration:null;
+ const head=cache.head||(cache.head=await (async()=>{
+  const url=URL.createObjectURL(headMasterBlob);
+  try{return await loadImage(url)}finally{URL.revokeObjectURL(url)}
+ })());
+ {
   const masterMasks=await (cache.masksPromise||(cache.masksPromise=getV192MasterMasks(headMasterBlob,head)));
   const neckKey=`${lock.chinY}|${neckAdjust.width||0}|${neckAdjust.length||0}`;
   if(cache.neckKey!==neckKey){cache.neckKey=neckKey;cache.neckPromise=warpPersonNeck(head,lock.chinY,neckAdjust);cache.cleanHead=null}
@@ -874,8 +877,16 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
   const cleanHead=cache.cleanHead||(cache.cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask));
   // V231: compose offscreen. Resizing the visible canvas clears it on every slider tick.
- const c=document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(420,Math.round(liveCanvas?.clientWidth||420)*2)/lock.W):1;c.width=Math.round(lock.W*ratio);c.height=Math.round(lock.H*ratio);
-  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';x.scale(ratio,ratio);x.drawImage(bg,0,0,lock.W,lock.H);
+ const c=preview&&liveCanvas?(cache.previewCanvas||(cache.previewCanvas=document.createElement('canvas'))):document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(320,Math.round(liveCanvas?.clientWidth||320)*Math.min(1.5,window.devicePixelRatio||1))/lock.W):1;const targetW=Math.round(lock.W*ratio),targetH=Math.round(lock.H*ratio);if(c.width!==targetW||c.height!==targetH){c.width=targetW;c.height=targetH}
+  // V299: a reused preview canvas retains its 2D transform between frames.
+  // Reset and clear it before drawing; otherwise each drag compounds scale()
+  // and paints progressively nested copies of the uniform/background.
+  const x=c.getContext('2d');
+  x.setTransform(1,0,0,1,0,0);
+  x.clearRect(0,0,c.width,c.height);
+  x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';
+  x.setTransform(ratio,0,0,ratio,0,0);
+  x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
   // V81-quality direct sampling: draw the untouched transparent master directly to
@@ -938,12 +949,13 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   }
   if(preview&&liveCanvas){
    // Draw the completed frame in one operation; never encode during dragging.
+   if(liveCanvas.__editorGeneration!==previewGeneration)return null;
    if(liveCanvas.width!==c.width||liveCanvas.height!==c.height){liveCanvas.width=c.width;liveCanvas.height=c.height}
    liveCanvas.getContext('2d').drawImage(c,0,0);
    return null;
   }
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
- }finally{URL.revokeObjectURL(masterURL)}
+ }
 }
 
 async function makeAiUploadBlob(composedBlob){
@@ -1913,35 +1925,36 @@ async function applyLocalBeauty(blob,settings){
  if(!brightness&&!smooth&&!pink&&!lip)return blob;
  const url=URL.createObjectURL(blob);
  try{
-  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
-  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
-  // Segment at a bounded resolution: running the model on 900x1200 on each
-  // mobile slider update can stall the main thread for seconds.
   let prepared=localBeautyMaskCache.get(blob);
   if(!prepared){
-   const factor=Math.min(1,480/Math.max(W,H));
-   const sw=Math.max(1,Math.round(W*factor)),sh=Math.max(1,Math.round(H*factor));
-   const small=canvasFor(sw,sh),sc=small.getContext('2d');sc.drawImage(im,0,0,sw,sh);
-   const face=(await getLandmarker()).detect(small).faceLandmarks?.[0];
-   if(!face)return blob;
-   const skin=await semanticClassMask(small,sw,sh,[2,3]);if(!skin)return blob;
-   const maskCanvas=canvasFor(W,H),mc=maskCanvas.getContext('2d',{willReadFrequently:true});
-   mc.imageSmoothingEnabled=true;mc.drawImage(skin,0,0,W,H);
-   prepared={face,mask:mc.getImageData(0,0,W,H).data};
-   localBeautyMaskCache.set(blob,prepared);
+   const preparation=(async()=>{
+    const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
+    const factor=Math.min(1,480/Math.max(W,H));
+    const sw=Math.max(1,Math.round(W*factor)),sh=Math.max(1,Math.round(H*factor));
+    const small=canvasFor(sw,sh),sc=small.getContext('2d');sc.drawImage(im,0,0,sw,sh);
+    const face=(await getLandmarker()).detect(small).faceLandmarks?.[0];
+    if(!face)return null;
+    const skin=await semanticClassMask(small,sw,sh,[2,3]);if(!skin)return null;
+    const maskCanvas=canvasFor(W,H),mc=maskCanvas.getContext('2d',{willReadFrequently:true});
+    mc.imageSmoothingEnabled=true;mc.drawImage(skin,0,0,W,H);
+    const blurred=canvasFor(W,H),bc=blurred.getContext('2d',{willReadFrequently:true});
+    bc.filter='blur(2.2px)';bc.drawImage(im,0,0);bc.filter='none';
+    const lipMask=canvasFor(W,H),lc=lipMask.getContext('2d');
+    const outer=[61,40,37,0,267,270,291,321,314,17,84,91];
+    const inner=[78,81,13,311,308,402,14,178];
+    const path=ids=>{lc.beginPath();ids.forEach((n,i)=>{const q=face[n];if(!q)return;i?lc.lineTo(q.x*W,q.y*H):lc.moveTo(q.x*W,q.y*H)});lc.closePath()};
+    path(outer);lc.fillStyle='#fff';lc.fill();lc.globalCompositeOperation='destination-out';path(inner);lc.fill();
+    return {im,W,H,mask:mc.getImageData(0,0,W,H).data,soft:bc.getImageData(0,0,W,H).data,lips:lc.getImageData(0,0,W,H).data};
+   })();
+   localBeautyMaskCache.set(blob,preparation);
+   prepared=preparation;
   }
-  const {face,mask}=prepared;
+  prepared=await prepared;
+  if(!prepared)return blob;
+  const {im,W,H,mask,soft}=prepared;
+  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
   const src=ctx.getImageData(0,0,W,H),pixels=src.data;
-  const blurred=canvasFor(W,H),bc=blurred.getContext('2d',{willReadFrequently:true});
-  bc.filter='blur(2.2px)';bc.drawImage(im,0,0);bc.filter='none';
-  const soft=bc.getImageData(0,0,W,H).data;
-  const lipMask=canvasFor(W,H),lc=lipMask.getContext('2d');
-  // FaceMesh outer lip contour, excluding inner mouth and teeth.
-  const outer=[61,40,37,0,267,270,291,321,314,17,84,91];
-  const inner=[78,81,13,311,308,402,14,178];
-  const path=ids=>{lc.beginPath();ids.forEach((n,i)=>{const q=face[n];if(!q)return;i?lc.lineTo(q.x*W,q.y*H):lc.moveTo(q.x*W,q.y*H)});lc.closePath()};
-  if(lip){path(outer);lc.fillStyle='#fff';lc.fill();lc.globalCompositeOperation='destination-out';path(inner);lc.fill();lc.globalCompositeOperation='source-over'}
-  const lips=lip?lc.getImageData(0,0,W,H).data:null;
+  const lips=lip?prepared.lips:null;
   const rgb=lipColor.match(/[a-f\d]{2}/gi)?.map(h=>parseInt(h,16))||[196,109,118];
   // Yield between scanline batches so touch, tabs and paint stay responsive.
   for(let i=0;i<pixels.length;i+=4){
@@ -2022,6 +2035,7 @@ function App(){
  const beautyRenderRef=useRef(0);
  const beautyBaseRef=useRef(null);
  const beautyPreviewBaseRef=useRef(null);
+ const beautyWorkingRef=useRef(false);
  const[downloadBusy,setDownloadBusy]=useState(false);
  const[backgroundId,setBackgroundId]=useState('default');const backgroundRef=useRef('/assets/background.jpg');
  const[ribbonId,setRibbonId]=useState('');const ribbonRef=useRef(null);
@@ -2180,23 +2194,28 @@ function App(){
   setLiveCanvasVisible(false);
   return ++renderSeqRef.current;
  };
+ // V297: one preview frame at a time. Never queue a while-loop of stale
+ // full composites behind pointer events; a released finger must remain responsive.
  const drawLivePreview=()=>{
   if(!editCache.current||!liveCanvasRef.current)return;
   previewDirtyRef.current=true;
   if(previewFrame.current||previewDrawingRef.current)return;
   previewFrame.current=requestAnimationFrame(async()=>{
    previewFrame.current=null;
-   if(previewDrawingRef.current)return;
+   if(previewDrawingRef.current||!previewDirtyRef.current)return;
+   previewDirtyRef.current=false;
    previewDrawingRef.current=true;
+   const current=editCache.current,epoch=previewEpochRef.current;
+   const canvas=liveCanvasRef.current;
+   canvas.__editorGeneration=epoch;
    try{
-    while(previewDirtyRef.current&&editCache.current&&liveCanvasRef.current){
-     previewDirtyRef.current=false;
-     const current=editCache.current,epoch=previewEpochRef.current;
-     await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,liveCanvasRef.current,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
-     if(epoch===previewEpochRef.current)setLiveCanvasVisible(true);
-    }
+    await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,canvas,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
+    if(epoch===previewEpochRef.current)setLiveCanvasVisible(true);
    }catch(e){suppressUiError(e,'แสดงภาพขณะลากไม่สำเร็จ')}
-   finally{previewDrawingRef.current=false;if(previewDirtyRef.current)drawLivePreview()}
+   finally{
+    previewDrawingRef.current=false;
+    if(previewDirtyRef.current)drawLivePreview();
+   }
   });
  };
  const commitAdjust=()=>{
@@ -2209,15 +2228,17 @@ function App(){
    const current=editCache.current;
    try{
     const out=await renderWithRibbon(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
-    // The asynchronous canvas painter must finish before the image/canvas swap.
-    // Otherwise an old canvas frame can reappear after the final PNG arrives.
-    while(seq===renderSeqRef.current&&(previewDrawingRef.current||previewFrame.current||previewDirtyRef.current)){
-     await new Promise(resolve=>requestAnimationFrame(resolve));
+    // Invalidate old preview work rather than waiting on a render queue.
+    if(seq===renderSeqRef.current){
+     previewEpochRef.current++;previewDirtyRef.current=false;
+     if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
+     if(liveCanvasRef.current)liveCanvasRef.current.__editorGeneration=previewEpochRef.current;
     }
     if(seq===renderSeqRef.current&&!activeSliderPointersRef.current.size){
      // Keep one visible rendering surface: switching canvas <-> img changes
      // rasterisation/scale and makes the portrait appear to zoom back and forth.
      showBlob(out);
+     setLiveCanvasVisible(false);
     }
    }catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับภาพไม่สำเร็จ')}
   },180);
@@ -2227,7 +2248,9 @@ function App(){
   if(placementLocked)return;
   liveAdjustRef.current=next;setHeadAdjust(next);
   ++renderSeqRef.current;clearTimeout(finishTimer.current);
-  drawLivePreview();commitAdjust();
+  drawLivePreview();
+  // During a held pointer, commit once on release, not after every move.
+  if(!gestureRef.current.drag)commitAdjust();
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
@@ -2364,11 +2387,29 @@ function App(){
    else if(v.pointers.size===1){const [,point]=[...v.pointers.entries()][0];v.drag=true;v.pinch=false;v.x=point.x;v.y=point.y;v.startPan={...previewPan}}
    return;
   }
-  if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;return;}
+  if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;commitAdjust();return;}
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId))return;
   e.preventDefault();clearTimeout(g.holdTimer);g.holdTimer=null;g.pointers.delete(e.pointerId);
   if(g.pointers.size===0){const changed=g.drag||g.pinch;g.drag=false;g.pending=false;g.pinch=false;if(changed)commitAdjust()}
   else if(g.pointers.size===1){g.drag=false;g.pending=false;g.pinch=false;g.primary=[...g.pointers.keys()][0]}
+ };
+ // V298: the empty area surrounding the portrait participates in the same
+ // two-finger gesture. Controls keep their own pointer handling untouched.
+ const isPreviewControl=e=>!!e.target?.closest?.('button,input,select,textarea,a,[role="button"],.tool-choice-sheet,.process-option-bar,.preview-floating-actions,.image-progress-overlay');
+ const previewAreaPointerDown=e=>{
+  if(!a&&!b||e.pointerType!=='touch'||e.target?.closest?.('.hero-preview')||isPreviewControl(e))return;
+  if(startPreviewPinch(e))return;
+  // Track the first finger outside the frame, so the next finger (even inside)
+  // can immediately convert the gesture into a pinch.
+  beginViewGesture(e);
+ };
+ const previewAreaPointerMove=e=>{
+  if(e.target?.closest?.('.hero-preview')||!viewGestureRef.current.pointers?.has(e.pointerId))return;
+  previewPointerMove(e);
+ };
+ const previewAreaPointerUp=e=>{
+  if(e.target?.closest?.('.hero-preview')||!viewGestureRef.current.pointers?.has(e.pointerId))return;
+  previewPointerUp(e);
  };
  const previewWheel=e=>{if(a||b){e.preventDefault();setPreviewViewZoom(previewZoom*Math.exp(-e.deltaY*.0015))}};
  // Kept only for compatibility with the hidden legacy row in this build.
@@ -2441,7 +2482,8 @@ function App(){
  };
  const applyRibbonAdjust=next=>{
   const v={x:Math.max(-.35,Math.min(.35,next.x)),y:Math.max(-.35,Math.min(.35,next.y)),scale:Math.max(.45,Math.min(2,next.scale))};
-  ribbonAdjustRef.current=v;setRibbonAdjust(v);drawLivePreview();commitAdjust();
+  ribbonAdjustRef.current=v;setRibbonAdjust(v);drawLivePreview();
+  if(!ribbonDragRef.current)commitAdjust();
  };
  const selectRibbon=async option=>{
   if(busy||hairBusy||downloadBusy)return;
@@ -2543,30 +2585,30 @@ function App(){
  const updateBeauty=next=>{
   beautyRef.current=next;setBeauty(next);
   if(!editCache.current||!beautyBaseRef.current)return;
-  const seq=++beautyRenderRef.current;
+  ++beautyRenderRef.current;
   clearTimeout(beautyTimerRef.current);
-  // The sliders never recompose the uniform/head or rerun AI. Prepare a small
-  // immutable preview once per composite, then reuse its face/skin masks.
-  beautyTimerRef.current=setTimeout(async()=>{
+  // Keep the original full-resolution composite on screen while processing.
+  // Only one beauty job runs at a time; coalesce rapid slider updates.
+  const processLatest=async()=>{
+   if(beautyWorkingRef.current)return;
+   beautyWorkingRef.current=true;
    try{
-    const base=beautyBaseRef.current;
-    if(!beautyPreviewBaseRef.current||beautyPreviewBaseRef.current.source!==base){
-     const url=URL.createObjectURL(base);
-     try{
-      const im=await loadImage(url);
-      const factor=Math.min(1,480/Math.max(im.naturalWidth,im.naturalHeight));
-      const c=canvasFor(Math.round(im.naturalWidth*factor),Math.round(im.naturalHeight*factor));
-      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-      const reduced=await new Promise(resolve=>c.toBlob(resolve,'image/png'));
-      if(!reduced)return;
-      beautyPreviewBaseRef.current={source:base,blob:reduced};
-     }finally{URL.revokeObjectURL(url)}
+    while(editCache.current&&beautyBaseRef.current){
+     const seq=beautyRenderRef.current;
+     const base=beautyBaseRef.current;
+     const values={...beautyRef.current};
+     const out=await applyLocalBeauty(base,values);
+     if(seq===beautyRenderRef.current&&base===beautyBaseRef.current){
+      setLiveCanvasVisible(false);showBlob(out);
+      break;
+     }
+     // Discard obsolete results instead of displaying a blurry intermediate frame.
+     await new Promise(resolve=>setTimeout(resolve,0));
     }
-    if(seq!==beautyRenderRef.current)return;
-    const out=await applyLocalBeauty(beautyPreviewBaseRef.current.blob,next);
-    if(seq===beautyRenderRef.current){setLiveCanvasVisible(false);showBlob(out)}
-   }catch(e){if(seq===beautyRenderRef.current)suppressUiError(e,'ปรับผิวไม่สำเร็จ')}
-  },45);
+   }catch(e){suppressUiError(e,'ปรับผิวไม่สำเร็จ')}
+   finally{beautyWorkingRef.current=false}
+  };
+  beautyTimerRef.current=setTimeout(processLatest,0);
  };
  const downloadCurrentFinal=async()=>{
   if(!editCache.current||downloadBusy||hairBusy||busy)return;
@@ -2668,7 +2710,7 @@ function App(){
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div>{c.cat==='government'&&<strong>{c.title}</strong>}</div></button>)}</div></section>}
  return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
-  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
+  <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
