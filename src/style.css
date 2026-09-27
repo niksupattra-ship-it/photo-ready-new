@@ -1199,3 +1199,43 @@
  .adaptive-editor .style-detail-card.preview-gesture-area input,
  .adaptive-editor .style-detail-card.preview-gesture-area .tool-choice-sheet { touch-action: manipulation; }
 }
+
+
+/* V302: spacing only — larger touch separation for head, collar, pins and ribbon. */
+.adaptive-editor .head-adjust-modern,
+.adaptive-editor .collar-adjust-modern,
+.adaptive-editor .ribbon-modern-adjust{gap:8px}
+.adaptive-editor .head-adjust-modern .head-adjust-row,
+.adaptive-editor .collar-adjust-modern .head-adjust-row,
+.adaptive-editor .ribbon-modern-adjust .head-adjust-row{
+  height:44px;min-height:44px;padding-top:5px;padding-bottom:5px;box-sizing:border-box
+}
+.adaptive-editor .head-adjust-modern .head-adjust-row input[type=range],
+.adaptive-editor .collar-adjust-modern .head-adjust-row input[type=range],
+.adaptive-editor .ribbon-modern-adjust .head-adjust-row input[type=range]{height:32px}
+.adaptive-editor .pin-side-adjust{row-gap:5px;padding-top:5px;padding-bottom:5px}
+@media(max-width:1100px){
+ .adaptive-editor .head-adjust-modern,.adaptive-editor .collar-adjust-modern,.adaptive-editor .ribbon-modern-adjust{gap:10px}
+ .adaptive-editor .head-adjust-modern .head-adjust-row,
+ .adaptive-editor .collar-adjust-modern .head-adjust-row,
+ .adaptive-editor .ribbon-modern-adjust .head-adjust-row{height:48px;min-height:48px;padding-top:7px;padding-bottom:7px}
+}
+/* V302: beauty sliders share the compact, horizontal form of the other adjustment bars. */
+.adaptive-editor .local-beauty-panel{padding:4px 8px;gap:4px}
+.adaptive-editor .local-beauty-panel .beauty-control{
+ display:grid;grid-template-columns:minmax(100px,130px) minmax(0,1fr) 46px;
+ align-items:center;column-gap:8px;row-gap:0;min-height:32px;
+ font-size:12px
+}
+.adaptive-editor .local-beauty-panel .beauty-control>span{display:contents}
+.adaptive-editor .local-beauty-panel .beauty-control strong{grid-column:1;grid-row:1;font-size:12px}
+.adaptive-editor .local-beauty-panel .beauty-control input[type=range]{grid-column:2;grid-row:1;min-width:0;height:24px;margin:0}
+.adaptive-editor .local-beauty-panel .beauty-control output{grid-column:3;grid-row:1;text-align:right;font-size:12px;font-weight:700}
+.adaptive-editor .local-beauty-panel .beauty-lip-swatches{gap:7px}
+.adaptive-editor .local-beauty-panel .beauty-lip-swatches button{width:26px;height:26px}
+.adaptive-editor .local-beauty-panel .beauty-reset{padding:5px 9px}
+@media(max-width:650px){
+ .adaptive-editor .local-beauty-panel .beauty-control{grid-template-columns:minmax(84px,105px) minmax(0,1fr) 40px;column-gap:5px}
+ .adaptive-editor .local-beauty-panel .beauty-control strong{font-size:11px}
+ .adaptive-editor .local-beauty-panel .beauty-control output{font-size:11px}
+}
