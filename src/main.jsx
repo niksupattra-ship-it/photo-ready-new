@@ -2505,7 +2505,7 @@ function App(){
   const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setScreen('process')};
   const homeCategories=[
    {id:'job',icon:'▣',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
-   {id:'government',icon:'♜',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ',image:'/assets/home-cutouts/government.png'},
+   {id:'government',icon:'♜',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
    {id:'student',icon:'◆',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
    {id:'gown',icon:'✦',title:'ชุดครุย',desc:'ชุดครุยปริญญา\nทุกสถาบัน',image:null}
   ];
