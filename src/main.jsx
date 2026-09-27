@@ -1907,6 +1907,7 @@ function firstFitHeadAdjust(lock,gender='female'){
 // V292: entirely local, non-generative skin/lip adjustment of the FINAL composite.
 // If face detection or segmentation is unavailable, leave the original pixels intact.
 const DEFAULT_BEAUTY={brightness:0,smooth:0,pink:0,lip:0,lipColor:'#c46d76'};
+const localBeautyMaskCache=new WeakMap();
 async function applyLocalBeauty(blob,settings){
  const {brightness,smooth,pink,lip,lipColor}=settings;
  if(!brightness&&!smooth&&!pink&&!lip)return blob;
@@ -1914,11 +1915,23 @@ async function applyLocalBeauty(blob,settings){
  try{
   const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
   const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
-  const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
-  if(!face)return blob;
-  const skin=await semanticClassMask(im,W,H,[2,3]);if(!skin)return blob;
+  // Segment at a bounded resolution: running the model on 900x1200 on each
+  // mobile slider update can stall the main thread for seconds.
+  let prepared=localBeautyMaskCache.get(blob);
+  if(!prepared){
+   const factor=Math.min(1,480/Math.max(W,H));
+   const sw=Math.max(1,Math.round(W*factor)),sh=Math.max(1,Math.round(H*factor));
+   const small=canvasFor(sw,sh),sc=small.getContext('2d');sc.drawImage(im,0,0,sw,sh);
+   const face=(await getLandmarker()).detect(small).faceLandmarks?.[0];
+   if(!face)return blob;
+   const skin=await semanticClassMask(small,sw,sh,[2,3]);if(!skin)return blob;
+   const maskCanvas=canvasFor(W,H),mc=maskCanvas.getContext('2d',{willReadFrequently:true});
+   mc.imageSmoothingEnabled=true;mc.drawImage(skin,0,0,W,H);
+   prepared={face,mask:mc.getImageData(0,0,W,H).data};
+   localBeautyMaskCache.set(blob,prepared);
+  }
+  const {face,mask}=prepared;
   const src=ctx.getImageData(0,0,W,H),pixels=src.data;
-  const mask=skin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const blurred=canvasFor(W,H),bc=blurred.getContext('2d',{willReadFrequently:true});
   bc.filter='blur(2.2px)';bc.drawImage(im,0,0);bc.filter='none';
   const soft=bc.getImageData(0,0,W,H).data;
@@ -1930,7 +1943,9 @@ async function applyLocalBeauty(blob,settings){
   if(lip){path(outer);lc.fillStyle='#fff';lc.fill();lc.globalCompositeOperation='destination-out';path(inner);lc.fill();lc.globalCompositeOperation='source-over'}
   const lips=lip?lc.getImageData(0,0,W,H).data:null;
   const rgb=lipColor.match(/[a-f\d]{2}/gi)?.map(h=>parseInt(h,16))||[196,109,118];
+  // Yield between scanline batches so touch, tabs and paint stay responsive.
   for(let i=0;i<pixels.length;i+=4){
+   if(i && i%(W*4*24)===0)await new Promise(resolve=>setTimeout(resolve,0));
    const a=pixels[i+3]/255;if(!a)continue;
    const skinA=mask[i+3]/255;
    const lipA=lips?lips[i+3]/255:0;
@@ -2005,6 +2020,8 @@ function App(){
  const[optionTool,setOptionTool]=useState(null);
  const[beauty,setBeauty]=useState(DEFAULT_BEAUTY);const beautyRef=useRef(DEFAULT_BEAUTY);
  const beautyRenderRef=useRef(0);
+ const beautyBaseRef=useRef(null);
+ const beautyPreviewBaseRef=useRef(null);
  const[downloadBusy,setDownloadBusy]=useState(false);
  const[backgroundId,setBackgroundId]=useState('default');const backgroundRef=useRef('/assets/background.jpg');
  const[ribbonId,setRibbonId]=useState('');const ribbonRef=useRef(null);
@@ -2017,7 +2034,11 @@ function App(){
  const[chestPinPanelTab,setChestPinPanelTab]=useState('select');
  const[ribbonPanelTab,setRibbonPanelTab]=useState('select');
  const ribbonDragRef=useRef(null);
- const renderWithRibbon=async(...args)=>applyLocalBeauty(await renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,false,null,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current),beautyRef.current);
+ const renderWithRibbon=async(...args)=>{
+  const base=await renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,false,null,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
+  beautyBaseRef.current=base;beautyPreviewBaseRef.current=null;
+  return applyLocalBeauty(base,beautyRef.current);
+ };
  const renderQuickPreview=(...args)=>renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,true,null,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
  const[resultTool,setResultTool]=useState('head');
  const[previewZoom,setPreviewZoom]=useState(1);
@@ -2053,6 +2074,7 @@ function App(){
  useEffect(()=>{if(b&&toolBarRef.current)toolBarRef.current.scrollLeft=0},[b]);
  useEffect(()=>{if(!optionTool)return;const dismiss=e=>{const t=e.target;if(t?.closest?.('.tool-choice-sheet,.process-option-bar,.tool-rail-arrow,.direct-edit-preview'))return;setOptionTool(null)};document.addEventListener('pointerdown',dismiss,true);return()=>document.removeEventListener('pointerdown',dismiss,true)},[optionTool]);
  const renderTimer=useRef(null);
+ const beautyTimerRef=useRef(null);
  const adjustRenderBusyRef=useRef(false);
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
@@ -2495,19 +2517,37 @@ function App(){
  };
  const updateBeauty=next=>{
   beautyRef.current=next;setBeauty(next);
-  if(!editCache.current)return;
+  if(!editCache.current||!beautyBaseRef.current)return;
   const seq=++beautyRenderRef.current;
-  clearTimeout(renderTimer.current);clearTimeout(finishTimer.current);
-  // Always display the exact same post-processed composite as the download.
-  setLiveCanvasVisible(false);
-  renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current)
-   .then(out=>{if(seq===beautyRenderRef.current)showBlob(out)})
-   .catch(e=>suppressUiError(e,'ปรับผิวไม่สำเร็จ'));
+  clearTimeout(beautyTimerRef.current);
+  // The sliders never recompose the uniform/head or rerun AI. Prepare a small
+  // immutable preview once per composite, then reuse its face/skin masks.
+  beautyTimerRef.current=setTimeout(async()=>{
+   try{
+    const base=beautyBaseRef.current;
+    if(!beautyPreviewBaseRef.current||beautyPreviewBaseRef.current.source!==base){
+     const url=URL.createObjectURL(base);
+     try{
+      const im=await loadImage(url);
+      const factor=Math.min(1,480/Math.max(im.naturalWidth,im.naturalHeight));
+      const c=canvasFor(Math.round(im.naturalWidth*factor),Math.round(im.naturalHeight*factor));
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      const reduced=await new Promise(resolve=>c.toBlob(resolve,'image/png'));
+      if(!reduced)return;
+      beautyPreviewBaseRef.current={source:base,blob:reduced};
+     }finally{URL.revokeObjectURL(url)}
+    }
+    if(seq!==beautyRenderRef.current)return;
+    const out=await applyLocalBeauty(beautyPreviewBaseRef.current.blob,next);
+    if(seq===beautyRenderRef.current){setLiveCanvasVisible(false);showBlob(out)}
+   }catch(e){if(seq===beautyRenderRef.current)suppressUiError(e,'ปรับผิวไม่สำเร็จ')}
+  },45);
  };
  const downloadCurrentFinal=async()=>{
   if(!editCache.current||downloadBusy||hairBusy||busy)return;
   setDownloadBusy(true);setMsg('');
   try{
+   clearTimeout(beautyTimerRef.current);++beautyRenderRef.current;
    clearTimeout(renderTimer.current);
    ++renderSeqRef.current;
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
