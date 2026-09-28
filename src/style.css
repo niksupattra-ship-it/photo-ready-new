@@ -1192,13 +1192,8 @@
 @keyframes hair-guide-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @media (prefers-reduced-motion:reduce){.hair-selection-guide,.hair-selection-guide-icon,.adaptive-editor .process-option-bar button.hair-tool-attention{animation:none}}
 
-/* V298: accept two-finger viewport gestures on empty editor space around the portrait. */
-@media (pointer: coarse) {
- .adaptive-editor .style-detail-card.preview-gesture-area { touch-action: none; overscroll-behavior: contain; }
- .adaptive-editor .style-detail-card.preview-gesture-area button,
- .adaptive-editor .style-detail-card.preview-gesture-area input,
- .adaptive-editor .style-detail-card.preview-gesture-area .tool-choice-sheet { touch-action: manipulation; }
-}
+/* Mobile viewport gestures are intentionally limited to .hero-preview.
+   Tool panels remain outside the preview transform and keep their fixed UI scale. */
 
 
 /* V302: spacing only — larger touch separation for head, collar, pins and ribbon. */
@@ -1273,8 +1268,3 @@
 }
 /* IDพร้อม V234 — prepaid credit / PromptPay UI */
 .credit-wallet-pill{border:1px solid #d8e2f1;background:#fff;border-radius:999px;padding:6px 9px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:#20334d;box-shadow:0 2px 8px #1e4c7b12;font:inherit}.credit-wallet-pill span{font-size:12px}.credit-wallet-pill strong{min-width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#173f70;color:#fff;font-size:12px}.credit-wallet-pill b{font-size:12px;color:#1266c5}.credit-modal-backdrop{position:fixed;inset:0;background:#0b1e348c;z-index:9999;display:grid;place-items:center;padding:18px}.credit-modal{width:min(420px,100%);background:#fff;border-radius:22px;padding:24px;box-shadow:0 24px 80px #071a3552;position:relative;color:#172b45}.credit-modal-close{position:absolute;right:14px;top:10px;border:0;background:transparent;font-size:30px;color:#60738a;cursor:pointer}.credit-modal-brand{font-weight:800;color:#1768c7;margin-bottom:6px}.credit-modal h2{margin:0 0 16px;font-size:25px}.credit-package{display:flex;justify-content:space-between;align-items:center;background:#f1f7ff;border:1px solid #cfe2fa;border-radius:16px;padding:16px}.credit-package div{display:grid;gap:3px}.credit-package strong{font-size:21px}.credit-package span{font-size:12px;color:#64758b}.credit-package>b{font-size:28px;color:#135aa8}.credit-modal ul{padding-left:20px;line-height:1.8;font-size:13px;color:#4d6179}.credit-pay-button{width:100%;border:0;border-radius:14px;background:#1768c7;color:#fff;padding:14px;font-weight:800;font-size:15px;cursor:pointer}.credit-pay-button:disabled{opacity:.6}.credit-pay-msg{text-align:center;font-size:13px;color:#1768c7}.credit-modal>small{display:block;text-align:center;margin-top:10px;color:#748399}.editor-credit-actions{display:flex;align-items:center;gap:8px}@media(max-width:600px){.studio-home-topbar .credit-wallet-pill span,.studio-home-topbar .credit-wallet-pill b,.process-mobile-topbar .credit-wallet-pill span,.process-mobile-topbar .credit-wallet-pill b{display:none}.credit-wallet-pill{padding:4px}.credit-modal{padding:22px 18px}.credit-package>b{font-size:25px}}
-
-/* IDPROM preview protection: watermark is UI-only and is never drawn into the export canvas. */
-.adaptive-editor .hero-preview>.preview-watermark{position:absolute;inset:0;z-index:4;overflow:hidden;pointer-events:none;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(5,1fr);align-items:center;justify-items:center;padding:4%;user-select:none;-webkit-user-select:none}
-.adaptive-editor .hero-preview>.preview-watermark span{display:block;transform:rotate(-28deg);font-size:clamp(13px,2.1vw,24px);font-weight:800;letter-spacing:.04em;white-space:nowrap;color:rgba(255,255,255,.48);text-shadow:0 1px 3px rgba(15,23,42,.32)}
-@media(max-width:650px){.adaptive-editor .hero-preview>.preview-watermark span{font-size:clamp(11px,4vw,18px)}}
