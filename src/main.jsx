@@ -2659,7 +2659,7 @@ function App(){
  };
  const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedInteriorTemplate};
-  const aiHeadNeck=await aiFinishPortrait(f,hairId||'',{jobContext,onJobStatus:status=>{if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'AI กำลังประมวลผล · ออกจากหน้านี้ได้')}});
+  const aiHeadNeck=await aiFinishPortrait(f,hairId||'',{jobContext,onJobStatus:status=>{if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);
   writeActiveAiJob(null);await clearAiJobFile();completed=true;
  }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await finishProgress(completed);setBusy(false)}};
@@ -2668,7 +2668,7 @@ function App(){
    const originalFile=await loadAiJobFile();if(!originalFile)throw Error('ไม่พบรูปต้นฉบับของงานที่ค้างอยู่');
    const c=pending.context||{};if(c.uniformCategory)setUniformCategory(c.uniformCategory);if(c.gender)setGender(c.gender);if(c.level)setLevel(c.level);if(c.selectedStyle)setSelectedStyle(c.selectedStyle);if(c.selectedJobTemplate)setSelectedJobTemplate(c.selectedJobTemplate);if(c.selectedStudentTemplate)setSelectedStudentTemplate(c.selectedStudentTemplate);if(c.selectedInteriorTemplate)setSelectedInteriorTemplate(c.selectedInteriorTemplate);
    setF(originalFile);firstUploadedPhotoRef.current=originalFile;setA(URL.createObjectURL(originalFile));
-   const aiHeadNeck=await waitForAiJob(pending.jobId,status=>{if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'AI กำลังประมวลผล · ออกจากหน้านี้ได้');else if(status==='completed')setProgressStage(55,'กำลังรับผลประมวลผล')});
+   const aiHeadNeck=await waitForAiJob(pending.jobId,status=>{if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…');else if(status==='completed')setProgressStage(55,'ใกล้เสร็จแล้ว…')});
    await applyFinishedAiPortrait(aiHeadNeck,originalFile,c.uniformTemplate||activeUniformTemplate);writeActiveAiJob(null);await clearAiJobFile();completed=true;
   }catch(e){setMsg(e.message||'กู้คืนงานประมวลผลไม่สำเร็จ');const latest=readActiveAiJob();if(latest){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(latest.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok&&(await r.json()).status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}catch{}}}finally{await finishProgress(completed);setBusy(false)}})()},[]);
  if(screen==='home'){
