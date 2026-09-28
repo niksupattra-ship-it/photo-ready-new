@@ -1,18 +1,23 @@
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
+import pg from 'pg';
 
-const dataFile=process.env.PAYMENT_DATA_FILE || path.join(process.cwd(),'.data','payments.json');
-let queue=Promise.resolve();
-function blank(){return {wallets:{},payments:{},usage:{}}}
-function read(){try{return JSON.parse(fs.readFileSync(dataFile,'utf8'))}catch{return blank()}}
-function write(db){fs.mkdirSync(path.dirname(dataFile),{recursive:true});const tmp=dataFile+'.tmp';fs.writeFileSync(tmp,JSON.stringify(db,null,2));fs.renameSync(tmp,dataFile)}
-function locked(fn){const job=queue.then(()=>fn());queue=job.catch(()=>{});return job}
-export function newWallet(){return locked(()=>{const db=read(),id='wal_'+crypto.randomBytes(24).toString('hex');db.wallets[id]={credits:0,createdAt:new Date().toISOString()};write(db);return {walletId:id,credits:0}})}
-export function getWallet(id){const db=read(),w=db.wallets[id];return w?{walletId:id,credits:Number(w.credits||0)}:null}
-export function ensureWallet(id){return locked(()=>{const db=read();if(!db.wallets[id])db.wallets[id]={credits:0,createdAt:new Date().toISOString()};write(db);return {walletId:id,credits:Number(db.wallets[id].credits||0)}})}
-export function creditPaid(walletId,sessionId,amount=2){return locked(()=>{const db=read();if(db.payments[sessionId])return {duplicate:true,credits:Number(db.wallets[walletId]?.credits||0)};if(!db.wallets[walletId])db.wallets[walletId]={credits:0,createdAt:new Date().toISOString()};db.wallets[walletId].credits=Number(db.wallets[walletId].credits||0)+amount;db.payments[sessionId]={walletId,credits:amount,at:new Date().toISOString()};write(db);return {duplicate:false,credits:db.wallets[walletId].credits}})}
-export function reserveCredit(walletId,kind){return locked(()=>{const db=read(),w=db.wallets[walletId];if(!w||Number(w.credits||0)<1)return null;w.credits-=1;const id='use_'+crypto.randomBytes(18).toString('hex');db.usage[id]={walletId,kind,status:'reserved',at:new Date().toISOString()};write(db);return {usageId:id,credits:w.credits}})}
-export function commitCredit(usageId){return locked(()=>{const db=read(),u=db.usage[usageId];if(u&&u.status==='reserved'){u.status='used';u.completedAt=new Date().toISOString();write(db)}return true})}
-export function refundCredit(usageId){return locked(()=>{const db=read(),u=db.usage[usageId];if(!u||u.status!=='reserved')return false;const w=db.wallets[u.walletId];if(w)w.credits=Number(w.credits||0)+1;u.status='refunded';u.refundedAt=new Date().toISOString();write(db);return true})}
-export function walletHistory(walletId){const db=read();const rows=[];for(const [id,p] of Object.entries(db.payments))if(p.walletId===walletId)rows.push({id,type:'purchase',credits:p.credits,at:p.at});for(const [id,u] of Object.entries(db.usage))if(u.walletId===walletId)rows.push({id,type:u.status==='refunded'?'refund':'usage',kind:u.kind,credits:u.status==='refunded'?1:-1,at:u.refundedAt||u.completedAt||u.at});return rows.sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,30)}
+const {Pool}=pg;
+if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for payment storage');
+const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'?false:{rejectUnauthorized:false}});
+let readyPromise=null;
+function ready(){
+  if(!readyPromise) readyPromise=(async()=>{
+    await pool.query(`CREATE TABLE IF NOT EXISTS wallets (id text PRIMARY KEY, credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS payments (session_id text PRIMARY KEY, wallet_id text NOT NULL REFERENCES wallets(id), credits integer NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY, wallet_id text NOT NULL REFERENCES wallets(id), kind text NOT NULL, status text NOT NULL CHECK(status IN ('reserved','used','refunded')), created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz, refunded_at timestamptz)`);
+  })().catch(e=>{readyPromise=null;throw e});
+  return readyPromise;
+}
+export async function newWallet(){await ready();const id='wal_'+crypto.randomBytes(24).toString('hex');await pool.query('INSERT INTO wallets(id,credits) VALUES($1,0)',[id]);return {walletId:id,credits:0}}
+export async function getWallet(id){if(!id)return null;await ready();const {rows}=await pool.query('SELECT credits FROM wallets WHERE id=$1',[id]);return rows[0]?{walletId:id,credits:Number(rows[0].credits)}:null}
+export async function ensureWallet(id){await ready();await pool.query('INSERT INTO wallets(id,credits) VALUES($1,0) ON CONFLICT(id) DO NOTHING',[id]);return getWallet(id)}
+export async function creditPaid(walletId,sessionId,amount=2){await ready();const c=await pool.connect();try{await c.query('BEGIN');await c.query('INSERT INTO wallets(id,credits) VALUES($1,0) ON CONFLICT(id) DO NOTHING',[walletId]);const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits) VALUES($1,$2,$3) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,amount]);if(ins.rowCount)await c.query('UPDATE wallets SET credits=credits+$2 WHERE id=$1',[walletId,amount]);const w=await c.query('SELECT credits FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {duplicate:!ins.rowCount,credits:Number(w.rows[0]?.credits||0)}}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function reserveCredit(walletId,kind){await ready();const c=await pool.connect();try{await c.query('BEGIN');const w=await c.query('SELECT credits FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);if(!w.rows[0]||Number(w.rows[0].credits)<1){await c.query('ROLLBACK');return null}const id='use_'+crypto.randomBytes(18).toString('hex');const updated=await c.query('UPDATE wallets SET credits=credits-1 WHERE id=$1 RETURNING credits',[walletId]);await c.query('INSERT INTO credit_usage(id,wallet_id,kind,status) VALUES($1,$2,$3,\'reserved\')',[id,walletId,kind]);await c.query('COMMIT');return {usageId:id,credits:Number(updated.rows[0].credits)}}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function commitCredit(usageId){await ready();await pool.query("UPDATE credit_usage SET status='used',completed_at=now() WHERE id=$1 AND status='reserved'",[usageId]);return true}
+export async function refundCredit(usageId){await ready();const c=await pool.connect();try{await c.query('BEGIN');const u=await c.query("SELECT wallet_id,status FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}await c.query('UPDATE wallets SET credits=credits+1 WHERE id=$1',[u.rows[0].wallet_id]);await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);await c.query('COMMIT');return true}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function walletHistory(walletId){await ready();const {rows}=await pool.query(`SELECT session_id AS id,'purchase' AS type,NULL::text AS kind,credits,created_at AS at FROM payments WHERE wallet_id=$1 UNION ALL SELECT id,CASE WHEN status='refunded' THEN 'refund' ELSE 'usage' END AS type,kind,CASE WHEN status='refunded' THEN 1 ELSE -1 END AS credits,COALESCE(refunded_at,completed_at,created_at) AS at FROM credit_usage WHERE wallet_id=$1 ORDER BY at DESC LIMIT 30`,[walletId]);return rows.map(r=>({...r,at:new Date(r.at).toISOString()}))}

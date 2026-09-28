@@ -6,6 +6,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,reserveCredit,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
+import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs} from "./job-store.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
@@ -38,8 +39,8 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
 app.use(express.json({limit:"64kb"}));
-app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
-app.get("/api/wallet",(req,res)=>{const w=getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:walletHistory(w.walletId)})});
+app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=await getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
+app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 app.post("/api/payments/checkout",async(req,res)=>{
   try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
     const session=await stripePost("checkout/sessions",{"mode":"payment","line_items[0][price]":STRIPE_PRICE_ID,"line_items[0][quantity]":1,"payment_method_types[0]":"promptpay","success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,"cancel_url":`${base}/?payment=cancelled`,"metadata[wallet_id]":wid});
@@ -183,8 +184,8 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
  }
 });
 
-app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),async(req,res)=>{
-  let creditUse=null;
+const aiFinishHandler=async(req,res)=>{
+  let creditUse=req.preReservedCreditUse||null;
   try{
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
@@ -278,7 +279,7 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
-    creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;
+    if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
     const r=await fetch("https://api.openai.com/v1/images/edits",{
       method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
     });
@@ -305,7 +306,36 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     console.error(e);
     res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
+};
+app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),aiFinishHandler);
+
+
+const activeAiJobs=new Set();
+function captureResponse(){
+ let statusCode=200,headers={},payload=null,doneResolve;
+ const done=new Promise(r=>doneResolve=r);
+ const res={headersSent:false,status(code){statusCode=code;return this},set(k,v){headers[String(k).toLowerCase()]=String(v);return this},type(v){headers['content-type']=v;return this},json(v){payload=Buffer.from(JSON.stringify(v));this.headersSent=true;doneResolve();return this},send(v){payload=Buffer.isBuffer(v)?v:Buffer.from(String(v??''));this.headersSent=true;doneResolve();return this}};
+ return {res,done,get:()=>({statusCode,headers,payload})};
+}
+async function runAiJob(id){
+ if(activeAiJobs.has(id))return;activeAiJobs.add(id);let job=null;
+ try{
+  job=await claimAiJob(id);if(!job)return;
+  const req={body:job.fields||{},files:{image:[{buffer:job.image,originalname:job.image_name,mimetype:job.image_type}],mask:job.mask?[{buffer:job.mask,originalname:job.mask_name,mimetype:job.mask_type}]:[]},preReservedCreditUse:{usageId:job.usage_id,credits:null},get(name){return String(name).toLowerCase()==='x-wallet-id'?job.wallet_id:''}};
+  const cap=captureResponse();await aiFinishHandler(req,cap.res);await cap.done;const out=cap.get();
+  if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length)await completeAiJob(id,out.payload);else{await refundCredit(job.usage_id);await failAiJob(id,out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);}
+ }catch(e){console.error('AI job:',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{activeAiJobs.delete(id)}
+}
+app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1}]),async(req,res)=>{
+ let creditUse=null;
+ try{const image=req.files?.image?.[0],mask=req.files?.mask?.[0];if(!image)return res.status(400).json({error:'image_required'});if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});creditUse=await requireCredit(req,res,'ai-finish');if(!creditUse)return;const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:req.body,image,mask});res.status(202).json({jobId:id,status:'queued',credits:creditUse.credits});setImmediate(()=>runAiJob(id))}
+ catch(e){if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message})}
 });
+app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.params.id,walletId(req));if(!j)return res.status(404).json({error:'job_not_found'});res.json(j)}catch(e){res.status(500).json({error:'job_status_failed'})}});
+app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{const j=await getAiJobResult(req.params.id,walletId(req));if(!j)return res.status(404).send('ไม่พบงาน');if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');res.type('png').set('Cache-Control','no-store').send(j.result)}catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
+const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
+setTimeout(resumeQueuedAiJobs,1500);
+setInterval(resumeQueuedAiJobs,60000);
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{
