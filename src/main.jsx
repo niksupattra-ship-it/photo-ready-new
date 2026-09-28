@@ -8,6 +8,16 @@ function currentWalletId(){try{return localStorage.getItem(WALLET_KEY)||''}catch
 function walletHeaders(){const id=currentWalletId();return id?{'X-Wallet-Id':id}:{}}
 function updateCreditsFromResponse(response){const value=response.headers.get('X-Credits-Remaining');if(value!==null)window.dispatchEvent(new CustomEvent('idprom-credits',{detail:Number(value)}))}
 
+const ACTIVE_AI_JOB_KEY='idprom-active-ai-job-v1';
+const AI_JOB_DB='idprom-ai-jobs-v1';
+function aiJobDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(AI_JOB_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function saveAiJobFile(file){const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(file,'original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
+async function loadAiJobFile(){const db=await aiJobDb();const file=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly');const req=tx.objectStore('files').get('original');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});db.close();return file}
+async function clearAiJobFile(){try{const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete('original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch{}}
+function readActiveAiJob(){try{return JSON.parse(localStorage.getItem(ACTIVE_AI_JOB_KEY)||'null')}catch{return null}}
+function writeActiveAiJob(value){if(value)localStorage.setItem(ACTIVE_AI_JOB_KEY,JSON.stringify(value));else localStorage.removeItem(ACTIVE_AI_JOB_KEY)}
+async function waitForAiJob(jobId,onStatus){for(;;){const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ');const j=await r.json();onStatus?.(j.status);if(j.status==='failed')throw Error(j.error||'ประมวลผลไม่สำเร็จ');if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ');return await out.blob()}await new Promise(resolve=>setTimeout(resolve,1800))}}
+
 let landmarkerPromise;
 let segmenterPromise;
 async function getPersonSegmenter(){
@@ -1523,23 +1533,19 @@ async function headOnlyAIEditFile(file){
  }finally{URL.revokeObjectURL(url)}
 }
 async function aiFinishPortrait(originalFile,hairId,options={}){
- // V69: send the user's original full-quality file directly to the image editor.
- // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
+ // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
- const controller=new AbortController();
- const timer=setTimeout(()=>controller.abort(),120000);
- try{
-  const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal,headers:walletHeaders()});
-  if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text.includes('เครดิต')?'เครดิตไม่พอ กรุณาซื้อเครดิตก่อนประมวลผล':text)}
-  updateCreditsFromResponse(r);return await r.blob();
- }catch(e){
-  if(e?.name==='AbortError') throw Error('AI ใช้เวลานานเกิน 120 วินาที กรุณาลองใหม่');
-  throw e;
- }finally{clearTimeout(timer)}
+ await saveAiJobFile(originalFile);
+ const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:walletHeaders()});
+ if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text.includes('เครดิต')?'เครดิตไม่พอ กรุณาซื้อเครดิตก่อนประมวลผล':text||'เริ่มงานประมวลผลไม่สำเร็จ')}
+ const info=await r.json();
+ writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,createdAt:Date.now()});
+ window.dispatchEvent(new CustomEvent('idprom-credits',{detail:Number(info.credits)}));
+ return await waitForAiJob(info.jobId,options.onJobStatus);
 }
 
 // V206: provider edit masks are not a pixel-identity guarantee. Restore the
@@ -2018,10 +2024,9 @@ function App(){
   clearInterval(progressTimerRef.current);
   setProcessProgress({active:true,value:3,label});
   progressTimerRef.current=setInterval(()=>setProcessProgress(current=>{
-   if(!current.active||current.value>=98)return current;
-   const step=current.value<45?2:current.value<75?1:current.value<90?.45:.12;
-   const next=Math.min(98,current.value+step);
-   return {...current,value:next,label:next>=94?'กำลังเก็บรายละเอียดขั้นสุดท้าย…':current.label};
+   if(!current.active||current.value>=94)return current;
+   const step=current.value<45?2:current.value<75?1:.4;
+   return {...current,value:Math.min(94,current.value+step)};
   }),350);
  };
  const setProgressStage=(value,label)=>setProcessProgress(current=>({active:true,value:Math.max(current.value,value),label}));
@@ -2634,35 +2639,36 @@ function App(){
    setTimeout(()=>URL.revokeObjectURL(url),1000);
   }catch(e){suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
-  // V69 REFERENCE-GUIDED PIPELINE: original full-quality photo -> ONE AI edit for face/skin/hair/neck.
-  // The fixed clothing template is NOT sent to AI and remains byte-for-byte the existing project asset.
-  // Background removal happens only after AI, avoiding pre-AI cutout/crop/JPEG processing of facial skin.
-  const aiHeadNeck=await aiFinishPortrait(f,hairId||'');
+ const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await optionalHealthySkin10(originalHeadNeckTransparent,f);
+  const headNeckTransparent=await optionalHealthySkin10(originalHeadNeckTransparent,originalFile);
   setProgressStage(78,'กำลังประกอบกับชุด');
-  // 02 = exact remove.bg result before placement/resampling.
-  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},activeUniformTemplate);
+  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
-  const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
-  // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
-  // skin-isolation overlay, tone pass, or post-process face layer is applied.
-  // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
-  // This removes the post-process face overlay/mask that caused visible face-shaped seams.
-  // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
-  const layer=aiLayer;
+  await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   initialProcessedMasterRef.current=headNeckTransparent;
   editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
-  const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};
+  const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
-  setProgressStage(97,'กำลังแสดงผล');
-  showBlob(finished);completed=true;
- }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
+  setProgressStage(97,'กำลังแสดงผล');showBlob(finished);
+ };
+ const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
+  const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedInteriorTemplate};
+  const aiHeadNeck=await aiFinishPortrait(f,hairId||'',{jobContext,onJobStatus:status=>{if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'AI กำลังประมวลผล · ออกจากหน้านี้ได้')}});
+  await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);
+  writeActiveAiJob(null);await clearAiJobFile();completed=true;
+ }catch(e){setMsg(e.message||'ประมวลผลไม่สำเร็จ');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await finishProgress(completed);setBusy(false)}};
+ const resumeStartedRef=useRef(false);
+ useEffect(()=>{if(resumeStartedRef.current)return;const pending=readActiveAiJob();if(!pending?.jobId)return;resumeStartedRef.current=true;(async()=>{setScreen('process');setBusy(true);beginProgress('กำลังตรวจงานที่ประมวลผลไว้');setMsg('');let completed=false;try{
+   const originalFile=await loadAiJobFile();if(!originalFile)throw Error('ไม่พบรูปต้นฉบับของงานที่ค้างอยู่');
+   const c=pending.context||{};if(c.uniformCategory)setUniformCategory(c.uniformCategory);if(c.gender)setGender(c.gender);if(c.level)setLevel(c.level);if(c.selectedStyle)setSelectedStyle(c.selectedStyle);if(c.selectedJobTemplate)setSelectedJobTemplate(c.selectedJobTemplate);if(c.selectedStudentTemplate)setSelectedStudentTemplate(c.selectedStudentTemplate);if(c.selectedInteriorTemplate)setSelectedInteriorTemplate(c.selectedInteriorTemplate);
+   setF(originalFile);firstUploadedPhotoRef.current=originalFile;setA(URL.createObjectURL(originalFile));
+   const aiHeadNeck=await waitForAiJob(pending.jobId,status=>{if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'AI กำลังประมวลผล · ออกจากหน้านี้ได้');else if(status==='completed')setProgressStage(55,'กำลังรับผลประมวลผล')});
+   await applyFinishedAiPortrait(aiHeadNeck,originalFile,c.uniformTemplate||activeUniformTemplate);writeActiveAiJob(null);await clearAiJobFile();completed=true;
+  }catch(e){setMsg(e.message||'กู้คืนงานประมวลผลไม่สำเร็จ');const latest=readActiveAiJob();if(latest){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(latest.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok&&(await r.json()).status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}catch{}}}finally{await finishProgress(completed);setBusy(false)}})()},[]);
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
