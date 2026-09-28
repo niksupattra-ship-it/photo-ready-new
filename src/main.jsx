@@ -2309,7 +2309,7 @@ function App(){
   if(ribbonRef.current){
    const v=ribbonAdjustRef.current,w=lock.uW*.205*(v.scale||1);
    if(inside(lock.uX+lock.uW*(.73+(v.x||0)),lock.uY+lock.uH*(.495+(v.y||0))+w/7,w*1.2,w*.65)){
-    if(optionTool==='ribbon')return false; // preserve the existing direct ribbon drag
+    if(optionTool==='ribbon')return true; // active layer: keep the tool open and preserve direct ribbon drag
     setOptionTool('ribbon');setRibbonPanelTab('adjust');return true;
    }
   }
@@ -2321,7 +2321,7 @@ function App(){
   const cx=lock.hX+lock.headW*lock.scale/2+(adj.x||0)*lock.W;
   const cy=lock.hY+lock.headH*lock.scale/2+(adj.y||0)*lock.H;
   if(x<cx-w*.52||x>cx+w*.52||y<cy-h*.52||y>cy+h*.38)return false;
-  if(optionTool==='head')return false; // keep existing hold-to-drag behavior once selected
+  if(optionTool==='head')return true; // active layer: keep the tool open and preserve hold-to-drag behavior
   setOptionTool('head');return true;
  };
  const previewTapRef=useRef(null);
@@ -2395,7 +2395,7 @@ function App(){
  };
  const previewPointerUp=e=>{
   const tap=previewTapRef.current;
-  if(tap?.id===e.pointerId){previewTapRef.current=null;if(!tap.moved&&e.type!=='pointercancel'&&!viewGestureRef.current.wasPinch){selectPreviewLayer(e)}}
+  if(tap?.id===e.pointerId){previewTapRef.current=null;if(!tap.moved&&e.type!=='pointercancel'&&!viewGestureRef.current.wasPinch){const selected=selectPreviewLayer(e);if(e.pointerType==='touch'&&!selected)setOptionTool(null)}}
   const v=viewGestureRef.current;
   if(v.pointers?.has(e.pointerId)){
    e.preventDefault();v.pointers.delete(e.pointerId);
