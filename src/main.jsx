@@ -6,7 +6,7 @@ import'./style.css';
 const WALLET_KEY='idprom_wallet_id';
 function currentWalletId(){try{return localStorage.getItem(WALLET_KEY)||''}catch{return ''}}
 function walletHeaders(){const id=currentWalletId();return id?{'X-Wallet-Id':id}:{}}
-function updateCreditsFromResponse(response){const value=response.headers.get('X-Credits-Remaining');if(value!==null)window.dispatchEvent(new CustomEvent('idprom-credits',{detail:Number(value)}))}
+function updateCreditsFromResponse(response){const value=response.headers.get('X-Rights-Remaining');if(value){try{window.dispatchEvent(new CustomEvent('idprom-rights',{detail:JSON.parse(value)}))}catch{}}}
 
 const ACTIVE_AI_JOB_KEY='idprom-active-ai-job-v1';
 const AI_JOB_DB='idprom-ai-jobs-v1';
@@ -1339,7 +1339,7 @@ async function makeCleanHeadMaster(baldBlob,originalBlob){
    if(donorPixels[j+3]<230)headHoles++;
   }
   if(headSamples<100||headHoles>Math.max(12,headSamples*.01))
-   throw Error('ภาพฐานมีช่องว่างบริเวณใบหน้าหรือคอ กรุณาลองภาพอื่น — ยังไม่ใช้เครดิตสร้างทรงผมใหม่');
+   throw Error('ภาพฐานมีช่องว่างบริเวณใบหน้าหรือคอ กรุณาลองภาพอื่น — ยังไม่ใช้สิทธิ์เปลี่ยนทรงผม');
   return {source:originalBlob,blob:await canvasPng(clean),faceMask:featheredFace,originalFace:originalPixels,originalCore:core,eyeD,forehead,chin,cx,darkStrandWarning};
  }finally{URL.revokeObjectURL(bu);URL.revokeObjectURL(ou)}
 }
@@ -1541,10 +1541,10 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
  await saveAiJobFile(originalFile);
  const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:walletHeaders()});
- if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text.includes('เครดิต')?'เครดิตไม่พอ กรุณาซื้อเครดิตก่อนประมวลผล':text||'เริ่มงานประมวลผลไม่สำเร็จ')}
+ if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text||'สิทธิ์สร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม')}
  const info=await r.json();
  writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,createdAt:Date.now()});
- window.dispatchEvent(new CustomEvent('idprom-credits',{detail:Number(info.credits)}));
+ window.dispatchEvent(new CustomEvent('idprom-rights',{detail:{generationRemaining:Number(info.generationRemaining||0),hairRemaining:Number(info.hairRemaining||0)}}));
  return await waitForAiJob(info.jobId,options.onJobStatus);
 }
 
@@ -1690,7 +1690,7 @@ async function requestHairstyleEngine(master,id){
  const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal,headers:walletHeaders()});
-  if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text.includes('เครดิต')?'เครดิตไม่พอ กรุณาซื้อเครดิตก่อนเปลี่ยนทรงผม':text)}updateCreditsFromResponse(r);return await r.blob();
+  if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text||'สิทธิ์เปลี่ยนทรงผมหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม')}updateCreditsFromResponse(r);return await r.blob();
  }catch(e){if(e?.name==='AbortError')throw Error('เปลี่ยนทรงผมใช้เวลานานเกิน 120 วินาที');throw e}
  finally{clearTimeout(timer)}
 }
@@ -1994,11 +1994,11 @@ async function applyLocalBeauty(blob,settings){
  finally{URL.revokeObjectURL(url)}
 }
 function App(){
- const[credits,setCredits]=useState(0),[buyOpen,setBuyOpen]=useState(false),[payBusy,setPayBusy]=useState(false),[payMsg,setPayMsg]=useState('');
- const refreshWallet=async()=>{try{let id=currentWalletId();let r;if(!id){r=await fetch('/api/wallet',{method:'POST'});const data=await r.json();id=data.walletId;localStorage.setItem(WALLET_KEY,id);setCredits(Number(data.credits||0));return}r=await fetch('/api/wallet',{headers:walletHeaders()});if(r.status===404){localStorage.removeItem(WALLET_KEY);return refreshWallet()}if(r.ok){const data=await r.json();setCredits(Number(data.credits||0))}}catch{}};
- const startCheckout=async()=>{setPayBusy(true);setPayMsg('');try{await refreshWallet();const r=await fetch('/api/payments/checkout',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:'{}'});const data=await r.json();if(!r.ok)throw Error(data.error||'สร้างรายการชำระเงินไม่สำเร็จ');location.href=data.url}catch(e){setPayMsg(e.message)}finally{setPayBusy(false)}};
- useEffect(()=>{refreshWallet();const onCredits=e=>setCredits(Number(e.detail||0)),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-credits',onCredits);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){setPayMsg('ชำระเงินสำเร็จ กำลังตรวจสอบเครดิต…');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000);history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-credits',onCredits);window.removeEventListener('idprom-buy',onBuy)}},[]);
- const CreditUI=()=> <><button type="button" className="credit-wallet-pill" onClick={()=>setBuyOpen(true)}><span>เครดิต</span><strong>{credits}</strong><b>＋ ซื้อ</b></button>{buyOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBuyOpen(false)}}><section className="credit-modal" role="dialog" aria-modal="true" aria-label="ซื้อเครดิต IDพร้อม"><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button><div className="credit-modal-brand">IDพร้อม</div><h2>ซื้อเครดิต</h2><div className="credit-package"><div><strong>2 เครดิต</strong><span>สร้างรูปหรือเปลี่ยนทรงผมด้วย AI</span></div><b>฿149</b></div><ul><li>เลือกชุดได้ทุกประเภทในระบบ</li><li>AI 1 ครั้ง ใช้ 1 เครดิต</li><li>ปรับแต่งและดาวน์โหลดรูปเดิมไม่หักเครดิต</li></ul><button className="credit-pay-button" disabled={payBusy} onClick={startCheckout}>{payBusy?'กำลังเปิด PromptPay…':'ชำระ ฿149 ด้วย PromptPay'}</button>{payMsg&&<p className="credit-pay-msg">{payMsg}</p>}<small>ระบบเติม 2 เครดิตหลัง Stripe ยืนยันการชำระเงิน</small></section></div>}</>;
+ const[rights,setRights]=useState({generationRemaining:0,hairRemaining:0}),[buyOpen,setBuyOpen]=useState(false),[payBusy,setPayBusy]=useState(false),[payMsg,setPayMsg]=useState('');
+ const refreshWallet=async()=>{try{let id=currentWalletId();let r;if(!id){r=await fetch('/api/wallet',{method:'POST'});const data=await r.json();id=data.walletId;localStorage.setItem(WALLET_KEY,id);setRights({generationRemaining:Number(data.generationRemaining||0),hairRemaining:Number(data.hairRemaining||0)});return}r=await fetch('/api/wallet',{headers:walletHeaders()});if(r.status===404){localStorage.removeItem(WALLET_KEY);return refreshWallet()}if(r.ok){const data=await r.json();setRights({generationRemaining:Number(data.generationRemaining||0),hairRemaining:Number(data.hairRemaining||0)})}}catch{}};
+ const startCheckout=async(packageId)=>{setPayBusy(true);setPayMsg('');try{await refreshWallet();const r=await fetch('/api/payments/checkout',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({packageId})});const data=await r.json();if(!r.ok)throw Error(data.error||'สร้างรายการชำระเงินไม่สำเร็จ');location.href=data.url}catch(e){setPayMsg(e.message)}finally{setPayBusy(false)}};
+ useEffect(()=>{refreshWallet();const onRights=e=>setRights({generationRemaining:Number(e.detail?.generationRemaining||0),hairRemaining:Number(e.detail?.hairRemaining||0)}),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-rights',onRights);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){setPayMsg('ชำระเงินสำเร็จ กำลังตรวจสอบสิทธิ์…');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000);history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy)}},[]);
+ const CreditUI=()=> <><button type="button" className="credit-wallet-pill" onClick={()=>setBuyOpen(true)}><span>สิทธิ์ของฉัน</span><strong>สร้าง {rights.generationRemaining} รูป</strong><b>ผม {rights.hairRemaining} ครั้ง</b></button>{buyOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBuyOpen(false)}}><section className="credit-modal" role="dialog" aria-modal="true" aria-label="แพ็กเกจ IDพร้อม"><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button><div className="credit-modal-brand">IDพร้อม</div><h2>เลือกแพ็กเกจ</h2><div className="credit-package"><div><strong>แพ็กเกจ IDพร้อม — 149 บาท</strong><span>สร้างรูปติดบัตร 1 รูป</span></div><b>฿149</b></div><ul><li>เลือก/เปลี่ยนแบบชุดได้ไม่จำกัด</li><li>เปลี่ยนทรงผมได้ 2 ครั้ง</li><li>ปรับหัว / คอ / ผิว / สีปาก / พื้นหลัง / เข็ม / แพรแถบ ได้ไม่จำกัด</li><li>ดาวน์โหลดรูปที่สร้างไม่จำกัด</li></ul><button className="credit-pay-button" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'เลือกแพ็กเกจ 149 บาท'}</button><div className="credit-package"><div><strong>แพ็กเกจ IDพร้อม — 199 บาท</strong><span>สร้างรูปติดบัตร 2 รูป</span></div><b>฿199</b></div><ul><li>เลือก/เปลี่ยนแบบชุดได้ไม่จำกัด</li><li>เปลี่ยนทรงผมได้ 3 ครั้ง</li><li>ปรับหัว / คอ / ผิว / สีปาก / พื้นหลัง / เข็ม / แพรแถบ ได้ไม่จำกัด</li><li>ดาวน์โหลดรูปที่สร้างไม่จำกัด</li></ul><button className="credit-pay-button" disabled={payBusy} onClick={()=>startCheckout('199')}>{payBusy?'กำลังเปิด PromptPay…':'เลือกแพ็กเกจ 199 บาท'}</button>{payMsg&&<p className="credit-pay-msg">{payMsg}</p>}<small>สิทธิ์จะเพิ่มอัตโนมัติหลัง Stripe ยืนยันการชำระเงิน</small></section></div>}</>;
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
  const[safetyBlocked,setSafetyBlocked]=useState(false);
  const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
