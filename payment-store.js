@@ -13,6 +13,10 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS generation_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS hair_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
+  // Keep the existing production table compatible with the reserve/commit/refund lifecycle.
+  // Older deployments may have a narrower credit_usage_status_check constraint.
+  await pool.query(`ALTER TABLE credit_usage DROP CONSTRAINT IF EXISTS credit_usage_status_check`);
+  await pool.query(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
 })();return initPromise}
 function shape(id,row){return {walletId:id,generationRemaining:Number(row?.generation_remaining||0),hairRemaining:Number(row?.hair_remaining||0)}}
 export async function newWallet(){await ready();const id='wal_'+crypto.randomBytes(24).toString('hex');await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0)',[id]);return shape(id,{})}
