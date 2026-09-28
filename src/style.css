@@ -1313,3 +1313,20 @@
   }
   .adaptive-editor{padding-bottom:calc(142px + env(safe-area-inset-bottom))!important}
 }
+
+/* Mobile/tablet: when a tool sheet opens upward, keep the fixed process/file
+   action row behind the tool dock so it never covers tool choices. */
+@media (max-width:999px){
+  .adaptive-editor .process-action-row{
+    z-index:9!important;
+  }
+  .adaptive-editor .editor-tool-dock{
+    z-index:30!important;
+  }
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet{
+    z-index:31!important;
+  }
+  .adaptive-editor .editor-tool-dock > .tool-rail-wrap{
+    z-index:32!important;
+  }
+}
