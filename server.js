@@ -13,10 +13,6 @@ const app=express();
 
 const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7kE";
 const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
-const STRIPE_PACKAGES={
-  "149":{priceId:STRIPE_PRICE_ID},
-  "199":{priceId:STRIPE_PRICE_ID_199}
-};
 const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
 function walletId(req){return String(req.get("X-Wallet-Id")||"").trim()}
 function verifyStripeSignature(raw,header,secret){
@@ -38,9 +34,7 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      const wid=session.metadata?.wallet_id;
-      const packageId=String(session.metadata?.package_id||"");
-      if(wid&&STRIPE_PACKAGES[packageId])await creditPaid(wid,session.id,packageId);
+      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid)await creditPaid(wid,session.id,packageId);
     }
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
@@ -49,25 +43,12 @@ app.use(express.json({limit:"64kb"}));
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=await getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 app.post("/api/payments/checkout",async(req,res)=>{
-  try{
-    const wid=walletId(req);
-    if(!wid)return res.status(400).json({error:"wallet_required"});
-    const packageId=String(req.body?.packageId||req.body?.package_id||"");
-    const selectedPackage=STRIPE_PACKAGES[packageId];
-    if(!selectedPackage)return res.status(400).json({error:"invalid_package"});
-    if(!selectedPackage.priceId)return res.status(500).json({error:`ยังไม่ได้ตั้งค่า Stripe Price ID สำหรับแพ็กเกจ ${packageId} บาท`});
-    await ensureWallet(wid);
-    const base=APP_URL||`${req.protocol}://${req.get("host")}`;
-    const session=await stripePost("checkout/sessions",{
-      "mode":"payment",
-      "line_items[0][price]":selectedPackage.priceId,
-      "line_items[0][quantity]":1,
-      "payment_method_types[0]":"promptpay",
-      "success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      "cancel_url":`${base}/?payment=cancelled`,
-      "metadata[wallet_id]":wid,
-      "metadata[package_id]":packageId
-    });
+  try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
+    const packageId=String(req.body?.packageId||req.body?.package_id||"149");
+    if(!["149","199"].includes(packageId))return res.status(400).json({error:"invalid_package"});
+    const priceId=packageId==="199"?STRIPE_PRICE_ID_199:STRIPE_PRICE_ID;
+    if(!priceId)return res.status(500).json({error:"stripe_price_not_configured",packageId});
+    const session=await stripePost("checkout/sessions",{"mode":"payment","line_items[0][price]":priceId,"line_items[0][quantity]":1,"payment_method_types[0]":"promptpay","success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,"cancel_url":`${base}/?payment=cancelled`,"metadata[wallet_id]":wid,"metadata[package_id]":packageId});
     res.json({url:session.url});
   }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
 });
@@ -313,12 +294,14 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
       const stage=body?.error?.moderation_details?.moderation_stage;
       if(code==="moderation_blocked" || code==="safety_violations"){
         console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
-        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (ไม่ใช่เครดิตหมด) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
+        await refundCredit(creditUse.usageId); creditUse=null;
+        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (คืนสิทธิ์แล้ว) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
       }
+      await refundCredit(creditUse.usageId); creditUse=null;
       return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     }
     const b64=body?.data?.[0]?.b64_json;
-    if(!b64) return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา");
+    if(!b64){await refundCredit(creditUse.usageId);creditUse=null;return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา (คืนสิทธิ์แล้ว)");}
     const data=Buffer.from(b64,"base64");
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
