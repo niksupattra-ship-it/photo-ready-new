@@ -2309,7 +2309,7 @@ function App(){
   if(ribbonRef.current){
    const v=ribbonAdjustRef.current,w=lock.uW*.205*(v.scale||1);
    if(inside(lock.uX+lock.uW*(.73+(v.x||0)),lock.uY+lock.uH*(.495+(v.y||0))+w/7,w*1.2,w*.65)){
-    if(optionTool==='ribbon')return true; // active layer: keep the tool open and preserve direct ribbon drag
+    if(optionTool==='ribbon')return false; // preserve the existing direct ribbon drag
     setOptionTool('ribbon');setRibbonPanelTab('adjust');return true;
    }
   }
@@ -2321,7 +2321,7 @@ function App(){
   const cx=lock.hX+lock.headW*lock.scale/2+(adj.x||0)*lock.W;
   const cy=lock.hY+lock.headH*lock.scale/2+(adj.y||0)*lock.H;
   if(x<cx-w*.52||x>cx+w*.52||y<cy-h*.52||y>cy+h*.38)return false;
-  if(optionTool==='head')return true; // active layer: keep the tool open and preserve hold-to-drag behavior
+  if(optionTool==='head')return false; // keep existing hold-to-drag behavior once selected
   setOptionTool('head');return true;
  };
  const previewTapRef=useRef(null);
@@ -2395,7 +2395,7 @@ function App(){
  };
  const previewPointerUp=e=>{
   const tap=previewTapRef.current;
-  if(tap?.id===e.pointerId){previewTapRef.current=null;if(!tap.moved&&e.type!=='pointercancel'&&!viewGestureRef.current.wasPinch){const selected=selectPreviewLayer(e);if(e.pointerType==='touch'&&!selected)setOptionTool(null)}}
+  if(tap?.id===e.pointerId){previewTapRef.current=null;if(!tap.moved&&e.type!=='pointercancel'&&!viewGestureRef.current.wasPinch){selectPreviewLayer(e)}}
   const v=viewGestureRef.current;
   if(v.pointers?.has(e.pointerId)){
    e.preventDefault();v.pointers.delete(e.pointerId);
@@ -2693,10 +2693,10 @@ function App(){
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
   const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setScreen('process')};
   const homeCategories=[
-   {id:'job',icon:'▣',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
-   {id:'government',icon:'♜',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
-   {id:'student',icon:'◆',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
-   {id:'gown',icon:'✦',title:'ชุดครุย',desc:'ชุดครุยปริญญา\nทุกสถาบัน',image:null}
+   {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
+   {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
+   {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
+   {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'ชุดครุยปริญญา\nทุกสถาบัน',image:null}
   ];
   const featured=[JOB_UNIFORMS[2],JOB_UNIFORMS[3],JOB_UNIFORMS[5],JOB_UNIFORMS[0],JOB_UNIFORMS[1],JOB_UNIFORMS[4],
    {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},
@@ -2714,7 +2714,7 @@ function App(){
    <header className="studio-home-topbar"><div className="studio-home-brand"><img className="studio-brand-logo" src="/assets/id-phrom-logo.png" alt="IDพร้อม"/></div><div className="studio-top-actions"><CreditUI/><button type="button" onClick={()=>setHomeInfoOpen(v=>!v)} aria-expanded={homeInfoOpen}>ⓘ <span>วิธีใช้งาน</span></button><span className="studio-pro">♛ PRO</span></div></header>
    {homeInfoOpen&&<div className="studio-home-help" role="status">เลือกประเภทและแบบชุด → เพิ่มรูปต้นฉบับ → ประมวลผล → ปรับแต่ง → ดาวน์โหลด</div>}
    <div className="studio-home-inner"><div className="studio-home-intro"><div><h1>{homeFilter==='all'?'รูปติดบัตรสวยสมจริง เหมือนถ่ายที่สตูดิโอ':homeCategories.find(c=>c.id===homeFilter)?.title||'เลือกแบบรูปถ่าย'}</h1><p>สมัครงาน · ข้าราชการ · นักศึกษา · ชุดครุย</p><p>เลือกรูปแบบที่ต้องการ แล้วสร้างรูปพร้อมใช้งานได้ง่าย ๆ</p></div><div className="studio-steps" aria-label="ขั้นตอนการสร้างรูป">{['เลือกประเภท','เลือกแบบ','อัปโหลดรูป','ปรับแต่ง','ดาวน์โหลด'].map((step,i)=><span key={step} className={i===(homeFilter==='all'?0:1)?'current':''}><b>{i+1}</b><small>{step}</small>{i<4&&<i aria-hidden="true">›</i>}</span>)}</div></div>
-   <div className="studio-category-grid">{homeCategories.map((cat,i)=><button type="button" key={cat.id} className={'studio-category-card studio-category-'+cat.id+(homeFilter===cat.id?' chosen':'')} onClick={()=>{setUniformCategory(cat.id);setHomeFilter(cat.id)}}><span className="studio-category-icon" aria-hidden="true">{cat.icon}</span><strong>{cat.title}</strong><small>{cat.desc}</small>{cat.image?<img src={cat.image} alt="" loading={i>1?'lazy':'eager'}/>:<span className="studio-gown-placeholder" aria-hidden="true">🎓</span>}<span className="studio-category-arrow" aria-hidden="true">→</span></button>)}</div>
+   <div className="studio-category-grid">{homeCategories.map((cat,i)=><button type="button" key={cat.id} className={'studio-category-card studio-category-'+cat.id+(homeFilter===cat.id?' chosen':'')} onClick={()=>{setUniformCategory(cat.id);setHomeFilter(cat.id)}}><span className="studio-category-icon" aria-hidden="true"><img src={cat.icon} alt="" /></span><strong>{cat.title}</strong><small>{cat.desc}</small>{cat.image?<img src={cat.image} alt="" loading={i>1?'lazy':'eager'}/>:<span className="studio-gown-placeholder" aria-hidden="true">🎓</span>}<span className="studio-category-arrow" aria-hidden="true">→</span></button>)}</div>
    {homeFilter!=='all'&&<button type="button" className="studio-all-back" onClick={()=>setHomeFilter('all')}>← กลับหน้าหลัก</button>}
    {homeFilter==='all'&&<section className="studio-featured"><div className="studio-featured-head"><div><h2>▣ &nbsp; ตัวอย่างยอดนิยม</h2><p>ตัวอย่างรูปที่ลูกค้าเลือกใช้มากที่สุด</p></div><div className="studio-featured-filter" role="group" aria-label="กรองตัวอย่าง">{[['all','ทั้งหมด'],['male','ผู้ชาย'],['female','ผู้หญิง']].map(([id,name])=><button type="button" key={id} className={homeShowGender===id?'active':''} onClick={()=>setHomeShowGender(id)}>{name}</button>)}</div></div><div className="studio-featured-list">{featured.filter(c=>homeShowGender==='all'||c.gender===homeShowGender).map((c,i)=><button type="button" key={c.id||i} className="studio-featured-item" onClick={()=>openFeatured(c)}><img src={c.img} alt={c.title} loading="lazy"/>{c.cat==='government'&&<strong>{c.title}</strong>}</button>)}</div></section>}
    {homeFilter!=='all'&&<section className="home-content studio-home-results">
