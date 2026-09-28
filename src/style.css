@@ -1272,3 +1272,44 @@
 /* Category icon PNGs - preserve existing home card layout */
 .studio-category-icon img{width:42px;height:42px;object-fit:contain;display:block}
 @media(max-width:720px){.studio-category-icon img{width:32px;height:32px}}
+
+/* IDPROM mobile/tablet viewport lock — keep controls stationary; move only preview media. */
+@media (max-width:999px){
+  .adaptive-editor .style-detail-card .hero-preview.preview-zoomed,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview.preview-zoomed{
+    transform:none!important;
+    transform-origin:50% 50%!important;
+    will-change:auto!important;
+  }
+  .adaptive-editor .hero-preview.preview-zoomed > .source-preview,
+  .adaptive-editor .hero-preview.preview-zoomed > .final-render-preview,
+  .adaptive-editor .hero-preview.preview-zoomed > .live-editor-canvas{
+    transform:var(--preview-view-transform)!important;
+    transform-origin:50% 50%!important;
+    transition:none!important;
+    will-change:transform!important;
+  }
+  .adaptive-editor .process-action-row{
+    position:fixed!important;
+    left:12px!important;
+    right:12px!important;
+    bottom:calc(82px + env(safe-area-inset-bottom))!important;
+    width:auto!important;
+    max-width:none!important;
+    margin:0!important;
+    z-index:1002!important;
+    background:rgba(255,255,255,.98)!important;
+    border-radius:12px!important;
+    padding:6px!important;
+    box-shadow:0 -3px 16px rgba(15,23,42,.10)!important;
+  }
+  .adaptive-editor{
+    padding-bottom:calc(150px + env(safe-area-inset-bottom))!important;
+  }
+}
+@media (max-width:420px){
+  .adaptive-editor .process-action-row{
+    bottom:calc(76px + env(safe-area-inset-bottom))!important;
+  }
+  .adaptive-editor{padding-bottom:calc(142px + env(safe-area-inset-bottom))!important}
+}
