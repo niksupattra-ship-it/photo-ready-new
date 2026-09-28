@@ -12,6 +12,11 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 
 const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7kE";
+const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
+const STRIPE_PACKAGES={
+  "149":{priceId:STRIPE_PRICE_ID},
+  "199":{priceId:STRIPE_PRICE_ID_199}
+};
 const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
 function walletId(req){return String(req.get("X-Wallet-Id")||"").trim()}
 function verifyStripeSignature(raw,header,secret){
@@ -33,7 +38,9 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      const wid=session.metadata?.wallet_id;if(wid)await creditPaid(wid,session.id,2);
+      const wid=session.metadata?.wallet_id;
+      const packageId=String(session.metadata?.package_id||"");
+      if(wid&&STRIPE_PACKAGES[packageId])await creditPaid(wid,session.id,packageId);
     }
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
@@ -42,8 +49,25 @@ app.use(express.json({limit:"64kb"}));
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=await getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 app.post("/api/payments/checkout",async(req,res)=>{
-  try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
-    const session=await stripePost("checkout/sessions",{"mode":"payment","line_items[0][price]":STRIPE_PRICE_ID,"line_items[0][quantity]":1,"payment_method_types[0]":"promptpay","success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,"cancel_url":`${base}/?payment=cancelled`,"metadata[wallet_id]":wid});
+  try{
+    const wid=walletId(req);
+    if(!wid)return res.status(400).json({error:"wallet_required"});
+    const packageId=String(req.body?.packageId||req.body?.package_id||"");
+    const selectedPackage=STRIPE_PACKAGES[packageId];
+    if(!selectedPackage)return res.status(400).json({error:"invalid_package"});
+    if(!selectedPackage.priceId)return res.status(500).json({error:`ยังไม่ได้ตั้งค่า Stripe Price ID สำหรับแพ็กเกจ ${packageId} บาท`});
+    await ensureWallet(wid);
+    const base=APP_URL||`${req.protocol}://${req.get("host")}`;
+    const session=await stripePost("checkout/sessions",{
+      "mode":"payment",
+      "line_items[0][price]":selectedPackage.priceId,
+      "line_items[0][quantity]":1,
+      "payment_method_types[0]":"promptpay",
+      "success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      "cancel_url":`${base}/?payment=cancelled`,
+      "metadata[wallet_id]":wid,
+      "metadata[package_id]":packageId
+    });
     res.json({url:session.url});
   }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
 });
