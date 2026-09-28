@@ -5,9 +5,49 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
+import {newWallet,getWallet,ensureWallet,creditPaid,reserveCredit,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
+
+const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7kE";
+const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
+function walletId(req){return String(req.get("X-Wallet-Id")||"").trim()}
+function verifyStripeSignature(raw,header,secret){
+  if(!header||!secret)return false;const parts=Object.fromEntries(header.split(",").map(x=>x.split("=",2)));
+  const t=parts.t,v1=parts.v1;if(!t||!v1)return false;if(Math.abs(Date.now()/1000-Number(t))>300)return false;
+  const expected=crypto.createHmac("sha256",secret).update(`${t}.${raw.toString("utf8")}`).digest("hex");
+  try{return crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(v1))}catch{return false}
+}
+async function stripePost(endpoint,params){
+  const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
+  const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null)body.append(k,String(v));
+  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded"},body});
+  const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
+}
+
+// Stripe requires the exact raw request body for webhook signature verification.
+app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),async(req,res)=>{
+  try{
+    if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
+    const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
+    if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
+      const wid=session.metadata?.wallet_id;if(wid)await creditPaid(wid,session.id,2);
+    }
+    res.json({received:true});
+  }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
+});
+app.use(express.json({limit:"64kb"}));
+app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
+app.get("/api/wallet",(req,res)=>{const w=getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:walletHistory(w.walletId)})});
+app.post("/api/payments/checkout",async(req,res)=>{
+  try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
+    const session=await stripePost("checkout/sessions",{"mode":"payment","line_items[0][price]":STRIPE_PRICE_ID,"line_items[0][quantity]":1,"payment_method_types[0]":"promptpay","success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,"cancel_url":`${base}/?payment=cancelled`,"metadata[wallet_id]":wid});
+    res.json({url:session.url});
+  }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
+});
+async function requireCredit(req,res,kind){const wid=walletId(req);if(!wid){res.status(402).json({error:"credit_required",message:"กรุณาซื้อเครดิตก่อนประมวลผล"});return null}const r=await reserveCredit(wid,kind);if(!r){res.status(402).json({error:"credit_required",message:"เครดิตไม่พอ กรุณาซื้อเครดิต 149 บาท รับ 2 เครดิต"});return null}return r}
+
 const upload=multer({
   storage:multer.memoryStorage(),
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
@@ -125,20 +165,26 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
 // V114: separate provider engine; no Hair Donor, no mask upload, no implicit fallback.
 app.get("/api/hairstyle/providers",(req,res)=>res.json(providerStatus()));
 app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
+ let creditUse=null;
  try{
+  creditUse=await requireCredit(req,res,"hairstyle");if(!creditUse)return;
   const result=await editHairstyle({portrait:req.file,hairId:req.body?.hairId,root:dir});
   res.set("Content-Type","image/png");res.set("Cache-Control","no-store");
   res.set("X-Hairstyle-Provider",result.provider);
   res.set("X-Hairstyle-Cache",result.cache||"MISS");
   if(result.requestId)res.set("X-Request-Id",result.requestId);
+  await commitCredit(creditUse.usageId);
+  res.set("X-Credits-Remaining",String(creditUse.credits));
   res.send(result.png);
  }catch(error){
+  if(creditUse)await refundCredit(creditUse.usageId);
   console.error("Hairstyle engine:",error.message,error.requestId||"");
   res.status(error.status>=400&&error.status<600?error.status:500).send(error.message);
  }
 });
 
 app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),async(req,res)=>{
+  let creditUse=null;
   try{
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
@@ -232,6 +278,7 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
     if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
+    creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;
     const r=await fetch("https://api.openai.com/v1/images/edits",{
       method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
     });
@@ -250,8 +297,11 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     const data=Buffer.from(b64,"base64");
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
+    await commitCredit(creditUse.usageId);
+    res.set("X-Credits-Remaining",String(creditUse.credits));
     res.send(data);
   }catch(e){
+    if(creditUse)await refundCredit(creditUse.usageId);
     console.error(e);
     res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
