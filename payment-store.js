@@ -13,9 +13,19 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS generation_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS hair_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
-  // Keep the existing production table compatible with the reserve/commit/refund lifecycle.
-  // Older deployments may have a narrower credit_usage_status_check constraint.
+  // Migrate older production rows before installing the current lifecycle constraint.
+  // Historical deployments used statuses such as used/success/failed; keeping an
+  // unknown historical row as completed is safer than granting a credit again.
   await pool.query(`ALTER TABLE credit_usage DROP CONSTRAINT IF EXISTS credit_usage_status_check`);
+  await pool.query(`
+    UPDATE credit_usage
+    SET status = CASE
+      WHEN lower(status) IN ('reserved','pending','processing') THEN 'reserved'
+      WHEN lower(status) IN ('refunded','refund','cancelled','canceled') THEN 'refunded'
+      ELSE 'completed'
+    END
+    WHERE status IS NULL OR lower(status) NOT IN ('reserved','completed','refunded')
+  `);
   await pool.query(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
 })();return initPromise}
 function shape(id,row){return {walletId:id,generationRemaining:Number(row?.generation_remaining||0),hairRemaining:Number(row?.hair_remaining||0)}}
