@@ -3084,19 +3084,34 @@
 }
 
 
-/* DESKTOP ONLY — final: left = adjust, right = select, one panel only */
+/* DESKTOP ONLY — FINAL REPAIR
+   Left adjust controls and right selection controls are independent. */
 @media (min-width:1100px){
   .adaptive-editor .desktop-accessory-adjust{
-    display:none!important;
-  }
-  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    display:block!important;
+    position:absolute!important;
     left:124px!important;
     right:auto!important;
-    z-index:330!important;
+    top:18px!important;
+    width:292px!important;
+    min-width:292px!important;
+    max-width:292px!important;
+    z-index:340!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
   }
+
+  .adaptive-editor .desktop-adjust-only-rail{
+    z-index:350!important;
+  }
+
+  .adaptive-editor .desktop-persistent-selector{
+    z-index:350!important;
+  }
+
   .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
     left:auto!important;
     right:118px!important;
-    z-index:330!important;
+    z-index:340!important;
   }
 }
