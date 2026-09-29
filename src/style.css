@@ -1938,3 +1938,48 @@
     padding-right:500px!important;
   }
 }
+
+
+/* IDPROM — Desktop only: male/female hairstyle choices as rows/grid */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-sample-panel .choice-rail-wrap{
+    display:block!important;
+    width:100%!important;
+    overflow:visible!important;
+  }
+
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    align-items:start!important;
+    gap:12px!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:4px 0 18px!important;
+    overflow:visible!important;
+    scroll-snap-type:none!important;
+  }
+
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip>.hair-card{
+    display:flex!important;
+    flex-direction:column!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+    scroll-snap-align:none!important;
+  }
+
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip>.hair-card img{
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:1/1!important;
+    object-fit:cover!important;
+  }
+
+  .adaptive-editor .desktop-sample-panel .choice-rail-arrow{
+    display:none!important;
+  }
+}
