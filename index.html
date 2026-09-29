@@ -37,9 +37,53 @@
     "description": "เว็บทำรูปติดบัตรออนไลน์ สำหรับรูปสมัครงาน รูปชุดข้าราชการ และรูปนักศึกษา"
   }
   </script>
+
+  <style>
+    .idprom-seo{max-width:1080px;margin:36px auto 0;padding:28px 22px 44px;
+      color:#344456;font:15px/1.8 Arial,'Noto Sans Thai',sans-serif}
+    .idprom-seo h2{font-size:23px;color:#172e43;margin:0 0 12px}
+    .idprom-seo h3{font-size:17px;color:#223c51;margin:0 0 6px}
+    .idprom-seo p{margin:0 0 13px}
+    .idprom-seo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+    .idprom-seo-grid article{border:1px solid #e3eaf0;background:#fff;border-radius:14px;padding:19px}
+    .idprom-seo-note{color:#637487;font-size:13px}
+    #root:has(.adaptive-editor) + .idprom-seo{display:none}
+    @media(max-width:650px){.idprom-seo{margin-top:20px;padding:22px 17px 36px}
+      .idprom-seo-grid{grid-template-columns:1fr;gap:12px}}
+  </style>
 </head>
 <body>
   <div id="root"></div>
+
+  <section class="idprom-seo" aria-labelledby="idprom-seo-title">
+    <h2 id="idprom-seo-title">IDพร้อม — ทำรูปติดบัตรออนไลน์ได้ง่าย ๆ</h2>
+    <p>สร้างรูปติดบัตรและรูปสมัครงานผ่านเว็บไซต์ IDพร้อม เลือกแบบชุด ทรงผม และพื้นหลังที่ต้องการ
+    พร้อมปรับตำแหน่งภาพก่อนดาวน์โหลด โดยไม่ต้องเดินทางไปถ่ายรูปที่ร้าน</p>
+    <div class="idprom-seo-grid">
+      <article>
+        <h3>รูปสมัครงานออนไลน์</h3>
+        <p>เลือกแบบชุดสูทชายหรือหญิงและเสื้อเชิ้ตสำหรับรูปสมัครงาน ปรับรูปให้เหมาะกับการใช้งานและดาวน์โหลดไฟล์ภาพได้</p>
+      </article>
+      <article>
+        <h3>รูปชุดข้าราชการ</h3>
+        <p>มีแบบชุดข้าราชการชายและหญิง พร้อมตัวเลือกเข็มและแพรแถบสำหรับจัดองค์ประกอบภาพตามความต้องการ</p>
+      </article>
+      <article>
+        <h3>รูปนักศึกษา</h3>
+        <p>เลือกแบบชุดนักศึกษาชายหรือหญิง แล้วปรับทรงผม พื้นหลัง และตำแหน่งรูปในหน้าเว็บเดียว</p>
+      </article>
+      <article>
+        <h3>เปลี่ยนทรงผมและพื้นหลัง</h3>
+        <p>เลือกทรงผมและสีพื้นหลังที่เหมาะกับรูปติดบัตร พร้อมเครื่องมือปรับภาพและดูตัวอย่างก่อนดาวน์โหลด</p>
+      </article>
+    </div>
+    <h2>วิธีสร้างรูปติดบัตรกับ IDพร้อม</h2>
+    <p>เลือกประเภทรูปและแบบชุด → อัปโหลดภาพต้นฉบับ → ประมวลผลและปรับแต่ง →
+    ตรวจสอบตัวอย่าง → ดาวน์โหลดภาพเมื่อเสร็จเรียบร้อย</p>
+    <p class="idprom-seo-note">ข้อกำหนดขนาดรูป เครื่องแต่งกาย และพื้นหลังอาจแตกต่างกันตามหน่วยงานหรือผู้รับสมัคร
+    ควรตรวจสอบข้อกำหนดก่อนนำภาพไปใช้งาน</p>
+  </section>
+
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
