@@ -1776,3 +1776,67 @@
     height:270px!important;
   }
 }
+
+/* IDPROM desktop refinement: one persistent sample-tab strip on the right. */
+.desktop-sample-tabs{display:none}
+@media (min-width:1100px){
+  /* Hide the old sample-category icons from the left rail; keep only adjust tools. */
+  .adaptive-editor .editor-tool-dock .tool-rail-wrap .process-option-bar.simple-line-tools>button:nth-of-type(n+4){display:none!important}
+
+  .adaptive-editor .desktop-sample-tabs{
+    position:absolute!important;
+    top:18px!important;
+    right:18px!important;
+    width:460px!important;
+    min-height:72px!important;
+    display:flex!important;
+    align-items:stretch!important;
+    gap:4px!important;
+    padding:6px!important;
+    box-sizing:border-box!important;
+    border:1px solid #e5eaf2!important;
+    border-radius:16px 16px 0 0!important;
+    background:#fff!important;
+    z-index:60!important;
+  }
+  .adaptive-editor .desktop-sample-tabs>button{
+    flex:1 1 0!important;
+    min-width:0!important;
+    height:60px!important;
+    padding:5px 2px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:3px!important;
+    border:0!important;
+    border-radius:10px!important;
+    background:transparent!important;
+    color:#17233a!important;
+    cursor:pointer!important;
+  }
+  .adaptive-editor .desktop-sample-tabs>button.active{
+    color:#145df4!important;
+    background:#edf3ff!important;
+    box-shadow:inset 0 -2px 0 #2468f2!important;
+  }
+  .adaptive-editor .desktop-sample-tabs .line-tool-icon,
+  .adaptive-editor .desktop-sample-tabs .line-tool-icon img{
+    width:28px!important;
+    height:28px!important;
+    object-fit:contain!important;
+  }
+  .adaptive-editor .desktop-sample-tabs strong{
+    font-size:10px!important;
+    line-height:1.05!important;
+    white-space:nowrap!important;
+  }
+  /* Gallery starts immediately under the persistent tabs. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    top:90px!important;
+    right:18px!important;
+    width:460px!important;
+    max-width:460px!important;
+    border-radius:0 0 18px 18px!important;
+  }
+}
