@@ -3057,3 +3057,28 @@
     z-index:320!important;
   }
 }
+
+
+/* DESKTOP ONLY — left adjustment actions and right selection actions are separate */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-accessory-adjust{
+    display:block!important;
+    position:absolute!important;
+    left:124px!important;
+    right:auto!important;
+    top:18px!important;
+    width:292px!important;
+    min-width:292px!important;
+    max-width:292px!important;
+    z-index:325!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  /* The right-side selection panel stays on the right and is never opened
+     by ปรับแพรแถบ / ปรับเข็ม. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    left:auto!important;
+    right:118px!important;
+  }
+}
