@@ -1777,66 +1777,164 @@
   }
 }
 
-/* IDPROM desktop refinement: one persistent sample-tab strip on the right. */
-.desktop-sample-tabs{display:none}
-@media (min-width:1100px){
-  /* Hide the old sample-category icons from the left rail; keep only adjust tools. */
-  .adaptive-editor .editor-tool-dock .tool-rail-wrap .process-option-bar.simple-line-tools>button:nth-of-type(n+4){display:none!important}
 
-  .adaptive-editor .desktop-sample-tabs{
-    position:absolute!important;
+/* =========================================================
+   Desktop persistent selection tabs + side adjustment panel
+   Desktop editor only. No phone/tablet or non-editor changes.
+   ========================================================= */
+.desktop-persistent-selector{display:none}
+
+@media (min-width:1100px){
+  /* Keep the image in its own center column. Zoom changes the image/canvas,
+     not the side controls, so controls can never be covered by the image. */
+  .adaptive-editor .style-detail-card{
+    position:relative!important;
+    padding-left:410px!important;
+    padding-right:500px!important;
+    overflow:visible!important;
+  }
+
+  /* LEFT: adjustment tools + their controls in the same side column. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    left:18px!important;
     top:18px!important;
-    right:18px!important;
-    width:460px!important;
-    min-height:72px!important;
-    display:flex!important;
+    bottom:92px!important;
+    width:82px!important;
+    max-width:82px!important;
+    z-index:50!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    left:112px!important;
+    right:auto!important;
+    top:18px!important;
+    bottom:92px!important;
+    width:278px!important;
+    max-width:278px!important;
+    z-index:49!important;
+    background:#fff!important;
+    box-shadow:0 8px 24px rgba(20,42,74,.08)!important;
+  }
+
+  /* Adjustment controls never overlay the photo. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel *{
+    transform:none;
+  }
+
+  /* RIGHT: tabs are always visible. "แบบชุด" is first. */
+  .adaptive-editor .desktop-persistent-selector{
+    position:absolute!important;
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
     align-items:stretch!important;
-    gap:4px!important;
-    padding:6px!important;
+    gap:2px!important;
+    right:18px!important;
+    top:18px!important;
+    width:460px!important;
+    height:72px!important;
+    padding:4px!important;
     box-sizing:border-box!important;
-    border:1px solid #e5eaf2!important;
+    border:1px solid #e3e9f2!important;
     border-radius:16px 16px 0 0!important;
     background:#fff!important;
     z-index:60!important;
   }
-  .adaptive-editor .desktop-sample-tabs>button{
-    flex:1 1 0!important;
+  .adaptive-editor .desktop-persistent-selector>button{
     min-width:0!important;
-    height:60px!important;
-    padding:5px 2px!important;
+    height:62px!important;
+    padding:4px 2px!important;
     display:flex!important;
     flex-direction:column!important;
     align-items:center!important;
     justify-content:center!important;
-    gap:3px!important;
+    gap:2px!important;
     border:0!important;
+    border-bottom:2px solid transparent!important;
     border-radius:10px!important;
     background:transparent!important;
-    color:#17233a!important;
+    color:#13223b!important;
     cursor:pointer!important;
   }
-  .adaptive-editor .desktop-sample-tabs>button.active{
-    color:#145df4!important;
-    background:#edf3ff!important;
-    box-shadow:inset 0 -2px 0 #2468f2!important;
+  .adaptive-editor .desktop-persistent-selector>button.active{
+    color:#175df5!important;
+    background:#eef4ff!important;
+    border-bottom-color:#175df5!important;
   }
-  .adaptive-editor .desktop-sample-tabs .line-tool-icon,
-  .adaptive-editor .desktop-sample-tabs .line-tool-icon img{
+  .adaptive-editor .desktop-persistent-selector .line-tool-icon,
+  .adaptive-editor .desktop-persistent-selector .line-tool-icon img{
     width:28px!important;
     height:28px!important;
     object-fit:contain!important;
   }
-  .adaptive-editor .desktop-sample-tabs strong{
+  .adaptive-editor .desktop-persistent-selector strong{
     font-size:10px!important;
     line-height:1.05!important;
     white-space:nowrap!important;
   }
-  /* Gallery starts immediately under the persistent tabs. */
+
+  /* Existing sample panel sits directly below persistent tabs. */
   .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
-    top:90px!important;
     right:18px!important;
+    left:auto!important;
+    top:88px!important;
+    bottom:92px!important;
     width:460px!important;
     max-width:460px!important;
-    border-radius:0 0 18px 18px!important;
+    padding:16px!important;
+    border-radius:0 0 16px 16px!important;
+    z-index:45!important;
+  }
+
+  /* Do not duplicate sample-selector icons in the old left rail on desktop. */
+  .adaptive-editor .tool-rail-wrap button[data-hair-guide],
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-5.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-collar-pins.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-6.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-uniform-change.svg"]){
+    display:none!important;
+  }
+
+  /* Keep only adjust head / neck / skin stacked on left. */
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{
+    justify-content:flex-start!important;
+    overflow:visible!important;
+  }
+
+  /* Selection results are rows downward, never a hidden horizontal rail. */
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip,
+  .adaptive-editor .desktop-sample-panel .background-choice-preview,
+  .adaptive-editor .desktop-sample-panel .uniform-switch-grid{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:12px!important;
+    overflow:visible!important;
+    width:100%!important;
+    max-width:none!important;
+    padding:4px 0!important;
+  }
+  .adaptive-editor .desktop-sample-panel .choice-rail-arrow{display:none!important}
+
+  /* Center preview remains isolated from both side panels at every zoom. */
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    position:relative!important;
+    z-index:10!important;
+    width:min(100%,500px)!important;
+    max-width:500px!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    overflow:hidden!important;
+  }
+  .adaptive-editor .hero-preview .direct-edit-preview,
+  .adaptive-editor .hero-preview canvas,
+  .adaptive-editor .hero-preview img{
+    max-width:100%;
+  }
+}
+
+@media (min-width:1400px){
+  .adaptive-editor .style-detail-card{
+    padding-left:420px!important;
+    padding-right:500px!important;
   }
 }
