@@ -2404,3 +2404,14 @@
     padding-right:500px!important;
   }
 }
+
+
+/* Desktop only — remove duplicated "เปลี่ยนชุด" button from LEFT adjustment rail.
+   The persistent "แบบชุด" tab on the RIGHT remains unchanged. */
+@media (min-width:1100px){
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-uniform-change.svg"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[alt="เปลี่ยนชุด"]),
+  .adaptive-editor .tool-rail-wrap button:has(.line-tool-icon img[src*="uniform-change"]){
+    display:none!important;
+  }
+}
