@@ -2993,3 +2993,52 @@
     right:118px!important;
   }
 }
+
+
+/* DESKTOP ONLY — adjustment panel must never overlap the adjustment rail */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-adjust-only-rail{
+    left:18px!important;
+    width:88px!important;
+    z-index:310!important;
+  }
+
+  /* Reserve a real gap after the 88px rail:
+     18 left + 88 rail + 18 gap = 124px panel start */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust{
+    left:124px!important;
+    width:292px!important;
+    min-width:292px!important;
+    max-width:292px!important;
+    box-sizing:border-box!important;
+    z-index:300!important;
+    overflow-x:hidden!important;
+  }
+
+  /* Ribbon/pin adjust forms: prevent long Thai labels from pushing sliders sideways. */
+  .adaptive-editor .desktop-accessory-adjust .adjust-row,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel .adjust-row{
+    display:grid!important;
+    grid-template-columns:72px 1fr!important;
+    column-gap:8px!important;
+    align-items:center!important;
+    width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+
+  .adaptive-editor .desktop-accessory-adjust .adjust-row>*,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel .adjust-row>*{
+    min-width:0!important;
+  }
+
+  /* Kill the horizontal scrollbar visible in the screenshot. */
+  .adaptive-editor .desktop-accessory-adjust,
+  .adaptive-editor .desktop-accessory-adjust *,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel *{
+    max-width:100%;
+    box-sizing:border-box;
+  }
+}
