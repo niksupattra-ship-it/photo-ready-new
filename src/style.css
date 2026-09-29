@@ -3302,3 +3302,140 @@
     line-height:1.35!important;
   }
 }
+
+
+/* DESKTOP ONLY — definitive non-overlap layout for every adjustment row */
+@media (min-width:1100px){
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust{
+    width:500px!important;
+    min-width:500px!important;
+    max-width:500px!important;
+    height:auto!important;
+    min-height:0!important;
+    padding:18px 22px!important;
+    overflow:hidden!important;
+  }
+
+  /* Actual row class used by head / neck / ribbon / pin controls */
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row,
+  .adaptive-editor .desktop-accessory-adjust .head-adjust-row{
+    display:grid!important;
+    grid-template-columns:28px 38px minmax(190px,1fr) 38px 58px 28px!important;
+    column-gap:10px!important;
+    row-gap:0!important;
+    align-items:center!important;
+    width:100%!important;
+    min-width:0!important;
+    height:52px!important;
+    min-height:52px!important;
+    margin:0!important;
+    padding:0!important;
+    box-sizing:border-box!important;
+  }
+
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row>*,
+  .adaptive-editor .desktop-accessory-adjust .head-adjust-row>*{
+    position:static!important;
+    float:none!important;
+    transform:none!important;
+    margin:0!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row input[type="range"],
+  .adaptive-editor .desktop-accessory-adjust .head-adjust-row input[type="range"]{
+    grid-column:3!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row .head-slider-step,
+  .adaptive-editor .desktop-accessory-adjust .head-adjust-row .head-slider-step{
+    width:38px!important;
+    min-width:38px!important;
+    max-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
+    padding:0!important;
+  }
+
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row output,
+  .adaptive-editor .desktop-accessory-adjust .head-adjust-row output{
+    grid-column:5!important;
+    width:58px!important;
+    min-width:58px!important;
+    max-width:58px!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+    overflow:visible!important;
+  }
+
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row .head-row-reset,
+  .adaptive-editor .desktop-accessory-adjust .head-adjust-row .head-row-reset{
+    grid-column:6!important;
+    width:28px!important;
+    min-width:28px!important;
+    max-width:28px!important;
+    height:28px!important;
+    min-height:28px!important;
+    padding:4px!important;
+  }
+
+  /* Pin sections: labels occupy their own line; controls start below. */
+  .adaptive-editor .desktop-accessory-adjust .pin-side-adjust{
+    display:block!important;
+    width:100%!important;
+    padding:10px 0!important;
+    margin:0!important;
+    border-bottom:1px solid #e8edf5!important;
+  }
+  .adaptive-editor .desktop-accessory-adjust .pin-side-adjust>strong{
+    display:block!important;
+    width:100%!important;
+    margin:0 0 4px!important;
+    line-height:1.35!important;
+    white-space:normal!important;
+  }
+
+  /* Skin controls: label/value and slider never share the same physical space. */
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel .beauty-control{
+    display:grid!important;
+    grid-template-columns:125px minmax(210px,1fr) 48px!important;
+    gap:10px!important;
+    align-items:center!important;
+    width:100%!important;
+    min-height:48px!important;
+    margin:0!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel .beauty-control>span{
+    display:contents!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel .beauty-control strong{
+    grid-column:1!important;
+    white-space:nowrap!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel .beauty-control input[type="range"]{
+    grid-column:2!important;
+    grid-row:1!important;
+    width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel .beauty-control output{
+    grid-column:3!important;
+    grid-row:1!important;
+    width:48px!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+    position:static!important;
+  }
+
+  .adaptive-editor .desktop-accessory-adjust-title{
+    display:block!important;
+    margin:0 0 8px!important;
+    line-height:1.35!important;
+  }
+}
