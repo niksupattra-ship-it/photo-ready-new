@@ -1636,3 +1636,143 @@
     max-width:460px!important;
   }
 }
+
+/* ============================================================
+   IDPROM DESKTOP — persistent sample tabs + overlay adjustments
+   User-requested desktop layout refinement only (>=1100px).
+   ============================================================ */
+@media (min-width:1100px){
+  /* Left rail is for adjustment tools only. Sample tools are moved visually
+     into the right-side tab row while keeping their original handlers/icons. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    overflow:visible!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{
+    overflow:visible!important;
+  }
+
+  /* Adjustment buttons stay in the left vertical rail. */
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(-n+3){
+    position:relative!important;
+    inset:auto!important;
+    display:flex!important;
+  }
+
+  /* Sample-category buttons: permanent desktop tabs above the right gallery. */
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(n+4){
+    position:absolute!important;
+    top:20px!important;
+    z-index:48!important;
+    width:64px!important;
+    min-width:64px!important;
+    height:66px!important;
+    min-height:66px!important;
+    padding:5px 2px!important;
+    border-radius:12px!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    color:#17233a!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(n+4).active{
+    background:#edf3ff!important;
+    color:#145df4!important;
+    box-shadow:inset 0 -2px 0 #2468f2!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(n+4) .line-tool-icon,
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(n+4) .line-tool-icon img{
+    width:29px!important;
+    height:29px!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(n+4) strong{
+    font-size:9.5px!important;
+    line-height:1.05!important;
+  }
+
+  /* Positions are based on the existing tool order. Government-only buttons
+     simply occupy the next slots; no tool or click behavior is changed. */
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(4){right:374px!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(5){right:306px!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(6){right:238px!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(7){right:170px!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(8){right:102px!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button:nth-of-type(9){right:34px!important}
+
+  /* Right sample panel begins below the permanent tab row. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    top:94px!important;
+    bottom:92px!important;
+    padding:16px!important;
+  }
+  /* The category is already shown by the persistent icon tabs. */
+  .adaptive-editor .desktop-sample-panel>.tool-choice-tabs:first-child{
+    display:none!important;
+  }
+
+  /* Hair, background, ribbon and pin choices flow downward as rows/grid;
+     never hide them in a horizontal carousel on desktop. */
+  .adaptive-editor .desktop-sample-panel .choice-rail-wrap,
+  .adaptive-editor .desktop-sample-panel .ribbon-choice-rail-wrap,
+  .adaptive-editor .desktop-sample-panel .collar-pin-choice-rail-wrap{
+    display:block!important;
+    width:100%!important;
+    overflow:visible!important;
+  }
+  .adaptive-editor .desktop-sample-panel .choice-scroll-rail,
+  .adaptive-editor .desktop-sample-panel .hair-carousel,
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip,
+  .adaptive-editor .desktop-sample-panel .ribbon-choice-preview,
+  .adaptive-editor .desktop-sample-panel .collar-pin-choice-preview,
+  .adaptive-editor .desktop-sample-panel .background-choice-preview,
+  .adaptive-editor .desktop-sample-panel .uniform-switch-grid{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:12px!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:4px 0 18px!important;
+    overflow:visible!important;
+    transform:none!important;
+  }
+  .adaptive-editor .desktop-sample-panel .choice-rail-arrow{display:none!important}
+  .adaptive-editor .desktop-sample-panel .hair-card,
+  .adaptive-editor .desktop-sample-panel .ribbon-option,
+  .adaptive-editor .desktop-sample-panel .collar-pin-option,
+  .adaptive-editor .desktop-sample-panel .background-swatch,
+  .adaptive-editor .desktop-sample-panel .uniform-switch-grid>button{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    flex:none!important;
+  }
+
+  /* Adjustment controls appear over the photo only after an adjustment tool
+     is clicked. The underlying image stays in the same place. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    position:absolute!important;
+    left:50%!important;
+    right:auto!important;
+    top:72px!important;
+    bottom:auto!important;
+    width:min(460px,calc(100% - 1020px))!important;
+    min-width:390px!important;
+    max-width:460px!important;
+    max-height:620px!important;
+    margin:0!important;
+    padding:18px!important;
+    transform:translateX(-50%)!important;
+    overflow:auto!important;
+    border:1px solid rgba(217,226,238,.96)!important;
+    border-radius:16px!important;
+    background:rgba(255,255,255,.96)!important;
+    box-shadow:0 14px 38px rgba(18,38,68,.16)!important;
+    backdrop-filter:blur(8px)!important;
+    z-index:70!important;
+  }
+
+  /* Keep only the three adjustment tools in the visible left rail height. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    bottom:auto!important;
+    height:270px!important;
+  }
+}
