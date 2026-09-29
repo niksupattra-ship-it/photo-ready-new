@@ -39,17 +39,41 @@
   </script>
 
   <style>
-    .idprom-seo{max-width:1080px;margin:36px auto 0;padding:28px 22px 44px;
-      color:#344456;font:15px/1.8 Arial,'Noto Sans Thai',sans-serif}
-    .idprom-seo h2{font-size:23px;color:#172e43;margin:0 0 12px}
-    .idprom-seo h3{font-size:17px;color:#223c51;margin:0 0 6px}
-    .idprom-seo p{margin:0 0 13px}
-    .idprom-seo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
-    .idprom-seo-grid article{border:1px solid #e3eaf0;background:#fff;border-radius:14px;padding:19px}
-    .idprom-seo-note{color:#637487;font-size:13px}
+    .idprom-seo{max-width:1120px;margin:42px auto 0;padding:42px 28px 52px;color:#334155;
+      font:15px/1.75 Arial,'Noto Sans Thai',sans-serif}
+    .idprom-seo-head{max-width:820px;margin:0 auto 30px;text-align:center}
+    .idprom-seo-kicker{display:inline-flex;align-items:center;gap:8px;margin:0 0 12px;padding:6px 12px;
+      border:1px solid #dbe7f1;border-radius:999px;background:#fff;color:#48657c;font-size:12px;font-weight:700}
+    .idprom-seo-kicker::before{content:'';width:7px;height:7px;border-radius:50%;background:#172e43}
+    .idprom-seo h2{font-size:28px;line-height:1.35;color:#102a43;margin:0 0 12px;letter-spacing:-.2px}
+    .idprom-seo-head>p{max-width:760px;margin:0 auto;color:#5d7082;font-size:15px}
+    .idprom-seo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:28px 0 40px}
+    .idprom-seo-grid article{position:relative;min-height:180px;border:1px solid #e0e8ef;background:#fff;
+      border-radius:18px;padding:22px 20px;box-shadow:0 8px 26px rgba(31,54,76,.055);transition:.2s ease}
+    .idprom-seo-grid article:hover{transform:translateY(-2px);border-color:#cbd9e5;box-shadow:0 12px 30px rgba(31,54,76,.09)}
+    .idprom-seo-icon{width:42px;height:42px;display:grid;place-items:center;margin-bottom:17px;border-radius:12px;
+      background:#f2f6fa;color:#173b57;font-size:20px;font-weight:800}
+    .idprom-seo h3{font-size:17px;line-height:1.45;color:#17324a;margin:0 0 8px}
+    .idprom-seo-grid p{margin:0;color:#667789;font-size:14px;line-height:1.7}
+    .idprom-howto{padding:30px;border:1px solid #dfe8ef;border-radius:20px;background:#fff;
+      box-shadow:0 8px 26px rgba(31,54,76,.045)}
+    .idprom-howto-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:22px}
+    .idprom-howto h2{font-size:22px;margin:0}.idprom-howto-head p{margin:0;color:#718096;font-size:13px}
+    .idprom-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0}
+    .idprom-step{position:relative;padding:16px 15px;border-radius:14px;background:#f7f9fb}
+    .idprom-step-num{display:block;margin-bottom:7px;color:#8091a2;font-size:11px;font-weight:800;letter-spacing:.8px}
+    .idprom-step strong{display:block;color:#17324a;font-size:15px;margin-bottom:3px}.idprom-step span{color:#697b8d;font-size:13px}
+    .idprom-seo-note{display:flex;gap:10px;align-items:flex-start;margin:18px 2px 0!important;padding:13px 15px;
+      border-radius:12px;background:#f3f6f8;color:#637487!important;font-size:12.5px!important;line-height:1.65}
+    .idprom-seo-note::before{content:'i';flex:0 0 20px;width:20px;height:20px;display:grid;place-items:center;
+      border:1px solid #aab8c4;border-radius:50%;font:700 12px Arial;color:#6a7d8e;margin-top:1px}
     #root:has(.adaptive-editor) + .idprom-seo{display:none}
-    @media(max-width:650px){.idprom-seo{margin-top:20px;padding:22px 17px 36px}
-      .idprom-seo-grid{grid-template-columns:1fr;gap:12px}}
+    @media(max-width:900px){.idprom-seo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.idprom-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:650px){.idprom-seo{margin-top:20px;padding:30px 16px 38px}.idprom-seo-head{text-align:left;margin-bottom:22px}
+      .idprom-seo h2{font-size:23px}.idprom-seo-head>p{font-size:14px}.idprom-seo-grid{grid-template-columns:1fr;gap:11px;margin:20px 0 28px}
+      .idprom-seo-grid article{min-height:0;padding:18px}.idprom-seo-icon{width:38px;height:38px;margin-bottom:13px}
+      .idprom-howto{padding:20px 16px}.idprom-howto-head{display:block;margin-bottom:16px}.idprom-howto-head p{margin-top:5px}
+      .idprom-steps{grid-template-columns:1fr;gap:8px}.idprom-step{padding:14px}.idprom-seo-note{margin-top:14px!important}}
   </style>
 
   <!-- Google tag (gtag.js) -->
@@ -66,32 +90,48 @@
   <div id="root"></div>
 
   <section class="idprom-seo" aria-labelledby="idprom-seo-title">
-    <h2 id="idprom-seo-title">IDพร้อม — ทำรูปติดบัตรออนไลน์ได้ง่าย ๆ</h2>
-    <p>สร้างรูปติดบัตรและรูปสมัครงานผ่านเว็บไซต์ IDพร้อม เลือกแบบชุด ทรงผม และพื้นหลังที่ต้องการ
-    พร้อมปรับตำแหน่งภาพก่อนดาวน์โหลด โดยไม่ต้องเดินทางไปถ่ายรูปที่ร้าน</p>
+    <div class="idprom-seo-head">
+      <div class="idprom-seo-kicker">IDพร้อม · รูปติดบัตรออนไลน์</div>
+      <h2 id="idprom-seo-title">ทำรูปติดบัตรออนไลน์ ง่าย ครบ จบในที่เดียว</h2>
+      <p>สร้างรูปติดบัตรและรูปสมัครงานผ่านเว็บไซต์ IDพร้อม เลือกแบบชุด ทรงผม และพื้นหลังที่ต้องการ พร้อมปรับตำแหน่งภาพก่อนดาวน์โหลด โดยไม่ต้องเดินทางไปถ่ายรูปที่ร้าน</p>
+    </div>
+
     <div class="idprom-seo-grid">
       <article>
+        <div class="idprom-seo-icon" aria-hidden="true">01</div>
         <h3>รูปสมัครงานออนไลน์</h3>
         <p>เลือกแบบชุดสูทชายหรือหญิงและเสื้อเชิ้ตสำหรับรูปสมัครงาน ปรับรูปให้เหมาะกับการใช้งานและดาวน์โหลดไฟล์ภาพได้</p>
       </article>
       <article>
+        <div class="idprom-seo-icon" aria-hidden="true">02</div>
         <h3>รูปชุดข้าราชการ</h3>
         <p>มีแบบชุดข้าราชการชายและหญิง พร้อมตัวเลือกเข็มและแพรแถบสำหรับจัดองค์ประกอบภาพตามความต้องการ</p>
       </article>
       <article>
+        <div class="idprom-seo-icon" aria-hidden="true">03</div>
         <h3>รูปนักศึกษา</h3>
         <p>เลือกแบบชุดนักศึกษาชายหรือหญิง แล้วปรับทรงผม พื้นหลัง และตำแหน่งรูปในหน้าเว็บเดียว</p>
       </article>
       <article>
-        <h3>เปลี่ยนทรงผมและพื้นหลัง</h3>
+        <div class="idprom-seo-icon" aria-hidden="true">04</div>
+        <h3>ทรงผมและพื้นหลัง</h3>
         <p>เลือกทรงผมและสีพื้นหลังที่เหมาะกับรูปติดบัตร พร้อมเครื่องมือปรับภาพและดูตัวอย่างก่อนดาวน์โหลด</p>
       </article>
     </div>
-    <h2>วิธีสร้างรูปติดบัตรกับ IDพร้อม</h2>
-    <p>เลือกประเภทรูปและแบบชุด → อัปโหลดภาพต้นฉบับ → ประมวลผลและปรับแต่ง →
-    ตรวจสอบตัวอย่าง → ดาวน์โหลดภาพเมื่อเสร็จเรียบร้อย</p>
-    <p class="idprom-seo-note">ข้อกำหนดขนาดรูป เครื่องแต่งกาย และพื้นหลังอาจแตกต่างกันตามหน่วยงานหรือผู้รับสมัคร
-    ควรตรวจสอบข้อกำหนดก่อนนำภาพไปใช้งาน</p>
+
+    <div class="idprom-howto">
+      <div class="idprom-howto-head">
+        <h2>วิธีสร้างรูปติดบัตรกับ IDพร้อม</h2>
+        <p>4 ขั้นตอนง่าย ๆ พร้อมดาวน์โหลด</p>
+      </div>
+      <div class="idprom-steps" aria-label="ขั้นตอนสร้างรูปติดบัตร">
+        <div class="idprom-step"><span class="idprom-step-num">STEP 01</span><strong>เลือกประเภทรูป</strong><span>เลือกแบบชุดที่ต้องการ</span></div>
+        <div class="idprom-step"><span class="idprom-step-num">STEP 02</span><strong>อัปโหลดภาพ</strong><span>ใช้ภาพต้นฉบับหน้าตรง</span></div>
+        <div class="idprom-step"><span class="idprom-step-num">STEP 03</span><strong>ประมวลผลและปรับแต่ง</strong><span>ตรวจสอบและปรับภาพให้พอดี</span></div>
+        <div class="idprom-step"><span class="idprom-step-num">STEP 04</span><strong>ดาวน์โหลด</strong><span>บันทึกภาพเมื่อเรียบร้อย</span></div>
+      </div>
+      <p class="idprom-seo-note">ข้อกำหนดขนาดรูป เครื่องแต่งกาย และพื้นหลังอาจแตกต่างกันตามหน่วยงานหรือผู้รับสมัคร ควรตรวจสอบข้อกำหนดก่อนนำภาพไปใช้งาน</p>
+    </div>
   </section>
 
   <script type="module" src="/src/main.jsx"></script>
