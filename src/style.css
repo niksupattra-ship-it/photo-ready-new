@@ -2580,3 +2580,156 @@
     display:none!important;
   }
 }
+
+
+/* ============================================================
+   FINAL DESKTOP CONTROL VISIBILITY FIX
+   Keep every editor control visible before/after processing.
+   Desktop only.
+   ============================================================ */
+@media (min-width:1100px){
+  .adaptive-editor .style-detail-card{
+    position:relative!important;
+    min-height:820px!important;
+    padding:20px 500px 105px 430px!important;
+    overflow:visible!important;
+    isolation:isolate!important;
+  }
+
+  /* The zoomed photo is clipped only inside its own center frame. */
+  .adaptive-editor .hero-preview{
+    position:relative!important;
+    z-index:10!important;
+    overflow:hidden!important;
+    contain:paint!important;
+    clip-path:inset(0 round 18px)!important;
+  }
+
+  /* Dock always exists over the workspace, including processed state. */
+  .adaptive-editor .editor-tool-dock{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:200!important;
+    pointer-events:none!important;
+    transform:none!important;
+  }
+  .adaptive-editor .editor-tool-dock > *{
+    pointer-events:auto!important;
+  }
+
+  /* LEFT: only adjustment buttons. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    left:18px!important;
+    top:18px!important;
+    bottom:105px!important;
+    width:88px!important;
+    max-width:88px!important;
+    height:auto!important;
+    overflow:hidden!important;
+    background:#fff!important;
+    z-index:230!important;
+  }
+
+  /* LEFT SECOND COLUMN: adjustment sliders, never behind the photo. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    left:118px!important;
+    right:auto!important;
+    top:18px!important;
+    bottom:105px!important;
+    width:292px!important;
+    min-width:292px!important;
+    max-width:292px!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:18px!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    transform:none!important;
+    translate:none!important;
+    background:#fff!important;
+    z-index:225!important;
+  }
+
+  /* RIGHT: category tabs are always visible. */
+  .adaptive-editor .desktop-persistent-selector{
+    display:grid!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    right:18px!important;
+    top:18px!important;
+    width:460px!important;
+    height:72px!important;
+    z-index:240!important;
+    background:#fff!important;
+  }
+
+  /* RIGHT: current category choices stay visible after processing too. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    left:auto!important;
+    right:18px!important;
+    top:88px!important;
+    bottom:105px!important;
+    width:460px!important;
+    min-width:460px!important;
+    max-width:460px!important;
+    max-height:none!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    transform:none!important;
+    background:#fff!important;
+    z-index:225!important;
+  }
+
+  /* Hair choices: vertical 3-column grid like ribbon choices. */
+  .adaptive-editor .desktop-sample-panel .hair-carousel,
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip.choice-scroll-rail{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-auto-flow:row!important;
+    gap:12px!important;
+    width:100%!important;
+    max-width:100%!important;
+    overflow:visible!important;
+    white-space:normal!important;
+    scroll-snap-type:none!important;
+  }
+  .adaptive-editor .desktop-sample-panel .hair-card{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    margin:0!important;
+  }
+  .adaptive-editor .desktop-sample-panel .choice-rail-arrow{
+    display:none!important;
+  }
+
+  /* Bottom actions/download are always above the image. */
+  .adaptive-editor .process-action-row{
+    display:flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    left:18px!important;
+    right:18px!important;
+    bottom:14px!important;
+    top:auto!important;
+    z-index:250!important;
+    background:#fff!important;
+  }
+}
