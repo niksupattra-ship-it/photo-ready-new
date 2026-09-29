@@ -2980,3 +2980,116 @@
     left:132px!important;
   }
 }
+
+
+/* ============================================================
+   DESKTOP ONLY — KEEP BOTH SIDE TOOL RAILS COMPLETE & VISIBLE
+   Left: head / neck / skin / ribbon / pin
+   Right: uniform / male hair / female hair / ribbon / pin / background
+   ============================================================ */
+@media (min-width:1100px){
+  /* LEFT rail: enough vertical room for all five buttons */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    left:18px!important;
+    top:18px!important;
+    bottom:auto!important;
+    width:104px!important;
+    max-width:104px!important;
+    height:auto!important;
+    min-height:430px!important;
+    max-height:calc(100% - 130px)!important;
+    padding:10px 8px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    background:#fff!important;
+    z-index:260!important;
+  }
+  .adaptive-editor .tool-rail-wrap .tool-rail{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:8px!important;
+    width:100%!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+  .adaptive-editor .tool-rail-wrap .tool-rail>button{
+    display:flex!important;
+    flex:0 0 72px!important;
+    width:86px!important;
+    height:72px!important;
+    min-height:72px!important;
+    margin:0!important;
+    padding:6px 3px!important;
+  }
+  .adaptive-editor .tool-rail-wrap .desktop-left-accessory-tool{
+    display:flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+  }
+
+  /* RIGHT rail: enough room for all six selector buttons */
+  .adaptive-editor .desktop-persistent-selector{
+    display:flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:6px!important;
+    position:absolute!important;
+    right:18px!important;
+    top:18px!important;
+    bottom:auto!important;
+    width:104px!important;
+    min-width:104px!important;
+    max-width:104px!important;
+    height:auto!important;
+    min-height:510px!important;
+    max-height:calc(100% - 130px)!important;
+    padding:10px 8px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
+    background:#fff!important;
+    z-index:260!important;
+  }
+  .adaptive-editor .desktop-persistent-selector>button{
+    display:flex!important;
+    visibility:visible!important;
+    opacity:1!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:4px!important;
+    flex:0 0 72px!important;
+    width:86px!important;
+    min-width:86px!important;
+    max-width:86px!important;
+    height:72px!important;
+    min-height:72px!important;
+    margin:0!important;
+    padding:6px 3px!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Panels stay immediately beside their own rail. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust{
+    left:136px!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    right:136px!important;
+    width:350px!important;
+    min-width:350px!important;
+    max-width:350px!important;
+  }
+
+  /* Center preview remains untouched and visible. */
+  .adaptive-editor .hero-preview{
+    z-index:20!important;
+  }
+}
