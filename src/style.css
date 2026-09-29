@@ -1330,3 +1330,65 @@
     z-index:32!important;
   }
 }
+
+/* IDPROM desktop editor layout — presentation only. No processing/state logic changed. */
+@media (min-width:1000px){
+  .adaptive-editor.modern-shell{max-width:1540px!important;width:100%;padding:18px 24px 34px!important}
+  .adaptive-editor .editor-context-header{max-width:1480px;margin:0 auto 14px;padding:8px 4px 14px;border-bottom:1px solid #e7edf5;align-items:center!important}
+  .adaptive-editor .editor-context-header .eyebrow{display:none}
+  .adaptive-editor .editor-context-header h1{font-size:20px!important;margin:0!important}
+  .adaptive-editor .modern-flow{display:block!important}
+  .adaptive-editor .style-detail-card{
+    max-width:1480px!important;width:100%!important;margin:0 auto!important;
+    display:grid!important;
+    grid-template-columns:170px minmax(430px,560px) minmax(320px,1fr);
+    grid-template-rows:auto auto auto 1fr;
+    column-gap:18px;row-gap:12px;
+    align-items:start;
+    padding:18px!important;border-radius:22px!important;
+    background:#f8fafc!important;border:1px solid #e4eaf2!important;
+    box-shadow:0 10px 32px rgba(20,43,75,.06)!important;
+  }
+  .adaptive-editor .style-detail-card>.hero-preview{
+    grid-column:2;grid-row:1 / span 4;
+    width:min(100%,520px)!important;margin:0 auto!important;
+    border-radius:20px!important;background:#eef3f4;
+    box-shadow:0 0 0 10px #fff,0 8px 24px rgba(15,23,42,.07);
+  }
+  .adaptive-editor .style-detail-card>.quick-config{grid-column:3;grid-row:1;width:100%!important;margin:0!important;display:block!important}
+  .adaptive-editor .style-detail-card>.hair-selection-guide{grid-column:3;grid-row:2;width:100%!important;margin:0!important}
+  .adaptive-editor .style-detail-card>.process-action-row{grid-column:2;grid-row:5;width:100%!important;margin:8px auto 0!important}
+  .adaptive-editor .style-detail-card>.err{grid-column:2;grid-row:6;margin:0}
+  .adaptive-editor .editor-tool-dock{display:contents!important}
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    grid-column:1;grid-row:1 / span 4;
+    width:100%!important;align-self:stretch;
+    display:block!important;background:#fff;border:1px solid #e5ebf3;border-radius:18px;
+    padding:10px 8px!important;box-shadow:0 5px 18px rgba(20,43,75,.04)
+  }
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap>.tool-rail-arrow{display:none!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar{
+    width:100%!important;display:flex!important;flex-direction:column!important;
+    gap:5px!important;overflow:visible!important;padding:0!important;margin:0!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar button{
+    width:100%!important;min-width:0!important;flex:0 0 auto!important;
+    min-height:66px;padding:8px 5px!important;border-radius:12px!important;
+    flex-direction:column;justify-content:center;align-items:center;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar button.active{background:#eef5ff!important;color:#1768d5!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar .line-tool-icon{width:28px!important;height:28px!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar button strong{font-size:11px!important;white-space:normal!important;text-align:center}
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet{
+    grid-column:3;grid-row:2 / span 3;
+    width:100%!important;min-height:300px;margin:0!important;padding:16px!important;
+    background:#fff!important;border:1px solid #e5ebf3!important;border-radius:18px!important;
+    box-shadow:0 5px 18px rgba(20,43,75,.04)!important;
+  }
+  .adaptive-editor .editor-tool-dock>.placement-lock-row{grid-column:3}
+  .adaptive-editor .tool-choice-sheet .process-thumbnail-strip,
+  .adaptive-editor .tool-choice-sheet .ribbon-choice-preview{max-height:430px}
+  .adaptive-editor .process-action-row .process-first{max-width:none!important;width:100%!important;margin:0!important;border-radius:12px!important}
+  .adaptive-editor .preview-file-actions{width:100%;justify-content:center}
+  .adaptive-editor .download-below-tools{grid-column:2;width:100%!important}
+}
