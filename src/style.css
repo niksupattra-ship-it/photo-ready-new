@@ -3093,3 +3093,114 @@
     z-index:20!important;
   }
 }
+
+
+/* ============================================================
+   DESKTOP ONLY — LEFT RAIL FINAL ORDER / NO OVERLAP
+   Visible only:
+   ปรับหัว → ปรับคอ → ปรับผิว → ปรับแพรแถบ → ปรับเข็ม
+   The original selector buttons stay on the RIGHT only.
+   ============================================================ */
+@media (min-width:1100px){
+
+  .adaptive-editor .editor-tool-dock > .tool-rail-wrap{
+    width:104px!important;
+    max-width:104px!important;
+    height:auto!important;
+    min-height:430px!important;
+    padding:10px 8px!important;
+    overflow:visible!important;
+  }
+
+  /* Actual left button container in this project */
+  .adaptive-editor .tool-rail-wrap .option-icon-bar.process-option-bar.simple-line-tools{
+    display:flex!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:8px!important;
+    width:88px!important;
+    min-width:88px!important;
+    height:auto!important;
+    overflow:visible!important;
+    padding:0!important;
+    margin:0!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .option-icon-bar.process-option-bar.simple-line-tools > button{
+    position:relative!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:5px!important;
+    flex:0 0 72px!important;
+    width:86px!important;
+    min-width:86px!important;
+    max-width:86px!important;
+    height:72px!important;
+    min-height:72px!important;
+    margin:0!important;
+    padding:6px 4px!important;
+    box-sizing:border-box!important;
+    transform:none!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .option-icon-bar .line-tool-icon{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:30px!important;
+    height:30px!important;
+    min-height:30px!important;
+    margin:0!important;
+    flex:0 0 30px!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .option-icon-bar .line-tool-icon img{
+    display:block!important;
+    width:28px!important;
+    height:28px!important;
+    max-width:28px!important;
+    max-height:28px!important;
+    object-fit:contain!important;
+    margin:0!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .option-icon-bar strong{
+    display:block!important;
+    width:100%!important;
+    margin:0!important;
+    text-align:center!important;
+    font-size:12px!important;
+    line-height:1.15!important;
+    white-space:normal!important;
+  }
+
+  /* Keep the two new adjustment shortcuts visible in their own rows */
+  .adaptive-editor .tool-rail-wrap .desktop-left-accessory-tool{
+    display:flex!important;
+  }
+
+  /* These are selector tools and belong to the RIGHT rail on desktop.
+     Hide only their ORIGINAL copies from the left rail. */
+  .adaptive-editor .tool-rail-wrap button[data-hair-guide],
+  .adaptive-editor .tool-rail-wrap button:not(.desktop-left-accessory-tool):has(img[src="/app-icons/tool-5.png"]),
+  .adaptive-editor .tool-rail-wrap button:not(.desktop-left-accessory-tool):has(img[src="/app-icons/tool-collar-pins.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-6.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-uniform-change.svg"]){
+    display:none!important;
+  }
+
+  /* Desktop left rail does not need horizontal carousel arrows */
+  .adaptive-editor .tool-rail-wrap > .tool-rail-arrow{
+    display:none!important;
+  }
+
+  /* Adjustment panel begins after the clean left rail */
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust{
+    left:136px!important;
+  }
+}
