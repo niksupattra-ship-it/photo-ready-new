@@ -2415,3 +2415,99 @@
     display:none!important;
   }
 }
+
+
+/* ============================================================
+   IDPROM DESKTOP — FIXED CONTROL COLUMNS WHILE PHOTO ZOOMS
+   Desktop only. Zoom is clipped inside the center stage and can
+   never cover the left adjustment panel or right selector panel.
+   ============================================================ */
+@media (min-width:1100px){
+
+  /* Three real desktop zones with protected side columns. */
+  .adaptive-editor .style-detail-card{
+    position:relative!important;
+    isolation:isolate!important;
+    padding-left:430px!important;
+    padding-right:500px!important;
+    overflow:hidden!important;
+  }
+
+  /* Center photo stage is the ONLY place allowed to show zoomed image content. */
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    position:relative!important;
+    z-index:5!important;
+    overflow:hidden!important;
+    contain:paint!important;
+    clip-path:inset(0 round 18px)!important;
+  }
+
+  /* Anything rendered/scaled inside the photo must remain below desktop controls. */
+  .adaptive-editor .hero-preview .direct-edit-preview,
+  .adaptive-editor .hero-preview .direct-edit-preview *,
+  .adaptive-editor .hero-preview canvas,
+  .adaptive-editor .hero-preview img{
+    z-index:1!important;
+  }
+
+  /* LEFT rail is always visible above the image. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    position:absolute!important;
+    left:18px!important;
+    top:18px!important;
+    bottom:104px!important;
+    width:88px!important;
+    max-width:88px!important;
+    z-index:300!important;
+    overflow:hidden!important;
+    background:#fff!important;
+  }
+
+  /* LEFT adjustment card is always visible directly beside the selected button. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    position:absolute!important;
+    left:118px!important;
+    right:auto!important;
+    top:18px!important;
+    bottom:104px!important;
+    width:292px!important;
+    max-width:292px!important;
+    z-index:290!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    background:#fff!important;
+    opacity:1!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+    transform:none!important;
+    translate:none!important;
+  }
+
+  /* RIGHT tabs/list are also protected from photo zoom. */
+  .adaptive-editor .desktop-persistent-selector{
+    z-index:300!important;
+    background:#fff!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    z-index:290!important;
+    background:#fff!important;
+  }
+
+  /* Bottom actions/download remain reachable while zoomed. */
+  .adaptive-editor .process-action-row{
+    z-index:310!important;
+    background:#fff!important;
+  }
+
+  /* Controls themselves never inherit image transforms. */
+  .adaptive-editor .editor-tool-dock,
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet,
+  .adaptive-editor .desktop-persistent-selector,
+  .adaptive-editor .process-action-row{
+    transform:none!important;
+    translate:none!important;
+    scale:none!important;
+  }
+}
