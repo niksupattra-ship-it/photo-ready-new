@@ -3082,3 +3082,21 @@
     right:118px!important;
   }
 }
+
+
+/* DESKTOP ONLY — final: left = adjust, right = select, one panel only */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-accessory-adjust{
+    display:none!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    left:124px!important;
+    right:auto!important;
+    z-index:330!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    left:auto!important;
+    right:118px!important;
+    z-index:330!important;
+  }
+}
