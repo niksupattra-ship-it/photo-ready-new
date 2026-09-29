@@ -3170,3 +3170,135 @@
     font-size:16px!important;
   }
 }
+
+
+/* =========================================================
+   DESKTOP ONLY — unified adjustment panel layout
+   Keeps every adjustment control aligned and non-overlapping.
+   ========================================================= */
+@media (min-width:1100px){
+
+  /* All desktop adjustment cards use the same balanced shell. */
+  .adaptive-editor .editor-tool-dock > .tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust{
+    left:140px!important;
+    width:430px!important;
+    min-width:430px!important;
+    max-width:430px!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    padding:18px 20px!important;
+    overflow:visible!important;
+    box-sizing:border-box!important;
+    align-self:flex-start!important;
+  }
+
+  /* Prevent inherited full-height/flex stretching. */
+  .adaptive-editor .desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust,
+  .adaptive-editor .desktop-adjust-panel > *,
+  .adaptive-editor .desktop-accessory-adjust > *{
+    min-height:0!important;
+  }
+
+  /* Normalize each slider row: icon | minus | slider | plus | value | reset. */
+  .adaptive-editor .desktop-adjust-panel .adjust-row,
+  .adaptive-editor .desktop-accessory-adjust .adjust-row,
+  .adaptive-editor .desktop-adjust-panel .range-row,
+  .adaptive-editor .desktop-accessory-adjust .range-row{
+    display:grid!important;
+    grid-template-columns:24px 36px minmax(150px,1fr) 36px 52px 24px!important;
+    align-items:center!important;
+    gap:8px!important;
+    width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:8px 0!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Range must stay inside its own grid cell. */
+  .adaptive-editor .desktop-adjust-panel input[type="range"],
+  .adaptive-editor .desktop-accessory-adjust input[type="range"]{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+
+  /* +/- buttons: same size everywhere. */
+  .adaptive-editor .desktop-adjust-panel button,
+  .adaptive-editor .desktop-accessory-adjust button{
+    box-sizing:border-box!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .adjust-row button,
+  .adaptive-editor .desktop-accessory-adjust .adjust-row button,
+  .adaptive-editor .desktop-adjust-panel .range-row button,
+  .adaptive-editor .desktop-accessory-adjust .range-row button{
+    width:36px!important;
+    min-width:36px!important;
+    max-width:36px!important;
+    height:36px!important;
+    min-height:36px!important;
+    padding:0!important;
+    margin:0!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+  }
+
+  /* Values never sit on top of + button or slider. */
+  .adaptive-editor .desktop-adjust-panel .value,
+  .adaptive-editor .desktop-accessory-adjust .value,
+  .adaptive-editor .desktop-adjust-panel output,
+  .adaptive-editor .desktop-accessory-adjust output{
+    position:static!important;
+    width:52px!important;
+    min-width:52px!important;
+    margin:0!important;
+    white-space:nowrap!important;
+    text-align:center!important;
+    font-weight:700!important;
+    line-height:1.2!important;
+  }
+
+  /* Skin/lip panel: clean label + full-width slider rows. */
+  .adaptive-editor .desktop-adjust-panel .skin-row,
+  .adaptive-editor .desktop-adjust-panel .beauty-row{
+    display:grid!important;
+    grid-template-columns:120px minmax(0,1fr) 46px!important;
+    align-items:center!important;
+    gap:12px!important;
+    width:100%!important;
+    padding:8px 0!important;
+    box-sizing:border-box!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .skin-row input[type="range"],
+  .adaptive-editor .desktop-adjust-panel .beauty-row input[type="range"]{
+    width:100%!important;
+    min-width:0!important;
+  }
+
+  /* Tab switch inside skin/lip stays contained in the card. */
+  .adaptive-editor .desktop-adjust-panel .skin-tabs,
+  .adaptive-editor .desktop-adjust-panel .beauty-tabs{
+    display:flex!important;
+    width:max-content!important;
+    max-width:100%!important;
+    margin:0 0 10px 0!important;
+  }
+
+  /* Keep headings and reset actions away from slider rows. */
+  .adaptive-editor .desktop-adjust-panel h2,
+  .adaptive-editor .desktop-adjust-panel h3,
+  .adaptive-editor .desktop-adjust-panel h4,
+  .adaptive-editor .desktop-accessory-adjust h2,
+  .adaptive-editor .desktop-accessory-adjust h3,
+  .adaptive-editor .desktop-accessory-adjust h4{
+    margin:0 0 10px!important;
+    line-height:1.35!important;
+  }
+}
