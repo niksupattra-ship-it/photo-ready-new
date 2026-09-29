@@ -2830,3 +2830,26 @@
     margin:0 auto 6px!important;
   }
 }
+
+
+/* Desktop only: right-side option tabs stack vertically, like the adjust tools */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-tool-tabs{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    justify-content:flex-start!important;
+    gap:6px!important;
+    width:88px!important;
+    min-width:88px!important;
+    height:auto!important;
+    padding:8px!important;
+  }
+  .adaptive-editor .desktop-tool-tabs > button{
+    width:72px!important;
+    min-width:72px!important;
+    height:70px!important;
+    flex:0 0 70px!important;
+    margin:0!important;
+  }
+}
