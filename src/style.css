@@ -1332,42 +1332,304 @@
 }
 
 
-/* IDPROM — mobile/tablet tool rail: swipe only, no left/right arrow buttons.
-   Layout/processing logic unchanged. */
-@media (max-width:999px), (hover:none), (pointer:coarse){
-  .adaptive-editor .editor-tool-dock .tool-rail-arrow,
-  .adaptive-editor .tool-rail-wrap .tool-rail-arrow,
-  .adaptive-editor .tool-rail-left,
-  .adaptive-editor .tool-rail-right{
+/* =========================================================
+   IDPROM DESKTOP EDITOR — layout only
+   Reference: 3-column desktop studio supplied by user.
+   IMPORTANT: desktop process/editor only. No mobile/tablet,
+   home page, processing, state, image, credit or payment rules.
+   ========================================================= */
+@media (min-width:1100px){
+
+  /* Full desktop working area */
+  .adaptive-editor.modern-shell{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0 18px 24px!important;
+    background:#f5f8fc!important;
+    min-height:100vh;
+  }
+
+  /* Existing process header only — keep all original controls */
+  .adaptive-editor .editor-context-header{
+    display:grid!important;
+    grid-template-columns:minmax(220px,1fr) auto minmax(220px,1fr)!important;
+    align-items:center!important;
+    width:100%!important;
+    min-height:72px!important;
+    margin:0!important;
+    padding:10px 8px 12px!important;
+    border-bottom:1px solid #e5ebf3!important;
+    background:transparent!important;
+  }
+  .adaptive-editor .editor-context-header .detail-back{
+    justify-self:start!important;
+  }
+  .adaptive-editor .editor-context-header>div:nth-child(2){
+    justify-self:center!important;
+    text-align:center!important;
+  }
+  .adaptive-editor .editor-context-header .editor-credit-actions{
+    justify-self:end!important;
+  }
+
+  .adaptive-editor .modern-flow{
+    width:100%!important;
+    max-width:none!important;
+    margin:14px auto 0!important;
+    display:block!important;
+  }
+
+  /* Main desktop editor card becomes the studio workspace */
+  .adaptive-editor .style-detail-card{
+    position:relative!important;
+    width:100%!important;
+    max-width:none!important;
+    min-height:780px!important;
+    margin:0!important;
+    padding:18px 500px 112px 116px!important;
+    border:1px solid #e3e9f2!important;
+    border-radius:22px!important;
+    background:#fff!important;
+    box-shadow:0 10px 34px rgba(24,45,78,.06)!important;
+    overflow:visible!important;
+  }
+
+  .adaptive-editor .editor-preview-heading{
     display:none!important;
-    visibility:hidden!important;
-    pointer-events:none!important;
   }
 
-  .adaptive-editor .editor-tool-dock > .tool-rail-wrap{
-    padding-left:max(6px,env(safe-area-inset-left))!important;
-    padding-right:max(6px,env(safe-area-inset-right))!important;
+  /* Center document stage */
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    width:min(100%,520px)!important;
+    max-width:520px!important;
+    height:auto!important;
+    aspect-ratio:47/64!important;
+    margin:12px auto 18px!important;
+    border:1.5px solid #6e958f!important;
+    border-radius:18px!important;
+    background:#eef4f5!important;
+    box-shadow:none!important;
   }
 
+  /* Left vertical tool rail */
+  .adaptive-editor .editor-tool-dock{
+    position:static!important;
+    width:auto!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    z-index:30!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    position:absolute!important;
+    left:18px!important;
+    top:18px!important;
+    bottom:112px!important;
+    width:82px!important;
+    max-width:82px!important;
+    margin:0!important;
+    padding:8px 4px!important;
+    display:block!important;
+    background:#fff!important;
+    border:1px solid #e5eaf2!important;
+    border-radius:18px!important;
+    box-shadow:0 6px 20px rgba(20,40,70,.05)!important;
+    overflow:hidden!important;
+    z-index:33!important;
+  }
   .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{
+    width:100%!important;
+    height:100%!important;
+    margin:0!important;
+    padding:0!important;
     display:flex!important;
+    flex-direction:column!important;
     flex-wrap:nowrap!important;
     justify-content:flex-start!important;
-    overflow-x:auto!important;
-    overflow-y:hidden!important;
-    touch-action:pan-x!important;
-    -webkit-overflow-scrolling:touch!important;
-    overscroll-behavior-x:contain!important;
+    align-items:stretch!important;
+    gap:5px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
     scrollbar-width:none!important;
+    border:0!important;
+    background:transparent!important;
   }
-
   .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools::-webkit-scrollbar{
     display:none!important;
   }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button{
+    flex:0 0 82px!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:82px!important;
+    margin:0!important;
+    padding:7px 2px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:5px!important;
+    border:0!important;
+    border-radius:13px!important;
+    background:transparent!important;
+    color:#15233b!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button.active{
+    color:#fff!important;
+    background:linear-gradient(180deg,#3988f5,#2568ea)!important;
+    box-shadow:0 8px 18px rgba(37,104,234,.22)!important;
+  }
+  .adaptive-editor .editor-tool-dock .line-tool-icon{
+    width:38px!important;
+    height:38px!important;
+  }
+  .adaptive-editor .editor-tool-dock .line-tool-icon img{
+    width:38px!important;
+    height:38px!important;
+    object-fit:contain!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button strong{
+    display:block!important;
+    font-size:11px!important;
+    line-height:1.15!important;
+    white-space:nowrap!important;
+    color:inherit!important;
+  }
+  .adaptive-editor .editor-tool-dock .tool-rail-arrow{
+    display:none!important;
+  }
 
-  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools > button{
-    flex:0 0 auto!important;
+  /* Right inspector/options panel.
+     Uses the existing tool-choice content; no duplicated controls or logic. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet{
+    position:absolute!important;
+    left:auto!important;
+    right:18px!important;
+    top:18px!important;
+    bottom:112px!important;
+    width:450px!important;
+    max-width:450px!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:18px!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    border:1px solid #e5eaf2!important;
+    border-radius:18px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(20,40,70,.05)!important;
+    z-index:32!important;
+  }
+
+  /* Make existing option contents feel like a desktop inspector */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .tool-choice-tabs{
+    margin:0 0 14px!important;
+    padding:0 0 10px!important;
+    gap:22px!important;
+    border-bottom:1px solid #edf1f6!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .process-thumbnail-strip,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .ribbon-choice-preview{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:10px!important;
+    width:100%!important;
+    margin:0!important;
+    padding:2px!important;
+    overflow:visible!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .hair-card{
+    width:100%!important;
+    min-width:0!important;
+    flex:none!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .hair-card img{
+    width:100%!important;
+    height:auto!important;
+    aspect-ratio:1/1!important;
+    object-fit:cover!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .choice-rail-arrow{
+    display:none!important;
+  }
+
+  /* Adjustment controls in the desktop inspector */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .head-adjust-modern,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .collar-adjust-modern,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .ribbon-modern-adjust,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .local-beauty-panel{
+    width:100%!important;
+    padding:4px 2px!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet .head-adjust-row{
+    min-height:48px!important;
+  }
+
+  /* Existing action row becomes the bottom desktop command bar */
+  .adaptive-editor .process-action-row{
+    position:absolute!important;
+    left:18px!important;
+    right:18px!important;
+    bottom:16px!important;
     width:auto!important;
-    min-width:84px!important;
+    max-width:none!important;
+    min-height:78px!important;
+    margin:0!important;
+    padding:10px 14px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:12px!important;
+    background:#fff!important;
+    border:1px solid #e5eaf2!important;
+    border-radius:17px!important;
+    box-shadow:0 6px 20px rgba(20,40,70,.05)!important;
+    z-index:20!important;
+  }
+  .adaptive-editor .style-detail-card .process-first{
+    width:268px!important;
+    max-width:268px!important;
+    margin:0!important;
+    padding:15px 22px!important;
+    border-radius:12px!important;
+  }
+  .adaptive-editor .preview-file-actions{
+    margin:0!important;
+  }
+
+  /* Desktop only: keep guides/errors from stretching the whole studio */
+  .adaptive-editor .hair-selection-guide,
+  .adaptive-editor .err{
+    width:min(100%,520px)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+
+  /* Prevent legacy desktop rules from pushing/zooming the whole editor */
+  .adaptive-editor .style-detail-card,
+  .adaptive-editor .editor-tool-dock,
+  .adaptive-editor .process-action-row{
+    transform:none!important;
+  }
+}
+
+/* Larger desktop: closer to the supplied 1536px reference proportions */
+@media (min-width:1400px){
+  .adaptive-editor .style-detail-card{
+    min-height:820px!important;
+    padding-left:128px!important;
+    padding-right:500px!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    left:20px!important;
+    width:86px!important;
+    max-width:86px!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet{
+    right:20px!important;
+    width:460px!important;
+    max-width:460px!important;
   }
 }
