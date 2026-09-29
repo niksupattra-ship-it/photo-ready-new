@@ -2832,24 +2832,53 @@
 }
 
 
-/* Desktop only: right-side option tabs stack vertically, like the adjust tools */
+/* DESKTOP ONLY — right selector is a vertical rail, matching left adjustment rail */
 @media (min-width:1100px){
-  .adaptive-editor .desktop-tool-tabs{
+  .adaptive-editor .desktop-persistent-selector{
     display:flex!important;
     flex-direction:column!important;
     align-items:stretch!important;
     justify-content:flex-start!important;
     gap:6px!important;
+    position:absolute!important;
+    right:18px!important;
+    top:18px!important;
     width:88px!important;
     min-width:88px!important;
+    max-width:88px!important;
     height:auto!important;
     padding:8px!important;
+    box-sizing:border-box!important;
+    background:#fff!important;
+    border:1px solid #e2e8f0!important;
+    border-radius:18px!important;
+    z-index:245!important;
   }
-  .adaptive-editor .desktop-tool-tabs > button{
-    width:72px!important;
-    min-width:72px!important;
-    height:70px!important;
-    flex:0 0 70px!important;
+
+  .adaptive-editor .desktop-persistent-selector>button{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:4px!important;
+    width:70px!important;
+    min-width:70px!important;
+    max-width:70px!important;
+    height:72px!important;
+    min-height:72px!important;
+    flex:0 0 72px!important;
     margin:0!important;
+    padding:6px 3px!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Choice content sits directly beside the vertical selector, like the left adjust panel. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    right:118px!important;
+    top:18px!important;
+    bottom:105px!important;
+    width:350px!important;
+    min-width:350px!important;
+    max-width:350px!important;
   }
 }
