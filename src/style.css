@@ -2733,3 +2733,50 @@
     background:#fff!important;
   }
 }
+
+
+/* ============================================================
+   DESKTOP ONLY — RESTORE CENTER PHOTO
+   The editor-tool-dock must be a transparent positioning layer.
+   Its child panels stay visible, but it must never paint over
+   the center preview/photo.
+   ============================================================ */
+@media (min-width:1100px){
+  .adaptive-editor .editor-tool-dock{
+    background:transparent!important;
+    background-color:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+  }
+
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:relative!important;
+    z-index:20!important;
+    width:min(100%,500px)!important;
+    max-width:500px!important;
+    min-width:320px!important;
+    aspect-ratio:3/4!important;
+    margin:12px auto!important;
+  }
+
+  .adaptive-editor .hero-preview>.source-preview,
+  .adaptive-editor .hero-preview>.editable-result-image,
+  .adaptive-editor .hero-preview>.final-render-preview,
+  .adaptive-editor .hero-preview>.live-editor-canvas{
+    visibility:visible;
+  }
+
+  /* Keep the actual control cards above the photo without making
+     the whole dock an opaque layer. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap,
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet,
+  .adaptive-editor .desktop-persistent-selector{
+    background:#fff!important;
+  }
+}
