@@ -3042,3 +3042,18 @@
     box-sizing:border-box;
   }
 }
+
+
+/* DESKTOP ONLY — ONE adjustment panel at a time.
+   The legacy accessory-adjust layer must not render behind the main desktop panel. */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-accessory-adjust{
+    display:none!important;
+  }
+
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    display:block;
+    left:124px!important;
+    z-index:320!important;
+  }
+}
