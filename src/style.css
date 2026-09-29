@@ -2895,3 +2895,88 @@
     overflow-x:hidden!important;
   }
 }
+
+
+/* Desktop only — clean left adjustment rail: no overlapping icons/text */
+@media (min-width:1100px){
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    width:104px!important;
+    max-width:104px!important;
+    padding:10px 8px!important;
+    box-sizing:border-box!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .tool-rail{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:10px!important;
+    width:100%!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .tool-rail>button{
+    position:relative!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:6px!important;
+    width:86px!important;
+    min-width:86px!important;
+    max-width:86px!important;
+    height:78px!important;
+    min-height:78px!important;
+    flex:0 0 78px!important;
+    margin:0!important;
+    padding:8px 4px!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    line-height:1.15!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .tool-rail>button .line-tool-icon{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:32px!important;
+    height:32px!important;
+    min-height:32px!important;
+    flex:0 0 32px!important;
+    margin:0!important;
+    line-height:1!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .tool-rail>button .line-tool-icon img{
+    display:block!important;
+    width:30px!important;
+    height:30px!important;
+    max-width:30px!important;
+    max-height:30px!important;
+    object-fit:contain!important;
+    margin:0!important;
+  }
+
+  .adaptive-editor .tool-rail-wrap .tool-rail>button strong{
+    display:block!important;
+    width:100%!important;
+    margin:0!important;
+    font-size:12px!important;
+    line-height:1.2!important;
+    text-align:center!important;
+    white-space:normal!important;
+    overflow-wrap:normal!important;
+  }
+
+  /* Accessory shortcuts added after skin use the exact same button geometry. */
+  .adaptive-editor .tool-rail-wrap .desktop-left-accessory-tool{
+    display:flex!important;
+  }
+
+  /* Since left rail is slightly wider, keep its adjustment panel beside it. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+  .adaptive-editor .desktop-accessory-adjust{
+    left:132px!important;
+  }
+}
