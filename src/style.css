@@ -2053,3 +2053,354 @@
     padding-left:422px!important;
   }
 }
+
+
+/* ============================================================
+   IDPROM DESKTOP EDITOR — USABLE 3-COLUMN FINAL LAYOUT
+   Desktop only (>=1100px). No mobile/tablet/non-editor changes.
+   ============================================================ */
+@media (min-width:1100px){
+
+  .adaptive-editor.modern-shell{
+    width:100%!important;
+    max-width:none!important;
+    padding:0 18px 22px!important;
+    background:#f5f8fc!important;
+  }
+
+  /* Header is always above the workspace and never collides with actions. */
+  .adaptive-editor .editor-context-header{
+    position:relative!important;
+    z-index:100!important;
+    min-height:66px!important;
+    padding:8px 12px!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:14px!important;
+    border-bottom:1px solid #e3e9f2!important;
+    background:#f5f8fc!important;
+  }
+  .adaptive-editor .editor-context-header>div:nth-child(2){
+    flex:1 1 auto!important;
+    min-width:0!important;
+  }
+  .adaptive-editor .editor-credit-actions{
+    flex:0 0 auto!important;
+    margin-left:auto!important;
+  }
+
+  .adaptive-editor .modern-flow{
+    width:100%!important;
+    max-width:none!important;
+    margin:14px 0 0!important;
+  }
+
+  /* Workspace reserves real columns. Side panels cannot sit behind the photo. */
+  .adaptive-editor .style-detail-card{
+    position:relative!important;
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    min-height:820px!important;
+    margin:0!important;
+    padding:20px 500px 104px 430px!important;
+    box-sizing:border-box!important;
+    overflow:visible!important;
+    border:1px solid #e2e8f1!important;
+    border-radius:22px!important;
+    background:#fff!important;
+    box-shadow:0 10px 32px rgba(20,42,74,.055)!important;
+  }
+  .adaptive-editor .editor-preview-heading{display:none!important}
+
+  /* CENTER — image only. Zoom is clipped to its own preview frame. */
+  .adaptive-editor .style-detail-card .hero-preview,
+  .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .hero-preview{
+    position:relative!important;
+    z-index:10!important;
+    width:min(100%,500px)!important;
+    max-width:500px!important;
+    height:auto!important;
+    aspect-ratio:3/4!important;
+    margin:12px auto!important;
+    overflow:hidden!important;
+    border:1.5px solid #71958f!important;
+    border-radius:18px!important;
+    background:#eef4f5!important;
+    box-shadow:none!important;
+  }
+
+  /* LEFT — adjustment tool buttons. */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    position:absolute!important;
+    left:18px!important;
+    top:18px!important;
+    bottom:104px!important;
+    width:88px!important;
+    max-width:88px!important;
+    height:auto!important;
+    margin:0!important;
+    padding:8px 4px!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    border:1px solid #e3e9f2!important;
+    border-radius:18px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(20,42,74,.05)!important;
+    z-index:70!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{
+    display:flex!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    justify-content:flex-start!important;
+    align-items:stretch!important;
+    gap:6px!important;
+    width:100%!important;
+    height:100%!important;
+    margin:0!important;
+    padding:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    scrollbar-width:none!important;
+    border:0!important;
+    background:transparent!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools::-webkit-scrollbar{display:none!important}
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button{
+    flex:0 0 82px!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:82px!important;
+    padding:6px 2px!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:5px!important;
+    border:0!important;
+    border-radius:13px!important;
+    background:transparent!important;
+    color:#13223b!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button.active{
+    color:#fff!important;
+    background:linear-gradient(180deg,#3c8cf7,#2869eb)!important;
+    box-shadow:0 7px 18px rgba(40,105,235,.22)!important;
+  }
+  .adaptive-editor .editor-tool-dock .line-tool-icon,
+  .adaptive-editor .editor-tool-dock .line-tool-icon img{
+    width:36px!important;
+    height:36px!important;
+    object-fit:contain!important;
+  }
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools>button strong{
+    font-size:11px!important;
+    line-height:1.1!important;
+    color:inherit!important;
+    white-space:nowrap!important;
+  }
+  .adaptive-editor .editor-tool-dock .tool-rail-arrow{display:none!important}
+
+  /* LEFT — selected adjustment appears immediately beside its button rail.
+     This is a separate physical column, never an overlay on the image. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    position:absolute!important;
+    left:118px!important;
+    right:auto!important;
+    top:18px!important;
+    bottom:104px!important;
+    width:292px!important;
+    max-width:292px!important;
+    height:auto!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:18px!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    transform:none!important;
+    translate:none!important;
+    border:1px solid #e3e9f2!important;
+    border-radius:18px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(20,42,74,.05)!important;
+    z-index:65!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .head-adjust-modern,
+  .adaptive-editor .desktop-adjust-panel .collar-adjust-modern,
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel,
+  .adaptive-editor .desktop-adjust-panel .ribbon-modern-adjust{
+    position:static!important;
+    inset:auto!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    transform:none!important;
+  }
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row{
+    width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+
+  /* RIGHT — persistent selection tabs, always visible. */
+  .adaptive-editor .desktop-persistent-selector{
+    position:absolute!important;
+    right:18px!important;
+    top:18px!important;
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    gap:2px!important;
+    width:460px!important;
+    height:72px!important;
+    margin:0!important;
+    padding:4px!important;
+    box-sizing:border-box!important;
+    border:1px solid #e3e9f2!important;
+    border-radius:16px 16px 0 0!important;
+    background:#fff!important;
+    z-index:75!important;
+  }
+  .adaptive-editor .desktop-persistent-selector>button{
+    min-width:0!important;
+    height:62px!important;
+    padding:4px 2px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:2px!important;
+    border:0!important;
+    border-bottom:2px solid transparent!important;
+    border-radius:10px!important;
+    background:transparent!important;
+    color:#13223b!important;
+    cursor:pointer!important;
+  }
+  .adaptive-editor .desktop-persistent-selector>button.active{
+    color:#175df5!important;
+    background:#eef4ff!important;
+    border-bottom-color:#175df5!important;
+  }
+  .adaptive-editor .desktop-persistent-selector .line-tool-icon,
+  .adaptive-editor .desktop-persistent-selector .line-tool-icon img{
+    width:28px!important;
+    height:28px!important;
+    object-fit:contain!important;
+  }
+  .adaptive-editor .desktop-persistent-selector strong{
+    font-size:10px!important;
+    line-height:1.05!important;
+    white-space:nowrap!important;
+  }
+
+  /* RIGHT — list begins under tabs. Uniform list is the initial content. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    position:absolute!important;
+    left:auto!important;
+    right:18px!important;
+    top:88px!important;
+    bottom:104px!important;
+    width:460px!important;
+    max-width:460px!important;
+    height:auto!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:16px!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    border:1px solid #e3e9f2!important;
+    border-top:0!important;
+    border-radius:0 0 16px 16px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(20,42,74,.05)!important;
+    z-index:64!important;
+  }
+  .adaptive-editor .desktop-sample-panel .choice-rail-wrap{display:block!important;width:100%!important;overflow:visible!important}
+  .adaptive-editor .desktop-sample-panel .choice-rail-arrow{display:none!important}
+  .adaptive-editor .desktop-sample-panel .process-thumbnail-strip,
+  .adaptive-editor .desktop-sample-panel .background-choice-preview,
+  .adaptive-editor .desktop-sample-panel .uniform-switch-grid{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:12px!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:4px 0 18px!important;
+    overflow:visible!important;
+    scroll-snap-type:none!important;
+  }
+  .adaptive-editor .desktop-sample-panel .hair-card,
+  .adaptive-editor .desktop-sample-panel .background-swatch,
+  .adaptive-editor .desktop-sample-panel .uniform-switch-grid>button{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    flex:none!important;
+  }
+
+  /* Bottom command bar — always visible and clear.
+     Existing download button remains here when it becomes available. */
+  .adaptive-editor .process-action-row{
+    position:absolute!important;
+    left:18px!important;
+    right:18px!important;
+    bottom:14px!important;
+    top:auto!important;
+    width:auto!important;
+    max-width:none!important;
+    min-height:76px!important;
+    margin:0!important;
+    padding:10px 14px!important;
+    box-sizing:border-box!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:10px!important;
+    border:1px solid #e3e9f2!important;
+    border-radius:16px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(20,42,74,.05)!important;
+    z-index:90!important;
+  }
+  .adaptive-editor .style-detail-card .process-first{
+    width:auto!important;
+    min-width:190px!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:14px 24px!important;
+    border-radius:12px!important;
+  }
+  .adaptive-editor .preview-file-actions{
+    display:flex!important;
+    align-items:center!important;
+    gap:10px!important;
+    margin:0!important;
+  }
+  .adaptive-editor .preview-file-actions .download-btn{
+    min-width:150px!important;
+    padding:13px 20px!important;
+    border-radius:12px!important;
+    font-weight:800!important;
+  }
+
+  /* Never duplicate sample tools in the left adjust rail. */
+  .adaptive-editor .tool-rail-wrap button[data-hair-guide],
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-5.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-collar-pins.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-6.png"]),
+  .adaptive-editor .tool-rail-wrap button:has(img[src="/app-icons/tool-uniform-change.svg"]){
+    display:none!important;
+  }
+}
+
+@media (min-width:1400px){
+  .adaptive-editor .style-detail-card{
+    padding-left:430px!important;
+    padding-right:500px!important;
+  }
+}

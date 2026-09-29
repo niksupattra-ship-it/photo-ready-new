@@ -2103,7 +2103,7 @@ function App(){
  const gestureRef=useRef({pointers:new Map(),drag:false,pending:false,holdTimer:null,primary:null,x:0,y:0,downX:0,downY:0,startAdjust:null,pinch:false,distance:0,zoom:1,midX:0,midY:0,startPan:{x:0,y:0}});
  const viewGestureRef=useRef({pointers:new Map(),drag:false,pinch:false,x:0,y:0,distance:0,startZoom:1,startPan:{x:0,y:0},midX:0,midY:0});
  useEffect(()=>{if(b&&toolBarRef.current)toolBarRef.current.scrollLeft=0},[b]);
- useEffect(()=>{if(typeof window==='undefined'||!window.matchMedia('(min-width:1100px)').matches)return;setOptionTool('uniform');setUniformPickerTab(uniformCategory==='government'?`government-${gender}`:uniformCategory)},[]);
+ useEffect(()=>{if(typeof window==='undefined'||!window.matchMedia('(min-width:1100px)').matches||!uniformCategory||!gender)return;setOptionTool('uniform');setUniformPickerTab(uniformCategory==='government'?`government-${gender}`:uniformCategory)},[uniformCategory,gender]);
  useEffect(()=>{if(!optionTool)return;const dismiss=e=>{const t=e.target;if(t?.closest?.('.tool-choice-sheet,.process-option-bar,.tool-rail-arrow,.direct-edit-preview'))return;setOptionTool(null)};document.addEventListener('pointerdown',dismiss,true);return()=>document.removeEventListener('pointerdown',dismiss,true)},[optionTool]);
  const renderTimer=useRef(null);
  const beautyTimerRef=useRef(null);
