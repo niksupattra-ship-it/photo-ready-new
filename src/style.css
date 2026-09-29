@@ -1330,3 +1330,44 @@
     z-index:32!important;
   }
 }
+
+
+/* IDPROM — mobile/tablet tool rail: swipe only, no left/right arrow buttons.
+   Layout/processing logic unchanged. */
+@media (max-width:999px), (hover:none), (pointer:coarse){
+  .adaptive-editor .editor-tool-dock .tool-rail-arrow,
+  .adaptive-editor .tool-rail-wrap .tool-rail-arrow,
+  .adaptive-editor .tool-rail-left,
+  .adaptive-editor .tool-rail-right{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+
+  .adaptive-editor .editor-tool-dock > .tool-rail-wrap{
+    padding-left:max(6px,env(safe-area-inset-left))!important;
+    padding-right:max(6px,env(safe-area-inset-right))!important;
+  }
+
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    justify-content:flex-start!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    touch-action:pan-x!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior-x:contain!important;
+    scrollbar-width:none!important;
+  }
+
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools::-webkit-scrollbar{
+    display:none!important;
+  }
+
+  .adaptive-editor .editor-tool-dock .process-option-bar.simple-line-tools > button{
+    flex:0 0 auto!important;
+    width:auto!important;
+    min-width:84px!important;
+  }
+}
