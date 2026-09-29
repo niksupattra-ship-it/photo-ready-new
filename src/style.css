@@ -1983,3 +1983,73 @@
     display:none!important;
   }
 }
+
+
+/* =========================================================
+   IDPROM — Desktop only: adjustment panel beside tool rail
+   Prevent overlap between tool buttons and sliders.
+   ========================================================= */
+@media (min-width:1100px){
+
+  /* Fixed left tool rail */
+  .adaptive-editor .editor-tool-dock>.tool-rail-wrap{
+    left:18px!important;
+    top:18px!important;
+    bottom:92px!important;
+    width:82px!important;
+    max-width:82px!important;
+    box-sizing:border-box!important;
+    z-index:60!important;
+  }
+
+  /* Head / neck / skin adjustment content begins AFTER the tool rail.
+     No negative offsets, no overlay over the buttons. */
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{
+    position:absolute!important;
+    left:112px!important;
+    right:auto!important;
+    top:18px!important;
+    bottom:92px!important;
+    width:290px!important;
+    max-width:290px!important;
+    margin:0!important;
+    padding:18px!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    transform:none!important;
+    translate:none!important;
+    border:1px solid #e5eaf2!important;
+    border-radius:18px!important;
+    background:#fff!important;
+    box-shadow:0 6px 20px rgba(20,42,74,.06)!important;
+    z-index:55!important;
+  }
+
+  /* Remove legacy positioning from the adjustment contents themselves. */
+  .adaptive-editor .desktop-adjust-panel .head-adjust-modern,
+  .adaptive-editor .desktop-adjust-panel .collar-adjust-modern,
+  .adaptive-editor .desktop-adjust-panel .local-beauty-panel,
+  .adaptive-editor .desktop-adjust-panel .ribbon-modern-adjust{
+    position:static!important;
+    left:auto!important;
+    right:auto!important;
+    top:auto!important;
+    bottom:auto!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    transform:none!important;
+  }
+
+  .adaptive-editor .desktop-adjust-panel .head-adjust-row{
+    width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Reserve enough desktop space so neither panel can touch the photo. */
+  .adaptive-editor .style-detail-card{
+    padding-left:422px!important;
+  }
+}
