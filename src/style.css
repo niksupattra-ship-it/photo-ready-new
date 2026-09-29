@@ -3439,3 +3439,53 @@
     line-height:1.35!important;
   }
 }
+
+
+/* ============================================================
+   IDPROM — DESKTOP ONLY: centered bottom actions, no container
+   Keep mobile/tablet untouched.
+   ============================================================ */
+@media (min-width:1100px){
+  .adaptive-editor .process-action-row{
+    left:50%!important;
+    right:auto!important;
+    bottom:18px!important;
+    top:auto!important;
+    width:auto!important;
+    min-height:0!important;
+    padding:0!important;
+    margin:0!important;
+    gap:12px!important;
+    justify-content:center!important;
+    align-items:center!important;
+    transform:translateX(-50%)!important;
+    background:transparent!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+  .adaptive-editor .process-action-row .process-first{
+    min-width:190px!important;
+  }
+  .adaptive-editor .process-action-row .preview-file-actions{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:12px!important;
+  }
+  .adaptive-editor .process-action-row .preview-file-actions label,
+  .adaptive-editor .process-action-row .preview-file-actions button{
+    min-height:52px!important;
+  }
+
+  /* Hair reminder stays visible immediately above the centered actions. */
+  .adaptive-editor .hair-selection-guide{
+    position:absolute!important;
+    left:50%!important;
+    bottom:82px!important;
+    width:min(520px,calc(100% - 40px))!important;
+    margin:0!important;
+    transform:translateX(-50%)!important;
+    z-index:251!important;
+  }
+}
