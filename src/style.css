@@ -3489,3 +3489,16 @@
     z-index:251!important;
   }
 }
+
+/* DESKTOP ONLY — hide the right choice-panel scrollbar but keep wheel/trackpad scrolling */
+@media (min-width:1100px){
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{
+    scrollbar-width:none!important;
+    -ms-overflow-style:none!important;
+  }
+  .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel::-webkit-scrollbar{
+    width:0!important;
+    height:0!important;
+    display:none!important;
+  }
+}
