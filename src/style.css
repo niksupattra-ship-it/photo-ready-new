@@ -3502,3 +3502,14 @@
     display:none!important;
   }
 }
+
+
+/* IDPROM — DESKTOP ONLY: show the two pin-kind tabs inside the right Pins panel.
+   Keep the generic desktop sample-panel heading hidden everywhere else. */
+@media (min-width:1100px){
+  .adaptive-editor .desktop-sample-panel>.tool-choice-tabs.desktop-pin-kind-tabs:first-child{
+    display:flex!important;
+    align-items:center!important;
+    gap:20px!important;
+  }
+}
