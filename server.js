@@ -5,7 +5,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,ensureWallet,creditPaid,reserveCredit,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
+import {newWallet,getWallet,ensureWallet,creditPaid,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs} from "./job-store.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
@@ -52,7 +52,7 @@ app.post("/api/payments/checkout",async(req,res)=>{
     res.json({url:session.url});
   }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
 });
-async function requireCredit(req,res,kind){const wid=walletId(req);if(!wid){res.status(402).json({error:"credit_required",message:"กรุณาซื้อเครดิตก่อนประมวลผล"});return null}const r=await reserveCredit(wid,kind);if(!r){res.status(402).json({error:"credit_required",message:"เครดิตไม่พอ กรุณาซื้อเครดิต 149 บาท รับ 2 เครดิต"});return null}return r}
+async function requireCredit(req,res,kind){const wid=walletId(req);if(!wid){res.status(402).json({error:"credit_required",message:"กรุณารีเฟรชหน้าแล้วลองใหม่"});return null}const r=await reserveCredit(wid,kind);if(r)return r;if(kind==="ai-finish"){const raw=`${req.ip||req.socket?.remoteAddress||""}|${req.get("user-agent")||""}`;const fingerprint=crypto.createHash("sha256").update(raw).digest("hex");const trial=await reserveTrialPreview(wid,fingerprint,30);if(trial)return trial}res.status(402).json({error:"credit_required",message:"สิทธิ์ทดลองฟรีถูกใช้แล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลต่อ"});return null}
 
 const upload=multer({
   storage:multer.memoryStorage(),
@@ -335,11 +335,11 @@ async function runAiJob(id){
 }
 app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1}]),async(req,res)=>{
  let creditUse=null;
- try{const image=req.files?.image?.[0],mask=req.files?.mask?.[0];if(!image)return res.status(400).json({error:'image_required'});if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});creditUse=await requireCredit(req,res,'ai-finish');if(!creditUse)return;const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:req.body,image,mask});res.status(202).json({jobId:id,status:'queued',credits:creditUse.credits});setImmediate(()=>runAiJob(id))}
+ try{const image=req.files?.image?.[0],mask=req.files?.mask?.[0];if(!image)return res.status(400).json({error:'image_required'});if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});creditUse=await requireCredit(req,res,'ai-finish');if(!creditUse)return;const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:req.body,image,mask});res.status(202).json({jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});setImmediate(()=>runAiJob(id))}
  catch(e){if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message})}
 });
 app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.params.id,walletId(req));if(!j)return res.status(404).json({error:'job_not_found'});res.json(j)}catch(e){res.status(500).json({error:'job_status_failed'})}});
-app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{const j=await getAiJobResult(req.params.id,walletId(req));if(!j)return res.status(404).send('ไม่พบงาน');if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');res.type('png').set('Cache-Control','no-store').send(j.result)}catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
+app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{const j=await getAiJobResult(req.params.id,walletId(req));if(!j)return res.status(404).send('ไม่พบงาน');if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',String(j.usage_id||'').startsWith('trial_')?'1':'0').send(j.result)}catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);
