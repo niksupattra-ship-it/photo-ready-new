@@ -3513,3 +3513,8 @@
     gap:20px!important;
   }
 }
+
+/* IDPROM — Mobile/Tablet only: show the pin adjustment tab inside the เข็ม panel. */
+@media (min-width:1100px){
+  .adaptive-editor .mobile-tablet-pin-adjust-tab{display:none!important;}
+}
