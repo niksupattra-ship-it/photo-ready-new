@@ -3515,3 +3515,9 @@
 }
 /* Trial preview: visual-only watermark; paid flow and editor layout stay unchanged. */
 .trial-preview-notice{margin:10px auto 12px;max-width:560px;padding:12px 14px;border:1px solid #dbe8f8;border-radius:14px;background:#f7fbff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;text-align:center}.trial-preview-notice strong{color:#1769c8}.trial-preview-notice span{font-size:13px;color:#5e6d82}.trial-preview-notice button{border:0;border-radius:10px;padding:10px 13px;background:#176fd2;color:#fff;font-weight:800;cursor:pointer}.trial-preview-active{position:relative}.trial-preview-active:after{content:'ตัวอย่าง IDพร้อม';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-24deg);z-index:8;pointer-events:none;font-size:clamp(24px,5vw,54px);font-weight:900;letter-spacing:.04em;color:rgba(255,255,255,.58);text-shadow:0 1px 8px rgba(0,0,0,.28);white-space:nowrap}
+
+/* Mobile/tablet: expose select/adjust controls for collar and chest pins. */
+.mobile-pin-mode-tabs{display:flex}
+@media (min-width:1100px){
+  .adaptive-editor .mobile-pin-mode-tabs{display:none!important}
+}
