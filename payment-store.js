@@ -39,7 +39,7 @@ export async function creditPaid(walletId,sessionId,packageId='149'){await ready
 export async function redeemPromo199(walletId,code){
   await ready();
   const normalized=String(code||'').trim().toUpperCase();
-  const allowed=new Set(['IDP199-LYHB7V','IDP199-HZ2ZV4','IDP199-HHU8QS','IDP199-MF7TKJ','IDP199-YYPEET']);
+  const allowed=new Set(['IDP199-A6SBEQ','IDP199-EAY269','IDP199-4V2QX2','IDP199-K8RXW7','IDP199-WCYMLZ','IDP199-WLU33M','IDP199-YHA846','IDP199-3V5ZAL','IDP199-AECYE9','IDP199-59B2ES']);
   if(!allowed.has(normalized))return {ok:false,reason:'invalid'};
   const c=await pool.connect();
   try{
