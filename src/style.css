@@ -3515,9 +3515,3 @@
 }
 /* Trial preview: visual-only watermark; paid flow and editor layout stay unchanged. */
 .trial-preview-notice{margin:10px auto 12px;max-width:560px;padding:12px 14px;border:1px solid #dbe8f8;border-radius:14px;background:#f7fbff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;text-align:center}.trial-preview-notice strong{color:#1769c8}.trial-preview-notice span{font-size:13px;color:#5e6d82}.trial-preview-notice button{border:0;border-radius:10px;padding:10px 13px;background:#176fd2;color:#fff;font-weight:800;cursor:pointer}.trial-preview-active{position:relative}.trial-preview-active:after{display:none!important}.trial-watermark-grid{position:absolute;inset:0;z-index:8;overflow:hidden;pointer-events:none;display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:20%;align-items:center;justify-items:center;transform:translateZ(0)}.trial-watermark-grid span{display:block;width:145%;text-align:center;transform:rotate(-27deg);font-size:clamp(15px,2.1vw,27px);font-weight:850;letter-spacing:.035em;color:rgba(255,255,255,.24);text-shadow:0 1px 3px rgba(0,0,0,.12);white-space:nowrap;user-select:none}.trial-preview-active .preview-floating-actions{z-index:10}
-
-/* Mobile/tablet: expose select/adjust controls for collar and chest pins. */
-.mobile-pin-mode-tabs{display:flex}
-@media (min-width:1100px){
-  .adaptive-editor .mobile-pin-mode-tabs{display:none!important}
-}
