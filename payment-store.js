@@ -39,15 +39,19 @@ export async function creditPaid(walletId,sessionId,packageId='149'){await ready
 export async function redeemPromo199(walletId,code){
   await ready();
   const normalized=String(code||'').trim().toUpperCase();
-  const allowed=new Set(['IDP199-A6SBEQ','IDP199-EAY269','IDP199-4V2QX2','IDP199-K8RXW7','IDP199-WCYMLZ','IDP199-WLU33M','IDP199-YHA846','IDP199-3V5ZAL','IDP199-AECYE9','IDP199-59B2ES']);
-  if(!allowed.has(normalized))return {ok:false,reason:'invalid'};
+  const allowed199=new Set(['IDP199-A6SBEQ','IDP199-EAY269','IDP199-4V2QX2','IDP199-K8RXW7','IDP199-WCYMLZ','IDP199-WLU33M','IDP199-YHA846','IDP199-3V5ZAL','IDP199-AECYE9','IDP199-59B2ES']);
+  const allowed149=new Set(['IDP149-5A6PMD','IDP149-P6Z39N','IDP149-4VHWWC','IDP149-32DV4Y','IDP149-PFNC4M','IDP149-YB3XQA','IDP149-SH2F7E','IDP149-UR77CT','IDP149-AMQMCT','IDP149-CSJAMQ']);
+  const promoPackage=allowed149.has(normalized)?'149':(allowed199.has(normalized)?'199':null);
+  if(!promoPackage)return {ok:false,reason:'invalid'};
+  const promoGeneration=promoPackage==='149'?1:2;
+  const promoHair=2;
   const c=await pool.connect();
   try{
     await c.query('BEGIN');
     await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
-    const ins=await c.query("INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,'199') ON CONFLICT(code) DO NOTHING RETURNING code",[normalized,walletId]);
+    const ins=await c.query("INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,$3) ON CONFLICT(code) DO NOTHING RETURNING code",[normalized,walletId,promoPackage]);
     if(!ins.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'used'}}
-    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+2,hair_remaining=hair_remaining+2 WHERE id=$1',[walletId]);
+    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,promoGeneration,promoHair]);
     const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);
     await c.query('COMMIT');
     return {ok:true,...shape(walletId,w.rows[0])};
