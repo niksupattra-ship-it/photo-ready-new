@@ -5,7 +5,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,ensureWallet,creditPaid,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
+import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs} from "./job-store.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
@@ -27,11 +27,6 @@ async function stripePost(endpoint,params){
   const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded"},body});
   const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
 }
-async function stripeGet(endpoint){
-  const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
-  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{headers:{Authorization:`Bearer ${key}`}});
-  const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
-}
 
 // Stripe requires the exact raw request body for webhook signature verification.
 app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),async(req,res)=>{
@@ -47,6 +42,7 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
 app.use(express.json({limit:"64kb"}));
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=await getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
+app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
 app.post("/api/payments/checkout",async(req,res)=>{
   try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
     const packageId=String(req.body?.packageId||req.body?.package_id||"149");
@@ -56,23 +52,6 @@ app.post("/api/payments/checkout",async(req,res)=>{
     const session=await stripePost("checkout/sessions",{"mode":"payment","line_items[0][price]":priceId,"line_items[0][quantity]":1,"payment_method_types[0]":"promptpay","success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,"cancel_url":`${base}/?payment=cancelled`,"metadata[wallet_id]":wid,"metadata[package_id]":packageId});
     res.json({url:session.url});
   }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
-});
-// Recovery/confirmation path: do not rely on webhook delivery alone.
-// After Stripe redirects the buyer back, verify the Checkout Session directly
-// with Stripe and idempotently grant the package to the same browser wallet.
-app.get("/api/payments/confirm",async(req,res)=>{
-  try{
-    const wid=walletId(req),sessionId=String(req.query?.session_id||"").trim();
-    if(!wid)return res.status(400).json({error:"wallet_required"});
-    if(!/^cs_[A-Za-z0-9_]+$/.test(sessionId))return res.status(400).json({error:"invalid_session"});
-    const session=await stripeGet(`checkout/sessions/${encodeURIComponent(sessionId)}`);
-    const paidWallet=String(session?.metadata?.wallet_id||"");
-    if(!paidWallet||paidWallet!==wid)return res.status(403).json({error:"wallet_mismatch"});
-    if(session?.payment_status!=="paid")return res.status(202).json({paid:false,paymentStatus:session?.payment_status||"unknown"});
-    const packageId=String(session?.metadata?.package_id||"149");
-    const credited=await creditPaid(wid,session.id,packageId);
-    res.json({paid:true,packageId,generationRemaining:credited.generationRemaining,hairRemaining:credited.hairRemaining});
-  }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed"})}
 });
 async function requireCredit(req,res,kind){const wid=walletId(req);if(!wid){res.status(402).json({error:"credit_required",message:"กรุณารีเฟรชหน้าแล้วลองใหม่"});return null}const r=await reserveCredit(wid,kind);if(r)return r;if(kind==="ai-finish"){const raw=`${req.ip||req.socket?.remoteAddress||""}|${req.get("user-agent")||""}`;const fingerprint=crypto.createHash("sha256").update(raw).digest("hex");const trial=await reserveTrialPreview(wid,fingerprint,30);if(trial)return trial}res.status(402).json({error:"credit_required",message:"สิทธิ์ทดลองฟรีถูกใช้แล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลต่อ"});return null}
 
