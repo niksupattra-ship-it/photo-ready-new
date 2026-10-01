@@ -27,6 +27,11 @@ async function stripePost(endpoint,params){
   const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded"},body});
   const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
 }
+async function stripeGet(endpoint){
+  const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
+  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{headers:{Authorization:`Bearer ${key}`}});
+  const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
+}
 
 // Stripe requires the exact raw request body for webhook signature verification.
 app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),async(req,res)=>{
@@ -40,6 +45,21 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
 app.use(express.json({limit:"64kb"}));
+// Payment return fallback: verify the Checkout Session directly with Stripe and
+// credit the SAME wallet. This makes paid credits work even if the webhook is delayed.
+// creditPaid() is idempotent by session_id, so webhook + return confirmation cannot double-credit.
+app.post("/api/payments/confirm",async(req,res)=>{
+  try{
+    const wid=walletId(req),sessionId=String(req.body?.sessionId||"").trim();
+    if(!wid||!sessionId)return res.status(400).json({error:"payment_confirmation_required"});
+    const session=await stripeGet(`checkout/sessions/${encodeURIComponent(sessionId)}`);
+    if(session?.payment_status!=="paid")return res.status(409).json({error:"payment_not_paid",message:"ยังไม่พบการชำระเงินสำเร็จ"});
+    if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าสิทธิ์ของเครื่อง"});
+    const packageId=String(session.metadata?.package_id||"149");
+    const out=await creditPaid(wid,session.id,packageId);
+    res.json({ok:true,...out});
+  }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
+});
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=await getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
