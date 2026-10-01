@@ -3515,3 +3515,14 @@
 }
 /* Trial preview: visual-only watermark; paid flow and editor layout stay unchanged. */
 .trial-preview-notice{margin:10px auto 12px;max-width:560px;padding:12px 14px;border:1px solid #dbe8f8;border-radius:14px;background:#f7fbff;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;text-align:center}.trial-preview-notice strong{color:#1769c8}.trial-preview-notice span{font-size:13px;color:#5e6d82}.trial-preview-notice button{border:0;border-radius:10px;padding:10px 13px;background:#176fd2;color:#fff;font-weight:800;cursor:pointer}.trial-preview-active{position:relative}.trial-preview-active:after{display:none!important}.trial-watermark-grid{position:absolute;inset:0;z-index:8;overflow:hidden;pointer-events:none;display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:20%;align-items:center;justify-items:center;transform:translateZ(0)}.trial-watermark-grid span{display:block;width:145%;text-align:center;transform:rotate(-27deg);font-size:clamp(15px,2.1vw,27px);font-weight:850;letter-spacing:.035em;color:rgba(255,255,255,.24);text-shadow:0 1px 3px rgba(0,0,0,.12);white-space:nowrap;user-select:none}.trial-preview-active .preview-floating-actions{z-index:10}
+
+/* Photo input guide — UI only; does not affect processing, credits, or payments. */
+.photo-guide-trigger{margin-left:10px;border:1px solid #d9e4f2;background:#fff;color:#31506f;border-radius:999px;padding:6px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.photo-guide-trigger span{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:#176fd2;color:#fff;font-size:12px}
+.photo-process-alert{display:flex!important;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.photo-process-alert button{border:0;background:transparent;color:#176fd2;font-weight:800;text-decoration:underline;cursor:pointer;padding:2px 0}
+.photo-guide-backdrop{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.72);display:grid;place-items:center;padding:18px}
+.photo-guide-modal{position:relative;width:min(1100px,96vw);max-height:94vh;background:#fff;border-radius:18px;padding:10px;box-shadow:0 24px 80px rgba(0,0,0,.28)}
+.photo-guide-modal img{display:block;width:100%;max-height:calc(94vh - 20px);object-fit:contain;border-radius:12px}
+.photo-guide-close{position:absolute;right:18px;top:18px;z-index:2;width:38px;height:38px;border:0;border-radius:50%;background:rgba(17,24,39,.82);color:#fff;font-size:27px;line-height:1;cursor:pointer}
+@media(max-width:640px){.photo-guide-trigger{margin-left:6px;padding:5px 8px;font-size:11px}.photo-guide-trigger span{width:18px;height:18px}.photo-guide-backdrop{padding:8px}.photo-guide-modal{width:100%;padding:6px;border-radius:14px}.photo-guide-close{right:12px;top:12px}}
