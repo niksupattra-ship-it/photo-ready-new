@@ -49,7 +49,7 @@ export async function redeemPromo199(walletId,code){
     if(alreadyWallet.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'wallet_used'}}
     const ins=await c.query("INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,'199') ON CONFLICT(code) DO NOTHING RETURNING code",[normalized,walletId]);
     if(!ins.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'used'}}
-    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+2,hair_remaining=hair_remaining+3 WHERE id=$1',[walletId]);
+    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+2,hair_remaining=hair_remaining+2 WHERE id=$1',[walletId]);
     const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);
     await c.query('COMMIT');
     return {ok:true,...shape(walletId,w.rows[0])};
