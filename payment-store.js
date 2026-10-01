@@ -45,8 +45,6 @@ export async function redeemPromo199(walletId,code){
   try{
     await c.query('BEGIN');
     await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
-    const alreadyWallet=await c.query('SELECT code FROM promo_redemptions WHERE wallet_id=$1 LIMIT 1',[walletId]);
-    if(alreadyWallet.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'wallet_used'}}
     const ins=await c.query("INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,'199') ON CONFLICT(code) DO NOTHING RETURNING code",[normalized,walletId]);
     if(!ins.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'used'}}
     await c.query('UPDATE wallets SET generation_remaining=generation_remaining+2,hair_remaining=hair_remaining+2 WHERE id=$1',[walletId]);
