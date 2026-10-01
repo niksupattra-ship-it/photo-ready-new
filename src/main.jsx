@@ -1538,6 +1538,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const aiInput=await headOnlyAIEditFile(originalFile);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
+ if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
  await saveAiJobFile(originalFile);
  const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:walletHeaders()});
@@ -2460,7 +2461,7 @@ function App(){
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
     else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||'')});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle'});
      if(aiHeadNeck?.idpromTrial)setTrialPreview(true);
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
