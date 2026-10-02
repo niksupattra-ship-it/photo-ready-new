@@ -280,7 +280,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   // Uniform geometry is untouched; only the head layer scale changes, uniformly in X/Y.
   // V228: return to V226's original placement; proportion is handled when
   // the AI creates the hair and neck, not by shrinking the finished layer.
-  const v37FinalHeadScale=0.90; // Larger initial head; retain the selected template collar anchor.
+  const v37FinalHeadScale=1.35; // Larger initial head; retain the selected template collar anchor.
   let scale=canonicalScale*corrected*v37FinalHeadScale*(adjust.scale||1);
   scale=Math.max(.25,Math.min(4.0,scale));
 
