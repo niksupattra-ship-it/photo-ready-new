@@ -59,7 +59,33 @@ export async function redeemPromo199(walletId,code){
 }
 
 export async function reserveCredit(walletId,kind){await ready();const column=kind==='hairstyle'?'hair_remaining':'generation_remaining';const c=await pool.connect();try{await c.query('BEGIN');const w=await c.query(`SELECT ${column},generation_remaining,hair_remaining FROM wallets WHERE id=$1 FOR UPDATE`,[walletId]);if(!w.rows[0]||Number(w.rows[0][column])<1){await c.query('ROLLBACK');return null}const id='use_'+crypto.randomBytes(18).toString('hex');await c.query(`UPDATE wallets SET ${column}=${column}-1 WHERE id=$1`,[walletId]);await c.query('INSERT INTO credit_usage(id,wallet_id,kind,status) VALUES($1,$2,$3,\'reserved\')',[id,walletId,kind]);const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])}}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
-export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30){await ready();const c=await pool.connect();try{await c.query('BEGIN');await c.query('SELECT pg_advisory_xact_lock(77149231)');const used=await c.query("SELECT count(*)::int AS n FROM trial_previews WHERE created_at>=date_trunc('day',now())");if(Number(used.rows[0]?.n||0)>=dailyLimit){await c.query('ROLLBACK');return null}const exists=await c.query('SELECT id FROM trial_previews WHERE wallet_id=$1 OR fingerprint=$2 LIMIT 1',[walletId,fingerprint]);if(exists.rowCount){await c.query('ROLLBACK');return null}const id='trial_'+crypto.randomBytes(18).toString('hex');await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status) VALUES($1,$2,$3,'reserved')",[id,walletId,fingerprint]);await c.query('COMMIT');return {usageId:id,trialPreview:true,generationRemaining:0,hairRemaining:0}}catch(e){await c.query('ROLLBACK');if(e?.code==='23505')return null;throw e}finally{c.release()}}
+export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30){
+  await ready();
+  const c=await pool.connect();
+  try{
+    await c.query('BEGIN');
+    await c.query('SELECT pg_advisory_xact_lock(77149231)');
+    const exists=await c.query('SELECT id,wallet_id,fingerprint FROM trial_previews WHERE wallet_id=$1 OR fingerprint=$2 LIMIT 1',[walletId,fingerprint]);
+    if(exists.rowCount){
+      const previous=exists.rows[0];
+      // Preserve a previous trial, replacing its old IP/browser hash with this
+      // signed device identity. Never use a shared proxy IP to block other wallets.
+      if(previous.wallet_id===walletId&&/^[a-f0-9]{64}$/.test(previous.fingerprint)&&String(fingerprint).startsWith('device_v1_')){
+        const other=await c.query('SELECT id FROM trial_previews WHERE fingerprint=$1 LIMIT 1',[fingerprint]);
+        if(!other.rowCount)await c.query('UPDATE trial_previews SET fingerprint=$2 WHERE id=$1',[previous.id,fingerprint]);
+      }
+      await c.query('COMMIT');
+      return null;
+    }
+    const used=await c.query("SELECT count(*)::int AS n FROM trial_previews WHERE created_at>=date_trunc('day',now())");
+    if(Number(used.rows[0]?.n||0)>=dailyLimit){await c.query('ROLLBACK');return null}
+    const id='trial_'+crypto.randomBytes(18).toString('hex');
+    await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status) VALUES($1,$2,$3,'reserved')",[id,walletId,fingerprint]);
+    await c.query('COMMIT');
+    return {usageId:id,trialPreview:true,generationRemaining:0,hairRemaining:0};
+  }catch(e){await c.query('ROLLBACK');if(e?.code==='23505')return null;throw e}
+  finally{c.release()}
+}
 export async function commitCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const r=await pool.query("UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}
 export async function refundCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("DELETE FROM trial_previews WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const c=await pool.connect();try{await c.query('BEGIN');const u=await c.query("SELECT wallet_id,kind,status FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}const col=u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.rows[0].wallet_id]);await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);await c.query('COMMIT');return true}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
 export async function walletHistory(walletId){await ready();const {rows}=await pool.query(`SELECT session_id AS id,'purchase' AS type,package_id AS kind,(generation_qty+hair_qty) AS credits,created_at AS at FROM payments WHERE wallet_id=$1 UNION ALL SELECT id,CASE WHEN status='refunded' THEN 'refund' ELSE 'usage' END AS type,kind,CASE WHEN status='refunded' THEN 1 ELSE -1 END AS credits,COALESCE(refunded_at,completed_at,created_at) AS at FROM credit_usage WHERE wallet_id=$1 ORDER BY at DESC LIMIT 30`,[walletId]);return rows.map(r=>({...r,at:new Date(r.at).toISOString()}))}

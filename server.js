@@ -73,7 +73,43 @@ app.post("/api/payments/checkout",async(req,res)=>{
     res.json({url:session.url});
   }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
 });
-async function requireCredit(req,res,kind){const wid=walletId(req);if(!wid){res.status(402).json({error:"credit_required",message:"กรุณารีเฟรชหน้าแล้วลองใหม่"});return null}const r=await reserveCredit(wid,kind);if(r)return r;if(kind==="ai-finish"){const raw=`${req.ip||req.socket?.remoteAddress||""}|${req.get("user-agent")||""}`;const fingerprint=crypto.createHash("sha256").update(raw).digest("hex");const trial=await reserveTrialPreview(wid,fingerprint,30);if(trial)return trial}res.status(402).json({error:"credit_required",message:"สิทธิ์ทดลองฟรีถูกใช้แล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลต่อ"});return null}
+// Trial identity is a signed, first-party browser cookie, independent of IP.
+// Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
+function trialDeviceFingerprint(req,res,wid){
+  const secret=process.env.TRIAL_DEVICE_SECRET||process.env.STRIPE_WEBHOOK_SECRET||process.env.STRIPE_SECRET_KEY;
+  if(!secret)return null; // Fail closed for free trials only.
+  const cookieName='idprom_trial_device';
+  const sign=id=>crypto.createHmac('sha256',secret).update('idprom-trial-cookie-v1:'+id).digest('hex');
+  const cookie=String(req.get('cookie')||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(cookieName+'='));
+  const value=cookie?cookie.slice(cookieName.length+1):'';
+  const match=/^([a-f0-9]{64})\.([a-f0-9]{64})$/.exec(value);
+  let deviceId;
+  if(match){
+    const expected=Buffer.from(sign(match[1]),'hex'),actual=Buffer.from(match[2],'hex');
+    if(crypto.timingSafeEqual(expected,actual))deviceId=match[1];
+  }
+  if(!deviceId){
+    // Deterministic for the initial wallet: simultaneous first requests share an ID.
+    deviceId=crypto.createHmac('sha256',secret).update('idprom-trial-device-v1:'+wid).digest('hex');
+  }
+  res.cookie(cookieName,deviceId+'.'+sign(deviceId),{
+    httpOnly:true,sameSite:'lax',secure:req.secure||APP_URL.startsWith('https://'),
+    path:'/',maxAge:10*365*24*60*60*1000
+  });
+  return 'device_v1_'+crypto.createHash('sha256').update(deviceId).digest('hex');
+}
+async function requireCredit(req,res,kind){
+  const wid=walletId(req);
+  if(!wid){res.status(402).json({error:'credit_required',message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});return null}
+  const r=await reserveCredit(wid,kind);
+  if(r)return r;
+  if(kind==='ai-finish'){
+    const fingerprint=trialDeviceFingerprint(req,res,wid);
+    if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,30);if(trial)return trial}
+  }
+  res.status(402).json({error:'credit_required',message:'สิทธิ์ทดลองฟรีถูกใช้แล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
+  return null;
+}
 
 const upload=multer({
   storage:multer.memoryStorage(),
