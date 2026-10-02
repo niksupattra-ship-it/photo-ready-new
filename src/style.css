@@ -3584,3 +3584,20 @@
     white-space:nowrap!important;
   }
 }
+
+
+/* IDPROM LINE contact — UI only */
+.line-contact-button{border:1px solid #bdeecd!important;background:#effcf4!important;color:#087a35!important;border-radius:999px!important;padding:7px 10px!important;display:inline-flex!important;align-items:center!important;gap:6px!important;font-weight:800!important;white-space:nowrap}
+.line-contact-bubble{display:grid!important;place-items:center;width:29px;height:29px;border-radius:50%;background:#06c755;color:#fff;font-size:8px;font-weight:900;line-height:1}
+.line-contact-label{font-size:12px}
+.line-contact-backdrop{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.7);display:grid;place-items:center;padding:16px}
+.line-contact-modal{position:relative;width:min(390px,94vw);background:#fff;border-radius:22px;padding:24px 18px 18px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.3)}
+.line-contact-modal h2{margin:0 0 5px;color:#17233c;font-size:22px}
+.line-contact-modal p{margin:0 0 14px;color:#69778b;font-size:13px}
+.line-contact-modal img{display:block;width:min(100%,330px);height:auto;margin:0 auto;border-radius:12px}
+.line-contact-close{position:absolute;right:10px;top:10px;width:35px;height:35px;border:0!important;border-radius:50%!important;background:#f1f3f6!important;color:#344054!important;padding:0!important;font-size:25px!important;line-height:1!important}
+@media(max-width:720px){
+ .studio-top-actions .line-contact-button,.process-mobile-topbar .line-contact-button{padding:5px!important}
+ .studio-top-actions .line-contact-label,.process-mobile-topbar .line-contact-label{display:none!important}
+ .studio-top-actions .line-contact-bubble,.process-mobile-topbar .line-contact-bubble{display:grid!important;width:28px;height:28px}
+}
