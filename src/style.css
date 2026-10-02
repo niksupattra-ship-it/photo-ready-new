@@ -3601,3 +3601,26 @@
  .studio-top-actions .line-contact-label,.process-mobile-topbar .line-contact-label{display:none!important}
  .studio-top-actions .line-contact-bubble,.process-mobile-topbar .line-contact-bubble{display:grid!important;width:28px;height:28px}
 }
+
+/* Photo guide: compact viewport popup; keep the original guide image intact. */
+.photo-guide-backdrop{
+ position:fixed;inset:0;z-index:100001;display:grid;place-items:center;
+ box-sizing:border-box;padding:16px;background:rgba(15,23,42,.58);
+}
+.photo-guide-modal{
+ position:relative;box-sizing:border-box;width:min(640px,100%);
+ max-height:82vh;max-height:82dvh;overflow:auto;
+ padding:46px 14px 14px;border-radius:18px;background:#fff;
+ box-shadow:0 20px 70px rgba(0,0,0,.25);
+}
+.photo-guide-modal>img{
+ display:block;width:100%;height:auto;max-height:calc(82vh - 60px);
+ max-height:calc(82dvh - 60px);object-fit:contain;margin:0;border-radius:8px;
+}
+.photo-guide-modal>.photo-guide-close{
+ position:absolute;top:8px;right:10px;display:grid;place-items:center;
+ width:34px!important;height:34px!important;min-width:0;margin:0!important;
+ padding:0!important;border:0!important;border-radius:50%!important;
+ background:#f1f3f6!important;color:#344054!important;font-size:25px!important;
+ line-height:1!important;cursor:pointer;
+}
