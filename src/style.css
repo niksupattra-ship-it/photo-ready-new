@@ -3775,3 +3775,18 @@
 @media(max-width:1099px){
  .adaptive-editor .editor-tool-dock>.pin-tools-panel .pin-panel-heading{display:none!important}
 }
+
+/* Processing feedback only: keep long waits visibly active until real completion. */
+.image-progress-card .image-progress-copy{align-items:flex-start;gap:10px}
+.image-progress-card .image-progress-copy>span{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.6}
+.image-progress-card .image-progress-copy>strong{display:flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap;line-height:1.6}
+.image-progress-card .image-progress-hint{margin:10px 0 0;font-size:12px;line-height:1.7;color:#64748b}
+.image-progress-card .image-progress-spinner{display:inline-block;width:13px;height:13px;border:2px solid #dbe6ff;border-top-color:#315bea;border-radius:50%;animation:idprom-progress-spin 1s linear infinite}
+.image-progress-card .image-progress-track{position:relative}
+.image-progress-card:not(.is-complete) .image-progress-track i{position:relative;overflow:hidden}
+.image-progress-card:not(.is-complete) .image-progress-track i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);transform:translateX(-100%);animation:idprom-progress-shine 1.8s ease-in-out infinite}
+.image-progress-card.is-waiting .image-progress-track i{width:100%!important}
+@keyframes idprom-progress-spin{to{transform:rotate(360deg)}}
+@keyframes idprom-progress-shine{to{transform:translateX(100%)}}
+@media(prefers-reduced-motion:reduce){.image-progress-card .image-progress-spinner,.image-progress-card .image-progress-track i::after{animation:none}}
+@media(max-width:420px){.image-progress-card .image-progress-copy{flex-wrap:wrap}.image-progress-card .image-progress-copy>span{flex:1 1 140px}}
