@@ -3849,3 +3849,12 @@
  .adaptive-editor .editor-workspace{align-items:start}
  .adaptive-editor .editor-workspace>.hero-preview{align-self:start!important}
 }
+
+/* Mobile/tablet +/- touch targets only; adjustment values and handlers unchanged. */
+@media(max-width:1099px){
+ .adaptive-editor .head-adjust-with-steps .head-adjust-row:not(.pin-control){grid-template-columns:22px 48px minmax(0,1fr) 48px 40px 28px!important;column-gap:8px!important;min-height:64px!important;height:auto!important;padding:4px 0!important}
+ .adaptive-editor .head-adjust-with-steps .head-slider-step,
+ .adaptive-editor .pin-controls .pin-control-track>button{display:grid!important;place-items:center;width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important;margin:0!important;padding:0!important;font-size:24px!important;line-height:1!important;border-radius:10px!important;touch-action:manipulation}
+ .adaptive-editor .pin-controls .pin-control-track{grid-template-columns:48px minmax(0,1fr) 48px!important;gap:10px!important}
+ .adaptive-editor .head-adjust-with-steps .head-adjust-row:not(.pin-control)>input[type="range"]{min-width:0!important;width:100%!important}
+}
