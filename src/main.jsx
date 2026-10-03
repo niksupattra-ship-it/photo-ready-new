@@ -2550,19 +2550,26 @@ function App(){
    if(seq===renderSeqRef.current)showBlob(out);
   }catch(e){if(seq===renderSeqRef.current){ribbonRef.current=previous;setRibbonId(previousId);drawLivePreview();suppressUiError(e,'เปลี่ยนแพรแถบไม่สำเร็จ')}}
  };
+ // Pin selection keeps the current sharp image until the full composite is ready.
+ // Invalidate pending previews so an older low-resolution frame cannot cover it.
+ const finishPinRender=(seq,out)=>{
+  if(seq!==renderSeqRef.current)return false;
+  previewEpochRef.current++;previewDirtyRef.current=false;
+  if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
+  if(liveCanvasRef.current)liveCanvasRef.current.__editorGeneration=previewEpochRef.current;
+  showBlob(out);setLiveCanvasVisible(false);
+  return true;
+ };
  const selectCollarPins=async option=>{
   if(busy||hairBusy||downloadBusy)return;
   const previous=collarPinRef.current,previousId=collarPinId;
   collarPinRef.current=option?{left:option.left,right:option.right}:null;setCollarPinId(option?.id||'');
   if(!editCache.current){setMsg(option?'เลือกเข็มคู่แล้ว · ระบบจะวางตามชุดชายหรือหญิงเมื่อประมวลผล':'เลือกไม่ติดเข็มแล้ว');return;}
   const seq=beginOptionRender();
-  // Show the newly selected accessory on the live preview immediately;
-  // keep the existing full-quality render running behind it.
-  drawLivePreview();
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-   if(seq===renderSeqRef.current){showBlob(out);setMsg(option?'วางเข็มซ้าย–ขวาตามตำแหน่งปกเสื้อแล้ว':'นำเข็มออกแล้ว')}
-  }catch(e){if(seq===renderSeqRef.current){collarPinRef.current=previous;setCollarPinId(previousId);drawLivePreview();suppressUiError(e,'วางเข็มไม่สำเร็จ')}}
+   if(finishPinRender(seq,out))setMsg(option?'วางเข็มซ้าย–ขวาตามตำแหน่งปกเสื้อแล้ว':'นำเข็มออกแล้ว');
+  }catch(e){if(seq===renderSeqRef.current){collarPinRef.current=previous;setCollarPinId(previousId);suppressUiError(e,'วางเข็มไม่สำเร็จ')}}
  };
  const applyCollarPinAdjust=next=>{
   const clampSide=side=>({x:Math.max(-.2,Math.min(.2,side?.x||0)),y:Math.max(-.2,Math.min(.2,side?.y||0))});
@@ -2575,11 +2582,9 @@ function App(){
   chestPinRef.current=option?.src||null;setChestPinId(option?.id||'');
   if(!editCache.current)return;
   const seq=beginOptionRender();
-  // Show the newly selected chest pin immediately before the full render finishes.
-  drawLivePreview();
   try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-   if(seq===renderSeqRef.current)showBlob(out);
-  }catch(e){if(seq===renderSeqRef.current){chestPinRef.current=previous;setChestPinId(previousId);drawLivePreview();suppressUiError(e,'วางเข็มติดอกไม่สำเร็จ')}}
+   finishPinRender(seq,out);
+  }catch(e){if(seq===renderSeqRef.current){chestPinRef.current=previous;setChestPinId(previousId);suppressUiError(e,'วางเข็มติดอกไม่สำเร็จ')}}
  };
  const applyChestPinAdjust=next=>{
   const v={x:Math.max(-.35,Math.min(.35,next.x)),y:Math.max(-.35,Math.min(.35,next.y)),scale:Math.max(.45,Math.min(2,next.scale))};
