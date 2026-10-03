@@ -3937,3 +3937,27 @@
  .photo-size-overlay{padding:0;align-items:end}.photo-size-dialog{width:min(720px,100%);max-height:96dvh;border-radius:18px 18px 0 0}.photo-size-dialog>header{padding:10px 16px}.photo-size-body{grid-template-columns:minmax(0,1fr);overflow:auto}.photo-size-preview{min-height:0;padding:12px}.photo-size-canvas-wrap{height:clamp(140px,30dvh,340px);width:auto;max-width:100%;max-height:34dvh}.photo-size-controls{border-left:0;padding:12px 16px}.photo-size-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.photo-size-options button{min-height:44px;padding:6px 8px}.photo-size-dialog>footer{padding:10px 16px calc(10px + env(safe-area-inset-bottom))}.photo-size-dialog>footer button{flex:1}.photo-size-dialog .photo-size-hint{margin:8px 0}.photo-size-zoom{grid-template-columns:48px minmax(0,1fr) 48px 42px}.photo-size-zoom button{width:48px;height:48px}.photo-size-zoom output{grid-column:auto}.photo-size-reset{margin:0}
 }
 @media(min-width:1100px){.photo-size-canvas-wrap{width:min(100%,360px,calc((100dvh - 220px) * var(--photo-crop-ratio)));max-height:none}}
+
+/* Desktop editor only: a full workspace under the existing website header.
+   Tool panels float above it; photo transforms and export remain unchanged. */
+@media(min-width:1100px){
+ body:has(.adaptive-editor .editor-workspace){overflow:hidden}
+ .app-shell.modern-shell.adaptive-editor:has(.editor-workspace){display:grid!important;grid-template-rows:auto minmax(0,1fr);width:100%!important;max-width:none!important;height:100dvh!important;min-height:0!important;margin:0!important;padding:0!important;box-sizing:border-box;overflow:hidden;background:#edf1f5}
+ .adaptive-editor:has(.editor-workspace)>.process-mobile-topbar{position:relative!important;inset:auto!important;margin:0!important;padding:12px 20px!important;box-sizing:border-box;background:#fff;border-bottom:1px solid #e3e9f2;z-index:60}
+ .adaptive-editor:has(.editor-workspace)>.modern-flow{position:relative;display:block!important;width:100%!important;max-width:none!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden}
+ .adaptive-editor .style-detail-card:has(.editor-workspace){position:relative!important;width:100%!important;max-width:none!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:hidden!important;background:#edf1f5!important;--desktop-adjust-width:clamp(240px,19vw,292px);--desktop-choice-width:clamp(240px,22vw,340px)}
+ .adaptive-editor .style-detail-card .editor-workspace,
+ .adaptive-editor .style-detail-card:has(>.preview-desktop-actions) .editor-workspace{position:absolute!important;inset:0!important;display:grid;place-items:center;width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#edf1f5;overflow:hidden;contain:paint}
+ .adaptive-editor .style-detail-card .editor-workspace>.hero-preview,
+ .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .editor-workspace>.hero-preview,
+ .adaptive-editor .style-detail-card:has(>.preview-desktop-actions) .editor-workspace>.hero-preview{width:min(calc(100% - 240px),calc((100dvh - 270px) * 47 / 64))!important;max-width:none!important;min-width:0!important;aspect-ratio:47/64!important;height:auto!important;margin:0!important;align-self:center!important;justify-self:center!important}
+ .adaptive-editor .style-detail-card>.preview-desktop-actions{left:50%!important;top:16px!important;max-width:calc(100% - 240px)!important;z-index:50;box-shadow:0 5px 20px rgba(25,42,66,.12)}
+ .adaptive-editor .editor-tool-dock>.tool-rail-wrap,
+ .adaptive-editor .desktop-adjust-only-rail,
+ .adaptive-editor .desktop-persistent-selector,
+ .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+ .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel,
+ .adaptive-editor .desktop-accessory-adjust{background:rgba(255,255,255,.97)!important;border:1px solid #dce3ec!important;box-shadow:0 5px 20px rgba(25,42,66,.1)!important;box-sizing:border-box}
+ .adaptive-editor .style-detail-card .editor-desktop-actions>.process-action-row{position:absolute!important;top:auto!important;left:50%!important;right:auto!important;bottom:14px!important;margin:0!important;width:min(640px,calc(100% - 240px))!important;max-width:none!important;transform:translateX(-50%)!important;z-index:50!important;box-shadow:0 5px 20px rgba(25,42,66,.1)!important}
+ .adaptive-editor .desktop-workspace-caption{left:50%!important;right:auto!important;bottom:98px!important;transform:translateX(-50%);width:min(560px,calc(100% - 240px));box-sizing:border-box}
+}
