@@ -855,7 +855,7 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // V203: the MODNet master alpha already identifies the generated person.
   // Do not intersect this mandatory neck/shoulder field with the low-resolution
   // semantic skin mask: that intersection caused the blue bites on both sides.
-  const neck=yy<=fadeEnd&&sideAlpha>0;
+  const neck=yy<=fadeEnd&&(sideAlpha>0||(semanticSkin&&skinAlpha>.5&&dist<W*.38));
   // V211: NEVER erase pixels inside the anatomical neck to clear hair.
   // Hair segmentation sometimes labels shadowed neck as hair; the old clearing
   // branch punched transparent holes that revealed the blue background.
@@ -880,7 +880,7 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   if(!neck){d[i+3]=0;continue}
   // Keep original MODNet opacity throughout the required neck fill. Semantic
   // skin classification is advisory, never allowed to cut away neck pixels.
-  let alpha=sideAlpha;
+  let alpha=semanticSkin&&skinAlpha>.5&&dist<W*.38?Math.max(sideAlpha,skinAlpha):sideAlpha;
   if(yy>solidEnd){
    const t=Math.max(0,Math.min(1,(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd)));
    const smooth=t*t*(3-2*t);
@@ -1560,12 +1560,37 @@ async function headOnlyAIEditFile(file){
   return new File([png],'head-only-ai-input.png',{type:'image/png'});
  }finally{URL.revokeObjectURL(url)}
 }
+// Read only the fixed template alpha; this never edits the outfit or skin.
+function measureTemplateNeckline(data,W,H){
+ const cx=Math.floor(W/2),edge=Math.floor(W*.15);let top=H,bottom=-1,maxWidth=0;
+ for(let y=0;y<H;y++){
+  let left=-1,right=-1;
+  for(let x=cx;x>=edge;x--)if(data[(y*W+x)*4+3]>96){left=x;break}
+  for(let x=cx;x<W-edge;x++)if(data[(y*W+x)*4+3]>96){right=x;break}
+  if(left<0||right<0)continue;
+  if(top===H)top=y;
+  if(data[(y*W+cx)*4+3]>96){bottom=y;break}
+  maxWidth=Math.max(maxWidth,right-left);
+ }
+ return {width:Math.min(.65,maxWidth/W),depth:Math.min(.65,Math.max(0,bottom-top)/H)};
+}
+const necklineProfileCache=new Map();
+async function templateNecklineProfile(templatePath){
+ if(!templatePath)return null;
+ let pending=necklineProfileCache.get(templatePath);
+ if(!pending){pending=(async()=>{
+  try{const im=await loadImage(templatePath),W=im.naturalWidth,H=im.naturalHeight,c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);return measureTemplateNeckline(x.getImageData(0,0,W,H).data,W,H)}catch{return null}
+ })();necklineProfileCache.set(templatePath,pending)}
+ return pending;
+}
 async function aiFinishPortrait(originalFile,hairId,options={}){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
+ const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
+ if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
  await saveAiJobFile(originalFile);
@@ -2536,7 +2561,7 @@ function App(){
     if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
     else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle'});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial)setTrialPreview(true);
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
