@@ -932,7 +932,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    };
    const leftOffset=collarPinAdjust.left||{x:0,y:0},rightOffset=collarPinAdjust.right||{x:0,y:0};
    if(isFemale){
-    const y=lock.uY+lock.uH*.245;
+    // Place the initial pair slightly below the shoulder boards on female lapels.
+    const y=lock.uY+lock.uH*.28;
     drawPin(leftPin,lock.uX+lock.uW*(.315+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
     drawPin(rightPin,lock.uX+lock.uW*(.685+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }else{
