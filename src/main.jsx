@@ -2103,7 +2103,7 @@ function App(){
     const dock=root.querySelector('.editor-tool-dock'),panel=dock?.querySelector(':scope > .tool-choice-sheet');
     const top=workspace.getBoundingClientRect().top;
     if(panel)panel.style.setProperty('max-height',Math.max(60,Math.min(height*.36,300,height-Math.max(0,top)-(dock?.getBoundingClientRect().height||0)-88))+'px','important');
-    const bottom=(panel||dock)?.getBoundingClientRect().top??height;
+    const bottom=dock?.getBoundingClientRect().top??height;
     workspace.style.setProperty('--workspace-height',Math.max(80,Math.min(height,bottom)-Math.max(0,top)-8)+'px');
    });
   };
