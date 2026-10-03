@@ -3858,3 +3858,49 @@
  .adaptive-editor .pin-controls .pin-control-track{grid-template-columns:48px minmax(0,1fr) 48px!important;gap:10px!important}
  .adaptive-editor .head-adjust-with-steps .head-adjust-row:not(.pin-control)>input[type="range"]{min-width:0!important;width:100%!important}
 }
+
+/* Desktop workspace only: clip the existing zoomed stage; keep commands stationary. */
+.preview-desktop-actions,.desktop-workspace-caption{display:none}
+@media(min-width:1100px){
+ .adaptive-editor .style-detail-card:has(.editor-workspace){--desktop-adjust-width:clamp(240px,19vw,292px);--desktop-choice-width:clamp(240px,22vw,340px);--desktop-stage-height:clamp(280px,calc(100dvh - 280px),780px);padding:16px calc(124px + var(--desktop-choice-width)) 104px calc(124px + var(--desktop-adjust-width))!important;min-height:0!important;overflow:hidden!important;background:#fff!important;border:1px solid #e3e9f2!important;border-radius:18px!important}
+ .adaptive-editor .editor-workspace{display:grid;place-items:center;position:relative;isolation:isolate;width:100%;height:var(--desktop-stage-height);min-width:0;margin:0;overflow:hidden;contain:paint;background:#edf1f5;border:1px solid #dce3ec;border-radius:14px;box-sizing:border-box}
+ .adaptive-editor .style-detail-card .editor-workspace>.hero-preview,
+ .adaptive-editor .style-detail-card:has(.tool-choice-sheet) .editor-workspace>.hero-preview{width:min(calc(100% - 32px),calc((var(--desktop-stage-height) - 32px) * 47 / 64))!important;min-width:0!important;max-width:none!important;height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:47/64!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;clip-path:none!important;background:transparent!important;box-shadow:0 2px 16px rgba(28,44,66,.12)!important;align-self:center!important}
+ .adaptive-editor .editor-workspace .preview-mobile-actions,
+ .adaptive-editor .editor-workspace .preview-edit-hint{display:none!important}
+ .adaptive-editor .style-detail-card>.preview-desktop-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;position:absolute;top:16px;left:calc(50% + (var(--desktop-adjust-width) - var(--desktop-choice-width)) / 2);right:auto;width:max-content;max-width:calc(100% - 248px - var(--desktop-adjust-width) - var(--desktop-choice-width));padding:5px;box-sizing:border-box;transform:translateX(-50%);z-index:50;border:1px solid #dce3ec;border-radius:12px;background:rgba(255,255,255,.97);box-shadow:0 4px 16px rgba(25,42,66,.12)}
+ .adaptive-editor .preview-desktop-actions button{display:flex;flex-direction:column;justify-content:center;gap:3px;min-width:58px;width:68px;min-height:48px;height:50px;padding:5px 6px;border:0;border-radius:8px;box-shadow:none;background:transparent;backdrop-filter:none;color:#26374e}
+ .adaptive-editor .preview-desktop-actions button:hover:not(:disabled){background:#eef4ff;color:#2463dc}
+ .adaptive-editor .preview-desktop-actions button:focus-visible{outline:2px solid #315bea;outline-offset:1px}
+ .adaptive-editor .preview-desktop-actions button.active{background:#edf3ff;color:#2463dc}
+ .adaptive-editor .preview-desktop-actions button span{font-size:21px;line-height:1}
+ .adaptive-editor .preview-desktop-actions button small{font-size:10px;font-weight:700;line-height:1.2}
+ .adaptive-editor .desktop-workspace-caption{display:flex;align-items:center;justify-content:space-between;gap:12px;position:absolute;left:12px;right:12px;bottom:10px;z-index:50;padding:7px 10px;border:1px solid #dce3ec;border-radius:8px;background:rgba(255,255,255,.94);color:#66748a;font-size:11px;pointer-events:none}
+ .adaptive-editor .desktop-workspace-caption output{color:#26374e;font-weight:800;white-space:nowrap}
+ .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel,
+ .adaptive-editor .desktop-accessory-adjust{left:112px!important;width:var(--desktop-adjust-width)!important;min-width:0!important;max-width:var(--desktop-adjust-width)!important;top:16px!important;bottom:104px!important;padding:14px!important;border-radius:12px!important;box-shadow:none!important}
+ .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-sample-panel{right:112px!important;left:auto!important;width:var(--desktop-choice-width)!important;min-width:0!important;max-width:var(--desktop-choice-width)!important;top:16px!important;bottom:104px!important;padding:14px!important;border-radius:12px!important;box-shadow:none!important}
+ .adaptive-editor .editor-tool-dock>.tool-rail-wrap,
+ .adaptive-editor .desktop-adjust-only-rail{left:16px!important;top:16px!important;bottom:104px!important;width:84px!important;max-width:84px!important;border-radius:12px!important;box-shadow:none!important}
+ .adaptive-editor .desktop-persistent-selector{right:16px!important;top:16px!important;bottom:104px!important;width:84px!important;max-width:84px!important;height:auto!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:none!important}
+ .adaptive-editor .desktop-persistent-selector>button{width:100%!important;min-width:0!important}
+ .adaptive-editor .process-action-row{left:16px!important;right:16px!important;bottom:14px!important;border-radius:12px!important;box-shadow:none!important}
+}
+@media(min-width:1100px){
+ .adaptive-editor .desktop-persistent-selector{min-width:0!important}
+ .adaptive-editor .desktop-persistent-selector>button,
+ .adaptive-editor .desktop-adjust-only-rail>button{width:100%!important;min-width:0!important;max-width:none!important}
+ .adaptive-editor .desktop-adjust-panel .head-adjust-row:not(.pin-control),
+ .adaptive-editor .desktop-accessory-adjust .head-adjust-row:not(.pin-control){grid-template-columns:18px 32px minmax(0,1fr) 32px 40px 26px!important;column-gap:6px!important;height:auto!important;min-height:54px!important}
+ .adaptive-editor .desktop-adjust-panel .head-adjust-row>input[type=range],
+ .adaptive-editor .desktop-accessory-adjust .head-adjust-row>input[type=range]{width:100%!important;min-width:0!important}
+ .adaptive-editor .desktop-adjust-panel .head-adjust-row>output,
+ .adaptive-editor .desktop-accessory-adjust .head-adjust-row>output{font-size:11px!important}
+ .adaptive-editor .editor-tool-dock>.tool-choice-sheet.desktop-adjust-panel{overflow-y:auto!important}
+ .adaptive-editor .process-action-row{transform:none!important;width:auto!important;min-height:72px!important;padding:10px 14px!important;background:#fff!important;border:1px solid #e3e9f2!important}
+}
+
+@media(min-width:1100px){
+ .adaptive-editor .style-detail-card:has(>.preview-desktop-actions) .editor-workspace{height:calc(var(--desktop-stage-height) - 66px);margin-top:66px}
+ .adaptive-editor .style-detail-card:has(>.preview-desktop-actions) .editor-workspace>.hero-preview{width:min(calc(100% - 32px),calc((var(--desktop-stage-height) - 98px) * 47 / 64))!important}
+}
