@@ -3979,3 +3979,12 @@
  .adaptive-editor .desktop-adjust-panel .beauty-lip-swatches button{flex:0 0 auto}
  .adaptive-editor .desktop-adjust-panel .beauty-reset{max-width:100%;white-space:normal}
 }
+
+/* Desktop photo help uses the same orange question-mark pill as touch screens. */
+.desktop-photo-guide{display:none}
+@media(min-width:1100px){
+ .adaptive-editor .style-detail-card>.desktop-photo-guide{position:absolute!important;display:inline-flex!important;align-items:center;justify-content:center;gap:7px;top:16px!important;left:50%!important;right:auto!important;transform:translateX(-50%);z-index:250!important;min-height:36px;padding:5px 10px;border:1px solid #e3e8ed;border-radius:20px;background:#fff;color:#24354d;font:inherit;font-size:12px;font-weight:700;cursor:pointer;box-sizing:border-box}
+ .adaptive-editor .style-detail-card:has(>.preview-desktop-actions)>.desktop-photo-guide{top:88px!important}
+ .adaptive-editor .desktop-photo-guide>span{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#ff850d;color:#fff;font-size:17px}
+ .adaptive-editor .desktop-photo-guide:focus-visible{outline:2px solid #315bea;outline-offset:2px}
+}
