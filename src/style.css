@@ -3841,3 +3841,11 @@
  .adaptive-editor .editor-tool-dock>.tool-choice-sheet{padding-top:40px!important}
  .adaptive-editor .tool-choice-sheet>.mobile-tool-close{display:grid!important;place-items:center;position:absolute;right:12px;top:6px;z-index:5;width:32px;height:32px;margin:0;padding:0;border:0;border-radius:8px;background:#f2f5f9;color:#526477;font-size:24px;line-height:1;cursor:pointer}
 }
+
+/* Only remove the space above the mobile/tablet portrait and float photo help. */
+@media(max-width:1099px){
+ .adaptive-editor>.editor-mobile-help{position:relative;display:block;height:0;min-height:0;padding:0;z-index:50;overflow:visible;background:transparent}
+ .adaptive-editor .editor-mobile-help .photo-guide-trigger{position:absolute!important;top:8px;right:12px;z-index:50}
+ .adaptive-editor .editor-workspace{align-items:start}
+ .adaptive-editor .editor-workspace>.hero-preview{align-self:start!important}
+}
