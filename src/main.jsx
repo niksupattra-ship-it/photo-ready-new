@@ -1919,6 +1919,11 @@ const STUDENT_UNIFORMS=[
  {id:'student-male-02',title:'นักศึกษาชาย แบบ 2',img:'/assets/student-uniforms/previews/male-02.jpg',template:'/assets/student-uniforms/male-02.png',cat:'student',gender:'male'},
 ];
 
+const GOWN_UNIFORMS=[
+ {id:'kmitl-female',title:'ครุย สจล. หญิง',img:'/assets/gown-uniforms/kmitl-female-example.jpg',template:'/assets/gown-uniforms/kmitl-female.png',cat:'gown',gender:'female'},
+ {id:'kmitl-male',title:'ครุย สจล. ชาย',img:'/assets/gown-uniforms/kmitl-male-example.jpg',template:'/assets/gown-uniforms/kmitl-male.png',cat:'gown',gender:'male'},
+];
+
 const INTERIOR_UNIFORMS=[
  {id:'interior-01',name:'ปฏิบัติงาน',level:'operational',img:'/assets/government-uniforms/interior-01.png',preview:'/assets/government-uniforms/male-operational-example.png'},
  {id:'interior-02',name:'ปฏิบัติการ',level:'academic',img:'/assets/government-uniforms/interior-02.png',preview:'/assets/government-uniforms/male-academic-example.png'},
@@ -1932,6 +1937,7 @@ const FEMALE_GOVERNMENT_UNIFORMS=[
  {id:'female-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/female-government-employee.png',preview:'/assets/government-uniforms/female-government-employee-example.jpg'},
 ];
 const UNIFORM_GROUPS=[
+ {id:'gown',name:'ครุย สจล.',items:GOWN_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img}))},
  {id:'job',name:'สมัครงาน',items:JOB_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
  {id:'student',name:'นักศึกษา',items:STUDENT_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
  {id:'government-female',name:'ข้าราชการหญิง',items:FEMALE_GOVERNMENT_UNIFORMS.map(item=>({...item,title:item.name,template:item.img,cat:'government',gender:'female'}))},
@@ -2063,6 +2069,7 @@ function App(){
  const[safetyBlocked,setSafetyBlocked]=useState(false);
  const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
  const[selectedStudentTemplate,setSelectedStudentTemplate]=useState(STUDENT_UNIFORMS[0].template);
+ const[selectedGownTemplate,setSelectedGownTemplate]=useState(GOWN_UNIFORMS[0].template);
  const[selectedInteriorTemplate,setSelectedInteriorTemplate]=useState(INTERIOR_UNIFORMS[0].img);
  const[homeInfoOpen,setHomeInfoOpen]=useState(false),[homeShowGender,setHomeShowGender]=useState('all');
  const[lineContactOpen,setLineContactOpen]=useState(false);
@@ -2070,7 +2077,7 @@ function App(){
  const selectedFemaleGovernmentTemplate=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===level)?.img||GOVERNMENT_FINANCE_TEMPLATE;
  const selectedGovernmentTemplate=gender==='male'?selectedInteriorTemplate:selectedFemaleGovernmentTemplate;
  const selectGovernmentGender=(next)=>{setGender(next);if(next==='male'){setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===level)||INTERIOR_UNIFORMS[0]).img)}};
- const activeUniformTemplate=uniformCategory==='job'?selectedJobTemplate:uniformCategory==='student'?selectedStudentTemplate:uniformCategory==='government'?selectedGovernmentTemplate:GOVERNMENT_FINANCE_TEMPLATE;
+ const activeUniformTemplate=uniformCategory==='job'?selectedJobTemplate:uniformCategory==='student'?selectedStudentTemplate:uniformCategory==='government'?selectedGovernmentTemplate:uniformCategory==='gown'?selectedGownTemplate:GOVERNMENT_FINANCE_TEMPLATE;
  // Analytics observes committed selections; it never changes editor state.
  useEffect(()=>{analyticsContext({category:screen==='process'?uniformCategory:'unselected',template:screen==='process'?activeUniformTemplate:'',gender:screen==='process'?gender:'',level});if(screen==='process')analyticsEvent('idprom_uniform_select')},[screen,uniformCategory,activeUniformTemplate,gender,level]);
  useEffect(()=>{if(buyOpen)analyticsEvent('idprom_package_view')},[buyOpen]);
@@ -2241,7 +2248,7 @@ function App(){
   chestPin:chestPinRef.current,chestPinId,chestPinAdjust:{...chestPinAdjustRef.current},
   background:backgroundRef.current,backgroundId,hairId,placementLocked,
   category:uniformCategory,gender,level,style:selectedStyle,
-  job:selectedJobTemplate,student:selectedStudentTemplate,interior:selectedInteriorTemplate
+  job:selectedJobTemplate,student:selectedStudentTemplate,gown:selectedGownTemplate,interior:selectedInteriorTemplate
  });
  const historySignature=s=>JSON.stringify({...s,master:undefined,lock:undefined});
  const historyRefresh=()=>setHistoryCounts({undo:undoStackRef.current.length,redo:redoStackRef.current.length});
@@ -2274,7 +2281,7 @@ function App(){
   backgroundRef.current=snap.background;setBackgroundId(snap.backgroundId);setHairId(snap.hairId);
   setPlacementLocked(snap.placementLocked);setUniformCategory(snap.category);setGender(snap.gender);
   setLevel(snap.level);setSelectedStyle(snap.style);setSelectedJobTemplate(snap.job);
-  setSelectedStudentTemplate(snap.student);setSelectedInteriorTemplate(snap.interior);
+  setSelectedStudentTemplate(snap.student);if(snap.gown)setSelectedGownTemplate(snap.gown);setSelectedInteriorTemplate(snap.interior);
   setHeadPreviewLock(snap.lock);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   setHeadMasterPreview(URL.createObjectURL(snap.master));
@@ -2677,6 +2684,7 @@ function App(){
  const commitUniformSelection=option=>{
   if(option.cat==='job')setSelectedJobTemplate(option.template);
   if(option.cat==='student')setSelectedStudentTemplate(option.template);
+  if(option.cat==='gown')setSelectedGownTemplate(option.template);
   if(option.cat==='government'&&option.gender==='male')setSelectedInteriorTemplate(option.template);
   setUniformCategory(option.cat);setGender(option.gender);if(option.level)setLevel(option.level);setSelectedStyle(option.title||option.name);
  };
@@ -2782,7 +2790,7 @@ function App(){
   setProgressStage(97,'กำลังแสดงผล');showBlob(finished);
  };
  const go=async()=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
-  const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedInteriorTemplate};
+  const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
@@ -2807,8 +2815,7 @@ function App(){
     {title:'ปฏิบัติการ',img:'/assets/government-uniforms/female-academic-example.jpg',cat:'government',uniform:true},
     {title:'ชำนาญการ / อาวุโส',img:'/assets/government-uniforms/female-senior-example.jpg',cat:'government',uniform:true}]},
    {id:'student',tag:'นักศึกษา',title:'รูปนักศึกษา',cards:STUDENT_UNIFORMS},
-   {id:'gown',tag:'ชุดครุย',title:'ชุดครุยมหาวิทยาลัย',cards:[
-    {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}
+   {id:'gown',tag:'ชุดครุย',title:'ชุดครุย สจล.',cards:GOWN_UNIFORMS}
   ];
   const visibleRows=homeFilter==='all'?rows:rows.filter(r=>r.id===homeFilter);
   const governmentLevels=[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']];
@@ -2819,7 +2826,7 @@ function App(){
    {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
    {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
    {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
-   {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'ชุดครุยปริญญา\nทุกสถาบัน',image:null}
+   {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'ชุดครุย สจล.\nสำหรับชายและหญิง',image:null}
   ];
   const featured=[JOB_UNIFORMS[2],JOB_UNIFORMS[3],JOB_UNIFORMS[5],JOB_UNIFORMS[0],JOB_UNIFORMS[1],JOB_UNIFORMS[4],
    {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},
@@ -2843,7 +2850,7 @@ function App(){
    {homeFilter!=='all'&&<section className="home-content studio-home-results">
     {homeFilter==='job'&&<section className="government-filter-panel job-gender-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดสมัครงานชาย</h2><div className="government-level-grid">{maleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='male'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><span className="selected-mark">✓</span></button>)}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดสมัครงานหญิง</h2><div className="government-level-grid">{femaleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='female'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><span className="selected-mark">✓</span></button>)}</div></section></section>}
     {homeFilter==='government'&&<section className="government-filter-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดข้าราชการชาย</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0];return <button type="button" key={'male-'+id} className={gender==='male'&&level===id?'selected':''} onClick={()=>{setGender('male');setLevel(id);setSelectedInteriorTemplate(u.img);setUniformCategory('government');setSelectedStyle(n);setScreen('process')}}><img src={u.preview} alt={'ชุดข้าราชการชาย '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดข้าราชการหญิง</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===id)||FEMALE_GOVERNMENT_UNIFORMS[0];return <button type="button" key={'female-'+id} className={gender==='female'&&level===id?'selected':''} onClick={()=>{setGender('female');setLevel(id);setUniformCategory('government');setSelectedStyle(n);setScreen('process')}}><img src={u.preview} alt={'ชุดข้าราชการหญิง '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section></section>}
-    {homeFilter==='gown'&&<section className="government-filter-panel" role="status" style={{textAlign:'center',padding:'64px 24px'}}><h2>เร็วๆ นี้</h2></section>}{homeFilter!=='government'&&homeFilter!=='job'&&homeFilter!=='gown'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
+    {homeFilter==='gown'&&<section className="government-filter-panel">{[['male','ชุดครุย สจล. ชาย'],['female','ชุดครุย สจล. หญิง']].map(([g,title])=><section key={g} className={'government-gender-section'+(g==='female'?' female-government-section':'')}><h2 className="government-section-title">{title}</h2><div className="government-level-grid">{GOWN_UNIFORMS.filter(item=>item.gender===g).map(item=><button type="button" key={item.id} className={selectedGownTemplate===item.template?'selected':''} onClick={()=>{commitUniformSelection(item);setScreen('process')}}><img src={item.img} alt={item.title}/><strong>สจล.</strong><span className="selected-mark">✓</span></button>)}</div></section>)}</section>}{homeFilter!=='government'&&homeFilter!=='job'&&homeFilter!=='gown'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
    </section>}
    {homeFilter==='all'&&<div className="studio-home-benefits">{[['✦','ใบหน้าเดิม 100%','ไม่เปลี่ยนโครงหน้า รักษารายละเอียดผิวเดิม'],['▣','คุณภาพสตูดิโอ','คมชัด ดูเป็นธรรมชาติ ไม่เป็นพลาสติก'],['◉','ปรับแต่งได้อิสระ','ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม'],['▧','ดาวน์โหลดความละเอียดสูง','ขนาด 900 × 1200 px ตรงกับตัวอย่าง 100%']].map(([icon,title,desc])=><div key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{desc}</small></div></div>)}</div>}
    </div>
@@ -2858,7 +2865,7 @@ function App(){
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&uniformCategory!=='student'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
-    {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>เพิ่มมหาวิทยาลัยภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div></>}
+    {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง (สจล.)</option></select></label><div className="gender-tabs">{[['male','ชาย'],['female','หญิง']].map(([g,label])=><button key={g} className={gender===g?'active':''} onClick={()=>selectProcessedUniform(GOWN_UNIFORMS.find(item=>item.gender===g))}>{label}</button>)}</div></>}
    </div>
    {f&&!b&&hairId===null&&!busy&&<button type="button" className="hair-selection-guide" onClick={guideToHair}><span className="hair-selection-guide-icon" aria-hidden="true">✦</span><span><strong>เลือกทรงผมก่อนประมวลผล</strong><small>แตะที่นี่เพื่อเลือกทรงผมที่ต้องการ หรือเลือก “ผมเดิม”</small></span><span className="hair-selection-guide-arrow" aria-hidden="true">↓</span></button>}
    {b&&trialPreview&&<div className="trial-preview-notice"><strong>ตัวอย่างฟรี</strong><span>ภาพนี้เป็นตัวอย่างก่อนชำระเงิน • ดาวน์โหลดได้หลังเลือกแพ็กเกจ</span><button type="button" onClick={()=>setBuyOpen(true)}>ปลดล็อกภาพความละเอียดสูง</button></div>}<div className="editor-desktop-actions">{renderProcessActions(true)}</div>
