@@ -105,11 +105,11 @@ async function requireCredit(req,res,kind){
   const wid=walletId(req);
   if(!wid){res.status(402).json({error:'credit_required',message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});return null}
   // Explicit private testing never consumes purchased credits or normal trial quota.
-  if(kind==='ai-finish'&&req.get('X-IDPROM-Private-Trial')==='1'){
+  if((kind==='ai-finish'||kind==='hairstyle')&&req.get('X-IDPROM-Private-Trial')==='1'){
     if(!hasPrivateTrial(req,wid)){res.status(403).json({error:'private_trial_inactive',message:'กรุณาเปิดลิงก์ทดสอบส่วนตัวอีกครั้ง'});return null}
     const wallet=await getWallet(wid);
     if(!wallet){res.status(403).json({error:'private_trial_inactive'});return null}
-    return {usageId:'trial_private_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining};
+    return {usageId:'private_full_'+crypto.randomBytes(18).toString('hex'),trialPreview:false,generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining};
   }
   const r=await reserveCredit(wid,kind);
   if(r)return r;
