@@ -13,3 +13,23 @@ const item=packageId=>({item_id:'package_'+packageId,item_name:'IDPROM '+package
 export function analyticsCheckout(packageId,checkoutUrl){try{const session=String(checkoutUrl||'').match(/\/(cs_(?:live|test)_[A-Za-z0-9]+)(?:[\/#?]|$)/)?.[1]||'';const pending={...context,...attribution,package_id:String(packageId),checkout_session:session,internal,at:Date.now()};write(PENDING,pending);analyticsEvent('begin_checkout',{package_id:String(packageId),currency:'THB',value:Number(packageId),items:[item(packageId)]})}catch{}}
 // Call ONLY after the existing /payments/confirm endpoint has returned ok:true.
 export function analyticsPurchase(sessionId){try{if(!sessionId||seenPurchases.has(sessionId))return;const pending=read(PENDING);if(pending?.internal)return;const sent=read('idprom_analytics_purchases_v1')||[];if(sent.includes(sessionId))return;seenPurchases.add(sessionId);write('idprom_analytics_purchases_v1',[...sent,sessionId].slice(-100));const valid=pending&&pending.checkout_session===sessionId&&Date.now()-pending.at<7*86400000&&['149','199'].includes(pending.package_id);const extra={transaction_id:sessionId,...(valid?pending:{uniform_category:'unknown',uniform_style:'unknown',uniform_gender:'unknown',uniform_level:'unknown'})};delete extra.internal;delete extra.at;delete extra.checkout_session;analyticsEvent('idprom_payment_confirmed',extra);if(valid)analyticsEvent('purchase',{...extra,currency:'THB',value:Number(pending.package_id),items:[item(pending.package_id)]})}catch{}}
+
+// Diagnostic annotations stay in memory; original Error objects/messages are unchanged.
+const diagnosticErrors=new WeakMap();
+export function analyticsTagError(error,details){try{if(error&&typeof error==='object')diagnosticErrors.set(error,details)}catch{}return error}
+export function analyticsProcessFailure(error,stage,extra={}){try{
+ const details=error&&typeof error==='object'?diagnosticErrors.get(error)||{}:{};
+ const errorStage=details.error_stage||stage||'unknown';
+ let code='';try{code=JSON.parse(String(error?.message||'')).error||''}catch{}
+ let reason='unknown',blocked=false;
+ if(code==='credit_required'||details.http_status===402){reason='trial_or_credit_required';blocked=true}
+ else if(code==='private_trial_inactive'){reason='private_trial_inactive';blocked=true}
+ else if(error?.name==='AbortError')reason='request_aborted';
+ else if(/failed to fetch|load failed|networkerror|fetch failed/i.test(String(error?.message||'')))reason='network_error';
+ else if(errorStage==='ai_job')reason='ai_job_failed';
+ else if(errorStage==='compose')reason='compose_failed';
+ else if(errorStage==='cleanup')reason='local_cleanup_failed';
+ else if(details.http_status>=500)reason='server_response_error';
+ else if(details.http_status>=400)reason='request_rejected';
+ analyticsEvent(blocked?'idprom_process_blocked':'idprom_process_error',{...extra,error_stage:errorStage,failure_reason:reason,...(details.http_status?{http_status:details.http_status}:{})});
+ }catch{}}
