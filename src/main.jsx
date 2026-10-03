@@ -292,26 +292,9 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const faceCX=((L.x+R.x)/2)*head.naturalWidth;
   const chinX=chin.x*head.naturalWidth, chinY=chin.y*head.naturalHeight;
 
-  // สร้างคอใหม่ทั้งหมดภายหลัง: ตำแหน่งคางถูกกำหนดจากชุด ไม่ใช่คอ/ระยะต้นฉบับ
-  // ช่องคอสั้นปานกลาง ลดปัญหาคอยาวและใบหน้าลอย
-  // V12 FIXED NECK SOCKET: visible neck is derived from normalized head, not source neck or source crop.
-  // Hard limits prevent long/thin necks. For this template the chin sits only a short anatomical gap above collar.
-  // V13 COLLAR-GAP LOCK: move the normalized head down so AI never has a tall empty neck area.
-  // Keep only a very small anatomical bridge between chin and the real collar edge.
-  // This is intentionally template-relative and independent of the source photo/crop.
-  // V14: ระยะคอคำนวณจากช่องคอกลางจริง ไม่ใช่ยอดปกเสื้อ
-  // จำกัดให้เป็นคอสั้นสมส่วน และ normalize เหมือนกันทุก input โดยไม่สนขนาด/ระยะภาพต้นฉบับ
-  // V15 CHIN ANCHOR: scaling must NOT pull the head upward. Keep the final chin close to the
-  // real center collar socket, leaving only a small bridge for AI. Gap is proportional to final face scale.
-  const finalFaceW=sourceFaceW*scale;
-  // V16 HEAD+NECK PRE-PLACEMENT: ยกก้อนหัว/คอขึ้นก่อน โดยยังไม่เปลี่ยน scale
-  // ต้องเหลือช่องว่างที่มองเห็นได้ระหว่างใต้คางกับขอบช่องคอของชุด เพื่อไม่ให้ปกเสื้อชนคาง
-  // ระยะนี้อิง canvas/template ไม่อิง crop หรือคอจากภาพต้นฉบับ
-  const targetNeckVisible=Math.max(H*.022,Math.min(H*.032,finalFaceW*.10));
-  // V17: ยกก้อนหัวขึ้นอีกเล็กน้อยจากตำแหน่ง V16 หลังจากขยายหัวแล้ว
-  // offset อิงความสูง canvas/template เพื่อให้ทุก input ได้ตำแหน่งเดียวกัน
-  const v17Lift=H*.05;
-  const chinTargetY=collarSocketY-targetNeckVisible-v17Lift;
+  // Initial placement: anchor the detected chin at the vertical midpoint.
+  // Keep the existing head scale, horizontal anchor and all user adjustments.
+  const chinTargetY=H*.50;
   const hX=collarCX-faceCX*scale + (adjust.x||0)*W;
   const hY=chinTargetY-chinY*scale + (adjust.y||0)*H;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
