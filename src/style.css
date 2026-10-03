@@ -3752,14 +3752,6 @@
 .adaptive-editor .pin-controls button:focus-visible{outline:3px solid #9dc2ff;outline-offset:2px}
 .adaptive-editor .pin-tools-panel{box-sizing:border-box;min-width:0!important;overflow-x:hidden!important}
 @media(max-width:1099px){
- .adaptive-editor .editor-tool-dock:has(.pin-tools-panel:not(.pin-selection-panel)){position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;transform:none!important;pointer-events:auto!important;margin:18px auto!important;z-index:20!important;background:transparent!important}
- .adaptive-editor .editor-tool-dock>.pin-tools-panel:not(.pin-selection-panel){
-  display:block!important;position:relative!important;inset:auto!important;transform:none!important;
-  width:min(100%,560px)!important;max-width:560px!important;height:auto!important;max-height:none!important;
-  margin:0 auto!important;padding:16px!important;overflow:visible!important;z-index:20!important;
-  border:1px solid #e3eaf4!important;border-radius:16px!important;background:#fff!important;
-  box-shadow:0 4px 16px rgba(24,50,88,.04)!important;
- }
  .adaptive-editor .pin-tools-panel .tool-choice-tabs{height:auto!important;min-height:44px!important;gap:14px!important;flex-wrap:wrap;overflow:visible!important}
  .adaptive-editor .pin-tools-panel .tool-choice-tabs>button{min-height:44px!important}
 }
@@ -3779,7 +3771,7 @@
  .adaptive-editor .editor-tool-dock>.desktop-accessory-adjust.pin-tools-panel{width:360px!important;min-width:0!important;max-width:360px!important;padding:18px!important}
 }
 
-/* Mobile and tablet pin selection uses the same sheet as ribbon selection. */
+/* Mobile and tablet pin selection and adjustment share the ribbon tool sheet. */
 @media(max-width:1099px){
- .adaptive-editor .pin-selection-panel .pin-panel-heading{display:none!important}
+ .adaptive-editor .editor-tool-dock>.pin-tools-panel .pin-panel-heading{display:none!important}
 }
