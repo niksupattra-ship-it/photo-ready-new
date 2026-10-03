@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs} from "./job-store.js";
 
+import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
+
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 
@@ -62,6 +64,7 @@ app.post("/api/payments/confirm",async(req,res)=>{
 });
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){const w=await getWallet(current);if(w)return res.json(w)}res.json(await newWallet())});
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
+registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
 app.post("/api/payments/checkout",async(req,res)=>{
   try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
@@ -101,6 +104,13 @@ function trialDeviceFingerprint(req,res,wid){
 async function requireCredit(req,res,kind){
   const wid=walletId(req);
   if(!wid){res.status(402).json({error:'credit_required',message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});return null}
+  // Explicit private testing never consumes purchased credits or normal trial quota.
+  if(kind==='ai-finish'&&req.get('X-IDPROM-Private-Trial')==='1'){
+    if(!hasPrivateTrial(req,wid)){res.status(403).json({error:'private_trial_inactive',message:'กรุณาเปิดลิงก์ทดสอบส่วนตัวอีกครั้ง'});return null}
+    const wallet=await getWallet(wid);
+    if(!wallet){res.status(403).json({error:'private_trial_inactive'});return null}
+    return {usageId:'trial_private_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining};
+  }
   const r=await reserveCredit(wid,kind);
   if(r)return r;
   if(kind==='ai-finish'){
