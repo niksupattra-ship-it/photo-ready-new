@@ -2701,11 +2701,11 @@ function App(){
   if(busy||hairBusy||downloadBusy||uniformChanging)return;
   if(!editCache.current){
    commitUniformSelection(option);
-   setMsg(`เลือกชุด ${option.title||option.name} แล้ว · เพิ่มรูปเพื่อเริ่มประมวลผล`);
+   setMsg('');
    return;
   }
   const previousLock=editCache.current.lock;
-  setUniformChanging(true);beginProgress('กำลังเปลี่ยนชุด');setMsg('กำลังวางแพทเทิร์นชุดใหม่…');
+  setUniformChanging(true);beginProgress('กำลังเปลี่ยนชุด');setMsg('');
   let completed=false;
   try{
    clearTimeout(renderTimer.current);const seq=++renderSeqRef.current;
@@ -2724,7 +2724,7 @@ function App(){
     previewDirtyRef.current=true;
     drawLivePreview();
    }
-   setMsg('เปลี่ยนชุดแล้ว · คงใบหน้า ทรงผม และตำแหน่งเดิม');completed=true;
+   setMsg('');completed=true;
   }catch(e){editCache.current={...editCache.current,lock:previousLock};suppressUiError(e,'เปลี่ยนชุดไม่สำเร็จ')}
   finally{await finishProgress(completed);setUniformChanging(false)}
  };
