@@ -18,9 +18,18 @@ export function deformPatch(input,width,height,originX,originY,centerX,centerY,r
  return out;
 }
 export function liquifyCanvas(target,mask,center,radius,delta,mode,strength){
- const padding=radius*.6+3,left=Math.max(0,Math.floor(center.x-radius-padding)),top=Math.max(0,Math.floor(center.y-radius-padding));
- const right=Math.min(target.width,Math.ceil(center.x+radius+padding)),bottom=Math.min(target.height,Math.ceil(center.y+radius+padding));
- if(right<=left||bottom<=top)return false;const width=right-left,height=bottom-top;
- for(const surface of [target,mask]){const ctx=surface.getContext('2d',{willReadFrequently:true}),original=ctx.getImageData(left,top,width,height);const pixels=deformPatch(original.data,width,height,left,top,center.x,center.y,radius,delta.x,delta.y,mode,strength);ctx.putImageData(new ImageData(pixels,width,height),left,top)}
- return true;
+ // Pointer coordinates stay in the 900 x 1200 workspace. Deform each surface
+ // at its own resolution so full-resolution portrait pixels survive editing.
+ let changed=false;
+ for(const surface of [target,mask]){
+  const scaleX=surface.width/900,scaleY=surface.height/1200;
+  const p={x:center.x*scaleX,y:center.y*scaleY},r=radius*Math.max(scaleX,scaleY),padding=r*.6+3;
+  const left=Math.max(0,Math.floor(p.x-r-padding)),top=Math.max(0,Math.floor(p.y-r-padding));
+  const right=Math.min(surface.width,Math.ceil(p.x+r+padding)),bottom=Math.min(surface.height,Math.ceil(p.y+r+padding));
+  if(right<=left||bottom<=top)continue;const width=right-left,height=bottom-top;
+  const ctx=surface.getContext('2d',{willReadFrequently:true}),original=ctx.getImageData(left,top,width,height);
+  const pixels=deformPatch(original.data,width,height,left,top,p.x,p.y,r,delta.x*scaleX,delta.y*scaleY,mode,strength);
+  ctx.putImageData(new ImageData(pixels,width,height),left,top);changed=true;
+ }
+ return changed;
 }
