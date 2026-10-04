@@ -17,13 +17,13 @@ export function deformPatch(input,width,height,originX,originY,centerX,centerY,r
  }
  return out;
 }
-export function liquifyCanvas(target,mask,center,radius,delta,mode,strength){
+export function liquifyCanvas(target,mask,center,radius,delta,mode,strength,frame=null){
  // Pointer coordinates stay in the 900 x 1200 workspace. Deform each surface
  // at its own resolution so full-resolution portrait pixels survive editing.
  let changed=false;
  for(const surface of [target,mask]){
-  const scaleX=surface.width/900,scaleY=surface.height/1200;
-  const p={x:center.x*scaleX,y:center.y*scaleY},r=radius*Math.max(scaleX,scaleY),padding=r*.6+3;
+  const scaleX=surface.width/(frame?.w||900),scaleY=surface.height/(frame?.h||1200);
+  const p={x:(center.x-(frame?.x||0))*scaleX,y:(center.y-(frame?.y||0))*scaleY},r=radius*Math.max(scaleX,scaleY),padding=r*.6+3;
   const left=Math.max(0,Math.floor(p.x-r-padding)),top=Math.max(0,Math.floor(p.y-r-padding));
   const right=Math.min(surface.width,Math.ceil(p.x+r+padding)),bottom=Math.min(surface.height,Math.ceil(p.y+r+padding));
   if(right<=left||bottom<=top)continue;const width=right-left,height=bottom-top;

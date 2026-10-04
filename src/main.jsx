@@ -934,6 +934,14 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // V199 AI NECK: draw only the coherent AI-generated anatomy layer. The old
   // Canvas extension is intentionally not rendered, preventing duplicated,
   // stretched or mottled synthetic neck skin.
+  // Studio stores native cleaned master pixels plus placement metadata. No
+  // intermediate placed/resized portrait is used as its source layer.
+  if(studioLayers?.headOnly&&rotation===0){
+   const master=canvasFor(cleanHead.width||cleanHead.naturalWidth,cleanHead.height||cleanHead.naturalHeight);
+   master.getContext('2d').drawImage(cleanHead,0,0);
+   studioLayers.push({name:'หัว · คอ · ผม',source:master.toDataURL('image/png'),sourceFrame:{x:(centerX-drawW/2)/lock.W*900,y:(centerY-drawH/2)/lock.H*1200,w:drawW/lock.W*900,h:drawH/lock.H*1200}});
+   return studioLayers;
+  }
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
