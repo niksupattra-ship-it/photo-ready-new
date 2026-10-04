@@ -751,7 +751,8 @@ async function optionalHealthySkin10(masterBlob,sourceBlob){
   // per-pixel shadow/highlight protection and original high-frequency texture.
   const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
   const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile);
-  return await canvasPng(tinted);
+  // One restrained texture pass per new AI master; reuse its skin mask.
+  return await refineSkinTextureBlob(await canvasPng(tinted),skinMask);
  }catch(e){console.warn('V231 automatic skin enhancement skipped',e);return masterBlob}
  finally{URL.revokeObjectURL(url)}
 }
@@ -1646,11 +1647,11 @@ async function restoreOriginalFacePixels(processedBlob,originalFile){
 // V207: one coherent image layer, with a restrained local unsharp-mask only on
 // segmented skin. It clarifies real pore texture without pasting another face,
 // reshaping landmarks, whitening skin or touching hair/background/clothing.
-async function refineSkinTextureBlob(blob){
+async function refineSkinTextureBlob(blob,skinMask=null){
  const url=URL.createObjectURL(blob);
  try{
   const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
-  const skin=await semanticClassMask(image,W,H,[2,3]);
+  const skin=skinMask||await semanticClassMask(image,W,H,[2,3]);
   if(!skin)return blob;
   const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(image,0,0);
   const blur=canvasFor(W,H),ux=blur.getContext('2d',{willReadFrequently:true});ux.filter=`blur(${Math.max(.7,Math.min(1.4,W*.0011))}px)`;ux.drawImage(image,0,0);ux.filter='none';
@@ -1661,7 +1662,8 @@ async function refineSkinTextureBlob(blob){
    for(let c=0;c<3;c++)out.data[j+c]=Math.max(0,Math.min(255,Math.round(out.data[j+c]+(out.data[j+c]-soft[j+c])*amount)));
   }
   bx.putImageData(out,0,0);return await canvasPng(base);
- }finally{URL.revokeObjectURL(url)}
+ }catch(e){console.warn('Skin texture refinement skipped',e);return blob}
+ finally{URL.revokeObjectURL(url)}
 }
 
 async function responseError(response,fallback){
