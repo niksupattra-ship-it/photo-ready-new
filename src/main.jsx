@@ -83,7 +83,15 @@ async function getLandmarker(){
  })();
  return landmarkerPromise;
 }
-function loadImage(src){return new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src})}
+const staticImageCache=new Map();
+function loadImage(src){
+ // Cache decoded immutable app assets only. User photos/blob URLs remain fresh.
+ const reusable=typeof src==='string'&&src.startsWith('/assets/');
+ if(reusable&&staticImageCache.has(src)){const hit=staticImageCache.get(src);staticImageCache.delete(src);staticImageCache.set(src,hit);return hit}
+ const pending=new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src});
+ if(reusable){staticImageCache.set(src,pending);while(staticImageCache.size>12)staticImageCache.delete(staticImageCache.keys().next().value);pending.catch(()=>{if(staticImageCache.get(src)===pending)staticImageCache.delete(src)})}
+ return pending;
+}
 function interp(points,x){
  for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(x>=a.x&&x<=b.x){const t=(x-a.x)/Math.max(1,b.x-a.x);return a.y+(b.y-a.y)*t}}
  return null;
@@ -192,8 +200,7 @@ async function alphaBounds(img){
 }
 
 async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png'){
- const bg=await loadImage('/assets/background.jpg');
- const uniformImg=await loadImage(templatePath);
+ const [bg,uniformImg]=await Promise.all([loadImage('/assets/background.jpg'),loadImage(templatePath)]);
  const headURL=URL.createObjectURL(headBlob);
  try{
   const head=await loadImage(headURL), uniform=uniformImg;
@@ -880,7 +887,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
- const bg=await loadImage(backgroundPath),uniform=await loadImage(lock.templatePath||'/assets/uniform.png');
+ const [bg,uniform]=await Promise.all([loadImage(backgroundPath),loadImage(lock.templatePath||'/assets/uniform.png')]);
  let cache=editorPreparedCache.get(headMasterBlob);
  if(!cache){cache={};editorPreparedCache.set(headMasterBlob,cache)}
  const collarKey=`${lock.templatePath}|${collarWarp}|${collarHeight}`;
@@ -912,7 +919,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   x.clearRect(0,0,c.width,c.height);
   x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';
   x.setTransform(ratio,0,0,ratio,0,0);
-  const captureStudioLayer=name=>{if(!studioLayers)return;const layer=canvasFor(c.width,c.height);layer.getContext('2d').drawImage(c,0,0);studioLayers.push({name,source:layer.toDataURL('image/png')});x.clearRect(0,0,lock.W,lock.H)};
+  const captureStudioLayer=name=>{if(!studioLayers)return;if(studioLayers.headOnly&&name!=='หัว · คอ · ผม'){x.clearRect(0,0,lock.W,lock.H);return}const layer=canvasFor(c.width,c.height);layer.getContext('2d').drawImage(c,0,0);studioLayers.push({name,source:layer.toDataURL('image/png')});x.clearRect(0,0,lock.W,lock.H)};
   x.drawImage(bg,0,0,lock.W,lock.H);
   captureStudioLayer('พื้นหลัง');
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
@@ -932,6 +939,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   x.drawImage(cleanHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
   captureStudioLayer('หัว · คอ · ผม');
+  if(studioLayers?.headOnly)return studioLayers;
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
   captureStudioLayer('ชุด');
   // V180: collar insignia are a matched left/right pair anchored to each
@@ -2858,7 +2866,6 @@ function App(){
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
-  await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
   initialProcessedMasterRef.current=headNeckTransparent;
   editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
@@ -2891,7 +2898,7 @@ function App(){
   if(screen!=='studio'||studioData)return;
   let cancelled=false;setStudioBusy(true);
   (async()=>{try{
-   const uniform=await loadImage(activeUniformTemplate),bg=await loadImage('/assets/background.jpg'),ub=await alphaBounds(uniform),W=bg.naturalWidth,H=bg.naturalHeight;
+   const [uniform,bg]=await Promise.all([loadImage(activeUniformTemplate),loadImage('/assets/background.jpg')]);const ub=await alphaBounds(uniform),W=bg.naturalWidth,H=bg.naturalHeight;
    const uc=canvasFor(uniform.naturalWidth,uniform.naturalHeight),ux=uc.getContext('2d',{willReadFrequently:true});ux.drawImage(uniform,0,0);const ud=ux.getImageData(0,0,uc.width,uc.height).data;
    const cx0=Math.floor(uc.width*.46),cx1=Math.ceil(uc.width*.54);let socketY=ub.t;
    outer:for(let y=ub.t;y<=ub.b;y++){let opaque=0;for(let x=cx0;x<=cx1;x++)if(ud[(y*uc.width+x)*4+3]>48)opaque++;if(opaque>=(cx1-cx0+1)*.12){socketY=y;break outer}}
@@ -2903,9 +2910,11 @@ function App(){
   return()=>{cancelled=true};
  },[screen,activeUniformTemplate,studioData]);
  const processStudioPhoto=async(file,template,selectedHair='')=>{
+  // Overlap local asset downloads with the existing AI request, never submit AI twice.
+  void Promise.allSettled([loadImage(backgroundRef.current),loadImage(template)]);
   pick({target:{files:[file]}});
   const success=await goForStudio(file,template,selectedHair);if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
-  const layers=[],current=editCache.current;
+  const layers=[],current=editCache.current;layers.headOnly=true;
   await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
   const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.restrictedTrial=studioTrialRef.current;head.hairId=selectedHair;studioHairOriginRef.current=selectedHair;setHairId(selectedHair);hairResultCacheRef.current.set(selectedHair||'original',current.master);
   return {layer:head,placement:current.lock};
@@ -2913,7 +2922,7 @@ function App(){
  const changeStudioHair=async(id)=>{
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
   const ok=await changeHairForStudio(id);if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
-  const layers=[],current=editCache.current;
+  const layers=[],current=editCache.current;layers.headOnly=true;
   await renderAdjustedFinal(current.master,current.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
   const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.restrictedTrial=studioTrialRef.current;head.hairId=id;return {layer:head};
  };
