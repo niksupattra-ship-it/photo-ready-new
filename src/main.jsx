@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
 import'./style.css';
+import {StudioEditor} from './studio-editor.jsx';
 import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
 
@@ -875,7 +876,7 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
 }
 
 const editorPreparedCache=new WeakMap();
-async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}},preview=false,liveCanvas=null,collarHeight=0,chestPinPath=null,chestPinAdjust={x:0,y:0,scale:1}){
+async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}},preview=false,liveCanvas=null,collarHeight=0,chestPinPath=null,chestPinAdjust={x:0,y:0,scale:1},studioLayers=null){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
@@ -911,7 +912,9 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   x.clearRect(0,0,c.width,c.height);
   x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';
   x.setTransform(ratio,0,0,ratio,0,0);
+  const captureStudioLayer=name=>{if(!studioLayers)return;const layer=canvasFor(900,1200);layer.getContext('2d').drawImage(c,0,0,900,1200);studioLayers.push({name,source:layer.toDataURL('image/png')});x.clearRect(0,0,lock.W,lock.H)};
   x.drawImage(bg,0,0,lock.W,lock.H);
+  captureStudioLayer('พื้นหลัง');
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
   // V81-quality direct sampling: draw the untouched transparent master directly to
@@ -928,7 +931,9 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   x.rotate(rotation);
   x.drawImage(cleanHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
+  captureStudioLayer('หัว · คอ · ผม');
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
+  captureStudioLayer('ชุด');
   // V180: collar insignia are a matched left/right pair anchored to each
   // government-uniform template. Female pins sit on the upper lapels; male
   // pins sit on the inner standing collar. They never move with the head.
@@ -952,6 +957,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
     drawPin(rightPin,lock.uX+lock.uW*(.545+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }
   }
+  if(collarPinPair)captureStudioLayer('เข็มปกคอ');
   // V264: independent single chest insignia on the wearer's left breast (image right).
   if(chestPinPath){
    const chestPin=await loadImage(chestPinPath);
@@ -961,6 +967,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const cy=lock.uY+lock.uH*(.405+(chestPinAdjust.y||0));
    x.drawImage(chestPin,cx-w/2,cy-h/2,w,h);
   }
+  if(chestPinPath)captureStudioLayer('เข็มติดอก');
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
   // never baked into the AI head or moved with head adjustments.
   if(ribbonPath && (lock.templatePath==='/assets/uniform.png'||/\/government-uniforms\//.test(lock.templatePath||''))){
@@ -973,6 +980,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const topY=lock.uY+lock.uH*(.495+(ribbonAdjust.y||0));
    x.drawImage(ribbon,centerX-ribbonWidth/2,topY,ribbonWidth,ribbonHeight);
   }
+  if(studioLayers){if(ribbonPath)captureStudioLayer('แพรแถบ');return studioLayers;}
   if(preview&&liveCanvas){
    // Draw the completed frame in one operation; never encode during dragging.
    if(liveCanvas.__editorGeneration!==previewGeneration)return null;
@@ -2067,6 +2075,8 @@ function App(){
 `}</style><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button><header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">สร้างรูปติดบัตรได้ง่าย ๆ เลือกแพ็กเกจที่เหมาะกับคุณ</p></header><div className="package-pro-grid"><article className="package-card"><h3 className="package-name">แพ็กเกจ IDพร้อม</h3><div className="package-price">149 <small>บาท</small></div><ul className="package-features"><li><span className="package-feature-icon">▣</span><span className="package-feature-text"><strong>สร้างรูปติดบัตร</strong><span>1 รูป</span></span></li><li><span className="package-feature-icon">♧</span><span className="package-feature-text"><strong>เลือก/เปลี่ยนแบบชุด</strong><span>ไม่จำกัด</span></span></li><li><span className="package-feature-icon">◯</span><span className="package-feature-text"><strong>เปลี่ยนทรงผม</strong><span>2 ครั้ง</span></span></li><li><span className="package-feature-icon">↓</span><span className="package-feature-text"><strong>ดาวน์โหลดรูปที่สร้าง</strong><span>ไม่จำกัด</span></span></li></ul><button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'เลือกแพ็กเกจ 149 บาท ›'}</button></article><article className="package-card popular"><span className="package-badge">ยอดนิยม</span><h3 className="package-name">แพ็กเกจ IDพร้อม</h3><div className="package-price">199 <small>บาท</small></div><ul className="package-features"><li><span className="package-feature-icon">▣</span><span className="package-feature-text"><strong>สร้างรูปติดบัตร</strong><span>2 รูป</span></span></li><li><span className="package-feature-icon">♧</span><span className="package-feature-text"><strong>เลือก/เปลี่ยนแบบชุด</strong><span>ไม่จำกัด</span></span></li><li><span className="package-feature-icon">◯</span><span className="package-feature-text"><strong>เปลี่ยนทรงผม</strong><span>3 ครั้ง</span></span></li><li><span className="package-feature-icon">↓</span><span className="package-feature-text"><strong>ดาวน์โหลดรูปที่สร้าง</strong><span>ไม่จำกัด</span></span></li></ul><button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('199')}>{payBusy?'กำลังเปิด PromptPay…':'เลือกแพ็กเกจ 199 บาท ›'}</button></article></div>{payMsg&&<p className="credit-pay-msg">{payMsg}</p>}<div className="package-secure">ชำระเงินผ่าน Stripe • รองรับ PromptPay • สิทธิ์เพิ่มอัตโนมัติหลังยืนยันการชำระเงิน</div></section></div>}</>;
  const ContactUI=()=> <><button type="button" className="line-contact-button" onClick={()=>setLineContactOpen(true)} aria-label="ติดต่อแอดมินทาง LINE"><span className="line-contact-bubble">LINE</span><span className="line-contact-label">ติดต่อ</span></button>{lineContactOpen&&<div className="line-contact-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setLineContactOpen(false)}}><section className="line-contact-modal" role="dialog" aria-modal="true" aria-label="ติดต่อแอดมินทาง LINE"><button type="button" className="line-contact-close" onClick={()=>setLineContactOpen(false)} aria-label="ปิด">×</button><h2>ติดต่อแอดมิน</h2><p>สแกน QR Code เพื่อเพิ่มเพื่อนทาง LINE</p><img src="/assets/line-contact-qr.png" alt="QR Code ติดต่อ IDพร้อม ทาง LINE"/></section></div>}</>;
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
+ const[studioData,setStudioData]=useState(null),[studioBusy,setStudioBusy]=useState(false);
+ const studioDraftRef=useRef(null),studioOriginRef=useRef(null),studioHairOriginRef=useRef(null),studioTrialRef=useRef(false);
  const[photoGuideOpen,setPhotoGuideOpen]=useState(false);
  const[safetyBlocked,setSafetyBlocked]=useState(false);
  const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
@@ -2583,6 +2593,60 @@ function App(){
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
   finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
+ const changeHairForStudio=async id=>{
+  if(hairRequestRef.current||hairBusy||busy)return;
+  setHairId(id);
+  if(!editCache.current)return;
+  const firstUploadedPhoto=firstUploadedPhotoRef.current;
+  if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
+  // Re-run the SAME first-processing pipeline from the untouched uploaded File.
+  // Never send the previously AI-generated head or the completed uniform portrait
+  // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
+  const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg('กำลังสร้างทรงผมจากรูปต้นฉบับ…');
+  let completed=false;
+  try{
+   let nextMaster;
+   if(!id&&initialProcessedMasterRef.current&&!studioHairOriginRef.current){
+    // Return to the exact first processed result without a second paid API call.
+    nextMaster=initialProcessedMasterRef.current;
+    setProgressStage(78,'กำลังคืนภาพแรก');
+   }else{
+    const cached=hairResultCacheRef.current.get(id||'original');
+    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
+    else{
+     // Only the untouched first upload is submitted for the new hairstyle.
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
+     if(aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
+     setProgressStage(60,'กำลังแยกพื้นหลัง');
+     const transparent=await removeBackgroundBlob(aiHeadNeck);
+     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
+     nextMaster=await optionalHealthySkin10(transparent,firstUploadedPhoto);
+     // Match the female hairstyle pipeline: use one coherent AI output layer.
+     // Do not paste a second face over the new male hairline: the overlapping
+     // face stencil produced the visible forehead patch / mask-shaped seam.
+     hairResultCacheRef.current.set(id||'original',nextMaster);
+    }
+   }
+   setProgressStage(88,'กำลังประกอบกับชุดเดิม');
+   const current=editCache.current;
+   if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
+   const out=await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   // The old editor canvas may otherwise cover the newly generated PNG.
+   beginOptionRender();
+   editCache.current={...current,master:nextMaster};
+   liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
+   liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);liveCollarHeightRef.current=snap.collarHeight;setCollarHeight(snap.collarHeight);
+   liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
+   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
+   setHeadMasterPreview(URL.createObjectURL(nextMaster));
+   setHeadPreviewLock(current.lock);
+   setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
+  finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+  return completed;
+ };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
   if(!blob){setMsg('ยังไม่มีภาพทรงผมจาก AI ให้ตรวจ');return;}
@@ -2758,6 +2822,18 @@ function App(){
    setPhotoSizeBlob(out);
   }catch(e){suppressUiError(e,'เปิดเลือกขนาดรูปไม่สำเร็จ')}finally{setPhotoSizeBusy(false)}
  };
+ const openStudio=async()=>{
+  if(!editCache.current||studioBusy||busy||hairBusy||uniformChanging||downloadBusy)return;
+  if(trialPreview){setBuyOpen(true);setPayMsg('ชำระเงินเพื่อปลดล็อก Studio และดาวน์โหลดภาพ');return;}
+  const origin={master:editCache.current.master,key:JSON.stringify([editCache.current.lock,liveAdjustRef.current,liveCollarWarpRef.current,liveCollarHeightRef.current,liveNeckAdjustRef.current,backgroundRef.current,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,chestPinRef.current,chestPinAdjustRef.current,beautyRef.current])};
+  studioOriginRef.current=origin;
+  if(studioDraftRef.current?.master===origin.master&&studioDraftRef.current?.key===origin.key){setStudioData(studioDraftRef.current.layers);return;}
+  setStudioBusy(true);
+  try{const layers=[];await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},false,null,liveCollarHeightRef.current,chestPinRef.current,{...chestPinAdjustRef.current},layers);
+   for(const layer of layers.filter(l=>l.name==='หัว · คอ · ผม')){const blob=await (await fetch(layer.source)).blob();const adjusted=await applyLocalBeauty(blob,{...beautyRef.current});layer.source=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(adjusted)})}
+   setStudioData(layers);
+  }catch(e){suppressUiError(e,'เปิด Studio ไม่สำเร็จ')}finally{setStudioBusy(false)}
+ };
  const downloadCurrentFinal=async()=>{
   if(!editCache.current||downloadBusy||hairBusy||busy||photoSizeBusy)return;
   analyticsEvent('idprom_download_click',{is_trial:trialPreview});
@@ -2798,12 +2874,49 @@ function App(){
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
  }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await finishProgress(completed);setBusy(false)}};
+ const goForStudio=async(sourceFile,template,selectedHair)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
+  const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
+  const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
+  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template);analyticsStage='cleanup';
+  const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
+  if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await finishProgress(completed);setBusy(false)}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
   writeActiveAiJob(null);
   clearAiJobFile();
  },[]);
+ useEffect(()=>{
+  if(screen!=='studio'||studioData)return;
+  let cancelled=false;setStudioBusy(true);
+  (async()=>{try{
+   const uniform=await loadImage(activeUniformTemplate),bg=await loadImage('/assets/background.jpg'),ub=await alphaBounds(uniform),W=bg.naturalWidth,H=bg.naturalHeight;
+   const uc=canvasFor(uniform.naturalWidth,uniform.naturalHeight),ux=uc.getContext('2d',{willReadFrequently:true});ux.drawImage(uniform,0,0);const ud=ux.getImageData(0,0,uc.width,uc.height).data;
+   const cx0=Math.floor(uc.width*.46),cx1=Math.ceil(uc.width*.54);let socketY=ub.t;
+   outer:for(let y=ub.t;y<=ub.b;y++){let opaque=0;for(let x=cx0;x<=cx1;x++)if(ud[(y*uc.width+x)*4+3]>48)opaque++;if(opaque>=(cx1-cx0+1)*.12){socketY=y;break outer}}
+   const uScale=(W+4)/Math.max(1,ub.w),uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale,uX=-2-ub.l*uScale,uY=H*.425+socketY*(W*.94/uniform.naturalWidth)-socketY*uScale;
+   const placement={W,H,uX,uY,uW,uH,templatePath:activeUniformTemplate};
+   const background=canvasFor(900,1200),suit=canvasFor(900,1200);background.getContext('2d').drawImage(bg,0,0,900,1200);suit.getContext('2d').drawImage(uniform,uX/W*900,uY/H*1200,uW/W*900,uH/H*1200);
+   if(!cancelled){studioOriginRef.current={starter:true,placement};setStudioData([{name:'พื้นหลัง',source:background.toDataURL()},{name:'ชุด',kind:'suit',templatePath:activeUniformTemplate,source:suit.toDataURL()}])}
+  }catch(e){if(!cancelled)setMsg('เปิด Studio ไม่สำเร็จ กรุณาลองใหม่')}finally{if(!cancelled)setStudioBusy(false)}})();
+  return()=>{cancelled=true};
+ },[screen,activeUniformTemplate,studioData]);
+ const processStudioPhoto=async(file,template,selectedHair='')=>{
+  pick({target:{files:[file]}});
+  const success=await goForStudio(file,template,selectedHair);if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
+  const layers=[],current=editCache.current;
+  await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
+  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.restrictedTrial=studioTrialRef.current;head.hairId=selectedHair;studioHairOriginRef.current=selectedHair;setHairId(selectedHair);hairResultCacheRef.current.set(selectedHair||'original',current.master);
+  return {layer:head,placement:current.lock};
+ };
+ const changeStudioHair=async(id)=>{
+  if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
+  const ok=await changeHairForStudio(id);if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
+  const layers=[],current=editCache.current;
+  await renderAdjustedFinal(current.master,current.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
+  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.restrictedTrial=studioTrialRef.current;head.hairId=id;return {layer:head};
+ };
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
@@ -2823,7 +2936,7 @@ function App(){
   const governmentLevels=[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']];
   const maleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='male');
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
-  const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setScreen('process')};
+  const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setStudioData(null);setScreen('studio')};
   const homeCategories=[
    {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
    {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
@@ -2838,9 +2951,9 @@ function App(){
    if(item.cat==='government'){
     setUniformCategory('government');setGender(item.gender);setLevel(item.level||'operational');
     if(item.gender==='male')setSelectedInteriorTemplate(item.img&&item.id?.startsWith('interior')?INTERIOR_UNIFORMS.find(u=>u.id===item.id)?.img||INTERIOR_UNIFORMS[0].img:INTERIOR_UNIFORMS[0].img);
-    setSelectedStyle(item.name||item.title);setScreen('process');return
+    setSelectedStyle(item.name||item.title);setStudioData(null);setScreen('studio');return
    }
-   setUniformCategory(item.cat);setSelectedStyle(item.title);setScreen('process');
+   setUniformCategory(item.cat);setSelectedStyle(item.title);setStudioData(null);setScreen('studio');
   };
   return <main className="profile-home studio-home">
    <header className="studio-home-topbar"><div className="studio-home-brand"><img className="studio-brand-logo" src="/assets/id-phrom-logo.png" alt="IDพร้อม"/></div><div className="studio-top-actions"><CreditUI/><ContactUI/><button type="button" onClick={()=>setHomeInfoOpen(v=>!v)} aria-expanded={homeInfoOpen}>ⓘ <span>วิธีใช้งาน</span></button><span className="studio-pro">♛ PRO</span></div></header>
@@ -2851,17 +2964,19 @@ function App(){
    {homeFilter==='all'&&<section className="studio-featured"><div className="studio-featured-head"><div><h2>▣ &nbsp; ตัวอย่างยอดนิยม</h2><p>ตัวอย่างรูปที่ลูกค้าเลือกใช้มากที่สุด</p></div><div className="studio-featured-filter" role="group" aria-label="กรองตัวอย่าง">{[['all','ทั้งหมด'],['male','ผู้ชาย'],['female','ผู้หญิง']].map(([id,name])=><button type="button" key={id} className={homeShowGender===id?'active':''} onClick={()=>setHomeShowGender(id)}>{name}</button>)}</div></div><div className="studio-featured-list">{featured.filter(c=>homeShowGender==='all'||c.gender===homeShowGender).map((c,i)=><button type="button" key={c.id||i} className="studio-featured-item" onClick={()=>openFeatured(c)}><img src={c.img} alt={c.title} loading="lazy"/>{c.cat==='government'&&<strong>{c.title}</strong>}</button>)}</div></section>}
    {homeFilter!=='all'&&<section className="home-content studio-home-results">
     {homeFilter==='job'&&<section className="government-filter-panel job-gender-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดสมัครงานชาย</h2><div className="government-level-grid">{maleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='male'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><span className="selected-mark">✓</span></button>)}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดสมัครงานหญิง</h2><div className="government-level-grid">{femaleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='female'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><span className="selected-mark">✓</span></button>)}</div></section></section>}
-    {homeFilter==='government'&&<section className="government-filter-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดข้าราชการชาย</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0];return <button type="button" key={'male-'+id} className={gender==='male'&&level===id?'selected':''} onClick={()=>{setGender('male');setLevel(id);setSelectedInteriorTemplate(u.img);setUniformCategory('government');setSelectedStyle(n);setScreen('process')}}><img src={u.preview} alt={'ชุดข้าราชการชาย '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดข้าราชการหญิง</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===id)||FEMALE_GOVERNMENT_UNIFORMS[0];return <button type="button" key={'female-'+id} className={gender==='female'&&level===id?'selected':''} onClick={()=>{setGender('female');setLevel(id);setUniformCategory('government');setSelectedStyle(n);setScreen('process')}}><img src={u.preview} alt={'ชุดข้าราชการหญิง '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section></section>}
-    {homeFilter==='gown'&&<section className="government-filter-panel">{[['male','ชาย'],['female','หญิง']].map(([g,title])=><section key={g} className={'government-gender-section'+(g==='female'?' female-government-section':'')}><h2 className="government-section-title">{title}</h2><div className="government-level-grid">{GOWN_UNIFORMS.filter(item=>item.gender===g).map(item=><button type="button" key={item.id} className={selectedGownTemplate===item.template?'selected':''} onClick={()=>{commitUniformSelection(item);setScreen('process')}}><img src={item.img} alt={item.title}/><strong>สจล.</strong><span className="selected-mark">✓</span></button>)}</div></section>)}</section>}{homeFilter!=='government'&&homeFilter!=='job'&&homeFilter!=='gown'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
+    {homeFilter==='government'&&<section className="government-filter-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดข้าราชการชาย</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0];return <button type="button" key={'male-'+id} className={gender==='male'&&level===id?'selected':''} onClick={()=>{setGender('male');setLevel(id);setSelectedInteriorTemplate(u.img);setUniformCategory('government');setSelectedStyle(n);setStudioData(null);setScreen('studio')}}><img src={u.preview} alt={'ชุดข้าราชการชาย '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดข้าราชการหญิง</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===id)||FEMALE_GOVERNMENT_UNIFORMS[0];return <button type="button" key={'female-'+id} className={gender==='female'&&level===id?'selected':''} onClick={()=>{setGender('female');setLevel(id);setUniformCategory('government');setSelectedStyle(n);setStudioData(null);setScreen('studio')}}><img src={u.preview} alt={'ชุดข้าราชการหญิง '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section></section>}
+    {homeFilter==='gown'&&<section className="government-filter-panel">{[['male','ชาย'],['female','หญิง']].map(([g,title])=><section key={g} className={'government-gender-section'+(g==='female'?' female-government-section':'')}><h2 className="government-section-title">{title}</h2><div className="government-level-grid">{GOWN_UNIFORMS.filter(item=>item.gender===g).map(item=><button type="button" key={item.id} className={selectedGownTemplate===item.template?'selected':''} onClick={()=>{commitUniformSelection(item);setStudioData(null);setScreen('studio')}}><img src={item.img} alt={item.title}/><strong>สจล.</strong><span className="selected-mark">✓</span></button>)}</div></section>)}</section>}{homeFilter!=='government'&&homeFilter!=='job'&&homeFilter!=='gown'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
    </section>}
    {homeFilter==='all'&&<div className="studio-home-benefits">{[['✦','ใบหน้าเดิม 100%','ไม่เปลี่ยนโครงหน้า รักษารายละเอียดผิวเดิม'],['▣','คุณภาพสตูดิโอ','คมชัด ดูเป็นธรรมชาติ ไม่เป็นพลาสติก'],['◉','ปรับแต่งได้อิสระ','ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม'],['▧','ดาวน์โหลดความละเอียดสูง','ขนาด 900 × 1200 px ตรงกับตัวอย่าง 100%']].map(([icon,title,desc])=><div key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{desc}</small></div></div>)}</div>}
    </div>
   </main>;
  }
- function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div>{c.cat==='government'&&<strong>{c.title}</strong>}</div></button>)}</div></section>}
+ function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setStudioData(null);setScreen('studio')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div>{c.cat==='government'&&<strong>{c.title}</strong>}</div></button>)}</div></section>}
  const renderPreviewActions=(extraClass)=>( <div className={"preview-floating-actions "+extraClass}><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div> );
  const renderProcessActions=(desktop=false)=>(<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy||privateTrialChecking} onClick={go}>{busy?'กำลังประมวลผล…':privateTrialActive?'ประมวลผลรูป':rights.generationRemaining>0?'ประมวลผลรูป':'ทดลองประมวลผลฟรี'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="photo-size-trigger" disabled={photoSizeBusy||downloadBusy||hairBusy||busy||uniformChanging} onClick={openPhotoSize} aria-label="เลือกขนาดรูป" aria-haspopup="dialog"><span>{photoSizeBusy?'กำลังเตรียม…':PHOTO_SIZES.find(s=>s.id===photoCrop.sizeId)?.label||'ขนาดเดิม'}</span><span aria-hidden="true">⌄</span></button>}{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging||photoSizeBusy} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label>{desktop&&<button type="button" className="photo-guide-trigger desktop-photo-guide" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button>}</div>}</div>);
+ if(studioData)return <><StudioEditor trialUnlocked={!trialPreview&&!privateTrialActive&&rights.generationRemaining>0} onRequestUnlock={()=>{setPayMsg('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลดภาพที่สร้าง');setBuyOpen(true)}} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={HAIR_OPTIONS} onChangeHair={changeStudioHair} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} processing={busy||hairBusy} processProgress={processProgress} onClose={layers=>{studioDraftRef.current={...studioOriginRef.current,layers};setStudioData(null);setScreen('home')}}/>{buyOpen&&<div className="studio-payment-dialog"><CreditUI/></div>}</>;
+ if(screen==='studio')return <main className="idstudio studio-starting"><p>{studioBusy?'กำลังเปิด Studio…':msg}</p><button onClick={()=>setScreen('home')}>กลับหน้าหลัก</button></main>;
  return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}>{photoSizeBlob&&<PhotoSizeEditor blob={photoSizeBlob} value={photoCrop} trial={trialPreview} onClose={()=>setPhotoSizeBlob(null)} onApply={crop=>{setPhotoCrop(crop);setPhotoSizeBlob(null)}}/>}<header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{{government:'ข้าราชการ',job:'สมัครงาน',student:'นักศึกษา',gown:'ครุย'}[uniformCategory]||'สร้างรูป'}</h1></div><div className="editor-credit-actions"><CreditUI/><ContactUI/></div></header><div className="editor-mobile-actions">{renderProcessActions()}</div><div className="editor-mobile-help"><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button></div><section className="modern-flow">
   <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="แนะนำรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูปที่ถูกต้อง</button>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b&&renderPreviewActions('preview-desktop-actions')}<div className="editor-workspace"><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(trialPreview?" trial-preview-active":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/>{trialPreview&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}{renderPreviewActions('preview-mobile-actions')}{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className={"image-progress-card "+(processProgress.value>=100?'is-complete':processProgress.value>=90?'is-waiting':'is-processing')}><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{processProgress.value>=100?'100%':processProgress.value>=90?<><b className="image-progress-spinner" aria-hidden="true"/>กำลังทำงาน</>:`${Math.round(processProgress.value)}%`}</strong></div><div className="image-progress-track" aria-hidden="true"><i style={{width:`${processProgress.value}%`}}/></div><p className="image-progress-hint">{processProgress.value>=100?'ภาพพร้อมแล้ว':processProgress.value>=90?'ระบบยังประมวลผลอยู่ กรุณารออีกสักครู่และเปิดหน้านี้ไว้':'กำลังสร้างภาพให้คุณ กรุณาเปิดหน้านี้ไว้จนเสร็จ'}</p></div></div>}</div>{b&&<div className="desktop-workspace-caption"><span>เลื่อนล้อเมาส์เพื่อซูม · ลากพื้นที่ว่างเพื่อเลื่อน</span><output>{Math.round(previewZoom*100)}%</output></div>}</div>
    <div className="quick-config">
