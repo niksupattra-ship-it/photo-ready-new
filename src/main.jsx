@@ -2121,16 +2121,37 @@ function App(){
  const[uniformPickerTab,setUniformPickerTab]=useState('job');
  const[processProgress,setProcessProgress]=useState({active:false,value:0,label:''});
  const progressTimerRef=useRef(null);
+ const progressStartedAtRef=useRef(0);
+ const progressMessages=[
+  'กำลังเตรียมรูปภาพ...',
+  'กำลังวิเคราะห์ใบหน้าและทรงผม...',
+  'กำลังปรับทรงผมให้เข้ากับใบหน้า...',
+  'กำลังเก็บรายละเอียดเส้นผม...',
+  'กำลังปรับแสงและสีผิวให้เป็นธรรมชาติ...',
+  'กำลังเก็บรายละเอียดใบหน้า...',
+  'กำลังปรับคอให้สมดุล...',
+  'กำลังเก็บรายละเอียดภาพ...',
+  'กำลังลบพื้นหลัง...',
+  'กำลังเตรียมภาพขั้นสุดท้าย...',
+  'กำลังตรวจสอบรายละเอียด...',
+  'กำลังเตรียมภาพสำหรับใช้งาน...'
+ ];
  const beginProgress=label=>{
   clearInterval(progressTimerRef.current);
-  setProcessProgress({active:true,value:3,label});
+  progressStartedAtRef.current=Date.now();
+  setProcessProgress({active:true,value:3,label:label||progressMessages[0]});
   progressTimerRef.current=setInterval(()=>setProcessProgress(current=>{
-   if(!current.active||current.value>=94)return current;
-   const step=current.value<45?2:current.value<75?1:.4;
-   return {...current,value:Math.min(94,current.value+step)};
-  }),350);
+   if(!current.active||current.value>=100)return current;
+   const elapsed=Math.max(0,Date.now()-progressStartedAtRef.current);
+   const messageIndex=Math.floor(elapsed/5000);
+   const nextLabel=progressMessages[Math.min(messageIndex,progressMessages.length-1)];
+   // Smooth display-only progress. Never reach 100 until the real job is complete.
+   const target=Math.min(95,3+Math.floor(elapsed/700));
+   const nextValue=Math.min(95,Math.max(Math.round(current.value),target));
+   return {...current,value:nextValue,label:nextLabel};
+  }),500);
  };
- const setProgressStage=(value,label)=>setProcessProgress(current=>({active:true,value:Math.max(current.value,value),label}));
+ const setProgressStage=(value,label)=>setProcessProgress(current=>({active:true,value:Math.min(95,Math.max(Math.round(current.value),Math.round(value))),label:label||current.label}));
  const finishProgress=async success=>{
   clearInterval(progressTimerRef.current);
   progressTimerRef.current=null;
