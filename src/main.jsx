@@ -2,26 +2,6 @@ import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
 import'./style.css';
-import {StudioEditor} from './studio-editor.jsx';
-import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
-import{PHOTO_SIZES,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
-
-const WALLET_KEY='idprom_wallet_id';
-function currentWalletId(){try{return localStorage.getItem(WALLET_KEY)||''}catch{return ''}}
-const PRIVATE_TRIAL_KEY='idprom-private-trial-active';
-function privateTrialRequested(){try{return localStorage.getItem(PRIVATE_TRIAL_KEY)==='1'}catch{return false}}
-function walletHeaders(){const id=currentWalletId();return {...(id?{'X-Wallet-Id':id}:{}),...(privateTrialRequested()?{'X-IDPROM-Private-Trial':'1'}:{})}}
-function updateCreditsFromResponse(response){const value=response.headers.get('X-Rights-Remaining');if(value){try{window.dispatchEvent(new CustomEvent('idprom-rights',{detail:JSON.parse(value)}))}catch{}}}
-
-const ACTIVE_AI_JOB_KEY='idprom-active-ai-job-v1';
-const AI_JOB_DB='idprom-ai-jobs-v1';
-function aiJobDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(AI_JOB_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-async function saveAiJobFile(file){const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(file,'original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
-async function loadAiJobFile(){const db=await aiJobDb();const file=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly');const req=tx.objectStore('files').get('original');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});db.close();return file}
-async function clearAiJobFile(){try{const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete('original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch{}}
-function readActiveAiJob(){try{return JSON.parse(localStorage.getItem(ACTIVE_AI_JOB_KEY)||'null')}catch{return null}}
-function writeActiveAiJob(value){if(value)localStorage.setItem(ACTIVE_AI_JOB_KEY,JSON.stringify(value));else localStorage.removeItem(ACTIVE_AI_JOB_KEY)}
-async function waitForAiJob(jobId,onStatus){for(;;){const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';return blob}await new Promise(resolve=>setTimeout(resolve,1800))}}
 
 let landmarkerPromise;
 let segmenterPromise;
@@ -83,15 +63,7 @@ async function getLandmarker(){
  })();
  return landmarkerPromise;
 }
-const staticImageCache=new Map();
-function loadImage(src){
- // Cache decoded immutable app assets only. User photos/blob URLs remain fresh.
- const reusable=typeof src==='string'&&src.startsWith('/assets/');
- if(reusable&&staticImageCache.has(src)){const hit=staticImageCache.get(src);staticImageCache.delete(src);staticImageCache.set(src,hit);return hit}
- const pending=new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src});
- if(reusable){staticImageCache.set(src,pending);while(staticImageCache.size>12)staticImageCache.delete(staticImageCache.keys().next().value);pending.catch(()=>{if(staticImageCache.get(src)===pending)staticImageCache.delete(src)})}
- return pending;
-}
+function loadImage(src){return new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src})}
 function interp(points,x){
  for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(x>=a.x&&x<=b.x){const t=(x-a.x)/Math.max(1,b.x-a.x);return a.y+(b.y-a.y)*t}}
  return null;
@@ -184,7 +156,6 @@ async function headOnly(blob){
   }
 
   ctx.putImageData(data,0,0);
-  if(liveCanvas)return c; // Display directly: no JPEG/PNG encoding while the pointer is moving.
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้าง PNG ไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(url)}
 }
@@ -200,7 +171,8 @@ async function alphaBounds(img){
 }
 
 async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png'){
- const [bg,uniformImg]=await Promise.all([loadImage('/assets/background.jpg'),loadImage(templatePath)]);
+ const bg=await loadImage('/assets/background.jpg');
+ const uniformImg=await loadImage(templatePath);
  const headURL=URL.createObjectURL(headBlob);
  try{
   const head=await loadImage(headURL), uniform=uniformImg;
@@ -290,9 +262,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   // V37 FINAL HEAD PROPORTION: after canonical face normalization and shoulder fitting,
   // reduce the final head block slightly so head/neck reads naturally against the fixed real uniform.
   // Uniform geometry is untouched; only the head layer scale changes, uniformly in X/Y.
-  // V228: return to V226's original placement; proportion is handled when
-  // the AI creates the hair and neck, not by shrinking the finished layer.
-  const v37FinalHeadScale=1.35; // Larger initial head; retain the selected template collar anchor.
+  const v37FinalHeadScale=0.80; // V38: reduce the FINAL placed head uniformly by an additional 20% vs V37
   let scale=canonicalScale*corrected*v37FinalHeadScale*(adjust.scale||1);
   scale=Math.max(.25,Math.min(4.0,scale));
 
@@ -300,9 +270,26 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const faceCX=((L.x+R.x)/2)*head.naturalWidth;
   const chinX=chin.x*head.naturalWidth, chinY=chin.y*head.naturalHeight;
 
-  // Initial placement: anchor the detected chin at the vertical midpoint.
-  // Keep the existing head scale, horizontal anchor and all user adjustments.
-  const chinTargetY=H*.50;
+  // สร้างคอใหม่ทั้งหมดภายหลัง: ตำแหน่งคางถูกกำหนดจากชุด ไม่ใช่คอ/ระยะต้นฉบับ
+  // ช่องคอสั้นปานกลาง ลดปัญหาคอยาวและใบหน้าลอย
+  // V12 FIXED NECK SOCKET: visible neck is derived from normalized head, not source neck or source crop.
+  // Hard limits prevent long/thin necks. For this template the chin sits only a short anatomical gap above collar.
+  // V13 COLLAR-GAP LOCK: move the normalized head down so AI never has a tall empty neck area.
+  // Keep only a very small anatomical bridge between chin and the real collar edge.
+  // This is intentionally template-relative and independent of the source photo/crop.
+  // V14: ระยะคอคำนวณจากช่องคอกลางจริง ไม่ใช่ยอดปกเสื้อ
+  // จำกัดให้เป็นคอสั้นสมส่วน และ normalize เหมือนกันทุก input โดยไม่สนขนาด/ระยะภาพต้นฉบับ
+  // V15 CHIN ANCHOR: scaling must NOT pull the head upward. Keep the final chin close to the
+  // real center collar socket, leaving only a small bridge for AI. Gap is proportional to final face scale.
+  const finalFaceW=sourceFaceW*scale;
+  // V16 HEAD+NECK PRE-PLACEMENT: ยกก้อนหัว/คอขึ้นก่อน โดยยังไม่เปลี่ยน scale
+  // ต้องเหลือช่องว่างที่มองเห็นได้ระหว่างใต้คางกับขอบช่องคอของชุด เพื่อไม่ให้ปกเสื้อชนคาง
+  // ระยะนี้อิง canvas/template ไม่อิง crop หรือคอจากภาพต้นฉบับ
+  const targetNeckVisible=Math.max(H*.022,Math.min(H*.032,finalFaceW*.10));
+  // V17: ยกก้อนหัวขึ้นอีกเล็กน้อยจากตำแหน่ง V16 หลังจากขยายหัวแล้ว
+  // offset อิงความสูง canvas/template เพื่อให้ทุก input ได้ตำแหน่งเดียวกัน
+  const v17Lift=H*.05;
+  const chinTargetY=collarSocketY-targetNeckVisible-v17Lift;
   const hX=collarCX-faceCX*scale + (adjust.x||0)*W;
   const hY=chinTargetY-chinY*scale + (adjust.y||0)*H;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
@@ -449,11 +436,11 @@ async function makePlacedHeadNeckLayer(personBlob,lock){
  }finally{URL.revokeObjectURL(url)}
 }
 
-async function warpUniformCollar(uniform,amount=0,heightAmount=0){
+async function warpUniformCollar(uniform,amount=0){
  // V53: deterministic inverse-mapped collar warp.
  // Rebuild the collar ROI from the ORIGINAL template pixels instead of drawing shifted tiles
  // over the untouched collar. This removes the duplicated lower collar/neck edge.
- if(Math.abs(amount)<.001&&Math.abs(heightAmount)<.001)return uniform;
+ if(Math.abs(amount)<.001)return uniform;
  const W=uniform.naturalWidth,H=uniform.naturalHeight;
  const src=document.createElement('canvas');src.width=W;src.height=H;
  const sx=src.getContext('2d',{willReadFrequently:true});sx.drawImage(uniform,0,0);
@@ -475,15 +462,6 @@ async function warpUniformCollar(uniform,amount=0,heightAmount=0){
   const xFall=Math.pow(Math.max(0,1-Math.abs(xn)),1.8);
   return Math.sign(xn||1)*amount*W*.075*xFall*yFall;
  };
- // Height control shares the same inverse-mapped collar ROI as the width control.
- // The displacement fades to zero at every ROI edge so the untouched template joins
- // without a visible seam. Positive values shorten the collar vertically.
- const verticalDisplacement=(absX,absY)=>{
-  const yn=Math.max(0,Math.min(1,(absY-roiT)/(roiB-roiT)));
-  const xn=Math.max(0,Math.min(1,(absX-roiL)/(roiR-roiL)));
-  const fall=Math.pow(Math.sin(Math.PI*yn),2)*Math.pow(Math.sin(Math.PI*xn),.8);
-  return heightAmount*H*.065*fall;
- };
  const sample=(fx,fy,di)=>{
   fx=Math.max(0,Math.min(rw-1,fx)); fy=Math.max(0,Math.min(rh-1,fy));
   const x0=Math.floor(fx), y0=Math.floor(fy), x1=Math.min(rw-1,x0+1), y1=Math.min(rh-1,y0+1);
@@ -504,9 +482,7 @@ async function warpUniformCollar(uniform,amount=0,heightAmount=0){
    // are deterministic and prevent source pixels from remaining underneath moved pixels.
    let srcX=absX;
    for(let k=0;k<5;k++) srcX=absX-displacement(srcX,absY);
-   let srcY=absY;
-   for(let k=0;k<5;k++) srcY=absY-verticalDisplacement(srcX,srcY);
-   sample(srcX-roiL,srcY-roiT,(yy*rw+xx)*4);
+   sample(srcX-roiL,yy,(yy*rw+xx)*4);
   }
  }
 
@@ -608,155 +584,14 @@ async function getV192MasterMasks(blob,image){
  if(!pending){
   const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
   pending=(async()=>{
-   // One segmentation pass for all three masks; cache per full-resolution master.
-   // Resample labels only, never the source portrait pixels.
-   let categoryMask;
-   try{
-    const seg=await getPersonSegmenter();
-    const result=await new Promise((ok,bad)=>{try{seg.segment(image,ok)}catch(e){bad(e)}});
-    categoryMask=result?.categoryMask;
-    if(!categoryMask)return {skinMask:null,hairMask:null,clothingMask:null};
-    const mw=categoryMask.width||256,mh=categoryMask.height||256,cat=categoryMask.getAsUint8Array();
-    const makeMask=classes=>{
-     const wanted=new Set(classes),small=canvasFor(mw,mh),sc=small.getContext('2d'),pixels=sc.createImageData(mw,mh);
-     for(let i=0;i<cat.length;i++){const j=i*4;pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=255;pixels.data[j+3]=wanted.has(cat[i])?255:0}
-     sc.putImageData(pixels,0,0);
-     const out=canvasFor(W,H),oc=out.getContext('2d');oc.imageSmoothingEnabled=false;oc.drawImage(small,0,0,W,H);return out;
-    };
-    return {skinMask:makeMask([2,3]),hairMask:makeMask([1]),clothingMask:makeMask([4])};
-   }catch{return {skinMask:null,hairMask:null,clothingMask:null}}
-   finally{categoryMask?.close?.()}
-
+   const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
+   const hairMask=await semanticClassMask(image,W,H,[1]).catch(()=>null);
+   return {skinMask,hairMask};
   })();
   v192MasterMaskCache.set(blob,pending);
  }
  return pending;
 }
-// V211: a very light (10%) skin-only low-frequency blend. The original
-// photograph supplies 90% of every pixel, retaining real pores and identity.
-// Hair, eye/lip detail, clothes and alpha are never softened.
-async function gentlyEvenSkin(image,skinMask){
- if(!skinMask)return image;
- const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- const blur=canvasFor(W,H),bc=blur.getContext('2d');
- bc.filter=`blur(${Math.max(1,Math.min(2,W*.0015))}px)`;
- bc.drawImage(image,0,0,W,H);bc.filter='none';
- const c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});
- x.drawImage(image,0,0,W,H);
- const orig=x.getImageData(0,0,W,H),d=orig.data;
- const bd=bc.getImageData(0,0,W,H).data;
- const md=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
- for(let i=0;i<d.length;i+=4){
-  if(d[i+3]<240||md[i+3]<220)continue;
-  // Do not smooth sharp features or high-contrast skin edges.
-  const delta=Math.max(Math.abs(d[i]-bd[i]),Math.abs(d[i+1]-bd[i+1]),Math.abs(d[i+2]-bd[i+2]));
-  if(delta>18)continue;
-  for(let k=0;k<3;k++)d[i+k]=Math.round(d[i+k]*.90+bd[i+k]*.10);
- }
- x.putImageData(orig,0,0);return c;
-}
-
-// V212: localized, low-strength tonal tint on the existing RGB pixels only.
-// No AI face regeneration, landmark movement, blur or flat-color skin replacement.
-async function gentlyWarmCheeksAndLips(image,skinMask,sourceProfile=null){
- if(!skinMask)return image;
- const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- let landmarks;
- try{landmarks=(await getLandmarker()).detect(image).faceLandmarks?.[0]}catch{return image}
- if(!landmarks)return image;
- const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,W,H);
- const data=ctx.getImageData(0,0,W,H),d=data.data;
- const m=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
- const a=landmarks[234],b=landmarks[454],top=landmarks[10],chin=landmarks[152];
- if(!a||!b||!top||!chin)return image;
- const fw=Math.abs(b.x-a.x)*W,fh=Math.abs(chin.y-top.y)*H;
- if(fw<20||fh<20)return image;
- const cheeks=[landmarks[117],landmarks[346]].filter(Boolean).map(v=>[v.x*W,v.y*H,fw*.16,fh*.105]);
- const lip=landmarks[13]&&landmarks[14]&&landmarks[61]&&landmarks[291]?
-  [((landmarks[13].x+landmarks[14].x)/2)*W,((landmarks[13].y+landmarks[14].y)/2)*H,
-   Math.abs(landmarks[291].x-landmarks[61].x)*W*.55,fh*.045]:null;
- const gaussian=(x,y,shape)=>{const dx=(x-shape[0])/Math.max(1,shape[2]),dy=(y-shape[1])/Math.max(1,shape[3]);return Math.exp(-2.6*(dx*dx+dy*dy))};
- const x0=Math.max(0,Math.floor(Math.min(...cheeks.map(v=>v[0]-v[2]*2),lip?lip[0]-lip[2]*2:W)));
- const x1=Math.min(W,Math.ceil(Math.max(...cheeks.map(v=>v[0]+v[2]*2),lip?lip[0]+lip[2]*2:0)));
- const y0=Math.max(0,Math.floor(Math.min(...cheeks.map(v=>v[1]-v[3]*2),lip?lip[1]-lip[3]*2:H)));
- const y1=Math.min(H,Math.ceil(Math.max(...cheeks.map(v=>v[1]+v[3]*2),lip?lip[1]+lip[3]*2:0)));
- for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-  const j=(y*W+x)*4;if(d[j+3]<245)continue;
-  const blush=Math.min(1,cheeks.reduce((v,q)=>v+gaussian(x,y,q),0));
-  const lipTint=lip?gaussian(x,y,lip):0;
-  // 10% is a ceiling on a subtle color correction, NOT 10% solid pink paint.
-  const r=d[j],g=d[j+1],b=d[j+2];
-  // A 10% blend toward a mild healthy rosy tone; no blur, no replacement
-  // texture, no change in geometry. Apply lip tint only on naturally reddish
-  // lip pixels, not on the surrounding chin or face.
-  const actualLip=(r>g*1.045&&r>b*1.025)?lipTint:0;
-  // Cheeks require the skin segmentation. Lips are frequently labeled as
-  // "other" by MediaPipe, so use the landmark-defined lip region instead.
-  const cheekStrength=(m[j+3]/255)*blush;
-  const naturalRosiness=Math.max(0,Math.min(1,(r-g-4)/35));
-  const sourceRosiness=sourceProfile?.rosiness??naturalRosiness;
-  const tintNeed=Math.max(.20,1-Math.max(naturalRosiness,sourceRosiness)*.60);
-  const w=.10*Math.min(1,cheekStrength*.85+actualLip*.75)*tintNeed;
-  if(w<.001)continue;
-  // Add color to the existing RGB channels; never flatten or blur texture.
-  d[j]=Math.min(255,Math.round(r+w*38));
-  d[j+1]=Math.max(0,Math.round(g-w*12));
-  d[j+2]=Math.min(255,Math.round(b+w*8));
- }
- ctx.putImageData(data,0,0);return c;
-}
-
-// V226: measure the actual uploaded photograph before the AI edit, so the
-// automatic enhancement responds to each person's existing exposure/rosiness.
-// No source pixels are altered; if detection fails, use conservative defaults.
-async function originalSkinProfile(sourceBlob){
- if(!sourceBlob)return null;
- const url=URL.createObjectURL(sourceBlob);
- try{
-  const image=await loadImage(url),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
-  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
-  if(!face?.[117]||!face?.[346]||!face?.[234]||!face?.[454])return null;
-  const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,W,H);
-  const pixels=ctx.getImageData(0,0,W,H).data;
-  const fw=Math.abs(face[454].x-face[234].x)*W,radius=Math.max(2,Math.round(fw*.065));
-  let light=0,red=0,count=0;
-  for(const pt of [face[117],face[346]]){
-   const cx=Math.round(pt.x*W),cy=Math.round(pt.y*H);
-   for(let y=Math.max(0,cy-radius);y<Math.min(H,cy+radius);y+=3)
-    for(let x=Math.max(0,cx-radius);x<Math.min(W,cx+radius);x+=3){
-     if(((x-cx)**2+(y-cy)**2)>radius**2)continue;
-     const i=(y*W+x)*4;if(pixels[i+3]<240)continue;
-     light+=.2126*pixels[i]+.7152*pixels[i+1]+.0722*pixels[i+2];
-     red+=Math.max(0,Math.min(1,(pixels[i]-pixels[i+1]-4)/35));count++;
-    }
-  }
-  return count?{luma:light/count,rosiness:red/count}:null;
- }catch{return null}finally{URL.revokeObjectURL(url)}
-}
-
-// Automatic V227 skin enhancement on the existing transparent AI portrait, not the
-// original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
-// bounded by original exposure and highlight protection; preserve pores.
-async function optionalHealthySkin10(masterBlob,sourceBlob){
- const url=URL.createObjectURL(masterBlob);
- try{
-  const image=await loadImage(url),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
-  const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
-  if(!skinMask)return masterBlob;
-  const profile=await originalSkinProfile(sourceBlob);
-  // Darker source photographs receive the full extra lift. Already-bright
-  // photographs receive less, preventing blown-out skin and lost pore detail.
-  const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
-  // V231: modest extra studio fill, adapting to original exposure; keep the
-  // per-pixel shadow/highlight protection and original high-frequency texture.
-  const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
-  const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile);
-  // One restrained texture pass per new AI master; reuse its skin mask.
-  return await refineSkinTextureBlob(await canvasPng(tinted),skinMask);
- }catch(e){console.warn('V231 automatic skin enhancement skipped',e);return masterBlob}
- finally{URL.revokeObjectURL(url)}
-}
-
 async function applySkinBrightness(image,factor=null,skinMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  if(!skinMask)try{skinMask=await semanticClassMask(image,W,H,[2,3])}catch{return image}
@@ -793,7 +628,7 @@ async function applySkinBrightness(image,factor=null,skinMask=null){
 // V163: retain a longer, softly feathered strip of the photographed neck below
 // the jaw. The smoothstep fade removes the horizontal join without repainting
 // face pixels or introducing a flat sampled skin colour.
-function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanticSkinMask=null,semanticClothingMask=null){
+function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanticSkinMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
@@ -807,15 +642,11 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
  const skinSoft=canvasFor(W,H),ssc=skinSoft.getContext('2d');
  if(semanticSkinMask){ssc.filter=`blur(${Math.max(2,Math.min(6,W*.004))}px)`;ssc.drawImage(expandedSkin,0,0);ssc.filter='none'}
  const semanticSkin=semanticSkinMask?ssc.getImageData(0,0,W,H).data:null;
- const clothing=semanticClothingMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
  const start=Math.max(0,Math.floor(chinY-H*.012));
  // V199: retain the real AI-generated neck and clavicle field. Canvas only
  // feathers its outer alpha; it never synthesizes, stretches or repaints skin.
- // V233: retain 20% more of the actual generated lower-neck pixels so the
- // open-collar V is filled with skin rather than fading to white/background.
- // Never invent or stretch pixels: this only preserves AI-generated anatomy.
- const solidEnd=Math.min(H,Math.ceil(chinY+H*.64*1.20));
- const fadeEnd=Math.min(H,Math.ceil(chinY+H*.78*1.20));
+ const solidEnd=Math.min(H,Math.ceil(chinY+H*.64));
+ const fadeEnd=Math.min(H,Math.ceil(chinY+H*.78));
  const hairSolidEnd=Math.min(H,Math.ceil(chinY+H*.29));
  const hairFadeEnd=Math.min(H,Math.ceil(chinY+H*.46));
  for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
@@ -827,31 +658,39 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
   // heuristic misread black shirts as hair and kept a duplicate torso layer.
   const hair=yy<hairFadeEnd&&dist<W*.38&&segmentedHair;
   const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
-  // Neck/half-shoulder repair: do not pinch the neck into a narrow central
-  // strip. Keep the AI's real neck and skin up to the midpoint of each
-  // shoulder, then taper only the covered lower margin behind the uniform.
-  // The old .190 -> .130 half-width cut away both sides of the neck and
-  // exposed a blue V at the standing collar. Never manufacture skin pixels.
-  const smoothstep=t=>{const q=Math.max(0,Math.min(1,t));return q*q*(3-2*q)};
+  // V200: preserve the jaw first, taper into the middle neck, then open into
+  // complete clavicles, upper shoulders and upper chest like the reference.
+  // The previous monotonic corridor started too narrow and cut all of this off.
   let anatomical;
-  if(neckProgress<.12){
-   anatomical=W*(.245+.025*smoothstep(neckProgress/.12));
-  }else if(neckProgress<.36){
-   anatomical=W*(.270+.090*smoothstep((neckProgress-.12)/.24));
+  if(neckProgress<.10){
+   const q=neckProgress/.10,eased=q*q*(3-2*q);
+   anatomical=W*(.190-(.015*eased));
+  }else if(neckProgress<.35){
+   const q=(neckProgress-.10)/.25,eased=q*q*(3-2*q);
+   anatomical=W*(.175+.165*eased);
   }else{
-   anatomical=W*(.360-.075*smoothstep((neckProgress-.36)/.64));
+   const q=(neckProgress-.35)/.65,eased=q*q*(3-2*q);
+   anatomical=W*(.340+.120*eased);
   }
-  // Only soften the outer silhouette, never the central skin/neck bridge.
-  const sideFeather=Math.max(3,W*.010);
+  const sideFeather=Math.max(3,W*.008);
   const sideAlpha=Math.max(0,Math.min(1,(anatomical-dist)/sideFeather));
   // V203: the MODNet master alpha already identifies the generated person.
   // Do not intersect this mandatory neck/shoulder field with the low-resolution
   // semantic skin mask: that intersection caused the blue bites on both sides.
-  const neck=yy<=fadeEnd&&(sideAlpha>0||(semanticSkin&&skinAlpha>.5&&dist<W*.38));
-  // V211: NEVER erase pixels inside the anatomical neck to clear hair.
-  // Hair segmentation sometimes labels shadowed neck as hair; the old clearing
-  // branch punched transparent holes that revealed the blue background.
-  // The template covers the lower margin; keep the continuous AI skin here.
+  const neck=yy<=fadeEnd&&sideAlpha>0;
+  // V192: deterministic neck-skin clearance. Remove positively segmented hair
+  // from the central anatomical neck corridor. The photographed neck extension
+  // below this layer fills the opening; long side hair remains naturally tapered.
+  // A stray hair classification must never punch a hole through confirmed neck skin.
+  if(segmentedHair&&skinAlpha<.45&&yy>chinY+H*.006){
+   const p=Math.max(0,Math.min(1,(yy-chinY)/Math.max(1,H*.22)));
+   const clearHalf=W*(.112+.022*p),clearFeather=Math.max(3,W*.008);
+   if(dist<clearHalf){
+    const keep=Math.max(0,Math.min(1,(dist-(clearHalf-clearFeather))/clearFeather));
+    d[i+3]=Math.round(a*keep);
+    if(d[i+3]===0)continue;
+   }
+  }
   if(hair){
    if(yy<=hairSolidEnd)continue;
    const ht=Math.max(0,Math.min(1,(yy-hairSolidEnd)/Math.max(1,hairFadeEnd-hairSolidEnd)));
@@ -861,18 +700,10 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
    d[i+3]=Math.round(a*hairAlpha);
    if(d[i+3]>0)continue;
   }
-  // Remove positively classified shirt pixels, not all pixels missed by the
-  // low-resolution skin classifier. Expanded skin protects neckline edges.
-  // Face/jaw and confirmed hair were preserved above; RGB detail is untouched.
-  if(clothing && yy>chinY+H*.025 && clothing[i+3]>192 && skinAlpha<.08){
-   d[i+3]=0;continue;
-  }
-  // Keep the existing anatomical envelope and remove pixels outside it.
-  // Clothing removal above is conservative to protect real neckline edges.
-  if(!neck){d[i+3]=0;continue}
-  // Keep original MODNet opacity throughout the required neck fill. Semantic
-  // skin classification is advisory, never allowed to cut away neck pixels.
-  let alpha=semanticSkin&&skinAlpha>.5&&dist<W*.38?Math.max(sideAlpha,skinAlpha):sideAlpha;
+  // Keep only skin or confirmed hair below the jaw. Any AI-created shirt,
+  // collar and lower torso are removed before the real template is applied.
+  if(!neck||(!segmentedHair&&skinAlpha<.10)){d[i+3]=0;continue}
+  let alpha=sideAlpha*Math.min(1,skinAlpha*1.35);
   if(yy>solidEnd){
    const t=Math.max(0,Math.min(1,(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd)));
    const smooth=t*t*(3-2*t);
@@ -883,46 +714,24 @@ function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanti
  x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
 }
 
-const editorPreparedCache=new WeakMap();
-async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}},preview=false,liveCanvas=null,collarHeight=0,chestPinPath=null,chestPinAdjust={x:0,y:0,scale:1},studioLayers=null){
+async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}}){
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
- const [bg,uniform]=await Promise.all([loadImage(backgroundPath),loadImage(lock.templatePath||'/assets/uniform.png')]);
- let cache=editorPreparedCache.get(headMasterBlob);
- if(!cache){cache={};editorPreparedCache.set(headMasterBlob,cache)}
- const collarKey=`${lock.templatePath}|${collarWarp}|${collarHeight}`;
- if(cache.collarKey!==collarKey){cache.collarKey=collarKey;cache.uniformPromise=warpUniformCollar(uniform,collarWarp,collarHeight)}
- const warpedUniform=await cache.uniformPromise;
- const previewGeneration=preview&&liveCanvas?liveCanvas.__editorGeneration:null;
- const head=cache.head||(cache.head=await (async()=>{
-  const url=URL.createObjectURL(headMasterBlob);
-  try{return await loadImage(url)}finally{URL.revokeObjectURL(url)}
- })());
- {
-  const masterMasks=await (cache.masksPromise||(cache.masksPromise=getV192MasterMasks(headMasterBlob,head)));
-  const neckKey=`${lock.chinY}|${neckAdjust.width||0}|${neckAdjust.length||0}`;
-  if(cache.neckKey!==neckKey){cache.neckKey=neckKey;cache.neckPromise=warpPersonNeck(head,lock.chinY,neckAdjust);cache.cleanHead=null}
-  const neckHead=await cache.neckPromise;
+ const bg=await loadImage(backgroundPath),uniform=await loadImage(lock.templatePath||'/assets/uniform.png');
+ const warpedUniform=await warpUniformCollar(uniform,collarWarp);
+ const masterURL=URL.createObjectURL(headMasterBlob);
+ try{
+ const head=await loadImage(masterURL);
+  const masterMasks=await getV192MasterMasks(headMasterBlob,head);
+  const neckHead=await warpPersonNeck(head,lock.chinY,neckAdjust);
   // V201: lift only genuinely dark skin, capped at +12%. Correct exposure stays
   // unchanged; hair, uniform and background are never adjusted.
   // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
-  // V217: V116 skin fidelity. No post-AI skin brightening, smoothing or makeup.
-  // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
-  const cleanHead=cache.cleanHead||(cache.cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask,masterMasks.clothingMask));
-  // V231: compose offscreen. Resizing the visible canvas clears it on every slider tick.
- const c=preview&&liveCanvas?(cache.previewCanvas||(cache.previewCanvas=document.createElement('canvas'))):document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(320,Math.round(liveCanvas?.clientWidth||320)*Math.min(1.5,window.devicePixelRatio||1))/lock.W):1;const targetW=Math.round(lock.W*ratio),targetH=Math.round(lock.H*ratio);if(c.width!==targetW||c.height!==targetH){c.width=targetW;c.height=targetH}
-  // V299: a reused preview canvas retains its 2D transform between frames.
-  // Reset and clear it before drawing; otherwise each drag compounds scale()
-  // and paints progressively nested copies of the uniform/background.
-  const x=c.getContext('2d');
-  x.setTransform(1,0,0,1,0,0);
-  x.clearRect(0,0,c.width,c.height);
-  x.imageSmoothingEnabled=true;x.imageSmoothingQuality=preview?'medium':'high';
-  x.setTransform(ratio,0,0,ratio,0,0);
-  const captureStudioLayer=name=>{if(!studioLayers)return;if(studioLayers.headOnly&&name!=='หัว · คอ · ผม'){x.clearRect(0,0,lock.W,lock.H);return}const layer=canvasFor(c.width,c.height);layer.getContext('2d').drawImage(c,0,0);studioLayers.push({name,source:layer.toDataURL('image/png')});x.clearRect(0,0,lock.W,lock.H)};
-  x.drawImage(bg,0,0,lock.W,lock.H);
-  captureStudioLayer('พื้นหลัง');
+  const skinBalancedHead=await applySkinBrightness(neckHead,1.20,masterMasks.skinMask);
+  const cleanHead=isolateHeadHairAndNeck(skinBalancedHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask);
+  const c=document.createElement('canvas');c.width=lock.W;c.height=lock.H;
+  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(bg,0,0,lock.W,lock.H);
   const s=adjust.scale||1, dx=(adjust.x||0)*lock.W, dy=(adjust.y||0)*lock.H, rotation=(adjust.rotation||0)*Math.PI/180;
   // Combine normalization + user adjustment and sample 02 -> final canvas exactly once.
   // V81-quality direct sampling: draw the untouched transparent master directly to
@@ -934,38 +743,26 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // V199 AI NECK: draw only the coherent AI-generated anatomy layer. The old
   // Canvas extension is intentionally not rendered, preventing duplicated,
   // stretched or mottled synthetic neck skin.
-  // Studio stores native cleaned master pixels plus placement metadata. No
-  // intermediate placed/resized portrait is used as its source layer.
-  if(studioLayers?.headOnly&&rotation===0){
-   const master=canvasFor(cleanHead.width||cleanHead.naturalWidth,cleanHead.height||cleanHead.naturalHeight);
-   master.getContext('2d').drawImage(cleanHead,0,0);
-   studioLayers.push({name:'หัว · คอ · ผม',source:master.toDataURL('image/png'),sourceFrame:{x:(centerX-drawW/2)/lock.W*900,y:(centerY-drawH/2)/lock.H*1200,w:drawW/lock.W*900,h:drawH/lock.H*1200}});
-   return studioLayers;
-  }
   x.save();
   x.translate(centerX,centerY);
   x.rotate(rotation);
   x.drawImage(cleanHead,-drawW/2,-drawH/2,drawW,drawH);
   x.restore();
-  captureStudioLayer('หัว · คอ · ผม');
-  if(studioLayers?.headOnly)return studioLayers;
   x.drawImage(warpedUniform,lock.uX,lock.uY,lock.uW,lock.uH);
-  captureStudioLayer('ชุด');
   // V180: collar insignia are a matched left/right pair anchored to each
   // government-uniform template. Female pins sit on the upper lapels; male
   // pins sit on the inner standing collar. They never move with the head.
-  if(collarPinPair){
+  if(collarPinPair&&/\/government-uniforms\//.test(lock.templatePath||'')){
    const [leftPin,rightPin]=await Promise.all([loadImage(collarPinPair.left),loadImage(collarPinPair.right)]);
    const isFemale=/\/government-uniforms\/female-/.test(lock.templatePath||'');
-   const pinBoxW=lock.uW*(isFemale?.078:.068)*(collarPinAdjust.scale||1);
+   const pinBoxW=lock.uW*(isFemale?.078:.068);
    const drawPin=(pin,cx,cy)=>{
     const pinBoxH=pinBoxW*(pin.naturalHeight/pin.naturalWidth);
     x.drawImage(pin,cx-pinBoxW/2,cy-pinBoxH/2,pinBoxW,pinBoxH);
    };
    const leftOffset=collarPinAdjust.left||{x:0,y:0},rightOffset=collarPinAdjust.right||{x:0,y:0};
    if(isFemale){
-    // Place the initial pair slightly below the shoulder boards on female lapels.
-    const y=lock.uY+lock.uH*.28;
+    const y=lock.uY+lock.uH*.245;
     drawPin(leftPin,lock.uX+lock.uW*(.315+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
     drawPin(rightPin,lock.uX+lock.uW*(.685+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }else{
@@ -974,17 +771,6 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
     drawPin(rightPin,lock.uX+lock.uW*(.545+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }
   }
-  if(collarPinPair)captureStudioLayer('เข็มปกคอ');
-  // V264: independent single chest insignia on the wearer's left breast (image right).
-  if(chestPinPath){
-   const chestPin=await loadImage(chestPinPath);
-   const w=lock.uW*.073*(chestPinAdjust.scale||1);
-   const h=w*(chestPin.naturalHeight/chestPin.naturalWidth);
-   const cx=lock.uX+lock.uW*(.28+(chestPinAdjust.x||0));
-   const cy=lock.uY+lock.uH*(.405+(chestPinAdjust.y||0));
-   x.drawImage(chestPin,cx-w/2,cy-h/2,w,h);
-  }
-  if(chestPinPath)captureStudioLayer('เข็มติดอก');
   // V126: ribbon is an independent original PNG layer, anchored to the uniform,
   // never baked into the AI head or moved with head adjustments.
   if(ribbonPath && (lock.templatePath==='/assets/uniform.png'||/\/government-uniforms\//.test(lock.templatePath||''))){
@@ -997,16 +783,8 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const topY=lock.uY+lock.uH*(.495+(ribbonAdjust.y||0));
    x.drawImage(ribbon,centerX-ribbonWidth/2,topY,ribbonWidth,ribbonHeight);
   }
-  if(studioLayers){if(ribbonPath)captureStudioLayer('แพรแถบ');return studioLayers;}
-  if(preview&&liveCanvas){
-   // Draw the completed frame in one operation; never encode during dragging.
-   if(liveCanvas.__editorGeneration!==previewGeneration)return null;
-   if(liveCanvas.width!==c.width||liveCanvas.height!==c.height){liveCanvas.width=c.width;liveCanvas.height=c.height}
-   liveCanvas.getContext('2d').drawImage(c,0,0);
-   return null;
-  }
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ปรับส่วนหัวไม่สำเร็จ')),'image/png'));
- }
+ }finally{URL.revokeObjectURL(masterURL)}
 }
 
 async function makeAiUploadBlob(composedBlob){
@@ -1375,7 +1153,7 @@ async function makeCleanHeadMaster(baldBlob,originalBlob){
    if(donorPixels[j+3]<230)headHoles++;
   }
   if(headSamples<100||headHoles>Math.max(12,headSamples*.01))
-   throw Error('ภาพฐานมีช่องว่างบริเวณใบหน้าหรือคอ กรุณาลองภาพอื่น — ยังไม่ใช้สิทธิ์เปลี่ยนทรงผม');
+   throw Error('ภาพฐานมีช่องว่างบริเวณใบหน้าหรือคอ กรุณาลองภาพอื่น — ยังไม่ใช้เครดิตสร้างทรงผมใหม่');
   return {source:originalBlob,blob:await canvasPng(clean),faceMask:featheredFace,originalFace:originalPixels,originalCore:core,eyeD,forehead,chin,cx,darkStrandWarning};
  }finally{URL.revokeObjectURL(bu);URL.revokeObjectURL(ou)}
 }
@@ -1565,49 +1343,33 @@ async function headOnlyAIEditFile(file){
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
   const png=await canvasPng(canvas);
-  return new File([png],'head-only-ai-input.png',{type:'image/png'});
+  const faceLock=faceProtection(face,W,H);
+  const faceLockPng=await canvasPng(faceLock);
+  return {
+   image:new File([png],'head-only-ai-input.png',{type:'image/png'}),
+   mask:new File([faceLockPng],'face-lock-mask.png',{type:'image/png'})
+  };
  }finally{URL.revokeObjectURL(url)}
 }
-// Read only the fixed template alpha; this never edits the outfit or skin.
-function measureTemplateNeckline(data,W,H){
- const cx=Math.floor(W/2),edge=Math.floor(W*.15);let top=H,bottom=-1,maxWidth=0;
- for(let y=0;y<H;y++){
-  let left=-1,right=-1;
-  for(let x=cx;x>=edge;x--)if(data[(y*W+x)*4+3]>96){left=x;break}
-  for(let x=cx;x<W-edge;x++)if(data[(y*W+x)*4+3]>96){right=x;break}
-  if(left<0||right<0)continue;
-  if(top===H)top=y;
-  if(data[(y*W+cx)*4+3]>96){bottom=y;break}
-  maxWidth=Math.max(maxWidth,right-left);
- }
- return {width:Math.min(.65,maxWidth/W),depth:Math.min(.65,Math.max(0,bottom-top)/H)};
-}
-const necklineProfileCache=new Map();
-async function templateNecklineProfile(templatePath){
- if(!templatePath)return null;
- let pending=necklineProfileCache.get(templatePath);
- if(!pending){pending=(async()=>{
-  try{const im=await loadImage(templatePath),W=im.naturalWidth,H=im.naturalHeight,c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);return measureTemplateNeckline(x.getImageData(0,0,W,H).data,W,H)}catch{return null}
- })();necklineProfileCache.set(templatePath,pending)}
- return pending;
-}
-async function aiFinishPortrait(originalFile,hairId,options={}){
- // Persistent job: the server keeps processing even if this tab is closed.
+async function aiFinishPortrait(originalFile,hairId){
+ // V69: send the user's original full-quality file directly to the image editor.
+ // No remove.bg, crop, canvas redraw, JPEG conversion, sharpen or skin pass before AI.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile);
- fd.append('image',aiInput,aiInput.name);
+ fd.append('image',aiInput.image,aiInput.image.name);
+ fd.append('mask',aiInput.mask,aiInput.mask.name);
+ fd.append('mode','face-lock');
  fd.append('hairId',hairId||'original');
- const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
- if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
- if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
- await saveAiJobFile(originalFile);
- const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:walletHeaders()});
- if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(Error(text||'สิทธิ์สร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม'),{error_stage:'submit_job',http_status:r.status})}
- const info=await r.json();
- writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
- window.dispatchEvent(new CustomEvent('idprom-rights',{detail:{generationRemaining:Number(info.generationRemaining||0),hairRemaining:Number(info.hairRemaining||0)}}));
- const result=await waitForAiJob(info.jobId,options.onJobStatus);if(info.trialPreview)result.idpromTrial=true;return result;
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),120000);
+ try{
+  const r=await fetch('/api/ai-finish',{method:'POST',body:fd,signal:controller.signal});
+  if(!r.ok) throw await responseError(r,'ประมวลผลรูปไม่สำเร็จ');
+  return await r.blob();
+ }catch(e){
+  if(e?.name==='AbortError') throw Error('AI ใช้เวลานานเกิน 120 วินาที กรุณาลองใหม่');
+  throw e;
+ }finally{clearTimeout(timer)}
 }
 
 // V206: provider edit masks are not a pixel-identity guarantee. Restore the
@@ -1620,33 +1382,13 @@ async function restoreOriginalFacePixels(processedBlob,originalFile){
   if(!pf||!of)throw Error('ล็อกใบหน้าต้นฉบับไม่สำเร็จ');
   const W=processed.naturalWidth,H=processed.naturalHeight;
   const aligned=alignFaceCanvas(original,of,pf,W,H);
-  // Protect only actual facial skin, not the scalp/hair inside the old
-  // face-contour polygon. The old polygon pasted a second hairline/forehead
-  // over the newly generated hairstyle, producing a visible mask-shaped seam.
+  const hard=faceProtection(pf,W,H),hx=hard.getContext('2d');
   const eyeD=Math.hypot((pf[263].x-pf[33].x)*W,(pf[263].y-pf[33].y)*H);
-  const [newSkin,oldSkin]=await Promise.all([
-   semanticClassMask(processed,W,H,[3]),
-   semanticClassMask(aligned,W,H,[3])
-  ]);
-  if(!newSkin||!oldSkin)throw Error('ตรวจบริเวณผิวหน้าก่อนเปลี่ยนทรงผมไม่สำเร็จ');
-  const contour=faceProtection(pf,W,H);
-  const a=newSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const b=oldSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const c=contour.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const stencil=canvasFor(W,H),st=stencil.getContext('2d');
-  const pixels=st.createImageData(W,H);
-  for(let j=0;j<pixels.data.length;j+=4){
-   pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=255;
-   pixels.data[j+3]=Math.min(a[j+3],b[j+3],c[j+3]);
-  }
-  st.putImageData(pixels,0,0);
-  // Broad feather makes the transition gradual, rather than a sharp oval
-  // or a horizontal stripe across the forehead. Never draw the stencil itself.
+  hx.fillStyle='#fff';
+  for(const ear of [pf[234],pf[454]]){hx.beginPath();hx.ellipse(ear.x*W,ear.y*H,eyeD*.14,eyeD*.28,0,0,Math.PI*2);hx.fill()}
   const soft=canvasFor(W,H),sx=soft.getContext('2d');
-  sx.filter=`blur(${Math.max(8,Math.min(28,eyeD*.085))}px)`;
-  sx.drawImage(stencil,0,0);sx.filter='none';
-  const originalFace=canvasFor(W,H),fx=originalFace.getContext('2d');
-  fx.drawImage(aligned,0,0);fx.globalCompositeOperation='destination-in';fx.drawImage(soft,0,0);
+  sx.filter=`blur(${Math.max(1.5,Math.min(4,eyeD*.012))}px)`;sx.drawImage(hard,0,0);sx.filter='none';
+  const originalFace=canvasFor(W,H),fx=originalFace.getContext('2d');fx.drawImage(aligned,0,0);fx.globalCompositeOperation='destination-in';fx.drawImage(soft,0,0);
   const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(processed,0,0);ox.drawImage(originalFace,0,0);
   return await canvasPng(out);
  }finally{URL.revokeObjectURL(pu);URL.revokeObjectURL(ou)}
@@ -1655,11 +1397,11 @@ async function restoreOriginalFacePixels(processedBlob,originalFile){
 // V207: one coherent image layer, with a restrained local unsharp-mask only on
 // segmented skin. It clarifies real pore texture without pasting another face,
 // reshaping landmarks, whitening skin or touching hair/background/clothing.
-async function refineSkinTextureBlob(blob,skinMask=null){
+async function refineSkinTextureBlob(blob){
  const url=URL.createObjectURL(blob);
  try{
   const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
-  const skin=skinMask||await semanticClassMask(image,W,H,[2,3]);
+  const skin=await semanticClassMask(image,W,H,[2,3]);
   if(!skin)return blob;
   const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(image,0,0);
   const blur=canvasFor(W,H),ux=blur.getContext('2d',{willReadFrequently:true});ux.filter=`blur(${Math.max(.7,Math.min(1.4,W*.0011))}px)`;ux.drawImage(image,0,0);ux.filter='none';
@@ -1670,8 +1412,7 @@ async function refineSkinTextureBlob(blob,skinMask=null){
    for(let c=0;c<3;c++)out.data[j+c]=Math.max(0,Math.min(255,Math.round(out.data[j+c]+(out.data[j+c]-soft[j+c])*amount)));
   }
   bx.putImageData(out,0,0);return await canvasPng(base);
- }catch(e){console.warn('Skin texture refinement skipped',e);return blob}
- finally{URL.revokeObjectURL(url)}
+ }finally{URL.revokeObjectURL(url)}
 }
 
 async function responseError(response,fallback){
@@ -1745,15 +1486,18 @@ async function prepareHairEdit(masterBlob){
   mx.putImageData(md,0,0);
   const input=canvasFor(W,H),ix=input.getContext('2d');
   ix.fillStyle='#349cf0';ix.fillRect(0,0,W,H);ix.drawImage(image,0,0);
-  return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,forehead,originalHair:hc,protectedSkin:immutable,faceShield:shield,faceRegion};
+  return {input:await canvasPng(input),mask:await canvasPng(mask),allowed,W,H,eyeD,originalHair:hc,protectedSkin:immutable,faceShield:shield,faceRegion};
  }finally{URL.revokeObjectURL(url)}
 }
 // V204: provider receives one immutable portrait, one exact style and one hard mask.
-async function requestHairstyleEngine(master,id){
- const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
+async function requestHairstyleEngine(master,id,mask){
+ const fd=new FormData();
+ fd.append('image',new File([master],'head.png',{type:'image/png'}));
+ fd.append('mask',new File([mask],'hair-edit-mask.png',{type:'image/png'}));
+ fd.append('hairId',id);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
- try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal,headers:walletHeaders()});
-  if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text||'สิทธิ์เปลี่ยนทรงผมหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม')}updateCreditsFromResponse(r);return await r.blob();
+ try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal});
+  if(!r.ok)throw await responseError(r,'เปลี่ยนทรงผมไม่สำเร็จ');return await r.blob();
  }catch(e){if(e?.name==='AbortError')throw Error('เปลี่ยนทรงผมใช้เวลานานเกิน 120 วินาที');throw e}
  finally{clearTimeout(timer)}
 }
@@ -1774,69 +1518,22 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
   const fresh=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const newFaceSkin=await semanticClassMask(ai,W,H,[3]);
   const generatedSkin=newFaceSkin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  // V214: AI generates the selected hairstyle; segmentation is used ONLY to extract its hair.
-  // The original photographed face/skin and its texture remain immutable.
-  // V213: 256px segmentation misses thin roots and braids at full resolution.
-  // Reclaim only genuinely dark, neutral donor pixels immediately next to a
-  // confirmed hair pixel, within the already permitted hair edit region.
-  // Blue background and face skin are never used as hair fill.
-  const refined=new Uint8Array(W*H);
-  const isDonorHair=i=>{
-   const j=i*4,r=generated[j],g=generated[j+1],b=generated[j+2];
-   return generated[j+3]>245&&Math.max(r,g,b)<155&&Math.abs(r-g)<52&&b<r+30;
-  };
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-   const i=y*W+x,j=i*4;
-   if(!allowed[i]||protectedSkin[j+3]>128||faceShield[j+3]>0)continue;
-   if(fresh[j+3]>64){refined[i]=255;continue}
-   if(!isDonorHair(i))continue;
-   const nearby=[i-1,i+1,i-W,i+W,i-W-1,i-W+1,i+W-1,i+W+1];
-   if(nearby.some(k=>fresh[k*4+3]>64))refined[i]=255;
-  }
-  // Feather only the outermost hair boundary (not the whole hairstyle).
-  // Retain real strand contrast and protect the photographed skin exactly.
-  const matte=new Uint8Array(W*H);
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-   const i=y*W+x;if(!refined[i])continue;
-   let neighbors=0;
-   for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)neighbors+=refined[i+dy*W+dx]?1:0;
-   matte[i]=neighbors===9?255:Math.max(110,Math.round(neighbors/9*255));
-  }
-  const hairlineY=(prepared.forehead||0),hairlineHalf=prepared.eyeD*.14;
   let changed=0;
   for(let i=0;i<W*H;i++){
    if(!allowed[i])continue;
-   const j=i*4,old=originalHair[j+3]>96,newPx=matte[i]>0;
+   const j=i*4,old=originalHair[j+3]>96,newPx=fresh[j+3]>64;
    if(old&&!newPx){
-    // V213: never punch a blue hole in the photographed hairline when the
-    // coarse segmenter drops a few roots at the forehead. Keep the original
-    // strand there, but only in this narrow anatomical transition band.
-    const x=i%W,y=Math.floor(i/W);
-    if(Math.abs(y-hairlineY)<hairlineHalf&&Math.abs(x-W/2)<prepared.eyeD*1.3)continue;
     // When a shorter/newly parted style exposes upper forehead, keep the AI's
     // skin fill only inside that tiny permitted face region. Removed hair in
     // the surrounding background becomes transparent for the chosen backdrop.
     if(faceRegion?.[j+3]>0&&generatedSkin?.[j+3]>64){
      out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];out.data[j+3]=255;
-    }else {
-     // A missing segmentation pixel must never punch a blue hole through a
-     // photographic hairline. Retain source strands touching AI hair; remove
-     // genuinely displaced old hair elsewhere so the selected style is visible.
-     const x=i%W,y=Math.floor(i/W);
-     let touchesNew=false;
-     if(y<prepared.forehead+prepared.eyeD*.32){
-      for(let dy=-3;dy<=3&&!touchesNew;dy++)for(let dx=-3;dx<=3;dx++){
-       const xx=x+dx,yy=y+dy;if(xx>=0&&xx<W&&yy>=0&&yy<H&&matte[yy*W+xx]>0){touchesNew=true;break;}
-      }
-     }
-     if(touchesNew)continue;
-     out.data[j+3]=0;
-    }
+    }else out.data[j+3]=0;
     changed++;continue
    }
    if(newPx){
     out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];
-    out.data[j+3]=Math.max(0,Math.min(255,Math.round(matte[i]*generated[j+3]/255)));
+    out.data[j+3]=Math.max(0,Math.min(255,Math.round(fresh[j+3]*generated[j+3]/255)));
     changed++;
    }
   }
@@ -1865,31 +1562,8 @@ const RIBBON_OPTIONS=[
  {id:'2543-2547',name:'2543-2547',src:'/assets/ribbons/2543-2547.png'},
  {id:'2548-2549',name:'2548-2549',src:'/assets/ribbons/2548-2549.png'}
 ];
-const CHEST_PIN_OPTIONS=[
- {id:'pao',name:'อบจ.',src:'/assets/government-insignia/chest-pao.png'},
- {id:'sao',name:'อบต.',src:'/assets/government-insignia/chest-sao.png'},
- {id:'municipality',name:'ทต.',src:'/assets/government-insignia/chest-municipality.png'},
- {id:'bma',name:'กทม.',src:'/assets/government-insignia/chest-bma.png'}
-];
 const COLLAR_PIN_OPTIONS=[
- {id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},
- {id:'education-pair',name:'ศึกษาธิการ',left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'},
- {id:'public-health-pair',name:'สาธารณสุข',left:'/assets/government-insignia/public-health-left.png',right:'/assets/government-insignia/public-health-right.png'},
- {id:'finance-pair',name:'การคลัง',left:'/assets/government-insignia/finance-left.png',right:'/assets/government-insignia/finance-right.png'},
- {id:'agriculture-pair',name:'เกษตร',left:'/assets/government-insignia/agriculture-left.png',right:'/assets/government-insignia/agriculture-right.png'},
- {id:'transport-pair',name:'คมนาคม',left:'/assets/government-insignia/transport-left.png',right:'/assets/government-insignia/transport-right.png'} ,
- {id:'labor-pair',name:'แรงงาน',left:'/assets/government-insignia/labor-left.png',right:'/assets/government-insignia/labor-right.png'},
- {id:'higher-education-pair',name:'อุดมศึกษา',left:'/assets/government-insignia/higher-education-left.png',right:'/assets/government-insignia/higher-education-right.png'},
- {id:'justice-pair',name:'ยุติธรรม',left:'/assets/government-insignia/justice-left.png',right:'/assets/government-insignia/justice-right.png'},
- {id:'industry-pair',name:'อุตสาหกรรม',left:'/assets/government-insignia/industry-left.png',right:'/assets/government-insignia/industry-right.png'},
- {id:'culture-pair',name:'วัฒนธรรม',left:'/assets/government-insignia/culture-left.png',right:'/assets/government-insignia/culture-right.png'},
- {id:'energy-pair',name:'พลังงาน',left:'/assets/government-insignia/energy-left.png',right:'/assets/government-insignia/energy-right.png'},
- {id:'audit-pair',name:'สตง.',left:'/assets/government-insignia/audit-left.png',right:'/assets/government-insignia/audit-right.png'},
- {id:'court-of-justice-pair',name:'ศาลยุติธรรม',left:'/assets/government-insignia/court-of-justice-left.png',right:'/assets/government-insignia/court-of-justice-right.png'},
- {id:'environment-pair',name:'สิ่งแวดล้อม',left:'/assets/government-insignia/environment-left.png',right:'/assets/government-insignia/environment-right.png'},
- {id:'administrative-court-pair',name:'ศาลปกครอง',left:'/assets/government-insignia/administrative-court-left.png',right:'/assets/government-insignia/administrative-court-right.png'},
- {id:'digital-pair',name:'ดิจิทัล',left:'/assets/government-insignia/digital-left.png',right:'/assets/government-insignia/digital-right.png'},
- {id:'nacc-pair',name:'ป.ป.ช.',left:'/assets/government-insignia/nacc-left.png',right:'/assets/government-insignia/nacc-right.png'}
+ {id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'}
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=Array.from({length:12},(_,i)=>{const number=String(i+1).padStart(2,'0');return {id:`manhair-${number}`,name:`ทรงผม ${number}`,src:`/assets/hairstyle-previews/manhair-${number}.png`};});
@@ -1928,14 +1602,10 @@ const HAIR_OPTIONS=[
 const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
- {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
- {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
- {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
- {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
- {id:'male-open-collar-suit',title:'สูทชายลำลอง',img:'/assets/job-uniforms/male-open-collar-suit-example.png',template:'/assets/job-uniforms/male-navy-suit.png',cat:'job',gender:'male'},
+ {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-formal-tie-suit.png',cat:'job',gender:'male'},
+ {id:'male-open-collar-suit',title:'สูทชายลำลอง',img:'/assets/job-uniforms/male-open-collar-suit-example.png',template:'/assets/job-uniforms/male-open-collar-suit.png',cat:'job',gender:'male'},
  {id:'female-white-shirt',title:'เชิ้ตหญิง',img:'/assets/job-uniforms/female-white-shirt-example.png',template:'/assets/job-uniforms/female-white-shirt.png',cat:'job',gender:'female'},
- {id:'female-white-shirt-02',title:'เชิ้ตหญิง แบบ 2',img:'/assets/job-uniforms/female-white-shirt-02-example.png',template:'/assets/job-uniforms/female-white-shirt-02.png',cat:'job',gender:'female'},
- {id:'male-white-shirt-v132',title:'เชิ้ตชาย',img:'/assets/job-uniforms/male-white-shirt-v132-example.png',template:'/assets/job-uniforms/male-open-collar-suit.png',cat:'job',gender:'male'},
+ {id:'male-white-shirt-v132',title:'เชิ้ตชาย',img:'/assets/job-uniforms/male-white-shirt-v132-example.png',template:'/assets/job-uniforms/male-white-shirt-v132.png',cat:'job',gender:'male'},
 ];
 
 const STUDENT_UNIFORMS=[
@@ -1945,25 +1615,17 @@ const STUDENT_UNIFORMS=[
  {id:'student-male-02',title:'นักศึกษาชาย แบบ 2',img:'/assets/student-uniforms/previews/male-02.jpg',template:'/assets/student-uniforms/male-02.png',cat:'student',gender:'male'},
 ];
 
-const GOWN_UNIFORMS=[
- {id:'kmitl-female',title:'ครุย สจล. หญิง',img:'/assets/gown-uniforms/kmitl-female-example.jpg',template:'/assets/gown-uniforms/kmitl-female.png',cat:'gown',gender:'female'},
- {id:'kmitl-male',title:'ครุย สจล. ชาย',img:'/assets/gown-uniforms/kmitl-male-example.jpg',template:'/assets/gown-uniforms/kmitl-male.png',cat:'gown',gender:'male'},
-];
-
 const INTERIOR_UNIFORMS=[
  {id:'interior-01',name:'ปฏิบัติงาน',level:'operational',img:'/assets/government-uniforms/interior-01.png',preview:'/assets/government-uniforms/male-operational-example.png'},
  {id:'interior-02',name:'ปฏิบัติการ',level:'academic',img:'/assets/government-uniforms/interior-02.png',preview:'/assets/government-uniforms/male-academic-example.png'},
  {id:'interior-03',name:'ชำนาญการ / อาวุโส',level:'senior',img:'/assets/government-uniforms/interior-03.png',preview:'/assets/government-uniforms/male-senior-example.png'},
- {id:'male-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/male-government-employee.png',preview:'/assets/government-uniforms/male-government-employee-example.jpg'},
 ];
 const FEMALE_GOVERNMENT_UNIFORMS=[
  {id:'female-operational',name:'ปฏิบัติงาน',level:'operational',img:'/assets/government-uniforms/female-operational.png',preview:'/assets/government-uniforms/female-operational-example.jpg'},
  {id:'female-academic',name:'ปฏิบัติการ',level:'academic',img:'/assets/government-uniforms/female-academic.png',preview:'/assets/government-uniforms/female-academic-example.jpg'},
  {id:'female-senior',name:'ชำนาญการ / อาวุโส',level:'senior',img:'/assets/government-uniforms/female-senior.png',preview:'/assets/government-uniforms/female-senior-example.jpg'},
- {id:'female-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/female-government-employee.png',preview:'/assets/government-uniforms/female-government-employee-example.jpg'},
 ];
 const UNIFORM_GROUPS=[
- {id:'gown',name:'ครุย สจล.',items:GOWN_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img}))},
  {id:'job',name:'สมัครงาน',items:JOB_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
  {id:'student',name:'นักศึกษา',items:STUDENT_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
  {id:'government-female',name:'ข้าราชการหญิง',items:FEMALE_GOVERNMENT_UNIFORMS.map(item=>({...item,title:item.name,template:item.img,cat:'government',gender:'female'}))},
@@ -1996,124 +1658,20 @@ function firstFitHeadAdjust(lock,gender='female'){
  return {scale,x:0,y,rotation:0};
 }
 
-// V292: entirely local, non-generative skin/lip adjustment of the FINAL composite.
-// If face detection or segmentation is unavailable, leave the original pixels intact.
-const DEFAULT_BEAUTY={brightness:0,smooth:0,pink:0,lip:0,lipColor:'#c46d76'};
-const localBeautyMaskCache=new WeakMap();
-async function applyLocalBeauty(blob,settings){
- const {brightness,smooth,pink,lip,lipColor}=settings;
- if(!brightness&&!smooth&&!pink&&!lip)return blob;
- const url=URL.createObjectURL(blob);
- try{
-  let prepared=localBeautyMaskCache.get(blob);
-  if(!prepared){
-   const preparation=(async()=>{
-    const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
-    const factor=Math.min(1,480/Math.max(W,H));
-    const sw=Math.max(1,Math.round(W*factor)),sh=Math.max(1,Math.round(H*factor));
-    const small=canvasFor(sw,sh),sc=small.getContext('2d');sc.drawImage(im,0,0,sw,sh);
-    const face=(await getLandmarker()).detect(small).faceLandmarks?.[0];
-    if(!face)return null;
-    const skin=await semanticClassMask(small,sw,sh,[2,3]);if(!skin)return null;
-    const maskCanvas=canvasFor(W,H),mc=maskCanvas.getContext('2d',{willReadFrequently:true});
-    mc.imageSmoothingEnabled=true;mc.drawImage(skin,0,0,W,H);
-    const blurred=canvasFor(W,H),bc=blurred.getContext('2d',{willReadFrequently:true});
-    bc.filter='blur(2.2px)';bc.drawImage(im,0,0);bc.filter='none';
-    const lipMask=canvasFor(W,H),lc=lipMask.getContext('2d');
-    const outer=[61,40,37,0,267,270,291,321,314,17,84,91];
-    const inner=[78,81,13,311,308,402,14,178];
-    const path=ids=>{lc.beginPath();ids.forEach((n,i)=>{const q=face[n];if(!q)return;i?lc.lineTo(q.x*W,q.y*H):lc.moveTo(q.x*W,q.y*H)});lc.closePath()};
-    path(outer);lc.fillStyle='#fff';lc.fill();lc.globalCompositeOperation='destination-out';path(inner);lc.fill();
-    return {im,W,H,mask:mc.getImageData(0,0,W,H).data,soft:bc.getImageData(0,0,W,H).data,lips:lc.getImageData(0,0,W,H).data};
-   })();
-   localBeautyMaskCache.set(blob,preparation);
-   prepared=preparation;
-  }
-  prepared=await prepared;
-  if(!prepared)return blob;
-  const {im,W,H,mask,soft}=prepared;
-  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
-  const src=ctx.getImageData(0,0,W,H),pixels=src.data;
-  const lips=lip?prepared.lips:null;
-  const rgb=lipColor.match(/[a-f\d]{2}/gi)?.map(h=>parseInt(h,16))||[196,109,118];
-  // Yield between scanline batches so touch, tabs and paint stay responsive.
-  for(let i=0;i<pixels.length;i+=4){
-   if(i && i%(W*4*24)===0)await new Promise(resolve=>setTimeout(resolve,0));
-   const a=pixels[i+3]/255;if(!a)continue;
-   const skinA=mask[i+3]/255;
-   const lipA=lips?lips[i+3]/255:0;
-   // Segmentation sometimes includes lips: exclude them from skin effects.
-   const weight=skinA*(1-lipA);
-   if(weight){
-    for(let ch=0;ch<3;ch++){
-     const base=pixels[i+ch];
-     let value=base+(soft[i+ch]-base)*(smooth/100)*.28;
-     value+=brightness/100*42;
-     if(ch===0)value+=pink/100*5;
-     if(ch===1)value-=pink/100*1;
-     if(ch===2)value+=pink/100*3;
-     pixels[i+ch]=Math.max(0,Math.min(255,base+(value-base)*weight));
-    }
-   }
-   if(lipA){const strength=lip/100*.48*lipA;for(let ch=0;ch<3;ch++)pixels[i+ch]=pixels[i+ch]*(1-strength)+rgb[ch]*strength}
-  }
-  ctx.putImageData(src,0,0);
-  return await new Promise(resolve=>canvas.toBlob(b=>resolve(b||blob),'image/png'));
- }catch(e){console.warn('Local beauty unavailable; preserving original image',e);return blob}
- finally{URL.revokeObjectURL(url)}
-}
 function App(){
- const[rights,setRights]=useState({generationRemaining:0,hairRemaining:0}),[buyOpen,setBuyOpen]=useState(false),[payBusy,setPayBusy]=useState(false),[payMsg,setPayMsg]=useState('');
- useEffect(()=>{const code=new URLSearchParams(location.search).get('free199');if(!code)return;let cancelled=false;(async()=>{try{await refreshWallet();const r=await fetch('/api/promo/free199',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({code})});const data=await r.json();if(!r.ok)throw Error(data.message||'ใช้โค้ดไม่ได้');if(!cancelled){setRights({generationRemaining:Number(data.generationRemaining||0),hairRemaining:Number(data.hairRemaining||0)});setPayMsg('รับสิทธิ์แพ็กเกจ 199 บาทฟรีเรียบร้อยแล้ว');setBuyOpen(true)}history.replaceState({},'',location.pathname)}catch(e){if(!cancelled){setPayMsg(e.message);setBuyOpen(true)}}})();return()=>{cancelled=true}},[]);
- const[trialPreview,setTrialPreview]=useState(false);
- const[privateTrialActive,setPrivateTrialActive]=useState(false);
- const privateTrialResultRef=useRef(false);
- const[privateTrialChecking,setPrivateTrialChecking]=useState(()=>privateTrialRequested()||new URLSearchParams(location.hash.slice(1)).has('privateTrial'));
- const activatePrivateTrial=async()=>{
-  const token=new URLSearchParams(location.hash.slice(1)).get('privateTrial');
-  if(!token&&!privateTrialRequested())return;
-  setPrivateTrialChecking(true);
-  if(token)history.replaceState({},'',location.pathname+location.search);
-  try{
-   const r=await fetch('/api/private-trial',token?{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({key:token})}:{headers:walletHeaders(),cache:'no-store'});
-   const data=await r.json();
-   if(!r.ok||!data.active)throw Error(data.message||'โหมดทดสอบยังไม่เปิดใช้งาน กรุณาเปิดลิงก์ส่วนตัวอีกครั้ง');
-   localStorage.setItem(PRIVATE_TRIAL_KEY,'1');setPrivateTrialActive(true);
-  }catch(e){localStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false);window.alert('เปิดโหมดใช้เองไม่สำเร็จ\n'+(e.message||'กรุณาลองเปิดลิงก์ส่วนตัวอีกครั้ง'))}
-  finally{setPrivateTrialChecking(false)}
- };
- useEffect(()=>{const onPrivateTrialLink=()=>{if(new URLSearchParams(location.hash.slice(1)).has('privateTrial'))refreshWallet().then(activatePrivateTrial)};window.addEventListener('hashchange',onPrivateTrialLink);return()=>window.removeEventListener('hashchange',onPrivateTrialLink)},[]);
- const leavePrivateTrial=()=>{localStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false)};
- const refreshWallet=async()=>{try{let id=currentWalletId();let r;if(!id){r=await fetch('/api/wallet',{method:'POST'});const data=await r.json();id=data.walletId;localStorage.setItem(WALLET_KEY,id);setRights({generationRemaining:Number(data.generationRemaining||0),hairRemaining:Number(data.hairRemaining||0)});return}r=await fetch('/api/wallet',{headers:walletHeaders()});if(r.status===404){localStorage.removeItem(WALLET_KEY);return refreshWallet()}if(r.ok){const data=await r.json();setRights({generationRemaining:Number(data.generationRemaining||0),hairRemaining:Number(data.hairRemaining||0)})}}catch{}};
- const startCheckout=async(packageId)=>{analyticsEvent('idprom_checkout_click',{package_id:packageId});setPayBusy(true);setPayMsg('');try{await refreshWallet();const r=await fetch('/api/payments/checkout',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({packageId})});const data=await r.json();if(!r.ok)throw Error(data.error||'สร้างรายการชำระเงินไม่สำเร็จ');analyticsCheckout(packageId,data.url);location.href=data.url}catch(e){analyticsEvent('idprom_checkout_error',{error_stage:'checkout'});setPayMsg(e.message)}finally{setPayBusy(false)}};
- useEffect(()=>{refreshWallet().then(activatePrivateTrial);const onRights=e=>setRights({generationRemaining:Number(e.detail?.generationRemaining||0),hairRemaining:Number(e.detail?.hairRemaining||0)}),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-rights',onRights);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){const sessionId=q.get('session_id');setPayMsg('ชำระเงินสำเร็จ กำลังเพิ่มสิทธิ์…');(async()=>{try{if(sessionId){const r=await fetch('/api/payments/confirm',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sessionId})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบการชำระเงินไม่สำเร็จ');setRights({generationRemaining:Number(data.generationRemaining||0),hairRemaining:Number(data.hairRemaining||0)});setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');if(data.ok===true)analyticsPurchase(sessionId)}else{await refreshWallet();setPayMsg('ชำระเงินสำเร็จ')}}catch(e){setPayMsg(e.message||'กำลังรอการยืนยันการชำระเงิน');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000)}})();history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){analyticsEvent('idprom_checkout_cancel');setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy)}},[]);
- useEffect(()=>{if(trialPreview&&!privateTrialResultRef.current&&!privateTrialActive&&rights.generationRemaining>0){setTrialPreview(false);writeActiveAiJob(null);clearAiJobFile()}},[trialPreview,rights.generationRemaining,privateTrialActive]);
- const CreditUI=()=> <>{privateTrialActive&&<button type="button" onClick={leavePrivateTrial} disabled={busy||hairBusy} title="กลับไปใช้เครดิตตามปกติ">ทดสอบส่วนตัว · ออกจากโหมด</button>}<button type="button" className="credit-wallet-pill" onClick={()=>setBuyOpen(true)} aria-label={`สร้างรูป ${rights.generationRemaining} รูป เปลี่ยนผม ${rights.hairRemaining} ครั้ง`} style={{display:'inline-flex',alignItems:'center',gap:0,padding:'7px 12px',borderRadius:14,background:'#fff',border:'1px solid #e1e8f2',boxShadow:'0 2px 8px rgba(24,74,130,.06)',color:'#24364f',fontWeight:700}}><span style={{padding:'0 11px 0 2px',whiteSpace:'nowrap',fontSize:13}}>สร้างรูป <strong style={{color:'#1269c7',fontSize:15}}>{rights.generationRemaining}</strong></span><span aria-hidden="true" style={{width:1,height:18,background:'#e5ebf3',flex:'0 0 1px'}}></span><span style={{padding:'0 2px 0 11px',whiteSpace:'nowrap',fontSize:13}}>เปลี่ยนผม <strong style={{color:'#1269c7',fontSize:15}}>{rights.hairRemaining}</strong></span></button>{buyOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBuyOpen(false)}}><section className="credit-modal package-pro-modal" role="dialog" aria-modal="true" aria-label="แพ็กเกจ IDพร้อม"><style>{`
-.package-pro-modal{width:min(760px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;padding:28px;border-radius:28px;background:#fff;box-shadow:0 24px 70px rgba(15,35,65,.24);box-sizing:border-box}.package-pro-modal .credit-modal-close{top:18px;right:20px}.package-pro-head{padding:0 4px 20px}.package-pro-brand{font-size:18px;font-weight:800;color:#1769c8;margin-bottom:5px}.package-pro-title{font-size:30px!important;line-height:1.15!important;margin:0 0 7px!important;color:#12233f}.package-pro-sub{margin:0;color:#728097;font-size:15px}.package-pro-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.package-card{position:relative;display:flex;flex-direction:column;min-width:0;padding:24px;border:1px solid #d9e7fb;border-radius:22px;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}.package-card.popular{border-color:#f3dfe5;background:linear-gradient(180deg,#fffaf7 0%,#fff 100%)}.package-badge{position:absolute;right:16px;top:16px;padding:6px 10px;border-radius:999px;background:#e91e63;color:#fff;font-size:12px;font-weight:800}.package-name{font-size:18px;font-weight:800;color:#172a47;margin:0}.package-price{font-size:38px;line-height:1.1;font-weight:900;color:#146bd1;margin:8px 0 20px}.package-card.popular .package-price{color:#d91d62}.package-price small{font-size:18px;font-weight:800}.package-features{list-style:none!important;padding:0!important;margin:0 0 22px!important;display:grid;gap:14px;flex:1}.package-features li{display:flex;gap:11px;align-items:flex-start;color:#243650;font-size:14px;line-height:1.35}.package-feature-icon{width:8px;height:8px;border-radius:50%;background:#17365f;display:block;flex:0 0 8px;margin:7px 13px 0 5px;font-size:0;line-height:0;color:transparent;overflow:hidden}.package-card.popular .package-feature-icon{background:#b31954}.package-feature-text strong{display:block;font-size:14px;color:#172a47;margin-bottom:1px}.package-feature-text span{color:#718097}.package-select-btn{width:100%;border:0;border-radius:14px;padding:14px 16px;background:#176fd2;color:#fff;font-size:15px;font-weight:800;cursor:pointer}.package-card.popular .package-select-btn{background:#dd2164}.package-select-btn:disabled{opacity:.6;cursor:default}.package-secure{margin-top:18px;padding:13px 16px;border-radius:16px;background:#f7f9fc;text-align:center;color:#66758c;font-size:12px}.package-pro-modal .credit-pay-msg{text-align:center;margin:14px 0 0}.package-pro-modal>small{display:none}@media(max-width:640px){.package-pro-modal{padding:22px 16px;border-radius:24px}.package-pro-title{font-size:25px!important}.package-pro-sub{font-size:13px}.package-pro-grid{grid-template-columns:1fr;gap:14px}.package-card{padding:20px}.package-price{font-size:34px;margin-bottom:16px}.package-badge{top:14px;right:14px}}
-`}</style><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button><header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">สร้างรูปติดบัตรได้ง่าย ๆ เลือกแพ็กเกจที่เหมาะกับคุณ</p></header><div className="package-pro-grid"><article className="package-card"><h3 className="package-name">แพ็กเกจ IDพร้อม</h3><div className="package-price">149 <small>บาท</small></div><ul className="package-features"><li><span className="package-feature-icon">▣</span><span className="package-feature-text"><strong>สร้างภาพพร้อมทรงผมอัตโนมัติ</strong><span>1 รูป</span></span></li><li><span className="package-feature-icon">♧</span><span className="package-feature-text"><strong>เลือก/เปลี่ยนแบบชุด</strong><span>ไม่จำกัด</span></span></li><li><span className="package-feature-icon">◯</span><span className="package-feature-text"><strong>เปลี่ยนทรงผม</strong><span>2 ครั้ง</span></span></li><li><span className="package-feature-icon">↓</span><span className="package-feature-text"><strong>ดาวน์โหลดรูปที่สร้าง</strong><span>ไม่จำกัด</span></span></li></ul><button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'เลือกแพ็กเกจ 149 บาท ›'}</button></article><article className="package-card popular"><span className="package-badge">ยอดนิยม</span><h3 className="package-name">แพ็กเกจ IDพร้อม</h3><div className="package-price">199 <small>บาท</small></div><ul className="package-features"><li><span className="package-feature-icon">▣</span><span className="package-feature-text"><strong>สร้างภาพพร้อมทรงผมอัตโนมัติ</strong><span>2 รูป</span></span></li><li><span className="package-feature-icon">♧</span><span className="package-feature-text"><strong>เลือก/เปลี่ยนแบบชุด</strong><span>ไม่จำกัด</span></span></li><li><span className="package-feature-icon">◯</span><span className="package-feature-text"><strong>เปลี่ยนทรงผม</strong><span>3 ครั้ง</span></span></li><li><span className="package-feature-icon">↓</span><span className="package-feature-text"><strong>ดาวน์โหลดรูปที่สร้าง</strong><span>ไม่จำกัด</span></span></li></ul><button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('199')}>{payBusy?'กำลังเปิด PromptPay…':'เลือกแพ็กเกจ 199 บาท ›'}</button></article></div>{payMsg&&<p className="credit-pay-msg">{payMsg}</p>}<div className="package-secure">ชำระเงินผ่าน Stripe • รองรับ PromptPay • สิทธิ์เพิ่มอัตโนมัติหลังยืนยันการชำระเงิน</div></section></div>}</>;
- const ContactUI=()=> <><button type="button" className="line-contact-button" onClick={()=>setLineContactOpen(true)} aria-label="ติดต่อแอดมินทาง LINE"><span className="line-contact-bubble">LINE</span><span className="line-contact-label">ติดต่อ</span></button>{lineContactOpen&&<div className="line-contact-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setLineContactOpen(false)}}><section className="line-contact-modal" role="dialog" aria-modal="true" aria-label="ติดต่อแอดมินทาง LINE"><button type="button" className="line-contact-close" onClick={()=>setLineContactOpen(false)} aria-label="ปิด">×</button><h2>ติดต่อแอดมิน</h2><p>สแกน QR Code เพื่อเพิ่มเพื่อนทาง LINE</p><img src="/assets/line-contact-qr.png" alt="QR Code ติดต่อ IDพร้อม ทาง LINE"/></section></div>}</>;
+ const [contactQrOpen,setContactQrOpen]=useState(false);
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
- const[studioData,setStudioData]=useState(null),[studioBusy,setStudioBusy]=useState(false);
- const studioDraftRef=useRef(null),studioOriginRef=useRef(null),studioHairOriginRef=useRef(null),studioTrialRef=useRef(false);
- const[photoGuideOpen,setPhotoGuideOpen]=useState(false);
  const[safetyBlocked,setSafetyBlocked]=useState(false);
  const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
  const[selectedStudentTemplate,setSelectedStudentTemplate]=useState(STUDENT_UNIFORMS[0].template);
- const[selectedGownTemplate,setSelectedGownTemplate]=useState(GOWN_UNIFORMS[0].template);
  const[selectedInteriorTemplate,setSelectedInteriorTemplate]=useState(INTERIOR_UNIFORMS[0].img);
- const[homeInfoOpen,setHomeInfoOpen]=useState(false),[homeShowGender,setHomeShowGender]=useState('all');
- const[lineContactOpen,setLineContactOpen]=useState(false);
  const[uniformCategory,setUniformCategory]=useState('government'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState('home'),[selectedStyle,setSelectedStyle]=useState(''),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
  const selectedFemaleGovernmentTemplate=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===level)?.img||GOVERNMENT_FINANCE_TEMPLATE;
  const selectedGovernmentTemplate=gender==='male'?selectedInteriorTemplate:selectedFemaleGovernmentTemplate;
  const selectGovernmentGender=(next)=>{setGender(next);if(next==='male'){setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===level)||INTERIOR_UNIFORMS[0]).img)}};
- const activeUniformTemplate=uniformCategory==='job'?selectedJobTemplate:uniformCategory==='student'?selectedStudentTemplate:uniformCategory==='government'?selectedGovernmentTemplate:uniformCategory==='gown'?selectedGownTemplate:GOVERNMENT_FINANCE_TEMPLATE;
- // Analytics observes committed selections; it never changes editor state.
- useEffect(()=>{analyticsContext({category:screen==='process'?uniformCategory:'unselected',template:screen==='process'?activeUniformTemplate:'',gender:screen==='process'?gender:'',level});if(screen==='process')analyticsEvent('idprom_uniform_select')},[screen,uniformCategory,activeUniformTemplate,gender,level]);
- useEffect(()=>{if(buyOpen)analyticsEvent('idprom_package_view')},[buyOpen]);
+ const activeUniformTemplate=uniformCategory==='job'?selectedJobTemplate:uniformCategory==='student'?selectedStudentTemplate:uniformCategory==='government'?selectedGovernmentTemplate:GOVERNMENT_FINANCE_TEMPLATE;
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0,rotation:0});
  const[collarWarp,setCollarWarp]=useState(0);
- const[collarHeight,setCollarHeight]=useState(0);
  const[neckAdjust,setNeckAdjust]=useState({width:0,length:0});
  const[placementLocked,setPlacementLocked]=useState(false);
  const[hairBusy,setHairBusy]=useState(false);
@@ -2142,38 +1700,19 @@ function App(){
  useEffect(()=>()=>{clearInterval(progressTimerRef.current);clearTimeout(gestureRef.current?.holdTimer)},[]);
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
- const initialProcessedMasterRef=useRef(null);
- // Immutable upload reference: hairstyle changes must never use an AI result as input.
- const firstUploadedPhotoRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
  const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null),cleanHairBaseRef=useRef(null),initialStyledHairRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
- const [desktopSelectorActive,setDesktopSelectorActive]=useState('uniform');  const[beautyPanelTab,setBeautyPanelTab]=useState('skin');  const[beauty,setBeauty]=useState(DEFAULT_BEAUTY);const beautyRef=useRef(DEFAULT_BEAUTY);
- const beautyRenderRef=useRef(0);
- const beautyBaseRef=useRef(null);
- const beautyPreviewBaseRef=useRef(null);
- const beautyWorkingRef=useRef(false);
  const[downloadBusy,setDownloadBusy]=useState(false);
- const[photoCrop,setPhotoCrop]=useState({...DEFAULT_PHOTO_CROP});
- const[photoSizeBlob,setPhotoSizeBlob]=useState(null),[photoSizeBusy,setPhotoSizeBusy]=useState(false);
  const[backgroundId,setBackgroundId]=useState('default');const backgroundRef=useRef('/assets/background.jpg');
  const[ribbonId,setRibbonId]=useState('');const ribbonRef=useRef(null);
  const[ribbonAdjust,setRibbonAdjust]=useState({x:0,y:0,scale:1});const ribbonAdjustRef=useRef({x:0,y:0,scale:1});
  const[collarPinId,setCollarPinId]=useState('');const collarPinRef=useRef(null);
- const[collarPinAdjust,setCollarPinAdjust]=useState({left:{x:0,y:0},right:{x:0,y:0},scale:1});const collarPinAdjustRef=useRef({left:{x:0,y:0},right:{x:0,y:0},scale:1});
- const[pinAdjustTab,setPinAdjustTab]=useState('left');
- const[pinPanelTab,setPinPanelTab]=useState('select');  const[pinKindTab,setPinKindTab]=useState('collar');
- const[chestPinId,setChestPinId]=useState('');const chestPinRef=useRef(null);
- const[chestPinAdjust,setChestPinAdjust]=useState({x:0,y:0,scale:1});const chestPinAdjustRef=useRef({x:0,y:0,scale:1});
- const[chestPinPanelTab,setChestPinPanelTab]=useState('select');
+ const[collarPinAdjust,setCollarPinAdjust]=useState({left:{x:0,y:0},right:{x:0,y:0}});const collarPinAdjustRef=useRef({left:{x:0,y:0},right:{x:0,y:0}});
+ const[pinPanelTab,setPinPanelTab]=useState('select');
  const[ribbonPanelTab,setRibbonPanelTab]=useState('select');
  const ribbonDragRef=useRef(null);
- const renderWithRibbon=async(...args)=>{
-  const base=await renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,false,null,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
-  beautyBaseRef.current=base;beautyPreviewBaseRef.current=null;
-  return applyLocalBeauty(base,beautyRef.current);
- };
- const renderQuickPreview=(...args)=>renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,true,null,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
+ const renderWithRibbon=(...args)=>renderAdjustedFinal(...args,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current);
  const[resultTool,setResultTool]=useState('head');
  const[previewZoom,setPreviewZoom]=useState(1);
  const[previewPan,setPreviewPan]=useState({x:0,y:0});
@@ -2181,32 +1720,8 @@ function App(){
  const[headMasterPreview,setHeadMasterPreview]=useState(null);
  const[headPreviewLock,setHeadPreviewLock]=useState(null);
  const headLayerRef=useRef(null);
- const liveCanvasRef=useRef(null);
- const [liveCanvasVisible,setLiveCanvasVisible]=useState(false);
  const previewStageRef=useRef(null);
  const fileInputRef=useRef(null);
- useEffect(()=>{
-  if(screen!=='process')return;
-  const stage=previewStageRef.current,workspace=stage?.closest('.editor-workspace'),root=stage?.closest('.adaptive-editor');
-  if(!workspace||!root)return;
-  let frame=0;
-  const measure=()=>{
-   cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{
-    if(!window.matchMedia('(max-width:1099px)').matches){workspace.style.removeProperty('--workspace-height');return;}
-    const viewport=window.visualViewport,height=viewport?.height||window.innerHeight;
-    const dock=root.querySelector('.editor-tool-dock'),panel=dock?.querySelector(':scope > .tool-choice-sheet');
-    const top=workspace.getBoundingClientRect().top;
-    if(panel)panel.style.setProperty('max-height',Math.max(60,Math.min(height*.36,300,height-Math.max(0,top)-(dock?.getBoundingClientRect().height||0)-88))+'px','important');
-    const bottom=dock?.getBoundingClientRect().top??height;
-    workspace.style.setProperty('--workspace-height',Math.max(80,Math.min(height,bottom)-Math.max(0,top)-8)+'px');
-   });
-  };
-  const observer=new ResizeObserver(measure);
-  for(const el of root.querySelectorAll('.process-mobile-topbar,.editor-mobile-actions,.editor-mobile-help,.tool-rail-wrap,.tool-choice-sheet'))observer.observe(el);
-  window.addEventListener('resize',measure);window.visualViewport?.addEventListener('resize',measure);measure();
-  return()=>{cancelAnimationFrame(frame);observer.disconnect();window.removeEventListener('resize',measure);window.visualViewport?.removeEventListener('resize',measure)};
- },[screen,optionTool,a,b]);
-
  const showSafetyBlock=message=>{
   setSafetyBlocked(true);
   console.warn('Image request was blocked; original preview retained.',message||'');
@@ -2215,34 +1730,29 @@ function App(){
  const suppressUiError=(error,context)=>{console.warn(context,error);setMsg('')};
  const liveAdjustRef=useRef(headAdjust);
  const liveCollarWarpRef=useRef(collarWarp);
- const liveCollarHeightRef=useRef(collarHeight);
  const liveNeckAdjustRef=useRef(neckAdjust);
  const initialHeadAdjustRef=useRef({scale:1,x:0,y:0,rotation:0});
  const rafRef=useRef(0);
  const toolBarRef=useRef(null);
  const choiceRailRef=useRef(null);
  const toggleOptionTool=(name,beforeOpen)=>{setOptionTool(current=>{const next=current===name?null:name;if(next&&beforeOpen)beforeOpen();return next})};
- const guideToHair=()=>{const next=gender==='male'?'male-hair':'female-hair';setOptionTool(next);const bar=toolBarRef.current;if(bar){const target=bar.querySelector(`[data-hair-guide="${next}"]`);target?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});}};
  const scrollToolBar=direction=>{const el=toolBarRef.current;if(!el)return;el.scrollBy({left:direction*Math.max(180,el.clientWidth*.55),behavior:'smooth'})};
  const scrollChoiceRail=direction=>{const el=choiceRailRef.current;if(!el)return;el.scrollBy({left:direction*Math.max(180,el.clientWidth*.72),behavior:'smooth'})};
  const gestureRef=useRef({pointers:new Map(),drag:false,pending:false,holdTimer:null,primary:null,x:0,y:0,downX:0,downY:0,startAdjust:null,pinch:false,distance:0,zoom:1,midX:0,midY:0,startPan:{x:0,y:0}});
  const viewGestureRef=useRef({pointers:new Map(),drag:false,pinch:false,x:0,y:0,distance:0,startZoom:1,startPan:{x:0,y:0},midX:0,midY:0});
  useEffect(()=>{if(b&&toolBarRef.current)toolBarRef.current.scrollLeft=0},[b]);
- useEffect(()=>{if(typeof window==='undefined'||!window.matchMedia('(min-width:1100px)').matches||screen!=='process'||!uniformCategory||!gender)return;setDesktopSelectorActive('uniform');setOptionTool('uniform');setUniformPickerTab(uniformCategory==='government'?`government-${gender}`:uniformCategory)},[screen,uniformCategory]);
- useEffect(()=>{if(!optionTool)return;const dismiss=e=>{const t=e.target;if(t?.closest?.('.tool-choice-sheet,.process-option-bar,.tool-rail-arrow,.direct-edit-preview,.desktop-accessory-adjust,.desktop-adjust-only-rail,.preview-desktop-actions,.photo-size-overlay,.photo-size-trigger'))return;setOptionTool(null)};document.addEventListener('pointerdown',dismiss,true);return()=>document.removeEventListener('pointerdown',dismiss,true)},[optionTool]);
+ useEffect(()=>{if(!optionTool)return;const dismiss=e=>{const t=e.target;if(t?.closest?.('.tool-choice-sheet,.process-option-bar,.tool-rail-arrow,.direct-edit-preview'))return;setOptionTool(null)};document.addEventListener('pointerdown',dismiss,true);return()=>document.removeEventListener('pointerdown',dismiss,true)},[optionTool]);
  const renderTimer=useRef(null);
- const beautyTimerRef=useRef(null);
  const adjustRenderBusyRef=useRef(false);
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){analyticsEvent('idprom_photo_add');setPhotoCrop({...DEFAULT_PHOTO_CROP});setPhotoSizeBlob(null);setTrialPreview(false);undoStackRef.current=[];redoStackRef.current=[];historyRefresh();firstUploadedPhotoRef.current=v;setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0},scale:1};setCollarPinAdjust(collarPinAdjustRef.current);chestPinRef.current=null;setChestPinId('');chestPinAdjustRef.current={x:0,y:0,scale:1};setChestPinAdjust(chestPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;initialProcessedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
- const applyAdjust=next=>{if(placementLocked)return;paintHeadTransform(next)};
+ const pick=e=>{const v=e.target.files?.[0];if(v){setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0}};setCollarPinAdjust(collarPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const applyAdjust=async next=>{if(placementLocked)return;liveAdjustRef.current=next;paintHeadTransform?.(next);setHeadAdjust(next);if(!editCache.current)return;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,next,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);showBlob(out)}catch(e){suppressUiError(e,'ปรับส่วนหัวไม่สำเร็จ')}};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
- const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-2,Math.min(2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current){drawLivePreview();commitAdjust()}};
- const applyCollarHeight=amount=>{if(placementLocked)return;const v=Math.max(-2,Math.min(2,amount));liveCollarHeightRef.current=v;setCollarHeight(v);if(editCache.current){drawLivePreview();commitAdjust()}};
+ const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-1.6,Math.min(1.2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current)paintHeadTransform({...liveAdjustRef.current})};
  const autoFitCollar=()=>{const target=Math.max(-.35,Math.min(.35,(headAdjust.scale-1)*.9));applyCollarWarp(target)};
- const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;drawLivePreview();commitAdjust()};
+ const applyNeckAdjust=async next=>{if(placementLocked)return;const v={width:Math.max(-1,Math.min(1,next.width||0)),length:Math.max(-1,Math.min(1,next.length||0))};liveNeckAdjustRef.current=v;setNeckAdjust(v);if(!editCache.current)return;const seq=++renderSeqRef.current;try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,v,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับคอไม่สำเร็จ')}};
  const headTransformCss=(adj=liveAdjustRef.current)=>{
   const lock=headPreviewLock;if(!lock)return '';
   const s=adj.scale||1,rot=adj.rotation||0,stage=previewStageRef.current;
@@ -2250,231 +1760,39 @@ function App(){
   return `translate3d(${dx}px,${dy}px,0) rotate(${rot}deg) scale(${s})`;
  };
  const renderSeqRef=useRef(0);
- // V225: draw straight into a persistent canvas. No image encoding or React
- // image-src replacement while moving a slider, finger or mouse.
- const finishTimer=useRef(null);
- // Keep the canvas visible throughout a range-pointer gesture. Switching to
- // the encoded image mid-drag caused the preview to jump between two frames.
- const activeSliderPointersRef=useRef(new Set());
- const finishSliderRef=useRef(null);
- useEffect(()=>{
-  const finish=e=>{
-   if(!activeSliderPointersRef.current.delete(e.pointerId))return;
-   if(activeSliderPointersRef.current.size===0)finishSliderRef.current?.();
-  };
-  document.addEventListener('pointerup',finish,true);
-  document.addEventListener('pointercancel',finish,true);
-  return()=>{document.removeEventListener('pointerup',finish,true);document.removeEventListener('pointercancel',finish,true)};
- },[]);
- // V243: one history entry per pointer gesture (not one per slider animation frame).
- const undoStackRef=useRef([]),redoStackRef=useRef([]);
- const[historyCounts,setHistoryCounts]=useState({undo:0,redo:0});
- const historySnapshot=()=>({
-  master:editCache.current?.master,lock:editCache.current?.lock,
-  adjust:{...liveAdjustRef.current},warp:liveCollarWarpRef.current,height:liveCollarHeightRef.current,
-  neck:{...liveNeckAdjustRef.current},ribbon:ribbonRef.current,ribbonId,
-  ribbonAdjust:{...ribbonAdjustRef.current},pins:collarPinRef.current,pinId:collarPinId,
-  pinAdjust:{left:{...collarPinAdjustRef.current.left},right:{...collarPinAdjustRef.current.right},scale:collarPinAdjustRef.current.scale||1},
-  chestPin:chestPinRef.current,chestPinId,chestPinAdjust:{...chestPinAdjustRef.current},
-  background:backgroundRef.current,backgroundId,hairId,placementLocked,
-  category:uniformCategory,gender,level,style:selectedStyle,
-  job:selectedJobTemplate,student:selectedStudentTemplate,gown:selectedGownTemplate,interior:selectedInteriorTemplate
- });
- const historySignature=s=>JSON.stringify({...s,master:undefined,lock:undefined});
- const historyRefresh=()=>setHistoryCounts({undo:undoStackRef.current.length,redo:redoStackRef.current.length});
- const rememberEdit=()=>{
-  if(!editCache.current||busy||hairBusy||uniformChanging||downloadBusy)return;
-  const snap=historySnapshot(),stack=undoStackRef.current;
-  if(stack.length&&stack[stack.length-1].master===snap.master&&stack[stack.length-1].lock===snap.lock&&historySignature(stack[stack.length-1])===historySignature(snap))return;
-  stack.push(snap);if(stack.length>60)stack.shift();redoStackRef.current=[];historyRefresh();
- };
- const restoreHistory=async(direction)=>{
-  if(busy||hairBusy||uniformChanging||downloadBusy||!editCache.current)return;
-  const from=direction==='undo'?undoStackRef.current:redoStackRef.current;
-  const to=direction==='undo'?redoStackRef.current:undoStackRef.current;
-  // Skip clicks that did not actually modify the editor.
-  let snap;
-  const current=historySnapshot();
-  while(from.length){const candidate=from.pop();if(candidate.master!==current.master||candidate.lock!==current.lock||historySignature(candidate)!==historySignature(current)){snap=candidate;break;}}
-  if(!snap){historyRefresh();return;}
-  to.push(current);if(to.length>60)to.shift();historyRefresh();
-  beginOptionRender();editCache.current={...editCache.current,master:snap.master,lock:snap.lock};
-  liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
-  liveCollarWarpRef.current=snap.warp;setCollarWarp(snap.warp);
-  liveCollarHeightRef.current=snap.height;setCollarHeight(snap.height);
-  liveNeckAdjustRef.current={...snap.neck};setNeckAdjust({...snap.neck});
-  ribbonRef.current=snap.ribbon;setRibbonId(snap.ribbonId);
-  ribbonAdjustRef.current={...snap.ribbonAdjust};setRibbonAdjust({...snap.ribbonAdjust});
-  collarPinRef.current=snap.pins;setCollarPinId(snap.pinId);
-  collarPinAdjustRef.current={left:{...snap.pinAdjust.left},right:{...snap.pinAdjust.right},scale:snap.pinAdjust.scale||1};setCollarPinAdjust(collarPinAdjustRef.current);
-  chestPinRef.current=snap.chestPin;setChestPinId(snap.chestPinId);chestPinAdjustRef.current={...snap.chestPinAdjust};setChestPinAdjust(chestPinAdjustRef.current);
-  backgroundRef.current=snap.background;setBackgroundId(snap.backgroundId);setHairId(snap.hairId);
-  setPlacementLocked(snap.placementLocked);setUniformCategory(snap.category);setGender(snap.gender);
-  setLevel(snap.level);setSelectedStyle(snap.style);setSelectedJobTemplate(snap.job);
-  setSelectedStudentTemplate(snap.student);if(snap.gown)setSelectedGownTemplate(snap.gown);setSelectedInteriorTemplate(snap.interior);
-  setHeadPreviewLock(snap.lock);
-  if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
-  setHeadMasterPreview(URL.createObjectURL(snap.master));
-  try{const seq=renderSeqRef.current;
-   const out=await renderWithRibbon(snap.master,snap.lock,snap.adjust,snap.warp,snap.neck,snap.background);
-   if(seq===renderSeqRef.current)showBlob(out);
-  }catch(e){suppressUiError(e,'ย้อนกลับ/คืนค่าไม่สำเร็จ')}
- };
- const captureSliderPointer=e=>{
-  if(e.target?.matches?.('input[type="range"]'))activeSliderPointersRef.current.add(e.pointerId);
-  if(e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.placement-lock-btn,.uniform-option,.uniform-card')||(e.target?.closest?.('.hero-preview')&&!e.target?.closest?.('button,input')&&!comparePreview)||e.target?.closest?.('.preview-floating-actions button[aria-label="รีเซ็ต"]'))rememberEdit();
- };
-
- const previewFrame=useRef(null);
- const previewDrawingRef=useRef(false);
- const previewDirtyRef=useRef(false);
- const previewEpochRef=useRef(0);
- // An option click replaces the displayed composite; do not leave the old live canvas over it.
- const beginOptionRender=()=>{
-  clearTimeout(renderTimer.current);clearTimeout(finishTimer.current);
-  previewEpochRef.current++;previewDirtyRef.current=false;
-  if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
-  setLiveCanvasVisible(false);
-  return ++renderSeqRef.current;
- };
- // V297: one preview frame at a time. Never queue a while-loop of stale
- // full composites behind pointer events; a released finger must remain responsive.
- const drawLivePreview=()=>{
-  if(!editCache.current||!liveCanvasRef.current)return;
-  previewDirtyRef.current=true;
-  if(previewFrame.current||previewDrawingRef.current)return;
-  previewFrame.current=requestAnimationFrame(async()=>{
-   previewFrame.current=null;
-   if(previewDrawingRef.current||!previewDirtyRef.current)return;
-   previewDirtyRef.current=false;
-   previewDrawingRef.current=true;
-   const current=editCache.current,epoch=previewEpochRef.current;
-   const canvas=liveCanvasRef.current;
-   canvas.__editorGeneration=epoch;
-   try{
-    await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},true,canvas,liveCollarHeightRef.current,chestPinRef.current,chestPinAdjustRef.current);
-    if(epoch===previewEpochRef.current)setLiveCanvasVisible(true);
-   }catch(e){suppressUiError(e,'แสดงภาพขณะลากไม่สำเร็จ')}
-   finally{
-    previewDrawingRef.current=false;
-    if(previewDirtyRef.current)drawLivePreview();
-   }
-  });
- };
- const commitAdjust=()=>{
-  if(placementLocked||!editCache.current)return;
-  clearTimeout(finishTimer.current);
-  if(activeSliderPointersRef.current.size)return;
-  const seq=++renderSeqRef.current;
-  finishTimer.current=setTimeout(async()=>{
-   if(seq!==renderSeqRef.current||!editCache.current)return;
-   const current=editCache.current;
-   try{
-    const out=await renderWithRibbon(current.master,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
-    // Invalidate old preview work rather than waiting on a render queue.
-    if(seq===renderSeqRef.current){
-     previewEpochRef.current++;previewDirtyRef.current=false;
-     if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
-     if(liveCanvasRef.current)liveCanvasRef.current.__editorGeneration=previewEpochRef.current;
-    }
-    if(seq===renderSeqRef.current&&!activeSliderPointersRef.current.size){
-     // Keep one visible rendering surface: switching canvas <-> img changes
-     // rasterisation/scale and makes the portrait appear to zoom back and forth.
-     showBlob(out);
-     setLiveCanvasVisible(false);
-    }
-   }catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับภาพไม่สำเร็จ')}
-  },180);
- };
- finishSliderRef.current=commitAdjust;
- const paintHeadTransform=next=>{
-  if(placementLocked)return;
+ const commitAdjust=async next=>{
   liveAdjustRef.current=next;setHeadAdjust(next);
-  ++renderSeqRef.current;clearTimeout(finishTimer.current);
-  drawLivePreview();
-  // During a held pointer, commit once on release, not after every move.
-  if(!gestureRef.current.drag)commitAdjust();
+  if(!editCache.current)return;
+  if(adjustRenderBusyRef.current){pendingAdjustRef.current={...next};return}
+  adjustRenderBusyRef.current=true;
+  let current={...next};
+  try{
+   while(current){
+    pendingAdjustRef.current=null;
+    const seq=++renderSeqRef.current;
+    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,current,liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
+    if(!pendingAdjustRef.current&&seq===renderSeqRef.current)showBlob(out);
+    current=pendingAdjustRef.current;
+   }
+  }catch(e){suppressUiError(e,'ปรับส่วนหัวไม่สำเร็จ')}
+  finally{adjustRenderBusyRef.current=false;if(pendingAdjustRef.current){const latest=pendingAdjustRef.current;pendingAdjustRef.current=null;commitAdjust(latest)}}
+ };
+ // V85 SINGLE-RENDERER EDITOR: the bitmap visible in Preview is produced by the
+ // exact same renderAdjustedFinal() used by Download. No CSS-only head layer remains.
+ const paintHeadTransform=next=>{
+  liveAdjustRef.current=next;setHeadAdjust(next);
+  if(renderTimer.current)return;
+  renderTimer.current=setTimeout(()=>{renderTimer.current=null;commitAdjust({...liveAdjustRef.current})},34);
  };
  const scheduleAdjust=next=>paintHeadTransform(next);
  const sliderAdjust=next=>paintHeadTransform(next);
- const stepRangeValue=(value,delta,min,max)=>Math.max(min,Math.min(max,Math.round((Number(value)+delta)*1000)/1000));
  const stepHeadSlider=(key,delta,min,max)=>{const current=key==='scale'?headAdjust.scale*100:key==='x'?headAdjust.x*100:key==='y'?-headAdjust.y*100:(headAdjust.rotation||0);const next=Math.max(min,Math.min(max,Math.round((current+delta)*1000)/1000));sliderAdjust({...headAdjust,[key]:key==='scale'||key==='x'?next/100:key==='y'?-next/100:next});};
  const clampPreviewPan=(pan,zoom=previewZoom)=>{const stage=previewStageRef.current;const maxX=(stage?.clientWidth||0)*Math.abs(zoom-1)/2,maxY=(stage?.clientHeight||0)*Math.abs(zoom-1)/2;return{x:Math.max(-maxX,Math.min(maxX,pan.x)),y:Math.max(-maxY,Math.min(maxY,pan.y))}};
  const setPreviewViewZoom=next=>{const zoom=Math.max(.2,Math.min(2,next));setPreviewZoom(zoom);setPreviewPan(current=>clampPreviewPan(current,zoom))};
  const previewCanvasPoint=e=>{const rect=e.currentTarget.getBoundingClientRect(),lock=editCache.current?.lock;return !lock?null:{rect,lock,x:(e.clientX-rect.left)/rect.width*lock.W,y:(e.clientY-rect.top)/rect.height*lock.H}};
  const isHeadTouch=e=>{if(!b||comparePreview||placementLocked||optionTool!=='head')return false;const p=previewCanvasPoint(e);if(!p)return false;const {lock,x,y}=p,adj=liveAdjustRef.current,s=adj.scale||1,baseW=lock.headW*lock.scale,baseH=lock.headH*lock.scale,cx=lock.hX+baseW/2+(adj.x||0)*lock.W,cy=lock.hY+baseH/2+(adj.y||0)*lock.H;return x>=cx-baseW*s*.52&&x<=cx+baseW*s*.52&&y>=cy-baseH*s*.52&&y<=cy+baseH*s*.38};
  const beginViewGesture=e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);const v=viewGestureRef.current;if(!v.pointers)v.pointers=new Map();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(v.pointers.size===1){v.drag=true;v.pinch=false;v.x=e.clientX;v.y=e.clientY;v.startPan={...previewPan}}else{const pts=[...v.pointers.values()].slice(0,2);v.drag=false;v.pinch=true;v.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);v.startZoom=previewZoom;v.startPan={...previewPan};v.midX=(pts[0].x+pts[1].x)/2;v.midY=(pts[0].y+pts[1].y)/2}};
- // V271: tap an existing image layer to open its own adjustment tab.
- // Use the same final-composite geometry as renderAdjustedFinal; do not change layer positions.
- const selectPreviewLayer=e=>{
-  if(!b||comparePreview||busy||hairBusy||uniformChanging||downloadBusy||e.pointerType==='touch'&&!e.isPrimary)return false;
-  const p=previewCanvasPoint(e);if(!p)return false;
-  const {lock,x,y}=p;
-  if(!/\/government-uniforms\//.test(lock.templatePath||'')){
-   // The head tool is also available for non-government outfits.
-   return selectPreviewHead(p);
-  }
-  const inside=(cx,cy,w,h)=>x>=cx-w/2&&x<=cx+w/2&&y>=cy-h/2&&y<=cy+h/2;
-  const pins=collarPinRef.current,cp=collarPinAdjustRef.current;
-  if(pins){
-   const female=/\/government-uniforms\/female-/.test(lock.templatePath||'');
-   const w=lock.uW*(female?.078:.068)*(cp.scale||1),h=w*1.6;
-   const left=cp.left||{x:0,y:0},right=cp.right||{x:0,y:0};
-   const yy=lock.uY+lock.uH*.245;
-   if(inside(lock.uX+lock.uW*((female?.315:.455)+(left.x||0)),yy+lock.uH*(left.y||0),w*1.45,h*1.4)||
-      inside(lock.uX+lock.uW*((female?.685:.545)+(right.x||0)),yy+lock.uH*(right.y||0),w*1.45,h*1.4)){
-    setOptionTool('pins');setPinKindTab('collar');setPinPanelTab('adjust');return true;
-   }
-  }
-  if(chestPinRef.current){
-   const v=chestPinAdjustRef.current,w=lock.uW*.073*(v.scale||1);
-   if(inside(lock.uX+lock.uW*(.28+(v.x||0)),lock.uY+lock.uH*(.405+(v.y||0)),w*1.6,w*2.3)){
-    setOptionTool('pins');setPinKindTab('chest');setPinPanelTab('adjust');return true;
-   }
-  }
-  if(ribbonRef.current){
-   const v=ribbonAdjustRef.current,w=lock.uW*.205*(v.scale||1);
-   if(inside(lock.uX+lock.uW*(.73+(v.x||0)),lock.uY+lock.uH*(.495+(v.y||0))+w/7,w*1.2,w*.65)){
-    if(optionTool==='ribbon')return false; // preserve the existing direct ribbon drag
-    setOptionTool('ribbon');setRibbonPanelTab('adjust');return true;
-   }
-  }
-  return selectPreviewHead(p);
- };
- const selectPreviewHead=({lock,x,y})=>{
-  if(placementLocked)return false;
-  const adj=liveAdjustRef.current,s=adj.scale||1,w=lock.headW*lock.scale*s,h=lock.headH*lock.scale*s;
-  const cx=lock.hX+lock.headW*lock.scale/2+(adj.x||0)*lock.W;
-  const cy=lock.hY+lock.headH*lock.scale/2+(adj.y||0)*lock.H;
-  if(x<cx-w*.52||x>cx+w*.52||y<cy-h*.52||y>cy+h*.38)return false;
-  if(optionTool==='head')return false; // keep existing hold-to-drag behavior once selected
-  setOptionTool('head');return true;
- };
- const previewTapRef=useRef(null);
- // All touch pointers share one viewport pinch, regardless of the layer under either finger.
- const startPreviewPinch=e=>{
-  const v=viewGestureRef.current,g=gestureRef.current,drag=ribbonDragRef.current;
-  const points=new Map(v.pointers||[]);
-  for(const [id,point] of g.pointers||[])points.set(id,point);
-  if(drag)points.set(drag.id,{x:drag.lastX??drag.x,y:drag.lastY??drag.y});
-  points.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(points.size<2)return false;
-  e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);
-  clearTimeout(g.holdTimer);g.holdTimer=null;g.pending=false;g.drag=false;g.pinch=false;
-  g.pointers.clear();ribbonDragRef.current=null;previewTapRef.current=null;
-  v.pointers=points;v.drag=false;v.pinch=true;v.wasPinch=true;
-  const pts=[...points.values()].slice(0,2);
-  v.distance=Math.max(1,Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y));
-  v.startZoom=previewZoom;v.startPan={...previewPan};
-  v.midX=(pts[0].x+pts[1].x)/2;v.midY=(pts[0].y+pts[1].y)/2;
-  return true;
- };
  const previewPointerDown=e=>{
-  if(e.pointerType==='touch'){
-   if(startPreviewPinch(e))return;
-   previewTapRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};
-  }
-  if(e.pointerType!=='touch'&&selectPreviewLayer(e)){e.preventDefault();e.stopPropagation();return;}
   if(optionTool==='ribbon'&&ribbonRef.current&&b&&!comparePreview){
    const rect=e.currentTarget.getBoundingClientRect();
    const lock=editCache.current?.lock;
@@ -2484,7 +1802,7 @@ function App(){
    const cx=lock.uX+lock.uW*(.73+v.x),top=lock.uY+lock.uH*(.495+v.y);
    if(px<cx-w*.8||px>cx+w*.8||py<top-h||py>top+h*2){beginViewGesture(e);return}
    e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture?.(e.pointerId);
-   ribbonDragRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,start:{...v}};return;
+   ribbonDragRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,start:{...v}};return;
   }
   if(!isHeadTouch(e)){if(a||b)beginViewGesture(e);return}
   e.preventDefault();e.stopPropagation();
@@ -2501,10 +1819,10 @@ function App(){
     navigator.vibrate?.(10);
    },320);
   }
+  else if(g.pointers.size===2){clearTimeout(g.holdTimer);g.pending=false;const pts=[...g.pointers.values()];g.pinch=true;g.drag=false;g.distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);g.startAdjust={...liveAdjustRef.current};g.midX=(pts[0].x+pts[1].x)/2;g.midY=(pts[0].y+pts[1].y)/2}
  };
  const previewPointerMove=e=>{
   const v=viewGestureRef.current;
-  if(previewTapRef.current?.id===e.pointerId&&Math.hypot(e.clientX-previewTapRef.current.x,e.clientY-previewTapRef.current.y)>8)previewTapRef.current.moved=true;
   if(v.pointers?.has(e.pointerId)){
    e.preventDefault();v.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(v.pointers.size>=2&&v.pinch){const pts=[...v.pointers.values()].slice(0,2),distance=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),midX=(pts[0].x+pts[1].x)/2,midY=(pts[0].y+pts[1].y)/2,zoom=Math.max(.2,Math.min(2,v.startZoom*distance/Math.max(1,v.distance)));setPreviewZoom(zoom);setPreviewPan(clampPreviewPan({x:v.startPan.x+(midX-v.midX),y:v.startPan.y+(midY-v.midY)},zoom))}
@@ -2512,47 +1830,27 @@ function App(){
    return;
   }
   const drag=ribbonDragRef.current;
-  if(drag&&drag.id===e.pointerId){drag.lastX=e.clientX;drag.lastY=e.clientY;e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();const lock=editCache.current?.lock;if(lock)applyRibbonAdjust({...drag.start,x:drag.start.x+(e.clientX-drag.x)/rect.width*lock.W/lock.uW,y:drag.start.y+(e.clientY-drag.y)/rect.height*lock.H/lock.uH});return;}
+  if(drag&&drag.id===e.pointerId){e.preventDefault();const rect=e.currentTarget.getBoundingClientRect();const lock=editCache.current?.lock;if(lock)applyRibbonAdjust({...drag.start,x:drag.start.x+(e.clientX-drag.x)/rect.width*lock.W/lock.uW,y:drag.start.y+(e.clientY-drag.y)/rect.height*lock.H/lock.uH});return;}
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId)||(optionTool&&optionTool!=='head'))return;
   e.preventDefault();g.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   const rect=e.currentTarget.getBoundingClientRect();
-  if(g.pending&&e.pointerId===g.primary){if(Math.hypot(e.clientX-g.downX,e.clientY-g.downY)>10){clearTimeout(g.holdTimer);g.pending=false}return}
+  if(g.pointers.size>=2&&g.pinch){const pts=[...g.pointers.values()].slice(0,2),dist=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),mx=(pts[0].x+pts[1].x)/2,my=(pts[0].y+pts[1].y)/2;const ratio=dist/Math.max(1,g.distance);const scale=Math.max(.20,Math.min(2,g.startAdjust.scale*ratio));const next={...g.startAdjust,scale,x:g.startAdjust.x+(mx-g.midX)/rect.width,y:g.startAdjust.y+(my-g.midY)/rect.height};paintHeadTransform(next)}
+  else if(g.pending&&e.pointerId===g.primary){if(Math.hypot(e.clientX-g.downX,e.clientY-g.downY)>10){clearTimeout(g.holdTimer);g.pending=false}return}
   else if(g.drag&&e.pointerId===g.primary){const next={...g.startAdjust,x:g.startAdjust.x+(e.clientX-g.x)/rect.width,y:g.startAdjust.y+(e.clientY-g.y)/rect.height};paintHeadTransform(next)}
  };
  const previewPointerUp=e=>{
-  const tap=previewTapRef.current;
-  if(tap?.id===e.pointerId){previewTapRef.current=null;if(!tap.moved&&e.type!=='pointercancel'&&!viewGestureRef.current.wasPinch){selectPreviewLayer(e)}}
   const v=viewGestureRef.current;
   if(v.pointers?.has(e.pointerId)){
    e.preventDefault();v.pointers.delete(e.pointerId);
-   if(v.pointers.size===0){v.drag=false;v.pinch=false;v.wasPinch=false}
-   else if(v.wasPinch){v.drag=false;v.pinch=false} // Lift remaining finger before starting a new gesture.
+   if(v.pointers.size===0){v.drag=false;v.pinch=false}
    else if(v.pointers.size===1){const [,point]=[...v.pointers.entries()][0];v.drag=true;v.pinch=false;v.x=point.x;v.y=point.y;v.startPan={...previewPan}}
    return;
   }
-  if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;commitAdjust();return;}
+  if(ribbonDragRef.current?.id===e.pointerId){e.preventDefault();ribbonDragRef.current=null;return;}
   const g=gestureRef.current;if(!g.pointers?.has(e.pointerId))return;
   e.preventDefault();clearTimeout(g.holdTimer);g.holdTimer=null;g.pointers.delete(e.pointerId);
-  if(g.pointers.size===0){const changed=g.drag||g.pinch;g.drag=false;g.pending=false;g.pinch=false;if(changed)commitAdjust()}
+  if(g.pointers.size===0){const changed=g.drag||g.pinch;g.drag=false;g.pending=false;g.pinch=false;if(changed)commitAdjust({...liveAdjustRef.current})}
   else if(g.pointers.size===1){g.drag=false;g.pending=false;g.pinch=false;g.primary=[...g.pointers.keys()][0]}
- };
- // V298: the empty area surrounding the portrait participates in the same
- // two-finger gesture. Controls keep their own pointer handling untouched.
- const isPreviewControl=e=>!!e.target?.closest?.('button,input,select,textarea,a,[role="button"],.tool-choice-sheet,.process-option-bar,.preview-floating-actions,.image-progress-overlay');
- const previewAreaPointerDown=e=>{
-  if(!a&&!b||e.pointerType!=='touch'||e.target?.closest?.('.hero-preview')||isPreviewControl(e))return;
-  if(startPreviewPinch(e))return;
-  // Track the first finger outside the frame, so the next finger (even inside)
-  // can immediately convert the gesture into a pinch.
-  beginViewGesture(e);
- };
- const previewAreaPointerMove=e=>{
-  if(e.target?.closest?.('.hero-preview')||!viewGestureRef.current.pointers?.has(e.pointerId))return;
-  previewPointerMove(e);
- };
- const previewAreaPointerUp=e=>{
-  if(e.target?.closest?.('.hero-preview')||!viewGestureRef.current.pointers?.has(e.pointerId))return;
-  previewPointerUp(e);
  };
  const previewWheel=e=>{if(a||b){e.preventDefault();setPreviewViewZoom(previewZoom*Math.exp(-e.deltaY*.0015))}};
  // Kept only for compatibility with the hidden legacy row in this build.
@@ -2560,110 +1858,59 @@ function App(){
  const unlockPlacement=()=>{};
  const changeHair=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
-  setHairId(id);
-  if(!editCache.current)return;
-  const firstUploadedPhoto=firstUploadedPhotoRef.current;
-  if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
-  // Re-run the SAME first-processing pipeline from the untouched uploaded File.
-  // Never send the previously AI-generated head or the completed uniform portrait
-  // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
-  const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg('กำลังสร้างทรงผมจากรูปต้นฉบับ…');
+  if(!editCache.current){setHairId(id);return;}
+  // V215: re-run the exact FIRST-PROCESSING AI pipeline from the uploaded
+  // original File, never from the currently rendered/segmented/composited head.
+  // The editor placement snapshot and uniform template remain untouched.
+  clearTimeout(renderTimer.current);
+  ++renderSeqRef.current;
+  lockedPlacementRef.current={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+  if(!lockedMasterRef.current){
+   lockedMasterRef.current=initialStyledHairRef.current||editCache.current.master;
+   preparedHairBaseRef.current=null;lastHairDonorRef.current=null;hairResultCacheRef.current.clear();
+  }
+  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังเปลี่ยนทรงผม');setMsg('กำลังเปลี่ยนเฉพาะทรงผม โดยคงตำแหน่งปัจจุบันไว้…');
   let completed=false;
   try{
+   const snap=lockedPlacementRef.current||{adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
+   // Every hairstyle starts from the SAME immutable master. Results never
+   // become the source for another AI request, preventing accumulated drift.
+   const src=lockedMasterRef.current||initialStyledHairRef.current||editCache.current.master;
    let nextMaster;
-   if(!id&&initialProcessedMasterRef.current){
-    // Return to the exact first processed result without a second paid API call.
-    nextMaster=initialProcessedMasterRef.current;
-    setProgressStage(78,'กำลังคืนภาพแรก');
+   if(!id){
+    nextMaster=initialStyledHairRef.current||src;setProgressStage(78,'กำลังคืนทรงเริ่มต้น');
    }else{
-    const cached=hairResultCacheRef.current.get(id||'original');
-    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
+    setMsg('กำลังใช้รูปต้นฉบับเปลี่ยนทรงผมด้วยคำสั่งเดียวกับการประมวลผลครั้งแรก…');
+    const cached=hairResultCacheRef.current.get(id);
+    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ทรงผมที่บันทึกไว้');setMsg('นำผลทรงผมที่ผ่านการล็อกใบหน้าแล้วกลับมาใช้ · ไม่เสียเครดิตซ้ำ');}
     else{
-     // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
-     if(aiHeadNeck?.idpromTrial)setTrialPreview(true);
-     setProgressStage(60,'กำลังแยกพื้นหลัง');
-     const transparent=await removeBackgroundBlob(aiHeadNeck);
-     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     nextMaster=await optionalHealthySkin10(transparent,firstUploadedPhoto);
-     // Match the female hairstyle pipeline: use one coherent AI output layer.
-     // Do not paste a second face over the new male hairline: the overlapping
-     // face stencil produced the visible forehead patch / mask-shaped seam.
-     hairResultCacheRef.current.set(id||'original',nextMaster);
+     if(!f)throw Error('ไม่พบรูปต้นฉบับ กรุณาอัปโหลดรูปใหม่');
+     setProgressStage(38,'กำลังใช้รูปต้นฉบับและคำสั่งประมวลผลครั้งแรก');
+     // Same function, source file and mode as go(): face-lock + selected hair.
+     const aiHeadNeck=await aiFinishPortrait(f,id);
+     setProgressStage(65,'กำลังลบพื้นหลังเหมือนประมวลผลครั้งแรก');
+     const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
+     setProgressStage(72,'กำลังล็อกใบหน้าต้นฉบับ');
+     const faceLockedHeadNeck=await restoreOriginalFacePixels(removedHeadNeck,f);
+     setProgressStage(78,'กำลังเก็บรายละเอียดผิวเหมือนประมวลผลครั้งแรก');
+     nextMaster=await refineSkinTextureBlob(faceLockedHeadNeck);
+     // Cache only successfully processed images. Never cache errors or intermediate AI output.
+     hairResultCacheRef.current.set(id,nextMaster);
     }
    }
-   setProgressStage(88,'กำลังประกอบกับชุดเดิม');
-   const current=editCache.current;
-   if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
-   const out=await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
-   // The old editor canvas may otherwise cover the newly generated PNG.
-   beginOptionRender();
-   editCache.current={...current,master:nextMaster};
+   // Keep the immutable locked master separate. editCache.master is only the currently
+   // displayed hairstyle result and is never used as the source for the next hairstyle.
+   const out=await renderWithRibbon(nextMaster,editCache.current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   setProgressStage(97,'กำลังแสดงผล');
+   // Invalidate editor renders started before the new hairstyle was selected.
+   ++renderSeqRef.current;
+   // Commit only after the new composite and final render have both succeeded.
+   editCache.current={...editCache.current,master:nextMaster};
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
-   liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);liveCollarHeightRef.current=snap.collarHeight;setCollarHeight(snap.collarHeight);
+   liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
-   setHeadMasterPreview(URL.createObjectURL(nextMaster));
-   setHeadPreviewLock(current.lock);
-   setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
-  finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
- };
- const changeHairForStudio=async id=>{
-  if(hairRequestRef.current||hairBusy||busy)return;
-  setHairId(id);
-  if(!editCache.current)return;
-  const firstUploadedPhoto=firstUploadedPhotoRef.current;
-  if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
-  // Re-run the SAME first-processing pipeline from the untouched uploaded File.
-  // Never send the previously AI-generated head or the completed uniform portrait
-  // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
-  const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg('กำลังสร้างทรงผมจากรูปต้นฉบับ…');
-  let completed=false;
-  try{
-   let nextMaster;
-   if(!id&&initialProcessedMasterRef.current&&!studioHairOriginRef.current){
-    // Return to the exact first processed result without a second paid API call.
-    nextMaster=initialProcessedMasterRef.current;
-    setProgressStage(78,'กำลังคืนภาพแรก');
-   }else{
-    const cached=hairResultCacheRef.current.get(id||'original');
-    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
-    else{
-     // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
-     if(aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
-     setProgressStage(60,'กำลังแยกพื้นหลัง');
-     const transparent=await removeBackgroundBlob(aiHeadNeck);
-     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     nextMaster=await optionalHealthySkin10(transparent,firstUploadedPhoto);
-     // Match the female hairstyle pipeline: use one coherent AI output layer.
-     // Do not paste a second face over the new male hairline: the overlapping
-     // face stencil produced the visible forehead patch / mask-shaped seam.
-     hairResultCacheRef.current.set(id||'original',nextMaster);
-    }
-   }
-   setProgressStage(88,'กำลังประกอบกับชุดเดิม');
-   const current=editCache.current;
-   if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
-   const out=await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
-   // The old editor canvas may otherwise cover the newly generated PNG.
-   beginOptionRender();
-   editCache.current={...current,master:nextMaster};
-   liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
-   liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);liveCollarHeightRef.current=snap.collarHeight;setCollarHeight(snap.collarHeight);
-   liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
-   setHeadMasterPreview(URL.createObjectURL(nextMaster));
-   setHeadPreviewLock(current.lock);
-   setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
-  finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
-  return completed;
+   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากรูปต้นฉบับแล้ว · คงตำแหน่งชุดและหัวเดิม');completed=true;
+  }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'เปลี่ยนทรงผมไม่สำเร็จ')}finally{await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
  };
  const downloadHairDonor=()=>{
   const blob=lastHairDonorRef.current;
@@ -2681,94 +1928,63 @@ function App(){
  };
  const applyRibbonAdjust=next=>{
   const v={x:Math.max(-.35,Math.min(.35,next.x)),y:Math.max(-.35,Math.min(.35,next.y)),scale:Math.max(.45,Math.min(2,next.scale))};
-  ribbonAdjustRef.current=v;setRibbonAdjust(v);drawLivePreview();
-  if(!ribbonDragRef.current)commitAdjust();
+  ribbonAdjustRef.current=v;setRibbonAdjust(v);
+  clearTimeout(renderTimer.current);
+  const seq=++renderSeqRef.current;
+  renderTimer.current=setTimeout(async()=>{
+   if(!editCache.current||!ribbonRef.current)return;
+   try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}
+   catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับแพรแถบไม่สำเร็จ')}
+  },20);
  };
  const selectRibbon=async option=>{
   if(busy||hairBusy||downloadBusy)return;
   const previous=ribbonRef.current,previousId=ribbonId;
   ribbonRef.current=option?.src||null;setRibbonId(option?.id||'');
   if(!editCache.current)return;
-  const seq=beginOptionRender();
-  // Keep the sharp composite visible until the full-resolution ribbon render is ready.
+  const seq=++renderSeqRef.current;clearTimeout(renderTimer.current);
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-   finishPinRender(seq,out);
+   if(seq===renderSeqRef.current)showBlob(out);
   }catch(e){if(seq===renderSeqRef.current){ribbonRef.current=previous;setRibbonId(previousId);suppressUiError(e,'เปลี่ยนแพรแถบไม่สำเร็จ')}}
- };
- // Pin selection keeps the current sharp image until the full composite is ready.
- // Invalidate pending previews so an older low-resolution frame cannot cover it.
- const finishPinRender=(seq,out)=>{
-  if(seq!==renderSeqRef.current)return false;
-  previewEpochRef.current++;previewDirtyRef.current=false;
-  if(previewFrame.current){cancelAnimationFrame(previewFrame.current);previewFrame.current=null}
-  if(liveCanvasRef.current)liveCanvasRef.current.__editorGeneration=previewEpochRef.current;
-  showBlob(out);setLiveCanvasVisible(false);
-  return true;
  };
  const selectCollarPins=async option=>{
   if(busy||hairBusy||downloadBusy)return;
   const previous=collarPinRef.current,previousId=collarPinId;
   collarPinRef.current=option?{left:option.left,right:option.right}:null;setCollarPinId(option?.id||'');
-  if(!editCache.current){setMsg('');return;}
-  const seq=beginOptionRender();
+  if(!editCache.current){setMsg(option?'เลือกเข็มคู่แล้ว · ระบบจะวางตามชุดชายหรือหญิงเมื่อประมวลผล':'เลือกไม่ติดเข็มแล้ว');return;}
+  const seq=++renderSeqRef.current;clearTimeout(renderTimer.current);
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-   if(finishPinRender(seq,out))setMsg('');
+   if(seq===renderSeqRef.current){showBlob(out);setMsg(option?'วางเข็มซ้าย–ขวาตามตำแหน่งปกเสื้อแล้ว':'นำเข็มออกแล้ว')}
   }catch(e){if(seq===renderSeqRef.current){collarPinRef.current=previous;setCollarPinId(previousId);suppressUiError(e,'วางเข็มไม่สำเร็จ')}}
  };
  const applyCollarPinAdjust=next=>{
   const clampSide=side=>({x:Math.max(-.2,Math.min(.2,side?.x||0)),y:Math.max(-.2,Math.min(.2,side?.y||0))});
-  const v={left:clampSide(next.left),right:clampSide(next.right),scale:Math.max(.5,Math.min(2,next.scale||1))};
-  collarPinAdjustRef.current=v;setCollarPinAdjust(v);drawLivePreview();commitAdjust();
+  const v={left:clampSide(next.left),right:clampSide(next.right)};
+  collarPinAdjustRef.current=v;setCollarPinAdjust(v);
+  clearTimeout(renderTimer.current);const seq=++renderSeqRef.current;
+  renderTimer.current=setTimeout(async()=>{
+   if(!editCache.current||!collarPinRef.current)return;
+   try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);if(seq===renderSeqRef.current)showBlob(out)}
+   catch(e){if(seq===renderSeqRef.current)suppressUiError(e,'ปรับตำแหน่งเข็มไม่สำเร็จ')}
+  },20);
  };
- const selectChestPin=async option=>{
-  if(busy||hairBusy||downloadBusy)return;
-  rememberEdit();const previous=chestPinRef.current,previousId=chestPinId;
-  chestPinRef.current=option?.src||null;setChestPinId(option?.id||'');
-  if(!editCache.current)return;
-  const seq=beginOptionRender();
-  try{const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
-   finishPinRender(seq,out);
-  }catch(e){if(seq===renderSeqRef.current){chestPinRef.current=previous;setChestPinId(previousId);suppressUiError(e,'วางเข็มติดอกไม่สำเร็จ')}}
- };
- const applyChestPinAdjust=next=>{
-  const v={x:Math.max(-.35,Math.min(.35,next.x)),y:Math.max(-.35,Math.min(.35,next.y)),scale:Math.max(.45,Math.min(2,next.scale))};
-  chestPinAdjustRef.current=v;setChestPinAdjust(v);drawLivePreview();commitAdjust();
- };
- const pinSlider=(label,value,min,max,step,change)=> <div className="head-adjust-row pin-control">
-  <div className="pin-control-title"><span>{label}</span><output>{value>0&&min<0?'+':''}{Math.round(value)}%</output></div>
-  <div className="pin-control-track"><button type="button" className="pin-step" aria-label={`ลด${label}`} onClick={()=>change(Number(stepRangeValue(value,-step,min,max)))}>−</button><input aria-label={label} type="range" min={min} max={max} step={step} value={value} onChange={e=>change(Number(e.target.value))}/><button type="button" className="pin-step" aria-label={`เพิ่ม${label}`} onClick={()=>change(Number(stepRangeValue(value,step,min,max)))}>+</button></div>
- </div>;
- const chestPinControls=()=> <div className="pin-controls" role="group" aria-label="ปรับเข็มติดอก">{!chestPinId?<div className="ribbon-adjust-empty">เลือกเข็มติดอกก่อนปรับตำแหน่ง</div>:<>
-  {pinSlider('ซ้าย–ขวา',chestPinAdjust.x*100,-35,35,.5,v=>applyChestPinAdjust({...chestPinAdjust,x:v/100}))}
-  {pinSlider('ขึ้น–ลง',-chestPinAdjust.y*100,-35,35,.5,v=>applyChestPinAdjust({...chestPinAdjust,y:-v/100}))}
-  {pinSlider('ขนาด',chestPinAdjust.scale*100,45,200,1,v=>applyChestPinAdjust({...chestPinAdjust,scale:v/100}))}
-  <button type="button" className="pin-reset" onClick={()=>{rememberEdit();applyChestPinAdjust({x:0,y:0,scale:1})}}>คืนค่าเข็มติดอก</button>
- </>}</div>;
- const collarPinControls=()=>{if(!collarPinId)return <div className="ribbon-adjust-empty">เลือกเข็มก่อนปรับตำแหน่ง</div>;const side=pinAdjustTab==='right'?'right':'left',value=collarPinAdjust[side];return <div className="pin-controls" role="group" aria-label="ปรับเข็มปกคอ">
-  <div className="pin-adjust-tabs" role="group" aria-label="ส่วนที่ต้องการปรับ">{[['left','เข็มซ้าย'],['right','เข็มขวา'],['scale','ขนาดคู่']].map(([id,label])=><button type="button" key={id} aria-pressed={pinAdjustTab===id} className={pinAdjustTab===id?'active':''} onClick={()=>setPinAdjustTab(id)}>{label}</button>)}</div>
-  {pinAdjustTab==='scale'?pinSlider('ขนาดเข็มทั้งสองข้าง',(collarPinAdjust.scale||1)*100,50,200,1,v=>applyCollarPinAdjust({...collarPinAdjust,scale:v/100})):<>
-   {pinSlider('ซ้าย–ขวา',value.x*100,-20,20,.5,v=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,x:v/100}}))}
-   {pinSlider('ขึ้น–ลง',-value.y*100,-20,20,.5,v=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,y:-v/100}}))}
-  </>}
-  <button type="button" className="pin-reset" onClick={()=>{rememberEdit();applyCollarPinAdjust(pinAdjustTab==='scale'?{...collarPinAdjust,scale:1}:{...collarPinAdjust,[side]:{x:0,y:0}})}}>คืนค่า{pinAdjustTab==='scale'?'ขนาดคู่':side==='left'?'เข็มซ้าย':'เข็มขวา'}</button>
- </div>};
+ const pinSideControls=(side,label)=>{const value=collarPinAdjust[side];return <section className="pin-side-adjust"><strong>{label}</strong><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><input aria-label={`${label} เลื่อนซ้ายขวา`} type="range" min="-20" max="20" step=".5" value={value.x*100} onChange={e=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,x:Number(e.target.value)/100}})}/><output>{value.x>=0?'+':''}{Math.round(value.x*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,x:0}})} aria-label={`${label} คืนค่าซ้ายขวา`}><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขึ้น–ลง"><HeadAdjustGlyph type="vertical"/></span><input aria-label={`${label} เลื่อนขึ้นลง`} type="range" min="-20" max="20" step=".5" value={-value.y*100} onChange={e=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,y:-Number(e.target.value)/100}})}/><output>{-value.y>=0?'+':''}{Math.round(-value.y*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarPinAdjust({...collarPinAdjust,[side]:{...value,y:0}})} aria-label={`${label} คืนค่าขึ้นลง`}><ResetGlyph/></button></div></section>};
  const selectBackground=async option=>{
   if(busy||hairBusy||downloadBusy)return;
   const previousPath=backgroundRef.current,previousId=backgroundId;
   backgroundRef.current=option.src;setBackgroundId(option.id);
   if(!editCache.current)return;
-  const seq=beginOptionRender();
+  const seq=++renderSeqRef.current;clearTimeout(renderTimer.current);
   try{
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,option.src);
    if(seq===renderSeqRef.current)showBlob(out);
-  }catch(e){if(seq===renderSeqRef.current){backgroundRef.current=previousPath;setBackgroundId(previousId);drawLivePreview();suppressUiError(e,'เปลี่ยนพื้นหลังไม่สำเร็จ')}}
+  }catch(e){if(seq===renderSeqRef.current){backgroundRef.current=previousPath;setBackgroundId(previousId);suppressUiError(e,'เปลี่ยนพื้นหลังไม่สำเร็จ')}}
  };
  const commitUniformSelection=option=>{
   if(option.cat==='job')setSelectedJobTemplate(option.template);
   if(option.cat==='student')setSelectedStudentTemplate(option.template);
-  if(option.cat==='gown')setSelectedGownTemplate(option.template);
   if(option.cat==='government'&&option.gender==='male')setSelectedInteriorTemplate(option.template);
   setUniformCategory(option.cat);setGender(option.gender);if(option.level)setLevel(option.level);setSelectedStyle(option.title||option.name);
  };
@@ -2776,11 +1992,11 @@ function App(){
   if(busy||hairBusy||downloadBusy||uniformChanging)return;
   if(!editCache.current){
    commitUniformSelection(option);
-   setMsg('');
+   setMsg(`เลือกชุด ${option.title||option.name} แล้ว · เพิ่มรูปเพื่อเริ่มประมวลผล`);
    return;
   }
   const previousLock=editCache.current.lock;
-  setUniformChanging(true);beginProgress('กำลังเปลี่ยนชุด');setMsg('');
+  setUniformChanging(true);beginProgress('กำลังเปลี่ยนชุด');setMsg('กำลังวางแพทเทิร์นชุดใหม่…');
   let completed=false;
   try{
    clearTimeout(renderTimer.current);const seq=++renderSeqRef.current;
@@ -2790,264 +2006,129 @@ function App(){
    if(seq!==renderSeqRef.current)return;
    editCache.current={...editCache.current,lock:composed.lock};
    commitUniformSelection(option);
-   // V232: V231 keeps the live canvas visible after editing. Updating only the
-   // hidden PNG made a successful uniform change look like it did nothing.
-   // Redraw that same visible surface using the NEW template lock, without
-   // changing the slider renderer or the face/hair/skin pipeline.
-   setProgressStage(97,'กำลังแสดงผล');showBlob(out);
-   if(liveCanvasVisible){
-    previewDirtyRef.current=true;
-    drawLivePreview();
-   }
-   setMsg('');completed=true;
+   setProgressStage(97,'กำลังแสดงผล');showBlob(out);setMsg('เปลี่ยนชุดแล้ว · คงใบหน้า ทรงผม และตำแหน่งเดิม');completed=true;
   }catch(e){editCache.current={...editCache.current,lock:previousLock};suppressUiError(e,'เปลี่ยนชุดไม่สำเร็จ')}
   finally{await finishProgress(completed);setUniformChanging(false)}
  };
- const updateBeauty=next=>{
-  beautyRef.current=next;setBeauty(next);
-  if(!editCache.current||!beautyBaseRef.current)return;
-  ++beautyRenderRef.current;
-  clearTimeout(beautyTimerRef.current);
-  // Keep the original full-resolution composite on screen while processing.
-  // Only one beauty job runs at a time; coalesce rapid slider updates.
-  const processLatest=async()=>{
-   if(beautyWorkingRef.current)return;
-   beautyWorkingRef.current=true;
-   try{
-    while(editCache.current&&beautyBaseRef.current){
-     const seq=beautyRenderRef.current;
-     const base=beautyBaseRef.current;
-     const values={...beautyRef.current};
-     const out=await applyLocalBeauty(base,values);
-     if(seq===beautyRenderRef.current&&base===beautyBaseRef.current){
-      setLiveCanvasVisible(false);showBlob(out);
-      break;
-     }
-     // Discard obsolete results instead of displaying a blurry intermediate frame.
-     await new Promise(resolve=>setTimeout(resolve,0));
-    }
-   }catch(e){suppressUiError(e,'ปรับผิวไม่สำเร็จ')}
-   finally{beautyWorkingRef.current=false}
-  };
-  beautyTimerRef.current=setTimeout(processLatest,0);
- };
- const openPhotoSize=async()=>{
-  if(!editCache.current||busy||hairBusy||uniformChanging||downloadBusy||photoSizeBusy)return;
-  setPhotoSizeBusy(true);
-  try{
-   const base=await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},false,null,liveCollarHeightRef.current,chestPinRef.current,{...chestPinAdjustRef.current});
-   const out=await applyLocalBeauty(base,{...beautyRef.current});
-   setPhotoSizeBlob(out);
-  }catch(e){suppressUiError(e,'เปิดเลือกขนาดรูปไม่สำเร็จ')}finally{setPhotoSizeBusy(false)}
- };
- const openStudio=async()=>{
-  if(!editCache.current||studioBusy||busy||hairBusy||uniformChanging||downloadBusy)return;
-  if(trialPreview){setBuyOpen(true);setPayMsg('ชำระเงินเพื่อปลดล็อก Studio และดาวน์โหลดภาพ');return;}
-  const origin={master:editCache.current.master,key:JSON.stringify([editCache.current.lock,liveAdjustRef.current,liveCollarWarpRef.current,liveCollarHeightRef.current,liveNeckAdjustRef.current,backgroundRef.current,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,chestPinRef.current,chestPinAdjustRef.current,beautyRef.current])};
-  studioOriginRef.current=origin;
-  if(studioDraftRef.current?.master===origin.master&&studioDraftRef.current?.key===origin.key){setStudioData(studioDraftRef.current.layers);return;}
-  setStudioBusy(true);
-  try{const layers=[];await renderAdjustedFinal(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current},false,null,liveCollarHeightRef.current,chestPinRef.current,{...chestPinAdjustRef.current},layers);
-   for(const layer of layers.filter(l=>l.name==='หัว · คอ · ผม')){const blob=await (await fetch(layer.source)).blob();const adjusted=await applyLocalBeauty(blob,{...beautyRef.current});layer.source=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(adjusted)})}
-   setStudioData(layers);
-  }catch(e){suppressUiError(e,'เปิด Studio ไม่สำเร็จ')}finally{setStudioBusy(false)}
- };
  const downloadCurrentFinal=async()=>{
-  if(!editCache.current||downloadBusy||hairBusy||busy||photoSizeBusy)return;
-  analyticsEvent('idprom_download_click',{is_trial:trialPreview});
-  if(trialPreview){setBuyOpen(true);setPayMsg('ชำระเงินเพื่อปลดล็อกการดาวน์โหลดภาพความละเอียดสูง');return;}
+  if(!editCache.current||downloadBusy||hairBusy||busy)return;
   setDownloadBusy(true);setMsg('');
   try{
-   clearTimeout(beautyTimerRef.current);++beautyRenderRef.current;
    clearTimeout(renderTimer.current);
    ++renderSeqRef.current;
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
    showBlob(out);
-   const downloadBlob=await cropPhotoForDownload(out,photoCrop);
-   const url=URL.createObjectURL(downloadBlob),link=document.createElement('a');
-   link.href=url;link.download=photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`;document.body.appendChild(link);link.click();link.remove();analyticsEvent('idprom_download_success',{size_id:photoCrop.sizeId});
+   const url=URL.createObjectURL(out),link=document.createElement('a');
+   link.href=url;link.download='photo-ready.png';document.body.appendChild(link);link.click();link.remove();
    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }catch(e){analyticsEvent('idprom_download_error',{error_stage:'download'});suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
+  }catch(e){suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate)=>{
+ const go=async()=>{if(busy||hairBusy)return;++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);setSafetyBlocked(false);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
+  // V209: generate the selected hairstyle together with the coherent head/neck
+  // in one AI edit. This removes the faceless PNG overlay that produced hard
+  // hairline edges and a pasted-looking face while the opaque mask locks the face.
+  const aiHeadNeck=await aiFinishPortrait(f,hairId||'original');
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await optionalHealthySkin10(originalHeadNeckTransparent,originalFile);
+  // 01 = exact bytes returned by GPT Image before remove.bg / Canvas / resize.
+  const removedHeadNeck=await removeBackgroundBlob(aiHeadNeck);
+  setProgressStage(70,'กำลังล็อกใบหน้าต้นฉบับ');
+  const faceLockedHeadNeck=await restoreOriginalFacePixels(removedHeadNeck,f);
+  const headNeckTransparent=await refineSkinTextureBlob(faceLockedHeadNeck);
   setProgressStage(78,'กำลังประกอบกับชุด');
-  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
+  // 02 = exact remove.bg result before placement/resampling.
+  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},activeUniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
-  initialProcessedMasterRef.current=headNeckTransparent;
-  editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
+  const aiLayer=await makePlacedHeadNeckLayer(headNeckTransparent,composed.lock);
+  // V68: use the V66 AI anatomy layer directly. No face mask, source-face paste-back,
+  // skin-isolation overlay, tone pass, or post-process face layer is applied.
+  // V82: SINGLE AI ANATOMY LAYER — do not paste the photographed face back over the AI result.
+  // This removes the post-process face overlay/mask that caused visible face-shaped seams.
+  // The processed head/hair/neck remains one continuous transparent layer; uniform/template logic is unchanged.
+  const layer=aiLayer;
+  editCache.current={master:headNeckTransparent,lock:composed.lock};
+  cleanHairBaseRef.current=null;
+  initialStyledHairRef.current=headNeckTransparent;
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
+  const initialFit=firstFitHeadAdjust(composed.lock,gender);
+  initialHeadAdjustRef.current=initialFit;
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
-  setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
-  const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
-  setProgressStage(97,'กำลังแสดงผล');showBlob(finished);
- };
- const go=async()=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
-  const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
-  const aiHeadNeck=await aiFinishPortrait(f,hairId||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
-  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';
-  const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
-  if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await finishProgress(completed);setBusy(false)}};
- const goForStudio=async(sourceFile,template,selectedHair)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
-  const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
-  const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
-  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template);analyticsStage='cleanup';
-  const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
-  if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await finishProgress(completed);setBusy(false)}return completed};
- // Do not auto-resume a previous browser AI job on a fresh page load.
- // A new visit must stay idle until the user explicitly adds a photo and presses Process.
- useEffect(()=>{
-  writeActiveAiJob(null);
-  clearAiJobFile();
- },[]);
- useEffect(()=>{
-  if(screen!=='studio'||studioData)return;
-  let cancelled=false;setStudioBusy(true);
-  (async()=>{try{
-   const [uniform,bg]=await Promise.all([loadImage(activeUniformTemplate),loadImage('/assets/background.jpg')]);const ub=await alphaBounds(uniform),W=bg.naturalWidth,H=bg.naturalHeight;
-   const uc=canvasFor(uniform.naturalWidth,uniform.naturalHeight),ux=uc.getContext('2d',{willReadFrequently:true});ux.drawImage(uniform,0,0);const ud=ux.getImageData(0,0,uc.width,uc.height).data;
-   const cx0=Math.floor(uc.width*.46),cx1=Math.ceil(uc.width*.54);let socketY=ub.t;
-   outer:for(let y=ub.t;y<=ub.b;y++){let opaque=0;for(let x=cx0;x<=cx1;x++)if(ud[(y*uc.width+x)*4+3]>48)opaque++;if(opaque>=(cx1-cx0+1)*.12){socketY=y;break outer}}
-   const uScale=(W+4)/Math.max(1,ub.w),uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale,uX=-2-ub.l*uScale,uY=H*.425+socketY*(W*.94/uniform.naturalWidth)-socketY*uScale;
-   const placement={W,H,uX,uY,uW,uH,templatePath:activeUniformTemplate};
-   const background=canvasFor(bg.naturalWidth,bg.naturalHeight),suit=canvasFor(uniform.naturalWidth,uniform.naturalHeight);background.getContext('2d').drawImage(bg,0,0);suit.getContext('2d').drawImage(uniform,0,0);
-   if(!cancelled){studioOriginRef.current={starter:true,placement};setStudioData([{name:'พื้นหลัง',source:background.toDataURL(),sourceFrame:{x:0,y:0,w:900,h:1200}},{name:'ชุด',kind:'suit',templatePath:activeUniformTemplate,source:suit.toDataURL(),sourceFrame:{x:uX/W*900,y:uY/H*1200,w:uW/W*900,h:uH/H*1200}}])}
-  }catch(e){if(!cancelled)setMsg('เปิด Studio ไม่สำเร็จ กรุณาลองใหม่')}finally{if(!cancelled)setStudioBusy(false)}})();
-  return()=>{cancelled=true};
- },[screen,activeUniformTemplate,studioData]);
- const processStudioPhoto=async(file,template,selectedHair='')=>{
-  // Overlap local asset downloads with the existing AI request, never submit AI twice.
-  void Promise.allSettled([loadImage(backgroundRef.current),loadImage(template)]);
-  pick({target:{files:[file]}});
-  const success=await goForStudio(file,template,selectedHair);if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
-  const layers=[],current=editCache.current;layers.headOnly=true;
-  await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=selectedHair;studioHairOriginRef.current=selectedHair;setHairId(selectedHair);hairResultCacheRef.current.set(selectedHair||'original',current.master);
-  return {layer:head,placement:current.lock};
- };
- const changeStudioHair=async(id)=>{
-  if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
-  const ok=await changeHairForStudio(id);if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
-  const layers=[],current=editCache.current;layers.headOnly=true;
-  await renderAdjustedFinal(current.master,current.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=id;return {layer:head};
- };
+  setHeadAdjust(initialFit);liveAdjustRef.current={...initialFit};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=headNeckTransparent;hairResultCacheRef.current.clear();if(hairId)hairResultCacheRef.current.set(hairId,headNeckTransparent);preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  const finished=await renderWithRibbon(headNeckTransparent,composed.lock,initialFit,0,{width:0,length:0},backgroundRef.current);
+  setProgressStage(97,'กำลังแสดงผล');
+  showBlob(finished);completed=true;
+ }catch(e){if(e?.code==='IMAGE_SAFETY_BLOCK')showSafetyBlock(e.message);else suppressUiError(e,'ประมวลผลไม่สำเร็จ')}finally{await finishProgress(completed);setBusy(false)}};
+
+ const ContactQr=()=><>
+  <button type="button" className="line-contact-fab" onClick={()=>setContactQrOpen(true)} aria-label="ติดต่อผ่าน LINE" title="ติดต่อเรา">
+   <span className="line-contact-icon">LINE</span><span className="line-contact-text">ติดต่อเรา</span>
+  </button>
+  {contactQrOpen&&<div className="line-contact-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setContactQrOpen(false)}}>
+   <section className="line-contact-modal" role="dialog" aria-modal="true" aria-label="ติดต่อผ่าน LINE">
+    <button type="button" className="line-contact-close" onClick={()=>setContactQrOpen(false)} aria-label="ปิด">×</button>
+    <h2>ติดต่อเรา</h2>
+    <p>สแกน QR Code เพื่อเพิ่มเพื่อนและติดต่อแอดมินทาง LINE</p>
+    <img src="/assets/line-contact-qr.png" alt="QR Code ติดต่อ IDพร้อม ทาง LINE"/>
+   </section>
+  </div>}
+ </>;
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
     {...JOB_UNIFORMS[2],title:'สูทสมัครงาน'},
-    {title:'ข้าราชการ',img:'/assets/government-uniforms/female-operational-example.jpg',cat:'government',uniform:true},
+    {title:'ข้าราชการ',img:'/assets/uniform.png',cat:'government',uniform:true},
     {...STUDENT_UNIFORMS[0],title:'นักศึกษา'},
     {title:'ชุดครุย',img:'/assets/hairstyle-previews/hair-20.png',cat:'gown'}]},
    {id:'job',tag:'สมัครงาน',title:'รูปสมัครงาน พร้อมใช้',cards:JOB_UNIFORMS},
    {id:'government',tag:'ข้าราชการ',title:'ชุดราชการ',cards:[
-    {title:'ปฏิบัติงาน',img:'/assets/government-uniforms/female-operational-example.jpg',cat:'government',uniform:true},
-    {title:'ปฏิบัติการ',img:'/assets/government-uniforms/female-academic-example.jpg',cat:'government',uniform:true},
-    {title:'ชำนาญการ / อาวุโส',img:'/assets/government-uniforms/female-senior-example.jpg',cat:'government',uniform:true}]},
+    {title:'ปฏิบัติงาน',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ปฏิบัติการ',img:'/assets/uniform.png',cat:'government',uniform:true},
+    {title:'ชำนาญการ / อาวุโส',img:'/assets/uniform.png',cat:'government',uniform:true}]},
    {id:'student',tag:'นักศึกษา',title:'รูปนักศึกษา',cards:STUDENT_UNIFORMS},
-   {id:'gown',tag:'ชุดครุย',title:'ชุดครุย สจล.',cards:GOWN_UNIFORMS}
+   {id:'gown',tag:'ชุดครุย',title:'ชุดครุยมหาวิทยาลัย',cards:[
+    {title:'เพิ่มมหาวิทยาลัยภายหลัง',img:'/assets/hairstyle-previews/hair-28.png',cat:'gown'}]}
   ];
   const visibleRows=homeFilter==='all'?rows:rows.filter(r=>r.id===homeFilter);
-  const governmentLevels=[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']];
+  const governmentLevels=[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']];
   const maleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='male');
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
-  const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setStudioData(null);setScreen('studio')};
-  const homeCategories=[
-   {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
-   {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
-   {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
-   {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'ชุดครุย สจล.\nสำหรับชายและหญิง',image:null}
-  ];
-  const featured=[JOB_UNIFORMS[2],JOB_UNIFORMS[3],JOB_UNIFORMS[5],JOB_UNIFORMS[0],JOB_UNIFORMS[1],JOB_UNIFORMS[4],
-   {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},
-   {...FEMALE_GOVERNMENT_UNIFORMS[0],title:'ข้าราชการหญิง',cat:'government',gender:'female',img:FEMALE_GOVERNMENT_UNIFORMS[0].preview}].filter(item=>item&&item.img);
-  const openFeatured=item=>{
-   if(item.cat==='job'){chooseJobUniform(item);return}
-   if(item.cat==='government'){
-    setUniformCategory('government');setGender(item.gender);setLevel(item.level||'operational');
-    if(item.gender==='male')setSelectedInteriorTemplate(item.img&&item.id?.startsWith('interior')?INTERIOR_UNIFORMS.find(u=>u.id===item.id)?.img||INTERIOR_UNIFORMS[0].img:INTERIOR_UNIFORMS[0].img);
-    setSelectedStyle(item.name||item.title);setStudioData(null);setScreen('studio');return
-   }
-   setUniformCategory(item.cat);setSelectedStyle(item.title);setStudioData(null);setScreen('studio');
-  };
-  return <main className="profile-home studio-home">
-   <header className="studio-home-topbar"><div className="studio-home-brand"><img className="studio-brand-logo" src="/assets/id-phrom-logo.png" alt="IDพร้อม"/></div><div className="studio-top-actions"><CreditUI/><ContactUI/><button type="button" onClick={()=>setHomeInfoOpen(v=>!v)} aria-expanded={homeInfoOpen}>ⓘ <span>วิธีใช้งาน</span></button><span className="studio-pro">♛ PRO</span></div></header>
-   {homeInfoOpen&&<div className="studio-home-help" role="status">เลือกประเภทและแบบชุด → เพิ่มรูปต้นฉบับ → ประมวลผล → ปรับแต่ง → ดาวน์โหลด</div>}
-   <div className="studio-home-inner"><div className="studio-home-intro"><div><h1>{homeFilter==='all'?'รูปติดบัตรสวยสมจริง เหมือนถ่ายที่สตูดิโอ':homeCategories.find(c=>c.id===homeFilter)?.title||'เลือกแบบรูปถ่าย'}</h1><p>สมัครงาน · ข้าราชการ · นักศึกษา · ชุดครุย</p><p>เลือกรูปแบบที่ต้องการ แล้วสร้างรูปพร้อมใช้งานได้ง่าย ๆ</p></div><div className="studio-steps" aria-label="ขั้นตอนการสร้างรูป">{['เลือกประเภท','เลือกแบบ','อัปโหลดรูป','ปรับแต่ง','ดาวน์โหลด'].map((step,i)=><span key={step} className={i===(homeFilter==='all'?0:1)?'current':''}><b>{i+1}</b><small>{step}</small>{i<4&&<i aria-hidden="true">›</i>}</span>)}</div></div>
-   <div className="studio-category-grid">{homeCategories.map((cat,i)=><button type="button" key={cat.id} className={'studio-category-card studio-category-'+cat.id+(homeFilter===cat.id?' chosen':'')} onClick={()=>{setUniformCategory(cat.id);setHomeFilter(cat.id)}}><span className="studio-category-icon" aria-hidden="true"><img src={cat.icon} alt="" /></span><strong>{cat.title}</strong><small>{cat.desc}</small>{cat.image?<img src={cat.image} alt="" loading={i>1?'lazy':'eager'}/>:<span className="studio-gown-placeholder" aria-hidden="true">🎓</span>}<span className="studio-category-arrow" aria-hidden="true">→</span></button>)}</div>
-   {homeFilter!=='all'&&<button type="button" className="studio-all-back" onClick={()=>setHomeFilter('all')}>← กลับหน้าหลัก</button>}
-   {homeFilter==='all'&&<section className="studio-featured"><div className="studio-featured-head"><div><h2>▣ &nbsp; ตัวอย่างยอดนิยม</h2><p>ตัวอย่างรูปที่ลูกค้าเลือกใช้มากที่สุด</p></div><div className="studio-featured-filter" role="group" aria-label="กรองตัวอย่าง">{[['all','ทั้งหมด'],['male','ผู้ชาย'],['female','ผู้หญิง']].map(([id,name])=><button type="button" key={id} className={homeShowGender===id?'active':''} onClick={()=>setHomeShowGender(id)}>{name}</button>)}</div></div><div className="studio-featured-list">{featured.filter(c=>homeShowGender==='all'||c.gender===homeShowGender).map((c,i)=><button type="button" key={c.id||i} className="studio-featured-item" onClick={()=>openFeatured(c)}><img src={c.img} alt={c.title} loading="lazy"/>{c.cat==='government'&&<strong>{c.title}</strong>}</button>)}</div></section>}
-   {homeFilter!=='all'&&<section className="home-content studio-home-results">
-    {homeFilter==='job'&&<section className="government-filter-panel job-gender-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดสมัครงานชาย</h2><div className="government-level-grid">{maleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='male'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><span className="selected-mark">✓</span></button>)}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดสมัครงานหญิง</h2><div className="government-level-grid">{femaleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='female'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><span className="selected-mark">✓</span></button>)}</div></section></section>}
-    {homeFilter==='government'&&<section className="government-filter-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดข้าราชการชาย</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0];return <button type="button" key={'male-'+id} className={gender==='male'&&level===id?'selected':''} onClick={()=>{setGender('male');setLevel(id);setSelectedInteriorTemplate(u.img);setUniformCategory('government');setSelectedStyle(n);setStudioData(null);setScreen('studio')}}><img src={u.preview} alt={'ชุดข้าราชการชาย '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดข้าราชการหญิง</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===id)||FEMALE_GOVERNMENT_UNIFORMS[0];return <button type="button" key={'female-'+id} className={gender==='female'&&level===id?'selected':''} onClick={()=>{setGender('female');setLevel(id);setUniformCategory('government');setSelectedStyle(n);setStudioData(null);setScreen('studio')}}><img src={u.preview} alt={'ชุดข้าราชการหญิง '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section></section>}
-    {homeFilter==='gown'&&<section className="government-filter-panel">{[['male','ชาย'],['female','หญิง']].map(([g,title])=><section key={g} className={'government-gender-section'+(g==='female'?' female-government-section':'')}><h2 className="government-section-title">{title}</h2><div className="government-level-grid">{GOWN_UNIFORMS.filter(item=>item.gender===g).map(item=><button type="button" key={item.id} className={selectedGownTemplate===item.template?'selected':''} onClick={()=>{commitUniformSelection(item);setStudioData(null);setScreen('studio')}}><img src={item.img} alt={item.title}/><strong>สจล.</strong><span className="selected-mark">✓</span></button>)}</div></section>)}</section>}{homeFilter!=='government'&&homeFilter!=='job'&&homeFilter!=='gown'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
-   </section>}
-   {homeFilter==='all'&&<div className="studio-home-benefits">{[['✦','ใบหน้าเดิม 100%','ไม่เปลี่ยนโครงหน้า รักษารายละเอียดผิวเดิม'],['▣','คุณภาพสตูดิโอ','คมชัด ดูเป็นธรรมชาติ ไม่เป็นพลาสติก'],['◉','ปรับแต่งได้อิสระ','ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม'],['▧','ดาวน์โหลดความละเอียดสูง','ขนาด 900 × 1200 px ตรงกับตัวอย่าง 100%']].map(([icon,title,desc])=><div key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{desc}</small></div></div>)}</div>}
-   </div>
+  const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setScreen('process')};
+  return <main className="profile-home"><ContactQr/>
+   <header className="profile-home-header">{homeFilter!=='all'?<button type="button" className="home-back-button" onClick={()=>setHomeFilter('all')} aria-label="กลับหน้าแรก">‹ <span>หน้าแรก</span></button>:<div className="home-spacer"></div>}<h1>รูปโปรไฟล์</h1><button type="button" className="my-pill">ของฉัน</button></header>
+   <nav className="home-tabs">{[['job','สมัครงาน'],['government','ข้าราชการ'],['student','นักศึกษา'],['gown','ชุดครุย']].map(([id,n])=><button type="button" key={id} className={homeFilter===id?'active':''} onClick={()=>{setUniformCategory(id);setHomeFilter(id)}}>{n}</button>)}</nav>
+   <section className="home-content">
+    {homeFilter==='job'&&<section className="government-filter-panel job-gender-panel">
+     <section className="government-gender-section"><h2 className="government-section-title">ชุดสมัครงานชาย</h2><div className="government-level-grid">{maleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='male'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><strong>{item.title}</strong><span className="selected-mark">✓</span></button>)}</div></section>
+     <section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดสมัครงานหญิง</h2><div className="government-level-grid">{femaleJobUniforms.map(item=><button type="button" key={item.id} className={gender==='female'&&selectedJobTemplate===item.template?'selected':''} onClick={()=>chooseJobUniform(item)}><img src={item.img} alt={item.title}/><strong>{item.title}</strong><span className="selected-mark">✓</span></button>)}</div></section>
+    </section>}
+    {homeFilter==='government'&&<section className="government-filter-panel">
+     <section className="government-gender-section"><h2 className="government-section-title">ชุดข้าราชการชาย</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const maleUniform=INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0];return <button type="button" key={'male-'+id} className={gender==='male'&&level===id?'selected':''} onClick={()=>{setGender('male');setLevel(id);setSelectedInteriorTemplate(maleUniform.img);setUniformCategory('government');setSelectedStyle(n);setScreen('process')}}><img src={maleUniform.preview} alt={'ชุดข้าราชการชาย '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section>
+     <section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดข้าราชการหญิง</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const femaleUniform=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===id)||FEMALE_GOVERNMENT_UNIFORMS[0];return <button type="button" key={'female-'+id} className={gender==='female'&&level===id?'selected':''} onClick={()=>{setGender('female');setLevel(id);setUniformCategory('government');setSelectedStyle(n);setScreen('process')}}><img src={femaleUniform.preview} alt={'ชุดข้าราชการหญิง '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section>
+    </section>}
+    {homeFilter!=='government'&&homeFilter!=='job'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
+   </section>
   </main>;
  }
- function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setStudioData(null);setScreen('studio')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div>{c.cat==='government'&&<strong>{c.title}</strong>}</div></button>)}</div></section>}
- const renderPreviewActions=(extraClass)=>( <div className={"preview-floating-actions "+extraClass}><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
-<button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div> );
- const renderProcessActions=(desktop=false)=>(<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy||privateTrialChecking} onClick={go}>{busy?'กำลังประมวลผล…':privateTrialActive?'ประมวลผลรูป':rights.generationRemaining>0?'ประมวลผลรูป':'ทดลองประมวลผลฟรี'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="photo-size-trigger" disabled={photoSizeBusy||downloadBusy||hairBusy||busy||uniformChanging} onClick={openPhotoSize} aria-label="เลือกขนาดรูป" aria-haspopup="dialog"><span>{photoSizeBusy?'กำลังเตรียม…':PHOTO_SIZES.find(s=>s.id===photoCrop.sizeId)?.label||'ขนาดเดิม'}</span><span aria-hidden="true">⌄</span></button>}{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging||photoSizeBusy} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label>{desktop&&<button type="button" className="photo-guide-trigger desktop-photo-guide" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button>}</div>}</div>);
- if(studioData)return <><StudioEditor hasCredits={rights.generationRemaining>0} trialUnlocked={privateTrialActive||rights.generationRemaining>0} onRequestUnlock={()=>{setPayMsg('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลดภาพที่สร้าง');setBuyOpen(true)}} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={HAIR_OPTIONS} onChangeHair={changeStudioHair} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} processing={busy||hairBusy} processProgress={processProgress} onClose={layers=>{studioDraftRef.current={...studioOriginRef.current,layers};setStudioData(null);setScreen('home')}}/>{buyOpen&&<div className="studio-payment-dialog"><CreditUI/></div>}</>;
- if(screen==='studio')return <main className="idstudio studio-starting"><p>{studioBusy?'กำลังเปิด Studio…':msg}</p><button onClick={()=>setScreen('home')}>กลับหน้าหลัก</button></main>;
- return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}>{photoSizeBlob&&<PhotoSizeEditor blob={photoSizeBlob} value={photoCrop} trial={trialPreview} onClose={()=>setPhotoSizeBlob(null)} onApply={crop=>{setPhotoCrop(crop);setPhotoSizeBlob(null)}}/>}<header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{{government:'ข้าราชการ',job:'สมัครงาน',student:'นักศึกษา',gown:'ครุย'}[uniformCategory]||'สร้างรูป'}</h1></div><div className="editor-credit-actions"><CreditUI/><ContactUI/></div></header><div className="editor-mobile-actions">{renderProcessActions()}</div><div className="editor-mobile-help"><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button></div><section className="modern-flow">
-  <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="แนะนำรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูปที่ถูกต้อง</button>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b&&renderPreviewActions('preview-desktop-actions')}<div className="editor-workspace"><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(trialPreview?" trial-preview-active":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/>{trialPreview&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}{renderPreviewActions('preview-mobile-actions')}{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className={"image-progress-card "+(processProgress.value>=100?'is-complete':processProgress.value>=90?'is-waiting':'is-processing')}><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{processProgress.value>=100?'100%':processProgress.value>=90?<><b className="image-progress-spinner" aria-hidden="true"/>กำลังทำงาน</>:`${Math.round(processProgress.value)}%`}</strong></div><div className="image-progress-track" aria-hidden="true"><i style={{width:`${processProgress.value}%`}}/></div><p className="image-progress-hint">{processProgress.value>=100?'ภาพพร้อมแล้ว':processProgress.value>=90?'ระบบยังประมวลผลอยู่ กรุณารออีกสักครู่และเปิดหน้านี้ไว้':'กำลังสร้างภาพให้คุณ กรุณาเปิดหน้านี้ไว้จนเสร็จ'}</p></div></div>}</div>{b&&<div className="desktop-workspace-caption"><span>เลื่อนล้อเมาส์เพื่อซูม · ลากพื้นที่ว่างเพื่อเลื่อน</span><output>{Math.round(previewZoom*100)}%</output></div>}</div>
+ function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setScreen('process')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={c.img}/><div className="home-card-shade"></div><strong>{c.title}</strong></div></button>)}</div></section>}
+ return <main className="app-shell modern-shell adaptive-editor" onContextMenu={e=>e.preventDefault()}><ContactQr/><header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{uniformCategory==='government'&&selectedStyle?`${selectedStyle} ${gender==='male'?'ชาย':'หญิง'}`:selectedStyle||'สร้างรูป'}</h1></div><div className="step-badge">ของฉัน</div></header><section className="modern-flow">
+  <section className="style-detail-card"><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><span>{selectedStyle||'แบบที่เลือก'}</span></div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(a||b){if(optionTool&&optionTool!=='head'&&optionTool!=='ribbon')setOptionTool(null)}else fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview"/><div className="preview-floating-actions"><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
+<button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button></div>{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className="image-progress-card"><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{Math.round(processProgress.value)}%</strong></div><div className="image-progress-track"><i style={{width:`${processProgress.value}%`}}/></div></div></div>}</div>
    <div className="quick-config">
-    {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
+    {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&uniformCategory!=='student'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
-    {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>สถาบันเทคโนโลยีพระจอมเกล้าเจ้าคุณทหารลาดกระบัง (สจล.)</option></select></label><div className="gender-tabs">{[['male','ชาย'],['female','หญิง']].map(([g,label])=><button key={g} className={gender===g?'active':''} onClick={()=>selectProcessedUniform(GOWN_UNIFORMS.find(item=>item.gender===g))}>{label}</button>)}</div></>}
+    {uniformCategory==='gown'&&<><label className="field-label">มหาวิทยาลัย<select disabled><option>เพิ่มมหาวิทยาลัยภายหลัง</option></select></label><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div></>}
    </div>
-   {f&&!b&&hairId===null&&!busy&&<button type="button" className="hair-selection-guide" onClick={guideToHair}><span className="hair-selection-guide-icon" aria-hidden="true">✦</span><span><strong>เลือกทรงผมก่อนประมวลผล</strong><small>แตะที่นี่เพื่อเลือกทรงผมที่ต้องการ หรือเลือก “ผมเดิม”</small></span><span className="hair-selection-guide-arrow" aria-hidden="true">↓</span></button>}
-   {b&&trialPreview&&<div className="trial-preview-notice"><strong>ตัวอย่างฟรี</strong><span>ภาพนี้เป็นตัวอย่างก่อนชำระเงิน • ดาวน์โหลดได้หลังเลือกแพ็กเกจ</span><button type="button" onClick={()=>setBuyOpen(true)}>ปลดล็อกภาพความละเอียดสูง</button></div>}<div className="editor-desktop-actions">{renderProcessActions(true)}</div>
-{msg&&<div className="err photo-process-alert"><span>{msg}</span><button type="button" onClick={()=>setPhotoGuideOpen(true)}>ดูตัวอย่างรูปที่ถูกต้อง</button></div>}
-{photoGuideOpen&&<div className="photo-guide-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setPhotoGuideOpen(false)}}><section className="photo-guide-modal" role="dialog" aria-modal="true" aria-label="ตัวอย่างรูปที่ถูกต้อง"><button type="button" className="photo-guide-close" onClick={()=>setPhotoGuideOpen(false)} aria-label="ปิด">×</button><img src="/assets/photo-guide.png" alt="ตัวอย่างภาพที่ระบบอาจไม่ประมวลผล และตัวอย่างภาพหน้าตรงครึ่งตัวที่ใช้ได้"/></section></div>}
-<div className="editor-tool-dock">{optionTool&&optionTool!=='ribbonAdjust'&&optionTool!=='pinsAdjust'&&<div className={"tool-choice-sheet "+(optionTool==='pins'?'pin-tools-panel '+(pinPanelTab==='select'?'pin-selection-panel ':''):'')+((optionTool==='uniform'||optionTool==='male-hair'||optionTool==='female-hair'||optionTool==='background'||(optionTool==='pins'&&pinPanelTab==='select')||(optionTool==='ribbon'&&ribbonPanelTab==='select'))?"desktop-sample-panel":"desktop-adjust-panel")}><button type="button" className="mobile-tool-close" aria-label="ปิดเครื่องมือ" onClick={()=>setOptionTool(null)}>×</button>{optionTool==='pins'&&<div className="pin-panel-heading"><strong>ปรับเข็ม</strong><button type="button" aria-label="ปิดแผงเข็ม" onClick={()=>setOptionTool(null)}>×</button></div>}{optionTool==='beauty'?<div className="local-beauty-panel" role="group" aria-label="ปรับแต่งผิวโดยไม่ใช้ AI"><div className="tool-choice-tabs" role="tablist" aria-label="เครื่องมือปรับผิวและสีทาปาก"><button type="button" role="tab" aria-selected={beautyPanelTab==='skin'} className={beautyPanelTab==='skin'?'active':''} onClick={()=>setBeautyPanelTab('skin')}>ปรับผิว</button><button type="button" role="tab" aria-selected={beautyPanelTab==='lip'} className={beautyPanelTab==='lip'?'active':''} onClick={()=>setBeautyPanelTab('lip')}>สีทาปาก</button></div>{(beautyPanelTab==='skin'?[['brightness','ความสว่างผิว',0,100],['smooth','ผิวเนียน',0,100],['pink','โทนผิวอมชมพู',0,100]]:[['lip','สีทาปาก',0,100]]).map(([key,label,min,max])=><label className="beauty-control" key={key}><span><strong>{label}</strong><output>{beauty[key]>0?'+':''}{beauty[key]}%</output></span><input type="range" min={min} max={max} value={beauty[key]} onChange={e=>updateBeauty({...beauty,[key]:Number(e.target.value)})}/></label>)}{beautyPanelTab==='lip'&&<div className="beauty-lip-swatches" aria-label="เลือกสีทาปาก">{['#b87578','#ca777e','#bd5d69','#ad6b58','#a34c60','#e6a0ad','#e38caa','#d8759b','#d65b88','#f0a8ba','#c95a8b','#b94778','#e5a2a8','#dc8193'].map(color=><button key={color} type="button" title={color} aria-label={'สีทาปาก '+color} aria-pressed={beauty.lipColor===color} className={beauty.lipColor===color?'selected':''} style={{backgroundColor:color}} onClick={()=>updateBeauty({...beauty,lipColor:color})}/>)}</div>}<button className="beauty-reset" type="button" onClick={()=>updateBeauty({...DEFAULT_BEAUTY})}>↺ รีเซ็ตค่าปรับผิว</button></div>:optionTool==='head'?<div className="head-adjust-modern head-adjust-with-steps" role="group" aria-label="ปรับขนาดและตำแหน่งศีรษะ"><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขนาด"><HeadAdjustGlyph type="scale"/></span><button type="button" className="head-slider-step" aria-label="ลดขนาดศีรษะ" onClick={()=>stepHeadSlider('scale',-1,20,200)}>−</button><input aria-label="ขนาดศีรษะ" type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มขนาดศีรษะ" onClick={()=>stepHeadSlider('scale',1,20,200)}>+</button><output>{Math.round(headAdjust.scale*100)}%</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,scale:1})} aria-label="คืนค่าขนาด"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><button type="button" className="head-slider-step" aria-label="ลดเลื่อนซ้ายขวา" onClick={()=>stepHeadSlider('x',-0.1,-50,50)}>−</button><input aria-label="เลื่อนซ้ายขวา" type="range" min="-50" max="50" step="0.1" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มเลื่อนซ้ายขวา" onClick={()=>stepHeadSlider('x',0.1,-50,50)}>+</button><output>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,x:0})} aria-label="คืนค่าตำแหน่งซ้ายขวา"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="บน–ล่าง"><HeadAdjustGlyph type="vertical"/></span><button type="button" className="head-slider-step" aria-label="ลดเลื่อนขึ้นลง" onClick={()=>stepHeadSlider('y',-0.1,-50,50)}>−</button><input aria-label="เลื่อนขึ้นลง" type="range" min="-50" max="50" step="0.1" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มเลื่อนขึ้นลง" onClick={()=>stepHeadSlider('y',0.1,-50,50)}>+</button><output>{(-headAdjust.y)>=0?'+':''}{(-headAdjust.y*100).toFixed(1)}</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,y:0})} aria-label="คืนค่าตำแหน่งบนล่าง"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="เอียง"><HeadAdjustGlyph type="rotation"/></span><button type="button" className="head-slider-step" aria-label="ลดปรับองศาเอียง" onClick={()=>stepHeadSlider('rotation',-0.5,-30,30)}>−</button><input aria-label="ปรับองศาเอียง" type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><button type="button" className="head-slider-step" aria-label="เพิ่มปรับองศาเอียง" onClick={()=>stepHeadSlider('rotation',0.5,-30,30)}>+</button><output>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,rotation:0})} aria-label="คืนค่าองศาเอียง"><ResetGlyph/></button></div></div>:
-optionTool==='collar'?<div className="head-adjust-modern head-adjust-with-steps collar-adjust-modern" role="group" aria-label="ปรับคอ"><div className="head-adjust-row"><span className="head-adjust-glyph" title="ปรับคอ"><HeadAdjustGlyph type="horizontal"/></span><button type="button" className="head-slider-step" aria-label="ลดหุบหรือขยายคอ" onClick={()=>applyCollarWarp(Number(stepRangeValue(Math.round(collarWarp*100),-1*1.0,-200.0,200.0))/100)}>−</button><input aria-label="หุบหรือขยายคอ" type="range" min="-200" max="200" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><button type="button" className="head-slider-step" aria-label="เพิ่มหุบหรือขยายคอ" onClick={()=>applyCollarWarp(Number(stepRangeValue(Math.round(collarWarp*100),1*1.0,-200.0,200.0))/100)}>+</button><output>{collarWarp>=0?'+':''}{Math.round(collarWarp*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarWarp(0)} aria-label="คืนค่าการปรับคอ"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ย่อหรือขยายความสูงคอเสื้อ"><HeadAdjustGlyph type="vertical"/></span><button type="button" className="head-slider-step" aria-label="ลดย่อหรือขยายความสูงคอเสื้อ" onClick={()=>applyCollarHeight(Number(stepRangeValue(Math.round(collarHeight*100),-1*1.0,-200.0,200.0))/100)}>−</button><input aria-label="ย่อหรือขยายความสูงคอเสื้อ" type="range" min="-200" max="200" step="1" value={Math.round(collarHeight*100)} onChange={e=>applyCollarHeight(Number(e.target.value)/100)}/><button type="button" className="head-slider-step" aria-label="เพิ่มย่อหรือขยายความสูงคอเสื้อ" onClick={()=>applyCollarHeight(Number(stepRangeValue(Math.round(collarHeight*100),1*1.0,-200.0,200.0))/100)}>+</button><output>{collarHeight>=0?'+':''}{Math.round(collarHeight*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarHeight(0)} aria-label="คืนค่าความสูงคอเสื้อ"><ResetGlyph/></button></div></div>:
-optionTool==='uniform'?<><div className="tool-choice-tabs"><span className="active">เปลี่ยนชุด</span><span>เลือกแพทเทิร์นใหม่</span></div><div className="uniform-switch-tabs">{UNIFORM_GROUPS.map(group=><button type="button" key={group.id} className={uniformPickerTab===group.id?'active':''} onClick={()=>setUniformPickerTab(group.id)}>{group.name}</button>)}</div><div className="uniform-switch-grid">{(UNIFORM_GROUPS.find(group=>group.id===uniformPickerTab)?.items||[]).map(option=><button type="button" key={option.id} className={(editCache.current?.lock?.templatePath||activeUniformTemplate)===option.template?'selected':''} disabled={uniformChanging||busy||hairBusy||downloadBusy} onClick={()=>selectProcessedUniform(option)}><img src={option.preview} alt=""/>{uniformPickerTab.startsWith('government')&&<strong>{option.title||option.name}</strong>}<span className="selected-mark">✓</span></button>)}</div></>:
-optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop-pin-kind-tabs" role="tablist" aria-label="เมนูเข็ม"><button type="button" role="tab" aria-selected={pinKindTab==='collar'} className={pinKindTab==='collar'?'active':''} onClick={()=>{setPinKindTab('collar');setPinPanelTab('select')}}>เข็มปกคอ</button><button type="button" role="tab" aria-selected={pinKindTab==='chest'} className={pinKindTab==='chest'?'active':''} onClick={()=>{setPinKindTab('chest');setPinPanelTab('select')}}>เข็มติดอก</button></div><div className="tool-choice-tabs ribbon-panel-tabs mobile-pin-mode-tabs" role="tablist" aria-label={pinKindTab==='chest'?'เลือกหรือปรับเข็มติดอก':'เลือกหรือปรับเข็ม'}><button type="button" role="tab" aria-selected={pinPanelTab==='select'} className={pinPanelTab==='select'?'active':''} onClick={()=>setPinPanelTab('select')}>เลือก</button><button type="button" role="tab" aria-selected={pinPanelTab==='adjust'} className={pinPanelTab==='adjust'?'active':''} onClick={()=>setPinPanelTab('adjust')}>ปรับ</button></div>{pinKindTab==='chest'?<>{pinPanelTab==='select'?<div className="choice-rail-wrap collar-pin-choice-rail-wrap" role="tabpanel"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนเข็มติดอกไปทางซ้าย">‹</button><div ref={choiceRailRef} className="collar-pin-choice-preview choice-scroll-rail"><button type="button" className={'collar-pin-option '+(!chestPinId?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectChestPin(null)}><span className="no-pin-symbol">×</span><strong>ไม่ติดเข็ม</strong></button>{CHEST_PIN_OPTIONS.map(option=><button type="button" key={option.id} className={'collar-pin-option '+(chestPinId===option.id?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectChestPin(option)} aria-label={option.name} aria-pressed={chestPinId===option.id}><span className="collar-pin-pair"><img src={option.src} alt={option.name}/></span><strong>{option.name}</strong></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนเข็มติดอกไปทางขวา">›</button></div>:chestPinControls()}</>:<>{pinPanelTab==='select'?<div className="choice-rail-wrap collar-pin-choice-rail-wrap" role="tabpanel"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนเข็มไปทางซ้าย">‹</button><div ref={choiceRailRef} className="collar-pin-choice-preview choice-scroll-rail"><button type="button" className={"collar-pin-option "+(!collarPinId?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectCollarPins(null)} aria-pressed={!collarPinId}><span className="no-pin-symbol">×</span><strong>ไม่ติดเข็ม</strong></button>{COLLAR_PIN_OPTIONS.map(option=><button type="button" key={option.id} className={"collar-pin-option "+(collarPinId===option.id?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectCollarPins(option)} aria-label={option.name} aria-pressed={collarPinId===option.id}><span className="collar-pin-pair"><img src={option.left} alt="เข็มซ้าย"/><img src={option.right} alt="เข็มขวา"/></span><strong>{option.name}</strong></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนเข็มไปทางขวา">›</button></div>:collarPinControls()}</>}</>:
-<>{optionTool==='ribbon'?<div className="tool-choice-tabs ribbon-panel-tabs" role="tablist" aria-label="เมนูแพรแถบ"><button type="button" role="tab" aria-selected={ribbonPanelTab==='select'} className={ribbonPanelTab==='select'?'active':''} onClick={()=>setRibbonPanelTab('select')}>แพรแถบ</button><button type="button" role="tab" aria-selected={ribbonPanelTab==='adjust'} className={ribbonPanelTab==='adjust'?'active':''} onClick={()=>setRibbonPanelTab('adjust')}>ปรับ</button></div>:<div className="tool-choice-tabs"><span className="active">{optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>}{optionTool==='background'?<div className="background-choice-preview">{BACKGROUND_OPTIONS.map(option=><button type="button" key={option.id} className={"background-swatch "+(backgroundId===option.id?"selected":"")} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectBackground(option)} aria-label={option.name} aria-pressed={backgroundId===option.id}><img src={option.src} alt=""/><strong>{option.name}</strong></button>)}</div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} disabled={hairBusy||busy} onClick={()=>changeHair('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{(optionTool==='male-hair'?MALE_HAIR_OPTIONS:HAIR_OPTIONS).map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} disabled={hairBusy||busy} onClick={()=>changeHair(h.id)} aria-label={h.name} title={h.name}><img src={h.src} alt={h.name}/></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:ribbonPanelTab==='select'?<div className="choice-rail-wrap ribbon-choice-rail-wrap" role="tabpanel"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนแพรแถบไปทางซ้าย">‹</button><div ref={choiceRailRef} className="ribbon-choice-preview choice-scroll-rail"><button type="button" className={"ribbon-option "+(!ribbonId?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectRibbon(null)} aria-pressed={!ribbonId}>ไม่ติดแพรแถบ</button>{RIBBON_OPTIONS.map(option=><button type="button" key={option.id} className={"ribbon-option "+(ribbonId===option.id?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectRibbon(option)} aria-label={option.name} aria-pressed={ribbonId===option.id}><img src={option.src} alt=""/><strong>{option.name}</strong></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนแพรแถบไปทางขวา">›</button></div>:<div className="head-adjust-modern head-adjust-with-steps ribbon-modern-adjust" role="tabpanel" aria-label="ปรับแพรแถบ">{!ribbonId?<div className="ribbon-adjust-empty">เลือกแพรแถบก่อนปรับตำแหน่ง</div>:<><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><button type="button" className="head-slider-step" aria-label="ลดเลื่อนแพรแถบซ้ายขวา" onClick={()=>applyRibbonAdjust({...ribbonAdjust,x:Number(stepRangeValue(ribbonAdjust.x*100,-1*0.5,-35.0,35.0))/100})}>−</button><input aria-label="เลื่อนแพรแถบซ้ายขวา" type="range" min="-35" max="35" step=".5" value={ribbonAdjust.x*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,x:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มเลื่อนแพรแถบซ้ายขวา" onClick={()=>applyRibbonAdjust({...ribbonAdjust,x:Number(stepRangeValue(ribbonAdjust.x*100,1*0.5,-35.0,35.0))/100})}>+</button><output>{ribbonAdjust.x>=0?'+':''}{Math.round(ribbonAdjust.x*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyRibbonAdjust({...ribbonAdjust,x:0})} aria-label="คืนค่าตำแหน่งซ้ายขวา"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขึ้น–ลง"><HeadAdjustGlyph type="vertical"/></span><button type="button" className="head-slider-step" aria-label="ลดเลื่อนแพรแถบขึ้นลง" onClick={()=>applyRibbonAdjust({...ribbonAdjust,y:-Number(stepRangeValue(-ribbonAdjust.y*100,-1*0.5,-35.0,35.0))/100})}>−</button><input aria-label="เลื่อนแพรแถบขึ้นลง" type="range" min="-35" max="35" step=".5" value={-ribbonAdjust.y*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,y:-Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มเลื่อนแพรแถบขึ้นลง" onClick={()=>applyRibbonAdjust({...ribbonAdjust,y:-Number(stepRangeValue(-ribbonAdjust.y*100,1*0.5,-35.0,35.0))/100})}>+</button><output>{-ribbonAdjust.y>=0?'+':''}{Math.round(-ribbonAdjust.y*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyRibbonAdjust({...ribbonAdjust,y:0})} aria-label="คืนค่าตำแหน่งขึ้นลง"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขนาด"><HeadAdjustGlyph type="scale"/></span><button type="button" className="head-slider-step" aria-label="ลดปรับขนาดแพรแถบ" onClick={()=>applyRibbonAdjust({...ribbonAdjust,scale:Number(stepRangeValue(ribbonAdjust.scale*100,-1*1.0,45.0,200.0))/100})}>−</button><input aria-label="ปรับขนาดแพรแถบ" type="range" min="45" max="200" step="1" value={ribbonAdjust.scale*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,scale:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มปรับขนาดแพรแถบ" onClick={()=>applyRibbonAdjust({...ribbonAdjust,scale:Number(stepRangeValue(ribbonAdjust.scale*100,1*1.0,45.0,200.0))/100})}>+</button><output>{Math.round(ribbonAdjust.scale*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyRibbonAdjust({...ribbonAdjust,scale:1})} aria-label="คืนค่าขนาด"><ResetGlyph/></button></div></>}</div>}</>}</div>}<div className="placement-lock-row"><button type="button" className={placementLocked?"placement-lock-btn locked":"placement-lock-btn"} disabled={!b||hairBusy} onClick={placementLocked?unlockPlacement:lockPlacement}>{placementLocked?"🔓 ปลดล็อกเพื่อแก้ตำแหน่ง":"✓ ยืนยันและล็อกตำแหน่ง"}</button>{placementLocked&&<small>หน้า · ตำแหน่งหัว · คอ ถูกล็อกไว้</small>}{hairBusy&&<small>กำลังเปลี่ยนทรงผม…</small>}</div>
-<div className="desktop-persistent-selector" aria-label="เครื่องมือเลือกสำหรับเดสก์ท็อป">
-<button type="button" className={desktopSelectorActive==='uniform'?'active':''} onClick={()=>{setDesktopSelectorActive('uniform');setOptionTool('uniform');setUniformPickerTab(uniformCategory==='government'?`government-${gender}`:uniformCategory)}}><span className="line-tool-icon"><img src="/app-icons/tool-uniform-change.svg" alt=""/></span><strong>แบบชุด</strong></button>
-<button type="button" data-hair-guide="male-hair" className={desktopSelectorActive==='male-hair'?'active':''} onClick={()=>{setDesktopSelectorActive('male-hair');setOptionTool('male-hair')}}><span className="line-tool-icon"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button>
-<button type="button" data-hair-guide="female-hair" className={desktopSelectorActive==='female-hair'?'active':''} onClick={()=>{setDesktopSelectorActive('female-hair');setOptionTool('female-hair')}}><span className="line-tool-icon"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button>
-{uniformCategory==='government'&&<button type="button" className={desktopSelectorActive==='ribbon'?'active':''} onClick={()=>{setDesktopSelectorActive('ribbon');setRibbonPanelTab('select');setOptionTool('ribbon')}}><span className="line-tool-icon"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button>}
-{uniformCategory==='government'&&<button type="button" className={desktopSelectorActive==='pins'?'active':''} onClick={()=>{setDesktopSelectorActive('pins');setPinKindTab('collar');setPinPanelTab('select');setOptionTool('pins')}}><span className="line-tool-icon collar-pin-tool-icon"><img src="/app-icons/tool-collar-pins.png" alt=""/></span><strong>เข็ม</strong></button>}
-<button type="button" className={desktopSelectorActive==='background'?'active':''} onClick={()=>{setDesktopSelectorActive('background');setOptionTool('background')}}><span className="line-tool-icon"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button>
-</div>
-{optionTool==='ribbonAdjust'&&ribbonId&&<div className="desktop-accessory-adjust" aria-label="ปรับแพรแถบ">
- <strong className="desktop-accessory-adjust-title">ปรับแพรแถบ</strong>
- <div className="head-adjust-modern head-adjust-with-steps ribbon-modern-adjust">
-  <div className="head-adjust-row"><span className="head-adjust-glyph"><HeadAdjustGlyph type="horizontal"/></span><button type="button" className="head-slider-step" onClick={()=>applyRibbonAdjust({...ribbonAdjust,x:Number(stepRangeValue(ribbonAdjust.x*100,-.5,-35,35))/100})}>−</button><input aria-label="เลื่อนแพรแถบซ้ายขวา" type="range" min="-35" max="35" step=".5" value={ribbonAdjust.x*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,x:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" onClick={()=>applyRibbonAdjust({...ribbonAdjust,x:Number(stepRangeValue(ribbonAdjust.x*100,.5,-35,35))/100})}>+</button><output>{ribbonAdjust.x>=0?'+':''}{Math.round(ribbonAdjust.x*100)}%</output></div>
-  <div className="head-adjust-row"><span className="head-adjust-glyph"><HeadAdjustGlyph type="vertical"/></span><button type="button" className="head-slider-step" onClick={()=>applyRibbonAdjust({...ribbonAdjust,y:-Number(stepRangeValue(-ribbonAdjust.y*100,-.5,-35,35))/100})}>−</button><input aria-label="เลื่อนแพรแถบขึ้นลง" type="range" min="-35" max="35" step=".5" value={-ribbonAdjust.y*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,y:-Number(e.target.value)/100})}/><button type="button" className="head-slider-step" onClick={()=>applyRibbonAdjust({...ribbonAdjust,y:-Number(stepRangeValue(-ribbonAdjust.y*100,.5,-35,35))/100})}>+</button><output>{-ribbonAdjust.y>=0?'+':''}{Math.round(-ribbonAdjust.y*100)}%</output></div>
-  <div className="head-adjust-row"><span className="head-adjust-glyph"><HeadAdjustGlyph type="scale"/></span><button type="button" className="head-slider-step" onClick={()=>applyRibbonAdjust({...ribbonAdjust,scale:Number(stepRangeValue(ribbonAdjust.scale*100,-1,45,200))/100})}>−</button><input aria-label="ขนาดแพรแถบ" type="range" min="45" max="200" step="1" value={ribbonAdjust.scale*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,scale:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" onClick={()=>applyRibbonAdjust({...ribbonAdjust,scale:Number(stepRangeValue(ribbonAdjust.scale*100,1,45,200))/100})}>+</button><output>{Math.round(ribbonAdjust.scale*100)}%</output></div>
- </div>
-</div>}
-{optionTool==='pinsAdjust'&&(collarPinId||chestPinId)&&<div className="desktop-accessory-adjust pin-tools-panel" aria-label="ปรับเข็ม">
- <div className="pin-panel-heading"><strong>{pinKindTab==='chest'?'ปรับเข็มติดอก':'ปรับเข็ม'}</strong><button type="button" aria-label="ปิดแผงเข็ม" onClick={()=>setOptionTool(null)}>×</button></div>
- {pinKindTab==='chest'?chestPinControls():collarPinControls()}
-</div>}
-<div className="desktop-adjust-only-rail" aria-label="เครื่องมือปรับสำหรับเดสก์ท็อป">
-<button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button>
+   <div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy} onClick={go}>{busy?'กำลังประมวลผล…':'ประมวลผลรูป'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label></div>}</div>
+{msg&&<div className="err">{msg}</div>}<div className="editor-tool-dock">{optionTool&&<div className="tool-choice-sheet">{optionTool==='head'?<div className="head-adjust-modern head-adjust-with-steps" role="group" aria-label="ปรับขนาดและตำแหน่งศีรษะ"><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขนาด"><HeadAdjustGlyph type="scale"/></span><button type="button" className="head-slider-step" aria-label="ลดขนาดศีรษะ" onClick={()=>stepHeadSlider('scale',-1,20,200)}>−</button><input aria-label="ขนาดศีรษะ" type="range" min="20" max="200" step="1" value={Math.round(headAdjust.scale*100)} onChange={e=>sliderAdjust({...headAdjust,scale:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มขนาดศีรษะ" onClick={()=>stepHeadSlider('scale',1,20,200)}>+</button><output>{Math.round(headAdjust.scale*100)}%</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,scale:1})} aria-label="คืนค่าขนาด"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><button type="button" className="head-slider-step" aria-label="ลดเลื่อนซ้ายขวา" onClick={()=>stepHeadSlider('x',-0.1,-50,50)}>−</button><input aria-label="เลื่อนซ้ายขวา" type="range" min="-50" max="50" step="0.1" value={headAdjust.x*100} onChange={e=>sliderAdjust({...headAdjust,x:Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มเลื่อนซ้ายขวา" onClick={()=>stepHeadSlider('x',0.1,-50,50)}>+</button><output>{headAdjust.x>=0?'+':''}{(headAdjust.x*100).toFixed(1)}</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,x:0})} aria-label="คืนค่าตำแหน่งซ้ายขวา"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="บน–ล่าง"><HeadAdjustGlyph type="vertical"/></span><button type="button" className="head-slider-step" aria-label="ลดเลื่อนขึ้นลง" onClick={()=>stepHeadSlider('y',-0.1,-50,50)}>−</button><input aria-label="เลื่อนขึ้นลง" type="range" min="-50" max="50" step="0.1" value={-headAdjust.y*100} onChange={e=>sliderAdjust({...headAdjust,y:-Number(e.target.value)/100})}/><button type="button" className="head-slider-step" aria-label="เพิ่มเลื่อนขึ้นลง" onClick={()=>stepHeadSlider('y',0.1,-50,50)}>+</button><output>{(-headAdjust.y)>=0?'+':''}{(-headAdjust.y*100).toFixed(1)}</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,y:0})} aria-label="คืนค่าตำแหน่งบนล่าง"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="เอียง"><HeadAdjustGlyph type="rotation"/></span><button type="button" className="head-slider-step" aria-label="ลดปรับองศาเอียง" onClick={()=>stepHeadSlider('rotation',-0.5,-30,30)}>−</button><input aria-label="ปรับองศาเอียง" type="range" min="-30" max="30" step="0.5" value={headAdjust.rotation||0} onChange={e=>sliderAdjust({...headAdjust,rotation:Number(e.target.value)})}/><button type="button" className="head-slider-step" aria-label="เพิ่มปรับองศาเอียง" onClick={()=>stepHeadSlider('rotation',0.5,-30,30)}>+</button><output>{(headAdjust.rotation||0)>=0?'+':''}{(headAdjust.rotation||0).toFixed(1)}°</output><button type="button" className="head-row-reset" onClick={()=>sliderAdjust({...headAdjust,rotation:0})} aria-label="คืนค่าองศาเอียง"><ResetGlyph/></button></div></div>:
+optionTool==='collar'?<div className="head-adjust-modern collar-adjust-modern" role="group" aria-label="ปรับคอ"><div className="head-adjust-row"><span className="head-adjust-glyph" title="ปรับคอ"><HeadAdjustGlyph type="horizontal"/></span><input aria-label="หุบหรือขยายคอ" type="range" min="-160" max="120" step="1" value={Math.round(collarWarp*100)} onChange={e=>applyCollarWarp(Number(e.target.value)/100)}/><output>{collarWarp>=0?'+':''}{Math.round(collarWarp*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyCollarWarp(0)} aria-label="คืนค่าการปรับคอ"><ResetGlyph/></button></div></div>:
+optionTool==='uniform'?<><div className="tool-choice-tabs"><span className="active">เปลี่ยนชุด</span><span>เลือกแพทเทิร์นใหม่</span></div><div className="uniform-switch-tabs">{UNIFORM_GROUPS.map(group=><button type="button" key={group.id} className={uniformPickerTab===group.id?'active':''} onClick={()=>setUniformPickerTab(group.id)}>{group.name}</button>)}</div><div className="uniform-switch-grid">{(UNIFORM_GROUPS.find(group=>group.id===uniformPickerTab)?.items||[]).map(option=><button type="button" key={option.id} className={(editCache.current?.lock?.templatePath||activeUniformTemplate)===option.template?'selected':''} disabled={uniformChanging||busy||hairBusy||downloadBusy} onClick={()=>selectProcessedUniform(option)}><img src={option.preview} alt=""/><strong>{option.title||option.name}</strong><span className="selected-mark">✓</span></button>)}</div></>:
+optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs" role="tablist" aria-label="เมนูเข็ม"><button type="button" role="tab" aria-selected={pinPanelTab==='select'} className={pinPanelTab==='select'?'active':''} onClick={()=>setPinPanelTab('select')}>เข็ม</button><button type="button" role="tab" aria-selected={pinPanelTab==='adjust'} className={pinPanelTab==='adjust'?'active':''} onClick={()=>setPinPanelTab('adjust')}>ปรับ</button></div>{pinPanelTab==='select'?<div className="collar-pin-choice-preview"><button type="button" className={"collar-pin-option "+(!collarPinId?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectCollarPins(null)} aria-pressed={!collarPinId}><span className="no-pin-symbol">×</span><strong>ไม่ติดเข็ม</strong></button>{COLLAR_PIN_OPTIONS.map(option=><button type="button" key={option.id} className={"collar-pin-option "+(collarPinId===option.id?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectCollarPins(option)} aria-label={option.name} aria-pressed={collarPinId===option.id}><span className="collar-pin-pair"><img src={option.left} alt="เข็มซ้าย"/><img src={option.right} alt="เข็มขวา"/></span><strong>{option.name}</strong></button>)}</div>:<div className="head-adjust-modern collar-pin-modern-adjust" role="tabpanel" aria-label="ปรับตำแหน่งเข็มซ้ายและขวา">{!collarPinId?<div className="ribbon-adjust-empty">เลือกเข็มก่อนปรับตำแหน่ง</div>:<>{pinSideControls('left','เข็มซ้าย')}{pinSideControls('right','เข็มขวา')}</>}</div>}</>:
+<>{optionTool==='ribbon'?<div className="tool-choice-tabs ribbon-panel-tabs" role="tablist" aria-label="เมนูแพรแถบ"><button type="button" role="tab" aria-selected={ribbonPanelTab==='select'} className={ribbonPanelTab==='select'?'active':''} onClick={()=>setRibbonPanelTab('select')}>แพรแถบ</button><button type="button" role="tab" aria-selected={ribbonPanelTab==='adjust'} className={ribbonPanelTab==='adjust'?'active':''} onClick={()=>setRibbonPanelTab('adjust')}>ปรับ</button></div>:<div className="tool-choice-tabs"><span className="active">{optionTool==='background'?'พื้นหลัง':optionTool==='male-hair'?'ทรงผมชาย':'ทรงผมหญิง'}</span><span>{optionTool==='background'?'เลือกสีพื้นหลัง':'แตะรูปเพื่อเลือกทรง'}</span></div>}{optionTool==='background'?<div className="background-choice-preview">{BACKGROUND_OPTIONS.map(option=><button type="button" key={option.id} className={"background-swatch "+(backgroundId===option.id?"selected":"")} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectBackground(option)} aria-label={option.name} aria-pressed={backgroundId===option.id}><img src={option.src} alt=""/><strong>{option.name}</strong></button>)}</div>:optionTool!=='ribbon'?<div className="choice-rail-wrap"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนรายการไปทางซ้าย">‹</button><div ref={choiceRailRef} className="hair-carousel process-thumbnail-strip choice-scroll-rail"><button type="button" className={'hair-card no-hair-card '+(hairId===''?'selected':'')} disabled={hairBusy||busy} onClick={()=>changeHair('')}><span className="no-hair-icon">✓</span><span>ผมเดิม</span></button>{(optionTool==='male-hair'?MALE_HAIR_OPTIONS:HAIR_OPTIONS).map(h=><button type="button" key={h.id} className={'hair-card '+(hairId===h.id?'selected':'')} disabled={hairBusy||busy} onClick={()=>changeHair(h.id)} aria-label={h.name} title={h.name}><img src={h.src} alt={h.name}/></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนรายการไปทางขวา">›</button></div>:ribbonPanelTab==='select'?<div className="choice-rail-wrap ribbon-choice-rail-wrap" role="tabpanel"><button type="button" className="choice-rail-arrow choice-rail-left" onClick={()=>scrollChoiceRail(-1)} aria-label="เลื่อนแพรแถบไปทางซ้าย">‹</button><div ref={choiceRailRef} className="ribbon-choice-preview choice-scroll-rail"><button type="button" className={"ribbon-option "+(!ribbonId?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectRibbon(null)} aria-pressed={!ribbonId}>ไม่ติดแพรแถบ</button>{RIBBON_OPTIONS.map(option=><button type="button" key={option.id} className={"ribbon-option "+(ribbonId===option.id?'selected':'')} disabled={busy||hairBusy||downloadBusy} onClick={()=>selectRibbon(option)} aria-label={option.name} aria-pressed={ribbonId===option.id}><img src={option.src} alt=""/><strong>{option.name}</strong></button>)}</div><button type="button" className="choice-rail-arrow choice-rail-right" onClick={()=>scrollChoiceRail(1)} aria-label="เลื่อนแพรแถบไปทางขวา">›</button></div>:<div className="head-adjust-modern ribbon-modern-adjust" role="tabpanel" aria-label="ปรับแพรแถบ">{!ribbonId?<div className="ribbon-adjust-empty">เลือกแพรแถบก่อนปรับตำแหน่ง</div>:<><div className="head-adjust-row"><span className="head-adjust-glyph" title="ซ้าย–ขวา"><HeadAdjustGlyph type="horizontal"/></span><input aria-label="เลื่อนแพรแถบซ้ายขวา" type="range" min="-35" max="35" step=".5" value={ribbonAdjust.x*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,x:Number(e.target.value)/100})}/><output>{ribbonAdjust.x>=0?'+':''}{Math.round(ribbonAdjust.x*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyRibbonAdjust({...ribbonAdjust,x:0})} aria-label="คืนค่าตำแหน่งซ้ายขวา"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขึ้น–ลง"><HeadAdjustGlyph type="vertical"/></span><input aria-label="เลื่อนแพรแถบขึ้นลง" type="range" min="-35" max="35" step=".5" value={-ribbonAdjust.y*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,y:-Number(e.target.value)/100})}/><output>{-ribbonAdjust.y>=0?'+':''}{Math.round(-ribbonAdjust.y*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyRibbonAdjust({...ribbonAdjust,y:0})} aria-label="คืนค่าตำแหน่งขึ้นลง"><ResetGlyph/></button></div><div className="head-adjust-row"><span className="head-adjust-glyph" title="ขนาด"><HeadAdjustGlyph type="scale"/></span><input aria-label="ปรับขนาดแพรแถบ" type="range" min="45" max="200" step="1" value={ribbonAdjust.scale*100} onChange={e=>applyRibbonAdjust({...ribbonAdjust,scale:Number(e.target.value)/100})}/><output>{Math.round(ribbonAdjust.scale*100)}%</output><button type="button" className="head-row-reset" onClick={()=>applyRibbonAdjust({...ribbonAdjust,scale:1})} aria-label="คืนค่าขนาด"><ResetGlyph/></button></div></>}</div>}</>}</div>}<div className="placement-lock-row"><button type="button" className={placementLocked?"placement-lock-btn locked":"placement-lock-btn"} disabled={!b||hairBusy} onClick={placementLocked?unlockPlacement:lockPlacement}>{placementLocked?"🔓 ปลดล็อกเพื่อแก้ตำแหน่ง":"✓ ยืนยันและล็อกตำแหน่ง"}</button>{placementLocked&&<small>หน้า · ตำแหน่งหัว · คอ ถูกล็อกไว้</small>}{hairBusy&&<small>กำลังเปลี่ยนทรงผม…</small>}</div>
+<div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button>
 <button type="button" disabled={placementLocked} className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ปรับคอ</strong></button>
-<button type="button" className={optionTool==='beauty'?'active':''} onClick={()=>toggleOptionTool('beauty')}><span className="line-tool-icon" aria-hidden="true">✧</span><strong>ปรับผิว</strong></button>
-{uniformCategory==='government'&&<button type="button" className={optionTool==='ribbonAdjust'?'active':''} onClick={()=>{setRibbonPanelTab('adjust');setOptionTool(optionTool==='ribbonAdjust'?null:'ribbonAdjust')}}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>ปรับแพรแถบ</strong></button>}
-{uniformCategory==='government'&&<button type="button" className={optionTool==='pinsAdjust'?'active':''} onClick={()=>{setPinPanelTab('adjust');setOptionTool(optionTool==='pinsAdjust'?null:'pinsAdjust')}}><span className="line-tool-icon collar-pin-tool-icon" aria-hidden="true"><img src="/app-icons/tool-collar-pins.png" alt=""/></span><strong>ปรับเข็ม</strong></button>}
-</div><div className="tool-rail-wrap"><button type="button" className="tool-rail-arrow tool-rail-left" onClick={()=>scrollToolBar(-1)} aria-label="เลื่อนเครื่องมือไปทางซ้าย">‹</button><div ref={toolBarRef} className="option-icon-bar process-option-bar simple-line-tools"><button type="button" disabled={placementLocked} className={optionTool==='head'?'active':''} onClick={()=>toggleOptionTool('head')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-1.png" alt=""/></span><strong>ปรับหัว</strong></button>
-<button type="button" disabled={placementLocked} className={optionTool==='collar'?'active':''} onClick={()=>toggleOptionTool('collar')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-2.png" alt=""/></span><strong>ปรับคอ</strong></button>
-<button type="button" className={optionTool==='beauty'?'active':''} onClick={()=>toggleOptionTool('beauty')}><span className="line-tool-icon" aria-hidden="true">✧</span><strong>ปรับผิว</strong></button>
-<button type="button" data-hair-guide="male-hair" className={(optionTool==='male-hair'?'active ':'')+(f&&!b&&hairId===null?'hair-tool-attention':'')} onClick={()=>toggleOptionTool('male-hair',()=>setGender('male'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button>
-<button type="button" data-hair-guide="female-hair" className={(optionTool==='female-hair'?'active ':'')+(f&&!b&&hairId===null?'hair-tool-attention':'')} onClick={()=>toggleOptionTool('female-hair',()=>uniformCategory==='government'?selectGovernmentGender('female'):setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button>
-{uniformCategory==='government'&&<button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon',()=>setRibbonPanelTab('select'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button>}
-
+<button type="button" className={optionTool==='male-hair'?'active':''} onClick={()=>toggleOptionTool('male-hair',()=>setGender('male'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-3.png" alt=""/></span><strong>ทรงผมชาย</strong></button>
+<button type="button" className={optionTool==='female-hair'?'active':''} onClick={()=>toggleOptionTool('female-hair',()=>uniformCategory==='government'?selectGovernmentGender('female'):setGender('female'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-4.png" alt=""/></span><strong>ทรงผมหญิง</strong></button>
+<button type="button" className={optionTool==='ribbon'?'active':''} onClick={()=>toggleOptionTool('ribbon',()=>setRibbonPanelTab('select'))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-5.png" alt=""/></span><strong>แพรแถบ</strong></button>
 {uniformCategory==='government'&&<button type="button" className={optionTool==='pins'?'active':''} onClick={()=>toggleOptionTool('pins',()=>setPinPanelTab('select'))}><span className="line-tool-icon collar-pin-tool-icon" aria-hidden="true"><img src="/app-icons/tool-collar-pins.png" alt=""/></span><strong>เข็ม</strong></button>}
-
-
 <button type="button" className={optionTool==='background'?'active':''} onClick={()=>toggleOptionTool('background')}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-6.png" alt=""/></span><strong>พื้นหลัง</strong></button>
 <button type="button" disabled={uniformChanging} className={optionTool==='uniform'?'active':''} onClick={()=>toggleOptionTool('uniform',()=>setUniformPickerTab(uniformCategory==='government'?`government-${gender}`:uniformCategory))}><span className="line-tool-icon" aria-hidden="true"><img src="/app-icons/tool-uniform-change.svg" alt=""/></span><strong>เปลี่ยนชุด</strong></button></div><button type="button" className="tool-rail-arrow tool-rail-right" onClick={()=>scrollToolBar(1)} aria-label="เลื่อนเครื่องมือไปทางขวา">›</button></div></div>
   </section>
