@@ -2914,8 +2914,8 @@ function App(){
    outer:for(let y=ub.t;y<=ub.b;y++){let opaque=0;for(let x=cx0;x<=cx1;x++)if(ud[(y*uc.width+x)*4+3]>48)opaque++;if(opaque>=(cx1-cx0+1)*.12){socketY=y;break outer}}
    const uScale=(W+4)/Math.max(1,ub.w),uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale,uX=-2-ub.l*uScale,uY=H*.425+socketY*(W*.94/uniform.naturalWidth)-socketY*uScale;
    const placement={W,H,uX,uY,uW,uH,templatePath:activeUniformTemplate};
-   const background=canvasFor(900,1200),suit=canvasFor(900,1200);background.getContext('2d').drawImage(bg,0,0,900,1200);suit.getContext('2d').drawImage(uniform,uX/W*900,uY/H*1200,uW/W*900,uH/H*1200);
-   if(!cancelled){studioOriginRef.current={starter:true,placement};setStudioData([{name:'พื้นหลัง',source:background.toDataURL()},{name:'ชุด',kind:'suit',templatePath:activeUniformTemplate,source:suit.toDataURL()}])}
+   const background=canvasFor(bg.naturalWidth,bg.naturalHeight),suit=canvasFor(uniform.naturalWidth,uniform.naturalHeight);background.getContext('2d').drawImage(bg,0,0);suit.getContext('2d').drawImage(uniform,0,0);
+   if(!cancelled){studioOriginRef.current={starter:true,placement};setStudioData([{name:'พื้นหลัง',source:background.toDataURL(),sourceFrame:{x:0,y:0,w:900,h:1200}},{name:'ชุด',kind:'suit',templatePath:activeUniformTemplate,source:suit.toDataURL(),sourceFrame:{x:uX/W*900,y:uY/H*1200,w:uW/W*900,h:uH/H*1200}}])}
   }catch(e){if(!cancelled)setMsg('เปิด Studio ไม่สำเร็จ กรุณาลองใหม่')}finally{if(!cancelled)setStudioBusy(false)}})();
   return()=>{cancelled=true};
  },[screen,activeUniformTemplate,studioData]);
