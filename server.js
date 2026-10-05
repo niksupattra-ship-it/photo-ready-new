@@ -267,9 +267,8 @@ const aiFinishHandler=async(req,res)=>{
     const maskFile=req.files?.mask?.[0];
     if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
     if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
-    const key=process.env.ARK_API_KEY;
-    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์");
-    const arkModel=process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628";
+    const key=process.env.OPENAI_API_KEY;
+    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
 
     const hairId=req.body?.hairId||"original";
     const maleHairReplacement=/^manhair-\d{2}$/.test(hairId);
@@ -328,43 +327,60 @@ OUTPUT / ANATOMY: one centered, front-facing, fully clothed professional ID port
 
 FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture from Image 1, (3) selected hairstyle only from Image 2 when supplied, (4) proportionate generated hair/neck, subtle 15% low-frequency shadow balance and barely perceptible rosy makeup with intact pores. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
-    // Seedream 5.0 Pro accepts the original portrait and selected hairstyle as
-    // reference images in one generation request. Keep the original bytes as a
-    // data URL so no public upload/storage is required.
-    const portraitMime=inputFile.mimetype||"image/png";
-    const images=[`data:${portraitMime};base64,${inputFile.buffer.toString("base64")}`];
-    if(!keepOriginalHair) images.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
-
-    // Seedream does not use the old OpenAI multipart mask. Identity is reinforced
-    // in the prompt, and the browser restores the photographed face pixels after
-    // MODNet so eyebrows/eyes/nose/mouth remain from the customer's original file.
-    const arkPayload={
-      model:arkModel,
-      prompt:finalPrompt,
-      image:images.length===1?images[0]:images,
-      size:"2K",
-      output_format:"png",
-      response_format:"url",
-      watermark:false
-    };
+    const form=new FormData();
+    form.append("model","gpt-image-1.5");
+    // Both genders use the same edit prompt and two-image ordering:
+    // Image 1 = the customer's first upload, Image 2 = selected hair PNG.
+    // No reference-model face is sent to the image editor.
+    // Female hairstyle guidance uses only the selected hair cutout, never a model face.
+    // Keep the existing face/skin/neck processing prompt unchanged.
+    const femaleSelectedHair=/^hair-\d{2}$/.test(hairId);
+    // Hairstyle-specific silhouette guidance, NOT a new face/skin pipeline.
+    // The cutout for hair-25 is a SHORT pixie: without explicit removal of the
+    // original back hair, image editing may keep the uploaded long hairstyle.
+    const femaleShortCut=hairId==='hair-25';
+    const femaleTiedCut=/^hair-(18|20|21|22|23|24|26|27|28|29)$/.test(hairId);
+    const selectedHairGeometry=femaleShortCut
+      ? `SELECTED CUT hair-25 IS SHORT: swept side fringe and a short tapered pixie silhouette. NO long hair behind ears, NO hair behind neck, NO hair falling onto shoulders or uniform. Fully REMOVE the original long back/side hair and reconstruct only the studio background where that old hair was. Preserve the existing forehead SKIN and original face; change only hair pixels and formerly hair-covered background.`
+      : femaleTiedCut
+        ? `SELECTED CUT IS TIED/PULLED BACK: do not retain the original loose long hair falling down either side of the neck or over shoulders. Follow the selected cutout's actual back-hair silhouette and keep the existing face and skin unchanged.`
+        : `Replace the uploaded hairstyle's old side and back silhouette, not only the fringe; use the selected cutout's actual length and shape.`;
+    const portraitPrompt=prompt+(!inpaint&&!cleanHead&&!hairDonor?necklineGuidance:'');
+    const finalPrompt=femaleSelectedHair && !keepOriginalHair
+      ? portraitPrompt+`\n\nHAIRSTYLE MATCH (IMAGE 2 ONLY): Match the selected cutout's part, fringe, crown, outer silhouette and length. ${selectedHairGeometry} HAIRLINE / STRAY-HAIR FIDELITY: The selected cutout in Image 2 is the authority for whether there are loose strands, side tendrils, baby hairs, wisps or bangs along the forehead, temples, cheeks, ears and neck. If they are ABSENT from Image 2, do NOT preserve them from the customer's old hairstyle and do NOT invent any. Remove only those obsolete hair strands, reconstruct the formerly hair-covered original skin or blue background naturally, and leave all existing uncovered face and skin pixels, features, complexion and the existing skin-processing instructions unchanged. Do not erase or redraw eyebrows, eyelashes or actual skin texture. No added side locks or loose wisps for a clean pulled-back hairstyle. The customer's original photo (Image 1) remains the ONLY face and skin source; do not change face shape, features, complexion, skin texture, or existing skin processing.`
+      : portraitPrompt;
+    form.append("prompt",finalPrompt);
+    form.append("input_fidelity","high");
+    form.append("quality","high");
+    form.append("size","1024x1536");
+    form.append("output_format","png");
+    // Match PNG MIME and filename to actual bytes in the male-hair path.
+    const portraitBytes=maleHairReplacement
+      ?await sharp(inputFile.buffer,{failOn:"error"}).rotate().toColourspace("srgb").png().toBuffer()
+      :inputFile.buffer;
+    form.append("image[]",new Blob([portraitBytes],{type:maleHairReplacement?"image/png":(inputFile.mimetype||"image/png")}),maleHairReplacement?"portrait.png":(inputFile.originalname||"portrait.png"));
+    if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
+    if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
 
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
-    const r=await fetch("https://ark.ap-southeast.bytepluses.com/api/v3/images/generations",{
-      method:"POST",
-      headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},
-      body:JSON.stringify(arkPayload)
+    const r=await fetch("https://api.openai.com/v1/images/edits",{
+      method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
     });
-    const body=await r.json().catch(()=>({}));
+    const body=await r.json();
     if(!r.ok){
+      const code=body?.error?.code || "image_edit_failed";
+      const stage=body?.error?.moderation_details?.moderation_stage;
+      if(code==="moderation_blocked" || code==="safety_violations"){
+        console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
+        await refundCredit(creditUse.usageId); creditUse=null;
+        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (คืนสิทธิ์แล้ว) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
+      }
       await refundCredit(creditUse.usageId); creditUse=null;
-      console.error("Seedream image generation failed",r.status,JSON.stringify(body));
-      return res.status(r.status).send("Seedream image generation: "+JSON.stringify(body));
+      return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
     }
-    const outputUrl=body?.data?.[0]?.url;
-    if(!outputUrl){await refundCredit(creditUse.usageId);creditUse=null;return res.status(502).send("Seedream ไม่ได้ส่งภาพกลับมา (คืนสิทธิ์แล้ว)");}
-    const imageResponse=await fetch(outputUrl);
-    if(!imageResponse.ok){await refundCredit(creditUse.usageId);creditUse=null;return res.status(502).send("ดาวน์โหลดผลลัพธ์ Seedream ไม่สำเร็จ (คืนสิทธิ์แล้ว)");}
-    const data=Buffer.from(await imageResponse.arrayBuffer());
+    const b64=body?.data?.[0]?.b64_json;
+    if(!b64){await refundCredit(creditUse.usageId);creditUse=null;return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา (คืนสิทธิ์แล้ว)");}
+    const data=Buffer.from(b64,"base64");
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
     await commitCredit(creditUse.usageId);
