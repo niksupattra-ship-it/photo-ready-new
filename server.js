@@ -267,8 +267,8 @@ const aiFinishHandler=async(req,res)=>{
     const maskFile=req.files?.mask?.[0];
     if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
     if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
-    const key=process.env.OPENAI_API_KEY;
-    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า OPENAI_API_KEY บนเซิร์ฟเวอร์");
+    const key=process.env.ARK_API_KEY;
+    if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์");
 
     const hairId=req.body?.hairId||"original";
     const maleHairReplacement=/^manhair-\d{2}$/.test(hairId);
@@ -327,60 +327,56 @@ OUTPUT / ANATOMY: one centered, front-facing, fully clothed professional ID port
 
 FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture from Image 1, (3) selected hairstyle only from Image 2 when supplied, (4) proportionate generated hair/neck, subtle 15% low-frequency shadow balance and barely perceptible rosy makeup with intact pores. Return a single coherent photographic person layer, not a face mask or pasted face.`
 
-    const form=new FormData();
-    form.append("model","gpt-image-1.5");
-    // Both genders use the same edit prompt and two-image ordering:
-    // Image 1 = the customer's first upload, Image 2 = selected hair PNG.
-    // No reference-model face is sent to the image editor.
-    // Female hairstyle guidance uses only the selected hair cutout, never a model face.
-    // Keep the existing face/skin/neck processing prompt unchanged.
-    const femaleSelectedHair=/^hair-\d{2}$/.test(hairId);
-    // Hairstyle-specific silhouette guidance, NOT a new face/skin pipeline.
-    // The cutout for hair-25 is a SHORT pixie: without explicit removal of the
-    // original back hair, image editing may keep the uploaded long hairstyle.
-    const femaleShortCut=hairId==='hair-25';
-    const femaleTiedCut=/^hair-(18|20|21|22|23|24|26|27|28|29)$/.test(hairId);
-    const selectedHairGeometry=femaleShortCut
-      ? `SELECTED CUT hair-25 IS SHORT: swept side fringe and a short tapered pixie silhouette. NO long hair behind ears, NO hair behind neck, NO hair falling onto shoulders or uniform. Fully REMOVE the original long back/side hair and reconstruct only the studio background where that old hair was. Preserve the existing forehead SKIN and original face; change only hair pixels and formerly hair-covered background.`
-      : femaleTiedCut
-        ? `SELECTED CUT IS TIED/PULLED BACK: do not retain the original loose long hair falling down either side of the neck or over shoulders. Follow the selected cutout's actual back-hair silhouette and keep the existing face and skin unchanged.`
-        : `Replace the uploaded hairstyle's old side and back silhouette, not only the fringe; use the selected cutout's actual length and shape.`;
-    const portraitPrompt=prompt+(!inpaint&&!cleanHead&&!hairDonor?necklineGuidance:'');
-    const finalPrompt=femaleSelectedHair && !keepOriginalHair
-      ? portraitPrompt+`\n\nHAIRSTYLE MATCH (IMAGE 2 ONLY): Match the selected cutout's part, fringe, crown, outer silhouette and length. ${selectedHairGeometry} HAIRLINE / STRAY-HAIR FIDELITY: The selected cutout in Image 2 is the authority for whether there are loose strands, side tendrils, baby hairs, wisps or bangs along the forehead, temples, cheeks, ears and neck. If they are ABSENT from Image 2, do NOT preserve them from the customer's old hairstyle and do NOT invent any. Remove only those obsolete hair strands, reconstruct the formerly hair-covered original skin or blue background naturally, and leave all existing uncovered face and skin pixels, features, complexion and the existing skin-processing instructions unchanged. Do not erase or redraw eyebrows, eyelashes or actual skin texture. No added side locks or loose wisps for a clean pulled-back hairstyle. The customer's original photo (Image 1) remains the ONLY face and skin source; do not change face shape, features, complexion, skin texture, or existing skin processing.`
-      : portraitPrompt;
-    form.append("prompt",finalPrompt);
-    form.append("input_fidelity","high");
-    form.append("quality","high");
-    form.append("size","1024x1536");
-    form.append("output_format","png");
-    // Match PNG MIME and filename to actual bytes in the male-hair path.
-    const portraitBytes=maleHairReplacement
-      ?await sharp(inputFile.buffer,{failOn:"error"}).rotate().toColourspace("srgb").png().toBuffer()
-      :inputFile.buffer;
-    form.append("image[]",new Blob([portraitBytes],{type:maleHairReplacement?"image/png":(inputFile.mimetype||"image/png")}),maleHairReplacement?"portrait.png":(inputFile.originalname||"portrait.png"));
-    if(inpaint) form.append("mask",new Blob([maskFile.buffer],{type:"image/png"}),"hair-mask.png");
-    if(!keepOriginalHair) form.append("image[]",new Blob([hairBuf],{type:"image/png"}),`${hairId}.png`);
+    // Seedream 5.0 Pro: keep the current frontend and payment flow unchanged.
+    // Image 1 is always the customer's original portrait; Image 2 (when present)
+    // is ONLY the selected hairstyle reference.
+    const seedreamPrompt=(!inpaint&&!cleanHead&&!hairDonor)?`Use Image 1 as the PRIMARY person and ONLY identity reference. Use Image 2 ONLY as the hairstyle reference when Image 2 is supplied.
+
+THIS IS A LOCAL EDIT OF THE ORIGINAL PERSON, NOT A NEW PORTRAIT.
+
+ABSOLUTE FACE LOCK: Preserve the original facial structure and recognizable identity from Image 1. Do not regenerate, redraw, reshape, beautify, idealize or replace the eyebrows, eyes, eyelids, eye spacing, nose, nostrils, lips, mouth, cheeks, jawline, chin, ears, expression, facial width, facial length, asymmetry or proportions. Never make the face slimmer, younger, more symmetrical or more attractive. Image 2 has ZERO authority over the face or skin.
+
+SKIN: Preserve the real skin character from Image 1: pores, fine texture, small marks, under-eye detail and natural tonal variation. No beauty filter, whitening, makeup change, plastic/waxy skin or artificial smoothing. Only gently reduce broad uneven illumination; do not reconstruct facial features to change lighting.
+
+HAIRSTYLE: ${keepOriginalHair?'Preserve the original hairstyle from Image 1.':'Replace ONLY the hairstyle with Image 2. Follow Image 2 for parting, fringe, crown, direction, length, volume, side sections and overall silhouette. Fit the selected hairstyle around the ORIGINAL unchanged head. Remove obsolete old hair where it conflicts with Image 2. Create realistic roots, individual strands, subtle flyaways, natural density and realistic hairline shadows.'}
+
+NECK / CLOTHING PREPARATION: Keep the ORIGINAL jawline and chin completely unchanged. Reconstruct ONLY the missing neck skin BELOW the original jaw. Remove original shirt/collar only where it blocks the required neck area. Create a complete, natural, centered, short neck with both left and right neck edges, natural neck base and visible clavicle area, ready to sit behind the application's external clothing template. Lower the temporary clothing neckline instead of lengthening the neck. Do not enlarge the head, move the chin, reshape the jaw, narrow the neck unnaturally, raise the shoulders or change body proportions. Match generated neck skin to the original face in complexion, exposure, texture, pores and photographic grain. No gaps, fabric or background may cut through the required neck/clavicle skin field.
+
+Keep the original head position, head size, camera angle and framing. Do not add earrings, jewelry or accessories.
+
+FINAL PRIORITY: (1) original face and identity from Image 1, (2) original eyebrows/eyes/nose/mouth/jaw/chin, (3) real skin texture, (4) selected hairstyle from Image 2, (5) complete balanced neck below the unchanged jaw. If an edit would require changing the face, DO NOT perform that edit.`:finalPrompt;
 
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
-    const r=await fetch("https://api.openai.com/v1/images/edits",{
-      method:"POST",headers:{Authorization:`Bearer ${key}`},body:form
+
+    // ModelArk accepts data URLs for image-to-image/multi-reference generation.
+    const portraitDataUrl=`data:${inputFile.mimetype||"image/png"};base64,${inputFile.buffer.toString("base64")}`;
+    const refs=[portraitDataUrl];
+    if(!keepOriginalHair&&hairBuf) refs.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
+    const arkPayload={
+      model:process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628",
+      prompt:seedreamPrompt,
+      image:refs.length===1?refs[0]:refs,
+      size:"2K",
+      output_format:"png",
+      response_format:"url",
+      watermark:false
+    };
+    const r=await fetch("https://ark.ap-southeast.bytepluses.com/api/v3/images/generations",{
+      method:"POST",
+      headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},
+      body:JSON.stringify(arkPayload)
     });
-    const body=await r.json();
+    const body=await r.json().catch(()=>null);
     if(!r.ok){
-      const code=body?.error?.code || "image_edit_failed";
-      const stage=body?.error?.moderation_details?.moderation_stage;
-      if(code==="moderation_blocked" || code==="safety_violations"){
-        console.error("OpenAI image edit safety block", JSON.stringify({code,moderation_details:body?.error?.moderation_details,request_id:r.headers.get("x-request-id")}));
-        await refundCredit(creditUse.usageId); creditUse=null;
-        return res.status(r.status).send(`OpenAI image edit safety block${stage?` (${stage})`:""}. ระบบตรวจสอบผลลัพธ์ไม่อนุญาตให้ส่งภาพกลับมา (คืนสิทธิ์แล้ว) — คงภาพเดิมไว้ ไม่มีการลองซ้ำอัตโนมัติ`);
-      }
       await refundCredit(creditUse.usageId); creditUse=null;
-      return res.status(r.status).send("OpenAI image edit: "+JSON.stringify(body));
+      console.error("Seedream image generation failed",r.status,JSON.stringify(body));
+      return res.status(r.status).send("Seedream ประมวลผลไม่สำเร็จ: "+JSON.stringify(body||{}));
     }
-    const b64=body?.data?.[0]?.b64_json;
-    if(!b64){await refundCredit(creditUse.usageId);creditUse=null;return res.status(500).send("OpenAI ไม่ได้ส่งภาพกลับมา (คืนสิทธิ์แล้ว)");}
-    const data=Buffer.from(b64,"base64");
+    const outputUrl=body?.data?.[0]?.url;
+    if(!outputUrl){await refundCredit(creditUse.usageId);creditUse=null;return res.status(500).send("Seedream ไม่ได้ส่งภาพกลับมา (คืนสิทธิ์แล้ว)");}
+    const imageResponse=await fetch(outputUrl);
+    if(!imageResponse.ok){await refundCredit(creditUse.usageId);creditUse=null;return res.status(502).send(`ดาวน์โหลดภาพ Seedream ไม่สำเร็จ (${imageResponse.status}) (คืนสิทธิ์แล้ว)`);}
+    const data=Buffer.from(await imageResponse.arrayBuffer());
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
     await commitCredit(creditUse.usageId);
