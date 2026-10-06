@@ -7,6 +7,7 @@ import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs} from "./job-store.js";
+import {registerUser,loginUser,authUser} from "./auth-store.js";
 
 import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
 
@@ -47,6 +48,9 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
 app.use(express.json({limit:"64kb"}));
+app.post("/api/auth/register",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const out=await registerUser(req.body?.email,req.body?.password,wid);if(!out.ok){const messages={invalid_email:"กรุณากรอกอีเมลให้ถูกต้อง",weak_password:"รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",email_exists:"อีเมลนี้สมัครสมาชิกแล้ว กรุณาเข้าสู่ระบบ",wallet_in_use:"บัญชีนี้ถูกผูกกับสมาชิกแล้ว"};return res.status(409).json({error:out.error,message:messages[out.error]||"สมัครสมาชิกไม่สำเร็จ"})}res.json(out)}catch(e){console.error("Register:",e);res.status(500).json({error:"register_failed",message:"สมัครสมาชิกไม่สำเร็จ"})}});
+app.post("/api/auth/login",async(req,res)=>{try{const out=await loginUser(req.body?.email,req.body?.password);if(!out.ok)return res.status(401).json({error:out.error,message:"อีเมลหรือรหัสผ่านไม่ถูกต้อง"});res.json(out)}catch(e){console.error("Login:",e);res.status(500).json({error:"login_failed",message:"เข้าสู่ระบบไม่สำเร็จ"})}});
+app.get("/api/auth/me",async(req,res)=>{try{const u=await authUser(req);if(!u)return res.status(401).json({error:"auth_required"});res.json({email:u.email,walletId:u.wallet_id})}catch(e){res.status(500).json({error:"auth_failed"})}});
 // Payment return fallback: verify the Checkout Session directly with Stripe and
 // credit the SAME wallet. This makes paid credits work even if the webhook is delayed.
 // creditPaid() is idempotent by session_id, so webhook + return confirmation cannot double-credit.
@@ -67,7 +71,7 @@ app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req)
 registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
 app.post("/api/payments/checkout",async(req,res)=>{
-  try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
+  try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const user=await authUser(req);if(!user)return res.status(401).json({error:"auth_required",message:"กรุณาสมัครสมาชิกหรือเข้าสู่ระบบก่อนชำระเงิน"});if(String(user.wallet_id)!==wid)return res.status(403).json({error:"wallet_mismatch",message:"บัญชีสมาชิกไม่ตรงกับสิทธิ์ที่กำลังใช้งาน"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
     const packageId=String(req.body?.packageId||req.body?.package_id||"149");
     if(!["149","199"].includes(packageId))return res.status(400).json({error:"invalid_package"});
     const priceId=packageId==="199"?STRIPE_PRICE_ID_199:STRIPE_PRICE_ID;
