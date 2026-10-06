@@ -1,3 +1,4 @@
+import {deliverImage} from './src/image-download.js';
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
@@ -2898,9 +2899,7 @@ function App(){
    const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
    showBlob(out);
    const downloadBlob=await cropPhotoForDownload(out,photoCrop);
-   const url=URL.createObjectURL(downloadBlob),link=document.createElement('a');
-   link.href=url;link.download=photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`;document.body.appendChild(link);link.click();link.remove();analyticsEvent('idprom_download_success',{size_id:photoCrop.sizeId});
-   setTimeout(()=>URL.revokeObjectURL(url),1000);
+   const delivery=deliverImage(downloadBlob,photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`);analyticsEvent('idprom_download_requested',{size_id:photoCrop.sizeId,delivery});
   }catch(e){analyticsEvent('idprom_download_error',{error_stage:'download'});suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate)=>{
