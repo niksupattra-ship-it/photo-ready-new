@@ -20,20 +20,19 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
   <header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">รับรูปที่ชอบ หรือซื้อเครดิตเพื่อสร้างภาพเพิ่ม</p></header>
   <div className="package-pro-grid">
    <article className="package-card">
-    <h3 className="package-name">{hasTrial?'รับรูปนี้':'สร้าง 1 ครั้ง'}</h3>
     <div className="package-price">79 <small>บาท</small></div>
     <ul className="package-features">
      <Feature>{hasTrial?'ดาวน์โหลดรูปทดลอง (ไม่มีลายน้ำ)':'ดาวน์โหลดรูปได้ (ไม่มีลายน้ำ)'}</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
-     <Feature>{hasTrial?'ใช้งานรูปเดิม':'เครดิตสร้างภาพ 1 ครั้ง'}</Feature>
-     <Feature unavailable={hasTrial}>{hasTrial?'ไม่มีเครดิตเพิ่ม':'เลือกทรงผมได้'}</Feature>
-     <Feature unavailable={hasTrial}>{hasTrial?'ไม่มีสิทธิ์สร้างรูปใหม่':'ปรับแต่งรูปเพิ่มเติมได้'}</Feature>
+     {hasTrial&&<Feature>ใช้งานรูปเดิม</Feature>}
+     {!hasTrial&&<Feature>เลือกทรงผมได้</Feature>}
+     {!hasTrial&&<Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>}
+     <Feature unavailable>ไม่มีเครดิตเพิ่ม</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('79')}>{payBusy?'กำลังเปิด PromptPay…':hasTrial?'รับรูปนี้ 79 บาท':'สร้างได้ 1 ครั้ง 79 บาท'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('79')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 79 บาท'}</button>
    </article>
    <article className="package-card popular">
     <span className="package-badge">แนะนำ</span>
-    <h3 className="package-name">สร้างได้ 3 ครั้ง</h3>
     <div className="package-price">149 <small>บาท</small></div>
     <ul className="package-features">
      <Feature>ดาวน์โหลดไม่จำกัด (ไม่มีลายน้ำ)</Feature>
@@ -42,7 +41,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
      <Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'สร้างได้ 3 ครั้ง 149 บาท'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 149 บาท'}</button>
    </article>
   </div>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
