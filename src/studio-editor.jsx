@@ -72,7 +72,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const outputHeads=ls=>ls.filter(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
  const outputKey=outputHeads(layers).map(l=>l.jobId||'missing').join('|');
  useEffect(()=>{let cancelled=false;const heads=outputHeads(layers);setVerifiedJobs({});Promise.all(heads.map(async l=>[l.jobId,await onVerifyOutput?.(l.jobId)])).then(results=>{if(!cancelled)setVerifiedJobs(Object.fromEntries(results))});return()=>{cancelled=true}},[outputKey,paidOutputIds,onVerifyOutput,trialUnlocked]);
- const restrictedTrial=!outputHeads(layers).length||!outputHeads(layers).every(l=>verifiedJobs[l.jobId]?.unlocked);
+ const restrictedTrial=outputHeads(layers).length?!outputHeads(layers).every(l=>verifiedJobs[l.jobId]?.unlocked):!hasCredits&&!trialUnlocked;
  const allowOutput=async()=>{const heads=outputHeads(state.current);const results=await Promise.all(heads.map(l=>onVerifyOutput?.(l.jobId)));if(!heads.length||!results.every(r=>r?.unlocked)){onRequestUnlock?.();setStatus('เลือกรับรูปนี้ 79 บาท หรือซื้อเครดิต 3 ครั้ง 149 บาท');return false}return true};
  const canUseAllSuits=hasCredits||trialUnlocked||state.current.some(l=>(layerKind(l)==='head'||l.name==='หัว · คอ · ผม')&&(editableOutputIds.includes(l.jobId)||(editingPurchasedImage&&verifiedJobs[l.jobId]?.fullEdit)));
  const chooseHair=id=>{if(id&&!hasCredits&&!trialUnlocked){onRequestUnlock?.();setStatus('ซื้อแพ็ก 149 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 3 ครั้ง');return}setSelectedHair(id);setHairConfirmed(true)};
