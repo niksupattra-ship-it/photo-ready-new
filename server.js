@@ -5,9 +5,10 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory} from "./payment-store.js";
-import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs} from "./job-store.js";
-import {registerUser,loginUser,authUser} from "./auth-store.js";
+import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements} from "./payment-store.js";
+import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage} from "./job-store.js";
+import {checkoutPackage} from './package-rules.js';
+import {registerUser,loginUser,authUser,walletHasAccount} from "./auth-store.js";
 
 import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
 
@@ -17,7 +18,7 @@ const app=express();
 const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7kE";
 const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
 const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
-function walletId(req){return String(req.get("X-Wallet-Id")||"").trim()}
+function walletId(req){return req.accountUser?.wallet_id||String(req.get("X-Wallet-Id")||"").trim()}
 function verifyStripeSignature(raw,header,secret){
   if(!header||!secret)return false;const parts=Object.fromEntries(header.split(",").map(x=>x.split("=",2)));
   const t=parts.t,v1=parts.v1;if(!t||!v1)return false;if(Math.abs(Date.now()/1000-Number(t))>300)return false;
@@ -42,12 +43,15 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid)await creditPaid(wid,session.id,packageId);
+      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid)await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
     }
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
 app.use(express.json({limit:"64kb"}));
+// Signed-in requests always use the account wallet, including from another device.
+app.use(async(req,res,next)=>{try{if(req.get('authorization')){const user=await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบใหม่'});req.accountUser=user}next()}catch(e){next(e)}});
+
 app.post("/api/auth/register",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});await ensureWallet(wid);const out=await registerUser(req.body?.email,req.body?.password,wid);if(!out.ok){const messages={invalid_email:"กรุณากรอกอีเมลให้ถูกต้อง",weak_password:"รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",email_exists:"อีเมลนี้สมัครสมาชิกแล้ว กรุณาเข้าสู่ระบบ",wallet_in_use:"บัญชีนี้ถูกผูกกับสมาชิกแล้ว"};return res.status(409).json({error:out.error,message:messages[out.error]||"สมัครสมาชิกไม่สำเร็จ"})}res.json(out)}catch(e){console.error("Register:",e);res.status(500).json({error:"register_failed",message:"สมัครสมาชิกไม่สำเร็จ"})}});
 app.post("/api/auth/login",async(req,res)=>{try{const out=await loginUser(req.body?.email,req.body?.password);if(!out.ok)return res.status(401).json({error:out.error,message:"อีเมลหรือรหัสผ่านไม่ถูกต้อง"});res.json(out)}catch(e){console.error("Login:",e);res.status(500).json({error:"login_failed",message:"เข้าสู่ระบบไม่สำเร็จ"})}});
 app.get("/api/auth/me",async(req,res)=>{try{const u=await authUser(req);if(!u)return res.status(401).json({error:"auth_required"});res.json({email:u.email,walletId:u.wallet_id})}catch(e){res.status(500).json({error:"auth_failed"})}});
@@ -62,7 +66,7 @@ app.post("/api/payments/confirm",async(req,res)=>{
     if(session?.payment_status!=="paid")return res.status(409).json({error:"payment_not_paid",message:"ยังไม่พบการชำระเงินสำเร็จ"});
     if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าสิทธิ์ของเครื่อง"});
     const packageId=String(session.metadata?.package_id||"149");
-    const out=await creditPaid(wid,session.id,packageId);
+    const out=await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
     res.json({ok:true,...out});
   }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
@@ -70,15 +74,21 @@ app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
-app.post("/api/payments/checkout",async(req,res)=>{
-  try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const user=await authUser(req);if(!user)return res.status(401).json({error:"auth_required",message:"กรุณาสมัครสมาชิกหรือเข้าสู่ระบบก่อนชำระเงิน"});if(String(user.wallet_id)!==wid)return res.status(403).json({error:"wallet_mismatch",message:"บัญชีสมาชิกไม่ตรงกับสิทธิ์ที่กำลังใช้งาน"});await ensureWallet(wid);const base=APP_URL||`${req.protocol}://${req.get("host")}`;
-    const packageId=String(req.body?.packageId||req.body?.package_id||"149");
-    if(!["149","199"].includes(packageId))return res.status(400).json({error:"invalid_package"});
-    const priceId=packageId==="199"?STRIPE_PRICE_ID_199:STRIPE_PRICE_ID;
-    if(!priceId)return res.status(500).json({error:"stripe_price_not_configured",packageId});
-    const session=await stripePost("checkout/sessions",{"mode":"payment","line_items[0][price]":priceId,"line_items[0][quantity]":1,"payment_method_types[0]":"promptpay","success_url":`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,"cancel_url":`${base}/?payment=cancelled`,"metadata[wallet_id]":wid,"metadata[package_id]":packageId});
-    res.json({url:session.url});
-  }catch(e){console.error("Stripe checkout:",e);res.status(500).json({error:e.message})}
+app.post('/api/payments/checkout',async(req,res)=>{
+ try{
+  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});
+  const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
+  const jobId=String(req.body?.jobId||'');
+  if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_'))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});}
+  if(offer.requiresImage&&!jobId)return res.status(400).json({error:'trial_image_required',message:'ทดลองสร้างรูปก่อน แล้วเลือก 79 บาทเพื่อรับรูปนั้น'});
+  const base=APP_URL||`${req.protocol}://${req.get('host')}`;
+  const session=await stripePost('checkout/sessions',{
+   mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
+   'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
+   'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
+   'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
+  });res.json({url:session.url});
+ }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 79 หรือ 149 บาท':e.message})}
 });
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
@@ -115,7 +125,8 @@ async function requireCredit(req,res,kind){
     if(!wallet){res.status(403).json({error:'private_trial_inactive'});return null}
     return {usageId:'private_full_'+crypto.randomBytes(18).toString('hex'),trialPreview:false,generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining};
   }
-  const r=await reserveCredit(wid,kind);
+  const user=req.accountUser||await authUser(req);
+  const r=user&&user.wallet_id===wid?await reserveCredit(wid,kind):null;
   if(r)return r;
   if(kind==='ai-finish'){
     const fingerprint=trialDeviceFingerprint(req,res,wid);
@@ -434,7 +445,21 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
  catch(e){if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message})}
 });
 app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.params.id,walletId(req));if(!j)return res.status(404).json({error:'job_not_found'});res.json(j)}catch(e){res.status(500).json({error:'job_status_failed'})}});
-app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{const j=await getAiJobResult(req.params.id,walletId(req));if(!j)return res.status(404).send('ไม่พบงาน');if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',String(j.usage_id||'').startsWith('trial_')?'1':'0').send(j.result)}catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
+app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{
+ const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j)return res.status(404).send('ไม่พบงาน');
+ if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');
+ const rights=await imageEntitlements(wid),trial=String(j.usage_id||'').startsWith('trial_')&&!rights.unlockedJobIds.includes(req.params.id);
+ res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(j.result);
+}catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
+app.post('/api/images/:id/claim',async(req,res)=>{try{
+ const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required'});
+ const source=String(req.body?.sourceWalletId||'');
+ if(source===user.wallet_id)return res.json({ok:true});
+ if(!source||await walletHasAccount(source))return res.status(403).json({error:'image_account_mismatch',message:'รูปนี้อยู่ในบัญชีอื่น กรุณาเข้าสู่ระบบบัญชีเดิม'});
+ if(!await claimTrialImage(req.params.id,source,user.wallet_id))return res.status(404).json({error:'trial_image_not_found'});
+ res.json({ok:true});
+}catch(e){res.status(500).json({error:'image_claim_failed'})}});
+app.get('/api/images/:id/rights',async(req,res)=>{try{const wid=walletId(req),job=await getAiJobResult(req.params.id,wid);if(!job)return res.status(404).json({error:'image_not_found'});const ent=await imageEntitlements(wid);res.json({jobId:req.params.id,unlocked:job.status==='completed'&&(!String(job.usage_id).startsWith('trial_')||ent.unlockedJobIds.includes(req.params.id)),fullEdit:ent.editableJobIds.includes(req.params.id)})}catch(e){res.status(500).json({error:'rights_failed'})}});
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);

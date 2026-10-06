@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import pg from 'pg';
+import {packageFor,remaining} from './package-rules.js';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for payment storage');
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}});
@@ -13,6 +14,8 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS generation_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS hair_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
+  await pool.query(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credit_column text`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
   await pool.query(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
   // Keep previous trials, but enforce one trial per device per Bangkok calendar day.
   await pool.query(`ALTER TABLE trial_previews DROP CONSTRAINT IF EXISTS trial_previews_fingerprint_key`);
@@ -33,11 +36,25 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   `);
   await pool.query(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
 })();return initPromise}
-function shape(id,row){return {walletId:id,generationRemaining:Number(row?.generation_remaining||0),hairRemaining:Number(row?.hair_remaining||0)}}
-export async function newWallet(){await ready();const id='wal_'+crypto.randomBytes(24).toString('hex');await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0)',[id]);return shape(id,{})}
-export async function getWallet(id){if(!id)return null;await ready();const {rows}=await pool.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[id]);return rows[0]?shape(id,rows[0]):null}
+function shape(id,row){const count=remaining(row);return {walletId:id,processRemaining:count,generationRemaining:count,hairRemaining:count}}
+export async function imageEntitlements(id){await ready();const {rows}=await pool.query('SELECT job_id,full_edit FROM paid_image_unlocks WHERE wallet_id=$1',[id]);return {unlockedJobIds:rows.map(r=>r.job_id),editableJobIds:rows.filter(r=>r.full_edit).map(r=>r.job_id)}}
+export async function newWallet(){await ready();const id='wal_'+crypto.randomBytes(24).toString('hex');await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0)',[id]);return {...shape(id,{}),unlockedJobIds:[],editableJobIds:[]}}
+export async function getWallet(id){if(!id)return null;await ready();const {rows}=await pool.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[id]);return rows[0]?{...shape(id,rows[0]),...await imageEntitlements(id)}:null}
 export async function ensureWallet(id){await ready();await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[id]);return getWallet(id)}
-export async function creditPaid(walletId,sessionId,packageId='149'){await ready();const packs={'149':{g:1,h:2},'199':{g:2,h:3}};const p=packs[String(packageId)]||packs['149'];const c=await pool.connect();try{await c.query('BEGIN');await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty) VALUES($1,$2,0,$3,$4,$5) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h]);if(ins.rowCount)await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {duplicate:!ins.rowCount,...shape(walletId,w.rows[0])}}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
+ await ready();const p=packageFor(packageId);if(p.requiresImage&&!jobId)throw Error('image_required');
+ const c=await pool.connect();try{
+  await c.query('BEGIN');
+  await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
+  const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty) VALUES($1,$2,0,$3,$4,$5) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h]);
+  if(ins.rowCount){
+   await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
+   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
+  }
+  const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
+  return {duplicate:!ins.rowCount,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
+ }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
 
 export async function redeemPromo199(walletId,code){
   await ready();
@@ -61,7 +78,16 @@ export async function redeemPromo199(walletId,code){
   }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
 
-export async function reserveCredit(walletId,kind){await ready();const column=kind==='hairstyle'?'hair_remaining':'generation_remaining';const c=await pool.connect();try{await c.query('BEGIN');const w=await c.query(`SELECT ${column},generation_remaining,hair_remaining FROM wallets WHERE id=$1 FOR UPDATE`,[walletId]);if(!w.rows[0]||Number(w.rows[0][column])<1){await c.query('ROLLBACK');return null}const id='use_'+crypto.randomBytes(18).toString('hex');await c.query(`UPDATE wallets SET ${column}=${column}-1 WHERE id=$1`,[walletId]);await c.query('INSERT INTO credit_usage(id,wallet_id,kind,status) VALUES($1,$2,$3,\'reserved\')',[id,walletId,kind]);const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])}}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function reserveCredit(walletId,kind){
+ await ready();const c=await pool.connect();try{
+  await c.query('BEGIN');const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  if(!w.rows[0]||remaining(w.rows[0])<1){await c.query('ROLLBACK');return null}
+  const column=Number(w.rows[0].generation_remaining)>0?'generation_remaining':'hair_remaining';
+  const id='use_'+crypto.randomBytes(18).toString('hex');await c.query(`UPDATE wallets SET ${column}=${column}-1 WHERE id=$1`,[walletId]);
+  await c.query("INSERT INTO credit_usage(id,wallet_id,kind,status,credit_column) VALUES($1,$2,$3,'reserved',$4)",[id,walletId,kind,column]);
+  const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])};
+ }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
 export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30){
   await ready();
   const c=await pool.connect();
@@ -90,5 +116,5 @@ export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30){
   finally{c.release()}
 }
 export async function commitCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const r=await pool.query("UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}
-export async function refundCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("DELETE FROM trial_previews WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const c=await pool.connect();try{await c.query('BEGIN');const u=await c.query("SELECT wallet_id,kind,status FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}const col=u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.rows[0].wallet_id]);await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);await c.query('COMMIT');return true}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function refundCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("DELETE FROM trial_previews WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const c=await pool.connect();try{await c.query('BEGIN');const u=await c.query("SELECT wallet_id,kind,status,credit_column FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}const col=u.rows[0].credit_column==='hair_remaining'?'hair_remaining':u.rows[0].credit_column==='generation_remaining'?'generation_remaining':u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.rows[0].wallet_id]);await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);await c.query('COMMIT');return true}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
 export async function walletHistory(walletId){await ready();const {rows}=await pool.query(`SELECT session_id AS id,'purchase' AS type,package_id AS kind,(generation_qty+hair_qty) AS credits,created_at AS at FROM payments WHERE wallet_id=$1 UNION ALL SELECT id,CASE WHEN status='refunded' THEN 'refund' ELSE 'usage' END AS type,kind,CASE WHEN status='refunded' THEN 1 ELSE -1 END AS credits,COALESCE(refunded_at,completed_at,created_at) AS at FROM credit_usage WHERE wallet_id=$1 ORDER BY at DESC LIMIT 30`,[walletId]);return rows.map(r=>({...r,at:new Date(r.at).toISOString()}))}
