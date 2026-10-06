@@ -138,7 +138,7 @@ async function requireCredit(req,res,kind){
   if(r)return r;
   if(kind==='ai-finish'){
     const fingerprint=trialDeviceFingerprint(req,res,wid);
-    if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,30,trialNetworkFingerprint(req));if(trial)return trial}
+    if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,trialNetworkFingerprint(req));if(trial)return trial}
   }
   res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 1 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
   return null;

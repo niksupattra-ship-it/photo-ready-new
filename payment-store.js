@@ -94,7 +94,7 @@ export async function reserveCredit(walletId,kind){
   const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
-export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30,networkFingerprint=null){
+export async function reserveTrialPreview(walletId,fingerprint,networkFingerprint=null){
   await ready();
   const c=await pool.connect();
   try{
@@ -112,8 +112,6 @@ export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30,net
       await c.query('COMMIT');
       return null;
     }
-    const used=await c.query("SELECT count(*)::int AS n FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date");
-    if(Number(used.rows[0]?.n||0)>=dailyLimit){await c.query('ROLLBACK');return null}
     const id='trial_'+crypto.randomBytes(18).toString('hex');
     await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status) VALUES($1,$2,$3,'reserved')",[id,walletId,fingerprint]);
     if(networkFingerprint)await c.query("INSERT INTO trial_daily_devices(device_key,trial_day,trial_id) VALUES($1,(now() AT TIME ZONE 'Asia/Bangkok')::date,$2)",[networkFingerprint,id]);
