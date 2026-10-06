@@ -44,6 +44,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 149 บาท'}</button>
    </article>
   </div>
+  <p style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 79 บาทจะเหลือ 0 ครั้ง และแพ็ก 149 บาทจะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
