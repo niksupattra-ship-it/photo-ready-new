@@ -5,7 +5,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements} from "./payment-store.js";
+import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount} from "./auth-store.js";
@@ -87,7 +87,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
    'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
-   'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
+   'metadata[wallet_id]':wid,'metadata[package_id]':offer.id==='79_v2'&&jobId?'79':offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 79 หรือ 149 บาท':e.message})}
 });
@@ -467,7 +467,7 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
  if(!await claimTrialImage(req.params.id,source,user.wallet_id))return res.status(404).json({error:'trial_image_not_found'});
  res.json({ok:true});
 }catch(e){res.status(500).json({error:'image_claim_failed'})}});
-app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j||j.status!=='completed')return res.status(404).json({unlocked:false,fullEdit:false});const ent=await imageEntitlements(wid),usage=String(j.usage_id||'');const privateAccess=req.get('X-IDPROM-Private-Trial')==='1'&&hasPrivateTrial(req,wid);const unlocked=privateAccess||Boolean(req.accountUser&&(usage.startsWith('use_')||ent.unlockedJobIds.includes(req.params.id)));res.json({unlocked,fullEdit:unlocked&&ent.editableJobIds.includes(req.params.id)})}catch(e){res.status(500).json({unlocked:false,fullEdit:false})}});
+app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j||j.status!=='completed')return res.status(404).json({unlocked:false,fullEdit:false});const ent=await imageEntitlements(wid),usage=String(j.usage_id||'');const privateAccess=req.get('X-IDPROM-Private-Trial')==='1'&&hasPrivateTrial(req,wid);const unlocked=privateAccess||Boolean(req.accountUser&&(usage.startsWith('use_')||ent.unlockedJobIds.includes(req.params.id)));res.json({unlocked,fullEdit:unlocked&&(ent.editableJobIds.includes(req.params.id)||await creditOutputFullEdit(usage))})}catch(e){res.status(500).json({unlocked:false,fullEdit:false})}});
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);
