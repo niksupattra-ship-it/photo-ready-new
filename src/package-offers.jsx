@@ -1,35 +1,51 @@
 import React from 'react';
 
+function Feature({children,unavailable=false}){
+ return <li><span className={'package-round-check'+(unavailable?' unavailable':'')} aria-hidden="true">{unavailable?'−':'✓'}</span><span>{children}</span></li>;
+}
+function PromptPaySymbol(){
+ return <span className="package-promptpay-symbol" aria-label="PromptPay"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h2v2h-2zM17 17h2v2h-2z" fill="currentColor"/></svg><span>Prompt<span style={{color:'#168db7'}}>Pay</span></span></span>;
+}
 export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
+ const showMessage=payMsg&&!payMsg.startsWith('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลด');
  return <>
-  <header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">เลือกรับรูปนี้ หรือสร้างภาพเพิ่ม</p></header>
+  <style>{`
+   .package-pro-modal .package-features li{align-items:center;gap:12px;min-height:25px}
+   .package-round-check{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:#00aa83;color:white;font-size:18px;font-weight:900;line-height:1}
+   .package-round-check.unavailable{background:#a7adb3}
+   .package-trial-remaining{display:block;margin-top:3px;font-size:12px;color:#718097}
+   .package-promptpay-footer{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+   .package-promptpay-symbol{display:inline-flex;align-items:center;gap:6px;color:#14395a;background:#fff;border:1px solid #dde5ed;border-radius:7px;padding:5px 8px;font-size:15px;font-weight:800;line-height:1}
+  `}</style>
+  <header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">รับรูปที่ชอบ หรือซื้อเครดิตเพื่อสร้างภาพเพิ่ม</p></header>
   <div className="package-pro-grid">
    <article className="package-card">
     <h3 className="package-name">{hasTrial?'รับรูปนี้':'สร้าง 1 ครั้ง'}</h3>
     <div className="package-price">79 <small>บาท</small></div>
     <ul className="package-features">
-     <li><strong>✓ {hasTrial?'รับรูปทดลองเดิมทันที':'เครดิตประมวลผล 1 ครั้ง'}</strong></li>
-     <li>✓ ไม่มีลายน้ำ · ดาวน์โหลดได้</li>
-     <li>✓ เปลี่ยนชุด / พื้นหลัง / ปรับแต่ง</li>
-     <li>{hasTrial?'— เครดิตเหลือ 0 ครั้ง':'✓ เลือกทรงผมพร้อมสร้างรูป'}</li>
+     <Feature>{hasTrial?'ดาวน์โหลดรูปทดลอง (ไม่มีลายน้ำ)':'ดาวน์โหลดรูปได้ (ไม่มีลายน้ำ)'}</Feature>
+     <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
+     <Feature>{hasTrial?'ใช้งานรูปเดิม':'เครดิตสร้างภาพ 1 ครั้ง'}</Feature>
+     <Feature unavailable={hasTrial}>{hasTrial?'ไม่มีเครดิตเพิ่ม':'เลือกทรงผมได้'}</Feature>
+     <Feature unavailable={hasTrial}>{hasTrial?'ไม่มีสิทธิ์สร้างรูปใหม่':'ปรับแต่งรูปเพิ่มเติมได้'}</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('79')}>{payBusy?'กำลังเปิด PromptPay…':'ซื้อ 79 บาท'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('79')}>{payBusy?'กำลังเปิด PromptPay…':hasTrial?'รับรูปนี้ 79 บาท':'สร้างได้ 1 ครั้ง 79 บาท'}</button>
    </article>
    <article className="package-card popular">
     <span className="package-badge">แนะนำ</span>
-    <h3 className="package-name">สร้าง 3 ครั้ง</h3>
+    <h3 className="package-name">สร้างได้ 3 ครั้ง</h3>
     <div className="package-price">149 <small>บาท</small></div>
     <ul className="package-features">
-     <li><strong>✓ {hasTrial?'รับรูปนี้ + สร้างเพิ่ม 2 ครั้ง':'เครดิตประมวลผล 3 ครั้ง'}</strong></li>
-     <li>✓ ไม่มีลายน้ำ · ดาวน์โหลดได้</li>
-     <li>✓ เปลี่ยนรูป / ทรงผมได้ทุกครั้ง</li>
-     <li>✓ ปรับแต่งเต็มขณะมีเครดิต</li>
-     {hasTrial&&<li>✓ รูปทดลองนับเป็นครั้งที่ 1</li>}
+     <Feature>ดาวน์โหลดไม่จำกัด (ไม่มีลายน้ำ)</Feature>
+     <Feature>เครดิตสร้างภาพ 3 ครั้ง{hasTrial&&<small className="package-trial-remaining">รวมรูปทดลองนี้ · เหลือ 2 ครั้ง</small>}</Feature>
+     <Feature>เลือกทรงผมได้</Feature>
+     <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
+     <Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'ซื้อ 149 บาท'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'สร้างได้ 3 ครั้ง 149 บาท'}</button>
    </article>
   </div>
-  {payMsg&&<p className="credit-pay-msg">{payMsg}</p>}
-  <div className="package-secure">รูปและทรงผมประมวลผลรวมเป็น 1 ครั้ง • ชำระผ่าน PromptPay</div>
+  {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
+  <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
 }
