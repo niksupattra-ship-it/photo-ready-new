@@ -87,7 +87,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
    'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
-   'metadata[wallet_id]':wid,'metadata[package_id]':offer.id==='79_v2'&&jobId?'79':offer.id,'metadata[job_id]':jobId
+   'metadata[wallet_id]':wid,'metadata[package_id]':jobId?(offer.id==='79_v2'?'79':offer.id==='149_v2'?'149_trial_v3':offer.id):offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 79 หรือ 149 บาท':e.message})}
 });

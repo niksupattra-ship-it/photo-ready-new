@@ -2,7 +2,8 @@
 export const PACKAGES=Object.freeze({
  '79':{price:79,g:0,h:0,name:'รับรูปนี้',requiresImage:true,fullEdit:true},
  '79_v2':{price:79,g:1,h:0,name:'รับรูป / สร้าง 1 ครั้ง',requiresImage:false,fullEdit:true},
- '149_v2':{price:149,g:3,h:0,name:'สร้างเพิ่ม 3 ครั้ง',requiresImage:false,fullEdit:false},
+ '149_v2':{price:149,g:3,h:0,name:'สร้าง 3 ครั้ง',requiresImage:false,fullEdit:false},
+ '149_trial_v3':{price:149,g:2,h:0,name:'รับรูปนี้ + สร้างเพิ่ม 2 ครั้ง',requiresImage:true,fullEdit:false},
  '149':{price:149,g:1,h:2,legacy:true},
  '199':{price:199,g:2,h:3,legacy:true}
 });
