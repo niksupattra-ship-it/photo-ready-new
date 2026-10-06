@@ -5,7 +5,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit} from "./payment-store.js";
+import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount} from "./auth-store.js";
@@ -75,6 +75,16 @@ app.post("/api/wallet",async(req,res)=>{const current=walletId(req);if(current){
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
+app.post('/api/promo/redeem',async(req,res)=>{
+ try{
+  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาสมัครสมาชิกหรือเข้าสู่ระบบเพื่อรับสิทธิ์ฟรี'});
+  const wid=user.wallet_id,jobId=String(req.body?.jobId||'');
+  if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id||'').startsWith('trial_'))return res.status(403).json({error:'image_not_owned',message:'ไม่พบรูปทดลองของบัญชีนี้'})}
+  const out=await redeemPromoPackage(wid,req.body?.code,jobId);
+  if(!out.ok)return res.status(409).json({error:out.reason,message:out.reason==='used'?'ลิงก์นี้ถูกใช้แล้ว':'ลิงก์ไม่ถูกต้อง'});
+  res.json(out);
+ }catch(e){console.error('Promo redemption:',e);res.status(500).json({error:'promo_failed',message:'รับสิทธิ์ไม่สำเร็จ กรุณาลองใหม่'})}
+});
 app.post('/api/payments/checkout',async(req,res)=>{
  try{
   const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});

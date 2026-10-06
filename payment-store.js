@@ -125,3 +125,21 @@ export async function refundCredit(usageId){await ready();if(String(usageId||'')
 export async function walletHistory(walletId){await ready();const {rows}=await pool.query(`SELECT session_id AS id,'purchase' AS type,package_id AS kind,(generation_qty+hair_qty) AS credits,created_at AS at FROM payments WHERE wallet_id=$1 UNION ALL SELECT id,CASE WHEN status='refunded' THEN 'refund' ELSE 'usage' END AS type,kind,CASE WHEN status='refunded' THEN 1 ELSE -1 END AS credits,COALESCE(refunded_at,completed_at,created_at) AS at FROM credit_usage WHERE wallet_id=$1 ORDER BY at DESC LIMIT 30`,[walletId]);return rows.map(r=>({...r,at:new Date(r.at).toISOString()}))}
 
 export async function creditOutputFullEdit(id){await ready();const r=await pool.query("SELECT full_edit_output FROM credit_usage WHERE id=$1 AND status='completed'",[id]);return Boolean(r.rows[0]?.full_edit_output)}
+
+// One global redemption per new promotional link, independent of browser/device.
+const singleUsePromoPackages={"428d5aae2eeeefc8d86b5cb4d0a4bde55fe9bcccd89b66742d1b701827e09132": "79", "053067e34ce311a57498fef520f14afb1ff959111936f74eecae7a67dd98bbe0": "79", "62e479ac2c6f6164f935e4031c216e85ccfe6181b7370c9d49b5d4dc15566e3f": "79", "e2354a1fa636a4ac0f3df3c5bcfa5fc2b52710f8fefe2c214ebdbce9996ebae2": "79", "7457d4bce3b8d243e3688093b447e6781a1f16c8b0de595ce45483fd39fe52dc": "79", "a9abe2d74ab61e26567fdb64e8417014847dea7d91bc5ca7bb5376282efa813b": "79", "68b6fb3a5c5eb565f9aa2f4353f4f7b033338f4e3bc2092f5af54f547a802f17": "79", "85b69a0742cdd397d45666f684ae64193f1d291f5e3315b47da832db8ea66a8f": "79", "81745a592afea582a057184a80b9c5502b24efbfc23816b15e3e0ca8f17362e9": "79", "5b1077143ca0356e5064b103ccee39cce5cfee930d9714422247bd1d640f4115": "79", "3975451c8220d91db148f937431f72428d7d9d330de12a6173cfed7b00d5c014": "149", "d40b63511f14f1865cb47143a60e6e58fde26da9aeb01fa8f60a915564163fa0": "149", "8f301f2bdef4725568a3538c9407ac4d255b3d83c344d77202553038eaf3f1ad": "149", "6862fb80230195e3fc51ab99e4948c08ae2fd38bc33e7cd90fb3df32d0df4e0e": "149", "a37c1a3ea30e3f9fd4ce54bd663c12443a324f8b76b0c89e81a8a55316b38c46": "149", "9722be7d83f6744ac7fa3c2d1ad6be18eda46b19115148e1f03c1a6b6ae9e0a8": "149", "88e20acc923875e0fc9aeedc50477adf79e18b4545dcfa9b46150875bb9be00f": "149", "1cb1041b594f783d5ac6c05f740d7553a607ff062c4f5e82afa0f640c14488bc": "149", "43ed2b544cac6ff91b26a838b92a4c264ca960d2c54cd7814664b99a45a39a7b": "149", "baf7af17e8448f948899cbc6a5e4d48a8cda6ca01b1b6b314091afcde3438366": "149"};
+export async function redeemPromoPackage(walletId,code,jobId=''){
+ await ready();const key=crypto.createHash('sha256').update(String(code||'').trim().toUpperCase()).digest('hex');
+ const offer=singleUsePromoPackages[key];if(!offer)return {ok:false,reason:'invalid'};
+ const packageId=offer==='79'?(jobId?'79':'79_v2'):(jobId?'149_trial_v3':'149_v2');const p=packageFor(packageId);
+ const c=await pool.connect();try{
+  await c.query('BEGIN');
+  await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
+  const ins=await c.query('INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,$3) ON CONFLICT(code) DO NOTHING RETURNING code',['promo_v2_'+key,walletId,packageId]);
+  if(!ins.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'used'}}
+  await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,packageId==='79_v2'?1:0]);
+  if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
+  const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
+  return {ok:true,packagePrice:Number(offer),...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
+ }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
