@@ -14,6 +14,7 @@ import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
+app.set("trust proxy",1);
 
 const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7kE";
 const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
@@ -115,6 +116,13 @@ function trialDeviceFingerprint(req,res,wid){
   });
   return 'device_v1_'+crypto.createHash('sha256').update(deviceId).digest('hex');
 }
+function trialNetworkFingerprint(req){
+ const secret=process.env.TRIAL_DEVICE_SECRET||process.env.STRIPE_WEBHOOK_SECRET||process.env.STRIPE_SECRET_KEY;
+ if(!secret)return null;
+ const traits=String(req.get('X-IDPROM-Device')||'').slice(0,1024);
+ const ua=String(req.get('user-agent')||'').replace(/\d+(?:\.\d+)*/g,'#');
+ return 'network_v1_'+crypto.createHmac('sha256',secret).update(JSON.stringify([req.ip,ua,traits])).digest('hex');
+}
 async function requireCredit(req,res,kind){
   const wid=walletId(req);
   if(!wid){res.status(402).json({error:'credit_required',message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});return null}
@@ -130,7 +138,7 @@ async function requireCredit(req,res,kind){
   if(r)return r;
   if(kind==='ai-finish'){
     const fingerprint=trialDeviceFingerprint(req,res,wid);
-    if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,30);if(trial)return trial}
+    if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,30,trialNetworkFingerprint(req));if(trial)return trial}
   }
   res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 1 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
   return null;
@@ -459,7 +467,7 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
  if(!await claimTrialImage(req.params.id,source,user.wallet_id))return res.status(404).json({error:'trial_image_not_found'});
  res.json({ok:true});
 }catch(e){res.status(500).json({error:'image_claim_failed'})}});
-app.get('/api/images/:id/rights',async(req,res)=>{try{const wid=walletId(req),job=await getAiJobResult(req.params.id,wid);if(!job)return res.status(404).json({error:'image_not_found'});const ent=await imageEntitlements(wid);res.json({jobId:req.params.id,unlocked:job.status==='completed'&&(!String(job.usage_id).startsWith('trial_')||ent.unlockedJobIds.includes(req.params.id)),fullEdit:ent.editableJobIds.includes(req.params.id)})}catch(e){res.status(500).json({error:'rights_failed'})}});
+app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j||j.status!=='completed')return res.status(404).json({unlocked:false,fullEdit:false});const ent=await imageEntitlements(wid),usage=String(j.usage_id||'');const privateAccess=req.get('X-IDPROM-Private-Trial')==='1'&&hasPrivateTrial(req,wid);const unlocked=privateAccess||Boolean(req.accountUser&&(usage.startsWith('use_')||ent.unlockedJobIds.includes(req.params.id)));res.json({unlocked,fullEdit:unlocked&&ent.editableJobIds.includes(req.params.id)})}catch(e){res.status(500).json({unlocked:false,fullEdit:false})}});
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);

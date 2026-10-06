@@ -17,6 +17,7 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credit_column text`);
   await pool.query(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
   await pool.query(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS trial_daily_devices (device_key text NOT NULL,trial_day date NOT NULL,trial_id text NOT NULL REFERENCES trial_previews(id) ON DELETE CASCADE,PRIMARY KEY(device_key,trial_day))`);
   // Keep previous trials, but enforce one trial per device per Bangkok calendar day.
   await pool.query(`ALTER TABLE trial_previews DROP CONSTRAINT IF EXISTS trial_previews_fingerprint_key`);
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date))`);
@@ -88,7 +89,7 @@ export async function reserveCredit(walletId,kind){
   const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
-export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30){
+export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30,networkFingerprint=null){
   await ready();
   const c=await pool.connect();
   try{
@@ -110,6 +111,7 @@ export async function reserveTrialPreview(walletId,fingerprint,dailyLimit=30){
     if(Number(used.rows[0]?.n||0)>=dailyLimit){await c.query('ROLLBACK');return null}
     const id='trial_'+crypto.randomBytes(18).toString('hex');
     await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status) VALUES($1,$2,$3,'reserved')",[id,walletId,fingerprint]);
+    if(networkFingerprint)await c.query("INSERT INTO trial_daily_devices(device_key,trial_day,trial_id) VALUES($1,(now() AT TIME ZONE 'Asia/Bangkok')::date,$2)",[networkFingerprint,id]);
     await c.query('COMMIT');
     return {usageId:id,trialPreview:true,generationRemaining:0,hairRemaining:0};
   }catch(e){await c.query('ROLLBACK');if(e?.code==='23505')return null;throw e}
