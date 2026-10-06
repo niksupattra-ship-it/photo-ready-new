@@ -121,7 +121,7 @@ async function requireCredit(req,res,kind){
     const fingerprint=trialDeviceFingerprint(req,res,wid);
     if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,30);if(trial)return trial}
   }
-  res.status(402).json({error:'credit_required',message:'สิทธิ์ทดลองฟรีถูกใช้แล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
+  res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 1 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
   return null;
 }
 
