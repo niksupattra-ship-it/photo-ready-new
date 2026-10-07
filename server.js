@@ -1,3 +1,4 @@
+import {validateProject,saveWork,listWorks,getWork} from './saved-work-store.js';
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -49,6 +50,7 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
+app.use('/api/saved-work',express.json({limit:"64mb"}));
 app.use(express.json({limit:"64kb"}));
 // Signed-in requests always use the account wallet, including from another device.
 app.use(async(req,res,next)=>{try{if(req.get('authorization')){const user=await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบใหม่'});req.accountUser=user}next()}catch(e){next(e)}});
@@ -481,6 +483,19 @@ app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-st
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);
+
+
+async function savedWorkRights(wid,project){
+ const ids=validateProject(project),ent=await imageEntitlements(wid);
+ for(const id of ids){const j=await getAiJobResult(id,wid);if(!j||j.status!=='completed'||!(String(j.usage_id||'').startsWith('use_')||ent.unlockedJobIds.includes(id)))return false}return true;
+}
+app.post('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{
+ const user=req.accountUser;if(!user)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อบันทึกงาน'});
+ const project=req.body?.project;if(!await savedWorkRights(user.wallet_id,project))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับสิทธิ์แล้ว'});
+ const work=await saveWork(user.wallet_id,String(req.body?.id||''),project);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json(work);
+}catch(e){res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
+app.get('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});res.json({items:await listWorks(req.accountUser.wallet_id)})}catch(e){res.status(500).json({message:'โหลดงานไม่สำเร็จ'})}});
+app.get('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});const work=await getWork(req.accountUser.wallet_id,req.params.id);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});if(!await savedWorkRights(req.accountUser.wallet_id,work.project))return res.status(403).json({message:'ไม่มีสิทธิ์เปิดงานนี้'});res.json({...work,unlocked:true})}catch(e){res.status(500).json({message:'เปิดงานไม่สำเร็จ'})}});
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{
