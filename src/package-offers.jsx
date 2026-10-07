@@ -49,11 +49,11 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>{hasTrial?'ดาวน์โหลดรูปทดลอง (ไม่มีลายน้ำ)':'ดาวน์โหลดรูปได้ (ไม่มีลายน้ำ)'}</Feature>
-     <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
-     {hasTrial&&<Feature>ใช้งานรูปเดิม</Feature>}
-     {!hasTrial&&<Feature>เลือกทรงผมได้</Feature>}
-     {!hasTrial&&<Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>}
+     <Feature>รับรูปที่ทดลอง (ไม่มีลายน้ำ)</Feature>
+     <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
+     <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
+     <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
+     <Feature>ดาวน์โหลดไม่จำกัด</Feature>
      <Feature unavailable>ไม่มีเครดิตเพิ่ม</Feature>
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
@@ -63,16 +63,17 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>199 บาท</del></div>
     <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>ดาวน์โหลดไม่จำกัด (ไม่มีลายน้ำ)</Feature>
-     <Feature>เครดิตสร้างภาพ 3 ครั้ง{hasTrial&&<small className="package-trial-remaining">รวมรูปทดลองนี้ · เหลือ 2 ครั้ง</small>}</Feature>
-     <Feature>เลือกทรงผมได้</Feature>
-     <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
-     <Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>
+     <Feature>เครดิตประมวลผลรูป 3 ครั้ง</Feature>
+     <Feature>เปลี่ยนทรงผมได้ (ตามจำนวนเครดิต)</Feature>
+     <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
+     <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
+     <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
+     <Feature>ดาวน์โหลดไม่จำกัด</Feature>
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 89 บาทจะเหลือ 0 ครั้ง และแพ็ก 159 บาทจะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
+  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 89 บาทจะเหลือ 0 ครั้ง และแพ็ก 159 บาท จะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
