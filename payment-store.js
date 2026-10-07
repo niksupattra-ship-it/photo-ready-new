@@ -143,3 +143,10 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
   return {ok:true,packagePrice:packageFor(offer==='79'?'79_v2':'149_v2').price,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
+
+export async function trialOptionAccess(walletId,fingerprint,networkFingerprint){
+ await ready();const paid=await pool.query('SELECT EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased',[walletId]);
+ if(!fingerprint)return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:false};
+ const used=await pool.query("SELECT EXISTS(SELECT 1 FROM trial_previews WHERE (wallet_id=$1 OR fingerprint=$2) AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date) OR EXISTS(SELECT 1 FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date) AS used",[walletId,fingerprint,networkFingerprint]);
+ return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:!used.rows[0]?.used};
+}
