@@ -2597,7 +2597,7 @@ function App(){
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
  const changeHair=async id=>{
-  if(!privateTrialActive&&rights.generationRemaining<1&&id){setPayMsg('ซื้อแพ็ก 149 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 3 ครั้ง');setBuyOpen(true);return;}
+  if(!privateTrialActive&&rights.generationRemaining<1&&id){setPayMsg('ซื้อแพ็ก 159 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 3 ครั้ง');setBuyOpen(true);return;}
   if(hairRequestRef.current||hairBusy||busy)return;
   setHairId(id);
   if(!editCache.current)return;
@@ -2970,7 +2970,7 @@ function App(){
   else if(draft.classicMaster&&draft.classicLock){const layers=[];await renderAdjustedFinal(draft.classicMaster,draft.classicLock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);for(const layer of layers.filter(l=>l.name==='หัว · คอ · ผม'))Object.assign(layer,{jobId:draft.jobId,restrictedTrial:draft.isTrial,outputUnlocked:!draft.isTrial});studioOriginRef.current={starter:true,placement:draft.classicLock};setScreen('studio');setStudioData(layers)}
  };
  const fullCatalog=privateTrialActive||rights.generationRemaining>0||Boolean(outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)));
- const allowTemplate=(template,existing=true)=>{if(privateTrialActive||rights.generationRemaining>0||(existing&&outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)))||FREE_TEMPLATE_PATHS.includes(template))return true;setPayMsg('เครดิตหมดแล้ว เลือกชุดได้หมวดละ 1 แบบต่อชาย/หญิง ซื้อแพ็ก 149 บาทเพื่อเปิดทุกแบบ');setBuyOpen(true);return false};
+ const allowTemplate=(template,existing=true)=>{if(privateTrialActive||rights.generationRemaining>0||(existing&&outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)))||FREE_TEMPLATE_PATHS.includes(template))return true;setPayMsg('เครดิตหมดแล้ว เลือกชุดได้หมวดละ 1 แบบต่อชาย/หญิง ซื้อแพ็ก 159 บาทเพื่อเปิดทุกแบบ');setBuyOpen(true);return false};
  const processStudioPhoto=async(file,template,selectedHair='')=>{
   // Overlap local asset downloads with the existing AI request, never submit AI twice.
   void Promise.allSettled([loadImage(backgroundRef.current),loadImage(template)]);
@@ -2982,7 +2982,7 @@ function App(){
   return {layer:head,placement:current.lock};
  };
  const changeStudioHair=async(id)=>{
-  if(!privateTrialActive&&rights.generationRemaining<1){setBuyOpen(true);throw Error('เครดิตหมดแล้ว ซื้อแพ็ก 149 บาทเพื่อประมวลผลเพิ่ม');}
+  if(!privateTrialActive&&rights.generationRemaining<1){setBuyOpen(true);throw Error('เครดิตหมดแล้ว ซื้อแพ็ก 159 บาทเพื่อประมวลผลเพิ่ม');}
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
   const ok=await changeHairForStudio(id);if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
   const layers=[],current=editCache.current;layers.headOnly=true;

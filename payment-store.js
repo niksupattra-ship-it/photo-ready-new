@@ -140,6 +140,6 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
   await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,packageId==='79_v2'?1:0]);
   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
-  return {ok:true,packagePrice:Number(offer),...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
+  return {ok:true,packagePrice:packageFor(offer==='79'?'79_v2':'149_v2').price,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
