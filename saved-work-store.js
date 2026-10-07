@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import pg from 'pg';
 const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL?.includes('localhost')?false:{rejectUnauthorized:false}});
+export const MAX_SAVED_WORKS=5;
 let init;
 async function ready(){if(!init)init=pool.query('CREATE TABLE IF NOT EXISTS saved_studio_work(id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),name text NOT NULL,project jsonb NOT NULL,updated_at timestamptz NOT NULL DEFAULT now())');await init}
 export function validateProject(p){
@@ -11,6 +12,21 @@ export function validateProject(p){
  if(p.placement&&(!['W','H','uX','uY','uW','uH'].every(k=>Number.isFinite(p.placement[k]))||p.placement.W<=0||p.placement.H<=0))throw Error('invalid_placement');
  return [...new Set(heads.map(l=>l.jobId))];
 }
-export async function saveWork(walletId,id,project){await ready();validateProject(project);const name='รูป IDพร้อม';if(id){const r=await pool.query('UPDATE saved_studio_work SET project=$3,updated_at=now() WHERE id=$1 AND wallet_id=$2 RETURNING id,name,updated_at',[id,walletId,project]);return r.rows[0]||null}const r=await pool.query('INSERT INTO saved_studio_work(id,wallet_id,name,project) VALUES($1,$2,$3,$4) RETURNING id,name,updated_at',['work_'+crypto.randomBytes(18).toString('hex'),walletId,name,project]);return r.rows[0]}
-export async function listWorks(walletId){await ready();const r=await pool.query('SELECT id,name,updated_at FROM saved_studio_work WHERE wallet_id=$1 ORDER BY updated_at DESC LIMIT 100',[walletId]);return r.rows}
+export async function saveWork(walletId,id,project){
+ await ready();validateProject(project);const name='รูป IDพร้อม';
+ if(id){const r=await pool.query('UPDATE saved_studio_work SET project=$3,updated_at=now() WHERE id=$1 AND wallet_id=$2 RETURNING id,name,updated_at',[id,walletId,project]);return r.rows[0]||null}
+ const client=await pool.connect();
+ try{
+  await client.query('BEGIN');
+  // Serialize new saves for this account so concurrent tabs cannot exceed five.
+  await client.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  const count=await client.query('SELECT count(*)::int AS count FROM saved_studio_work WHERE wallet_id=$1',[walletId]);
+  if(count.rows[0].count>=MAX_SAVED_WORKS){const error=Error('บันทึกได้สูงสุด 5 งาน กรุณาลบงานเก่าก่อนเพิ่มงานใหม่');error.code='saved_work_limit';throw error}
+  const r=await client.query('INSERT INTO saved_studio_work(id,wallet_id,name,project) VALUES($1,$2,$3,$4) RETURNING id,name,updated_at',['work_'+crypto.randomBytes(18).toString('hex'),walletId,name,project]);
+  await client.query('COMMIT');return r.rows[0];
+ }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+}
+export async function listWorks(walletId){await ready();const r=await pool.query('SELECT id,name,updated_at FROM saved_studio_work WHERE wallet_id=$1 ORDER BY updated_at DESC',[walletId]);return r.rows}
 export async function getWork(walletId,id){await ready();const r=await pool.query('SELECT id,name,project,updated_at FROM saved_studio_work WHERE id=$1 AND wallet_id=$2',[id,walletId]);return r.rows[0]||null}
+
+export async function deleteWork(walletId,id){await ready();const r=await pool.query('DELETE FROM saved_studio_work WHERE id=$1 AND wallet_id=$2 RETURNING id',[id,walletId]);return r.rows[0]||null}

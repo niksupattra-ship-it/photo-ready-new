@@ -1,4 +1,4 @@
-import {validateProject,saveWork,listWorks,getWork} from './saved-work-store.js';
+import {validateProject,saveWork,listWorks,getWork,deleteWork,MAX_SAVED_WORKS} from './saved-work-store.js';
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -495,8 +495,9 @@ app.post('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');
  const user=req.accountUser;if(!user)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อบันทึกงาน'});
  const project=req.body?.project;if(!await savedWorkRights(user.wallet_id,project))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับสิทธิ์แล้ว'});
  const work=await saveWork(user.wallet_id,String(req.body?.id||''),project);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json(work);
-}catch(e){res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
-app.get('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});res.json({items:await listWorks(req.accountUser.wallet_id)})}catch(e){res.status(500).json({message:'โหลดงานไม่สำเร็จ'})}});
+}catch(e){if(e.code==='saved_work_limit')return res.status(409).json({error:e.code,limit:MAX_SAVED_WORKS,message:e.message});res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
+app.get('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});res.json({items:await listWorks(req.accountUser.wallet_id),limit:MAX_SAVED_WORKS})}catch(e){res.status(500).json({message:'โหลดงานไม่สำเร็จ'})}});
+app.delete('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อลบงาน'});const removed=await deleteWork(req.accountUser.wallet_id,req.params.id);if(!removed)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json({ok:true,id:removed.id})}catch(e){res.status(500).json({message:'ลบงานไม่สำเร็จ กรุณาลองใหม่'})}});
 app.get('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});const work=await getWork(req.accountUser.wallet_id,req.params.id);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});if(!await savedWorkRights(req.accountUser.wallet_id,work.project))return res.status(403).json({message:'ไม่มีสิทธิ์เปิดงานนี้'});res.json({...work,unlocked:true})}catch(e){res.status(500).json({message:'เปิดงานไม่สำเร็จ'})}});
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
