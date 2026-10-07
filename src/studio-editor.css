@@ -416,3 +416,10 @@
 
 /* Drag the selected content; corner grips retain explicit resize behavior. */
 .studio-selection-outline .studio-shape-body{fill:transparent;pointer-events:all;cursor:move;touch-action:none}
+
+/* Desktop history and comparison float above the photo controls. */
+.idstudio:not(.studio-touch) .studio-desktop-history-actions{display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px}
+.idstudio:not(.studio-touch) .studio-desktop-history-actions button{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:7px 4px;min-height:58px;box-shadow:0 3px 12px #0005}
+.idstudio:not(.studio-touch) .studio-desktop-history-actions button b{display:flex;align-items:center;justify-content:center}
+.idstudio:not(.studio-touch) .studio-desktop-history-actions .studio-png-icon{width:24px;height:24px}
+.idstudio:not(.studio-touch) .studio-desktop-history-actions button span{font-size:11px;line-height:1.2;white-space:nowrap}
