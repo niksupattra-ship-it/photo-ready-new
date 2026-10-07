@@ -121,7 +121,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(!from.length){setStatus(back?'ถึงต้นประวัติที่ย้อนกลับได้แล้ว':'ไม่มีขั้นตอนให้ทำซ้ำแล้ว');return}
   const next=from.at(-1);
   // Warn once, before the final retained step, only when older history was lost.
-  if(back&&from.length===1&&historyTruncatedRef.current&& !historyBoundaryNoticeRef.current){historyBoundaryNoticeRef.current=true;setHistoryNotice({kind:'boundary',pendingBack:true,message:'กำลังจะถึงขั้นตอนเก่าสุดที่เก็บไว้ ประวัติก่อนหน้านี้ถูกตัดออกแล้ว หากย้อนกลับต่อจะเรียกขั้นตอนที่เก่ากว่านี้ไม่ได้ บันทึกงานที่ต้องการเก็บไว้เป็นสำเนาก่อน'});return}
+  if(back&&from.length===1&&historyTruncatedRef.current&& !historyBoundaryNoticeRef.current){historyBoundaryNoticeRef.current=true;setHistoryNotice({kind:'boundary',pendingBack:true,message:'กรุณาบันทึกงาน หากกดย้อนกลับต่อ จะไม่สามารถเรียกคืนประวัติเก่าได้'});return}
   const saved=historySnapshot();if(await hydrate(next)){from.pop();to.push(saved);setRevision(v=>v+1);setStatus(back?'ย้อนกลับแล้ว':'ทำซ้ำแล้ว')}
  };
  const point=e=>{const r=canvasRef.current.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}};
