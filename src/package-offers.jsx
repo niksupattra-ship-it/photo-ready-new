@@ -10,6 +10,30 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
  const showMessage=payMsg&&!payMsg.startsWith('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลด');
  return <>
   <style>{`
+   @media(min-width:641px) and (max-height:800px){
+    .package-pro-modal{padding:22px;overflow-x:hidden}
+    .package-pro-head{padding-bottom:14px}
+    .package-card{padding:20px}
+    .package-price{margin-bottom:14px}
+    .package-features{gap:10px;margin-bottom:18px!important}
+    .package-trial-note{margin-top:12px!important;line-height:1.5!important}
+    .package-secure{margin-top:12px;padding:10px 14px}
+   }
+   @media(min-width:641px) and (max-height:650px){
+    .package-pro-modal{padding:16px}
+    .package-pro-head{padding-bottom:10px}
+    .package-pro-brand{font-size:16px;margin-bottom:3px}
+    .package-pro-title{font-size:26px!important}
+    .package-pro-sub{font-size:13px}
+    .package-card{padding:16px}
+    .package-pro-modal .package-original-price{font-size:17px}
+    .package-price{font-size:34px;margin:5px 0 10px}
+    .package-features{gap:6px;margin-bottom:12px!important}
+    .package-pro-modal .package-features li{font-size:13px}
+    .package-select-btn{padding:11px 14px}
+    .package-trial-note{margin-top:10px!important;font-size:12px!important}
+    .package-secure{margin-top:10px;padding:8px 12px}
+   }
    .package-original-price{color:#dc2626;font-size:20px;font-weight:700;margin-bottom:4px}
    .package-original-price del{text-decoration-color:#dc2626;text-decoration-thickness:2px}
    .package-pro-modal .package-features li{align-items:center;gap:12px;min-height:25px}
@@ -48,7 +72,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <p style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 89 บาทจะเหลือ 0 ครั้ง และแพ็ก 159 บาทจะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
+  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 89 บาทจะเหลือ 0 ครั้ง และแพ็ก 159 บาทจะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
