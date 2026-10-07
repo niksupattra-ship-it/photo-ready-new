@@ -10,6 +10,8 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
  const showMessage=payMsg&&!payMsg.startsWith('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลด');
  return <>
   <style>{`
+   .package-original-price{color:#dc2626;font-size:20px;font-weight:700;margin-bottom:4px}
+   .package-original-price del{text-decoration-color:#dc2626;text-decoration-thickness:2px}
    .package-pro-modal .package-features li{align-items:center;gap:12px;min-height:25px}
    .package-round-check{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:#00aa83;color:white;font-size:18px;font-weight:900;line-height:1}
    .package-round-check.unavailable{background:#a7adb3}
@@ -20,7 +22,8 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
   <header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">รับรูปที่ชอบ หรือซื้อเครดิตเพื่อสร้างภาพเพิ่ม</p></header>
   <div className="package-pro-grid">
    <article className="package-card">
-    <div className="package-price">79 <small>บาท</small></div>
+    <div className="package-original-price"><del>149 บาท</del></div>
+    <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
      <Feature>{hasTrial?'ดาวน์โหลดรูปทดลอง (ไม่มีลายน้ำ)':'ดาวน์โหลดรูปได้ (ไม่มีลายน้ำ)'}</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
@@ -29,11 +32,12 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      {!hasTrial&&<Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>}
      <Feature unavailable>ไม่มีเครดิตเพิ่ม</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('79')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 79 บาท'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
    </article>
    <article className="package-card popular">
     <span className="package-badge">แนะนำ</span>
-    <div className="package-price">149 <small>บาท</small></div>
+    <div className="package-original-price"><del>199 บาท</del></div>
+    <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
      <Feature>ดาวน์โหลดไม่จำกัด (ไม่มีลายน้ำ)</Feature>
      <Feature>เครดิตสร้างภาพ 3 ครั้ง{hasTrial&&<small className="package-trial-remaining">รวมรูปทดลองนี้ · เหลือ 2 ครั้ง</small>}</Feature>
@@ -41,10 +45,10 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      <Feature>เปลี่ยนชุด / พื้นหลัง</Feature>
      <Feature>ปรับแต่งรูปเพิ่มเติมได้</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('149')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 149 บาท'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <p style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 79 บาทจะเหลือ 0 ครั้ง และแพ็ก 149 บาทจะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
+  <p style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>รูปทดลองนับรวมในจำนวนครั้งของแพ็กเกจ</strong><br/>หากประมวลผลทดลองแล้ว 1 ครั้ง ซื้อแพ็ก 89 บาทจะเหลือ 0 ครั้ง และแพ็ก 159 บาทจะเหลือ 2 ครั้ง โดยรับรูปทดลองเดิมแบบไม่มีลายน้ำ</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
