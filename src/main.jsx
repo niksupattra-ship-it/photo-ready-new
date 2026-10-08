@@ -1246,7 +1246,7 @@ async function requestStudioMakeup(source,styles){
  const fd=new FormData();fd.append('image',await canvasPng(detection),'makeup.png');fd.append('styles',JSON.stringify(styles));
  const response=await fetch('/api/makeup/edit',{method:'POST',body:fd,headers:walletHeaders()});
  updateCreditsFromResponse(response);
- if(!response.ok){if(response.status===402){window.dispatchEvent(new Event('idprom-buy'));throw Error('เมคอัพใช้ 1 เครดิต กรุณาเติมเครดิตก่อน')}const error=await response.json().catch(()=>null);throw Error(error?.message||'แต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง')}
+ if(!response.ok){const error=await response.json().catch(()=>null);throw Error(error?.message||'แต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง')}
  const url=URL.createObjectURL(await response.blob());
  try{
   const generated=await loadImage(url),freshFace=landmarker.detect(generated).faceLandmarks?.[0];
@@ -3085,8 +3085,7 @@ function App(){
   return {layer:head,placement:current.lock};
  };
  const applyStudioMakeup=async(source,styles)=>{
-  if(!privateTrialActive&&rights.generationRemaining<1){setBuyOpen(true);throw Error('เมคอัพใช้ 1 เครดิต กรุณาเติมเครดิตก่อน')}
-  try{return await requestStudioMakeup(source,styles)}finally{await refreshWallet()}
+  return requestStudioMakeup(source,styles);
  };
  const changeStudioHair=async(id)=>{
   if(!privateTrialActive&&rights.generationRemaining<1){setBuyOpen(true);throw Error('เครดิตหมดแล้ว ซื้อแพ็ก 159 บาทเพื่อประมวลผลเพิ่ม');}

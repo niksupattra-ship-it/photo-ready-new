@@ -230,7 +230,6 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const applyMakeup=async()=>{
   if(makeupRequestRef.current||processActive||assetBusy||!ready||!onMakeup||!Object.keys(makeupStyles).length)return;
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head){setStatus('เพิ่มรูปและประมวลผลก่อนใช้เมคอัพ');return}if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนแต่งเมคอัพ');return}
-  if(!hasCredits&&!trialUnlocked){onRequestUnlock?.();setStatus('เมคอัพใช้ 1 เครดิต กรุณาเติมเครดิตก่อน');return}
   makeupRequestRef.current=true;setMakeupBusy(true);setStatus('กำลังแต่งเมคอัพ…');
   try{
    flushTransforms();paintScene(canvasRef.current.getContext('2d'),state.current,assets.current);
