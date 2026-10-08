@@ -1974,11 +1974,11 @@ const FEMALE_GOVERNMENT_UNIFORMS=[
  {id:'female-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/female-government-employee.png',preview:'/assets/government-uniforms/female-government-employee-example.jpg'},
 ];
 const UNIFORM_GROUPS=[
- {id:'gown',name:'ครุย สจล.',items:GOWN_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img}))},
  {id:'job',name:'สมัครงาน',items:JOB_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
- {id:'student',name:'นักศึกษา',items:STUDENT_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
  {id:'government-female',name:'ข้าราชการหญิง',items:FEMALE_GOVERNMENT_UNIFORMS.map(item=>({...item,title:item.name,template:item.img,cat:'government',gender:'female'}))},
  {id:'government-male',name:'ข้าราชการชาย',items:INTERIOR_UNIFORMS.map(item=>({...item,title:item.name,preview:item.preview,template:item.img,cat:'government',gender:'male'}))},
+ {id:'gown',name:'ชุดครุย',items:GOWN_UNIFORMS.map(item=>({...item,name:item.gender==='female'?'หญิง':'ชาย',preview:item.img}))},
+ {id:'student',name:'นักศึกษา',items:STUDENT_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
 ];
 const FREE_TEMPLATE_PATHS=UNIFORM_GROUPS.flatMap(group=>{const seen=new Set();return group.items.filter(item=>{const key=(item.cat||group.id)+'/'+item.gender;if(seen.has(key))return false;seen.add(key);return true}).map(item=>item.template)});
 function normalizedRights(data){return {...(Number.isFinite(Number(data.trialRemaining))?{trialRemaining:Number(data.trialRemaining)}:{}),...(typeof data.hasPurchased==='boolean'?{hasPurchased:data.hasPurchased}:{}),...(typeof data.trialAvailable==='boolean'?{trialAvailable:data.trialAvailable}:{}),generationRemaining:Number(data.processRemaining??data.generationRemaining??0),hairRemaining:Number(data.processRemaining??data.hairRemaining??0),...(Array.isArray(data.unlockedJobIds)?{unlockedJobIds:data.unlockedJobIds}:{}),...(Array.isArray(data.editableJobIds)?{editableJobIds:data.editableJobIds}:{})}}
