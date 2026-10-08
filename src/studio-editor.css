@@ -437,3 +437,11 @@
 .idstudio .studio-makeup-apply{background:#50d4c8;color:#103431;border:1px solid #69e5da;font-weight:700;padding:9px 18px;border-radius:9px}
 .idstudio .studio-bottom-choices .studio-lipstick-icon{width:28px;height:28px;flex-shrink:0}
 @media(max-width:640px){.studio-makeup-tabs{gap:4px}.idstudio .studio-makeup-tabs button{padding:7px 9px;font-size:12px}.idstudio .studio-makeup-choices button{flex-basis:84px}.studio-makeup-choices img,.studio-makeup-none{width:72px;height:72px}.idstudio .studio-bottom-choices .studio-lipstick-icon{width:26px;height:26px}.studio-makeup-actions button{font-size:12px}}
+
+/* Ready-made makeup controls only. Existing portrait/editor layout stays intact. */
+.idstudio .studio-makeup-choices button{position:relative}
+.studio-makeup-description{display:block;font-size:10px;line-height:1.4;color:#9eb7bf;margin-top:4px}
+.studio-makeup-recommended{position:absolute;top:9px;left:9px;border-radius:12px;background:#258f85;color:#fff;padding:3px 6px;font-size:9px}
+.studio-makeup-intensity{display:block;max-width:360px;margin:12px 0;color:#d4dee6;font-size:12px}
+.studio-makeup-intensity span{display:flex;justify-content:space-between;margin-bottom:5px}
+.studio-makeup-intensity input{display:block;width:100%;margin:0;accent-color:#50d4c8;touch-action:pan-y}
