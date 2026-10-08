@@ -17,6 +17,19 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
  .idprom-saved-full{padding:12px 14px;margin:0 0 16px;border:1px solid #7b6040;background:#3d3328;color:#f9d9a4;border-radius:11px;font-size:13px;line-height:1.65}.idprom-saved-full strong{display:block}
  .idprom-saved-list{display:grid;gap:10px}.idprom-saved-row{display:flex;gap:12px;align-items:center;padding:14px;background:#1d313d;border:1px solid #35505d;border-radius:13px;flex-wrap:wrap}.idprom-saved-index{width:38px;height:43px;display:grid;place-items:center;background:#29424d;border-radius:8px;color:#6fded5;flex-shrink:0}.idprom-saved-detail{flex:1;min-width:130px}.idprom-saved-detail strong{display:block;font-size:14px;color:#f0f7f8;line-height:1.5}.idprom-saved-detail time{display:block;font-size:12px;color:#a9bec8;margin:3px 0}.idprom-saved-detail small{font-size:11px;color:#68d9c9}.idprom-saved-actions{display:flex;gap:7px}.idprom-saved-open,.idprom-saved-delete,.idprom-saved-cancel{display:flex;gap:6px;align-items:center;justify-content:center;border-radius:8px;padding:9px 11px;font-size:12px;border:1px solid #42606b;background:#223b46;color:#e1f1f4}.idprom-saved-open{border-color:#51d8cf;background:#4edbcf;color:#102e35;font-weight:600}.idprom-saved-delete{border-color:#795054;background:#392f37;color:#f4afb4}.idprom-saved-confirm{width:100%;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid #3c515c;padding-top:12px;font-size:12px;color:#f0b5b8}.idprom-saved-confirm span{margin-right:auto}
  .idprom-saved-empty{padding:30px 12px;text-align:center;color:#abc1c9;font-size:14px;line-height:1.8;border:1px dashed #3c5662;border-radius:12px}.idprom-saved-status{font-size:13px;color:#bcece5;line-height:1.65;margin:14px 0 0}.idprom-saved-footer{margin-top:20px;padding-top:15px;border-top:1px solid #304752;display:flex;align-items:center;justify-content:space-between;gap:12px}.idprom-saved-footer small{font-size:12px;color:#a5bbc6;line-height:1.5}
+ /* Keep this dialog within the viewport even inside a wide Studio canvas. */
+ .idprom-saved-overlay{box-sizing:border-box;grid-template-columns:minmax(0,1fr);justify-items:center;min-width:0;overflow:hidden}
+ .idprom-saved-dialog{min-width:0;width:min(580px,100%);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+ .idprom-saved-heading>div{min-width:0;flex:1;overflow-wrap:anywhere}
+ .idprom-saved-detail{overflow-wrap:anywhere}
+ @media(max-width:600px){
+  .idprom-saved-overlay{display:flex;align-items:center;justify-content:center;width:100%;max-width:100vw;padding:12px}
+  .idprom-saved-dialog{flex:0 1 auto;width:100%;max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);min-width:0}
+  .idprom-saved-heading{gap:10px}.idprom-saved-brand{width:36px;height:36px}
+  .idprom-saved-heading p{overflow-wrap:anywhere}.idprom-saved-detail{min-width:0;flex:1 1 140px}
+  .idprom-saved-actions{max-width:100%;flex-wrap:wrap}.idprom-saved-capacity-label{flex-wrap:wrap}
+  .idprom-saved-footer{flex-wrap:wrap}.idprom-saved-full,.idprom-saved-confirm span{overflow-wrap:anywhere}
+ }
  @media(max-width:600px){.idprom-saved-overlay{padding:12px}.idprom-saved-dialog{padding:18px;border-radius:16px}.idprom-saved-heading h2{font-size:20px}.idprom-saved-row{padding:12px;gap:10px}.idprom-saved-index{display:none}.idprom-saved-actions{margin-left:auto}.idprom-saved-open,.idprom-saved-delete{padding:9px}.idprom-saved-actions svg{width:17px;height:17px}}
  `}</style>
  <section ref={panel} className="idprom-saved-dialog" role="dialog" aria-modal="true" aria-labelledby="idprom-saved-title" aria-describedby="idprom-saved-description" aria-busy={busy||loading}>
