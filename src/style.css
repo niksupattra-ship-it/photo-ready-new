@@ -3989,3 +3989,11 @@
  .adaptive-editor .editor-desktop-actions .processed-state .preview-file-actions:has(>.desktop-photo-guide){grid-template-columns:repeat(2,minmax(0,1fr))!important}
  .adaptive-editor .editor-desktop-actions .processed-state .preview-file-actions:has(>.photo-size-trigger):has(>.desktop-photo-guide){grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr)!important}
 }
+
+/* Homepage free-trial entry. */
+.studio-home .studio-home-free-cta{display:inline-flex;align-items:center;justify-content:center;gap:20px;min-height:58px;margin-top:20px;padding:14px 32px;max-width:100%;border:0;border-radius:16px;background:linear-gradient(135deg,#14e4c5,#20bfe8);color:#073c49;font-size:22px;font-weight:900;box-shadow:0 8px 24px rgba(0,166,170,.25);transition:transform .15s,box-shadow .15s}
+.studio-home .studio-home-free-cta:hover{transform:translateY(-2px);box-shadow:0 11px 28px rgba(0,166,170,.32)}
+.studio-home .studio-home-free-cta:focus-visible{outline:3px solid #1769c8;outline-offset:4px}
+.studio-home .studio-home-free-cta:active{transform:translateY(0)}
+@media(max-width:640px){.studio-home .studio-home-free-cta{width:100%;font-size:21px}}
+@media(prefers-reduced-motion:reduce){.studio-home .studio-home-free-cta{transition:none}}
