@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 import pg from 'pg';
 const COOKIE='idprom_private_trial';
+// Identity comes only from the server-verified login middleware.
+const OWNER_EMAIL='treeradech009@gmail.com';
+function isPrivateOwner(req,wallet){const user=req.accountUser;return Boolean(user&&wallet&&user.wallet_id===wallet&&String(user.email||'').trim().toLowerCase()===OWNER_EMAIL)}
 let pool,readyPromise;
 const key=()=>String(process.env.IDPROM_PRIVATE_TRIAL_KEY||'');
 const cookieSecret=()=>process.env.TRIAL_DEVICE_SECRET||process.env.STRIPE_WEBHOOK_SECRET||process.env.STRIPE_SECRET_KEY||'';
@@ -12,7 +15,7 @@ function cookieDevice(req,wallet){
  const match=/^([a-f0-9]{64})\.([a-f0-9]{64})$/.exec(cookie?cookie.slice(COOKIE.length+1):'');
  return match&&equal(signature(match[1],wallet),match[2])?match[1]:null;
 }
-export function hasPrivateTrial(req,wallet){return Boolean(cookieDevice(req,wallet))}
+export function hasPrivateTrial(req,wallet){return isPrivateOwner(req,wallet)||Boolean(cookieDevice(req,wallet))}
 async function ready(){
  if(!readyPromise)readyPromise=(async()=>{
   pool=pool||new pg.Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'||String(process.env.DATABASE_URL).includes('localhost')?false:{rejectUnauthorized:false}});
@@ -26,6 +29,12 @@ export function registerPrivateTrial(app,{walletId,getWallet,appUrl}){
   res.set('Cache-Control','no-store');
   try{
    const secret=key(),token=String(req.body?.key||''),wallet=walletId(req);
+   if(token==='owner'){
+    if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบด้วยบัญชีส่วนตัวก่อน แล้วเปิดลิงก์นี้อีกครั้ง'});
+    if(!isPrivateOwner(req,wallet))return res.status(403).json({message:'ลิงก์นี้ใช้ได้เฉพาะบัญชีเจ้าของที่กำหนดไว้'});
+    if(!await getWallet(wallet))return res.status(400).json({message:'กรุณารีเฟรชหน้าแล้วเปิดลิงก์อีกครั้ง'});
+    return res.json({active:true});
+   }
    if(secret.length<48||!cookieSecret()||!equal(secret,token))return res.status(403).json({message:'ลิงก์ทดสอบไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน'});
    if(!wallet||!await getWallet(wallet))return res.status(400).json({message:'กรุณารีเฟรชหน้าแล้วเปิดลิงก์อีกครั้ง'});
    await ready();
