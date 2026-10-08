@@ -804,11 +804,40 @@ async function applySkinBrightness(image,factor=null,skinMask=null){
 // V163: retain a longer, softly feathered strip of the photographed neck below
 // the jaw. The smoothstep fade removes the horizontal join without repainting
 // face pixels or introducing a flat sampled skin colour.
+// Refine only the existing head silhouette opacity. Never sharpen/repaint RGB,
+// invent hair, expand the silhouette, or threshold away detached fine strands.
+function tightenHeadEdgeAlpha(pixels,W,H,endY){
+ const stop=Math.max(0,Math.min(H,Math.floor(endY)));
+ const radius=Math.max(2,Math.min(6,Math.round(W*.003)));
+ const alpha=new Uint8Array(W*stop);
+ for(let i=0;i<alpha.length;i++)alpha[i]=pixels[i*4+3];
+ const offsets=[[-radius,0],[radius,0],[0,-radius],[0,radius],[-radius,-radius],[radius,-radius],[-radius,radius],[radius,radius]];
+ for(let y=0;y<stop;y++)for(let x=0;x<W;x++){
+  const i=y*W+x,a=alpha[i];
+  if(a<=32||a===255)continue;
+  let dense=0;
+  for(const [dx,dy] of offsets){
+   const xx=x+dx,yy=y+dy;
+   if(xx>=0&&xx<W&&yy>=0&&yy<stop&&alpha[yy*W+xx]>=224)dense++;
+  }
+  // Several opaque neighbours distinguish a broad portrait edge from a thin
+  // wisp. Isolated strands retain their original coverage, including low alpha.
+  if(dense<3)continue;
+  const t=a/255;
+  const lowRamp=Math.min(1,(a-32)/32);
+  const support=Math.min(1,(dense-2)/3);
+  const adjusted=t+.75*lowRamp*support*t*(1-t)*(2*t-1);
+  pixels[i*4+3]=Math.max(1,Math.min(255,Math.round(adjusted*255)));
+ }
+}
+
 function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanticSkinMask=null,semanticClothingMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
+ // Keep the entire original neck/clavicle matte below the jaw unchanged.
+ tightenHeadEdgeAlpha(d,W,H,Math.max(0,Math.floor(chinY-H*.012)));
  const semanticHair=semanticHairMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
  const expandedSkin=canvasFor(W,H),esc=expandedSkin.getContext('2d');
  if(semanticSkinMask){
