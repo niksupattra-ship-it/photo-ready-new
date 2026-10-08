@@ -93,15 +93,15 @@ app.post('/api/payments/checkout',async(req,res)=>{
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
   const jobId=String(req.body?.jobId||'');
   if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_'))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});}
-  if(offer.requiresImage&&!jobId)return res.status(400).json({error:'trial_image_required',message:'ทดลองสร้างรูปก่อน แล้วเลือก 79 บาทเพื่อรับรูปนั้น'});
+  if(offer.requiresImage&&!jobId)return res.status(400).json({error:'trial_image_required',message:'ทดลองสร้างรูปก่อน แล้วเลือก 89 บาทเพื่อรับรูปนั้น'});
   const base=APP_URL||`${req.protocol}://${req.get('host')}`;
   const session=await stripePost('checkout/sessions',{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
    'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
-   'metadata[wallet_id]':wid,'metadata[package_id]':jobId?(offer.id==='79_v2'?'79':offer.id==='149_v2'?'149_trial_v3':offer.id):offer.id,'metadata[job_id]':jobId
+   'metadata[wallet_id]':wid,'metadata[package_id]':jobId?(offer.id==='79_v2'?'89_image_v3':offer.id):offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
- }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 79 หรือ 149 บาท':e.message})}
+ }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 89 หรือ 159 บาท':e.message})}
 });
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
@@ -152,7 +152,7 @@ async function requireCredit(req,res,kind){
     const fingerprint=trialDeviceFingerprint(req,res,wid);
     if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,trialNetworkFingerprint(req));if(trial)return trial}
   }
-  res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 1 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
+  res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 2 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
   return null;
 }
 

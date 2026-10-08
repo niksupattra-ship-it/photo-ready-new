@@ -20,9 +20,13 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
   await pool.query(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS trial_daily_devices (device_key text NOT NULL,trial_day date NOT NULL,trial_id text NOT NULL REFERENCES trial_previews(id) ON DELETE CASCADE,PRIMARY KEY(device_key,trial_day))`);
-  // Keep previous trials, but enforce one trial per device per Bangkok calendar day.
+  // Keep previous trials; two slots per device per Bangkok calendar day.
   await pool.query(`ALTER TABLE trial_previews DROP CONSTRAINT IF EXISTS trial_previews_fingerprint_key`);
-  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date))`);
+  await pool.query(`ALTER TABLE trial_previews ADD COLUMN IF NOT EXISTS trial_slot integer NOT NULL DEFAULT 1`);
+  await pool.query(`DROP INDEX IF EXISTS trial_previews_device_day_key`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_slot_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date), trial_slot)`);
+  await pool.query(`ALTER TABLE trial_daily_devices DROP CONSTRAINT IF EXISTS trial_daily_devices_pkey`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS trial_daily_devices_use_key ON trial_daily_devices(device_key,trial_day,trial_id)`);
   await pool.query(`CREATE TABLE IF NOT EXISTS promo_redemptions (code text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),package_id text NOT NULL,created_at timestamptz NOT NULL DEFAULT now())`);
   // Migrate older production rows before installing the current lifecycle constraint.
   // Historical deployments used statuses such as used/success/failed; keeping an
@@ -100,23 +104,14 @@ export async function reserveTrialPreview(walletId,fingerprint,networkFingerprin
   try{
     await c.query('BEGIN');
     await c.query('SELECT pg_advisory_xact_lock(77149231)');
-    const exists=await c.query("SELECT id,wallet_id,fingerprint FROM trial_previews WHERE (wallet_id=$1 OR fingerprint=$2) AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId,fingerprint]);
-    if(exists.rowCount){
-      const previous=exists.rows[0];
-      // Preserve a previous trial, replacing its old IP/browser hash with this
-      // signed device identity. Never use a shared proxy IP to block other wallets.
-      if(previous.wallet_id===walletId&&/^[a-f0-9]{64}$/.test(previous.fingerprint)&&String(fingerprint).startsWith('device_v1_')){
-        const other=await c.query("SELECT id FROM trial_previews WHERE fingerprint=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[fingerprint]);
-        if(!other.rowCount)await c.query('UPDATE trial_previews SET fingerprint=$2 WHERE id=$1',[previous.id,fingerprint]);
-      }
-      await c.query('COMMIT');
-      return null;
-    }
+    const used=await c.query("SELECT id,fingerprint,trial_slot FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
+    if(used.rowCount>=2){await c.query('COMMIT');return null;}
+    const slot=used.rows.some(r=>r.fingerprint===fingerprint&&r.trial_slot===1)?2:1;
     const id='trial_'+crypto.randomBytes(18).toString('hex');
-    await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status) VALUES($1,$2,$3,'reserved')",[id,walletId,fingerprint]);
+    await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status,trial_slot) VALUES($1,$2,$3,'reserved',$4)",[id,walletId,fingerprint,slot]);
     if(networkFingerprint)await c.query("INSERT INTO trial_daily_devices(device_key,trial_day,trial_id) VALUES($1,(now() AT TIME ZONE 'Asia/Bangkok')::date,$2)",[networkFingerprint,id]);
     await c.query('COMMIT');
-    return {usageId:id,trialPreview:true,generationRemaining:0,hairRemaining:0};
+    return {usageId:id,trialPreview:true,trialRemaining:1-used.rowCount,generationRemaining:0,hairRemaining:0};
   }catch(e){await c.query('ROLLBACK');if(e?.code==='23505')return null;throw e}
   finally{c.release()}
 }
@@ -146,7 +141,8 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
 
 export async function trialOptionAccess(walletId,fingerprint,networkFingerprint){
  await ready();const paid=await pool.query('SELECT EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased',[walletId]);
- if(!fingerprint)return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:false};
- const used=await pool.query("SELECT EXISTS(SELECT 1 FROM trial_previews WHERE (wallet_id=$1 OR fingerprint=$2) AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date) OR EXISTS(SELECT 1 FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date) AS used",[walletId,fingerprint,networkFingerprint]);
- return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:!used.rows[0]?.used};
+ if(!fingerprint)return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:false,trialRemaining:0};
+ const used=await pool.query("SELECT count(*)::integer AS n FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
+ const trialRemaining=Math.max(0,2-Number(used.rows[0]?.n||0));
+ return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:trialRemaining>0,trialRemaining};
 }
