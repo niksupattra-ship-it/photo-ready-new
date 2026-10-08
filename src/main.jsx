@@ -804,40 +804,11 @@ async function applySkinBrightness(image,factor=null,skinMask=null){
 // V163: retain a longer, softly feathered strip of the photographed neck below
 // the jaw. The smoothstep fade removes the horizontal join without repainting
 // face pixels or introducing a flat sampled skin colour.
-// Refine only the existing head silhouette opacity. Never sharpen/repaint RGB,
-// invent hair, expand the silhouette, or threshold away detached fine strands.
-function tightenHeadEdgeAlpha(pixels,W,H,endY){
- const stop=Math.max(0,Math.min(H,Math.floor(endY)));
- const radius=Math.max(2,Math.min(6,Math.round(W*.003)));
- const alpha=new Uint8Array(W*stop);
- for(let i=0;i<alpha.length;i++)alpha[i]=pixels[i*4+3];
- const offsets=[[-radius,0],[radius,0],[0,-radius],[0,radius],[-radius,-radius],[radius,-radius],[-radius,radius],[radius,radius]];
- for(let y=0;y<stop;y++)for(let x=0;x<W;x++){
-  const i=y*W+x,a=alpha[i];
-  if(a<=32||a===255)continue;
-  let dense=0;
-  for(const [dx,dy] of offsets){
-   const xx=x+dx,yy=y+dy;
-   if(xx>=0&&xx<W&&yy>=0&&yy<stop&&alpha[yy*W+xx]>=224)dense++;
-  }
-  // Several opaque neighbours distinguish a broad portrait edge from a thin
-  // wisp. Isolated strands retain their original coverage, including low alpha.
-  if(dense<3)continue;
-  const t=a/255;
-  const lowRamp=Math.min(1,(a-32)/32);
-  const support=Math.min(1,(dense-2)/3);
-  const adjusted=t+.75*lowRamp*support*t*(1-t)*(2*t-1);
-  pixels[i*4+3]=Math.max(1,Math.min(255,Math.round(adjusted*255)));
- }
-}
-
 function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanticSkinMask=null,semanticClothingMask=null){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const c=document.createElement('canvas');c.width=W;c.height=H;
  const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
  const out=x.getImageData(0,0,W,H),d=out.data;
- // Keep the entire original neck/clavicle matte below the jaw unchanged.
- tightenHeadEdgeAlpha(d,W,H,Math.max(0,Math.floor(chinY-H*.012)));
  const semanticHair=semanticHairMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
  const expandedSkin=canvasFor(W,H),esc=expandedSkin.getContext('2d');
  if(semanticSkinMask){
@@ -1101,8 +1072,79 @@ async function removeBackgroundRobust(blob,filename='person.png'){
   return await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('ประกอบภาพสำรองไม่สำเร็จ')),'image/png'));
  }finally{URL.revokeObjectURL(u)}
 }
+// Native-resolution edge recovery from the SAME AI image, not a new AI edit.
+// Work only on semi-transparent head edges; opaque face/skin and neck stay intact.
+function refineNativeHeadEdges(cutout,source,W,H,endY){
+ const stop=Math.max(0,Math.min(H,Math.floor(endY)));
+ const alpha=new Uint8Array(W*stop);
+ for(let i=0;i<alpha.length;i++)alpha[i]=cutout[i*4+3];
+ const radius=Math.max(8,Math.min(20,Math.ceil(W/512*4)));
+ const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+ const radii=[1,2,4,8,12,16,20].filter(r=>r<=radius);
+ if(radii[radii.length-1]!==radius)radii.push(radius);
+ for(let y=0;y<stop;y++)for(let x=0;x<W;x++){
+  const i=y*W+x,j=i*4,a=alpha[i];
+  if(a<=8||a>=248)continue;
+  let fr=0,fg=0,fb=0,fw=0,br=0,bg=0,bb=0,bw=0,fgCount=0,bgCount=0;
+  for(const [dx,dy] of dirs){
+   let foundF=false,foundB=false;
+   for(const r of radii){
+    const xx=x+dx*r,yy=y+dy*r;
+    if(xx<0||xx>=W||yy<0||yy>=stop)break;
+    const n=yy*W+xx,k=n*4,weight=1/r;
+    if(!foundF&&alpha[n]>=248){fr+=source[k]*weight;fg+=source[k+1]*weight;fb+=source[k+2]*weight;fw+=weight;foundF=true;fgCount++;}
+    if(!foundB&&alpha[n]<=8){br+=source[k]*weight;bg+=source[k+1]*weight;bb+=source[k+2]*weight;bw+=weight;foundB=true;bgCount++;}
+    if(foundF&&foundB)break;
+   }
+  }
+  // Do not guess a foreground colour for detached wisps or ambiguous edges.
+  if(fgCount<2||bgCount<2||!fw||!bw)continue;
+  fr/=fw;fg/=fw;fb/=fw;br/=bw;bg/=bw;bb/=bw;
+  const dr=fr-br,dg=fg-bg,db=fb-bb,norm=dr*dr+dg*dg+db*db;
+  if(norm<1600)continue;
+  const cr=source[j],cg=source[j+1],cb=source[j+2];
+  const fit=Math.max(0,Math.min(1,((cr-br)*dr+(cg-bg)*dg+(cb-bb)*db)/norm));
+  const er=cr-(br+fit*dr),eg=cg-(bg+fit*dg),eb=cb-(bb+fit*db);
+  const residual=Math.sqrt((er*er+eg*eg+eb*eb)/3);
+  if(residual>=12)continue;
+  const confidence=(1-residual/12)**2;
+  const revised=(a/255)*(1-confidence)+fit*confidence;
+  cutout[j+3]=Math.max(0,Math.min(255,Math.round(revised*255)));
+  // Remove estimated background colour ONLY from mixed boundary pixels.
+  // Bound corrections and leave all fully opaque facial texture untouched.
+  if(fit>=.15&&fit<.97&&confidence>.25){
+   const weight=confidence*Math.min(1,(248-a)/40);
+   for(let c=0;c<3;c++){
+    const back=c===0?br:c===1?bg:bb;
+    const native=source[j+c];
+    const unmixed=Math.max(0,Math.min(255,(native-(1-fit)*back)/fit));
+    const delta=Math.max(-24,Math.min(24,unmixed-cutout[j+c]));
+    cutout[j+c]=Math.max(0,Math.min(255,Math.round(cutout[j+c]+delta*weight)));
+   }
+  }
+ }
+}
+
+async function refineAiCutoutEdges(cutoutBlob,sourceBlob){
+ const sourceURL=URL.createObjectURL(sourceBlob),cutoutURL=URL.createObjectURL(cutoutBlob);
+ try{
+  const [original,cutout]=await Promise.all([loadImage(sourceURL),loadImage(cutoutURL)]);
+  const W=original.naturalWidth,H=original.naturalHeight;
+  if(cutout.naturalWidth!==W||cutout.naturalHeight!==H)return cutoutBlob;
+  const face=(await getLandmarker()).detect(original).faceLandmarks?.[0];
+  if(!face?.[152])return cutoutBlob;
+  const originalCanvas=canvasFor(W,H),ox=originalCanvas.getContext('2d',{willReadFrequently:true});ox.drawImage(original,0,0);
+  const canvas=canvasFor(W,H),cx=canvas.getContext('2d',{willReadFrequently:true});cx.drawImage(cutout,0,0);
+  const pixels=cx.getImageData(0,0,W,H);
+  refineNativeHeadEdges(pixels.data,ox.getImageData(0,0,W,H).data,W,H,Math.ceil(face[152].y*H));
+  cx.putImageData(pixels,0,0);
+  return await canvasPng(canvas);
+ }catch{return cutoutBlob}finally{URL.revokeObjectURL(sourceURL);URL.revokeObjectURL(cutoutURL)}
+}
+
 async function removeBackgroundBlob(blob){
- return removeBackgroundRobust(blob,'ai-person.png');
+ const cutout=await removeBackgroundRobust(blob,'ai-person.png');
+ return refineAiCutoutEdges(cutout,blob);
 }
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
