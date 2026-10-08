@@ -5,7 +5,6 @@ import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
 import'./style.css';
 import {StudioEditor} from './studio-editor.jsx';
-import {clearSourceHairPixels,refineHairBoundary} from './hair-edge.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
@@ -1074,21 +1073,7 @@ async function removeBackgroundRobust(blob,filename='person.png'){
  }finally{URL.revokeObjectURL(u)}
 }
 async function removeBackgroundBlob(blob){
- const cutout=await removeBackgroundRobust(blob,'ai-person.png');
- // Refine the matte only along semitransparent hair. Existing skin/neck
- // processing and opaque hair texture are not involved in this operation.
- const url=URL.createObjectURL(cutout);
- try{
-  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
-  const hairMask=await semanticClassMask(im,W,H,[1]);
-  const skinMask=await semanticClassMask(im,W,H,[2,3]);
-  if(!hairMask||!skinMask)return cutout;
-  const c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
-  const pixels=x.getImageData(0,0,W,H);
-  pixels.data.set(refineHairBoundary(pixels.data,hairMask.getContext('2d').getImageData(0,0,W,H).data,skinMask.getContext('2d').getImageData(0,0,W,H).data,W,H));
-  x.putImageData(pixels,0,0);return await canvasPng(c);
- }catch(e){console.warn('Hair edge refinement skipped:',e.message);return cutout}
- finally{URL.revokeObjectURL(url)}
+ return removeBackgroundRobust(blob,'ai-person.png');
 }
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
@@ -1574,7 +1559,7 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
 }
 // V103: supply only the head and a short neck to the AI edit endpoint.
 // Keep the full-resolution original/master untouched for pixel-safe compositing.
-async function headOnlyAIEditFile(file,hairId=''){
+async function headOnlyAIEditFile(file){
  const url=URL.createObjectURL(file);
  try{
   const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
@@ -1587,17 +1572,6 @@ async function headOnlyAIEditFile(file,hairId=''){
   const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#f2f2f2';ctx.fillRect(0,0,W,H);
   ctx.drawImage(im,0,0,W,cutoff,0,0,W,cutoff);
-  // Only selected replacement styles clear source hair. “ผมเดิม” stays intact.
-  if(/^(?:hair|manhair)-\d{2}$/.test(hairId||'')){
-   const hairMask=await semanticClassMask(im,W,H,[1]);
-   const skinMask=await semanticClassMask(im,W,H,[2,3]);
-   if(!hairMask||!skinMask)throw Error('เตรียมเปลี่ยนทรงผมไม่สำเร็จ ยังไม่ใช้เครดิต กรุณาลองใหม่');
-   const protectedFace=faceProtection(face,W,H);
-   const pixels=ctx.getImageData(0,0,W,H);
-   const cleared=clearSourceHairPixels(pixels.data,hairMask.getContext('2d').getImageData(0,0,W,H).data,skinMask.getContext('2d').getImageData(0,0,W,H).data,protectedFace.getContext('2d').getImageData(0,0,W,H).data);
-   pixels.data.set(cleared.pixels);ctx.putImageData(pixels,0,0);
-  }
-
   // A visible lower-body portion would be a preprocessing error, not a reason
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
@@ -1631,10 +1605,9 @@ async function templateNecklineProfile(templatePath){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
- const aiInput=await headOnlyAIEditFile(originalFile,hairId);
+ const aiInput=await headOnlyAIEditFile(originalFile);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
- if(/^(?:hair|manhair)-\d{2}$/.test(hairId||''))fd.append('sourceHairCleared','1');
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');

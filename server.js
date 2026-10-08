@@ -338,10 +338,6 @@ const aiFinishHandler=async(req,res)=>{
       }
     }
 
-    // Give every reference a visible, consistent RGB background. The hair
-    // geometry and resolution remain unchanged, including the hair-26 cleanup.
-    if(hairBuf)hairBuf=await sharp(hairBuf).rotate().flatten({background:'#f2f2f2'}).toColourspace('srgb').png().toBuffer();
-
     // Numeric template geometry only; never accept arbitrary client prompt text.
     let necklineGuidance='';
     try{
@@ -389,8 +385,6 @@ FEMALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geomet
 MALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Make facial and neck skin slightly brighter and more even while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Reduce dull or uneven shadowing naturally; no whitening, blur, beauty filter, foundation mask or porcelain skin. Preserve the exact original eyebrows, eyes, nose, cheeks, jaw and chin. Preserve the exact original lip contour and size; add only a very slight healthy natural pink tone to the lips, not lipstick and not glossy. Keep the result clean, natural and masculine with real photographic skin detail. Hair should remain naturally detailed with separated strands and realistic restrained highlights; never plastic or painted.`;
 
     const seedreamPrompt=(!inpaint&&!cleanHead&&!hairDonor)?`Use Image 1 as the PRIMARY person and ONLY identity reference. Use Image 2 ONLY as the hairstyle reference when Image 2 is supplied.
-${keepOriginalHair?'':`SELECTED HAIRSTYLE HAS EXCLUSIVE GEOMETRY AUTHORITY: Image 1 supplies the person, NOT the haircut. Image 2 supplies the COMPLETE hairstyle: crown, parting, fringe, sides, hair behind the ears, back length and silhouette. Never combine Image 1's old long sections, parting or side panels with Image 2. A tucked/gathered reference must finish tucked/gathered, with no source long hair remaining behind the ears or on the shoulders. Keep designed bangs and bob/long side sections only when actually present in Image 2. Fine strand softness must stay within that intended silhouette; no invented dangling wisps. ${req.body?.sourceHairCleared==='1'?'Some source hair pixels were intentionally replaced by the neutral temporary background BEFORE this request. Those neutral areas are editable preparation, not missing facial anatomy or a bald-hair reference. Fill the intended scalp/hair area ONLY with Image 2; leave background where the selected hairstyle does not extend. Do not restore the obsolete source haircut.':''} Retain the same face, expression, visible skin, orientation and existing skin/neck instructions below.`}
-
 
 THIS IS A LOCAL EDIT OF THE ORIGINAL PERSON, NOT A NEW PORTRAIT.
 
