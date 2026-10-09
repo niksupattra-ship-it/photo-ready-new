@@ -466,6 +466,10 @@ Remove the ENTIRE original high collar, white shirt collar, lapels, V-neck borde
 Inspect the complete central and lateral fitting field under the chin before returning the image: it must be continuous skin from the jaw through the neck base down behind the final collar, including its lowest central opening. Do not use blue background or fabric to replace missing neck skin. Never change face geometry or hairstyle to fill the opening. This BELOW-JAW reconstruction requirement overrides earlier instructions to keep the original/source neck or complete neck unchanged ONLY where reconstruction or collar removal is needed; preserve the selected hair, original face and all other styling instructions. ${necklineGuidance}`;
 
 
+    if(req.body?.neckInputPrepared==='1'&&!inpaint&&!cleanHead&&!hairDonor){
+      seedreamPrompt=`INPUT PREPARATION / COMPLETE NECK RECONSTRUCTION: Image 1 is a deliberately prepared head reference. The neutral light-grey region below the jaw and beside the lower head is a REMOVED original collar/body, not the person's skin, a high neckline or the final crop boundary. Keep the visible original face and jaw exactly. Reconstruct a complete natural neck, widening neck base, both clavicle areas and the modest upper-sternum fitting skin from beneath that same jaw, with realistic continuous complexion and texture matched to the face. Ignore any residual source high-collar cue. Render a fully clothed portrait in a low, broad ROUND collarless temporary top, placing all fabric below the final outfit opening with overlap. Return complete uninterrupted fitting skin for EVERY hair length and style, including short hair and updos. Do not stop at the input's grey boundary, restore the old white/black collar, or leave a flat grey/blue/white patch in the neck field. Preserve the selected hairstyle and all face protections.\n\n${seedreamPrompt}`;
+    }
+
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
 
     // ModelArk accepts data URLs for image-to-image/multi-reference generation.
