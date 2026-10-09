@@ -312,6 +312,7 @@ const aiFinishHandler=async(req,res)=>{
     const cleanHead=hairId==="clean-head";
     const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
+    let hairContextBuf=null;
     if(!keepOriginalHair){
       const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
       const fs=await import("fs");
@@ -332,6 +333,13 @@ const aiFinishHandler=async(req,res)=>{
             .extend({top:0,left:0,right:0,bottom:refMeta.height-keepHeight,background:{r:0,g:0,b:0,alpha:0}})
             .png().toBuffer();
         }
+      }
+      // Supply the same complete hairstyle preview shown in the picker as
+      // anatomical context. Keep the full-resolution cutout for strand detail.
+      // This is only used by the normal portrait path, never mask/inpaint modes.
+      if(!inpaint&&!cleanHead&&!hairDonor){
+        const previewPath=path.join(dir,"public","assets","hairstyle-previews",`${hairId}.png`);
+        if(fs.existsSync(previewPath)) hairContextBuf=fs.readFileSync(previewPath);
       }
       // Normalize only male reference for image-edit API: auxiliary RGBA
       // cutouts can trigger "invalid image file or mode for image 2".
@@ -387,6 +395,8 @@ FEMALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geomet
 MALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Make facial and neck skin slightly brighter and more even while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Reduce dull or uneven shadowing naturally; no whitening, blur, beauty filter, foundation mask or porcelain skin. Preserve the exact original eyebrows, eyes, nose, cheeks, jaw and chin. Preserve the exact original lip contour and size; add only a very slight healthy natural pink tone to the lips, not lipstick and not glossy. Keep the result clean, natural and masculine with real photographic skin detail. Hair should remain naturally detailed with separated strands and realistic restrained highlights; never plastic or painted.`;
 
     const seedreamPrompt=(!inpaint&&!cleanHead&&!hairDonor)?`Use Image 1 as the PRIMARY person and ONLY identity reference. Use Image 2 ONLY as the hairstyle reference when Image 2 is supplied.
+
+${hairContextBuf?`HAIRSTYLE REFERENCE ROLES: Image 2 is the high-resolution isolated hair reference. Image 3 is the COMPLETE preview of that SAME selected style shown to the user. Use Image 3 to understand the intended hairline, temple-to-ear connections, scalp curvature, side endpoints and how the haircut actually rests on a head. Use Image 2 for fine strand texture. Cutout holes, skin-colored extraction rims, disconnected tails and hard alpha edges in Image 2 are NOT hairstyle anatomy; resolve such ambiguity from Image 3. Image 3 is a STYLE CONTEXT ONLY, never a second identity. Do not transfer its face, skin, forehead proportions, ears, neck, makeup, expression or head size. Fit this same hairstyle to Image 1's unchanged head and face. Re-create roots on that head rather than pasting either reference onto it. The source hairstyle from Image 1 is NOT a style reference: replace it fully, including obsolete temple wisps and fringe. Preserve original inner facial features and the existing skin and neck treatment.`:''}
 
 THIS IS A LOCAL EDIT OF THE ORIGINAL PERSON, NOT A NEW PORTRAIT.
 
@@ -453,6 +463,7 @@ FINAL PRIORITY: (1) original face and identity from Image 1, (2) original eyebro
     const portraitDataUrl=`data:${inputFile.mimetype||"image/png"};base64,${inputFile.buffer.toString("base64")}`;
     const refs=[portraitDataUrl];
     if(!keepOriginalHair&&hairBuf) refs.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
+    if(hairContextBuf) refs.push(`data:image/png;base64,${hairContextBuf.toString("base64")}`);
     const arkPayload={
       model:process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628",
       prompt:seedreamPrompt,
