@@ -9,6 +9,7 @@ import {makeupMask,blendMakeupPixels} from './makeup-pixels.js';
 import {blendHairlineSeam} from './hairline-seam.js';
 import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
 import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
+import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
@@ -36,7 +37,7 @@ async function loadAiJobFile(){const db=await aiJobDb();const file=await new Pro
 async function clearAiJobFile(){try{const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete('original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch{}}
 function readActiveAiJob(){try{return JSON.parse(localStorage.getItem(ACTIVE_AI_JOB_KEY)||'null')}catch{return null}}
 function writeActiveAiJob(value){if(value)localStorage.setItem(ACTIVE_AI_JOB_KEY,JSON.stringify(value));else localStorage.removeItem(ACTIVE_AI_JOB_KEY)}
-async function waitForAiJob(jobId,onStatus){for(;;){const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();const verified=await verifyOutputRights(jobId);blob.idpromTrial=!verified.unlocked;blob.idpromJobId=jobId;window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:blob.idpromTrial,fullEdit:verified.fullEdit}}));return blob}await new Promise(resolve=>setTimeout(resolve,1800))}}
+async function waitForAiJob(jobId,onStatus){for(;;){const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();const verified=await verifyOutputRights(jobId);blob.idpromTrial=!verified.unlocked;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,1800))}}
 
 let landmarkerPromise;
 let segmenterPromise;
@@ -276,30 +277,12 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const sourceEyeW=Math.hypot((re.x-le.x)*head.naturalWidth,(re.y-le.y)*head.naturalHeight);
   if(sourceFaceW<20||sourceFaceH<20||sourceEyeW<12) throw Error('วัดขนาดใบหน้าไม่สำเร็จ');
 
-  // V11 CANONICAL FACE NORMALIZATION
-  // ไม่ใช้ค่าจุดเดียวตัดสิน scale เพราะรูปหน้าแต่ละคนกว้าง/แคบและ AI อาจตีกรามต่างกัน
-  // ใช้ 3 anchor อิสระ (ตา, ความสูงหน้า, ความกว้างขมับ) แล้วหา median scale
-  // ทำให้ภาพ close-up / ครึ่งตัว / ถ่ายไกล เข้าสู่ระยะใบหน้ามาตรฐานเดียวกัน
-  // V12 TEMPLATE-DRIVEN CANONICAL HEAD SCALE
-  // ทุก input ถูก normalize เข้าสู่ optical size เดียวกันบน template ก่อนเสมอ
-  // outer-eye distance เป็น master เพราะไม่ขึ้นกับทรงผม/คอ/ระยะกล้องต้นฉบับ
+  // Keep head placement tied to the facial eye anchor, not hair silhouette.
+  // One common X/Y scale preserves the source face aspect ratio.
   const targetEyeW=W*.160;
-  const targetFaceW=targetEyeW/.455;
-  const targetFaceH=targetFaceW*1.16;
-  const eyeScale=targetEyeW/sourceEyeW;
-  const widthScale=targetFaceW/sourceFaceW;
-  const heightScale=targetFaceH/sourceFaceH;
-  // eye anchor 70%, face geometry 30%; clamp geometry correction to stop narrow/wide faces changing apparent head size
-  const geomScale=(widthScale+heightScale)*.5;
-  let canonicalScale=eyeScale*.70+Math.max(eyeScale*.92,Math.min(eyeScale*1.08,geomScale))*.30;
+  const canonicalScale=targetEyeW/sourceEyeW;
+  const corrected=1;
 
-  // V15 SECOND PASS — PLACE FIRST, THEN BALANCE HEAD AGAINST TEMPLATE SHOULDERS.
-  // hb.w is the extracted head/hair silhouette width. It is used only after facial normalization,
-  // so close-up / distant / half-body source framing cannot make the final head small or huge.
-  const normalizedHeadW=hb.w*canonicalScale;
-  const shoulderCorrection=targetHeadW/Math.max(1,normalizedHeadW);
-  // conservative correction: preserve identity geometry while eliminating visibly tiny/oversized heads
-  const corrected=Math.max(.90,Math.min(1.18,shoulderCorrection));
   // V17: หลังได้ตำแหน่ง V16 แล้ว เพิ่ม optical head size เล็กน้อยให้สัมพันธ์กับช่วงไหล่มากขึ้น
   // ใช้ multiplier ภายใน ไม่ผูกกับขนาด/crop ของภาพต้นฉบับ
   // V37 FINAL HEAD PROPORTION: after canonical face normalization and shoulder fitting,
@@ -1773,11 +1756,29 @@ async function templateNecklineProfile(templatePath){
  })();necklineProfileCache.set(templatePath,pending)}
  return pending;
 }
+const faceMetricsCache=new WeakMap();
+async function portraitFaceMetrics(blob){
+ if(faceMetricsCache.has(blob))return faceMetricsCache.get(blob);
+ const pending=(async()=>{const url=URL.createObjectURL(blob);try{
+  const image=await loadImage(url),model=await getLandmarker();
+  return faceProportions(model.detect(image).faceLandmarks?.[0],image.naturalWidth,image.naturalHeight);
+ }finally{URL.revokeObjectURL(url)}})();
+ faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
+}
+async function checkPortraitProportions(source,result){
+ const original=await portraitFaceMetrics(source),generated=await portraitFaceMetrics(result);
+ const comparison=compareFaceProportions(original,generated);
+ if(!comparison.ok){
+  const error=Error(comparison.reason==='unmeasurable'?'ตรวจสัดส่วนใบหน้าไม่ได้ · เก็บงานเดิมไว้':'สัดส่วนใบหน้าจาก AI ต่างจากต้นฉบับ · เก็บงานเดิมไว้');
+  error.code='face_proportion_changed';throw error;
+ }
+}
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const key=JSON.stringify([scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
+ await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
   // Never reuse an old watermark decision or grant rights from memory alone.
@@ -1792,6 +1793,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   options.onJobStatus?.('completed');
   return result;
  }
+ window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:cached.value.idpromJobId,isTrial:cached.value.idpromTrial,fullEdit:cached.value.idpromFullEdit}}));
  return cached.value;
 }
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
@@ -3133,7 +3135,7 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await refreshWallet();await finishProgress(completed);setBusy(false)}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(e.code==='face_proportion_changed'?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}if(e.code==='face_proportion_changed')throw e;}finally{await refreshWallet();await finishProgress(completed);setBusy(false)}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
