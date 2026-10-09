@@ -520,3 +520,14 @@
 /* Compact pickers dismiss outside or with a downward touch swipe. */
 .idstudio .studio-picker-drawer{padding-top:22px;touch-action:pan-x}
 .idstudio .studio-makeup-tabs{margin-right:0}
+
+/* Shared project icons and a single JPG/PNG download menu. */
+.idstudio .studio-file-actions{display:flex;align-items:center;gap:10px}
+.idstudio .studio-project-actions{display:flex;gap:4px;padding:3px;border:1px solid #45545f;border-radius:10px}
+.idstudio .studio-file-actions button,.idstudio .studio-download-menu summary{display:flex;align-items:center;justify-content:center;width:38px;height:38px;padding:7px;color:#64d7cb;border-radius:7px}
+.idstudio .studio-download-menu{position:relative}
+.idstudio .studio-download-menu summary{list-style:none;cursor:pointer;background:#293641;border:1px solid #45545f}
+.idstudio .studio-download-menu summary::-webkit-details-marker{display:none}
+.idstudio .studio-download-menu summary[aria-disabled=true]{opacity:.4;cursor:default}
+.idstudio .studio-download-formats{position:absolute;right:0;top:calc(100% + 8px);z-index:50;display:flex;gap:5px;padding:8px;background:#1c2832;border:1px solid #50616d;border-radius:10px;box-shadow:0 6px 20px #0006}
+.idstudio .studio-download-formats button{width:58px;color:#e8eef4}
