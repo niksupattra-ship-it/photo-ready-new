@@ -8,6 +8,7 @@ import {StudioEditor} from './studio-editor.jsx';
 import {makeupMask,blendMakeupPixels} from './makeup-pixels.js';
 import {blendHairlineSeam} from './hairline-seam.js';
 import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
+import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
@@ -1284,7 +1285,21 @@ async function prepareStudioMakeup(source){
  })().catch(error=>{if(studioMakeupPreparation===entry)studioMakeupPreparation=null;throw error});
  return entry.promise;
 }
+const portraitResultCache=createAiResultCache();
+const makeupResultCache=createAiResultCache({maxEntries:48});
+let resultCacheScope=null;
+function currentResultCacheScope(){
+ const scope=JSON.stringify([currentWalletId()||'',localStorage.getItem('idprom_account_email')||'']);
+ if(resultCacheScope!==scope){portraitResultCache.clear();makeupResultCache.clear();resultCacheScope=scope}
+ return scope;
+}
 async function requestStudioMakeup(source,styles){
+ const scope=currentResultCacheScope(),digest=await resultSourceDigest(source);
+ const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b))]);
+ const result=await makeupResultCache.get(key,()=>requestStudioMakeupUncached(source,styles));
+ return result.value;
+}
+async function requestStudioMakeupUncached(source,styles){
  const {original,W,H,landmarker,face,upload}=await prepareStudioMakeup(source);
  const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(original,0,0);
  const mask=makeupMask(face,W,H,styles),maskData=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
@@ -1759,12 +1774,32 @@ async function templateNecklineProfile(templatePath){
  return pending;
 }
 async function aiFinishPortrait(originalFile,hairId,options={}){
+ const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
+ const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
+ const key=JSON.stringify([scope,digest,hairId||'original',neckline]);
+ const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
+ if(cached.reused){
+  // Recheck current entitlement: a trial may have been purchased since caching.
+  // Never reuse an old watermark decision or grant rights from memory alone.
+  const jobId=cached.value.idpromJobId;
+  if(!jobId)throw Error('ตรวจสิทธิ์รูปเดิมไม่สำเร็จ');
+  const verified=await verifyOutputRights(jobId);
+  const result=cached.value.slice(0,cached.value.size,cached.value.type);
+  result.idpromJobId=jobId;result.idpromTrial=!verified.unlocked;
+  await saveAiJobFile(originalFile);
+  writeActiveAiJob({jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
+  window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:result.idpromTrial,fullEdit:verified.fullEdit}}));
+  options.onJobStatus?.('completed');
+  return result;
+ }
+ return cached.value;
+}
+async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
  const aiInput=await headOnlyAIEditFile(originalFile,hairId);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
- const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
