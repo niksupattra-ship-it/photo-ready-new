@@ -21,21 +21,22 @@ export function blendHairlineSeam(pixels,hair,skin,w,h,region){
    if((hair[n]&&skin[q])||(skin[n]&&hair[q])){distance=Math.min(distance,r);opposite++;break}
   }
   if(!opposite||distance>radius)continue;
-  const sum=[0,0,0];let count=0,hasHair=false,hasSkin=false;
-  // Small, native-resolution samples gently soften a hard colour step.
-  // Original fine texture remains dominant; correction is strictly bounded.
+  const samples=[[],[],[]];let count=0;
+  // Use SAME-material samples to avoid mixing skin and hair into a grey rim.
+  // Bound outlier correction without blurring the photographed root texture.
   for(const [dx,dy] of directions){
    const xx=x+dx*radius,yy=y+dy*radius;
    if(xx<left||xx>=right||yy<top||yy>=bottom||xx<0||xx>=w||yy<0||yy>=h)continue;
    const q=yy*w+xx,j=q*4;
-   if(pixels[j+3]<248||(!hair[q]&&!skin[q]))continue;
-   hasHair ||= !!hair[q];hasSkin ||= !!skin[q];count++;
-   for(let c=0;c<3;c++)sum[c]+=pixels[j+c];
+   if(pixels[j+3]<248||!(hair[n]?hair[q]:skin[q]))continue;
+   count++;for(let c=0;c<3;c++)samples[c].push(pixels[j+c]);
   }
-  if(!count||!hasHair||!hasSkin)continue;
+  if(count<3)continue;
   const edgeWeight=.28*(1-distance/(radius+1))**2;
   for(let c=0;c<3;c++){
-   const delta=Math.max(-10,Math.min(10,(sum[c]/count-pixels[i+c])*edgeWeight));
+   samples[c].sort((a,b)=>a-b);
+   const difference=samples[c][Math.floor(count/2)]-pixels[i+c];
+   const delta=Math.abs(difference)<24?0:Math.max(-6,Math.min(6,difference*edgeWeight));
    const value=Math.round(pixels[i+c]+delta);
    if(value!==out[i+c])changed++;
    out[i+c]=value;
