@@ -62,6 +62,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const [compareReady,setCompareReady]=useState(false);const compareSourceRef=useRef(null);
  useEffect(()=>{if(!touch||!touchLayersOpen)return;const outside=e=>{if(e.target.closest('.studio-touch-layer-picker,.studio-floating-layers'))return;setTouchLayersOpen(false)};document.addEventListener('pointerdown',outside,true);return()=>document.removeEventListener('pointerdown',outside,true)},[touch,touchLayersOpen]);
  const [hairNotice,setHairNotice]=useState(false),[processHairPending,setProcessHairPending]=useState(false);
+ const processRequestRef=useRef(false);
  const [savePopup,setSavePopup]=useState(null);const savingRef=useRef(false),savingDoneRef=useRef(null),downloadSaveQueueRef=useRef(Promise.resolve()),historyTruncatedRef=useRef(false),historyBoundaryNoticeRef=useRef(false);
  const [historyNotice,setHistoryNotice]=useState(null);
  const [makeupStyles,setMakeupStyles]=useState({}),[makeupBusy,setMakeupBusy]=useState(false);const makeupRequestRef=useRef(false),makeupLookCacheRef=useRef(null);
@@ -92,7 +93,14 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const paidSessionOutput=outputHeads(layers).length>0&&sessionAllowsOutput(outputHeads(layers));
  const visibleProcessRemaining=typeof processRemaining==='number'&&!hasCredits&&paidSessionOutput?0:processRemaining;
  const canChooseHair=trialUnlocked||hasCredits||(allOptionsAvailable&&!paidSessionOutput);
- const chooseHair=id=>{if(!canChooseHair){onRequestUnlock?.();setStatus('ซื้อแพ็ก 159 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 10 ครั้ง');return}setSelectedHair(id);setHairConfirmed(true)};
+ const chooseHair=id=>{
+  if(processRequestRef.current||processActive||assetBusy||!ready)return;
+  if(!canChooseHair){onRequestUnlock?.();setStatus('ซื้อแพ็ก 159 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 10 ครั้ง');return}
+  setSelectedHair(id);setHairConfirmed(true);
+  const processed=state.current.some(l=>l.name==='หัว · คอ · ผม');
+  const newSourcePending=state.current.some(l=>l.id===sourceLayerRef.current);
+  if(processed&&!newSourcePending&&!processHairPending)void processPhoto({selectedHair:id,continueWithoutSave:true});
+ };
  useEffect(()=>{const head=layers.find(l=>l.name==='หัว · คอ · ผม');if(head?.jobId)window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:head.jobId,isTrial:Boolean(head.restrictedTrial&&!paidOutputIds.includes(head.jobId))}}))},[layers,paidOutputIds]);
  const [watermarkRect,setWatermarkRect]=useState(null);
  useEffect(()=>{if(!restrictedTrial){setWatermarkRect(null);return}const c=canvasRef.current,stage=stageRef.current;if(!c||!stage)return;const update=()=>{const r=c.getBoundingClientRect(),p=stage.getBoundingClientRect();const canvasLeft=r.left-p.left-stage.clientLeft,canvasTop=r.top-p.top-stage.clientTop;const left=Math.max(0,canvasLeft),top=Math.max(0,canvasTop),width=Math.max(0,Math.min(stage.clientWidth,canvasLeft+r.width)-left),height=Math.max(0,Math.min(stage.clientHeight,canvasTop+r.height)-top);setWatermarkRect({left,top,width,height,gridTemplateColumns:`repeat(${Math.max(1,Math.ceil(width/140))},140px)`})};update();const observer=new ResizeObserver(update);observer.observe(c);observer.observe(stage);window.addEventListener('resize',update);return()=>{observer.disconnect();window.removeEventListener('resize',update)}},[restrictedTrial,ready,view,touch,touchOpen,touchMore,picker]);
@@ -215,14 +223,18 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  };
  useEffect(()=>{if(!initialSourcePhoto)return;let cancelled=false;const url=URL.createObjectURL(initialSourcePhoto);image(url).then(im=>{if(cancelled)return;const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').drawImage(im,0,0);compareSourceRef.current=c.toDataURL('image/png');before.current=im;setCompareReady(true)}).catch(()=>{});return()=>{cancelled=true;URL.revokeObjectURL(url)}},[initialSourcePhoto]);
  const processPhoto=async(options={})=>{
-  if(!sourcePhoto||processActive||assetBusy||!ready||!onProcessPhoto)return;if(!processHairPending||!hairConfirmed){setProcessHairPending(true);setHairConfirmed(false);setHairNotice(true);setTouchLayersOpen(false);setTouchMore(false);setTouchOpen(false);setPicker('hair');setStatus('กรุณาเลือกทรงผมก่อนประมวลผล');return;}if(!hairConfirmed)return;
-  const oldHead=state.current.find(l=>l.name==='หัว · คอ · ผม');if(!oldHead&&!state.current.some(l=>l.id===sourceLayerRef.current)&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}if(oldHead?.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนประมวลผล');return}
-  if(oldHead&&!options.continueWithoutSave){setHistoryNotice({kind:'reprocess'});return}setProcessHairPending(false);setPicker(false);setHairNotice(false);
+  if(processRequestRef.current||!sourcePhoto||processActive||assetBusy||!ready||!onProcessPhoto)return;
+  const oldHead=state.current.find(l=>l.name==='หัว · คอ · ผม');
+  const newSourcePending=state.current.some(l=>l.id===sourceLayerRef.current);
+  if((!oldHead||newSourcePending)&&(!processHairPending||!hairConfirmed)){setProcessHairPending(true);setHairConfirmed(false);setHairNotice(true);setTouchLayersOpen(false);setTouchMore(false);setTouchOpen(false);setPicker('hair');setStatus('กรุณาเลือกทรงผมก่อนประมวลผล');return;}
+  const chosenHair=options.selectedHair??selectedHair;
+  if(!oldHead&&!state.current.some(l=>l.id===sourceLayerRef.current)&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}if(oldHead?.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนประมวลผล');return}
+  if(oldHead&&!options.continueWithoutSave){setHistoryNotice({kind:'reprocess'});return}processRequestRef.current=true;setProcessHairPending(false);setPicker(false);setHairNotice(false);
   const previous=historySnapshot(),suit=previous.find(l=>layerKind(l)==='suit');if(touch){setPicker(false);setTouchMore(false);setTouchMenu(false);setTouchOpen(false)}setHairConfirmed(false);setProcessingPhoto(true);setStatus('กำลังประมวลผลรูป…');
-  try{const result=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,(canUseAllSuits)?selectedHair:'');if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head'};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
+  try{const result=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,(canUseAllSuits)?chosenHair:'');if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current);const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
-   if(await hydrate(next)){placementRef.current=result.placement;undo.current.push(previous);redo.current=[];setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}setStatus('ประมวลผลสำเร็จ · ปรับแต่งต่อใน Studio ได้เลย')}
-  }catch(e){setStatus(e.message||'ประมวลผลไม่สำเร็จ กรุณาลองใหม่')}finally{setProcessingPhoto(false)}
+   if(await hydrate(next)){placementRef.current=result.placement;undo.current.push(previous);redo.current=[];setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}setHairConfirmed(true);setStatus('ประมวลผลสำเร็จ · ปรับแต่งต่อใน Studio ได้เลย')}
+  }catch(e){setStatus(e.message||'ประมวลผลไม่สำเร็จ กรุณาลองใหม่')}finally{processRequestRef.current=false;setProcessingPhoto(false)}
  };
  useEffect(()=>{if(!sourcePhoto){setSourcePreview(null);return}const url=URL.createObjectURL(sourcePhoto);setSourcePreview(url);return()=>URL.revokeObjectURL(url)},[sourcePhoto]);
  const applyHair=async()=>{
