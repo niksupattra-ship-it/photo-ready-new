@@ -312,7 +312,6 @@ const aiFinishHandler=async(req,res)=>{
     const cleanHead=hairId==="clean-head";
     const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
-    let hairContextBuf=null;
     if(!keepOriginalHair){
       const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
       const fs=await import("fs");
@@ -333,13 +332,6 @@ const aiFinishHandler=async(req,res)=>{
             .extend({top:0,left:0,right:0,bottom:refMeta.height-keepHeight,background:{r:0,g:0,b:0,alpha:0}})
             .png().toBuffer();
         }
-      }
-      // Supply the same complete hairstyle preview shown in the picker as
-      // anatomical context. Keep the full-resolution cutout for strand detail.
-      // This is only used by the normal portrait path, never mask/inpaint modes.
-      if(!inpaint&&!cleanHead&&!hairDonor){
-        const previewPath=path.join(dir,"public","assets","hairstyle-previews",`${hairId}.png`);
-        if(fs.existsSync(previewPath)) hairContextBuf=fs.readFileSync(previewPath);
       }
       // Normalize only male reference for image-edit API: auxiliary RGBA
       // cutouts can trigger "invalid image file or mode for image 2".
@@ -396,9 +388,9 @@ MALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry
 
     const seedreamPrompt=(!inpaint&&!cleanHead&&!hairDonor)?`Use Image 1 as the PRIMARY person and ONLY identity reference. Use Image 2 ONLY as the hairstyle reference when Image 2 is supplied.
 
-${hairContextBuf?`HAIRSTYLE REFERENCE ROLES: Image 2 is the high-resolution isolated hair reference. Image 3 is the COMPLETE preview of that SAME selected style shown to the user. Use Image 3 to understand the intended hairline, temple-to-ear connections, scalp curvature, side endpoints and how the haircut actually rests on a head. Use Image 2 for fine strand texture. Cutout holes, skin-colored extraction rims, disconnected tails and hard alpha edges in Image 2 are NOT hairstyle anatomy; resolve such ambiguity from Image 3. Image 3 is a STYLE CONTEXT ONLY, never a second identity. Do not transfer its face, skin, forehead proportions, ears, neck, makeup, expression or head size. Fit this same hairstyle to Image 1's unchanged head and face. Re-create roots on that head rather than pasting either reference onto it. The source hairstyle from Image 1 is NOT a style reference: replace it fully, including obsolete temple wisps and fringe. Preserve original inner facial features and the existing skin and neck treatment.`:''}
-
 THIS IS A LOCAL EDIT OF THE ORIGINAL PERSON, NOT A NEW PORTRAIT.
+
+IDENTITY FIRST — HAIRSTYLE CHANGE MUST NOT CREATE ANOTHER PERSON: Treat Image 1 as the actual photograph to edit, not an inspiration for generating a similar-looking person. Retain its original facial anatomy and identifying asymmetry: eyebrow shape and height, eyelid folds, eye shape and spacing, nose bridge and nostrils, lip shape, mouth corners, cheek structure, jaw and chin. No face replacement, generic beauty-model face, age change, enlarged eyes, shortened nose, altered lips, narrower jaw or reshaped cheeks. Hair must grow around this SAME original face; never adapt the face to the hairstyle. Image 2 supplies HAIR ONLY; any skin fragments in that cutout are extraction artifacts and must never be copied into the result. Existing skin finish may affect tone and fine texture only, never facial shape or identity. Preserve the existing neck instructions.
 
 SOURCE ORIENTATION / LEFT-RIGHT LOCK — REQUIRED: Keep Image 1 exactly as displayed. NEVER horizontally mirror, flip, swap left and right, rotate or reverse the original face or head. Viewer-left in Image 1 MUST remain viewer-left in the result; viewer-right MUST remain viewer-right. Preserve the SAME side for each eyebrow, eyelid, eye, nostril, mouth corner, ear, mole, mark, beard/moustache pattern and natural facial asymmetry. Do not symmetrize the face or copy one side onto the other. Preserve the original gaze and slight head angle. A hairstyle reference may change HAIR ONLY; its direction, face angle or lighting must never flip or reorient the subject's face. All permitted skin and cosmetic finish must remain tonal/texture edits on the SAME original side of each feature; never move, mirror or reshape facial features to achieve that finish.
 
@@ -463,7 +455,6 @@ FINAL PRIORITY: (1) original face and identity from Image 1, (2) original eyebro
     const portraitDataUrl=`data:${inputFile.mimetype||"image/png"};base64,${inputFile.buffer.toString("base64")}`;
     const refs=[portraitDataUrl];
     if(!keepOriginalHair&&hairBuf) refs.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
-    if(hairContextBuf) refs.push(`data:image/png;base64,${hairContextBuf.toString("base64")}`);
     const arkPayload={
       model:process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628",
       prompt:seedreamPrompt,
