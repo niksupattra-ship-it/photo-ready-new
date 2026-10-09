@@ -7,6 +7,7 @@ import'./style.css';
 import {StudioEditor} from './studio-editor.jsx';
 import {makeupMask,blendMakeupPixels} from './makeup-pixels.js';
 import {blendHairlineSeam} from './hairline-seam.js';
+import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
@@ -1702,7 +1703,7 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
 }
 // V103: supply only the head and a short neck to the AI edit endpoint.
 // Keep the full-resolution original/master untouched for pixel-safe compositing.
-async function headOnlyAIEditFile(file){
+async function headOnlyAIEditFile(file,hairId){
  const url=URL.createObjectURL(file);
  try{
   const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
@@ -1715,6 +1716,18 @@ async function headOnlyAIEditFile(file){
   const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#f2f2f2';ctx.fillRect(0,0,W,H);
   ctx.drawImage(im,0,0,W,cutoff,0,0,W,cutoff);
+  // Remove obsolete exterior source hair from the temporary upload only.
+  // Central face, ears, source file and current editor master remain untouched.
+  if(HAIRSTYLE_RULES[hairId]){
+   const rawHair=await semanticClassMask(im,W,H,[1]);
+   if(!rawHair)throw Error('เตรียมผมต้นฉบับไม่สำเร็จ กรุณาลองอีกครั้ง');
+   const alpha=rawHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+   const hair=new Uint8Array(W*H);for(let i=0;i<hair.length;i++)hair[i]=alpha[i*4+3]>=248?1:0;
+   const pixels=ctx.getImageData(0,0,W,H);
+   const padding=eyeD*.30;
+   clearSourceHairTails(pixels.data,hair,W,H,{left:Math.min(face[234].x,face[454].x)*W-padding,right:Math.max(face[234].x,face[454].x)*W+padding,earTop:Math.min(face[127].y,face[356].y)*H,chin:chin+eyeD*.08});
+   ctx.putImageData(pixels,0,0);
+  }
   // A visible lower-body portion would be a preprocessing error, not a reason
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
@@ -1748,7 +1761,7 @@ async function templateNecklineProfile(templatePath){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
- const aiInput=await headOnlyAIEditFile(originalFile);
+ const aiInput=await headOnlyAIEditFile(originalFile,hairId);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);

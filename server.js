@@ -1,3 +1,4 @@
+import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject,saveWork,listWorks,getWork,deleteWork,MAX_SAVED_WORKS} from './saved-work-store.js';
 import express from "express";
 import multer from "multer";
@@ -387,6 +388,8 @@ FEMALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geomet
 MALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Make facial and neck skin slightly brighter and more even while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Reduce dull or uneven shadowing naturally; no whitening, blur, beauty filter, foundation mask or porcelain skin. Preserve the exact original eyebrows, eyes, nose, cheeks, jaw and chin. Preserve the exact original lip contour and size; add only a very slight healthy natural pink tone to the lips, not lipstick and not glossy. Keep the result clean, natural and masculine with real photographic skin detail. Hair should remain naturally detailed with separated strands and realistic restrained highlights; never plastic or painted.`;
 
     const seedreamPrompt=(!inpaint&&!cleanHead&&!hairDonor)?`Use Image 1 as the PRIMARY person and ONLY identity reference. Use Image 2 ONLY as the hairstyle reference when Image 2 is supplied.
+
+${keepOriginalHair?'':selectedHairstyleRule(hairId)}
 
 THIS IS A LOCAL EDIT OF THE ORIGINAL PERSON, NOT A NEW PORTRAIT.
 
