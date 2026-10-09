@@ -1,3 +1,4 @@
+import {prepareNeckInput} from './neck-input.js';
 import {SavedWorks} from './saved-works.jsx';
 import {deliverImage} from './image-download.js';
 import React,{useEffect,useRef,useState}from'react';
@@ -1735,6 +1736,22 @@ async function headOnlyAIEditFile(file,hairId){
    clearSourceHairTails(pixels.data,hair,W,H,{left:Math.min(face[234].x,face[454].x)*W-padding,right:Math.max(face[234].x,face[454].x)*W+padding,earTop:Math.min(face[127].y,face[356].y)*H,chin:chin+eyeD*.08});
    ctx.putImageData(pixels,0,0);
   }
+  // Every style uses the same below-jaw reconstruction field. Do not send
+  // a source collar that the image model may preserve as part of identity.
+  const [sourceHair,sourceClothing]=await Promise.all([
+   semanticClassMask(im,W,H,[1]),semanticClassMask(im,W,H,[4])
+  ]);
+  if(!sourceHair||!sourceClothing)throw Error('เตรียมส่วนคอและปกเสื้อไม่สำเร็จ กรุณาลองใหม่');
+  const hairPixels=sourceHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const clothingPixels=sourceClothing.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const hairAlpha=new Uint8Array(W*H),clothingAlpha=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++){hairAlpha[i]=hairPixels[i*4+3];clothingAlpha[i]=clothingPixels[i*4+3]}
+  const preparedNeck=ctx.getImageData(0,0,W,H);
+  prepareNeckInput(preparedNeck.data,hairAlpha,clothingAlpha,W,H,{
+   left:Math.min(face[234].x,face[454].x)*W-eyeD*.08,
+   right:Math.max(face[234].x,face[454].x)*W+eyeD*.08,chin,eyeDistance:eyeD
+  },{keepOriginalHair:!hairId||hairId==='original'});
+  ctx.putImageData(preparedNeck,0,0);
   // A visible lower-body portion would be a preprocessing error, not a reason
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
@@ -1785,7 +1802,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify([scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['neck-input-v2',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -1812,6 +1829,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const aiInput=await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
+ fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
