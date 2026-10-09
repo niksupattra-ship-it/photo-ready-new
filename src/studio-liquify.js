@@ -1,3 +1,4 @@
+import {gpuLiquify} from './studio-gpu-warp.js';
 // Local inverse-mapped deformation. Source alpha is interpolated in premultiplied
 // space to keep transparent hair/neck edges free of dark fringes.
 export function deformPatch(input,width,height,originX,originY,centerX,centerY,radius,dx,dy,mode,strength){
@@ -28,9 +29,11 @@ export function liquifyCanvas(target,mask,center,radius,delta,mode,strength,fram
   const left=Math.max(0,Math.floor(p.x-r-padding)),top=Math.max(0,Math.floor(p.y-r-padding));
   const right=Math.min(surface.width,Math.ceil(p.x+r+padding)),bottom=Math.min(surface.height,Math.ceil(p.y+r+padding));
   if(right<=left||bottom<=top)continue;const width=right-left,height=bottom-top;
+  const x=Math.max(left,Math.floor(p.x-r)),y=Math.max(top,Math.floor(p.y-r)),rightEdge=Math.min(right,Math.ceil(p.x+r)),bottomEdge=Math.min(bottom,Math.ceil(p.y+r));
+  if(gpuLiquify(surface,left,top,width,height,p.x,p.y,r,delta.x*scaleX,delta.y*scaleY,mode,strength,{x,y,w:rightEdge-x,h:bottomEdge-y})){changed=true;if(surface===target)region={x:Math.max(0,x-2),y:Math.max(0,y-2),w:Math.min(surface.width,rightEdge+2)-Math.max(0,x-2),h:Math.min(surface.height,bottomEdge+2)-Math.max(0,y-2)};continue}
   const ctx=surface.getContext('2d',{willReadFrequently:true}),original=ctx.getImageData(left,top,width,height);
   const pixels=deformPatch(original.data,width,height,left,top,p.x,p.y,r,delta.x*scaleX,delta.y*scaleY,mode,strength);
-  const x=Math.max(left,Math.floor(p.x-r)),y=Math.max(top,Math.floor(p.y-r)),rightEdge=Math.min(right,Math.ceil(p.x+r)),bottomEdge=Math.min(bottom,Math.ceil(p.y+r));
+
   ctx.putImageData(new ImageData(pixels,width,height),left,top,x-left,y-top,rightEdge-x,bottomEdge-y);changed=true;
   if(surface===target)region={x:Math.max(0,x-2),y:Math.max(0,y-2),w:Math.min(surface.width,rightEdge+2)-Math.max(0,x-2),h:Math.min(surface.height,bottomEdge+2)-Math.max(0,y-2)};
  }
