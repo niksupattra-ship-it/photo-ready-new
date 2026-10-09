@@ -1270,7 +1270,8 @@ async function requestStudioMakeup(source,styles){
   const ratio=f=>Math.hypot((f[1].x-(f[33].x+f[263].x)/2),(f[1].y-(f[33].y+f[263].y)/2))/Math.hypot(f[33].x-f[263].x,f[33].y-f[263].y);
   if(!eyeDistance||!fromEye||Math.abs(ratio(face)-ratio(freshFace))>.12)throw Error('ผลเมคอัพเปลี่ยนสัดส่วนใบหน้า เก็บภาพเดิมไว้');
   const pixels=bx.getImageData(0,0,W,H),ai=cx.getImageData(0,0,W,H).data;
-  pixels.data.set(blendMakeupPixels(pixels.data,ai,maskData));bx.putImageData(pixels,0,0);
+  const detailMask=styles.look?makeupMask(face,W,H,{brows:'natural',lips:'natural',lashes:'natural'}).getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data:null;
+  pixels.data.set(blendMakeupPixels(pixels.data,ai,maskData,detailMask?{width:W,height:H,detailMask}:null));bx.putImageData(pixels,0,0);
   return base; // Keep full-resolution pixels; serialize only when saving the project.
  }finally{URL.revokeObjectURL(url)}
 }
