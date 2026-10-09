@@ -531,3 +531,8 @@
 .idstudio .studio-download-menu summary[aria-disabled=true]{opacity:.4;cursor:default}
 .idstudio .studio-download-formats{position:absolute;right:0;top:calc(100% + 8px);z-index:50;display:flex;gap:5px;padding:8px;background:#1c2832;border:1px solid #50616d;border-radius:10px;box-shadow:0 6px 20px #0006}
 .idstudio .studio-download-formats button{width:58px;color:#e8eef4}
+
+/* Give the view-pan hand enough space to read at toolbar size. */
+.idstudio:not(.studio-touch) .studio-desktop-history-actions .studio-pan-icon{width:40px;height:40px}
+
+.studio-touch .studio-tools .studio-pan-icon{width:34px;height:34px}
