@@ -6,6 +6,7 @@ import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-visio
 import'./style.css';
 import {StudioEditor} from './studio-editor.jsx';
 import {makeupMask,blendMakeupPixels} from './makeup-pixels.js';
+import {blendHairlineSeam} from './hairline-seam.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
@@ -1141,6 +1142,37 @@ async function refineAiCutoutEdges(cutoutBlob,sourceBlob){
   cx.putImageData(pixels,0,0);
   return await canvasPng(canvas);
  }catch{return cutoutBlob}finally{URL.revokeObjectURL(sourceURL);URL.revokeObjectURL(cutoutURL)}
+}
+
+// Blend only the internal upper hairline after the existing skin finish.
+// Face features are protected by a hard ROI ending safely above both brows.
+async function finishHairlineSeam(masterBlob){
+ const url=URL.createObjectURL(masterBlob);
+ try{
+  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  if(!face?.[10]||!face?.[70]||!face?.[300])return masterBlob;
+  const faceWidth=Math.abs(face[454].x-face[234].x)*W;
+  const region={left:Math.min(face[234].x,face[454].x)*W,right:Math.max(face[234].x,face[454].x)*W,top:Math.max(0,(face[10].y*H)-faceWidth*.13),bottom:Math.min(face[70].y,face[63].y,face[105].y,face[66].y,face[107].y,face[336].y,face[296].y,face[334].y,face[293].y,face[300].y)*H-faceWidth*.04,faceWidth};
+  if(region.bottom<=region.top)return masterBlob;
+  const seg=await getPersonSegmenter();
+  const result=await new Promise((ok,bad)=>{try{seg.segment(image,r=>ok(r))}catch(e){bad(e)}});
+  const mask=result?.categoryMask;if(!mask)return masterBlob;
+  let hair,skin;
+  try{
+   const mw=mask.width,mh=mask.height,cat=mask.getAsUint8Array();
+   if(!mw||!mh)return masterBlob;
+   hair=new Uint8Array(W*H);skin=new Uint8Array(W*H);
+   for(let y=Math.max(0,Math.floor(region.top));y<Math.min(H,Math.ceil(region.bottom));y++)for(let x=Math.max(0,Math.floor(region.left));x<Math.min(W,Math.ceil(region.right));x++){
+    const id=cat[Math.min(mh-1,Math.floor(y*mh/H))*mw+Math.min(mw-1,Math.floor(x*mw/W))],i=y*W+x;
+    if(id===1)hair[i]=1;else if(id===3)skin[i]=1;
+   }
+  }finally{mask.close?.()}
+  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+  const pixels=ctx.getImageData(0,0,W,H),finished=blendHairlineSeam(pixels.data,hair,skin,W,H,region);
+  if(!finished)return masterBlob;
+  pixels.data.set(finished);ctx.putImageData(pixels,0,0);return await canvasPng(canvas);
+ }catch{return masterBlob}finally{URL.revokeObjectURL(url)}
 }
 
 async function removeBackgroundBlob(blob){
@@ -2741,7 +2773,7 @@ function App(){
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     nextMaster=await optionalHealthySkin10(transparent,firstUploadedPhoto);
+     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
@@ -2794,7 +2826,7 @@ function App(){
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     nextMaster=await optionalHealthySkin10(transparent,firstUploadedPhoto);
+     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
@@ -3028,7 +3060,7 @@ function App(){
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await optionalHealthySkin10(originalHeadNeckTransparent,originalFile);
+  const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
