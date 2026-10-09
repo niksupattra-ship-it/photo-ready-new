@@ -1236,14 +1236,26 @@ function alignFaceCanvas(source,from,to,W,H){
  x.translate(-(a.x+b.x)*sw*.5,-(a.y+b.y)*sh*.5);x.drawImage(source,0,0);
  return c;
 }
+// Reuse only the same portrait base, including its upload and face landmarks.
+let studioMakeupPreparation=null;
+async function prepareStudioMakeup(source){
+ if(studioMakeupPreparation?.source===source)return studioMakeupPreparation.promise;
+ const entry={source,promise:null};studioMakeupPreparation=entry;
+ entry.promise=(async()=>{
+  const original=await loadImage(source),W=original.naturalWidth,H=original.naturalHeight;
+  const detection=canvasFor(W,H),dx=detection.getContext('2d');dx.fillStyle='#fff';dx.fillRect(0,0,W,H);dx.drawImage(original,0,0);
+  const [landmarker,upload]=await Promise.all([getLandmarker(),canvasPng(detection)]);
+  const face=landmarker.detect(detection).faceLandmarks?.[0];
+  if(!face)throw Error('ไม่พบใบหน้าชัดเจน ยังไม่เรียก AI และไม่ใช้เครดิต');
+  return {original,W,H,landmarker,face,upload};
+ })().catch(error=>{if(studioMakeupPreparation===entry)studioMakeupPreparation=null;throw error});
+ return entry.promise;
+}
 async function requestStudioMakeup(source,styles){
- const original=await loadImage(source),W=original.naturalWidth,H=original.naturalHeight;
+ const {original,W,H,landmarker,face,upload}=await prepareStudioMakeup(source);
  const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(original,0,0);
- const detection=canvasFor(W,H),dx=detection.getContext('2d');dx.fillStyle='#fff';dx.fillRect(0,0,W,H);dx.drawImage(original,0,0);
- const landmarker=await getLandmarker(),face=landmarker.detect(detection).faceLandmarks?.[0];
- if(!face)throw Error('ไม่พบใบหน้าชัดเจน ยังไม่เรียก AI และไม่ใช้เครดิต');
  const mask=makeupMask(face,W,H,styles),maskData=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
- const fd=new FormData();fd.append('image',await canvasPng(detection),'makeup.png');fd.append('styles',JSON.stringify(styles));
+ const fd=new FormData();fd.append('image',upload,'makeup.png');fd.append('styles',JSON.stringify(styles));
  const response=await fetch('/api/makeup/edit',{method:'POST',body:fd,headers:walletHeaders()});
  updateCreditsFromResponse(response);
  if(!response.ok){const error=await response.json().catch(()=>null);throw Error(error?.message||'แต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง')}
@@ -1259,7 +1271,7 @@ async function requestStudioMakeup(source,styles){
   if(!eyeDistance||!fromEye||Math.abs(ratio(face)-ratio(freshFace))>.12)throw Error('ผลเมคอัพเปลี่ยนสัดส่วนใบหน้า เก็บภาพเดิมไว้');
   const pixels=bx.getImageData(0,0,W,H),ai=cx.getImageData(0,0,W,H).data;
   pixels.data.set(blendMakeupPixels(pixels.data,ai,maskData));bx.putImageData(pixels,0,0);
-  return base.toDataURL('image/png');
+  return base; // Keep full-resolution pixels; serialize only when saving the project.
  }finally{URL.revokeObjectURL(url)}
 }
 function opaqueBounds(canvas){
