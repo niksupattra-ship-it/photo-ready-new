@@ -516,3 +516,6 @@
  .idstudio .studio-makeup-choices img{width:64px;height:64px}
  .idstudio .studio-picker-drawer:has(.studio-makeup-panel){max-height:min(34dvh,216px)}
 }
+
+/* Reserve room for the close control after removing picker headings. */
+.idstudio .studio-picker-drawer{padding-top:46px}
