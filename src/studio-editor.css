@@ -498,3 +498,21 @@
  .studio-touch .studio-makeup-choices img{width:52px;height:52px}
  .studio-touch .studio-makeup-choices button{min-height:76px;flex-basis:64px}
 }
+
+/* Compact makeup sheet on desktop, tablet and phone. Other pickers stay unchanged. */
+.idstudio .studio-picker-drawer:has(.studio-makeup-panel){padding:18px 12px 8px;max-height:min(36dvh,240px);overflow-y:auto}
+.idstudio .studio-makeup-panel{display:block;min-width:0}
+.idstudio .studio-makeup-tabs{margin:0 64px 4px 0;gap:5px}
+.idstudio .studio-makeup-tabs button{min-height:32px;padding:4px 12px;font-size:12px}
+.idstudio .studio-makeup-choices{gap:6px;padding:2px 0 4px;align-items:flex-start}
+.idstudio .studio-makeup-choices button{flex:0 0 86px;min-height:0;padding:4px;border-radius:8px}
+.idstudio .studio-makeup-choices img{width:72px;height:72px;max-width:100%;margin:0 auto;border-radius:6px}
+.idstudio .studio-makeup-choices small{margin:4px 0 0;min-height:26px;font-size:10px;line-height:13px}
+.idstudio .studio-makeup-intensity{width:100%;max-width:360px;margin:5px 0 0;font-size:11px}
+.idstudio .studio-makeup-intensity span{margin:0;line-height:16px}
+.idstudio .studio-makeup-intensity input{height:28px;min-height:28px;padding:0}
+@media(max-width:640px){
+ .idstudio .studio-makeup-choices button{flex-basis:76px}
+ .idstudio .studio-makeup-choices img{width:64px;height:64px}
+ .idstudio .studio-picker-drawer:has(.studio-makeup-panel){max-height:min(34dvh,216px)}
+}
