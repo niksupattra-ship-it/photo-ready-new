@@ -363,6 +363,22 @@ const aiFinishHandler=async(req,res)=>{
             .png().toBuffer();
         }
       }
+      // V241: long loose references in the picker carry oversized side panels.
+      // Narrow only the hairstyle reference horizontally (keep canvas, crown,
+      // part and length); the source PNG on disk remains untouched.
+      const hairRule=selectedHairstyleRule(hairId);
+      const longLooseFemaleHair=!maleHairReplacement&&/\blong\b/i.test(hairRule)&&/\b(loose|straight)\b/i.test(hairRule)&&!/fully gathered/i.test(hairRule);
+      if(longLooseFemaleHair){
+        const refMeta=await sharp(hairBuf,{failOn:"error"}).metadata();
+        if(refMeta.width&&refMeta.height){
+          const targetWidth=Math.max(1,Math.round(refMeta.width*.82));
+          const left=Math.floor((refMeta.width-targetWidth)/2);
+          hairBuf=await sharp(hairBuf,{failOn:"error"}).ensureAlpha()
+            .resize({width:targetWidth,height:refMeta.height,fit:"fill",kernel:sharp.kernel.lanczos3})
+            .extend({top:0,bottom:0,left,right:refMeta.width-targetWidth-left,background:{r:0,g:0,b:0,alpha:0}})
+            .png().toBuffer();
+        }
+      }
       // Normalize only male reference for image-edit API: auxiliary RGBA
       // cutouts can trigger "invalid image file or mode for image 2".
       if(maleHairReplacement){
@@ -513,12 +529,7 @@ Inspect the complete central and lateral fitting field under the chin before ret
     // sections to reach or fall across the shoulders.
     if(!keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&req.body?.creditKind==='hairstyle'){
       seedreamPrompt += `\n\nFINAL HAIR CLEARANCE — OVERRIDES EVERY EARLIER LENGTH OR REFERENCE INSTRUCTION: Keep the complete visible neck and both shoulders free of hair. No strand, lock, braid, ponytail, loose section, flyaway, shadowed hair mass or hair tip may lie over, touch or cross the neck, clavicles, collar opening, shoulder skin or shoulder/clothing silhouette. For a reference with long hair, preserve its part, crown and long-hair character by routing the long lengths behind the neck and behind the shoulders; keep those lengths entirely behind the body silhouette and out of view on the front. End any visible front side sections above the neck, at or above the jaw/ear level. Do not shorten the head, move the shoulders or change the face to create clearance. Keep the neck skin continuous and visible from jaw to outfit collar. The final portrait must show clean, unobstructed neck and shoulder contours on both sides. This clearance rule applies to every selected hairstyle, including hair-04 and every long loose style, and overrides any earlier direction to let hair reach or fall across the shoulders.`;
-    }
-
-    // V241: apply the existing volume guard on the live single-pass route, then
-    // make thickness the final hair-only adjustment. Keep the selected design.
-    if(!keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&req.body?.creditKind==='hairstyle'){
-      seedreamPrompt += `\n\n${HAIRSTYLE_VOLUME_GUARD}\n\nFINAL THIN-NATURAL HAIR OVERRIDE: Keep the exact selected hairstyle recognizable: preserve its part, fringe, braid or tied/loose arrangement, cut category and intended length. Change only excess bulk and density. Compared with a thick or wig-like rendering, make the hair visibly lighter and about 20% less bulky, with narrow tapered side sections that follow this person's skull and temples. Keep the crown low and close to the real skull; do not widen the head, raise the hairline, enlarge the forehead or change any face pixels. For long straight styles, preserve the long-hair character while rendering slim, naturally separated locks instead of two broad solid curtains; use fine individual strands, subtle gaps, and natural brown/charcoal highlights. Do not shorten long hair, convert it to an updo, or alter the chosen silhouette more than needed to remove excess thickness. The prior neck-and-shoulder clearance rule remains in force: keep front hair clear of the neck and shoulders and route rear lengths behind the body.`;
+      seedreamPrompt += `\n\nFINAL NATURAL WIDTH LOCK: Image 2 is the selected hairstyle reference with its side width already reduced to fit this head. Follow that narrower silhouette; do not expand it back into broad, dense curtains. Preserve the same part, hair direction, cut and intended length. Keep long side sections slim, tapered and naturally separated into visible strands; reduce side bulk only. Do not change the crown, forehead, face, ears, neck or uniform.`;
     }
 
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
