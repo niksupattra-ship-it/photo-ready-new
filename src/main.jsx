@@ -7,6 +7,7 @@ import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
 import'./style.css';
+import './trial-choice.css';
 import {StudioEditor} from './studio-editor.jsx';
 import {makeupMask,blendMakeupPixels} from './makeup-pixels.js';
 import {blendHairlineSeam} from './hairline-seam.js';
@@ -2359,7 +2360,18 @@ function App(){
   setTrialChoice({remaining,purchased:Boolean(data.hasPurchased)});
   return new Promise(resolve=>{trialChoiceResolve.current=resolve});
  };
- const TrialChoiceUI=()=>trialChoice&&<div className="studio-processing-overlay" style={{zIndex:2147483647}}><section className="studio-processing-card" role="dialog" aria-modal="true" aria-label="เครดิตหมดแล้ว"><h2>{trialChoice.purchased?'เครดิตของคุณหมดแล้ว':'สิทธิ์ทดลองฟรีวันนี้หมดแล้ว'}</h2>{trialChoice.purchased?<p>กรุณาบันทึกงานเพื่อเก็บรูปไม่มีลายน้ำ</p>:<p>ทดลองฟรีได้วันละ 2 ครั้ง กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจ</p>}<p>หากรับสิทธิ์ทดลอง รูปเดิมในพื้นที่ทำงานจะถูกแทนที่ด้วยรูปใหม่ที่มีลายน้ำ งานที่บันทึกไว้ยังเปิดกลับมาได้โดยไม่มีลายน้ำ</p><p>{trialChoice.remaining>0?`มีสิทธิ์ทดลองฟรี ${trialChoice.remaining} เครดิต (ลายน้ำ)`:'วันนี้ไม่มีสิทธิ์ทดลองฟรีเหลือแล้ว'}</p><div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}><button onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button>{trialChoice.remaining>0&&<button onClick={()=>chooseTrial(true)}>รับสิทธิ์ทดลอง (ลายน้ำ)</button>}<button onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม</button></div></section></div>;
+ const TrialChoiceUI=()=>trialChoice&&<div className="idprom-credit-notice-overlay" onKeyDown={e=>{if(e.key==='Escape')chooseTrial(false)}}><section className="idprom-credit-notice" role="dialog" aria-modal="true" aria-labelledby="credit-notice-title" aria-describedby="credit-notice-description">
+ <button className="idprom-credit-notice-close" aria-label="ปิด" onClick={()=>chooseTrial(false)}>×</button>
+ <div className="idprom-credit-notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M7 14h3m5 1h2M7 5V3h10v2"/></svg></div>
+ <span className="idprom-credit-notice-brand">IDพร้อม Studio</span>
+ <h2 id="credit-notice-title">{trialChoice.purchased?'เครดิตของคุณหมดแล้ว':'สิทธิ์ทดลองวันนี้หมดแล้ว'}</h2>
+ <p id="credit-notice-description" className="idprom-credit-notice-intro">{trialChoice.purchased?'บันทึกงานไว้ เพื่อเก็บรูปไม่มีลายน้ำ':'ทดลองใช้ฟรีวันละ 2 ครั้ง เริ่มใหม่ได้วันถัดไป'}</p>
+ {trialChoice.purchased&&<div className="idprom-credit-notice-saved"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h12l4 4v14H3V3h2zM7 3v6h10V3M7 21v-8h10v8"/></svg><p>งานที่บันทึกแล้วเปิดกลับมาได้เสมอ<span>รูปเดิมยังไม่มีลายน้ำ แม้เครดิตเหลือ 0</span></p></div>}
+ <div className={'idprom-credit-notice-quota'+(trialChoice.remaining>0?' available':'')}><span>{trialChoice.remaining>0?`มีสิทธิ์ทดลองฟรี ${trialChoice.remaining} เครดิต`:'วันนี้ไม่มีสิทธิ์ทดลองฟรีเหลือแล้ว'}</span>{trialChoice.remaining>0&&<small>รูปมีลายน้ำ</small>}</div>
+ {trialChoice.remaining>0&&<p className="idprom-credit-notice-warning">หากเริ่มทดลอง รูปใหม่ที่มีลายน้ำจะแทนรูปเดิมในพื้นที่ทำงาน กรุณาบันทึกงานเดิมก่อน</p>}
+ <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
+ {trialChoice.remaining>0&&<button className="idprom-credit-notice-trial" onClick={()=>chooseTrial(true)}>ใช้สิทธิ์ทดลองฟรี (ลายน้ำ)</button>}
+ </section></div>;
  const SavedWorkUI=()=> <><TrialChoiceUI/>{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{
   analyticsEvent('idprom_checkout_click',{package_id:packageId});

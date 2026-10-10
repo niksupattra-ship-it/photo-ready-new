@@ -1,0 +1,28 @@
+ .idprom-credit-notice-overlay{position:fixed;inset:0;z-index:2147483647;background:#030c12b8;backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px;font-family:inherit}
+.idprom-credit-notice,.idprom-credit-notice *{box-sizing:border-box}
+.idprom-credit-notice{position:relative;width:440px;max-width:100%;max-height:calc(100dvh - 40px);overflow:auto;padding:30px;background:linear-gradient(145deg,#1b303a,#12232c);border:1px solid #3d6269;border-radius:24px;box-shadow:0 24px 90px #0007;text-align:center;color:#edf7f8}
+.idprom-credit-notice button{font:inherit;cursor:pointer;border:0;transition:background .15s,transform .15s}
+.idprom-credit-notice button:focus-visible{outline:3px solid #99fff0;outline-offset:4px}
+.idprom-credit-notice-close{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:50%;background:#ffffff09;color:#b3cbd0;font-size:25px!important;line-height:1}
+.idprom-credit-notice-close:hover{background:#ffffff17}
+.idprom-credit-notice-icon{width:58px;height:58px;display:grid;place-items:center;margin:0 auto 15px;border-radius:18px;color:#64e2d4;background:#4adccc15;border:1px solid #51d5c92a}
+.idprom-credit-notice-icon svg{width:30px;height:30px}
+.idprom-credit-notice-brand{font-size:11px;letter-spacing:.8px;color:#73c8c1}
+.idprom-credit-notice h2{font-size:24px;line-height:1.4;margin:8px 0 8px;font-weight:750;color:#edf7f8}
+.idprom-credit-notice-intro{font-size:14px;line-height:1.7;color:#b2c8ce;margin:0 0 22px}
+.idprom-credit-notice-saved{display:flex;gap:12px;align-items:center;text-align:left;background:#ffffff05;border:1px solid #ffffff0c;border-radius:13px;padding:14px;margin-bottom:16px}
+.idprom-credit-notice-saved svg{flex-shrink:0;width:23px;height:23px;color:#67ddcd}
+.idprom-credit-notice-saved p{margin:0;font-size:13px;line-height:1.6;color:#deedf0}
+.idprom-credit-notice-saved span{display:block;color:#91b0b8;font-size:12px;margin-top:3px}
+.idprom-credit-notice-quota{font-size:12px;color:#93acb5;margin:8px 0 20px;line-height:1.6}
+.idprom-credit-notice-quota.available{display:flex;gap:8px;align-items:center;justify-content:center;color:#89e8da;margin-bottom:10px;flex-wrap:wrap}
+.idprom-credit-notice-quota small{background:#38504f;color:#c0d5d4;padding:2px 7px;border-radius:6px;font-size:10px}
+.idprom-credit-notice-warning{font-size:12px;line-height:1.8;color:#b3c3c9;margin:0 0 20px;text-align:left}
+.idprom-credit-notice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.idprom-credit-notice-actions button{padding:12px 9px;border-radius:11px;min-height:46px;font-size:13px;font-weight:700}
+.idprom-credit-notice-save{background:#223b46;color:#d5e9ec;border:1px solid #3b5863!important}
+.idprom-credit-notice-buy{background:#53dccc;color:#082d30}
+.idprom-credit-notice-buy:hover{background:#75eddf}
+.idprom-credit-notice-buy span{margin-left:5px}
+.idprom-credit-notice-trial{margin-top:15px;padding:8px;background:transparent;color:#9fc5cb;font-size:12px!important;text-decoration:underline;text-underline-offset:4px;min-height:38px}
+@media(max-width:480px){.idprom-credit-notice-overlay{padding:16px}.idprom-credit-notice{padding:26px 20px 22px;border-radius:20px;max-height:calc(100dvh - 32px)}.idprom-credit-notice h2{font-size:22px}.idprom-credit-notice-intro{font-size:13px}.idprom-credit-notice-actions{gap:8px}}
