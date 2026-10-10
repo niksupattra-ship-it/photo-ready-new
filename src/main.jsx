@@ -1,3 +1,4 @@
+import {calculateHairRootTarget} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
 import PromptpayPanel from './promptpay-panel.jsx';
 import {ProcessingCloseButton} from './processing-close-button.jsx';
@@ -1808,7 +1809,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['neck-input-v2',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['measured-hair-root-v1',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -1829,6 +1830,13 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  return cached.value;
 }
 let acceptedPaidTrial=false;
+async function measuredHairRootTarget(blob){
+ const url=URL.createObjectURL(blob);
+ try{const image=await loadImage(url),face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  if(!face)throw Error('ไม่พบใบหน้าสำหรับวัดตำแหน่งรากผม กรุณาใช้ภาพหน้าตรง');
+  return calculateHairRootTarget({brow:{x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2},nose:{x:face[2].x,y:face[2].y},chin:{x:face[152].x,y:face[152].y}});
+ }finally{URL.revokeObjectURL(url)}
+}
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
@@ -1836,6 +1844,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const aiInput=await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
+ if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
  fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
@@ -1992,6 +2001,7 @@ async function prepareHairEdit(masterBlob){
 // V204: provider receives one immutable portrait, one exact style and one hard mask.
 async function requestHairstyleEngine(master,id){
  const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
+ fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(master)));
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal,headers:walletHeaders()});
   if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text||'สิทธิ์เปลี่ยนทรงผมหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม')}updateCreditsFromResponse(r);return await r.blob();
