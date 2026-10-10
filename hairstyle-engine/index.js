@@ -22,7 +22,7 @@ const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
 function cacheKey(portrait,reference,hairId,provider){
- return crypto.createHash('sha256').update('v238|single-pass-coherent-portrait|gpt-image-1.5|high|1024x1536|png|')
+ return crypto.createHash('sha256').update('v240|single-pass-coherent-portrait-neck-shoulder-clear|gpt-image-1.5|high|1024x1536|png|')
  .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
 }
 export async function editHairstyle({portrait,hairId,hairRootTarget,root=process.cwd(),env=process.env,fetcher=fetch}){
@@ -64,7 +64,9 @@ REFERENCE STYLE FIDELITY: ${styleInstruction} Preserve the selected parting, fri
 
 IDENTITY: Keep exactly the same person from Image 1: original eyes, brows, nose, mouth, facial proportions, jaw, chin, expression, skin tone, pores and distinguishing details. Do not beautify, smooth skin, add makeup, change age, reshape features, widen eyes, or change face scale. Do not borrow the reference model's face. Preserve head orientation, camera perspective and framing. Keep the visible natural neck, with no added clothing or shoulders beyond the source crop.
 
-PHOTO REALISM: Natural individual hair strands, subtle realistic highlights, restrained thickness, physically plausible shadows at the roots and temples, original photographic grain and lighting. No plastic shine, flat dark helmet, artificial edges or exaggerated studio retouching. Output ONE finished portrait in a single generation with no additional compositing.`;
+PHOTO REALISM: Natural individual hair strands, subtle realistic highlights, restrained thickness, physically plausible shadows at the roots and temples, original photographic grain and lighting. No plastic shine, flat dark helmet, artificial edges or exaggerated studio retouching.
+
+FINAL NECK AND SHOULDER CLEARANCE — OVERRIDES EVERY EARLIER STYLE-LENGTH INSTRUCTION: Keep the complete visible neck and both shoulders free of hair. No strand, braid, ponytail, loose section, flyaway, shadowed hair mass or hair tip may lie over, touch or cross the neck, clavicles, collar opening, shoulder skin or shoulder/clothing silhouette. For long hairstyles, route the long lengths entirely behind the neck and shoulders, behind the body silhouette and out of view from the front. End any visible front side sections above the neck, at or above jaw/ear level. Preserve the chosen part, crown and long-hair character without allowing hair to cover the neck or shoulders. Keep continuous visible neck skin from jaw to outfit collar and clean shoulder contours on both sides. This rule applies to every style, including hair-04, and overrides any reference or earlier instruction to let hair reach or fall across the shoulders. Output ONE finished portrait in a single generation with no additional compositing.`;
  form.append('prompt',singlePassPrompt);
  form.append('image[]',new Blob([portrait.buffer],{type:portrait.mimetype||'image/png'}),'portrait.png');
  form.append('image[]',new Blob([referenceBytes],{type:'image/png'}),`${hairId}.png`);
