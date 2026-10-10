@@ -2340,7 +2340,31 @@ function App(){
  saveAccountWork.currentWorkId=()=>savedWorkIdRef.current;
  const openAccountWork=async work=>{await refreshWallet();const project=work.project;const source=project.compareSource?await(await fetch(project.compareSource)).blob():null;setRestoredSourcePhoto(source);studioOriginRef.current={starter:true,placement:project.placement};savedWorkIdRef.current=work.id;setSavedWorkUnlocked(work.unlocked===true);setPurchaseEditing(false);setSessionEditJob('');setStudioData(project.layers);setSavedWorkRevision(v=>v+1);setScreen('studio')};
  const SavedWorkUI=()=>savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>;
- const startCheckout=async(packageId,authenticated=false)=>{analyticsEvent('idprom_checkout_click',{package_id:packageId});if(!authenticated&&!authToken()){setPendingPackage(packageId);setAuthMode('register');setAuthMsg('');setAuthOpen(true);return}setPayBusy(true);setPayMsg('');try{await refreshWallet();const r=await fetch('/api/payments/checkout',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json'},body:JSON.stringify({packageId,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});const data=await r.json();if(r.status===401){localStorage.removeItem(AUTH_TOKEN_KEY);setPendingPackage(packageId);setAuthOpen(true);throw Error(data.message||'กรุณาเข้าสู่ระบบก่อนชำระเงิน')}if(!r.ok)throw Error(data.error||'สร้างรายการชำระเงินไม่สำเร็จ');await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null});analyticsCheckout(packageId,data.url);location.href=data.url}catch(e){analyticsEvent('idprom_checkout_error',{error_stage:'checkout'});setPayMsg(e.message)}finally{setPayBusy(false)}};
+ const startCheckout=async(packageId,authenticated=false)=>{
+  analyticsEvent('idprom_checkout_click',{package_id:packageId});
+  if(!authenticated&&!authToken()){setPendingPackage(packageId);setAuthMode('register');setAuthMsg('');setAuthOpen(true);return}
+  setPayBusy(true);setPayMsg('');let stage='refresh_wallet',httpStatus=0;
+  const attemptId=globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  try{
+   await refreshWallet();
+   if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
+   stage='save_draft';
+   try{await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null})}
+   catch(error){const failure=Error('บันทึกงานก่อนชำระเงินไม่ได้ กรุณาเพิ่มพื้นที่ว่างหรือเปิดเว็บใน Chrome / Safari แล้วลองอีกครั้ง');failure.code=error?.name||'draft_save_failed';throw failure}
+   stage='create_session';
+   const r=await fetch('/api/payments/checkout',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json','X-Checkout-Attempt':attemptId},body:JSON.stringify({packageId,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});
+   httpStatus=r.status;stage='read_response';const data=await r.json();
+   if(r.status===401){localStorage.removeItem(AUTH_TOKEN_KEY);setPendingPackage(packageId);setAuthMode('login');setAuthMsg(data.message||'กรุณาเข้าสู่ระบบใหม่');setAuthOpen(true)}
+   if(!r.ok){stage='create_session';const failure=Error(data.message||data.error||'สร้างรายการชำระเงินไม่สำเร็จ');failure.code=data.error;throw failure}
+   stage='redirect';const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw Error('ไม่พบลิงก์ชำระเงินที่ถูกต้อง กรุณาลองใหม่');
+   analyticsCheckout(packageId,target.href);location.href=target.href;
+  }catch(e){
+   const code=String(e.code||e.name||'checkout_failed').slice(0,80);
+   analyticsEvent('idprom_checkout_error',{error_stage:stage,error_code:code,http_status:httpStatus,package_id:packageId,attempt_id:attemptId});
+   void fetch('/api/payments/checkout-diagnostic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({attemptId,stage,code,httpStatus,packageId}),keepalive:true}).catch(()=>{});
+   setPayMsg(e.message||'เปิดหน้าชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง');
+  }finally{setPayBusy(false)}
+ };
  useEffect(()=>{refreshWallet().then(activatePrivateTrial);const onRights=e=>setRights(previous=>({...previous,...normalizedRights(e.detail||{})})),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-rights',onRights);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){setPurchaseEditing(true);const sessionId=q.get('session_id');setPayMsg('ชำระเงินสำเร็จ กำลังเพิ่มสิทธิ์…');(async()=>{try{await restorePurchaseDraft();await refreshWallet();if(sessionId){const r=await fetch('/api/payments/confirm',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sessionId})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบการชำระเงินไม่สำเร็จ');setRights(previous=>({...previous,...normalizedRights(data)}));setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');if(data.ok===true)analyticsPurchase(sessionId)}else{await refreshWallet();setPayMsg('ชำระเงินสำเร็จ')}}catch(e){setPayMsg(e.message||'กำลังรอการยืนยันการชำระเงิน');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000)}})();history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){restorePurchaseDraft();analyticsEvent('idprom_checkout_cancel');setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy)}},[]);
  useEffect(()=>{if(outputJobId&&rights.unlockedJobIds.includes(outputJobId)){currentOutputTrialRef.current=false;studioTrialRef.current=false;setTrialPreview(false)}},[outputJobId,rights.unlockedJobIds]);
 
