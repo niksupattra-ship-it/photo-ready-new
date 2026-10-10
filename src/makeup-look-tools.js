@@ -2,12 +2,13 @@
 export function createMakeupLookCache(){
  const portraits=new Map();
  return {
+  peek(headId,base,look){const record=portraits.get(headId);return record?.base===base?record.results.get(look):undefined},
   async get(headId,base,look,generate){
    let record=portraits.get(headId);
-   if(!record||record.base!==base){record={base,looks:new Map()};portraits.set(headId,record);while(portraits.size>2)portraits.delete(portraits.keys().next().value)}
+   if(!record||record.base!==base){record={base,looks:new Map(),results:new Map()};portraits.set(headId,record);while(portraits.size>2)portraits.delete(portraits.keys().next().value)}
    if(record.looks.has(look))return record.looks.get(look);
    const pending=Promise.resolve().then(generate);record.looks.set(look,pending);
-   try{return await pending}catch(error){if(record.looks.get(look)===pending)record.looks.delete(look);throw error}
+   try{const result=await pending;record.results.set(look,result);return result}catch(error){if(record.looks.get(look)===pending)record.looks.delete(look);throw error}
   },
  };
 }

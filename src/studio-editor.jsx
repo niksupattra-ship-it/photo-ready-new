@@ -323,18 +323,21 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(makeupRequestRef.current||processActive||assetBusy||!ready||!onMakeup||!makeupLook(lookId))return;
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head){setStatus('เพิ่มรูปและประมวลผลก่อนใช้เมคอัพ');return}if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนแต่งเมคอัพ');return}
   if(head.makeupStyles?.look===lookId&&(head.makeupIntensity??100)===100&&!head.mask&&!head.warpSource)return;
+  const asset=assets.current.get(head.id);
+  const base=head.makeupBaseSource&&!head.mask&&!head.warpSource?head.makeupBaseSource:asset.buffer.toDataURL('image/png');
+  const cachedFull=makeupLookCacheRef.current.peek(head.id,base,lookId)||(head.makeupStyles?.look===lookId&&head.makeupBaseSource===base?head.makeupFullSource:null);
+  const reused=Boolean(cachedFull);
   const operation=new AbortController();makeupOperationRef.current=operation;setMakeupCancelled(false);
-  makeupRequestRef.current=true;startMakeupProgress();setMakeupBusy(true);setStatus('กำลังแต่งโทน'+makeupLook(lookId).name+'…');
+  makeupRequestRef.current=true;if(reused)setAssetBusy(true);else{startMakeupProgress();setMakeupBusy(true)}setStatus(reused?'กำลังเปลี่ยนเมคอัพเดิม…':'กำลังแต่งโทน'+makeupLook(lookId).name+'…');
   try{
    flushTransforms();paintScene(canvasRef.current.getContext('2d'),state.current,assets.current);
-   const previous=historySnapshot(),asset=assets.current.get(head.id);
-   const base=head.makeupBaseSource&&!head.mask&&!head.warpSource?head.makeupBaseSource:asset.buffer.toDataURL('image/png');
-   const full=await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal}));
-   setMakeupProgress(v=>Math.max(v,95));
+   const previous=historySnapshot();
+   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal}));
+   if(!reused)setMakeupProgress(v=>Math.max(v,95));
    const source=await mixMakeupLookSources(base,full,100);
-   setMakeupProgress(v=>Math.max(v,98));
-   if(await commitMakeupSource(head,previous,source,base,full,lookId,100,operation.signal)){await finishMakeupProgress();setStatus('แต่งโทน'+makeupLook(lookId).name+'แล้ว · ไม่หักเครดิต')}
-  }catch(e){if(mounted.current)setStatus(operation.signal.aborted?'ยกเลิกการประมวลผลแล้ว · เก็บภาพเดิมไว้':e.message||'เมคอัพไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{stopMakeupProgress();if(makeupOperationRef.current===operation)makeupOperationRef.current=null;makeupRequestRef.current=false;if(mounted.current)setMakeupBusy(false)}
+   if(!reused)setMakeupProgress(v=>Math.max(v,98));
+   if(await commitMakeupSource(head,previous,source,base,full,lookId,100,operation.signal)){if(!reused)await finishMakeupProgress();setStatus('แต่งโทน'+makeupLook(lookId).name+'แล้ว · ไม่หักเครดิต')}
+  }catch(e){if(mounted.current)setStatus(operation.signal.aborted?'ยกเลิกการประมวลผลแล้ว · เก็บภาพเดิมไว้':e.message||'เมคอัพไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{stopMakeupProgress();if(makeupOperationRef.current===operation)makeupOperationRef.current=null;makeupRequestRef.current=false;if(mounted.current){if(reused)setAssetBusy(false);else setMakeupBusy(false)}}
  };
  // Preview never changes the saved source or creates an undo step.
  const makeupPreview=useRef({frame:null,token:0,surface:null});
