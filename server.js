@@ -55,6 +55,20 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
 });
 app.use('/api/saved-work',express.json({limit:"64mb"}));
 app.use(express.json({limit:"64kb"}));
+// Whitelisted diagnostics never include customer photos, tokens or raw browser errors.
+const checkoutDiagnosticWindow=new Map();
+app.post('/api/payments/checkout-diagnostic',(req,res)=>{
+ const now=Date.now(),key=req.ip;for(const [ip,entry] of checkoutDiagnosticWindow)if(now-entry.start>60000)checkoutDiagnosticWindow.delete(ip);
+ if(!checkoutDiagnosticWindow.has(key)&&checkoutDiagnosticWindow.size>=10000)return res.sendStatus(429);
+ const entry=checkoutDiagnosticWindow.get(key)||{start:now,count:0};checkoutDiagnosticWindow.set(key,entry);if(++entry.count>20)return res.sendStatus(429);
+ const clean=value=>String(value||'').replace(/[^a-zA-Z0-9_:.\-]/g,'').slice(0,80);
+ const stage=clean(req.body?.stage);if(!['refresh_wallet','save_draft','create_session','read_response','redirect'].includes(stage))return res.sendStatus(400);
+ console.warn('IDPROM checkout:',JSON.stringify({event:'client_failure',attemptId:clean(req.body?.attemptId),stage,code:clean(req.body?.code),httpStatus:Number(req.body?.httpStatus)||0,packageId:clean(req.body?.packageId)}));res.sendStatus(204);
+});
+app.use('/api/payments/checkout',(req,res,next)=>{
+ const attemptId=String(req.get('X-Checkout-Attempt')||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
+ const json=res.json.bind(res);res.json=body=>{console.info('IDPROM checkout:',JSON.stringify({event:res.statusCode>=400?'server_rejected':'session_created',attemptId,status:res.statusCode,code:res.statusCode>=400?String(body?.error||'checkout_failed').slice(0,120):undefined,packageId:String(req.body?.packageId||'').slice(0,40)}));return json(body)};next();
+});
 // Signed-in requests always use the account wallet, including from another device.
 app.use(async(req,res,next)=>{try{if(req.get('authorization')){const user=await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบใหม่'});req.accountUser=user}next()}catch(e){next(e)}});
 
@@ -94,8 +108,12 @@ app.post('/api/payments/checkout',async(req,res)=>{
  try{
   const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
-  const jobId=String(req.body?.jobId||'');
-  if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_'))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});}
+  let jobId=String(req.body?.jobId||'');
+  if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_')){
+   if(offer.id!=='159_v4')return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});
+   // Credit-only purchase can continue; never unlock an invalid or foreign image.
+   console.warn('IDPROM checkout:',JSON.stringify({event:'invalid_trial_ignored',packageId:offer.id}));jobId='';
+  }}
   if(offer.requiresImage&&!jobId)return res.status(400).json({error:'trial_image_required',message:'ทดลองสร้างรูปก่อน แล้วเลือก 89 บาทเพื่อรับรูปนั้น'});
   const base=APP_URL||`${req.protocol}://${req.get('host')}`;
   const session=await stripePost('checkout/sessions',{
