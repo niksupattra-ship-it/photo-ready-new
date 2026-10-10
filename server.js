@@ -1,3 +1,4 @@
+import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
 import {HAIRSTYLE_FIT_POLICY} from './hairstyle-fit-policy.js';
 import {selectedHairstyleRule} from './hairstyle-rules.js';
@@ -13,7 +14,7 @@ import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
-import {registerUser,loginUser,authUser,walletHasAccount} from "./auth-store.js";
+import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
 import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
 
@@ -57,6 +58,7 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
 });
 app.use('/api/saved-work',express.json({limit:"64mb"}));
 app.use(express.json({limit:"64kb"}));
+registerPasswordResetApi(app,{createPasswordReset,resetPassword});
 // Whitelisted diagnostics never include customer photos, tokens or raw browser errors.
 const checkoutDiagnosticWindow=new Map();
 app.post('/api/payments/checkout-diagnostic',(req,res)=>{
