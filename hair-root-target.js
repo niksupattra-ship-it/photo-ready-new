@@ -12,8 +12,8 @@ export function calculateHairRootTarget({brow,nose,chin,forehead}){
   // Landmark 10 estimates the upper forehead. Keep roots close to that
   // subject-specific boundary while retaining the nose-to-chin construction
   // as the central target. The band scales with the subject's own face.
-  const minY=Math.max(0,forehead.y-faceUnit*.04);
-  const maxY=Math.min(1,forehead.y+faceUnit*.12,brow.y-faceUnit*.35);
+  const minY=Math.max(0,forehead.y+faceUnit*.04);
+  const maxY=Math.min(1,forehead.y+faceUnit*.16,brow.y-faceUnit*.35);
   if(maxY>=minY){
    bounds={minY,maxY};
    target={x:rawTarget.x,y:Math.max(minY,Math.min(maxY,rawTarget.y))};

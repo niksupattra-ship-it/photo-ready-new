@@ -260,11 +260,10 @@
     "public/assets/studio-thumbnails/2b931c88d74752f17741.webp",
     "public/assets/studio-thumbnails/d00ed22eb57f975267ec.webp",
     "test-v240-neck-shoulder-clearance.mjs",
-    "test-v241-face-root-band.mjs"
+    "test-v242-png-hair-fit.mjs"
   ],
   "unchanged_original_files": 265,
   "protected_sha256": {
-    "server.js": "77b2044bf198dfd897e7131b8c302487a6601a54a87560063643b42fb371f755",
     "payment-store.js": "3d072c1c6a52b4f3b5476c02513bf0a778e6d316eb58c112ea8eae1e5a621267",
     "job-store.js": "2f3d7e2cdf8d91bb82ff23e07b2c801df80bc1f4cf35c9570b99af9836ef5b8e",
     "private-trial.js": "4be60a8da0ea994995d2c5451dd2f5dcfbaee0056b0b2cb46fb4d4f978672e82",
