@@ -1809,7 +1809,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-hair-root-v1',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['single-pass-hair-live-v239',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -2984,7 +2984,8 @@ function App(){
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
+     // Hair and face are generated together by the active AI job. Do not repaint skin or blend a second hairline.
+     nextMaster=transparent;
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
@@ -3032,7 +3033,8 @@ function App(){
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
+     // Hair and face are generated together by the active AI job. Do not repaint skin or blend a second hairline.
+     nextMaster=transparent;
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
