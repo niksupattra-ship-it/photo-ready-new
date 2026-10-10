@@ -511,7 +511,7 @@ Inspect the complete central and lateral fitting field under the chin before ret
       seedreamPrompt+=`\nREGION GUIDE: Image ${refs.length} is a black-and-white edit guide, not a portrait. Black means editable hair/upper-forehead field; white means protected original pixels. Use the selected hairstyle as inspiration to create new photographic hair fitted to image 1; do not copy the reference head dimensions. The application restores protected pixels exactly.`;
       try{
         const g=JSON.parse(req.body?.hairFitGeometry||'null');
-        if(g&&['cx','browY','rootY','faceWidth','W','H','crownRatio'].every(k=>typeof g[k]==='number'&&Number.isFinite(g[k]))&&g.W>0&&g.H>0&&g.rootY>=0&&g.rootY<g.browY&&g.browY<g.H&&g.cx>=0&&g.cx<g.W&&g.faceWidth>0&&g.faceWidth<g.W&&g.crownRatio>=.2&&g.crownRatio<=.4){
+        if(g&&['cx','browY','rootY','faceWidth','W','H','crownRatio'].every(k=>typeof g[k]==='number'&&Number.isFinite(g[k]))&&g.W>0&&g.H>0&&g.rootY>=0&&g.rootY<g.browY&&g.browY<g.H&&g.cx>=0&&g.cx<g.W&&g.faceWidth>0&&g.faceWidth<g.W&&g.crownRatio>=.15&&g.crownRatio<=.4){
           const pct=(v,d)=>(100*v/d).toFixed(2);
           seedreamPrompt+=`\nMEASURED FIT: central scalp root at x=${pct(g.cx,g.W)}%, y=${pct(g.rootY,g.H)}% of image 1. Brow center y=${pct(g.browY,g.H)}%. Face width=${pct(g.faceWidth,g.W)}% of frame width. Keep crown height above the measured root within ${pct(g.faceWidth*g.crownRatio,g.H)}% of frame height. Avoid a tall inflated crown or an oversized wig. Keep the original face size and all features fixed.`;
         }
