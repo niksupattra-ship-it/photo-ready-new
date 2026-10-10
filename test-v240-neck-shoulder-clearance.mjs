@@ -20,7 +20,7 @@ assert.match(server.slice(ruleAt),/including hair-04 and every long loose style/
   'long reference styles must not override the clear-neck requirement');
 assert.match(server.slice(ruleAt),/entirely behind the body silhouette and out of view on the front/,
   'long sections must be routed behind the shoulders');
-assert.match(client,/seedream-clean-head-png-hair-v243/,
+assert.match(client,/seedream-clean-head-png-hair-v244/,
   'old cached hairstyle outputs must not bypass the PNG hair placement cache key');
 assert.match(engine,/FINAL NECK AND SHOULDER CLEARANCE — OVERRIDES EVERY EARLIER STYLE-LENGTH INSTRUCTION/,
   'legacy hairstyle endpoint must use the same clearance rule');

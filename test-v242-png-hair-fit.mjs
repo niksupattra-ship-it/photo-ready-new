@@ -27,11 +27,11 @@ const client=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
 const server=fs.readFileSync(new URL('./server.js',import.meta.url),'utf8');
 assert.match(client,/forehead:\{x:face\[10\]\.x,y:face\[10\]\.y\}/,
   'live hairstyle processing must pass the detected forehead landmark');
-assert.match(client,/seedream-clean-head-png-hair-v243/,
+assert.match(client,/seedream-clean-head-png-hair-v244/,
   'old cached results must not bypass the updated PNG placement path');
 assert.match(client,/cleanHeadOnly/,'the selected-style request must ask Seedream for a clean scalp');
-assert.match(client,/const cleanHead=await makeCleanHeadMaster\(aiHeadNeck,originalFile\);[\s\S]{0,100}localHairstyleOnCleanMaster\(cleanHead\.blob,processedHair\)/,
-  'restore original face and neck pixels before fitting the transparent PNG');
+assert.match(client,/async function fitSelectedPngHairstyle\(aiHeadNeck,originalBlob,hairId\)[\s\S]{0,450}makeCleanHeadMaster\(aiHeadNeck,originalBlob\)[\s\S]{0,100}localHairstyleOnCleanMaster\(cleanHead\.blob,hairId\)/,
+  'shared fitting path must restore original face and neck before placing the PNG');
 assert.match(client,/Keep the immutable visible skin \(face AND neck\) independently of the AI\./,
   'clean-head restoration must preserve original neck skin');
 assert.match(client,/processedHair&&HAIRSTYLE_RULES\[processedHair\][\s\S]{0,100}\?originalHeadNeckTransparent[\s\S]{0,80}:await optionalHealthySkin10/,
@@ -39,6 +39,10 @@ assert.match(client,/processedHair&&HAIRSTYLE_RULES\[processedHair\][\s\S]{0,100
 assert.match(client,/mapAlignedFacePoint/,'the fitted PNG must be anchored to measured face landmarks');
 assert.match(server,/req\.body\?\.cleanHeadOnly==="1"/,
   'the server must honor the clean-head request while preserving the selected style ID');
-assert.match(client,/localHairstyleOnCleanMaster\(cleanHead\.blob,processedHair\)[\s\S]{0,180}removeBackgroundBlob\(fittedAiHead\)/,
-  'restore original skin, fit PNG, then remove background before final assembly');
-console.log('V242 deterministic PNG hairstyle fitting checks passed');
+assert.match(client,/const fittedAiHead=await fitSelectedPngHairstyle\(aiHeadNeck,originalFile,processedHair\);[\s\S]{0,100}removeBackgroundBlob\(fittedAiHead\)/,
+  'first processing must use the shared fitter before background removal');
+assert.equal((client.match(/const fittedHair=await fitSelectedPngHairstyle\(aiHeadNeck,firstUploadedPhoto,id\|\|''\);/g)||[]).length,2,
+  'both hairstyle-change routes must fit the selected PNG before displaying the result');
+assert.equal((client.match(/nextMaster=id&&HAIRSTYLE_RULES\[id\]\?await finishHairlineSeam\(transparent\):transparent;/g)||[]).length,2,
+  'both hairstyle-change routes must preserve the restored face and only finish the hairline');
+console.log('V244 PNG hairstyle processing routes passed');
