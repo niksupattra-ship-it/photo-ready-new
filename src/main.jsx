@@ -1,4 +1,3 @@
-import {assembleSalonHair,checkSalonFit} from './salon-hair-layer.js';
 import {calculateHairRootTarget} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
 import PromptpayPanel from './promptpay-panel.jsx';
@@ -1790,63 +1789,12 @@ async function templateNecklineProfile(templatePath){
  })();necklineProfileCache.set(templatePath,pending)}
  return pending;
 }
-const salonPanelCache=new WeakMap();
-async function splitSalonPanels(blob){
- if(salonPanelCache.has(blob))return salonPanelCache.get(blob);
- const pending=(async()=>{const url=URL.createObjectURL(blob);try{
-  const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
-  const c=canvasFor(3,1),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
-  const marker=x.getImageData(0,0,3,1).data,expected=[73,68,80,255,83,65,76,255,79,78,49,255];
-  if(W%3||H<2||expected.some((v,i)=>marker[i]!==v))return null;
-  return [0,1,2].map(i=>{const panel=canvasFor(W/3,H-1);panel.getContext('2d').drawImage(im,i*W/3,1,W/3,H-1,0,0,W/3,H-1);return panel});
- }finally{URL.revokeObjectURL(url)}})();salonPanelCache.set(blob,pending);return pending;
-}
-async function salonFaceBase(blob){const panels=await splitSalonPanels(blob);return panels?canvasPng(panels[0]):blob}
-async function composeSalonPortrait(packet,faceBase){
- const panels=await splitSalonPanels(packet);if(!panels)throw Error('ไม่พบชั้นผมที่แยกจากใบหน้า — คงภาพเดิม');
- const url=URL.createObjectURL(faceBase);
- try{
-  const base=await loadImage(url),W=base.naturalWidth,H=base.naturalHeight,lm=await getLandmarker(),face=lm.detect(base).faceLandmarks?.[0];
-  if(!face)throw Error('ไม่พบใบหน้าฐาน');
-  const align=panel=>{const f=lm.detect(panel).faceLandmarks?.[0];if(!f)throw Error('ตรวจตำแหน่งชั้นผมไม่สำเร็จ');return alignFaceCanvas(panel,f,face,W,H)};
-  const scalp=align(panels[1]),styled=align(panels[2]);
-  const [oldHair,newHair,skin,body,bareHair]=await Promise.all([semanticClassMask(base,W,H,[1]),semanticClassMask(styled,W,H,[1]),semanticClassMask(base,W,H,[3]),semanticClassMask(base,W,H,[2,4]),semanticClassMask(scalp,W,H,[1])]);
-  if(!oldHair||!newHair||!skin||!body||!bareHair)throw Error('โมเดลแยกชั้นผมไม่พร้อม');
-  const root=calculateHairRootTarget({brow:{x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2},nose:face[2],chin:face[152]});
-  const fw=Math.hypot((face[454].x-face[234].x)*W,(face[454].y-face[234].y)*H);
-  const read=c=>c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const barePixels=read(bareHair);let remainingHair=0;for(let y=0;y<root.brow.y*H;y++)for(let x=Math.max(0,Math.floor(root.brow.x*W-fw*.65));x<Math.min(W,root.brow.x*W+fw*.65);x++)if(barePixels[(y*W+x)*4+3]>128)remainingHair++;
-  if(remainingHair>fw*fw*.025)throw Error('ลบผมเก่าไม่ครบ — ไม่ใช้ภาพนี้');
-  const rawHair=read(newHair),hasFringe=(()=>{let n=0;for(let y=Math.floor(root.brow.y*H-fw*.1);y<root.brow.y*H;y++)for(let x=Math.floor(root.brow.x*W-fw*.1);x<root.brow.x*W+fw*.1;x++)if(x>=0&&x<W&&y>=0&&y<H&&rawHair[(y*W+x)*4+3]>200)n++;return n>fw*fw*.006})();
-  checkSalonFit(rawHair,W,H,{cx:root.brow.x*W,browY:root.brow.y*H,rootY:root.target.y*H,faceWidth:fw},hasFringe);
-  // Soften only the strand matte, not a face patch or rectangular edit area.
-  const matte=canvasFor(W,H),mx=matte.getContext('2d');mx.filter=`blur(${Math.max(1,W/512)}px)`;mx.drawImage(newHair,0,0);mx.filter='none';
-  const hairAlpha=read(matte),hairPixels=read(styled),visibleSkin=read(skin),bodyPixels=read(body);
-  const contour=read(faceProtection(face,W,H)),protectedSkin=new Uint8ClampedArray(W*H*4);
-  const browGuard=Math.min(...[70,63,105,66,107,336,296,334,293,300].map(i=>face[i].y*H))-fw*.025;
-  for(let i=0;i<W*H;i++){
-   const j=i*4,y=Math.floor(i/W);
-   protectedSkin[j+3]=(bodyPixels[j+3]>128||(y>=browGuard&&(visibleSkin[j+3]>128||contour[j+3]>0)))?255:0;
-   // A soft semantic edge must never turn light forehead skin or blue into hair.
-   if(rawHair[j+3]<128){const r=hairPixels[j],g=hairPixels[j+1],b=hairPixels[j+2];if(Math.max(r,g,b)>170||b>r+35)hairAlpha[j+3]=0;}
-  }
-  const transparentScalp=await removeBackgroundBlob(await canvasPng(scalp)),su=URL.createObjectURL(transparentScalp);
-  try{
-   const si=await loadImage(su),sc=canvasFor(W,H);sc.getContext('2d').drawImage(si,0,0,W,H);
-   const bc=canvasFor(W,H),bx=bc.getContext('2d',{willReadFrequently:true});bx.drawImage(base,0,0);
-   const original=bx.getImageData(0,0,W,H),result=assembleSalonHair({base:original.data,scalp:read(sc),hair:hairPixels,oldHair:read(oldHair),newHair:hairAlpha,protectedSkin,visibleSkin});
-   for(let j=0;j<result.length;j+=4)if(protectedSkin[j+3])for(let k=0;k<4;k++)if(result[j+k]!==original.data[j+k])throw Error('ใบหน้าฐานเปลี่ยน — ไม่ใช้ภาพนี้');
-   original.data.set(result);bx.putImageData(original,0,0);
-   return {master:await canvasPng(bc),scalp:await canvasPng(panels[1])};
-  }finally{URL.revokeObjectURL(su)}
- }finally{URL.revokeObjectURL(url)}
-}
 const faceMetricsCache=new WeakMap();
 async function portraitFaceMetrics(blob){
  if(faceMetricsCache.has(blob))return faceMetricsCache.get(blob);
  const pending=(async()=>{const url=URL.createObjectURL(blob);try{
-  const image=(await splitSalonPanels(blob))?.[0]||await loadImage(url),model=await getLandmarker();
-  return faceProportions(model.detect(image).faceLandmarks?.[0],image.naturalWidth||image.width,image.naturalHeight||image.height);
+  const image=await loadImage(url),model=await getLandmarker();
+  return faceProportions(model.detect(image).faceLandmarks?.[0],image.naturalWidth,image.naturalHeight);
  }finally{URL.revokeObjectURL(url)}})();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
@@ -1861,9 +1809,9 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['salon-hair-v1',scope,digest,hairId||'original',neckline,Boolean(options.salonHair)]);
+ const key=JSON.stringify(['measured-hair-root-v1',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
- if(!options.salonHair)await checkPortraitProportions(originalFile,cached.value);
+ await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
   // Never reuse an old watermark decision or grant rights from memory alone.
@@ -1893,12 +1841,11 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
  const operation=activeProcessOperation;assertProcessActive(operation);
- const aiInput=options.salonHair?new File([originalFile],'fixed-face-base.png',{type:'image/png'}):await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
+ const aiInput=await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
- if(options.salonHair){fd.append('mode','salon-change');if(options.scalpBase)fd.append('mask',options.scalpBase,'scalp-base.png')}else {fd.append('neckInputPrepared','1');if(hairId&&hairId!=='original')fd.append('mode','salon-initial')}
-
+ fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
@@ -2450,7 +2397,7 @@ function App(){
    if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
    stage='save_draft';
    let draftStorage;
-   try{draftStorage=await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,salonFaceBase:initialProcessedMasterRef.current,salonScalpBase:salonScalpBaseRef.current,classicLock:editCache.current?.lock||null},{allowMemoryFallback:true})}
+   try{draftStorage=await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null},{allowMemoryFallback:true})}
    catch(error){const failure=Error('บันทึกงานก่อนชำระเงินไม่ได้ กรุณาเพิ่มพื้นที่ว่างหรือเปิดเว็บใน Chrome / Safari แล้วลองอีกครั้ง');failure.code=error?.name||'draft_save_failed';throw failure}
    if(draftStorage?.persistent===false){
     analyticsEvent('idprom_checkout_backup_warning',{error_stage:'save_draft',error_code:'memory_backup',package_id:packageId,attempt_id:attemptId});
@@ -2584,7 +2531,6 @@ function App(){
  const lockedPlacementRef=useRef(null);
  const lockedMasterRef=useRef(null);
  const initialProcessedMasterRef=useRef(null);
- const salonScalpBaseRef=useRef(null);
  // Immutable upload reference: hairstyle changes must never use an AI result as input.
  const firstUploadedPhotoRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
@@ -2679,7 +2625,7 @@ function App(){
  const pendingAdjustRef=useRef(null);
  const transparentCache=useRef({key:'',blob:null}), editCache=useRef(null), resultUrl=useRef('');
  const showBlob=blob=>{if(resultUrl.current)URL.revokeObjectURL(resultUrl.current);resultUrl.current=URL.createObjectURL(blob);setB(resultUrl.current)};
- const pick=e=>{const v=e.target.files?.[0];if(v){currentOutputJobRef.current='';currentOutputTrialRef.current=false;setOutputJobId('');analyticsEvent('idprom_photo_add');setPhotoCrop({...DEFAULT_PHOTO_CROP});setPhotoSizeBlob(null);setTrialPreview(false);undoStackRef.current=[];redoStackRef.current=[];historyRefresh();firstUploadedPhotoRef.current=v;setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0},scale:1};setCollarPinAdjust(collarPinAdjustRef.current);chestPinRef.current=null;setChestPinId('');chestPinAdjustRef.current={x:0,y:0,scale:1};setChestPinAdjust(chestPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;initialProcessedMasterRef.current=null;salonScalpBaseRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setHairId(null);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
+ const pick=e=>{const v=e.target.files?.[0];if(v){currentOutputJobRef.current='';currentOutputTrialRef.current=false;setOutputJobId('');analyticsEvent('idprom_photo_add');setPhotoCrop({...DEFAULT_PHOTO_CROP});setPhotoSizeBlob(null);setTrialPreview(false);undoStackRef.current=[];redoStackRef.current=[];historyRefresh();firstUploadedPhotoRef.current=v;setSafetyBlocked(false);ribbonRef.current=null;setRibbonId('');ribbonAdjustRef.current={x:0,y:0,scale:1};setRibbonAdjust(ribbonAdjustRef.current);collarPinAdjustRef.current={left:{x:0,y:0},right:{x:0,y:0},scale:1};setCollarPinAdjust(collarPinAdjustRef.current);chestPinRef.current=null;setChestPinId('');chestPinAdjustRef.current={x:0,y:0,scale:1};setChestPinAdjust(chestPinAdjustRef.current);backgroundRef.current='/assets/background.jpg';setBackgroundId('default');if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(null);setHeadPreviewLock(null);transparentCache.current={key:'',blob:null};editCache.current=null;setLiveCanvasVisible(false);initialHeadAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust(initialHeadAdjustRef.current);liveAdjustRef.current={...initialHeadAdjustRef.current};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;initialProcessedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};setPlacementLocked(false);lockedPlacementRef.current=null;setPreviewZoom(1);setPreviewPan({x:0,y:0});setComparePreview(false);setHairId(null);setF(v);setA(URL.createObjectURL(v));setB();setMsg('')}};
  const applyAdjust=next=>{if(placementLocked)return;paintHeadTransform(next)};
  const nudge=(k,d)=>{const v={...headAdjust,[k]:headAdjust[k]+d};if(k==='scale')v.scale=Math.max(.20,Math.min(2.00,v.scale));applyAdjust(v)};
  const applyCollarWarp=amount=>{if(placementLocked)return;const v=Math.max(-2,Math.min(2,amount));liveCollarWarpRef.current=v;setCollarWarp(v);if(editCache.current){drawLivePreview();commitAdjust()}};
@@ -3021,25 +2967,27 @@ function App(){
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current;
   if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
-  // Each selected hairstyle starts from the same fixed face, never the last style.
+  // Re-run the SAME first-processing pipeline from the untouched uploaded File.
+  // Never send the previously AI-generated head or the completed uniform portrait
+  // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
   const cached=cachedHairResult(id);
   if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังทำทรงผมบนใบหน้าฐานเดิม…');
+  hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
   let completed=false;
   try{
    let nextMaster;
    if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const faceBase=initialProcessedMasterRef.current;if(!faceBase)throw Error('ไม่พบใบหน้าฐาน กรุณาประมวลผลรูปใหม่');
-     const aiHeadNeck=await aiFinishPortrait(faceBase,id||'',{salonHair:Boolean(id&&id!=='original'),scalpBase:salonScalpBaseRef.current,creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial)setTrialPreview(true);
-     setProgressStage(65,'กำลังแยกชั้นผมและตรวจสัดส่วน');
-     if(id&&id!=='original'){
-      const salon=await composeSalonPortrait(aiHeadNeck,faceBase);nextMaster=salon.master;
-      assertProcessActive();salonScalpBaseRef.current=salon.scalp;
-     }else nextMaster=faceBase;
-     setProgressStage(82,'ตรวจใบหน้าฐานและรอยต่อผม');
+     setProgressStage(60,'กำลังแยกพื้นหลัง');
+     const transparent=await removeBackgroundBlob(aiHeadNeck);
+     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
+     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
+     // Match the female hairstyle pipeline: use one coherent AI output layer.
+     // Do not paste a second face over the new male hairline: the overlapping
+     // face stencil produced the visible forehead patch / mask-shaped seam.
      assertProcessActive();rememberHairResult(id,nextMaster);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
@@ -3058,8 +3006,8 @@ function App(){
    setHeadPreviewLock(current.lock);
    if(cached)await restoreHairResultRights(cached);
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
-   showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมแล้ว · คงใบหน้าฐานเดิม');completed=true;
-  }catch(e){portraitResultCache.clear();setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
+   showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
   finally{if(!cached){await refreshWallet();await finishProgress(completed);}hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}
  };
  const changeHairForStudio=async id=>{
@@ -3067,25 +3015,27 @@ function App(){
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current;
   if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
-  // Each selected hairstyle starts from the same fixed face, never the last style.
+  // Re-run the SAME first-processing pipeline from the untouched uploaded File.
+  // Never send the previously AI-generated head or the completed uniform portrait
+  // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
   const cached=cachedHairResult(id);
   if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังทำทรงผมบนใบหน้าฐานเดิม…');
+  hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
   let completed=false;
   try{
    let nextMaster;
    if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const faceBase=initialProcessedMasterRef.current;if(!faceBase)throw Error('ไม่พบใบหน้าฐาน กรุณาประมวลผลรูปใหม่');
-     const aiHeadNeck=await aiFinishPortrait(faceBase,id||'',{salonHair:Boolean(id&&id!=='original'),scalpBase:salonScalpBaseRef.current,creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
-     setProgressStage(65,'กำลังแยกชั้นผมและตรวจสัดส่วน');
-     if(id&&id!=='original'){
-      const salon=await composeSalonPortrait(aiHeadNeck,faceBase);nextMaster=salon.master;
-      assertProcessActive();salonScalpBaseRef.current=salon.scalp;
-     }else nextMaster=faceBase;
-     setProgressStage(82,'ตรวจใบหน้าฐานและรอยต่อผม');
+     setProgressStage(60,'กำลังแยกพื้นหลัง');
+     const transparent=await removeBackgroundBlob(aiHeadNeck);
+     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
+     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
+     // Match the female hairstyle pipeline: use one coherent AI output layer.
+     // Do not paste a second face over the new male hairline: the overlapping
+     // face stencil produced the visible forehead patch / mask-shaped seam.
      assertProcessActive();rememberHairResult(id,nextMaster);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
@@ -3104,8 +3054,8 @@ function App(){
    setHeadPreviewLock(current.lock);
    if(cached)await restoreHairResultRights(cached);
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
-   showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมแล้ว · คงใบหน้าฐานเดิม');completed=true;
-  }catch(e){portraitResultCache.clear();setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
+   showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
   finally{if(!cached){await refreshWallet();if(!completed)await finishProgress(false);}hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}
   return completed;
  };
@@ -3316,25 +3266,17 @@ function App(){
  };
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  const panels=await splitSalonPanels(aiHeadNeck);
-  const originalHeadNeckTransparent=await removeBackgroundBlob(await salonFaceBase(aiHeadNeck));
-  const faceBase=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
-  const salon=panels?await composeSalonPortrait(aiHeadNeck,faceBase):null;
-  const headNeckTransparent=salon?salon.master:faceBase;
+  const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
+  const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
   assertProcessActive();
-  initialProcessedMasterRef.current=faceBase;
-  salonScalpBaseRef.current=salon?.scalp||null;
+  initialProcessedMasterRef.current=headNeckTransparent;
   editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
-  if(processedHair&&processedHair!=='original'){
-   rememberHairResult('original',faceBase);
-   const originalEntry=hairResultCacheRef.current.get('original');originalEntry.isTrial=Boolean(aiHeadNeck?.idpromTrial);originalEntry.studioTrial=originalEntry.isTrial;
-  }
   rememberHairResult(processedHair,headNeckTransparent);
   const firstHair=hairResultCacheRef.current.get(processedHair||'original');
   firstHair.isTrial=Boolean(aiHeadNeck?.idpromTrial);firstHair.studioTrial=firstHair.isTrial;
@@ -3347,7 +3289,7 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});portraitResultCache.clear();setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await refreshWallet();await finishProgress(completed);setBusy(false)}};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await refreshWallet();await finishProgress(completed);setBusy(false)}};
  const goForStudio=async(sourceFile,template,selectedHair)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
@@ -3382,7 +3324,7 @@ function App(){
   const draft=await loadPurchaseDraft();if(!draft||draft.walletId!==currentWalletId())return;
   currentOutputJobRef.current=draft.jobId||'';currentOutputTrialRef.current=Boolean(draft.isTrial);setOutputJobId(draft.jobId||'');setTrialPreview(Boolean(draft.isTrial));studioTrialRef.current=Boolean(draft.isTrial);
   if(draft.originalFile){firstUploadedPhotoRef.current=draft.originalFile;setF(draft.originalFile);setA(URL.createObjectURL(draft.originalFile))}
-  if(draft.classicMaster&&draft.classicLock){editCache.current={master:draft.classicMaster,lock:draft.classicLock};initialProcessedMasterRef.current=draft.salonFaceBase||draft.classicMaster;salonScalpBaseRef.current=draft.salonScalpBase||null;setHairId(draft.hairId);}
+  if(draft.classicMaster&&draft.classicLock){editCache.current={master:draft.classicMaster,lock:draft.classicLock};initialProcessedMasterRef.current=draft.classicMaster;setHairId(draft.hairId);}
   if(draft.studio){setRestoredSourcePhoto(draft.studio.sourcePhoto||draft.originalFile||null);studioOriginRef.current={starter:true,placement:draft.studio.placement};setScreen('studio');setStudioData(draft.studio.layers)}
   else if(draft.classicMaster&&draft.classicLock){const layers=[];await renderAdjustedFinal(draft.classicMaster,draft.classicLock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);for(const layer of layers.filter(l=>l.name==='หัว · คอ · ผม'))Object.assign(layer,{jobId:draft.jobId,restrictedTrial:draft.isTrial,outputUnlocked:!draft.isTrial});studioOriginRef.current={starter:true,placement:draft.classicLock};setScreen('studio');setStudioData(layers)}
  };
