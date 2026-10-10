@@ -1,6 +1,6 @@
 import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
-import {HAIRSTYLE_FIT_POLICY} from './hairstyle-fit-policy.js';
+import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY} from './hairstyle-fit-policy.js';
 import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject,saveWork,listWorks,getWork,deleteWork,MAX_SAVED_WORKS} from './saved-work-store.js';
 import express from "express";
@@ -482,6 +482,7 @@ Keep the original head position, head size, camera angle and framing. Do not add
 
 FINAL PRIORITY: (1) original face and identity from Image 1, (2) original eyebrows/eyes/nose/mouth/jaw/chin, (3) real skin texture, (4) selected hairstyle from Image 2, (5) complete balanced neck below the unchanged jaw. If an edit would require changing the face, DO NOT perform that edit. ${keepOriginalHair?'':'The explicitly defined upper hairline transition is editable; retaining the original forehead hair edge must never override the selected hairstyle. Fit the reference HAIR DESIGN to the unchanged original head anatomy; this requirement overrides literal reference silhouette dimensions. Preserve the inner facial features while completing this narrow boundary.'}`:prompt;
     if(!keepOriginalHair&&!inpaint&&!hairDonor)seedreamPrompt += `\n\n${HAIRSTYLE_FIT_POLICY}`;
+    if(!keepOriginalHair)seedreamPrompt += `\n\n${HAIRSTYLE_PROPORTION_POLICY}`;
     // Same fitting anatomy for every hairstyle; hair length must never select
     // a different collar, skin coverage or neck reconstruction policy.
     if(!inpaint&&!cleanHead&&!hairDonor)seedreamPrompt += `
