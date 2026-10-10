@@ -1565,6 +1565,13 @@ async function makeCleanHeadMaster(baldBlob,originalBlob){
   return {source:originalBlob,blob:await canvasPng(clean),faceMask:featheredFace,originalFace:originalPixels,originalCore:core,eyeD,forehead,chin,cx,darkStrandWarning};
  }finally{URL.revokeObjectURL(bu);URL.revokeObjectURL(ou)}
 }
+async function fitSelectedPngHairstyle(aiHeadNeck,originalBlob,hairId){
+ if(!hairId||!HAIRSTYLE_RULES[hairId])return aiHeadNeck;
+ // Restore the original face and neck first, then place the chosen catalog PNG.
+ // This shared path is used both for first processing and later hair changes.
+ const cleanHead=await makeCleanHeadMaster(aiHeadNeck,originalBlob);
+ return await localHairstyleOnCleanMaster(cleanHead.blob,hairId);
+}
 async function compositeHairOnCleanMaster(aiBlob,prepared){
  const au=URL.createObjectURL(aiBlob),cu=URL.createObjectURL(prepared.blob);
  try{
@@ -1825,7 +1832,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['seedream-clean-head-png-hair-v243',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['seedream-clean-head-png-hair-v244',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -3000,13 +3007,10 @@ function App(){
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial)setTrialPreview(true);
      setProgressStage(60,'กำลังแยกพื้นหลัง');
-     const transparent=await removeBackgroundBlob(aiHeadNeck);
-     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     // Hair and face are generated together by the active AI job. Do not repaint skin or blend a second hairline.
-     nextMaster=transparent;
-     // Match the female hairstyle pipeline: use one coherent AI output layer.
-     // Do not paste a second face over the new male hairline: the overlapping
-     // face stencil produced the visible forehead patch / mask-shaped seam.
+     const fittedHair=await fitSelectedPngHairstyle(aiHeadNeck,firstUploadedPhoto,id||'');
+     const transparent=await removeBackgroundBlob(fittedHair);
+     // Keep the restored original face/neck pixels and blend only the PNG hairline.
+     nextMaster=id&&HAIRSTYLE_RULES[id]?await finishHairlineSeam(transparent):transparent;
      assertProcessActive();rememberHairResult(id,nextMaster);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
@@ -3049,13 +3053,10 @@ function App(){
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
      setProgressStage(60,'กำลังแยกพื้นหลัง');
-     const transparent=await removeBackgroundBlob(aiHeadNeck);
-     setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     // Hair and face are generated together by the active AI job. Do not repaint skin or blend a second hairline.
-     nextMaster=transparent;
-     // Match the female hairstyle pipeline: use one coherent AI output layer.
-     // Do not paste a second face over the new male hairline: the overlapping
-     // face stencil produced the visible forehead patch / mask-shaped seam.
+     const fittedHair=await fitSelectedPngHairstyle(aiHeadNeck,firstUploadedPhoto,id||'');
+     const transparent=await removeBackgroundBlob(fittedHair);
+     // Keep the restored original face/neck pixels and blend only the PNG hairline.
+     nextMaster=id&&HAIRSTYLE_RULES[id]?await finishHairlineSeam(transparent):transparent;
      assertProcessActive();rememberHairResult(id,nextMaster);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
@@ -3291,11 +3292,7 @@ function App(){
   // directly into the composite changed the neck-to-uniform join and made it
   // look detached. makeCleanHeadMaster keeps the AI scalp/ears but restores
   // the person's original visible skin pixels, including the neck.
-  let fittedAiHead=aiHeadNeck;
-  if(processedHair&&HAIRSTYLE_RULES[processedHair]){
-   const cleanHead=await makeCleanHeadMaster(aiHeadNeck,originalFile);
-   fittedAiHead=await localHairstyleOnCleanMaster(cleanHead.blob,processedHair);
-  }
+  const fittedAiHead=await fitSelectedPngHairstyle(aiHeadNeck,originalFile,processedHair);
   const originalHeadNeckTransparent=await removeBackgroundBlob(fittedAiHead);
   // Hair-only PNG fitting must not run the automatic skin-lightening pass;
   // it would recolor the restored face/neck after they were deliberately locked.
