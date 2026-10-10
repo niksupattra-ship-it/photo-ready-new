@@ -2,7 +2,9 @@
   "changed_existing_files": [
     "src/main.jsx",
     "server.js",
-    "hairstyle-engine/index.js"
+    "hairstyle-engine/index.js",
+    "hair-root-target.js",
+    "hairstyle-fit-policy.js"
   ],
   "added_files": [
     "src/studio-editor.jsx",
@@ -257,7 +259,8 @@
     "public/assets/studio-thumbnails/61623e9f8cda8c1d058f.webp",
     "public/assets/studio-thumbnails/2b931c88d74752f17741.webp",
     "public/assets/studio-thumbnails/d00ed22eb57f975267ec.webp",
-    "test-v240-neck-shoulder-clearance.mjs"
+    "test-v240-neck-shoulder-clearance.mjs",
+    "test-v241-face-root-band.mjs"
   ],
   "unchanged_original_files": 265,
   "protected_sha256": {
