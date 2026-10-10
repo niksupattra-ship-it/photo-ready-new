@@ -49,12 +49,11 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>{hasTrial?'รับรูปที่เลือก (ไม่มีลายน้ำ)':'สร้างรูป 1 ครั้ง (ไม่มีลายน้ำ)'}</Feature>
+     {hasTrial&&<Feature>รับรูปที่เลือก (ไม่มีลายน้ำ)</Feature>}<Feature>เพิ่ม 1 เครดิต สำหรับสร้างรูปใหม่</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
      <Feature>ดาวน์โหลดไม่จำกัด</Feature>
-     {hasTrial&&<Feature unavailable>ไม่มีเครดิตเพิ่ม</Feature>}
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
    </article>
@@ -73,7 +72,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 ครั้งต่อเครื่อง</strong><br/>แพ็ก 89 บาทรับรูปทดลองที่เลือก ไม่มีเครดิตเพิ่ม • แพ็ก 159 บาทเติมเต็ม 10 เครดิต ไม่หักครั้งทดลอง พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ</p>
+  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 ครั้งต่อเครื่อง</strong><br/>แพ็ก 89 บาทเพิ่ม 1 เครดิต • แพ็ก 159 บาทเพิ่ม 10 เครดิต พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ และยกเลิกสิทธิ์ทดลองที่เหลือของวันนั้น</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
