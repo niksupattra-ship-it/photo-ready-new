@@ -1,4 +1,3 @@
-import {createSalonImages} from './salon-hair.js';
 import {hairRootTargetInstruction} from './hair-root-target.js';
 import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
@@ -329,22 +328,21 @@ const aiFinishHandler=async(req,res)=>{
   try{
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
-    const salonInitial=req.body?.mode==="salon-initial",salonChange=req.body?.mode==="salon-change";
     const inpaint=req.body?.mode==="hair-inpaint";
     const hairDonor=false; // V113: obsolete donor endpoint disabled
     if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
     const maskFile=req.files?.mask?.[0];
     if(inpaint&&!maskFile) return res.status(400).send("ไม่มี hair inpainting mask");
-    if(!inpaint&&!salonChange&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
+    if(!inpaint&&maskFile) return res.status(400).send("ส่ง mask ได้เฉพาะโหมด hair-inpaint");
     const key=process.env.ARK_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์");
 
     const hairId=req.body?.hairId||"original";
     const maleHairReplacement=/^manhair-\d{2}$/.test(hairId);
     const cleanHead=hairId==="clean-head";
-    const keepOriginalHair=hairId==="original"||cleanHead||salonInitial;
+    const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
-    if(!keepOriginalHair||salonInitial){
+    if(!keepOriginalHair){
       const hairPath=path.join(dir,"public","assets","hair",`${hairId}.png`);
       const fs=await import("fs");
       if(!fs.existsSync(hairPath)) return res.status(400).send("ไม่พบไฟล์ทรงผมที่เลือก");
@@ -370,21 +368,6 @@ const aiFinishHandler=async(req,res)=>{
       if(maleHairReplacement){
         hairBuf=await sharp(hairBuf,{failOn:"error"}).rotate().flatten({background:"#ffffff"}).toColourspace("srgb").png().toBuffer();
       }
-    }
-
-    const generateSalon=async(images,prompt)=>{
-      const response=await fetch("https://ark.ap-southeast.bytepluses.com/api/v3/images/generations",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628",prompt,image:images.map(b=>`data:image/png;base64,${b.toString("base64")}`),size:"2K",output_format:"png",response_format:"url",watermark:false})});
-      const result=await response.json();if(!response.ok||!result?.data?.[0]?.url)throw Error('สร้างชั้นผมไม่สำเร็จ');
-      const download=await fetch(result.data[0].url);if(!download.ok)throw Error('โหลดชั้นผมไม่สำเร็จ');return Buffer.from(await download.arrayBuffer());
-    };
-    if(salonChange){
-      if(!hairBuf)return res.status(400).send('เลือกทรงผมก่อนสร้างชั้นผม');
-      if(!creditUse){creditUse=await requireCredit(req,res,"hairstyle");if(!creditUse)return;}
-      const base=await sharp(inputFile.buffer).flatten({background:'#349cf0'}).png().toBuffer();
-      const scalp=maskFile?await sharp(maskFile.buffer).png().toBuffer():null;
-      const data=await createSalonImages({base,scalp,hairReference:hairBuf,rootTarget:req.body?.hairRootTarget,generate:generateSalon});
-      if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
-      return res.set('Content-Type','image/png').set('Cache-Control','no-store').send(data);
     }
 
     // Numeric template geometry only; never accept arbitrary client prompt text.
@@ -546,8 +529,7 @@ Inspect the complete central and lateral fitting field under the chin before ret
     if(!outputUrl){await refundCredit(creditUse.usageId);creditUse=null;return res.status(500).send("Seedream ไม่ได้ส่งภาพกลับมา (คืนสิทธิ์แล้ว)");}
     const imageResponse=await fetch(outputUrl);
     if(!imageResponse.ok){await refundCredit(creditUse.usageId);creditUse=null;return res.status(502).send(`ดาวน์โหลดภาพ Seedream ไม่สำเร็จ (${imageResponse.status}) (คืนสิทธิ์แล้ว)`);}
-    let data=Buffer.from(await imageResponse.arrayBuffer());
-    if(salonInitial)data=await createSalonImages({base:data,hairReference:hairBuf,rootTarget:req.body?.hairRootTarget,generate:generateSalon});
+    const data=Buffer.from(await imageResponse.arrayBuffer());
     res.set("Content-Type","image/png");
     res.set("Cache-Control","no-store");
     if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
