@@ -5,7 +5,7 @@ export function mergeLockedHairPixels(base,generated,allowed){
  for(let i=0;i<allowed.length;i++)if(allowed[i])out.set(generated.subarray(i*4,i*4+4),i*4);
  return out;
 }
-export function hairWarpPlan(hair,W,H,{cx,browY,rootY,faceWidth,crownRatio=.28}){
+export function hairWarpPlan(hair,W,H,{cx,browY,rootY,faceWidth,crownRatio=.18}){
  let top=H,left=W,right=0;const roots=[];
  for(let y=0;y<Math.floor(browY);y++){
   let n=0;for(let x=Math.max(0,Math.floor(cx-faceWidth*.7));x<Math.min(W,Math.ceil(cx+faceWidth*.7));x++)if(hair[(y*W+x)*4+3]>160){n++;left=Math.min(left,x);right=Math.max(right,x)}
@@ -21,7 +21,7 @@ export function hairWarpPlan(hair,W,H,{cx,browY,rootY,faceWidth,crownRatio=.28})
  const visibleRoot=candidate<browY-faceWidth*.1&&candidate>top+faceWidth*.08;
  const oldRoot=visibleRoot?candidate:Math.max(top+1,rootY),newRoot=visibleRoot?rootY:oldRoot;
  const newTop=Math.max(0,Math.max(top+(newRoot-oldRoot),newRoot-faceWidth*crownRatio));
- return {top,newTop,oldRoot,newRoot,browY,scaleX:Math.min(1,faceWidth*1.18/Math.max(faceWidth,right-left)),cx};
+ return {top,newTop,oldRoot,newRoot,browY,scaleX:Math.min(1,faceWidth*1.08/Math.max(faceWidth,right-left)),cx};
 }
 export function sourceHairY(y,p){
  if(y<p.newTop)return null;

@@ -1810,7 +1810,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['locked-hair-base-v1',scope,digest,hairId||'original',neckline,Boolean(options.lockedHairEdit)]);
+ const key=JSON.stringify(['locked-hair-base-v2',scope,digest,hairId||'original',neckline,Boolean(options.lockedHairEdit)]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  if(!options.lockedHairEdit)await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -2009,7 +2009,7 @@ async function prepareLockedHairEdit(masterBlob,id){
   if(!root)throw Error('วัดแนวรากผมไม่สำเร็จ — คงภาพเดิม');
   const faceWidth=Math.hypot((face[454].x-face[234].x)*prepared.W,(face[454].y-face[234].y)*prepared.H);
   const lifted=/raised|lifted|braided crown/i.test(HAIRSTYLE_RULES[id]||'');
-  prepared.geometry={cx:root.brow.x*prepared.W,browY:root.brow.y*prepared.H,rootY:root.target.y*prepared.H,faceWidth,crownRatio:lifted?.38:.28,W:prepared.W,H:prepared.H};
+  prepared.geometry={cx:root.brow.x*prepared.W,browY:root.brow.y*prepared.H,rootY:root.target.y*prepared.H,faceWidth,crownRatio:lifted?.25:.18,W:prepared.W,H:prepared.H};
   // The recovery corridor follows measured roots even when the base has a receding hairline.
   const c=canvasFor(prepared.W,prepared.H),x=c.getContext('2d');const md=x.createImageData(prepared.W,prepared.H);
   for(let i=0;i<prepared.allowed.length;i++){
@@ -3313,7 +3313,10 @@ function App(){
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
+  const processedBase=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
+  // First selected hairstyle must pass the same measured fit as later switches.
+  const headNeckTransparent=processedHair&&processedHair!=='original'
+    ?await composeLockedHairEdit(processedBase,processedBase,processedHair):processedBase;
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
