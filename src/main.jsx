@@ -1825,7 +1825,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['seedream-clean-head-png-hair-v242',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['seedream-clean-head-png-hair-v243',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -3286,14 +3286,23 @@ function App(){
  };
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  // Seedream prepares one clean, hair-free head in the same paid generation;
-  // the selected transparent hairstyle PNG is then fitted deterministically.
-  // This prevents the model from enlarging the forehead or changing head scale.
-  const fittedAiHead=processedHair&&HAIRSTYLE_RULES[processedHair]
-   ?await localHairstyleOnCleanMaster(aiHeadNeck,processedHair)
-   :aiHeadNeck;
+  // Restore the source face and neck onto Seedream's clean scalp BEFORE fitting
+  // the selected transparent hairstyle. Feeding Seedream's generated neck
+  // directly into the composite changed the neck-to-uniform join and made it
+  // look detached. makeCleanHeadMaster keeps the AI scalp/ears but restores
+  // the person's original visible skin pixels, including the neck.
+  let fittedAiHead=aiHeadNeck;
+  if(processedHair&&HAIRSTYLE_RULES[processedHair]){
+   const cleanHead=await makeCleanHeadMaster(aiHeadNeck,originalFile);
+   fittedAiHead=await localHairstyleOnCleanMaster(cleanHead.blob,processedHair);
+  }
   const originalHeadNeckTransparent=await removeBackgroundBlob(fittedAiHead);
-  const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
+  // Hair-only PNG fitting must not run the automatic skin-lightening pass;
+  // it would recolor the restored face/neck after they were deliberately locked.
+  const skinFinished=processedHair&&HAIRSTYLE_RULES[processedHair]
+   ?originalHeadNeckTransparent
+   :await optionalHealthySkin10(originalHeadNeckTransparent,originalFile);
+  const headNeckTransparent=await finishHairlineSeam(skinFinished);
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
