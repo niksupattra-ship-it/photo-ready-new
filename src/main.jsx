@@ -1809,7 +1809,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['single-pass-hair-live-v240-neck-shoulder-clear',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['single-pass-hair-live-v241-face-root-band',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -1834,7 +1834,7 @@ async function measuredHairRootTarget(blob){
  const url=URL.createObjectURL(blob);
  try{const image=await loadImage(url),face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   if(!face)throw Error('ไม่พบใบหน้าสำหรับวัดตำแหน่งรากผม กรุณาใช้ภาพหน้าตรง');
-  return calculateHairRootTarget({brow:{x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2},nose:{x:face[2].x,y:face[2].y},chin:{x:face[152].x,y:face[152].y}});
+   return calculateHairRootTarget({brow:{x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2},nose:{x:face[2].x,y:face[2].y},chin:{x:face[152].x,y:face[152].y},forehead:{x:face[10].x,y:face[10].y}});
  }finally{URL.revokeObjectURL(url)}
 }
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
