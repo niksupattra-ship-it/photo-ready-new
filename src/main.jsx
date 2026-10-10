@@ -2353,11 +2353,13 @@ function App(){
   if(!response.ok)throw Error(data.message||'ตรวจสอบเครดิตไม่สำเร็จ');
   setRights(previous=>({...previous,...normalizedRights(data)}));
   acceptedPaidTrial=false;
-  if(Number(data.processRemaining??data.generationRemaining)>0||!data.hasPurchased)return true;
-  setTrialChoice({remaining:Number(data.trialRemaining)||0});
+  if(Number(data.processRemaining??data.generationRemaining)>0)return true;
+  const remaining=Number(data.trialRemaining)||0;
+  if(!data.hasPurchased&&remaining>0)return true;
+  setTrialChoice({remaining,purchased:Boolean(data.hasPurchased)});
   return new Promise(resolve=>{trialChoiceResolve.current=resolve});
  };
- const TrialChoiceUI=()=>trialChoice&&<div className="studio-processing-overlay" style={{zIndex:2147483647}}><section className="studio-processing-card" role="dialog" aria-modal="true" aria-label="เครดิตหมดแล้ว"><h2>เครดิตของคุณหมดแล้ว</h2><p>กรุณาบันทึกงานเพื่อเก็บรูปไม่มีลายน้ำ</p><p>หากรับสิทธิ์ทดลอง รูปเดิมในพื้นที่ทำงานจะถูกแทนที่ด้วยรูปใหม่ที่มีลายน้ำ งานที่บันทึกไว้ยังเปิดกลับมาได้โดยไม่มีลายน้ำ</p><p>{trialChoice.remaining>0?`มีสิทธิ์ทดลองฟรี ${trialChoice.remaining} เครดิต (ลายน้ำ)`:'วันนี้ไม่มีสิทธิ์ทดลองฟรีเหลือแล้ว'}</p><div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}><button onClick={()=>chooseTrial(false)}>กลับไปบันทึกงาน</button>{trialChoice.remaining>0&&<button onClick={()=>chooseTrial(true)}>รับสิทธิ์ทดลอง (ลายน้ำ)</button>}<button onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม</button></div></section></div>;
+ const TrialChoiceUI=()=>trialChoice&&<div className="studio-processing-overlay" style={{zIndex:2147483647}}><section className="studio-processing-card" role="dialog" aria-modal="true" aria-label="เครดิตหมดแล้ว"><h2>{trialChoice.purchased?'เครดิตของคุณหมดแล้ว':'สิทธิ์ทดลองฟรีวันนี้หมดแล้ว'}</h2>{trialChoice.purchased?<p>กรุณาบันทึกงานเพื่อเก็บรูปไม่มีลายน้ำ</p>:<p>ทดลองฟรีได้วันละ 2 ครั้ง กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจ</p>}<p>หากรับสิทธิ์ทดลอง รูปเดิมในพื้นที่ทำงานจะถูกแทนที่ด้วยรูปใหม่ที่มีลายน้ำ งานที่บันทึกไว้ยังเปิดกลับมาได้โดยไม่มีลายน้ำ</p><p>{trialChoice.remaining>0?`มีสิทธิ์ทดลองฟรี ${trialChoice.remaining} เครดิต (ลายน้ำ)`:'วันนี้ไม่มีสิทธิ์ทดลองฟรีเหลือแล้ว'}</p><div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center'}}><button onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button>{trialChoice.remaining>0&&<button onClick={()=>chooseTrial(true)}>รับสิทธิ์ทดลอง (ลายน้ำ)</button>}<button onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม</button></div></section></div>;
  const SavedWorkUI=()=> <><TrialChoiceUI/>{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{
   analyticsEvent('idprom_checkout_click',{package_id:packageId});
