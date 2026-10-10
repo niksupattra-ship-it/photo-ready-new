@@ -68,7 +68,7 @@ app.post('/api/payments/checkout-diagnostic',(req,res)=>{
  const entry=checkoutDiagnosticWindow.get(key)||{start:now,count:0};checkoutDiagnosticWindow.set(key,entry);if(++entry.count>20)return res.sendStatus(429);
  const clean=value=>String(value||'').replace(/[^a-zA-Z0-9_:.\-]/g,'').slice(0,80);
  const stage=clean(req.body?.stage);if(!['refresh_wallet','save_draft','create_session','read_response','redirect'].includes(stage))return res.sendStatus(400);
- console.warn('IDPROM checkout:',JSON.stringify({event:'client_failure',attemptId:clean(req.body?.attemptId),stage,code:clean(req.body?.code),httpStatus:Number(req.body?.httpStatus)||0,packageId:clean(req.body?.packageId)}));res.sendStatus(204);
+ console.warn('IDPROM checkout:',JSON.stringify({event:req.body?.code==='memory_backup'?'backup_warning':'client_failure',attemptId:clean(req.body?.attemptId),stage,code:clean(req.body?.code),primaryCode:clean(req.body?.primaryCode),backupCode:clean(req.body?.backupCode),httpStatus:Number(req.body?.httpStatus)||0,packageId:clean(req.body?.packageId)}));res.sendStatus(204);
 });
 app.use('/api/payments/checkout',(req,res,next)=>{
  const attemptId=String(req.get('X-Checkout-Attempt')||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
