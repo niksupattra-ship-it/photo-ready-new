@@ -123,10 +123,12 @@ export async function creditOutputFullEdit(id){await ready();const r=await pool.
 
 // One global redemption per new promotional link, independent of browser/device.
 const singleUsePromoPackages={"428d5aae2eeeefc8d86b5cb4d0a4bde55fe9bcccd89b66742d1b701827e09132": "79", "053067e34ce311a57498fef520f14afb1ff959111936f74eecae7a67dd98bbe0": "79", "62e479ac2c6f6164f935e4031c216e85ccfe6181b7370c9d49b5d4dc15566e3f": "79", "e2354a1fa636a4ac0f3df3c5bcfa5fc2b52710f8fefe2c214ebdbce9996ebae2": "79", "7457d4bce3b8d243e3688093b447e6781a1f16c8b0de595ce45483fd39fe52dc": "79", "a9abe2d74ab61e26567fdb64e8417014847dea7d91bc5ca7bb5376282efa813b": "79", "68b6fb3a5c5eb565f9aa2f4353f4f7b033338f4e3bc2092f5af54f547a802f17": "79", "85b69a0742cdd397d45666f684ae64193f1d291f5e3315b47da832db8ea66a8f": "79", "81745a592afea582a057184a80b9c5502b24efbfc23816b15e3e0ca8f17362e9": "79", "5b1077143ca0356e5064b103ccee39cce5cfee930d9714422247bd1d640f4115": "79", "3975451c8220d91db148f937431f72428d7d9d330de12a6173cfed7b00d5c014": "149", "d40b63511f14f1865cb47143a60e6e58fde26da9aeb01fa8f60a915564163fa0": "149", "8f301f2bdef4725568a3538c9407ac4d255b3d83c344d77202553038eaf3f1ad": "149", "6862fb80230195e3fc51ab99e4948c08ae2fd38bc33e7cd90fb3df32d0df4e0e": "149", "a37c1a3ea30e3f9fd4ce54bd663c12443a324f8b76b0c89e81a8a55316b38c46": "149", "9722be7d83f6744ac7fa3c2d1ad6be18eda46b19115148e1f03c1a6b6ae9e0a8": "149", "88e20acc923875e0fc9aeedc50477adf79e18b4545dcfa9b46150875bb9be00f": "149", "1cb1041b594f783d5ac6c05f740d7553a607ff062c4f5e82afa0f640c14488bc": "149", "43ed2b544cac6ff91b26a838b92a4c264ca960d2c54cd7814664b99a45a39a7b": "149", "baf7af17e8448f948899cbc6a5e4d48a8cda6ca01b1b6b314091afcde3438366": "149"};
+// New 89-baht gifts always include one generation credit, even with a trial image.
+Object.assign(singleUsePromoPackages,{"af21d633ab29b3349855bba4c6db6118f1d2df160b4d8bf523dde60fcfefef7f": "89_credit", "b981af9a559d53739360a67d1bec12b0327587f87e9c28a564c08e29fb520808": "89_credit", "61e4c23f40113765fd36605037914d7a8a17b20798d22faa997b5026842f2adf": "89_credit", "f763e78d4626df143d5adae7cb9087fc9e3368d75be308289eeb5a03831e20d0": "89_credit", "da0c2f4140e633c677d56f2388549391415bb79e9abee02b8c59d643426d3df1": "89_credit", "32d4066bd18d703da65a0e586c6d51135f431a27f656565708f0dcf3debd4e6b": "89_credit", "12b6d40ab4ced5ce69ccc46bd42a49ac95b476cd2c1362cb20479aca976d0636": "89_credit", "3202914e28c3a2143fad752d531bfb74b8c30b98698543a0ce5a83f8178bf0a6": "89_credit", "9451fcd788b297621f3b33ea77f5c1982c539c863c24f55ebdd3bc048d4dda79": "89_credit", "482cadd9f777294f864aa7482536e0406e724d3b7ec4e586e60524b66deff70f": "89_credit"});
 export async function redeemPromoPackage(walletId,code,jobId=''){
  await ready();const key=crypto.createHash('sha256').update(String(code||'').trim().toUpperCase()).digest('hex');
  const offer=singleUsePromoPackages[key];if(!offer)return {ok:false,reason:'invalid'};
- const packageId=offer==='79'?(jobId?'79':'79_v2'):(jobId?'149_trial_v3':'149_v2');const p=packageFor(packageId);
+ const packageId=offer==='89_credit'?'79_v2':offer==='79'?(jobId?'79':'79_v2'):(jobId?'149_trial_v3':'149_v2');const p=packageFor(packageId);
  const c=await pool.connect();try{
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
@@ -135,7 +137,7 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
   await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,packageId==='79_v2'?1:0]);
   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
-  return {ok:true,packagePrice:packageFor(offer==='79'?'79_v2':'149_v2').price,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
+  return {ok:true,packagePrice:packageFor(['79','89_credit'].includes(offer)?'79_v2':'149_v2').price,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
 
