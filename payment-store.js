@@ -104,6 +104,8 @@ export async function reserveTrialPreview(walletId,fingerprint,networkFingerprin
   try{
     await c.query('BEGIN');
     await c.query('SELECT pg_advisory_xact_lock(77149231)');
+    const purchasedToday=await c.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
+    if(purchasedToday.rowCount){await c.query('COMMIT');return null}
     const used=await c.query("SELECT id,fingerprint,trial_slot FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
     if(used.rowCount>=2){await c.query('COMMIT');return null;}
     const slot=used.rows.some(r=>r.fingerprint===fingerprint&&r.trial_slot===1)?2:1;
@@ -145,6 +147,7 @@ export async function trialOptionAccess(walletId,fingerprint,networkFingerprint)
  await ready();const paid=await pool.query('SELECT EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased',[walletId]);
  if(!fingerprint)return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:false,trialRemaining:0};
  const used=await pool.query("SELECT count(*)::integer AS n FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
- const trialRemaining=Math.max(0,2-Number(used.rows[0]?.n||0));
+ const purchasedToday=await pool.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
+ const trialRemaining=purchasedToday.rowCount?0:Math.max(0,2-Number(used.rows[0]?.n||0));
  return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:trialRemaining>0,trialRemaining};
 }

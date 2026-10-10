@@ -18,7 +18,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   let jobId=String(req.body?.jobId||'');if(jobId){const job=await getAiJobResult(jobId,user.wallet_id);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_')){if(offer.id!=='159_v4')return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});jobId=''}}
   await ensureWallet(user.wallet_id);
   const attempt=String(req.get('X-Checkout-Attempt')||'');if(!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
-  const packageId=jobId&&offer.id==='79_v2'?'89_image_v3':offer.id;
+  const packageId=offer.id;
   const idempotencyKey=crypto.createHash('sha256').update(FLOW+user.wallet_id+attempt).digest('hex');
   const intent=await stripePost('payment_intents',{amount:offer.price*100,currency:'thb','payment_method_types[0]':'promptpay','payment_method_data[type]':'promptpay','payment_method_data[billing_details][email]':user.email,confirm:'true',description:`IDพร้อม — ${offer.name}`,'metadata[flow]':FLOW,'metadata[wallet_id]':user.wallet_id,'metadata[package_id]':packageId,'metadata[job_id]':jobId},idempotencyKey);
   if(!intent.next_action?.promptpay_display_qr_code?.image_url_png)throw Error('qr_unavailable');

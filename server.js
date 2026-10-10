@@ -122,7 +122,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
    'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
-   'metadata[wallet_id]':wid,'metadata[package_id]':jobId?(offer.id==='79_v2'?'89_image_v3':offer.id):offer.id,'metadata[job_id]':jobId
+   'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 89 หรือ 159 บาท':e.message})}
 });
@@ -174,7 +174,11 @@ async function requireCredit(req,res,kind){
   if(r)return r;
   if(kind==='ai-finish'){
     const fingerprint=trialDeviceFingerprint(req,res,wid);
-    if(fingerprint){const trial=await reserveTrialPreview(wid,fingerprint,trialNetworkFingerprint(req));if(trial)return trial}
+    if(fingerprint){
+      const access=await trialOptionAccess(wid,fingerprint,trialNetworkFingerprint(req));
+      if(access.hasPurchased&&req.get('X-IDPROM-Accept-Trial')!=='1'){res.status(409).json({error:'trial_confirmation_required',message:'เครดิตของคุณหมดแล้ว กรุณาบันทึกงานเพื่อเก็บรูปไม่มีลายน้ำ'});return null}
+      const trial=await reserveTrialPreview(wid,fingerprint,trialNetworkFingerprint(req));if(trial)return trial
+    }
   }
   res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 2 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
   return null;
