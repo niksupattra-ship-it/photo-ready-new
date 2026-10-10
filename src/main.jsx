@@ -1809,7 +1809,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['single-pass-hair-live-v240-neck-shoulder-clear',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['measured-hair-root-v1',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -2434,7 +2434,7 @@ function App(){
   if(qrPayment?.recovered){try{await restorePurchaseDraft()}catch{setMsg('ชำระเงินสำเร็จ แต่เปิดงานเดิมไม่ได้ กรุณาเปิดงานที่บันทึกหรือเพิ่มรูปใหม่')}}
   await refreshWallet();analyticsPurchase(data.paymentIntentId);clearQrPayment();setBuyOpen(false);setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');
  };
- useEffect(()=>{let cancelled=false;(async()=>{try{const stored=JSON.parse(localStorage.getItem('idprom_pending_qr_v1')||'null');if(!stored)return;await refreshWallet();if(!cancelled&&stored.walletId===currentWalletId()){setQrPayment({...stored,recovered:true})}}catch{}})();return()=>{cancelled=true}},[]);
+ useEffect(()=>{let cancelled=false;(async()=>{try{const stored=JSON.parse(localStorage.getItem('idprom_pending_qr_v1')||'null');if(!stored)return;await refreshWallet();if(!cancelled&&stored.walletId===currentWalletId()){setQrPayment({...stored,recovered:true});setBuyOpen(true)}}catch{}})();return()=>{cancelled=true}},[]);
  const CreditUI=({showBalance=true}={})=> <>{privateTrialActive&&<button type="button" onClick={leavePrivateTrial} disabled={busy||hairBusy} title="กลับไปใช้เครดิตตามปกติ">ทดสอบส่วนตัว · ออกจากโหมด</button>}{showBalance&&<button type="button" className="credit-wallet-pill" onClick={()=>setBuyOpen(true)} aria-label={`ประมวลผลคงเหลือ ${rights.generationRemaining} ครั้ง`} style={{display:'inline-flex',alignItems:'center',gap:0,padding:'7px 12px',borderRadius:14,background:'#fff',border:'1px solid #e1e8f2',boxShadow:'0 2px 8px rgba(24,74,130,.06)',color:'#24364f',fontWeight:700}}><span style={{whiteSpace:'nowrap',fontSize:13}}>ประมวลผล <strong style={{color:'#1269c7',fontSize:15}}>{rights.generationRemaining}</strong> ครั้ง</span></button>}{buyOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBuyOpen(false)}}><section className={"credit-modal package-pro-modal"+(qrPayment?" idprom-qr-modal":"")} role="dialog" aria-modal="true" aria-label="แพ็กเกจ IDพร้อม"><style>{`
 .package-pro-modal{width:min(760px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;padding:28px;border-radius:28px;background:#fff;box-shadow:0 24px 70px rgba(15,35,65,.24);box-sizing:border-box}.package-pro-modal .credit-modal-close{top:18px;right:20px}.package-pro-head{padding:0 4px 20px}.package-pro-brand{font-size:18px;font-weight:800;color:#1769c8;margin-bottom:5px}.package-pro-title{font-size:30px!important;line-height:1.15!important;margin:0 0 7px!important;color:#12233f}.package-pro-sub{margin:0;color:#728097;font-size:15px}.package-pro-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.package-card{position:relative;display:flex;flex-direction:column;min-width:0;padding:24px;border:1px solid #d9e7fb;border-radius:22px;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}.package-card.popular{border-color:#f3dfe5;background:linear-gradient(180deg,#fffaf7 0%,#fff 100%)}.package-badge{position:absolute;right:16px;top:16px;padding:6px 10px;border-radius:999px;background:#e91e63;color:#fff;font-size:12px;font-weight:800}.package-name{font-size:18px;font-weight:800;color:#172a47;margin:0}.package-price{font-size:38px;line-height:1.1;font-weight:900;color:#146bd1;margin:8px 0 20px}.package-card.popular .package-price{color:#d91d62}.package-price small{font-size:18px;font-weight:800}.package-features{list-style:none!important;padding:0!important;margin:0 0 22px!important;display:grid;gap:14px;flex:1}.package-features li{display:flex;gap:11px;align-items:flex-start;color:#243650;font-size:14px;line-height:1.35}.package-feature-icon{width:8px;height:8px;border-radius:50%;background:#17365f;display:block;flex:0 0 8px;margin:7px 13px 0 5px;font-size:0;line-height:0;color:transparent;overflow:hidden}.package-card.popular .package-feature-icon{background:#b31954}.package-feature-text strong{display:block;font-size:14px;color:#172a47;margin-bottom:1px}.package-feature-text span{color:#718097}.package-select-btn{width:100%;border:0;border-radius:14px;padding:14px 16px;background:#176fd2;color:#fff;font-size:15px;font-weight:800;cursor:pointer}.package-card.popular .package-select-btn{background:#dd2164}.package-select-btn:disabled{opacity:.6;cursor:default}.package-secure{margin-top:18px;padding:13px 16px;border-radius:16px;background:#f7f9fc;text-align:center;color:#66758c;font-size:12px}.package-pro-modal .credit-pay-msg{text-align:center;margin:14px 0 0}.package-pro-modal>small{display:none}@media(max-width:640px){.package-pro-modal{padding:22px 16px;border-radius:24px}.package-pro-title{font-size:25px!important}.package-pro-sub{font-size:13px}.package-pro-grid{grid-template-columns:1fr;gap:14px}.package-card{padding:20px}.package-price{font-size:34px;margin-bottom:16px}.package-badge{top:14px;right:14px}}
 `}</style><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button>{qrPayment?<PromptpayPanel key={qrPayment.paymentIntentId} payment={qrPayment} headers={()=>({...walletHeaders(),...authHeaders()})} onPaid={finishQrPayment} onExpired={expireQrPayment}/>:<PackageOffers payBusy={payBusy} payMsg={payMsg} hasTrial={Boolean(currentOutputTrialRef.current&&outputJobId)} startCheckout={startCheckout}/>}</section></div>}</>;
@@ -2984,8 +2984,7 @@ function App(){
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     // Hair and face are generated together by the active AI job. Do not repaint skin or blend a second hairline.
-     nextMaster=transparent;
+     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
@@ -3033,8 +3032,7 @@ function App(){
      setProgressStage(60,'กำลังแยกพื้นหลัง');
      const transparent=await removeBackgroundBlob(aiHeadNeck);
      setProgressStage(76,'กำลังปรับผิวแบบประมวลผลครั้งแรก');
-     // Hair and face are generated together by the active AI job. Do not repaint skin or blend a second hairline.
-     nextMaster=transparent;
+     nextMaster=await finishHairlineSeam(await optionalHealthySkin10(transparent,firstUploadedPhoto));
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
