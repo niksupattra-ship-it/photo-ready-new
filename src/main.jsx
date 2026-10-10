@@ -2396,8 +2396,13 @@ function App(){
    await refreshWallet();
    if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
    stage='save_draft';
-   try{await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null})}
+   let draftStorage;
+   try{draftStorage=await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null},{allowMemoryFallback:true})}
    catch(error){const failure=Error('บันทึกงานก่อนชำระเงินไม่ได้ กรุณาเพิ่มพื้นที่ว่างหรือเปิดเว็บใน Chrome / Safari แล้วลองอีกครั้ง');failure.code=error?.name||'draft_save_failed';throw failure}
+   if(draftStorage?.persistent===false){
+    analyticsEvent('idprom_checkout_backup_warning',{error_stage:'save_draft',error_code:'memory_backup',package_id:packageId,attempt_id:attemptId});
+    void fetch('/api/payments/checkout-diagnostic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({attemptId,stage:'save_draft',code:'memory_backup',primaryCode:draftStorage.primaryCode,backupCode:draftStorage.backupCode,httpStatus:0,packageId}),keepalive:true}).catch(()=>{});
+   }
    stage='create_session';
    const r=await fetch('/api/payments/promptpay',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json','X-Checkout-Attempt':attemptId},body:JSON.stringify({packageId,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});
    httpStatus=r.status;stage='read_response';const data=await r.json();
@@ -2406,7 +2411,7 @@ function App(){
    stage='redirect';if(!data.paymentIntentId||!data.qrImage)throw Error('ไม่พบ QR ชำระเงิน กรุณาลองใหม่');
    const payment={...data,walletId:currentWalletId(),packageId};
    try{localStorage.setItem('idprom_pending_qr_v1',JSON.stringify(payment))}catch{}
-   analyticsCheckout(packageId,data.paymentIntentId);setQrPayment(payment);setPayMsg('');setBuyOpen(true);
+   analyticsCheckout(packageId,data.paymentIntentId);setQrPayment(payment);setPayMsg(draftStorage?.persistent===false?'ระหว่างชำระเงิน กรุณาเปิดหน้านี้ไว้ หลังชำระสำเร็จให้บันทึกงานก่อนปิดหรือรีเฟรชหน้า':'');setBuyOpen(true);
   }catch(e){
    const code=String(e.code||e.name||'checkout_failed').slice(0,80);
    analyticsEvent('idprom_checkout_error',{error_stage:stage,error_code:code,http_status:httpStatus,package_id:packageId,attempt_id:attemptId});
