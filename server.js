@@ -363,23 +363,6 @@ const aiFinishHandler=async(req,res)=>{
             .png().toBuffer();
         }
       }
-      // V242: long loose references in the picker carry oversized side panels.
-      // Narrow the side sections substantially while preserving the canvas,
-      // vertical length, center part and transparent margins. The original
-      // source PNG remains untouched.
-      const hairRule=selectedHairstyleRule(hairId);
-      const longLooseFemaleHair=!maleHairReplacement&&/\blong\b/i.test(hairRule)&&/\b(loose|straight)\b/i.test(hairRule)&&!/fully gathered/i.test(hairRule);
-      if(longLooseFemaleHair){
-        const refMeta=await sharp(hairBuf,{failOn:"error"}).metadata();
-        if(refMeta.width&&refMeta.height){
-          const targetWidth=Math.max(1,Math.round(refMeta.width*.72));
-          const left=Math.floor((refMeta.width-targetWidth)/2);
-          hairBuf=await sharp(hairBuf,{failOn:"error"}).ensureAlpha()
-            .resize({width:targetWidth,height:refMeta.height,fit:"fill",kernel:sharp.kernel.lanczos3})
-            .extend({top:0,bottom:0,left,right:refMeta.width-targetWidth-left,background:{r:0,g:0,b:0,alpha:0}})
-            .png().toBuffer();
-        }
-      }
       // Normalize only male reference for image-edit API: auxiliary RGBA
       // cutouts can trigger "invalid image file or mode for image 2".
       if(maleHairReplacement){
@@ -530,7 +513,6 @@ Inspect the complete central and lateral fitting field under the chin before ret
     // sections to reach or fall across the shoulders.
     if(!keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&req.body?.creditKind==='hairstyle'){
       seedreamPrompt += `\n\nFINAL HAIR CLEARANCE — OVERRIDES EVERY EARLIER LENGTH OR REFERENCE INSTRUCTION: Keep the complete visible neck and both shoulders free of hair. No strand, lock, braid, ponytail, loose section, flyaway, shadowed hair mass or hair tip may lie over, touch or cross the neck, clavicles, collar opening, shoulder skin or shoulder/clothing silhouette. For a reference with long hair, preserve its part, crown and long-hair character by routing the long lengths behind the neck and behind the shoulders; keep those lengths entirely behind the body silhouette and out of view on the front. End any visible front side sections above the neck, at or above the jaw/ear level. Do not shorten the head, move the shoulders or change the face to create clearance. Keep the neck skin continuous and visible from jaw to outfit collar. The final portrait must show clean, unobstructed neck and shoulder contours on both sides. This clearance rule applies to every selected hairstyle, including hair-04 and every long loose style, and overrides any earlier direction to let hair reach or fall across the shoulders.`;
-      seedreamPrompt += `\n\nFINAL NATURAL WIDTH LOCK: Image 2 is the selected hairstyle reference with its long side panels reduced to fit this head. Preserve the same part, hair direction, cut and intended length, but do not restore the reference's oversized panel width. Keep the crown close to the skull. At cheek level, the complete outside-to-outside hair width should be about 1.35 times the person's cheekbone width and must stay below 1.45 times that width. Keep only a slim, natural frame outside each temple; the side sections must taper and show separated fine strands instead of forming two broad solid curtains. Reduce side density and bulk while keeping believable opaque hair coverage and the selected length. Do not change the crown, forehead, face, ears, neck or uniform.\n\n${HAIRSTYLE_VOLUME_GUARD}`;
     }
 
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
