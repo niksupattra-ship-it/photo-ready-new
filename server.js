@@ -1,7 +1,7 @@
 import {hairRootTargetInstruction} from './hair-root-target.js';
 import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
-import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY,HAIRSTYLE_VOLUME_GUARD} from './hairstyle-fit-policy.js';
+import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY} from './hairstyle-fit-policy.js';
 import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject,saveWork,listWorks,getWork,deleteWork,MAX_SAVED_WORKS} from './saved-work-store.js';
 import express from "express";
@@ -483,16 +483,7 @@ Keep the original head position, head size, camera angle and framing. Do not add
 
 FINAL PRIORITY: (1) original face and identity from Image 1, (2) original eyebrows/eyes/nose/mouth/jaw/chin, (3) real skin texture, (4) selected hairstyle from Image 2, (5) complete balanced neck below the unchanged jaw. If an edit would require changing the face, DO NOT perform that edit. ${keepOriginalHair?'':'The explicitly defined upper hairline transition is editable; retaining the original forehead hair edge must never override the selected hairstyle. Fit the reference HAIR DESIGN to the unchanged original head anatomy; this requirement overrides literal reference silhouette dimensions. Preserve the inner facial features while completing this narrow boundary.'}`:prompt;
     if(!keepOriginalHair&&!inpaint&&!hairDonor)seedreamPrompt += `\n\n${HAIRSTYLE_FIT_POLICY}`;
-    // Hairstyle-only requests: synthesize roots and selected hair together, not a pasted overlay.
-    if(!keepOriginalHair&&!inpaint&&!hairDonor&&req.body?.creditKind==='hairstyle'){
-      seedreamPrompt += `\n\nHAIRSTYLE-ONLY IDENTITY AND NATURAL HAIR OVERRIDE (highest priority): Image 1 is the only source of facial identity. Generate the hairstyle shown in Image 2 as coherent real hair growing naturally from Image 1's skull: correct crown, part, fringe, temples, hair roots, fine strands, density and selected side length. Fit hair to the ORIGINAL skull, never reshape the face to fit the hairstyle. Do not copy the reference model's face or skin. Preserve the exact original eyes, brows, nose, mouth, jaw, cheeks, facial expression, pores, skin color and head orientation. For this hairstyle-only request DO NOT apply any previously mentioned rosy makeup, cheek/lip tint, facial retouch, smoothing, whitening or beautification. Only natural hairline overlap is allowed; no rectangular mask, pasted wig edge, halos, leftover source hair, duplicate ears or artificial dangling strands. Restore background and neck previously covered by obsolete hair. Maintain the same complete natural neck for the clothing template. If the hairstyle conflicts with facial identity, adapt the HAIR, never the FACE.\n`;
-    }
     if(!keepOriginalHair)seedreamPrompt += `\n\n${HAIRSTYLE_PROPORTION_POLICY}\n${hairRootTargetInstruction(req.body?.hairRootTarget)}`;
-    // V239: this is the live /api/ai-jobs -> aiFinishHandler route used by BOTH hair selectors.
-    // A single provider generation handles face and hair. No face mask, donor or post-generation facial paste.
-    if(!keepOriginalHair&&!inpaint&&req.body?.creditKind==='hairstyle'){
-      seedreamPrompt += `\n\nLIVE SINGLE-PASS HAIRSTYLE OVERRIDE — FINAL AUTHORITY: Generate the face, forehead, roots, ears, temples and selected hair together as ONE photographic image in this ONE image-generation request. Never generate a wig or an elevated cap. The original person in Image 1 is the only identity reference; Image 2 provides only hairstyle design. Retain Image 1's exact eye spacing, facial geometry, nose, lips, jaw, asymmetry and complexion. Do not copy Image 2's face or cranial silhouette. Fit the chosen hairstyle to the ORIGINAL head dimensions, not the other way around. Keep the top silhouette low and skull-following: no raised dome, inflated crown, teased/puffed root volume, excessive side bulk or helmet shape. Do not add height to make a small face fit a big reference wig. Reproduce the chosen part, tied/loose configuration, side lengths and fringe naturally with fine roots emerging from the actual scalp and temples. Treat the provided root coordinates as a hairline cue, NOT as permission to enlarge the skull. Respect natural ear occlusion and preserve the exact original face. One coherent image, no cutout or composite, no mask, no face-paste, no makeup or facial retouch. The existing uniform is assembled later by the application.`;
-    }
     // Same fitting anatomy for every hairstyle; hair length must never select
     // a different collar, skin coverage or neck reconstruction policy.
     if(!inpaint&&!cleanHead&&!hairDonor)seedreamPrompt += `
@@ -506,13 +497,6 @@ Inspect the complete central and lateral fitting field under the chin before ret
 
     if(req.body?.neckInputPrepared==='1'&&!inpaint&&!cleanHead&&!hairDonor){
       seedreamPrompt=`INPUT PREPARATION / COMPLETE NECK RECONSTRUCTION: Image 1 is a deliberately prepared head reference. The neutral light-grey region below the jaw and beside the lower head is a REMOVED original collar/body, not the person's skin, a high neckline or the final crop boundary. Keep the visible original face and jaw exactly. Reconstruct a complete natural neck, widening neck base, both clavicle areas and the modest upper-sternum fitting skin from beneath that same jaw, with realistic continuous complexion and texture matched to the face. Ignore any residual source high-collar cue. Render a fully clothed portrait in a low, broad ROUND collarless temporary top, placing all fabric below the final outfit opening with overlap. Return complete uninterrupted fitting skin for EVERY hair length and style, including short hair and updos. Do not stop at the input's grey boundary, restore the old white/black collar, or leave a flat grey/blue/white patch in the neck field. Preserve the selected hairstyle and all face protections.\n\n${seedreamPrompt}`;
-    }
-
-    // V240: the user requires a clear neck and shoulders after post-processing.
-    // This final instruction overrides older style rules that requested long
-    // sections to reach or fall across the shoulders.
-    if(!keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&req.body?.creditKind==='hairstyle'){
-      seedreamPrompt += `\n\nFINAL HAIR CLEARANCE — OVERRIDES EVERY EARLIER LENGTH OR REFERENCE INSTRUCTION: Keep the complete visible neck and both shoulders free of hair. No strand, lock, braid, ponytail, loose section, flyaway, shadowed hair mass or hair tip may lie over, touch or cross the neck, clavicles, collar opening, shoulder skin or shoulder/clothing silhouette. For a reference with long hair, preserve its part, crown and long-hair character by routing the long lengths behind the neck and behind the shoulders; keep those lengths entirely behind the body silhouette and out of view on the front. End any visible front side sections above the neck, at or above the jaw/ear level. Do not shorten the head, move the shoulders or change the face to create clearance. Keep the neck skin continuous and visible from jaw to outfit collar. The final portrait must show clean, unobstructed neck and shoulder contours on both sides. This clearance rule applies to every selected hairstyle, including hair-04 and every long loose style, and overrides any earlier direction to let hair reach or fall across the shoulders.`;
     }
 
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}

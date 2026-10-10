@@ -1,8 +1,6 @@
 {
   "changed_existing_files": [
-    "src/main.jsx",
-    "server.js",
-    "hairstyle-engine/index.js"
+    "src/main.jsx"
   ],
   "added_files": [
     "src/studio-editor.jsx",
@@ -256,16 +254,15 @@
     "public/assets/studio-thumbnails/fd6e7d304453c78a1987.webp",
     "public/assets/studio-thumbnails/61623e9f8cda8c1d058f.webp",
     "public/assets/studio-thumbnails/2b931c88d74752f17741.webp",
-    "public/assets/studio-thumbnails/d00ed22eb57f975267ec.webp",
-    "test-v240-neck-shoulder-clearance.mjs"
+    "public/assets/studio-thumbnails/d00ed22eb57f975267ec.webp"
   ],
-  "unchanged_original_files": 265,
+  "unchanged_original_files": 267,
   "protected_sha256": {
-    "server.js": "77b2044bf198dfd897e7131b8c302487a6601a54a87560063643b42fb371f755",
+    "server.js": "a8fbf4ce36f424559cc1895797e62ce692280148cbe153f67442bdf407c0e644",
     "payment-store.js": "3d072c1c6a52b4f3b5476c02513bf0a778e6d316eb58c112ea8eae1e5a621267",
     "job-store.js": "2f3d7e2cdf8d91bb82ff23e07b2c801df80bc1f4cf35c9570b99af9836ef5b8e",
     "private-trial.js": "4be60a8da0ea994995d2c5451dd2f5dcfbaee0056b0b2cb46fb4d4f978672e82",
-    "hairstyle-engine/index.js": "aab88c77f96611868fb1ebf5df1ccbf9b440a84c48cac39c5165d8f72fc4262a",
+    "hairstyle-engine/index.js": "60b5a6292ac7683bd5846749ad57c25e6aa976d7c38034cdc2f6da59e536e4ec",
     "package.json": "45d4a59390813e7ec6c3c64ce9b9ba3241afab6a9f34aaedcfae41f961f6d096",
     "src/analytics.js": "52408656e897929a4bde3cf3775d61a778edc083bb5a2da0259f11c87dac3f37"
   }
