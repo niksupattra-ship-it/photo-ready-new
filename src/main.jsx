@@ -1,4 +1,4 @@
-import {calculateHairRootTarget} from '../hair-root-target.js';
+import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
 import PromptpayPanel from './promptpay-panel.jsx';
 import {ProcessingCloseButton} from './processing-close-button.jsx';
@@ -1809,7 +1809,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-hair-root-v1',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -1832,9 +1832,16 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
 let acceptedPaidTrial=false;
 async function measuredHairRootTarget(blob){
  const url=URL.createObjectURL(blob);
- try{const image=await loadImage(url),face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+ try{const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight,face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   if(!face)throw Error('ไม่พบใบหน้าสำหรับวัดตำแหน่งรากผม กรุณาใช้ภาพหน้าตรง');
-  return calculateHairRootTarget({brow:{x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2},nose:{x:face[2].x,y:face[2].y},chin:{x:face[152].x,y:face[152].y}});
+  const brow={x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2};
+  const eyeDistance=Math.hypot((face[263].x-face[33].x)*W,(face[263].y-face[33].y)*H);
+  const hairMask=await semanticClassMask(image,W,H,[1]);
+  if(!hairMask)throw Error('วัดแนวผมบนหน้าผากไม่สำเร็จ กรุณาลองใช้ภาพที่เห็นแนวผมชัดเจน');
+  const rgba=hairMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data,mask=new Uint8Array(W*H);
+  for(let i=0;i<mask.length;i++)mask[i]=rgba[i*4+3];
+  const foreheadTop=measureCentralForeheadHairline(mask,W,H,brow,eyeDistance);
+  return calculateHairRootTarget({brow,foreheadTop});
  }finally{URL.revokeObjectURL(url)}
 }
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
