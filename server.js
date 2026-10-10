@@ -339,7 +339,7 @@ const aiFinishHandler=async(req,res)=>{
 
     const hairId=req.body?.hairId||"original";
     const maleHairReplacement=/^manhair-\d{2}$/.test(hairId);
-    const cleanHead=hairId==="clean-head"||req.body?.cleanHeadOnly==="1";
+    const cleanHead=hairId==="clean-head";
     const keepOriginalHair=hairId==="original"||cleanHead;
     let hairBuf=null;
     if(!keepOriginalHair){
