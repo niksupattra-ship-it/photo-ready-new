@@ -1268,6 +1268,15 @@ function alignFaceCanvas(source,from,to,W,H){
  x.translate(-(a.x+b.x)*sw*.5,-(a.y+b.y)*sh*.5);x.drawImage(source,0,0);
  return c;
 }
+function mapAlignedFacePoint(from,to,point,sourceW,sourceH,W,H){
+ const a=from[33],b=from[263],la=to[33],lb=to[263];
+ const d=Math.hypot((b.x-a.x)*sourceW,(b.y-a.y)*sourceH)||1;
+ const ld=Math.hypot((lb.x-la.x)*W,(lb.y-la.y)*H)||d;
+ const scale=ld/d;
+ const rot=Math.atan2((lb.y-la.y)*H,(lb.x-la.x)*W)-Math.atan2((b.y-a.y)*sourceH,(b.x-a.x)*sourceW);
+ const dx=(point.x-(a.x+b.x)*.5)*sourceW,dy=(point.y-(a.y+b.y)*.5)*sourceH;
+ return {x:(la.x+lb.x)*W*.5+scale*(dx*Math.cos(rot)-dy*Math.sin(rot)),y:(la.y+lb.y)*H*.5+scale*(dx*Math.sin(rot)+dy*Math.cos(rot))};
+}
 // Reuse only the same portrait base, including its upload and face landmarks.
 let studioMakeupPreparation=null;
 async function prepareStudioMakeup(source){
@@ -1352,9 +1361,16 @@ async function localHairstyleOnCleanMaster(cleanBlob,hairId){
   }
   if(!targetFace)throw Error('ไม่พบใบหน้าบนภาพฐาน');
   const aligned=alignFaceCanvas(cached.normalized,cached.previewFace,targetFace,W,H);
+  // Match the PNG's upper hairline to this person's face-derived target.
+  // Keep eye spacing as the scale anchor, then translate only the hair layer;
+  // never move or resize the face to imitate the reference model's forehead.
+  const previewRoot=mapAlignedFacePoint(cached.previewFace,targetFace,cached.previewFace[10],cached.normalized.width,cached.normalized.height,W,H);
+  const rootTarget=calculateHairRootTarget({brow:{x:(targetFace[55].x+targetFace[285].x)/2,y:(targetFace[55].y+targetFace[285].y)/2},nose:{x:targetFace[2].x,y:targetFace[2].y},chin:{x:targetFace[152].x,y:targetFace[152].y},forehead:{x:targetFace[10].x,y:targetFace[10].y}});
+  const hairOffsetX=rootTarget.target.x*W-previewRoot.x,hairOffsetY=rootTarget.target.y*H-previewRoot.y;
+  const fittedHair=canvasFor(W,H),fhx=fittedHair.getContext('2d');fhx.drawImage(aligned,hairOffsetX,hairOffsetY);
   const bodySkin=await semanticClassMask(clean,W,H,[2]),faceSkin=await semanticClassMask(clean,W,H,[3]);
   if(!bodySkin||!faceSkin)throw Error('ล็อกผิวก่อนวางผมไม่สำเร็จ');
-  const ad=aligned.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H);
+  const ad=fittedHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H);
   const bd=bodySkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const fd=faceSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   const eyeD=Math.hypot((targetFace[263].x-targetFace[33].x)*W,(targetFace[263].y-targetFace[33].y)*H),cx=(targetFace[33].x+targetFace[263].x)*W*.5;
@@ -1374,8 +1390,8 @@ async function localHairstyleOnCleanMaster(cleanBlob,hairId){
   for(let i=0;i<W*H;i++)if(ad.data[i*4+3]>48)visibleHair++;
   if(visibleHair<Math.max(180,Math.round(eyeD*eyeD*.12)))
    throw Error('ทรงผมที่เลือกไม่ปรากฏครบ — คงภาพก่อนหน้า');
-  aligned.getContext('2d').putImageData(ad,0,0);
-  const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(clean,0,0);ox.drawImage(aligned,0,0);
+  fittedHair.getContext('2d').putImageData(ad,0,0);
+  const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(clean,0,0);ox.drawImage(fittedHair,0,0);
   return await canvasPng(out);
  }finally{URL.revokeObjectURL(cu)}
 }
@@ -1809,7 +1825,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['single-pass-hair-live-v241-face-root-band',scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['seedream-clean-head-png-hair-v242',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -1844,7 +1860,9 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const aiInput=await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
- if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
+ const usePngHair=Boolean(hairId&&HAIRSTYLE_RULES[hairId]);
+ if(usePngHair)fd.append('cleanHeadOnly','1');
+ else if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
  fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
@@ -3268,7 +3286,13 @@ function App(){
  };
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
+  // Seedream prepares one clean, hair-free head in the same paid generation;
+  // the selected transparent hairstyle PNG is then fitted deterministically.
+  // This prevents the model from enlarging the forehead or changing head scale.
+  const fittedAiHead=processedHair&&HAIRSTYLE_RULES[processedHair]
+   ?await localHairstyleOnCleanMaster(aiHeadNeck,processedHair)
+   :aiHeadNeck;
+  const originalHeadNeckTransparent=await removeBackgroundBlob(fittedAiHead);
   const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
