@@ -1,3 +1,4 @@
+import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
 import {HAIRSTYLE_FIT_POLICY} from './hairstyle-fit-policy.js';
 import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject,saveWork,listWorks,getWork,deleteWork,MAX_SAVED_WORKS} from './saved-work-store.js';
@@ -30,10 +31,10 @@ function verifyStripeSignature(raw,header,secret){
   const expected=crypto.createHmac("sha256",secret).update(`${t}.${raw.toString("utf8")}`).digest("hex");
   try{return crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(v1))}catch{return false}
 }
-async function stripePost(endpoint,params){
+async function stripePost(endpoint,params,idempotencyKey){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
   const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null)body.append(k,String(v));
-  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded"},body});
+  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded",...(idempotencyKey?{"Idempotency-Key":idempotencyKey}:{})},body});
   const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
 }
 async function stripeGet(endpoint){
@@ -50,6 +51,7 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
       const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid)await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
     }
+    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1')await settlePromptpay(session,creditPaid);
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
@@ -124,6 +126,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
   });res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 89 หรือ 159 บาท':e.message})}
 });
+registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid});
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
 function trialDeviceFingerprint(req,res,wid){
