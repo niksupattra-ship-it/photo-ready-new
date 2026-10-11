@@ -1,3 +1,4 @@
+import {isSingleFemaleHair,originalHairExcessMask} from './short-female-hair.js';
 import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
@@ -1369,7 +1370,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
- const ref=await reference,mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference});
+ const ref=await reference,mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:isSingleFemaleHair(hairId)});
  const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
  // Warp native PNG triangles, not the face or the small thumbnail.
  renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
@@ -1378,6 +1379,13 @@ async function prepareStudioHairOverlay(headSource,hairId){
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
+ }
+ if(isSingleFemaleHair(hairId)){
+  const originalHair=await semanticClassMask(target,W,H,[1]);
+  const baseMask=originalHairExcessMask(originalHair,out,skin,W,H,canvasFor).toDataURL('image/png');
+  // Use the first fitted PNG directly: no second layer, skin erasure,
+  // 20% rear push, borrowed rows, or automatic gap filling.
+  return {source:out.toDataURL('image/png'),backSource:null,baseMask};
  }
  const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
  return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null};
