@@ -1,5 +1,6 @@
+import {extractTemplateHair} from './hair-template-clean.js';
 import {requestHairFinish,canvasPngBlob} from './studio-hair-finish.js';
-import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
+import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1374,12 +1375,12 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const [cutout,preview]=await Promise.all([loadImage(`/assets/hair/${hairId}.png`),loadImage(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
-   const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
-   const bounds=opaqueBounds(c);
-   if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   const earSkin=calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
-   const embeddedEars=referenceContainsEarSkin(earSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference);
-   return {cutout,face,bounds,calibration,embeddedEars,w:preview.naturalWidth,h:preview.naturalHeight};
+   if(!face||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
+   const referenceHair=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+   const hairOnly=extractTemplateHair(cutout,referenceHair,calibration.sourceToReference,canvasFor);
+   const bounds=opaqueBounds(hairOnly);
+   if(!bounds)throw Error('ไม่พบพื้นที่ผมในแบบ · เก็บภาพเดิมไว้');
+   return {cutout:hairOnly,face,bounds,calibration,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
@@ -1394,7 +1395,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'});
  return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null};
 }
 const localHairAnchorCache=new Map();
