@@ -1,9 +1,16 @@
+import {hairPreviewTransform} from './hair-preview-fit.js';
+import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
+import {PasswordReset} from './password-reset.jsx';
+import PromptpayPanel from './promptpay-panel.jsx';
+import {ProcessingCloseButton} from './processing-close-button.jsx';
+import {prepareNeckInput} from './neck-input.js';
 import {SavedWorks} from './saved-works.jsx';
 import {deliverImage} from './image-download.js';
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
 import'./style.css';
+import './trial-choice.css';
 import {StudioEditor} from './studio-editor.jsx';
 import {makeupMask,blendMakeupPixels} from './makeup-pixels.js';
 import {blendHairlineSeam} from './hairline-seam.js';
@@ -37,7 +44,16 @@ async function loadAiJobFile(){const db=await aiJobDb();const file=await new Pro
 async function clearAiJobFile(){try{const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete('original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch{}}
 function readActiveAiJob(){try{return JSON.parse(localStorage.getItem(ACTIVE_AI_JOB_KEY)||'null')}catch{return null}}
 function writeActiveAiJob(value){if(value)localStorage.setItem(ACTIVE_AI_JOB_KEY,JSON.stringify(value));else localStorage.removeItem(ACTIVE_AI_JOB_KEY)}
-async function waitForAiJob(jobId,onStatus){for(;;){const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();const verified=await verifyOutputRights(jobId);blob.idpromTrial=!verified.unlocked;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,1800))}}
+let activeProcessOperation=null;
+function cancelledProcessError(){return Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{code:'USER_CANCELLED'})}
+function assertProcessActive(operation=activeProcessOperation){if(operation?.cancelled)throw cancelledProcessError()}
+async function settleProcessOperation(operation,action){
+ if(!operation?.jobId)return;
+ const response=await fetch('/api/ai-jobs/'+encodeURIComponent(operation.jobId)+'/'+action,{method:'POST',headers:walletHeaders()});
+ if(!response.ok)throw Error(action==='cancel'?'ยกเลิกงานไม่สำเร็จ กรุณากดปิดอีกครั้ง':'ยืนยันภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
+ operation.settled=true;writeActiveAiJob(null);await clearAiJobFile();
+}
+async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){for(;;){assertProcessActive(operation);const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();assertProcessActive(operation);onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();assertProcessActive(operation);const verified=await verifyOutputRights(jobId);blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,1800))}}
 
 let landmarkerPromise;
 let segmenterPromise;
@@ -1276,18 +1292,20 @@ function currentResultCacheScope(){
  if(resultCacheScope!==scope){portraitResultCache.clear();makeupResultCache.clear();resultCacheScope=scope}
  return scope;
 }
-async function requestStudioMakeup(source,styles){
+async function requestStudioMakeup(source,styles,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(source);
  const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b))]);
- const result=await makeupResultCache.get(key,()=>requestStudioMakeupUncached(source,styles));
+ const result=await makeupResultCache.get(key,()=>requestStudioMakeupUncached(source,styles,options));
+ if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
  return result.value;
 }
-async function requestStudioMakeupUncached(source,styles){
+async function requestStudioMakeupUncached(source,styles,options={}){
  const {original,W,H,landmarker,face,upload}=await prepareStudioMakeup(source);
  const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(original,0,0);
  const mask=makeupMask(face,W,H,styles),maskData=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
  const fd=new FormData();fd.append('image',upload,'makeup.png');fd.append('styles',JSON.stringify(styles));
- const response=await fetch('/api/makeup/edit',{method:'POST',body:fd,headers:walletHeaders()});
+ if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
+ const response=await fetch('/api/makeup/edit',{method:'POST',body:fd,headers:walletHeaders(),signal:options.signal});
  updateCreditsFromResponse(response);
  if(!response.ok){const error=await response.json().catch(()=>null);throw Error(error?.message||'แต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง')}
  const url=URL.createObjectURL(await response.blob());
@@ -1311,6 +1329,35 @@ function opaqueBounds(canvas){
  let minX=W,minY=H,maxX=-1,maxY=-1;
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(d[(y*W+x)*4+3]<20)continue;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}
  return maxX<minX?null:{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};
+}
+// Preview only: no provider request, no wallet/credit mutation, no face compositing.
+const fittedHairReferenceCache=new Map();
+async function prepareStudioHairOverlay(headSource,hairId){
+ if(!HAIRSTYLE_RULES[hairId])throw Error('ไม่พบทรงผมที่เลือก');
+ const target=await loadImage(headSource),W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
+ const landmarker=await getLandmarker(),targetFace=landmarker.detect(target).faceLandmarks?.[0];
+ let reference=fittedHairReferenceCache.get(hairId);
+ if(!reference){
+  const pending=(async()=>{
+   const [cutout,preview]=await Promise.all([loadImage(`/assets/hair/${hairId}.png`),loadImage(`/assets/hairstyle-previews/${hairId}.png`)]);
+   const face=landmarker.detect(preview).faceLandmarks?.[0];
+   const mask=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+   const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
+   const bounds=opaqueBounds(c),previewBounds=mask&&opaqueBounds(mask);
+   if(!face||!bounds||!previewBounds)throw Error('ตรวจจุดยึดทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
+   return {cutout,face,bounds,previewBounds,w:preview.naturalWidth,h:preview.naturalHeight};
+  })();fittedHairReferenceCache.set(hairId,pending);
+  while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
+  pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
+ }
+ const ref=await reference,m=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
+ const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+ x.setTransform(m.a,m.b,m.c,m.d,m.e,m.f);
+ const a=ref.bounds,b=ref.previewBounds;
+ // Sample the original full-resolution PNG directly, never the small thumbnail.
+ x.drawImage(ref.cutout,a.x,a.y,a.w,a.h,b.x,b.y,b.w,b.h);
+ if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
+ return {source:out.toDataURL('image/png')};
 }
 const localHairAnchorCache=new Map();
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){
@@ -1726,6 +1773,22 @@ async function headOnlyAIEditFile(file,hairId){
    clearSourceHairTails(pixels.data,hair,W,H,{left:Math.min(face[234].x,face[454].x)*W-padding,right:Math.max(face[234].x,face[454].x)*W+padding,earTop:Math.min(face[127].y,face[356].y)*H,chin:chin+eyeD*.08});
    ctx.putImageData(pixels,0,0);
   }
+  // Every style uses the same below-jaw reconstruction field. Do not send
+  // a source collar that the image model may preserve as part of identity.
+  const [sourceHair,sourceClothing]=await Promise.all([
+   semanticClassMask(im,W,H,[1]),semanticClassMask(im,W,H,[4])
+  ]);
+  if(!sourceHair||!sourceClothing)throw Error('เตรียมส่วนคอและปกเสื้อไม่สำเร็จ กรุณาลองใหม่');
+  const hairPixels=sourceHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const clothingPixels=sourceClothing.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const hairAlpha=new Uint8Array(W*H),clothingAlpha=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++){hairAlpha[i]=hairPixels[i*4+3];clothingAlpha[i]=clothingPixels[i*4+3]}
+  const preparedNeck=ctx.getImageData(0,0,W,H);
+  prepareNeckInput(preparedNeck.data,hairAlpha,clothingAlpha,W,H,{
+   left:Math.min(face[234].x,face[454].x)*W-eyeD*.08,
+   right:Math.max(face[234].x,face[454].x)*W+eyeD*.08,chin,eyeDistance:eyeD
+  },{keepOriginalHair:!hairId||hairId==='original'});
+  ctx.putImageData(preparedNeck,0,0);
   // A visible lower-body portion would be a preprocessing error, not a reason
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
@@ -1776,7 +1839,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify([scope,digest,hairId||'original',neckline]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -1796,22 +1859,42 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:cached.value.idpromJobId,isTrial:cached.value.idpromTrial,fullEdit:cached.value.idpromFullEdit}}));
  return cached.value;
 }
+let acceptedPaidTrial=false;
+async function measuredHairRootTarget(blob){
+ const url=URL.createObjectURL(blob);
+ try{const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight,face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  if(!face)throw Error('ไม่พบใบหน้าสำหรับวัดตำแหน่งรากผม กรุณาใช้ภาพหน้าตรง');
+  const brow={x:(face[55].x+face[285].x)/2,y:(face[55].y+face[285].y)/2};
+  const eyeDistance=Math.hypot((face[263].x-face[33].x)*W,(face[263].y-face[33].y)*H);
+  const hairMask=await semanticClassMask(image,W,H,[1]);
+  if(!hairMask)throw Error('วัดแนวผมบนหน้าผากไม่สำเร็จ กรุณาลองใช้ภาพที่เห็นแนวผมชัดเจน');
+  const rgba=hairMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data,mask=new Uint8Array(W*H);
+  for(let i=0;i<mask.length;i++)mask[i]=rgba[i*4+3];
+  const foreheadTop=measureCentralForeheadHairline(mask,W,H,brow,eyeDistance);
+  return calculateHairRootTarget({brow,foreheadTop});
+ }finally{URL.revokeObjectURL(url)}
+}
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
- const aiInput=await headOnlyAIEditFile(originalFile,hairId);
+ const operation=activeProcessOperation;assertProcessActive(operation);
+ const aiInput=await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
+ if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
+ fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  if(options.maleHairReplacement&&/^manhair-\d{2}$/.test(hairId))fd.append('maleHairReplacement','1');
  await saveAiJobFile(originalFile);
- const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:walletHeaders()});
+ const acceptTrial=acceptedPaidTrial;acceptedPaidTrial=false;
+ const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:{...walletHeaders(),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})}});
  if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(Error(text||'สิทธิ์สร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม'),{error_stage:'submit_job',http_status:r.status})}
  const info=await r.json();
+ if(operation){operation.jobId=info.jobId;if(operation.cancelled){await settleProcessOperation(operation,'cancel');throw cancelledProcessError()}}
  writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
  window.dispatchEvent(new CustomEvent('idprom-rights',{detail:{generationRemaining:Number(info.generationRemaining||0),hairRemaining:Number(info.hairRemaining||0)}}));
- const result=await waitForAiJob(info.jobId,options.onJobStatus);return result;
+ const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);return result;
 }
 
 // V206: provider edit masks are not a pixel-identity guarantee. Restore the
@@ -1955,6 +2038,7 @@ async function prepareHairEdit(masterBlob){
 // V204: provider receives one immutable portrait, one exact style and one hard mask.
 async function requestHairstyleEngine(master,id){
  const fd=new FormData();fd.append('image',new File([master],'head.png',{type:'image/png'}));fd.append('hairId',id);
+ fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(master)));
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
  try{const r=await fetch('/api/hairstyle/edit',{method:'POST',body:fd,signal:controller.signal,headers:walletHeaders()});
   if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw Error(text||'สิทธิ์เปลี่ยนทรงผมหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม')}updateCreditsFromResponse(r);return await r.blob();
@@ -2274,6 +2358,7 @@ function App(){
  const [outputJobId,setOutputJobId]=useState(''),[restoredSourcePhoto,setRestoredSourcePhoto]=useState(null);const currentOutputJobRef=useRef(''),currentOutputTrialRef=useRef(false),paymentStudioRef=useRef(null);
  useEffect(()=>{const onJob=e=>{if(e.detail.isTrial)setFreeFeatureSession(true);if(e.detail.fullEdit){setPurchaseEditing(true);setSessionEditJob(e.detail.jobId)}currentOutputJobRef.current=e.detail.jobId;currentOutputTrialRef.current=e.detail.isTrial;studioTrialRef.current=e.detail.isTrial;setTrialPreview(e.detail.isTrial);setOutputJobId(e.detail.jobId)};window.addEventListener('idprom-output-job',onJob);return()=>window.removeEventListener('idprom-output-job',onJob)},[]);
 
+ const [qrPayment,setQrPayment]=useState(null);const checkoutBusyRef=useRef(false);
  const[rights,setRights]=useState({generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]}),[buyOpen,setBuyOpen]=useState(false),[payBusy,setPayBusy]=useState(false),[payMsg,setPayMsg]=useState('');
  const[authOpen,setAuthOpen]=useState(false),[authMode,setAuthMode]=useState('register'),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[showPassword,setShowPassword]=useState(false),[authBusy,setAuthBusy]=useState(false),[authMsg,setAuthMsg]=useState(''),[pendingPackage,setPendingPackage]=useState(null);
  const[accountMenuOpen,setAccountMenuOpen]=useState(false),[accountEmail,setAccountEmail]=useState(()=>{try{return localStorage.getItem('idprom_account_email')||''}catch{return ''}});
@@ -2306,17 +2391,114 @@ function App(){
  const [savedWorksOpen,setSavedWorksOpen]=useState(false),[savedWorkUnlocked,setSavedWorkUnlocked]=useState(false),[savedWorkRevision,setSavedWorkRevision]=useState(0);const savedWorkIdRef=useRef('');
  const saveAccountWork=async(project,options={})=>{const targetId=options.workId??savedWorkIdRef.current;const r=await fetch('/api/saved-work',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({id:options.createCopy?'':targetId,project})});const d=await r.json();if(!r.ok){if(d.error==='saved_work_limit')setSavedWorksOpen(true);throw Error(d.message||'บันทึกงานไม่สำเร็จ')}if(!options.createCopy&&savedWorkIdRef.current===targetId)savedWorkIdRef.current=d.id;return d};
  saveAccountWork.currentWorkId=()=>savedWorkIdRef.current;
- const openAccountWork=async work=>{await refreshWallet();const project=work.project;const source=project.compareSource?await(await fetch(project.compareSource)).blob():null;setRestoredSourcePhoto(source);studioOriginRef.current={starter:true,placement:project.placement};savedWorkIdRef.current=work.id;setSavedWorkUnlocked(work.unlocked===true);setPurchaseEditing(false);setSessionEditJob('');setStudioData(project.layers);setSavedWorkRevision(v=>v+1);setScreen('studio')};
- const SavedWorkUI=()=>savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>;
- const startCheckout=async(packageId,authenticated=false)=>{analyticsEvent('idprom_checkout_click',{package_id:packageId});if(!authenticated&&!authToken()){setPendingPackage(packageId);setAuthMode('register');setAuthMsg('');setAuthOpen(true);return}setPayBusy(true);setPayMsg('');try{await refreshWallet();const r=await fetch('/api/payments/checkout',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json'},body:JSON.stringify({packageId,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});const data=await r.json();if(r.status===401){localStorage.removeItem(AUTH_TOKEN_KEY);setPendingPackage(packageId);setAuthOpen(true);throw Error(data.message||'กรุณาเข้าสู่ระบบก่อนชำระเงิน')}if(!r.ok)throw Error(data.error||'สร้างรายการชำระเงินไม่สำเร็จ');await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null});analyticsCheckout(packageId,data.url);location.href=data.url}catch(e){analyticsEvent('idprom_checkout_error',{error_stage:'checkout'});setPayMsg(e.message)}finally{setPayBusy(false)}};
+ const openAccountWork=async work=>{await refreshWallet();const project=work.project;const source=project.compareSource?await(await fetch(project.compareSource)).blob():null;setRestoredSourcePhoto(source);studioOriginRef.current={starter:true,placement:project.placement};savedWorkIdRef.current=work.id;setSavedWorkUnlocked(work.unlocked===true);setPurchaseEditing(work.unlocked===true);setSessionEditJob('');setStudioData(project.layers);setSavedWorkRevision(v=>v+1);setScreen('studio')};
+ const [trialChoice,setTrialChoice]=useState(null);const trialChoiceResolve=useRef(null);
+ const chooseTrial=accept=>{acceptedPaidTrial=accept;trialChoiceResolve.current?.(accept);trialChoiceResolve.current=null;setTrialChoice(null)};
+ const beforeProcess=async()=>{
+  if(privateTrialActive)return true;
+  if(trialChoiceResolve.current)return false;
+  await refreshWallet();
+  const response=await fetch('/api/wallet',{headers:walletHeaders(),cache:'no-store'});const data=await response.json();
+  if(!response.ok)throw Error(data.message||'ตรวจสอบเครดิตไม่สำเร็จ');
+  setRights(previous=>({...previous,...normalizedRights(data)}));
+  acceptedPaidTrial=false;
+  if(Number(data.processRemaining??data.generationRemaining)>0)return true;
+  const remaining=Number(data.trialRemaining)||0;
+  if(!data.hasPurchased&&remaining>0)return true;
+  setTrialChoice({remaining,purchased:Boolean(data.hasPurchased)});
+  return new Promise(resolve=>{trialChoiceResolve.current=resolve});
+ };
+ const TrialChoiceUI=()=>trialChoice&&<div className="idprom-credit-notice-overlay" onKeyDown={e=>{if(e.key==='Escape')chooseTrial(false)}}><section className="idprom-credit-notice" role="dialog" aria-modal="true" aria-labelledby="credit-notice-title" aria-describedby="credit-notice-description">
+ <button className="idprom-credit-notice-close" aria-label="ปิด" onClick={()=>chooseTrial(false)}>×</button>
+ <div className="idprom-credit-notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M7 14h3m5 1h2M7 5V3h10v2"/></svg></div>
+ <span className="idprom-credit-notice-brand">IDพร้อม Studio</span>
+ <h2 id="credit-notice-title">{trialChoice.purchased?'เครดิตของคุณหมดแล้ว':'สิทธิ์ทดลองวันนี้หมดแล้ว'}</h2>
+ <p id="credit-notice-description" className="idprom-credit-notice-intro">{trialChoice.purchased?'บันทึกงานไว้ เพื่อเก็บรูปไม่มีลายน้ำ':'ทดลองใช้ฟรีวันละ 2 ครั้ง เริ่มใหม่ได้วันถัดไป'}</p>
+ {trialChoice.purchased&&<div className="idprom-credit-notice-saved"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h12l4 4v14H3V3h2zM7 3v6h10V3M7 21v-8h10v8"/></svg><p>งานที่บันทึกแล้วเปิดกลับมาได้เสมอ<span>รูปเดิมยังไม่มีลายน้ำ แม้เครดิตเหลือ 0</span></p></div>}
+ <div className={'idprom-credit-notice-quota'+(trialChoice.remaining>0?' available':'')}><span>{trialChoice.remaining>0?`มีสิทธิ์ทดลองฟรี ${trialChoice.remaining} เครดิต`:'วันนี้ไม่มีสิทธิ์ทดลองฟรีเหลือแล้ว'}</span>{trialChoice.remaining>0&&<small>รูปมีลายน้ำ</small>}</div>
+ {trialChoice.remaining>0&&<p className="idprom-credit-notice-warning">หากเริ่มทดลอง รูปใหม่ที่มีลายน้ำจะแทนรูปเดิมในพื้นที่ทำงาน กรุณาบันทึกงานเดิมก่อน</p>}
+ <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
+ {trialChoice.remaining>0&&<button className="idprom-credit-notice-trial" onClick={()=>chooseTrial(true)}>ใช้สิทธิ์ทดลองฟรี (ลายน้ำ)</button>}
+ </section></div>;
+ const SavedWorkUI=()=> <><TrialChoiceUI/>{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
+ const startCheckout=async(packageId,authenticated=false)=>{
+  analyticsEvent('idprom_checkout_click',{package_id:packageId});
+  if(!authenticated&&!authToken()){setPendingPackage(packageId);setAuthMode('register');setAuthMsg('');setAuthOpen(true);return}
+  if(checkoutBusyRef.current)return;checkoutBusyRef.current=true;
+  setPayBusy(true);setPayMsg('กำลังเตรียม QR ชำระเงิน…');let stage='refresh_wallet',httpStatus=0;
+  let attemptId=globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const attemptScope=JSON.stringify([currentWalletId(),packageId,currentOutputTrialRef.current?currentOutputJobRef.current:'']);
+  try{const pending=JSON.parse(sessionStorage.getItem('idprom_qr_attempt_v1')||'null');if(pending?.scope===attemptScope&&Date.now()-pending.at<3600000)attemptId=pending.id;else sessionStorage.setItem('idprom_qr_attempt_v1',JSON.stringify({scope:attemptScope,id:attemptId,at:Date.now()}))}catch{}
+  try{
+   await refreshWallet();
+   if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
+   stage='save_draft';
+   let draftStorage;
+   try{draftStorage=await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null},{allowMemoryFallback:true})}
+   catch(error){const failure=Error('บันทึกงานก่อนชำระเงินไม่ได้ กรุณาเพิ่มพื้นที่ว่างหรือเปิดเว็บใน Chrome / Safari แล้วลองอีกครั้ง');failure.code=error?.name||'draft_save_failed';throw failure}
+   if(draftStorage?.persistent===false){
+    analyticsEvent('idprom_checkout_backup_warning',{error_stage:'save_draft',error_code:'memory_backup',package_id:packageId,attempt_id:attemptId});
+    void fetch('/api/payments/checkout-diagnostic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({attemptId,stage:'save_draft',code:'memory_backup',primaryCode:draftStorage.primaryCode,backupCode:draftStorage.backupCode,httpStatus:0,packageId}),keepalive:true}).catch(()=>{});
+   }
+   stage='create_session';
+   const r=await fetch('/api/payments/promptpay',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json','X-Checkout-Attempt':attemptId},body:JSON.stringify({packageId,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});
+   httpStatus=r.status;stage='read_response';const data=await r.json();
+   if(r.status===401){localStorage.removeItem(AUTH_TOKEN_KEY);setPendingPackage(packageId);setAuthMode('login');setAuthMsg(data.message||'กรุณาเข้าสู่ระบบใหม่');setAuthOpen(true)}
+   if(!r.ok){stage='create_session';const failure=Error(data.message||data.error||'สร้างรายการชำระเงินไม่สำเร็จ');failure.code=data.error;throw failure}
+   stage='redirect';if(!data.paymentIntentId||!data.qrImage)throw Error('ไม่พบ QR ชำระเงิน กรุณาลองใหม่');
+   const payment={...data,walletId:currentWalletId(),packageId};
+   try{localStorage.setItem('idprom_pending_qr_v1',JSON.stringify(payment))}catch{}
+   analyticsCheckout(packageId,data.paymentIntentId);setQrPayment(payment);setPayMsg(draftStorage?.persistent===false?'ระหว่างชำระเงิน กรุณาเปิดหน้านี้ไว้ หลังชำระสำเร็จให้บันทึกงานก่อนปิดหรือรีเฟรชหน้า':'');setBuyOpen(true);
+  }catch(e){
+   const code=String(e.code||e.name||'checkout_failed').slice(0,80);
+   analyticsEvent('idprom_checkout_error',{error_stage:stage,error_code:code,http_status:httpStatus,package_id:packageId,attempt_id:attemptId});
+   void fetch('/api/payments/checkout-diagnostic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({attemptId,stage,code,httpStatus,packageId}),keepalive:true}).catch(()=>{});
+   setPayMsg(e.message||'เปิดหน้าชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง');
+  }finally{checkoutBusyRef.current=false;setPayBusy(false)}
+ };
  useEffect(()=>{refreshWallet().then(activatePrivateTrial);const onRights=e=>setRights(previous=>({...previous,...normalizedRights(e.detail||{})})),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-rights',onRights);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){setPurchaseEditing(true);const sessionId=q.get('session_id');setPayMsg('ชำระเงินสำเร็จ กำลังเพิ่มสิทธิ์…');(async()=>{try{await restorePurchaseDraft();await refreshWallet();if(sessionId){const r=await fetch('/api/payments/confirm',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sessionId})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบการชำระเงินไม่สำเร็จ');setRights(previous=>({...previous,...normalizedRights(data)}));setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');if(data.ok===true)analyticsPurchase(sessionId)}else{await refreshWallet();setPayMsg('ชำระเงินสำเร็จ')}}catch(e){setPayMsg(e.message||'กำลังรอการยืนยันการชำระเงิน');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000)}})();history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){restorePurchaseDraft();analyticsEvent('idprom_checkout_cancel');setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy)}},[]);
  useEffect(()=>{if(outputJobId&&rights.unlockedJobIds.includes(outputJobId)){currentOutputTrialRef.current=false;studioTrialRef.current=false;setTrialPreview(false)}},[outputJobId,rights.unlockedJobIds]);
 
- const AuthUI=()=> authOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setAuthOpen(false);setPendingPackage(null)}}}><section role="dialog" aria-modal="true" aria-label="สมัครสมาชิก IDพร้อม" style={{width:'min(420px,calc(100vw - 28px))',background:'#fff',borderRadius:24,padding:26,boxShadow:'0 24px 70px rgba(15,35,65,.24)',position:'relative'}}><button type="button" className="credit-modal-close" onClick={()=>{setAuthOpen(false);setPendingPackage(null)}}>×</button><div style={{fontWeight:900,fontSize:20,color:'#1769c8',marginBottom:6}}>IDพร้อม</div><h2 style={{margin:'0 0 6px',fontSize:26,color:'#12233f'}}>{authMode==='register'?'สมัครสมาชิก':'เข้าสู่ระบบ'}</h2><p style={{margin:'0 0 20px',fontSize:14,color:'#718097'}}>{pendingPackage?.startsWith('promo:')?'สมัครสมาชิกหรือเข้าสู่ระบบเพื่อรับสิทธิ์ฟรีและเก็บเครดิตในบัญชี':authMode==='register'?'สมัครสมาชิกก่อนชำระเงิน เพื่อเก็บสิทธิ์การใช้งานของคุณ':'เข้าสู่ระบบเพื่อชำระเงินต่อ'}</p><label style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>อีเมล</label><input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" placeholder="example@email.com" style={{width:'100%',boxSizing:'border-box',padding:'12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16,marginBottom:14}}/><label style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>รหัสผ่าน</label><div style={{position:'relative'}}><input type={showPassword?'text':'password'} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={authMode==='register'?'new-password':'current-password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="อย่างน้อย 8 ตัวอักษร" onKeyDown={e=>{if(e.key==='Enter'&&!authBusy)submitAuth()}} style={{width:'100%',boxSizing:'border-box',padding:'12px 46px 12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16}}/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} title={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',width:36,height:36,border:0,background:'transparent',padding:0,cursor:'pointer',display:'grid',placeItems:'center',color:'#53657d'}}>{showPassword?<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 4.2A10.5 10.5 0 0112 4c5.5 0 9.5 5.2 9.5 5.2a15.6 15.6 0 01-3.1 3.6"/><path d="M6.6 6.6C4 8.3 2.5 10.2 2.5 10.2S6.5 16 12 16c1 0 2-.2 2.9-.5"/></svg>:<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12S6.5 6 12 6s9.5 6 9.5 6-4 6-9.5 6S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.5"/></svg>}</button></div>{authMsg&&<p style={{color:'#c62828',fontSize:13,margin:'10px 0 0'}}>{authMsg}</p>}<button type="button" disabled={authBusy||!authEmail||authPassword.length<8} onClick={submitAuth} style={{width:'100%',border:0,borderRadius:13,padding:'13px 16px',background:'#176fd2',color:'#fff',fontWeight:800,fontSize:15,marginTop:18,cursor:'pointer',opacity:(authBusy||!authEmail||authPassword.length<8)?.6:1}}>{authBusy?'กำลังดำเนินการ…':pendingPackage?.startsWith('promo:')?(authMode==='register'?'สมัครสมาชิกและรับสิทธิ์ฟรี':'เข้าสู่ระบบและรับสิทธิ์ฟรี'):authMode==='register'?'สมัครสมาชิกและชำระเงินต่อ':'เข้าสู่ระบบและชำระเงินต่อ'}</button><button type="button" onClick={()=>{setAuthMode(authMode==='register'?'login':'register');setAuthMsg('')}} style={{width:'100%',border:0,background:'transparent',padding:'13px 0 0',color:'#1769c8',fontWeight:700,cursor:'pointer'}}>{authMode==='register'?'มีบัญชีแล้ว? เข้าสู่ระบบ':'ยังไม่มีบัญชี? สมัครสมาชิก'}</button></section></div>;
+ const AuthUI=()=> authOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setAuthOpen(false);setPendingPackage(null)}}}><section role="dialog" aria-modal="true" aria-label="สมัครสมาชิก IDพร้อม" style={{width:'min(420px,calc(100vw - 28px))',background:'#fff',borderRadius:24,padding:26,boxShadow:'0 24px 70px rgba(15,35,65,.24)',position:'relative'}}><button type="button" className="credit-modal-close" onClick={()=>{setAuthOpen(false);setPendingPackage(null)}}>×</button><div style={{fontWeight:900,fontSize:20,color:'#1769c8',marginBottom:6}}>IDพร้อม</div><h2 style={{margin:'0 0 6px',fontSize:26,color:'#12233f'}}>{authMode==='register'?'สมัครสมาชิก':'เข้าสู่ระบบ'}</h2><p style={{margin:'0 0 20px',fontSize:14,color:'#718097'}}>{pendingPackage?.startsWith('promo:')?'สมัครสมาชิกหรือเข้าสู่ระบบเพื่อรับสิทธิ์ฟรีและเก็บเครดิตในบัญชี':authMode==='register'?'สมัครสมาชิกก่อนชำระเงิน เพื่อเก็บสิทธิ์การใช้งานของคุณ':'เข้าสู่ระบบเพื่อชำระเงินต่อ'}</p><label style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>อีเมล</label><input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" placeholder="example@email.com" style={{width:'100%',boxSizing:'border-box',padding:'12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16,marginBottom:14}}/><label style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>รหัสผ่าน</label><div style={{position:'relative'}}><input type={showPassword?'text':'password'} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={authMode==='register'?'new-password':'current-password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="อย่างน้อย 8 ตัวอักษร" onKeyDown={e=>{if(e.key==='Enter'&&!authBusy)submitAuth()}} style={{width:'100%',boxSizing:'border-box',padding:'12px 46px 12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16}}/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} title={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',width:36,height:36,border:0,background:'transparent',padding:0,cursor:'pointer',display:'grid',placeItems:'center',color:'#53657d'}}>{showPassword?<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 4.2A10.5 10.5 0 0112 4c5.5 0 9.5 5.2 9.5 5.2a15.6 15.6 0 01-3.1 3.6"/><path d="M6.6 6.6C4 8.3 2.5 10.2 2.5 10.2S6.5 16 12 16c1 0 2-.2 2.9-.5"/></svg>:<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12S6.5 6 12 6s9.5 6 9.5 6-4 6-9.5 6S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.5"/></svg>}</button></div>{authMode==='login'&&<button type="button" disabled={authBusy} onClick={()=>window.dispatchEvent(new Event('idprom-forgot-password'))} style={{display:'block',margin:'10px 0 0 auto',border:0,background:'transparent',color:'#1769c8',fontSize:13,cursor:'pointer'}}>ลืมรหัสผ่าน?</button>}{authMsg&&<p style={{color:'#c62828',fontSize:13,margin:'10px 0 0'}}>{authMsg}</p>}<button type="button" disabled={authBusy||!authEmail||authPassword.length<8} onClick={submitAuth} style={{width:'100%',border:0,borderRadius:13,padding:'13px 16px',background:'#176fd2',color:'#fff',fontWeight:800,fontSize:15,marginTop:18,cursor:'pointer',opacity:(authBusy||!authEmail||authPassword.length<8)?.6:1}}>{authBusy?'กำลังดำเนินการ…':pendingPackage?.startsWith('promo:')?(authMode==='register'?'สมัครสมาชิกและรับสิทธิ์ฟรี':'เข้าสู่ระบบและรับสิทธิ์ฟรี'):authMode==='register'?'สมัครสมาชิกและชำระเงินต่อ':'เข้าสู่ระบบและชำระเงินต่อ'}</button><button type="button" onClick={()=>{setAuthMode(authMode==='register'?'login':'register');setAuthMsg('')}} style={{width:'100%',border:0,background:'transparent',padding:'13px 0 0',color:'#1769c8',fontWeight:700,cursor:'pointer'}}>{authMode==='register'?'มีบัญชีแล้ว? เข้าสู่ระบบ':'ยังไม่มีบัญชี? สมัครสมาชิก'}</button></section></div>;
  const AccountUI=()=>{const loggedIn=!!authToken();const logout=()=>{setFeatureSession(false);setFreeFeatureSession(false);localStorage.removeItem(AUTH_TOKEN_KEY);localStorage.removeItem('idprom_account_email');localStorage.removeItem(WALLET_KEY);setRights({generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]});setAccountEmail('');setAccountMenuOpen(false);refreshWallet()};const openAuth=()=>{setAccountMenuOpen(false);setAuthMode('login');setAuthMsg('');setAuthOpen(true)};return <div style={{position:'relative'}}><button type="button" onClick={()=>loggedIn?setAccountMenuOpen(v=>!v):openAuth()} aria-label={loggedIn?'บัญชีสมาชิก':'เข้าสู่ระบบหรือสมัครสมาชิก'} aria-expanded={loggedIn?accountMenuOpen:false} title={loggedIn?'บัญชีสมาชิก':'เข้าสู่ระบบ / สมัครสมาชิก'} style={{width:42,height:42,border:'1px solid #dbe5f1',background:loggedIn?'#176fd2':'#fff',borderRadius:'50%',padding:0,color:loggedIn?'#fff':'#176fd2',cursor:'pointer',display:'grid',placeItems:'center',flex:'0 0 auto'}}>{loggedIn?<span style={{fontSize:17,fontWeight:900,lineHeight:1}}>{(accountEmail||'ส').trim().charAt(0).toUpperCase()}</span>:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/><path d="M19 8v6M16 11h6"/></svg>}</button>{loggedIn&&accountMenuOpen&&<div style={{position:'absolute',right:0,top:'calc(100% + 9px)',zIndex:1000,width:'min(320px,calc(100vw - 24px))',background:'#232323',color:'#fff',borderRadius:10,padding:'18px 16px 12px',boxShadow:'0 10px 30px rgba(0,0,0,.28)'}}><div style={{display:'flex',gap:12,alignItems:'center',paddingBottom:16,borderBottom:'1px solid rgba(255,255,255,.18)'}}><div style={{width:52,height:52,borderRadius:'50%',background:'#176fd2',display:'grid',placeItems:'center',fontSize:22,fontWeight:900,flex:'0 0 auto'}}>{(accountEmail||'ส').trim().charAt(0).toUpperCase()}</div><div style={{minWidth:0}}><div style={{fontWeight:900,fontSize:16,marginBottom:4}}>สมาชิก IDพร้อม</div><div style={{fontSize:13,color:'#ddd',wordBreak:'break-all'}}>{accountEmail||'เข้าสู่ระบบแล้ว'}</div></div></div><div style={{padding:'14px 0',fontSize:14,borderBottom:'1px solid rgba(255,255,255,.18)'}}><div style={{fontSize:11,color:'#aaa',marginBottom:8}}>สิทธิ์คงเหลือ</div><button type="button" onClick={()=>{setAccountMenuOpen(false);setBuyOpen(true)}} style={{border:'1px solid rgba(255,255,255,.22)',background:'rgba(255,255,255,.08)',color:'#fff',borderRadius:9,padding:'9px 11px',fontWeight:700,cursor:'pointer'}}>ประมวลผล {rights.generationRemaining} ครั้ง</button></div><button type="button" onClick={()=>{setAccountMenuOpen(false);setSavedWorksOpen(true)}} style={{width:'100%',padding:12}}>งานที่บันทึกไว้</button><button type="button" onClick={logout} style={{width:'100%',border:0,background:'transparent',color:'#fff',textAlign:'left',padding:'15px 0 4px',fontSize:14,cursor:'pointer'}}>ลงชื่อออก</button></div>}</div>};
- const CreditUI=({showBalance=true}={})=> <>{privateTrialActive&&<button type="button" onClick={leavePrivateTrial} disabled={busy||hairBusy} title="กลับไปใช้เครดิตตามปกติ">ทดสอบส่วนตัว · ออกจากโหมด</button>}{showBalance&&<button type="button" className="credit-wallet-pill" onClick={()=>setBuyOpen(true)} aria-label={`ประมวลผลคงเหลือ ${rights.generationRemaining} ครั้ง`} style={{display:'inline-flex',alignItems:'center',gap:0,padding:'7px 12px',borderRadius:14,background:'#fff',border:'1px solid #e1e8f2',boxShadow:'0 2px 8px rgba(24,74,130,.06)',color:'#24364f',fontWeight:700}}><span style={{whiteSpace:'nowrap',fontSize:13}}>ประมวลผล <strong style={{color:'#1269c7',fontSize:15}}>{rights.generationRemaining}</strong> ครั้ง</span></button>}{buyOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBuyOpen(false)}}><section className="credit-modal package-pro-modal" role="dialog" aria-modal="true" aria-label="แพ็กเกจ IDพร้อม"><style>{`
+ const clearQrPayment=()=>{setQrPayment(null);try{localStorage.removeItem('idprom_pending_qr_v1');sessionStorage.removeItem('idprom_qr_attempt_v1')}catch{}};
+ const expireQrPayment=async()=>{
+  const headers={...walletHeaders(),...authHeaders()},url='/api/payments/promptpay/'+encodeURIComponent(qrPayment.paymentIntentId);
+  const statusResponse=await fetch(url,{headers,cache:'no-store'}),status=await statusResponse.json();
+  if(status.ok===true&&status.status==='succeeded'){await finishQrPayment(status);return}
+  if(statusResponse.ok&&(status.status==='canceled'||(status.expiresAt&&Date.now()>=status.expiresAt*1000&&status.status!=='processing'))){clearQrPayment();return}
+  const r=await fetch(url+'/cancel',{method:'POST',headers}),data=await r.json();
+  if(!r.ok)throw Error(data.message||'ยังปิดรายการเดิมไม่ได้');if(data.ok===true)await finishQrPayment(data);else if(data.status==='canceled')clearQrPayment();else throw Error('กรุณาตรวจสอบรายการเดิมก่อน');
+ };
+ const finishQrPayment=async data=>{
+  setRights(previous=>({...previous,...normalizedRights(data)}));setPurchaseEditing(true);
+  if(qrPayment?.recovered){try{await restorePurchaseDraft()}catch{setMsg('ชำระเงินสำเร็จ แต่เปิดงานเดิมไม่ได้ กรุณาเปิดงานที่บันทึกหรือเพิ่มรูปใหม่')}}
+  await refreshWallet();analyticsPurchase(data.paymentIntentId);clearQrPayment();setBuyOpen(false);setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');
+ };
+ useEffect(()=>{let cancelled=false;(async()=>{
+  const removeStored=()=>{try{localStorage.removeItem('idprom_pending_qr_v1');sessionStorage.removeItem('idprom_qr_attempt_v1')}catch{}};
+  try{
+   const stored=JSON.parse(localStorage.getItem('idprom_pending_qr_v1')||'null');if(!stored)return;
+   if(!stored.paymentIntentId||!stored.walletId){removeStored();return}
+   await refreshWallet();if(cancelled||stored.walletId!==currentWalletId())return;
+   const response=await fetch('/api/payments/promptpay/'+encodeURIComponent(stored.paymentIntentId),{headers:{...walletHeaders(),...authHeaders()},cache:'no-store'});
+   const latest=await response.json();if(cancelled)return;
+   if(response.status===403){removeStored();return}
+   if(response.status===401)return;
+   if(!response.ok){removeStored();return}
+   if(latest.ok===true&&latest.status==='succeeded'){
+    setQrPayment({...stored,...latest,recovered:true});setBuyOpen(true);return;
+   }
+   if(latest.status==='canceled'||(latest.expiresAt&&Date.now()>=latest.expiresAt*1000&&latest.status!=='processing')){removeStored();return}
+   if(['requires_action','processing'].includes(latest.status)){
+    setQrPayment({...stored,...latest,recovered:true});setBuyOpen(true);return;
+   }
+   removeStored();
+  }catch{}
+ })();return()=>{cancelled=true}},[]);
+ const CreditUI=({showBalance=true}={})=> <>{privateTrialActive&&<button type="button" onClick={leavePrivateTrial} disabled={busy||hairBusy} title="กลับไปใช้เครดิตตามปกติ">ทดสอบส่วนตัว · ออกจากโหมด</button>}{showBalance&&<button type="button" className="credit-wallet-pill" onClick={()=>setBuyOpen(true)} aria-label={`ประมวลผลคงเหลือ ${rights.generationRemaining} ครั้ง`} style={{display:'inline-flex',alignItems:'center',gap:0,padding:'7px 12px',borderRadius:14,background:'#fff',border:'1px solid #e1e8f2',boxShadow:'0 2px 8px rgba(24,74,130,.06)',color:'#24364f',fontWeight:700}}><span style={{whiteSpace:'nowrap',fontSize:13}}>ประมวลผล <strong style={{color:'#1269c7',fontSize:15}}>{rights.generationRemaining}</strong> ครั้ง</span></button>}{buyOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBuyOpen(false)}}><section className={"credit-modal package-pro-modal"+(qrPayment?" idprom-qr-modal":"")} role="dialog" aria-modal="true" aria-label="แพ็กเกจ IDพร้อม"><style>{`
 .package-pro-modal{width:min(760px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;padding:28px;border-radius:28px;background:#fff;box-shadow:0 24px 70px rgba(15,35,65,.24);box-sizing:border-box}.package-pro-modal .credit-modal-close{top:18px;right:20px}.package-pro-head{padding:0 4px 20px}.package-pro-brand{font-size:18px;font-weight:800;color:#1769c8;margin-bottom:5px}.package-pro-title{font-size:30px!important;line-height:1.15!important;margin:0 0 7px!important;color:#12233f}.package-pro-sub{margin:0;color:#728097;font-size:15px}.package-pro-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.package-card{position:relative;display:flex;flex-direction:column;min-width:0;padding:24px;border:1px solid #d9e7fb;border-radius:22px;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}.package-card.popular{border-color:#f3dfe5;background:linear-gradient(180deg,#fffaf7 0%,#fff 100%)}.package-badge{position:absolute;right:16px;top:16px;padding:6px 10px;border-radius:999px;background:#e91e63;color:#fff;font-size:12px;font-weight:800}.package-name{font-size:18px;font-weight:800;color:#172a47;margin:0}.package-price{font-size:38px;line-height:1.1;font-weight:900;color:#146bd1;margin:8px 0 20px}.package-card.popular .package-price{color:#d91d62}.package-price small{font-size:18px;font-weight:800}.package-features{list-style:none!important;padding:0!important;margin:0 0 22px!important;display:grid;gap:14px;flex:1}.package-features li{display:flex;gap:11px;align-items:flex-start;color:#243650;font-size:14px;line-height:1.35}.package-feature-icon{width:8px;height:8px;border-radius:50%;background:#17365f;display:block;flex:0 0 8px;margin:7px 13px 0 5px;font-size:0;line-height:0;color:transparent;overflow:hidden}.package-card.popular .package-feature-icon{background:#b31954}.package-feature-text strong{display:block;font-size:14px;color:#172a47;margin-bottom:1px}.package-feature-text span{color:#718097}.package-select-btn{width:100%;border:0;border-radius:14px;padding:14px 16px;background:#176fd2;color:#fff;font-size:15px;font-weight:800;cursor:pointer}.package-card.popular .package-select-btn{background:#dd2164}.package-select-btn:disabled{opacity:.6;cursor:default}.package-secure{margin-top:18px;padding:13px 16px;border-radius:16px;background:#f7f9fc;text-align:center;color:#66758c;font-size:12px}.package-pro-modal .credit-pay-msg{text-align:center;margin:14px 0 0}.package-pro-modal>small{display:none}@media(max-width:640px){.package-pro-modal{padding:22px 16px;border-radius:24px}.package-pro-title{font-size:25px!important}.package-pro-sub{font-size:13px}.package-pro-grid{grid-template-columns:1fr;gap:14px}.package-card{padding:20px}.package-price{font-size:34px;margin-bottom:16px}.package-badge{top:14px;right:14px}}
-`}</style><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button><PackageOffers payBusy={payBusy} payMsg={payMsg} hasTrial={Boolean(currentOutputTrialRef.current&&outputJobId)} startCheckout={startCheckout}/></section></div>}</>;
+`}</style><button className="credit-modal-close" onClick={()=>setBuyOpen(false)}>×</button>{qrPayment?<PromptpayPanel key={qrPayment.paymentIntentId} payment={qrPayment} headers={()=>({...walletHeaders(),...authHeaders()})} onPaid={finishQrPayment} onExpired={expireQrPayment}/>:<PackageOffers payBusy={payBusy} payMsg={payMsg} hasTrial={Boolean(currentOutputTrialRef.current&&outputJobId)} startCheckout={startCheckout}/>}</section></div>}</>;
  const ContactUI=()=> <><button type="button" className="line-contact-button" onClick={()=>setLineContactOpen(true)} aria-label="ติดต่อแอดมินทาง LINE"><span className="line-contact-bubble">LINE</span><span className="line-contact-label">ติดต่อ</span></button>{lineContactOpen&&<div className="line-contact-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setLineContactOpen(false)}}><section className="line-contact-modal" role="dialog" aria-modal="true" aria-label="ติดต่อแอดมินทาง LINE"><button type="button" className="line-contact-close" onClick={()=>setLineContactOpen(false)} aria-label="ปิด">×</button><h2>ติดต่อแอดมิน</h2><p>สแกน QR Code เพื่อเพิ่มเพื่อนทาง LINE</p><img src="/assets/line-contact-qr.png" alt="QR Code ติดต่อ IDพร้อม ทาง LINE"/></section></div>}</>;
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
  const[studioData,setStudioData]=useState(null),[studioBusy,setStudioBusy]=useState(false);
@@ -2349,31 +2531,62 @@ function App(){
  const[processProgress,setProcessProgress]=useState({active:false,value:0,label:''});
  const progressTimerRef=useRef(null);
  const progressStartedAtRef=useRef(0);
+ const progressValueRef=useRef(1);
  const progressLabelFor=value=>value>=100?'ประมวลผลสำเร็จ':value>=86?'กำลังเก็บรายละเอียด':value>=31?'กำลังประมวลผลภาพ':'กำลังเตรียมภาพ';
  const beginProgress=()=>{
   clearInterval(progressTimerRef.current);
-  progressStartedAtRef.current=Date.now();
+  activeProcessOperation={jobId:null,cancelled:false,settled:false,finishing:false};
+  progressStartedAtRef.current=Date.now();progressValueRef.current=1;
   setProcessProgress({active:true,value:1,label:progressLabelFor(1)});
   progressTimerRef.current=setInterval(()=>setProcessProgress(current=>{
    if(!current.active||current.value>=100)return current;
    const elapsed=Math.max(0,Date.now()-progressStartedAtRef.current);
-   // Display-only progress: move steadily and smoothly, then wait at 99%
-   // until the real server job has actually completed.
-   const target=Math.min(99,1+Math.floor(elapsed/700));
-   const nextValue=Math.min(99,Math.max(Math.round(current.value),target));
-   return {...current,value:nextValue,label:progressLabelFor(nextValue)};
+   // Estimated display progress approaches 99% smoothly; it is not a server measurement.
+   // Keep 100% for a hydrated, ready image.
+
+   const target=Math.min(99,1+98*(1-Math.exp(-elapsed/48000)));
+   const nextValue=Math.min(99,Math.max(current.value,target));
+   progressValueRef.current=nextValue;return {...current,value:nextValue,label:progressLabelFor(nextValue)};
   }),350);
  };
  // Real pipeline stages must never make the visible percentage jump or change copy rapidly.
  // The timer owns the display progress; 100% is reserved for actual completion only.
  const setProgressStage=()=>{};
  const finishProgress=async success=>{
-  clearInterval(progressTimerRef.current);
-  progressTimerRef.current=null;
-  if(!success){setProcessProgress({active:false,value:0,label:''});return;}
-  setProcessProgress({active:true,value:100,label:'ประมวลผลสำเร็จ'});
-  await new Promise(resolve=>setTimeout(resolve,420));
-  setProcessProgress({active:false,value:0,label:''});
+  const operation=activeProcessOperation;
+  try{
+   if(success){
+    assertProcessActive(operation);clearInterval(progressTimerRef.current);
+    const from=progressValueRef.current;
+    for(let step=1;step<=16;step++){
+     assertProcessActive(operation);
+     const value=from+(99.4-from)*(step/16);progressValueRef.current=value;
+     setProcessProgress({active:true,value,label:'ภาพพร้อมแล้ว'});
+     await new Promise(resolve=>setTimeout(resolve,35));
+    }
+    assertProcessActive(operation);
+    setProcessProgress({active:true,value:100,label:'ภาพพร้อมแล้ว'});
+    // The image is hydrated. Set 100% before settling delivery; until this
+    // boundary the close button can cancel and return the reservation.
+    if(operation)operation.finishing=true;
+    if(!operation?.settled)await settleProcessOperation(operation,'confirm');
+   }
+   else if(operation?.jobId&&!operation.settled){operation.cancelled=true;portraitResultCache.clear();await settleProcessOperation(operation,'cancel');for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);}
+   clearInterval(progressTimerRef.current);progressTimerRef.current=null;
+   if(success){setProcessProgress({active:true,value:100,label:'ภาพพร้อมแล้ว'});await new Promise(resolve=>setTimeout(resolve,300));}
+   await refreshWallet();
+   setProcessProgress({active:false,value:0,label:''});
+  }catch(e){setMsg(e.message);throw e}
+ };
+ const cancelProgress=async()=>{
+  const operation=activeProcessOperation;if(!operation||operation.finishing)return;
+  operation.cancelled=true;portraitResultCache.clear();
+  try{
+   await settleProcessOperation(operation,'cancel');
+   for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);
+   clearInterval(progressTimerRef.current);setProcessProgress({active:false,value:0,label:''});
+   setMsg('ยกเลิกการประมวลผลแล้ว');await refreshWallet();
+  }catch(e){operation.cancelled=false;setMsg(e.message);throw e}
  };
  useEffect(()=>()=>{clearInterval(progressTimerRef.current);clearTimeout(gestureRef.current?.holdTimer)},[]);
  const lockedPlacementRef=useRef(null);
@@ -2382,6 +2595,7 @@ function App(){
  // Immutable upload reference: hairstyle changes must never use an AI result as input.
  const firstUploadedPhotoRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
+ const [hairGenerating,setHairGenerating]=useState(false);
  const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null),cleanHairBaseRef=useRef(null),initialStyledHairRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
  const [desktopSelectorActive,setDesktopSelectorActive]=useState('uniform');  const[beautyPanelTab,setBeautyPanelTab]=useState('skin');  const[beauty,setBeauty]=useState(DEFAULT_BEAUTY);const beautyRef=useRef(DEFAULT_BEAUTY);
@@ -2794,29 +3008,37 @@ function App(){
  // Kept only for compatibility with the hidden legacy row in this build.
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
+ const rememberHairResult=(id,master)=>hairResultCacheRef.current.set(id||'original',{
+  master,sourcePhoto:firstUploadedPhotoRef.current,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current
+ });
+ const restoreHairResultRights=async cached=>{
+  const verified=await verifyOutputRights(cached.jobId);
+  const isTrial=!verified.unlocked;
+  currentOutputJobRef.current=cached.jobId;currentOutputTrialRef.current=isTrial;
+  studioTrialRef.current=isTrial;setOutputJobId(cached.jobId);setTrialPreview(isTrial);
+ };
+ const cachedHairResult=id=>{
+  const entry=hairResultCacheRef.current.get(id||'original');
+  return entry?.sourcePhoto===firstUploadedPhotoRef.current&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
+ };
+ const canReuseHair=id=>Boolean(cachedHairResult(id));
  const changeHair=async id=>{
-  if(!privateTrialActive&&rights.generationRemaining<1&&id){setPayMsg('ซื้อแพ็ก 159 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 10 ครั้ง');setBuyOpen(true);return;}
+  if(!canReuseHair(id)&&!privateTrialActive&&rights.generationRemaining<1&&id){setPayMsg('ซื้อแพ็ก 159 บาทเพื่อเลือกทรงผมและประมวลผลเพิ่ม 10 ครั้ง');setBuyOpen(true);return;}
   if(hairRequestRef.current||hairBusy||busy)return;
-  setHairId(id);
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current;
   if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
   // Re-run the SAME first-processing pipeline from the untouched uploaded File.
   // Never send the previously AI-generated head or the completed uniform portrait
   // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
+  const cached=cachedHairResult(id);
+  if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg('กำลังสร้างทรงผมจากรูปต้นฉบับ…');
+  hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
   let completed=false;
   try{
    let nextMaster;
-   if(false&&initialProcessedMasterRef.current){
-    // Return to the exact first processed result without a second paid API call.
-    nextMaster=initialProcessedMasterRef.current;
-    setProgressStage(78,'กำลังคืนภาพแรก');
-   }else{
-    const cached=null; // Each explicit AI reprocess consumes one shared credit.
-    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
-    else{
+   if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial)setTrialPreview(true);
@@ -2827,13 +3049,13 @@ function App(){
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
-     hairResultCacheRef.current.set(id||'original',nextMaster);
-    }
+     assertProcessActive();rememberHairResult(id,nextMaster);
    }
-   setProgressStage(88,'กำลังประกอบกับชุดเดิม');
+   if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
    if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
    const out=await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   if(!cached)assertProcessActive();
    // The old editor canvas may otherwise cover the newly generated PNG.
    beginOptionRender();
    editCache.current={...current,master:nextMaster};
@@ -2843,33 +3065,28 @@ function App(){
    if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
    setHeadMasterPreview(URL.createObjectURL(nextMaster));
    setHeadPreviewLock(current.lock);
-   setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
+   if(cached)await restoreHairResultRights(cached);
+   else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
+   showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
-  finally{await refreshWallet();await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+  finally{if(!cached){await refreshWallet();await finishProgress(completed);}hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}
  };
  const changeHairForStudio=async id=>{
   if(hairRequestRef.current||hairBusy||busy)return;
-  setHairId(id);
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current;
   if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
   // Re-run the SAME first-processing pipeline from the untouched uploaded File.
   // Never send the previously AI-generated head or the completed uniform portrait
   // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
+  const cached=cachedHairResult(id);
+  if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
-  hairRequestRef.current=true;setHairBusy(true);beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg('กำลังสร้างทรงผมจากรูปต้นฉบับ…');
+  hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
   let completed=false;
   try{
    let nextMaster;
-   if(false&&initialProcessedMasterRef.current&&!studioHairOriginRef.current){
-    // Return to the exact first processed result without a second paid API call.
-    nextMaster=initialProcessedMasterRef.current;
-    setProgressStage(78,'กำลังคืนภาพแรก');
-   }else{
-    const cached=null; // Each explicit AI reprocess consumes one shared credit.
-    if(cached){nextMaster=cached;setProgressStage(78,'กำลังใช้ภาพที่เคยสร้างไว้');}
-    else{
+   if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate});
      if(aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
@@ -2880,13 +3097,13 @@ function App(){
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
-     hairResultCacheRef.current.set(id||'original',nextMaster);
-    }
+     assertProcessActive();rememberHairResult(id,nextMaster);
    }
-   setProgressStage(88,'กำลังประกอบกับชุดเดิม');
+   if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
    if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
    const out=await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   if(!cached)assertProcessActive();
    // The old editor canvas may otherwise cover the newly generated PNG.
    beginOptionRender();
    editCache.current={...current,master:nextMaster};
@@ -2896,10 +3113,11 @@ function App(){
    if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
    setHeadMasterPreview(URL.createObjectURL(nextMaster));
    setHeadPreviewLock(current.lock);
-   setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
-   showBlob(out);setHairId(id);setMsg('เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
+   if(cached)await restoreHairResultRights(cached);
+   else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
+   showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
-  finally{await refreshWallet();await finishProgress(completed);hairRequestRef.current=false;setHairBusy(false)}
+  finally{if(!cached){await refreshWallet();if(!completed)await finishProgress(false);}hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}
   return completed;
  };
  const downloadHairDonor=async()=>{
@@ -3107,22 +3325,26 @@ function App(){
    const delivery=deliverImage(downloadBlob,photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`);analyticsEvent('idprom_download_requested',{size_id:photoCrop.sizeId,delivery});
   }catch(e){analyticsEvent('idprom_download_error',{error_stage:'download'});suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate)=>{
+ const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
   const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
+  assertProcessActive();
   initialProcessedMasterRef.current=headNeckTransparent;
   editCache.current={master:headNeckTransparent,lock:composed.lock};setLiveCanvasVisible(false);
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
+  rememberHairResult(processedHair,headNeckTransparent);
+  const firstHair=hairResultCacheRef.current.get(processedHair||'original');
+  firstHair.isTrial=Boolean(aiHeadNeck?.idpromTrial);firstHair.studioTrial=firstHair.isTrial;
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');showBlob(finished);
  };
- const go=async()=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
+ const go=async()=>{if(busy||hairBusy)return;try{if(!await beforeProcess())return}catch(e){setMsg(e.message);return}let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(f,hairId||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';
@@ -3132,10 +3354,10 @@ function App(){
  const goForStudio=async(sourceFile,template,selectedHair)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
-  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template);analyticsStage='cleanup';
+  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(e.code==='face_proportion_changed'?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}if(e.code==='face_proportion_changed')throw e;}finally{await refreshWallet();await finishProgress(completed);setBusy(false)}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(e.code==='face_proportion_changed'?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}if(e.code==='face_proportion_changed')throw e;}finally{await refreshWallet();if(!completed)await finishProgress(false);setBusy(false)}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
@@ -3173,17 +3395,17 @@ function App(){
   // Overlap local asset downloads with the existing AI request, never submit AI twice.
   void Promise.allSettled([loadImage(backgroundRef.current),loadImage(template)]);
   pick({target:{files:[file]}});
-  const success=await goForStudio(file,template,selectedHair);if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
+  const success=await goForStudio(file,template,'');if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
   const layers=[],current=editCache.current;layers.headOnly=true;
   await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=selectedHair;studioHairOriginRef.current=selectedHair;setHairId(selectedHair);hairResultCacheRef.current.set(selectedHair||'original',current.master);
+  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId='';studioHairOriginRef.current='';setHairId('');rememberHairResult('',current.master);
   return {layer:head,placement:current.lock};
  };
- const applyStudioMakeup=async(source,styles)=>{
-  return requestStudioMakeup(source,styles);
+ const applyStudioMakeup=async(source,styles,options={})=>{
+  return requestStudioMakeup(source,styles,options);
  };
  const changeStudioHair=async(id)=>{
-  if(!privateTrialActive&&rights.generationRemaining<1){setBuyOpen(true);throw Error('เครดิตหมดแล้ว ซื้อแพ็ก 159 บาทเพื่อประมวลผลเพิ่ม');}
+  if(!canReuseHair(id)&&!privateTrialActive&&rights.generationRemaining<1){setBuyOpen(true);throw Error('เครดิตหมดแล้ว ซื้อแพ็ก 159 บาทเพื่อประมวลผลเพิ่ม');}
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
   const ok=await changeHairForStudio(id);if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
   const layers=[],current=editCache.current;layers.headOnly=true;
@@ -3248,10 +3470,10 @@ function App(){
  const renderPreviewActions=(extraClass)=>( <div className={"preview-floating-actions "+extraClass}><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div> );
  const renderProcessActions=(desktop=false)=>(<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||hairId===null||busy||privateTrialChecking} onClick={go}>{busy?'กำลังประมวลผล…':privateTrialActive?'ประมวลผลรูป':rights.generationRemaining>0?'ประมวลผลรูป':'ทดลองประมวลผลฟรี'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="photo-size-trigger" disabled={photoSizeBusy||downloadBusy||hairBusy||busy||uniformChanging} onClick={openPhotoSize} aria-label="เลือกขนาดรูป" aria-haspopup="dialog"><span>{photoSizeBusy?'กำลังเตรียม…':PHOTO_SIZES.find(s=>s.id===photoCrop.sizeId)?.label||'ขนาดเดิม'}</span><span aria-hidden="true">⌄</span></button>}{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging||photoSizeBusy} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label>{desktop&&<button type="button" className="photo-guide-trigger desktop-photo-guide" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button>}</div>}</div>);
- if(studioData)return <><SavedWorkUI/><StudioEditor key={savedWorkRevision} savedWorkUnlocked={savedWorkUnlocked} onSaveWork={saveAccountWork} onOpenSavedWorks={()=>setSavedWorksOpen(true)} hasCredits={rights.generationRemaining>0} processRemaining={privateTrialActive?'∞':rights.generationRemaining>0?rights.generationRemaining:rights.trialAvailable===true?(rights.trialRemaining??2):0} allOptionsAvailable={allOptionsAvailable} trialUnlocked={privateTrialActive} paidOutputIds={rights.unlockedJobIds} editableOutputIds={purchaseEditing?rights.editableJobIds:[]} onVerifyOutput={verifyOutputRights} editingPurchasedImage={purchaseEditing} fullCatalog={fullCatalog} freeTemplatePaths={FREE_TEMPLATE_PATHS} purchaseSnapshotRef={paymentStudioRef} initialSourcePhoto={restoredSourcePhoto} onRequestUnlock={()=>{setPayMsg('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลดภาพที่สร้าง');setBuyOpen(true)}} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={HAIR_OPTIONS} onChangeHair={changeStudioHair} onMakeup={applyStudioMakeup} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} processing={busy||hairBusy} processProgress={processProgress} onClose={layers=>{studioDraftRef.current={...studioOriginRef.current,layers};setPurchaseEditing(false);setSessionEditJob('');setSavedWorkUnlocked(false);savedWorkIdRef.current='';setStudioData(null);setScreen('home')}}/>{buyOpen&&<div className="studio-payment-dialog"><CreditUI/>{AuthUI()}</div>}</>;
+ if(studioData)return <><SavedWorkUI/><StudioEditor key={savedWorkRevision} savedWorkUnlocked={savedWorkUnlocked} onSaveWork={saveAccountWork} onOpenSavedWorks={()=>setSavedWorksOpen(true)} hasCredits={rights.generationRemaining>0} processRemaining={privateTrialActive?'∞':rights.generationRemaining>0?rights.generationRemaining:rights.trialAvailable===true?(rights.trialRemaining??2):0} allOptionsAvailable={allOptionsAvailable} trialUnlocked={privateTrialActive} paidOutputIds={rights.unlockedJobIds} editableOutputIds={purchaseEditing?rights.editableJobIds:[]} onVerifyOutput={verifyOutputRights} editingPurchasedImage={purchaseEditing} fullCatalog={fullCatalog} freeTemplatePaths={FREE_TEMPLATE_PATHS} purchaseSnapshotRef={paymentStudioRef} initialSourcePhoto={restoredSourcePhoto} onRequestUnlock={()=>{setPayMsg('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลดภาพที่สร้าง');setBuyOpen(true)}} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={HAIR_OPTIONS} onChangeHair={changeStudioHair} onPrepareHairOverlay={prepareStudioHairOverlay} canReuseHair={canReuseHair} onMakeup={applyStudioMakeup} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} onBeforeProcess={beforeProcess} processing={busy||hairGenerating} processProgress={processProgress} onCancelProcess={cancelProgress} onFinishProcess={finishProgress} isProcessCancelled={()=>Boolean(activeProcessOperation?.cancelled)} onClose={layers=>{studioDraftRef.current={...studioOriginRef.current,layers};setPurchaseEditing(false);setSessionEditJob('');setSavedWorkUnlocked(false);savedWorkIdRef.current='';setStudioData(null);setScreen('home')}}/>{buyOpen&&<div className="studio-payment-dialog"><CreditUI/>{AuthUI()}</div>}</>;
  if(screen==='studio')return <main className="idstudio studio-starting"><p>{studioBusy?'กำลังเปิด Studio…':msg}</p><button onClick={()=>setScreen('home')}>กลับหน้าหลัก</button></main>;
- return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}>{photoSizeBlob&&<PhotoSizeEditor blob={photoSizeBlob} value={photoCrop} trial={trialPreview} onClose={()=>setPhotoSizeBlob(null)} onApply={crop=>{setPhotoCrop(crop);setPhotoSizeBlob(null)}}/>}<header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{{government:'ข้าราชการ',job:'สมัครงาน',student:'นักศึกษา',gown:'ครุย'}[uniformCategory]||'สร้างรูป'}</h1></div><div className="editor-credit-actions"><AccountUI/><CreditUI showBalance={false}/>{AuthUI()}<ContactUI/></div></header><div className="editor-mobile-actions">{renderProcessActions()}</div><div className="editor-mobile-help"><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button></div><section className="modern-flow">
-  <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="แนะนำรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูปที่ถูกต้อง</button>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b&&renderPreviewActions('preview-desktop-actions')}<div className="editor-workspace"><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(trialPreview?" trial-preview-active":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/>{trialPreview&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}{renderPreviewActions('preview-mobile-actions')}{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className={"image-progress-card "+(processProgress.value>=100?'is-complete':processProgress.value>=90?'is-waiting':'is-processing')}><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{`${Math.round(processProgress.value)}%`}</strong></div><div className="image-progress-track" aria-hidden="true"><i style={{width:`${processProgress.value}%`}}/></div><p className="image-progress-hint">{processProgress.value>=100?'ภาพพร้อมแล้ว':processProgress.value>=99?'กำลังเก็บรายละเอียดขั้นสุดท้าย กรุณาเปิดหน้านี้ไว้':'กำลังสร้างภาพให้คุณ กรุณาเปิดหน้านี้ไว้จนเสร็จ'}</p></div></div>}</div>{b&&<div className="desktop-workspace-caption"><span>เลื่อนล้อเมาส์เพื่อซูม · ลากพื้นที่ว่างเพื่อเลื่อน</span><output>{Math.round(previewZoom*100)}%</output></div>}</div>
+ return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}><TrialChoiceUI/>{photoSizeBlob&&<PhotoSizeEditor blob={photoSizeBlob} value={photoCrop} trial={trialPreview} onClose={()=>setPhotoSizeBlob(null)} onApply={crop=>{setPhotoCrop(crop);setPhotoSizeBlob(null)}}/>}<header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{{government:'ข้าราชการ',job:'สมัครงาน',student:'นักศึกษา',gown:'ครุย'}[uniformCategory]||'สร้างรูป'}</h1></div><div className="editor-credit-actions"><AccountUI/><CreditUI showBalance={false}/>{AuthUI()}<ContactUI/></div></header><div className="editor-mobile-actions">{renderProcessActions()}</div><div className="editor-mobile-help"><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button></div><section className="modern-flow">
+  <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="แนะนำรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูปที่ถูกต้อง</button>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b&&renderPreviewActions('preview-desktop-actions')}<div className="editor-workspace"><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(trialPreview?" trial-preview-active":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/>{trialPreview&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}{renderPreviewActions('preview-mobile-actions')}{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className={"image-progress-card "+(processProgress.value>=100?'is-complete':processProgress.value>=90?'is-waiting':'is-processing')} style={{position:'relative',paddingTop:52}}><ProcessingCloseButton disabled={processProgress.value>=100} onClose={cancelProgress}/><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{`${Math.floor(processProgress.value)}%`}</strong></div><div className="image-progress-track" aria-hidden="true"><i style={{width:`${processProgress.value}%`}}/></div><p className="image-progress-hint">{processProgress.value>=100?'ภาพพร้อมแล้ว':processProgress.value>=99?'กำลังเก็บรายละเอียดขั้นสุดท้าย กรุณาเปิดหน้านี้ไว้':'กำลังสร้างภาพให้คุณ กรุณาเปิดหน้านี้ไว้จนเสร็จ'}</p></div></div>}</div>{b&&<div className="desktop-workspace-caption"><span>เลื่อนล้อเมาส์เพื่อซูม · ลากพื้นที่ว่างเพื่อเลื่อน</span><output>{Math.round(previewZoom*100)}%</output></div>}</div>
    <div className="quick-config">
     {uniformCategory==='government'&&<><div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>selectGovernmentGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div><div className="level-grid">{[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']].map(([id,n])=><button type="button" key={id} className={level===id?'active':''} onClick={()=>{setLevel(id);if(gender==='male')setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0]).img)}}>{n}</button>)}</div></>}
     {uniformCategory!=='government'&&uniformCategory!=='gown'&&uniformCategory!=='student'&&<div className="gender-tabs"><button className={gender==='male'?'active':''} onClick={()=>setGender('male')}>ชาย</button><button className={gender==='female'?'active':''} onClick={()=>selectGovernmentGender('female')}>หญิง</button></div>}
@@ -3308,4 +3530,4 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
 
  </section></main>
 }
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
