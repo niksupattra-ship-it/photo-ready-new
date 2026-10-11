@@ -221,7 +221,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
    // Long front hair stays intact above the upper ear attachment.
    // Start the same soft eraser there and follow the existing face/neck contour.
    const earTop=q.x<0?earTopLeft:earTopRight;
-   const underEar=clamp((q.y-earTop)/Math.max(1,a.eye*.25),0,1);
+   const underEar=clamp((q.y-earTop)/Math.max(1,a.eye*.1),0,1);
    const region=underEar*underEar*(3-2*underEar)*end;
    fd.data[j+3]=Math.round(fd.data[j+3]*(1-(1-opacity)*region));
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
@@ -260,41 +260,20 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   // Some short styles have a completely open ear row. Borrow only a nearby
   // side-hair row within the ear band, rather than leaving that row empty.
   for(let i=0;i<=count;i++){
-   const row=raw[i];if(fitLongBack||!row.missing||row.skinEdge<=step*3||row.sourceY>chin)continue;
+   const row=raw[i];if(!row.missing||row.skinEdge<=step*3||row.sourceY>chin)continue;
    let nearest=null;
    for(let d=1;d<=Math.ceil(a.eye*.4/(bottom-top)*count)&&!nearest;d++)for(const j of [i-d,i+d]){
     if(j>=0&&j<=count&&!raw[j].missing&&raw[j].outer>row.skinEdge+step&&[-step,0,step].every(dy=>alphaAt(pd,sign*(raw[j].inner+step*3),raw[j].sourceY+dy)>220)){nearest=raw[j];break}
    }
    if(nearest){row.inner=nearest.inner;row.outer=nearest.outer;row.sourceY=nearest.sourceY;row.push=Math.min(Math.max(0,row.inner-a.eye*.1),Math.max(0,row.inner-row.skinEdge)+a.eye*.18)}
   }
-  if(fitLongBack){
-   // Interpolate geometry across open ear rows, never copy hair pixels from another row.
-   const valid=raw.map((v,i)=>v.missing?-1:i).filter(i=>i>=0);
-   for(let i=0;i<=count;i++)if(raw[i].missing&&valid.length){
-    const lo=valid.filter(j=>j<i).at(-1)??valid[0],hi=valid.find(j=>j>i)??valid.at(-1);
-    const t=hi===lo?0:clamp((i-lo)/(hi-lo),0,1),row=raw[i];
-    for(const key of ['inner','outer'])row[key]=raw[lo][key]*(1-t)+raw[hi][key]*t;
-    row.push=row.skinEdge>step*3?Math.max(0,row.inner-row.skinEdge)+a.eye*.08:0;
-    // The PNG may contain a genuinely empty ear opening. Interpolating its
-    // geometry alone cannot provide hair pixels: use the nearest intact row,
-    // only inside the rear overlap, with a smooth displacement field below.
-    const nearest=i-lo<=hi-i?lo:hi;
-    row.repairY=clamp(raw[nearest].sourceY-row.sourceY,-a.eye*.45,a.eye*.45);
-   }
-   profiles[name]=raw.map((row,i)=>{
-    const sums={inner:0,outer:0,push:0,repairY:0};let weight=0;
-    for(let k=-4;k<=4;k++){const v=raw[clamp(i+k,0,count)],wt=Math.exp(-k*k/8);weight+=wt;for(const key of Object.keys(sums))sums[key]+=(v[key]||0)*wt}
-    return {...row,inner:sums.inner/weight,outer:sums.outer/weight,push:sums.push/weight,repairY:sums.repairY/weight};
-   });
-  }else{
   profiles[name]=raw.map((_,i)=>{
    let sum=0,weight=0;for(let k=-2;k<=2;k++){const j=clamp(i+k,0,count),v=3-Math.abs(k);sum+=raw[j].push*v;weight+=v}return {...raw[i],push:Math.max(raw[i].push,sum/weight)};
   });
-  }
  }
  const measuredPush=(sign,y)=>{
   const pos=clamp((y-top)/(bottom-top)*count,0,count),i=Math.floor(pos),t=pos-i,p=profiles[sign<0?'left':'right'];
-  const next=p[Math.min(count,i+1)];return {push:p[i].push*(1-t)+next.push*t,inner:p[i].inner*(1-t)+next.inner*t,outer:p[i].outer*(1-t)+next.outer*t,sourceY:(t<.5?p[i]:next).sourceY,repairY:(p[i].repairY||0)*(1-t)+(next.repairY||0)*t,borrowed:p[i].missing||next.missing};
+  const next=p[Math.min(count,i+1)];return {push:p[i].push*(1-t)+next.push*t,inner:p[i].inner*(1-t)+next.inner*t,outer:p[i].outer*(1-t)+next.outer*t,sourceY:(t<.5?p[i]:next).sourceY,borrowed:p[i].missing||next.missing};
  };
  // Inverse pixel warp avoids thousands of full-image triangle draws for the rear copy.
  // Every local row is monotonic: outer silhouette pinned, inner edge stretched inward.
@@ -325,7 +304,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   const liftStart=clamp((q.y-(ear.y-a.eye*.55))/Math.max(1,a.eye*.3),0,1);
   const liftEnd=clamp((bottom+a.eye*.3-q.y)/Math.max(1,a.eye*.5),0,1);
   const liftWeight=fitLongBack?liftStart*liftStart*(3-2*liftStart)*liftEnd*liftEnd*(3-2*liftEnd)*radialWeight:earWeight;
-  const sampleY=q.y+a.eye*.2*liftWeight+(fitLongBack?originalRow.repairY*radialWeight:0);
+  const sampleY=q.y+a.eye*.2*liftWeight;
   // Continue the long rear's inward overlap along jaw, neck and shoulders,
   // rather than stopping its extra push at the ear band.
   const neckStart=clamp((q.y-ear.y)/Math.max(1,a.eye*.2),0,1);
@@ -334,7 +313,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*inwardWeight)*fade;
   let sourceR=r;
   if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
-  const borrowWeight=!fitLongBack&&measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
+  const borrowWeight=measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
   const point=world({x:sign*sourceR,y:sampleY+(measured.sourceY-sampleY)*borrowWeight}),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
   let alpha=0,red=0,green=0,blue=0;
   for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
@@ -344,7 +323,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   }
   // Raster holes at a short style's ear opening can survive row fitting.
   // Fill only the inward-stretched overlap with a nearby opaque hair sample.
-  if(!fitLongBack&&alpha<220&&push>0&&r>=measured.inner-push&&r<measured.inner&&q.y<chin){
+  if(alpha<220&&push>0&&r>=measured.inner-push&&r<measured.inner&&q.y<chin){
    for(let distance=step;distance<=a.eye*.4&&alpha<220;distance+=step){
     for(const direction of [-1,1]){
      const sy=sampleY+distance*direction;
@@ -355,7 +334,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
     }
    }
   }
-  const j=(y*w+x)*4;if(alpha>0){bd.data[j]=Math.round(red/alpha);bd.data[j+1]=Math.round(green/alpha);bd.data[j+2]=Math.round(blue/alpha);bd.data[j+3]=Math.round(alpha)}else if(fitLongBack)bd.data.fill(0,j,j+4);
+  const j=(y*w+x)*4;if(alpha>0){bd.data[j]=Math.round(red/alpha);bd.data[j+1]=Math.round(green/alpha);bd.data[j+2]=Math.round(blue/alpha);bd.data[j+3]=Math.round(alpha)}
  }
  backCtx.putImageData(bd,0,0);
  if(singleLayer){
