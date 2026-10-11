@@ -1,4 +1,4 @@
-import {isSingleFemaleHair,originalHairExcessMask} from './short-female-hair.js';
+import {isSingleFemaleHair,originalHairExcessMask,fitUpperEarGaps} from './short-female-hair.js';
 import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
@@ -1381,11 +1381,12 @@ async function prepareStudioHairOverlay(headSource,hairId){
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
  if(isSingleFemaleHair(hairId)){
+  const fitted=fitUpperEarGaps(out,skin,targetFace,W,H,canvasFor);
   const originalHair=await semanticClassMask(target,W,H,[1]);
-  const baseMask=originalHairExcessMask(originalHair,out,skin,W,H,canvasFor).toDataURL('image/png');
+  const baseMask=originalHairExcessMask(originalHair,fitted,skin,W,H,canvasFor).toDataURL('image/png');
   // Use the first fitted PNG directly: no second layer, skin erasure,
   // 20% rear push, borrowed rows, or automatic gap filling.
-  return {source:out.toDataURL('image/png'),backSource:null,baseMask};
+  return {source:fitted.toDataURL('image/png'),backSource:null,baseMask};
  }
  const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
  return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null};
