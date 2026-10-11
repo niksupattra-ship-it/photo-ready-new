@@ -1,4 +1,5 @@
 import {isSingleFemaleHair,originalHairExcessMask,fitUpperEarGaps} from './short-female-hair.js';
+import {portraitLevelTransform} from './portrait-level.js';
 import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
@@ -1118,9 +1119,9 @@ function refineNativeHeadEdges(cutout,source,W,H,endY,skinAlpha=null){
   // native partial alpha, so fine strands do not become a hard silhouette.
   // This changes boundary transparency only, never opaque face/neck texture.
   const skinConfidence=skinAlpha?skinAlpha[j+3]/255:0;
-  if(skinConfidence>.9){
-   const tight=Math.max(0,Math.min(1,.5+(revised-.5)*1.35));
-   revised+=(tight-revised)*confidence*((skinConfidence-.9)/.1);
+  if(skinConfidence>.65){
+   const tight=Math.max(0,Math.min(1,.5+(revised-.5)*2));
+   revised+=(tight-revised)*confidence*Math.min(1,(skinConfidence-.65)/.25);
   }
   cutout[j+3]=Math.max(0,Math.min(255,Math.round(revised*255)));
   // Remove estimated background colour ONLY from mixed boundary pixels.
@@ -1193,6 +1194,20 @@ async function finishHairlineSeam(masterBlob){
 async function removeBackgroundBlob(blob){
  const cutout=await removeBackgroundRobust(blob,'ai-person.png');
  return refineAiCutoutEdges(cutout,blob);
+}
+
+async function levelPortraitCutout(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  const transform=portraitLevelTransform(face,W,H);if(!transform)return blob;
+  // Expand the transparent canvas to avoid cutting off hair or neck corners.
+  const canvas=canvasFor(transform.width,transform.height),ctx=canvas.getContext('2d');
+  ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(transform.angle);
+  ctx.drawImage(image,-W/2,-H/2);
+  return await canvasPng(canvas);
+ }catch{return blob}finally{URL.revokeObjectURL(url)}
 }
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
@@ -3337,7 +3352,7 @@ function App(){
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile));
+  const headNeckTransparent=await levelPortraitCutout(await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile)));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
