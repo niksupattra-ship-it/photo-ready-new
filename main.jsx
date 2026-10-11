@@ -1487,6 +1487,11 @@ async function prepareStudioHairOverlay(headSource,hairId){
  if(ref.calibration.layout==='long'){
   // Preserve the long PNG's style: place once, then erase front/warp inner rear only.
   const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
+  // Lower both layers together by 8% of the outer-eye distance, along the face axis.
+  // Translation only: retain the PNG's scale, shape and rotation.
+  const eyeDx=(targetFace[263].x-targetFace[33].x)*W;
+  const eyeDy=(targetFace[263].y-targetFace[33].y)*H;
+  fit.e-=eyeDy*.08;fit.f+=eyeDx*.08;
   const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
   x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
   x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
