@@ -173,7 +173,9 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  const world=p=>({x:a.x+p.x*cos-p.y*sin,y:a.y+p.x*sin+p.y*cos});
  const landmark=i=>local({x:face[i].x*w,y:face[i].y*h});
  if(!skin||![127,356,152].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
- const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*.25;
+ const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*(fitLongBack?.55:.25);
+ const earBaseLeft=face[132]?landmark(132).y:landmark(127).y+a.eye*.6;
+ const earBaseRight=face[361]?landmark(361).y:landmark(356).y+a.eye*.6;
  const chin=landmark(152).y,bottom=chin+a.eye*1.15,soft=Math.max(2,Math.min(12,a.eye*.035));
  const blurred=makeCanvas(w,h),bc=blurred.getContext('2d');bc.filter=`blur(${soft}px)`;bc.drawImage(skin,0,0,w,h);
  const sd=bc.getImageData(0,0,w,h).data;
@@ -216,9 +218,11 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   // Restrict soft erasure to actual visible skin below the ear roots.
   if(skinDistance){
    const t=clamp((skinDistance[y*w+x]-solid)/feather,0,1),opacity=t*t*(3-2*t);
-   const earRoot=landmark(q.x<0?127:356).y;
-   const fullCore=q.y>=earRoot&&q.y<=bottom-a.eye*.18;
-   const region=fullCore?1:gate;
+   // Long front hair stays intact above the lower ear/jaw attachment.
+   // Begin a short soft eraser ramp below it, then follow face and neck skin.
+   const earBase=q.x<0?earBaseLeft:earBaseRight;
+   const underEar=clamp((q.y-earBase)/Math.max(1,a.eye*.1),0,1);
+   const region=underEar*underEar*(3-2*underEar)*end;
    fd.data[j+3]=Math.round(fd.data[j+3]*(1-(1-opacity)*region));
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
  }
@@ -243,7 +247,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  for(const [name,sign] of [['left',-1],['right',1]]){
   for(let i=0;i<=count;i++){
    const y=top+(bottom-top)*i/count;let skinEdge=0,hairEdge=null,outerEdge=0;
-   const skinLimit=y>chin?a.eye*.8:a.width*.5+a.eye*.25;
+   const skinLimit=y>chin?(fitLongBack?a.width*.8+a.eye*.25:a.eye*.8):a.width*.5+a.eye*.25;
    for(let r=0;r<=skinLimit;r+=step)if(alphaAt(sd,sign*r,y)>160)skinEdge=r;
    if(skinEdge>step*3)for(let r=Math.max(0,skinEdge-a.eye*.1);r<=limit;r+=step){
     if(alphaAt(pd,sign*r,y)>100&&alphaAt(pd,sign*(r+step),y)>100){hairEdge=r;break}
@@ -291,8 +295,12 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   const vertical=Math.abs(q.y-earY)/a.eye;
   const earWeight=vertical<=.2?1:1-clamp((vertical-.2)/.6,0,1)**2*(3-2*clamp((vertical-.2)/.6,0,1));
   const sampleY=q.y+a.eye*.2*earWeight;
+  // Continue the long rear's inward overlap along jaw, neck and shoulders,
+  // rather than stopping its extra push at the ear band.
+  const neckStart=clamp((q.y-ear.y)/Math.max(1,a.eye*.2),0,1);
+  const inwardWeight=fitLongBack?Math.max(earWeight,neckStart*neckStart*(3-2*neckStart)):earWeight;
   const measured=measuredPush(sign,sampleY),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),
-  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*earWeight)*fade;
+  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*inwardWeight)*fade;
   const r=Math.abs(q.x);let sourceR=r;
   if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
   const borrowWeight=measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
