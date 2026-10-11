@@ -1450,7 +1450,12 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  const ec=eraser.getContext('2d'),pixels=ec.getImageData(0,0,W,H);
  for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(-(x-chinX)*dy+(y-chinY)*dx>=0)pixels.data[(y*W+x)*4+3]=0;
  ec.putImageData(pixels,0,0);
- return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,hairBaseMask:null,hairOuterEraser:eraser.toDataURL('image/png')};
+ // Bake the erasure directly into PNG alpha. No masking layer is retained.
+ const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
+ const headPixels=cc.getImageData(0,0,W,H);
+ for(let i=0;i<W*H;i++)headPixels.data[i*4+3]=Math.round(headPixels.data[i*4+3]*(1-pixels.data[i*4+3]/255));
+ cc.putImageData(headPixels,0,0);
+ return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
 }
 async function prepareStudioHairOverlay(headSource,hairId){
  if(!HAIRSTYLE_RULES[hairId])throw Error('ไม่พบทรงผมที่เลือก');
