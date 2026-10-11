@@ -58,24 +58,36 @@ export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=1
  return {vertices,triangles,bounds,matrix:m,directSource:Boolean(calibration)};
 }
 export function renderHairPreviewMesh(ctx,image,sourceBounds,mesh){
+ // Rasterize the inverse mapping once per pixel. Triangle clip antialiasing
+ // otherwise leaves visible grid lines in fine, semi-transparent hair.
+ const w=ctx.canvas.width,h=ctx.canvas.height;
+ const sample=documentCanvas(image.width,image.height),sc=sample.getContext('2d');sc.drawImage(image,0,0);
+ const pixels=sc.getImageData(0,0,sample.width,sample.height).data,out=ctx.getImageData(0,0,w,h),written=new Uint8Array(w*h);
  const sx=mesh.bounds.w/sourceBounds.w,sy=mesh.bounds.h/sourceBounds.h;
  for(const ids of mesh.triangles){
-  const vertices=ids.map(i=>mesh.vertices[i]);
-  const src=vertices.map(v=>mesh.directSource?v.source:({x:sourceBounds.x+(v.source.x-mesh.bounds.x)/sx,y:sourceBounds.y+(v.source.y-mesh.bounds.y)/sy}));
-  const [p,q,r]=src,[a,b,c]=vertices.map(v=>v.target),det=area(p,q,r);
-  const ux=q.x-p.x,uy=q.y-p.y,vx=r.x-p.x,vy=r.y-p.y;
-  const ma=((b.x-a.x)*vy-(c.x-a.x)*uy)/det,mc=((c.x-a.x)*ux-(b.x-a.x)*vx)/det;
-  const mb=((b.y-a.y)*vy-(c.y-a.y)*uy)/det,md=((c.y-a.y)*ux-(b.y-a.y)*vx)/det;
-  // Tiny overlap prevents anti-aliased triangle clips leaving a visible grid.
-  const la=Math.hypot(b.x-c.x,b.y-c.y),lb=Math.hypot(c.x-a.x,c.y-a.y),lc=Math.hypot(a.x-b.x,a.y-b.y),perimeter=la+lb+lc;
-  const center={x:(la*a.x+lb*b.x+lc*c.x)/perimeter,y:(la*a.y+lb*b.y+lc*c.y)/perimeter};
-  const radius=Math.abs(area(a,b,c))/perimeter,grow=1+1/Math.max(.001,radius);
-  const expand=p=>({x:center.x+(p.x-center.x)*grow,y:center.y+(p.y-center.y)*grow});
-  const clip=[a,b,c].map(expand);
-  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.beginPath();ctx.moveTo(clip[0].x,clip[0].y);ctx.lineTo(clip[1].x,clip[1].y);ctx.lineTo(clip[2].x,clip[2].y);ctx.closePath();ctx.clip();
-  ctx.setTransform(ma,mb,mc,md,a.x-ma*p.x-mc*p.y,a.y-mb*p.x-md*p.y);
-  ctx.globalCompositeOperation='copy'; // Overlap must not double the opacity of fine transparent root hairs.
-  ctx.drawImage(image,sourceBounds.x,sourceBounds.y,sourceBounds.w,sourceBounds.h,sourceBounds.x,sourceBounds.y,sourceBounds.w,sourceBounds.h);ctx.restore();
+  const v=ids.map(i=>mesh.vertices[i]),[a,b,c]=v.map(p=>p.target),det=area(a,b,c);
+  const src=v.map(p=>mesh.directSource?p.source:{x:sourceBounds.x+(p.source.x-mesh.bounds.x)/sx,y:sourceBounds.y+(p.source.y-mesh.bounds.y)/sy});
+  const x0=Math.max(0,Math.floor(Math.min(a.x,b.x,c.x))),x1=Math.min(w-1,Math.ceil(Math.max(a.x,b.x,c.x)));
+  const y0=Math.max(0,Math.floor(Math.min(a.y,b.y,c.y))),y1=Math.min(h-1,Math.ceil(Math.max(a.y,b.y,c.y)));
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+   const at=y*w+x;if(written[at])continue;
+   const p={x:x+.5,y:y+.5},u=area(p,b,c)/det,t=area(a,p,c)/det,z=1-u-t;
+   if(u<-.00001||t<-.00001||z<-.00001)continue;written[at]=1;
+   const px=u*src[0].x+t*src[1].x+z*src[2].x-.5,py=u*src[0].y+t*src[1].y+z*src[2].y-.5;
+   const ix=Math.floor(px),iy=Math.floor(py),dx=px-ix,dy=py-iy;let alpha=0,r=0,g=0,bv=0;
+   for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+    const ax=ix+xx,ay=iy+yy;if(ax<0||ax>=sample.width||ay<0||ay>=sample.height)continue;
+    const j=(ay*sample.width+ax)*4,part=pixels[j+3]*(xx?dx:1-dx)*(yy?dy:1-dy);
+    alpha+=part;r+=pixels[j]*part;g+=pixels[j+1]*part;bv+=pixels[j+2]*part;
+   }
+   const j=at*4;out.data[j]=alpha?r/alpha:0;out.data[j+1]=alpha?g/alpha:0;out.data[j+2]=alpha?bv/alpha:0;out.data[j+3]=alpha;
+  }
+ }
+ ctx.putImageData(out,0,0);
+ function documentCanvas(width,height){
+  // Reuse the destination canvas factory, including OffscreenCanvas/test canvases.
+  if(typeof document!=='undefined'){const c=document.createElement('canvas');c.width=width;c.height=height;return c}
+  return new ctx.canvas.constructor(width,height);
  }
 }
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
@@ -87,17 +99,23 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
  const world=p=>({x:a.x+p.x*cos-p.y*sin,y:a.y+p.x*sin+p.y*cos});
  const landmark=i=>local({x:face[i].x*w,y:face[i].y*h});
  if(!skin||![127,356,152].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
- const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*.08;
- const chin=landmark(152).y,bottom=chin+a.eye*1.15,soft=Math.max(1,Math.min(3,a.eye*.008));
+ const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*.25;
+ const chin=landmark(152).y,bottom=chin+a.eye*1.15,soft=Math.max(1.5,Math.min(6,a.eye*.02));
  const blurred=makeCanvas(w,h),bc=blurred.getContext('2d');bc.filter=`blur(${soft}px)`;bc.drawImage(skin,0,0,w,h);
  const sd=bc.getImageData(0,0,w,h).data;
+ // Soft eraser extends slightly outside the skin contour; the rear hair
+ // supplies the overlap instead of leaving a hard cut exactly at the ear.
+ const expanded=makeCanvas(w,h),ec=expanded.getContext('2d'),margin=Math.max(2,a.eye*.025);
+ ec.drawImage(skin,0,0,w,h);
+ for(let i=0;i<8;i++){const angle=i*Math.PI/4;ec.drawImage(skin,Math.cos(angle)*margin,Math.sin(angle)*margin,w,h)}
+ const eraser=makeCanvas(w,h),ex=eraser.getContext('2d');ex.filter=`blur(${soft}px)`;ex.drawImage(expanded,0,0);const ed=ex.getImageData(0,0,w,h).data;
  const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
  const fd=fx.getImageData(0,0,w,h),lower=makeCanvas(w,h),lx=lower.getContext('2d'),ld=lx.createImageData(w,h);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const j=(y*w+x)*4;if(!fd.data[j+3])continue;
   const q=local({x,y}),start=clamp((q.y-top)/(soft*2),0,1),end=clamp((bottom-q.y)/(soft*2),0,1),gate=start*end;
   // Restrict soft erasure to actual visible skin below the ear roots.
-  fd.data[j+3]=Math.round(fd.data[j+3]*(1-sd[j+3]/255*gate));
+  fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
  }
  fx.putImageData(fd,0,0);
  // The rear copy contains only the lower sections, with a soft ear-level join.
@@ -108,25 +126,58 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
   ld.data[j]=pd[j];ld.data[j+1]=pd[j+1];ld.data[j+2]=pd[j+2];ld.data[j+3]=Math.round(pd[j+3]*gate);
  }
  lx.putImageData(ld,0,0);
- const contour=ids=>ids.flatMap(i=>face[i]?[landmark(i)]:[]).sort((p,q)=>p.y-q.y);
- const left=contour([127,234,132,58,172,136,150,149,176,148,152]);
- const right=contour([356,454,361,288,397,365,379,378,400,377,152]);
- const edge=(points,y,sign)=>{
-  if(y>chin)return sign*a.eye*.42;
-  for(let i=1;i<points.length;i++)if(y<=points[i].y){const p=points[i-1],q=points[i],t=clamp((y-p.y)/Math.max(.001,q.y-p.y),0,1);return p.x+(q.x-p.x)*t}
-  return sign*a.eye*.42;
+ // Measure the actual inner hair edge against visible skin on each side.
+ // A fixed percentage cannot close a reference PNG's ear-shaped opening.
+ const alphaAt=(data,x,y)=>{
+  const p=world({x,y}),px=Math.round(p.x),py=Math.round(p.y);
+  return px<0||px>=w||py<0||py>=h?0:data[(py*w+px)*4+3];
  };
- const cols=20,rows=24,vertices=[],triangles=[];
- for(let y=0;y<=rows;y++)for(let x=0;x<=cols;x++){
-  const source={x:w*x/cols,y:h*y/rows},q=local(source),sign=q.x<0?-1:1,boundary=edge(sign<0?left:right,q.y,sign);
-  const fade=clamp((q.y-top)/(a.eye*.35),0,1)*clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1);
-  const gap=Math.max(0,sign*(q.x-boundary)),push=Math.min(a.eye*.28,gap*.25)*fade;
-  vertices.push({source,target:world({x:q.x-sign*push,y:q.y})});
+ const count=64,profiles={left:[],right:[]},step=Math.max(1,a.eye*.01),limit=a.width*.5+a.eye*1.2;
+ for(const [name,sign] of [['left',-1],['right',1]]){
+  for(let i=0;i<=count;i++){
+   const y=top+(bottom-top)*i/count;let skinEdge=0,hairEdge=null,outerEdge=0;
+   const skinLimit=y>chin?a.eye*.8:a.width*.5+a.eye*.25;
+   for(let r=0;r<=skinLimit;r+=step)if(alphaAt(sd,sign*r,y)>160)skinEdge=r;
+   if(skinEdge>step*3)for(let r=Math.max(0,skinEdge-a.eye*.1);r<=limit;r+=step){
+    if(alphaAt(pd,sign*r,y)>100&&alphaAt(pd,sign*(r+step),y)>100){hairEdge=r;break}
+   }
+   if(hairEdge!==null)for(let r=hairEdge;r<=limit;r+=step)if(alphaAt(pd,sign*r,y)>100)outerEdge=r;
+   const gap=hairEdge===null?0:Math.max(0,hairEdge-skinEdge);
+   profiles[name].push({push:gap>step?Math.min(a.eye*.8,gap+a.eye*.18):0,inner:hairEdge||a.eye,outer:Math.max(outerEdge,(hairEdge||a.eye)+step)});
+  }
+  const raw=profiles[name];profiles[name]=raw.map((_,i)=>{
+   let sum=0,weight=0;for(let k=-2;k<=2;k++){const j=clamp(i+k,0,count),v=3-Math.abs(k);sum+=raw[j].push*v;weight+=v}return {...raw[i],push:sum/weight};
+  });
  }
- for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const i=y*(cols+1)+x;triangles.push([i,i+1,i+cols+2],[i,i+cols+2,i+cols+1])}
- if(!triangles.every(ids=>area(...ids.map(i=>vertices[i].target))>0))throw Error('บิดผมด้านหลังไม่สำเร็จ · เก็บภาพเดิมไว้');
- const back=makeCanvas(w,h);renderHairPreviewMesh(back.getContext('2d'),lower,{x:0,y:0,w,h},{vertices,triangles,bounds:{x:0,y:0,w,h},directSource:true});
- return {front,back};
+ const measuredPush=(sign,y)=>{
+  const pos=clamp((y-top)/(bottom-top)*count,0,count),i=Math.floor(pos),t=pos-i,p=profiles[sign<0?'left':'right'];
+  const next=p[Math.min(count,i+1)];return {push:p[i].push*(1-t)+next.push*t,inner:p[i].inner*(1-t)+next.inner*t,outer:p[i].outer*(1-t)+next.outer*t};
+ };
+ // Inverse pixel warp avoids thousands of full-image triangle draws for the rear copy.
+ // Every local row is monotonic: outer silhouette pinned, inner edge stretched inward.
+ const back=makeCanvas(w,h),backCtx=back.getContext('2d'),bd=backCtx.createImageData(w,h);
+ const movedDistance=(r,push,measured)=>{
+  const centerFade=clamp(r/Math.max(a.eye*.4,push*1.5),0,1);
+  const outerFade=clamp((measured.outer-r)/Math.max(step,measured.outer-measured.inner),0,1);
+  return r-push*centerFade*outerFade;
+ };
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const q=local({x,y}),sign=q.x<0?-1:1;
+  if(q.y<top||q.y>bottom+a.eye*.3)continue;
+  const measured=measuredPush(sign,q.y),fade=clamp((q.y-top)/(a.eye*.12),0,1)*clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),push=measured.push*fade;
+  const r=Math.abs(q.x);let sourceR=r;
+  if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
+  const point=world({x:sign*sourceR,y:q.y}),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
+  let alpha=0,red=0,green=0,blue=0;
+  for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+   const sx=px+xx,sy=py+yy;if(sx<0||sx>=w||sy<0||sy>=h)continue;
+   const j=(sy*w+sx)*4,weight=(xx?dx:1-dx)*(yy?dy:1-dy),part=ld.data[j+3]*weight;
+   alpha+=part;red+=ld.data[j]*part;green+=ld.data[j+1]*part;blue+=ld.data[j+2]*part;
+  }
+  const j=(y*w+x)*4;if(alpha>0){bd.data[j]=Math.round(red/alpha);bd.data[j+1]=Math.round(green/alpha);bd.data[j+2]=Math.round(blue/alpha);bd.data[j+3]=Math.round(alpha)}
+ }
+ backCtx.putImageData(bd,0,0);
+ return {front,back,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
 }
 // Erase the overlay over visible skin from the ear/temple level down to the neck.
 // Keep it as a separate mask so Studio's restore brush can bring hair back.

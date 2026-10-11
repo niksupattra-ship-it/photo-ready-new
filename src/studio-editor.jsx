@@ -316,16 +316,16 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  if(existing?.hairId===id&&existing.hairPreviewVersion===2){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
+  if(existing?.hairId===id&&existing.hairPreviewVersion===4){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   if(id&&state.current.length-attached.length+2>20){setStatus('ต้องเหลือพื้นที่ 2 เลเยอร์สำหรับผมหน้าและหลัง');return}
-  processRequestRef.current=true;setAssetBusy(true);
+  processRequestRef.current=true;setAssetBusy(true);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
    const previous=historySnapshot();let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,hairBaseMask:null}:l),selectedId=head.id;
    if(id){
     const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผม');
     const fitted=await onPrepareHairOverlay(asset.warped||asset.original,id);
     if(!mounted.current)return;
-    const common={kind:'hair-preview',hairId:id,hairPreviewVersion:2,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
+    const common={kind:'hair-preview',hairId:id,hairPreviewVersion:4,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
     const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source});
     const index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
@@ -333,9 +333,9 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    }
    if(await hydrate(next,new Set(previous.filter(l=>l.kind!=='hair-preview'&&l.id!==head.id).map(l=>l.id)))){
     undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[];
-    setSelected(selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
+    drawNow();setSelected(selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
     if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
-    setStatus(id?'วางผมหน้าและหลังแล้ว · ลบขอบและบิดผมได้ · ไม่ใช้เครดิต':'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
+    setStatus(id?'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต':'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
    }else throw Error('วางผมไม่สำเร็จ · เก็บภาพเดิมไว้');
   }catch(e){setStatus(e.message||'วางผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;setAssetBusy(false)}
  };
