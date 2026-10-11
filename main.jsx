@@ -1891,7 +1891,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,'complete-new-hair-v3']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,'complete-new-hair-restored-soft-matte-v8']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
