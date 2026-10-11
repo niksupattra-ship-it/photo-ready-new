@@ -1,4 +1,5 @@
 import {createHairPreviewMesh,renderHairPreviewMesh,createHairSkinEraseMask} from './hair-preview-fit.js';
+import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
 import PromptpayPanel from './promptpay-panel.jsx';
@@ -1345,16 +1346,16 @@ async function prepareStudioHairOverlay(headSource,hairId){
   const pending=(async()=>{
    const [cutout,preview]=await Promise.all([loadImage(`/assets/hair/${hairId}.png`),loadImage(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
-   const mask=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+   const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
-   const bounds=opaqueBounds(c),previewBounds=mask&&opaqueBounds(mask);
-   if(!face||!bounds||!previewBounds)throw Error('ตรวจจุดยึดทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
-   return {cutout,face,bounds,previewBounds,w:preview.naturalWidth,h:preview.naturalHeight};
+   const bounds=opaqueBounds(c);
+   if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
+   return {cutout,face,bounds,calibration,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
- const ref=await reference,mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.previewBounds);
+ const ref=await reference,mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference});
  const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
  // Warp native PNG triangles, not the face or the small thumbnail.
  renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
@@ -1365,7 +1366,11 @@ async function prepareStudioHairOverlay(headSource,hairId){
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
  const mask=createHairSkinEraseMask(skin,targetFace,W,H,canvasFor);
- return {source:out.toDataURL('image/png'),mask:mask.toDataURL('image/png')};
+ const oldHair=await semanticClassMask(target,W,H,[1]);
+ if(!oldHair)throw Error('แยกผมเดิมไม่สำเร็จ · เก็บภาพเดิมไว้');
+ // Hide the source hair with a separate mask. Face/skin/neck pixels stay untouched.
+ const baseMask=canvasFor(W,H),bx=baseMask.getContext('2d');bx.fillStyle='#fff';bx.fillRect(0,0,W,H);bx.globalCompositeOperation='destination-out';bx.drawImage(oldHair,0,0);
+ return {source:out.toDataURL('image/png'),mask:mask.toDataURL('image/png'),baseMask:baseMask.toDataURL('image/png')};
 }
 const localHairAnchorCache=new Map();
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){
@@ -3047,7 +3052,7 @@ function App(){
      const c=canvasFor(original.naturalWidth,original.naturalHeight),x=c.getContext('2d');
      const hair=canvasFor(c.width,c.height),hx=hair.getContext('2d');hx.drawImage(overlay,0,0);
      if(fitted.mask){hx.globalCompositeOperation='destination-in';hx.drawImage(await loadImage(fitted.mask),0,0)}
-     x.drawImage(original,0,0);x.drawImage(hair,0,0);nextMaster=await canvasPng(c);
+     x.drawImage(original,0,0);if(fitted.baseMask){x.globalCompositeOperation='destination-in';x.drawImage(await loadImage(fitted.baseMask),0,0);x.globalCompositeOperation='source-over'}x.drawImage(hair,0,0);nextMaster=await canvasPng(c);
     }finally{URL.revokeObjectURL(url)}
    }
    const out=await renderWithRibbon(nextMaster,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
