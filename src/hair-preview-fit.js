@@ -221,7 +221,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
    // Long front hair stays intact above the upper ear attachment.
    // Start the same soft eraser there and follow the existing face/neck contour.
    const earTop=q.x<0?earTopLeft:earTopRight;
-   const underEar=clamp((q.y-earTop)/Math.max(1,a.eye*.1),0,1);
+   const underEar=clamp((q.y-earTop)/Math.max(1,a.eye*.25),0,1);
    const region=underEar*underEar*(3-2*underEar)*end;
    fd.data[j+3]=Math.round(fd.data[j+3]*(1-(1-opacity)*region));
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
@@ -275,11 +275,16 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
     const t=hi===lo?0:clamp((i-lo)/(hi-lo),0,1),row=raw[i];
     for(const key of ['inner','outer'])row[key]=raw[lo][key]*(1-t)+raw[hi][key]*t;
     row.push=row.skinEdge>step*3?Math.max(0,row.inner-row.skinEdge)+a.eye*.08:0;
+    // The PNG may contain a genuinely empty ear opening. Interpolating its
+    // geometry alone cannot provide hair pixels: use the nearest intact row,
+    // only inside the rear overlap, with a smooth displacement field below.
+    const nearest=i-lo<=hi-i?lo:hi;
+    row.repairY=clamp(raw[nearest].sourceY-row.sourceY,-a.eye*.45,a.eye*.45);
    }
    profiles[name]=raw.map((row,i)=>{
-    const sums={inner:0,outer:0,push:0};let weight=0;
-    for(let k=-4;k<=4;k++){const v=raw[clamp(i+k,0,count)],wt=Math.exp(-k*k/8);weight+=wt;for(const key of Object.keys(sums))sums[key]+=v[key]*wt}
-    return {...row,inner:sums.inner/weight,outer:sums.outer/weight,push:Math.min(a.eye*.30,sums.push/weight)};
+    const sums={inner:0,outer:0,push:0,repairY:0};let weight=0;
+    for(let k=-4;k<=4;k++){const v=raw[clamp(i+k,0,count)],wt=Math.exp(-k*k/8);weight+=wt;for(const key of Object.keys(sums))sums[key]+=(v[key]||0)*wt}
+    return {...row,inner:sums.inner/weight,outer:sums.outer/weight,push:sums.push/weight,repairY:sums.repairY/weight};
    });
   }else{
   profiles[name]=raw.map((_,i)=>{
@@ -289,7 +294,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  }
  const measuredPush=(sign,y)=>{
   const pos=clamp((y-top)/(bottom-top)*count,0,count),i=Math.floor(pos),t=pos-i,p=profiles[sign<0?'left':'right'];
-  const next=p[Math.min(count,i+1)];return {push:p[i].push*(1-t)+next.push*t,inner:p[i].inner*(1-t)+next.inner*t,outer:p[i].outer*(1-t)+next.outer*t,sourceY:(t<.5?p[i]:next).sourceY,borrowed:p[i].missing||next.missing};
+  const next=p[Math.min(count,i+1)];return {push:p[i].push*(1-t)+next.push*t,inner:p[i].inner*(1-t)+next.inner*t,outer:p[i].outer*(1-t)+next.outer*t,sourceY:(t<.5?p[i]:next).sourceY,repairY:(p[i].repairY||0)*(1-t)+(next.repairY||0)*t,borrowed:p[i].missing||next.missing};
  };
  // Inverse pixel warp avoids thousands of full-image triangle draws for the rear copy.
  // Every local row is monotonic: outer silhouette pinned, inner edge stretched inward.
@@ -320,13 +325,13 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   const liftStart=clamp((q.y-(ear.y-a.eye*.55))/Math.max(1,a.eye*.3),0,1);
   const liftEnd=clamp((bottom+a.eye*.3-q.y)/Math.max(1,a.eye*.5),0,1);
   const liftWeight=fitLongBack?liftStart*liftStart*(3-2*liftStart)*liftEnd*liftEnd*(3-2*liftEnd)*radialWeight:earWeight;
-  const sampleY=q.y+a.eye*.2*liftWeight;
+  const sampleY=q.y+a.eye*.2*liftWeight+(fitLongBack?originalRow.repairY*radialWeight:0);
   // Continue the long rear's inward overlap along jaw, neck and shoulders,
   // rather than stopping its extra push at the ear band.
   const neckStart=clamp((q.y-ear.y)/Math.max(1,a.eye*.2),0,1);
   const inwardWeight=fitLongBack?Math.max(earWeight,neckStart*neckStart*(3-2*neckStart)):earWeight;
   const measured=measuredPush(sign,sampleY),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),
-  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*inwardWeight,fitLongBack?a.eye*.35:Infinity)*fade;
+  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*inwardWeight)*fade;
   let sourceR=r;
   if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
   const borrowWeight=!fitLongBack&&measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
