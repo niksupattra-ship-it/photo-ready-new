@@ -320,7 +320,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    const previous=historySnapshot();let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)),selectedId=head.id;
    if(id){
     const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผม');
-    const fitted=await onPrepareHairOverlay(surfaceURL(asset.warped||asset.original),id);
+    const fitted=await onPrepareHairOverlay(asset.warped||asset.original,id);
     if(!mounted.current)return;
     const hair=fresh({name:'ทรงผม PNG',kind:'hair-preview',hairId:id,source:fitted.source,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)});
     const index=next.findIndex(l=>l.id===head.id);next.splice(index+1,0,hair);selectedId=hair.id;
