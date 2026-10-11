@@ -1,6 +1,6 @@
-import {isSingleFemaleHair,originalHairExcessMask,fitUpperEarGaps} from './short-female-hair.js';
+import {isSingleFemaleHair} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
-import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
+import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1378,14 +1378,27 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   const earSkin=calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
+   const earSkin=!isSingleFemaleHair(hairId)&&calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
    const embeddedEars=referenceContainsEarSkin(earSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference);
    return {cutout,face,bounds,calibration,embeddedEars,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
- const ref=await reference,mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:isSingleFemaleHair(hairId)});
+ const ref=await reference;
+ if(isSingleFemaleHair(hairId)){
+  // Place the native PNG once using measured face proportions and eye angle.
+  // No mesh push, skin segmentation, erasure, base mask or rear layer.
+  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
+  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
+  const placed=canvasFor(W,H),ctx=placed.getContext('2d');
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
+  ctx.drawImage(ref.cutout,0,0);ctx.setTransform(1,0,0,1,0,0);
+  if(!opaqueBounds(placed))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
+  return {source:placed.toDataURL('image/png'),backSource:null};
+ }
+ const mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:false});
  const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
  // Warp native PNG triangles, not the face or the small thumbnail.
  renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
@@ -1394,14 +1407,6 @@ async function prepareStudioHairOverlay(headSource,hairId){
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
- }
- if(isSingleFemaleHair(hairId)){
-  const fitted=fitUpperEarGaps(out,skin,targetFace,W,H,canvasFor);
-  const originalHair=await semanticClassMask(target,W,H,[1]);
-  const baseMask=originalHairExcessMask(originalHair,fitted,skin,W,H,canvasFor).toDataURL('image/png');
-  // Use the first fitted PNG directly: no second layer, skin erasure,
-  // 20% rear push, borrowed rows, or automatic gap filling.
-  return {source:fitted.toDataURL('image/png'),backSource:null,baseMask};
  }
  const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
  return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null};
