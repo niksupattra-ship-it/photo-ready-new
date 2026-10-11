@@ -1334,7 +1334,10 @@ function opaqueBounds(canvas){
 const fittedHairReferenceCache=new Map();
 async function prepareStudioHairOverlay(headSource,hairId){
  if(!HAIRSTYLE_RULES[hairId])throw Error('ไม่พบทรงผมที่เลือก');
- const target=await loadImage(headSource),W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
+ // Studio already holds a decoded image/canvas. Do not coerce it into an image URL.
+ const target=typeof headSource==='string'?await loadImage(headSource):headSource;
+ const W=target?.naturalWidth||target?.width,H=target?.naturalHeight||target?.height;
+ if(!W||!H)throw Error('ภาพหัวไม่พร้อมสำหรับวางผม · กรุณาลองอีกครั้ง');
  const landmarker=await getLandmarker(),targetFace=landmarker.detect(target).faceLandmarks?.[0];
  let reference=fittedHairReferenceCache.get(hairId);
  if(!reference){
