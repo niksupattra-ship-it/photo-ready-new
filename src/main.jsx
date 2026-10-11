@@ -1985,8 +1985,6 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
   const newHair=await semanticClassMask(ai,W,H,[1]);
   if(!newHair)throw Error('โมเดลตรวจผมผลลัพธ์ไม่พร้อม — คงภาพเดิม');
   const fresh=newHair.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const newFaceSkin=await semanticClassMask(ai,W,H,[3]);
-  const generatedSkin=newFaceSkin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
   // V214: AI generates the selected hairstyle; segmentation is used ONLY to extract its hair.
   // The original photographed face/skin and its texture remain immutable.
   // V213: 256px segmentation misses thin roots and braids at full resolution.
@@ -2026,25 +2024,22 @@ async function composeHairEdit(aiBlob,masterBlob,prepared){
     // strand there, but only in this narrow anatomical transition band.
     const x=i%W,y=Math.floor(i/W);
     if(newAllowed[i]&&Math.abs(y-hairlineY)<hairlineHalf&&Math.abs(x-W/2)<prepared.eyeD*1.3)continue;
-    // When a shorter/newly parted style exposes upper forehead, keep the AI's
-    // skin fill only inside that tiny permitted face region. Removed hair in
-    // the surrounding background becomes transparent for the chosen backdrop.
-    if(faceRegion?.[j+3]>0&&generatedSkin?.[j+3]>64){
-     out.data[j]=generated[j];out.data[j+1]=generated[j+1];out.data[j+2]=generated[j+2];out.data[j+3]=255;
-    }else {
-     // A missing segmentation pixel must never punch a blue hole through a
-     // photographic hairline. Retain source strands touching AI hair; remove
-     // genuinely displaced old hair elsewhere so the selected style is visible.
-     const x=i%W,y=Math.floor(i/W);
-     let touchesNew=false;
-     if(y<prepared.forehead+prepared.eyeD*.32){
-      for(let dy=-3;dy<=3&&!touchesNew;dy++)for(let dx=-3;dx<=3;dx++){
-       const xx=x+dx,yy=y+dy;if(xx>=0&&xx<W&&yy>=0&&yy<H&&matte[yy*W+xx]>0){touchesNew=true;break;}
-      }
+    // Never paste AI-generated skin over the photographed face or forehead.
+    // Keep source pixels wherever the face protection mask overlaps; only the
+    // extracted hair matte may replace pixels in this composition.
+    if(faceRegion?.[j+3]>0)continue;
+    // A missing segmentation pixel must never punch a blue hole through a
+    // photographic hairline. Retain source strands touching AI hair; remove
+    // genuinely displaced old hair elsewhere so the selected style is visible.
+    const x=i%W,y=Math.floor(i/W);
+    let touchesNew=false;
+    if(y<prepared.forehead+prepared.eyeD*.32){
+     for(let dy=-3;dy<=3&&!touchesNew;dy++)for(let dx=-3;dx<=3;dx++){
+      const xx=x+dx,yy=y+dy;if(xx>=0&&xx<W&&yy>=0&&yy<H&&matte[yy*W+xx]>0){touchesNew=true;break;}
      }
-     if(touchesNew)continue;
-     out.data[j+3]=0;
     }
+    if(touchesNew)continue;
+    out.data[j+3]=0;
     changed++;continue
    }
    if(newPx){
@@ -3281,7 +3276,7 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});const detail=String(e?.message||'ไม่ทราบสาเหตุ').replace(/\s+/g,' ').slice(0,180);setMsg(e.code==='face_proportion_changed'?e.message:(selectedHair&&selectedHair!=='original'&&selectedHair!=='clean-head'?`เปลี่ยนทรงผมไม่สำเร็จ: ${detail}`:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่'));const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}if(e.code==='face_proportion_changed')throw e;}finally{await refreshWallet();if(!completed)await finishProgress(false);setBusy(false)}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});const detail=String(e?.message||'ไม่ทราบสาเหตุ').replace(/\s+/g,' ').slice(0,180);setMsg(e.code==='face_proportion_changed'?e.message:(selectedHair&&selectedHair!=='original'&&selectedHair!=='clean-head'?`เปลี่ยนทรงผมไม่สำเร็จ: ${detail}`:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่'));const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{await refreshWallet();if(!completed)await finishProgress(false);setBusy(false)}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
