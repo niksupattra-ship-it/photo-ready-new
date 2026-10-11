@@ -509,7 +509,7 @@ Inspect the complete central and lateral fitting field under the chin before ret
 LOCAL EAR COMPLETION — NORMAL FRONT-FACING PORTRAIT ONLY:
 Complete only missing or incomplete portions of the SUBJECT'S own left and right pinnae at the sides of the existing head. Infer a modest anatomically plausible ear shape from the visible original ear fragments, original temple/jaw contour and original head size. Fit ear height, width, attachment and perspective naturally to this subject; use brow/eye-to-nose level as a soft anatomical guide, never a rigid generic template. Keep original visible ear detail, side-specific asymmetry and left/right orientation. Do not enlarge, protrude, duplicate or symmetrize ears, move the head, widen the face or reshape the jaw to accommodate them. Never borrow ears or skin from the hairstyle reference.
 Match completed ear skin to the established face/neck complexion, exposure, fine texture and photographic lighting; blend the attachment naturally without patches or halos. Edit only the missing ear field and its narrow attachment seam. Preserve all existing facial anatomy, eyebrows, eyes, nose, lips, cheeks, jaw, chin, skin finish, pores, neck geometry, clothing preparation, hairstyle, framing and other instructions EXACTLY. This exception overrides ear-preservation instructions ONLY for absent/occluded anatomical portions; it grants no permission to regenerate the face or alter intact ears.
-Preserve the current hairstyle and realistic hair-over-ear occlusion. Complete ear portions that should be visible beside the hair; never remove hair, create a bald scalp, force fully exposed ears through covering hair, or draw an ear on top of hair. If anatomy cannot be completed without changing visible face pixels, leave those facial pixels unchanged. No earrings, jewelry or accessories.`;
+Preserve the upper scalp hairstyle. Clear hair covering the ear outlines under the ear-to-shoulder clearance policy below, then complete only the exposed missing ear portions at their original anatomical attachments. Never create a bald scalp, move an ear, or draw an ear on top of hair. If anatomy cannot be completed without changing visible face pixels, leave those facial pixels unchanged. No earrings, jewelry or accessories.`;
 
     if(!inpaint&&!cleanHead&&!hairDonor)seedreamPrompt += `
 
@@ -538,18 +538,40 @@ The customer explicitly selected ${portraitMode==='female'?'FEMALE: create a com
 Expose both complete ear rims naturally at their original anatomical attachments. Complete only missing ear portions using the established local ear-completion policy, fitting each ear to the unchanged original head. Keep all hair behind or above the ear attachments; no hair over the pinnae or in the cleared cheek/jaw/neck/clavicle/shoulder-fitting field. No sideburn tails, wisps, dangling strands, long hair curtains, jewelry, decorative accessories or bald scalp.
 This explicit NEW-HAIR policy overrides ALL earlier original-hairstyle, source-hair geometry, source fringe, source parting and original hairline-retention instructions for this first portrait ONLY. The old hairline may be replaced to root the NEW hair naturally into the SAME unchanged skull. Recover only tiny previously hidden skin/brow portions where old hair was removed, following the original visible anatomy; never redraw already visible facial features. Do not copy a reference face, reshape facial anatomy or reinterpret the selected label as a skin/makeup instruction. Preserve all visible eyebrows, eyes, nose, lips, expression, face dimensions, identifying asymmetry, visible skin microtexture, established skin finish, studio-light policy, neck proportions and complete lower-neck fitting coverage. Keep the current sharply defined uncontaminated skin outline. No change to the existing skin, neck or lighting procedure is authorized.`;
 
+    // Normal portrait only: lower hair clearance overrides decorative flyaways.
+    if(!inpaint&&!cleanHead&&!hairDonor)seedreamPrompt += `
+
+FINAL LOWER-HAIR CLEARANCE — SAME UPPER STYLE AND ORIGINAL ANATOMY:
+Keep the completed upper scalp/crown hairstyle natural, at the SAME size, parting and root placement required above. Do not redesign or enlarge it during this cleanup. Starting at the upper attachment of EACH ear, remove EVERY hanging hair pixel down beside the ears, cheeks, jaw, neck, clavicles and shoulder fitting skin, including thin translucent wisps, tiny sideburn tails and loops attached to the upper hair. Check viewer-left AND viewer-right independently. No loose strand may continue from a temple past an ear onto the cheek or neck. No long/back hair panel may remain behind this lower fitting area. Fine separated strand detail belongs INSIDE the upper hair mass; instructions for flyaways, baby hairs, natural soft roots or realistic hair-over-ear occlusion never authorize loose hair in this cleared lower zone.
+Where removed hair lies OUTSIDE the original anatomical skin contour, fill only the same plain temporary background. Where it overlaps actual ear/face/neck/shoulder skin, recover ONLY the small previously occluded skin field with the adjacent true complexion and fine texture. Never erase skin, guess a narrower jaw, change face width or height, shrink ears, shorten the neck or cut away required neck/clavicle coverage. Keep ALL already visible facial anatomy and skin detail at exactly their original positions. Do not change eyebrows, eyes, nose, lips, expression, skin finish, upper hairline, light standard or neck preparation.
+The ear, cheek/jaw and neck silhouette must be continuous, sharply focused and cleanly separated from the temporary background. Use only tiny photographic edge antialiasing: no broad feathering, ghost hair, dark contour line, colored halo or blurred outline. Before returning the image, inspect both ear-to-shoulder boundaries and remove remaining dangling strands; do this within the SAME existing portrait request, without an additional generation or a bald intermediate. This final rule overrides conflicting hair-preservation/flyaway instructions ONLY in the defined lower clearance zone.`;
+
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
 
-    // ModelArk accepts data URLs for image-to-image/multi-reference generation.
-    const portraitDataUrl=`data:${inputFile.mimetype||"image/png"};base64,${inputFile.buffer.toString("base64")}`;
+    // Alpha output is supported only by Pro/Flash 5.x with ONE RGBA input.
+    // Keep multi-reference, donor, clean-head and inpaint routes unchanged.
+    const arkModel=process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628";
+    const transparentPortrait=keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&/seedream[-_ ]5(?:[-_. ]0)?[-_ ](?:pro|flash)(?:[-_ ]|$)/i.test(arkModel);
+    let portraitBuffer=inputFile.buffer,portraitMime=inputFile.mimetype||"image/png";
+    if(transparentPortrait){
+      const sharp=(await import("sharp")).default;
+      // Preserve all source detail. RGBA is required even for JPEG uploads;
+      // adding the alpha channel does not run a coarse cutout on the source.
+      portraitBuffer=await sharp(portraitBuffer,{failOn:"error"}).rotate().ensureAlpha().png().toBuffer();
+      portraitMime="image/png";
+      seedreamPrompt += `\n\nTRANSPARENT OUTPUT — BACKGROUND ONLY:
+Return the completed person as a genuine RGBA PNG with an alpha channel. Remove the temporary background into zero-alpha transparency, not a painted white/blue background or checkerboard. All earlier plain/temporary background instructions apply only as construction guides; the returned background must be transparent. Preserve opaque photographic face, skin, ears, upper hair, complete neck/clavicle coverage and the existing clothing-preparation rules. Keep only narrow natural antialiasing at the silhouette, without background-colored fringes or a broad translucent skin/hair halo. Where obsolete lower hair was removed outside the anatomical silhouette, return transparent pixels rather than colored background pixels. Do not change the face, skin finish, hair design, neck proportions, light, framing or any other requested detail.`;
+    }
+    const portraitDataUrl=`data:${portraitMime};base64,${portraitBuffer.toString("base64")}`;
     const refs=[portraitDataUrl];
     if(!keepOriginalHair&&hairBuf) refs.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
     const arkPayload={
-      model:process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628",
+      model:arkModel,
       prompt:seedreamPrompt,
       image:refs.length===1?refs[0]:refs,
       size:"2K",
       output_format:"png",
+      ...(transparentPortrait?{background:"transparent"}:{}),
       response_format:"url",
       watermark:false
     };

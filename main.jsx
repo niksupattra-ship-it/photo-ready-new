@@ -1,4 +1,3 @@
-import {crispPortraitAlpha} from './portrait-crisp-alpha.js';
 import {isSingleFemaleHair} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
@@ -1146,6 +1145,8 @@ async function refineAiCutoutEdges(cutoutBlob,sourceBlob){
   const [original,cutout]=await Promise.all([loadImage(sourceURL),loadImage(cutoutURL)]);
   const W=original.naturalWidth,H=original.naturalHeight;
   if(cutout.naturalWidth!==W||cutout.naturalHeight!==H)return cutoutBlob;
+  const face=(await getLandmarker()).detect(original).faceLandmarks?.[0];
+  if(!face?.[152])return cutoutBlob;
   const originalCanvas=canvasFor(W,H),ox=originalCanvas.getContext('2d',{willReadFrequently:true});ox.drawImage(original,0,0);
   const canvas=canvasFor(W,H),cx=canvas.getContext('2d',{willReadFrequently:true});cx.drawImage(cutout,0,0);
   const pixels=cx.getImageData(0,0,W,H);
@@ -1154,7 +1155,6 @@ async function refineAiCutoutEdges(cutoutBlob,sourceBlob){
   const skin=await semanticClassMask(original,W,H,[2,3]).catch(()=>null);
   const skinAlpha=skin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
   refineNativeHeadEdges(pixels.data,ox.getImageData(0,0,W,H).data,W,H,H,skinAlpha);
-  crispPortraitAlpha(pixels.data,W,H);
   cx.putImageData(pixels,0,0);
   return await canvasPng(canvas);
  }catch{return cutoutBlob}finally{URL.revokeObjectURL(sourceURL);URL.revokeObjectURL(cutoutURL)}
@@ -1191,7 +1191,23 @@ async function finishHairlineSeam(masterBlob){
  }catch{return masterBlob}finally{URL.revokeObjectURL(url)}
 }
 
+// Inspect the actual returned image, not its filename or an HTTP header.
+// This also works when the result comes from a saved async job/cache.
+async function hasRealPortraitTransparency(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const image=await loadImage(url),canvas=canvasFor(96,96),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(image,0,0,96,96);
+  const pixels=ctx.getImageData(0,0,96,96).data;
+  let clear=0,visible=0;
+  for(let i=3;i<pixels.length;i+=4){if(pixels[i]<250)clear++;if(pixels[i]>32)visible++;}
+  return clear>=4&&visible>=4;
+ }catch{return false}finally{URL.revokeObjectURL(url)}
+}
+
 async function removeBackgroundBlob(blob){
+ // Native AI alpha is the master: no second segmentation or edge tightening.
+ if(await hasRealPortraitTransparency(blob))return blob;
  const cutout=await removeBackgroundRobust(blob,'ai-person.png');
  return refineAiCutoutEdges(cutout,blob);
 }
@@ -1206,8 +1222,6 @@ async function levelPortraitCutout(blob){
   const canvas=canvasFor(transform.width,transform.height),ctx=canvas.getContext('2d');
   ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(transform.angle);
   ctx.drawImage(image,-W/2,-H/2);
-  const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
-  crispPortraitAlpha(pixels.data,canvas.width,canvas.height);ctx.putImageData(pixels,0,0);
   return await canvasPng(canvas);
  }catch{return blob}finally{URL.revokeObjectURL(url)}
 }
@@ -1893,7 +1907,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,'complete-new-hair-crisp-alpha-v7']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,'complete-new-hair-native-transparent-v9']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
