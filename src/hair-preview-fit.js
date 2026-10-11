@@ -194,7 +194,12 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   const originalSkin=skin.getContext('2d').getImageData(0,0,w,h).data;
   skinDistance=new Float32Array(w*h);
   const diagonal=Math.SQRT2,cap=solid+feather+2;
-  for(let i=0;i<skinDistance.length;i++)skinDistance[i]=originalSkin[i*4+3]>=128?0:cap;
+  for(let i=0;i<skinDistance.length;i++){
+   const q=local({x:i%w,y:Math.floor(i/w)}),earY=q.x<0?earTopLeft:earTopRight;
+   // Smooth only the ear contour, keeping the face/neck eraser elsewhere intact.
+   const nearEar=q.y>=earY-a.eye*.12&&q.y<=earY+a.eye*.9;
+   skinDistance[i]=(nearEar?sd[i*4+3]:originalSkin[i*4+3])>=128?0:cap;
+  }
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
    const i=y*w+x;let d=skinDistance[i];
    if(x)d=Math.min(d,skinDistance[i-1]+1);
@@ -225,15 +230,12 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
    const underEar=clamp((q.y-earTop)/Math.max(1,a.eye*(reference19?.3:.25)),0,1);
    const region=underEar*underEar*(3-2*underEar)*end;
    let erase=(1-opacity)*region;
-   if(reference19&&q.y>earTop){
-    // Reference 19 opens the whole ear-side strip, not just the pixels
-    // touching skin. A soft elliptical eraser avoids a horizontal cut.
-    const ear=landmark(q.x<0?127:356);
-    const radius=Math.hypot((q.x-ear.x)/(a.eye*.34),(q.y-earTop-a.eye*.27)/(a.eye*.34));
-    const t=clamp((radius-.5)/.5,0,1),brush=1-t*t*(3-2*t);
-    const ramp=clamp((q.y-earTop)/Math.max(1,a.eye*.10),0,1);
-    erase=Math.max(erase,brush*ramp*ramp*(3-2*ramp));
-   }
+   // Follow the visible ear contour instead of an elliptical punched hole.
+   // Clear the skin core at the ear root; taper continuously below the ear.
+   const earRise=clamp((q.y-earTop+a.eye*.12)/(a.eye*.12),0,1);
+   const earFall=1-clamp((q.y-earTop-a.eye*.65)/(a.eye*.25),0,1);
+   const earRegion=earRise*earRise*(3-2*earRise)*earFall*earFall*(3-2*earFall);
+   erase=Math.max(erase,(1-opacity)*earRegion);
    fd.data[j+3]=Math.round(fd.data[j+3]*(1-erase));
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
  }
@@ -345,7 +347,12 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   // outer hair stays pinned. Lift only the ear, not the entire long ends.
   const inwardWeight=reference19?Math.max(earWeight,neckWeight*(.55+.45*Math.exp(-(((q.y-chin-a.eye*.35)/(a.eye*.45))**2)))):fitLongBack?Math.max(earWeight,neckWeight):earWeight;
   const measured=measuredPush(sign,sampleY),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),
-  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*(reference19?.28:.2)*inwardWeight)*fade;
+  push=Math.min(Math.max(0,measured.inner-a.eye*.1),Math.max(
+   measured.push+a.eye*(reference19?.28:.2)*inwardWeight,
+   // Close the actual OUTPUT-row ear contour, including the feather overlap.
+   // Sampling a lifted source row alone can leave an exposed gap at the ear.
+   fitLongBack&&originalRow.skinEdge>step*3&&q.y>=ear.y-a.eye*.12&&q.y<=ear.y+a.eye*.65?Math.max(0,measured.inner-originalRow.skinEdge+solid+feather)*earWeight:0
+  ))*fade;
   let sourceR=r;
   if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
   const borrowWeight=!fitLongBack&&measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
