@@ -22,7 +22,7 @@ const results=new Map(),inFlight=new Map();
 export function clearHairstyleCache(){results.clear();inFlight.clear();}
 export function hairstyleCacheStats(){return {completed:results.size,inFlight:inFlight.size};}
 function cacheKey(portrait,reference,hairId,provider){
- return crypto.createHash('sha256').update('v235|gpt-image-1.5|high|high|1024x1536|png|preview-reference-long-hair|')
+ return crypto.createHash('sha256').update('v236|gpt-image-1.5|high|high|1024x1536|png|compact-hair-envelope-v1|')
  .update(provider).update(hairId).update(portrait).update(reference).digest('hex');
 }
 export async function editHairstyle({portrait,hairId,hairRootTarget,root=process.cwd(),env=process.env,fetcher=fetch}){
