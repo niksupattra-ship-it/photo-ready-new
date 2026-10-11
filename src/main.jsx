@@ -1,4 +1,4 @@
-import {hairPreviewTransform} from './hair-preview-fit.js';
+import {createHairPreviewMesh,renderHairPreviewMesh} from './hair-preview-fit.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
 import PromptpayPanel from './promptpay-panel.jsx';
@@ -1350,12 +1350,10 @@ async function prepareStudioHairOverlay(headSource,hairId){
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
- const ref=await reference,m=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
+ const ref=await reference,mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.previewBounds);
  const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
- x.setTransform(m.a,m.b,m.c,m.d,m.e,m.f);
- const a=ref.bounds,b=ref.previewBounds;
- // Sample the original full-resolution PNG directly, never the small thumbnail.
- x.drawImage(ref.cutout,a.x,a.y,a.w,a.h,b.x,b.y,b.w,b.h);
+ // Warp native PNG triangles, not the face or the small thumbnail.
+ renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
  return {source:out.toDataURL('image/png')};
 }
