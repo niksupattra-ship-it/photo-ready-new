@@ -6,10 +6,14 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 export const PROVIDERS = Object.freeze(['openai','meitu','specialized']);
+function openAiApiKey(env=process.env){
+ const firstLine=String(env.OPENAI_API_KEY||'').split(/\r?\n/,1)[0].trim();
+ return firstLine.replace(/^OPENAI_API_KEY\s*=\s*/i,'').replace(/^Bearer\s+/i,'').replace(/^['\"]|['\"]$/g,'').trim();
+}
 export function providerStatus(env=process.env){
  const selected=env.HAIRSTYLE_PROVIDER||'openai';
  return {selected,providers:{
-  openai:{configured:Boolean(env.OPENAI_API_KEY),referenceImage:true},
+  openai:{configured:Boolean(openAiApiKey(env)),referenceImage:true},
   meitu:{configured:false,referenceImage:null,reason:'Awaiting official API contract, credentials and custom-reference support confirmation'},
   specialized:{configured:false,referenceImage:null,reason:'Awaiting selected model, deployment and license'}
  }};
@@ -31,7 +35,8 @@ export async function editHairstyle({portrait,hairId,hairRootTarget,root=process
  const provider=env.HAIRSTYLE_PROVIDER||'openai';
  if(!PROVIDERS.includes(provider))throw Object.assign(Error('HAIRSTYLE_PROVIDER ไม่ถูกต้อง'),{status:503});
  if(provider!=='openai')throw Object.assign(Error(`${provider}: ยังไม่ได้รับ API contract ที่ยืนยันแล้ว จึงไม่เรียกบริการอื่นแทน`),{status:503});
- if(!env.OPENAI_API_KEY)throw Object.assign(Error('ยังไม่ได้ตั้งค่า OPENAI_API_KEY'),{status:503});
+ const apiKey=openAiApiKey(env);
+ if(!apiKey)throw Object.assign(Error('ยังไม่ได้ตั้งค่า OPENAI_API_KEY'),{status:503});
  const reference=path.join(root,'public','assets',hairId.startsWith('manhair-')?'hair':'hairstyle-previews',`${hairId}.png`);
  if(!fs.existsSync(reference))throw Object.assign(Error('ไม่พบภาพอ้างอิงทรงผม'),{status:400});
  const referenceBytes=fs.readFileSync(reference);
@@ -57,7 +62,7 @@ export async function editHairstyle({portrait,hairId,hairRootTarget,root=process
  form.append('prompt',`PERSONALIZED HAIRSTYLE REFERENCE EDIT for an ID portrait. Image 1 is the ORIGINAL SUBJECT. Image 2 is ${hairId.startsWith('manhair-')?'the FACELESS transparent hairstyle-only PNG corresponding to the male portrait thumbnail selected in the app':'the EXACT FULL-COLOR THUMBNAIL the user selected in the app, with a model wearing the desired hairstyle'}. The subject in Image 1 MUST remain the same person; do not transfer any reference-model face or clothing. ${styleInstruction} Follow Image 2's recognizable parting, braid or twist details, fringe, texture and intended side lengths; adapt crown height, outline and roots to Image 1 rather than tracing the pattern. The user chose this exact thumbnail, not a generic similar hairstyle. DO NOT default to a smooth tied-back hairstyle or preserve Image 1's old hair when it conflicts with Image 2. No topknot or bun unless visibly present in Image 2. Preserve Image 1's face, skin, eyes, nose, mouth, ears, expression, head placement and neck. Remove replaced hair and reconstruct natural background where necessary. Preserve head and short-neck crop; no torso, clothing, insignia or reference-model face. Output a natural coherent photographic portrait with no seams or halos. ${HAIRSTYLE_FIT_POLICY} ${HAIRSTYLE_PROPORTION_POLICY} ${hairRootTargetInstruction(hairRootTarget)}`);
  form.append('image[]',new Blob([portrait.buffer],{type:portrait.mimetype||'image/png'}),'portrait.png');
  form.append('image[]',new Blob([referenceBytes],{type:'image/png'}),`${hairId}.png`);
- const response=await fetcher('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY}`},body:form});
+ const response=await fetcher('https://api.openai.com/v1/images/edits',{method:'POST',headers:{Authorization:`Bearer ${apiKey}`},body:form});
  const body=await response.json();
  if(!response.ok){
   const code=body?.error?.code||'image_edit_failed';
