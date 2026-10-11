@@ -19,8 +19,12 @@ export function hairPreviewTransform(from,fw,fh,to,tw,th){
 }
 const apply=(m,p)=>({x:m.a*p.x+m.c*p.y+m.e,y:m.b*p.x+m.d*p.y+m.f});
 const area=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
-export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18}={}){
+export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18,sourceToReference=null}={}){
  const m=hairPreviewTransform(from,fw,fh,to,tw,th),f=anchors(from,fw,fh),t=anchors(to,tw,th);
+ const calibration=sourceToReference?Object.fromEntries(['a','b','c','d','e','f'].map((k,i)=>[k,sourceToReference[i]])):null;
+ if(calibration&&(!Object.values(calibration).every(Number.isFinite)||calibration.a*calibration.d-calibration.b*calibration.c<=0))throw Error('จุดยึด PNG ผมไม่ถูกต้อง');
+ const referencePoint=p=>calibration?apply(calibration,p):p;
+ const basePoint=p=>apply(m,referencePoint(p));
  if(!bounds||![bounds.x,bounds.y,bounds.w,bounds.h].every(Number.isFinite)||bounds.w<=0||bounds.h<=0)throw Error('ขอบเขต PNG ผมไม่ถูกต้อง');
  const ids=[10,109,67,103,54,21,162,127,338,297,332,284,251,389,356];
  const controls=ids.flatMap(id=>{
@@ -36,27 +40,28 @@ export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=1
  const forehead=from[10]?localY({x:from[10].x*fw,y:from[10].y*fh}):-f.eye*.7;
  const vertices=[];
  for(let y=0;y<=rows;y++)for(let x=0;x<=cols;x++){
-  const source={x:bounds.x+bounds.w*x/cols,y:bounds.y+bounds.h*y/rows},base=apply(m,source);
+  const source={x:bounds.x+bounds.w*x/cols,y:bounds.y+bounds.h*y/rows},base=basePoint(source),ref=referencePoint(source);
   let dx=0,dy=0,weight=.4;
-  for(const p of controls){const w=Math.exp(-((source.x-p.x)**2+(source.y-p.y)**2)/(2*(f.eye*.55)**2));dx+=w*p.dx;dy+=w*p.dy;weight+=w}
-  const ly=localY(source),fade=(y===0?0:1)*clamp((ly-(forehead-f.eye*.75))/(f.eye*.75),0,1)*clamp((f.eye*.8-ly)/(f.eye*.5),0,1);
+  for(const p of controls){const w=Math.exp(-((ref.x-p.x)**2+(ref.y-p.y)**2)/(2*(f.eye*.55)**2));dx+=w*p.dx;dy+=w*p.dy;weight+=w}
+  // Pin the crown and long ends; flex only the roots and temples like Puppet Warp.
+  const ly=localY(ref),fade=(y===0?0:1)*clamp((ly-(forehead-f.eye*.75))/(f.eye*.75),0,1)*clamp((f.eye*.8-ly)/(f.eye*.5),0,1);
   vertices.push({source,target:{x:base.x+dx/weight*fade,y:base.y+dy/weight*fade}});
  }
  const triangles=[];
  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const a=y*(cols+1)+x,b=a+1,c=a+cols+1,d=c+1;triangles.push([a,b,d],[a,d,c])}
  // Reduce local corrections if an unusually occluded face would fold the mesh.
  for(let attempt=0;attempt<5;attempt++){
-  if(triangles.every(ids=>{const [a,b,c]=ids.map(i=>vertices[i]);return area(a.target,b.target,c.target)>area(apply(m,a.source),apply(m,b.source),apply(m,c.source))*.3}))break;
-  for(const v of vertices){const base=apply(m,v.source);v.target={x:(v.target.x+base.x)/2,y:(v.target.y+base.y)/2}}
+  if(triangles.every(ids=>{const [a,b,c]=ids.map(i=>vertices[i]);return area(a.target,b.target,c.target)>area(basePoint(a.source),basePoint(b.source),basePoint(c.source))*.3}))break;
+  for(const v of vertices){const base=basePoint(v.source);v.target={x:(v.target.x+base.x)/2,y:(v.target.y+base.y)/2}}
  }
  if(!triangles.every(ids=>area(...ids.map(i=>vertices[i].target))>0))throw Error('ปรับตาข่ายผมไม่สำเร็จ · เก็บภาพเดิมไว้');
- return {vertices,triangles,bounds,matrix:m};
+ return {vertices,triangles,bounds,matrix:m,directSource:Boolean(calibration)};
 }
 export function renderHairPreviewMesh(ctx,image,sourceBounds,mesh){
  const sx=mesh.bounds.w/sourceBounds.w,sy=mesh.bounds.h/sourceBounds.h;
  for(const ids of mesh.triangles){
   const vertices=ids.map(i=>mesh.vertices[i]);
-  const src=vertices.map(v=>({x:sourceBounds.x+(v.source.x-mesh.bounds.x)/sx,y:sourceBounds.y+(v.source.y-mesh.bounds.y)/sy}));
+  const src=vertices.map(v=>mesh.directSource?v.source:({x:sourceBounds.x+(v.source.x-mesh.bounds.x)/sx,y:sourceBounds.y+(v.source.y-mesh.bounds.y)/sy}));
   const [p,q,r]=src,[a,b,c]=vertices.map(v=>v.target),det=area(p,q,r);
   const ux=q.x-p.x,uy=q.y-p.y,vx=r.x-p.x,vy=r.y-p.y;
   const ma=((b.x-a.x)*vy-(c.x-a.x)*uy)/det,mc=((c.x-a.x)*ux-(b.x-a.x)*vx)/det;
