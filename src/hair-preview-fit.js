@@ -90,10 +90,27 @@ export function renderHairPreviewMesh(ctx,image,sourceBounds,mesh){
   return new ctx.canvas.constructor(width,height);
  }
 }
+// Check skin pixels at reference ear positions, not the whole PNG's skin.
+// Assets retaining an ear keep their existing two-layer placement policy.
+export function referenceContainsEarSkin(mask,face,w,h,sourceToReference){
+ if(!mask||!face?.[127]||!face?.[356])return false;
+ const anchor=anchors(face,w,h),[a,b,c,d,e,f]=sourceToReference,det=a*d-b*c;
+ const data=mask.getContext('2d').getImageData(0,0,mask.width,mask.height).data;
+ for(const [id,sign] of [[127,-1],[356,1]]){
+  let hits=0;
+  for(const dx of [.04,.1,.16,.22])for(const dy of [.12,.22,.32,.42]){
+   const x=face[id].x*w+sign*anchor.eye*dx,y=face[id].y*h+anchor.eye*dy;
+   const px=Math.round((d*(x-e)-c*(y-f))/det),py=Math.round((-b*(x-e)+a*(y-f))/det);
+   if(px>=0&&px<mask.width&&py>=0&&py<mask.height&&data[(py*mask.width+px)*4+3]>180)hits++;
+  }
+  if(hits>=3)return true;
+ }
+ return false;
+}
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
 // Bake the soft eraser into the front PNG and warp a separate lower-hair copy
 // behind the unchanged portrait. No automatic layer/base masks are returned.
-export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  const local=p=>({x:(p.x-a.x)*cos+(p.y-a.y)*sin,y:-(p.x-a.x)*sin+(p.y-a.y)*cos});
  const world=p=>({x:a.x+p.x*cos-p.y*sin,y:a.y+p.x*sin+p.y*cos});
@@ -214,6 +231,27 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
   const j=(y*w+x)*4;if(alpha>0){bd.data[j]=Math.round(red/alpha);bd.data[j+1]=Math.round(green/alpha);bd.data[j+2]=Math.round(blue/alpha);bd.data[j+3]=Math.round(alpha)}
  }
  backCtx.putImageData(bd,0,0);
+ if(singleLayer){
+  // Short cuts use ONE editable PNG. Bake only the local ear warp into it;
+  // do not place a second lower-hair copy behind the portrait.
+  const merged=makeCanvas(w,h),mx=merged.getContext('2d'),result=mx.createImageData(w,h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const j=(y*w+x)*4,q=local({x,y}),ear=landmark(q.x<0?127:356);
+   const dy=Math.abs(q.y-(ear.y+a.eye*.35))/a.eye;
+   const v=clamp((dy-.2)/.6,0,1),vertical=1-v*v*(3-2*v);
+   const side=clamp((Math.abs(q.x)-a.width*.22)/(a.width*.12),0,1),weight=vertical*side;
+   const originalAlpha=pd[j+3]/255,warpedAlpha=bd.data[j+3]/255;
+   // Keep untouched hair where no local ear sample exists. Warp and fill the
+   // inner edge only; leave crown, fringe and outer style silhouette intact.
+   const replacement=warpedAlpha>0?weight:0;
+   const alpha=originalAlpha*(1-replacement)+Math.max(originalAlpha,warpedAlpha)*replacement;
+   const earTop=ear.y-a.eye*.3,start=clamp((q.y-earTop)/(a.eye*.3),0,1),end=clamp((bottom-q.y)/(a.eye*.18),0,1),below=clamp((q.y-a.eye*.05)/(a.eye*.25),0,1);
+   const erase=(start*start*(3-2*start))*end*Math.max(side,below)*ed[j+3]/255;
+   for(let k=0;k<3;k++)result.data[j+k]=pd[j+k]*(1-replacement)+bd.data[j+k]*replacement;
+   result.data[j+3]=Math.round(alpha*(1-erase)*255);
+  }
+  mx.putImageData(result,0,0);return {front:merged,back:null,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
+ }
  return {front,back,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
 }
 // Erase the overlay over visible skin from the ear/temple level down to the neck.
