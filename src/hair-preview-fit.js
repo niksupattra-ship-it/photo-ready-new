@@ -257,7 +257,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   // Only the completed rear layer is reduced around the head's eye anchor.
   const smaller=makeCanvas(w,h),ctx=smaller.getContext('2d');
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  ctx.translate(a.x,a.y);ctx.scale(.95,.95);ctx.translate(-a.x,-a.y);
+  ctx.translate(a.x,a.y);ctx.scale(.90,.90);ctx.translate(-a.x,-a.y);
   ctx.drawImage(back,0,0);
   return {front,back:smaller,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
  }
