@@ -57,7 +57,7 @@ async function settleProcessOperation(operation,action){
  if(!response.ok)throw Error(action==='cancel'?'ยกเลิกงานไม่สำเร็จ กรุณากดปิดอีกครั้ง':'ยืนยันภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
  operation.settled=true;writeActiveAiJob(null);await clearAiJobFile();
 }
-async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){for(;;){assertProcessActive(operation);const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();assertProcessActive(operation);onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();assertProcessActive(operation);const verified=await verifyOutputRights(jobId);blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,1800))}}
+async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){for(;;){assertProcessActive(operation);const r=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();assertProcessActive(operation);onStatus?.(j.status);if(j.status==='failed')throw analyticsTagError(Error(j.error||'ประมวลผลไม่สำเร็จ'),{error_stage:'ai_job'});if(j.status==='completed'){const out=await fetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();assertProcessActive(operation);const verified=await verifyOutputRights(jobId);blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,900))}}
 
 let landmarkerPromise;
 let segmenterPromise;
@@ -127,6 +127,34 @@ function loadImage(src){
  const pending=new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src});
  if(reusable){staticImageCache.set(src,pending);while(staticImageCache.size>12)staticImageCache.delete(staticImageCache.keys().next().value);pending.catch(()=>{if(staticImageCache.get(src)===pending)staticImageCache.delete(src)})}
  return pending;
+}
+// Reuse the decoded pixels of immutable Blob objects, never resized images.
+// Weak keys release portrait data when the owning work/session is released.
+const decodedPortraitCache=new WeakMap();
+function decodedPortraitImage(blob){
+ let pending=decodedPortraitCache.get(blob);
+ if(!pending){
+  pending=(async()=>{const url=URL.createObjectURL(blob);try{return await loadImage(url)}finally{URL.revokeObjectURL(url)}})();
+  decodedPortraitCache.set(blob,pending);
+  pending.catch(()=>{if(decodedPortraitCache.get(blob)===pending)decodedPortraitCache.delete(blob)});
+ }
+ return pending;
+}
+const originalSkinProfileCache=new WeakMap();
+function originalSkinProfile(sourceBlob){
+ if(!sourceBlob)return Promise.resolve(null);
+ let pending=originalSkinProfileCache.get(sourceBlob);
+ if(!pending){
+  pending=readOriginalSkinProfile(sourceBlob);
+  originalSkinProfileCache.set(sourceBlob,pending);
+  pending.then(value=>{if(!value&&originalSkinProfileCache.get(sourceBlob)===pending)originalSkinProfileCache.delete(sourceBlob)},()=>{if(originalSkinProfileCache.get(sourceBlob)===pending)originalSkinProfileCache.delete(sourceBlob)});
+ }
+ return pending;
+}
+function warmPortraitResources(sourceBlob,templatePath){
+ // Downloads and source-only measurements overlap the unchanged AI request.
+ // Never segment/retouch the AI result early or reuse masks across changed pixels.
+ void Promise.allSettled([getLandmarker(),getPersonSegmenter(),originalSkinProfile(sourceBlob),loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
 }
 function interp(points,x){
  for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(x>=a.x&&x<=b.x){const t=(x-a.x)/Math.max(1,b.x-a.x);return a.y+(b.y-a.y)*t}}
@@ -237,9 +265,8 @@ async function alphaBounds(img){
 
 async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png'){
  const [bg,uniformImg]=await Promise.all([loadImage('/assets/background.jpg'),loadImage(templatePath)]);
- const headURL=URL.createObjectURL(headBlob);
  try{
-  const head=await loadImage(headURL), uniform=uniformImg;
+  const head=await decodedPortraitImage(headBlob), uniform=uniformImg;
   const hb=await alphaBounds(head);
   const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
   if(!face) throw Error('ตรวจจับสัดส่วนใบหน้าหลังตัดศีรษะไม่สำเร็จ');
@@ -331,7 +358,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
 
   const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
   return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,opaqueHeadW:hb.w*scale,opaqueHeadTop:hb.t,placedFaceW:sourceFaceW*scale,shoulderSpan,uX,uY,uW,uH,collarSocketY,templatePath}};
- }finally{URL.revokeObjectURL(headURL)}
+ }finally{}
 }
 
 
@@ -727,11 +754,10 @@ async function gentlyWarmCheeksAndLips(image,skinMask,sourceProfile=null){
 // V226: measure the actual uploaded photograph before the AI edit, so the
 // automatic enhancement responds to each person's existing exposure/rosiness.
 // No source pixels are altered; if detection fails, use conservative defaults.
-async function originalSkinProfile(sourceBlob){
+async function readOriginalSkinProfile(sourceBlob){
  if(!sourceBlob)return null;
- const url=URL.createObjectURL(sourceBlob);
  try{
-  const image=await loadImage(url),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+  const image=await decodedPortraitImage(sourceBlob),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
   const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   if(!face?.[117]||!face?.[346]||!face?.[234]||!face?.[454])return null;
   const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,W,H);
@@ -749,16 +775,15 @@ async function originalSkinProfile(sourceBlob){
     }
   }
   return count?{luma:light/count,rosiness:red/count}:null;
- }catch{return null}finally{URL.revokeObjectURL(url)}
+ }catch{return null}
 }
 
 // Automatic V227 skin enhancement on the existing transparent AI portrait, not the
 // original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
 // bounded by original exposure and highlight protection; preserve pores.
 async function optionalHealthySkin10(masterBlob,sourceBlob){
- const url=URL.createObjectURL(masterBlob);
  try{
-  const image=await loadImage(url),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+  const image=await decodedPortraitImage(masterBlob),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
   const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
   if(!skinMask)return masterBlob;
   const profile=await originalSkinProfile(sourceBlob);
@@ -772,7 +797,7 @@ async function optionalHealthySkin10(masterBlob,sourceBlob){
   // One restrained texture pass per new AI master; reuse its skin mask.
   return await refineSkinTextureBlob(await canvasPng(tinted),skinMask);
  }catch(e){console.warn('V231 automatic skin enhancement skipped',e);return masterBlob}
- finally{URL.revokeObjectURL(url)}
+ 
 }
 
 async function applySkinBrightness(image,factor=null,skinMask=null){
@@ -1164,9 +1189,8 @@ async function refineAiCutoutEdges(cutoutBlob,sourceBlob){
 // Blend only the internal upper hairline after the existing skin finish.
 // Face features are protected by a hard ROI ending safely above both brows.
 async function finishHairlineSeam(masterBlob){
- const url=URL.createObjectURL(masterBlob);
  try{
-  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const image=await decodedPortraitImage(masterBlob),W=image.naturalWidth,H=image.naturalHeight;
   const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   if(!face?.[10]||!face?.[70]||!face?.[300])return masterBlob;
   const faceWidth=Math.abs(face[454].x-face[234].x)*W;
@@ -1189,21 +1213,20 @@ async function finishHairlineSeam(masterBlob){
   const pixels=ctx.getImageData(0,0,W,H),finished=blendHairlineSeam(pixels.data,hair,skin,W,H,region);
   if(!finished)return masterBlob;
   pixels.data.set(finished);ctx.putImageData(pixels,0,0);return await canvasPng(canvas);
- }catch{return masterBlob}finally{URL.revokeObjectURL(url)}
+ }catch{return masterBlob}
 }
 
 // Inspect the actual returned image, not its filename or an HTTP header.
 // This also works when the result comes from a saved async job/cache.
 async function hasRealPortraitTransparency(blob){
- const url=URL.createObjectURL(blob);
  try{
-  const image=await loadImage(url),canvas=canvasFor(96,96),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  const image=await decodedPortraitImage(blob),canvas=canvasFor(96,96),ctx=canvas.getContext('2d',{willReadFrequently:true});
   ctx.drawImage(image,0,0,96,96);
   const pixels=ctx.getImageData(0,0,96,96).data;
   let clear=0,visible=0;
   for(let i=3;i<pixels.length;i+=4){if(pixels[i]<250)clear++;if(pixels[i]>32)visible++;}
   return clear>=4&&visible>=4;
- }catch{return false}finally{URL.revokeObjectURL(url)}
+ }catch{return false}
 }
 
 async function removeBackgroundBlob(blob){
@@ -1215,9 +1238,8 @@ async function removeBackgroundBlob(blob){
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.
 async function cleanLowerPortraitOutline(blob){
- const url=URL.createObjectURL(blob);
  try{
-  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
   const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   if(!face?.[234]||!face?.[454])return blob;
   const faceWidth=Math.abs(face[454].x-face[234].x)*W;
@@ -1230,13 +1252,12 @@ async function cleanLowerPortraitOutline(blob){
   const cleaned=lowerPortraitOutline(pixels.data,W,H,skin,clothes,{startY,faceWidth,chinY:(face[152]?.y||1)*H});
   if(!cleaned)return blob;
   pixels.data.set(cleaned);ctx.putImageData(pixels,0,0);return await canvasPng(canvas);
- }catch{return blob}finally{URL.revokeObjectURL(url)}
+ }catch{return blob}
 }
 
 async function levelPortraitCutout(blob){
- const url=URL.createObjectURL(blob);
  try{
-  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
   const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   const transform=portraitLevelTransform(face,W,H);if(!transform)return blob;
   // Expand the transparent canvas to avoid cutting off hair or neck corners.
@@ -1244,7 +1265,7 @@ async function levelPortraitCutout(blob){
   ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(transform.angle);
   ctx.drawImage(image,-W/2,-H/2);
   return await canvasPng(canvas);
- }catch{return blob}finally{URL.revokeObjectURL(url)}
+ }catch{return blob}
 }
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
@@ -1981,6 +2002,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const r=await fetch('/api/ai-jobs',{method:'POST',body:fd,headers:{...walletHeaders(),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})}});
  if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(Error(text||'สิทธิ์สร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม'),{error_stage:'submit_job',http_status:r.status})}
  const info=await r.json();
+ if(!hairId||hairId==='original')warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate);
  if(operation){operation.jobId=info.jobId;if(operation.cancelled){await settleProcessOperation(operation,'cancel');throw cancelledProcessError()}}
  writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
  window.dispatchEvent(new CustomEvent('idprom-rights',{detail:{generationRemaining:Number(info.generationRemaining||0),hairRemaining:Number(info.hairRemaining||0)}}));
