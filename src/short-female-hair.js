@@ -3,7 +3,7 @@ export const isSingleLayerHair=id=>isSingleFemaleHair(id)||/^manhair-(0[1-9]|1[0
 
 // Erase ONLY original hair beyond the upper/side OUTER hairstyle silhouette.
 // This changes its reversible eraser mask, never portrait or hairstyle RGB.
-export function originalHairExcessMask(originalHair,coverage,skin,w,h,makeCanvas){
+export function originalHairExcessMask(originalHair,coverage,skin,w,h,makeCanvas,{softOuter=false}={}){
  if(!originalHair||!coverage||!skin)throw Error('ตรวจผมส่วนเกินไม่สำเร็จ · เก็บภาพเดิมไว้');
  const hair=originalHair.getContext('2d').getImageData(0,0,w,h).data;
  const fitted=coverage.getContext('2d').getImageData(0,0,w,h).data;
@@ -20,7 +20,7 @@ export function originalHairExcessMask(originalHair,coverage,skin,w,h,makeCanvas
   left[y]=Math.min(above>=top?left[above]:w,below<=bottom?left[below]:w);
   right[y]=Math.max(above>=top?right[above]:-1,below<=bottom?right[below]:-1);
  }
- const margin=Math.max(2,Math.max(w,h)*.002),fade=Math.max(2,Math.max(w,h)*.002);
+ const margin=softOuter?0:Math.max(2,Math.max(w,h)*.002),fade=Math.max(softOuter?4:2,Math.max(w,h)*(softOuter?.003:.002));
  const out=makeCanvas(w,h),ctx=out.getContext('2d'),mask=ctx.createImageData(w,h);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const j=(y*w+x)*4;mask.data[j]=mask.data[j+1]=mask.data[j+2]=255;
@@ -34,4 +34,13 @@ export function originalHairExcessMask(originalHair,coverage,skin,w,h,makeCanvas
   mask.data[j+3]=Math.round(255*(1-erase));
  }
  ctx.putImageData(mask,0,0);return out;
+}
+
+// Native alpha brush footprint for male hair: destination-out, not a clipping mask.
+// Only classified original hair OUTSIDE the overlay is eligible; skin stays protected.
+export function originalHairOuterEraser(originalHair,coverage,skin,w,h,makeCanvas){
+ const out=originalHairExcessMask(originalHair,coverage,skin,w,h,makeCanvas,{softOuter:true});
+ const ctx=out.getContext('2d'),pixels=ctx.getImageData(0,0,w,h);
+ for(let j=3;j<pixels.data.length;j+=4)pixels.data[j]=255-pixels.data[j];
+ ctx.putImageData(pixels,0,0);return out;
 }
