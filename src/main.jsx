@@ -1,7 +1,7 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair,originalHairExcessMask} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
-import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
+import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin,fitMaleHairEarJoin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1421,7 +1421,7 @@ function opaqueBounds(canvas){
 const fittedHairReferenceCache=new Map();
 const fittedHairSkinCache=new WeakMap();
 const fittedOriginalHairMaskCache=new WeakMap();
-async function finishStudioHairPreview(target,front,back){
+async function finishStudioHairPreview(target,front,back,face,hairId){
  const W=front.width,H=front.height;
  let masks=fittedOriginalHairMaskCache.get(target);
  if(!masks){
@@ -1433,11 +1433,13 @@ async function finishStudioHairPreview(target,front,back){
    const guard=canvasFor(W,H),ctx=guard.getContext('2d'),margin=Math.max(2,Math.max(W,H)/256*1.5);
    ctx.drawImage(protectedParts,0,0);
    for(let i=0;i<8;i++){const angle=i*Math.PI/4;ctx.drawImage(protectedParts,Math.cos(angle)*margin,Math.sin(angle)*margin)}
-   return {hair,protectedParts:guard};
+   return {hair,skin:protectedParts,protectedParts:guard};
   })();
   if(target instanceof HTMLImageElement){fittedOriginalHairMaskCache.set(target,masks);masks.catch(()=>fittedOriginalHairMaskCache.delete(target))}
  }
- const {hair,protectedParts}=await masks,coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
+ const {hair,skin,protectedParts}=await masks;
+ if(/^manhair-(0[1-9]|1[0-2])$/.test(hairId))front=fitMaleHairEarJoin(front,skin,face,W,H,canvasFor);
+ const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
  const mask=originalHairExcessMask(hair,coverage,protectedParts,W,H,canvasFor);
  return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,hairBaseMask:mask.toDataURL('image/png')};
@@ -1476,7 +1478,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   ctx.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
   ctx.drawImage(ref.cutout,0,0);ctx.setTransform(1,0,0,1,0,0);
   if(!opaqueBounds(placed))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
-  return finishStudioHairPreview(target,placed,null);
+  return finishStudioHairPreview(target,placed,null,targetFace,hairId);
  }
  const mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:false});
  const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
@@ -1489,7 +1491,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
  const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars,fitLongBack:ref.calibration.layout==='long'});
- return finishStudioHairPreview(target,layers.front,layers.back);
+ return finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
 }
 const localHairAnchorCache=new Map();
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){

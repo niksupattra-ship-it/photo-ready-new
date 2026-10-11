@@ -108,6 +108,63 @@ export function referenceContainsEarSkin(mask,face,w,h,sourceToReference){
  return false;
 }
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
+// Refine only the male PNG's temple/upper-ear join before it becomes a layer.
+// Skin is a positioning/protection guide; portrait pixels are never written.
+export function fitMaleHairEarJoin(placed,skin,face,w,h,makeCanvas){
+ const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
+ const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
+ const world=(x,y)=>({x:a.x+x*cos-y*sin,y:a.y+x*sin+y*cos});
+ if(!skin||!face[127]||!face[356])throw Error('ตรวจรอยต่อหูไม่สำเร็จ · เก็บภาพเดิมไว้');
+ const pixels=placed.getContext('2d').getImageData(0,0,w,h).data,sd=skin.getContext('2d').getImageData(0,0,w,h).data;
+ const softSkin=makeCanvas(w,h),sc=softSkin.getContext('2d');sc.filter=`blur(${Math.max(1,Math.min(5,a.eye*.018))}px)`;sc.drawImage(skin,0,0);
+ const softSkinPixels=sc.getImageData(0,0,w,h).data;
+ const alpha=(data,x,y)=>{const p=world(x,y),px=Math.round(p.x),py=Math.round(p.y);return px>=0&&px<w&&py>=0&&py<h?data[(py*w+px)*4+3]:0};
+ const profiles=new Map(),count=48,step=Math.max(1,a.eye*.015);
+ for(const sign of [-1,1]){
+  const ear=local(face[sign<0?127:356].x*w,face[sign<0?127:356].y*h),top=ear.y-a.eye*.12,bottom=ear.y+a.eye*.9,rows=[];
+  for(let i=0;i<=count;i++){
+   const y=top+(bottom-top)*i/count;let edge=0,inner=null;
+   for(let r=a.width*.34;r<=a.width*.72;r+=step){if(alpha(sd,sign*r,y)>128)edge=r;if(inner===null&&alpha(pixels,sign*r,y)>96)inner=r}
+   const shift=edge&&inner!==null?clamp(edge-a.eye*.035-inner,-a.eye*.09,a.eye*.09):0;
+   rows.push({y,edge,inner,shift});
+  }
+  for(const row of rows){
+   row.sourceY=row.y;
+   if(row.inner===null){let nearest=null;for(const candidate of rows)if(candidate.inner!==null&&Math.abs(candidate.y-row.y)<=a.eye*.10&&(!nearest||Math.abs(candidate.y-row.y)<Math.abs(nearest.y-row.y)))nearest=candidate;if(nearest)row.sourceY=nearest.y}
+  }
+  profiles.set(sign,{ear,top,bottom,rows});
+ }
+ const out=makeCanvas(w,h),ctx=out.getContext('2d'),result=ctx.createImageData(w,h);
+ result.data.set(pixels);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const q=local(x,y),sign=q.x<0?-1:1,r=Math.abs(q.x),p=profiles.get(sign);
+  if(q.y<p.top||q.y>p.bottom||r<a.width*.34||r>a.width*.8)continue;
+  const index=clamp((q.y-p.top)/(p.bottom-p.top)*count,0,count),i=Math.floor(index),t=index-i,row=p.rows[i],next=p.rows[Math.min(count,i+1)];
+  const edge=row.edge*(1-t)+next.edge*t;
+  if(!edge)continue;
+  const start=clamp((q.y-p.top)/(a.eye*.14),0,1),end=clamp((p.bottom-q.y)/(a.eye*.2),0,1);
+  const vertical=start*start*(3-2*start)*end*end*(3-2*end);
+  const radial=Math.exp(-(((r-edge)/(a.eye*.24))**2)),weight=vertical*radial;
+  const shift=(row.shift*(1-t)+next.shift*t)*weight;
+  // If the PNG opens just above an ear, stretch a nearby existing hair row.
+  // Limit the displacement rather than inventing or duplicating hair.
+  const sourceY=q.y+((row.sourceY-row.y)*(1-t)+(next.sourceY-next.y)*t)*weight;
+  const point=world(sign*(r-shift),sourceY),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
+  let opacity=0,red=0,green=0,blue=0;
+  for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+   const sx=px+xx,sy=py+yy;if(sx<0||sx>=w||sy<0||sy>=h)continue;
+   const j=(sy*w+sx)*4,part=pixels[j+3]*(xx?dx:1-dx)*(yy?dy:1-dy);
+   opacity+=part;red+=pixels[j]*part;green+=pixels[j+1]*part;blue+=pixels[j+2]*part;
+  }
+  const j=(y*w+x)*4;
+  // Feather only the overlaid hair that crosses the exposed ear-side skin.
+  // Retain the original crown, fringe and forehead hairline exactly.
+  const side=clamp((r-a.width*.38)/(a.width*.07),0,1),erase=softSkinPixels[j+3]/255*vertical*side;
+  result.data[j]=opacity?Math.round(red/opacity):0;result.data[j+1]=opacity?Math.round(green/opacity):0;result.data[j+2]=opacity?Math.round(blue/opacity):0;
+  result.data[j+3]=Math.round(opacity*(1-erase));
+ }
+ ctx.putImageData(result,0,0);return out;
+}
 // Bake the soft eraser into the front PNG and warp a separate lower-hair copy
 // behind the unchanged portrait. No automatic layer/base masks are returned.
 export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,fitLongBack=false}={}){
