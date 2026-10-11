@@ -1,5 +1,5 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
-import {isSingleFemaleHair} from './short-female-hair.js';
+import {isSingleLayerHair} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1436,7 +1436,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   const earSkin=!isSingleFemaleHair(hairId)&&calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
+   const earSkin=!isSingleLayerHair(hairId)&&calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
    const embeddedEars=referenceContainsEarSkin(earSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference);
    return {cutout,face,bounds,calibration,embeddedEars,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
@@ -1444,7 +1444,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
  const ref=await reference;
- if(isSingleFemaleHair(hairId)){
+ if(isSingleLayerHair(hairId)){
   // Place the native PNG once using measured face proportions and eye angle.
   // No mesh push, skin segmentation, erasure, base mask or rear layer.
   const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
