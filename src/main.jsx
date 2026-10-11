@@ -1,5 +1,5 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
-import {hairSeamOverlay} from './hair-seam-pixels.js';
+import {mergeRefinedHairHead} from './hair-seam-pixels.js';
 import {isSingleLayerHair,originalHairOuterEraser} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
@@ -1420,7 +1420,7 @@ function opaqueBounds(canvas){
 }
 // Preview only: no provider request, no wallet/credit mutation, no face compositing.
 const fittedHairReferenceCache=new Map();
-async function refineStudioHairSeam(source,coverageSource,options={}){
+async function refineStudioHairSeam(source,portraitSource,options={}){
  const {original,W,H,landmarker,face,upload}=await prepareStudioMakeup(source);
  const fd=new FormData();fd.append('image',upload,'hair-seam.png');
  const response=await fetch('/api/hair/seam',{method:'POST',body:fd,headers:walletHeaders(),signal:options.signal});
@@ -1431,12 +1431,21 @@ async function refineStudioHairSeam(source,coverageSource,options={}){
   if(!freshFace)throw Error('ผล AI ไม่ชัดเจน · เก็บภาพเดิมไว้');
   const proportion=f=>Math.hypot(f[152].x-(f[33].x+f[263].x)/2,f[152].y-(f[33].y+f[263].y)/2)/Math.hypot(f[263].x-f[33].x,f[263].y-f[33].y);
   if(Math.abs(proportion(face)-proportion(freshFace))>.15)throw Error('ผล AI เปลี่ยนสัดส่วน · เก็บภาพเดิมไว้');
-  const aligned=alignFaceCanvas(generated,freshFace,face,W,H);
-  const coverage=canvasFor(W,H);coverage.getContext('2d').drawImage(await loadImage(coverageSource),0,0,W,H);
-  const skin=await semanticClassMask(original,W,H,[2,3,4]);if(!skin)throw Error('ตรวจรอยต่อผมไม่สำเร็จ · เก็บภาพเดิมไว้');
+  const generatedCanvas=canvasFor(generated.naturalWidth,generated.naturalHeight);generatedCanvas.getContext('2d').drawImage(generated,0,0);
+  const cutoutBlob=await removeBackgroundBlob(await canvasPng(generatedCanvas));
+  if(options.signal?.aborted)throw new DOMException('Cancelled','AbortError');
+  const cutoutUrl=URL.createObjectURL(cutoutBlob);let aligned;
+  try{aligned=alignFaceCanvas(await loadImage(cutoutUrl),freshFace,face,W,H)}finally{URL.revokeObjectURL(cutoutUrl)}
+  const portrait=canvasFor(W,H);portrait.getContext('2d').drawImage(await loadImage(portraitSource),0,0,W,H);
+  const skin=await semanticClassMask(portrait,W,H,[2,3,4]),hair=await semanticClassMask(aligned,W,H,[1]);
+  if(!skin||!hair)throw Error('แยกผมกับผิวไม่สำเร็จ · เก็บภาพเดิมไว้');
+  const nose=face[1],noseX=Math.max(0,Math.min(W-1,Math.round(nose.x*W))),noseY=Math.max(0,Math.min(H-1,Math.round(nose.y*H)));
+  if(!skin.getContext('2d').getImageData(noseX,noseY,1,1).data[3])throw Error('ตรวจผิวเดิมไม่ชัดเจน · เก็บภาพเดิมไว้');
+  const support=canvasFor(W,H),sc=support.getContext('2d'),radius=Math.max(1,Math.min(4,Math.round(Math.hypot((face[263].x-face[33].x)*W,(face[263].y-face[33].y)*H)*.012)));
+  for(let y=-radius;y<=radius;y++)for(let x=-radius;x<=radius;x++)sc.drawImage(hair,x,y);
   const rgba=c=>c.getContext('2d').getImageData(0,0,W,H).data;
-  const pixels=hairSeamOverlay(rgba(aligned),rgba(coverage),rgba(skin),W,H,face);
-  if(!pixels.some((v,i)=>i%4===3&&v>0))throw Error('ไม่พบรอยต่อที่ปรับได้ · เก็บภาพเดิมไว้');
+  const pixels=mergeRefinedHairHead(rgba(aligned),rgba(portrait),rgba(support),rgba(skin),W,H);
+  if(!rgba(hair).some((v,i)=>i%4===3&&v>0))throw Error('ไม่พบผมในผล AI · เก็บภาพเดิมไว้');
   const result=canvasFor(W,H),ctx=result.getContext('2d'),data=ctx.createImageData(W,H);data.data.set(pixels);ctx.putImageData(data,0,0);
   return result.toDataURL('image/png');
  }finally{URL.revokeObjectURL(url)}
