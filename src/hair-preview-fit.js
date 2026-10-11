@@ -281,12 +281,31 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   mx.putImageData(result,0,0);return {front:merged,back:null,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
  }
  if(fitLongBack){
-  // Keep the original measured gap filling and 20% ear push unchanged.
-  // Only the completed rear layer is reduced around the head's eye anchor.
+  // Reduce the outer rear silhouette, but pin the erased skin join in place.
+  // The existing measured gap fill and 20% ear push remain the join source.
   const smaller=makeCanvas(w,h),ctx=smaller.getContext('2d');
   ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.translate(a.x,a.y);ctx.scale(.90,.90);ctx.translate(-a.x,-a.y);
   ctx.drawImage(back,0,0);
+  const reduced=ctx.getImageData(0,0,w,h),joined=ctx.createImageData(w,h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=y*w+x,j=i*4,q=local({x,y}),ear=landmark(q.x<0?127:356);
+   const start=clamp((q.y-(ear.y-a.eye*.3))/(a.eye*.3),0,1),end=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1);
+   const t=clamp((skinDistance[i]-solid-feather)/(feather*2),0,1);
+   const pin=(1-t*t*(3-2*t))*start*start*(3-2*start)*end;
+   const unscaled=bd.data[j+3]/255,scaled=reduced.data[j+3]/255;
+   let alpha=unscaled*pin+scaled*(1-pin);
+   const original=pd[j+3]/255,foreground=fd.data[j+3]/255;
+   // Where front hair feathers, restore the same native strands beneath it.
+   // Complementary alpha avoids a darker/doubled edge or a new hard cut.
+   const seam=original>0&&foreground>0&&foreground<original;
+   if(seam)alpha=(original-foreground)/Math.max(1e-6,1-foreground);
+   else if(pin>0&&original>0&&foreground===0)alpha=Math.max(alpha,original*pin);
+   for(let k=0;k<3;k++)joined.data[j+k]=seam?pd[j+k]:alpha>0?(bd.data[j+k]*unscaled*pin+reduced.data[j+k]*scaled*(1-pin))/Math.max(1e-6,unscaled*pin+scaled*(1-pin)):0;
+   if(!seam&&alpha>0&&unscaled*pin+scaled*(1-pin)===0)for(let k=0;k<3;k++)joined.data[j+k]=pd[j+k];
+   joined.data[j+3]=Math.round(alpha*255);
+  }
+  ctx.putImageData(joined,0,0);
   return {front,back:smaller,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
  }
  return {front,back,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
@@ -323,4 +342,21 @@ export function syncHairAttachments(layers){
   const dx=l.x-old.x,dy=l.y-old.y;
   return {...l,x:p.x+ratio*(dx*Math.cos(angle)-dy*Math.sin(angle)),y:p.y+ratio*(dx*Math.sin(angle)+dy*Math.cos(angle)),scale:l.scale*ratio,rotation:l.rotation+p.rotation-old.rotation,hairHeadPose:p};
  });
+}
+// Apply one shared transform delta to the two long-hair PNGs, without moving
+// the portrait. Brush masks and pixel warps remain independent layer edits.
+export function syncHairPairTransforms(layers,pending){
+ const patches=new Map(pending),visited=new Set();
+ for(const [id,patch] of pending){
+  const lead=layers.find(l=>l.id===id);
+  if(!lead?.hairLinked||!lead.hairHeadId||visited.has(lead.hairHeadId)||!['x','y','scale','rotation'].some(k=>patch[k]!==undefined))continue;
+  const next={...lead,...patch},ratio=next.scale/lead.scale,angle=(next.rotation-lead.rotation)*Math.PI/180;
+  for(const sibling of layers){
+   if(sibling.id===id||!sibling.hairLinked||sibling.hairHeadId!==lead.hairHeadId||sibling.hairId!==lead.hairId)continue;
+   const dx=sibling.x-lead.x,dy=sibling.y-lead.y;
+   patches.set(sibling.id,{...patches.get(sibling.id),x:next.x+ratio*(dx*Math.cos(angle)-dy*Math.sin(angle)),y:next.y+ratio*(dx*Math.sin(angle)+dy*Math.cos(angle)),scale:sibling.scale*ratio,rotation:sibling.rotation+next.rotation-lead.rotation});
+  }
+  visited.add(lead.hairHeadId);
+ }
+ return layers.map(l=>patches.has(l.id)?{...l,...patches.get(l.id)}:l);
 }

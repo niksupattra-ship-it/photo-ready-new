@@ -1,6 +1,6 @@
 import {isSingleFemaleHair,isSingleLayerHair} from './short-female-hair.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
-import {headPose,syncHairAttachments} from './hair-preview-fit.js';
+import {headPose,syncHairAttachments,syncHairPairTransforms} from './hair-preview-fit.js';
 import {StudioPhotoGuide} from './studio-photo-guide.jsx';
 import {StudioFileActions} from './studio-file-actions.jsx';
 import {ProcessingCloseButton} from './processing-close-button.jsx';
@@ -201,7 +201,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const layerCenter=l=>{const a=assets.current.get(l.id),b=getBounds(a,a?.warped||a?.original),dx=b?b.x+b.w/2-W/2:0,dy=b?b.y+b.h/2-H/2:0,r=l.rotation*Math.PI/180;return {x:W/2+l.x+l.scale*(dx*Math.cos(r)-dy*Math.sin(r)),y:H/2+l.y+l.scale*(dx*Math.sin(r)+dy*Math.cos(r))}};
  const transformFrame=useRef(null),pendingTransforms=useRef(new Map());
  const transformDirty=useRef(false);
- const flushTransforms=(commit=true)=>{if(transformFrame.current!==null)cancelAnimationFrame(transformFrame.current);transformFrame.current=null;if(pendingTransforms.current.size){const pending=new Map(pendingTransforms.current);pendingTransforms.current.clear();state.current=syncHairAttachments(state.current.map(l=>pending.has(l.id)?{...l,...pending.get(l.id)}:l));transformDirty.current=true}if(commit){if(transformDirty.current){transformDirty.current=false;setLayers(state.current)}}else{drawNow();const l=state.current.find(l=>l.id===selectedRef.current),g=outlineRef.current?.firstElementChild;if(l&&g)g.setAttribute('transform',`translate(${450+l.x} ${600+l.y}) rotate(${l.rotation}) scale(${l.scale}) translate(-450 -600)`)}};
+ const flushTransforms=(commit=true)=>{if(transformFrame.current!==null)cancelAnimationFrame(transformFrame.current);transformFrame.current=null;if(pendingTransforms.current.size){const pending=new Map(pendingTransforms.current);pendingTransforms.current.clear();state.current=syncHairAttachments(syncHairPairTransforms(state.current,pending));transformDirty.current=true}if(commit){if(transformDirty.current){transformDirty.current=false;setLayers(state.current)}}else{drawNow();const l=state.current.find(l=>l.id===selectedRef.current),g=outlineRef.current?.firstElementChild;if(l&&g)g.setAttribute('transform',`translate(${450+l.x} ${600+l.y}) rotate(${l.rotation}) scale(${l.scale}) translate(-450 -600)`)}};
  const queueTransform=(id,patch)=>{pendingTransforms.current.set(id,{...pendingTransforms.current.get(id),...patch});if(transformFrame.current===null)transformFrame.current=requestAnimationFrame(()=>flushTransforms(!gesture.current))};
  useEffect(()=>()=>{if(transformFrame.current!==null)cancelAnimationFrame(transformFrame.current);pendingTransforms.current.clear()},[]);
  const change=(patch,record=true)=>{const base=state.current.find(l=>l.id===selectedRef.current);if(!base||base.locked)return;if(record){flushTransforms();remember()}const latest={...base,...pendingTransforms.current.get(base.id)};queueTransform(base.id,{...(patch.scale!==undefined?scaleAroundCenter(latest,patch.scale):{}),...patch})};
@@ -321,7 +321,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=isSingleFemaleHair(id)?14:isSingleLayerHair(id)?15:HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'?11:7;
+  const previewVersion=isSingleFemaleHair(id)?14:isSingleLayerHair(id)?15:HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'?12:7;
   if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
@@ -331,7 +331,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     const fitted=await onPrepareHairOverlay(asset.warped||asset.original,id);
     if(!mounted.current)return;
     if(next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
-    const common={kind:'hair-preview',hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
+    const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource&&HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'),hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
     const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source});
     const index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
