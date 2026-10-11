@@ -1,5 +1,5 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
-import {isSingleLayerHair,originalHairExcessMask,originalHairOuterEraser} from './short-female-hair.js';
+import {isSingleLayerHair,originalHairExcessMask} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1440,10 +1440,6 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  const {hair,skin,protectedParts}=await masks;
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
- if(/^manhair-(0[1-9]|1[0-2])$/.test(hairId)){
-  const eraser=originalHairOuterEraser(hair,coverage,protectedParts,W,H,canvasFor);
-  return {source:front.toDataURL('image/png'),backSource:null,hairBaseMask:null,hairOuterEraser:eraser.toDataURL('image/png')};
- }
  const mask=originalHairExcessMask(hair,coverage,protectedParts,W,H,canvasFor);
  return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,hairBaseMask:mask.toDataURL('image/png')};
 }
@@ -1483,22 +1479,10 @@ async function prepareStudioHairOverlay(headSource,hairId){
   if(!opaqueBounds(placed))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
   return finishStudioHairPreview(target,placed,null,targetFace,hairId);
  }
+ const mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:false});
  const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
- if(ref.calibration.layout==='long'){
-  // Preserve the long PNG's style: place once, then erase front/warp inner rear only.
-  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
-  // Lower both layers together by 8% of the outer-eye distance, along the face axis.
-  // Translation only: retain the PNG's scale, shape and rotation.
-  const eyeDx=(targetFace[263].x-targetFace[33].x)*W;
-  const eyeDy=(targetFace[263].y-targetFace[33].y)*H;
-  fit.e-=eyeDy*.08;fit.f+=eyeDx*.08;
-  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
-  x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
-  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
- }else{
-  const mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:false});
-  renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
- }
+ // Warp native PNG triangles, not the face or the small thumbnail.
+ renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
