@@ -13,6 +13,10 @@ export function originalHairExcessMask(originalHair,coverage,skin,w,h,makeCanvas
  ec.putImageData(ed,0,0);
  const soft=makeCanvas(w,h),sx=soft.getContext('2d');sx.filter='blur(1px)';sx.drawImage(excess,0,0);
  const sd=sx.getImageData(0,0,w,h).data,out=makeCanvas(w,h),ctx=out.getContext('2d'),mask=ctx.createImageData(w,h);
- for(let i=0;i<w*h;i++){const j=i*4;mask.data[j]=mask.data[j+1]=mask.data[j+2]=255;mask.data[j+3]=Math.round(255-Math.max(sd[j+3],ed.data[j+3])*(1-fitted[j+3]/255)*(1-protectedSkin[j+3]/255))}
+ for(let i=0;i<w*h;i++){const j=i*4;mask.data[j]=mask.data[j+1]=mask.data[j+2]=255;
+  // Blur may soften a hair edge, but must never spread erasure into skin,
+  // clothing, or pixels not positively classified as original hair.
+  mask.data[j+3]=protectedSkin[j+3]>0||hair[j+3]<128?255:Math.round(255-Math.max(sd[j+3],ed.data[j+3])*(1-fitted[j+3]/255));
+ }
  ctx.putImageData(mask,0,0);return out;
 }
