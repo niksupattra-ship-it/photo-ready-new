@@ -174,8 +174,8 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  const landmark=i=>local({x:face[i].x*w,y:face[i].y*h});
  if(!skin||![127,356,152].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
  const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*(fitLongBack?.55:.25);
- const earBaseLeft=face[132]?landmark(132).y:landmark(127).y+a.eye*.6;
- const earBaseRight=face[361]?landmark(361).y:landmark(356).y+a.eye*.6;
+ const earTopLeft=landmark(127).y;
+ const earTopRight=landmark(356).y;
  const chin=landmark(152).y,bottom=chin+a.eye*1.15,soft=Math.max(2,Math.min(12,a.eye*.035));
  const blurred=makeCanvas(w,h),bc=blurred.getContext('2d');bc.filter=`blur(${soft}px)`;bc.drawImage(skin,0,0,w,h);
  const sd=bc.getImageData(0,0,w,h).data;
@@ -218,10 +218,10 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   // Restrict soft erasure to actual visible skin below the ear roots.
   if(skinDistance){
    const t=clamp((skinDistance[y*w+x]-solid)/feather,0,1),opacity=t*t*(3-2*t);
-   // Long front hair stays intact above the lower ear/jaw attachment.
-   // Begin a short soft eraser ramp below it, then follow face and neck skin.
-   const earBase=q.x<0?earBaseLeft:earBaseRight;
-   const underEar=clamp((q.y-earBase)/Math.max(1,a.eye*.1),0,1);
+   // Long front hair stays intact above the upper ear attachment.
+   // Start the same soft eraser there and follow the existing face/neck contour.
+   const earTop=q.x<0?earTopLeft:earTopRight;
+   const underEar=clamp((q.y-earTop)/Math.max(1,a.eye*.1),0,1);
    const region=underEar*underEar*(3-2*underEar)*end;
    fd.data[j+3]=Math.round(fd.data[j+3]*(1-(1-opacity)*region));
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
