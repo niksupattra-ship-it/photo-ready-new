@@ -1,4 +1,3 @@
-import {registerHairFinishApi} from './hair-finish-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
 import {hairRootTargetInstruction} from './hair-root-target.js';
 import {registerPasswordResetApi} from './password-reset-api.js';
@@ -194,7 +193,6 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 registerMakeupApi(app,{upload,requireCredit,commitCredit,refundCredit,getWallet,walletId});
-registerHairFinishApi(app,{upload});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
