@@ -179,11 +179,19 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const q=local({x,y}),sign=q.x<0?-1:1;
   if(q.y<top||q.y>bottom+a.eye*.3)continue;
-  const measured=measuredPush(sign,q.y),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),push=measured.push*fade;
+  // Additional local ear adjustment requested: 20% of eye spacing upward
+  // and 20% inward, tapering to zero away from each ear. Inverse sampling
+  // reads lower hair to lift it; portrait pixels are never part of this warp.
+  const ear=landmark(sign<0?127:356),earY=ear.y+a.eye*.35;
+  const vertical=Math.abs(q.y-earY)/a.eye;
+  const earWeight=vertical<=.2?1:1-clamp((vertical-.2)/.6,0,1)**2*(3-2*clamp((vertical-.2)/.6,0,1));
+  const sampleY=q.y+a.eye*.2*earWeight;
+  const measured=measuredPush(sign,sampleY),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),
+  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*earWeight)*fade;
   const r=Math.abs(q.x);let sourceR=r;
   if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
   const borrowWeight=measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
-  const point=world({x:sign*sourceR,y:q.y+(measured.sourceY-q.y)*borrowWeight}),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
+  const point=world({x:sign*sourceR,y:sampleY+(measured.sourceY-sampleY)*borrowWeight}),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
   let alpha=0,red=0,green=0,blue=0;
   for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
    const sx=px+xx,sy=py+yy;if(sx<0||sx>=w||sy<0||sy>=h)continue;
@@ -195,7 +203,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
   if(alpha<220&&push>0&&r>=measured.inner-push&&r<measured.inner&&q.y<chin){
    for(let distance=step;distance<=a.eye*.4&&alpha<220;distance+=step){
     for(const direction of [-1,1]){
-     const sy=q.y+distance*direction;
+     const sy=sampleY+distance*direction;
      if(![-step,0,step].every(dy=>alphaAt(pd,sign*sourceR,sy+dy)>235))continue;
      const p=world({x:sign*sourceR,y:sy}),ax=Math.round(p.x),ay=Math.round(p.y);
      if(ax<0||ax>=w||ay<0||ay>=h)continue;
