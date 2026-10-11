@@ -547,3 +547,16 @@
 .idstudio.studio-touch .studio-workflow-actions>.studio-process-action .studio-png-icon,
 .idstudio.studio-touch .studio-workflow-actions>.studio-upload-action svg,
 .idstudio.studio-touch .studio-workflow-actions>.studio-process-action svg{width:22px;height:22px;flex-shrink:0}
+
+/* Portrait type chooser only; processing and save dialogs keep their styles. */
+.studio-processing-card.studio-portrait-choice-card{width:min(420px,100%);max-width:100%;box-sizing:border-box;padding:28px;border:1px solid #64d7cb66;border-radius:24px;background:linear-gradient(145deg,#1c3540,#14252f);box-shadow:0 24px 80px #0006}
+.studio-portrait-choice-card h2{margin:0 0 24px;font-size:20px;font-weight:700;letter-spacing:.1px}
+.studio-portrait-choice-buttons{display:grid;grid-template-columns:1fr;gap:12px}
+.studio-portrait-choice-card .studio-portrait-choice-button{display:flex;align-items:center;gap:16px;width:100%;min-height:78px;box-sizing:border-box;padding:14px 18px;border:1px solid #64d7cb45;border-radius:16px;background:#25414d;color:#f0fbfc;font-size:17px;font-weight:650;text-align:left;cursor:pointer;box-shadow:0 3px 12px #0002;transition:background .15s,border-color .15s,box-shadow .15s}
+.studio-portrait-choice-card .studio-portrait-choice-button:hover{background:#2a525d;border-color:#64d7cb;box-shadow:0 4px 18px #0003}
+.studio-portrait-choice-card .studio-portrait-choice-button:active{background:#315e66}
+.studio-portrait-choice-card .studio-portrait-choice-button:focus-visible{outline:3px solid #64d7cb;outline-offset:3px}
+.studio-portrait-choice-icon{display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border-radius:13px;background:#64d7cb1c;color:#75e4d7}
+.studio-portrait-choice-icon svg{width:32px;height:32px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.studio-portrait-choice-arrow{width:20px;height:20px;flex:0 0 20px;margin-left:auto;stroke:#75e4d7;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:480px){.studio-portrait-choice-overlay{padding:20px}.studio-processing-card.studio-portrait-choice-card{padding:24px 20px}.studio-portrait-choice-card h2{font-size:19px}.studio-portrait-choice-card .studio-portrait-choice-button{min-height:74px;padding:12px 14px}}
