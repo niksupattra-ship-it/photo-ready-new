@@ -555,9 +555,11 @@ The ear, cheek/jaw and neck silhouette must be continuous, sharply focused and c
     let portraitBuffer=inputFile.buffer,portraitMime=inputFile.mimetype||"image/png";
     if(transparentPortrait){
       const sharp=(await import("sharp")).default;
-      // Preserve all source detail. RGBA is required even for JPEG uploads;
-      // adding the alpha channel does not run a coarse cutout on the source.
-      portraitBuffer=await sharp(portraitBuffer,{failOn:"error"}).rotate().ensureAlpha().png().toBuffer();
+      // Seedream requires a genuinely transparent pixel, not just RGBA.
+      // Add a 1px transparent frame without erasing any source photograph pixel.
+      portraitBuffer=await sharp(portraitBuffer,{failOn:"error"}).rotate().ensureAlpha()
+        .extend({top:1,bottom:1,left:1,right:1,background:{r:0,g:0,b:0,alpha:0}})
+        .png().toBuffer();
       portraitMime="image/png";
       seedreamPrompt += `\n\nTRANSPARENT OUTPUT — BACKGROUND ONLY:
 Return the completed person as a genuine RGBA PNG with an alpha channel. Remove the temporary background into zero-alpha transparency, not a painted white/blue background or checkerboard. All earlier plain/temporary background instructions apply only as construction guides; the returned background must be transparent. Preserve opaque photographic face, skin, ears, upper hair, complete neck/clavicle coverage and the existing clothing-preparation rules. Keep only narrow natural antialiasing at the silhouette, without background-colored fringes or a broad translucent skin/hair halo. Where obsolete lower hair was removed outside the anatomical silhouette, return transparent pixels rather than colored background pixels. Do not change the face, skin finish, hair design, neck proportions, light, framing or any other requested detail.`;
