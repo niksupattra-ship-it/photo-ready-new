@@ -321,7 +321,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=isSingleFemaleHair(id)?20:isSingleLayerHair(id)?24:HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'?26:23;
+  const previewVersion=isSingleFemaleHair(id)?20:isSingleLayerHair(id)?24:HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'?27:23;
   if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{

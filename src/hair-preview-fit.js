@@ -294,14 +294,24 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   const ear=landmark(sign<0?127:356),earY=ear.y+a.eye*.35;
   const vertical=Math.abs(q.y-earY)/a.eye;
   const earWeight=vertical<=.2?1:1-clamp((vertical-.2)/.6,0,1)**2*(3-2*clamp((vertical-.2)/.6,0,1));
-  const sampleY=q.y+a.eye*.2*earWeight;
+  // Long rear: move only the inner strands; preserve the outer silhouette.
+  const originalRow=fitLongBack?measuredPush(sign,q.y):null;
+  const r=Math.abs(q.x);
+  const outerGuard=Math.max(2,a.eye*.04);
+  const innerBlend=fitLongBack?clamp((originalRow.outer-outerGuard-r)/Math.max(step,originalRow.outer-outerGuard-originalRow.inner),0,1):1;
+  const radialWeight=innerBlend*innerBlend*(3-2*innerBlend);
+  if(fitLongBack&&radialWeight===0)continue;
+  const liftStart=clamp((q.y-(ear.y-a.eye*.55))/Math.max(1,a.eye*.3),0,1);
+  const liftEnd=clamp((bottom+a.eye*.3-q.y)/Math.max(1,a.eye*.5),0,1);
+  const liftWeight=fitLongBack?liftStart*liftStart*(3-2*liftStart)*liftEnd*liftEnd*(3-2*liftEnd)*radialWeight:earWeight;
+  const sampleY=q.y+a.eye*.2*liftWeight;
   // Continue the long rear's inward overlap along jaw, neck and shoulders,
   // rather than stopping its extra push at the ear band.
   const neckStart=clamp((q.y-ear.y)/Math.max(1,a.eye*.2),0,1);
   const inwardWeight=fitLongBack?Math.max(earWeight,neckStart*neckStart*(3-2*neckStart)):earWeight;
   const measured=measuredPush(sign,sampleY),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),
   push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*inwardWeight)*fade;
-  const r=Math.abs(q.x);let sourceR=r;
+  let sourceR=r;
   if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
   const borrowWeight=measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
   const point=world({x:sign*sourceR,y:sampleY+(measured.sourceY-sampleY)*borrowWeight}),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
@@ -347,34 +357,6 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
    result.data[j+3]=Math.round(alpha*(1-erase)*255);
   }
   mx.putImageData(result,0,0);return {front:merged,back:null,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
- }
- if(fitLongBack){
-  // Reduce the outer rear silhouette, but pin the erased skin join in place.
-  // The existing measured gap fill and 20% ear push remain the join source.
-  const smaller=makeCanvas(w,h),ctx=smaller.getContext('2d');
-  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  ctx.translate(a.x,a.y);ctx.scale(.90,.90);ctx.translate(-a.x,-a.y);
-  ctx.drawImage(back,0,0);
-  const reduced=ctx.getImageData(0,0,w,h),joined=ctx.createImageData(w,h);
-  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-   const i=y*w+x,j=i*4,q=local({x,y}),ear=landmark(q.x<0?127:356);
-   const start=clamp((q.y-(ear.y-a.eye*.3))/(a.eye*.3),0,1),end=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1);
-   const t=clamp((skinDistance[i]-solid-feather)/(feather*2),0,1);
-   const pin=(1-t*t*(3-2*t))*start*start*(3-2*start)*end;
-   const unscaled=bd.data[j+3]/255,scaled=reduced.data[j+3]/255;
-   let alpha=unscaled*pin+scaled*(1-pin);
-   const original=pd[j+3]/255,foreground=fd.data[j+3]/255;
-   // Where front hair feathers, restore the same native strands beneath it.
-   // Complementary alpha avoids a darker/doubled edge or a new hard cut.
-   const seam=original>0&&foreground>0&&foreground<original;
-   if(seam)alpha=(original-foreground)/Math.max(1e-6,1-foreground);
-   else if(pin>0&&original>0&&foreground===0)alpha=Math.max(alpha,original*pin);
-   for(let k=0;k<3;k++)joined.data[j+k]=seam?pd[j+k]:alpha>0?(bd.data[j+k]*unscaled*pin+reduced.data[j+k]*scaled*(1-pin))/Math.max(1e-6,unscaled*pin+scaled*(1-pin)):0;
-   if(!seam&&alpha>0&&unscaled*pin+scaled*(1-pin)===0)for(let k=0;k<3;k++)joined.data[j+k]=pd[j+k];
-   joined.data[j+3]=Math.round(alpha*255);
-  }
-  ctx.putImageData(joined,0,0);
-  return {front,back:smaller,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
  }
  return {front,back,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
 }
