@@ -1,4 +1,4 @@
-import {createHairPreviewMesh,renderHairPreviewMesh} from './hair-preview-fit.js';
+import {createHairPreviewMesh,renderHairPreviewMesh,createHairSkinEraseMask} from './hair-preview-fit.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
 import PromptpayPanel from './promptpay-panel.jsx';
@@ -1332,6 +1332,7 @@ function opaqueBounds(canvas){
 }
 // Preview only: no provider request, no wallet/credit mutation, no face compositing.
 const fittedHairReferenceCache=new Map();
+const fittedHairSkinCache=new WeakMap();
 async function prepareStudioHairOverlay(headSource,hairId){
  if(!HAIRSTYLE_RULES[hairId])throw Error('ไม่พบทรงผมที่เลือก');
  // Studio already holds a decoded image/canvas. Do not coerce it into an image URL.
@@ -1358,7 +1359,13 @@ async function prepareStudioHairOverlay(headSource,hairId){
  // Warp native PNG triangles, not the face or the small thumbnail.
  renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
- return {source:out.toDataURL('image/png')};
+ let skin=fittedHairSkinCache.get(target);
+ if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
+  // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
+  if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
+ }
+ const mask=createHairSkinEraseMask(skin,targetFace,W,H,canvasFor);
+ return {source:out.toDataURL('image/png'),mask:mask.toDataURL('image/png')};
 }
 const localHairAnchorCache=new Map();
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){
@@ -3038,7 +3045,9 @@ function App(){
     try{
      const original=await loadImage(url),fitted=await prepareStudioHairOverlay(url,id),overlay=await loadImage(fitted.source);
      const c=canvasFor(original.naturalWidth,original.naturalHeight),x=c.getContext('2d');
-     x.drawImage(original,0,0);x.drawImage(overlay,0,0);nextMaster=await canvasPng(c);
+     const hair=canvasFor(c.width,c.height),hx=hair.getContext('2d');hx.drawImage(overlay,0,0);
+     if(fitted.mask){hx.globalCompositeOperation='destination-in';hx.drawImage(await loadImage(fitted.mask),0,0)}
+     x.drawImage(original,0,0);x.drawImage(hair,0,0);nextMaster=await canvasPng(c);
     }finally{URL.revokeObjectURL(url)}
    }
    const out=await renderWithRibbon(nextMaster,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);

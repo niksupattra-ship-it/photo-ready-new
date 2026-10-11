@@ -74,6 +74,27 @@ export function renderHairPreviewMesh(ctx,image,sourceBounds,mesh){
  }
 }
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
+// Erase the overlay over visible skin from the ear/temple level down to the neck.
+// Keep it as a separate mask so Studio's restore brush can bring hair back.
+export function createHairSkinEraseMask(skin,face,w,h,makeCanvas){
+ const a=anchors(face,w,h),p=i=>({x:face[i].x*w,y:face[i].y*h});
+ const cos=Math.cos(a.angle),sin=Math.sin(a.angle);
+ const localY=q=>-(q.x-a.x)*sin+(q.y-a.y)*cos;
+ if(!face[127]||!face[356]||!face[152]||!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
+ const top=Math.min(localY(p(127)),localY(p(356)))-a.eye*.08;
+ const bottom=localY(p(152))+a.eye*1.15,half=a.width*.5+a.eye*.35;
+ if(![top,bottom,half].every(Number.isFinite)||bottom<=top)throw Error('พื้นที่ลบผมไม่ถูกต้อง');
+ const world=(x,y)=>({x:a.x+x*cos-y*sin,y:a.y+x*sin+y*cos});
+ const points=[world(-half,top),world(half,top),world(half,bottom),world(-half,bottom)];
+ const mask=makeCanvas(w,h),ctx=mask.getContext('2d');
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+ ctx.save();ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);
+ for(const q of points.slice(1))ctx.lineTo(q.x,q.y);
+ ctx.closePath();ctx.clip();ctx.globalCompositeOperation='destination-out';
+ ctx.filter=`blur(${Math.max(.5,Math.min(2,a.eye*.004))}px)`;
+ ctx.drawImage(skin,0,0,w,h);ctx.restore();
+ return mask;
+}
 export function syncHairAttachments(layers){
  const heads=new Map(layers.filter(l=>!l.hairHeadId).map(l=>[l.id,l]));
  return layers.filter(l=>!l.hairHeadId||heads.has(l.hairHeadId)).map(l=>{
