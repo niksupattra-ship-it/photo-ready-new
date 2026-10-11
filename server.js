@@ -339,7 +339,10 @@ const aiFinishHandler=async(req,res)=>{
     const key=process.env.ARK_API_KEY;
     if(!key) return res.status(500).send("ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์");
 
-    const hairId=req.body?.hairId||"original";
+    const requestedHairId=req.body?.hairId||"original";
+    // Use the existing hairstyle-reference portrait pipeline in ONE AI call.
+    const automaticHairMode=requestedHairId==='original'&&!inpaint&&!hairDonor&&['female','male'].includes(req.body?.portraitMode)?req.body.portraitMode:null;
+    const hairId=automaticHairMode?(automaticHairMode==='female'?'hair-27':'manhair-01'):requestedHairId;
     const maleHairReplacement=/^manhair-\d{2}$/.test(hairId);
     const cleanHead=hairId==="clean-head";
     const keepOriginalHair=hairId==="original"||cleanHead;
@@ -414,7 +417,7 @@ FINAL PRIORITY: (1) same identity and face from Image 1, (2) real skin texture f
     // Image 1 is always the customer's original portrait; Image 2 (when present)
     // is ONLY the selected hairstyle reference.
     // Natural finish is selected from the hairstyle category, never inferred from facial appearance.
-    const selectedFinishMode=maleHairReplacement?"MALE":"FEMALE";
+    const selectedFinishMode=maleHairReplacement&&!automaticHairMode?"MALE":"FEMALE";
     const genderFinish=selectedFinishMode==="FEMALE"?`
 FEMALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Reduce dark under-eye discoloration by approximately 70% while preserving the original lower-eyelid shape, under-eye volume, folds, pores and fine texture; do not erase the under-eye area or change the eyes. Make facial and neck skin tone more even and clean while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Add only a very slight translucent healthy rosy warmth to the skin, subtle enough to remain natural and appropriate for a professional ID photograph; no whitening, foundation mask, blur or porcelain skin. Preserve the exact original eyebrow shape, position, width and arch; refine only visible eyebrow-hair definition into fine natural separated strands, never redraw or reshape the brows. Preserve the exact original lip contour and size; add a light natural rosy-pink tint only, with realistic lip texture and no glossy/heavy lipstick. Hair should be natural deep black, smooth and healthy with clearly separated fine strands, realistic directional flow and restrained photographic shine/highlights; never a flat black mass or plastic gloss. The overall effect is very light, fresh, transparent professional grooming — not obvious makeup and never a new face.`:`
 MALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Make facial and neck skin slightly brighter and more even while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Reduce dull or uneven shadowing naturally; no whitening, blur, beauty filter, foundation mask or porcelain skin. Preserve the exact original eyebrows, eyes, nose, cheeks, jaw and chin. Preserve the exact original lip contour and size; add only a very slight healthy natural pink tone to the lips, not lipstick and not glossy. Keep the result clean, natural and masculine with real photographic skin detail. Hair should remain naturally detailed with separated strands and realistic restrained highlights; never plastic or painted.`;
@@ -530,7 +533,7 @@ Preserve the current skin finish and all existing high-frequency details: pore s
 
     // An explicit customer choice, never a gender inference from the image.
     const portraitMode=req.body?.portraitMode;
-    if(keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&['female','male'].includes(portraitMode))seedreamPrompt += `
+    if(automaticHairMode)seedreamPrompt += `
 
 CUSTOMER-SELECTED FIRST PORTRAIT GROOMING — HAIR ONLY:
 COMPLETE NEW HAIRSTYLE — NOT SOURCE-HAIR GROOMING: Use Image 1 for the customer's FACE AND ANATOMY ONLY, not as the hairstyle design. Replace ALL original hair with newly generated photographic hair: crown, parting, roots, fringe, temple/side hair and back sections. Do not gather, comb, shorten, recolor or preserve the source hairstyle; do not blend remnants of the old hair into the new style. Remove old bangs, side locks, source hair over the skin and all old long/back hair. Return the completed new hairstyle in the SAME portrait request; never return a bald scalp or use a bald intermediate portrait.
