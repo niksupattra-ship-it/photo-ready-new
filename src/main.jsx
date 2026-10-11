@@ -1379,7 +1379,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:hairId.startsWith('manhair-')||ref.calibration.layout==='compact'});
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
  const originalHair=await semanticClassMask(target,W,H,[1]);
  const baseMask=createOriginalHairEraseMask(originalHair,skin,targetFace,W,H,canvasFor).toDataURL('image/png');
  return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null,baseMask};
