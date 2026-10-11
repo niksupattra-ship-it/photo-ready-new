@@ -19,7 +19,7 @@ export function hairPreviewTransform(from,fw,fh,to,tw,th){
 }
 const apply=(m,p)=>({x:m.a*p.x+m.c*p.y+m.e,y:m.b*p.x+m.d*p.y+m.f});
 const area=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
-export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18,sourceToReference=null,earFit=false}={}){
+export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18,sourceToReference=null}={}){
  const m=hairPreviewTransform(from,fw,fh,to,tw,th),f=anchors(from,fw,fh),t=anchors(to,tw,th);
  const calibration=sourceToReference?Object.fromEntries(['a','b','c','d','e','f'].map((k,i)=>[k,sourceToReference[i]])):null;
  if(calibration&&(!Object.values(calibration).every(Number.isFinite)||calibration.a*calibration.d-calibration.b*calibration.c<=0))throw Error('จุดยึด PNG ผมไม่ถูกต้อง');
@@ -27,13 +27,12 @@ export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=1
  const basePoint=p=>apply(m,referencePoint(p));
  if(!bounds||![bounds.x,bounds.y,bounds.w,bounds.h].every(Number.isFinite)||bounds.w<=0||bounds.h<=0)throw Error('ขอบเขต PNG ผมไม่ถูกต้อง');
  const ids=[10,109,67,103,54,21,162,127,338,297,332,284,251,389,356];
- const earIds=[234,454,132,361];
- const controls=(earFit?[...ids,...earIds]:ids).flatMap(id=>{
+ const controls=ids.flatMap(id=>{
   if(!from[id]||!to[id])return [];
   const source={x:from[id].x*fw,y:from[id].y*fh},target={x:to[id].x*tw,y:to[id].y*th},base=apply(m,source);
   if(![source.x,source.y,target.x,target.y].every(Number.isFinite))return [];
   let dx=target.x-base.x,dy=target.y-base.y;
-  const distance=Math.hypot(dx,dy),limit=t.eye*(earFit&&[127,356,...earIds].includes(id)?.25:id===10?.10:.12);
+  const distance=Math.hypot(dx,dy),limit=t.eye*(id===10?.10:.12);
   if(distance>limit){dx*=limit/distance;dy*=limit/distance}
   return [{...source,dx,dy}];
  });
@@ -111,7 +110,7 @@ export function referenceContainsEarSkin(mask,face,w,h,sourceToReference){
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
 // Bake the soft eraser into the front PNG and warp a separate lower-hair copy
 // behind the unchanged portrait. No automatic layer/base masks are returned.
-export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false}={}){
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,fitLongBack=false}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  const local=p=>({x:(p.x-a.x)*cos+(p.y-a.y)*sin,y:-(p.x-a.x)*sin+(p.y-a.y)*cos});
  const world=p=>({x:a.x+p.x*cos-p.y*sin,y:a.y+p.x*sin+p.y*cos});
@@ -252,6 +251,15 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
    result.data[j+3]=Math.round(alpha*(1-erase)*255);
   }
   mx.putImageData(result,0,0);return {front:merged,back:null,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
+ }
+ if(fitLongBack){
+  // Keep the original measured gap filling and 20% ear push unchanged.
+  // Only the completed rear layer is reduced around the head's eye anchor.
+  const smaller=makeCanvas(w,h),ctx=smaller.getContext('2d');
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.translate(a.x,a.y);ctx.scale(.95,.95);ctx.translate(-a.x,-a.y);
+  ctx.drawImage(back,0,0);
+  return {front,back:smaller,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
  }
  return {front,back,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
 }
