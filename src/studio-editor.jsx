@@ -155,8 +155,8 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const canChooseHair=state.current.some(l=>l.name==='หัว · คอ · ผม')||trialUnlocked||hasCredits||(allOptionsAvailable&&!paidSessionOutput);
  const chooseHair=id=>{
   if(processRequestRef.current||processActive||assetBusy||!ready)return;
-  const head=state.current.find(l=>l.name==='หัว · คอ · ผม');
-  if(!head||state.current.some(l=>l.id===sourceLayerRef.current)){setStatus('ประมวลผลรูปด้วยผมเดิมก่อน แล้วเลือกทรงเพื่อวาง PNG');return}
+  const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
+  if(!head){setStatus('ประมวลผลรูปด้วยผมเดิมก่อน แล้วเลือกทรงเพื่อวาง PNG');return}
   void applyHair(id);
  };
  useEffect(()=>{const head=layers.find(l=>l.name==='หัว · คอ · ผม');if(head?.jobId)window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:head.jobId,isTrial:Boolean(head.restrictedTrial&&!paidOutputIds.includes(head.jobId))}}))},[layers,paidOutputIds]);
@@ -302,13 +302,14 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   const previous=historySnapshot(),suit=previous.find(l=>layerKind(l)==='suit');if(touch){setPicker(false);setTouchMore(false);setTouchMenu(false);setTouchOpen(false)}setHairConfirmed(false);setProcessingPhoto(true);setStatus('กำลังประมวลผลรูป…');
   try{const result=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,(canUseAllSuits)?chosenHair:'');if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:''};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
-   if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);placementRef.current=result.placement;undo.current.push(previous);redo.current=[];setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}setHairConfirmed(true);setSelectedHair('');setStatus('ประมวลผลผมเดิมแล้ว · เลือกทรงเพื่อวาง PNG ได้เลย')}else throw Error('แสดงภาพไม่สำเร็จ');
+   if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);placementRef.current=result.placement;undo.current.push(previous);redo.current=[];setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair('');setStatus('ประมวลผลผมเดิมแล้ว · เลือกทรงเพื่อวาง PNG ได้เลย')}else throw Error('แสดงภาพไม่สำเร็จ');
   }catch(e){if(isProcessCancelled())await hydrate(previous);await onFinishProcess?.(false).catch(()=>{});setStatus(e.message||'ประมวลผลไม่สำเร็จ กรุณาลองใหม่')}finally{processRequestRef.current=false;setProcessingPhoto(false)}
  };
  useEffect(()=>{if(!sourcePhoto){setSourcePreview(null);return}const url=URL.createObjectURL(sourcePhoto);setSourcePreview(url);return()=>URL.revokeObjectURL(url)},[sourcePhoto]);
  const applyHair=async id=>{
-  if(processRequestRef.current||!onPrepareHairOverlay||processActive||assetBusy||!ready)return;
-  flushTransforms();const head=state.current.find(l=>l.name==='หัว · คอ · ผม');
+  if(processRequestRef.current||processActive||assetBusy||!ready)return;
+  if(!onPrepareHairOverlay){setStatus('ระบบวาง PNG ยังไม่พร้อม กรุณาอัปเดตไฟล์ main.jsx และ src/main.jsx พร้อมกัน');return}
+  flushTransforms();const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   if(!head){setStatus('ประมวลผลด้วยผมเดิมก่อนเลือกทรง');return}
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const existing=state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
