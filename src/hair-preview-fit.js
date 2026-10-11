@@ -19,7 +19,7 @@ export function hairPreviewTransform(from,fw,fh,to,tw,th){
 }
 const apply=(m,p)=>({x:m.a*p.x+m.c*p.y+m.e,y:m.b*p.x+m.d*p.y+m.f});
 const area=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
-export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18,sourceToReference=null}={}){
+export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18,sourceToReference=null,earFit=false}={}){
  const m=hairPreviewTransform(from,fw,fh,to,tw,th),f=anchors(from,fw,fh),t=anchors(to,tw,th);
  const calibration=sourceToReference?Object.fromEntries(['a','b','c','d','e','f'].map((k,i)=>[k,sourceToReference[i]])):null;
  if(calibration&&(!Object.values(calibration).every(Number.isFinite)||calibration.a*calibration.d-calibration.b*calibration.c<=0))throw Error('จุดยึด PNG ผมไม่ถูกต้อง');
@@ -27,12 +27,13 @@ export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=1
  const basePoint=p=>apply(m,referencePoint(p));
  if(!bounds||![bounds.x,bounds.y,bounds.w,bounds.h].every(Number.isFinite)||bounds.w<=0||bounds.h<=0)throw Error('ขอบเขต PNG ผมไม่ถูกต้อง');
  const ids=[10,109,67,103,54,21,162,127,338,297,332,284,251,389,356];
- const controls=ids.flatMap(id=>{
+ const earIds=[234,454,132,361];
+ const controls=(earFit?[...ids,...earIds]:ids).flatMap(id=>{
   if(!from[id]||!to[id])return [];
   const source={x:from[id].x*fw,y:from[id].y*fh},target={x:to[id].x*tw,y:to[id].y*th},base=apply(m,source);
   if(![source.x,source.y,target.x,target.y].every(Number.isFinite))return [];
   let dx=target.x-base.x,dy=target.y-base.y;
-  const distance=Math.hypot(dx,dy),limit=t.eye*(id===10?.10:.12);
+  const distance=Math.hypot(dx,dy),limit=t.eye*(earFit&&[127,356,...earIds].includes(id)?.25:id===10?.10:.12);
   if(distance>limit){dx*=limit/distance;dy*=limit/distance}
   return [{...source,dx,dy}];
  });

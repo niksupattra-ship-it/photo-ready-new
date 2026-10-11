@@ -1,3 +1,4 @@
+import {isSingleFemaleHair} from './short-female-hair.js';
 import {headPose,syncHairAttachments} from './hair-preview-fit.js';
 import {StudioPhotoGuide} from './studio-photo-guide.jsx';
 import {StudioFileActions} from './studio-file-actions.jsx';
@@ -316,7 +317,8 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  if(existing?.hairId===id&&existing.hairPreviewVersion===7){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
+  const previewVersion=isSingleFemaleHair(id)?12:7;
+  if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
    const previous=historySnapshot();let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,hairBaseMask:null}:l),selectedId=head.id;
@@ -324,8 +326,9 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผม');
     const fitted=await onPrepareHairOverlay(asset.warped||asset.original,id);
     if(!mounted.current)return;
+    if(isSingleFemaleHair(id))next=next.map(l=>l.id===head.id?{...l,hairBaseMask:fitted.baseMask||null}:l);
     if(next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
-    const common={kind:'hair-preview',hairId:id,hairPreviewVersion:7,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
+    const common={kind:'hair-preview',hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
     const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source});
     const index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
