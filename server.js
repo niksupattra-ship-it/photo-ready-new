@@ -1,3 +1,4 @@
+import {refineBackgroundAlpha} from './background-edge-refine.js';
 import {hairRootTargetInstruction} from './hair-root-target.js';
 import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
@@ -280,9 +281,10 @@ async function modnetRemoveBackground(input){
   if(rgbResult.info.width!==W || rgbResult.info.height!==H || rgbResult.info.channels!==3 || rgb.length!==W*H*3){
     throw new Error(`MODNet RGB decode ผิดขนาด: ${rgbResult.info.width}x${rgbResult.info.height} ch=${rgbResult.info.channels}`);
   }
+  const refinedAlpha=refineBackgroundAlpha(alpha,rgb,W,H,ow,oh);
   const rgba=Buffer.allocUnsafe(W*H*4);
   for(let i=0,j=0,k=0;i<W*H;i++,j+=3,k+=4){
-    rgba[k]=rgb[j];rgba[k+1]=rgb[j+1];rgba[k+2]=rgb[j+2];rgba[k+3]=alpha[i];
+    rgba[k]=rgb[j];rgba[k+1]=rgb[j+1];rgba[k+2]=rgb[j+2];rgba[k+3]=refinedAlpha[i];
   }
   return sharp(rgba,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
 }
