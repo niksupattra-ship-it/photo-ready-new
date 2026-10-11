@@ -108,82 +108,151 @@ export function referenceContainsEarSkin(mask,face,w,h,sourceToReference){
  return false;
 }
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
-// Fit the FIRST placement at the ears, then softly erase its skin overlap.
-// A separate lower-hair copy stays unshifted behind the unchanged portrait.
+// Bake the soft eraser into the front PNG and warp a separate lower-hair copy
+// behind the unchanged portrait. No automatic layer/base masks are returned.
 export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  const local=p=>({x:(p.x-a.x)*cos+(p.y-a.y)*sin,y:-(p.x-a.x)*sin+(p.y-a.y)*cos});
  const world=p=>({x:a.x+p.x*cos-p.y*sin,y:a.y+p.x*sin+p.y*cos});
  const landmark=i=>local({x:face[i].x*w,y:face[i].y*h});
  if(!skin||![127,356,152].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
- const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*.25,chin=landmark(152).y,bottom=chin+a.eye*1.15;
- const soft=Math.max(2,Math.min(12,a.eye*.035)),margin=Math.max(2,a.eye*.025);
- const expanded=makeCanvas(w,h),ec=expanded.getContext('2d');ec.drawImage(skin,0,0,w,h);
+ const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*.25;
+ const chin=landmark(152).y,bottom=chin+a.eye*1.15,soft=Math.max(2,Math.min(12,a.eye*.035));
+ const blurred=makeCanvas(w,h),bc=blurred.getContext('2d');bc.filter=`blur(${soft}px)`;bc.drawImage(skin,0,0,w,h);
+ const sd=bc.getImageData(0,0,w,h).data;
+ // Soft eraser extends slightly outside the skin contour; the rear hair
+ // supplies the overlap instead of leaving a hard cut exactly at the ear.
+ const expanded=makeCanvas(w,h),ec=expanded.getContext('2d'),margin=Math.max(2,a.eye*.025);
+ ec.drawImage(skin,0,0,w,h);
  for(let i=0;i<8;i++){const angle=i*Math.PI/4;ec.drawImage(skin,Math.cos(angle)*margin,Math.sin(angle)*margin,w,h)}
- const eraser=makeCanvas(w,h),ex=eraser.getContext('2d');ex.filter=`blur(${soft}px)`;ex.drawImage(expanded,0,0);
- const ed=ex.getImageData(0,0,w,h).data,sd=skin.getContext('2d').getImageData(0,0,w,h).data;
- const pd=placed.getContext('2d').getImageData(0,0,w,h).data;
- const read=(data,x,y)=>{const q=world({x,y}),px=Math.round(q.x),py=Math.round(q.y);return px<0||px>=w||py<0||py>=h?0:data[(py*w+px)*4+3]};
- const front=makeCanvas(w,h),fx=front.getContext('2d'),fd=fx.createImageData(w,h);
- const back=singleLayer?null:makeCanvas(w,h),bx=back?.getContext('2d'),bd=bx?.createImageData(w,h);
- const step=Math.max(1,a.eye*.01),profiles={};
- for(const sign of [-1,1]){
-  const ear=landmark(sign<0?127:356),rows=[];
-  for(let k=0;k<=64;k++){
-   const y=ear.y-a.eye*.25+k/64*a.eye*1.1;let skinEdge=0,inner=null,outer=0;
-   for(let r=0;r<=a.width*.5+a.eye*.25;r+=step)if(read(sd,sign*r,y)>160)skinEdge=r;
-   for(let r=Math.max(a.width*.25,skinEdge-a.eye*.1);r<=a.width*.5+a.eye*1.2;r+=step){if(read(pd,sign*r,y)>100){if(inner===null)inner=r;outer=r}}
-   // A transparent row stays transparent: no borrowing, patching or filling.
-   rows.push({inner,outer,push:inner===null?0:Math.min(a.eye*.3,Math.max(0,inner-skinEdge)+a.eye*.2)});
-  }
-  profiles[sign]={ear,rows};
- }
+ const eraser=makeCanvas(w,h),ex=eraser.getContext('2d');ex.filter=`blur(${soft}px)`;ex.drawImage(expanded,0,0);const ed=ex.getImageData(0,0,w,h).data;
+ const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
+ const fd=fx.getImageData(0,0,w,h),lower=makeCanvas(w,h),lx=lower.getContext('2d'),ld=lx.createImageData(w,h);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const j=(y*w+x)*4,q=local({x,y}),sign=q.x<0?-1:1,{ear,rows}=profiles[sign];
-  const dy=Math.abs(q.y-(ear.y+a.eye*.3))/a.eye;
-  const t=clamp((dy-.15)/.5,0,1),vertical=1-t*t*(3-2*t);
-  const st=clamp((Math.abs(q.x)-a.width*.25)/(a.width*.15),0,1),side=st*st*(3-2*st);
-  const weight=vertical*side,rowAt=clamp((q.y-(ear.y-a.eye*.25))/(a.eye*1.1)*64,0,64),row=rows[Math.round(rowAt)];
-  let sourceR=Math.abs(q.x),sampleY=q.y;
-  if(weight>0&&row.inner!==null&&sourceR<row.outer){
-   const push=Math.min(row.push*weight,Math.max(0,row.inner-step));
-   const moved=r=>r<=row.inner?r*(row.inner-push)/Math.max(step,row.inner):r-push*clamp((row.outer-r)/Math.max(step,row.outer-row.inner),0,1);
-   let lo=sourceR,hi=Math.min(row.outer,sourceR+push);for(let k=0;k<10;k++){const mid=(lo+hi)/2;if(moved(mid)<sourceR)lo=mid;else hi=mid}sourceR=(lo+hi)/2;
-   sampleY+=a.eye*.2*weight;
-  }
-  if(weight===0||row.inner===null){for(let k=0;k<4;k++)fd.data[j+k]=pd[j+k]}
-  else{
-   const p=world({x:sign*sourceR,y:sampleY}),ix=Math.floor(p.x),iy=Math.floor(p.y),dx=p.x-ix,fy=p.y-iy;
-   let alpha=0,r=0,g=0,b=0;
-   for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
-    const ax=ix+xx,ay=iy+yy;if(ax<0||ax>=w||ay<0||ay>=h)continue;
-    const at=(ay*w+ax)*4,part=pd[at+3]*(xx?dx:1-dx)*(yy?fy:1-fy);alpha+=part;r+=pd[at]*part;g+=pd[at+1]*part;b+=pd[at+2]*part;
-   }
-   fd.data[j]=alpha?r/alpha:0;fd.data[j+1]=alpha?g/alpha:0;fd.data[j+2]=alpha?b/alpha:0;fd.data[j+3]=alpha;
-  }
-  // Soft eraser operates on the first placement after its local ear fit.
-  const earTop=ear.y-a.eye*.3,start=clamp((q.y-earTop)/(a.eye*.3),0,1),end=clamp((bottom-q.y)/(a.eye*.18),0,1),below=clamp((q.y-a.eye*.05)/(a.eye*.25),0,1);
-  const gate=start*start*(3-2*start)*end*Math.max(side,below);
+  const j=(y*w+x)*4;if(!fd.data[j+3])continue;
+  const q=local({x,y}),earTop=(q.x<0?landmark(127).y:landmark(356).y)-a.eye*.3,
+  start=clamp((q.y-earTop)/(a.eye*.3),0,1),end=clamp((bottom-q.y)/(a.eye*.18),0,1),
+  side=clamp((Math.abs(q.x)-a.width*.22)/(a.width*.12),0,1),
+  below=clamp((q.y-a.eye*.05)/(a.eye*.25),0,1),gate=(start*start*(3-2*start))*end*Math.max(side,below);
+  // Restrict soft erasure to actual visible skin below the ear roots.
   fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
-  if(bd){
-   // Second placement stays at its original coordinates. No push, row
-   // borrowing or opaque sample filling is applied to the rear copy.
-   const lower=clamp((q.y-(top-a.eye*.25))/(a.eye*.2),0,1);
-   for(let k=0;k<3;k++)bd.data[j+k]=pd[j+k];bd.data[j+3]=Math.round(pd[j+3]*lower);
-  }
  }
- fx.putImageData(fd,0,0);if(bd)bx.putImageData(bd,0,0);
- return {front,back,gapAdjusted:true};
-}
-// Erase only segmented original hair. Portrait RGB and visible skin stay intact;
-// hiding/deleting the linked hairstyle restores the original portrait.
-export function createOriginalHairEraseMask(hair,skin,face,w,h,makeCanvas){
- if(!hair||!skin)throw Error('ตรวจผมเดิมไม่สำเร็จ · เก็บภาพเดิมไว้');
- const a=anchors(face,w,h),blur=makeCanvas(w,h),bc=blur.getContext('2d');bc.filter=`blur(${Math.max(.5,Math.min(2,a.eye*.008))}px)`;bc.drawImage(hair,0,0,w,h);
- const hd=blur.getContext('2d').getImageData(0,0,w,h).data,original=hair.getContext('2d').getImageData(0,0,w,h).data,sd=skin.getContext('2d').getImageData(0,0,w,h).data;
- const out=makeCanvas(w,h),ctx=out.getContext('2d'),d=ctx.createImageData(w,h);
- for(let i=0;i<w*h;i++){const j=i*4;d.data[j]=d.data[j+1]=d.data[j+2]=255;d.data[j+3]=Math.round(255-Math.max(hd[j+3],original[j+3])*(1-sd[j+3]/255))}
- ctx.putImageData(d,0,0);return out;
+ fx.putImageData(fd,0,0);
+ // The rear copy contains only the lower sections, with a soft ear-level join.
+ const pd=placed.getContext('2d').getImageData(0,0,w,h).data;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const j=(y*w+x)*4;if(!pd[j+3])continue;
+  const q=local({x,y}),gate=clamp((q.y-(top-a.eye*.25))/(a.eye*.2),0,1);
+  ld.data[j]=pd[j];ld.data[j+1]=pd[j+1];ld.data[j+2]=pd[j+2];ld.data[j+3]=Math.round(pd[j+3]*gate);
+ }
+ lx.putImageData(ld,0,0);
+ // Measure the actual inner hair edge against visible skin on each side.
+ // A fixed percentage cannot close a reference PNG's ear-shaped opening.
+ const alphaAt=(data,x,y)=>{
+  const p=world({x,y}),px=Math.round(p.x),py=Math.round(p.y);
+  return px<0||px>=w||py<0||py>=h?0:data[(py*w+px)*4+3];
+ };
+ const count=128,profiles={left:[],right:[]},step=Math.max(1,a.eye*.01),limit=a.width*.5+a.eye*1.2;
+ for(const [name,sign] of [['left',-1],['right',1]]){
+  for(let i=0;i<=count;i++){
+   const y=top+(bottom-top)*i/count;let skinEdge=0,hairEdge=null,outerEdge=0;
+   const skinLimit=y>chin?a.eye*.8:a.width*.5+a.eye*.25;
+   for(let r=0;r<=skinLimit;r+=step)if(alphaAt(sd,sign*r,y)>160)skinEdge=r;
+   if(skinEdge>step*3)for(let r=Math.max(0,skinEdge-a.eye*.1);r<=limit;r+=step){
+    if(alphaAt(pd,sign*r,y)>100&&alphaAt(pd,sign*(r+step),y)>100){hairEdge=r;break}
+   }
+   if(hairEdge!==null)for(let r=hairEdge;r<=limit;r+=step)if(alphaAt(pd,sign*r,y)>100)outerEdge=r;
+   const gap=hairEdge===null?0:Math.max(0,hairEdge-skinEdge);
+   profiles[name].push({push:gap>step?Math.min(Math.max(0,(hairEdge||0)-a.eye*.1),gap+a.eye*.18):0,inner:hairEdge||a.eye,outer:Math.max(outerEdge,(hairEdge||a.eye)+step),skinEdge,sourceY:y,missing:hairEdge===null});
+  }
+  const raw=profiles[name];
+  // Some short styles have a completely open ear row. Borrow only a nearby
+  // side-hair row within the ear band, rather than leaving that row empty.
+  for(let i=0;i<=count;i++){
+   const row=raw[i];if(!row.missing||row.skinEdge<=step*3||row.sourceY>chin)continue;
+   let nearest=null;
+   for(let d=1;d<=Math.ceil(a.eye*.4/(bottom-top)*count)&&!nearest;d++)for(const j of [i-d,i+d]){
+    if(j>=0&&j<=count&&!raw[j].missing&&raw[j].outer>row.skinEdge+step&&[-step,0,step].every(dy=>alphaAt(pd,sign*(raw[j].inner+step*3),raw[j].sourceY+dy)>220)){nearest=raw[j];break}
+   }
+   if(nearest){row.inner=nearest.inner;row.outer=nearest.outer;row.sourceY=nearest.sourceY;row.push=Math.min(Math.max(0,row.inner-a.eye*.1),Math.max(0,row.inner-row.skinEdge)+a.eye*.18)}
+  }
+  profiles[name]=raw.map((_,i)=>{
+   let sum=0,weight=0;for(let k=-2;k<=2;k++){const j=clamp(i+k,0,count),v=3-Math.abs(k);sum+=raw[j].push*v;weight+=v}return {...raw[i],push:Math.max(raw[i].push,sum/weight)};
+  });
+ }
+ const measuredPush=(sign,y)=>{
+  const pos=clamp((y-top)/(bottom-top)*count,0,count),i=Math.floor(pos),t=pos-i,p=profiles[sign<0?'left':'right'];
+  const next=p[Math.min(count,i+1)];return {push:p[i].push*(1-t)+next.push*t,inner:p[i].inner*(1-t)+next.inner*t,outer:p[i].outer*(1-t)+next.outer*t,sourceY:(t<.5?p[i]:next).sourceY,borrowed:p[i].missing||next.missing};
+ };
+ // Inverse pixel warp avoids thousands of full-image triangle draws for the rear copy.
+ // Every local row is monotonic: outer silhouette pinned, inner edge stretched inward.
+ const back=makeCanvas(w,h),backCtx=back.getContext('2d'),bd=backCtx.createImageData(w,h);
+ const movedDistance=(r,push,measured)=>{
+  // Piecewise monotonic mapping pins the outer silhouette and moves the
+  // actual inner edge fully underneath the unchanged ear/face contour.
+  if(r<=measured.inner)return r*(measured.inner-push)/Math.max(step,measured.inner);
+  return r-push*clamp((measured.outer-r)/Math.max(step,measured.outer-measured.inner),0,1);
+ };
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const q=local({x,y}),sign=q.x<0?-1:1;
+  if(q.y<top||q.y>bottom+a.eye*.3)continue;
+  // Additional local ear adjustment requested: 20% of eye spacing upward
+  // and 20% inward, tapering to zero away from each ear. Inverse sampling
+  // reads lower hair to lift it; portrait pixels are never part of this warp.
+  const ear=landmark(sign<0?127:356),earY=ear.y+a.eye*.35;
+  const vertical=Math.abs(q.y-earY)/a.eye;
+  const earWeight=vertical<=.2?1:1-clamp((vertical-.2)/.6,0,1)**2*(3-2*clamp((vertical-.2)/.6,0,1));
+  const sampleY=q.y+a.eye*.2*earWeight;
+  const measured=measuredPush(sign,sampleY),fade=clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1),
+  push=Math.min(Math.max(0,measured.inner-a.eye*.1),measured.push+a.eye*.2*earWeight)*fade;
+  const r=Math.abs(q.x);let sourceR=r;
+  if(push>0&&r<measured.outer){let low=r,high=Math.min(measured.outer,r+push);for(let i=0;i<9;i++){const middle=(low+high)/2;if(movedDistance(middle,push,measured)<r)low=middle;else high=middle}sourceR=(low+high)/2}
+  const borrowWeight=measured.borrowed&&measured.push>0&&r<measured.outer?1:0;
+  const point=world({x:sign*sourceR,y:sampleY+(measured.sourceY-sampleY)*borrowWeight}),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
+  let alpha=0,red=0,green=0,blue=0;
+  for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+   const sx=px+xx,sy=py+yy;if(sx<0||sx>=w||sy<0||sy>=h)continue;
+   const j=(sy*w+sx)*4,weight=(xx?dx:1-dx)*(yy?dy:1-dy),part=ld.data[j+3]*weight;
+   alpha+=part;red+=ld.data[j]*part;green+=ld.data[j+1]*part;blue+=ld.data[j+2]*part;
+  }
+  // Raster holes at a short style's ear opening can survive row fitting.
+  // Fill only the inward-stretched overlap with a nearby opaque hair sample.
+  if(alpha<220&&push>0&&r>=measured.inner-push&&r<measured.inner&&q.y<chin){
+   for(let distance=step;distance<=a.eye*.4&&alpha<220;distance+=step){
+    for(const direction of [-1,1]){
+     const sy=sampleY+distance*direction;
+     if(![-step,0,step].every(dy=>alphaAt(pd,sign*sourceR,sy+dy)>235))continue;
+     const p=world({x:sign*sourceR,y:sy}),ax=Math.round(p.x),ay=Math.round(p.y);
+     if(ax<0||ax>=w||ay<0||ay>=h)continue;
+     const at=(ay*w+ax)*4;alpha=pd[at+3];red=pd[at]*alpha;green=pd[at+1]*alpha;blue=pd[at+2]*alpha;break;
+    }
+   }
+  }
+  const j=(y*w+x)*4;if(alpha>0){bd.data[j]=Math.round(red/alpha);bd.data[j+1]=Math.round(green/alpha);bd.data[j+2]=Math.round(blue/alpha);bd.data[j+3]=Math.round(alpha)}
+ }
+ backCtx.putImageData(bd,0,0);
+ if(singleLayer){
+  // Short cuts use ONE editable PNG. Bake only the local ear warp into it;
+  // do not place a second lower-hair copy behind the portrait.
+  const merged=makeCanvas(w,h),mx=merged.getContext('2d'),result=mx.createImageData(w,h);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const j=(y*w+x)*4,q=local({x,y}),ear=landmark(q.x<0?127:356);
+   const dy=Math.abs(q.y-(ear.y+a.eye*.35))/a.eye;
+   const v=clamp((dy-.2)/.6,0,1),vertical=1-v*v*(3-2*v);
+   const side=clamp((Math.abs(q.x)-a.width*.22)/(a.width*.12),0,1),weight=vertical*side;
+   const originalAlpha=pd[j+3]/255,warpedAlpha=bd.data[j+3]/255;
+   // Keep untouched hair where no local ear sample exists. Warp and fill the
+   // inner edge only; leave crown, fringe and outer style silhouette intact.
+   const replacement=warpedAlpha>0?weight:0;
+   const alpha=originalAlpha*(1-replacement)+Math.max(originalAlpha,warpedAlpha)*replacement;
+   const earTop=ear.y-a.eye*.3,start=clamp((q.y-earTop)/(a.eye*.3),0,1),end=clamp((bottom-q.y)/(a.eye*.18),0,1),below=clamp((q.y-a.eye*.05)/(a.eye*.25),0,1);
+   const erase=(start*start*(3-2*start))*end*Math.max(side,below)*ed[j+3]/255;
+   for(let k=0;k<3;k++)result.data[j+k]=pd[j+k]*(1-replacement)+bd.data[j+k]*replacement;
+   result.data[j+3]=Math.round(alpha*(1-erase)*255);
+  }
+  mx.putImageData(result,0,0);return {front:merged,back:null,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
+ }
+ return {front,back,gapAdjusted:profiles.left.some(v=>v.push>0)||profiles.right.some(v=>v.push>0)};
 }
 // Erase the overlay over visible skin from the ear/temple level down to the neck.
 // Keep it as a separate mask so Studio's restore brush can bring hair back.
