@@ -11,7 +11,6 @@ import path from "path";
 import crypto from "crypto";
 import sharp from "sharp";
 import {registerMakeupApi} from './makeup-api.js';
-import {registerHairSeamApi} from './hair-seam-api.js';
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
@@ -194,7 +193,6 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 registerMakeupApi(app,{upload,requireCredit,commitCredit,refundCredit,getWallet,walletId});
-registerHairSeamApi(app,{upload});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
