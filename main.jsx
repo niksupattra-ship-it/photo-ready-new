@@ -1,3 +1,4 @@
+import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleFemaleHair} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
@@ -1212,6 +1213,26 @@ async function removeBackgroundBlob(blob){
  return refineAiCutoutEdges(cutout,blob);
 }
 
+// First frontal portrait only; hair PNG placement and makeup do not use this.
+async function cleanLowerPortraitOutline(blob){
+ const url=URL.createObjectURL(blob);
+ try{
+  const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  if(!face?.[234]||!face?.[454])return blob;
+  const faceWidth=Math.abs(face[454].x-face[234].x)*W;
+  // Start below the ear field at the upper-jaw anchors; do not trim ear folds.
+  const startY=Math.max(0,Math.min(face[132]?.y??face[234].y,face[361]?.y??face[454].y)*H);
+  const {skinMask,clothingMask}=await getV192MasterMasks(blob,image);
+  if(!skinMask||!clothingMask)return blob;
+  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+  const pixels=ctx.getImageData(0,0,W,H),skin=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data,clothes=clothingMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const cleaned=lowerPortraitOutline(pixels.data,W,H,skin,clothes,{startY,faceWidth,chinY:(face[152]?.y||1)*H});
+  if(!cleaned)return blob;
+  pixels.data.set(cleaned);ctx.putImageData(pixels,0,0);return await canvasPng(canvas);
+ }catch{return blob}finally{URL.revokeObjectURL(url)}
+}
+
 async function levelPortraitCutout(blob){
  const url=URL.createObjectURL(blob);
  try{
@@ -1907,7 +1928,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,'complete-new-hair-native-transparent-v9']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,'complete-new-hair-native-lower-outline-v10']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
@@ -3374,7 +3395,7 @@ function App(){
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await levelPortraitCutout(await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile)));
+  const headNeckTransparent=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile))));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
