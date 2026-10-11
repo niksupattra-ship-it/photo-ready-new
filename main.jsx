@@ -1,4 +1,4 @@
-import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview} from './hair-preview-fit.js';
+import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1078,7 +1078,7 @@ async function removeBackgroundRobust(blob,filename='person.png'){
 }
 // Native-resolution edge recovery from the SAME AI image, not a new AI edit.
 // Work only on semi-transparent head edges; opaque face/skin and neck stay intact.
-function refineNativeHeadEdges(cutout,source,W,H,endY){
+function refineNativeHeadEdges(cutout,source,W,H,endY,skinAlpha=null){
  const stop=Math.max(0,Math.min(H,Math.floor(endY)));
  const alpha=new Uint8Array(W*stop);
  for(let i=0;i<alpha.length;i++)alpha[i]=cutout[i*4+3];
@@ -1112,7 +1112,15 @@ function refineNativeHeadEdges(cutout,source,W,H,endY){
   const residual=Math.sqrt((er*er+eg*eg+eb*eb)/3);
   if(residual>=12)continue;
   const confidence=(1-residual/12)**2;
-  const revised=(a/255)*(1-confidence)+fit*confidence;
+  let revised=(a/255)*(1-confidence)+fit*confidence;
+  // Tighten only confidently classified skin boundaries. Hair keeps its
+  // native partial alpha, so fine strands do not become a hard silhouette.
+  // This changes boundary transparency only, never opaque face/neck texture.
+  const skinConfidence=skinAlpha?skinAlpha[j+3]/255:0;
+  if(skinConfidence>.9){
+   const tight=Math.max(0,Math.min(1,.5+(revised-.5)*1.35));
+   revised+=(tight-revised)*confidence*((skinConfidence-.9)/.1);
+  }
   cutout[j+3]=Math.max(0,Math.min(255,Math.round(revised*255)));
   // Remove estimated background colour ONLY from mixed boundary pixels.
   // Bound corrections and leave all fully opaque facial texture untouched.
@@ -1140,7 +1148,11 @@ async function refineAiCutoutEdges(cutoutBlob,sourceBlob){
   const originalCanvas=canvasFor(W,H),ox=originalCanvas.getContext('2d',{willReadFrequently:true});ox.drawImage(original,0,0);
   const canvas=canvasFor(W,H),cx=canvas.getContext('2d',{willReadFrequently:true});cx.drawImage(cutout,0,0);
   const pixels=cx.getImageData(0,0,W,H);
-  refineNativeHeadEdges(pixels.data,ox.getImageData(0,0,W,H).data,W,H,Math.ceil(face[152].y*H));
+  // Classify skin only to select edge treatment; do not use the coarse
+  // segmentation to replace the native high-resolution cutout silhouette.
+  const skin=await semanticClassMask(original,W,H,[2,3]).catch(()=>null);
+  const skinAlpha=skin?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
+  refineNativeHeadEdges(pixels.data,ox.getImageData(0,0,W,H).data,W,H,H,skinAlpha);
   cx.putImageData(pixels,0,0);
   return await canvasPng(canvas);
  }catch{return cutoutBlob}finally{URL.revokeObjectURL(sourceURL);URL.revokeObjectURL(cutoutURL)}
@@ -1350,7 +1362,9 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   return {cutout,face,bounds,calibration,w:preview.naturalWidth,h:preview.naturalHeight};
+   const earSkin=calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
+   const embeddedEars=referenceContainsEarSkin(earSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference);
+   return {cutout,face,bounds,calibration,embeddedEars,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
@@ -1365,8 +1379,8 @@ async function prepareStudioHairOverlay(headSource,hairId){
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor);
- return {source:layers.front.toDataURL('image/png'),backSource:layers.back.toDataURL('image/png')};
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
+ return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null};
 }
 const localHairAnchorCache=new Map();
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){
