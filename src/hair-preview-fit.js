@@ -223,12 +223,14 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
  }
  fx.putImageData(fd,0,0);
- // The rear copy contains only the lower sections, with a soft ear-level join.
+ // Long rear hair uses the complete native PNG behind the portrait.
+ // Never crop it into an ear-to-neck strip: that produces a horizontal seam.
+ // Other styles retain their existing lower-section copy.
  const pd=placed.getContext('2d').getImageData(0,0,w,h).data;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const j=(y*w+x)*4;if(!pd[j+3])continue;
   const q=local({x,y}),gate=clamp((q.y-(top-a.eye*.25))/(a.eye*.2),0,1);
-  ld.data[j]=pd[j];ld.data[j+1]=pd[j+1];ld.data[j+2]=pd[j+2];ld.data[j+3]=Math.round(pd[j+3]*gate);
+  ld.data[j]=pd[j];ld.data[j+1]=pd[j+1];ld.data[j+2]=pd[j+2];ld.data[j+3]=fitLongBack?pd[j+3]:Math.round(pd[j+3]*gate);
  }
  lx.putImageData(ld,0,0);
  // Measure the actual inner hair edge against visible skin on each side.
@@ -272,6 +274,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  // Inverse pixel warp avoids thousands of full-image triangle draws for the rear copy.
  // Every local row is monotonic: outer silhouette pinned, inner edge stretched inward.
  const back=makeCanvas(w,h),backCtx=back.getContext('2d'),bd=backCtx.createImageData(w,h);
+ if(fitLongBack)bd.data.set(pd);
  const movedDistance=(r,push,measured)=>{
   // Piecewise monotonic mapping pins the outer silhouette and moves the
   // actual inner edge fully underneath the unchanged ear/face contour.
