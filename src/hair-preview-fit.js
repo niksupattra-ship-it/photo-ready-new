@@ -79,6 +79,55 @@ export function renderHairPreviewMesh(ctx,image,sourceBounds,mesh){
  }
 }
 export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
+// Bake the soft eraser into the front PNG and warp a separate lower-hair copy
+// behind the unchanged portrait. No automatic layer/base masks are returned.
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas){
+ const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
+ const local=p=>({x:(p.x-a.x)*cos+(p.y-a.y)*sin,y:-(p.x-a.x)*sin+(p.y-a.y)*cos});
+ const world=p=>({x:a.x+p.x*cos-p.y*sin,y:a.y+p.x*sin+p.y*cos});
+ const landmark=i=>local({x:face[i].x*w,y:face[i].y*h});
+ if(!skin||![127,356,152].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
+ const top=Math.min(landmark(127).y,landmark(356).y)-a.eye*.08;
+ const chin=landmark(152).y,bottom=chin+a.eye*1.15,soft=Math.max(1,Math.min(3,a.eye*.008));
+ const blurred=makeCanvas(w,h),bc=blurred.getContext('2d');bc.filter=`blur(${soft}px)`;bc.drawImage(skin,0,0,w,h);
+ const sd=bc.getImageData(0,0,w,h).data;
+ const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
+ const fd=fx.getImageData(0,0,w,h),lower=makeCanvas(w,h),lx=lower.getContext('2d'),ld=lx.createImageData(w,h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const j=(y*w+x)*4;if(!fd.data[j+3])continue;
+  const q=local({x,y}),start=clamp((q.y-top)/(soft*2),0,1),end=clamp((bottom-q.y)/(soft*2),0,1),gate=start*end;
+  // Restrict soft erasure to actual visible skin below the ear roots.
+  fd.data[j+3]=Math.round(fd.data[j+3]*(1-sd[j+3]/255*gate));
+ }
+ fx.putImageData(fd,0,0);
+ // The rear copy contains only the lower sections, with a soft ear-level join.
+ const pd=placed.getContext('2d').getImageData(0,0,w,h).data;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const j=(y*w+x)*4;if(!pd[j+3])continue;
+  const q=local({x,y}),gate=clamp((q.y-top)/(a.eye*.18),0,1);
+  ld.data[j]=pd[j];ld.data[j+1]=pd[j+1];ld.data[j+2]=pd[j+2];ld.data[j+3]=Math.round(pd[j+3]*gate);
+ }
+ lx.putImageData(ld,0,0);
+ const contour=ids=>ids.flatMap(i=>face[i]?[landmark(i)]:[]).sort((p,q)=>p.y-q.y);
+ const left=contour([127,234,132,58,172,136,150,149,176,148,152]);
+ const right=contour([356,454,361,288,397,365,379,378,400,377,152]);
+ const edge=(points,y,sign)=>{
+  if(y>chin)return sign*a.eye*.42;
+  for(let i=1;i<points.length;i++)if(y<=points[i].y){const p=points[i-1],q=points[i],t=clamp((y-p.y)/Math.max(.001,q.y-p.y),0,1);return p.x+(q.x-p.x)*t}
+  return sign*a.eye*.42;
+ };
+ const cols=20,rows=24,vertices=[],triangles=[];
+ for(let y=0;y<=rows;y++)for(let x=0;x<=cols;x++){
+  const source={x:w*x/cols,y:h*y/rows},q=local(source),sign=q.x<0?-1:1,boundary=edge(sign<0?left:right,q.y,sign);
+  const fade=clamp((q.y-top)/(a.eye*.35),0,1)*clamp((bottom+a.eye*.3-q.y)/(a.eye*.3),0,1);
+  const gap=Math.max(0,sign*(q.x-boundary)),push=Math.min(a.eye*.28,gap*.25)*fade;
+  vertices.push({source,target:world({x:q.x-sign*push,y:q.y})});
+ }
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const i=y*(cols+1)+x;triangles.push([i,i+1,i+cols+2],[i,i+cols+2,i+cols+1])}
+ if(!triangles.every(ids=>area(...ids.map(i=>vertices[i].target))>0))throw Error('บิดผมด้านหลังไม่สำเร็จ · เก็บภาพเดิมไว้');
+ const back=makeCanvas(w,h);renderHairPreviewMesh(back.getContext('2d'),lower,{x:0,y:0,w,h},{vertices,triangles,bounds:{x:0,y:0,w,h},directSource:true});
+ return {front,back};
+}
 // Erase the overlay over visible skin from the ear/temple level down to the neck.
 // Keep it as a separate mask so Studio's restore brush can bring hair back.
 export function createHairSkinEraseMask(skin,face,w,h,makeCanvas){
