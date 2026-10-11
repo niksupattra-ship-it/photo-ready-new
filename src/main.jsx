@@ -1,7 +1,7 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair,originalHairExcessMask} from './short-female-hair.js';
 import {portraitLevelTransform} from './portrait-level.js';
-import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin,fitMaleHairEarJoin} from './hair-preview-fit.js';
+import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1438,7 +1438,6 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
   if(target instanceof HTMLImageElement){fittedOriginalHairMaskCache.set(target,masks);masks.catch(()=>fittedOriginalHairMaskCache.delete(target))}
  }
  const {hair,skin,protectedParts}=await masks;
- if(/^manhair-(0[1-9]|1[0-2])$/.test(hairId))front=fitMaleHairEarJoin(front,skin,face,W,H,canvasFor);
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
  const mask=originalHairExcessMask(hair,coverage,protectedParts,W,H,canvasFor);
