@@ -1,4 +1,4 @@
-import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin,createOriginalHairEraseMask} from './hair-preview-fit.js';
+import {createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1380,9 +1380,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
  const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars});
- const originalHair=await semanticClassMask(target,W,H,[1]);
- const baseMask=createOriginalHairEraseMask(originalHair,skin,targetFace,W,H,canvasFor).toDataURL('image/png');
- return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null,baseMask};
+ return {source:layers.front.toDataURL('image/png'),backSource:layers.back?layers.back.toDataURL('image/png'):null};
 }
 const localHairAnchorCache=new Map();
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){
