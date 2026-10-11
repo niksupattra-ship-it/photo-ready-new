@@ -1,4 +1,4 @@
-import {isSingleFemaleHair} from './short-female-hair.js';
+import {isSingleFemaleHair,isSingleLayerHair} from './short-female-hair.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {headPose,syncHairAttachments} from './hair-preview-fit.js';
 import {StudioPhotoGuide} from './studio-photo-guide.jsx';
@@ -321,7 +321,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=isSingleFemaleHair(id)?14:HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'?11:7;
+  const previewVersion=isSingleFemaleHair(id)?14:isSingleLayerHair(id)?15:HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'?11:7;
   if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
