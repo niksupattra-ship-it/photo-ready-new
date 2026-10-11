@@ -10,7 +10,7 @@ import path from "path";
 import crypto from "crypto";
 import sharp from "sharp";
 import {registerMakeupApi} from './makeup-api.js';
-import {editHairstyle} from "./hairstyle-engine/index.js";
+import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,claimAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
@@ -302,22 +302,32 @@ app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
 });
 
 
+// V114: separate provider engine; no Hair Donor, no mask upload, no implicit fallback.
+app.get("/api/hairstyle/providers",(req,res)=>res.json(providerStatus()));
+app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
+ let creditUse=null;
+ try{
+  creditUse=await requireCredit(req,res,"hairstyle");if(!creditUse)return;
+  const result=await editHairstyle({portrait:req.file,hairId:req.body?.hairId,hairRootTarget:req.body?.hairRootTarget,root:dir});
+  res.set("Content-Type","image/png");res.set("Cache-Control","no-store");
+  res.set("X-Hairstyle-Provider",result.provider);
+  res.set("X-Hairstyle-Cache",result.cache||"MISS");
+  if(result.requestId)res.set("X-Request-Id",result.requestId);
+  await commitCredit(creditUse.usageId);
+  res.set("X-Credits-Remaining",String(creditUse.credits));
+  res.send(result.png);
+ }catch(error){
+  if(creditUse)await refundCredit(creditUse.usageId);
+  console.error("Hairstyle engine:",error.message,error.requestId||"");
+  res.status(error.status>=400&&error.status<600?error.status:500).send(error.message);
+ }
+});
+
 const aiFinishHandler=async(req,res)=>{
   let creditUse=req.preReservedCreditUse||null;
   try{
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
-    // Hair edits use the dedicated hairstyle model inside the existing queued
-    // job and its already-reserved credit. This avoids running a second,
-    // unrelated full-portrait generation or reserving another credit.
-    if(req.body?.mode==="hairstyle-only"){
-      if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==="hairstyle"?"hairstyle":"ai-finish");if(!creditUse)return;}
-      const result=await editHairstyle({portrait:inputFile,hairId:req.body?.hairId,hairRootTarget:req.body?.hairRootTarget,root:dir});
-      res.set("Content-Type","image/png").set("Cache-Control","no-store");
-      if(result.requestId)res.set("X-Request-Id",result.requestId);
-      if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
-      res.send(result.png);return;
-    }
     const inpaint=req.body?.mode==="hair-inpaint";
     const hairDonor=false; // V113: obsolete donor endpoint disabled
     if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
@@ -528,7 +538,7 @@ Inspect the complete central and lateral fitting field under the chin before ret
   }catch(e){
     if(creditUse)await refundCredit(creditUse.usageId);
     console.error(e);
-    res.status(e.status>=400&&e.status<600?e.status:500).send((req.body?.mode==="hairstyle-only"?"เปลี่ยนทรงผมไม่สำเร็จ: ":"AI finishing ไม่สำเร็จ: ")+e.message);
+    res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
 };
 app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),aiFinishHandler);
