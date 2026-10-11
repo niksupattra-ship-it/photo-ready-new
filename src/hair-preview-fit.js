@@ -126,6 +126,28 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  ec.drawImage(skin,0,0,w,h);
  for(let i=0;i<8;i++){const angle=i*Math.PI/4;ec.drawImage(skin,Math.cos(angle)*margin,Math.sin(angle)*margin,w,h)}
  const eraser=makeCanvas(w,h),ex=eraser.getContext('2d');ex.filter=`blur(${soft}px)`;ex.drawImage(expanded,0,0);const ed=ex.getImageData(0,0,w,h).data;
+ // Long hair: a fully erased skin core, then a soft opacity ramp outward.
+ // Measure distance from the original skin, without blurring hair RGB/detail.
+ let skinDistance=null;
+ const solid=Math.max(1,a.eye*.015),feather=Math.max(4,Math.min(24,a.eye*.12));
+ if(fitLongBack){
+  const originalSkin=skin.getContext('2d').getImageData(0,0,w,h).data;
+  skinDistance=new Float32Array(w*h);
+  const diagonal=Math.SQRT2,cap=solid+feather+2;
+  for(let i=0;i<skinDistance.length;i++)skinDistance[i]=originalSkin[i*4+3]>=128?0:cap;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=y*w+x;let d=skinDistance[i];
+   if(x)d=Math.min(d,skinDistance[i-1]+1);
+   if(y){d=Math.min(d,skinDistance[i-w]+1);if(x)d=Math.min(d,skinDistance[i-w-1]+diagonal);if(x+1<w)d=Math.min(d,skinDistance[i-w+1]+diagonal)}
+   skinDistance[i]=d;
+  }
+  for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){
+   const i=y*w+x;let d=skinDistance[i];
+   if(x+1<w)d=Math.min(d,skinDistance[i+1]+1);
+   if(y+1<h){d=Math.min(d,skinDistance[i+w]+1);if(x)d=Math.min(d,skinDistance[i+w-1]+diagonal);if(x+1<w)d=Math.min(d,skinDistance[i+w+1]+diagonal)}
+   skinDistance[i]=d;
+  }
+ }
  const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
  const fd=fx.getImageData(0,0,w,h),lower=makeCanvas(w,h),lx=lower.getContext('2d'),ld=lx.createImageData(w,h);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
@@ -135,7 +157,13 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   side=clamp((Math.abs(q.x)-a.width*.22)/(a.width*.12),0,1),
   below=clamp((q.y-a.eye*.05)/(a.eye*.25),0,1),gate=(start*start*(3-2*start))*end*Math.max(side,below);
   // Restrict soft erasure to actual visible skin below the ear roots.
-  fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
+  if(skinDistance){
+   const t=clamp((skinDistance[y*w+x]-solid)/feather,0,1),opacity=t*t*(3-2*t);
+   const earRoot=landmark(q.x<0?127:356).y;
+   const fullCore=q.y>=earRoot&&q.y<=bottom-a.eye*.18;
+   const region=fullCore?1:gate;
+   fd.data[j+3]=Math.round(fd.data[j+3]*(1-(1-opacity)*region));
+  }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
  }
  fx.putImageData(fd,0,0);
  // The rear copy contains only the lower sections, with a soft ear-level join.
