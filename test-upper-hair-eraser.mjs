@@ -217,3 +217,18 @@ test('background remnants connected to the portrait are still erased outside the
  const f=exteriorFixture();f.labels.data[48*W+5]=0;
  const out=exterior(f);assert.equal(out[index(5,48)+3],0);
 });
+
+test('short exterior cleanup preserves selected hair, skin and ears while feathering every deletion',()=>{
+ const f=exteriorFixture();f.labels.data[60*W+5]=3;
+ const out=eraseHeadExteriorExcess(f.portrait,f.overlay,W,H,f.face,f.labels,{softEdges:true});
+ for(const [x,y] of [[48,25],[22,58],[73,75],[48,60],[20,68],[76,68],[5,60]])assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y));
+ const alpha=[17,16,15,14,13,12].map(x=>out[index(x,28)+3]);assert.ok(alpha.filter(a=>a>0&&a<255).length>=4,'the edge has a continuous opacity ramp');assert.ok(alpha.every((a,i)=>!i||a<=alpha[i-1]));
+ assert.equal(out[index(5,28)+3],0);for(let j=0;j<out.length;j+=4)assert.deepEqual(out.slice(j,j+3),f.portrait.slice(j,j+3));
+});
+test('short fragment cleanup retains the connected hairstyle and clears small distant fragments',()=>{
+ const f=exteriorFixture(),png=new Uint8ClampedArray(f.overlay);
+ png.set([10,20,30,255],index(48,7));png.set([10,20,30,255],index(49,7));
+ const out=eraseDetachedUpperHair(png,W,H,f.face,{softEdges:true});
+ assert.equal(out[index(48,7)+3],0);
+ for(let y=20;y<92;y++)for(let x=18;x<=78;x++){const j=index(x,y);if(f.overlay[j+3])assert.deepEqual(pixel(out,x,y),pixel(png,x,y),'all connected hair pixels stay exact')}
+});

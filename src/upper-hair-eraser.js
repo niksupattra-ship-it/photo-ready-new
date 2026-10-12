@@ -1,3 +1,4 @@
+import {softHairEraser} from './soft-hair-eraser.js';
 // A soft eraser applied to portrait pixels, never a retained layer/clipping mask.
 // Detection labels are used only to decide which original hair pixels are safe.
 function upperFrame(face,w,h){
@@ -49,19 +50,19 @@ function mainUpperContour(pixels,w,h,frame,groups){
 
 // Clean detached fragments in a fitted PNG too, before it defines the crown
 // contour. Connected strands, its shape, all RGB and lower hair stay intact.
-export function eraseDetachedUpperHair(pixels,w,h,face){
+export function eraseDetachedUpperHair(pixels,w,h,face,{softEdges=false}={}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==w*h*4)throw Error('ภาพไม่พร้อมสำหรับเก็บเศษผม');
- const frame=upperFrame(face,w,h),groups=foregroundGroups(pixels,w,h),out=new Uint8ClampedArray(pixels);
+ const frame=upperFrame(face,w,h),groups=foregroundGroups(pixels,w,h),out=new Uint8ClampedArray(pixels),strength=softEdges?new Float32Array(w*h):null,limit=softEdges?new Float32Array(w*h):null;
  if(!groups.main)return out;
  const contour=mainUpperContour(pixels,w,h,frame,groups),feather=Math.max(4,Math.min(20,frame.eye*.05));
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const n=y*w+x,j=n*4;if(!pixels[j+3]||groups.ids[n]===groups.main)continue;
+  const n=y*w+x,j=n*4;if((!softEdges&&!pixels[j+3])||groups.ids[n]===groups.main)continue;
   const v=frame.localY(x,y);if(v>=frame.upperLimit)continue;
   const edge=contour.edgeAt(contour.column(x,y),true);if(!Number.isFinite(edge))continue;
   const distance=edge-v-1;if(distance<=0)continue;
-  const t=Math.min(1,distance/feather);out[j+3]=Math.round(pixels[j+3]*(1-t*t*(3-2*t)));
+  const t=Math.min(1,distance/feather);if(strength){strength[n]=t*t*(3-2*t);limit[n]=1}else out[j+3]=Math.round(pixels[j+3]*(1-t*t*(3-2*t)));
  }
- return out;
+ return strength?softHairEraser(pixels,w,h,strength,Math.max(1.25,Math.min(5,frame.eye*.018)),limit):out;
 }
 
 export function eraseUpperHairExcess(portrait,overlay,w,h,face,labels){
@@ -119,7 +120,7 @@ export function eraseUpperHairExcess(portrait,overlay,w,h,face,labels){
 // Exterior cleanup follows the complete final hair/head silhouette, including
 // both sides. Detection and anatomical guards guide a direct pixel eraser;
 // no clipping or retained layer mask is produced.
-export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels){
+export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels,{softEdges=false}={}){
  const valid=p=>(p instanceof Uint8Array||p instanceof Uint8ClampedArray)&&p.length===w*h*4;
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!valid(portrait)||!valid(overlay))throw Error('ภาพไม่พร้อมสำหรับเก็บขอบศีรษะ');
  const frame=upperFrame(face,w,h),{eye,localX,localY}=frame;
@@ -150,7 +151,7 @@ export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels){
   for(let yy=Math.max(0,y-2);yy<=Math.min(mh-1,y+2);yy++)for(let xx=Math.max(0,x-2);xx<=Math.min(mw-1,x+2);xx++)protectedLabels[yy*mw+xx]=1;
  }
  const labelAt=(x,y)=>Math.min(mh-1,Math.floor((y+.5)*mh/h))*mw+Math.min(mw-1,Math.floor((x+.5)*mw/w));
- const feather=Math.max(4,Math.min(20,eye*.045)),distance=new Float32Array(w*h),out=new Uint8ClampedArray(portrait);
+ const feather=Math.max(4,Math.min(20,eye*.045)),distance=new Float32Array(w*h),out=new Uint8ClampedArray(portrait),strength=softEdges?new Float32Array(w*h):null;
  let foundHair=false;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const n=y*w+x,label=labelAt(x,y),u=localX(x,y),v=localY(x,y),hair=overlay[n*4+3]>8;
@@ -172,7 +173,7 @@ export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels){
   distance[i]=d;
  }
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const n=y*w+x,j=n*4;if(!portrait[j+3]||!distance[n])continue;
+  const n=y*w+x,j=n*4;if((!softEdges&&!portrait[j+3])||!distance[n])continue;
   const category=data[labelAt(x,y)];
   // Background-labeled remnants near the head can still be connected by
   // a thin strand. Erase them outside the protected silhouette as well.
@@ -180,7 +181,7 @@ export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels){
   const debris=category===0&&Math.abs(localX(x,y)-center)<half+eye*.9&&localY(x,y)<chin.y+eye*.25;
   if(category!==1&&!debris)continue;
   const t=Math.min(1,distance[n]/feather),erase=t*t*(3-2*t);
-  out[j+3]=Math.round(portrait[j+3]*(1-erase));
+  if(strength)strength[n]=erase;else out[j+3]=Math.round(portrait[j+3]*(1-erase));
  }
- return out;
+ return strength?softHairEraser(portrait,w,h,strength,Math.max(1.25,Math.min(6,eye*.018)),strength):out;
 }

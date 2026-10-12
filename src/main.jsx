@@ -1443,7 +1443,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  for(const layer of [front,back]){
   if(!layer)continue;
   const cx=layer.getContext('2d'),pixels=cx.getImageData(0,0,W,H);
-  pixels.data.set(eraseDetachedUpperHair(pixels.data,W,H,face));cx.putImageData(pixels,0,0);
+  pixels.data.set(eraseDetachedUpperHair(pixels.data,W,H,face,{softEdges:isSingleLayerHair(hairId)}));cx.putImageData(pixels,0,0);
  }
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
@@ -1451,7 +1451,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  // pixel eraser. Skin, ears and selected hair are protected, without a mask layer.
  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
  const headPixels=cc.getImageData(0,0,W,H),hairPixels=ctx.getImageData(0,0,W,H);
- headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels));
+ headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels,{softEdges:isSingleLayerHair(hairId)}));
  cc.putImageData(headPixels,0,0);
  return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
 }
@@ -1479,8 +1479,10 @@ async function prepareStudioHairOverlay(headSource,hairId){
     const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
     if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
     const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
-    pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference));cx.putImageData(pixels,0,0);
+    pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference,{softEdges:true}));cx.putImageData(pixels,0,0);
     if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
+    hairGuide=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+    if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
    }else{
     hairGuide=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
     if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');

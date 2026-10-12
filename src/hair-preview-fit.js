@@ -1,3 +1,4 @@
+import {softHairEraser} from './soft-hair-eraser.js';
 // Local fitting changes hair coordinates only; it never changes face pixels.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function anchors(face,w,h){
@@ -204,15 +205,15 @@ const smooth=n=>{const t=clamp(n,0,1);return t*t*(3-2*t)};
 // Remove the template person's skin before placement, in calibrated reference
 // coordinates. This changes alpha directly; it never stretches native hair RGB
 // or keeps an automatic layer mask. Detection runs on the reference portrait.
-export function eraseHairTemplateSkin(pixels,w,h,skin,face,rw,rh,sourceToReference){
+export function eraseHairTemplateSkin(pixels,w,h,skin,face,rw,rh,sourceToReference,{softEdges=false}={}){
  if(pixels.length!==w*h*4||skin?.width!==rw||skin?.height!==rh||!Array.isArray(sourceToReference)||sourceToReference.length!==6||!sourceToReference.every(Number.isFinite))throw Error('จุดยึดผิวต้นแบบไม่ตรงกับ PNG');
  const [a,b,c,d,e,f]=sourceToReference,norm=a*a+b*b;
  if(norm<=0||a*d-b*c<=0||Math.abs(norm-c*c-d*d)>norm*1e-5||Math.abs(a*c+b*d)>norm*1e-5)throw Error('จุดยึดต้นแบบต้องรักษาสัดส่วนทรงผม');
  const ref=anchors(face,rw,rh),feather=Math.max(1,ref.eye*.02);
  const mask=skin.getContext('2d').getImageData(0,0,rw,rh).data;
- const distance=skinInteriorDistance(mask,rw,rh,feather),out=new Uint8ClampedArray(pixels);
+ const distance=skinInteriorDistance(mask,rw,rh,feather),out=new Uint8ClampedArray(pixels),strength=softEdges?new Float32Array(w*h):null;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const j=(y*w+x)*4;if(!out[j+3])continue;
+  const j=(y*w+x)*4;if(!softEdges&&!out[j+3])continue;
   const rx=a*(x+.5)+c*(y+.5)+e-.5,ry=b*(x+.5)+d*(y+.5)+f-.5;
   const nx=Math.round(rx),ny=Math.round(ry);
   if(nx<0||nx>=rw||ny<0||ny>=rh||mask[(ny*rw+nx)*4+3]<128)continue;
@@ -221,9 +222,10 @@ export function eraseHairTemplateSkin(pixels,w,h,skin,face,rw,rh,sourceToReferen
    const sx=px+xx,sy=py+yy;if(sx<0||sx>=rw||sy<0||sy>=rh)continue;
    depth+=distance[sy*rw+sx]*(xx?fx:1-fx)*(yy?fy:1-fy);
   }
-  out[j+3]=Math.round(out[j+3]*(1-smooth(depth/feather)));
+  if(strength)strength[y*w+x]=smooth(depth/feather);
+  else out[j+3]=Math.round(out[j+3]*(1-smooth(depth/feather)));
  }
- return out;
+ return strength?softHairEraser(pixels,w,h,strength,Math.max(1.25,Math.min(12,ref.eye*.018/Math.sqrt(norm)))):out;
 }
 
 // Translate existing rear strands into the inner ear/neck gaps only. Opaque
@@ -285,12 +287,34 @@ function pushRearIntoGaps(back,skin,hairGuide,face,w,h){
  return adjusted;
 }
 
+// Short styles use one working PNG. Fill its joins before applying the
+// feathered skin eraser; never create a second editable/rendered hair layer.
+function createSingleHairPreview(placed,skin,face,w,h,makeCanvas,hairGuide){
+ const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
+ const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
+ const ears=[local(face[127].x*w,face[127].y*h),local(face[356].x*w,face[356].y*h)];
+ const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
+ const gapAdjusted=Boolean(hairGuide&&pushRearIntoGaps(front,skin,hairGuide,face,w,h));
+ const pixels=fx.getImageData(0,0,w,h),sd=skin.getContext('2d').getImageData(0,0,w,h).data;
+ const feather=Math.max(2,Math.min(10,a.eye*.045)),distance=skinInteriorDistance(sd,w,h,feather),strength=new Float32Array(w*h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const n=y*w+x;if(sd[n*4+3]<128)continue;
+  const q=local(x,y),ear=ears[q.x<0?0:1];
+  const side=smooth((Math.abs(q.x)-a.width*.30)/(a.width*.10));
+  const earGate=smooth((q.y-ear.y+a.eye*.12)/(a.eye*.28)),below=smooth((q.y-a.eye*.40)/(a.eye*.20));
+  strength[n]=smooth(distance[n]/feather)*Math.max(side*earGate,below);
+ }
+ pixels.data.set(softHairEraser(pixels.data,w,h,strength,Math.max(1.25,Math.min(6,a.eye*.018))));fx.putImageData(pixels,0,0);
+ return {front,back:null,gapAdjusted};
+}
+
 // Both layers share exactly the placed PNG's coordinates and texture. The
 // portrait itself occludes the rear; only confirmed skin can erase front alpha.
 // Rear gap filling is bounded to transparent pixels beside the ear/neck.
 export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  if(!skin||skin.width!==w||skin.height!==h||![127,356].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
+ if(singleLayer)return createSingleHairPreview(placed,skin,face,w,h,makeCanvas,rearHairGuide);
  const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
  const earLeft=local(face[127].x*w,face[127].y*h),earRight=local(face[356].x*w,face[356].y*h);
  const sd=skin.getContext('2d').getImageData(0,0,w,h).data,feather=Math.max(1.25,Math.min(6,a.eye*.025));
