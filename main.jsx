@@ -7,6 +7,7 @@ import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
 import {fitProcessedForehead,eraseProcessedUpperHair} from './processed-forehead-fit.js';
 import {createMaleSideburnGuide,fitMaleSideburns} from './male-sideburn-fit.js';
+import {MALE_SIDEBURN_ANCHORS} from './male-sideburn-anchors.js';
 import {pushLongHairRear} from './long-hair-two-layer-fit.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
@@ -1514,7 +1515,8 @@ async function prepareStudioHairOverlay(headSource,hairId){
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
    if(/^manhair-\d{2}$/.test(hairId)){
     const reference=canvasFor(preview.naturalWidth,preview.naturalHeight);reference.getContext('2d').drawImage(preview,0,0);
-    const maleSideburnGuide=createMaleSideburnGuide(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,reference.width,reference.height,face,calibration.sourceToReference);
+    const referenceLabels=await studioHairLabels(preview);
+    const maleSideburnGuide=createMaleSideburnGuide(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,reference.width,reference.height,face,calibration.sourceToReference,MALE_SIDEBURN_ANCHORS[hairId],referenceLabels);
     return {cutout:c,face,bounds,calibration,hairGuide:null,hairGuideNative:false,maleSideburnGuide,w:preview.naturalWidth,h:preview.naturalHeight};
    }
    const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
@@ -2359,16 +2361,6 @@ const COLLAR_PIN_OPTIONS=[
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=[
- {id:'manhair-13',name:'ทรงใหม่ 01',src:'/assets/hairstyle-previews/manhair-13.png'},
- {id:'manhair-14',name:'ทรงใหม่ 02',src:'/assets/hairstyle-previews/manhair-14.png'},
- {id:'manhair-15',name:'ทรงใหม่ 03',src:'/assets/hairstyle-previews/manhair-15.png'},
- {id:'manhair-16',name:'ทรงใหม่ 04',src:'/assets/hairstyle-previews/manhair-16.png'},
- {id:'manhair-17',name:'ทรงใหม่ 05',src:'/assets/hairstyle-previews/manhair-17.png'},
- {id:'manhair-18',name:'ทรงใหม่ 06',src:'/assets/hairstyle-previews/manhair-18.png'},
- {id:'manhair-19',name:'ทรงใหม่ 07',src:'/assets/hairstyle-previews/manhair-19.png'},
- {id:'manhair-20',name:'ทรงใหม่ 08',src:'/assets/hairstyle-previews/manhair-20.png'},
- {id:'manhair-21',name:'ทรงใหม่ 09',src:'/assets/hairstyle-previews/manhair-21.png'},
- {id:'manhair-22',name:'ทรงใหม่ 10',src:'/assets/hairstyle-previews/manhair-22.png'},
  {id:'manhair-23',name:'ทรงผม 20',src:'/assets/hairstyle-previews/manhair-23.png'},
  {id:'manhair-24',name:'ทรงผม 21',src:'/assets/hairstyle-previews/manhair-24.png'},
  {id:'manhair-25',name:'ทรงผม 22',src:'/assets/hairstyle-previews/manhair-25.png'},

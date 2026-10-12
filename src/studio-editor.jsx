@@ -339,7 +339,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=/^manhair-\d{2}$/.test(id)?59:57;
+  const previewVersion=/^manhair-\d{2}$/.test(id)?60:57;
   if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion&&attached.length===(isSingleLayerHair(id)?1:2)&&(isSingleLayerHair(id)||attached.some(a=>a.hairRole==='back')&&state.current.findIndex(l=>l.id===attached.find(a=>a.hairRole==='back')?.id)<state.current.findIndex(l=>l.id===head.id)&&state.current.findIndex(l=>l.id===head.id)<state.current.findIndex(l=>l.id===existing.id))&&attached.every(l=>!l.warpSource&&['x','y','scale','rotation'].every(k=>l[k]===head[k]))){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
@@ -367,7 +367,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[];
     drawNow();setSelected(selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
     if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
-    setStatus(id?(maleSideburnWarning?'วางทรงแล้ว · จอนบางข้างตรวจขอบไม่ชัด จึงคงตำแหน่งเดิม':hairGapWarning?'วางทรงแล้ว แต่บางช่องยังเก็บไม่ครบ':'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต'):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
+    setStatus(id?(maleSideburnWarning?'วางทรงแล้ว · จอนบางข้างตรวจตำแหน่งไม่ผ่าน จึงคงตำแหน่งเดิม':hairGapWarning?'วางทรงแล้ว แต่บางช่องยังเก็บไม่ครบ':'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต'):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
     setHairPlacementProgress(100);await hairUiFrame();
    }else throw Error('วางผมไม่สำเร็จ · เก็บภาพเดิมไว้');
   }catch(e){setStatus(e.message||'วางผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current){setHairPlacementProgress(null);setAssetBusy(false)}}

@@ -23,6 +23,20 @@ function fixture({angle=0,scale=1,inner=49,left=45,right=44}={}){
  return {w,h,png,portrait,reference,face,labels,guide,local,scale,world};
 }
 const identity={a:1,b:0,c:0,d:1,e:0,f:0};
+for(const offset of [-8,8,12])test(`root, middle and the complete tip follow a ${offset}px temple-height change`,()=>{
+ const f=fixture(),original=new Uint8ClampedArray(f.png),portrait=new Uint8ClampedArray(f.portrait);
+ for(const id of [162,127,234,93,389,356,454,323])f.face[id]={...f.face[id],y:f.face[id].y+offset/f.h};
+ const result=fitMaleSideburns(f.png,f.portrait,f.w,f.h,f.face,f.labels,f.guide,identity);
+ assert.ok(result.report.sides.every(side=>side.adjusted),JSON.stringify(result.report));
+ for(const side of result.report.sides){assert.equal(side.pins.length,3);for(const pin of side.pins)assert.ok(Math.abs(pin.target.v-pin.source.v-offset)<.01);assert.ok(side.after<=1.5)}
+ assert.deepEqual(f.png,original);assert.deepEqual(f.portrait,portrait);
+});
+test('unequal ear heights move left and right tips independently without moving face pixels',()=>{
+ const f=fixture();for(const id of [162,127,234,93])f.face[id]={...f.face[id],y:f.face[id].y-8/f.h};for(const id of [389,356,454,323])f.face[id]={...f.face[id],y:f.face[id].y+8/f.h};
+ const result=fitMaleSideburns(f.png,f.portrait,f.w,f.h,f.face,f.labels,f.guide,identity);
+ assert.ok(result.report.sides.every(side=>side.adjusted),JSON.stringify(result.report));
+ assert.ok(result.report.sides[0].pins.at(-1).target.v<result.report.sides[0].pins.at(-1).source.v);assert.ok(result.report.sides[1].pins.at(-1).target.v>result.report.sides[1].pins.at(-1).source.v);
+});
 for(const angle of [-.3,0,.3])for(const scale of [.75,1,1.5])test(`both male sideburns move independently to the observed skin boundary, angle=${angle}, scale=${scale}`,()=>{
  const f=fixture({angle,scale}),png=new Uint8ClampedArray(f.png),portrait=new Uint8ClampedArray(f.portrait);
  assert.ok(f.guide?.sides.every(Boolean));
@@ -31,7 +45,7 @@ for(const angle of [-.3,0,.3])for(const scale of [.75,1,1.5])test(`both male sid
  assert.ok(result.report.sides.every(side=>side.adjusted&&side.after<side.before),JSON.stringify(result.report));
  for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
   const j=(y*f.w+x)*4,q=f.local(x,y);
-  if(q.v<=-24||q.v>=24||Math.abs(q.u)<=32)assert.deepEqual(result.pixels.slice(j,j+4),png.slice(j,j+4),'crown, fringe, forehead centre and lower PNG stay exact');
+  if(q.v<=-34||q.v>=24||Math.abs(q.u)<=32)assert.deepEqual(result.pixels.slice(j,j+4),png.slice(j,j+4),'crown, fringe, forehead centre and lower PNG stay exact');
  }
  assert.deepEqual(f.png,png);assert.deepEqual(f.portrait,portrait,'the head, ears, face, brows, eyes and neck are read-only');
 });
@@ -41,17 +55,17 @@ test('a sideburn over the face moves outward while retaining its original textur
  for(let j=0;j<result.pixels.length;j+=4)if(result.pixels[j+3]>0){assert.ok(result.pixels[j]>=23&&result.pixels[j]<=32);assert.equal(result.pixels[j+1],24);assert.equal(result.pixels[j+2],19)}
 });
 test('uncertain left ear leaves that side exact while the right can still fit',()=>{
- const f=fixture();for(let y=0;y<f.h;y++)for(let x=0;x<f.w/2;x++)if(y<110)f.portrait.set([0,130,255,255],(y*f.w+x)*4);
+ const f=fixture();for(let y=0;y<f.h;y++)for(let x=0;x<f.w/2;x++)if(y<110){f.portrait.set([0,130,255,255],(y*f.w+x)*4);f.labels.data[y*f.w+x]=0;}
  const result=fitMaleSideburns(f.png,f.portrait,f.w,f.h,f.face,f.labels,f.guide,identity);
  assert.equal(result.report.sides[0].adjusted,false);assert.equal(result.report.sides[1].adjusted,true,JSON.stringify(result.report));assert.equal(result.report.unavailable,true);
  for(let y=0;y<f.h;y++)for(let x=0;x<f.w/2;x++){const j=(y*f.w+x)*4;assert.deepEqual(result.pixels.slice(j,j+4),f.png.slice(j,j+4))}
 });
 test('large displacement, missing landmarks or missing source hair keep the PNG intact',()=>{
  for(const variant of ['large','face','source','labels']){
-  const f=fixture({left:variant==='large'?36:45,right:variant==='large'?36:44});
+  const f=fixture({left:variant==='large'?20:45,right:variant==='large'?20:44});
   if(variant==='face')delete f.face[127];if(variant==='source')f.guide.sides=[null,null];if(variant==='labels')f.labels=null;
   const result=fitMaleSideburns(f.png,f.portrait,f.w,f.h,f.face,f.labels,f.guide,identity);
-  assert.deepEqual(result.pixels,f.png,variant);assert.equal(result.report.adjusted,false);assert.equal(result.report.unavailable,true);
+  assert.ok(Buffer.from(result.pixels).equals(Buffer.from(f.png)),variant);assert.equal(result.report.adjusted,false);assert.equal(result.report.unavailable,true);
  }
 });
 test('guide extraction does not treat retained PNG skin as a sideburn or modify any input',()=>{
@@ -63,7 +77,7 @@ test('guide extraction does not treat retained PNG skin as a sideburn or modify 
 });
 test('already aligned sideburns require no deformation',()=>{
  const f=fixture({inner:45,left:45,right:45}),result=fitMaleSideburns(f.png,f.portrait,f.w,f.h,f.face,f.labels,f.guide,identity);
- assert.deepEqual(result.pixels,f.png);assert.ok(result.report.sides.every(side=>side.reason==='already-aligned'),JSON.stringify(result.report));
+ assert.ok(Buffer.from(result.pixels).equals(Buffer.from(f.png)),JSON.stringify(result.report));assert.ok(result.report.sides.every(side=>side.reason==='already-aligned'),JSON.stringify(result.report));
 });
 test('invalid raster lengths fail before writing any pixels',()=>{
  const f=fixture(),before=new Uint8ClampedArray(f.png);assert.throws(()=>fitMaleSideburns(f.png,new Uint8Array(4),f.w,f.h,f.face,f.labels,f.guide,identity));assert.deepEqual(f.png,before);

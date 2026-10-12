@@ -1,3 +1,4 @@
+import {MALE_SIDEBURN_ANCHORS} from './src/male-sideburn-anchors.js';
 import {createMaleSideburnGuide,fitMaleSideburns} from './src/male-sideburn-fit.js';
 import {pushLongHairRear} from './src/long-hair-two-layer-fit.js';
 import {createHash} from 'node:crypto';
@@ -17,6 +18,14 @@ import {HAIR_TEMPLATE_ANCHORS} from './src/hair-template-anchors.js';
 import {HAIRSTYLE_RULES} from './hairstyle-rules.js';
 
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+test('male picker contains only styles 20–26; archived new 01–10 are unavailable in both entrypoints',()=>{
+ for(const file of ['src/main.jsx','main.jsx']){
+  const source=fs.readFileSync(new URL(file,import.meta.url),'utf8'),start=source.indexOf('const MALE_HAIR_OPTIONS='),end=source.indexOf('const HAIR_OPTIONS=',start),options=vm.runInNewContext(source.slice(start,end)+'\nMALE_HAIR_OPTIONS');
+  assert.deepEqual(Array.from(options,item=>item.id),Array.from({length:7},(_,i)=>'manhair-'+(i+23)));assert.ok(options.every(item=>!item.name.startsWith('ทรงใหม่')));
+ }
+ assert.equal(Object.keys(MALE_SIDEBURN_ANCHORS).length,7);
+ for(const value of Object.values(MALE_SIDEBURN_ANCHORS))for(const side of value.sides){assert.equal(side.curve.length,5);assert.ok(side.curve.every((p,i)=>!i||p.inner[1]>side.curve[i-1].inner[1]))}
+});
 const apply=(m,p)=>({x:m.a*p.x+m.c*p.y+m.e,y:m.b*p.x+m.d*p.y+m.f});
 function portrait({w=400,h=500,cx=200,cy=220,width=140,height=200,eye=90,angle=0}={}){
  const face=[],c=Math.cos(angle),s=Math.sin(angle);
@@ -141,7 +150,7 @@ test('invalid or anisotropic template calibration is rejected',()=>{
 function pickerFixture({angle=0,source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8')}={}){
  const start=source.indexOf('const fittedHairReferenceCache=new Map();'),end=source.indexOf('// Processing and Studio use the same',start);
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28,angle}),target=opaque(w,h),surfaces=[],options=[];let closed=0,cleaned=0;
- const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,shortHairInterior,featherLongCrown,eraseLongUpperPortrait,fitProcessedForehead,eraseProcessedUpperHair,createMaleSideburnGuide,fitMaleSideburns,cleanTemplateForehead,pushLongHairRear,
+ const context={Uint8Array,HTMLImageElement:class{},MALE_SIDEBURN_ANCHORS,HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,shortHairInterior,featherLongCrown,eraseLongUpperPortrait,fitProcessedForehead,eraseProcessedUpperHair,createMaleSideburnGuide,fitMaleSideburns,cleanTemplateForehead,pushLongHairRear,
   getLandmarker:async()=>({detect:()=>({faceLandmarks:[f.face]})}),
   getPersonSegmenter:async()=>({segment:(image,callback)=>callback({categoryMask:{width:w,height:h,getAsUint8Array:()=>new Uint8Array(w*h).fill(1),close:()=>closed++}})}),
   semanticClassMask:async(image,w,h)=>curvedSkin(w,h),
@@ -367,19 +376,19 @@ test('the soft eraser only grades its local deletion field and keeps original co
  assert.equal(out[(6*w+5)*4+3],128);assert.equal(out[(6*w+25)*4+3],0);assert.equal(out[(6*w+16)*4+3],128,'protected pixels stay exact');
  const fade=[12,13,14,15].map(x=>out[(5*w+x)*4+3]);assert.ok(fade.every(a=>a>0&&a<128));assert.ok(fade.every((a,i)=>!i||a<fade[i-1]));
 });
-test('single-layer caches refit to male version 59 or unchanged female version 57',async()=>{
+test('single-layer caches refit to male version 60 or unchanged female version 57',async()=>{
  for(const id of Object.keys(HAIR_TEMPLATE_ANCHORS).filter(isSingleLayerHair))for(const version of [47,48,50,53,55,56]){
   const f=studioFixture({hairId:id,version,offset:0});await f.run(id);assert.equal(f.context.calls,1);
-  const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,id.startsWith('manhair-')?59:57);assert.equal(hair[0].hairLinked,false);
+  const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,id.startsWith('manhair-')?60:57);assert.equal(hair[0].hairLinked,false);
  }
- const short=studioFixture({hairId:'manhair-01',version:59,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
+ const short=studioFixture({hairId:'manhair-01',version:60,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
  const long=studioFixture({version:57,offset:0});await long.run('hair-01');assert.equal(long.context.calls,0);
 });
 test('male version 57 refits; female version 57 stays selected without regeneration',async()=>{
  for(const id of ['manhair-01','manhair-13','manhair-23','hair-18','hair-26','hair-29']){
   const f=studioFixture({hairId:id,version:57,offset:0});await f.run(id);
   assert.equal(f.context.calls,id.startsWith('manhair-')?1:0,id);
-  if(f.context.calls)assert.equal(f.context.state.current.find(l=>l.kind==='hair-preview').hairPreviewVersion,59);
+  if(f.context.calls)assert.equal(f.context.state.current.find(l=>l.kind==='hair-preview').hairPreviewVersion,60);
  }
 });
 test('male version 58 refreshes its sideburn fit while female output and status stay unchanged',async()=>{
