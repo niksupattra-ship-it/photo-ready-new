@@ -22,6 +22,34 @@ function frame(face,w,h){
  return {eye,width,local,world,forehead,anchor,insideFace};
 }
 
+// The final pass follows the FRONT crown all the way to the image boundary.
+// Fill the eraser field across empty space too, so isolated thin strands are
+// fully erased rather than weakened by neighbouring transparent pixels.
+function eraseOriginalHairToTop(pixels,front,w,h,face,frame,classes,protectedLabels,labelAt){
+ const corners=[[0,0],[w,0],[0,h],[w,h]].map(([x,y])=>frame.local(x,y).u),origin=Math.floor(Math.min(...corners))-1,count=Math.ceil(Math.max(...corners))-origin+2;
+ const top=new Float32Array(count);top.fill(Infinity);
+ const upperLimit=Math.min(frame.forehead.v,...[127,356].flatMap(id=>face[id]&&[face[id].x,face[id].y].every(Number.isFinite)?[frame.local(face[id].x*w,face[id].y*h).v]:[]))-Math.max(2,frame.eye*.035);
+ let found=false;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const n=y*w+x;if(front[n*4+3]<128)continue;
+  const q=frame.local(x,y);if(q.v>=upperLimit)continue;
+  const column=Math.floor(q.u-origin);top[column]=Math.min(top[column],q.v);found=true;
+ }
+ if(!found)return pixels;
+ const field=new Float32Array(w*h),limit=new Float32Array(w*h),feather=Math.max(2,Math.min(8,frame.eye*.02));
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const n=y*w+x,j=n*4,q=frame.local(x,y);if(q.v>=upperLimit)continue;
+  const edge=top[Math.floor(q.u-origin)];
+  field[n]=Number.isFinite(edge)?smooth((edge-q.v)/feather):1;
+  if(!field[n]||protectedLabels[labelAt(x,y)]||frame.insideFace(q.u,q.v)||front[j+3]>=248)continue;
+  // Dark upper remnants can be labelled background at the model's coarse
+  // resolution. Their distance from detected hair must not limit cleanup.
+  const category=classes[n],darkDebris=category===0&&Math.max(pixels[j],pixels[j+1],pixels[j+2])<180&&Math.max(pixels[j],pixels[j+1],pixels[j+2])-Math.min(pixels[j],pixels[j+1],pixels[j+2])<70;
+  if(category===1||darkDebris)limit[n]=1;
+ }
+ return softHairEraser(pixels,w,h,field,Math.max(1,Math.min(4,frame.eye*.012)),limit);
+}
+
 // This edits the PROCESSED portrait only. PNG placement, both hair layers and
 // rear gap filling are inputs, never outputs. The front PNG alone measures the
 // upper excess and inner forehead join; rear opacity cannot protect old hair.
@@ -118,5 +146,8 @@ export function fitProcessedForehead(original,front,w,h,face,labels,lowerResult=
   const p=f.world(q.u,v),rgba=sourceAt(p.x,p.y);if(!rgba)continue;
   for(let k=0;k<4;k++)out[n*4+k]=Math.round(rgba[k]);warpedPixels++;
  }
+ const finalUpper=eraseOriginalHairToTop(out,front,w,h,face,f,classes,protectedLabels,labelAt);
+ for(let n=0;n<w*h;n++)if(finalUpper[n*4+3]<out[n*4+3]&&out[n*4+3]===original[n*4+3])erasedPixels++;
+ out.set(finalUpper);
  return {pixels:out,erasedPixels,warpedPixels,unresolvedColumns};
 }

@@ -218,17 +218,17 @@ function studioFixture({version=46,offset=80,missingBack=false,locked=false,hair
 for(const options of [{version:46,offset:0},{version:47,offset:80},{version:47,offset:0,missingBack:true}])test(`Studio rebuilds old, shifted or incomplete hair ${JSON.stringify(options)} from the untouched head`,async()=>{
  const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,1,f.context.status);
  const next=f.context.state.current;assert.deepEqual(Array.from(next,l=>l.id),['background','new-back','head','new-front','suit']);
- for(const role of ['front','back']){const hair=next.find(l=>l.hairRole===role);assert.equal(hair.hairPreviewVersion,55);assert.equal(hair.hairLinked,true);for(const key of ['x','y','scale','rotation'])assert.equal(hair[key],next[2][key])}
+ for(const role of ['front','back']){const hair=next.find(l=>l.hairRole===role);assert.equal(hair.hairPreviewVersion,56);assert.equal(hair.hairLinked,true);for(const key of ['x','y','scale','rotation'])assert.equal(hair[key],next[2][key])}
  assert.equal(next[2].source,'new-head');assert.equal(next[2].hairOriginalSource,'untouched-head');
  for(const id of ['background','suit'])assert.deepEqual(next.find(l=>l.id===id),f.layers.find(l=>l.id===id));
  assert.equal(f.context.undo.current.length,1);assert.equal(f.context.processRequestRef.current,false);
 });
 test('an aligned current hair pair remains selected, and a locked head remains untouched',async()=>{
- for(const options of [{version:55,offset:0},{locked:true}]){const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,0);assert.equal(f.context.state.current,f.layers)}
+ for(const options of [{version:56,offset:0},{locked:true}]){const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,0);assert.equal(f.context.state.current,f.layers)}
 });
 
 test('current long hair with a missing rear role or wrong stack is rebuilt around the original middle portrait',async()=>{
- for(const invalid of ['duplicate-front','rear-above-head']){const f=studioFixture({version:55,offset:0});if(invalid==='duplicate-front')f.layers.find(l=>l.hairRole==='back').hairRole='front';else{const index=f.layers.findIndex(l=>l.hairRole==='back'),[rear]=f.layers.splice(index,1);f.layers.push(rear)}await f.run('hair-01');assert.equal(f.context.calls,1);const next=f.context.state.current,back=next.findIndex(l=>l.hairRole==='back'),head=next.findIndex(l=>l.id==='head'),front=next.findIndex(l=>l.hairRole==='front');assert.ok(back<head&&head<front);assert.equal(next[head].source,'new-head')}
+ for(const invalid of ['duplicate-front','rear-above-head']){const f=studioFixture({version:56,offset:0});if(invalid==='duplicate-front')f.layers.find(l=>l.hairRole==='back').hairRole='front';else{const index=f.layers.findIndex(l=>l.hairRole==='back'),[rear]=f.layers.splice(index,1);f.layers.push(rear)}await f.run('hair-01');assert.equal(f.context.calls,1);const next=f.context.state.current,back=next.findIndex(l=>l.hairRole==='back'),head=next.findIndex(l=>l.id==='head'),front=next.findIndex(l=>l.hairRole==='front');assert.ok(back<head&&head<front);assert.equal(next[head].source,'new-head')}
 });
 
 function rearGapFixture(angle=0,{missingEarRows=false}={}){
@@ -345,13 +345,13 @@ test('the soft eraser only grades its local deletion field and keeps original co
  assert.equal(out[(6*w+5)*4+3],128);assert.equal(out[(6*w+25)*4+3],0);assert.equal(out[(6*w+16)*4+3],128,'protected pixels stay exact');
  const fade=[12,13,14,15].map(x=>out[(5*w+x)*4+3]);assert.ok(fade.every(a=>a>0&&a<128));assert.ok(fade.every((a,i)=>!i||a<fade[i-1]));
 });
-test('every single-layer style refits versions 47 and 48 into one version 53 hair layer; current long hair stays selected',async()=>{
- for(const id of Object.keys(HAIR_TEMPLATE_ANCHORS).filter(isSingleLayerHair))for(const version of [47,48,50]){
+test('every single-layer style refits versions 47 and 48 into one version 56 hair layer; current long hair stays selected',async()=>{
+ for(const id of Object.keys(HAIR_TEMPLATE_ANCHORS).filter(isSingleLayerHair))for(const version of [47,48,50,53,55]){
   const f=studioFixture({hairId:id,version,offset:0});await f.run(id);assert.equal(f.context.calls,1);
-  const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,53);assert.equal(hair[0].hairLinked,false);
+  const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,56);assert.equal(hair[0].hairLinked,false);
  }
- const short=studioFixture({hairId:'manhair-01',version:53,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
- const long=studioFixture({version:55,offset:0});await long.run('hair-01');assert.equal(long.context.calls,0);
+ const short=studioFixture({hairId:'manhair-01',version:56,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
+ const long=studioFixture({version:56,offset:0});await long.run('hair-01');assert.equal(long.context.calls,0);
 });
 
 for(const angle of [-.3,0,.3])for(const missingEarRows of [false,true])test(`short PNG avoids copying or stretching hair at ${angle}, missing ear=${missingEarRows}`,()=>{

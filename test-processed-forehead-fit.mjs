@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {createHash} from 'node:crypto';
 import {eraseDetachedUpperHair,eraseHeadExteriorExcess} from './src/upper-hair-eraser.js';
 import {featherLongCrown} from './src/long-upper-hair-eraser.js';
 import {shortHairInterior} from './src/short-hair-skin-fill.js';
@@ -111,7 +112,7 @@ test('the live long-hair path edits only the processed head using the FRONT cont
  for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17],[0,30]]){const j=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(j,j+4),f.original.slice(j,j+4))}
 });
 
-test('all 41 hairstyle IDs use the same original-forehead warp without a skin-fill callback',async()=>{
+test('all 51 hairstyle IDs use the same original-forehead warp without a skin-fill callback',async()=>{
  const {HAIRSTYLE_RULES}=await import('./hairstyle-rules.js'),{isSingleLayerHair}=await import('./src/short-female-hair.js');
  const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8'),start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);let calls=0;
  for(const id of Object.keys(HAIRSTYLE_RULES)){
@@ -124,5 +125,29 @@ test('all 41 hairstyle IDs use the same original-forehead warp without a skin-fi
   assert.ok(result.cleanedHeadSource.data[j]>150,id);assert.equal(result.cleanedHeadSource.data[j+3],255,id);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id),id);
   for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17]]){const k=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(k,k+4),f.original.slice(k,k+4),id)}
  }
- assert.equal(calls,41);
+ assert.equal(calls,51);
+});
+
+for(const angle of [-.3,0,.3])for(const category of [0,1])test(`original stray hair is erased through the complete top image edge, angle=${angle}, category=${category}`,()=>{
+ const f=fixture(angle),points=[[2,0],[100,0],[197,0],[3,8],[196,8]];
+ for(const [x,y] of points){const n=y*f.w+x;f.original.set([28,21,16,140],n*4);f.labels.data[n]=category}
+ const original=new Uint8ClampedArray(f.original),front=new Uint8ClampedArray(f.front),out=fit(f).pixels;
+ for(const [x,y] of points){const j=(y*f.w+x)*4;assert.equal(out[j+3],0,'isolated hair and dust are fully removed, including far columns');assert.deepEqual(out.slice(j,j+3),original.slice(j,j+3))}
+ assert.deepEqual(f.original,original);assert.deepEqual(f.front,front);
+});
+test('a one-pixel old strand reaches the top border without surviving as a blurred dark halo',()=>{
+ const f=fixture();for(let y=0;y<50;y++){const n=y*f.w+100;f.original.set([24,18,14,255],n*4);f.labels.data[n]=y<20?0:1}
+ const out=fit(f).pixels;for(let y=0;y<24;y++)assert.equal(out[(y*f.w+100)*4+3],0);
+ const edge=[25,26,27,28,29,30].map(y=>out[(y*f.w+100)*4+3]);assert.ok(edge.some(a=>a>0&&a<255));assert.ok(edge.every((a,i)=>!i||a>=edge[i-1]));
+});
+for(const category of [2,3,4,5])test(`top cleanup preserves category ${category} even at the image border`,()=>{
+ const f=fixture(),n=2;f.original.set([28,21,16,255],n*4);f.labels.data[n]=category;const out=fit(f).pixels;assert.deepEqual(out.slice(n*4,n*4+4),f.original.slice(n*4,n*4+4));
+});
+test('blue background and bright background pixels stay unchanged above the selected hair',()=>{
+ const f=fixture();for(const [x,rgb] of [[2,[20,100,220]],[197,[240,230,220]]]){f.original.set([...rgb,255],x*4);f.labels.data[x]=0}
+ const out=fit(f).pixels;for(const x of [2,197])assert.deepEqual(out.slice(x*4,x*4+4),f.original.slice(x*4,x*4+4));
+});
+for(const {angle,hash} of [{angle:-.3,hash:'653e3f6d8661d8264b75ca6183ac0dba109eca35f8f6003d7877fe8d3a5e0cc1'},{angle:0,hash:'51cd997f3587fbe01190c6a28ee8ca1370838a92350b5238fd938d033025e0f4'},{angle:.3,hash:'5d5164e19fdaad5476a558fd1757c69631aea09d3f6263bccaef5a4f9ec7cfee'}])test(`all forehead, face, ears, neck and lower pixels retain the previous result exactly at ${angle}`,()=>{
+ const f=fixture(angle),out=fit(f).pixels,bytes=[];for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++)if(f.local(x,y).v>=-49-Math.max(2,f.eye*.035)){const j=(y*f.w+x)*4;bytes.push(...out.subarray(j,j+4))}
+ assert.equal(createHash('sha256').update(new Uint8Array(bytes)).digest('hex'),hash);
 });
