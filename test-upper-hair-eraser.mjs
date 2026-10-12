@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {eraseUpperHairExcess} from './src/upper-hair-eraser.js';
+import {eraseUpperHairExcess,eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
 
 const W=96,H=100;
 const index=(x,y)=>(y*W+x)*4;
@@ -114,4 +114,55 @@ test('the 40% clearance stops at skin even inside the newly extended band',()=>{
  const out=erase(f);
  for(let y=23;y<=27;y++)assert.deepEqual(pixel(out,48,y),pixel(f.portrait,48,y));
  assert.equal(out[index(65,23)+3],0);
+});
+
+function cutoutFixture(){
+ const f=fixture();f.portrait.fill(0);f.labels.data.fill(0);
+ for(let y=25;y<90;y++)for(let x=20;x<=76;x++){
+  f.portrait.set([x,y,77,255],index(x,y));f.labels.data[y*W+x]=y<40?1:3;
+ }
+ return f;
+}
+
+test('floating upper fragments are erased even when the semantic model calls them background',()=>{
+ const f=cutoutFixture();
+ for(let y=7;y<=9;y++)for(let x=43;x<=50;x++)f.portrait.set([30,20,10,220],index(x,y));
+ f.portrait.set([30,20,10,4],index(48,5));
+ const original=new Uint8ClampedArray(f.portrait),out=erase(f);
+ for(let y=7;y<=9;y++)for(let x=43;x<=50;x++)assert.equal(out[index(x,y)+3],0);
+ assert.equal(out[index(48,5)+3],0,'low-alpha dust must disappear too');
+ assert.deepEqual(pixel(out,48,60),pixel(original,48,60));assert.deepEqual(f.portrait,original);
+});
+
+test('detached skin, ear-height fragments and lower portrait pixels remain protected',()=>{
+ const f=cutoutFixture();f.portrait.set([210,170,140,255],index(38,8));f.labels.data[8*W+38]=3;
+ f.portrait.set([20,15,10,255],index(83,55));
+ const out=erase(f);
+ for(const [x,y] of [[38,8],[83,55],[48,42],[48,65],[48,85]])assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y));
+});
+
+test('a floating PNG fragment cannot raise the measured upper contour and shield old hair',()=>{
+ const f=fixture();f.overlay.set([20,15,10,255],index(48,5));
+ const out=erase(f);assert.equal(out[index(48,10)+3],0,'the contour must come from the main PNG hair mass');
+});
+
+test('PNG cleanup removes detached upper arcs while preserving connected strands and lower hair',()=>{
+ const f=fixture(),png=new Uint8ClampedArray(f.overlay);
+ for(let x=40;x<47;x++)png.set([20,15,10,255],index(x,5));
+ png.set([20,15,10,4],index(45,3));
+ for(let y=15;y<20;y++)png.set([20,30,40,255],index(65,y));
+ png.set([20,30,40,255],index(75,82));
+ const original=new Uint8ClampedArray(png),out=eraseDetachedUpperHair(png,W,H,f.face);
+ for(let x=40;x<47;x++)assert.equal(out[index(x,5)+3],0);
+ assert.equal(out[index(45,3)+3],0);
+ for(let y=15;y<20;y++)assert.deepEqual(pixel(out,65,y),pixel(original,65,y),'connected strands keep their exact shape');
+ assert.deepEqual(pixel(out,75,82),pixel(original,75,82));
+ for(let y=20;y<39;y++)for(let x=18;x<=78;x++)assert.deepEqual(pixel(out,x,y),pixel(original,x,y));
+ assert.deepEqual(png,original);
+ for(let i=0;i<out.length;i+=4)assert.deepEqual(out.slice(i,i+3),original.slice(i,i+3));
+});
+
+test('floating upper debris near the crown side is removed without erasing the lower sides',()=>{
+ const f=cutoutFixture();f.portrait.set([20,15,10,255],index(15,7));f.portrait.set([20,15,10,255],index(15,55));
+ const out=erase(f);assert.equal(out[index(15,7)+3],0);assert.deepEqual(pixel(out,15,55),pixel(f.portrait,15,55));
 });

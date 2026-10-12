@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {hairPreviewTransform,createTwoLayerHairPreview} from './src/hair-preview-fit.js';
-import {eraseUpperHairExcess} from './src/upper-hair-eraser.js';
+import {eraseUpperHairExcess,eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
 import {isSingleLayerHair} from './src/short-female-hair.js';
 import {HAIR_TEMPLATE_ANCHORS} from './src/hair-template-anchors.js';
 import {HAIRSTYLE_RULES} from './hairstyle-rules.js';
@@ -111,7 +111,7 @@ test('the live picker handles all 41 styles with one affine placement and no ret
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28}),target=new Surface(w,h);
  target.data.fill(255);
  const surfaces=[],layerOptions=[];let closed=0;
- const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseUpperHairExcess,
+ const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseUpperHairExcess,eraseDetachedUpperHair,
   getLandmarker:async()=>({detect:()=>({faceLandmarks:[f.face]})}),
   getPersonSegmenter:async()=>({segment:(image,callback)=>callback({categoryMask:{width:w,height:h,getAsUint8Array:()=>new Uint8Array(w*h).fill(1),close:()=>closed++}})}),
   semanticClassMask:async()=>new Surface(w,h),

@@ -1,6 +1,6 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
-import {eraseUpperHairExcess} from './upper-hair-eraser.js';
+import {eraseUpperHairExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1439,6 +1439,12 @@ async function studioHairLabels(target){
 }
 async function finishStudioHairPreview(target,front,back,face,hairId){
  const W=front.width,H=front.height,labels=await studioHairLabels(target);
+ // Floating PNG fragments must not survive or become the measured crown edge.
+ for(const layer of [front,back]){
+  if(!layer)continue;
+  const cx=layer.getContext('2d'),pixels=cx.getImageData(0,0,W,H);
+  pixels.data.set(eraseDetachedUpperHair(pixels.data,W,H,face));cx.putImageData(pixels,0,0);
+ }
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
  // Apply a soft upper-edge eraser directly to the original portrait pixels.
