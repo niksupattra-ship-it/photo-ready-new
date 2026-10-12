@@ -17,26 +17,30 @@ function upperFrame(face,w,h){
  return {eye,local,ears,forehead,width,insideFace};
 }
 
-// Replace only the upper temple/ear join of the older front erasure. The
-// blurred eraser follows classified skin instead of retaining a pointed tip
-// until a horizontal ear gate. Actual portrait alpha prevents carving a blue
-// notch where a coarse semantic label extends beyond the person's silhouette.
+// Restore the selected front hair throughout the upper temple band. Erase
+// only a narrow strip at the outer edge of actual ear skin, never the face
+// oval or the whole temple. Lower face/neck behaviour remains unchanged.
 export function eraseLongUpperFront(front,original,skin,w,h,face,portrait=null){
  if([front,original,skin].some(p=>p.length!==w*h*4)||portrait&&portrait.length!==w*h*4)throw Error('ข้อมูลขอบผมยาวไม่ตรงกับภาพ');
- const f=upperFrame(face,w,h),strength=new Float32Array(w*h),limit=new Float32Array(w*h),blend=new Float32Array(w*h);
+ const f=upperFrame(face,w,h),strength=new Float32Array(w*h),limit=new Float32Array(w*h),out=new Uint8ClampedArray(front),edge=[new Map(),new Map()],feather=Math.max(1.5,Math.min(5,f.eye*.025));
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const n=y*w+x,q=f.local(x,y),ear=f.ears[q.u<0?0:1];
-  const side=smooth((Math.abs(q.u)-f.width*.28)/(f.width*.12));
-  const band=smooth((q.v-f.forehead.v+f.eye*.06)/(f.eye*.12))*(1-smooth((q.v-ear.v-f.eye*.08)/(f.eye*.24)));
-  blend[n]=side*band;if(!blend[n])continue;
-  // The actual face oval also guides the lateral hairline when the semantic
-  // model mistakes a temple for hair. Central bangs never enter this gate.
-  const anatomical=q.v>ear.v-f.eye*.48&&f.insideFace(q.u,q.v);
-  strength[n]=Math.max(skin[n*4+3]/255,anatomical?1:0);
-  limit[n]=portrait?smooth((portrait[n*4+3]-8)/240):(skin[n*4+3]>=128?1:0);
+  const n=y*w+x,q=f.local(x,y),side=q.u<0?0:1,ear=f.ears[side];
+  if(skin[n*4+3]<128||portrait&&portrait[n*4+3]<248||q.v<ear.v-f.eye*.16||q.v>ear.v+f.eye*.40||Math.abs(Math.abs(q.u)-Math.abs(ear.u))>f.eye*.32)continue;
+  const row=Math.floor(q.v),outer=Math.abs(q.u);edge[side].set(row,Math.max(edge[side].get(row)||0,outer));
  }
- const erased=softHairEraser(original,w,h,strength,Math.max(1,Math.min(4,f.eye*.012)),limit),out=new Uint8ClampedArray(front);
- for(let n=0;n<w*h;n++)if(blend[n])out[n*4+3]=Math.round(front[n*4+3]*(1-blend[n])+erased[n*4+3]*blend[n]);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const n=y*w+x,q=f.local(x,y),side=q.u<0?0:1,ear=f.ears[side];
+  if(Math.abs(q.u)<f.width*.28||q.v<f.forehead.v-f.eye*.06||q.v>ear.v+f.eye*.32)continue;
+  // Undo the former wide face/temple cut before applying the ear-edge eraser.
+  out[n*4+3]=original[n*4+3];
+  if(q.v<ear.v-f.eye*.08||skin[n*4+3]<128||portrait&&portrait[n*4+3]<248)continue;
+  let total=0,count=0;for(let v=Math.floor(q.v)-1;v<=Math.floor(q.v)+1;v++)if(edge[side].has(v)){total+=edge[side].get(v);count++}
+  if(!count)continue;const depth=total/count-Math.abs(q.u);
+  if(depth<-.5||depth>feather)continue;
+  strength[n]=1-smooth(Math.max(0,depth)/feather);limit[n]=1;
+ }
+ const erased=softHairEraser(original,w,h,strength,Math.max(.5,Math.min(1.5,f.eye*.008)),limit);
+ for(let n=0;n<w*h;n++)if(limit[n])out[n*4+3]=erased[n*4+3];
  return out;
 }
 

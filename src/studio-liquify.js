@@ -23,7 +23,7 @@ export function liquifyCanvas(target,mask,center,radius,delta,mode,strength,fram
  // Pointer coordinates stay in the 900 x 1200 workspace. Deform each surface
  // at its own resolution so full-resolution portrait pixels survive editing.
  let changed=false,region=null;
- for(const surface of [target,mask]){
+ for(const surface of [target,mask].filter(Boolean)){
   const scaleX=surface.width/(frame?.w||900),scaleY=surface.height/(frame?.h||1200);
   const p={x:(center.x-(frame?.x||0))*scaleX,y:(center.y-(frame?.y||0))*scaleY},r=radius*Math.max(scaleX,scaleY),padding=r*.6+3;
   const left=Math.max(0,Math.floor(p.x-r-padding)),top=Math.max(0,Math.floor(p.y-r-padding));
