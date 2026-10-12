@@ -1,6 +1,7 @@
 import {softHairEraser} from './soft-hair-eraser.js';
 import {fillLongHairGaps} from './long-hair-gap-fill.js';
 import {eraseLongUpperFront} from './long-upper-hair-eraser.js';
+import {eraseLongHairInner} from './long-hair-two-layer-fit.js';
 // Local fitting changes hair coordinates only; it never changes face pixels.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function anchors(face,w,h){
@@ -315,10 +316,17 @@ function createSingleHairPreview(placed,skin,face,w,h,makeCanvas,hairGuide){
 // Both layers share exactly the placed PNG's coordinates and texture. The
 // portrait itself occludes the rear; only confirmed skin can erase front alpha.
 // Rear filling includes weak alpha inside the actual ear/neck joins.
-export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null,portrait=null}={}){
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null,portrait=null,longContour=false}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  if(!skin||skin.width!==w||skin.height!==h||![127,356].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
  if(singleLayer)return createSingleHairPreview(placed,skin,face,w,h,makeCanvas,rearHairGuide);
+ if(longContour){
+  if(!portrait)throw Error('ต้องมีรูปคนจริงสำหรับผมสองเลเยอร์');
+  const front=makeCanvas(w,h),back=makeCanvas(w,h),person=makeCanvas(w,h);front.getContext('2d').drawImage(placed,0,0);back.getContext('2d').drawImage(placed,0,0);person.getContext('2d').drawImage(portrait,0,0,w,h);
+  const fx=front.getContext('2d'),pixels=fx.getImageData(0,0,w,h);pixels.data.set(eraseLongHairInner(pixels.data,skin.getContext('2d').getImageData(0,0,w,h).data,person.getContext('2d').getImageData(0,0,w,h).data,w,h,face));fx.putImageData(pixels,0,0);
+  // Rear liquify runs only after the cleaned person is between both copies.
+  return {front,back,gapAdjusted:false,gapReport:null};
+ }
  const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
  const earLeft=local(face[127].x*w,face[127].y*h),earRight=local(face[356].x*w,face[356].y*h);
  const sd=skin.getContext('2d').getImageData(0,0,w,h).data,feather=Math.max(1.25,Math.min(6,a.eye*.025));
