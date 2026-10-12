@@ -1484,10 +1484,18 @@ async function prepareStudioHairOverlay(headSource,hairId){
     hairGuide=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
     if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
    }else{
-    hairGuide=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+    // Select donors on the actual native PNG: the small portrait preview can
+    // have a different hairline, ear opening or even different side strands.
+    const guideInput=canvasFor(c.width,c.height),gc=guideInput.getContext('2d');
+    const [a,b,d,e,x,y]=calibration.sourceToReference,det=a*e-b*d;
+    // Keep the reference face as context for segmentation, but replace its
+    // hair with the native cutout in the exact calibrated coordinate frame.
+    gc.setTransform(e/det,-b/det,-d/det,a/det,(d*y-e*x)/det,(b*x-a*y)/det);
+    gc.drawImage(preview,0,0);gc.setTransform(1,0,0,1,0,0);gc.drawImage(c,0,0);
+    hairGuide=await semanticClassMask(guideInput,c.width,c.height,[1]);
     if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
    }
-   return {cutout:c,face,bounds,calibration,hairGuide,w:preview.naturalWidth,h:preview.naturalHeight};
+   return {cutout:c,face,bounds,calibration,hairGuide,hairGuideNative:!isSingleLayerHair(hairId),w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
@@ -1509,11 +1517,15 @@ async function prepareStudioHairOverlay(headSource,hairId){
  }
  const rearHairGuide=ref.hairGuide?canvasFor(W,H):null;
  if(rearHairGuide){
-  const gx=rearHairGuide.getContext('2d');gx.setTransform(fit.a,fit.b,fit.c,fit.d,fit.e,fit.f);
+  const gx=rearHairGuide.getContext('2d');
+  if(ref.hairGuideNative)gx.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
+  else gx.setTransform(fit.a,fit.b,fit.c,fit.d,fit.e,fit.f);
   gx.drawImage(ref.hairGuide,0,0);gx.setTransform(1,0,0,1,0,0);
  }
  const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:isSingleLayerHair(hairId),rearHairGuide});
- return finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
+ const result=await finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
+ if(layers.gapReport&&(layers.gapReport.remaining>0||layers.gapReport.unavailable))result.hairGapWarning=true;
+ return result;
 }
 // Processing and Studio use the same calibrated placement and ear contours.
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){

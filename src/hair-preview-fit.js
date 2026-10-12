@@ -1,4 +1,5 @@
 import {softHairEraser} from './soft-hair-eraser.js';
+import {fillLongHairGaps} from './long-hair-gap-fill.js';
 // Local fitting changes hair coordinates only; it never changes face pixels.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function anchors(face,w,h){
@@ -310,7 +311,7 @@ function createSingleHairPreview(placed,skin,face,w,h,makeCanvas,hairGuide){
 
 // Both layers share exactly the placed PNG's coordinates and texture. The
 // portrait itself occludes the rear; only confirmed skin can erase front alpha.
-// Rear gap filling is bounded to transparent pixels beside the ear/neck.
+// Rear filling includes weak alpha inside the actual ear/neck joins.
 export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  if(!skin||skin.width!==w||skin.height!==h||![127,356].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
@@ -337,10 +338,11 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  const back=singleLayer?null:makeCanvas(w,h);
  // Restore the full PNG behind the portrait. Its original alpha overlaps
  // the front, instead of being divided between the two layers. Both copies
- // still use the latest shared placement. Only transparent inner gaps may fill.
+ // still use the latest shared placement. Dense hair fills their inner joins.
  if(back)back.getContext('2d').drawImage(placed,0,0);
- const gapAdjusted=Boolean(back&&rearHairGuide&&pushRearIntoGaps(back,skin,rearHairGuide,face,w,h));
- return {front,back,gapAdjusted};
+ const chin=local(face[152].x*w,face[152].y*h).y;
+ const gapReport=rearHairGuide?fillLongHairGaps(back,skin,rearHairGuide,a,[earLeft,earRight],chin,w,h):null;
+ return {front,back,gapAdjusted:Boolean(gapReport?.adjusted),gapReport};
 }
 // Erase the overlay over visible skin from the ear/temple level down to the neck.
 // Keep it as a separate mask so Studio's restore brush can bring hair back.
