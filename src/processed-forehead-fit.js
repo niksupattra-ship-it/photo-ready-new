@@ -167,3 +167,14 @@ export function fitProcessedForehead(original,front,w,h,face,labels,lowerResult=
  out.set(finalUpper);
  return {pixels:out,erasedPixels,warpedPixels,unresolvedColumns};
 }
+
+// Male placement keeps the source PNG and the photographed forehead intact.
+// Reuse only the crown-to-top eraser; do not enter the forehead warp or the
+// exterior ear/face/neck cleanup used by the female placement path.
+export function eraseProcessedUpperHair(original,front,w,h,face,labels){
+ const {data,width:mw,height:mh}=labels||{};
+ if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||[original,front].some(p=>p?.length!==w*h*4)||!(data instanceof Uint8Array)||!Number.isInteger(mw)||!Number.isInteger(mh)||mw<1||mh<1||data.length!==mw*mh)throw Error('ภาพหน้าตรงไม่พร้อมสำหรับลบผมเดิมด้านบน');
+ const f=frame(face,w,h),classes=new Uint8Array(w*h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++)classes[y*w+x]=data[Math.min(mh-1,Math.floor((y+.5)*mh/h))*mw+Math.min(mw-1,Math.floor((x+.5)*mw/w))];
+ return eraseOriginalHairToTop(original,front,w,h,face,f,classes);
+}

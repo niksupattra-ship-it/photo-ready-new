@@ -5,7 +5,7 @@ import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-erase
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
-import {fitProcessedForehead} from './processed-forehead-fit.js';
+import {fitProcessedForehead,eraseProcessedUpperHair} from './processed-forehead-fit.js';
 import {pushLongHairRear} from './long-hair-two-layer-fit.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
@@ -1445,6 +1445,12 @@ async function studioHairLabels(target){
 }
 async function finishStudioHairPreview(target,front,back,face,hairId,contourContext=null){
  const W=front.width,H=front.height,labels=await studioHairLabels(target);
+ if(/^manhair-\d{2}$/.test(hairId)){
+  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
+  const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H).data;
+  pixels.data.set(eraseProcessedUpperHair(pixels.data,hair,W,H,face,labels));cc.putImageData(pixels,0,0);
+  return {source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
+ }
  // Floating PNG fragments must not survive or become the measured crown edge.
  for(const layer of [front,back]){
   if(!layer)continue;
@@ -1499,6 +1505,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
+   if(/^manhair-\d{2}$/.test(hairId))return {cutout:c,face,bounds,calibration,hairGuide:null,hairGuideNative:false,w:preview.naturalWidth,h:preview.naturalHeight};
    const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
    if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
    if(isSingleLayerHair(hairId)){
@@ -1536,6 +1543,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
  x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
+ if(/^manhair-\d{2}$/.test(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId);
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.

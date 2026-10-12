@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {eraseDetachedUpperHair,eraseHeadExteriorExcess} from './src/upper-hair-eraser.js';
 import {featherLongCrown} from './src/long-upper-hair-eraser.js';
 import {shortHairInterior} from './src/short-hair-skin-fill.js';
-import {fitProcessedForehead} from './src/processed-forehead-fit.js';
+import {fitProcessedForehead,eraseProcessedUpperHair} from './src/processed-forehead-fit.js';
 
 const browIds=[70,63,105,66,107,55,65,52,53,46,300,293,334,296,336,285,295,282,283,276];
 function fixture(angle=0){
@@ -24,6 +24,28 @@ function fixture(angle=0){
  return {w,h,eye,face,original,front,labels,at,world,local:(x,y)=>({u:(x-cx)*c+(y-cy)*s,v:-(x-cx)*s+(y-cy)*c})};
 }
 const fit=f=>fitProcessedForehead(f.original,f.front,f.w,f.h,f.face,f.labels);
+for(const angle of [-.3,0,.3])for(const category of [0,1,3,5])test(`male erasure affects only the upper old hair, angle=${angle}, category=${category}`,()=>{
+ const f=fixture(angle);
+ for(const [x,y] of [[2,0],[100,0],[197,0],[3,8],[196,8]]){const n=y*f.w+x;f.original.set([28,21,16,140],n*4);f.labels.data[n]=category}
+ const original=new Uint8ClampedArray(f.original),front=new Uint8ClampedArray(f.front),out=eraseProcessedUpperHair(f.original,f.front,f.w,f.h,f.face,f.labels);
+ assert.equal(out[f.at(0,-82)+3],0,'the old crown above the PNG is gone');
+ for(const [x,y] of [[2,0],[100,0],[197,0],[3,8],[196,8]])assert.equal(out[(y*f.w+x)*4+3],0,'erase through the full upper image border');
+ let graded=0;
+ for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
+  const j=(y*f.w+x)*4;assert.deepEqual(out.slice(j,j+3),original.slice(j,j+3),'no skin warp, pixel replacement or recolouring');
+  if(f.local(x,y).v>=-49-64*.035)assert.deepEqual(out.slice(j,j+4),original.slice(j,j+4),'all inner forehead, brows, eyes, ears, neck and shoulders stay exact');
+  if(out[j+3]>0&&out[j+3]<original[j+3])graded++;
+ }
+ assert.ok(graded>0);assert.deepEqual(f.original,original);assert.deepEqual(f.front,front);
+});
+test('male upper erasure preserves actual skin above the crown and fails safely on invalid inputs',()=>{
+ const f=fixture(),j=f.at(0,-82);f.original.set([193,93,125,255],j);f.labels.data[j/4]=3;
+ const original=new Uint8ClampedArray(f.original),out=eraseProcessedUpperHair(f.original,f.front,f.w,f.h,f.face,f.labels);
+ assert.deepEqual(out.slice(j,j+4),original.slice(j,j+4));
+ assert.deepEqual(eraseProcessedUpperHair(f.original,new Uint8ClampedArray(f.front.length),f.w,f.h,f.face,f.labels),original,'no detected PNG crown leaves the photo intact');
+ for(const labels of [null,{width:2,height:2,data:new Uint8Array(1)}])assert.throws(()=>eraseProcessedUpperHair(f.original,f.front,f.w,f.h,f.face,labels));
+ assert.throws(()=>eraseProcessedUpperHair(f.original,f.front,f.w,f.h,[],f.labels));assert.deepEqual(f.original,original);
+});
 for(const angle of [-.3,0,.3])test(`processed upper hair outside the selected FRONT crown is erased softly at ${angle}`,()=>{
  const f=fixture(angle),original=new Uint8ClampedArray(f.original),front=new Uint8ClampedArray(f.front),result=fit(f),j=f.at(0,-82);
  assert.equal(original[j+3],255);assert.equal(result.pixels[j+3],0);assert.ok(result.erasedPixels>0);
@@ -98,6 +120,17 @@ class Surface{
   getImageData(){return {data:new Uint8ClampedArray(s.data)}},putImageData(image){s.data.set(image.data)}
  }}
 }
+test('all 23 live male finishers keep the PNG intact and never run forehead or ear/neck editing',async()=>{
+ const {HAIRSTYLE_RULES}=await import('./hairstyle-rules.js'),source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
+ const start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);
+ for(const id of Object.keys(HAIRSTYLE_RULES).filter(id=>id.startsWith('manhair-'))){
+  const f=fixture(),head=new Surface(f.w,f.h,f.original),front=new Surface(f.w,f.h,f.front),expected=eraseProcessedUpperHair(f.original,f.front,f.w,f.h,f.face,f.labels);
+  const context={studioHairLabels:async()=>f.labels,canvasFor:(w,h)=>new Surface(w,h),eraseProcessedUpperHair};
+  for(const name of ['fitProcessedForehead','eraseDetachedUpperHair','eraseHeadExteriorExcess','featherLongCrown','shortHairInterior','pushLongHairRear'])context[name]=()=>{throw Error(`male finisher must not call ${name}`)};
+  const run=vm.runInNewContext(source.slice(start,end)+'\nfinishStudioHairPreview',context),result=await run(head,front,null,f.face,id);
+  assert.deepEqual(result.source.data,f.front,id);assert.equal(result.backSource,null);assert.deepEqual(result.cleanedHeadSource.data,expected,id);assert.deepEqual(head.data,f.original);
+ }
+});
 test('the live long-hair path edits only the processed head using the FRONT contour, regardless of rear coverage',async()=>{
  const f=fixture(),head=new Surface(f.w,f.h,f.original),front=new Surface(f.w,f.h,f.front),back=new Surface(f.w,f.h,f.original),source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
  const start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);let calls=0,frontSnapshot,backSnapshot;
@@ -112,10 +145,10 @@ test('the live long-hair path edits only the processed head using the FRONT cont
  for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17],[0,30]]){const j=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(j,j+4),f.original.slice(j,j+4))}
 });
 
-test('all 52 hairstyle IDs use the same original-forehead warp without a skin-fill callback',async()=>{
+test('all 29 female styles retain their original-forehead warp without a skin-fill callback',async()=>{
  const {HAIRSTYLE_RULES}=await import('./hairstyle-rules.js'),{isSingleLayerHair}=await import('./src/short-female-hair.js');
  const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8'),start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);let calls=0;
- for(const id of Object.keys(HAIRSTYLE_RULES)){
+ for(const id of Object.keys(HAIRSTYLE_RULES).filter(id=>id.startsWith('hair-'))){
   const f=fixture(),head=new Surface(f.w,f.h,f.original),front=new Surface(f.w,f.h,f.front),back=isSingleLayerHair(id)?null:new Surface(f.w,f.h,f.front);
   const context={Uint8ClampedArray,studioHairLabels:async()=>f.labels,isSingleLayerHair,canvasFor:(w,h)=>new Surface(w,h),eraseDetachedUpperHair,eraseHeadExteriorExcess,featherLongCrown,shortHairInterior,
    fitProcessedForehead:(original,...args)=>{calls++;assert.deepEqual(original,f.original);return fitProcessedForehead(original,...args)},
@@ -125,7 +158,7 @@ test('all 52 hairstyle IDs use the same original-forehead warp without a skin-fi
   assert.ok(result.cleanedHeadSource.data[j]>150,id);assert.equal(result.cleanedHeadSource.data[j+3],255,id);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id),id);
   for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17]]){const k=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(k,k+4),f.original.slice(k,k+4),id)}
  }
- assert.equal(calls,52);
+ assert.equal(calls,29);
 });
 
 for(const angle of [-.3,0,.3])for(const category of [0,1])test(`original stray hair is erased through the complete top image edge, angle=${angle}, category=${category}`,()=>{
