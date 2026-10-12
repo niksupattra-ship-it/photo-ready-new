@@ -140,14 +140,46 @@ test('a one-pixel old strand reaches the top border without surviving as a blurr
  const out=fit(f).pixels;for(let y=0;y<24;y++)assert.equal(out[(y*f.w+100)*4+3],0);
  const edge=[25,26,27,28,29,30].map(y=>out[(y*f.w+100)*4+3]);assert.ok(edge.some(a=>a>0&&a<255));assert.ok(edge.every((a,i)=>!i||a>=edge[i-1]));
 });
-for(const category of [2,3,4,5])test(`top cleanup preserves category ${category} even at the image border`,()=>{
- const f=fixture(),n=2;f.original.set([28,21,16,255],n*4);f.labels.data[n]=category;const out=fit(f).pixels;assert.deepEqual(out.slice(n*4,n*4+4),f.original.slice(n*4,n*4+4));
+for(const category of [2,3,4,5])test(`wrong category ${category} cannot shield old hair at the top image border`,()=>{
+ const f=fixture(),n=2;f.original.set([28,21,16,255],n*4);f.labels.data[n]=category;const out=fit(f).pixels;assert.equal(out[n*4+3],0);assert.deepEqual(out.slice(n*4,n*4+3),f.original.slice(n*4,n*4+3));
 });
-test('blue background and bright background pixels stay unchanged above the selected hair',()=>{
+test('upper head pixels are erased by the outside geometry, without a colour threshold or repainting',()=>{
  const f=fixture();for(const [x,rgb] of [[2,[20,100,220]],[197,[240,230,220]]]){f.original.set([...rgb,255],x*4);f.labels.data[x]=0}
- const out=fit(f).pixels;for(const x of [2,197])assert.deepEqual(out.slice(x*4,x*4+4),f.original.slice(x*4,x*4+4));
+ const out=fit(f).pixels;for(const x of [2,197]){assert.equal(out[x*4+3],0);assert.deepEqual(out.slice(x*4,x*4+3),f.original.slice(x*4,x*4+3))}
 });
 for(const {angle,hash} of [{angle:-.3,hash:'653e3f6d8661d8264b75ca6183ac0dba109eca35f8f6003d7877fe8d3a5e0cc1'},{angle:0,hash:'51cd997f3587fbe01190c6a28ee8ca1370838a92350b5238fd938d033025e0f4'},{angle:.3,hash:'5d5164e19fdaad5476a558fd1757c69631aea09d3f6263bccaef5a4f9ec7cfee'}])test(`all forehead, face, ears, neck and lower pixels retain the previous result exactly at ${angle}`,()=>{
  const f=fixture(angle),out=fit(f).pixels,bytes=[];for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++)if(f.local(x,y).v>=-49-Math.max(2,f.eye*.035)){const j=(y*f.w+x)*4;bytes.push(...out.subarray(j,j+4))}
  assert.equal(createHash('sha256').update(new Uint8Array(bytes)).digest('hex'),hash);
+});
+
+for(const angle of [-.3,0,.3])for(const category of [2,3,4,5])test(`a thick original hair cap above the PNG is cleared even with wrong label ${category}, angle=${angle}`,()=>{
+ const f=fixture(angle),cap=[];
+ for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
+  const q=f.local(x,y);if(Math.abs(q.u)>44||q.v<-96+Math.abs(q.u)*.2||q.v>-86+Math.abs(q.u)*.2)continue;
+  const n=y*f.w+x;f.original.set([25,19,15,255],n*4);f.labels.data[n]=category;cap.push(n);
+ }
+ assert.ok(cap.length>200,'reproduces a substantial cap, not just isolated dust');
+ const before=new Uint8ClampedArray(f.original),front=new Uint8ClampedArray(f.front),out=fit(f).pixels;
+ for(const n of cap){assert.equal(out[n*4+3],0);assert.deepEqual(out.slice(n*4,n*4+3),before.slice(n*4,n*4+3))}
+ assert.deepEqual(f.original,before);assert.deepEqual(f.front,front);
+});
+for(const category of [0,3,5])test(`the live head cleanup removes the cap and reveals the unchanged background, category=${category}`,async()=>{
+ const f=fixture(),cap=[];for(let y=6;y<=16;y++)for(let x=72;x<=128;x++){const n=y*f.w+x;f.original.set([25,19,15,255],n*4);f.labels.data[n]=category;cap.push(n)}
+ const head=new Surface(f.w,f.h,f.original),front=new Surface(f.w,f.h,f.front),background=new Surface(f.w,f.h);
+ for(let n=0;n<f.w*f.h;n++)background.data.set([17,115,225,255],n*4);const backgroundBefore=new Uint8ClampedArray(background.data);
+ const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8'),start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);
+ const context={Uint8ClampedArray,studioHairLabels:async()=>f.labels,isSingleLayerHair:()=>true,canvasFor:(w,h)=>new Surface(w,h),eraseDetachedUpperHair,eraseHeadExteriorExcess,featherLongCrown,shortHairInterior,fitProcessedForehead};
+ const finish=vm.runInNewContext(source.slice(start,end)+'\nfinishStudioHairPreview',context),result=await finish(head,front,null,f.face,'hair-27'),composite=new Surface(f.w,f.h);
+ composite.getContext().drawImage(background);composite.getContext().drawImage(result.cleanedHeadSource);composite.getContext().drawImage(result.source);
+ for(const n of cap){assert.equal(result.cleanedHeadSource.data[n*4+3],0);assert.deepEqual(composite.data.slice(n*4,n*4+4),background.data.slice(n*4,n*4+4))}
+ assert.deepEqual(background.data,backgroundBefore);assert.deepEqual(head.data,f.original);assert.deepEqual(result.source.data,f.front);
+});
+
+for(const rgb of [[180,180,180],[235,235,235],[245,165,50]])test(`geometry erases upper hair with colour ${rgb}, even when classified as skin`,()=>{
+ const f=fixture(),j=f.at(0,-88);f.original.set([...rgb,255],j);f.labels.data[j/4]=3;const out=fit(f).pixels;assert.equal(out[j+3],0);assert.deepEqual(out.slice(j,j+3),new Uint8ClampedArray(rgb));
+});
+for(const factor of [.25,.5,1])test(`actual forehead skin stays intact while the false skin-labelled old cap is erased, complexion factor=${factor}`,()=>{
+ const f=fixture();for(let n=0;n<f.w*f.h;n++)if(f.labels.data[n]===3)for(let k=0;k<3;k++)f.original[n*4+k]=Math.round(f.original[n*4+k]*factor);
+ const skin=f.at(0,-82),cap=f.at(20,-88);f.original.set([Math.round(193*factor),Math.round(93*factor),Math.round(125*factor),255],skin);f.labels.data[skin/4]=3;f.original.set([25,19,15,255],cap);f.labels.data[cap/4]=3;
+ const out=fit(f).pixels;assert.deepEqual(out.slice(skin,skin+4),f.original.slice(skin,skin+4));assert.equal(out[cap+3],0);
 });

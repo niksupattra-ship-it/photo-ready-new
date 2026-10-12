@@ -25,7 +25,7 @@ function frame(face,w,h){
 // The final pass follows the FRONT crown all the way to the image boundary.
 // Fill the eraser field across empty space too, so isolated thin strands are
 // fully erased rather than weakened by neighbouring transparent pixels.
-function eraseOriginalHairToTop(pixels,front,w,h,face,frame,classes,protectedLabels,labelAt){
+function eraseOriginalHairToTop(pixels,front,w,h,face,frame,classes){
  const corners=[[0,0],[w,0],[0,h],[w,h]].map(([x,y])=>frame.local(x,y).u),origin=Math.floor(Math.min(...corners))-1,count=Math.ceil(Math.max(...corners))-origin+2;
  const top=new Float32Array(count);top.fill(Infinity);
  const upperLimit=Math.min(frame.forehead.v,...[127,356].flatMap(id=>face[id]&&[face[id].x,face[id].y].every(Number.isFinite)?[frame.local(face[id].x*w,face[id].y*h).v]:[]))-Math.max(2,frame.eye*.035);
@@ -36,16 +36,32 @@ function eraseOriginalHairToTop(pixels,front,w,h,face,frame,classes,protectedLab
   const column=Math.floor(q.u-origin);top[column]=Math.min(top[column],q.v);found=true;
  }
  if(!found)return pixels;
+ // Confirm skin using this portrait's actual inner-face colours. A coarse
+ // skin label alone cannot protect dark old hair above the replacement crown.
+ // These samples are classification only; none are copied into the image.
+ const skin=[[],[],[]],step=Math.max(1,Math.floor(Math.min(w,h)/96));
+ for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
+  const n=y*w+x,j=n*4,q=frame.local(x,y);
+  if(![2,3].includes(classes[n])||pixels[j+3]<248||Math.abs(q.u)>frame.width*.28||q.v<frame.eye*.10||q.v>frame.eye*.75)continue;
+  for(let k=0;k<3;k++)skin[k].push(pixels[j+k]);
+ }
+ const reference=skin[0].length>=8?skin.map(channel=>{channel.sort((a,b)=>a-b);return channel[Math.floor(channel.length/2)]}):null;
+ const skinLuma=reference?.reduce((sum,value)=>sum+value,0)/3;
+ const confirmedSkin=n=>{
+  if(!reference||![2,3].includes(classes[n]))return false;
+  const j=n*4,luma=(pixels[j]+pixels[j+1]+pixels[j+2])/3;
+  return luma>=skinLuma*.6&&reference.reduce((difference,value,k)=>difference+Math.abs(pixels[j+k]-value),0)<=Math.max(12,skinLuma*.65);
+ };
  const field=new Float32Array(w*h),limit=new Float32Array(w*h),feather=Math.max(2,Math.min(8,frame.eye*.02));
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const n=y*w+x,j=n*4,q=frame.local(x,y);if(q.v>=upperLimit)continue;
   const edge=top[Math.floor(q.u-origin)];
   field[n]=Number.isFinite(edge)?smooth((edge-q.v)/feather):1;
-  if(!field[n]||protectedLabels[labelAt(x,y)]||frame.insideFace(q.u,q.v)||front[j+3]>=248)continue;
-  // Dark upper remnants can be labelled background at the model's coarse
-  // resolution. Their distance from detected hair must not limit cleanup.
-  const category=classes[n],darkDebris=category===0&&Math.max(pixels[j],pixels[j+1],pixels[j+2])<180&&Math.max(pixels[j],pixels[j+1],pixels[j+2])-Math.min(pixels[j],pixels[j+1],pixels[j+2])<70;
-  if(category===1||darkDebris)limit[n]=1;
+  // This is the processed HEAD layer, not the background or selected PNG.
+  // The crown geometry defines what is outside: coarse skin/clothes labels
+  // and pixel colour cannot preserve an old cap above the replacement hair.
+  if(!field[n]||frame.insideFace(q.u,q.v)||front[j+3]>=248||confirmedSkin(n))continue;
+  limit[n]=1;
  }
  return softHairEraser(pixels,w,h,field,Math.max(1,Math.min(4,frame.eye*.012)),limit);
 }
@@ -146,7 +162,7 @@ export function fitProcessedForehead(original,front,w,h,face,labels,lowerResult=
   const p=f.world(q.u,v),rgba=sourceAt(p.x,p.y);if(!rgba)continue;
   for(let k=0;k<4;k++)out[n*4+k]=Math.round(rgba[k]);warpedPixels++;
  }
- const finalUpper=eraseOriginalHairToTop(out,front,w,h,face,f,classes,protectedLabels,labelAt);
+ const finalUpper=eraseOriginalHairToTop(out,front,w,h,face,f,classes);
  for(let n=0;n<w*h;n++)if(finalUpper[n*4+3]<out[n*4+3]&&out[n*4+3]===original[n*4+3])erasedPixels++;
  out.set(finalUpper);
  return {pixels:out,erasedPixels,warpedPixels,unresolvedColumns};
