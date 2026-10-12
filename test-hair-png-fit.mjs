@@ -187,7 +187,7 @@ test('uniform object resize can enlarge a crown while side width still fits sepa
  const f=portrait(),t=portrait({width:150,height:280,eye:135}),m=fit(f,t),side=hairSideFit(f.face,f.w,f.h,t.face,t.w,t.h);
  close(Math.hypot(m.a,m.b),1.5);close(Math.hypot(m.c,m.d),1.5);assert.ok(side.sideScale<1);
  const refHalf=f.width*1.5/2;
- close(side.inner+(refHalf-side.inner)*side.sideScale,t.width/2);
+ close(refHalf*side.sideScale,t.width/2);
 });
 
 test('invalid side-fit data fails before changing source pixels',()=>{
@@ -195,4 +195,16 @@ test('invalid side-fit data fails before changing source pixels',()=>{
  assert.throws(()=>compressHairSidePixels(f.pixels,f.w,f.h,{...f.fit,sideScale:0}));
  assert.throws(()=>compressHairSidePixels(f.pixels,f.w,f.h,{...f.fit,sideScale:NaN}));
  assert.deepEqual(f.pixels,original);
+});
+
+test('both sides contract around the face center instead of separate side pivots',()=>{
+ const f=sideFixture(),out=compressHairSidePixels(f.pixels,f.w,f.h,f.fit);
+ close(f.fit.sideScale,44/64);
+ // Outside the transition band, centered compression moves source x=1/95
+ // inward to destination x=16/80. Independent side pivots miss these pixels.
+ for(const [dest,expectedSource] of [[16,1],[80,95]]){
+  const j=(60*f.w+dest)*4;assert.equal(out[j],expectedSource);assert.equal(out[j+1],60);assert.equal(out[j+3],255);
+  assert.ok(dest<48?out[j]<dest:out[j]>dest,'left moves right and right moves left');
+ }
+ const middle=(60*f.w+48)*4;assert.deepEqual(out.slice(middle,middle+4),f.pixels.slice(middle,middle+4));
 });
