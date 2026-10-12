@@ -2,7 +2,7 @@ import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
 import {eraseUpperHairExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {portraitLevelTransform} from './portrait-level.js';
-import {hairPreviewTransform,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
+import {hairPreviewTransform,hairSideFit,compressHairSidePixels,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1479,8 +1479,8 @@ async function prepareStudioHairOverlay(headSource,hairId){
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
  const ref=await reference;
- // Every style uses the same width/height fit, rotation and translation.
- // No mesh deformation during placement; long rear fitting follows separately.
+ // Resize the whole PNG uniformly; compress only the lower side sections.
+ // The upper crown retains its proportions; long rear fitting follows separately.
  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
  if(ref.calibration.layout==='long'){
   // Retain the existing long-hair offset without changing its geometry.
@@ -1493,6 +1493,8 @@ async function prepareStudioHairOverlay(headSource,hairId){
  x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
  x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
+ const sideFit=hairSideFit(ref.face,ref.w,ref.h,targetFace,W,H),placed=x.getImageData(0,0,W,H);
+ placed.data.set(compressHairSidePixels(placed.data,W,H,sideFit));x.putImageData(placed,0,0);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
  if(isSingleLayerHair(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId);
  let skin=fittedHairSkinCache.get(target);

@@ -11,14 +11,52 @@ function anchors(face,w,h){
 }
 export function hairPreviewTransform(from,fw,fh,to,tw,th){
  const f=anchors(from,fw,fh),t=anchors(to,tw,th);
- // Resize/compress the whole PNG along the face's width and height axes.
- // One affine transform preserves straight strands; no local mesh deformation.
- const sx=t.width/f.width,sy=t.height/f.height;
+ // Resize the entire PNG uniformly from eye spacing. The crown must keep
+ // its proportions; width compression is a separate operation on the sides.
+ const sx=t.eye/f.eye,sy=sx;
  const cf=Math.cos(f.angle),sf=Math.sin(f.angle),ct=Math.cos(t.angle),st=Math.sin(t.angle);
  const a=ct*sx*cf+st*sy*sf,b=st*sx*cf-ct*sy*sf;
  const c=ct*sx*sf-st*sy*cf,d=st*sx*sf+ct*sy*cf;
  return {a,b,c,d,e:t.x-a*f.x-c*f.y,f:t.y-b*f.x-d*f.y};
 }
+// Geometry for horizontal compression of the two side sections only.
+// The eye-to-eye axis defines horizontal even when the portrait is tilted.
+export function hairSideFit(from,fw,fh,to,tw,th){
+ const f=anchors(from,fw,fh),t=anchors(to,tw,th),scale=t.eye/f.eye;
+ const referenceHalf=f.width*scale/2,targetHalf=t.width/2,inner=Math.min(referenceHalf,targetHalf)*.4;
+ const sideScale=Math.min(1,(targetHalf-inner)/(referenceHalf-inner));
+ if(![127,356].every(i=>to?.[i]&&[to[i].x,to[i].y].every(Number.isFinite)))throw Error('ไม่พบจุดขมับสำหรับปรับผมด้านข้าง');
+ const cos=Math.cos(t.angle),sin=Math.sin(t.angle);
+ const localY=i=>-(to[i].x*tw-t.x)*sin+(to[i].y*th-t.y)*cos;
+ return {x:t.x,y:t.y,cos,sin,inner,sideScale,start:Math.min(localY(127),localY(356)),transition:Math.max(2,t.eye*.3)};
+}
+
+export function compressHairSidePixels(pixels,w,h,fit){
+ if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==w*h*4)throw Error('ภาพ PNG ไม่พร้อมสำหรับบีบด้านข้าง');
+ if(!fit||!['x','y','cos','sin','inner','sideScale','start','transition'].every(k=>Number.isFinite(fit[k]))||fit.sideScale<=0||fit.sideScale>1||fit.inner<0||fit.transition<=0)throw Error('ตำแหน่งบีบผมด้านข้างไม่ถูกต้อง');
+ const out=new Uint8ClampedArray(pixels);if(fit.sideScale===1)return out;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const dx=x-fit.x,dy=y-fit.y,u=dx*fit.cos+dy*fit.sin,v=-dx*fit.sin+dy*fit.cos;
+  // The complete crown and central hair stay pixel-identical after placement.
+  if(v<=fit.start||Math.abs(u)<=fit.inner)continue;
+  const t=clamp((v-fit.start)/fit.transition,0,1),blend=t*t*(3-2*t),scale=1-(1-fit.sideScale)*blend;
+  if(scale===1)continue;
+  // Inverse sampling moves only the horizontal coordinate along the face axis.
+  // No vertical squeezing, local upward push, mesh fold or repeated PNG resize.
+  const sourceU=Math.sign(u)*(fit.inner+(Math.abs(u)-fit.inner)/scale);
+  const sx=fit.x+sourceU*fit.cos-v*fit.sin,sy=fit.y+sourceU*fit.sin+v*fit.cos;
+  const px=Math.floor(sx),py=Math.floor(sy),fx=sx-px,fy=sy-py;
+  let alpha=0,red=0,green=0,blue=0;
+  for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+   const nx=px+xx,ny=py+yy;if(nx<0||nx>=w||ny<0||ny>=h)continue;
+   const j=(ny*w+nx)*4,part=pixels[j+3]*(xx?fx:1-fx)*(yy?fy:1-fy);
+   alpha+=part;red+=pixels[j]*part;green+=pixels[j+1]*part;blue+=pixels[j+2]*part;
+  }
+  const j=(y*w+x)*4;out[j]=alpha?Math.round(red/alpha):0;out[j+1]=alpha?Math.round(green/alpha):0;out[j+2]=alpha?Math.round(blue/alpha):0;out[j+3]=Math.round(alpha);
+ }
+ return out;
+}
+
 const apply=(m,p)=>({x:m.a*p.x+m.c*p.y+m.e,y:m.b*p.x+m.d*p.y+m.f});
 const area=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
 export function createHairPreviewMesh(from,fw,fh,to,tw,th,bounds,{cols=18,rows=18,sourceToReference=null}={}){

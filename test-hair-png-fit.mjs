@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {hairPreviewTransform,createTwoLayerHairPreview} from './src/hair-preview-fit.js';
+import {hairPreviewTransform,hairSideFit,compressHairSidePixels,createTwoLayerHairPreview} from './src/hair-preview-fit.js';
 import {eraseUpperHairExcess,eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
 import {isSingleLayerHair} from './src/short-female-hair.js';
 import {HAIR_TEMPLATE_ANCHORS} from './src/hair-template-anchors.js';
@@ -19,10 +19,10 @@ function portrait({w=400,h=500,cx=200,cy=220,width=140,height=200,eye=90,angle=0
 const fit=(f,t)=>hairPreviewTransform(f.face,f.w,f.h,t.face,t.w,t.h);
 const sourcePoint=(f,id)=>({x:f.face[id].x*f.w,y:f.face[id].y*f.h});
 
-for(const [name,width,height] of [['enlarge',210,300],['shrink',105,150],['compress width independently',98,240],['compress height independently',210,140]])test(`PNG fit can ${name} to the measured face`,()=>{
- const f=portrait(),t=portrait({width,height}),m=fit(f,t);
- close(m.a,width/f.width);close(m.d,height/f.height);close(m.b,0);close(m.c,0);
- for(const id of [234,454,10,152]){
+for(const [name,width,height,eye] of [['enlarge',210,300,135],['shrink',105,150,67.5],['keep the crown for a narrow face',98,240,90],['keep the crown for a short face',210,140,90]])test(`the whole PNG can ${name} without unequal-axis squeezing`,()=>{
+ const f=portrait(),t=portrait({width,height,eye}),m=fit(f,t);
+ close(m.a,eye/f.eye);close(m.d,eye/f.eye);close(m.b,0);close(m.c,0);
+ for(const id of [33,263]){
   const q=apply(m,sourcePoint(f,id)),expected=sourcePoint(t,id);close(q.x,expected.x);close(q.y,expected.y);
  }
 });
@@ -30,12 +30,12 @@ for(const [name,width,height] of [['enlarge',210,300],['shrink',105,150],['compr
 test('the eye midpoint stays attached while the target face moves and tilts',()=>{
  const f=portrait({angle:-.2}),t=portrait({w:600,h:800,cx:330,cy:350,width:180,height:250,angle:.4}),m=fit(f,t);
  const center=apply(m,{x:f.cx,y:f.cy});close(center.x,t.cx);close(center.y,t.cy);
- for(const id of [234,454,10,152]){
+ for(const id of [33,263]){
   const q=apply(m,sourcePoint(f,id)),expected=sourcePoint(t,id);close(q.x,expected.x);close(q.y,expected.y);
  }
 });
 
-test('unequal width/height scales still keep every straight PNG strand straight',()=>{
+test('different face proportions retain straight strands and equal global width/height scale',()=>{
  const f=portrait({angle:.25}),t=portrait({cx:170,cy:200,width:100,height:280,angle:-.35}),m=fit(f,t);
  const a={x:80,y:35},b={x:260,y:410},pa=apply(m,a),pb=apply(m,b);
  for(const fraction of [.1,.25,.5,.75,.9]){
@@ -43,6 +43,7 @@ test('unequal width/height scales still keep every straight PNG strand straight'
   close(p.x,pa.x+(pb.x-pa.x)*fraction);close(p.y,pa.y+(pb.y-pa.y)*fraction);
  }
  assert.ok(m.a*m.d-m.b*m.c>0,'no mirror or folded PNG');
+ close(Math.hypot(m.a,m.b),Math.hypot(m.c,m.d));close(m.a*m.c+m.b*m.d,0);
 });
 
 test('changing local ear/temple landmarks does not bend the fitted PNG',()=>{
@@ -111,7 +112,7 @@ test('the live picker handles all 41 styles with one affine placement and no ret
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28}),target=new Surface(w,h);
  target.data.fill(255);
  const surfaces=[],layerOptions=[];let closed=0;
- const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseUpperHairExcess,eraseDetachedUpperHair,
+ const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,hairSideFit,compressHairSidePixels,eraseUpperHairExcess,eraseDetachedUpperHair,
   getLandmarker:async()=>({detect:()=>({faceLandmarks:[f.face]})}),
   getPersonSegmenter:async()=>({segment:(image,callback)=>callback({categoryMask:{width:w,height:h,getAsUint8Array:()=>new Uint8Array(w*h).fill(1),close:()=>closed++}})}),
   semanticClassMask:async()=>new Surface(w,h),
@@ -133,4 +134,65 @@ test('the live picker handles all 41 styles with one affine placement and no ret
  }
  assert.equal(closed,41,'the detection buffers are always released');
  assert.ok(layerOptions.length>0&&layerOptions.every(option=>option.fitLongBack&&option.preserveShape===false),'only long hair takes the restored rear-fitting path');
+});
+
+function sideFixture(angle=0,width=44){
+ const w=96,h=100,reference=portrait({w,h,cx:48,cy:40,width:64,height:60,eye:28,angle}),target=portrait({w,h,cx:48,cy:40,width,height:60,eye:28,angle});
+ const pixels=new Uint8ClampedArray(w*h*4);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++)pixels.set([x,y,77,255],(y*w+x)*4);
+ const fit=hairSideFit(reference.face,w,h,target.face,w,h);
+ return {w,h,pixels,fit,reference,target};
+}
+
+test('side compression keeps the complete crown and middle pixel-identical',()=>{
+ const f=sideFixture(),original=new Uint8ClampedArray(f.pixels),out=compressHairSidePixels(f.pixels,f.w,f.h,f.fit);
+ let changed=0;
+ for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
+  const j=(y*f.w+x)*4,locked=y-f.fit.y<=f.fit.start||Math.abs(x-f.fit.x)<=f.fit.inner;
+  if(locked)assert.deepEqual(out.slice(j,j+4),original.slice(j,j+4));
+  else if(out[j]!==original[j]||out[j+3]!==original[j+3])changed++;
+ }
+ assert.ok(changed>0,'only the side sections need resizing');assert.deepEqual(f.pixels,original);
+});
+
+test('both side edges meet the measured face width without vertical squeezing',()=>{
+ const f=sideFixture(),out=compressHairSidePixels(f.pixels,f.w,f.h,f.fit);
+ // Reference cheek edges x=16/80 fit target edges x=26/70 at the same height.
+ for(const [dest,source] of [[26,16],[70,80]]){
+  const j=(60*f.w+dest)*4;assert.equal(out[j],source);assert.equal(out[j+1],60);assert.equal(out[j+3],255);
+ }
+ for(let y=50;y<f.h;y++)for(let x=0;x<f.w;x++){
+  const j=(y*f.w+x)*4;if(out[j+3])assert.equal(out[j+1],y,'the side squeeze never raises or shortens hair');
+ }
+});
+
+for(const angle of [-.4,.4])test(`side-only compression follows the tilted head axis ${angle}`,()=>{
+ const f=sideFixture(angle),out=compressHairSidePixels(f.pixels,f.w,f.h,f.fit);let changed=0;
+ for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
+  const j=(y*f.w+x)*4,dx=x-f.fit.x,dy=y-f.fit.y,u=dx*f.fit.cos+dy*f.fit.sin,v=-dx*f.fit.sin+dy*f.fit.cos;
+  if(v<=f.fit.start||Math.abs(u)<=f.fit.inner)assert.deepEqual(out.slice(j,j+4),f.pixels.slice(j,j+4),'the rotated crown remains untouched');
+  else if(out[j+3]&&out[j]!==f.pixels[j]){
+   changed++;const sourceV=-(out[j]-f.fit.x)*f.fit.sin+(out[j+1]-f.fit.y)*f.fit.cos;
+   assert.ok(Math.abs(sourceV-v)<1,'only the horizontal face-axis coordinate may move');
+  }
+ }
+ assert.ok(changed>0);
+});
+
+test('a wider face never expands or squeezes the top through the side operation',()=>{
+ const f=sideFixture(0,80);assert.equal(f.fit.sideScale,1);assert.deepEqual(compressHairSidePixels(f.pixels,f.w,f.h,f.fit),f.pixels);
+});
+
+test('uniform object resize can enlarge a crown while side width still fits separately',()=>{
+ const f=portrait(),t=portrait({width:150,height:280,eye:135}),m=fit(f,t),side=hairSideFit(f.face,f.w,f.h,t.face,t.w,t.h);
+ close(Math.hypot(m.a,m.b),1.5);close(Math.hypot(m.c,m.d),1.5);assert.ok(side.sideScale<1);
+ const refHalf=f.width*1.5/2;
+ close(side.inner+(refHalf-side.inner)*side.sideScale,t.width/2);
+});
+
+test('invalid side-fit data fails before changing source pixels',()=>{
+ const f=sideFixture(),original=new Uint8ClampedArray(f.pixels);
+ assert.throws(()=>compressHairSidePixels(f.pixels,f.w,f.h,{...f.fit,sideScale:0}));
+ assert.throws(()=>compressHairSidePixels(f.pixels,f.w,f.h,{...f.fit,sideScale:NaN}));
+ assert.deepEqual(f.pixels,original);
 });
