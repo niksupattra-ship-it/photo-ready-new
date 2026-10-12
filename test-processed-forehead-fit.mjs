@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {eraseDetachedUpperHair,eraseHeadExteriorExcess} from './src/upper-hair-eraser.js';
 import {featherLongCrown} from './src/long-upper-hair-eraser.js';
+import {shortHairInterior} from './src/short-hair-skin-fill.js';
 import {fitProcessedForehead} from './src/processed-forehead-fit.js';
 
 const browIds=[70,63,105,66,107,55,65,52,53,46,300,293,334,296,336,285,295,282,283,276];
@@ -100,7 +101,7 @@ test('the live long-hair path edits only the processed head using the FRONT cont
  const f=fixture(),head=new Surface(f.w,f.h,f.original),front=new Surface(f.w,f.h,f.front),back=new Surface(f.w,f.h,f.original),source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
  const start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);let calls=0,frontSnapshot,backSnapshot;
  const context={Uint8ClampedArray,studioHairLabels:async()=>f.labels,isSingleLayerHair:()=>false,canvasFor:(w,h)=>new Surface(w,h),eraseDetachedUpperHair,eraseHeadExteriorExcess,featherLongCrown,
-  shortHairInterior:()=>{throw Error('long hair cannot use short geometry')},extendShortHairSkin:()=>{throw Error('long hair cannot paste skin')},
+  shortHairInterior:()=>{throw Error('long hair cannot use short geometry')},
   fitProcessedForehead:(original,guide,...args)=>{calls++;assert.deepEqual([...original],[...f.original]);assert.deepEqual(guide,front.data);frontSnapshot=new Uint8ClampedArray(front.data);backSnapshot=new Uint8ClampedArray(back.data);return fitProcessedForehead(original,guide,...args)}
  };
  const run=vm.runInNewContext(source.slice(start,end)+'\nfinishStudioHairPreview',context),result=await run(head,front,back,f.face,'hair-01'),excess=f.at(0,-82),gap=f.at(0,-39);
@@ -108,4 +109,20 @@ test('the live long-hair path edits only the processed head using the FRONT cont
  assert.equal(result.cleanedHeadSource.data[excess+3],0);assert.ok(result.cleanedHeadSource.data[gap]>150);assert.equal(result.cleanedHeadSource.data[gap+3],255);
  assert.deepEqual(result.source.data,frontSnapshot);assert.deepEqual(result.backSource.data,backSnapshot);assert.deepEqual(head.data,f.original);
  for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17],[0,30]]){const j=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(j,j+4),f.original.slice(j,j+4))}
+});
+
+test('all 41 hairstyle IDs use the same original-forehead warp without a skin-fill callback',async()=>{
+ const {HAIRSTYLE_RULES}=await import('./hairstyle-rules.js'),{isSingleLayerHair}=await import('./src/short-female-hair.js');
+ const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8'),start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);let calls=0;
+ for(const id of Object.keys(HAIRSTYLE_RULES)){
+  const f=fixture(),head=new Surface(f.w,f.h,f.original),front=new Surface(f.w,f.h,f.front),back=isSingleLayerHair(id)?null:new Surface(f.w,f.h,f.front);
+  const context={Uint8ClampedArray,studioHairLabels:async()=>f.labels,isSingleLayerHair,canvasFor:(w,h)=>new Surface(w,h),eraseDetachedUpperHair,eraseHeadExteriorExcess,featherLongCrown,shortHairInterior,
+   fitProcessedForehead:(original,...args)=>{calls++;assert.deepEqual(original,f.original);return fitProcessedForehead(original,...args)},
+   extendShortHairSkin:()=>{throw Error('copying/pasting skin is forbidden for every hairstyle')}
+  };
+  const run=vm.runInNewContext(source.slice(start,end)+'\nfinishStudioHairPreview',context),result=await run(head,front,back,f.face,id),j=f.at(0,-39);
+  assert.ok(result.cleanedHeadSource.data[j]>150,id);assert.equal(result.cleanedHeadSource.data[j+3],255,id);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id),id);
+  for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17]]){const k=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(k,k+4),f.original.slice(k,k+4),id)}
+ }
+ assert.equal(calls,41);
 });

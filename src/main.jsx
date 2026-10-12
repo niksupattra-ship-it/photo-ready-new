@@ -1,7 +1,8 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
-import {shortHairInterior,extendShortHairSkin} from './short-hair-skin-fill.js';
+import {shortHairInterior} from './short-hair-skin-fill.js';
+import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
 import {fitProcessedForehead} from './processed-forehead-fit.js';
 import {portraitLevelTransform} from './portrait-level.js';
@@ -1460,20 +1461,16 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  // pixel eraser. Skin, ears and selected hair are protected, without a mask layer.
  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
  const headPixels=cc.getImageData(0,0,W,H),hairPixels=ctx.getImageData(0,0,W,H);
- const originalHead=isSingleLayerHair(hairId)?null:new Uint8ClampedArray(headPixels.data);
+ const originalHead=new Uint8ClampedArray(headPixels.data);
  const single=isSingleLayerHair(hairId),interior=single?shortHairInterior(hairPixels.data,W,H,face):null;
  headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels,{softEdges:single,...(single?{interior}:{})}));
- // Short styles retain all original alpha inside the head outline. Cover
- // small inner joins with nearby skin under the PNG, never erase a hole there.
- const skinFill=single?extendShortHairSkin(headPixels.data,hairPixels.data,W,H,face,labels,interior):null;
- if(skinFill)headPixels.data.set(skinFill.pixels);
- // For long hair, edit the processed head against the FRONT layer alone.
- // Move its existing forehead skin with a feature-locked inverse warp.
- const processedFit=single?null:fitProcessedForehead(originalHead,front.getContext('2d').getImageData(0,0,W,H).data,W,H,face,labels,headPixels.data);
+ // Every hairstyle moves the same processed forehead with a continuous,
+ // feature-locked warp. No style may use donor skin tiles or a painted patch.
+ const processedFit=fitProcessedForehead(originalHead,front.getContext('2d').getImageData(0,0,W,H).data,W,H,face,labels,headPixels.data);
  if(processedFit)headPixels.data.set(processedFit.pixels);
  cc.putImageData(headPixels,0,0);
  const result={source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
- if(skinFill?.remaining>0||processedFit?.unresolvedColumns>0)result.hairGapWarning=true;
+ if(processedFit.unresolvedColumns>0)result.hairGapWarning=true;
  return result;
 }
 async function prepareStudioHairOverlay(headSource,hairId){
@@ -1493,29 +1490,28 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   // Two-layer styles use the original full PNG for the rear overlap. Do not
-   // carve template-skin openings into both copies before they are stacked.
-   let hairGuide=null;
+   const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
+   if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
    if(isSingleLayerHair(hairId)){
-    const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
-    if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
     const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
     pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference,{softEdges:true}));cx.putImageData(pixels,0,0);
-    if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
-    hairGuide=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
-    if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
-   }else{
-    // Select donors on the actual native PNG: the small portrait preview can
-    // have a different hairline, ear opening or even different side strands.
-    const guideInput=canvasFor(c.width,c.height),gc=guideInput.getContext('2d');
-    const [a,b,d,e,x,y]=calibration.sourceToReference,det=a*e-b*d;
-    // Keep the reference face as context for segmentation, but replace its
-    // hair with the native cutout in the exact calibrated coordinate frame.
-    gc.setTransform(e/det,-b/det,-d/det,a/det,(d*y-e*x)/det,(b*x-a*y)/det);
-    gc.drawImage(preview,0,0);gc.setTransform(1,0,0,1,0,0);gc.drawImage(c,0,0);
-    hairGuide=await semanticClassMask(guideInput,c.width,c.height,[1]);
-    if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
    }
+   // Detect material on the actual PNG with the reference face as context.
+   // This context canvas is never used as a hair layer or copied to the head.
+   const guideInput=canvasFor(c.width,c.height),gc=guideInput.getContext('2d');
+   const [a,b,d,e,x,y]=calibration.sourceToReference,det=a*e-b*d;
+   gc.setTransform(e/det,-b/det,-d/det,a/det,(d*y-e*x)/det,(b*x-a*y)/det);
+   gc.drawImage(preview,0,0);gc.setTransform(1,0,0,1,0,0);gc.drawImage(c,0,0);
+   const nativeHair=await semanticClassMask(guideInput,c.width,c.height,[1]);
+   const nativeSkin=await semanticClassMask(guideInput,c.width,c.height,[2,3]);
+   if(!nativeHair||!nativeSkin)throw Error('ตรวจสีผิวติดขอบ PNG ไม่สำเร็จ');
+   const reference=canvasFor(preview.naturalWidth,preview.naturalHeight);reference.getContext('2d').drawImage(preview,0,0);
+   const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
+   const foreheadClean=cleanTemplateForehead(pixels.data,c.width,c.height,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,referenceSkin.getContext('2d').getImageData(0,0,referenceSkin.width,referenceSkin.height).data,nativeSkin.getContext('2d').getImageData(0,0,c.width,c.height).data,nativeHair.getContext('2d').getImageData(0,0,c.width,c.height).data);
+   pixels.data.set(foreheadClean.pixels);cx.putImageData(pixels,0,0);
+   if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
+   const hairGuide=isSingleLayerHair(hairId)?await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]):nativeHair;
+   if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
    return {cutout:c,face,bounds,calibration,hairGuide,hairGuideNative:!isSingleLayerHair(hairId),w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
