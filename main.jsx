@@ -1,7 +1,8 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
-import {isSingleLayerHair,originalHairOuterEraser} from './short-female-hair.js';
+import {isSingleLayerHair} from './short-female-hair.js';
+import {eraseUpperHairExcess} from './upper-hair-eraser.js';
 import {portraitLevelTransform} from './portrait-level.js';
-import {hairPreviewTransform,createHairPreviewMesh,renderHairPreviewMesh,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
+import {hairPreviewTransform,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1420,40 +1421,31 @@ function opaqueBounds(canvas){
 // Preview only: no provider request, no wallet/credit mutation, no face compositing.
 const fittedHairReferenceCache=new Map();
 const fittedHairSkinCache=new WeakMap();
-const fittedOriginalHairMaskCache=new WeakMap();
-async function finishStudioHairPreview(target,front,back,face,hairId){
- const W=front.width,H=front.height;
- let masks=fittedOriginalHairMaskCache.get(target);
- if(!masks){
-  masks=(async()=>{
-   const hair=await semanticClassMask(target,W,H,[1]);
-   const protectedParts=await semanticClassMask(target,W,H,[2,3,4]);
-   if(!hair||!protectedParts)throw Error('ตรวจขอบผมไม่สำเร็จ · เก็บภาพเดิมไว้');
-   // Guard the low-resolution segmentation boundary around face/ear/body.
-   const guard=canvasFor(W,H),ctx=guard.getContext('2d'),margin=Math.max(2,Math.max(W,H)/256*1.5);
-   ctx.drawImage(protectedParts,0,0);
-   for(let i=0;i<8;i++){const angle=i*Math.PI/4;ctx.drawImage(protectedParts,Math.cos(angle)*margin,Math.sin(angle)*margin)}
-   return {hair,skin:protectedParts,protectedParts:guard};
+const fittedOriginalHairLabelsCache=new WeakMap();
+async function studioHairLabels(target){
+ let pending=fittedOriginalHairLabelsCache.get(target);
+ if(!pending){
+  pending=(async()=>{
+   const segmenter=await getPersonSegmenter();
+   const result=await new Promise((ok,bad)=>{try{segmenter.segment(target,r=>ok(r))}catch(e){bad(e)}});
+   const labels=result?.categoryMask;
+   if(!labels)throw Error('ตรวจขอบผมไม่สำเร็จ · เก็บภาพเดิมไว้');
+   try{return {data:new Uint8Array(labels.getAsUint8Array()),width:labels.width,height:labels.height}}
+   finally{labels.close?.()}
   })();
-  if(target instanceof HTMLImageElement){fittedOriginalHairMaskCache.set(target,masks);masks.catch(()=>fittedOriginalHairMaskCache.delete(target))}
+  if(target instanceof HTMLImageElement){fittedOriginalHairLabelsCache.set(target,pending);pending.catch(()=>fittedOriginalHairLabelsCache.delete(target))}
  }
- const {hair,skin,protectedParts}=await masks;
+ return pending;
+}
+async function finishStudioHairPreview(target,front,back,face,hairId){
+ const W=front.width,H=front.height,labels=await studioHairLabels(target);
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
- // Never clip the portrait with an automatic full-head mask. Erase only
- // classified original hair outside the overlay, preserving protected skin.
- const eraser=originalHairOuterEraser(hair,coverage,protectedParts,W,H,canvasFor);
- // Independent geometric protection: neck/shoulders remain untouched even
- // if the segmentation model mistakenly labels them as hair.
- const dx=(face[263].x-face[33].x)*W,dy=(face[263].y-face[33].y)*H;
- const chinX=face[152].x*W,chinY=face[152].y*H;
- const ec=eraser.getContext('2d'),pixels=ec.getImageData(0,0,W,H);
- for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(-(x-chinX)*dy+(y-chinY)*dx>=0)pixels.data[(y*W+x)*4+3]=0;
- ec.putImageData(pixels,0,0);
- // Bake the erasure directly into PNG alpha. No masking layer is retained.
+ // Apply a soft upper-edge eraser directly to the original portrait pixels.
+ // No full-head mask, clipping layer, side erasure or retained eraser mask.
  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
- const headPixels=cc.getImageData(0,0,W,H);
- for(let i=0;i<W*H;i++)headPixels.data[i*4+3]=Math.round(headPixels.data[i*4+3]*(1-pixels.data[i*4+3]/255));
+ const headPixels=cc.getImageData(0,0,W,H),hairPixels=ctx.getImageData(0,0,W,H);
+ headPixels.data.set(eraseUpperHairExcess(headPixels.data,hairPixels.data,W,H,face,labels));
  cc.putImageData(headPixels,0,0);
  return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
 }
@@ -1481,41 +1473,28 @@ async function prepareStudioHairOverlay(headSource,hairId){
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
  const ref=await reference;
- if(isSingleLayerHair(hairId)){
-  // Place the native PNG once using measured face proportions and eye angle.
-  // No mesh push, skin segmentation, erasure, base mask or rear layer.
-  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
-  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
-  const placed=canvasFor(W,H),ctx=placed.getContext('2d');
-  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  ctx.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
-  ctx.drawImage(ref.cutout,0,0);ctx.setTransform(1,0,0,1,0,0);
-  if(!opaqueBounds(placed))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
-  return finishStudioHairPreview(target,placed,null,targetFace,hairId);
- }
- const out=canvasFor(W,H),x=out.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+ // Every style uses the same width/height fit, rotation and translation.
+ // Keep the PNG intact: no mesh deformation or local ear/neck bending.
+ const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
  if(ref.calibration.layout==='long'){
-  // Preserve the long PNG's style: place once, then erase front/warp inner rear only.
-  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
-  // Lower both layers together by 8% of the outer-eye distance, along the face axis.
-  // Translation only: retain the PNG's scale, shape and rotation.
+  // Retain the existing long-hair offset without changing its geometry.
   const eyeDx=(targetFace[263].x-targetFace[33].x)*W;
   const eyeDy=(targetFace[263].y-targetFace[33].y)*H;
   fit.e-=eyeDy*.08;fit.f+=eyeDx*.08;
-  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
-  x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
-  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
- }else{
-  const mesh=createHairPreviewMesh(ref.face,ref.w,ref.h,targetFace,W,H,ref.bounds,{sourceToReference:ref.calibration.sourceToReference,earFit:false});
-  renderHairPreviewMesh(x,ref.cutout,ref.bounds,mesh);
  }
+ const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
+ const out=canvasFor(W,H),x=out.getContext('2d');
+ x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+ x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
+ x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
+ if(isSingleLayerHair(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId);
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars,fitLongBack:ref.calibration.layout==='long',longStyle:hairId});
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars,fitLongBack:ref.calibration.layout==='long',longStyle:hairId,preserveShape:true});
  return finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
 }
 const localHairAnchorCache=new Map();
@@ -3199,7 +3178,7 @@ function App(){
      const original=await loadImage(url),fitted=await prepareStudioHairOverlay(url,id),overlay=await loadImage(fitted.source);
      const c=canvasFor(original.naturalWidth,original.naturalHeight),x=c.getContext('2d');
      if(fitted.backSource)x.drawImage(await loadImage(fitted.backSource),0,0);
-     x.drawImage(original,0,0);x.drawImage(overlay,0,0);nextMaster=await canvasPng(c);
+     x.drawImage(await loadImage(fitted.cleanedHeadSource),0,0);x.drawImage(overlay,0,0);nextMaster=await canvasPng(c);
     }finally{URL.revokeObjectURL(url)}
    }
    const out=await renderWithRibbon(nextMaster,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
@@ -3669,3 +3648,4 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+

@@ -1,17 +1,19 @@
 // Local fitting changes hair coordinates only; it never changes face pixels.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function anchors(face,w,h){
- if(!face?.[454])throw Error('ไม่พบจุดใบหน้าครบสำหรับวางผม');
+ if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0||[33,263,234,454,10,152].some(i=>!face?.[i]||![face[i].x,face[i].y].every(Number.isFinite)))throw Error('ไม่พบจุดใบหน้าครบสำหรับวางผม');
  const p=i=>({x:face[i].x*w,y:face[i].y*h}),left=p(33),right=p(263),l=p(234),r=p(454);
  const angle=Math.atan2(right.y-left.y,right.x-left.x),eye=Math.hypot(right.x-left.x,right.y-left.y);
- const width=Math.abs((r.x-l.x)*Math.cos(angle)+(r.y-l.y)*Math.sin(angle));
- if(![angle,eye,width].every(Number.isFinite)||eye<5||width<eye)throw Error('ตำแหน่งใบหน้าไม่ชัดพอสำหรับวางผม');
- return {x:(left.x+right.x)/2,y:(left.y+right.y)/2,angle,eye,width};
+ const width=Math.abs((r.x-l.x)*Math.cos(angle)+(r.y-l.y)*Math.sin(angle)),forehead=p(10),chin=p(152);
+ const height=-(chin.x-forehead.x)*Math.sin(angle)+(chin.y-forehead.y)*Math.cos(angle);
+ if(![angle,eye,width,height].every(Number.isFinite)||eye<5||width<eye||height<eye)throw Error('ตำแหน่งใบหน้าไม่ชัดพอสำหรับวางผม');
+ return {x:(left.x+right.x)/2,y:(left.y+right.y)/2,angle,eye,width,height};
 }
 export function hairPreviewTransform(from,fw,fh,to,tw,th){
- const f=anchors(from,fw,fh),t=anchors(to,tw,th),eyeScale=t.eye/f.eye;
- // Adapt temple width modestly, retain the reference crown/length proportions.
- const sx=clamp(t.width/f.width,eyeScale*.88,eyeScale*1.12),sy=eyeScale;
+ const f=anchors(from,fw,fh),t=anchors(to,tw,th);
+ // Resize/compress the whole PNG along the face's width and height axes.
+ // One affine transform preserves straight strands; no local mesh deformation.
+ const sx=t.width/f.width,sy=t.height/f.height;
  const cf=Math.cos(f.angle),sf=Math.sin(f.angle),ct=Math.cos(t.angle),st=Math.sin(t.angle);
  const a=ct*sx*cf+st*sy*sf,b=st*sx*cf-ct*sy*sf;
  const c=ct*sx*sf-st*sy*cf,d=st*sx*sf+ct*sy*cf;
@@ -167,7 +169,7 @@ export function fitMaleHairEarJoin(placed,skin,face,w,h,makeCanvas){
 }
 // Bake the soft eraser into the front PNG and warp a separate lower-hair copy
 // behind the unchanged portrait. No automatic layer/base masks are returned.
-export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,fitLongBack=false,longStyle=null}={}){
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,fitLongBack=false,longStyle=null,preserveShape=false}={}){
  const reference19=fitLongBack&&longStyle==='hair-19';
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  const local=p=>({x:(p.x-a.x)*cos+(p.y-a.y)*sin,y:-(p.x-a.x)*sin+(p.y-a.y)*cos});
@@ -240,6 +242,13 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   }else fd.data[j+3]=Math.round(fd.data[j+3]*(1-ed[j+3]/255*gate));
  }
  fx.putImageData(fd,0,0);
+ if(preserveShape){
+  // Only remove front alpha where visible skin overlaps. The rear keeps the
+  // same already-fitted PNG coordinates, without ear/neck lifts or pixel warps.
+  const back=singleLayer?null:makeCanvas(w,h);
+  if(back)back.getContext('2d').drawImage(placed,0,0);
+  return {front,back,gapAdjusted:false};
+ }
  // Long rear hair uses the complete native PNG behind the portrait.
  // Never crop it into an ear-to-neck strip: that produces a horizontal seam.
  // Other styles retain their existing lower-section copy.
@@ -452,3 +461,4 @@ export function syncHairPairTransforms(layers,pending){
  }
  return layers.map(l=>patches.has(l.id)?{...l,...patches.get(l.id)}:l);
 }
+
