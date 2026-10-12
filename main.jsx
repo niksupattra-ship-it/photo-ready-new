@@ -6,6 +6,7 @@ import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
 import {fitProcessedForehead,eraseProcessedUpperHair} from './processed-forehead-fit.js';
+import {createMaleSideburnGuide,fitMaleSideburns} from './male-sideburn-fit.js';
 import {pushLongHairRear} from './long-hair-two-layer-fit.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
@@ -1447,9 +1448,15 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
  const W=front.width,H=front.height,labels=await studioHairLabels(target);
  if(/^manhair-\d{2}$/.test(hairId)){
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
-  const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H).data;
-  pixels.data.set(eraseProcessedUpperHair(pixels.data,hair,W,H,face,labels));cc.putImageData(pixels,0,0);
-  return {source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
+  const pixels=cc.getImageData(0,0,W,H),fx=front.getContext('2d'),hair=fx.getImageData(0,0,W,H);let sideburnReport=null;
+  if(contourContext?.maleSideburnFit){
+   const fit=fitMaleSideburns(hair.data,pixels.data,W,H,face,labels,contourContext.maleGuide,contourContext.matrix);
+   sideburnReport=fit.report;if(fit.report.adjusted){hair.data.set(fit.pixels);fx.putImageData(hair,0,0)}
+  }
+  pixels.data.set(eraseProcessedUpperHair(pixels.data,hair.data,W,H,face,labels));cc.putImageData(pixels,0,0);
+  const result={source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
+  if(sideburnReport){result.maleSideburnReport=sideburnReport;if(sideburnReport.unavailable)result.maleSideburnWarning=true}
+  return result;
  }
  // Floating PNG fragments must not survive or become the measured crown edge.
  for(const layer of [front,back]){
@@ -1505,7 +1512,11 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   if(/^manhair-\d{2}$/.test(hairId))return {cutout:c,face,bounds,calibration,hairGuide:null,hairGuideNative:false,w:preview.naturalWidth,h:preview.naturalHeight};
+   if(/^manhair-\d{2}$/.test(hairId)){
+    const reference=canvasFor(preview.naturalWidth,preview.naturalHeight);reference.getContext('2d').drawImage(preview,0,0);
+    const maleSideburnGuide=createMaleSideburnGuide(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,reference.width,reference.height,face,calibration.sourceToReference);
+    return {cutout:c,face,bounds,calibration,hairGuide:null,hairGuideNative:false,maleSideburnGuide,w:preview.naturalWidth,h:preview.naturalHeight};
+   }
    const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
    if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
    if(isSingleLayerHair(hairId)){
@@ -1543,7 +1554,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
  x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
- if(/^manhair-\d{2}$/.test(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId);
+ if(/^manhair-\d{2}$/.test(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId,{maleSideburnFit:true,maleGuide:ref.maleSideburnGuide,matrix:fit});
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
@@ -2359,6 +2370,12 @@ const MALE_HAIR_OPTIONS=[
  {id:'manhair-21',name:'ทรงใหม่ 09',src:'/assets/hairstyle-previews/manhair-21.png'},
  {id:'manhair-22',name:'ทรงใหม่ 10',src:'/assets/hairstyle-previews/manhair-22.png'},
  {id:'manhair-23',name:'ทรงผม 20',src:'/assets/hairstyle-previews/manhair-23.png'},
+ {id:'manhair-24',name:'ทรงผม 21',src:'/assets/hairstyle-previews/manhair-24.png'},
+ {id:'manhair-25',name:'ทรงผม 22',src:'/assets/hairstyle-previews/manhair-25.png'},
+ {id:'manhair-26',name:'ทรงผม 23',src:'/assets/hairstyle-previews/manhair-26.png'},
+ {id:'manhair-27',name:'ทรงผม 24',src:'/assets/hairstyle-previews/manhair-27.png'},
+ {id:'manhair-28',name:'ทรงผม 25',src:'/assets/hairstyle-previews/manhair-28.png'},
+ {id:'manhair-29',name:'ทรงผม 26',src:'/assets/hairstyle-previews/manhair-29.png'},
 ];
 const HAIR_OPTIONS=[
  {id:'hair-26',name:'ทรงผม 26',src:'/assets/hairstyle-previews/hair-26.png'},

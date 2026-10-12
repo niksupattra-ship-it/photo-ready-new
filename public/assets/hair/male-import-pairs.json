@@ -108,5 +108,65 @@
     "patternPath": "/assets/hair/manhair-23.png",
     "previewSourceSha256": "7d5184e096356c5249617b97f71e6114ed7af7e920230649bc871f858d949963",
     "patternSha256": "76e3af02d01a4501204555723afe8c269cc83c7d7ea384cfb3fe86f31a4b82e0"
+  },
+  {
+    "id": "manhair-24",
+    "sourceNumber": 21,
+    "previewSource": "21.jpg",
+    "patternSource": "21.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-24.png",
+    "patternPath": "/assets/hair/manhair-24.png",
+    "previewSourceSha256": "9ffa2e9e3526462ae8e4f092d0f8fc6cffdf109f5892f65aeae35bb527642aba",
+    "patternSha256": "694afa91eec3952ee97f590ec5c729bd5a151f37ab3e923bdf616c1a8add857c"
+  },
+  {
+    "id": "manhair-25",
+    "sourceNumber": 22,
+    "previewSource": "22.jpg",
+    "patternSource": "22.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-25.png",
+    "patternPath": "/assets/hair/manhair-25.png",
+    "previewSourceSha256": "6afda27aec5dbe4287c065577a778e6960f7f7ce4f499631a07735ac6434e284",
+    "patternSha256": "96503e884f2cefbc5ce84301ed3e2cce28d67f6d8d4b67d6b68725b3bc0b755d"
+  },
+  {
+    "id": "manhair-26",
+    "sourceNumber": 23,
+    "previewSource": "23.jpg",
+    "patternSource": "23.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-26.png",
+    "patternPath": "/assets/hair/manhair-26.png",
+    "previewSourceSha256": "4dbd817ec5422260375f0a3b1fb04bbb1da367721359affe4df22a756434ce69",
+    "patternSha256": "e47c6fecf720c0a61331ed2f3b1ea07ea5706d689ccad20f8d6b0d4b2ac18d7e"
+  },
+  {
+    "id": "manhair-27",
+    "sourceNumber": 24,
+    "previewSource": "24.jpg",
+    "patternSource": "24.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-27.png",
+    "patternPath": "/assets/hair/manhair-27.png",
+    "previewSourceSha256": "d73e81f239f6e8a61a696077e9eb1820df41afea90a88bacbe1903ecaccc7538",
+    "patternSha256": "98ef8cd0b61428ac24fa21ecab7bab4dc96862aec05f29a9cab18c5b703fb278"
+  },
+  {
+    "id": "manhair-28",
+    "sourceNumber": 25,
+    "previewSource": "25.jpg",
+    "patternSource": "25.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-28.png",
+    "patternPath": "/assets/hair/manhair-28.png",
+    "previewSourceSha256": "492ad7148bc67fdb9ad885654ed29d82d592a02f8e3d7c9ed42ad8fb57a6ee45",
+    "patternSha256": "5c29f93ba2018000afd2fa9d88028765531e59eb3a61820b89c82c61bd700272"
+  },
+  {
+    "id": "manhair-29",
+    "sourceNumber": 26,
+    "previewSource": "26.jpg",
+    "patternSource": "26.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-29.png",
+    "patternPath": "/assets/hair/manhair-29.png",
+    "previewSourceSha256": "3991c568d5dac08dfdbff63e3c9d4f638e3e4f8eb9a560a0d7b5189df8cf0bf3",
+    "patternSha256": "63ca04c28297d4e1e00b0f563d340f941ea5383d41496c5b547bfec36d825973"
   }
 ]

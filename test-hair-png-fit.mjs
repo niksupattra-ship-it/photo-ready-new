@@ -1,3 +1,4 @@
+import {createMaleSideburnGuide,fitMaleSideburns} from './src/male-sideburn-fit.js';
 import {pushLongHairRear} from './src/long-hair-two-layer-fit.js';
 import {createHash} from 'node:crypto';
 import {softHairEraser} from './src/soft-hair-eraser.js';
@@ -56,8 +57,8 @@ test('missing or unreliable upper-face anchors fail instead of placing a deforme
 test('fitting never rewrites the person or reference landmarks',()=>{
  const f=portrait(),t=portrait({width:180,height:230}),before=JSON.stringify([f.face,t.face]);fit(f,t);assert.equal(JSON.stringify([f.face,t.face]),before);
 });
-test('all 52 native calibrations preserve scale, handedness and orthogonal axes',()=>{
- assert.equal(Object.keys(HAIR_TEMPLATE_ANCHORS).length,52);
+test('all 58 native calibrations preserve scale, handedness and orthogonal axes',()=>{
+ assert.equal(Object.keys(HAIR_TEMPLATE_ANCHORS).length,58);
  for(const calibration of Object.values(HAIR_TEMPLATE_ANCHORS)){const [a,b,c,d]=calibration.sourceToReference;rigid({a,b,c,d})}
 });
 
@@ -140,7 +141,7 @@ test('invalid or anisotropic template calibration is rejected',()=>{
 function pickerFixture({angle=0,source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8')}={}){
  const start=source.indexOf('const fittedHairReferenceCache=new Map();'),end=source.indexOf('// Processing and Studio use the same',start);
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28,angle}),target=opaque(w,h),surfaces=[],options=[];let closed=0,cleaned=0;
- const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,shortHairInterior,featherLongCrown,eraseLongUpperPortrait,fitProcessedForehead,eraseProcessedUpperHair,cleanTemplateForehead,pushLongHairRear,
+ const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,shortHairInterior,featherLongCrown,eraseLongUpperPortrait,fitProcessedForehead,eraseProcessedUpperHair,createMaleSideburnGuide,fitMaleSideburns,cleanTemplateForehead,pushLongHairRear,
   getLandmarker:async()=>({detect:()=>({faceLandmarks:[f.face]})}),
   getPersonSegmenter:async()=>({segment:(image,callback)=>callback({categoryMask:{width:w,height:h,getAsUint8Array:()=>new Uint8Array(w*h).fill(1),close:()=>closed++}})}),
   semanticClassMask:async(image,w,h)=>curvedSkin(w,h),
@@ -178,8 +179,8 @@ test('every male style preserves fine strands, detached pixels, skin remnants an
  }
  assert.deepEqual(png.data,before);assert.equal(f.cleaned(),0);assert.equal(f.options.length,0);
 });
-test('all 52 styles share rigid placement; only female styles enter contour cleanup',async()=>{
- const f=pickerFixture(),ids=Object.keys(HAIRSTYLE_RULES);assert.equal(ids.length,52);
+test('all 58 styles share rigid placement; only female styles enter contour cleanup',async()=>{
+ const f=pickerFixture(),ids=Object.keys(HAIRSTYLE_RULES);assert.equal(ids.length,58);
  for(const id of ids){
   // Shared raster fixture checks style routing; native asset geometry is
   // covered separately by the calibration and uncached loading tests.
@@ -188,12 +189,12 @@ test('all 52 styles share rigid placement; only female styles enter contour clea
   assert.equal(transformed.length,id.startsWith('manhair-')?1:2);assert.equal(transformed[0].transforms.length,2);
   if(transformed[1])for(let row=0;row<2;row++)for(let k=0;k<6;k++)close(transformed[1].transforms[row][k],transformed[0].transforms[row][k]);
   const [a,b,c,d]=transformed[0].transforms[0];rigid({a,b,c,d});
-  assert.deepEqual(Object.keys(result).filter(k=>k!=='hairGapWarning').sort(),['backSource','cleanedHeadSource','source']);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id));
+  assert.deepEqual(Object.keys(result).filter(k=>!['hairGapWarning','maleSideburnWarning','maleSideburnReport'].includes(k)).sort(),['backSource','cleanedHeadSource','source']);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id));
  }
- assert.equal(f.closed(),52);assert.equal(f.options.length,29);
+ assert.equal(f.closed(),58);assert.equal(f.options.length,29);
  assert.ok(f.options.every(option=>Object.keys(option).join(',')===(option.singleLayer?'singleLayer,rearHairGuide':'singleLayer,rearHairGuide,portrait,longContour')),'only long upper erasure receives the actual portrait silhouette');
 });
-for(const id of ['hair-01','hair-18','manhair-01','manhair-13','manhair-22','manhair-23'])test(`uncached ${id} ${id.startsWith('manhair-')?'keeps every native PNG pixel':'cleans foreign forehead skin without painting or recolouring'}`,async()=>{
+for(const id of ['hair-01','hair-18','manhair-01','manhair-13','manhair-22','manhair-23','manhair-24','manhair-29'])test(`uncached ${id} ${id.startsWith('manhair-')?'keeps every native PNG pixel':'cleans foreign forehead skin without painting or recolouring'}`,async()=>{
  const f=pickerFixture(),result=await f.pipeline.prepareStudioHairOverlay(f.target,id);assert.ok(result.source&&result.cleanedHeadSource);const expectedCleaned=!id.startsWith('manhair-')&&isSingleLayerHair(id)?1:0;assert.equal(f.cleaned(),expectedCleaned);
  const ref=await f.pipeline.cache.get(id);assert.equal(ref.cutout.width,HAIR_TEMPLATE_ANCHORS[id].sourceSize[0]);assert.equal(ref.cutout.height,HAIR_TEMPLATE_ANCHORS[id].sourceSize[1]);
  const first=f.surfaces.find(c=>c.transforms.length&&c.width===f.f.w&&c.height===f.f.h).transforms[0];rigid({a:first[0],b:first[1],c:first[2],d:first[3]});
@@ -219,7 +220,7 @@ test('moving, scaling and rotating the head carries both hair layers with it',()
  for(const layer of next.slice(1))for(const key of ['x','y','scale','rotation'])close(layer[key],next[0][key]);
 });
 
-function studioFixture({version=46,offset=80,missingBack=false,locked=false,hairId='hair-01',gapWarning=false}={}){
+function studioFixture({version=46,offset=80,missingBack=false,locked=false,hairId='hair-01',gapWarning=false,sideburnWarning=false}={}){
  const pose={x:12,y:-7,scale:1.2,rotation:8},head={id:'head',kind:'head',source:'old-cleaned-head',hairOriginalSource:'untouched-head',sourceFrame:{x:100,y:120,w:600,h:850},locked,...pose};
  const hair=role=>({id:role,kind:'hair-preview',hairHeadId:head.id,hairId,hairRole:role,hairPreviewVersion:version,hairLinked:true,...pose,x:pose.x+offset});
  const layers=[{id:'background',kind:'background',source:'blue'},...(!missingBack&&!isSingleLayerHair(hairId)?[hair('back')]:[]),head,hair('front'),{id:'suit',kind:'suit',source:'uniform'}];
@@ -229,7 +230,7 @@ function studioFixture({version=46,offset=80,missingBack=false,locked=false,hair
   headPose:l=>Object.fromEntries(['x','y','scale','rotation'].map(k=>[k,l[k]])),surfaceURL:x=>x,
   undo:{current:[]},redo:{current:[]},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},drawNow:()=>{},touch:false,
   hydrate:async(next,unchanged)=>{context.state.current=next;context.unchanged=unchanged;return true},fresh:l=>({...l,id:`new-${l.hairRole}`}),
-  onPrepareHairOverlay:async(source,id)=>{context.calls++;assert.equal(source,'untouched-head');assert.equal(id,hairId);return {source:'new-front',backSource:isSingleLayerHair(hairId)?null:'new-back',cleanedHeadSource:'new-head',hairGapWarning:gapWarning}},calls:0,
+  onPrepareHairOverlay:async(source,id)=>{context.calls++;assert.equal(source,'untouched-head');assert.equal(id,hairId);return {source:'new-front',backSource:isSingleLayerHair(hairId)?null:'new-back',cleanedHeadSource:'new-head',hairGapWarning:gapWarning,...(sideburnWarning?{maleSideburnWarning:true,maleSideburnReport:{adjusted:false,unavailable:true}}:{})}},calls:0,
   setStatus:s=>{context.status=s}
  };
  for(const key of ['setSelected','setAssetBusy','setHairPlacementProgress','setSelectedHair','setHairConfirmed','setHairNotice','setRevision','setTool','setComparing'])context[key]=()=>{};
@@ -366,20 +367,26 @@ test('the soft eraser only grades its local deletion field and keeps original co
  assert.equal(out[(6*w+5)*4+3],128);assert.equal(out[(6*w+25)*4+3],0);assert.equal(out[(6*w+16)*4+3],128,'protected pixels stay exact');
  const fade=[12,13,14,15].map(x=>out[(5*w+x)*4+3]);assert.ok(fade.every(a=>a>0&&a<128));assert.ok(fade.every((a,i)=>!i||a<fade[i-1]));
 });
-test('single-layer caches refit to male version 58 or unchanged female version 57',async()=>{
+test('single-layer caches refit to male version 59 or unchanged female version 57',async()=>{
  for(const id of Object.keys(HAIR_TEMPLATE_ANCHORS).filter(isSingleLayerHair))for(const version of [47,48,50,53,55,56]){
   const f=studioFixture({hairId:id,version,offset:0});await f.run(id);assert.equal(f.context.calls,1);
-  const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,id.startsWith('manhair-')?58:57);assert.equal(hair[0].hairLinked,false);
+  const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,id.startsWith('manhair-')?59:57);assert.equal(hair[0].hairLinked,false);
  }
- const short=studioFixture({hairId:'manhair-01',version:58,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
+ const short=studioFixture({hairId:'manhair-01',version:59,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
  const long=studioFixture({version:57,offset:0});await long.run('hair-01');assert.equal(long.context.calls,0);
 });
 test('male version 57 refits; female version 57 stays selected without regeneration',async()=>{
  for(const id of ['manhair-01','manhair-13','manhair-23','hair-18','hair-26','hair-29']){
   const f=studioFixture({hairId:id,version:57,offset:0});await f.run(id);
   assert.equal(f.context.calls,id.startsWith('manhair-')?1:0,id);
-  if(f.context.calls)assert.equal(f.context.state.current.find(l=>l.kind==='hair-preview').hairPreviewVersion,58);
+  if(f.context.calls)assert.equal(f.context.state.current.find(l=>l.kind==='hair-preview').hairPreviewVersion,59);
  }
+});
+test('male version 58 refreshes its sideburn fit while female output and status stay unchanged',async()=>{
+ const male=studioFixture({hairId:'manhair-29',version:58,offset:0,sideburnWarning:true});await male.run('manhair-29');
+ assert.equal(male.context.calls,1);assert.equal(male.context.state.current.filter(l=>l.kind==='hair-preview').length,1);assert.equal(male.context.state.current.find(l=>l.kind==='hair-preview').maleSideburnReport.unavailable,true);assert.match(male.context.status,/จอนบางข้าง/);
+ const female=studioFixture({hairId:'hair-26',version:56,offset:0,sideburnWarning:true});await female.run('hair-26');
+ assert.equal(female.context.status,'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต');assert.equal(female.context.state.current.find(l=>l.kind==='hair-preview').maleSideburnReport,undefined);
 });
 
 for(const angle of [-.3,0,.3])for(const missingEarRows of [false,true])test(`short PNG avoids copying or stretching hair at ${angle}, missing ear=${missingEarRows}`,()=>{

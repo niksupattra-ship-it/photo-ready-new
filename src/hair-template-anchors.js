@@ -1,4 +1,4 @@
-// PNG-to-reference coordinates calibrated against all 52 native cutout/portrait pairs.
+// PNG-to-reference coordinates calibrated against all 58 native cutout/portrait pairs.
 // Preserve native pixels; do not infer placement from alpha bounding rectangles.
 export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  "hair-01": {
@@ -978,6 +978,120 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
    1,
    100,
    68
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
+  "layout": "compact"
+ },
+ "manhair-24": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   94,
+   79
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
+  "layout": "compact"
+ },
+ "manhair-25": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   91,
+   98
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
+  "layout": "compact"
+ },
+ "manhair-26": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   103,
+   95
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
+  "layout": "compact"
+ },
+ "manhair-27": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   101,
+   105
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
+  "layout": "compact"
+ },
+ "manhair-28": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   109,
+   98
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
+  "layout": "compact"
+ },
+ "manhair-29": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   103,
+   98
   ],
   "sourceSize": [
    908,

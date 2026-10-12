@@ -120,7 +120,7 @@ class Surface{
   getImageData(){return {data:new Uint8ClampedArray(s.data)}},putImageData(image){s.data.set(image.data)}
  }}
 }
-test('all 23 live male finishers keep the PNG intact and never run forehead or ear/neck editing',async()=>{
+test('all 29 live male finishers keep the PNG intact and never run forehead or ear/neck editing',async()=>{
  const {HAIRSTYLE_RULES}=await import('./hairstyle-rules.js'),source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
  const start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);
  for(const id of Object.keys(HAIRSTYLE_RULES).filter(id=>id.startsWith('manhair-'))){

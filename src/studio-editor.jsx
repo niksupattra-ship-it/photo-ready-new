@@ -339,25 +339,25 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=/^manhair-\d{2}$/.test(id)?58:57;
+  const previewVersion=/^manhair-\d{2}$/.test(id)?59:57;
   if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion&&attached.length===(isSingleLayerHair(id)?1:2)&&(isSingleLayerHair(id)||attached.some(a=>a.hairRole==='back')&&state.current.findIndex(l=>l.id===attached.find(a=>a.hairRole==='back')?.id)<state.current.findIndex(l=>l.id===head.id)&&state.current.findIndex(l=>l.id===head.id)<state.current.findIndex(l=>l.id===existing.id))&&attached.every(l=>!l.warpSource&&['x','y','scale','rotation'].every(k=>l[k]===head[k]))){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
    await hairUiFrame();if(!mounted.current)return;
-   const previous=historySnapshot();let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,...(!id&&l.hairOriginalSource?{source:l.hairOriginalSource,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairOriginalSource:null}:{}),hairBaseMask:null,hairOuterEraser:null}:l),selectedId=head.id,hairGapWarning=false;
+   const previous=historySnapshot();let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,...(!id&&l.hairOriginalSource?{source:l.hairOriginalSource,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairOriginalSource:null}:{}),hairBaseMask:null,hairOuterEraser:null}:l),selectedId=head.id,hairGapWarning=false,maleSideburnWarning=false;
    if(id){
     const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผม');
     // Refit from the untouched portrait so an older erasure never carries over.
     const fitted=await onPrepareHairOverlay(head.hairOriginalSource||asset.warped||asset.original,id);
     if(!mounted.current)return;
-    hairGapWarning=Boolean(fitted.hairGapWarning);
+    hairGapWarning=Boolean(fitted.hairGapWarning);maleSideburnWarning=/^manhair-\d{2}$/.test(id)&&Boolean(fitted.maleSideburnWarning);
     setHairPlacementProgress(75);await hairUiFrame();
     if(!mounted.current)return;
     if(!fitted.cleanedHeadSource)throw Error('ภาพลบผมโดยตรงยังไม่พร้อม · เก็บภาพเดิมไว้');
     next=next.map(l=>l.id===head.id?{...l,source:fitted.cleanedHeadSource,hairOriginalSource:head.hairOriginalSource||surfaceURL(asset.warped||asset.original),warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairBaseMask:null,hairOuterEraser:null}:l);
     if(next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
     const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource),hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
-    const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source});
+    const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source,...(/^manhair-\d{2}$/.test(id)&&fitted.maleSideburnReport?{maleSideburnReport:fitted.maleSideburnReport}:{})});
     const index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
     selectedId=front.id;
@@ -367,7 +367,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[];
     drawNow();setSelected(selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
     if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
-    setStatus(id?(hairGapWarning?'วางทรงแล้ว แต่บางช่องยังเก็บไม่ครบ':'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต'):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
+    setStatus(id?(maleSideburnWarning?'วางทรงแล้ว · จอนบางข้างตรวจขอบไม่ชัด จึงคงตำแหน่งเดิม':hairGapWarning?'วางทรงแล้ว แต่บางช่องยังเก็บไม่ครบ':'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต'):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
     setHairPlacementProgress(100);await hairUiFrame();
    }else throw Error('วางผมไม่สำเร็จ · เก็บภาพเดิมไว้');
   }catch(e){setStatus(e.message||'วางผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current){setHairPlacementProgress(null);setAssetBusy(false)}}
