@@ -16,8 +16,8 @@ const pixel=(pixels,x,y)=>pixels.slice(index(x,y),index(x,y)+4);
 
 test('the eraser clears upper excess, softly fades at the top edge, and preserves both inputs',()=>{
  const f=fixture(),original=new Uint8ClampedArray(f.portrait),overlay=new Uint8ClampedArray(f.overlay),out=erase(f);
- assert.equal(out[index(48,15)+3],0);
- const fade=[16,17,18,19,20].map(y=>out[index(48,y)+3]);
+ assert.equal(out[index(48,23)+3],0);
+ const fade=[24,25,26,27,28].map(y=>out[index(48,y)+3]);
  assert.ok(fade[0]>0&&fade[0]<fade[1]&&fade[1]<fade[2]&&fade[2]<fade[3]);
  assert.equal(fade[3],255);assert.equal(fade[4],255);
  assert.deepEqual(f.portrait,original);assert.deepEqual(f.overlay,overlay);
@@ -25,18 +25,18 @@ test('the eraser clears upper excess, softly fades at the top edge, and preserve
 });
 
 test('sides, transparent interior holes, and everything beneath the forehead boundary stay exact',()=>{
- const f=fixture();f.overlay.fill(0,index(48,25),index(48,25)+4);
+ const f=fixture();f.overlay.fill(0,index(48,32),index(48,32)+4);
  const out=erase(f);
- for(const [x,y] of [[10,8],[10,30],[48,25],[48,40],[48,42],[20,54],[76,54],[48,85]])assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y));
+ for(const [x,y] of [[10,8],[10,30],[48,32],[48,40],[48,42],[20,54],[76,54],[48,85]])assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y));
  for(let y=40;y<H;y++)for(let x=0;x<W;x++)assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y));
 });
 
 test('the upper contour follows each column instead of clipping to one horizontal bound',()=>{
  const f=fixture();for(let y=20;y<30;y++)for(let x=49;x<=78;x++)f.overlay.fill(0,index(x,y),index(x,y)+4);
  const out=erase(f);
- assert.equal(out[index(30,25)+3],255);
+ assert.equal(out[index(30,30)+3],255);
  assert.equal(out[index(65,25)+3],0);
- assert.equal(out[index(65,30)+3],255);
+ assert.equal(out[index(65,30)+3],0);
 });
 
 for(const category of [2,3,4])test(`category ${category} and its guard remain intact even above the crown`,()=>{
@@ -55,8 +55,8 @@ test('background, clothing, and already transparent pixels are never erased',()=
 });
 
 test('a semitransparent strand receives proportional soft erasure without recoloring',()=>{
- const f=fixture();f.portrait[index(48,17)+3]=100;
- const out=erase(f);assert.deepEqual(pixel(out,48,17),new Uint8ClampedArray([48,17,77,50]));
+ const f=fixture();f.portrait[index(48,25)+3]=100;
+ const out=erase(f);assert.deepEqual(pixel(out,48,25),new Uint8ClampedArray([48,25,77,50]));
 });
 
 for(const degrees of [-25,25])test(`upper-only protection follows a head tilted ${degrees} degrees`,()=>{
@@ -90,4 +90,28 @@ test('missing detection or crown data fails before touching the original pixels'
  assert.throws(()=>erase({...f,face:[]}));
  assert.throws(()=>erase({...f,overlay:new Uint8ClampedArray(W*H*4)}));
  assert.deepEqual(f.portrait,original);
+});
+
+test('40% extra removal is measured from the actual excess in each column',()=>{
+ const f=fixture();
+ // Both new contours start at y=20. Original excess is 20 pixels on the left
+ // and 10 on the right, so the new soft boundaries are y=28 and y=24.
+ for(let y=0;y<10;y++)f.portrait[index(65,y)+3]=0;
+ const out=erase(f);
+ assert.equal(out[index(30,25)+3],128,'20px excess adds exactly 8px of clearance');
+ assert.equal(out[index(65,21)+3],128,'10px excess adds exactly 4px of clearance');
+ assert.equal(out[index(65,25)+3],255,'a smaller excess cannot authorize the larger clearance');
+});
+
+test('a column with no original upper excess receives no extra removal',()=>{
+ const f=fixture();for(let y=0;y<22;y++)f.portrait[index(48,y)+3]=0;
+ const out=erase(f);
+ for(let y=0;y<H;y++)assert.deepEqual(pixel(out,48,y),pixel(f.portrait,48,y));
+});
+
+test('the 40% clearance stops at skin even inside the newly extended band',()=>{
+ const f=fixture();f.labels.data[25*W+48]=3;
+ const out=erase(f);
+ for(let y=23;y<=27;y++)assert.deepEqual(pixel(out,48,y),pixel(f.portrait,48,y));
+ assert.equal(out[index(65,23)+3],0);
 });

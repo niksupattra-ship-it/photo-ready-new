@@ -28,21 +28,30 @@ export function eraseUpperHairExcess(portrait,overlay,w,h,face,labels){
  // Columns with no hair stay untouched; there is no side/bottom clipping.
  const corners=[[0,0],[w,0],[0,h],[w,h]].map(([x,y])=>localX(x,y));
  const origin=Math.floor(Math.min(...corners))-1,count=Math.ceil(Math.max(...corners))-origin+2;
- const top=new Float32Array(count);top.fill(Infinity);
+ const top=new Float32Array(count),originalTop=new Float32Array(count);top.fill(Infinity);originalTop.fill(Infinity);
  const column=(x,y)=>Math.floor(localX(x,y)-origin);
+ const labelAt=(x,y)=>Math.min(mh-1,Math.floor((y+.5)*mh/h))*mw+Math.min(mw-1,Math.floor((x+.5)*mw/w));
  let covered=false;
- for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(overlay[(y*w+x)*4+3]>8){
-  const i=column(x,y);top[i]=Math.min(top[i],localY(x,y));covered=true;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const j=(y*w+x)*4,i=column(x,y),v=localY(x,y);
+  if(overlay[j+3]>8){top[i]=Math.min(top[i],v);covered=true}
+  if(portrait[j+3]>8&&v<upperLimit){
+   const label=labelAt(x,y);
+   if(data[label]===1&&!protectedLabels[label])originalTop[i]=Math.min(originalTop[i],v);
+  }
  }
  if(!covered)throw Error('ไม่พบขอบบนของทรงผม · เก็บภาพเดิมไว้');
  const out=new Uint8ClampedArray(portrait),margin=Math.max(1,eye*.008),feather=Math.max(4,Math.min(20,eye*.05));
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const j=(y*w+x)*4;if(!portrait[j+3])continue;
   const v=localY(x,y);if(v>=upperLimit)continue;
-  const label=Math.min(mh-1,Math.floor((y+.5)*mh/h))*mw+Math.min(mw-1,Math.floor((x+.5)*mw/w));
+  const label=labelAt(x,y);
   if(data[label]!==1||protectedLabels[label])continue;
-  const edge=top[column(x,y)];if(!Number.isFinite(edge))continue;
-  const distance=edge-v-margin;if(distance<=0)continue;
+  const i=column(x,y),edge=top[i];if(!Number.isFinite(edge))continue;
+  // Extend into the covered upper edge by exactly 40% of this column's
+  // measured excess height. Skin/ear guards and the upper-only limit still win.
+  const excess=Number.isFinite(originalTop[i])?Math.max(0,edge-originalTop[i]):0;
+  const distance=edge+excess*.4-v-margin;if(distance<=0)continue;
   const t=Math.min(1,distance/feather),strength=t*t*(3-2*t);
   // The soft eraser changes only eligible original-hair alpha. All RGB,
   // protected skin/ears and every pixel beneath the upper boundary stay exact.

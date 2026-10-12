@@ -62,7 +62,7 @@ test('incomplete or collapsed face measurements fail instead of deforming the ha
 });
 
 // Minimal raster surface for a pixel-contract test; browser filters are not
-// modeled here. The test checks that preserveShape never resamples rear hair.
+// modeled here. Tests check which hair pixels the rear adjustment may change.
 class Surface{
  constructor(w,h){this.width=w;this.height=h;this.data=new Uint8ClampedArray(w*h*4);this.transforms=[]}
  toDataURL(){return 'data:image/png;test-surface'}
@@ -83,13 +83,17 @@ class Surface{
   putImageData(image){surface.data.set(image.data)}
  }}
 }
-for(const id of ['hair-01','hair-19'])test(`long ${id} retains its exact rear PNG pixels without local warps`,()=>{
+for(const id of ['hair-01','hair-19'])test(`long ${id} restores inward rear fitting while keeping its crown and outside edge`,()=>{
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28}),placed=new Surface(w,h),skin=new Surface(w,h);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++)placed.data.set([x,y,(x+y)%255,255],(y*w+x)*4);
  for(let y=30;y<75;y++)for(let x=30;x<66;x++)skin.data.set([255,255,255,255],(y*w+x)*4);
  const original=new Uint8ClampedArray(placed.data);
- const layers=createTwoLayerHairPreview(placed,skin,f.face,w,h,(w,h)=>new Surface(w,h),{fitLongBack:true,longStyle:id,preserveShape:true});
- assert.deepEqual(layers.back.data,original);assert.deepEqual(placed.data,original);
+ const layers=createTwoLayerHairPreview(placed,skin,f.face,w,h,(w,h)=>new Surface(w,h),{fitLongBack:true,longStyle:id,preserveShape:false});
+ assert.notDeepEqual(layers.back.data,original,'inner rear hair must move');assert.deepEqual(placed.data,original);
+ for(let y=0;y<h;y++)for(const x of [0,w-1]){
+  const j=(y*w+x)*4;assert.deepEqual(layers.back.data.slice(j,j+4),original.slice(j,j+4),'outside silhouette stays pinned');
+ }
+ assert.deepEqual(layers.back.data.slice(0,w*4),original.slice(0,w*4),'upper crown is unchanged');
  for(let i=0;i<original.length;i+=4)assert.deepEqual(layers.front.data.slice(i,i+3),original.slice(i,i+3));
  assert.ok(layers.front.data.some((v,i)=>i%4===3&&v<255),'front overlap erasure is still applied');
 });
@@ -128,5 +132,5 @@ test('the live picker handles all 41 styles with one affine placement and no ret
   assert.equal(Boolean(result.backSource),!isSingleLayerHair(id));
  }
  assert.equal(closed,41,'the detection buffers are always released');
- assert.ok(layerOptions.length>0&&layerOptions.every(option=>option.preserveShape===true),'long hair never takes the local warping path');
+ assert.ok(layerOptions.length>0&&layerOptions.every(option=>option.fitLongBack&&option.preserveShape===false),'only long hair takes the restored rear-fitting path');
 });

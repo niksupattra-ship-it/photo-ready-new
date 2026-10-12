@@ -1474,7 +1474,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
  }
  const ref=await reference;
  // Every style uses the same width/height fit, rotation and translation.
- // Keep the PNG intact: no mesh deformation or local ear/neck bending.
+ // No mesh deformation during placement; long rear fitting follows separately.
  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
  if(ref.calibration.layout==='long'){
   // Retain the existing long-hair offset without changing its geometry.
@@ -1494,7 +1494,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars,fitLongBack:ref.calibration.layout==='long',longStyle:hairId,preserveShape:true});
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars,fitLongBack:ref.calibration.layout==='long',longStyle:hairId,preserveShape:ref.calibration.layout!=='long'});
  return finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
 }
 const localHairAnchorCache=new Map();
