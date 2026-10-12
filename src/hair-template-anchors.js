@@ -1,4 +1,4 @@
-// PNG-to-reference coordinates calibrated against all 51 native cutout/portrait pairs.
+// PNG-to-reference coordinates calibrated against all 52 native cutout/portrait pairs.
 // Preserve native pixels; do not infer placement from alpha bounding rectangles.
 export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  "hair-01": {
@@ -967,6 +967,25 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
   "referenceSize": [
    300,
    360
+  ],
+  "layout": "compact"
+ },
+ "manhair-23": {
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   100,
+   68
+  ],
+  "sourceSize": [
+   908,
+   788
+  ],
+  "referenceSize": [
+   1128,
+   1536
   ],
   "layout": "compact"
  }

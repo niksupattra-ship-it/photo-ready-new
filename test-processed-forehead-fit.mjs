@@ -112,7 +112,7 @@ test('the live long-hair path edits only the processed head using the FRONT cont
  for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17],[0,30]]){const j=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(j,j+4),f.original.slice(j,j+4))}
 });
 
-test('all 51 hairstyle IDs use the same original-forehead warp without a skin-fill callback',async()=>{
+test('all 52 hairstyle IDs use the same original-forehead warp without a skin-fill callback',async()=>{
  const {HAIRSTYLE_RULES}=await import('./hairstyle-rules.js'),{isSingleLayerHair}=await import('./src/short-female-hair.js');
  const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8'),start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);let calls=0;
  for(const id of Object.keys(HAIRSTYLE_RULES)){
@@ -125,7 +125,7 @@ test('all 51 hairstyle IDs use the same original-forehead warp without a skin-fi
   assert.ok(result.cleanedHeadSource.data[j]>150,id);assert.equal(result.cleanedHeadSource.data[j+3],255,id);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id),id);
   for(const [u,v] of [[-32,0],[32,0],[-30,-17],[30,-17]]){const k=f.at(u,v);assert.deepEqual(result.cleanedHeadSource.data.slice(k,k+4),f.original.slice(k,k+4),id)}
  }
- assert.equal(calls,51);
+ assert.equal(calls,52);
 });
 
 for(const angle of [-.3,0,.3])for(const category of [0,1])test(`original stray hair is erased through the complete top image edge, angle=${angle}, category=${category}`,()=>{

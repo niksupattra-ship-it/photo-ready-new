@@ -1,4 +1,4 @@
-// Audited against all 29 female and 22 male picker/cutout pairs.
+// Audited against all 29 female and 23 male picker/cutout pairs.
 // Explicit structure complements the image; it never defines facial anatomy.
 const descriptions={
  'hair-01':'long loose hair, central part, straight side sections',
@@ -52,6 +52,7 @@ const descriptions={
  'manhair-20':'short naturally swept-back haircut',
  'manhair-21':'short 60/40 side part with softly glossy black hair',
  'manhair-22':'short business haircut with a diagonal side sweep',
+ 'manhair-23':'neat short male haircut, off-centre side part with a smooth natural upper sweep and close sides',
 };
 export const HAIRSTYLE_RULES=Object.freeze(descriptions);
 export function selectedHairstyleRule(id){

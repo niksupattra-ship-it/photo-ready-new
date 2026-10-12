@@ -98,5 +98,15 @@
     "patternPath": "/assets/hair/manhair-22.png",
     "previewSourceSha256": "5a979800b38d9f4aa861551d6060472407b4ee0a5ce2e5baa12439d50770a9f7",
     "patternSha256": "2086fe17698d893aa0f12b5db7334768105fc6b1a6e9f328e5be39cee8863edf"
+  },
+  {
+    "id": "manhair-23",
+    "sourceNumber": 20,
+    "previewSource": "20.jpg",
+    "patternSource": "20.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-23.png",
+    "patternPath": "/assets/hair/manhair-23.png",
+    "previewSourceSha256": "7d5184e096356c5249617b97f71e6114ed7af7e920230649bc871f858d949963",
+    "patternSha256": "76e3af02d01a4501204555723afe8c269cc83c7d7ea384cfb3fe86f31a4b82e0"
   }
 ]

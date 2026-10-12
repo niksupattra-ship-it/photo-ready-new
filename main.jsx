@@ -2350,6 +2350,7 @@ const MALE_HAIR_OPTIONS=[
  {id:'manhair-20',name:'ทรงใหม่ 08',src:'/assets/hairstyle-previews/manhair-20.png'},
  {id:'manhair-21',name:'ทรงใหม่ 09',src:'/assets/hairstyle-previews/manhair-21.png'},
  {id:'manhair-22',name:'ทรงใหม่ 10',src:'/assets/hairstyle-previews/manhair-22.png'},
+ {id:'manhair-23',name:'ทรงผม 20',src:'/assets/hairstyle-previews/manhair-23.png'},
 ];
 const HAIR_OPTIONS=[
  {id:'hair-26',name:'ทรงผม 26',src:'/assets/hairstyle-previews/hair-26.png'},
