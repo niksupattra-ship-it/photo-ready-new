@@ -2,6 +2,7 @@ import {softHairEraser} from './soft-hair-eraser.js';
 import {fillLongHairGaps} from './long-hair-gap-fill.js';
 import {eraseLongUpperFront} from './long-upper-hair-eraser.js';
 import {eraseLongHairInner} from './long-hair-two-layer-fit.js';
+import {transformedOffset} from './studio-transform.js';
 // Local fitting changes hair coordinates only; it never changes face pixels.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function anchors(face,w,h){
@@ -126,7 +127,7 @@ export function referenceContainsEarSkin(mask,face,w,h,sourceToReference){
  }
  return false;
 }
-export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0});
+export const headPose=head=>({x:head.x||0,y:head.y||0,scale:head.scale||1,rotation:head.rotation||0,...(head.squeezeX!==undefined?{squeezeX:head.squeezeX}:{}),...(head.squeezeY!==undefined?{squeezeY:head.squeezeY}:{})});
 // Refine only the male PNG's temple/upper-ear join before it becomes a layer.
 // Skin is a positioning/protection guide; portrait pixels are never written.
 export function fitMaleHairEarJoin(placed,skin,face,w,h,makeCanvas){
@@ -385,7 +386,10 @@ export function syncHairAttachments(layers){
   if(!l.hairHeadId)return l;
   const p=headPose(heads.get(l.hairHeadId)),old=l.hairHeadPose;
   if(!old)return {...l,hairHeadPose:p};
-  if(p.x===old.x&&p.y===old.y&&p.scale===old.scale&&p.rotation===old.rotation)return l;
+  if(p.x===old.x&&p.y===old.y&&p.scale===old.scale&&p.rotation===old.rotation&&(p.squeezeX??1)===(old.squeezeX??1)&&(p.squeezeY??1)===(old.squeezeY??1))return l;
+  if((p.squeezeX??1)!==1||(p.squeezeY??1)!==1||(old.squeezeX??1)!==1||(old.squeezeY??1)!==1){
+   const q=transformedOffset(old,p,l);return {...l,x:q.x-450,y:q.y-600,scale:l.scale*p.scale/old.scale,squeezeX:(l.squeezeX??1)*(p.squeezeX??1)/(old.squeezeX??1),squeezeY:(l.squeezeY??1)*(p.squeezeY??1)/(old.squeezeY??1),rotation:l.rotation+p.rotation-old.rotation,hairHeadPose:p};
+  }
   const ratio=p.scale/old.scale,angle=(p.rotation-old.rotation)*Math.PI/180;
   const dx=l.x-old.x,dy=l.y-old.y;
   return {...l,x:p.x+ratio*(dx*Math.cos(angle)-dy*Math.sin(angle)),y:p.y+ratio*(dx*Math.sin(angle)+dy*Math.cos(angle)),scale:l.scale*ratio,rotation:l.rotation+p.rotation-old.rotation,hairHeadPose:p};
@@ -397,10 +401,13 @@ export function syncHairPairTransforms(layers,pending){
  const patches=new Map(pending),visited=new Set();
  for(const [id,patch] of pending){
   const lead=layers.find(l=>l.id===id);
-  if(!lead?.hairLinked||!lead.hairHeadId||visited.has(lead.hairHeadId)||!['x','y','scale','rotation'].some(k=>patch[k]!==undefined))continue;
+  if(!lead?.hairLinked||!lead.hairHeadId||visited.has(lead.hairHeadId)||!['x','y','scale','rotation','squeezeX','squeezeY'].some(k=>patch[k]!==undefined))continue;
   const next={...lead,...patch},ratio=next.scale/lead.scale,angle=(next.rotation-lead.rotation)*Math.PI/180;
   for(const sibling of layers){
    if(sibling.id===id||!sibling.hairLinked||sibling.hairHeadId!==lead.hairHeadId||sibling.hairId!==lead.hairId)continue;
+   if((lead.squeezeX??1)!==1||(lead.squeezeY??1)!==1||(next.squeezeX??1)!==1||(next.squeezeY??1)!==1){
+    const q=transformedOffset(lead,next,sibling);patches.set(sibling.id,{...patches.get(sibling.id),x:q.x-450,y:q.y-600,scale:sibling.scale*ratio,squeezeX:(sibling.squeezeX??1)*(next.squeezeX??1)/(lead.squeezeX??1),squeezeY:(sibling.squeezeY??1)*(next.squeezeY??1)/(lead.squeezeY??1),rotation:sibling.rotation+next.rotation-lead.rotation});continue;
+   }
    const dx=sibling.x-lead.x,dy=sibling.y-lead.y;
    patches.set(sibling.id,{...patches.get(sibling.id),x:next.x+ratio*(dx*Math.cos(angle)-dy*Math.sin(angle)),y:next.y+ratio*(dx*Math.sin(angle)+dy*Math.cos(angle)),scale:sibling.scale*ratio,rotation:sibling.rotation+next.rotation-lead.rotation});
   }

@@ -1,3 +1,4 @@
+import {layerAxes} from './src/studio-transform.js';
 import {longHairWarpTarget} from './src/long-hair-two-layer-fit.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -68,33 +69,33 @@ const editor=fs.readFileSync(new URL('./src/studio-editor.jsx',import.meta.url),
 const section=(start,end)=>editor.slice(editor.indexOf(start),editor.indexOf(end,editor.indexOf(start)));
 function studio(){
  const original=photo(),mask=photo(),layer={id:'head',kind:'head',source:'data:image/png;base64,initial',scale:1,rotation:0,x:0,y:0,visible:true,sourceFrame:{x:0,y:0,w:160,h:100}},a={original,mask,dirty:false},frames=new Map();let seq=0;
- const context={HTMLCanvasElement:Surface,document:{createElement:()=>new Surface()},copySurface:copy,pixelEraserStroke,preparePixelSurface,brushSceneRegion,longHairWarpTarget,layerKind:l=>l.kind,state:{current:[layer]},assets:{current:new Map([['head',a]])},undo:{current:[]},redo:{current:[]},historyTruncatedRef:{},historyBoundaryNoticeRef:{},gesture:{current:null},selectedRef:{current:'head'},pointers:{current:new Map()},penPointerRef:{current:null},viewRef:{current:{}},W:900,H:1200,brush:40,soft:95,eraseOpacity:25,eraseStabilize:15,tool:'erase',selected:'head',revision:0,current:layer,hydratingRef:{current:false},assetBusy:false,processActive:false,touch:false,picker:false,ready:true,comparing:false,mounted:{current:true},useRef:n=>({current:n}),useEffect:()=>{},flushTransforms:()=>{},commitView:()=>{},setRevision:()=>{},setLayers:n=>{context.layers=typeof n==='function'?n(context.state.current):n},setStatus:()=>{},point:e=>({x:e.clientX,y:e.clientY}),local:p=>p,updateCursor:()=>{},queueView:()=>{},warp:()=>{},canvasRef:{current:{width:2256,height:3072,getContext:()=>({})}},paintScene:()=>{},dirtyRegion:(a,r)=>{a.dirty=true;a.dirtyRect=r},requestAnimationFrame:fn=>{frames.set(++seq,fn);return seq},cancelAnimationFrame:id=>frames.delete(id)};
- const code=section(' const historySnapshot=',' const deleteLayer=')+section(' const paintFrame=',' const warp=')+section(' const warpFrame=',' const download=');
- const run=vm.runInNewContext(code+'\n({down,move,end,flushWarpFrame,historySnapshot})',context);
+ const context={layerAxes,syncHairAttachments:n=>n,canvas:()=>new Surface(900,1200),outsideImage:()=>false,hitPart:()=>layer,selectCanvasPart:l=>{context.picked=l;context.tool=l?'move':'pan'},setSelected:()=>{},setSelectedHair:()=>{},HTMLCanvasElement:Surface,document:{createElement:()=>new Surface()},copySurface:copy,pixelEraserStroke,preparePixelSurface,brushSceneRegion,longHairWarpTarget,layerKind:l=>l.kind,state:{current:[layer]},assets:{current:new Map([['head',a]])},undo:{current:[]},redo:{current:[]},historyTruncatedRef:{},historyBoundaryNoticeRef:{},gesture:{current:null},selectedRef:{current:'head'},pointers:{current:new Map()},penPointerRef:{current:null},viewRef:{current:{}},W:900,H:1200,brush:40,soft:95,eraseOpacity:25,eraseStabilize:15,tool:'erase',selected:'head',revision:0,current:layer,hydratingRef:{current:false},assetBusy:false,processActive:false,touch:false,picker:false,ready:true,comparing:false,mounted:{current:true},useRef:n=>({current:n}),useEffect:()=>{},flushTransforms:()=>{},commitView:()=>{},setRevision:()=>{},setLayers:n=>{context.layers=typeof n==='function'?n(context.state.current):n},setStatus:()=>{},point:e=>({x:e.clientX,y:e.clientY}),local:p=>p,updateCursor:()=>{},queueView:()=>{},warp:()=>{},canvasRef:{current:{width:2256,height:3072,getContext:()=>({})}},paintScene:()=>{},dirtyRegion:(a,r)=>{a.dirty=true;a.dirtyRect=r},requestAnimationFrame:fn=>{frames.set(++seq,fn);return seq},cancelAnimationFrame:id=>frames.delete(id)};
+ const code=section(' const historyAssets=',' const deleteLayer=')+section(' const paintFrame=',' const warp=')+section(' const warpFrame=',' const download=');
+ const run=vm.runInNewContext(code+'\n({down,move,end,flushWarpFrame,historySnapshot,restoreHistory})',context);
  const event=(x,y,id=1,type='pointermove')=>({pointerId:id,pointerType:'touch',clientX:x,clientY:y,type,preventDefault:()=>{},currentTarget:{setPointerCapture:()=>{}},nativeEvent:{getCoalescedEvents:()=>[]}});
  return {context,run,layer,a,original,event};
 }
 test('live pointer path uses one undo per stroke and includes the pointer-up endpoint before save',()=>{
  const f=studio();f.run.down(f.event(20,40,1,'pointerdown'));for(let i=0;i<80;i++)f.run.move(f.event(20+i,40));f.run.end(f.event(105,40,1,'pointerup'));assert.equal(f.context.undo.current.length,1);assert.ok(alpha(f.a.original,105,40)<255);assert.equal(alpha(f.original,105,40),255);assert.ok(f.layer.source instanceof Surface);assert.equal(f.context.gesture.current,null);
- const after=f.run.historySnapshot()[0];f.context.tool='restore';f.run.down(f.event(105,40,1,'pointerdown'));f.run.end(f.event(105,40,1,'pointerup'));assert.equal(f.context.undo.current.length,2);assert.equal(alpha(f.a.original,105,40),255);assert.ok(alpha(after.source,105,40)<255,'immutable undo retains the erased version');
+ const after=f.run.historySnapshot()[0];f.context.tool='restore';f.run.down(f.event(105,40,1,'pointerdown'));f.run.move(f.event(109,40));f.run.end(f.event(105,40,1,'pointerup'));assert.equal(f.context.undo.current.length,2);assert.equal(alpha(f.a.original,105,40),255);assert.ok(alpha(after.source,105,40)<255,'immutable undo retains the erased version');
 });
 test('switching from erase to two-finger pinch rolls back pixels and source metadata',()=>{
- const f=studio();f.run.down(f.event(40,40,1,'pointerdown'));assert.ok(alpha(f.a.original,40,40)<255);f.run.down(f.event(80,40,2,'pointerdown'));assert.equal(f.a.original,f.original);assert.equal(alpha(f.a.original,40,40),255);assert.equal(f.context.state.current[0].source,'data:image/png;base64,initial');assert.equal(f.context.undo.current.length,0);assert.equal(f.context.gesture.current.kind,'pinch');
+ const f=studio();f.run.down(f.event(40,40,1,'pointerdown'));f.run.move(f.event(44,40));assert.ok(alpha(f.a.original,40,40)<255);f.run.down(f.event(80,40,2,'pointerdown'));assert.equal(f.a.original,f.original);assert.equal(alpha(f.a.original,40,40),255);assert.equal(f.context.state.current[0].source,'data:image/png;base64,initial');assert.equal(f.context.undo.current.length,0);assert.equal(f.context.gesture.current.kind,'pinch');
 });
 
 test('suit/collar geometry keeps its existing eraser coordinates and source image',()=>{
- for(const parts of [false,true]){const f=studio();f.layer.kind=parts?'collar':'suit';if(parts)f.a.parts={left:photo(),right:photo()};f.run.down(f.event(60,40,1,'pointerdown'));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(f.a.original,f.original);assert.equal(alpha(f.a.original,60,40),255);assert.ok(alpha(f.a.mask,60,40)<255);assert.equal(f.layer.source,'data:image/png;base64,initial');assert.equal(f.a.eraseRestoreSource,undefined)}
+ for(const parts of [false,true]){const f=studio();f.layer.kind=parts?'collar':'suit';if(parts)f.a.parts={left:photo(),right:photo()};f.run.down(f.event(60,40,1,'pointerdown'));f.run.move(f.event(64,40));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(f.a.original,f.original);assert.equal(alpha(f.a.original,60,40),255);assert.ok(alpha(f.a.mask,60,40)<255);assert.equal(f.layer.source,'data:image/png;base64,initial');assert.equal(f.a.eraseRestoreSource,undefined)}
 });
 
 test('actual project snapshot round-trip retains erased pixels and the reference used by restore',async()=>{
- const f=studio();f.run.down(f.event(60,40,1,'pointerdown'));f.run.end(f.event(60,40,1,'pointerup'));
+ const f=studio();f.run.down(f.event(60,40,1,'pointerdown'));f.run.move(f.event(64,40));f.run.end(f.event(60,40,1,'pointerup'));
  const snapshot=vm.runInNewContext(section(' const snapshot=',' if(purchaseSnapshotRef)')+'\nsnapshot', {...f.context,surfaceURL:s=>s instanceof Surface?s.toDataURL():s});
  const saved=JSON.parse(JSON.stringify(snapshot())),erased=alpha(f.a.original,60,40);assert.ok(typeof saved[0].eraseRestoreSource==='string');
  const decode=async src=>{if(src instanceof Surface)return src;const d=JSON.parse(Buffer.from(src.split(',')[1],'base64').toString()),c=new Surface(d.w,d.h);c.data.set(d.data);return c};
  Object.assign(f.context,{image:decode,syncHairAttachments:n=>n,trialUnlocked:false,loading:{current:0},placementRef:{current:null},canvas:()=>new Surface(900,1200),layerKind:l=>l.kind,setReady:()=>{},setSelected:()=>{}});
  const hydrate=vm.runInNewContext(section(' async function hydrate(',' useEffect(()=>{mounted.current')+'\nhydrate',f.context);assert.equal(await hydrate(saved),true);
  const a=f.context.assets.current.get('head');assert.equal(alpha(a.original,60,40),erased);assert.equal(alpha(a.eraseRestoreSource,60,40),255);
- f.context.current=f.context.state.current[0];f.context.tool='restore';f.run.down(f.event(60,40,1,'pointerdown'));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(alpha(a.original,60,40),255);
+ f.context.current=f.context.state.current[0];f.context.tool='restore';f.run.down(f.event(60,40,1,'pointerdown'));f.run.move(f.event(64,40));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(alpha(a.original,60,40),255);
 });
 
 test('opening a legacy project keeps its appearance until its mask is migrated by the new eraser',async()=>{
@@ -103,4 +104,23 @@ test('opening a legacy project keeps its appearance until its mask is migrated b
  const hydrate=vm.runInNewContext(section(' async function hydrate(',' useEffect(()=>{mounted.current')+'\nhydrate',f.context);assert.equal(await hydrate([{...f.layer,source:photo(),mask}]),true);
  const a=f.context.assets.current.get('head');assert.equal(alpha(a.mask,60,40),64);assert.equal(a.eraseRestoreSource,null);
  const layer=f.context.state.current[0],prepared=preparePixelSurface(a,layer,copy);assert.equal(alpha(prepared.surface,60,40),64);assert.equal(alpha(prepared.reference,60,40),255);
+});
+
+test('a single brush tap selects an object without erasing or recording undo',()=>{
+ const f=studio();f.run.down(f.event(60,40,1,'pointerdown'));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(alpha(f.a.original,60,40),255);assert.equal(f.context.undo.current.length,0);assert.equal(f.context.picked.id,'head');assert.equal(f.context.tool,'move');
+});
+test('zero opacity does not edit pixels or consume history while dragging',()=>{
+ const f=studio();f.context.eraseOpacity=0;const before=copy(f.original);f.run.down(f.event(20,40,1,'pointerdown'));f.run.move(f.event(80,40));f.run.end(f.event(80,40,1,'pointerup'));assert.deepEqual(f.a.original.data,before.data);assert.equal(f.context.undo.current.length,0);
+});
+test('native history restores erased pixels synchronously and reuses unchanged images',()=>{
+ const f=studio(),before=f.run.historySnapshot();f.run.down(f.event(60,40,1,'pointerdown'));f.run.move(f.event(80,40));f.run.end(f.event(80,40,1,'pointerup'));const after=f.run.historySnapshot();assert.ok(alpha(f.a.original,60,40)<255);
+ assert.equal(f.run.restoreHistory(before),true);assert.equal(alpha(f.context.assets.current.get('head').original,60,40),255);assert.equal(f.context.assets.current.get('head').original,f.original);
+ assert.equal(f.run.restoreHistory(after),true);assert.ok(alpha(f.context.assets.current.get('head').original,60,40)<255);const a=f.context.assets.current.get('head');assert.equal(f.run.restoreHistory(after),true);assert.equal(f.context.assets.current.get('head'),a);
+});
+for(const softness of [0,100])test(`eraser opacity endpoints remain exact at softness ${softness}`,()=>{
+ const src=photo(),before=copy(src);const zero=pixelEraserStroke(src,before,{radius:20,softness,opacity:0});zero.add({x:60,y:40});assert.equal(zero.flush(),null);assert.deepEqual(src.data,before.data);
+ const full=pixelEraserStroke(src,before,{radius:20,softness,opacity:1});full.add({x:60,y:40});full.flush();assert.ok(alpha(src,60,40)<3);assert.equal(alpha(src,82,40),255);
+});
+test('squeezed layers use elliptical native dabs to retain a circular screen brush',()=>{
+ const src=photo(),base=copy(src),s=pixelEraserStroke(src,base,{radius:30,radiusY:10,softness:100});s.add({x:60,y:40});s.flush();assert.ok(alpha(src,80,40)<255);assert.equal(alpha(src,60,52),255);
 });

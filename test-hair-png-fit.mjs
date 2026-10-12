@@ -450,3 +450,11 @@ test('each long side starts filling at its own ear height',()=>{
  const left=(42*f.w+27)*4,right=(42*f.w+69)*4;
  assert.ok(result.back.data[left+3]>0);assert.deepEqual(result.back.data.slice(right,right+4),before.slice(right,right+4));assert.equal(result.back.data[(60*f.w+69)*4+3],255);
 });
+
+test('original hair restores the first processed head and clears later pixel edits',async()=>{
+ const f=studioFixture(),head=f.layers.find(l=>l.id==='head');Object.assign(head,{processedOriginalSource:'first-processed-head',mask:'later-mask',warpSource:'later-warp',eraseRestoreSource:'later-erase',makeupBaseSource:'later-makeup',makeupStyles:{look:'later'}});
+ await f.run('');const restored=f.context.state.current.find(l=>l.id==='head');assert.equal(restored.source,'first-processed-head');assert.equal(restored.mask,null);assert.equal(restored.warpSource,null);assert.equal(restored.eraseRestoreSource,null);assert.equal(restored.makeupBaseSource,null);assert.equal(restored.x,head.x);assert.equal(f.context.calls,0);assert.equal(f.context.state.current.filter(l=>l.kind==='hair-preview').length,0);
+});
+test('old projects use their stored original head when no first-processing snapshot exists',async()=>{
+ const f=studioFixture();await f.run('');assert.equal(f.context.state.current.find(l=>l.id==='head').source,'untouched-head');assert.equal(f.context.calls,0);
+});
