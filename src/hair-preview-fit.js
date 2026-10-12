@@ -1,5 +1,6 @@
 import {softHairEraser} from './soft-hair-eraser.js';
 import {fillLongHairGaps} from './long-hair-gap-fill.js';
+import {eraseLongUpperFront} from './long-upper-hair-eraser.js';
 // Local fitting changes hair coordinates only; it never changes face pixels.
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function anchors(face,w,h){
@@ -314,7 +315,7 @@ function createSingleHairPreview(placed,skin,face,w,h,makeCanvas,hairGuide){
 // Both layers share exactly the placed PNG's coordinates and texture. The
 // portrait itself occludes the rear; only confirmed skin can erase front alpha.
 // Rear filling includes weak alpha inside the actual ear/neck joins.
-export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null}={}){
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null,portrait=null}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  if(!skin||skin.width!==w||skin.height!==h||![127,356].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
  if(singleLayer)return createSingleHairPreview(placed,skin,face,w,h,makeCanvas,rearHairGuide);
@@ -323,7 +324,7 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  const sd=skin.getContext('2d').getImageData(0,0,w,h).data,feather=Math.max(1.25,Math.min(6,a.eye*.025));
  const distance=skinInteriorDistance(sd,w,h,feather);
  const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
- const pixels=fx.getImageData(0,0,w,h);
+ const pixels=fx.getImageData(0,0,w,h),original=new Uint8ClampedArray(pixels.data);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const n=y*w+x,j=n*4;if(!pixels.data[j+3]||sd[j+3]<128)continue;
   const q=local(x,y),ear=q.x<0?earLeft:earRight;
@@ -336,6 +337,9 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
   const erase=smooth(distance[n]/feather)*Math.max(side*earGate,below);
   pixels.data[j+3]=Math.round(pixels.data[j+3]*(1-erase));
  }
+ const guard=portrait?makeCanvas(w,h):null;
+ if(guard)guard.getContext('2d').drawImage(portrait,0,0,w,h);
+ pixels.data.set(eraseLongUpperFront(pixels.data,original,sd,w,h,face,guard?guard.getContext('2d').getImageData(0,0,w,h).data:null));
  fx.putImageData(pixels,0,0);
  const back=singleLayer?null:makeCanvas(w,h);
  // Restore the full PNG behind the portrait. Its original alpha overlaps

@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {softHairEraser} from './src/soft-hair-eraser.js';
 import {shortHairInterior,extendShortHairSkin} from './src/short-hair-skin-fill.js';
+import {featherLongCrown,eraseLongUpperPortrait} from './src/long-upper-hair-eraser.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
@@ -137,7 +138,7 @@ function pickerFixture(){
  const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
  const start=source.indexOf('const fittedHairReferenceCache=new Map();'),end=source.indexOf('// Processing and Studio use the same',start);
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28}),target=opaque(w,h),surfaces=[],options=[];let closed=0,cleaned=0;
- const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,shortHairInterior,extendShortHairSkin,
+ const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,shortHairInterior,extendShortHairSkin,featherLongCrown,eraseLongUpperPortrait,
   getLandmarker:async()=>({detect:()=>({faceLandmarks:[f.face]})}),
   getPersonSegmenter:async()=>({segment:(image,callback)=>callback({categoryMask:{width:w,height:h,getAsUint8Array:()=>new Uint8Array(w*h).fill(1),close:()=>closed++}})}),
   semanticClassMask:async(image,w,h)=>curvedSkin(w,h),
@@ -167,7 +168,7 @@ test('the picker applies one rigid placement and skin-contour policy to all 41 s
   assert.deepEqual(Object.keys(result).filter(k=>k!=='hairGapWarning').sort(),['backSource','cleanedHeadSource','source']);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id));
  }
  assert.equal(f.closed(),41);assert.equal(f.options.length,41);
- assert.ok(f.options.every(option=>Object.keys(option).join(',')==='singleLayer,rearHairGuide'),'no local warp or side squeeze enters the live picker');
+ assert.ok(f.options.every(option=>Object.keys(option).join(',')===(option.singleLayer?'singleLayer,rearHairGuide':'singleLayer,rearHairGuide,portrait')),'only long upper erasure receives the actual portrait silhouette');
 });
 for(const id of ['hair-01','hair-18','manhair-01'])test(`uncached ${id} preserves a full layered template or cleans a single-layer template`,async()=>{
  const f=pickerFixture(),result=await f.pipeline.prepareStudioHairOverlay(f.target,id);assert.ok(result.source&&result.cleanedHeadSource);const expectedCleaned=isSingleLayerHair(id)?1:0;assert.equal(f.cleaned(),expectedCleaned);
@@ -213,13 +214,13 @@ function studioFixture({version=46,offset=80,missingBack=false,locked=false,hair
 for(const options of [{version:46,offset:0},{version:47,offset:80},{version:47,offset:0,missingBack:true}])test(`Studio rebuilds old, shifted or incomplete hair ${JSON.stringify(options)} from the untouched head`,async()=>{
  const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,1,f.context.status);
  const next=f.context.state.current;assert.deepEqual(Array.from(next,l=>l.id),['background','new-back','head','new-front','suit']);
- for(const role of ['front','back']){const hair=next.find(l=>l.hairRole===role);assert.equal(hair.hairPreviewVersion,49);assert.equal(hair.hairLinked,true);for(const key of ['x','y','scale','rotation'])assert.equal(hair[key],next[2][key])}
+ for(const role of ['front','back']){const hair=next.find(l=>l.hairRole===role);assert.equal(hair.hairPreviewVersion,51);assert.equal(hair.hairLinked,true);for(const key of ['x','y','scale','rotation'])assert.equal(hair[key],next[2][key])}
  assert.equal(next[2].source,'new-head');assert.equal(next[2].hairOriginalSource,'untouched-head');
  for(const id of ['background','suit'])assert.deepEqual(next.find(l=>l.id===id),f.layers.find(l=>l.id===id));
  assert.equal(f.context.undo.current.length,1);assert.equal(f.context.processRequestRef.current,false);
 });
 test('an aligned current hair pair remains selected, and a locked head remains untouched',async()=>{
- for(const options of [{version:49,offset:0},{locked:true}]){const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,0);assert.equal(f.context.state.current,f.layers)}
+ for(const options of [{version:51,offset:0},{locked:true}]){const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,0);assert.equal(f.context.state.current,f.layers)}
 });
 
 function rearGapFixture(angle=0,{missingEarRows=false}={}){
@@ -255,48 +256,56 @@ test('template skin cannot become a hair donor and single-layer styles never gai
  const single=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{singleLayer:true,rearHairGuide:f.guide});assert.equal(single.back,null);assert.equal(single.gapAdjusted,false);
 });
 
-// Baselines captured before the short-only change, from GitHub commit 2cf4174.
-const longPixelBaselines=[
+const upperScopeBaselines=[
   {
     "angle": -0.3,
     "missingEarRows": false,
-    "front": "6b242eb1b11ae4924b5475fe7b2f9c00f76493d75050cc1112be1f65caab02c7",
-    "back": "31f667ffa1161c433573a36ae1cab4113fd1e97df17f362e465e8c4ae771f6ae"
+    "short": "27155d5bbff7829eb5d6050a361d2de54c17a0c7609187a4b053a5629b0cb663",
+    "lowerFront": "7d2aa2fadf9c3a4ea598ec6e57ea619e377c682b21dd051a59e29d311ed21a9c",
+    "back": "d2f2802adb49b9b064246c816f8cce343b9dfee68106155eec7f78984445a8aa"
   },
   {
     "angle": -0.3,
     "missingEarRows": true,
-    "front": "8e8960c0c15dc6d3a6ff3166e3a3c5f2f13f4308e7b0398ccacef27c32a07dbd",
-    "back": "43ad44fec0bf341ac390c15aca343cb8a801874e9d423dc53d8b77245d18607e"
+    "short": "3a25c08ca0be77a1ff5cb8a8c7766cf93fa9048814404bb0750c350e0331ee1b",
+    "lowerFront": "7d2aa2fadf9c3a4ea598ec6e57ea619e377c682b21dd051a59e29d311ed21a9c",
+    "back": "718eb64a81fac6eff75b17531d8b948266de97c30431dfa3010341d1214960a1"
   },
   {
     "angle": 0,
     "missingEarRows": false,
-    "front": "244383a429025e8a38e32f7003d0c678ac05b71b6ef6c18173151793187def80",
-    "back": "2264977438bdcaef5074bae94ff4389498b24de8925f715feb7d25adec2d637a"
+    "short": "ca6bb0be9cf07221e7f968cf4236968a9091f8809a00832f4ecc88400ef7681d",
+    "lowerFront": "38ba68c9157289b8f36b3451bdc257d9dc29d4f64f0dd8bbc23113c98e1e9569",
+    "back": "0d82c261c2e38256436880f258bbcebc2f9734071888e8edaf5c7abf0a3eae95"
   },
   {
     "angle": 0,
     "missingEarRows": true,
-    "front": "33ec2a307b01fc6bf908f3aa5783a1daff1ad2fc9e37c34dbb6ea0630409d87f",
-    "back": "d2c37cab0a2417cb3edcec4ae557f00a24d3b540f320fa8c1ea2de08a85b9954"
+    "short": "449f67399a5b3b3affd730f18a4ae93c7f063b2b9e8232025c746ae6ce55a0da",
+    "lowerFront": "38ba68c9157289b8f36b3451bdc257d9dc29d4f64f0dd8bbc23113c98e1e9569",
+    "back": "9d61ba246192c1e5883093341299d4ecd139087c92e5ad9281fb3b61eb5bb73a"
   },
   {
     "angle": 0.3,
     "missingEarRows": false,
-    "front": "5eadd5c7f7cf8cf9e407df2315e3bb1d490757d8ede5f2b67fc350b9b950f11d",
-    "back": "3362e780ca420163b4cc724950e02eef9f1643a8274fbf7dbd7d3f173be5bb47"
+    "short": "840d932494eb235fefcd01caf7c118e4f94dcc9615361642a5064f3d5afe9114",
+    "lowerFront": "88d886995cf3365dc5ab26fc48cba79eefcdd084cdfe65ddf7193b4d37e117b5",
+    "back": "3b437682c53ea7bb8c17c4331a7c8cd631ac9254c64b7e5170eca812b6364ced"
   },
   {
     "angle": 0.3,
     "missingEarRows": true,
-    "front": "846e28c2c668213a753e1e187552ab1e18c4330b220e3d1ec2dfd9dd24cd4bdb",
-    "back": "02545294824d3715b2541c3fefa79df615fcbe83f70a13dd57bc5e50834b2c15"
+    "short": "c5376ebee76fe54a48837c3b4a6652f54c3e1ceb751f6c823dc02e322452fbee",
+    "lowerFront": "88d886995cf3365dc5ab26fc48cba79eefcdd084cdfe65ddf7193b4d37e117b5",
+    "back": "92cc85ce1cb467248933fc5bea0b7f7cf5792ecafb1b9958a30e7e658dbfc2e8"
   }
 ];
-for(const baseline of longPixelBaselines)test(`long front pixels remain unchanged at ${baseline.angle}, ear rows missing=${baseline.missingEarRows}`,()=>{
- const f=rearGapFixture(baseline.angle,{missingEarRows:baseline.missingEarRows}),layers=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{rearHairGuide:f.guide});
- assert.equal(createHash('sha256').update(layers.front.data).digest('hex'),baseline.front);
+for(const baseline of upperScopeBaselines)test(`long upper erasure preserves short output, lower front and the rear at ${baseline.angle}, missing ear=${baseline.missingEarRows}`,()=>{
+ const f=rearGapFixture(baseline.angle,{missingEarRows:baseline.missingEarRows}),long=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{rearHairGuide:f.guide}),short=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{singleLayer:true,rearHairGuide:f.guide});
+ const lower=[];for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++)if(-(x-48)*Math.sin(baseline.angle)+(y-40)*Math.cos(baseline.angle)>f.f.eye*.22)lower.push(...long.front.data.slice((y*f.w+x)*4,(y*f.w+x)*4+4));
+ assert.equal(createHash('sha256').update(short.front.data).digest('hex'),baseline.short);
+ assert.equal(createHash('sha256').update(new Uint8Array(lower)).digest('hex'),baseline.lowerFront);
+ assert.equal(createHash('sha256').update(long.back.data).digest('hex'),baseline.back);
 });
 test('short hair leaves inner joins to the skin fill and retains native PNG texture',()=>{
  const f=rearGapFixture(),original=new Uint8ClampedArray(f.placed.data),result=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{singleLayer:true,rearHairGuide:f.guide});
@@ -334,56 +343,13 @@ test('every single-layer style refits versions 47 and 48 into one version 50 hai
   const hair=f.context.state.current.filter(l=>l.kind==='hair-preview');assert.equal(hair.length,1);assert.equal(hair[0].hairRole,'front');assert.equal(hair[0].hairPreviewVersion,50);assert.equal(hair[0].hairLinked,false);
  }
  const short=studioFixture({hairId:'manhair-01',version:50,offset:0});await short.run('manhair-01');assert.equal(short.context.calls,0);
- const long=studioFixture({version:49,offset:0});await long.run('hair-01');assert.equal(long.context.calls,0);
+ const long=studioFixture({version:51,offset:0});await long.run('hair-01');assert.equal(long.context.calls,0);
 });
 
 for(const angle of [-.3,0,.3])for(const missingEarRows of [false,true])test(`short PNG avoids copying or stretching hair at ${angle}, missing ear=${missingEarRows}`,()=>{
  const f=rearGapFixture(angle,{missingEarRows}),baseline=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{singleLayer:true}),result=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{singleLayer:true,rearHairGuide:f.guide});
  assert.equal(result.back,null);assert.equal(result.gapAdjusted,false);assert.deepEqual(result.front.data,baseline.front.data);
 });
-const currentLongPixelBaselines=[
-  {
-    "angle": -0.3,
-    "missingEarRows": false,
-    "front": "6b242eb1b11ae4924b5475fe7b2f9c00f76493d75050cc1112be1f65caab02c7",
-    "back": "d2f2802adb49b9b064246c816f8cce343b9dfee68106155eec7f78984445a8aa"
-  },
-  {
-    "angle": -0.3,
-    "missingEarRows": true,
-    "front": "8e8960c0c15dc6d3a6ff3166e3a3c5f2f13f4308e7b0398ccacef27c32a07dbd",
-    "back": "718eb64a81fac6eff75b17531d8b948266de97c30431dfa3010341d1214960a1"
-  },
-  {
-    "angle": 0,
-    "missingEarRows": false,
-    "front": "244383a429025e8a38e32f7003d0c678ac05b71b6ef6c18173151793187def80",
-    "back": "0d82c261c2e38256436880f258bbcebc2f9734071888e8edaf5c7abf0a3eae95"
-  },
-  {
-    "angle": 0,
-    "missingEarRows": true,
-    "front": "33ec2a307b01fc6bf908f3aa5783a1daff1ad2fc9e37c34dbb6ea0630409d87f",
-    "back": "9d61ba246192c1e5883093341299d4ecd139087c92e5ad9281fb3b61eb5bb73a"
-  },
-  {
-    "angle": 0.3,
-    "missingEarRows": false,
-    "front": "5eadd5c7f7cf8cf9e407df2315e3bb1d490757d8ede5f2b67fc350b9b950f11d",
-    "back": "3b437682c53ea7bb8c17c4331a7c8cd631ac9254c64b7e5170eca812b6364ced"
-  },
-  {
-    "angle": 0.3,
-    "missingEarRows": true,
-    "front": "846e28c2c668213a753e1e187552ab1e18c4330b220e3d1ec2dfd9dd24cd4bdb",
-    "back": "92cc85ce1cb467248933fc5bea0b7f7cf5792ecafb1b9958a30e7e658dbfc2e8"
-  }
-];
-for(const baseline of currentLongPixelBaselines)test(`long front and rear stay pixel-identical during short-only skin change at ${baseline.angle}, missing ear=${baseline.missingEarRows}`,()=>{
- const f=rearGapFixture(baseline.angle,{missingEarRows:baseline.missingEarRows}),result=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{rearHairGuide:f.guide});
- for(const role of ['front','back'])assert.equal(createHash('sha256').update(result[role].data).digest('hex'),baseline[role]);
-});
-
 for(const alpha of [1,32,128,223,239])for(const hairResidue of [false,true])test(`long rear closes partial-alpha ${alpha}, hair residue=${hairResidue}`,()=>{
  const f=rearGapFixture(),j=(60*f.w+27)*4;
  f.placed.data.set([120,90,80,alpha],j);if(hairResidue)f.guide.data[j+3]=255;

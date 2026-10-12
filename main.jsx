@@ -2,6 +2,7 @@ import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {shortHairInterior,extendShortHairSkin} from './short-hair-skin-fill.js';
+import {featherLongCrown,eraseLongUpperPortrait} from './long-upper-hair-eraser.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1444,7 +1445,13 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  for(const layer of [front,back]){
   if(!layer)continue;
   const cx=layer.getContext('2d'),pixels=cx.getImageData(0,0,W,H);
-  pixels.data.set(eraseDetachedUpperHair(pixels.data,W,H,face,{softEdges:isSingleLayerHair(hairId)}));cx.putImageData(pixels,0,0);
+  pixels.data.set(eraseDetachedUpperHair(pixels.data,W,H,face,{softEdges:true}));cx.putImageData(pixels,0,0);
+ }
+ let upper=null;
+ if(!isSingleLayerHair(hairId)&&back){
+  const fx=front.getContext('2d'),bx=back.getContext('2d'),fp=fx.getImageData(0,0,W,H),bp=bx.getImageData(0,0,W,H);
+  upper=featherLongCrown(fp.data,bp.data,W,H,face);
+  fp.data.set(upper.front);bp.data.set(upper.back);fx.putImageData(fp,0,0);bx.putImageData(bp,0,0);
  }
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
@@ -1458,6 +1465,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  // small inner joins with nearby skin under the PNG, never erase a hole there.
  const skinFill=single?extendShortHairSkin(headPixels.data,hairPixels.data,W,H,face,labels,interior):null;
  if(skinFill)headPixels.data.set(skinFill.pixels);
+ if(upper)headPixels.data.set(eraseLongUpperPortrait(headPixels.data,W,H,face,labels,upper.headStrength));
  cc.putImageData(headPixels,0,0);
  const result={source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
  if(skinFill?.remaining>0)result.hairGapWarning=true;
@@ -1530,7 +1538,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   else gx.setTransform(fit.a,fit.b,fit.c,fit.d,fit.e,fit.f);
   gx.drawImage(ref.hairGuide,0,0);gx.setTransform(1,0,0,1,0,0);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:isSingleLayerHair(hairId),rearHairGuide});
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:isSingleLayerHair(hairId),rearHairGuide,...(!isSingleLayerHair(hairId)?{portrait:target}:{})});
  const result=await finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
  if(layers.gapReport&&(layers.gapReport.remaining>0||layers.gapReport.unavailable))result.hairGapWarning=true;
  return result;

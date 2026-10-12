@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
+import {featherLongCrown,eraseLongUpperPortrait} from './src/long-upper-hair-eraser.js';
 import {shortHairInterior,extendShortHairSkin} from './src/short-hair-skin-fill.js';
 import {eraseHeadExteriorExcess} from './src/upper-hair-eraser.js';
 
@@ -109,7 +110,7 @@ class Surface{
 }
 function liveFinish(f,single){
  const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8'),start=source.indexOf('async function finishStudioHairPreview('),end=source.indexOf('async function prepareStudioHairOverlay(',start);
- const context={studioHairLabels:async()=>f.labels,isSingleLayerHair:()=>single,canvasFor:(w,h)=>new Surface(w,h),eraseDetachedUpperHair,eraseHeadExteriorExcess,
+ const context={studioHairLabels:async()=>f.labels,isSingleLayerHair:()=>single,canvasFor:(w,h)=>new Surface(w,h),eraseDetachedUpperHair,eraseHeadExteriorExcess,featherLongCrown,eraseLongUpperPortrait,
   shortHairInterior:single?shortHairInterior:()=>{throw Error('long hair must not run short interior geometry')},
   extendShortHairSkin:single?extendShortHairSkin:()=>{throw Error('long hair must not copy skin')}
  };
@@ -124,7 +125,8 @@ test('the live long finish skips all new short geometry and skin extension',asyn
  const f=fixture(),head=new Surface(f.w,f.h,f.portrait),front=new Surface(f.w,f.h,f.overlay),back=new Surface(f.w,f.h,f.overlay),run=liveFinish(f,false),result=await run(head,front,back,f.face,'hair-01');
  const coverage=new Surface(f.w,f.h);coverage.getContext().drawImage(back);coverage.getContext().drawImage(front);
  const expected=eraseHeadExteriorExcess(f.portrait,coverage.data,f.w,f.h,f.face,f.labels);
- assert.deepEqual(result.cleanedHeadSource.data,expected);assert.deepEqual(result.source.data,f.overlay);assert.deepEqual(result.backSource.data,f.overlay);assert.equal(result.hairGapWarning,undefined);
+ for(let y=35;y<f.h;y++)for(let x=0;x<f.w;x++){const j=(y*f.w+x)*4;assert.deepEqual(result.cleanedHeadSource.data.slice(j,j+4),expected.slice(j,j+4));assert.deepEqual(result.source.data.slice(j,j+4),f.overlay.slice(j,j+4));assert.deepEqual(result.backSource.data.slice(j,j+4),f.overlay.slice(j,j+4))}
+ assert.equal(result.hairGapWarning,undefined);
 });
 
 test('explicit brow protection also blocks erasure outside an approximate face oval',()=>{
