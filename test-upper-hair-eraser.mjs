@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {eraseUpperHairExcess,eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
+import {eraseUpperHairExcess,eraseDetachedUpperHair,eraseHeadExteriorExcess} from './src/upper-hair-eraser.js';
 
 const W=96,H=100;
 const index=(x,y)=>(y*W+x)*4;
@@ -171,4 +171,49 @@ for(const alpha of [0,120,239])test(`40% extra erasure cannot open a hole under 
  const f=fixture();f.overlay[index(48,23)+3]=alpha;
  const out=erase(f);assert.deepEqual(pixel(out,48,23),pixel(f.portrait,48,23));
  assert.equal(out[index(50,23)+3],0,'opaque coverage still permits the requested extra erasure');
+});
+
+function exteriorFixture(){
+ const f=fixture();for(const [id,x,y] of [[152,48,84],[234,24,60],[454,72,60]])f.face[id]={x:x/W,y:y/H};
+ for(let y=39;y<92;y++)for(let x=18;x<=78;x++)if(x<=28||x>=68)f.overlay.set([20,30,40,255],index(x,y));
+ return f;
+}
+const exterior=f=>eraseHeadExteriorExcess(f.portrait,f.overlay,W,H,f.face,f.labels);
+test('the exterior eraser cleans both sides and below the chin, not only the crown',()=>{
+ const f=exteriorFixture(),out=exterior(f);
+ for(const [x,y] of [[5,28],[5,60],[90,60],[5,88],[48,98]])assert.equal(out[index(x,y)+3],0);
+ for(const [x,y] of [[48,25],[22,58],[73,75]])assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y),'selected hair stays protected');
+});
+test('exterior erasure has a soft inward-to-outward falloff without recoloring either input',()=>{
+ const f=exteriorFixture(),portrait=new Uint8ClampedArray(f.portrait),overlay=new Uint8ClampedArray(f.overlay),out=exterior(f);
+ const fade=[17,16,15,14].map(x=>out[index(x,28)+3]);assert.ok(fade[0]>fade[1]&&fade[1]>fade[2]&&fade[2]>fade[3]);assert.equal(fade[3],0);
+ assert.deepEqual(f.portrait,portrait);assert.deepEqual(f.overlay,overlay);for(let j=0;j<out.length;j+=4)assert.deepEqual(out.slice(j,j+3),portrait.slice(j,j+3));
+});
+for(const category of [2,3,4,5])test(`exterior erasure protects category ${category} around the head`,()=>{
+ const f=exteriorFixture();f.labels.data[60*W+5]=category;const out=exterior(f);assert.deepEqual(pixel(out,5,60),pixel(f.portrait,5,60));
+});
+test('anatomical guards protect the face and both ears even if detected as hair',()=>{
+ const f=exteriorFixture();f.overlay.fill(0,index(20,68),index(20,68)+4);f.overlay.fill(0,index(76,68),index(76,68)+4);
+ const out=exterior(f);for(const [x,y] of [[48,60],[48,77],[20,68],[76,68]])assert.deepEqual(pixel(out,x,y),pixel(f.portrait,x,y));
+});
+test('detached background-labeled head debris is removed, while low detached objects stay untouched',()=>{
+ const f=exteriorFixture();f.portrait.fill(0);
+ for(let y=20;y<92;y++)for(let x=18;x<=78;x++)f.portrait.set([x,y,77,255],index(x,y));
+ for(const [x,y] of [[5,48],[5,98]]){f.portrait.set([10,20,30,255],index(x,y));f.labels.data[y*W+x]=0}
+ const out=exterior(f);assert.equal(out[index(5,48)+3],0);assert.deepEqual(pixel(out,5,98),pixel(f.portrait,5,98));
+});
+for(const angle of [-.3,.3])test(`exterior erasure protects a tilted face and ear frame ${angle}`,()=>{
+ const f=exteriorFixture(),c=Math.cos(angle),s=Math.sin(angle);
+ const rotate=(x,y)=>({x:48+(x-48)*c-(y-60)*s,y:60+(x-48)*s+(y-60)*c});
+ f.face=f.face.map(p=>{const q=rotate(p.x*W,p.y*H);return {x:q.x/W,y:q.y/H}});
+ const out=exterior(f),q=rotate(20,68);assert.deepEqual(pixel(out,Math.round(q.x),Math.round(q.y)),pixel(f.portrait,Math.round(q.x),Math.round(q.y)));
+});
+test('exterior cleanup rejects missing face protection or overlay data before writing pixels',()=>{
+ const f=exteriorFixture();delete f.face[152];assert.throws(()=>exterior(f));
+ const blank=exteriorFixture();blank.overlay.fill(0);assert.throws(()=>exterior(blank));
+});
+
+test('background remnants connected to the portrait are still erased outside the head',()=>{
+ const f=exteriorFixture();f.labels.data[48*W+5]=0;
+ const out=exterior(f);assert.equal(out[index(5,48)+3],0);
 });

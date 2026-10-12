@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin,syncHairAttachments,syncHairPairTransforms} from './src/hair-preview-fit.js';
-import {eraseUpperHairExcess,eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
+import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './src/upper-hair-eraser.js';
 import {isSingleLayerHair} from './src/short-female-hair.js';
 import {HAIR_TEMPLATE_ANCHORS} from './src/hair-template-anchors.js';
 import {HAIRSTYLE_RULES} from './hairstyle-rules.js';
@@ -133,7 +133,7 @@ function pickerFixture(){
  const source=fs.readFileSync(new URL('./src/main.jsx',import.meta.url),'utf8');
  const start=source.indexOf('const fittedHairReferenceCache=new Map();'),end=source.indexOf('// Processing and Studio use the same',start);
  const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28}),target=opaque(w,h),surfaces=[],options=[];let closed=0,cleaned=0;
- const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseUpperHairExcess,eraseDetachedUpperHair,
+ const context={Uint8Array,HTMLImageElement:class{},HAIRSTYLE_RULES,HAIR_TEMPLATE_ANCHORS,isSingleLayerHair,hairPreviewTransform,eraseHeadExteriorExcess,eraseDetachedUpperHair,
   getLandmarker:async()=>({detect:()=>({faceLandmarks:[f.face]})}),
   getPersonSegmenter:async()=>({segment:(image,callback)=>callback({categoryMask:{width:w,height:h,getAsUint8Array:()=>new Uint8Array(w*h).fill(1),close:()=>closed++}})}),
   semanticClassMask:async(image,w,h)=>curvedSkin(w,h),
@@ -155,14 +155,15 @@ test('the picker applies one rigid placement and skin-contour policy to all 41 s
  for(const id of ids){
   // Shared raster fixture checks style routing; native asset geometry is
   // covered separately by the calibration and uncached loading tests.
-  f.pipeline.cache.set(id,{cutout:f.target,face:f.f.face,w:f.f.w,h:f.f.h,calibration:{...HAIR_TEMPLATE_ANCHORS[id],sourceToReference:[1,0,0,1,0,0]}});
+  f.pipeline.cache.set(id,{cutout:f.target,face:f.f.face,w:f.f.w,h:f.f.h,calibration:{...HAIR_TEMPLATE_ANCHORS[id],sourceToReference:[1,0,0,1,0,0]},hairGuide:isSingleLayerHair(id)?null:f.target});
   const before=f.surfaces.length,result=await f.pipeline.prepareStudioHairOverlay(f.target,id),created=f.surfaces.slice(before),transformed=created.filter(c=>c.transforms.length);
-  assert.equal(transformed.length,1);assert.equal(transformed[0].transforms.length,2);
+  assert.equal(transformed.length,isSingleLayerHair(id)?1:2);assert.equal(transformed[0].transforms.length,2);
+  if(transformed[1])for(let row=0;row<2;row++)for(let k=0;k<6;k++)close(transformed[1].transforms[row][k],transformed[0].transforms[row][k]);
   const [a,b,c,d]=transformed[0].transforms[0];rigid({a,b,c,d});
   assert.deepEqual(Object.keys(result).sort(),['backSource','cleanedHeadSource','source']);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id));
  }
  assert.equal(f.closed(),41);assert.equal(f.options.length,41);
- assert.ok(f.options.every(option=>Object.keys(option).join(',')==='singleLayer'),'no local warp or side squeeze enters the live picker');
+ assert.ok(f.options.every(option=>Object.keys(option).join(',')==='singleLayer,rearHairGuide'),'no local warp or side squeeze enters the live picker');
 });
 for(const id of ['hair-01','hair-18','manhair-01'])test(`uncached ${id} preserves a full layered template or cleans a single-layer template`,async()=>{
  const f=pickerFixture(),result=await f.pipeline.prepareStudioHairOverlay(f.target,id);assert.ok(result.source&&result.cleanedHeadSource);const expectedCleaned=isSingleLayerHair(id)?1:0;assert.equal(f.cleaned(),expectedCleaned);
@@ -188,7 +189,7 @@ test('moving, scaling and rotating the head carries both hair layers with it',()
  for(const layer of next.slice(1))for(const key of ['x','y','scale','rotation'])close(layer[key],next[0][key]);
 });
 
-function studioFixture({version=45,offset=80,missingBack=false,locked=false}={}){
+function studioFixture({version=46,offset=80,missingBack=false,locked=false}={}){
  const pose={x:12,y:-7,scale:1.2,rotation:8},head={id:'head',kind:'head',source:'old-cleaned-head',hairOriginalSource:'untouched-head',sourceFrame:{x:100,y:120,w:600,h:850},locked,...pose};
  const hair=role=>({id:role,kind:'hair-preview',hairHeadId:head.id,hairId:'hair-01',hairRole:role,hairPreviewVersion:version,hairLinked:true,...pose,x:pose.x+offset});
  const layers=[{id:'background',kind:'background',source:'blue'},...(!missingBack?[hair('back')]:[]),head,hair('front'),{id:'suit',kind:'suit',source:'uniform'}];
@@ -205,14 +206,47 @@ function studioFixture({version=45,offset=80,missingBack=false,locked=false}={})
  const run=vm.runInNewContext(source.slice(start,end)+'\napplyHair',context);
  return {run,context,layers};
 }
-for(const options of [{version:45,offset:0},{version:46,offset:80},{version:46,offset:0,missingBack:true}])test(`Studio rebuilds old, shifted or incomplete hair ${JSON.stringify(options)} from the untouched head`,async()=>{
+for(const options of [{version:46,offset:0},{version:47,offset:80},{version:47,offset:0,missingBack:true}])test(`Studio rebuilds old, shifted or incomplete hair ${JSON.stringify(options)} from the untouched head`,async()=>{
  const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,1,f.context.status);
  const next=f.context.state.current;assert.deepEqual(Array.from(next,l=>l.id),['background','new-back','head','new-front','suit']);
- for(const role of ['front','back']){const hair=next.find(l=>l.hairRole===role);assert.equal(hair.hairPreviewVersion,46);assert.equal(hair.hairLinked,true);for(const key of ['x','y','scale','rotation'])assert.equal(hair[key],next[2][key])}
+ for(const role of ['front','back']){const hair=next.find(l=>l.hairRole===role);assert.equal(hair.hairPreviewVersion,47);assert.equal(hair.hairLinked,true);for(const key of ['x','y','scale','rotation'])assert.equal(hair[key],next[2][key])}
  assert.equal(next[2].source,'new-head');assert.equal(next[2].hairOriginalSource,'untouched-head');
  for(const id of ['background','suit'])assert.deepEqual(next.find(l=>l.id===id),f.layers.find(l=>l.id===id));
  assert.equal(f.context.undo.current.length,1);assert.equal(f.context.processRequestRef.current,false);
 });
 test('an aligned current hair pair remains selected, and a locked head remains untouched',async()=>{
- for(const options of [{version:46,offset:0},{locked:true}]){const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,0);assert.equal(f.context.state.current,f.layers)}
+ for(const options of [{version:47,offset:0},{locked:true}]){const f=studioFixture(options);await f.run('hair-01');assert.equal(f.context.calls,0);assert.equal(f.context.state.current,f.layers)}
+});
+
+function rearGapFixture(angle=0,{missingEarRows=false}={}){
+ const w=96,h=100,f=portrait({w,h,cx:48,cy:40,width:44,height:60,eye:28,angle}),placed=canvas(w,h),skin=canvas(w,h),guide=canvas(w,h),c=Math.cos(angle),s=Math.sin(angle);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const u=(x-48)*c+(y-40)*s,v=-(x-48)*s+(y-40)*c,j=(y*w+x)*4;
+  const crown=Math.abs(u)<=34&&v>=-28&&v<=-10;
+  const side=Math.abs(u)>=24&&Math.abs(u)<=38&&v>-10&&v<=55&&!(missingEarRows&&u<0&&v>=0&&v<=4);
+  if(crown||side){placed.data.set([x,y,77,255],j);guide.data.set([255,255,255,255],j)}
+  if(Math.abs(u)<=18&&v>=-10&&v<=44)skin.data.set([255,255,255,255],j);
+ }
+ return {w,h,f,placed,skin,guide};
+}
+for(const angle of [-.3,0,.3])test(`rear gap filling follows the face axis ${angle} and preserves all existing hair pixels`,()=>{
+ const f=rearGapFixture(angle),original=new Uint8ClampedArray(f.placed.data),baseline=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas),result=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{rearHairGuide:f.guide});
+ assert.equal(result.gapAdjusted,true);assert.deepEqual(result.front.data,baseline.front.data,'the front is never shifted or stretched');let added=0;
+ for(let y=0;y<f.h;y++)for(let x=0;x<f.w;x++){
+  const j=(y*f.w+x)*4,u=(x-48)*Math.cos(angle)+(y-40)*Math.sin(angle),v=-(x-48)*Math.sin(angle)+(y-40)*Math.cos(angle);
+  if(original[j+3]||v<-5.6||Math.abs(u)>40)assert.deepEqual(result.back.data.slice(j,j+4),original.slice(j,j+4),'crown, outside outline and original strands stay exact');
+  if(!original[j+3]&&result.back.data[j+3]){added++;const sourceV=-(result.back.data[j]-48)*Math.sin(angle)+(result.back.data[j+1]-40)*Math.cos(angle);assert.ok(Math.abs(sourceV-v)<2,'ordinary gap fill keeps the vertical face-axis coordinate')}
+ }
+ assert.ok(added>0);assert.deepEqual(f.placed.data,original);
+ if(angle===0){for(const x of [27,69]){const j=(60*f.w+x)*4;assert.equal(result.back.data[j+3],255);assert.ok(x<48?result.back.data[j]<x:result.back.data[j]>x,'each side moves inward independently')}}
+});
+test('an empty ear row borrows only nearby rear hair, leaving the front and crown intact',()=>{
+ const f=rearGapFixture(0,{missingEarRows:true}),baseline=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas),result=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{rearHairGuide:f.guide}),j=(42*f.w+27)*4;
+ assert.equal(result.gapAdjusted,true);assert.ok(result.back.data[j+3]>200,'the open ear row is filled');assert.ok(Math.abs(result.back.data[j+1]-42)<=f.f.eye*.28+1);
+ assert.deepEqual(result.front.data,baseline.front.data);assert.deepEqual(result.back.data.slice(0,28*f.w*4),f.placed.data.slice(0,28*f.w*4));
+});
+test('template skin cannot become a hair donor and single-layer styles never gain a rear copy',()=>{
+ const f=rearGapFixture(),empty=canvas(f.w,f.h),noDonor=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{rearHairGuide:empty});
+ assert.equal(noDonor.gapAdjusted,false);assert.deepEqual(noDonor.back.data,f.placed.data);
+ const single=createTwoLayerHairPreview(f.placed,f.skin,f.f.face,f.w,f.h,canvas,{singleLayer:true,rearHairGuide:f.guide});assert.equal(single.back,null);assert.equal(single.gapAdjusted,false);
 });

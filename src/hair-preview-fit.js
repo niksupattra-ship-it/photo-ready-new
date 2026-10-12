@@ -226,10 +226,69 @@ export function eraseHairTemplateSkin(pixels,w,h,skin,face,rw,rh,sourceToReferen
  return out;
 }
 
+// Translate existing rear strands into the inner ear/neck gaps only. Opaque
+// hair, the outside silhouette and the crown remain in their original pixels.
+// The reference hair guide prevents skin from the template becoming a donor.
+function pushRearIntoGaps(back,skin,hairGuide,face,w,h){
+ const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
+ if(hairGuide.width!==w||hairGuide.height!==h||!face[152])throw Error('ตรวจช่องว่างผมด้านหลังไม่สำเร็จ');
+ const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
+ const world=(u,v)=>({x:a.x+u*cos-v*sin,y:a.y+u*sin+v*cos});
+ const at=(u,v)=>{const p=world(u,v),x=Math.round(p.x),y=Math.round(p.y);return x>=0&&x<w&&y>=0&&y<h?(y*w+x)*4:-1};
+ const left=local(face[127].x*w,face[127].y*h),right=local(face[356].x*w,face[356].y*h),chin=local(face[152].x*w,face[152].y*h).y;
+ const start=Math.min(left.y,right.y)-a.eye*.1,bottom=chin+a.eye*.9,count=Math.max(1,Math.ceil(bottom-start));
+ const maxPush=a.eye*.4,overlap=Math.max(1,a.eye*.035),step=Math.max(1,a.eye*.012),feather=Math.max(1.5,Math.min(7,a.eye*.03));
+ const bx=back.getContext('2d'),image=bx.getImageData(0,0,w,h),source=new Uint8ClampedArray(image.data);
+ const sd=skin.getContext('2d').getImageData(0,0,w,h).data,guide=hairGuide.getContext('2d').getImageData(0,0,w,h).data;
+ const profiles=new Map();
+ for(const sign of [-1,1]){
+  const rows=[];
+  for(let i=0;i<=count;i++){
+   const v=start+(bottom-start)*i/count;let edge=0,hair=null;
+   for(let r=0;r<=a.width*.8;r+=step){const j=at(sign*r,v);if(j>=0&&sd[j+3]>=160)edge=r}
+   if(edge)for(let r=Math.max(0,edge-overlap);r<=edge+maxPush;r+=step){const j=at(sign*r,v);if(j>=0&&guide[j+3]>=160&&source[j+3]>=192){hair=r;break}}
+   rows.push({edge,hair,v,sourceV:v});
+  }
+  const raw=rows.map(row=>({...row})),maxLift=Math.ceil(a.eye*.28*count/(bottom-start));
+  for(let i=0;i<=count;i++){
+   const row=rows[i];if(!row.edge||row.hair!==null||row.v>chin)continue;
+   // A genuinely open ear row can be covered by a nearby lower strand. Keep
+   // this small, behind the portrait, and never resample the visible front.
+   for(let d=1;d<=maxLift&&row.hair===null;d++)for(const k of [i+d,i-d]){
+    const donor=raw[k];if(!donor||donor.hair===null||donor.hair<row.edge-overlap||donor.hair>row.edge+maxPush)continue;
+    row.hair=donor.hair;row.sourceV=donor.v;break;
+   }
+  }
+  profiles.set(sign,rows);
+ }
+ let adjusted=false;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const j=(y*w+x)*4;if(source[j+3]!==0)continue;
+  const q=local(x,y);if(q.y<start||q.y>bottom)continue;
+  const sign=q.x<0?-1:1,r=Math.abs(q.x),pos=clamp((q.y-start)/(bottom-start)*count,0,count),i=Math.round(pos),row=profiles.get(sign)[i];
+  if(!row.edge||row.hair===null||r<row.edge-overlap-feather||r>row.hair+feather)continue;
+  const push=clamp(row.hair-row.edge+overlap,0,maxPush);if(!push)continue;
+  const sourceV=q.y+row.sourceV-row.v,point=world(sign*(r+push),sourceV),px=Math.floor(point.x),py=Math.floor(point.y),dx=point.x-px,dy=point.y-py;
+  const guideAt=at(sign*(r+push),sourceV);if(guideAt<0||guide[guideAt+3]<128)continue;
+  let alpha=0,red=0,green=0,blue=0;
+  for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
+   const sx=px+xx,sy=py+yy;if(sx<0||sx>=w||sy<0||sy>=h)continue;
+   const k=(sy*w+sx)*4,part=source[k+3]*(xx?dx:1-dx)*(yy?dy:1-dy);
+   alpha+=part;red+=source[k]*part;green+=source[k+1]*part;blue+=source[k+2]*part;
+  }
+  const band=smooth((q.y-start)/(a.eye*.15))*smooth((bottom-q.y)/(a.eye*.22));
+  const radial=smooth((r-row.edge+overlap+feather)/feather),opacity=Math.round(alpha*band*radial);
+  if(!opacity)continue;
+  image.data[j]=Math.round(red/alpha);image.data[j+1]=Math.round(green/alpha);image.data[j+2]=Math.round(blue/alpha);image.data[j+3]=opacity;adjusted=true;
+ }
+ if(adjusted)bx.putImageData(image,0,0);
+ return adjusted;
+}
+
 // Both layers share exactly the placed PNG's coordinates and texture. The
 // portrait itself occludes the rear; only confirmed skin can erase front alpha.
-// No lifted rows, inward pushes, horizontal crops, or copied hair fragments.
-export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false}={}){
+// Rear gap filling is bounded to transparent pixels beside the ear/neck.
+export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singleLayer=false,rearHairGuide=null}={}){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  if(!skin||skin.width!==w||skin.height!==h||![127,356].every(i=>face[i]))throw Error('ตรวจกรอบหูและคอไม่สำเร็จ');
  const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
@@ -254,9 +313,10 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  const back=singleLayer?null:makeCanvas(w,h);
  // Restore the full PNG behind the portrait. Its original alpha overlaps
  // the front, instead of being divided between the two layers. Both copies
- // still use the latest shared placement, with no separate rear pixel warp.
+ // still use the latest shared placement. Only transparent inner gaps may fill.
  if(back)back.getContext('2d').drawImage(placed,0,0);
- return {front,back,gapAdjusted:false};
+ const gapAdjusted=Boolean(back&&rearHairGuide&&pushRearIntoGaps(back,skin,rearHairGuide,face,w,h));
+ return {front,back,gapAdjusted};
 }
 // Erase the overlay over visible skin from the ear/temple level down to the neck.
 // Keep it as a separate mask so Studio's restore brush can bring hair back.

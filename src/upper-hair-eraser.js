@@ -115,3 +115,72 @@ export function eraseUpperHairExcess(portrait,overlay,w,h,face,labels){
  }
  return out;
 }
+
+// Exterior cleanup follows the complete final hair/head silhouette, including
+// both sides. Detection and anatomical guards guide a direct pixel eraser;
+// no clipping or retained layer mask is produced.
+export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels){
+ const valid=p=>(p instanceof Uint8Array||p instanceof Uint8ClampedArray)&&p.length===w*h*4;
+ if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!valid(portrait)||!valid(overlay))throw Error('ภาพไม่พร้อมสำหรับเก็บขอบศีรษะ');
+ const frame=upperFrame(face,w,h),{eye,localX,localY}=frame;
+ if([152,234,454].some(i=>!face?.[i]||![face[i].x,face[i].y].every(Number.isFinite)))throw Error('ไม่พบกรอบใบหน้าเพื่อป้องกันผิวและหู');
+ const {data,width:mw,height:mh}=labels||{};
+ if(!(data instanceof Uint8Array)||!Number.isInteger(mw)||!Number.isInteger(mh)||mw<1||mh<1||data.length!==mw*mh)throw Error('ตรวจพื้นที่ผมและผิวไม่สำเร็จ · เก็บภาพเดิมไว้');
+ const p=i=>({x:localX(face[i].x*w,face[i].y*h),y:localY(face[i].x*w,face[i].y*h)});
+ const forehead=p(10),chin=p(152),cheeks=[p(234),p(454)],ears=[p(127),p(356)],center=(cheeks[0].x+cheeks[1].x)/2;
+ const half=Math.abs(cheeks[1].x-cheeks[0].x)/2;
+ if(half<eye*.5||chin.y<=forehead.y)throw Error('กรอบใบหน้าไม่ชัดพอสำหรับเก็บขอบ');
+ const ovalIds=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+ const oval=ovalIds.every(i=>face[i]&&[face[i].x,face[i].y].every(Number.isFinite))?ovalIds.map(p):null;
+ const insideFace=(u,v)=>{
+  // Ear landmarks mark upper attachments, so explicitly protect the visible
+  // ear below and slightly outside each attachment, even if it is mislabeled.
+  for(const ear of ears)if(((u-ear.x)/(eye*.17))**2+((v-ear.y-eye*.35)/(eye*.55))**2<=1)return true;
+  if(v<forehead.y-eye*.04||v>chin.y+eye*.04||Math.abs(u-center)>half+eye*.06)return false;
+  if(!oval)return ((u-center)/(half+eye*.04))**2+((v-(forehead.y+chin.y)/2)/((chin.y-forehead.y)/2+eye*.04))**2<=1;
+  let inside=false;
+  for(let i=0,j=oval.length-1;i<oval.length;j=i++){
+   const a=oval[i],b=oval[j];if((a.y>v)!==(b.y>v)&&u<(b.x-a.x)*(v-a.y)/(b.y-a.y)+a.x)inside=!inside;
+  }
+  return inside;
+ };
+ const protectedLabels=new Uint8Array(data.length);
+ for(let y=0;y<mh;y++)for(let x=0;x<mw;x++){
+  if(![2,3,4].includes(data[y*mw+x]))continue;
+  for(let yy=Math.max(0,y-2);yy<=Math.min(mh-1,y+2);yy++)for(let xx=Math.max(0,x-2);xx<=Math.min(mw-1,x+2);xx++)protectedLabels[yy*mw+xx]=1;
+ }
+ const labelAt=(x,y)=>Math.min(mh-1,Math.floor((y+.5)*mh/h))*mw+Math.min(mw-1,Math.floor((x+.5)*mw/w));
+ const feather=Math.max(4,Math.min(20,eye*.045)),distance=new Float32Array(w*h),out=new Uint8ClampedArray(portrait);
+ let foundHair=false;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const n=y*w+x,label=labelAt(x,y),u=localX(x,y),v=localY(x,y),hair=overlay[n*4+3]>8;
+  if(hair)foundHair=true;
+  distance[n]=hair||protectedLabels[label]||insideFace(u,v)?0:feather;
+ }
+ if(!foundHair)throw Error('ไม่พบทรงผมหลักสำหรับเก็บขอบ · เก็บภาพเดิมไว้');
+ const diagonal=Math.SQRT2;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x;let d=distance[i];
+  if(x)d=Math.min(d,distance[i-1]+1);
+  if(y){d=Math.min(d,distance[i-w]+1);if(x)d=Math.min(d,distance[i-w-1]+diagonal);if(x+1<w)d=Math.min(d,distance[i-w+1]+diagonal)}
+  distance[i]=d;
+ }
+ for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){
+  const i=y*w+x;let d=distance[i];
+  if(x+1<w)d=Math.min(d,distance[i+1]+1);
+  if(y+1<h){d=Math.min(d,distance[i+w]+1);if(x)d=Math.min(d,distance[i+w-1]+diagonal);if(x+1<w)d=Math.min(d,distance[i+w+1]+diagonal)}
+  distance[i]=d;
+ }
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const n=y*w+x,j=n*4;if(!portrait[j+3]||!distance[n])continue;
+  const category=data[labelAt(x,y)];
+  // Background-labeled remnants near the head can still be connected by
+  // a thin strand. Erase them outside the protected silhouette as well.
+  // Clothing and other objects never become eraser targets.
+  const debris=category===0&&Math.abs(localX(x,y)-center)<half+eye*.9&&localY(x,y)<chin.y+eye*.25;
+  if(category!==1&&!debris)continue;
+  const t=Math.min(1,distance[n]/feather),erase=t*t*(3-2*t);
+  out[j+3]=Math.round(portrait[j+3]*(1-erase));
+ }
+ return out;
+}

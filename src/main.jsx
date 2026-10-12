@@ -1,6 +1,6 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
-import {eraseUpperHairExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
+import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1447,11 +1447,11 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  }
  const coverage=canvasFor(W,H),ctx=coverage.getContext('2d');
  if(back)ctx.drawImage(back,0,0);ctx.drawImage(front,0,0);
- // Apply a soft upper-edge eraser directly to the original portrait pixels.
- // No full-head mask, clipping layer, side erasure or retained eraser mask.
+ // Erase excess around the entire final head/hair silhouette with a soft
+ // pixel eraser. Skin, ears and selected hair are protected, without a mask layer.
  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
  const headPixels=cc.getImageData(0,0,W,H),hairPixels=ctx.getImageData(0,0,W,H);
- headPixels.data.set(eraseUpperHairExcess(headPixels.data,hairPixels.data,W,H,face,labels));
+ headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels));
  cc.putImageData(headPixels,0,0);
  return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
 }
@@ -1474,14 +1474,18 @@ async function prepareStudioHairOverlay(headSource,hairId){
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
    // Two-layer styles use the original full PNG for the rear overlap. Do not
    // carve template-skin openings into both copies before they are stacked.
+   let hairGuide=null;
    if(isSingleLayerHair(hairId)){
     const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
     if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
     const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
     pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference));cx.putImageData(pixels,0,0);
     if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
+   }else{
+    hairGuide=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
+    if(!hairGuide)throw Error('ตรวจเส้นผมต้นแบบสำหรับปิดช่องว่างไม่สำเร็จ');
    }
-   return {cutout:c,face,bounds,calibration,w:preview.naturalWidth,h:preview.naturalHeight};
+   return {cutout:c,face,bounds,calibration,hairGuide,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
@@ -1501,7 +1505,12 @@ async function prepareStudioHairOverlay(headSource,hairId){
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:isSingleLayerHair(hairId)});
+ const rearHairGuide=ref.hairGuide?canvasFor(W,H):null;
+ if(rearHairGuide){
+  const gx=rearHairGuide.getContext('2d');gx.setTransform(fit.a,fit.b,fit.c,fit.d,fit.e,fit.f);
+  gx.drawImage(ref.hairGuide,0,0);gx.setTransform(1,0,0,1,0,0);
+ }
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:isSingleLayerHair(hairId),rearHairGuide});
  return finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
 }
 // Processing and Studio use the same calibrated placement and ear contours.
