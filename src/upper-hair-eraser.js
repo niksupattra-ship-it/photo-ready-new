@@ -120,9 +120,10 @@ export function eraseUpperHairExcess(portrait,overlay,w,h,face,labels){
 // Exterior cleanup follows the complete final hair/head silhouette, including
 // both sides. Detection and anatomical guards guide a direct pixel eraser;
 // no clipping or retained layer mask is produced.
-export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels,{softEdges=false}={}){
+export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels,{softEdges=false,interior=null}={}){
  const valid=p=>(p instanceof Uint8Array||p instanceof Uint8ClampedArray)&&p.length===w*h*4;
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!valid(portrait)||!valid(overlay))throw Error('ภาพไม่พร้อมสำหรับเก็บขอบศีรษะ');
+ if(interior&&(!(interior instanceof Uint8Array)||interior.length!==w*h))throw Error('กรอบด้านในทรงผมไม่ตรงกับภาพ');
  const frame=upperFrame(face,w,h),{eye,localX,localY}=frame;
  if([152,234,454].some(i=>!face?.[i]||![face[i].x,face[i].y].every(Number.isFinite)))throw Error('ไม่พบกรอบใบหน้าเพื่อป้องกันผิวและหู');
  const {data,width:mw,height:mh}=labels||{};
@@ -156,7 +157,7 @@ export function eraseHeadExteriorExcess(portrait,overlay,w,h,face,labels,{softEd
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const n=y*w+x,label=labelAt(x,y),u=localX(x,y),v=localY(x,y),hair=overlay[n*4+3]>8;
   if(hair)foundHair=true;
-  distance[n]=hair||protectedLabels[label]||insideFace(u,v)?0:feather;
+  distance[n]=hair||interior?.[n]||protectedLabels[label]||insideFace(u,v)?0:feather;
  }
  if(!foundHair)throw Error('ไม่พบทรงผมหลักสำหรับเก็บขอบ · เก็บภาพเดิมไว้');
  const diagonal=Math.SQRT2;

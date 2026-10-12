@@ -288,14 +288,16 @@ function pushRearIntoGaps(back,skin,hairGuide,face,w,h){
  return adjusted;
 }
 
-// Short styles use one working PNG. Fill its joins before applying the
-// feathered skin eraser; never create a second editable/rendered hair layer.
+// Short styles use one working PNG with a feathered template-skin eraser.
+// Inner portrait joins are covered with nearby skin below this one layer.
 function createSingleHairPreview(placed,skin,face,w,h,makeCanvas,hairGuide){
  const a=anchors(face,w,h),cos=Math.cos(a.angle),sin=Math.sin(a.angle);
  const local=(x,y)=>({x:(x-a.x)*cos+(y-a.y)*sin,y:-(x-a.x)*sin+(y-a.y)*cos});
  const ears=[local(face[127].x*w,face[127].y*h),local(face[356].x*w,face[356].y*h)];
  const front=makeCanvas(w,h),fx=front.getContext('2d');fx.drawImage(placed,0,0);
- const gapAdjusted=Boolean(hairGuide&&pushRearIntoGaps(front,skin,hairGuide,face,w,h));
+ // Inner joins are covered by neighbouring portrait skin below this PNG.
+ // Short styles must not stretch/copy hair into those joins.
+ const gapAdjusted=false;
  const pixels=fx.getImageData(0,0,w,h),sd=skin.getContext('2d').getImageData(0,0,w,h).data;
  const feather=Math.max(2,Math.min(10,a.eye*.045)),distance=skinInteriorDistance(sd,w,h,feather),strength=new Float32Array(w*h);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){

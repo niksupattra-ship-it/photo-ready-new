@@ -1,6 +1,7 @@
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
+import {shortHairInterior,extendShortHairSkin} from './short-hair-skin-fill.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1418,7 +1419,7 @@ function opaqueBounds(canvas){
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(d[(y*W+x)*4+3]<20)continue;minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}
  return maxX<minX?null:{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1};
 }
-// Preview only: no provider request, no wallet/credit mutation, no face compositing.
+// Preview only: no provider request or wallet/credit mutation.
 const fittedHairReferenceCache=new Map();
 const fittedHairSkinCache=new WeakMap();
 const fittedOriginalHairLabelsCache=new WeakMap();
@@ -1451,9 +1452,16 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  // pixel eraser. Skin, ears and selected hair are protected, without a mask layer.
  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
  const headPixels=cc.getImageData(0,0,W,H),hairPixels=ctx.getImageData(0,0,W,H);
- headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels,{softEdges:isSingleLayerHair(hairId)}));
+ const single=isSingleLayerHair(hairId),interior=single?shortHairInterior(hairPixels.data,W,H,face):null;
+ headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels,{softEdges:single,...(single?{interior}:{})}));
+ // Short styles retain all original alpha inside the head outline. Cover
+ // small inner joins with nearby skin under the PNG, never erase a hole there.
+ const skinFill=single?extendShortHairSkin(headPixels.data,hairPixels.data,W,H,face,labels,interior):null;
+ if(skinFill)headPixels.data.set(skinFill.pixels);
  cc.putImageData(headPixels,0,0);
- return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
+ const result={source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
+ if(skinFill?.remaining>0)result.hairGapWarning=true;
+ return result;
 }
 async function prepareStudioHairOverlay(headSource,hairId){
  if(!HAIRSTYLE_RULES[hairId])throw Error('ไม่พบทรงผมที่เลือก');
