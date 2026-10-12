@@ -1,0 +1,102 @@
+[
+  {
+    "id": "manhair-13",
+    "sourceNumber": 1,
+    "previewSource": "manhair-01.webp",
+    "patternSource": "ทรงผมแสกข้าง 70_30 เรียบเนี้ยบ-1.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-13.png",
+    "patternPath": "/assets/hair/manhair-13.png",
+    "previewSourceSha256": "833e0ef2c94ba113a3c64bcdb0012d684902da9684a779c4e55e23b0e15422da",
+    "patternSha256": "09c2b670a3d5199e34216975dab4d6484fb92a9b657ed05991491d5f5d5e9361"
+  },
+  {
+    "id": "manhair-14",
+    "sourceNumber": 2,
+    "previewSource": "manhair-02.webp",
+    "patternSource": "ทรงผมดำแสกข้าง 70_30 เนี้ยบ-2.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-14.png",
+    "patternPath": "/assets/hair/manhair-14.png",
+    "previewSourceSha256": "f4e0097ec9ebd17c321548e438ab65d00067f7cf664b92dc817a1702a28b7837",
+    "patternSha256": "2f012ccb1492116e5060c54d4ad821a8d170e3cb2282ad8cd9d297a585e16a80"
+  },
+  {
+    "id": "manhair-15",
+    "sourceNumber": 3,
+    "previewSource": "manhair-03.webp",
+    "patternSource": "ทรงครูคัตสั้นเนี๊ยบ เส้นผมนุ่มละเอียด-3.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-15.png",
+    "patternPath": "/assets/hair/manhair-15.png",
+    "previewSourceSha256": "ceb8ab404f0e8f8db60e3cb55683c8b8c527ccdc36df081426f9c67b3e891833",
+    "patternSha256": "bbff1e0561650ce7073cb712eccf9887a5c748669c870b816e55de2cabba3ad1"
+  },
+  {
+    "id": "manhair-16",
+    "sourceNumber": 4,
+    "previewSource": "manhair-04.webp",
+    "patternSource": "ทรงไอวี่ลีกปัดข้างผมดำธรรมชาติ-4.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-16.png",
+    "patternPath": "/assets/hair/manhair-16.png",
+    "previewSourceSha256": "f5c83d899347b7f8a84b811a065731bc5a24fe5ee1ef1251ee3276e0077026f7",
+    "patternSha256": "09f6f5d473f7a0acc3d222b467f64b6e113896f3d8f549661ab9ef390c4370c2"
+  },
+  {
+    "id": "manhair-17",
+    "sourceNumber": 5,
+    "previewSource": "manhair-05.webp",
+    "patternSource": "ทรงเฟรนช์ครอปสั้นหน้าม้าละเอียด-5.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-17.png",
+    "patternPath": "/assets/hair/manhair-17.png",
+    "previewSourceSha256": "25bd6b7362bbecbf5cc62d67d87c7223f07b0a02c2060b3c4a2e36e26e4bffed",
+    "patternSha256": "4f452da0a14f322badf68d218c16068ecaeb1a20ef76431a33159a7a77dd8087"
+  },
+  {
+    "id": "manhair-18",
+    "sourceNumber": 6,
+    "previewSource": "manhair-06.webp",
+    "patternSource": "ทรงผมแสกกลางม่านสั้นเรียบเนี้ยบ-6.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-18.png",
+    "patternPath": "/assets/hair/manhair-18.png",
+    "previewSourceSha256": "1c13bf4cb8b8e8a8b0e9c40702d409796b6e692d20329e2921d84d45d8b3ccde",
+    "patternSha256": "1d6fc17620f5f0545eb5fe68b45969cfc100ee0fdd003fa74268660be434cb36"
+  },
+  {
+    "id": "manhair-19",
+    "sourceNumber": 7,
+    "previewSource": "manhair-07.webp",
+    "patternSource": "ทรงซีซาร์สั้นเรียบเส้นผมละเอียด-7.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-19.png",
+    "patternPath": "/assets/hair/manhair-19.png",
+    "previewSourceSha256": "28761acb5bd7a07a6ab6fb7f0efcd09dc60896d60624fc7e024b0553228d6ef0",
+    "patternSha256": "3218a85a7fd6ab5c9254e27d801678b272f84e670bf3626c8753737ea91bd294"
+  },
+  {
+    "id": "manhair-20",
+    "sourceNumber": 8,
+    "previewSource": "manhair-08.webp",
+    "patternSource": "ทรงผมปัดเสยสั้นธรรมชาติ-8.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-20.png",
+    "patternPath": "/assets/hair/manhair-20.png",
+    "previewSourceSha256": "0d960e0b64bdfb887a5fb98f2a55e0c186bf67df4aa97c9d645c3da9166cec6c",
+    "patternSha256": "c510b20f429756d5a3c42213fd14edd5e3cb7be2c73e28108e850ad4ad9214fe"
+  },
+  {
+    "id": "manhair-21",
+    "sourceNumber": 9,
+    "previewSource": "manhair-09.webp",
+    "patternSource": "ทรงผมแสกข้าง 60_40 ดำเงาอ่อน-9.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-21.png",
+    "patternPath": "/assets/hair/manhair-21.png",
+    "previewSourceSha256": "78b1def258bb66e6ccfee8a08ec4d3770af9792bf4bb6836c4e8ecced0d837a1",
+    "patternSha256": "7377e8329ec2a2886f8884cddc48996769d14d5b1d90b1d4e67640617a783220"
+  },
+  {
+    "id": "manhair-22",
+    "sourceNumber": 10,
+    "previewSource": "manhair-10.webp",
+    "patternSource": "ทรงผมธุรกิจสั้นปัดเฉียง-10.png",
+    "previewPath": "/assets/hairstyle-previews/manhair-22.png",
+    "patternPath": "/assets/hair/manhair-22.png",
+    "previewSourceSha256": "5a979800b38d9f4aa861551d6060472407b4ee0a5ce2e5baa12439d50770a9f7",
+    "patternSha256": "2086fe17698d893aa0f12b5db7334768105fc6b1a6e9f328e5be39cee8863edf"
+  }
+]

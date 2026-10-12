@@ -1,4 +1,4 @@
-// Audited against all 29 female and 12 male picker/cutout pairs.
+// Audited against all 29 female and 22 male picker/cutout pairs.
 // Explicit structure complements the image; it never defines facial anatomy.
 const descriptions={
  'hair-01':'long loose hair, central part, straight side sections',
@@ -42,6 +42,16 @@ const descriptions={
  'manhair-10':'very short close-cropped male haircut, even rounded hairline',
  'manhair-11':'very short close-cropped male haircut with short textured crown',
  'manhair-12':'short male haircut with raised swept-back crown and close sides',
+ 'manhair-13':'short male haircut, neat 70/30 side part and smooth sweep',
+ 'manhair-14':'short male haircut, natural black 70/30 side part',
+ 'manhair-15':'neat short crew cut with soft fine strands',
+ 'manhair-16':'short Ivy League haircut with a natural side sweep',
+ 'manhair-17':'short French crop with a fine textured fringe',
+ 'manhair-18':'short centre-parted curtain haircut',
+ 'manhair-19':'short Caesar haircut with a neat fine fringe',
+ 'manhair-20':'short naturally swept-back haircut',
+ 'manhair-21':'short 60/40 side part with softly glossy black hair',
+ 'manhair-22':'short business haircut with a diagonal side sweep',
 };
 export const HAIRSTYLE_RULES=Object.freeze(descriptions);
 export function selectedHairstyleRule(id){

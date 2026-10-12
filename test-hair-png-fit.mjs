@@ -56,8 +56,8 @@ test('missing or unreliable upper-face anchors fail instead of placing a deforme
 test('fitting never rewrites the person or reference landmarks',()=>{
  const f=portrait(),t=portrait({width:180,height:230}),before=JSON.stringify([f.face,t.face]);fit(f,t);assert.equal(JSON.stringify([f.face,t.face]),before);
 });
-test('all 41 native calibrations preserve scale, handedness and orthogonal axes',()=>{
- assert.equal(Object.keys(HAIR_TEMPLATE_ANCHORS).length,41);
+test('all 51 native calibrations preserve scale, handedness and orthogonal axes',()=>{
+ assert.equal(Object.keys(HAIR_TEMPLATE_ANCHORS).length,51);
  for(const calibration of Object.values(HAIR_TEMPLATE_ANCHORS)){const [a,b,c,d]=calibration.sourceToReference;rigid({a,b,c,d})}
 });
 
@@ -158,8 +158,8 @@ function pickerFixture(){
  const pipeline=vm.runInNewContext(source.slice(start,end)+'\n({prepareStudioHairOverlay,cache:fittedHairReferenceCache})',context);
  return {pipeline,context,f,target,surfaces,options,closed:()=>closed,cleaned:()=>cleaned};
 }
-test('the picker applies one rigid placement and skin-contour policy to all 41 style IDs',async()=>{
- const f=pickerFixture(),ids=Object.keys(HAIRSTYLE_RULES);assert.equal(ids.length,41);
+test('the picker applies one rigid placement and skin-contour policy to all 51 style IDs',async()=>{
+ const f=pickerFixture(),ids=Object.keys(HAIRSTYLE_RULES);assert.equal(ids.length,51);
  for(const id of ids){
   // Shared raster fixture checks style routing; native asset geometry is
   // covered separately by the calibration and uncached loading tests.
@@ -170,10 +170,10 @@ test('the picker applies one rigid placement and skin-contour policy to all 41 s
   const [a,b,c,d]=transformed[0].transforms[0];rigid({a,b,c,d});
   assert.deepEqual(Object.keys(result).filter(k=>k!=='hairGapWarning').sort(),['backSource','cleanedHeadSource','source']);assert.equal(Boolean(result.backSource),!isSingleLayerHair(id));
  }
- assert.equal(f.closed(),41);assert.equal(f.options.length,41);
+ assert.equal(f.closed(),51);assert.equal(f.options.length,51);
  assert.ok(f.options.every(option=>Object.keys(option).join(',')===(option.singleLayer?'singleLayer,rearHairGuide':'singleLayer,rearHairGuide,portrait,longContour')),'only long upper erasure receives the actual portrait silhouette');
 });
-for(const id of ['hair-01','hair-18','manhair-01'])test(`uncached ${id} cleans foreign forehead skin without painting or recolouring the native template`,async()=>{
+for(const id of ['hair-01','hair-18','manhair-01','manhair-13','manhair-22'])test(`uncached ${id} cleans foreign forehead skin without painting or recolouring the native template`,async()=>{
  const f=pickerFixture(),result=await f.pipeline.prepareStudioHairOverlay(f.target,id);assert.ok(result.source&&result.cleanedHeadSource);const expectedCleaned=isSingleLayerHair(id)?1:0;assert.equal(f.cleaned(),expectedCleaned);
  const ref=await f.pipeline.cache.get(id);assert.equal(ref.cutout.width,HAIR_TEMPLATE_ANCHORS[id].sourceSize[0]);assert.equal(ref.cutout.height,HAIR_TEMPLATE_ANCHORS[id].sourceSize[1]);
  const first=f.surfaces.find(c=>c.transforms.length&&c.width===f.f.w&&c.height===f.f.h).transforms[0];rigid({a:first[0],b:first[1],c:first[2],d:first[3]});

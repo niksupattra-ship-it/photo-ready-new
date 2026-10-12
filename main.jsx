@@ -2338,7 +2338,18 @@ const COLLAR_PIN_OPTIONS=[
  {id:'nacc-pair',name:'ป.ป.ช.',left:'/assets/government-insignia/nacc-left.png',right:'/assets/government-insignia/nacc-right.png'}
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
-const MALE_HAIR_OPTIONS=Array.from({length:12},(_,i)=>{const number=String(i+1).padStart(2,'0');return {id:`manhair-${number}`,name:`ทรงผม ${number}`,src:`/assets/hairstyle-previews/manhair-${number}.png`};});
+const MALE_HAIR_OPTIONS=[...Array.from({length:12},(_,i)=>{const number=String(i+1).padStart(2,'0');return {id:`manhair-${number}`,name:`ทรงผม ${number}`,src:`/assets/hairstyle-previews/manhair-${number}.png`};}),
+ {id:'manhair-13',name:'ทรงใหม่ 01',src:'/assets/hairstyle-previews/manhair-13.png'},
+ {id:'manhair-14',name:'ทรงใหม่ 02',src:'/assets/hairstyle-previews/manhair-14.png'},
+ {id:'manhair-15',name:'ทรงใหม่ 03',src:'/assets/hairstyle-previews/manhair-15.png'},
+ {id:'manhair-16',name:'ทรงใหม่ 04',src:'/assets/hairstyle-previews/manhair-16.png'},
+ {id:'manhair-17',name:'ทรงใหม่ 05',src:'/assets/hairstyle-previews/manhair-17.png'},
+ {id:'manhair-18',name:'ทรงใหม่ 06',src:'/assets/hairstyle-previews/manhair-18.png'},
+ {id:'manhair-19',name:'ทรงใหม่ 07',src:'/assets/hairstyle-previews/manhair-19.png'},
+ {id:'manhair-20',name:'ทรงใหม่ 08',src:'/assets/hairstyle-previews/manhair-20.png'},
+ {id:'manhair-21',name:'ทรงใหม่ 09',src:'/assets/hairstyle-previews/manhair-21.png'},
+ {id:'manhair-22',name:'ทรงใหม่ 10',src:'/assets/hairstyle-previews/manhair-22.png'},
+];
 const HAIR_OPTIONS=[
  {id:'hair-26',name:'ทรงผม 26',src:'/assets/hairstyle-previews/hair-26.png'},
  {id:'hair-27',name:'ทรงผม 27',src:'/assets/hairstyle-previews/hair-27.png'},
