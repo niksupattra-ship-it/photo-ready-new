@@ -2,7 +2,8 @@ import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {shortHairInterior,extendShortHairSkin} from './short-hair-skin-fill.js';
-import {featherLongCrown,eraseLongUpperPortrait} from './long-upper-hair-eraser.js';
+import {featherLongCrown} from './long-upper-hair-eraser.js';
+import {fitProcessedForehead} from './processed-forehead-fit.js';
 import {portraitLevelTransform} from './portrait-level.js';
 import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
@@ -1459,16 +1460,20 @@ async function finishStudioHairPreview(target,front,back,face,hairId){
  // pixel eraser. Skin, ears and selected hair are protected, without a mask layer.
  const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
  const headPixels=cc.getImageData(0,0,W,H),hairPixels=ctx.getImageData(0,0,W,H);
+ const originalHead=isSingleLayerHair(hairId)?null:new Uint8ClampedArray(headPixels.data);
  const single=isSingleLayerHair(hairId),interior=single?shortHairInterior(hairPixels.data,W,H,face):null;
  headPixels.data.set(eraseHeadExteriorExcess(headPixels.data,hairPixels.data,W,H,face,labels,{softEdges:single,...(single?{interior}:{})}));
  // Short styles retain all original alpha inside the head outline. Cover
  // small inner joins with nearby skin under the PNG, never erase a hole there.
  const skinFill=single?extendShortHairSkin(headPixels.data,hairPixels.data,W,H,face,labels,interior):null;
  if(skinFill)headPixels.data.set(skinFill.pixels);
- if(upper)headPixels.data.set(eraseLongUpperPortrait(headPixels.data,W,H,face,labels,upper.headStrength));
+ // For long hair, edit the processed head against the FRONT layer alone.
+ // Move its existing forehead skin with a feature-locked inverse warp.
+ const processedFit=single?null:fitProcessedForehead(originalHead,front.getContext('2d').getImageData(0,0,W,H).data,W,H,face,labels,headPixels.data);
+ if(processedFit)headPixels.data.set(processedFit.pixels);
  cc.putImageData(headPixels,0,0);
  const result={source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:cleaned.toDataURL('image/png')};
- if(skinFill?.remaining>0)result.hairGapWarning=true;
+ if(skinFill?.remaining>0||processedFit?.unresolvedColumns>0)result.hairGapWarning=true;
  return result;
 }
 async function prepareStudioHairOverlay(headSource,hairId){
