@@ -1,5 +1,4 @@
 import {isSingleFemaleHair,isSingleLayerHair} from './short-female-hair.js';
-import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {headPose,syncHairAttachments,syncHairPairTransforms} from './hair-preview-fit.js';
 import {StudioPhotoGuide} from './studio-photo-guide.jsx';
 import {StudioFileActions} from './studio-file-actions.jsx';
@@ -323,8 +322,8 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=44;
-  if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
+  const previewVersion=45;
+  if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion&&attached.length===(isSingleLayerHair(id)?1:2)&&attached.every(l=>!l.warpSource&&['x','y','scale','rotation'].every(k=>l[k]===head[k]))){setSelected(existing.id);setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
    await hairUiFrame();if(!mounted.current)return;
@@ -339,7 +338,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     if(!fitted.cleanedHeadSource)throw Error('ภาพลบผมโดยตรงยังไม่พร้อม · เก็บภาพเดิมไว้');
     next=next.map(l=>l.id===head.id?{...l,source:fitted.cleanedHeadSource,hairOriginalSource:head.hairOriginalSource||surfaceURL(asset.warped||asset.original),warpSource:null,warpBaseMask:null,hairBaseMask:null,hairOuterEraser:null}:l);
     if(next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
-    const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource&&HAIR_TEMPLATE_ANCHORS[id]?.layout==='long'),hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
+    const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource),hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
     const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source});
     const index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);

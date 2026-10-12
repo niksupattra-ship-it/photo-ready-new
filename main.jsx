@@ -2,7 +2,7 @@ import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair} from './short-female-hair.js';
 import {eraseUpperHairExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {portraitLevelTransform} from './portrait-level.js';
-import {hairPreviewTransform,hairSideFit,compressHairSidePixels,createTwoLayerHairPreview,referenceContainsEarSkin} from './hair-preview-fit.js';
+import {hairPreviewTransform,createTwoLayerHairPreview,eraseHairTemplateSkin} from './hair-preview-fit.js';
 import {HAIR_TEMPLATE_ANCHORS} from './hair-template-anchors.js';
 import {calculateHairRootTarget,measureCentralForeheadHairline} from '../hair-root-target.js';
 import {PasswordReset} from './password-reset.jsx';
@@ -1462,6 +1462,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
  const W=target?.naturalWidth||target?.width,H=target?.naturalHeight||target?.height;
  if(!W||!H)throw Error('ภาพหัวไม่พร้อมสำหรับวางผม · กรุณาลองอีกครั้ง');
  const landmarker=await getLandmarker(),targetFace=landmarker.detect(target).faceLandmarks?.[0];
+ if(!targetFace)throw Error('ไม่พบใบหน้าสำหรับวางผม · เก็บภาพเดิมไว้');
  let reference=fittedHairReferenceCache.get(hairId);
  if(!reference){
   const pending=(async()=>{
@@ -1471,87 +1472,44 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   const earSkin=!isSingleLayerHair(hairId)&&calibration.layout==='compact'?await semanticClassMask(c,c.width,c.height,[2,3]).catch(()=>null):null;
-   const embeddedEars=referenceContainsEarSkin(earSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference);
-   return {cutout,face,bounds,calibration,embeddedEars,w:preview.naturalWidth,h:preview.naturalHeight};
+   const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
+   if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
+   const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
+   pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference));cx.putImageData(pixels,0,0);
+   if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
+   return {cutout:c,face,bounds,calibration,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
   pending.catch(()=>fittedHairReferenceCache.delete(hairId));reference=pending;
  }
  const ref=await reference;
- // Resize the whole PNG uniformly; compress only the lower side sections.
- // The upper crown retains its proportions; long rear fitting follows separately.
+ // One uniform fit for the complete hairstyle, based on upper-face anchors.
+ // Front and rear are split only after this placement, without a second warp.
  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
- if(ref.calibration.layout==='long'){
-  // Retain the existing long-hair offset without changing its geometry.
-  const eyeDx=(targetFace[263].x-targetFace[33].x)*W;
-  const eyeDy=(targetFace[263].y-targetFace[33].y)*H;
-  fit.e-=eyeDy*.08;fit.f+=eyeDx*.08;
- }
  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
  const out=canvasFor(W,H),x=out.getContext('2d');
  x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
  x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
- const sideFit=hairSideFit(ref.face,ref.w,ref.h,targetFace,W,H),placed=x.getImageData(0,0,W,H);
- placed.data.set(compressHairSidePixels(placed.data,W,H,sideFit));x.putImageData(placed,0,0);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
- if(isSingleLayerHair(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId);
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
   if(target instanceof HTMLImageElement)fittedHairSkinCache.set(target,skin);
  }
- const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:ref.calibration.layout==='compact'&&!ref.embeddedEars,fitLongBack:ref.calibration.layout==='long',longStyle:hairId,preserveShape:ref.calibration.layout!=='long'});
+ const layers=createTwoLayerHairPreview(out,skin,targetFace,W,H,canvasFor,{singleLayer:isSingleLayerHair(hairId)});
  return finishStudioHairPreview(target,layers.front,layers.back,targetFace,hairId);
 }
-const localHairAnchorCache=new Map();
+// Processing and Studio use the same calibrated placement and ear contours.
 async function localHairstyleOnCleanMaster(cleanBlob,hairId){
  if(!hairId)return cleanBlob;
  const cu=URL.createObjectURL(cleanBlob);
  try{
   const clean=await loadImage(cu),W=clean.naturalWidth,H=clean.naturalHeight;
-  const [cutout,preview]=await Promise.all([loadImage(`/assets/hair/${hairId}.png`),loadImage(`/assets/hairstyle-previews/${hairId}.png`)]);
-  const landmarker=await getLandmarker(),targetFace=landmarker.detect(clean).faceLandmarks?.[0];
-  let cached=localHairAnchorCache.get(hairId);
-  if(!cached){
-   const previewFace=landmarker.detect(preview).faceLandmarks?.[0];
-   const previewHair=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[1]);
-   if(!previewFace||!previewHair)throw Error('เตรียมจุดยึดทรงผมไม่สำเร็จ');
-   const sourceCanvas=canvasFor(cutout.naturalWidth,cutout.naturalHeight);sourceCanvas.getContext('2d').drawImage(cutout,0,0);
-   const sourceBounds=opaqueBounds(sourceCanvas),previewBounds=opaqueBounds(previewHair);
-   if(!sourceBounds||!previewBounds)throw Error('ไฟล์ทรงผมไม่มีพื้นที่ทึบ');
-   const normalized=canvasFor(preview.naturalWidth,preview.naturalHeight),nx=normalized.getContext('2d');
-   nx.imageSmoothingEnabled=true;nx.imageSmoothingQuality='high';
-   nx.drawImage(cutout,sourceBounds.x,sourceBounds.y,sourceBounds.w,sourceBounds.h,previewBounds.x,previewBounds.y,previewBounds.w,previewBounds.h);
-   cached={normalized,previewFace};localHairAnchorCache.set(hairId,cached);
-  }
-  if(!targetFace)throw Error('ไม่พบใบหน้าบนภาพฐาน');
-  const aligned=alignFaceCanvas(cached.normalized,cached.previewFace,targetFace,W,H);
-  const bodySkin=await semanticClassMask(clean,W,H,[2]),faceSkin=await semanticClassMask(clean,W,H,[3]);
-  if(!bodySkin||!faceSkin)throw Error('ล็อกผิวก่อนวางผมไม่สำเร็จ');
-  const ad=aligned.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H);
-  const bd=bodySkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const fd=faceSkin.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-  const eyeD=Math.hypot((targetFace[263].x-targetFace[33].x)*W,(targetFace[263].y-targetFace[33].y)*H),cx=(targetFace[33].x+targetFace[263].x)*W*.5;
-  const browIds=[70,63,105,66,107,336,296,334,293,300],browY=browIds.reduce((sum,index)=>sum+targetFace[index].y*H,0)/browIds.length;
-  const chinY=targetFace[152].y*H;
-  for(let i=0;i<W*H;i++){
-   const j=i*4,x=i%W,y=(i-x)/W,centralFace=fd[j+3]>96&&y>=browY-eyeD*.10&&Math.abs(x-cx)<eyeD*.69;
-   // Body-skin on a bald clean base often includes the scalp. Protect it only
-   // from the jaw downward; otherwise every selected PNG hairstyle disappears.
-   const neckOrShoulder=bd[j+3]>80&&y>chinY-eyeD*.04;
-   if(neckOrShoulder||centralFace)ad.data[j+3]=0;
-  }
-  // Never accept a selected hairstyle that became empty after alignment/mask.
-  // This check happens locally and before the preview is committed, so a NaN,
-  // off-canvas transform or an over-aggressive mask cannot return a bald head.
-  let visibleHair=0;
-  for(let i=0;i<W*H;i++)if(ad.data[i*4+3]>48)visibleHair++;
-  if(visibleHair<Math.max(180,Math.round(eyeD*eyeD*.12)))
-   throw Error('ทรงผมที่เลือกไม่ปรากฏครบ — คงภาพก่อนหน้า');
-  aligned.getContext('2d').putImageData(ad,0,0);
-  const out=canvasFor(W,H),ox=out.getContext('2d');ox.drawImage(clean,0,0);ox.drawImage(aligned,0,0);
+  const fitted=await prepareStudioHairOverlay(clean,hairId);
+  const [head,front,back]=await Promise.all([loadImage(fitted.cleanedHeadSource),loadImage(fitted.source),fitted.backSource?loadImage(fitted.backSource):null]);
+  const out=canvasFor(W,H),ox=out.getContext('2d');
+  if(back)ox.drawImage(back,0,0);ox.drawImage(head,0,0);ox.drawImage(front,0,0);
   return await canvasPng(out);
  }finally{URL.revokeObjectURL(cu)}
 }

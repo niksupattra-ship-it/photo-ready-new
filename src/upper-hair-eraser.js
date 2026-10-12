@@ -101,6 +101,9 @@ export function eraseUpperHairExcess(portrait,overlay,w,h,face,labels){
   const floating=detached(y*w+x);
   if(protectedLabels[label]||(data[label]!==1&&!(data[label]===0&&floating)))continue;
   const i=column(x,y),edge=edgeAt(i,floating);if(!Number.isFinite(edge))continue;
+  // Extra erasure under the fitted crown is safe only where opaque new hair
+  // actually covers it. A transparent PNG opening must never reveal a hole.
+  if(v>=edge-margin&&overlay[j+3]<240)continue;
   // Extend into the covered upper edge by exactly 40% of this column's
   // measured excess height. Skin/ear guards and the upper-only limit still win.
   const excess=Number.isFinite(originalTop[i])?Math.max(0,edge-originalTop[i]):0;

@@ -166,3 +166,9 @@ test('floating upper debris near the crown side is removed without erasing the l
  const f=cutoutFixture();f.portrait.set([20,15,10,255],index(15,7));f.portrait.set([20,15,10,255],index(15,55));
  const out=erase(f);assert.equal(out[index(15,7)+3],0);assert.deepEqual(pixel(out,15,55),pixel(f.portrait,15,55));
 });
+
+for(const alpha of [0,120,239])test(`40% extra erasure cannot open a hole under crown alpha ${alpha}`,()=>{
+ const f=fixture();f.overlay[index(48,23)+3]=alpha;
+ const out=erase(f);assert.deepEqual(pixel(out,48,23),pixel(f.portrait,48,23));
+ assert.equal(out[index(50,23)+3],0,'opaque coverage still permits the requested extra erasure');
+});
