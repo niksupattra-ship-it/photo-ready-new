@@ -252,18 +252,10 @@ export function createTwoLayerHairPreview(placed,skin,face,w,h,makeCanvas,{singl
  }
  fx.putImageData(pixels,0,0);
  const back=singleLayer?null:makeCanvas(w,h);
- if(back){
-  const bx=back.getContext('2d');bx.drawImage(placed,0,0);
-  const rear=bx.getImageData(0,0,w,h);
-  for(let j=0;j<rear.data.length;j+=4){
-   // Complement the front alpha rather than duplicating a full PNG. With no
-   // portrait between them, front OVER rear reproduces the original alpha.
-   // Thus fine strands stay fine and feathering cannot expose the backdrop.
-   const original=rear.data[j+3],frontAlpha=pixels.data[j+3];
-   rear.data[j+3]=frontAlpha===255?0:Math.round((original-frontAlpha)*255/(255-frontAlpha));
-  }
-  bx.putImageData(rear,0,0);
- }
+ // Restore the full PNG behind the portrait. Its original alpha overlaps
+ // the front, instead of being divided between the two layers. Both copies
+ // still use the latest shared placement, with no separate rear pixel warp.
+ if(back)back.getContext('2d').drawImage(placed,0,0);
  return {front,back,gapAdjusted:false};
 }
 // Erase the overlay over visible skin from the ear/temple level down to the neck.

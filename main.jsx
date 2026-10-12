@@ -1472,11 +1472,15 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
-   const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
-   if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
-   const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
-   pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference));cx.putImageData(pixels,0,0);
-   if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
+   // Two-layer styles use the original full PNG for the rear overlap. Do not
+   // carve template-skin openings into both copies before they are stacked.
+   if(isSingleLayerHair(hairId)){
+    const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
+    if(!referenceSkin)throw Error('ตรวจผิวในต้นแบบทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้');
+    const cx=c.getContext('2d'),pixels=cx.getImageData(0,0,c.width,c.height);
+    pixels.data.set(eraseHairTemplateSkin(pixels.data,c.width,c.height,referenceSkin,face,preview.naturalWidth,preview.naturalHeight,calibration.sourceToReference));cx.putImageData(pixels,0,0);
+    if(!opaqueBounds(c))throw Error('ต้นแบบทรงผมไม่มีพื้นที่ผมที่ใช้งานได้');
+   }
    return {cutout:c,face,bounds,calibration,w:preview.naturalWidth,h:preview.naturalHeight};
   })();fittedHairReferenceCache.set(hairId,pending);
   while(fittedHairReferenceCache.size>4)fittedHairReferenceCache.delete(fittedHairReferenceCache.keys().next().value);
