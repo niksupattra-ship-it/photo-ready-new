@@ -323,12 +323,33 @@ export function skewMaleSideburnCorners(original,portrait,w,h,face,labels,guide,
  if(original?.length!==w*h*4||portrait?.length!==w*h*4)throw Error('พิกเซลจอนผมไม่ตรงกับภาพ');
  const out=new Uint8ClampedArray(original),f=frame(face,w,h),report={adjusted:false,sides:[]};
  if(!f||!validLabels(labels)||!guide?.sides||!matrix||!['a','b','c','d','e','f'].every(k=>Number.isFinite(matrix[k])))return {pixels:out,report};
+ const skin=(guide.referenceFrame&&guide.reference&&skinReference(guide.reference,guide.referenceWidth,guide.referenceHeight,guide.referenceFrame))||skinReference(portrait,w,h,f);
+ if(!skin)return {pixels:out,report};
+ // Hair material, not PNG alpha alone: pale donor skin must not determine
+ // the attachment edge or veto a local skew. Only read this classification.
+ const isHair=p=>p&&p[3]>=24&&(p[0]+p[1]+p[2])/3<skin.luma*.68&&Math.max(p[0],p[1],p[2])-Math.min(p[0],p[1],p[2])<90;
  const apply=p=>({x:matrix.a*p.x+matrix.c*p.y+matrix.e,y:matrix.b*p.x+matrix.d*p.y+matrix.f});
  for(let index=0;index<2;index++){
   const sign=index?1:-1,source=guide.sides[index],side={sign,adjusted:false};report.sides.push(side);
   if(!source?.rows?.length){side.reason='template-unclear';continue}
-  const bands=source.rows.map(row=>{const p=apply(row.point),op=apply(row.outerPoint),q=f.local(p.x,p.y),o=f.local(op.x,op.y);return {v:q.v,r:sign*q.u,outer:sign*o.u}}).sort((a,b)=>a.v-b.v);
-  if(bands.length<3||bands.some((p,i)=>![p.v,p.r,p.outer].every(Number.isFinite)||p.outer<=p.r||(i&&p.v<=bands[i-1].v))){side.reason='template-unclear';continue}
+  const candidates=source.rows.map(row=>{const p=apply(row.point),op=apply(row.outerPoint),q=f.local(p.x,p.y),o=f.local(op.x,op.y);return {v:q.v,r:sign*q.u,outer:sign*o.u}}).sort((a,b)=>a.v-b.v);
+  if(candidates.length<3||candidates.some((p,i)=>![p.v,p.r,p.outer].every(Number.isFinite)||p.outer<=p.r||(i&&p.v<=candidates[i-1].v))){side.reason='template-unclear';continue}
+  // Guide points locate a search band only. Measure the actual visible
+  // strands on the placed PNG, ignoring skin-coloured alpha beside them.
+  const bands=[],step=Math.max(.5,f.eye/192),search=f.eye*.12;
+  for(const row of candidates){
+   let inner=null,outer=null,run=null;
+   for(let r=Math.max(f.width*.28,row.r-search);r<=row.outer+search;r+=step){
+    const rgba=pixel(original,w,h,f.world(sign*r,row.v));
+    if(isHair(rgba)){
+     if(run===null)run=r;
+     if(r-run>=Math.max(.75,f.eye*.008)){if(inner===null)inner=run;outer=r}
+    }else if(inner!==null)break;else run=null;
+   }
+   if(inner!==null&&outer>inner)bands.push({v:row.v,r:inner,outer});
+  }
+  if(bands.length<3||bands.length<candidates.length*.7){side.reason='strands-unclear';continue}
+
   const top=bands[0].v,bottom=bands.at(-1).v,span=bottom-top;
   if(span<f.eye*.08){side.reason='too-short';continue}
   const edgeAt=contour(f,face,sign,w,h),targets=[];
@@ -345,14 +366,14 @@ export function skewMaleSideburnCorners(original,portrait,w,h,face,labels,guide,
   if(Math.abs(dr)>f.eye*.16||Math.max(...targets.map(p=>p.delta))-Math.min(...targets.map(p=>p.delta))>f.eye*.14){side.reason='shift-uncertain';continue}
   side.shift=dr;
   side.before=targets.reduce((n,p)=>n+Math.abs(p.delta*p.weight),0)/targets.length;
-  if(side.before<Math.max(.8,f.eye*.005)){side.reason='already-aligned';continue}
-  // Both radial cut edges must be transparent. Otherwise a local transform
-  // could cut a fringe or another part of the chosen style: preserve it.
+  if(side.before<Math.max(1,f.eye*.006)){side.reason='already-aligned';continue}
+  // Both radial cut edges must be clear of actual hair. Pale donor skin
+  // cannot veto this check; it is not the visible sideburn being fitted.
   const pad=Math.max(3,f.eye*.10),minR=Math.min(...bands.map(p=>p.r))-pad,maxR=Math.max(...bands.map(p=>p.outer))+pad;
   if(minR<f.width*.28){side.reason='region-overlaps-face';continue}
   let tail=bottom,safe=true;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-   const alpha=original[(y*w+x)*4+3];if(alpha<8)continue;const q=f.local(x,y),r=sign*q.u;
+   const j=(y*w+x)*4;if(!isHair(original.subarray(j,j+4)))continue;const q=f.local(x,y),r=sign*q.u;
    if(q.v<=top)continue;
    if(Math.abs(r-minR)<1.5||Math.abs(r-maxR)<1.5){safe=false;break}
    if(r>minR&&r<maxR)tail=Math.max(tail,q.v+1);
@@ -370,8 +391,11 @@ export function skewMaleSideburnCorners(original,portrait,w,h,face,labels,guide,
    const sr=sourceR(r,q.v),inSource=r>=minR&&r<=maxR,inTarget=sr>=minR&&sr<=maxR;
    if(!inSource&&!inTarget)continue;
    const j=(y*w+x)*4;
-   if(!inTarget){trial.fill(0,j,j+4);continue}
-   const p=f.world(sign*sr,q.v);trial.set(sample(original,w,h,p.x,p.y),j);
+   const p=f.world(sign*sr,q.v),rgba=inTarget?sample(original,w,h,p.x,p.y):[0,0,0,0];
+   // Leave unrelated pale edge pixels intact when no visible strand moves
+   // from or into this pixel. Face/ear/skin in the portrait is never edited.
+   if(!isHair(original.subarray(j,j+4))&&!isHair(rgba))continue;
+   trial.set(rgba,j);
   }
   // Record geometric residual; reject a correction that does not close the
   // measured gap. The portrait remains read-only throughout this operation.
