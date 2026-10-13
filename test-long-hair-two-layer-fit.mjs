@@ -78,8 +78,8 @@ test('actual Studio warp guard redirects front selection before any front pixels
 });
 
 test('the Studio warp-selection effect changes long front to rear and keeps short/head selections unchanged',()=>{
- const code=fs.readFileSync(new URL('./src/studio-editor.jsx',import.meta.url),'utf8'),start=code.indexOf(" useEffect(()=>{if(tool!=='warp')return;const target=longHairWarpTarget"),end=code.indexOf('\n const warp=',start),effect=code.slice(start,end);assert.ok(start>0);
- for(const [tool,selection,wanted] of [['erase','front',null],['warp','front','back'],['warp','head',null],['warp','back',null]]){let selected=null;vm.runInNewContext(effect,{tool,selected:selection,revision:0,state:{current:pair},longHairWarpTarget,useEffect:fn=>fn(),setSelected:id=>selected=id,setStatus:()=>{}});assert.equal(selected,wanted)}
+ const code=fs.readFileSync(new URL('./src/studio-editor.jsx',import.meta.url),'utf8'),start=code.indexOf(" useEffect(()=>{if(tool!=='warp'||brushSession.current?.awaitingLayer)return;const target=longHairWarpTarget"),end=code.indexOf('\n const warp=',start),effect=code.slice(start,end);assert.ok(start>0);
+ for(const [tool,selection,wanted] of [['erase','front',null],['warp','front','back'],['warp','head',null],['warp','back',null]]){let selected=null;vm.runInNewContext(effect,{brushSession:{current:null},tool,selected:selection,revision:0,state:{current:pair},longHairWarpTarget,useEffect:fn=>fn(),setSelected:id=>selected=id,setStatus:()=>{}});assert.equal(selected,wanted)}
 });
 
 for(const available of [true,false])test(`live finishing liquifies only the rear after receiving the cleaned middle portrait, guide=${available}`,async()=>{

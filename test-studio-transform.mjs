@@ -39,11 +39,19 @@ test('head axis transforms keep attached hair in the same face coordinates',()=>
 });
 test('a background layer and transparent object holes do not intercept picking',()=>{
  const editor=fs.readFileSync(new URL('./src/studio-editor.jsx',import.meta.url),'utf8');
- const start=editor.indexOf(' const hitPart='),end=editor.indexOf(' const selectCanvasPart=',start);
+ const start=editor.indexOf(' const layerContainsPoint='),end=editor.indexOf(' const selectCanvasPart=',start);
  const bg={id:'bg',kind:'background',visible:true,opacity:1,x:0,y:0,scale:1,rotation:0};
  const head={...bg,id:'head',kind:'head',sourceFrame:{x:250,y:200,w:400,h:500},squeezeX:.8,squeezeY:1.1};
  const buffer={width:400,height:500,getContext:()=>({getImageData:(x,y)=>({data:[0,0,0,x<100?255:0]})})};
- const ctx={state:{current:[bg,head]},assets:{current:new Map([['head',{buffer}],['bg',{buffer:{width:900,height:1200,getContext:()=>{throw Error('Background must be ignored')}}}]])},layerKind:l=>l.kind,sceneToLayer,W:900,H:1200};
+ const ctx={drawNow:()=>{},state:{current:[bg,head]},assets:{current:new Map([['head',{buffer}],['bg',{buffer:{width:900,height:1200,getContext:()=>{throw Error('Background must be ignored')}}}]])},layerKind:l=>l.kind,sceneToLayer,W:900,H:1200};
  const hit=vm.runInNewContext(editor.slice(start,end)+'\nhitPart',ctx);
  assert.equal(hit(layerToScene(head,{x:280,y:300})).id,'head');assert.equal(hit(layerToScene(head,{x:500,y:300})),null);assert.equal(hit({x:15,y:15}),null);
+});
+
+test('selected-layer footprint includes feathered alpha but excludes transparent holes',()=>{
+ const editor=fs.readFileSync(new URL('./src/studio-editor.jsx',import.meta.url),'utf8'),start=editor.indexOf(' const layerContainsPoint='),end=editor.indexOf(' const hitPart=',start);
+ const layer={id:'hair',kind:'hair-preview',visible:true,opacity:1,x:30,y:-20,scale:1.3,rotation:27,squeezeX:.8,squeezeY:1.1,sourceFrame:{x:250,y:200,w:400,h:500}};
+ const buffer={width:800,height:1000,getContext:()=>({getImageData:(x,y)=>({data:[0,0,0,x<200?10:0]})})};const ctx={state:{current:[layer]},assets:{current:new Map([['hair',{buffer}]])},sceneToLayer,drawNow:()=>{},W:900,H:1200};
+ const contains=vm.runInNewContext(editor.slice(start,end)+'\nlayerContainsPoint',ctx),faint=layerToScene(layer,{x:280,y:300}),hole=layerToScene(layer,{x:500,y:300});
+ assert.equal(contains(layer,faint),false);assert.equal(contains(layer,faint,0),true);assert.equal(contains(layer,hole,0),false);assert.equal(contains({...layer,visible:false},faint,0),false);assert.equal(contains({...layer,opacity:0},faint,0),false);
 });
