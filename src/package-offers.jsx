@@ -49,7 +49,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>รับรูปนี้ (ไม่มีลายน้ำ)</Feature><Feature>เพิ่ม 1 เครดิต สำหรับสร้างรูปใหม่</Feature>
+     <Feature>รับรูปนี้ (ไม่มีลายน้ำ)</Feature><Feature>รับ 1 เครดิต สำหรับสร้างรูปใหม่</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
@@ -62,8 +62,8 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>199 บาท</del></div>
     <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>เครดิตประมวลผลรูป 10 ครั้ง</Feature>
-     <Feature>เปลี่ยนทรงผมได้ (ตามจำนวนเครดิต)</Feature>
+     <Feature>รับ 10 เครดิต สำหรับสร้างรูปใหม่</Feature>
+     <Feature>เปลี่ยนทรงผมได้</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
