@@ -1447,7 +1447,11 @@ async function studioHairLabels(target){
  return pending;
 }
 async function finishStudioHairPreview(target,front,back,face,hairId,contourContext=null){
- const W=front.width,H=front.height,labels=await studioHairLabels(target);
+ const W=front.width,H=front.height;
+ // This supplied pair is finished artwork: only shared placement and stacking.
+ // Preserve the front, rear and original portrait without any cleanup/warp.
+ if(contourContext?.authoredPair&&contourContext?.preservePortrait)return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:target.toDataURL('image/png')};
+ const labels=await studioHairLabels(target);
  if(/^manhair-\d{2}$/.test(hairId)){
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
   const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H);
@@ -1570,7 +1574,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
  if(ref.backCutout){
   const back=canvasFor(W,H),bx=back.getContext('2d');bx.imageSmoothingEnabled=true;bx.imageSmoothingQuality='high';bx.setTransform(...matrix);bx.drawImage(ref.backCutout,0,0);bx.setTransform(1,0,0,1,0,0);
   if(!opaqueBounds(back))throw Error('ผมด้านล่างอยู่นอกภาพ · เก็บภาพเดิมไว้');
-  return finishStudioHairPreview(target,out,back,targetFace,hairId,{authoredPair:true});
+  return finishStudioHairPreview(target,out,back,targetFace,hairId,{authoredPair:true,preservePortrait:ref.calibration.preservePortrait===true});
  }
  if(/^manhair-\d{2}$/.test(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId,{maleGuide:ref.maleGuide,matrix:fit});
  let skin=fittedHairSkinCache.get(target);
@@ -2397,6 +2401,7 @@ const MALE_HAIR_OPTIONS=[
  {id:'manhair-29',name:'ทรงผม 26',src:'/assets/hairstyle-previews/manhair-29.png'},
 ];
 const HAIR_OPTIONS=[
+ {id:'hair-01',name:'ทรงผม 1',src:'/assets/hairstyle-previews/hair-01.webp'},
  {id:'hair-26',name:'ทรงผม 26',src:'/assets/hairstyle-previews/hair-26.png'},
  {id:'hair-27',name:'ทรงผม 27',src:'/assets/hairstyle-previews/hair-27.png'},
  {id:'hair-28',name:'ทรงผม 28',src:'/assets/hairstyle-previews/hair-28.png'},
