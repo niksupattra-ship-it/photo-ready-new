@@ -61,6 +61,16 @@ const descriptions={
  'manhair-28':'short male haircut with a smooth centre part',
  'manhair-29':'short male haircut with a fine forward fringe and close sides',
  'manhair-30':'neat short male haircut, natural side part with a smooth swept-back crown, close sides and open forehead',
+ 'manhair-31':'short male centre-parted wavy curtain haircut',
+ 'manhair-32':'short male haircut with a smooth side sweep and close sides',
+ 'manhair-33':'short male haircut with a neat side part and lifted crown',
+ 'manhair-34':'short male haircut with a natural off-centre side part',
+ 'manhair-35':'short male textured forward fringe with close sides',
+ 'manhair-36':'short male airy centre-parted curtain fringe',
+ 'manhair-37':'short male haircut with a loose off-centre part',
+ 'manhair-38':'short male curtain haircut with fine parted fringe',
+ 'manhair-39':'short male straight textured fringe covering the upper forehead',
+ 'manhair-40':'short male neat crop with a fine short fringe',
 };
 export const HAIRSTYLE_RULES=Object.freeze(descriptions);
 export function selectedHairstyleRule(id){
