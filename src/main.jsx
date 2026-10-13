@@ -2376,6 +2376,7 @@ const COLLAR_PIN_OPTIONS=[
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=[
+ {id:'manhair-30',name:'ทรงผม 1',src:'/assets/hairstyle-previews/manhair-30.png'},
  {id:'manhair-23',name:'ทรงผม 20',src:'/assets/hairstyle-previews/manhair-23.png'},
  {id:'manhair-24',name:'ทรงผม 21',src:'/assets/hairstyle-previews/manhair-24.png'},
  {id:'manhair-25',name:'ทรงผม 22',src:'/assets/hairstyle-previews/manhair-25.png'},

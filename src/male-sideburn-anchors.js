@@ -1,4 +1,4 @@
-// Native PNG sideburn pins, reviewed against the supplied patterns 20–26.
+// Native PNG sideburn pins, reviewed against the supplied patterns 20–26 and male style 1.
 // Coordinates identify hair material only; the original PNG files stay intact.
 export const MALE_SIDEBURN_ANCHORS=Object.freeze({
  "manhair-23": {
@@ -933,6 +933,140 @@ export const MALE_SIDEBURN_ANCHORS=Object.freeze({
       "outer": [
        776,
        639
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "manhair-30": {
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "sides": [
+   {
+    "sign": -1,
+    "root": [
+     218,
+     580
+    ],
+    "tip": [
+     183.5,
+     762
+    ],
+    "curve": [
+     {
+      "inner": [
+       218,
+       580
+      ],
+      "outer": [
+       130,
+       580
+      ]
+     },
+     {
+      "inner": [
+       203,
+       626
+      ],
+      "outer": [
+       140,
+       626
+      ]
+     },
+     {
+      "inner": [
+       198,
+       671
+      ],
+      "outer": [
+       158,
+       671
+      ]
+     },
+     {
+      "inner": [
+       192,
+       716
+      ],
+      "outer": [
+       173,
+       716
+      ]
+     },
+     {
+      "inner": [
+       185,
+       762
+      ],
+      "outer": [
+       182,
+       762
+      ]
+     }
+    ]
+   },
+   {
+    "sign": 1,
+    "root": [
+     778,
+     580
+    ],
+    "tip": [
+     804.5,
+     752
+    ],
+    "curve": [
+     {
+      "inner": [
+       778,
+       580
+      ],
+      "outer": [
+       850,
+       580
+      ]
+     },
+     {
+      "inner": [
+       789,
+       623
+      ],
+      "outer": [
+       844,
+       623
+      ]
+     },
+     {
+      "inner": [
+       793,
+       666
+      ],
+      "outer": [
+       834,
+       666
+      ]
+     },
+     {
+      "inner": [
+       797,
+       709
+      ],
+      "outer": [
+       816,
+       709
+      ]
+     },
+     {
+      "inner": [
+       802,
+       752
+      ],
+      "outer": [
+       807,
+       752
       ]
      }
     ]
