@@ -27,10 +27,32 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
  for(let y=0;y<mh;y++)for(let x=0;x<mw;x++)if(data[y*mw+x]===2||data[y*mw+x]===3){
   for(let yy=Math.max(0,y-1);yy<=Math.min(mh-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(mw-1,x+1);xx++)protectedSkin[yy*mw+xx]=1;
  }
- const feather=clamp(f.eye*.02,1.5,2),minimumR=f.width*.43,maximumR=f.width*.82;
+ const feather=clamp(f.eye*.02,1.5,2),maximumR=f.width*.82;
+ const skinSamples=[];
+ for(let v=f.eye*.1;v<f.eye*.6;v+=Math.max(1,f.eye*.06))for(let u=-f.eye*.25;u<=f.eye*.25;u+=Math.max(1,f.eye*.06)){
+  const p=f.world(u,v),x=Math.round(p.x),y=Math.round(p.y),label=labelIndex(x,y);
+  if(label<0||![2,3].includes(data[label]))continue;const j=(y*w+x)*4;
+  if(original[j+3]>=180)skinSamples.push((original[j]+original[j+1]+original[j+2])/3);
+ }
+ if(skinSamples.length<8)return out;
+ skinSamples.sort((a,b)=>a-b);const hairLuma=skinSamples[Math.floor(skinSamples.length/2)]*.62;
  for(const sign of [-1,1]){
   const temple=f.point(sign<0?127:356),cheek=f.point(sign<0?234:454);
-  const top=Math.min(f.point(10).v-f.eye*.10,temple.v-f.eye*.55),bottom=Math.min(temple.v+f.eye*.20,cheek.v+f.eye*.12);
+  // Exterior only: never extend the eraser into the inner face/ear side.
+  const minimumR=Math.max(f.width*.43,sign*temple.u,sign*cheek.u)+f.eye*.025;
+  let earTop=null;
+  for(let v=temple.v-f.eye*.3;v<=temple.v+f.eye*.15;v+=Math.max(1,f.eye*.015)){
+   let run=0;
+   for(let r=minimumR;r<=Math.min(maximumR,minimumR+f.eye*.28);r+=Math.max(1,f.eye*.015)){
+    const p=f.world(sign*r,v),x=Math.round(p.x),y=Math.round(p.y),label=labelIndex(x,y);
+    if(label<0)continue;const j=(y*w+x)*4;
+    if([2,3].includes(data[label])&&original[j+3]>=180){if(++run>=2){earTop=v;break}}else run=0;
+   }
+   if(earTop!==null)break;
+  }
+  const top=Math.min(f.point(10).v-f.eye*.10,temple.v-f.eye*.55);
+  // Stop ABOVE the observed upper ear. Uncertain anatomy uses a larger guard.
+  const bottom=Math.min(temple.v,earTop??temple.v-f.eye*.20)-Math.max(feather,f.eye*.025);
   if(bottom-top<f.eye*.12)continue;
   // Confirm the photographed face just inside this temple before using its
   // mask. This also makes an all-hair or empty/uncertain mask fail closed.
@@ -77,6 +99,8 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
    const n=y*w+x,j=n*4;if(!original[j+3]||front[j+3]>=248)continue;
    const index=labelIndex(x,y);if(index<0||data[index]!==1||protectedSkin[index])continue;
+   // Skin-coloured upper-ear pixels stay intact even if labelled as hair.
+   if((original[j]+original[j+1]+original[j+2])/3>=hairLuma)continue;
    const q=f.local(x,y),r=sign*q.u;if(q.v<=top||q.v>=bottom||r<minimumR||r>maximumR)continue;
    const row=Math.round(q.v-origin),edge=contour[row];if(!Number.isFinite(edge))continue;
    // Start the short fade beneath the translucent exterior fringe so old

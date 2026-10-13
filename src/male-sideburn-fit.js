@@ -117,9 +117,25 @@ function mapHeight(anatomy,face,f,sign,value){
  const a=pairs[i],b=pairs[i+1],ratio=(b.target-a.target)/(b.v-a.v);if(!Number.isFinite(ratio)||ratio<=0)return null;
  return a.target+(value-a.v)*ratio;
 }
+// Smooth Transform-Warp-style control grid over just one sideburn.
+// Three material pins drive a single continuous field, with pinned cage ends.
+export function createSideburnWarpGrid(rows,top,bottom,dense=false){
+ if(!rows||rows.length<3||!Number.isFinite(top)||!Number.isFinite(bottom)||bottom<=top)return null;
+ const pins=[rows[0],rows[Math.floor(rows.length/2)],rows.at(-1)];
+ if(dense)return {top,bottom,controls:rows.map(p=>({v:p.v,dr:p.dr,dv:p.dv})),externalTaper:true};
+ if(pins.some((p,i)=>!Number.isFinite(p.v)||p.v<=top||p.v>=bottom||![p.dr,p.dv].every(Number.isFinite)||(i&&p.v<=pins[i-1].v)))return null;
+ // Monotone cubic control spans cannot overshoot into a folded Warp grid.
+ // Use three material pins, not every noisy segmentation row.
+ const controls=[{v:top,dr:0,dv:0},...pins.map(p=>({v:p.v,dr:p.dr,dv:p.dv})),{v:bottom,dr:0,dv:0}];
+ return {top,bottom,controls};
+}
+export function sideburnWarpDisplacement(grid,v){
+ return {dr:interpolate(grid.controls,v,'dr'),dv:interpolate(grid.controls,v,'dv')};
+}
 function inverse(profile,r,v){
  if(v<=profile.top||v>=profile.bottom||r<=profile.minR||r>=profile.maxR)return {r,v};
- const inner=interpolate(profile.rows,v,'r'),outer=interpolate(profile.rows,v,'outer'),dr=interpolate(profile.rows,v,'dr'),dv=interpolate(profile.rows,v,'dv');
+ const inner=interpolate(profile.rows,v,'r'),outer=interpolate(profile.rows,v,'outer');
+ const {dr,dv}=profile.warpGrid?sideburnWarpDisplacement(profile.warpGrid,v):{dr:interpolate(profile.rows,v,'dr'),dv:interpolate(profile.rows,v,'dv')};
  const left=inner-profile.padding,right=outer+profile.padding;if(r<=left||r>=right)return {r,v};
  const radial=r<inner?smooth((r-left)/profile.padding):r>outer?smooth((right-r)/profile.padding):1;
  const vertical=smooth((v-profile.top)/(profile.rows[0].v-profile.top))*smooth((profile.bottom-v)/(profile.bottom-profile.rows.at(-1).v));
@@ -127,7 +143,8 @@ function inverse(profile,r,v){
  // nonzero displacement there creates the sharp join beside the ear.
  const centre=r<profile.pinInner?smooth((r-profile.minR)/(profile.pinInner-profile.minR)):1;
  const outside=r>profile.pinOuter?smooth((profile.maxR-r)/(profile.maxR-profile.pinOuter)):1;
- const weight=radial*vertical*centre*outside;
+ // Warp control ends already ease to zero; do not taper their displacement twice.
+ const weight=radial*(profile.warpGrid&&!profile.warpGrid.externalTaper?1:vertical)*centre*outside;
  return {r:r-dr*weight,v:v-dv*weight};
 }
 function sampleWarp(original,w,h,f,sign,profile,x,y,sourcePoint,displacement){
@@ -208,12 +225,13 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
   side.pins=pins.map(p=>({source:{r:p.sourceR,v:p.sourceV},target:{r:p.r,v:p.v}}));
   if(side.before<Math.max(1,f.eye*.005)){side.after=side.before;side.reason='already-aligned';continue}
   let accepted=false;
-  for(const expand of [1,1.5,2]){
+  for(const [expand,dense] of [[1,false],[1.5,false],[2,false],[1,true],[1.5,true],[2,true]]){
    const maximum=Math.max(...rows.map(p=>Math.hypot(p.dr,p.dv))),padding=Math.max(f.eye*.16,maximum*3.5)*expand,verticalPadding=Math.max(f.eye*.08,...rows.map(p=>Math.abs(p.dv)*3.5))*expand;
    const profile={rows,padding,top:Math.min(rows[0].v,rows[0].sourceV)-verticalPadding,bottom:Math.max(rows.at(-1).v,rows.at(-1).sourceV)+verticalPadding};
    // Pin everything at and above the forehead, including the top silhouette.
    profile.top=Math.max(profile.top,f.p(10).v+f.eye*.08);
    if(profile.top>=rows[0].v||profile.bottom<=rows.at(-1).v)continue;
+   profile.warpGrid=createSideburnWarpGrid(rows,profile.top,profile.bottom,dense);if(!profile.warpGrid)continue;
    const minR=Math.max(f.width*.34,Math.min(...rows.map(p=>p.r))-padding),maxR=Math.max(...rows.map(p=>p.outer))+padding;
    Object.assign(profile,{minR,maxR,pinInner:Math.min(...rows.map(p=>p.r)),pinOuter:Math.max(...rows.map(p=>p.outer))});
    if(profile.pinInner<=minR||profile.pinOuter>=maxR)continue;
@@ -230,7 +248,7 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
    side.after=Math.max(...errors);
    if(!Number.isFinite(side.after)||side.after>Math.max(1.5,Math.min(3,f.eye*.008))||side.after>=side.before)continue;
    for(let y=y0;y<=y1;y++)out.set(trial.subarray((y*w+x0)*4,(y*w+x1+1)*4),(y*w+x0)*4);
-   side.adjusted=true;report.adjusted=true;accepted=true;break;
+   side.mode='local-transform-warp';side.warpControlRows=profile.warpGrid.controls.length;side.adjusted=true;report.adjusted=true;accepted=true;break;
   }
   if(!accepted)side.reason='two-dimensional-check-failed';
  }
