@@ -1,4 +1,4 @@
-// Male-only, local inverse liquify. Read the portrait to locate the attachment;
+// Male-only, coherent sideburn fit. Read the portrait to locate the attachment;
 // move existing PNG pixels only. No eraser, skin fill or whole-hair squeeze.
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const smooth=x=>{const t=clamp(x,0,1);return t*t*(3-2*t)};
@@ -117,6 +117,21 @@ function mapHeight(anatomy,face,f,sign,value){
  const a=pairs[i],b=pairs[i+1],ratio=(b.target-a.target)/(b.v-a.v);if(!Number.isFinite(ratio)||ratio<=0)return null;
  return a.target+(value-a.v)*ratio;
 }
+// One rotation/translation and a small uniform scale for the COMPLETE strand.
+// Never follow each noisy skin-boundary row with a separate bend.
+export function fitSideburnSimilarity(rows){
+ if(!rows||rows.length<3)return null;
+ let sr=0,sv=0,tr=0,tv=0;
+ for(const p of rows){if(![p.sourceR,p.sourceV,p.r,p.v].every(Number.isFinite))return null;sr+=p.sourceR;sv+=p.sourceV;tr+=p.r;tv+=p.v}
+ sr/=rows.length;sv/=rows.length;tr/=rows.length;tv/=rows.length;
+ let dot=0,cross=0,variance=0;
+ for(const p of rows){const x=p.sourceR-sr,y=p.sourceV-sv,u=p.r-tr,z=p.v-tv;dot+=x*u+y*z;cross+=x*z-y*u;variance+=x*x+y*y}
+ if(variance<1)return null;
+ const angle=clamp(Math.atan2(cross,dot),-Math.PI/18,Math.PI/18),scale=clamp(Math.hypot(dot,cross)/variance,.92,1.08);
+ const a=scale*Math.cos(angle),b=scale*Math.sin(angle),tx=tr-a*sr+b*sv,ty=tv-b*sr-a*sv;
+ const error=Math.sqrt(rows.reduce((n,p)=>n+(a*p.sourceR-b*p.sourceV+tx-p.r)**2+(b*p.sourceR+a*p.sourceV+ty-p.v)**2,0)/rows.length);
+ return {a,b,tx,ty,error};
+}
 function inverse(profile,r,v){
  if(v<=profile.top||v>=profile.bottom||r<=profile.minR||r>=profile.maxR)return {r,v};
  const inner=interpolate(profile.rows,v,'r'),outer=interpolate(profile.rows,v,'outer'),dr=interpolate(profile.rows,v,'dr'),dv=interpolate(profile.rows,v,'dv');
@@ -128,6 +143,11 @@ function inverse(profile,r,v){
  const centre=r<profile.pinInner?smooth((r-profile.minR)/(profile.pinInner-profile.minR)):1;
  const outside=r>profile.pinOuter?smooth((profile.maxR-r)/(profile.maxR-profile.pinOuter)):1;
  const weight=radial*vertical*centre*outside;
+ if(profile.similarity){
+  const {a,b,tx,ty}=profile.similarity,den=a*a+b*b,x=r-tx,y=v-ty;
+  const sourceR=(a*x+b*y)/den,sourceV=(-b*x+a*y)/den;
+  return {r:r+(sourceR-r)*weight,v:v+(sourceV-v)*weight};
+ }
  return {r:r-dr*weight,v:v-dv*weight};
 }
 function sampleWarp(original,w,h,f,sign,profile,x,y,sourcePoint,displacement){
@@ -145,7 +165,7 @@ function pointError(pixels,w,h,f,sign,target,colour){
  for(let dy=-3;dy<=3;dy+=.5)for(let dx=-3;dx<=3;dx+=.5){const p=pixel(pixels,w,h,f.world(sign*(target.r+dx),target.v+dy));if(!p||p[3]<96||p[0]+p[1]+p[2]>colour.luma*2)continue;best=Math.min(best,Math.hypot(dx,dy))}
  return best;
 }
-// Two-dimensional pinned cage: correspondence follows the reference temple
+// Whole-strand similarity within a broad smooth transition: correspondence follows the reference temple
 // and cheek landmarks, then the actual photographed hair/skin boundary. No
 // portrait pixel is written. The crown and the middle forehead remain pinned.
 export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix){
@@ -183,34 +203,25 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
   if(rows.length<3||rows.length<source.rows.length*.7||rows[0].sourceIndex!==0||rows.at(-1).sourceIndex!==source.rows.length-1){side.reason='attachment-unclear';continue}
   rows.sort((a,b)=>a.v-b.v);
   if(rows.some((r,i)=>i&&(r.sourceV<=rows[i-1].sourceV||r.v<=rows[i-1].v))){side.reason='unordered-pins';continue}
-  // A tapered sideburn is a narrow strand attached to a thick, already
-  // placed upper hairstyle. Moving its root creates an artificial shoulder
-  // above the ear. Keep that root rigid and ease the bend into the narrowing
-  // strand, retaining its original cross-section and the requested tip.
-  const rootWidth=rows[0].materialWidth,tipWidth=rows.at(-1).materialWidth;
-  if(rootWidth>0&&tipWidth>0&&rootWidth>tipWidth*2.5){
-   side.mode='pinned-root-tip-bend';
-   const root=rows.findLast(row=>row.materialWidth>=rootWidth*.65),span=rows.at(-1).sourceV-root.sourceV;
-   if(span<f.eye*.08){side.reason='taper-too-short';continue}
-   side.requestedPins=[rows[0],rows[Math.floor(rows.length/2)],rows.at(-1)].map(row=>({r:row.r,v:row.v}));
-   for(const row of rows){
-    // Use distance along the strand after the last thick row. Local width
-    // fluctuations cannot repeatedly reverse the bend, and the tip reaches
-    // the full anatomical target even when it is not just one pixel wide.
-    const weight=smooth((row.sourceV-root.sourceV)/span);
-    row.dr*=weight;row.dv*=weight;
-    row.r=row.sourceR+row.dr;row.v=row.sourceV+row.dv;
-    row.outer=row.r+Math.max(2,row.materialWidth);
-   }
-   if(rows.some((r,i)=>i&&r.v<=rows[i-1].v)){side.reason='unordered-pins';continue}
+  // Move the full root/middle/tip coherently. The previous pinned-root
+  // branch forced a long displacement into the narrow tip and kinked it.
+  const similarity=fitSideburnSimilarity(rows);
+  if(!similarity||similarity.error>Math.max(2,f.eye*.07)){side.reason='coherent-fit-unclear';continue}
+  side.mode='whole-sideburn-similarity';side.fitError=similarity.error;side.similarity={...similarity};
+  for(const row of rows){
+   row.r=similarity.a*row.sourceR-similarity.b*row.sourceV+similarity.tx;
+   row.v=similarity.b*row.sourceR+similarity.a*row.sourceV+similarity.ty;
+   row.outer=row.r+Math.max(2,similarity.a*row.materialWidth);
+   row.dr=row.r-row.sourceR;row.dv=row.v-row.sourceV;
   }
+  if(rows.some((r,i)=>i&&r.v<=rows[i-1].v)){side.reason='unordered-pins';continue}
   const pins=[rows[0],rows[Math.floor(rows.length/2)],rows.at(-1)];side.before=pins.reduce((n,p)=>n+Math.hypot(p.dr,p.dv),0)/pins.length;
   side.pins=pins.map(p=>({source:{r:p.sourceR,v:p.sourceV},target:{r:p.r,v:p.v}}));
-  if(side.before<Math.max(1,f.eye*.005)){side.after=side.before;side.reason='already-aligned';continue}
+  if(side.before<Math.max(1.5,f.eye*.015)){side.after=side.before;side.reason='already-aligned';continue}
   let accepted=false;
   for(const expand of [1,1.5,2]){
    const maximum=Math.max(...rows.map(p=>Math.hypot(p.dr,p.dv))),padding=Math.max(f.eye*.16,maximum*3.5)*expand,verticalPadding=Math.max(f.eye*.08,...rows.map(p=>Math.abs(p.dv)*3.5))*expand;
-   const profile={rows,padding,top:Math.min(rows[0].v,rows[0].sourceV)-verticalPadding,bottom:Math.max(rows.at(-1).v,rows.at(-1).sourceV)+verticalPadding};
+   const profile={rows,padding,similarity,top:Math.min(rows[0].v,rows[0].sourceV)-verticalPadding,bottom:Math.max(rows.at(-1).v,rows.at(-1).sourceV)+verticalPadding};
    // Pin everything at and above the forehead, including the top silhouette.
    profile.top=Math.max(profile.top,f.p(10).v+f.eye*.08);
    if(profile.top>=rows[0].v||profile.bottom<=rows.at(-1).v)continue;
