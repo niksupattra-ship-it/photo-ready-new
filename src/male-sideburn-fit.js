@@ -255,46 +255,60 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
  report.unavailable=report.sides.some(side=>side.reason&&side.reason!=='already-aligned');return {pixels:out,report};
 }
 
-// Feather only the placed PNG's sideburn tips. No mask or portrait edit.
-// Follow each side independently in face-local coordinates, even with tilt.
-export function fadeMaleSideburnTips(original,portrait,w,h,face,labels,guide,matrix,report=null){
+// Soft eraser on the PNG alpha only. Never warp the sideburn, paste skin,
+// or cut a straight horizontal/vertical boundary through the hair.
+export function fadeMaleSideburnTips(original,portrait,w,h,face,labels,guide,matrix){
  if(original?.length!==w*h*4||portrait?.length!==w*h*4)throw Error('พิกเซลปลายจอนไม่ตรงกับภาพ');
  const out=new Uint8ClampedArray(original),f=frame(face,w,h),skin=f&&skinReference(portrait,w,h,f);
- if(!f||!skin||!guide?.sides||!matrix||!['a','b','c','d','e','f'].every(k=>Number.isFinite(matrix[k])))return out;
+ if(!f||!skin||!validLabels(labels)||!guide?.sides||!matrix||!['a','b','c','d','e','f'].every(k=>Number.isFinite(matrix[k])))return out;
  const apply=p=>({x:matrix.a*p.x+matrix.c*p.y+matrix.e,y:matrix.b*p.x+matrix.d*p.y+matrix.f});
  for(let index=0;index<2;index++){
   const sign=index?1:-1,source=guide.sides[index];if(!source?.rows?.length)continue;
-  const fitted=report?.sides?.find(p=>p.sign===sign);
-  const offsets=fitted?.adjusted?fitted.pins.map(p=>({v:p.source.v,dr:p.target.r-p.source.r,dv:p.target.v-p.source.v})):null;
   const bands=source.rows.map(row=>{
-   const p=apply(row.point),q=f.local(p.x,p.y),op=apply(row.outerPoint),outer=f.local(op.x,op.y);
-   const dr=offsets?interpolate(offsets,q.v,'dr'):0,dv=offsets?interpolate(offsets,q.v,'dv'):0;
-   return {v:q.v+dv,r:sign*q.u+dr,outer:sign*outer.u+dr};
+   const p=apply(row.point),op=apply(row.outerPoint),q=f.local(p.x,p.y),outer=f.local(op.x,op.y);
+   return {v:q.v,r:sign*q.u,outer:sign*outer.u};
   }).filter(p=>[p.v,p.r,p.outer].every(Number.isFinite)&&p.outer>p.r).sort((a,b)=>a.v-b.v);
   if(bands.length<3||bands.some((p,i)=>i&&p.v<=bands[i-1].v))continue;
   const root=bands[0].v,tip=bands.at(-1).v;if(tip-root<f.eye*.08)continue;
-  // Match the photographed sideburn's extent when there is clear material.
-  const temple=f.p(sign<0?127:356),edgeAt=contour(f,face,sign,w,h);let photoTip=null;
-  if(validLabels(labels))for(let v=temple.v-f.eye*.12;v<=temple.v+f.eye*.55;v+=Math.max(1,f.eye*.015)){
-   const edge=edgeAt(v);if(edge===null)continue;let run=0;
-   for(let r=edge-f.eye*.10;r<=edge+f.eye*.14;r+=Math.max(1,f.eye*.015)){
-    const p=f.world(sign*r,v),rgb=pixel(portrait,w,h,p),cat=labelAt(labels,w,h,p);
-    if(rgb?.[3]>128&&cat===1&&(rgb[0]+rgb[1]+rgb[2])/3<skin.luma*.65){if(++run>=2){photoTip=v;break}}else run=0;
+  const edgeAt=contour(f,face,sign,w,h),observed=[],step=Math.max(1,f.eye*.015);
+  // Read the photographed sideburn independently on each side, rather than
+  // making both tips follow a shared line or following the outside of the ear.
+  for(let v=root;v<=Math.min(tip,root+f.eye*.85);v+=step){
+   const edge=edgeAt(v);if(edge===null)continue;let start=null,run=0;
+   for(let r=edge-f.eye*.18;r<=edge+f.eye*.14;r+=step){
+    const p=f.world(sign*r,v),rgb=pixel(portrait,w,h,p);
+    const hair=rgb?.[3]>128&&labelAt(labels,w,h,p)===1&&(rgb[0]+rgb[1]+rgb[2])/3<skin.luma*.65;
+    if(hair){if(start===null)start=r;if(++run>=2){observed.push({v,r:start});break}}else{start=null;run=0}
    }
   }
-  const end=Math.max(root+f.eye*.08,Math.min(tip,photoTip===null?tip:photoTip+f.eye*.06));
-  const span=Math.max(2,Math.min((tip-root)*.55,f.eye*.28)),start=Math.max(root,end-span),soft=Math.max(1,f.eye*.018);
+  // Missing/uncertain hair evidence must never cause a guessed erasure.
+  if(observed.length<3)continue;
+  const edges=observed.map((p,i)=>{
+   const neighbours=observed.slice(Math.max(0,i-2),i+3);
+   return {v:p.v,r:neighbours.reduce((sum,q)=>sum+q.r,0)/neighbours.length};
+  });
+  const soft=Math.max(1.5,f.eye*.035),end=Math.min(tip,observed.at(-1).v+f.eye*.035);
+  const span=Math.max(3,Math.min((tip-root)*.55,f.eye*.28)),start=Math.max(root,end-span);
+  const ramp=Math.max(3,Math.min((tip-root)*.35,f.eye*.16));
   const minR=Math.min(...bands.map(p=>p.r))-soft,maxR=Math.max(...bands.map(p=>p.outer))+soft;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-   const j=(y*w+x)*4;if(!out[j+3])continue;const q=f.local(x,y),r=sign*q.u;
-   if(q.v<=start||q.v>tip+soft||r<minR||r>maxR)continue;
+   const j=(y*w+x)*4;if(!original[j+3])continue;const q=f.local(x,y),r=sign*q.u;
+   if(q.v<=root||q.v>tip+soft||r<minR||r>maxR)continue;
    const inner=interpolate(bands,q.v,'r'),outer=interpolate(bands,q.v,'outer');
    if(r<inner-soft||r>outer+soft)continue;
-   // Discard foreign skin from eligibility; preserve PNG RGB and all skin.
-   if((original[j]+original[j+1]+original[j+2])/3>=skin.luma*.72||Math.max(original[j],original[j+1],original[j+2])-Math.min(original[j],original[j+1],original[j+2])>100)continue;
-   const sideWeight=smooth((r-inner+soft)/soft)*smooth((outer+soft-r)/soft);
-   const fade=smooth((q.v-start)/Math.max(1,end-start));
-   out[j+3]=Math.round(original[j+3]*(1-fade*sideWeight));
+   // Continuous material confidence preserves donor skin without a binary
+   // colour threshold introducing a new jagged line in the faded edge.
+   const luma=(original[j]+original[j+1]+original[j+2])/3;
+   const colourSpread=Math.max(original[j],original[j+1],original[j+2])-Math.min(original[j],original[j+1],original[j+2]);
+   const material=smooth((skin.luma*.80-luma)/(skin.luma*.18))*(1-smooth((colourSpread-80)/30));
+   const photoEdge=interpolate(edges,q.v,'r');
+   const lateral=1-smooth((r-photoEdge+soft*.25)/soft);
+   const blend=smooth((q.v-root)/ramp);
+   // Taper the tip along the observed curved contour, never one horizontal cut.
+   const roundedEnd=end-soft*smooth((photoEdge+soft-r)/(2*soft));
+   const bottom=smooth((q.v-start)/Math.max(1,roundedEnd-start));
+   const erase=1-(1-lateral*blend)*(1-bottom);
+   out[j+3]=Math.round(original[j+3]*(1-material*erase));
   }
  }
  return out;
