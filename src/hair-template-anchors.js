@@ -108,42 +108,46 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
 },
  "hair-06": {
   "sourceToReference": [
-   0.1524577,
-   0.0003854,
-   -0.0003854,
-   0.1524577,
-   4.5112588,
-   7.5070595
+    0.3125257578886513,
+    0,
+    0,
+    0.3125257578886513,
+    3.617940720552085,
+    5.065427926321352
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-06-back.png",
+  "preservePortrait": true
+},
  "hair-07": {
   "sourceToReference": [
-   0.1420932,
-   0.0015993,
-   -0.0015993,
-   0.1420932,
-   10.4754163,
-   5.4403753
+    0.3082049847733562,
+    0,
+    0,
+    0.3082049847733562,
+    6.552500706466559,
+    8.046805863798163
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-07-back.png",
+  "preservePortrait": true
+},
  "hair-08": {
   "sourceToReference": [
    0.141045,

@@ -1524,7 +1524,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   const pending=(async()=>{
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
    // Replaced 2–5 assets must not reuse the old pattern/reference browser cache.
-   const assetVersion=/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':'';
+   const assetVersion=/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':/^hair-0[6-7]$/.test(hairId)?'?v=authored-pair-77':'';
    const hairAsset=async path=>{try{return await loadImage(path+assetVersion)}catch{throw Error('โหลดไฟล์ทรงผมไม่สำเร็จ: '+path+' · กรุณาอัปโหลดไฟล์ใน ZIP ให้ครบ')}};
    const [cutout,preview]=await Promise.all([hairAsset(`/assets/hair/${hairId}.png`),hairAsset(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
@@ -2416,6 +2416,8 @@ const HAIR_OPTIONS=[
  {id:'hair-03',name:'ทรงผม 3',src:'/assets/hairstyle-previews/hair-03.webp'},
  {id:'hair-04',name:'ทรงผม 4',src:'/assets/hairstyle-previews/hair-04.webp'},
  {id:'hair-05',name:'ทรงผม 5',src:'/assets/hairstyle-previews/hair-05.webp'},
+ {id:'hair-06',name:'ทรงผม 6',src:'/assets/hairstyle-previews/hair-06.webp'},
+ {id:'hair-07',name:'ทรงผม 7',src:'/assets/hairstyle-previews/hair-07.webp'},
  {id:'hair-26',name:'ทรงผม 26',src:'/assets/hairstyle-previews/hair-26.png'},
  {id:'hair-27',name:'ทรงผม 27',src:'/assets/hairstyle-previews/hair-27.png'},
  {id:'hair-28',name:'ทรงผม 28',src:'/assets/hairstyle-previews/hair-28.png'},
