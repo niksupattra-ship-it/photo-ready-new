@@ -352,33 +352,60 @@ export function skewMaleSideburnCorners(original,portrait,w,h,face,labels,guide,
 
   const top=bands[0].v,bottom=bands.at(-1).v,span=bottom-top;
   if(span<f.eye*.08){side.reason='too-short';continue}
-  const edgeAt=contour(f,face,sign,w,h),targets=[];
+  const baseEdge=contour(f,face,sign,w,h);
+  const edgeIds=sign<0?[21,162,127,234,93,132,58,172,136]:[251,389,356,454,323,361,288,397,365];
+  const faceEdge=edgeIds.filter(id=>face[id]&&[face[id].x,face[id].y].every(Number.isFinite)).map(id=>{const p=f.p(id);return {v:p.v,r:sign*p.u}}).filter(p=>p.r>f.width*.28).sort((a,b)=>a.v-b.v);
+  const edgeAt=v=>faceEdge.length>=2&&v>=faceEdge[0].v&&v<=faceEdge.at(-1).v?interpolate(faceEdge,v,'r'):baseEdge(v);
+  const overlap=Math.max(.6,f.eye*.008),targets=[];
   for(const row of bands){
    const weight=(row.v-top)/span;if(weight<.55)continue;
    const expected=edgeAt(row.v);if(expected===null)continue;
    const edge=skinEdge(portrait,w,h,f,expected,row.v,sign,labels);
-   // Never follow the outer ear or guessed anatomy into an uncertain patch.
-   if(edge===null||Math.abs(edge-expected)>f.eye*.16)continue;
-   targets.push({weight,delta:(edge-f.eye*.012-row.r)/weight});
+   // A segmentation boundary can lie inside the cheek beside old hair.
+   // Never use that interior edge as permission to narrow the new sideburn.
+   if(edge===null||Math.abs(edge-expected)>f.eye*.20)continue;
+   const target=Math.max(expected-overlap,Math.min(edge,expected+overlap));
+   targets.push({weight,delta:(target-row.r)/weight});
   }
   if(targets.length<2){side.reason='attachment-unclear';continue}
-  const dr=median(targets.map(p=>p.delta));
-  if(Math.abs(dr)>f.eye*.16||Math.max(...targets.map(p=>p.delta))-Math.min(...targets.map(p=>p.delta))>f.eye*.14){side.reason='shift-uncertain';continue}
+  let dr=median(targets.map(p=>p.delta));
+  if(Math.abs(dr)>f.eye*.22||Math.max(...targets.map(p=>p.delta))-Math.min(...targets.map(p=>p.delta))>f.eye*.22){side.reason='shift-uncertain';continue}
   side.shift=dr;
   side.before=targets.reduce((n,p)=>n+Math.abs(p.delta*p.weight),0)/targets.length;
-  if(side.before<Math.max(1,f.eye*.006)){side.reason='already-aligned';continue}
+
   // Both radial cut edges must be clear of actual hair. Pale donor skin
   // cannot veto this check; it is not the visible sideburn being fitted.
   const pad=Math.max(3,f.eye*.10),minR=Math.min(...bands.map(p=>p.r))-pad,maxR=Math.max(...bands.map(p=>p.outer))+pad;
   if(minR<f.width*.28){side.reason='region-overlaps-face';continue}
-  let tail=bottom,safe=true;
+  let tail=bottom,safe=true;const actualRows=new Map();
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
    const j=(y*w+x)*4;if(!isHair(original.subarray(j,j+4)))continue;const q=f.local(x,y),r=sign*q.u;
    if(q.v<=top)continue;
    if(Math.abs(r-minR)<1.5||Math.abs(r-maxR)<1.5){safe=false;break}
-   if(r>minR&&r<maxR)tail=Math.max(tail,q.v+1);
+   if(r>minR&&r<maxR){
+    tail=Math.max(tail,q.v+1);const v=Math.round(q.v),old=actualRows.get(v);
+    actualRows.set(v,old===undefined?r:Math.min(old,r));
+   }
   }
   if(!safe){side.reason='no-transparent-boundary';continue}
+  // Bound the one straight affine shear using every measured lower strand row,
+  // including tails below the guide. This prevents a long tip multiplying
+  // an inward corner shift until it crosses the facial outline.
+  let minimumSlope=-Infinity,beforeIntrusion=0;
+  const protectedRows=[];
+  for(const [v,r] of actualRows){
+   if(v-top<Math.max(2,span*.55))continue;
+   const edge=edgeAt(v);if(edge===null)continue;
+   const safeEdge=edge-overlap;
+   minimumSlope=Math.max(minimumSlope,(safeEdge-r)/(v-top));
+   beforeIntrusion=Math.max(beforeIntrusion,safeEdge-r);
+   protectedRows.push({v,r,safeEdge});
+  }
+  if(protectedRows.length<3){side.reason='face-guard-unclear';continue}
+  const slope=Math.max(dr/span,minimumSlope);
+  if(Math.abs(slope*(tail-top))>f.eye*.22){side.reason='face-safe-shift-too-large';continue}
+  dr=slope*span;side.shift=dr;side.beforeIntrusion=beforeIntrusion;
+  if(side.before<Math.max(1,f.eye*.006)&&beforeIntrusion<=1){side.reason='already-aligned';continue}
   // Extend the SAME affine shear through the real alpha tail. Do not bend
   // back towards its old tip or squeeze the cross-section of the sideburn.
   const sourceR=(r,v)=>r-dr*(v-top)/span;
@@ -401,7 +428,10 @@ export function skewMaleSideburnCorners(original,portrait,w,h,face,labels,guide,
   // measured gap. The portrait remains read-only throughout this operation.
   side.before=targets.reduce((n,p)=>n+Math.abs(p.delta*p.weight),0)/targets.length;
   side.after=targets.reduce((n,p)=>n+Math.abs((p.delta-dr)*p.weight),0)/targets.length;
-  if(side.after>=side.before||side.after>Math.max(2,f.eye*.035)){side.reason='fit-check-failed';continue}
+  side.afterIntrusion=Math.max(0,...protectedRows.map(p=>p.safeEdge-(p.r+dr*(p.v-top)/span)));
+  // Safety correction may prioritise clearing an overlapping cheek over a
+  // tiny measured guide gap. Never accept a new or worse facial intrusion.
+  if(side.afterIntrusion>1||(side.after>=side.before&&beforeIntrusion<=1)){side.reason='fit-check-failed';continue}
   out.set(trial);side.adjusted=true;side.mode='affine-skew';report.adjusted=true;
  }
  return {pixels:out,report};
