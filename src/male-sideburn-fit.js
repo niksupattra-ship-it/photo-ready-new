@@ -315,3 +315,70 @@ export function fadeMaleSideburnTips(original,portrait,w,h,face,labels,guide,mat
  }
  return out;
 }
+
+
+// Photoshop-style local Skew: top edge fixed, bottom edge shifted horizontally.
+// Each side is one affine shear, so straight strands stay straight. No eraser.
+export function skewMaleSideburnCorners(original,portrait,w,h,face,labels,guide,matrix){
+ if(original?.length!==w*h*4||portrait?.length!==w*h*4)throw Error('พิกเซลจอนผมไม่ตรงกับภาพ');
+ const out=new Uint8ClampedArray(original),f=frame(face,w,h),report={adjusted:false,sides:[]};
+ if(!f||!validLabels(labels)||!guide?.sides||!matrix||!['a','b','c','d','e','f'].every(k=>Number.isFinite(matrix[k])))return {pixels:out,report};
+ const apply=p=>({x:matrix.a*p.x+matrix.c*p.y+matrix.e,y:matrix.b*p.x+matrix.d*p.y+matrix.f});
+ for(let index=0;index<2;index++){
+  const sign=index?1:-1,source=guide.sides[index],side={sign,adjusted:false};report.sides.push(side);
+  if(!source?.rows?.length){side.reason='template-unclear';continue}
+  const bands=source.rows.map(row=>{const p=apply(row.point),op=apply(row.outerPoint),q=f.local(p.x,p.y),o=f.local(op.x,op.y);return {v:q.v,r:sign*q.u,outer:sign*o.u}}).sort((a,b)=>a.v-b.v);
+  if(bands.length<3||bands.some((p,i)=>![p.v,p.r,p.outer].every(Number.isFinite)||p.outer<=p.r||(i&&p.v<=bands[i-1].v))){side.reason='template-unclear';continue}
+  const top=bands[0].v,bottom=bands.at(-1).v,span=bottom-top;
+  if(span<f.eye*.08){side.reason='too-short';continue}
+  const edgeAt=contour(f,face,sign,w,h),targets=[];
+  for(const row of bands){
+   const weight=(row.v-top)/span;if(weight<.55)continue;
+   const expected=edgeAt(row.v);if(expected===null)continue;
+   const edge=skinEdge(portrait,w,h,f,expected,row.v,sign,labels);
+   // Never follow the outer ear or guessed anatomy into an uncertain patch.
+   if(edge===null||Math.abs(edge-expected)>f.eye*.16)continue;
+   targets.push({weight,delta:(edge-f.eye*.012-row.r)/weight});
+  }
+  if(targets.length<2){side.reason='attachment-unclear';continue}
+  const dr=median(targets.map(p=>p.delta));
+  if(Math.abs(dr)>f.eye*.16||Math.max(...targets.map(p=>p.delta))-Math.min(...targets.map(p=>p.delta))>f.eye*.14){side.reason='shift-uncertain';continue}
+  side.shift=dr;
+  side.before=targets.reduce((n,p)=>n+Math.abs(p.delta*p.weight),0)/targets.length;
+  if(side.before<Math.max(.8,f.eye*.005)){side.reason='already-aligned';continue}
+  // Both radial cut edges must be transparent. Otherwise a local transform
+  // could cut a fringe or another part of the chosen style: preserve it.
+  const pad=Math.max(3,f.eye*.10),minR=Math.min(...bands.map(p=>p.r))-pad,maxR=Math.max(...bands.map(p=>p.outer))+pad;
+  if(minR<f.width*.28){side.reason='region-overlaps-face';continue}
+  let tail=bottom,safe=true;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const alpha=original[(y*w+x)*4+3];if(alpha<8)continue;const q=f.local(x,y),r=sign*q.u;
+   if(q.v<=top)continue;
+   if(Math.abs(r-minR)<1.5||Math.abs(r-maxR)<1.5){safe=false;break}
+   if(r>minR&&r<maxR)tail=Math.max(tail,q.v+1);
+  }
+  if(!safe){side.reason='no-transparent-boundary';continue}
+  // Extend the SAME affine shear through the real alpha tail. Do not bend
+  // back towards its old tip or squeeze the cross-section of the sideburn.
+  const sourceR=(r,v)=>r-dr*(v-top)/span;
+  const maximumShift=Math.abs(dr)*(tail-top)/span;
+  const corners=[f.world(sign*(minR-maximumShift),top),f.world(sign*(maxR+maximumShift),top),f.world(sign*(minR-maximumShift),tail),f.world(sign*(maxR+maximumShift),tail)];
+  const x0=clamp(Math.floor(Math.min(...corners.map(p=>p.x)))-2,0,w-1),x1=clamp(Math.ceil(Math.max(...corners.map(p=>p.x)))+2,0,w-1),y0=clamp(Math.floor(Math.min(...corners.map(p=>p.y)))-2,0,h-1),y1=clamp(Math.ceil(Math.max(...corners.map(p=>p.y)))+2,0,h-1);
+  const trial=new Uint8ClampedArray(out);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+   const q=f.local(x,y),r=sign*q.u;if(q.v<=top||q.v>tail)continue;
+   const sr=sourceR(r,q.v),inSource=r>=minR&&r<=maxR,inTarget=sr>=minR&&sr<=maxR;
+   if(!inSource&&!inTarget)continue;
+   const j=(y*w+x)*4;
+   if(!inTarget){trial.fill(0,j,j+4);continue}
+   const p=f.world(sign*sr,q.v);trial.set(sample(original,w,h,p.x,p.y),j);
+  }
+  // Record geometric residual; reject a correction that does not close the
+  // measured gap. The portrait remains read-only throughout this operation.
+  side.before=targets.reduce((n,p)=>n+Math.abs(p.delta*p.weight),0)/targets.length;
+  side.after=targets.reduce((n,p)=>n+Math.abs((p.delta-dr)*p.weight),0)/targets.length;
+  if(side.after>=side.before||side.after>Math.max(2,f.eye*.035)){side.reason='fit-check-failed';continue}
+  out.set(trial);side.adjusted=true;side.mode='affine-skew';report.adjusted=true;
+ }
+ return {pixels:out,report};
+}
