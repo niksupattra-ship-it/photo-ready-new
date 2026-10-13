@@ -1459,14 +1459,16 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
   if(sideburnReport){result.maleSideburnReport=sideburnReport;if(sideburnReport.unavailable)result.maleSideburnWarning=true}
   return result;
  }
+ // Authored pairs keep their supplied pixels and share the same rigid placement.
+ const authoredPair=contourContext?.authoredPair===true;
  // Floating PNG fragments must not survive or become the measured crown edge.
- for(const layer of [front,back]){
+ for(const layer of authoredPair?[]:[front,back]){
   if(!layer)continue;
   const cx=layer.getContext('2d'),pixels=cx.getImageData(0,0,W,H);
   pixels.data.set(eraseDetachedUpperHair(pixels.data,W,H,face,{softEdges:true}));cx.putImageData(pixels,0,0);
  }
  let upper=null;
- if(!isSingleLayerHair(hairId)&&back){
+ if(!authoredPair&&!isSingleLayerHair(hairId)&&back){
   const fx=front.getContext('2d'),bx=back.getContext('2d'),fp=fx.getImageData(0,0,W,H),bp=bx.getImageData(0,0,W,H);
   upper=featherLongCrown(fp.data,bp.data,W,H,face);
   fp.data.set(upper.front);bp.data.set(upper.back);fx.putImageData(fp,0,0);bx.putImageData(bp,0,0);
@@ -1488,7 +1490,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
  // The original global placement remains shared. Deform only rear texture
  // after the FRONT / actual person / REAR composite exposes the real gaps.
  let rearReport=null;
- if(!single&&back&&contourContext?.skin&&contourContext?.guide){
+ if(!authoredPair&&!single&&back&&contourContext?.skin&&contourContext?.guide){
   const bx=back.getContext('2d'),bp=bx.getImageData(0,0,W,H),sp=contourContext.skin.getContext('2d').getImageData(0,0,W,H).data,gp=contourContext.guide.getContext('2d').getImageData(0,0,W,H).data;
   const pushed=pushLongHairRear(bp.data,front.getContext('2d').getImageData(0,0,W,H).data,headPixels.data,sp,gp,W,H,face);bp.data.set(pushed.pixels);bx.putImageData(bp,0,0);rearReport=pushed.report;
  }
@@ -1513,6 +1515,13 @@ async function prepareStudioHairOverlay(headSource,hairId){
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
+   if(calibration.layout==='authored-pair'){
+    const back=await loadImage(calibration.backSource);
+    if(back.naturalWidth!==cutout.naturalWidth||back.naturalHeight!==cutout.naturalHeight)throw Error('ขนาดผมบนและผมล่างไม่ตรงกัน · เก็บภาพเดิมไว้');
+    const backCutout=canvasFor(back.naturalWidth,back.naturalHeight);backCutout.getContext('2d').drawImage(back,0,0);
+    if(!opaqueBounds(backCutout))throw Error('ไม่พบพิกเซลของผมด้านล่าง');
+    return {cutout:c,backCutout,face,bounds,calibration,hairGuide:null,hairGuideNative:false,w:preview.naturalWidth,h:preview.naturalHeight};
+   }
    if(/^manhair-\d{2}$/.test(hairId)){
     const reference=canvasFor(preview.naturalWidth,preview.naturalHeight);reference.getContext('2d').drawImage(preview,0,0);
     const referenceLabels=await studioHairLabels(preview);
@@ -1553,9 +1562,15 @@ async function prepareStudioHairOverlay(headSource,hairId){
  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
  const out=canvasFor(W,H),x=out.getContext('2d');
  x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
- x.setTransform(fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f);
+ const matrix=[fit.a*a+fit.c*b,fit.b*a+fit.d*b,fit.a*c+fit.c*d,fit.b*c+fit.d*d,fit.a*e+fit.c*f+fit.e,fit.b*e+fit.d*f+fit.f];
+ x.setTransform(...matrix);
  x.drawImage(ref.cutout,0,0);x.setTransform(1,0,0,1,0,0);
  if(!opaqueBounds(out))throw Error('ทรงผมอยู่นอกภาพ · เก็บภาพเดิมไว้');
+ if(ref.backCutout){
+  const back=canvasFor(W,H),bx=back.getContext('2d');bx.imageSmoothingEnabled=true;bx.imageSmoothingQuality='high';bx.setTransform(...matrix);bx.drawImage(ref.backCutout,0,0);bx.setTransform(1,0,0,1,0,0);
+  if(!opaqueBounds(back))throw Error('ผมด้านล่างอยู่นอกภาพ · เก็บภาพเดิมไว้');
+  return finishStudioHairPreview(target,out,back,targetFace,hairId,{authoredPair:true});
+ }
  if(/^manhair-\d{2}$/.test(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId,{maleSideburnFit:true,maleGuide:ref.maleSideburnGuide,matrix:fit});
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
@@ -2395,7 +2410,8 @@ const HAIR_OPTIONS=[
  {id:'hair-22',name:'ทรงผม 22',src:'/assets/hairstyle-previews/hair-22.png'},
  {id:'hair-23',name:'ทรงผม 23',src:'/assets/hairstyle-previews/hair-23.png'},
  {id:'hair-24',name:'ทรงผม 24',src:'/assets/hairstyle-previews/hair-24.png'},
- {id:'hair-25',name:'ทรงผม 25',src:'/assets/hairstyle-previews/hair-25.png'}
+ {id:'hair-25',name:'ทรงผม 25',src:'/assets/hairstyle-previews/hair-25.png'},
+ {id:'hair-30',name:'ทรงผม 30',src:'/assets/hairstyle-previews/hair-30.png'}
 ];
 
 const JOB_UNIFORMS=[

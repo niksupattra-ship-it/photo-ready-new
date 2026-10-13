@@ -1,4 +1,4 @@
-// Audited against all 29 female and 29 male picker/cutout pairs.
+// Audited against all 30 female and 29 male picker/cutout pairs.
 // Explicit structure complements the image; it never defines facial anatomy.
 const descriptions={
  'hair-01':'long loose hair, central part, straight side sections',
@@ -30,6 +30,7 @@ const descriptions={
  'hair-27':'fully gathered/tied-back hair, central part and smoothly tucked sides; no loose long side or back curtains',
  'hair-28':'fully gathered/tied-back hair, side part and smooth upper sweep; no loose long side or back curtains',
  'hair-29':'fully gathered/tied-back hair, off-centre part and the reference short upper fringe; no loose long side or back curtains',
+ 'hair-30':'long straight female hair, central part and softly shaped ends, supplied as an aligned front crown and full rear layer',
  'manhair-01':'short male haircut, raised swept-back crown and close sides',
  'manhair-02':'short male haircut, neat side part and smooth upper sweep',
  'manhair-03':'short male haircut, textured lifted crown and close sides',
