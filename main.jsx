@@ -7,6 +7,7 @@ import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
 import {fitProcessedForehead,eraseProcessedUpperHair} from './processed-forehead-fit.js';
 import {createMaleSideburnGuide,fitMaleSideburns} from './male-sideburn-fit.js';
+import {eraseMaleTempleExcess} from './male-temple-cleanup.js';
 import {MALE_SIDEBURN_ANCHORS} from './male-sideburn-anchors.js';
 import {pushLongHairRear} from './long-hair-two-layer-fit.js';
 import {portraitLevelTransform} from './portrait-level.js';
@@ -1454,7 +1455,8 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
    const fit=fitMaleSideburns(hair.data,pixels.data,W,H,face,labels,contourContext.maleGuide,contourContext.matrix);
    sideburnReport=fit.report;if(fit.report.adjusted){hair.data.set(fit.pixels);fx.putImageData(hair,0,0)}
   }
-  pixels.data.set(eraseProcessedUpperHair(pixels.data,hair.data,W,H,face,labels));cc.putImageData(pixels,0,0);
+  pixels.data.set(eraseProcessedUpperHair(pixels.data,hair.data,W,H,face,labels));
+  pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));cc.putImageData(pixels,0,0);
   const result={source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
   if(sideburnReport){result.maleSideburnReport=sideburnReport;if(sideburnReport.unavailable)result.maleSideburnWarning=true}
   return result;
