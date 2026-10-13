@@ -1,0 +1,32 @@
+// Display-only home previews. Production patterns and AI references stay full resolution.
+const HOME_PREVIEWS={
+  "/assets/government-uniforms/female-academic-example.jpg": "/assets/home-previews/government-uniforms--female-academic-example.webp",
+  "/assets/government-uniforms/female-government-employee-example.jpg": "/assets/home-previews/government-uniforms--female-government-employee-example.webp",
+  "/assets/government-uniforms/female-operational-example.jpg": "/assets/home-previews/government-uniforms--female-operational-example.webp",
+  "/assets/government-uniforms/female-senior-example.jpg": "/assets/home-previews/government-uniforms--female-senior-example.webp",
+  "/assets/government-uniforms/male-academic-example.png": "/assets/home-previews/government-uniforms--male-academic-example.webp",
+  "/assets/government-uniforms/male-government-employee-example.jpg": "/assets/home-previews/government-uniforms--male-government-employee-example.webp",
+  "/assets/government-uniforms/male-operational-example.png": "/assets/home-previews/government-uniforms--male-operational-example.webp",
+  "/assets/government-uniforms/male-senior-example.png": "/assets/home-previews/government-uniforms--male-senior-example.webp",
+  "/assets/gown-uniforms/kmitl-female-example.jpg": "/assets/home-previews/gown-uniforms--kmitl-female-example.webp",
+  "/assets/gown-uniforms/kmitl-male-example.jpg": "/assets/home-previews/gown-uniforms--kmitl-male-example.webp",
+  "/assets/hairstyle-previews/hair-20.png": "/assets/home-previews/hairstyle-previews--hair-20.webp",
+  "/assets/home-cutouts/government.png": "/assets/home-previews/home-cutouts--government.webp",
+  "/assets/home-cutouts/job.png": "/assets/home-previews/home-cutouts--job.webp",
+  "/assets/home-cutouts/student.png": "/assets/home-previews/home-cutouts--student.webp",
+  "/assets/job-uniforms/female-formal-suit-example.png": "/assets/home-previews/job-uniforms--female-formal-suit-example.webp",
+  "/assets/job-uniforms/female-lapel-suit-example.png": "/assets/home-previews/job-uniforms--female-lapel-suit-example.webp",
+  "/assets/job-uniforms/female-suit-03-example.png": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+  "/assets/job-uniforms/female-white-shirt-02-example.png": "/assets/home-previews/job-uniforms--female-white-shirt-02-example.webp",
+  "/assets/job-uniforms/female-white-shirt-example.png": "/assets/home-previews/job-uniforms--female-white-shirt-example.webp",
+  "/assets/job-uniforms/male-formal-tie-suit-example.png": "/assets/home-previews/job-uniforms--male-formal-tie-suit-example.webp",
+  "/assets/job-uniforms/male-open-collar-suit-example.png": "/assets/home-previews/job-uniforms--male-open-collar-suit-example.webp",
+  "/assets/job-uniforms/male-suit-03-example.png": "/assets/home-previews/job-uniforms--male-suit-03-example.webp",
+  "/assets/job-uniforms/male-suit-04-example.png": "/assets/home-previews/job-uniforms--male-suit-04-example.webp",
+  "/assets/job-uniforms/male-white-shirt-v132-example.png": "/assets/home-previews/job-uniforms--male-white-shirt-v132-example.webp",
+  "/assets/student-uniforms/previews/female-01.jpg": "/assets/home-previews/student-uniforms--previews--female-01.webp",
+  "/assets/student-uniforms/previews/female-02.jpg": "/assets/home-previews/student-uniforms--previews--female-02.webp",
+  "/assets/student-uniforms/previews/male-01.jpg": "/assets/home-previews/student-uniforms--previews--male-01.webp",
+  "/assets/student-uniforms/previews/male-02.jpg": "/assets/home-previews/student-uniforms--previews--male-02.webp"
+};
+export const homePreviewSource=source=>HOME_PREVIEWS[source]||source;
