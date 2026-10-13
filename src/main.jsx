@@ -1,6 +1,6 @@
 import {portraitJobError} from './portrait-job-error.js';
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
-import {isSingleLayerHair} from './short-female-hair.js';
+import {isSingleLayerHair,isSingleFemaleHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
@@ -1458,7 +1458,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
   return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:originalHead.toDataURL('image/png')};
  }
  const labels=await studioHairLabels(target);
- if(/^manhair-\d{2}$/.test(hairId)){
+ if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId)){
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
   const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H);
   // Only misaligned sideburn corners are skewed; no sideburn eraser/warp grid.
@@ -1534,7 +1534,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
     if(!opaqueBounds(backCutout))throw Error('ไม่พบพิกเซลของผมด้านล่าง');
     return {cutout:c,backCutout,face,bounds,calibration,hairGuide:null,hairGuideNative:false,w:preview.naturalWidth,h:preview.naturalHeight};
    }
-   if(/^manhair-\d{2}$/.test(hairId)){
+   if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId)){
     const reference=canvasFor(preview.naturalWidth,preview.naturalHeight);reference.getContext('2d').drawImage(preview,0,0);
     const maleGuide=createMaleSideburnGuide(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,reference.width,reference.height,face,calibration.sourceToReference,MALE_SIDEBURN_ANCHORS[hairId]);
     return {cutout:c,face,bounds,calibration,hairGuide:null,hairGuideNative:false,maleGuide,w:preview.naturalWidth,h:preview.naturalHeight};
@@ -1582,7 +1582,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   if(!opaqueBounds(back))throw Error('ผมด้านล่างอยู่นอกภาพ · เก็บภาพเดิมไว้');
   return finishStudioHairPreview(target,out,back,targetFace,hairId,{authoredPair:true,preservePortrait:ref.calibration.preservePortrait===true});
  }
- if(/^manhair-\d{2}$/.test(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId,{maleGuide:ref.maleGuide,matrix:fit});
+ if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId))return finishStudioHairPreview(target,out,null,targetFace,hairId,{maleGuide:ref.maleGuide,matrix:fit});
  let skin=fittedHairSkinCache.get(target);
  if(!skin){skin=await semanticClassMask(target,W,H,[2,3]);if(!skin)throw Error('ตรวจพื้นที่หูและคอไม่สำเร็จ · เก็บภาพเดิมไว้');
   // Decoded images are immutable. Warped canvases may be edited, so detect them afresh.
