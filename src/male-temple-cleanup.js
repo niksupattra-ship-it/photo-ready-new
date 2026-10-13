@@ -27,7 +27,10 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
  for(let y=0;y<mh;y++)for(let x=0;x<mw;x++)if(data[y*mw+x]===2||data[y*mw+x]===3){
   for(let yy=Math.max(0,y-1);yy<=Math.min(mh-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(mw-1,x+1);xx++)protectedSkin[yy*mw+xx]=1;
  }
- const feather=clamp(f.eye*.02,1.5,2),maximumR=f.width*.82;
+ const feather=clamp(f.eye*.02,1.5,2);
+ const corners=[[0,0],[w-1,0],[0,h-1],[w-1,h-1]].map(([x,y])=>f.local(x,y));
+ // Extend the exterior eraser to the top of the actual image, including tilt.
+ const top=Math.floor(Math.min(...corners.map(p=>p.v)))-2;
  const skinSamples=[];
  for(let v=f.eye*.1;v<f.eye*.6;v+=Math.max(1,f.eye*.06))for(let u=-f.eye*.25;u<=f.eye*.25;u+=Math.max(1,f.eye*.06)){
   const p=f.world(u,v),x=Math.round(p.x),y=Math.round(p.y),label=labelIndex(x,y);
@@ -37,6 +40,7 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
  if(skinSamples.length<8)return out;
  skinSamples.sort((a,b)=>a-b);const hairLuma=skinSamples[Math.floor(skinSamples.length/2)]*.62;
  for(const sign of [-1,1]){
+  const maximumR=Math.max(...corners.map(p=>sign*p.u))+1;
   const temple=f.point(sign<0?127:356),cheek=f.point(sign<0?234:454);
   // Exterior only: never extend the eraser into the inner face/ear side.
   const minimumR=Math.max(f.width*.43,sign*temple.u,sign*cheek.u)+f.eye*.025;
@@ -50,7 +54,6 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
    }
    if(earTop!==null)break;
   }
-  const top=Math.min(f.point(10).v-f.eye*.10,temple.v-f.eye*.55);
   // Stop ABOVE the observed upper ear. Uncertain anatomy uses a larger guard.
   const bottom=Math.min(temple.v,earTop??temple.v-f.eye*.20)-Math.max(feather,f.eye*.025);
   if(bottom-top<f.eye*.12)continue;
@@ -88,8 +91,8 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
   }
   if(valid<4||last-first<f.eye*.08)continue;
   // Average neighbouring material contour samples, rather than carrying the
-  // photographed cap's jagged outline into the eraser. A missing PNG row is
-  // never extrapolated into an ear or face opening.
+  // photographed cap's jagged outline into the eraser. Extend only UPWARD
+  // from the first verified material row; never extend down into the ear.
   const contour=new Float32Array(outer);
   for(let i=0;i<count;i++)if(Number.isFinite(outer[i])){
    let sum=0,weight=0;
@@ -102,10 +105,10 @@ export function eraseMaleTempleExcess(original,front,w,h,face,labels){
    // Skin-coloured upper-ear pixels stay intact even if labelled as hair.
    if((original[j]+original[j+1]+original[j+2])/3>=hairLuma)continue;
    const q=f.local(x,y),r=sign*q.u;if(q.v<=top||q.v>=bottom||r<minimumR||r>maximumR)continue;
-   const row=Math.round(q.v-origin),edge=contour[row];if(!Number.isFinite(edge))continue;
+   const row=Math.round(q.v-origin),edge=row<first?contour[first]:contour[row];if(!Number.isFinite(edge))continue;
    // Start the short fade beneath the translucent exterior fringe so old
    // dark cap pixels cannot make that fringe look like a solid painted rim.
-   const strength=smooth((r-edge+feather*.5)/feather)*smooth((q.v-top)/feather)*smooth((bottom-q.v)/feather);
+   const strength=smooth((r-edge+feather*.5)/feather)*smooth((bottom-q.v)/feather);
    if(strength>0)out[j+3]=Math.round(original[j+3]*(1-strength));
   }
  }
