@@ -320,7 +320,6 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(brushSession.current){
    const session=brushSession.current,l=state.current.find(l=>l.id===session.layerId);
    if(session.awaitingLayer||!l){session.awaitingLayer=true;setBrushLayerRequired(true);setLayerGuide(true);setTouchLayersOpen(touch);setStatus('เลือกเลเยอร์สำหรับ'+(session.tool==='erase'?'ยางลบ':'บิดรูป'));return}
-   if(!layerContainsPoint(l,p,0)){setCursor(null);gesture.current={kind:'pan',x:e.clientX,y:e.clientY,view:{...viewRef.current}};return}
    selectedRef.current=l.id;setSelected(l.id);setTool(session.tool);gesture.current={kind:'tool-press',brushKind:session.tool,start:p,last:p,clientX:e.clientX,clientY:e.clientY,layer:{...l}};beginToolStroke(gesture.current);return;
   }
   if(['move','transform','pan','neck'].includes(tool)||!current){const hit=hitPart(p);selectCanvasPart(hit);gesture.current=hit?{kind:'touch-select',start:p,clientX:e.clientX,clientY:e.clientY,pointerType:e.pointerType,layer:{...hit}}:{kind:'pan',x:e.clientX,y:e.clientY,view:{...viewRef.current}};return}

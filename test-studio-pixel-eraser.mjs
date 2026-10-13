@@ -140,13 +140,21 @@ test('two-finger pinch rolls back a confirmed brush dab without forgetting its t
  const f=studio();f.context.brushSession.current={tool:'erase',layerId:'head',awaitingLayer:false};f.run.down(f.event(60,40,1,'pointerdown'));assert.ok(alpha(f.a.original,60,40)<255);f.run.down(f.event(90,40,2,'pointerdown'));assert.equal(alpha(f.a.original,60,40),255);assert.equal(f.context.undo.current.length,0);assert.equal(f.context.tool,'erase');assert.equal(f.context.brushSession.current.layerId,'head');
 });
 
-for(const brushKind of ['erase','warp'])for(const pointerType of ['mouse','touch','pen'])test(`empty pixels inside the photo temporarily pan during ${brushKind}, pointer=${pointerType}`,()=>{
- const f=studio();f.context.brushSession.current={tool:brushKind,layerId:'head',awaitingLayer:false};f.context.tool=brushKind;f.context.layerContainsPoint=(l,p)=>p.x<70;let pans=0;f.context.queueView=()=>pans++;
- const e=(x,y,type)=>({...f.event(x,y,1,type),pointerType});f.run.down(e(100,40,'pointerdown'));f.run.move(e(60,40,'pointermove'));f.run.end(e(60,40,'pointerup'));
- assert.equal(pans,1);assert.equal(alpha(f.a.original,60,40),255);assert.equal(f.context.undo.current.length,0);assert.equal(f.context.tool,brushKind);assert.equal(f.context.selectedRef.current,'head');assert.equal(f.context.brushSession.current.layerId,'head');
- f.run.down(e(60,40,'pointerdown'));f.run.end(e(60,40,'pointerup'));assert.equal(f.context.tool,brushKind);assert.equal(f.context.undo.current.length,1);if(brushKind==='erase')assert.ok(alpha(f.a.original,60,40)<255);
+for(const brushKind of ['erase','warp'])for(const pointerType of ['mouse','touch','pen'])test(`empty pixels inside the photo keep ${brushKind} on its working layer, pointer=${pointerType}`,()=>{
+ const f=studio();f.context.brushSession.current={tool:brushKind,layerId:'head',awaitingLayer:false};f.context.tool=brushKind;f.context.layerContainsPoint=(l,p)=>p.x<70;let pans=0,warps=0;f.context.queueView=()=>pans++;f.context.warp=()=>warps++;
+ const e=(x,y,type)=>({...f.event(x,y,1,type),pointerType});f.run.down(e(100,40,'pointerdown'));assert.equal(f.context.gesture.current.kind,brushKind);f.run.move(e(60,40,'pointermove'));f.run.end(e(60,40,'pointerup'));
+ assert.equal(pans,0);assert.equal(f.context.undo.current.length,1);assert.equal(f.context.tool,brushKind);assert.equal(f.context.selectedRef.current,'head');assert.equal(f.context.brushSession.current.layerId,'head');assert.equal(f.context.picked,undefined);if(brushKind==='erase')assert.ok(alpha(f.a.original,60,40)<255);else assert.ok(warps>=2);
 });
-test('pinch starting away from the working layer changes only the view and leaves no eraser dab',()=>{
+test('pinch starting on empty pixels inside the photo rolls back the first eraser dab and changes only the view',()=>{
  const f=studio();f.context.brushSession.current={tool:'erase',layerId:'head',awaitingLayer:false};f.context.layerContainsPoint=()=>false;f.context.viewRef.current={zoom:1,x:0,y:0};let view;
- f.context.queueView=v=>view=v;f.run.down(f.event(90,40,1,'pointerdown'));f.run.down(f.event(120,40,2,'pointerdown'));f.run.move(f.event(145,40,2));assert.ok(view.zoom>1);f.run.end(f.event(145,40,2,'pointerup'));f.run.end(f.event(90,40,1,'pointerup'));assert.equal(alpha(f.a.original,90,40),255);assert.equal(f.context.undo.current.length,0);assert.equal(f.context.tool,'erase');assert.equal(f.context.brushSession.current.layerId,'head');
+ f.context.queueView=v=>view=v;f.run.down(f.event(90,40,1,'pointerdown'));assert.ok(alpha(f.a.original,90,40)<255);assert.equal(f.context.undo.current.length,1);f.run.down(f.event(120,40,2,'pointerdown'));assert.equal(alpha(f.a.original,90,40),255);assert.equal(f.context.undo.current.length,0);f.run.move(f.event(145,40,2));assert.ok(view.zoom>1);f.run.end(f.event(145,40,2,'pointerup'));f.run.end(f.event(90,40,1,'pointerup'));assert.equal(alpha(f.a.original,90,40),255);assert.equal(f.context.undo.current.length,0);assert.equal(f.context.tool,'erase');assert.equal(f.context.brushSession.current.layerId,'head');
+});
+for(const brushKind of ['erase','warp'])test(`outside-photo ${brushKind} gesture keeps panning when dragged into the photo until release`,()=>{
+ const f=studio();f.context.brushSession.current={tool:brushKind,layerId:'head',awaitingLayer:false};f.context.tool=brushKind;f.context.outsideImage=e=>e.clientX<0;let pans=0,warps=0;f.context.queueView=()=>pans++;f.context.warp=()=>warps++;
+ f.run.down(f.event(-20,40,1,'pointerdown'));f.run.move(f.event(60,40));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(pans,1);assert.equal(warps,0);assert.equal(alpha(f.a.original,60,40),255);assert.equal(f.context.undo.current.length,0);assert.equal(f.context.tool,brushKind);assert.equal(f.context.selectedRef.current,'head');
+ f.run.down(f.event(60,40,1,'pointerdown'));f.run.end(f.event(60,40,1,'pointerup'));assert.equal(f.context.undo.current.length,1);assert.equal(f.context.tool,brushKind);assert.equal(f.context.brushSession.current.layerId,'head');if(brushKind==='erase')assert.ok(alpha(f.a.original,60,40)<255);else assert.equal(warps,1);
+});
+for(const brushKind of ['erase','warp'])test(`inside-photo ${brushKind} stroke does not become a pan when dragged outside the photo`,()=>{
+ const f=studio();f.context.brushSession.current={tool:brushKind,layerId:'head',awaitingLayer:false};f.context.tool=brushKind;f.context.outsideImage=e=>e.clientX<0;let pans=0;f.context.queueView=()=>pans++;
+ f.run.down(f.event(60,40,1,'pointerdown'));f.run.move(f.event(-20,40));f.run.end(f.event(-20,40,1,'pointerup'));assert.equal(pans,0);assert.equal(f.context.undo.current.length,1);assert.equal(f.context.tool,brushKind);assert.equal(f.context.brushSession.current.layerId,'head');
 });
