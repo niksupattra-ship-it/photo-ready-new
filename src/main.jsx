@@ -2408,6 +2408,10 @@ const MALE_HAIR_OPTIONS=[
 ];
 const HAIR_OPTIONS=[
  {id:'hair-01',name:'ทรงผม 1',src:'/assets/hairstyle-previews/hair-01.webp'},
+ {id:'hair-02',name:'ทรงผม 2',src:'/assets/hairstyle-previews/hair-02.webp'},
+ {id:'hair-03',name:'ทรงผม 3',src:'/assets/hairstyle-previews/hair-03.webp'},
+ {id:'hair-04',name:'ทรงผม 4',src:'/assets/hairstyle-previews/hair-04.webp'},
+ {id:'hair-05',name:'ทรงผม 5',src:'/assets/hairstyle-previews/hair-05.webp'},
  {id:'hair-26',name:'ทรงผม 26',src:'/assets/hairstyle-previews/hair-26.png'},
  {id:'hair-27',name:'ทรงผม 27',src:'/assets/hairstyle-previews/hair-27.png'},
  {id:'hair-28',name:'ทรงผม 28',src:'/assets/hairstyle-previews/hair-28.png'},

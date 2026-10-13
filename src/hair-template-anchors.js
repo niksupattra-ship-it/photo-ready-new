@@ -24,80 +24,88 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
 },
  "hair-02": {
   "sourceToReference": [
-   0.1598327,
-   0.0105796,
-   -0.0105796,
-   0.1598327,
-   2.5529331,
-   -6.5424638
+    0.31688464,
+    0,
+    0,
+    0.31688464,
+    1.233687,
+    -4.95346
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-02-back.png",
+  "preservePortrait": true
+},
  "hair-03": {
   "sourceToReference": [
-   0.1576683,
-   0.0009357,
-   -0.0009357,
-   0.1576683,
-   0.8363567,
-   3.9965826
+    0.31963235,
+    0,
+    0,
+    0.31963235,
+    -1.115362,
+    -12.497063
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-03-back.png",
+  "preservePortrait": true
+},
  "hair-04": {
   "sourceToReference": [
-   0.1433099,
-   0.0002709,
-   -0.0002709,
-   0.1433099,
-   10.0414007,
-   6.8024653
+    0.31263049,
+    0,
+    0,
+    0.31263049,
+    5.78723,
+    -6.456006
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-04-back.png",
+  "preservePortrait": true
+},
  "hair-05": {
   "sourceToReference": [
-   0.1589232,
-   -4.99e-05,
-   4.99e-05,
-   0.1589232,
-   0.0878525,
-   7.293595
+    0.32438176,
+    0,
+    0,
+    0.32438176,
+    -6.423415,
+    -8.337621
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-05-back.png",
+  "preservePortrait": true
+},
  "hair-06": {
   "sourceToReference": [
    0.1524577,
