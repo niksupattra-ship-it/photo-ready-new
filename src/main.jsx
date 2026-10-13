@@ -1450,7 +1450,11 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
  const W=front.width,H=front.height;
  // This supplied pair is finished artwork: only shared placement and stacking.
  // Preserve the front, rear and original portrait without any cleanup/warp.
- if(contourContext?.authoredPair&&contourContext?.preservePortrait)return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:target.toDataURL('image/png')};
+ if(contourContext?.authoredPair&&contourContext?.preservePortrait){
+  // A decoded HTMLImageElement has no toDataURL; copy it without cleanup.
+  const originalHead=canvasFor(W,H);originalHead.getContext('2d').drawImage(target,0,0,W,H);
+  return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:originalHead.toDataURL('image/png')};
+ }
  const labels=await studioHairLabels(target);
  if(/^manhair-\d{2}$/.test(hairId)){
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
