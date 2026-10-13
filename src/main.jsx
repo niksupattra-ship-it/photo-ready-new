@@ -1522,14 +1522,17 @@ async function prepareStudioHairOverlay(headSource,hairId){
  let reference=fittedHairReferenceCache.get(hairId);
  if(!reference){
   const pending=(async()=>{
-   const [cutout,preview]=await Promise.all([loadImage(`/assets/hair/${hairId}.png`),loadImage(`/assets/hairstyle-previews/${hairId}.png`)]);
-   const face=landmarker.detect(preview).faceLandmarks?.[0];
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
+   // Replaced 2–5 assets must not reuse the old pattern/reference browser cache.
+   const assetVersion=/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':'';
+   const hairAsset=async path=>{try{return await loadImage(path+assetVersion)}catch{throw Error('โหลดไฟล์ทรงผมไม่สำเร็จ: '+path+' · กรุณาอัปโหลดไฟล์ใน ZIP ให้ครบ')}};
+   const [cutout,preview]=await Promise.all([hairAsset(`/assets/hair/${hairId}.png`),hairAsset(`/assets/hairstyle-previews/${hairId}.png`)]);
+   const face=landmarker.detect(preview).faceLandmarks?.[0];
    const c=canvasFor(cutout.naturalWidth,cutout.naturalHeight);c.getContext('2d').drawImage(cutout,0,0);
    const bounds=opaqueBounds(c);
    if(!face||!bounds||!calibration||calibration.sourceSize[0]!==cutout.naturalWidth||calibration.sourceSize[1]!==cutout.naturalHeight||calibration.referenceSize[0]!==preview.naturalWidth||calibration.referenceSize[1]!==preview.naturalHeight)throw Error('จุดยึดไม่ตรงกับไฟล์ทรงผม · เก็บภาพเดิมไว้');
    if(calibration.layout==='authored-pair'){
-    const back=await loadImage(calibration.backSource);
+    const back=await hairAsset(calibration.backSource);
     if(back.naturalWidth!==cutout.naturalWidth||back.naturalHeight!==cutout.naturalHeight)throw Error('ขนาดผมบนและผมล่างไม่ตรงกัน · เก็บภาพเดิมไว้');
     const backCutout=canvasFor(back.naturalWidth,back.naturalHeight);backCutout.getContext('2d').drawImage(back,0,0);
     if(!opaqueBounds(backCutout))throw Error('ไม่พบพิกเซลของผมด้านล่าง');
