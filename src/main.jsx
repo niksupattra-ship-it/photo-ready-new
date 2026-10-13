@@ -1448,11 +1448,13 @@ async function studioHairLabels(target){
 }
 async function finishStudioHairPreview(target,front,back,face,hairId,contourContext=null){
  const W=front.width,H=front.height;
- // This supplied pair is finished artwork: only shared placement and stacking.
- // Preserve the front, rear and original portrait without any cleanup/warp.
+ // Keep the supplied pair exact. Only erase the original portrait's upper
+ // exterior hair from the selected FRONT crown through the image boundary.
  if(contourContext?.authoredPair&&contourContext?.preservePortrait){
-  // A decoded HTMLImageElement has no toDataURL; copy it without cleanup.
-  const originalHead=canvasFor(W,H);originalHead.getContext('2d').drawImage(target,0,0,W,H);
+  const originalHead=canvasFor(W,H),headContext=originalHead.getContext('2d');headContext.drawImage(target,0,0,W,H);
+  const labels=await studioHairLabels(target),pixels=headContext.getImageData(0,0,W,H);
+  const frontPixels=front.getContext('2d').getImageData(0,0,W,H).data;
+  pixels.data.set(eraseProcessedUpperHair(pixels.data,frontPixels,W,H,face,labels));headContext.putImageData(pixels,0,0);
   return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:originalHead.toDataURL('image/png')};
  }
  const labels=await studioHairLabels(target);
