@@ -1,4 +1,4 @@
-// PNG-to-reference coordinates calibrated against all 60 native cutout/portrait pairs.
+// PNG-to-reference coordinates calibrated against all 70 native cutout/portrait pairs.
 // Preserve native pixels; do not infer placement from alpha bounding rectangles.
 export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  "hair-01": {
@@ -553,9 +553,22 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
   "layout": "compact"
  },
  "hair-30": {
-  "sourceToReference": [1,0,0,1,0,152],
-  "sourceSize": [1128,1188],
-  "referenceSize": [1128,1536],
+  "sourceToReference": [
+   1,
+   0,
+   0,
+   1,
+   0,
+   152
+  ],
+  "sourceSize": [
+   1128,
+   1188
+  ],
+  "referenceSize": [
+   1128,
+   1536
+  ],
   "layout": "authored-pair",
   "backSource": "/assets/hair/hair-30-back.png"
  },
@@ -1126,6 +1139,196 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
   "referenceSize": [
    400,
    405
+  ],
+  "layout": "compact"
+ },
+ "manhair-31": {
+  "sourceToReference": [
+   0.18958894,
+   0.00012159,
+   -0.00012159,
+   0.18958894,
+   25.10663003,
+   -10.30574972
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-32": {
+  "sourceToReference": [
+   0.17752375,
+   2.913e-05,
+   -2.913e-05,
+   0.17752375,
+   31.097397,
+   -1.31835635
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-33": {
+  "sourceToReference": [
+   0.16742288,
+   -0.00072229,
+   0.00072229,
+   0.16742288,
+   32.7210013,
+   2.90103769
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-34": {
+  "sourceToReference": [
+   0.16492214,
+   8.27e-06,
+   -8.27e-06,
+   0.16492214,
+   35.47509564,
+   1.51839614
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-35": {
+  "sourceToReference": [
+   0.16570586,
+   2.414e-05,
+   -2.414e-05,
+   0.16570586,
+   34.33184149,
+   1.61150783
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-36": {
+  "sourceToReference": [
+   0.17689383,
+   -0.00021212,
+   0.00021212,
+   0.17689383,
+   28.49972098,
+   -2.03003152
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-37": {
+  "sourceToReference": [
+   0.1779143,
+   -4.146e-05,
+   4.146e-05,
+   0.1779143,
+   27.07215262,
+   -3.83270874
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-38": {
+  "sourceToReference": [
+   0.17512323,
+   -1.74e-06,
+   1.74e-06,
+   0.17512323,
+   28.60755546,
+   -4.18758469
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-39": {
+  "sourceToReference": [
+   0.1759357,
+   5.803e-05,
+   -5.803e-05,
+   0.1759357,
+   31.80958589,
+   -5.71447323
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
+  ],
+  "layout": "compact"
+ },
+ "manhair-40": {
+  "sourceToReference": [
+   0.16540502,
+   -3.373e-05,
+   3.373e-05,
+   0.16540502,
+   37.03443162,
+   2.46149078
+  ],
+  "sourceSize": [
+   1000,
+   898
+  ],
+  "referenceSize": [
+   240,
+   243
   ],
   "layout": "compact"
  }
