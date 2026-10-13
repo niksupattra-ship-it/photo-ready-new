@@ -74,7 +74,7 @@ function sample(input,w,h,x,y){
 }
 function labelAt(labels,w,h,p){const x=Math.floor(p.x*labels.width/w),y=Math.floor(p.y*labels.height/h);return x>=0&&x<labels.width&&y>=0&&y<labels.height?labels.data[y*labels.width+x]:0}
 function validLabels(labels){return labels?.data instanceof Uint8Array&&labels.width>0&&labels.height>0&&labels.data.length===labels.width*labels.height}
-function skinEdge(pixels,w,h,f,expected,v,sign,labels){
+function skinEdgeRow(pixels,w,h,f,expected,v,sign,labels){
  if(!validLabels(labels))return null;
  let edge=null,run=0;const step=Math.max(.75,f.eye/192),finish=expected+f.eye*.09;
  for(let r=Math.max(f.width*.25,expected-f.eye*.30);r<=finish;r+=step){const p=f.world(sign*r,v),rgba=pixel(pixels,w,h,p),cat=labelAt(labels,w,h,p);
@@ -83,7 +83,32 @@ function skinEdge(pixels,w,h,f,expected,v,sign,labels){
  }
  return edge!==null&&edge<finish-step?edge:null;
 }
-function interpolate(rows,v,key){let i=0;while(i+1<rows.length&&rows[i+1].v<v)i++;const a=rows[i],b=rows[Math.min(i+1,rows.length-1)],t=clamp((v-a.v)/Math.max(.001,b.v-a.v),0,1);return a[key]+(b[key]-a[key])*t}
+function skinEdge(pixels,w,h,f,expected,v,sign,labels){
+ if(!validLabels(labels))return null;
+ // A small weighted band suppresses single-row spikes and alternating
+ // segmentation steps; an odd-row median would keep one phase of that noise.
+ const step=Math.max(1,Math.min(f.eye*.01,Math.max(w/labels.width,h/labels.height))),edges=[];
+ for(const [offset,weight] of [[-2,1],[-1,2],[0,2],[1,2],[2,1]]){const edge=skinEdgeRow(pixels,w,h,f,expected,v+offset*step,sign,labels);if(edge!==null)edges.push({edge,weight})}
+ if(edges.length<3||Math.max(...edges.map(p=>p.edge))-Math.min(...edges.map(p=>p.edge))>Math.max(3,f.eye*.12))return null;
+ return edges.reduce((sum,p)=>sum+p.edge*p.weight,0)/edges.reduce((sum,p)=>sum+p.weight,0);
+}
+const curveCache=new WeakMap();
+function curveTangents(rows,key){
+ let curves=curveCache.get(rows);if(!curves){curves=new Map();curveCache.set(rows,curves)}if(curves.has(key))return curves.get(key);
+ const tangent=new Float64Array(rows.length),h=[],slope=[];
+ for(let i=1;i<rows.length;i++){h.push(rows[i].v-rows[i-1].v);slope.push((rows[i][key]-rows[i-1][key])/h.at(-1))}
+ // Flat endpoints join the constant field outside the pins without a kink.
+ // Interior harmonic tangents keep every segment within its observed range.
+ for(let i=1;i<rows.length-1;i++)if(slope[i-1]*slope[i]>0){const a=2*h[i]+h[i-1],b=h[i]+2*h[i-1];tangent[i]=(a+b)/(a/slope[i-1]+b/slope[i])}
+ curves.set(key,tangent);return tangent;
+}
+function interpolate(rows,v,key){
+ if(v<=rows[0].v)return rows[0][key];if(v>=rows.at(-1).v)return rows.at(-1)[key];
+ let i=0;while(i+1<rows.length&&rows[i+1].v<v)i++;
+ const a=rows[i],b=rows[i+1],h=b.v-a.v,t=(v-a.v)/h,m=curveTangents(rows,key),t2=t*t,t3=t2*t;
+ const value=(2*t3-3*t2+1)*a[key]+(t3-2*t2+t)*h*m[i]+(-2*t3+3*t2)*b[key]+(t3-t2)*h*m[i+1];
+ return clamp(value,Math.min(a[key],b[key]),Math.max(a[key],b[key]));
+}
 function mapHeight(anatomy,face,f,sign,value){
  const ids=sign<0?[21,162,127,234,93]:[251,389,356,454,323];
  const pairs=ids.flatMap(id=>{const src=anatomy.find(p=>p.id===id);return src&&face[id]?[{v:src.v,target:f.p(id).v}]:[]}).sort((a,b)=>a.v-b.v);
@@ -93,12 +118,27 @@ function mapHeight(anatomy,face,f,sign,value){
  return a.target+(value-a.v)*ratio;
 }
 function inverse(profile,r,v){
- if(v<=profile.top||v>=profile.bottom)return {r,v};
+ if(v<=profile.top||v>=profile.bottom||r<=profile.minR||r>=profile.maxR)return {r,v};
  const inner=interpolate(profile.rows,v,'r'),outer=interpolate(profile.rows,v,'outer'),dr=interpolate(profile.rows,v,'dr'),dv=interpolate(profile.rows,v,'dv');
  const left=inner-profile.padding,right=outer+profile.padding;if(r<=left||r>=right)return {r,v};
  const radial=r<inner?smooth((r-left)/profile.padding):r>outer?smooth((right-r)/profile.padding):1;
  const vertical=smooth((v-profile.top)/(profile.rows[0].v-profile.top))*smooth((profile.bottom-v)/(profile.bottom-profile.rows.at(-1).v));
- return {r:r-dr*radial*vertical,v:v-dv*radial*vertical};
+ // The real protected centre boundary must be pinned too; clipping a
+ // nonzero displacement there creates the sharp join beside the ear.
+ const centre=r<profile.pinInner?smooth((r-profile.minR)/(profile.pinInner-profile.minR)):1;
+ const outside=r>profile.pinOuter?smooth((profile.maxR-r)/(profile.maxR-profile.pinOuter)):1;
+ const weight=radial*vertical*centre*outside;
+ return {r:r-dr*weight,v:v-dv*weight};
+}
+function sampleWarp(original,w,h,f,sign,profile,x,y,sourcePoint,displacement){
+ let alpha=0,r=0,g=0,b=0;
+ // Subpixel coverage follows the bent edge, rather than blurring or erasing
+ // the finished PNG. Premultiplication protects transparent edge colours.
+ for(const dy of [-.25,.25])for(const dx of [-.25,.25]){const q=f.local(x+dx,y+dy),p=inverse(profile,sign*q.u,q.v),world=f.world(sign*p.r,p.v),rgba=sample(original,w,h,world.x,world.y);alpha+=rgba[3];r+=rgba[0]*rgba[3];g+=rgba[1]*rgba[3];b+=rgba[2]*rgba[3]}
+ // Filtering fades with the deformation, so even the subpixel coverage has
+ // no seam where the local cage joins the untouched PNG.
+ const centre=f.world(sign*sourcePoint.r,sourcePoint.v),base=sample(original,w,h,centre.x,centre.y),weight=smooth(displacement/.75),a=alpha/4*weight,baseAlpha=base[3]*(1-weight),total=a+baseAlpha;
+ return [total?(r/4*weight+base[0]*baseAlpha)/total:0,total?(g/4*weight+base[1]*baseAlpha)/total:0,total?(b/4*weight+base[2]*baseAlpha)/total:0,total];
 }
 function pointError(pixels,w,h,f,sign,target,colour){
  let best=Infinity;
@@ -141,7 +181,7 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
   }
   if(rows.length<3||rows.length<source.rows.length*.7||rows[0].sourceIndex!==0||rows.at(-1).sourceIndex!==source.rows.length-1){side.reason='attachment-unclear';continue}
   rows.sort((a,b)=>a.v-b.v);
-  if(rows.some((r,i)=>i&&r.sourceV<=rows[i-1].sourceV)){side.reason='unordered-pins';continue}
+  if(rows.some((r,i)=>i&&(r.sourceV<=rows[i-1].sourceV||r.v<=rows[i-1].v))){side.reason='unordered-pins';continue}
   const pins=[rows[0],rows[Math.floor(rows.length/2)],rows.at(-1)];side.before=pins.reduce((n,p)=>n+Math.hypot(p.dr,p.dv),0)/pins.length;
   side.pins=pins.map(p=>({source:{r:p.sourceR,v:p.sourceV},target:{r:p.r,v:p.v}}));
   if(side.before<Math.max(1,f.eye*.005)){side.after=side.before;side.reason='already-aligned';continue}
@@ -153,13 +193,15 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
    profile.top=Math.max(profile.top,f.p(10).v+f.eye*.08);
    if(profile.top>=rows[0].v||profile.bottom<=rows.at(-1).v)continue;
    const minR=Math.max(f.width*.34,Math.min(...rows.map(p=>p.r))-padding),maxR=Math.max(...rows.map(p=>p.outer))+padding;
+   Object.assign(profile,{minR,maxR,pinInner:Math.min(...rows.map(p=>p.r)),pinOuter:Math.max(...rows.map(p=>p.outer))});
+   if(profile.pinInner<=minR||profile.pinOuter>=maxR)continue;
    const corners=[f.world(sign*minR,profile.top),f.world(sign*maxR,profile.top),f.world(sign*minR,profile.bottom),f.world(sign*maxR,profile.bottom)];
    const x0=clamp(Math.floor(Math.min(...corners.map(p=>p.x)))-2,0,w-1),x1=clamp(Math.ceil(Math.max(...corners.map(p=>p.x)))+2,0,w-1),y0=clamp(Math.floor(Math.min(...corners.map(p=>p.y)))-2,0,h-1),y1=clamp(Math.ceil(Math.max(...corners.map(p=>p.y)))+2,0,h-1);
    let safe=true;
    for(let v=profile.top;v<profile.bottom&&safe;v+=2)for(let r=minR;r<maxR;r+=2){const a=inverse(profile,r,v),b=inverse(profile,r+1,v),c=inverse(profile,r,v+1),det=(b.r-a.r)*(c.v-a.v)-(b.v-a.v)*(c.r-a.r);if(det<.35||det>2.8){safe=false;break}}
    if(!safe)continue;
    const trial=new Uint8ClampedArray(out);
-   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const q=f.local(x,y),r=sign*q.u;if(r<minR||r>maxR)continue;const p=inverse(profile,r,q.v);if(Math.hypot(p.r-r,p.v-q.v)<.001)continue;const world=f.world(sign*p.r,p.v);trial.set(sample(original,w,h,world.x,world.y),(y*w+x)*4)}
+   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const q=f.local(x,y),r=sign*q.u;if(r<minR||r>maxR)continue;const p=inverse(profile,r,q.v),displacement=Math.hypot(p.r-r,p.v-q.v);if(displacement<.001)continue;trial.set(sampleWarp(original,w,h,f,sign,profile,x,y,p,displacement),(y*w+x)*4)}
    // Validate ROOT / MIDDLE / TIP in two dimensions, including inverse pin
    // correspondence. A successful horizontal edge alone is insufficient.
    const errors=pins.map(p=>{const mapped=inverse(profile,p.r,p.v),geometry=Math.hypot(mapped.r-p.sourceR,mapped.v-p.sourceV),material=pointError(trial,w,h,f,sign,p,colour);return Math.max(geometry,material)});
