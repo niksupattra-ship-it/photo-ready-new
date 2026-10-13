@@ -61,7 +61,7 @@ function paintLayers(ctx,layers,assets,allLayers=layers){
    const src=a.warped||a.original,key=(l.neckWidth||0)+','+(l.neckHeight||0);
    if(a.collarKey!==key||a.collarSource!==src){
     const logical=l.collarFrame||{x:0,y:0,w:W,h:H},f=l.sourceFrame||{x:0,y:0,w:W,h:H},frame={x:(logical.x-f.x)*src.width/f.w,y:(logical.y-f.y)*src.height/f.h,w:logical.w*src.width/f.w,h:logical.h*src.height/f.h};
-    a.collarRendered=warpStudioCollar(src,(l.neckWidth||0)/100,(l.neckHeight||0)/100,frame);a.collarKey=key;a.collarSource=src;a.dirty=true;a.dirtyRect=null;
+    a.collarRendered=warpStudioCollar(src,(l.neckWidth||0)/100,(l.neckHeight||0)/100,frame,{smoothTop:(l.templatePath||'').includes('/job-uniforms/')});a.collarKey=key;a.collarSource=src;a.dirty=true;a.dirtyRect=null;
    }
   }
   if(a.dirty){const src=a.collarRendered||a.warped||a.original,bw=src.width,bh=src.height;let region=a.dirtyRect;if(a.buffer.width!==bw||a.buffer.height!==bh){a.buffer.width=bw;a.buffer.height=bh;region=null}const cx=a.buffer.getContext('2d');cx.save();if(region){cx.beginPath();cx.rect(region.x,region.y,region.w,region.h);cx.clip()}cx.clearRect(0,0,bw,bh);cx.imageSmoothingEnabled=true;cx.imageSmoothingQuality='high';if(region&&a.directPixelsReady)cx.drawImage(src,region.x,region.y,region.w,region.h,region.x,region.y,region.w,region.h);else cx.drawImage(src,0,0);cx.globalCompositeOperation='destination-in';if(region&&a.directPixelsReady)cx.drawImage(a.mask,region.x*a.mask.width/bw,region.y*a.mask.height/bh,region.w*a.mask.width/bw,region.h*a.mask.height/bh,region.x,region.y,region.w,region.h);else cx.drawImage(a.mask,0,0,bw,bh);cx.restore();a.dirty=false;a.dirtyRect=undefined}

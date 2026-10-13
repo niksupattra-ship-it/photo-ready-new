@@ -1,6 +1,6 @@
 import {gpuLiquify} from './studio-gpu-warp.js';
 const collarSources=new WeakMap();
-export function warpStudioCollar(uniform,amount=0,heightAmount=0,bounds){
+export function warpStudioCollar(uniform,amount=0,heightAmount=0,bounds,{smoothTop=false}={}){
  // V53: deterministic inverse-mapped collar warp.
  // Rebuild the collar ROI from the ORIGINAL template pixels instead of drawing shifted tiles
  // over the untouched collar. This removes the duplicated lower collar/neck edge.
@@ -12,7 +12,7 @@ export function warpStudioCollar(uniform,amount=0,heightAmount=0,bounds){
  // Keep exactly the same V52 collar ROI/strength geometry.
  const b=bounds||{x:0,y:0,w:W,h:H}, cx=b.x+b.w*.50, roiL=Math.floor(b.x+b.w*.285), roiR=Math.ceil(b.x+b.w*.715), roiT=Math.floor(b.y+b.h*.015), roiB=Math.ceil(b.y+b.h*.36);
  const rw=roiR-roiL, rh=roiB-roiT;
- if(gpuLiquify(out,roiL,roiT,rw,rh,cx,roiT,b.w,amount,heightAmount,'collar',b.h,{x:roiL,y:roiT,w:rw,h:rh}))return out;
+ if(gpuLiquify(out,roiL,roiT,rw,rh,cx,roiT,b.w,amount,heightAmount,'collar',b.h,{x:roiL,y:roiT,w:rw,h:rh},smoothTop))return out;
  const key=[roiL,roiT,rw,rh].join(',');let saved=collarSources.get(uniform);
  if(!saved||saved.key!==key){const src=document.createElement('canvas');src.width=rw;src.height=rh;const sx=src.getContext('2d',{willReadFrequently:true});sx.drawImage(uniform,roiL,roiT,rw,rh,0,0,rw,rh);saved={key,source:sx.getImageData(0,0,rw,rh)};collarSources.set(uniform,saved)}
  const source=saved.source;
@@ -50,6 +50,8 @@ export function warpStudioCollar(uniform,amount=0,heightAmount=0,bounds){
 
  for(let yy=0;yy<rh;yy++){
   const absY=roiT+yy;rowFall=Math.pow(Math.max(0,1-yy/rh),1.35);
+  // Job suits can reach the top ROI: join the unmoved pixels continuously.
+  if(smoothTop){const t=Math.min(1,yy/(rh*.12));rowFall*=t*t*(3-2*t)}
   for(let xx=0;xx<rw;xx++){
    const absX=roiL+xx;
    // Invert xDest = xSource + displacement(xSource,y). A few fixed-point iterations
