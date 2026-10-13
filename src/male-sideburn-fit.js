@@ -287,28 +287,30 @@ export function fadeMaleSideburnTips(original,portrait,w,h,face,labels,guide,mat
    const neighbours=observed.slice(Math.max(0,i-2),i+3);
    return {v:p.v,r:neighbours.reduce((sum,q)=>sum+q.r,0)/neighbours.length};
   });
-  const soft=Math.max(1.5,f.eye*.035),end=Math.min(tip,observed.at(-1).v+f.eye*.035);
-  const span=Math.max(3,Math.min((tip-root)*.55,f.eye*.28)),start=Math.max(root,end-span);
-  const ramp=Math.max(3,Math.min((tip-root)*.35,f.eye*.16));
-  const minR=Math.min(...bands.map(p=>p.r))-soft,maxR=Math.max(...bands.map(p=>p.outer))+soft;
+  // A broad soft brush follows the sideburn curve. Its full-opacity core
+  // covers the complete tip, including translucent/skin-tinted PNG edge pixels.
+  // Never stop at the last guide row: actual alpha can continue below it.
+  const soft=Math.max(2,f.eye*.055),end=Math.min(tip,observed.at(-1).v+f.eye*.02);
+  const span=Math.max(5,Math.min((tip-root)*.70,f.eye*.38)),start=Math.max(root,end-span);
+  const ramp=Math.max(4,Math.min((tip-root)*.35,f.eye*.18)),padding=f.eye*.10;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
    const j=(y*w+x)*4;if(!original[j+3])continue;const q=f.local(x,y),r=sign*q.u;
-   if(q.v<=root||q.v>tip+soft||r<minR||r>maxR)continue;
+   if(q.v<=root)continue;
    const inner=interpolate(bands,q.v,'r'),outer=interpolate(bands,q.v,'outer');
-   if(r<inner-soft||r>outer+soft)continue;
-   // Continuous material confidence preserves donor skin without a binary
-   // colour threshold introducing a new jagged line in the faded edge.
-   const luma=(original[j]+original[j+1]+original[j+2])/3;
-   const colourSpread=Math.max(original[j],original[j+1],original[j+2])-Math.min(original[j],original[j+1],original[j+2]);
-   const material=smooth((skin.luma*.80-luma)/(skin.luma*.18))*(1-smooth((colourSpread-80)/30));
    const photoEdge=interpolate(edges,q.v,'r');
+   // Soft brush support, not a rectangular clip. Widen beyond guide material
+   // so a missed antialiased row or a pale border cannot survive as a line.
+   const coreInner=Math.min(inner,photoEdge)-padding,coreOuter=outer+padding;
+   const brush=smooth((r-(coreInner-soft))/soft)*smooth(((coreOuter+soft)-r)/soft);
+   if(!brush)continue;
    const lateral=1-smooth((r-photoEdge+soft*.25)/soft);
    const blend=smooth((q.v-root)/ramp);
-   // Taper the tip along the observed curved contour, never one horizontal cut.
+   // A rounded end blends along the photographed contour. Continue at 100%
+   // down the whole PNG sideburn, rather than restoring alpha after guide.tip.
    const roundedEnd=end-soft*smooth((photoEdge+soft-r)/(2*soft));
    const bottom=smooth((q.v-start)/Math.max(1,roundedEnd-start));
-   const erase=1-(1-lateral*blend)*(1-bottom);
-   out[j+3]=Math.round(original[j+3]*(1-material*erase));
+   const erase=brush*(1-(1-lateral*blend)*(1-bottom));
+   out[j+3]=Math.round(original[j+3]*(1-erase));
   }
  }
  return out;

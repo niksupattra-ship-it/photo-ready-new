@@ -408,7 +408,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const previewVersion=/^manhair-\d{2}$/.test(id)?66:57;
+  const previewVersion=/^manhair-\d{2}$/.test(id)?67:57;
   if(existing?.hairId===id&&existing.hairPreviewVersion===previewVersion&&attached.length===(isSingleLayerHair(id)?1:2)&&(isSingleLayerHair(id)||attached.some(a=>a.hairRole==='back')&&state.current.findIndex(l=>l.id===attached.find(a=>a.hairRole==='back')?.id)<state.current.findIndex(l=>l.id===head.id)&&state.current.findIndex(l=>l.id===head.id)<state.current.findIndex(l=>l.id===existing.id))&&attached.every(l=>!l.warpSource&&['x','y','scale','rotation'].every(k=>l[k]===head[k])&&['squeezeX','squeezeY'].every(k=>(l[k]??1)===(head[k]??1)))){setSelected(existing.id);setTool('move');setStatus('เลือกเลเยอร์ผมแล้ว · ลากหรือปรับขนาดได้');return}
   processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
   try{
