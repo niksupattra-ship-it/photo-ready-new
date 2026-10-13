@@ -237,12 +237,13 @@ function studioFixture({version=46,offset=80,missingBack=false,locked=false,hair
  const context={processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,flushTransforms:()=>{},state:{current:layers},layerKind:l=>l.kind,isSingleLayerHair,
   mounted:{current:true},hairUiFrame:async()=>{},historySnapshot:()=>layers.map(l=>({...l})),assets:{current:new Map([[head.id,{original:opaque(10,10)}]])},
   headPose:l=>Object.fromEntries(['x','y','scale','rotation'].map(k=>[k,l[k]])),surfaceURL:x=>x,
-  undo:{current:[]},redo:{current:[]},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},drawNow:()=>{},touch:false,
+  undo:{current:[]},redo:{current:[]},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},selectedRef:{current:'front'},brushSession:{current:null},drawNow:()=>{},touch:false,
   hydrate:async(next,unchanged)=>{context.state.current=next;context.unchanged=unchanged;return true},fresh:l=>({...l,id:`new-${l.hairRole}`}),
   onPrepareHairOverlay:async(source,id)=>{context.calls++;assert.equal(source,'untouched-head');assert.equal(id,hairId);return {source:'new-front',backSource:isSingleLayerHair(hairId)?null:'new-back',cleanedHeadSource:'new-head',hairGapWarning:gapWarning,...(sideburnWarning?{maleSideburnWarning:true,maleSideburnReport:{adjusted:false,unavailable:true}}:{})}},calls:0,
   setStatus:s=>{context.status=s}
  };
  for(const key of ['setSelected','setAssetBusy','setHairPlacementProgress','setSelectedHair','setHairConfirmed','setHairNotice','setRevision','setTool','setComparing'])context[key]=()=>{};
+ context.setSelected=id=>{context.selection=id};
  const run=vm.runInNewContext(source.slice(start,end)+'\napplyHair',context);
  return {run,context,layers};
 }
@@ -452,8 +453,22 @@ test('each long side starts filling at its own ear height',()=>{
 });
 
 test('original hair restores the first processed head and clears later pixel edits',async()=>{
- const f=studioFixture(),head=f.layers.find(l=>l.id==='head');Object.assign(head,{processedOriginalSource:'first-processed-head',mask:'later-mask',warpSource:'later-warp',eraseRestoreSource:'later-erase',makeupBaseSource:'later-makeup',makeupStyles:{look:'later'}});
- await f.run('');const restored=f.context.state.current.find(l=>l.id==='head');assert.equal(restored.source,'first-processed-head');assert.equal(restored.mask,null);assert.equal(restored.warpSource,null);assert.equal(restored.eraseRestoreSource,null);assert.equal(restored.makeupBaseSource,null);assert.equal(restored.x,head.x);assert.equal(f.context.calls,0);assert.equal(f.context.state.current.filter(l=>l.kind==='hair-preview').length,0);
+ const f=studioFixture(),head=f.layers.find(l=>l.id==='head');Object.assign(head,{processedOriginalSource:'first-processed-head',mask:'later-mask',warpSource:'later-warp',eraseRestoreSource:'later-erase',makeupBaseSource:'later-makeup',makeupStyles:{look:'later'},x:145,y:-92,scale:1.43,rotation:-17,squeezeX:.72,squeezeY:.84,opacity:.81,visible:true});
+ await f.run('');const restored=f.context.state.current.find(l=>l.id==='head');assert.equal(restored.source,'first-processed-head');assert.equal(restored.mask,null);assert.equal(restored.warpSource,null);assert.equal(restored.eraseRestoreSource,null);assert.equal(restored.makeupBaseSource,null);for(const key of ['id','x','y','scale','rotation','squeezeX','squeezeY','sourceFrame','opacity','visible'])assert.deepEqual(restored[key],head[key],key);assert.equal(f.context.calls,0);assert.equal(f.context.state.current.filter(l=>l.kind==='hair-preview').length,0);assert.equal(f.context.selectedRef.current,'head');assert.equal(f.context.undo.current.length,1);for(const id of ['background','suit'])assert.deepEqual(f.context.state.current.find(l=>l.id===id),f.layers.find(l=>l.id===id));
+});
+test('original hair restores without the PNG preparation callback and keeps the latest queued head placement',async()=>{
+ const f=studioFixture(),head=f.layers.find(l=>l.id==='head'),pose={x:-46,y:71,scale:.87,rotation:23,squeezeX:.91,squeezeY:1.12};head.processedOriginalSource='first-processed-head';f.context.onPrepareHairOverlay=undefined;f.context.flushTransforms=()=>Object.assign(head,pose);
+ await f.run('');const restored=f.context.state.current.find(l=>l.id==='head');assert.equal(restored.source,'first-processed-head');for(const [key,value] of Object.entries(pose))assert.equal(restored[key],value,key);assert.deepEqual(restored.sourceFrame,head.sourceFrame);assert.equal(f.context.selectedRef.current,'head');assert.equal(f.context.calls,0);assert.equal(f.context.undo.current.length,1);
+});
+for(const tool of ['erase','warp'])test(`original hair keeps an active ${tool} session on the restored head after removing its hair layer`,async()=>{
+ const f=studioFixture(),head=f.layers.find(l=>l.id==='head');head.processedOriginalSource='first-processed-head';f.context.brushSession.current={tool,layerId:'front',awaitingLayer:false};f.context.tool=tool;f.context.setTool=id=>{if(f.context.brushSession.current&&id!==f.context.brushSession.current.tool)return;f.context.tool=id};
+ await f.run('');assert.equal(f.context.state.current.find(l=>l.id==='head').source,'first-processed-head');assert.equal(f.context.selectedRef.current,'head');assert.equal(f.context.brushSession.current.layerId,'head');assert.equal(f.context.brushSession.current.awaitingLayer,false);assert.equal(f.context.tool,tool);assert.equal(f.context.state.current.some(l=>l.id==='front'),false);
+});
+test('original hair keeps the selected layer consistent with a brush session on an unrelated existing layer',async()=>{
+ const f=studioFixture();f.context.brushSession.current={tool:'erase',layerId:'suit',awaitingLayer:false};await f.run('');assert.equal(f.context.brushSession.current.layerId,'suit');assert.equal(f.context.selectedRef.current,'suit');assert.equal(f.context.selection,'suit');assert.deepEqual(f.context.state.current.find(l=>l.id==='suit'),f.layers.find(l=>l.id==='suit'));
+});
+test('original hair does not confirm a brush session still awaiting mandatory layer selection',async()=>{
+ const f=studioFixture();f.context.brushSession.current={tool:'erase',layerId:null,awaitingLayer:true};await f.run('');assert.equal(f.context.brushSession.current.layerId,null);assert.equal(f.context.brushSession.current.awaitingLayer,true);assert.equal(f.context.selectedRef.current,'head');assert.equal(f.context.state.current.find(l=>l.id==='head').source,'untouched-head');
 });
 test('old projects use their stored original head when no first-processing snapshot exists',async()=>{
  const f=studioFixture();await f.run('');assert.equal(f.context.state.current.find(l=>l.id==='head').source,'untouched-head');assert.equal(f.context.calls,0);

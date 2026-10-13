@@ -402,7 +402,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  useEffect(()=>{if(!sourcePhoto){setSourcePreview(null);return}const url=URL.createObjectURL(sourcePhoto);setSourcePreview(url);return()=>URL.revokeObjectURL(url)},[sourcePhoto]);
  const applyHair=async id=>{
   if(processRequestRef.current||processActive||assetBusy||!ready)return;
-  if(!onPrepareHairOverlay){setStatus('ระบบวาง PNG ยังไม่พร้อม กรุณาอัปเดตไฟล์ main.jsx และ src/main.jsx พร้อมกัน');return}
+  if(id&&!onPrepareHairOverlay){setStatus('ระบบวาง PNG ยังไม่พร้อม กรุณาอัปเดตไฟล์ main.jsx และ src/main.jsx พร้อมกัน');return}
   flushTransforms();const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   if(!head){setStatus('ประมวลผลด้วยผมเดิมก่อนเลือกทรง');return}
   if(head.locked){setStatus('ปลดล็อกเลเยอร์หัวก่อนวางผม');return}
@@ -434,6 +434,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    setHairPlacementProgress(90);await hairUiFrame();
    if(await hydrate(next,new Set(previous.filter(l=>l.kind!=='hair-preview'&&l.id!==head.id).map(l=>l.id)))){
     undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[];
+    if(!id){const session=brushSession.current;if(session?.layerId&&!session.awaitingLayer){if(!state.current.some(l=>l.id===session.layerId))session.layerId=head.id;selectedId=session.layerId}selectedRef.current=selectedId}
     drawNow();setSelected(selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
     if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
     setStatus(id?(maleSideburnWarning?'วางทรงแล้ว · จอนบางข้างตรวจตำแหน่งไม่ผ่าน จึงคงตำแหน่งเดิม':hairGapWarning?'วางทรงแล้ว แต่บางช่องยังเก็บไม่ครบ':'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต'):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
