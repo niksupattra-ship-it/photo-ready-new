@@ -3,23 +3,25 @@
 export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  "hair-01": {
   "sourceToReference": [
-   0.1652612,
-   0.0026386,
-   -0.0026386,
-   0.1652612,
-   -0.5818892,
-   -1.0242154
+    0.31291974,
+    0,
+    0,
+    0.31291974,
+    4.570188,
+    -0.564066
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    400,
+    405
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-01-back.png",
+  "preservePortrait": true
+},
  "hair-02": {
   "sourceToReference": [
    0.1598327,
