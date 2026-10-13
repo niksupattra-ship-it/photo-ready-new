@@ -177,11 +177,33 @@ export function fitMaleSideburns(original,portrait,w,h,face,labels,guide,matrix)
    if(Math.hypot(dr,dv)>f.eye*.42)continue;
    let evidence=0;for(const delta of [-.12,-.08,-.04]){const p=f.world(sign*(expected+f.eye*delta),targetV),rgba=pixel(portrait,w,h,p),cat=labelAt(labels,w,h,p);if(rgba?.[3]>=180&&[1,2,3].includes(cat))evidence++}
    if(!evidence)continue;
-   rows.push({sourceIndex,v:targetV,r,outer:r+Math.max(2,sign*(outer.u-bp.u)),dr,dv,sourceV:bp.v,sourceR:sign*bp.u});
+   const materialWidth=sign*(outer.u-bp.u);
+   rows.push({sourceIndex,v:targetV,r,outer:r+Math.max(2,materialWidth),materialWidth,dr,dv,sourceV:bp.v,sourceR:sign*bp.u});
   }
   if(rows.length<3||rows.length<source.rows.length*.7||rows[0].sourceIndex!==0||rows.at(-1).sourceIndex!==source.rows.length-1){side.reason='attachment-unclear';continue}
   rows.sort((a,b)=>a.v-b.v);
   if(rows.some((r,i)=>i&&(r.sourceV<=rows[i-1].sourceV||r.v<=rows[i-1].v))){side.reason='unordered-pins';continue}
+  // A tapered sideburn is a narrow strand attached to a thick, already
+  // placed upper hairstyle. Moving its root creates an artificial shoulder
+  // above the ear. Keep that root rigid and ease the bend into the narrowing
+  // strand, retaining its original cross-section and the requested tip.
+  const rootWidth=rows[0].materialWidth,tipWidth=rows.at(-1).materialWidth;
+  if(rootWidth>0&&tipWidth>0&&rootWidth>tipWidth*2.5){
+   side.mode='pinned-root-tip-bend';
+   const root=rows.findLast(row=>row.materialWidth>=rootWidth*.65),span=rows.at(-1).sourceV-root.sourceV;
+   if(span<f.eye*.08){side.reason='taper-too-short';continue}
+   side.requestedPins=[rows[0],rows[Math.floor(rows.length/2)],rows.at(-1)].map(row=>({r:row.r,v:row.v}));
+   for(const row of rows){
+    // Use distance along the strand after the last thick row. Local width
+    // fluctuations cannot repeatedly reverse the bend, and the tip reaches
+    // the full anatomical target even when it is not just one pixel wide.
+    const weight=smooth((row.sourceV-root.sourceV)/span);
+    row.dr*=weight;row.dv*=weight;
+    row.r=row.sourceR+row.dr;row.v=row.sourceV+row.dv;
+    row.outer=row.r+Math.max(2,row.materialWidth);
+   }
+   if(rows.some((r,i)=>i&&r.v<=rows[i-1].v)){side.reason='unordered-pins';continue}
+  }
   const pins=[rows[0],rows[Math.floor(rows.length/2)],rows.at(-1)];side.before=pins.reduce((n,p)=>n+Math.hypot(p.dr,p.dv),0)/pins.length;
   side.pins=pins.map(p=>({source:{r:p.sourceR,v:p.sourceV},target:{r:p.r,v:p.v}}));
   if(side.before<Math.max(1,f.eye*.005)){side.after=side.before;side.reason='already-aligned';continue}
