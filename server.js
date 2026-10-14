@@ -330,9 +330,6 @@ const aiFinishHandler=async(req,res)=>{
   try{
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
-    const fittedHair=req.body?.mode==="fitted-hair";
-    const guideFile=req.files?.guide?.[0];
-    if(fittedHair&&(!guideFile||!/^hair-\d{2}$|^manhair-\d{2}$/.test(req.body?.hairId||"")))return res.status(400).send("ไม่มีภาพแนวทางทรงผมที่ถูกต้อง");
     const inpaint=req.body?.mode==="hair-inpaint";
     const hairDonor=false; // V113: obsolete donor endpoint disabled
     if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
@@ -537,7 +534,7 @@ Preserve the current skin finish and all existing high-frequency details: pore s
 
 CUSTOMER-SELECTED FIRST PORTRAIT GROOMING — HAIR ONLY:
 COMPLETE NEW HAIRSTYLE — NOT SOURCE-HAIR GROOMING: Use Image 1 for the customer's FACE AND ANATOMY ONLY, not as the hairstyle design. Replace ALL original hair with newly generated photographic hair: crown, parting, roots, fringe, temple/side hair and back sections. Do not gather, comb, shorten, recolor or preserve the source hairstyle; do not blend remnants of the old hair into the new style. Remove old bangs, side locks, source hair over the skin and all old long/back hair. Return the completed new hairstyle in the SAME portrait request; never return a bald scalp or use a bald intermediate portrait.
-The customer explicitly selected ${portraitMode==='female'?'FEMALE: create a completely new neat CENTRE-PARTED style, with a single natural central part aligned to the existing facial midline. Sweep both front sections away from the forehead and tuck the sides discreetly behind the head, compact and close to the original skull. No visible bun, knot, ponytail or raised crown; no bangs, side-swept fringe, dangling side locks or loose strands beside either ear':'MALE: create a completely new neat natural short haircut, with a proportionate low crown and clean short sides above and behind both ears, with no source fringe, old side locks or hair covering brows'}. This choice is a hairstyle preference, not an inference of gender or permission to feminize or masculinize facial features. Fit the NEW hair roots and main silhouette to the original skull, forehead, temples and ear attachments; never resize or reshape the face to accommodate hair. Use separated realistic strands, restrained natural deep-black tonal variation and photographic shine; no thick wig, oversized crown, painted hair mass or floating pasted edge. Blend the new roots into the existing skin only within the narrow hairline seam; preserve the established sharp ear-to-shoulder clearance.
+The customer explicitly selected ${portraitMode==='female'?'FEMALE: create a completely new neat compact tied-up style or bun behind the head, with a natural balanced parting, smoothly swept-back front and sides, and no loose locks, bangs covering brows or hanging ends':'MALE: create a completely new neat natural short haircut, with a proportionate low crown and clean short sides above and behind both ears, with no source fringe, old side locks or hair covering brows'}. This choice is a hairstyle preference, not an inference of gender or permission to feminize or masculinize facial features. Fit the NEW hair roots and main silhouette to the original skull, forehead, temples and ear attachments; never resize or reshape the face to accommodate hair. Use separated realistic strands, restrained natural deep-black tonal variation and photographic shine; no thick wig, oversized crown, painted hair mass or floating pasted edge. Blend the new roots into the existing skin only within the narrow hairline seam; preserve the established sharp ear-to-shoulder clearance.
 Expose both complete ear rims naturally at their original anatomical attachments. Complete only missing ear portions using the established local ear-completion policy, fitting each ear to the unchanged original head. Keep all hair behind or above the ear attachments; no hair over the pinnae or in the cleared cheek/jaw/neck/clavicle/shoulder-fitting field. No sideburn tails, wisps, dangling strands, long hair curtains, jewelry, decorative accessories or bald scalp.
 This explicit NEW-HAIR policy overrides ALL earlier original-hairstyle, source-hair geometry, source fringe, source parting and original hairline-retention instructions for this first portrait ONLY. The old hairline may be replaced to root the NEW hair naturally into the SAME unchanged skull. Recover only tiny previously hidden skin/brow portions where old hair was removed, following the original visible anatomy; never redraw already visible facial features. Do not copy a reference face, reshape facial anatomy or reinterpret the selected label as a skin/makeup instruction. Preserve all visible eyebrows, eyes, nose, lips, expression, face dimensions, identifying asymmetry, visible skin microtexture, established skin finish, studio-light policy, neck proportions and complete lower-neck fitting coverage. Keep the current sharply defined uncontaminated skin outline. No change to the existing skin, neck or lighting procedure is authorized.`;
 
@@ -556,21 +553,7 @@ Keep the first-portrait grooming specified above, but do NOT create any visible 
 Sweep the front hair naturally back or to the sides, ABOVE the natural hairline: the ENTIRE forehead skin must remain uncovered down to both eyebrows, even when Image 1 has bangs, a diagonal fringe or stray hair covering it. Remove all source fringe and stray forehead strands; do not carry them into the output. Recover only previously hidden forehead skin using the adjacent original complexion and texture. Keep the natural forehead height, skull shape and hairline position; do not raise the hairline, enlarge the forehead or change any already visible eyebrow or facial feature.
 Reduce the HAIR MASS AND PUFFINESS by approximately 10% relative to the otherwise requested first-portrait style, creating a subtly lighter, less bulky hair silhouette with realistic separated strands. This is hair volume only: never scale the whole head, stretch the face, narrow the jaw, reduce scalp coverage or create thinning/bald patches. Retain the existing root blending, sharp clean ear-to-shoulder clearance, authentic face, skin finish, neck anatomy and lighting. These specific no-bun/open-forehead/lighter-volume requirements override conflicting earlier bun, fringe and upper-hair-volume instructions ONLY for this first portrait; no other edit is authorized.`;
 
-    if(keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&portraitMode==='female')seedreamPrompt += `
-
-FEMALE FIRST-PORTRAIT FINAL HAIR CHECK — CENTRE PART ONLY:
-The final hairstyle must have a natural CENTRAL PART following the original facial midline and skull orientation. Sweep left and right hair away from the forehead; leave ALL forehead skin and both eyebrows uncovered. Preserve the original forehead height and natural root boundary; do not enlarge the forehead or impose symmetry on the face. Keep the established approximately 10% lighter hair-mass policy, a low compact crown and fine separated strands, without thick side volume, thinning or bald patches. Keep gathered lengths hidden behind the head with no visible bun or knot.
-Starting at the upper attachment of EACH ear, leave the complete ear rim and the skin beside the ear, jaw and neck clear: absolutely no dangling wisps, sideburn tails, curled tendrils or loose hair below the ear attachment on either side. Keep natural hairline detail confined to the upper scalp edge; do not create stray strands over forehead skin or the ear-to-neck clearance.
-These requirements override only conflicting parting, fringe, visible-bun or loose-hair wording. They do not authorize any change to the original identity, facial proportions, eyebrows, eyes, nose, lips, expression, existing visible skin texture, complexion, current skin finish, neck anatomy or lighting policy. Preserve the existing portrait framing and return this hair correction within the SAME portrait generation; no additional request or facial regeneration step.`;
-
-    if(keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor)seedreamPrompt += `
-
-UPRIGHT FRONT-PORTRAIT POSE — INITIAL PORTRAIT ONLY:
-Correct a tilted or turned source head into a natural upright, straight-on ID-photo pose: the eye line should be level and the existing facial midline vertical, facing the camera without sideways roll, yaw or chin-up/chin-down tilt. Align the neck naturally beneath the corrected head on the same vertical axis, with no sideways lean, kink or artificial bend. If already straight, make no additional pose correction.
-This is a POSE correction of the SAME person, never a facial redesign, face replacement, slimming, beautification, symmetry correction or stretching. Preserve the person's identifying facial structure, original face width-to-height proportions, jaw/chin shape, relative eye/nose/mouth dimensions, expression and distinctive asymmetry; do not mirror the face. Preserve the existing skin treatment, authentic complexion, visible pores, moles and fine texture without extra smoothing, whitening, makeup or invented texture. Maintain natural perspective for the corrected pose rather than forcing both sides to become identical.
-Keep the established neck width, length, lower curved clavicle fitting coverage and skin finish; straighten its alignment only. Keep the current hairstyle policy, lighting, image size, framing, collar-removal and transparency rules. This instruction supersedes earlier requirements to retain source orientation or exact feature positions ONLY to the minimum extent necessary to correct head/neck pose. It does not authorize any other change or an additional generation request.`;
-
-    if(!creditUse){creditUse=await requireCredit(req,res,fittedHair?"hairstyle":"ai-finish");if(!creditUse)return;}
+    if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
 
     // Alpha output is supported only by Pro/Flash 5.x with ONE RGBA input.
     // Keep multi-reference, donor, clean-head and inpaint routes unchanged.
@@ -591,12 +574,6 @@ Return the completed person as a genuine RGBA PNG with an alpha channel. Remove 
     const portraitDataUrl=`data:${portraitMime};base64,${portraitBuffer.toString("base64")}`;
     const refs=[portraitDataUrl];
     if(!keepOriginalHair&&hairBuf) refs.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
-    if(fittedHair){
-      const guide=await sharp(guideFile.buffer,{failOn:"error"}).rotate().flatten({background:"#e7e7e7"}).png().toBuffer();
-      refs.splice(1,refs.length-1,`data:image/png;base64,${guide.toString("base64")}`);
-      seedreamPrompt=`HAIRSTYLE-ONLY PHOTOGRAPHIC EDIT. Image 1 is the CURRENT completed portrait and the sole authority for identity, face, skin, ears, neck, expression, pose, framing and lighting. Image 2 is a computed placement GUIDE of the selected hairstyle on that SAME person, not a different identity. Its roots, parting, haircut, length, front/back arrangement, scale and location are the intended hairstyle. Replace the old hair with this selected design, fitting roots, temples, forehead and ears naturally to Image 1's existing skull. Resolve pasted seams, small gaps and excess hair; unify the entire hairstyle into coherent realistic individual strands with matching light and sharp clean edges. Do not retain obsolete source hair or invent additional bangs, dangling tendrils or volume absent from the guide. The guide may have rough cutout boundaries: correct those hair boundaries, not facial anatomy. Do not copy its seams or matte residue.
-Change HAIR and the narrow hair-to-skin contact transition ONLY. Preserve Image 1's existing eyes, eyebrows, nose, mouth, cheeks, jaw, chin, facial proportions and asymmetry, pores, complexion, makeup/skin finish, ears and complete neck/clavicle pixels. No face generation, facial reshaping, skin smoothing, whitening, added makeup, pose change, mirroring or neck/clothing redesign. Keep the same canvas, camera scale and exact head placement. Return one coherent photographic portrait on a plain neutral background for extraction, without a painted outline, broad blur or halos.`;
-    }
     const arkPayload={
       model:arkModel,
       prompt:seedreamPrompt,
@@ -627,7 +604,6 @@ Change HAIR and the narrow hair-to-skin contact transition ONLY. Preserve Image 
     res.set("Cache-Control","no-store");
     if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
     res.set("X-Credits-Remaining",String(creditUse.credits));
-    if(fittedHair){const wallet=await getWallet(walletId(req));if(wallet)res.set("X-Rights-Remaining",JSON.stringify({generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining}));}
     res.send(data);
   }catch(e){
     if(creditUse)await refundCredit(creditUse.usageId);
@@ -635,7 +611,7 @@ Change HAIR and the narrow hair-to-skin contact transition ONLY. Preserve Image 
     res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
 };
-app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1},{name:"guide",maxCount:1}]),aiFinishHandler);
+app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),aiFinishHandler);
 
 
 const activeAiJobs=new Set();
