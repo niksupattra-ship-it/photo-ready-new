@@ -330,6 +330,9 @@ const aiFinishHandler=async(req,res)=>{
   try{
     const inputFile=req.files?.image?.[0];
     if(!inputFile) return res.status(400).send("ไม่มีภาพสำหรับ AI finishing");
+    const fittedHair=req.body?.mode==="fitted-hair";
+    const guideFile=req.files?.guide?.[0];
+    if(fittedHair&&(!guideFile||!/^hair-\d{2}$|^manhair-\d{2}$/.test(req.body?.hairId||"")))return res.status(400).send("ไม่มีภาพแนวทางทรงผมที่ถูกต้อง");
     const inpaint=req.body?.mode==="hair-inpaint";
     const hairDonor=false; // V113: obsolete donor endpoint disabled
     if(req.body?.mode==="hair-donor")return res.status(400).send("Hair Donor ถูกยกเลิกแล้ว กรุณาอัปเดตหน้าเว็บ");
@@ -560,7 +563,14 @@ The final hairstyle must have a natural CENTRAL PART following the original faci
 Starting at the upper attachment of EACH ear, leave the complete ear rim and the skin beside the ear, jaw and neck clear: absolutely no dangling wisps, sideburn tails, curled tendrils or loose hair below the ear attachment on either side. Keep natural hairline detail confined to the upper scalp edge; do not create stray strands over forehead skin or the ear-to-neck clearance.
 These requirements override only conflicting parting, fringe, visible-bun or loose-hair wording. They do not authorize any change to the original identity, facial proportions, eyebrows, eyes, nose, lips, expression, existing visible skin texture, complexion, current skin finish, neck anatomy or lighting policy. Preserve the existing portrait framing and return this hair correction within the SAME portrait generation; no additional request or facial regeneration step.`;
 
-    if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
+    if(keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor)seedreamPrompt += `
+
+UPRIGHT FRONT-PORTRAIT POSE — INITIAL PORTRAIT ONLY:
+Correct a tilted or turned source head into a natural upright, straight-on ID-photo pose: the eye line should be level and the existing facial midline vertical, facing the camera without sideways roll, yaw or chin-up/chin-down tilt. Align the neck naturally beneath the corrected head on the same vertical axis, with no sideways lean, kink or artificial bend. If already straight, make no additional pose correction.
+This is a POSE correction of the SAME person, never a facial redesign, face replacement, slimming, beautification, symmetry correction or stretching. Preserve the person's identifying facial structure, original face width-to-height proportions, jaw/chin shape, relative eye/nose/mouth dimensions, expression and distinctive asymmetry; do not mirror the face. Preserve the existing skin treatment, authentic complexion, visible pores, moles and fine texture without extra smoothing, whitening, makeup or invented texture. Maintain natural perspective for the corrected pose rather than forcing both sides to become identical.
+Keep the established neck width, length, lower curved clavicle fitting coverage and skin finish; straighten its alignment only. Keep the current hairstyle policy, lighting, image size, framing, collar-removal and transparency rules. This instruction supersedes earlier requirements to retain source orientation or exact feature positions ONLY to the minimum extent necessary to correct head/neck pose. It does not authorize any other change or an additional generation request.`;
+
+    if(!creditUse){creditUse=await requireCredit(req,res,fittedHair?"hairstyle":"ai-finish");if(!creditUse)return;}
 
     // Alpha output is supported only by Pro/Flash 5.x with ONE RGBA input.
     // Keep multi-reference, donor, clean-head and inpaint routes unchanged.
@@ -581,6 +591,12 @@ Return the completed person as a genuine RGBA PNG with an alpha channel. Remove 
     const portraitDataUrl=`data:${portraitMime};base64,${portraitBuffer.toString("base64")}`;
     const refs=[portraitDataUrl];
     if(!keepOriginalHair&&hairBuf) refs.push(`data:image/png;base64,${hairBuf.toString("base64")}`);
+    if(fittedHair){
+      const guide=await sharp(guideFile.buffer,{failOn:"error"}).rotate().flatten({background:"#e7e7e7"}).png().toBuffer();
+      refs.splice(1,refs.length-1,`data:image/png;base64,${guide.toString("base64")}`);
+      seedreamPrompt=`HAIRSTYLE-ONLY PHOTOGRAPHIC EDIT. Image 1 is the CURRENT completed portrait and the sole authority for identity, face, skin, ears, neck, expression, pose, framing and lighting. Image 2 is a computed placement GUIDE of the selected hairstyle on that SAME person, not a different identity. Its roots, parting, haircut, length, front/back arrangement, scale and location are the intended hairstyle. Replace the old hair with this selected design, fitting roots, temples, forehead and ears naturally to Image 1's existing skull. Resolve pasted seams, small gaps and excess hair; unify the entire hairstyle into coherent realistic individual strands with matching light and sharp clean edges. Do not retain obsolete source hair or invent additional bangs, dangling tendrils or volume absent from the guide. The guide may have rough cutout boundaries: correct those hair boundaries, not facial anatomy. Do not copy its seams or matte residue.
+Change HAIR and the narrow hair-to-skin contact transition ONLY. Preserve Image 1's existing eyes, eyebrows, nose, mouth, cheeks, jaw, chin, facial proportions and asymmetry, pores, complexion, makeup/skin finish, ears and complete neck/clavicle pixels. No face generation, facial reshaping, skin smoothing, whitening, added makeup, pose change, mirroring or neck/clothing redesign. Keep the same canvas, camera scale and exact head placement. Return one coherent photographic portrait on a plain neutral background for extraction, without a painted outline, broad blur or halos.`;
+    }
     const arkPayload={
       model:arkModel,
       prompt:seedreamPrompt,
@@ -611,6 +627,7 @@ Return the completed person as a genuine RGBA PNG with an alpha channel. Remove 
     res.set("Cache-Control","no-store");
     if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
     res.set("X-Credits-Remaining",String(creditUse.credits));
+    if(fittedHair){const wallet=await getWallet(walletId(req));if(wallet)res.set("X-Rights-Remaining",JSON.stringify({generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining}));}
     res.send(data);
   }catch(e){
     if(creditUse)await refundCredit(creditUse.usageId);
@@ -618,7 +635,7 @@ Return the completed person as a genuine RGBA PNG with an alpha channel. Remove 
     res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
 };
-app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),aiFinishHandler);
+app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1},{name:"guide",maxCount:1}]),aiFinishHandler);
 
 
 const activeAiJobs=new Set();
