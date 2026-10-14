@@ -588,61 +588,64 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  },
  "manhair-01": {
   "sourceToReference": [
-   0.1405906,
-   -0.000387,
-   0.000387,
-   0.1405906,
-   3.8177529,
-   -0.8997022
+    0.36725695027395183,
+    0,
+    0,
+    0.36725695027395183,
+    36.437138957585184,
+    -7.6769376858886575
   ],
   "sourceSize": [
-   1349,
-   1166
+    852,
+    656
   ],
   "referenceSize": [
-   200,
-   240
+    400,
+    405
   ],
-  "layout": "compact"
- },
+  "layout": "compact",
+  "freshSideburnGuide": true
+},
  "manhair-02": {
   "sourceToReference": [
-   0.1392007,
-   0.0012966,
-   -0.0012966,
-   0.1392007,
-   7.1501326,
-   7.078631
+    0.3755093621887644,
+    0,
+    0,
+    0.3755093621887644,
+    31.38835921936509,
+    -5.239229986460745
   ],
   "sourceSize": [
-   1350,
-   1165
+    852,
+    656
   ],
   "referenceSize": [
-   200,
-   240
+    400,
+    405
   ],
-  "layout": "compact"
- },
+  "layout": "compact",
+  "freshSideburnGuide": true
+},
  "manhair-03": {
   "sourceToReference": [
-   0.1600942,
-   0.0020008,
-   -0.0020008,
-   0.1600942,
-   -4.7623734,
-   4.1677836
+    0.37022537343422063,
+    0,
+    0,
+    0.37022537343422063,
+    33.61699593191422,
+    -2.825580508090526
   ],
   "sourceSize": [
-   1350,
-   1165
+    852,
+    656
   ],
   "referenceSize": [
-   200,
-   240
+    400,
+    405
   ],
-  "layout": "compact"
- },
+  "layout": "compact",
+  "freshSideburnGuide": true
+},
  "manhair-04": {
   "sourceToReference": [
    0.1417059,

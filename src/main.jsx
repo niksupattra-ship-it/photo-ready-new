@@ -1524,7 +1524,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   const pending=(async()=>{
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
    // Replaced 2–5 assets must not reuse the old pattern/reference browser cache.
-   const assetVersion=hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-83':hairId==='hair-07'?'?v=authored-pair-84':'';
+   const assetVersion=/^manhair-0[1-3]$/.test(hairId)?'?v=male-new-85':hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-83':hairId==='hair-07'?'?v=authored-pair-84':'';
    const hairAsset=async path=>{try{return await loadImage(path+assetVersion)}catch{throw Error('โหลดไฟล์ทรงผมไม่สำเร็จ: '+path+' · กรุณาอัปโหลดไฟล์ใน ZIP ให้ครบ')}};
    const [cutout,preview]=await Promise.all([hairAsset(`/assets/hair/${hairId}.png`),hairAsset(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
@@ -1540,7 +1540,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
    }
    if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId)){
     const reference=canvasFor(preview.naturalWidth,preview.naturalHeight);reference.getContext('2d').drawImage(preview,0,0);
-    const maleGuide=createMaleSideburnGuide(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,reference.width,reference.height,face,calibration.sourceToReference,MALE_SIDEBURN_ANCHORS[hairId]);
+    const maleGuide=createMaleSideburnGuide(c.getContext('2d').getImageData(0,0,c.width,c.height).data,c.width,c.height,reference.getContext('2d').getImageData(0,0,reference.width,reference.height).data,reference.width,reference.height,face,calibration.sourceToReference,calibration.freshSideburnGuide?undefined:MALE_SIDEBURN_ANCHORS[hairId]);
     return {cutout:c,face,bounds,calibration,hairGuide:null,hairGuideNative:false,maleGuide,w:preview.naturalWidth,h:preview.naturalHeight};
    }
    const referenceSkin=await semanticClassMask(preview,preview.naturalWidth,preview.naturalHeight,[2,3]);
@@ -2395,24 +2395,9 @@ const COLLAR_PIN_OPTIONS=[
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=[
- {id:'manhair-30',name:'ทรงผม 1',src:'/assets/hairstyle-previews/manhair-30.webp'},
- {id:'manhair-31',name:'ทรงผม 2',src:'/assets/hairstyle-previews/manhair-31.webp'},
- {id:'manhair-32',name:'ทรงผม 3',src:'/assets/hairstyle-previews/manhair-32.webp'},
- {id:'manhair-33',name:'ทรงผม 4',src:'/assets/hairstyle-previews/manhair-33.webp'},
- {id:'manhair-34',name:'ทรงผม 5',src:'/assets/hairstyle-previews/manhair-34.webp'},
- {id:'manhair-35',name:'ทรงผม 6',src:'/assets/hairstyle-previews/manhair-35.webp'},
- {id:'manhair-36',name:'ทรงผม 7',src:'/assets/hairstyle-previews/manhair-36.webp'},
- {id:'manhair-37',name:'ทรงผม 8',src:'/assets/hairstyle-previews/manhair-37.webp'},
- {id:'manhair-38',name:'ทรงผม 9',src:'/assets/hairstyle-previews/manhair-38.webp'},
- {id:'manhair-39',name:'ทรงผม 10',src:'/assets/hairstyle-previews/manhair-39.webp'},
- {id:'manhair-40',name:'ทรงผม 11',src:'/assets/hairstyle-previews/manhair-40.webp'},
- {id:'manhair-23',name:'ทรงผม 20',src:'/assets/hairstyle-previews/manhair-23.png'},
- {id:'manhair-24',name:'ทรงผม 21',src:'/assets/hairstyle-previews/manhair-24.png'},
- {id:'manhair-25',name:'ทรงผม 22',src:'/assets/hairstyle-previews/manhair-25.png'},
- {id:'manhair-26',name:'ทรงผม 23',src:'/assets/hairstyle-previews/manhair-26.png'},
- {id:'manhair-27',name:'ทรงผม 24',src:'/assets/hairstyle-previews/manhair-27.png'},
- {id:'manhair-28',name:'ทรงผม 25',src:'/assets/hairstyle-previews/manhair-28.png'},
- {id:'manhair-29',name:'ทรงผม 26',src:'/assets/hairstyle-previews/manhair-29.png'},
+ {id:'manhair-01',name:'ทรงผม 1',src:'/assets/hairstyle-previews/manhair-01.webp?v=85'},
+ {id:'manhair-02',name:'ทรงผม 2',src:'/assets/hairstyle-previews/manhair-02.webp?v=85'},
+ {id:'manhair-03',name:'ทรงผม 3',src:'/assets/hairstyle-previews/manhair-03.webp?v=85'},
 ];
 const HAIR_OPTIONS=[
  {id:'hair-01',name:'ทรงผม 1',src:'/assets/hairstyle-previews/hair-01.webp'},
