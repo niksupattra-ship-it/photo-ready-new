@@ -3,16 +3,16 @@
 export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  "hair-01": {
   "sourceToReference": [
-    0.31291974,
+    0.24766261181687707,
     0,
     0,
-    0.31291974,
-    4.570188,
-    -0.564066
+    0.24766261181687707,
+    25.375161165441042,
+    -20.083174493124762
   ],
   "sourceSize": [
-    1254,
-    1254
+    1349,
+    1764
   ],
   "referenceSize": [
     400,
