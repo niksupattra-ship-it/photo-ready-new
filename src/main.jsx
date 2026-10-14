@@ -1524,7 +1524,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   const pending=(async()=>{
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
    // Replaced 2–5 assets must not reuse the old pattern/reference browser cache.
-   const assetVersion=hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':/^hair-0[6-7]$/.test(hairId)?'?v=authored-pair-77':'';
+   const assetVersion=hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-81':hairId==='hair-07'?'?v=authored-pair-82':'';
    const hairAsset=async path=>{try{return await loadImage(path+assetVersion)}catch{throw Error('โหลดไฟล์ทรงผมไม่สำเร็จ: '+path+' · กรุณาอัปโหลดไฟล์ใน ZIP ให้ครบ')}};
    const [cutout,preview]=await Promise.all([hairAsset(`/assets/hair/${hairId}.png`),hairAsset(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
