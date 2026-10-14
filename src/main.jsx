@@ -2630,12 +2630,11 @@ function App(){
  <div className="idprom-credit-notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M7 14h3m5 1h2M7 5V3h10v2"/></svg></div>
  <span className="idprom-credit-notice-brand">IDพร้อม Studio</span>
  <h2 id="credit-notice-title">{trialChoice.purchased?'เครดิตของคุณหมดแล้ว':'สิทธิ์ทดลองวันนี้หมดแล้ว'}</h2>
- <p id="credit-notice-description" className="idprom-credit-notice-intro">{trialChoice.purchased?'บันทึกงานไว้ เพื่อเก็บรูปไม่มีลายน้ำ':'ทดลองใช้ฟรีวันละ 2 ครั้ง เริ่มใหม่ได้วันถัดไป'}</p>
- {trialChoice.purchased&&<div className="idprom-credit-notice-saved"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h12l4 4v14H3V3h2zM7 3v6h10V3M7 21v-8h10v8"/></svg><p>งานที่บันทึกแล้วเปิดกลับมาได้เสมอ<span>รูปเดิมยังไม่มีลายน้ำ แม้เครดิตเหลือ 0</span></p></div>}
- <div className={'idprom-credit-notice-quota'+(trialChoice.remaining>0?' available':'')}><span>{trialChoice.remaining>0?`มีสิทธิ์ทดลองฟรี ${trialChoice.remaining} เครดิต`:'วันนี้ไม่มีสิทธิ์ทดลองฟรีเหลือแล้ว'}</span>{trialChoice.remaining>0&&<small>รูปมีลายน้ำ</small>}</div>
- {trialChoice.remaining>0&&<p className="idprom-credit-notice-warning">หากเริ่มทดลอง รูปใหม่ที่มีลายน้ำจะแทนรูปเดิมในพื้นที่ทำงาน กรุณาบันทึกงานเดิมก่อน</p>}
+ {trialChoice.remaining>0&&<button className="idprom-credit-notice-trial idprom-credit-notice-trial-primary" onClick={()=>chooseTrial(true)}>ทดลองใช้งานฟรี (มีลายน้ำ)</button>}
+ <p id="credit-notice-description" className="idprom-credit-notice-intro">{trialChoice.remaining>0?`เหลือสิทธิ์ทดลอง ${trialChoice.remaining} ครั้ง`:'เริ่มทดลองใหม่ได้วันถัดไป'}</p>
+ {trialChoice.remaining>0&&<p className="idprom-credit-notice-warning">บันทึกงานเดิมก่อนทดลอง รูปใหม่จะแทนรูปเดิม</p>}
+ {trialChoice.purchased&&<p className="idprom-credit-notice-saved-compact">งานที่บันทึกแล้ว เปิดต่อได้โดยไม่มีลายน้ำ</p>}
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
- {trialChoice.remaining>0&&<button className="idprom-credit-notice-trial" onClick={()=>chooseTrial(true)}>ใช้สิทธิ์ทดลองฟรี (ลายน้ำ)</button>}
  </section></div>;
  const SavedWorkUI=()=> <><TrialChoiceUI/>{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{

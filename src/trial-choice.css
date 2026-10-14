@@ -26,3 +26,12 @@
 .idprom-credit-notice-buy span{margin-left:5px}
 .idprom-credit-notice-trial{margin-top:15px;padding:8px;background:transparent;color:#9fc5cb;font-size:12px!important;text-decoration:underline;text-underline-offset:4px;min-height:38px}
 @media(max-width:480px){.idprom-credit-notice-overlay{padding:16px}.idprom-credit-notice{padding:26px 20px 22px;border-radius:20px;max-height:calc(100dvh - 32px)}.idprom-credit-notice h2{font-size:22px}.idprom-credit-notice-intro{font-size:13px}.idprom-credit-notice-actions{gap:8px}}
+
+/* Compact notice: primary trial action, existing eligibility and handlers unchanged. */
+.idprom-credit-notice .idprom-credit-notice-trial-primary{display:block;width:100%;margin:18px 0 8px;padding:14px 12px;min-height:52px;border-radius:12px;background:#53dccc;color:#082d30;font-size:16px!important;font-weight:750;text-decoration:none;box-shadow:0 5px 18px #53dccc20;line-height:1.5}
+.idprom-credit-notice .idprom-credit-notice-trial-primary:hover{background:#75eddf}
+.idprom-credit-notice .idprom-credit-notice-intro{margin:10px 0 14px;font-size:13px}
+.idprom-credit-notice .idprom-credit-notice-warning{text-align:center;margin:0 0 14px;line-height:1.7}
+.idprom-credit-notice-saved-compact{margin:0 0 20px;color:#91b0b8;font-size:12px;line-height:1.7}
+.idprom-credit-notice .idprom-credit-notice-buy{background:#284b54;color:#a6f1e5;border:1px solid #4c827e}
+.idprom-credit-notice .idprom-credit-notice-buy:hover{background:#345d65}
