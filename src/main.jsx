@@ -2047,7 +2047,7 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'&&(!hairId||hairId==='original')?'male-short-open-forehead-face-skin-neck-locked-v13':'complete-new-hair-open-forehead-no-ear-tails-v12']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'&&(!hairId||hairId==='original')?'male-short-open-forehead-face-skin-neck-locked-v13':options.portraitMode==='female'?'female-center-part-open-forehead-no-ear-tails-v14':'complete-new-hair-open-forehead-no-ear-tails-v12']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
