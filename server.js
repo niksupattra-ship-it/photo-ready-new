@@ -194,7 +194,7 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 registerMakeupApi(app,{upload,requireCredit,commitCredit,refundCredit,getWallet,walletId});
-registerYoucamHairApi(app,{upload,dir,walletId,getWallet});
+registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
