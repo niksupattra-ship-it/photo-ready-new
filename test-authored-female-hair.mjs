@@ -85,8 +85,9 @@ function pngMetadata(path){
  const bytes=fs.readFileSync(new URL(path,import.meta.url));assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
  return {width:bytes.readUInt32BE(16),height:bytes.readUInt32BE(20),colorType:bytes[25]};
 }
-test('female hairstyle 30 is appended once in both pickers and remains a two-layer style',()=>{
- for(const file of ['src/main.jsx','main.jsx']){
+test('female hairstyle 30 is appended once in the active frontend and remains a two-layer style',()=>{
+ assert.match(fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),/<script\b[^>]*\btype=["']module["'][^>]*\bsrc=["']\/src\/main\.jsx["']/);
+ for(const file of ['src/main.jsx']){
   const source=fs.readFileSync(new URL(file,import.meta.url),'utf8'),start=source.indexOf('const HAIR_OPTIONS='),end=source.indexOf('const JOB_UNIFORMS=',start);
   const options=vm.runInNewContext(source.slice(start,end)+'\nHAIR_OPTIONS');
   assert.equal(options.length,27);assert.equal(options.at(-1).id,'hair-30');assert.equal(options.at(-1).name,'ทรงผม 30');assert.equal(options.at(-1).src,'/assets/hairstyle-previews/hair-30.png');
@@ -103,7 +104,7 @@ test('authored front and rear keep native resolution and share a calibrated crow
  for(const path of ['public/assets/hair/hair-30.png','public/assets/hair/hair-30-back.png'])assert.deepEqual(pngMetadata(path),{width:1128,height:1188,colorType:6});
  const preview=pngMetadata('public/assets/hairstyle-previews/hair-30.png');assert.equal(preview.width,1128);assert.equal(preview.height,1536);
 });
-for(const file of ['src/main.jsx','main.jsx'])test(`${file}: authored fine strands, detached pixels and native alpha survive placement`,async()=>{
+for(const file of ['src/main.jsx'])test(`${file}: authored fine strands, detached pixels and native alpha survive placement`,async()=>{
  const f=fixture({file}),frontBefore=new Uint8ClampedArray(f.front.data),backBefore=new Uint8ClampedArray(f.back.data),headBefore=new Uint8ClampedArray(f.target.data);
  const result=await f.pipeline.prepareStudioHairOverlay(f.target,'hair-30');
  bytesEqual(result.source.data,frontBefore,'authored front must not be cleaned, clipped or liquified');bytesEqual(result.backSource.data,backBefore,'authored rear must not be cleaned, clipped or liquified');

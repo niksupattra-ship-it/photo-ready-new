@@ -25,4 +25,4 @@ test('male first portrait cache invalidates old grooming results while all other
   if(portraitMode==='male'&&(!hairId||hairId==='original')){assert.notDeepEqual(current,previous);assert.equal(current.at(-1),'male-short-open-forehead-face-skin-neck-locked-v13');assert.deepEqual(current.slice(0,-1),previous.slice(0,-1))}else assert.deepEqual(current,previous);
  }
 });
-test('both frontend entry files carry the same narrowly scoped cache change',()=>{assert.equal(fs.readFileSync(new URL('./main.jsx',import.meta.url),'utf8'),client)});
+test('the frontend loads the src module that implements the portrait cache',()=>{assert.match(fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),/<script\b[^>]*\btype=["']module["'][^>]*\bsrc=["']\/src\/main\.jsx["']/)});

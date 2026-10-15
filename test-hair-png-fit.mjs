@@ -18,8 +18,9 @@ import {HAIR_TEMPLATE_ANCHORS} from './src/hair-template-anchors.js';
 import {HAIRSTYLE_RULES} from './hairstyle-rules.js';
 
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
-test('male style 1 comes first, followed by styles 20–26; archived new 01–10 remain unavailable in both entrypoints',()=>{
- for(const file of ['src/main.jsx','main.jsx']){
+test('male style 1 comes first, followed by styles 20–26; archived new 01–10 remain unavailable in the active frontend',()=>{
+ assert.match(fs.readFileSync(new URL('./index.html',import.meta.url),'utf8'),/<script\b[^>]*\btype=["']module["'][^>]*\bsrc=["']\/src\/main\.jsx["']/);
+ for(const file of ['src/main.jsx']){
   const source=fs.readFileSync(new URL(file,import.meta.url),'utf8'),start=source.indexOf('const MALE_HAIR_OPTIONS='),end=source.indexOf('const HAIR_OPTIONS=',start),options=vm.runInNewContext(source.slice(start,end)+'\nMALE_HAIR_OPTIONS');
   assert.deepEqual(Array.from(options,item=>item.id),['manhair-30',...Array.from({length:7},(_,i)=>'manhair-'+(i+23))]);assert.equal(options[0].name,'ทรงผม 1');assert.equal(options[0].src,'/assets/hairstyle-previews/manhair-30.png');assert.ok(options.every(item=>!item.name.startsWith('ทรงใหม่')));
  }
