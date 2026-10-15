@@ -91,8 +91,10 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const processRequestRef=useRef(false);
  const [hairPlacementProgress,setHairPlacementProgress]=useState(null);
  const [hairAiRemaining,setHairAiRemaining]=useState(null);
- const refreshHairAiAccess=async()=>{const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head?.jobId||!onHairAiAccess)return;try{const a=await onHairAiAccess(head.jobId);setHairAiRemaining(a.unlimited?null:a.remaining)}catch{setHairAiRemaining(null)}};
- useEffect(()=>{if(picker==='hair')void refreshHairAiAccess()},[picker,layers]);
+ const hairAccessRequest=useRef(0);
+ const hairAccessJob=layers.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม')?.jobId||'';
+ const refreshHairAiAccess=async()=>{const request=++hairAccessRequest.current;const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head?.jobId||!onHairAiAccess){setHairAiRemaining(null);return}try{const a=await onHairAiAccess(head.jobId);if(mounted.current&&request===hairAccessRequest.current)setHairAiRemaining(a.unlimited?null:a.remaining)}catch{if(mounted.current&&request===hairAccessRequest.current)setHairAiRemaining(null)}};
+ useEffect(()=>{if(picker==='hair')void refreshHairAiAccess()},[picker,hairAccessJob,assetBusy]);
  const hairRailPositions=useRef({female:0,male:0});
  const hairUiFrame=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
  useEffect(()=>{if(picker==='hair'&&catalogRailRef.current)catalogRailRef.current.scrollLeft=hairRailPositions.current[hairGender]},[picker,hairGender]);

@@ -1627,10 +1627,11 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  const fd=new FormData();fd.append('image',upload,'portrait.jpg');fd.append('hairId',hairId);fd.append('sourceJobId',options.sourceJobId||'');
  const response=await fetch('/api/youcam/hair/jobs',{method:'POST',headers:walletHeaders(),body:fd});const info=await response.json();if(!response.ok)throw Error(info.message||'เริ่มงาน YouCam ไม่สำเร็จ');
  try{
- let completed=false;
+ let completed=false,pollFailures=0;
  for(let count=0;count<390;count++){
   await new Promise(r=>setTimeout(r,2000));
-  const r=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId),{headers:walletHeaders(),cache:'no-store'}),status=await r.json();if(!r.ok||status.status==='failed')throw Error(status.message||'YouCam เปลี่ยนทรงผมไม่สำเร็จ');options.onProgress?.(status.progress||5);
+  let r,status;try{r=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.status>=500)throw Error('เซิร์ฟเวอร์ขัดข้องชั่วคราว');status=await r.json();pollFailures=0}catch(e){if(++pollFailures<4)continue;throw Error('การเชื่อมต่อสะดุด กรุณาลองเลือกทรงเดิมอีกครั้ง')}
+  if(!r.ok||status.status==='failed')throw Error(status.message||'YouCam เปลี่ยนทรงผมไม่สำเร็จ');options.onProgress?.(status.progress||5);
   if(status.status==='completed'){completed=true;break;}
  }
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
@@ -1646,7 +1647,7 @@ async function requestYoucamStudioHair(target,hairId,options={}){
   const width=generated.naturalWidth*fit,height=generated.naturalHeight*fit;
   ox.drawImage(generated,(W-width)/2,(H-height)/2,width,height);
   const cleanedHeadSource=out.toDataURL('image/png');
-  const confirmed=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(!confirmed.ok)throw Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่');
+  let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
   return {aiComposed:true,cleanedHeadSource};
  }finally{URL.revokeObjectURL(u)}
  }catch(e){await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/cancel',{method:'POST',headers:walletHeaders()}).catch(()=>{});throw e}
