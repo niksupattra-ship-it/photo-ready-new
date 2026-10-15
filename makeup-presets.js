@@ -1,8 +1,9 @@
-// Reference looks only. The retired prompt-based cosmetic presets are no longer offered.
+// Female makeup references shared by the Studio picker and YouCam transfer API.
 export const MAKEUP_LOOKS=[
- {id:'youcam-rose-glow',name:'โรสโกลว์ละมุน',description:'ชมพูกุหลาบ ปากฉ่ำละมุน',reference:'rose-glow.jpg'},
- {id:'youcam-pink-glitter',name:'พิงก์กลิตเตอร์',description:'ตาประกาย อายไลเนอร์คม ปากชมพู',reference:'pink-glitter.jpg'},
- {id:'youcam-soft-pink-matte',name:'ซอฟต์พิงก์แมตต์',description:'ชมพูบางเบา ปากฟุ้งแมตต์',reference:'soft-pink-matte.jpg'},
- {id:'youcam-peach-rose',name:'พีชโรสฉ่ำ',description:'พีชกุหลาบ ผิวฉ่ำสุขภาพดี',reference:'peach-rose.jpg'}
+ {id:'youcam-female-natural-01',name:'ธรรมชาติสุภาพ',description:'ตาน้ำตาลบางเบา แก้มระเรื่อ ปากนู้ดกุหลาบสุภาพ',reference:'female-natural-01.jpg'},
+ {id:'youcam-female-soft-pink-02',name:'ชมพูอ่อน',description:'แก้มชมพูอ่อน ปากชมพูละมุน ดวงตานุ่มนวล',reference:'female-soft-pink-02.jpg'},
+ {id:'youcam-female-peach-03',name:'พีช',description:'แก้มพีชอบอุ่น ปากพีชกุหลาบ แต่งตาโทนอ่อน',reference:'female-peach-03.jpg'},
+ {id:'youcam-female-nude-brown-04',name:'น้ำตาลนู้ด',description:'ตาน้ำตาลเทา แก้มเบจอมกุหลาบ ปากน้ำตาลนู้ด',reference:'female-nude-brown-04.jpg'},
+ {id:'youcam-female-muted-rose-05',name:'กุหลาบหม่น',description:'แก้มกุหลาบหม่น ปากดัสตี้โรส ตากุหลาบน้ำตาล',reference:'female-muted-rose-05.jpg'}
 ].map(look=>({...look,gender:'female',preview:'/assets/makeup/looks/'+look.id+'.webp'}));
 export function makeupLook(id){return MAKEUP_LOOKS.find(look=>look.id===id)||null}
