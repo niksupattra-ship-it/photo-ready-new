@@ -6,3 +6,12 @@
 .idstudio.studio-touch .studio-mobile-file-options>button:active,.idstudio.studio-touch .studio-mobile-file-options>button:focus-visible{background:#285657;outline:2px solid #64d7cb;outline-offset:-2px}
 .idstudio.studio-touch .studio-floating-history:not(.active):not([aria-expanded=true]){border-color:transparent;box-shadow:0 4px 16px #0004}
 .idstudio.studio-touch .studio-floating-history.active,.idstudio.studio-touch .studio-floating-history[aria-expanded=true],.idstudio.studio-touch .studio-floating-history:not(:disabled):active,.idstudio.studio-touch .studio-floating-history:focus-visible{border-color:#64d7cb;box-shadow:0 0 0 1px #64d7cb,0 4px 16px #0006}
+
+.idstudio.studio-touch .studio-touch-header{gap:6px}
+.idstudio.studio-touch .studio-touch-header>strong{min-width:0;flex:1;font-size:clamp(11px,3.2vw,16px);white-space:nowrap}
+.idstudio.studio-touch .studio-touch-header-actions{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-upload,.idstudio.studio-touch .studio-touch-header-actions>.studio-header-credits{min-height:40px;height:40px;display:flex;align-items:center;justify-content:center;gap:4px;padding:6px;border:1px solid #3a555e;border-radius:10px;background:#20353f;color:#bcece7;font-size:11px;white-space:nowrap}
+.idstudio.studio-touch .studio-header-upload .studio-png-icon{width:19px;height:19px}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-credits{min-width:47px;font-size:13px;font-variant-numeric:tabular-nums}
+.idstudio.studio-touch .studio-header-process-progress{padding:0 10px 5px;background:#14242c}
+.idstudio.studio-touch .studio-header-process-progress>progress{display:block;width:100%;height:3px;accent-color:#58d8c9}
