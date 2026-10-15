@@ -1,9 +1,5 @@
-// Female makeup references shared by the Studio picker and YouCam transfer API.
+// Local cosmetic looks shared by the Studio picker and on-device renderer.
 export const MAKEUP_LOOKS=[
- {id:'youcam-female-natural-01-soft-glow-v2',name:'ธรรมชาติสุภาพ',description:'ผิวเนียนสว่าง ชมพูธรรมชาติ ประกายบางเบา ขนตางอนและไลเนอร์เส้นบาง',reference:'female-natural-01-soft-glow-v2.jpg'},
- {id:'youcam-female-soft-pink-02-soft-glow-v2',name:'ชมพูอ่อน',description:'ผิวเนียนฟุ้ง แก้มปากชมพูละมุน ตาประกายมุก ขนตางอนและไลเนอร์',reference:'female-soft-pink-02-soft-glow-v2.jpg'},
- {id:'youcam-female-peach-03-soft-glow-v2',name:'พีช',description:'ผิวสว่างฉ่ำ แก้มพีชอมชมพู ปากพีชกุหลาบ ขนตาและไลเนอร์ละมุน',reference:'female-peach-03-soft-glow-v2.jpg'},
- {id:'youcam-female-nude-brown-04-soft-glow-v2',name:'น้ำตาลนู้ด',description:'ผิวเนียนผ่อง ปากนู้ดน้ำตาลอมชมพู ตาประกายแชมเปญ ขนตาและไลเนอร์',reference:'female-nude-brown-04-soft-glow-v2.jpg'},
- {id:'youcam-female-muted-rose-05-soft-glow-v2',name:'กุหลาบหม่น',description:'ผิวเนียนสว่าง แก้มปากกุหลาบหม่น ประกายละมุน ขนตางอนและไลเนอร์',reference:'female-muted-rose-05-soft-glow-v2.jpg'}
-].map(look=>({...look,gender:'female',preview:'/assets/makeup/looks/'+look.id+'.webp'}));
+ {id:'local-natural-pink-v1',name:'ชมพูธรรมชาติ',gender:'female',description:'ผิวสว่างเนียนนุ่ม คงรายละเอียดใบหน้า ปากชมพูโปร่งบางเงาซาติน ขนตาบางธรรมชาติ และเปลือกตาชมพูระเรื่อ'}
+];
 export function makeupLook(id){return MAKEUP_LOOKS.find(look=>look.id===id)||null}

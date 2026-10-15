@@ -11,7 +11,6 @@ import multer from "multer";
 import path from "path";
 import crypto from "crypto";
 import sharp from "sharp";
-import {registerMakeupApi} from './makeup-api.js';
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
@@ -193,7 +192,6 @@ const upload=multer({
   storage:multer.memoryStorage(),
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
-registerMakeupApi(app,{upload,dir,getWallet,walletId,hasPrivateTrial});
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
