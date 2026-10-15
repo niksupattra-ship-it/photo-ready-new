@@ -1625,7 +1625,7 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  const input=canvasFor(Math.round(W*scale),Math.round(H*scale)),ix=input.getContext('2d');ix.fillStyle='#ffffff';ix.fillRect(0,0,input.width,input.height);ix.drawImage(target,0,0,input.width,input.height);
  const upload=await new Promise((resolve,reject)=>input.toBlob(b=>b?resolve(b):reject(Error('เตรียม JPG ไม่สำเร็จ')),'image/jpeg',.95));
  const fd=new FormData();fd.append('image',upload,'portrait.jpg');fd.append('hairId',hairId);fd.append('sourceJobId',options.sourceJobId||'');
- const response=await fetch('/api/youcam/hair/jobs',{method:'POST',headers:walletHeaders(),body:fd});const info=await response.json();if(!response.ok)throw Error(info.message||'เริ่มงาน YouCam ไม่สำเร็จ');
+ const response=await fetch('/api/youcam/hair/jobs',{method:'POST',headers:walletHeaders(),body:fd});const info=await response.json();if(!response.ok)throw Object.assign(Error(info.message||'เริ่มงาน YouCam ไม่สำเร็จ'),{code:info.error||''});
  try{
  let completed=false,pollFailures=0;
  for(let count=0;count<390;count++){
