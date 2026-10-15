@@ -1,56 +1,39 @@
+import {MAKEUP_LOOKS} from './makeup-presets.js';
+import {hasPrivateTrial as verifiedPrivateTrial} from './private-trial.js';
+import {hairAiAccess,reserveHairAi,settleHairAi} from './youcam-hair-rights.js';
 import sharp from 'sharp';
-import {createHash} from 'node:crypto';
-import {performance} from 'node:perf_hooks';
-import {validateMakeupStyles,makeupPrompt} from './makeup-presets.js';
-
-// Unlimited makeup: no wallet reservation, deduction or daily-trial usage.
-// Separate route and prompt; the existing face/skin/neck pipeline is untouched.
-export function registerMakeupApi(app,{upload,fetchImpl=(...args)=>fetch(...args)}){
- // Short-lived exact-input cache; no portraits or outputs are written to disk.
- const cache=new Map(),pending=new Map(),TTL=10*60*1000,MAX_BYTES=64*1024*1024;
- let cacheBytes=0;
- const prune=()=>{const now=Date.now();for(const [id,item] of cache){if(item.until<=now){cache.delete(id);cacheBytes-=item.png.length}}while(cache.size>16||cacheBytes>MAX_BYTES){const id=cache.keys().next().value;cacheBytes-=cache.get(id).png.length;cache.delete(id)}};
- const remember=(id,png)=>{prune();if(png.length>MAX_BYTES)return;if(cache.has(id))cacheBytes-=cache.get(id).png.length;cache.delete(id);cache.set(id,{png,until:Date.now()+TTL});cacheBytes+=png.length;prune()};
- app.post('/api/makeup/edit' ,upload.single('image'),async(req,res)=>{
-  const started=performance.now(),timings=[];let pendingId=null,finish=null,fail=null;
-  const timed=(name,from)=>timings.push(`${name};dur=${(performance.now()-from).toFixed(1)}`);
-  const send=png=>{timed('total',started);res.set('Server-Timing',timings.join(', '));return res.set('Cache-Control','no-store').type('png').send(png)};
-  try{
-   if(!req.file) return res.status(400).json({message:'ไม่พบรูปสำหรับเมคอัพ'});
-   let styles;try{styles=validateMakeupStyles(JSON.parse(req.body?.styles||'null'))}catch(e){return res.status(400).json({message:e.message})}
-   const key=process.env.ARK_API_KEY;if(!key)return res.status(503).json({message:'ยังไม่ได้ตั้งค่า AI บนเซิร์ฟเวอร์'});
-   const prepStarted=performance.now();
-   const metadata=await sharp(req.file.buffer,{limitInputPixels:33554432}).metadata();
-   if(!metadata.width||!metadata.height||metadata.width*metadata.height>33554432)throw Error('ขนาดภาพไม่ถูกต้อง');
-   // Browser uploads are already oriented PNGs. Avoid recompressing unchanged pixels.
-   const input=metadata.format==='png'&&(!metadata.orientation||metadata.orientation===1)?req.file.buffer:await sharp(req.file.buffer,{limitInputPixels:33554432}).rotate().png().toBuffer();
-   timed('prepare',prepStarted);
-   const model=process.env.ARK_MODEL||'dola-seedream-5-0-pro-260628',prompt=makeupPrompt(styles);
-   const id=createHash('sha256').update(model).update('\0').update(prompt).update('\0').update(input).digest('hex');
-   prune();const cached=cache.get(id);
-   if(cached){cache.delete(id);cache.set(id,cached);timings.push('cache;dur=0;desc="Reused exact result"');return send(cached.png)}
-   if(pending.has(id)){const waiting=performance.now(),png=await pending.get(id);timed('shared_wait',waiting);return send(png)}
-   // Coalesce duplicate calls without imposing a queue on different portraits/looks.
-   if(pending.size<16){pendingId=id;const promise=new Promise((resolve,reject)=>{finish=resolve;fail=reject});promise.catch(()=>{});pending.set(id,promise)}
-   const signal=AbortSignal.timeout(150000),aiStarted=performance.now();
-   const r=await fetchImpl('https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',{
-    method:'POST',signal,headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},
-    body:JSON.stringify({model,prompt,image:`data:image/png;base64,${input.toString('base64')}`,size:'2K',output_format:'png',response_format:'url',watermark:false})
-   });
-   const body=await r.json();if(!r.ok||!body?.data?.[0]?.url)throw Error('AI ยังแต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง');
-   timed('ai',aiStarted);const downloadStarted=performance.now();
-   const out=await fetchImpl(body.data[0].url,{signal});if(!out.ok)throw Error('โหลดผลเมคอัพไม่สำเร็จ');
-   const result=Buffer.from(await out.arrayBuffer());
-   timed('result_download',downloadStarted);const outputStarted=performance.now();
-   const resultMetadata=await sharp(result,{limitInputPixels:33554432}).metadata();
-   if(!resultMetadata.width||!resultMetadata.height||resultMetadata.width*resultMetadata.height>33554432)throw Error('ขนาดผลเมคอัพไม่ถูกต้อง');
-   // The requested PNG is delivered as-is, preserving the provider's full detail.
-   const png=resultMetadata.format==='png'?result:await sharp(result,{limitInputPixels:33554432}).png().toBuffer();
-   timed('output',outputStarted);remember(id,png);finish?.(png);send(png);
-  }catch(e){
-   fail?.(e);
-   console.error('Makeup:',e.message);
-   res.status(502).json({message:'แต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง'});
-  }finally{if(pendingId)pending.delete(pendingId)}
- });
+import {readFile} from 'node:fs/promises';
+import {createHash,randomUUID} from 'node:crypto';
+import path from 'node:path';
+export const MAKEUP_REFS=Object.freeze(Object.fromEntries(MAKEUP_LOOKS.map(look=>[look.id,look.reference])));
+const BASE='https://yce-api-01.makeupar.com';
+export function registerMakeupApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial=verifiedPrivateTrial,fetchImpl=(...a)=>fetch(...a),wait=ms=>new Promise(r=>setTimeout(r,ms)),now=()=>Date.now()}){
+ const jobs=new Map(),exact=new Map(),submitting=new Set();const TTL=20*60*1000,MAX_BYTES=64*1024*1024;
+ const prune=()=>{for(const [id,j]of jobs)if(j.status!=='running'&&now()-j.updated>TTL){jobs.delete(id);exact.delete(j.key)}let bytes=[...jobs.values()].reduce((s,j)=>s+(j.png?.length||0),0);for(const [id,j]of jobs){if(bytes<=MAX_BYTES&&jobs.size<=32)break;if(j.status!=='running'){bytes-=j.png?.length||0;jobs.delete(id);exact.delete(j.key)}}};
+ const api=async(endpoint,token,body)=>{const r=await fetchImpl(BASE+endpoint,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(45000)});const data=await r.json();if(!r.ok||Number(data.status)>=400)throw Error(`YouCam: ${data.error_message||data.error_code||data.error||r.status}`);return data.data;};
+ const uploadFile=async(buffer,name,token)=>{const data=await api('/s2s/v2.0/file',token,{files:[{content_type:'image/jpeg',file_name:name,file_size:buffer.length}]});const file=data?.files?.[0];if(!file?.file_id||!file.requests?.length)throw Error('YouCam ไม่ส่งข้อมูลอัปโหลดรูป');for(const request of file.requests){const u=new URL(request.url);if(u.protocol!=='https:')throw Error('URL อัปโหลดไม่ถูกต้อง');const r=await fetchImpl(u,{method:request.method||'PUT',headers:request.headers||{'Content-Type':'image/jpeg'},body:buffer,signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error(`อัปโหลดรูปไป YouCam ไม่สำเร็จ (${r.status})`);}return file.file_id;};
+ const work=async(j,input,ref,token)=>{try{
+  const src=await uploadFile(input,'portrait.jpg',token),reference=await uploadFile(ref,'makeup-reference.jpg',token);j.progress=20;
+  const created=await api('/s2s/v2.0/task/mu-transfer',token,{src_file_id:src,ref_file_id:reference});if(!created?.task_id)throw Error('YouCam ไม่ส่งหมายเลขงาน');
+  for(let count=0;count<60;count++){await wait(10000);if(j.cancelled)return;const result=await api('/s2s/v2.0/task/mu-transfer/'+encodeURIComponent(created.task_id),token);j.updated=now();j.progress=Math.min(90,25+count*2);if(result?.task_status==='error')throw Error(`YouCam: ${result.error_message||result.error||'แต่งเมคอัพไม่สำเร็จ'}`);if(result?.task_status!=='success')continue;
+   const url=result.results?.url||result.url;if(!url||new URL(url).protocol!=='https:')throw Error('YouCam ไม่ส่งรูปผลลัพธ์');const r=await fetchImpl(url,{signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error('ดาวน์โหลดผล YouCam ไม่สำเร็จ');const raw=Buffer.from(await r.arrayBuffer());if(raw.length>20*1024*1024)throw Error('รูปผลลัพธ์ใหญ่เกินกำหนด');const png=await sharp(raw,{limitInputPixels:33554432}).rotate().png().toBuffer();if(j.cancelled)return;j.png=png;j.status='completed';j.progress=100;j.updated=now();prune();return;
+  }throw Error('YouCam ใช้เวลานานเกินกำหนด กรุณาลองใหม่ภายหลัง');
+ }catch(e){await settleHairAi(j.usageId,false).catch(()=>{});j.status='failed';j.error=String(e.message||'YouCam ไม่พร้อมใช้งาน');j.updated=now();exact.delete(j.key);}};
+ app.get('/api/makeup/access',async(req,res)=>{try{const owner=walletId(req);if(!owner||!await getWallet(owner))return res.status(401).json({message:'กรุณาเข้าสู่ระบบใหม่'});const a=hasPrivateTrial(req,owner)?{remaining:null,unlimited:true}:await hairAiAccess(owner,String(req.query.sourceJobId||''));res.set('Cache-Control','no-store').json(a)}catch(e){res.status(400).json({message:e.message})}});
+ app.post('/api/makeup/jobs/:id/confirm',async(req,res)=>{try{const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req)||j.status!=='completed')return res.status(409).json({message:'รูปยังไม่พร้อม'});await settleHairAi(j.usageId,true);j.confirmed=true;res.json({ok:true})}catch(e){res.status(409).json({message:e.message})}});
+ app.post('/api/makeup/jobs/:id/cancel',async(req,res)=>{try{const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req))return res.status(404).json({message:'ไม่พบงาน'});if(!j.confirmed){const settled=await settleHairAi(j.usageId,false);if(settled==='completed'){j.confirmed=true}else{j.cancelled=true;j.status='failed';j.error='ยกเลิกแล้ว';exact.delete(j.key)}}res.json({ok:true})}catch(e){res.status(500).json({message:e.message})}});
+ app.post('/api/makeup/jobs',upload.single('image'),async(req,res)=>{let submissionOwner=null,reservedUsage=null,started=false;try{
+  prune();const owner=walletId(req);if(!owner||!await getWallet(owner))return res.status(401).json({message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});
+  if(submitting.has(owner))return res.status(429).json({message:'กำลังเตรียมเมคอัพ กรุณารอสักครู่'});submitting.add(owner);submissionOwner=owner;
+  const file=MAKEUP_REFS[req.body?.lookId];if(!file||!req.file)return res.status(400).json({message:'ไม่พบรูปหรือเมคอัพที่เลือก'});
+  const token=process.env.YOUCAM_API_KEY?.trim();if(!token)return res.status(503).json({message:'ยังไม่ได้ตั้งค่า YOUCAM_API_KEY บนเซิร์ฟเวอร์'});
+  const input=await sharp(req.file.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:95}).toBuffer();
+  const ref=await readFile(path.join(dir,'public/assets/makeup/reference',file));const key=createHash('sha256').update(owner).update(String(req.body.sourceJobId||'')).update(req.body.lookId).update(input).update(ref).digest('hex');const found=jobs.get(exact.get(key));if(found)return res.json({jobId:found.id,status:found.status,progress:found.progress});
+  if([...jobs.values()].some(j=>j.owner===owner&&j.status==='running'))return res.status(429).json({message:'กรุณารอแต่งเมคอัพครั้งก่อนให้เสร็จก่อน'});
+  if([...jobs.values()].filter(j=>j.status==='running').length>=8)return res.status(429).json({message:'กำลังมีผู้ใช้งาน กรุณาลองใหม่สักครู่'});
+  const usageId=hasPrivateTrial(req,owner)?null:await reserveHairAi(owner,String(req.body.sourceJobId||''));if(!usageId&&!hasPrivateTrial(req,owner))return res.status(402).json({error:'ai_credit_required',message:'สิทธิ์แต่งเมคอัพ AI หมดแล้ว กรุณาเติมเครดิต · เลือกผลเดิมที่เคยแต่งไว้ได้'});
+  reservedUsage=usageId;const j={usageId,id:randomUUID(),owner,key,status:'running',progress:5,updated:now()};jobs.set(j.id,j);exact.set(key,j.id);res.status(202).json({jobId:j.id,status:j.status,progress:j.progress});started=true;void work(j,input,ref,token);
+ }catch(e){if(reservedUsage&&!started)await settleHairAi(reservedUsage,false).catch(()=>{});if(!res.headersSent)res.status(400).json({message:e.message||'เตรียมภาพไม่สำเร็จ'});}finally{if(submissionOwner)submitting.delete(submissionOwner)}});
+ app.get('/api/makeup/jobs/:id',(req,res)=>{prune();const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req))return res.status(404).json({message:'ไม่พบงาน YouCam กรุณาเลือกโทนใหม่'});res.set('Cache-Control','no-store').json({jobId:j.id,status:j.status,progress:j.progress,...(j.error?{message:j.error}:{})});});
+ app.get('/api/makeup/jobs/:id/image',(req,res)=>{prune();const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req)||j.status!=='completed')return res.status(404).json({message:'รูปยังไม่พร้อม'});res.set('Cache-Control','no-store').type('png').send(j.png);});
 }

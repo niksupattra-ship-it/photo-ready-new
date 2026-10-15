@@ -193,7 +193,7 @@ const upload=multer({
   storage:multer.memoryStorage(),
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
-registerMakeupApi(app,{upload,requireCredit,commitCredit,refundCredit,getWallet,walletId});
+registerMakeupApi(app,{upload,dir,getWallet,walletId,hasPrivateTrial});
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
