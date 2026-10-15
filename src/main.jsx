@@ -1614,7 +1614,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,'youcam-v1']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,'youcam-direct-v2']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1637,12 +1637,14 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  const cutout=await removeBackgroundBlob(await imageResponse.blob());
  const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
  const u=URL.createObjectURL(cutout);
- try{const generated=await loadImage(u),gf=landmarker.detect(generated).faceLandmarks?.[0];if(!gf)throw Error('ตรวจใบหน้าจาก YouCam ไม่ได้ · เก็บรูปเดิมไว้');
-  const out=alignFaceCanvas(generated,gf,face,W,H),ox=out.getContext('2d');
-  const [skin,hair]=await Promise.all([semanticClassMask(target,W,H,[2,3]),semanticClassMask(out,W,H,[1])]);if(!skin||!hair)throw Error('ตรวจผิวและผมไม่สำเร็จ · เก็บภาพเดิมไว้');
-  const old=original.getContext('2d').getImageData(0,0,W,H).data,px=ox.getImageData(0,0,W,H),sp=skin.getContext('2d').getImageData(0,0,W,H).data,hp=hair.getContext('2d').getImageData(0,0,W,H).data;
-  for(let i=0;i<px.data.length;i+=4){const t=sp[i+3]/255*(1-hp[i+3]/255);for(let k=0;k<4;k++)px.data[i+k]=px.data[i+k]*(1-t)+old[i+k]*t;}
-  ox.putImageData(px,0,0);return {aiComposed:true,cleanedHeadSource:out.toDataURL('image/png')};
+ try{
+  const generated=await loadImage(u);
+  // Preserve YouCam's composition without landmark realignment or skin replacement.
+  const out=canvasFor(W,H),ox=out.getContext('2d');
+  const fit=Math.min(W/generated.naturalWidth,H/generated.naturalHeight);
+  const width=generated.naturalWidth*fit,height=generated.naturalHeight*fit;
+  ox.drawImage(generated,(W-width)/2,(H-height)/2,width,height);
+  return {aiComposed:true,cleanedHeadSource:out.toDataURL('image/png')};
  }finally{URL.revokeObjectURL(u)}
 }
 // Processing and Studio use the same calibrated placement and ear contours.
