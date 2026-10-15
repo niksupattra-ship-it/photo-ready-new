@@ -525,7 +525,16 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(processActive||assetBusy||!ready)return;const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head?.makeupBaseSource||head.locked)return;
   setAssetBusy(true);try{const previous=historySnapshot(),next=previous.map(l=>l.id===head.id?{...l,source:l.makeupBaseSource,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupStyles:{},makeupBaseSource:null,makeupFullSource:null,makeupIntensity:100}:l);if(await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id)))){undo.current.push(previous);redo.current=[];setRevision(v=>v+1);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}setStatus('คืนภาพก่อนแต่งเมคอัพแล้ว · ไม่ใช้เครดิต')}}finally{setAssetBusy(false)}
  };
- const scrollCatalog=direction=>catalogRailRef.current?.scrollBy({left:direction*Math.max(160,catalogRailRef.current.clientWidth*.8),behavior:'smooth'});
+ const scrollCatalog=direction=>{
+  const rail=catalogRailRef.current;if(!rail)return;
+  if(picker==='hair'){
+   const cards=[...rail.children].filter(el=>el.tagName==='BUTTON');
+   const step=cards.length>1?Math.abs(cards[1].getBoundingClientRect().left-cards[0].getBoundingClientRect().left):cards[0]?.getBoundingClientRect().width;
+   if(step>0)rail.scrollBy({left:direction*step,behavior:'smooth'});
+   return;
+  }
+  rail.scrollBy({left:direction*Math.max(160,rail.clientWidth*.8),behavior:'smooth'});
+ };
  useEffect(()=>{if(!picker)return;if(picker!=='hair')catalogRailRef.current?.scrollTo({left:0});const close=e=>{if(e.key==='Escape'&&!processActive&&!assetBusy)setPicker(false)};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[picker,processActive,assetBusy]);
  // Recommended order applies only to the combined suit tab; category order stays intact.
  const popularSuitIds=['female-formal-suit','male-formal-tie-suit','female-operational','interior-01','female-white-shirt','male-white-shirt-v132','female-suit-03','male-suit-03','female-academic','interior-02','kmitl-female','kmitl-male'];
