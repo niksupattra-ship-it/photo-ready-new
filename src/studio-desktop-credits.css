@@ -1,0 +1,4 @@
+.idstudio:not(.studio-touch)>header .studio-desktop-credits{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;min-width:64px;padding:8px 12px;border:1px solid #3a555e;border-radius:10px;background:#20353f;color:#bcece7;font-size:15px;font-variant-numeric:tabular-nums}
+.idstudio:not(.studio-touch)>header .studio-desktop-credits svg{width:20px;height:19px;flex:none}
+.idstudio:not(.studio-touch)>header .studio-desktop-credits:hover{border-color:#64d7cb;background:#285154}
+.idstudio:not(.studio-touch)>header .studio-desktop-credits:focus-visible{outline:2px solid #64d7cb;outline-offset:3px}
