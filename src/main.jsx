@@ -1392,36 +1392,48 @@ function currentResultCacheScope(){
 }
 async function requestStudioMakeup(source,styles,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(source);
- const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b))]);
+ const key=JSON.stringify([scope,digest,options.sourceJobId||'',Object.entries(styles).sort(([a],[b])=>a.localeCompare(b)),'youcam-makeup-v1']);
  const result=await makeupResultCache.get(key,()=>requestStudioMakeupUncached(source,styles,options));
  if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
  return result.value;
 }
 async function requestStudioMakeupUncached(source,styles,options={}){
- const {original,W,H,landmarker,face,upload}=await prepareStudioMakeup(source);
- const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(original,0,0);
- const mask=makeupMask(face,W,H,styles),maskData=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
- const fd=new FormData();fd.append('image',upload,'makeup.png');fd.append('styles',JSON.stringify(styles));
- if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
- const response=await fetch('/api/makeup/edit',{method:'POST',body:fd,headers:walletHeaders(),signal:options.signal});
- updateCreditsFromResponse(response);
- if(!response.ok){const error=await response.json().catch(()=>null);throw Error(error?.message||'แต่งเมคอัพไม่สำเร็จ กรุณาลองอีกครั้ง')}
- const url=URL.createObjectURL(await response.blob());
+ const {original,W,H,face,upload}=await prepareStudioMakeup(source);
+ const abort=()=>{if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการแต่งเมคอัพแล้ว'),{name:'AbortError'})};abort();
+ const fd=new FormData();fd.append('image',upload,'portrait.png');fd.append('lookId',styles.look||'');fd.append('sourceJobId',options.sourceJobId||'');
+ const response=await fetch('/api/makeup/jobs',{method:'POST',body:fd,headers:walletHeaders(),signal:options.signal});
+ const info=await response.json();if(!response.ok)throw Object.assign(Error(info.message||'เริ่มแต่งเมคอัพไม่สำเร็จ'),{code:info.error||''});
  try{
-  const generated=await loadImage(url),freshFace=landmarker.detect(generated).faceLandmarks?.[0];
-  if(!freshFace)throw Error('ผลเมคอัพไม่ชัดเจน เก็บภาพเดิมไว้');
-  const aligned=alignFaceCanvas(generated,freshFace,face,W,H),cx=aligned.getContext('2d',{willReadFrequently:true});
-  // Reject a changed facial proportion rather than applying a shifted mouth/brow.
-  const eyeDistance=Math.hypot((face[33].x-face[263].x)*W,(face[33].y-face[263].y)*H);
-  const fromEye=Math.hypot((freshFace[33].x-freshFace[263].x)*generated.naturalWidth,(freshFace[33].y-freshFace[263].y)*generated.naturalHeight);
-  const ratio=f=>Math.hypot((f[1].x-(f[33].x+f[263].x)/2),(f[1].y-(f[33].y+f[263].y)/2))/Math.hypot(f[33].x-f[263].x,f[33].y-f[263].y);
-  if(!eyeDistance||!fromEye||Math.abs(ratio(face)-ratio(freshFace))>.12)throw Error('ผลเมคอัพเปลี่ยนสัดส่วนใบหน้า เก็บภาพเดิมไว้');
-  const pixels=bx.getImageData(0,0,W,H),ai=cx.getImageData(0,0,W,H).data;
-  const detailMask=styles.look?makeupMask(face,W,H,{brows:'natural',lips:'natural',lashes:'natural'}).getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data:null;
-  pixels.data.set(blendMakeupPixels(pixels.data,ai,maskData,detailMask?{width:W,height:H,detailMask}:null));bx.putImageData(pixels,0,0);
-  return base; // Keep full-resolution pixels; serialize only when saving the project.
- }finally{URL.revokeObjectURL(url)}
+  let completed=false,failures=0;
+  for(let count=0;count<390;count++){
+   abort();await new Promise(r=>setTimeout(r,2000));abort();
+   let r,status;try{r=await fetch('/api/makeup/jobs/'+encodeURIComponent(info.jobId),{headers:walletHeaders(),cache:'no-store',signal:options.signal});if(r.status>=500)throw Error('เซิร์ฟเวอร์ขัดข้องชั่วคราว');status=await r.json();failures=0}catch(e){abort();if(++failures<4)continue;throw Error('การเชื่อมต่อสะดุด กรุณาลองโทนเดิมอีกครั้ง')}
+   if(!r.ok||status.status==='failed')throw Error(status.message||'แต่งเมคอัพไม่สำเร็จ');
+   if(status.status==='completed'){completed=true;break}
+  }
+  if(!completed)throw Error('หมดเวลารอเมคอัพ กรุณาลองใหม่');abort();
+  const response=await fetch('/api/makeup/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store',signal:options.signal});if(!response.ok)throw Error('โหลดผลเมคอัพไม่สำเร็จ');
+  const blob=await response.blob();await checkPortraitProportions(upload,blob);abort();
+  const url=URL.createObjectURL(blob);
+  try{
+   const generated=await loadImage(url),out=canvasFor(W,H),ox=out.getContext('2d',{willReadFrequently:true});
+   const scale=Math.min(W/generated.naturalWidth,H/generated.naturalHeight),width=generated.naturalWidth*scale,height=generated.naturalHeight*scale;
+   ox.drawImage(generated,(W-width)/2,(H-height)/2,width,height);
+   const base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(original,0,0,W,H);
+   // Apply cosmetic pixels only inside the original face; original eyes, hair, ears,
+   // neck, alpha and everything outside the face keep their existing pixels.
+   const mask=makeupMask(face,W,H,{look:styles.look}),maskPixels=mask.getContext('2d').getImageData(0,0,W,H);
+   const hair=await semanticClassMask(original,W,H,[1]);if(!hair)throw Error('ตรวจขอบผมไม่สำเร็จ เก็บภาพเดิมไว้');
+   const hp=hair.getContext('2d').getImageData(0,0,W,H).data;
+   for(let i=0;i<hp.length;i+=4)maskPixels.data[i+3]*=1-hp[i+3]/255;
+   const originalPixels=bx.getImageData(0,0,W,H),ai=ox.getImageData(0,0,W,H);
+   originalPixels.data.set(blendMakeupPixels(originalPixels.data,ai.data,maskPixels.data));bx.putImageData(originalPixels,0,0);abort();
+   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/makeup/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เมคอัพไม่สำเร็จ'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกโทนเดิมอีกครั้ง');
+   return base;
+  }finally{URL.revokeObjectURL(url)}
+ }catch(e){await fetch('/api/makeup/jobs/'+encodeURIComponent(info.jobId)+'/cancel',{method:'POST',headers:walletHeaders()}).catch(()=>{});throw e}
 }
+
 function opaqueBounds(canvas){
  const W=canvas.width,H=canvas.height,d=canvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
  let minX=W,minY=H,maxX=-1,maxY=-1;
