@@ -1610,7 +1610,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
 }
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
- if(!/^youcam-f[1-7]$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
+ if(!/^youcam-(?:f[1-7]|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
@@ -2434,9 +2434,19 @@ const COLLAR_PIN_OPTIONS=[
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=[
- {id:'manhair-01',name:'ทรงผม 1',src:'/assets/hairstyle-previews/manhair-01.webp?v=85'},
- {id:'manhair-02',name:'ทรงผม 2',src:'/assets/hairstyle-previews/manhair-02.webp?v=85'},
- {id:'manhair-03',name:'ทรงผม 3',src:'/assets/hairstyle-previews/manhair-03.webp?v=85'},
+ {id:'youcam-m1',name:'ทรงผม 1',src:'/assets/youcam-hair/male-preview-1.webp'},
+ {id:'youcam-m2',name:'ทรงผม 2',src:'/assets/youcam-hair/male-preview-2.webp'},
+ {id:'youcam-m3',name:'ทรงผม 3',src:'/assets/youcam-hair/male-preview-3.webp'},
+ {id:'youcam-m4',name:'ทรงผม 4',src:'/assets/youcam-hair/male-preview-4.webp'},
+ {id:'youcam-m5',name:'ทรงผม 5',src:'/assets/youcam-hair/male-preview-5.webp'},
+ {id:'youcam-m6',name:'ทรงผม 6',src:'/assets/youcam-hair/male-preview-6.webp'},
+ {id:'youcam-m7',name:'ทรงผม 7',src:'/assets/youcam-hair/male-preview-7.webp'},
+ {id:'youcam-m8',name:'ทรงผม 8',src:'/assets/youcam-hair/male-preview-8.webp'},
+ {id:'youcam-m9',name:'ทรงผม 9',src:'/assets/youcam-hair/male-preview-9.webp'},
+ {id:'youcam-m10',name:'ทรงผม 10',src:'/assets/youcam-hair/male-preview-10.webp'},
+ {id:'youcam-m11',name:'ทรงผม 11',src:'/assets/youcam-hair/male-preview-11.webp'},
+ {id:'youcam-m12',name:'ทรงผม 12',src:'/assets/youcam-hair/male-preview-12.webp'},
+ {id:'youcam-m13',name:'ทรงผม 13',src:'/assets/youcam-hair/male-preview-13.webp'},
 ];
 const HAIR_OPTIONS=[
  {id:'youcam-f1',name:'ทรงผม 1',src:'/assets/youcam-hair/preview-1.webp'},
