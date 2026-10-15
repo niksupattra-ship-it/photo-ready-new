@@ -2838,11 +2838,13 @@ function App(){
     assertProcessActive(operation);clearInterval(progressTimerRef.current);
     const from=progressValueRef.current;
     for(let step=1;step<=16;step++){
+     if(activeProcessOperation!==operation)return;
      assertProcessActive(operation);
      const value=from+(99.4-from)*(step/16);progressValueRef.current=value;
      setProcessProgress({active:true,value,label:'ภาพพร้อมแล้ว'});
      await new Promise(resolve=>setTimeout(resolve,35));
     }
+    if(activeProcessOperation!==operation)return;
     assertProcessActive(operation);
     setProcessProgress({active:true,value:100,label:'ภาพพร้อมแล้ว'});
     // The image is hydrated. Set 100% before settling delivery; until this
@@ -2851,11 +2853,17 @@ function App(){
     if(!operation?.settled)await settleProcessOperation(operation,'confirm');
    }
    else if(operation?.jobId&&!operation.settled){operation.cancelled=true;portraitResultCache.clear();await settleProcessOperation(operation,'cancel');for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);}
-   clearInterval(progressTimerRef.current);progressTimerRef.current=null;
-   if(success){setProcessProgress({active:true,value:100,label:'ภาพพร้อมแล้ว'});await new Promise(resolve=>setTimeout(resolve,300));}
+   if(activeProcessOperation===operation){
+    clearInterval(progressTimerRef.current);progressTimerRef.current=null;
+    if(success){setProcessProgress({active:true,value:100,label:'ภาพพร้อมแล้ว'});await new Promise(resolve=>setTimeout(resolve,300));}
+   }
    await refreshWallet();
-   setProcessProgress({active:false,value:0,label:''});
-  }catch(e){setMsg(e.message);throw e}
+  }catch(e){if(activeProcessOperation===operation){if(operation)operation.finishing=false;setMsg(e.message)}throw e}
+  finally{
+   // A failed delivery confirmation/cancellation must not leave the editor
+   // disabled after its waiting overlay has closed. Keep settlement intact.
+   if(activeProcessOperation===operation){clearInterval(progressTimerRef.current);progressTimerRef.current=null;setProcessProgress({active:false,value:0,label:''})}
+  }
  };
  const cancelProgress=async()=>{
   const operation=activeProcessOperation;if(!operation||operation.finishing)return;
@@ -3373,7 +3381,7 @@ function App(){
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
    showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
-  finally{if(!cached){await refreshWallet();if(!completed)await finishProgress(false);}hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}
+  finally{try{if(!cached){await refreshWallet();if(!completed)await finishProgress(false);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
   return completed;
  };
  const downloadHairDonor=async()=>{
@@ -3606,14 +3614,14 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';setHairId('');
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{await refreshWallet();await finishProgress(completed);setBusy(false)}};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{try{await refreshWallet();await finishProgress(completed)}finally{setBusy(false)}}};
  const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,portraitMode,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{await refreshWallet();if(!completed)await finishProgress(false);setBusy(false)}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
