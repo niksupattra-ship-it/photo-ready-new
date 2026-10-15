@@ -1,0 +1,32 @@
+import sharp from 'sharp';
+import {readFile} from 'node:fs/promises';
+import {createHash,randomUUID} from 'node:crypto';
+import path from 'node:path';
+export const YOUCAM_STYLES=Object.freeze(Object.fromEntries(['08','12','15','16','18','20','27'].map((n,i)=>[`youcam-f${i+1}`,`hair-${n}.jpg`])));
+const BASE='https://yce-api-01.makeupar.com';
+export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,fetchImpl=(...a)=>fetch(...a),wait=ms=>new Promise(r=>setTimeout(r,ms)),now=()=>Date.now()}){
+ const jobs=new Map(),exact=new Map();const TTL=20*60*1000,MAX_BYTES=64*1024*1024;
+ const prune=()=>{for(const [id,j]of jobs)if(j.status!=='running'&&now()-j.updated>TTL){jobs.delete(id);exact.delete(j.key)}let bytes=[...jobs.values()].reduce((s,j)=>s+(j.png?.length||0),0);for(const [id,j]of jobs){if(bytes<=MAX_BYTES&&jobs.size<=32)break;if(j.status!=='running'){bytes-=j.png?.length||0;jobs.delete(id);exact.delete(j.key)}}};
+ const api=async(endpoint,token,body)=>{const r=await fetchImpl(BASE+endpoint,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(45000)});const data=await r.json();if(!r.ok||Number(data.status)>=400)throw Error(`YouCam: ${data.error_message||data.error_code||data.error||r.status}`);return data.data;};
+ const uploadFile=async(buffer,name,token)=>{const data=await api('/s2s/v2.0/file',token,{files:[{content_type:'image/jpeg',file_name:name,file_size:buffer.length}]});const file=data?.files?.[0];if(!file?.file_id||!file.requests?.length)throw Error('YouCam ไม่ส่งข้อมูลอัปโหลดรูป');for(const request of file.requests){const u=new URL(request.url);if(u.protocol!=='https:')throw Error('URL อัปโหลดไม่ถูกต้อง');const r=await fetchImpl(u,{method:request.method||'PUT',headers:request.headers||{'Content-Type':'image/jpeg'},body:buffer,signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error(`อัปโหลดรูปไป YouCam ไม่สำเร็จ (${r.status})`);}return file.file_id;};
+ const work=async(j,input,ref,token)=>{try{
+  const src=await uploadFile(input,'portrait.jpg',token),reference=await uploadFile(ref,'hairstyle.jpg',token);j.progress=20;
+  const created=await api('/s2s/v2.1/task/hair-transfer',token,{src_file_id:src,ref_file_id:reference,hair_color:'ref'});if(!created?.task_id)throw Error('YouCam ไม่ส่งหมายเลขงาน');
+  for(let count=0;count<60;count++){await wait(10000);const result=await api('/s2s/v2.1/task/hair-transfer/'+encodeURIComponent(created.task_id),token);j.updated=now();j.progress=Math.min(90,25+count*2);if(result?.task_status==='error')throw Error(`YouCam: ${result.error_message||result.error||'เปลี่ยนทรงผมไม่สำเร็จ'}`);if(result?.task_status!=='success')continue;
+   const url=result.results?.url||result.url;if(!url||new URL(url).protocol!=='https:')throw Error('YouCam ไม่ส่งรูปผลลัพธ์');const r=await fetchImpl(url,{signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error('ดาวน์โหลดผล YouCam ไม่สำเร็จ');const raw=Buffer.from(await r.arrayBuffer());if(raw.length>20*1024*1024)throw Error('รูปผลลัพธ์ใหญ่เกินกำหนด');j.png=await sharp(raw,{limitInputPixels:33554432}).rotate().png().toBuffer();j.status='completed';j.progress=100;j.updated=now();prune();return;
+  }throw Error('YouCam ใช้เวลานานเกินกำหนด กรุณาลองใหม่ภายหลัง');
+ }catch(e){j.status='failed';j.error=String(e.message||'YouCam ไม่พร้อมใช้งาน');j.updated=now();exact.delete(j.key);}};
+ // Same credit policy as local hairstyle selection: no wallet deduction here.
+ app.post('/api/youcam/hair/jobs',upload.single('image'),async(req,res)=>{try{
+  prune();const owner=walletId(req);if(!owner||!await getWallet(owner))return res.status(401).json({message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});
+  const file=YOUCAM_STYLES[req.body?.hairId];if(!file||!req.file)return res.status(400).json({message:'ไม่พบรูปหรือทรงผมที่เลือก'});
+  const token=process.env.YOUCAM_API_KEY?.trim();if(!token)return res.status(503).json({message:'ยังไม่ได้ตั้งค่า YOUCAM_API_KEY บนเซิร์ฟเวอร์'});
+  const input=await sharp(req.file.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:95}).toBuffer();
+  const ref=await readFile(path.join(dir,'public/assets/youcam-hair',file));const key=createHash('sha256').update(owner).update(req.body.hairId).update(input).update(ref).digest('hex');const found=jobs.get(exact.get(key));if(found)return res.json({jobId:found.id,status:found.status,progress:found.progress});
+  if([...jobs.values()].some(j=>j.owner===owner&&j.status==='running'))return res.status(429).json({message:'กรุณารอเปลี่ยนทรงผมครั้งก่อนให้เสร็จก่อน'});
+  if([...jobs.values()].filter(j=>j.status==='running').length>=8)return res.status(429).json({message:'กำลังมีผู้ใช้งาน กรุณาลองใหม่สักครู่'});
+  const j={id:randomUUID(),owner,key,status:'running',progress:5,updated:now()};jobs.set(j.id,j);exact.set(key,j.id);res.status(202).json({jobId:j.id,status:j.status,progress:j.progress});void work(j,input,ref,token);
+ }catch(e){res.status(400).json({message:e.message||'เตรียมภาพไม่สำเร็จ'});}});
+ app.get('/api/youcam/hair/jobs/:id',(req,res)=>{prune();const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req))return res.status(404).json({message:'ไม่พบงาน YouCam กรุณาเลือกทรงใหม่'});res.set('Cache-Control','no-store').json({jobId:j.id,status:j.status,progress:j.progress,...(j.error?{message:j.error}:{})});});
+ app.get('/api/youcam/hair/jobs/:id/image',(req,res)=>{prune();const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req)||j.status!=='completed')return res.status(404).json({message:'รูปยังไม่พร้อม'});res.set('Cache-Control','no-store').type('png').send(j.png);});
+}
