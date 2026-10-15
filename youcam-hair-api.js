@@ -1,3 +1,4 @@
+import {hasPrivateTrial as verifiedPrivateTrial} from './private-trial.js';
 import {hairAiAccess,reserveHairAi,settleHairAi} from './youcam-hair-rights.js';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
@@ -5,7 +6,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import path from 'node:path';
 export const YOUCAM_STYLES=Object.freeze(Object.fromEntries([...['08','12','15','16','18','20','27'].map((n,i)=>[`youcam-f${i+1}`,`hair-${n}.jpg`]),...Array.from({length:11},(_,i)=>[`youcam-f${i+8}`,`female-${i+8}.jpg`]),...Array.from({length:13},(_,i)=>[`youcam-m${i+1}`,`male-${i+1}.jpg`])]));
 const BASE='https://yce-api-01.makeupar.com';
-export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial=()=>false,fetchImpl=(...a)=>fetch(...a),wait=ms=>new Promise(r=>setTimeout(r,ms)),now=()=>Date.now()}){
+export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial=verifiedPrivateTrial,fetchImpl=(...a)=>fetch(...a),wait=ms=>new Promise(r=>setTimeout(r,ms)),now=()=>Date.now()}){
  const jobs=new Map(),exact=new Map(),submitting=new Set();const TTL=20*60*1000,MAX_BYTES=64*1024*1024;
  const prune=()=>{for(const [id,j]of jobs)if(j.status!=='running'&&now()-j.updated>TTL){jobs.delete(id);exact.delete(j.key)}let bytes=[...jobs.values()].reduce((s,j)=>s+(j.png?.length||0),0);for(const [id,j]of jobs){if(bytes<=MAX_BYTES&&jobs.size<=32)break;if(j.status!=='running'){bytes-=j.png?.length||0;jobs.delete(id);exact.delete(j.key)}}};
  const api=async(endpoint,token,body)=>{const r=await fetchImpl(BASE+endpoint,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(45000)});const data=await r.json();if(!r.ok||Number(data.status)>=400)throw Error(`YouCam: ${data.error_message||data.error_code||data.error||r.status}`);return data.data;};
