@@ -1,0 +1,8 @@
+.idstudio.studio-touch .studio-mobile-file-menu{position:relative;flex:0 0 auto}
+.idstudio.studio-touch .studio-mobile-file-menu>button{width:42px;height:42px;min-height:42px;padding:9px;display:grid;place-items:center;border:1px solid transparent;border-radius:12px;background:transparent;color:#cce8e8}
+.idstudio.studio-touch .studio-mobile-file-menu>button[aria-expanded=true]{background:#204b4c;border-color:#64d7cb;color:#8ce9de}
+.idstudio.studio-touch .studio-mobile-file-options{position:absolute;right:0;top:calc(100% + 8px);z-index:32000;display:flex;flex-direction:column;gap:3px;min-width:205px;max-width:calc(100vw - 24px);padding:6px;border:1px solid #3a555e;border-radius:14px;background:#182c35;box-shadow:0 10px 30px #0007}
+.idstudio.studio-touch .studio-mobile-file-options>button{width:100%;min-height:44px;padding:10px 14px;border:0;border-radius:8px;background:transparent;color:#e1eeef;text-align:left;white-space:nowrap;font-size:14px}
+.idstudio.studio-touch .studio-mobile-file-options>button:active,.idstudio.studio-touch .studio-mobile-file-options>button:focus-visible{background:#285657;outline:2px solid #64d7cb;outline-offset:-2px}
+.idstudio.studio-touch .studio-floating-history:not(.active):not([aria-expanded=true]){border-color:transparent;box-shadow:0 4px 16px #0004}
+.idstudio.studio-touch .studio-floating-history.active,.idstudio.studio-touch .studio-floating-history[aria-expanded=true],.idstudio.studio-touch .studio-floating-history:not(:disabled):active,.idstudio.studio-touch .studio-floating-history:focus-visible{border-color:#64d7cb;box-shadow:0 0 0 1px #64d7cb,0 4px 16px #0006}
