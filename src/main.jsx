@@ -2453,6 +2453,9 @@ const MALE_HAIR_OPTIONS=[
  {id:'youcam-m11',name:'ทรงผม 11',src:'/assets/youcam-hair/male-preview-11.webp'},
  {id:'youcam-m12',name:'ทรงผม 12',src:'/assets/youcam-hair/male-preview-12.webp'},
  {id:'youcam-m13',name:'ทรงผม 13',src:'/assets/youcam-hair/male-preview-13.webp'},
+ {id:'manhair-01',name:'ทรงผม 14',src:'/assets/hairstyle-previews/manhair-01.webp?v=85'},
+ {id:'manhair-02',name:'ทรงผม 15',src:'/assets/hairstyle-previews/manhair-02.webp?v=85'},
+ {id:'manhair-03',name:'ทรงผม 16',src:'/assets/hairstyle-previews/manhair-03.webp?v=85'},
 ];
 const HAIR_OPTIONS=[
  {id:'youcam-f1',name:'ทรงผม 1',src:'/assets/youcam-hair/preview-1.webp'},
