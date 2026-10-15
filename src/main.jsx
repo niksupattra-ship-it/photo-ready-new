@@ -43,7 +43,7 @@ function authToken(){try{return localStorage.getItem(AUTH_TOKEN_KEY)||''}catch{r
 function authHeaders(){const token=authToken();return token?{Authorization:`Bearer ${token}`}:{}}
 function currentWalletId(){try{return localStorage.getItem(WALLET_KEY)||''}catch{return ''}}
 const PRIVATE_TRIAL_KEY='idprom-private-trial-active';
-// Normal visits never inherit the private owner's unlimited session.
+// Restore private mode only after fresh server verification on each visit.
 try{localStorage.removeItem(PRIVATE_TRIAL_KEY)}catch{}
 function browserTrialTraits(){try{return JSON.stringify([navigator.platform,navigator.hardwareConcurrency||0,screen.width,screen.height,screen.colorDepth,Intl.DateTimeFormat().resolvedOptions().timeZone])}catch{return 'unknown'}}
 async function verifyOutputRights(jobId){if(!jobId)return {unlocked:false,fullEdit:false};try{const r=await fetch('/api/images/'+encodeURIComponent(jobId)+'/rights',{headers:walletHeaders(),cache:'no-store'});return r.ok?await r.json():{unlocked:false,fullEdit:false}}catch{return {unlocked:false,fullEdit:false}}}
@@ -2630,7 +2630,7 @@ function App(){
  const[rights,setRights]=useState({generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]}),[buyOpen,setBuyOpen]=useState(false),[payBusy,setPayBusy]=useState(false),[payMsg,setPayMsg]=useState('');
  const[authOpen,setAuthOpen]=useState(false),[authMode,setAuthMode]=useState('register'),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[showPassword,setShowPassword]=useState(false),[authBusy,setAuthBusy]=useState(false),[authMsg,setAuthMsg]=useState(''),[pendingPackage,setPendingPackage]=useState(null);
  const[accountMenuOpen,setAccountMenuOpen]=useState(false),[accountEmail,setAccountEmail]=useState(()=>{try{return localStorage.getItem('idprom_account_email')||''}catch{return ''}});
- const submitAuth=async()=>{setAuthBusy(true);setAuthMsg('');try{await refreshWallet();const sourceWalletId=currentWalletId();const r=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({email:authEmail,password:authPassword})});const data=await r.json();if(!r.ok)throw Error(data.message||'ดำเนินการไม่สำเร็จ');localStorage.setItem(AUTH_TOKEN_KEY,data.token);localStorage.setItem('idprom_account_email',authEmail);setAccountEmail(authEmail);if(data.walletId){localStorage.setItem(WALLET_KEY,data.walletId);if(currentOutputTrialRef.current&&currentOutputJobRef.current&&sourceWalletId!==data.walletId){const claim=await fetch('/api/images/'+encodeURIComponent(currentOutputJobRef.current)+'/claim',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sourceWalletId})});if(!claim.ok)throw Error('ย้ายรูปทดลองเข้าบัญชีไม่สำเร็จ กรุณาลองเข้าสู่ระบบบัญชีเดิม');}await refreshWallet()}setAuthOpen(false);const pkg=pendingPackage;setPendingPackage(null);if(pkg?.startsWith('promo:'))await redeemFreeLink(pkg.slice(6));else if(pkg)await startCheckout(pkg,true)}catch(e){setAuthMsg(e.message)}finally{setAuthBusy(false)}};
+ const submitAuth=async()=>{setAuthBusy(true);setAuthMsg('');try{await refreshWallet();const sourceWalletId=currentWalletId();const r=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({email:authEmail,password:authPassword})});const data=await r.json();if(!r.ok)throw Error(data.message||'ดำเนินการไม่สำเร็จ');localStorage.setItem(AUTH_TOKEN_KEY,data.token);localStorage.setItem('idprom_account_email',authEmail);setAccountEmail(authEmail);if(data.walletId){localStorage.setItem(WALLET_KEY,data.walletId);if(currentOutputTrialRef.current&&currentOutputJobRef.current&&sourceWalletId!==data.walletId){const claim=await fetch('/api/images/'+encodeURIComponent(currentOutputJobRef.current)+'/claim',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sourceWalletId})});if(!claim.ok)throw Error('ย้ายรูปทดลองเข้าบัญชีไม่สำเร็จ กรุณาลองเข้าสู่ระบบบัญชีเดิม');}await refreshWallet();await activatePrivateTrial()}setAuthOpen(false);const pkg=pendingPackage;setPendingPackage(null);if(pkg?.startsWith('promo:'))await redeemFreeLink(pkg.slice(6));else if(pkg)await startCheckout(pkg,true)}catch(e){setAuthMsg(e.message)}finally{setAuthBusy(false)}};
  useEffect(()=>{const code=new URLSearchParams(location.search).get('free199');if(!code)return;let cancelled=false;(async()=>{try{await refreshWallet();const r=await fetch('/api/promo/free199',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({code})});const data=await r.json();if(!r.ok)throw Error(data.message||'ใช้โค้ดไม่ได้');if(!cancelled){setRights(previous=>({...previous,...normalizedRights(data)}));setPayMsg('รับสิทธิ์แพ็กเกจ 199 บาทฟรีเรียบร้อยแล้ว');setBuyOpen(true)}history.replaceState({},'',location.pathname)}catch(e){if(!cancelled){setPayMsg(e.message);setBuyOpen(true)}}})();return()=>{cancelled=true}},[]);
  const[trialPreview,setTrialPreview]=useState(false);
  const[privateTrialActive,setPrivateTrialActive]=useState(false);
@@ -2638,15 +2638,15 @@ function App(){
  const[privateTrialChecking,setPrivateTrialChecking]=useState(()=>privateTrialRequested()||new URLSearchParams(location.hash.slice(1)).has('privateTrial'));
  const activatePrivateTrial=async()=>{
   const token=new URLSearchParams(location.hash.slice(1)).get('privateTrial');
-  if(!token&&!privateTrialRequested())return;
+  const explicitlyRequested=Boolean(token||privateTrialRequested());
   setPrivateTrialChecking(true);
   if(token)history.replaceState({},'',location.pathname+location.search);
   try{
    const r=await fetch('/api/private-trial',token?{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({key:token})}:{headers:walletHeaders(),cache:'no-store'});
    const data=await r.json();
-   if(!r.ok||!data.active)throw Error(data.message||'โหมดทดสอบยังไม่เปิดใช้งาน กรุณาเปิดลิงก์ส่วนตัวอีกครั้ง');
+   if(!r.ok||!data.active){localStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false);if(explicitlyRequested)throw Error(data.message||'โหมดทดสอบยังไม่เปิดใช้งาน กรุณาเปิดลิงก์ส่วนตัวอีกครั้ง');return;}
    localStorage.setItem(PRIVATE_TRIAL_KEY,'1');setPrivateTrialActive(true);
-  }catch(e){localStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false);window.alert('เปิดโหมดใช้เองไม่สำเร็จ\n'+(e.message||'กรุณาลองเปิดลิงก์ส่วนตัวอีกครั้ง'))}
+  }catch(e){localStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false);if(explicitlyRequested)window.alert('เปิดโหมดใช้เองไม่สำเร็จ\n'+(e.message||'กรุณาลองเปิดลิงก์ส่วนตัวอีกครั้ง'))}
   finally{setPrivateTrialChecking(false)}
  };
  useEffect(()=>{const onPrivateTrialLink=()=>{if(new URLSearchParams(location.hash.slice(1)).has('privateTrial'))refreshWallet().then(activatePrivateTrial)};window.addEventListener('hashchange',onPrivateTrialLink);return()=>window.removeEventListener('hashchange',onPrivateTrialLink)},[]);
