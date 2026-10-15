@@ -1413,11 +1413,11 @@ async function requestStudioMakeup(source,styles,options={}){
 }
 async function requestStudioMakeupUncached(source,styles,options={}){
  const abort=()=>{if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการแต่งเมคอัพแล้ว'),{name:'AbortError'})};abort();
- if(!makeupLook(styles.look))throw Error('กรุณาเลือกเมคอัพชมพูธรรมชาติ');
+ if(!makeupLook(styles.look))throw Error('กรุณาเลือกโทนเมคอัพ');
  options.onProgress?.(8);
  const {original,face,hairMask,skinMask}=await prepareStudioMakeup(source);abort();
  options.onProgress?.(32);
- return renderLocalMakeup({original,face,hairMask,skinMask,signal:options.signal,onProgress:value=>options.onProgress?.(32+value*.66)});
+ return renderLocalMakeup({original,face,hairMask,skinMask,lookId:styles.look,signal:options.signal,onProgress:value=>options.onProgress?.(32+value*.66)});
 }
 
 function opaqueBounds(canvas){

@@ -148,12 +148,13 @@ function eyeEffects(g,masks){
  return {blushMask,lashMask};
 }
 
-export async function renderLocalMakeup({original,face,hairMask=null,skinMask=null,signal,onProgress}){
+export async function renderLocalMakeup({original,face,hairMask=null,skinMask=null,lookId='local-natural-pink-v1',signal,onProgress}){
  abortIfNeeded(signal);
  const W=original?.naturalWidth||original?.width,H=original?.naturalHeight||original?.height;
  if(!Number.isInteger(W)||!Number.isInteger(H)||W<1||H<1)throw Error('ขนาดรูปเมคอัพไม่ถูกต้อง');
  if(!hairMask||!skinMask)throw Error('ตรวจพื้นที่ผิวและขอบผมไม่สำเร็จ เก็บรูปเดิมไว้');
  const progress=n=>{abortIfNeeded(signal);onProgress?.(n)};
+ const glow=lookId==='local-pink-glow-v1';
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
@@ -164,7 +165,12 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
   const a=masks.skin[i]*(source[j+3]/255);if(Y>45&&Y<240){sum+=Y*a;weight+=a}
  }
  const softened=await guidedMakeupLuminance(luminance,g.w,g.h,Math.max(2,g.d*.018),signal);
- const mean=weight?sum/weight:190,lift=clamp(7+(210-mean)*.12,6,16);
+ // Only the new glow preset reads local colour means for small red blemishes.
+ let localColor=null;
+ if(glow){localColor=[];for(let c=0;c<3;c++){const channel=new Float32Array(luminance.length);for(let i=0;i<channel.length;i++)channel[i]=source[i*4+c];localColor.push(await boxMean(channel,g.w,g.h,Math.max(2,Math.min(12,Math.round(g.d*.025))),signal))}}
+ const mean=weight?sum/weight:190,lift=glow?clamp(9+(215-mean)*.12,7,18):clamp(7+(210-mean)*.12,6,16);
+ const cheekCenters=[g.point(50),g.point(280)],glowCenters=[g.point(117),g.point(346),g.point(151),g.point(4)];
+ const field=(px,py,points,rx,ry)=>Math.max(...points.map(p=>{const dx=px-p.x,dy=py-p.y,u=(dx*g.ux+dy*g.uy)/(g.d*rx),v=(dx*g.vx+dy*g.vy)/(g.d*ry);return Math.exp(-2*(u*u+v*v))}));
  const left=g.point(61),right=g.point(291),lipWidth=Math.hypot(right.x-left.x,right.y-left.y),lx=(right.x-left.x)/lipWidth,ly=(right.y-left.y)/lipWidth;
  const lower=g.point(17),inner=g.point(14),gloss={x:inner.x*.55+lower.x*.45,y:inner.y*.55+lower.y*.45};
  progress(68);await pause(signal);
@@ -174,19 +180,29 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
    const Y=luminance[i],skin=masks.skin[i],tone=masks.tone[i];
    if(skin>.0001||tone>.0001){
     const detail=softened[i]-Y,edge=1-smooth(7,19,Math.abs(detail));
-    const polish=clamp(detail,-8,8)*.40*edge*skin;
+    const polish=clamp(detail,-8,8)*(glow?.62:.40)*edge*skin;
     const light=lift*clamp((248-Y)/95),rose=1;
     pixels[j]=source[j]+polish+tone*(light+rose);
     pixels[j+1]=source[j+1]+polish+tone*(light-rose*.18);
     pixels[j+2]=source[j+2]+polish+tone*(light+rose*.35);
    }
+   if(glow&&skin>.0001){
+    // Reject dark marks and strong edges; reduce only locally red, small variations.
+    const red=source[j]-source[j+1],nearRed=localColor[0][i]-localColor[1][i];
+    const blemish=smooth(7,23,red-nearRed)*(1-smooth(18,38,Math.abs(softened[i]-Y)))*skin*.62;
+    for(let c=0;c<3;c++)pixels[j+c]+=clamp(localColor[c][i]-source[j+c],-20,20)*blemish;
+    const px=g.x+x,py=g.y+y,shine=field(px,py,glowCenters,.13,.09)*tone*clamp((247-Y)/70);
+    for(let c=0;c<3;c++)pixels[j+c]+=3.5*shine;
+    const cheek=field(px,py,cheekCenters,.22,.13)*skin*.15,tint=[224,137,164],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);
+    for(let c=0;c<3;c++)pixels[j+c]+=cheek*((tint[c]-target)-(pixels[j+c]-current));
+   }
    const lip=masks.lips[i];
    if(lip>.0001){
     // Shift chroma gently toward rose while keeping each original texture sample.
-    const tint=[209,118,139],targetY=luma(...tint),strength=.22*lip;
+    const tint=glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(glow?.30:.22)*lip;
     for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+strength*((tint[c]-targetY)-(source[j+c]-Y));
     const dx=g.x+x-gloss.x,dy=g.y+y-gloss.y,u=(dx*lx+dy*ly)/Math.max(1,lipWidth*.28),v=(-dx*ly+dy*lx)/Math.max(.8,g.d*.008);
-    const satin=Math.exp(-2.8*(u*u+v*v))*lip*.11;
+    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(glow?.17:.11);
     for(let c=0;c<3;c++)pixels[j+c]+=Math.min(10,(255-pixels[j+c])*satin);
    }
    const blush=effects.blushMask[i]*.16;
