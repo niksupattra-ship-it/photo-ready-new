@@ -1,12 +1,16 @@
 import React from 'react';
 import {MAKEUP_LOOKS} from '../makeup-presets.js';
-export function MakeupPanel({remaining=null,unlimited=false,lookId,intensity=100,onSelect,onIntensityChange,onIntensityCommit,canAdjustIntensity,disabled,hasHead}){
- return <section className="studio-makeup-panel" aria-label="เมคอัพตามแบบ">
-  {(unlimited||remaining!==null)&&<p role="status" style={{fontSize:12,margin:'0 0 8px',color:'#8edbd5'}}>{unlimited?'สิทธิ์ส่วนตัว · เมคอัพ AI ไม่จำกัด':'สิทธิ์ AI ผม / เมคอัพ เหลือ '+remaining+' ครั้ง'}</p>}
+export function MakeupPanel({lookId,intensity=100,onSelect,onIntensityChange,onIntensityCommit,canAdjustIntensity,onRestore,canRestore,disabled,hasHead}){
+ const look=MAKEUP_LOOKS[0];
+ return <section className="studio-makeup-panel" aria-label="เมคอัพบนอุปกรณ์">
   <div className="studio-makeup-choices">
-   {MAKEUP_LOOKS.map(look=><button type="button" key={look.id} disabled={disabled||!hasHead} aria-pressed={lookId===look.id} className={lookId===look.id?'active':''} onClick={()=>onSelect(look.id)}><span style={{position:'relative',display:'block'}}><img src={look.preview} width="160" height="160" alt={look.description} loading="lazy" decoding="async"/><svg role="img" aria-label="เมคอัพ AI" width="16" height="16" viewBox="0 0 24 22" style={{position:'absolute',right:4,top:4,pointerEvents:'none'}}><path d="M2 7 7 1.5h10L22 7 12 20.5Z" fill="#42bfd9" stroke="#249dbb" strokeWidth=".8"/><path d="m7 1.5 5 5.5 5-5.5M2 7h20M7 1.5l5 19 5-19" fill="none" stroke="#c7f3fa" strokeWidth=".7"/></svg></span><small>{look.name}</small></button>)}
+   <button type="button" disabled={disabled||!hasHead} aria-label={'แต่งหน้า'+look.name} aria-pressed={lookId===look.id} className={lookId===look.id?'active':''} onClick={()=>onSelect(look.id)} style={{flex:'1 1 auto',display:'flex',alignItems:'center',gap:10,padding:8,textAlign:'left',minWidth:0}}>
+    <svg aria-hidden="true" width="52" height="52" viewBox="0 0 52 52" style={{flex:'0 0 52px'}}><rect x="1" y="1" width="50" height="50" rx="12" fill="#3e303f"/><path d="M11 37c6-10 16-11 28-6" fill="none" stroke="#ed9dab" strokeWidth="8" strokeLinecap="round" opacity=".7"/><path d="m20 28 13-14 5 5-14 13Z" fill="#bddfd7"/><path d="m17 29 5 5c-1 5-6 7-11 6 0-5 2-10 6-11Z" fill="#f7c4c9"/><path d="M39 7v6m-3-3h6" stroke="#f8e1e2" strokeWidth="1.5" strokeLinecap="round"/></svg>
+    <span style={{minWidth:0}}><strong style={{display:'block',fontSize:13,color:'#f5d9df',marginBottom:3}}>{look.name}</strong><span style={{display:'block',fontSize:11,lineHeight:1.5,color:'#c4d1d7'}}>{look.description}</span></span>
+   </button>
   </div>
-  <p style={{fontSize:12,margin:'8px 0',color:'#8edbd5'}}>แต่งสำเร็จใช้ 1 สิทธิ์ AI ร่วมกับทรงผม · ใช้ผลเดิมไม่หักเพิ่ม</p>
+  <div style={{fontSize:11,margin:'5px 0',color:'#8edbd5'}}>เมคอัพบนอุปกรณ์ · ไม่ส่งรูป · ไม่ใช้เครดิต</div>
   {canAdjustIntensity&&<label className="studio-makeup-intensity"><span>ความเข้ม <output>{intensity}%</output></span><input type="range" min="0" max="100" step="5" value={intensity} disabled={disabled} onChange={e=>onIntensityChange(Number(e.target.value))} onPointerUp={e=>onIntensityCommit(Number(e.currentTarget.value))} onPointerCancel={e=>onIntensityCommit(Number(e.currentTarget.value))} onKeyUp={e=>onIntensityCommit(Number(e.currentTarget.value))} onBlur={e=>onIntensityCommit(Number(e.currentTarget.value))}/></label>}
+  {canRestore&&<div className="studio-makeup-actions"><button type="button" disabled={disabled||!hasHead} onClick={onRestore}>คืนรูปก่อนแต่งหน้า</button></div>}
  </section>;
 }
