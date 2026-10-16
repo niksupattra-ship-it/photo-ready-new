@@ -49,13 +49,13 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>รับรูปนี้ (ไม่มีลายน้ำ)</Feature><Feature>รับ 1 เครดิต สำหรับสร้างรูปใหม่</Feature>
+     <Feature>สร้างรูปหน้าตรง 1 รูป</Feature><Feature>เครดิตทรงผม 1 ครั้ง (ไม่รวมทรงผมฟรี)</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
      <Feature>ดาวน์โหลดไม่จำกัด</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'89 บาท เพื่อรับรูปนี้'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'หรือรับรูปนี้'}</button>
    </article>
    <article className="package-card popular">
     <span className="package-badge">แนะนำ</span>
@@ -63,7 +63,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
      <Feature>สร้างรูปหน้าตรง 5 รูป</Feature>
-     <Feature>เปลี่ยนผมเพชร 5 ครั้ง · แยกจากหน้าตรง</Feature>
+     <Feature>เครดิตทรงผม 5 ครั้ง (ไม่รวมทรงผมฟรี)</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
