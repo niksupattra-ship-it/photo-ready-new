@@ -475,7 +475,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   }catch(e){if(e.code==='hair_credit_required')onRequestUnlock?.();appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current){setHairPlacementProgress(null);setAssetBusy(false)}}
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
-  const next=previous.map(l=>l.id===head.id?{...l,source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity}:l);
+  const next=previous.map(l=>l.id===head.id?{...l,source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'natural-brows-v2'}:l);
   if(signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
   if(!mounted.current)return false;
   if(!await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id))))throw Error('แสดงผลเมคอัพไม่สำเร็จ');
@@ -487,12 +487,12 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(!ready){appearanceFailure('makeup','รูปยังไม่พร้อม กรุณารอสักครู่หรือเปิดรูปอีกครั้ง');return}
   if(!onMakeup||!makeupLook(lookId)){appearanceFailure('makeup','ระบบเมคอัพยังไม่พร้อม กรุณารีเฟรชหน้าแล้วลองใหม่');return}
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head){appearanceFailure('makeup','เพิ่มรูปและประมวลผลก่อนใช้เมคอัพ');return}if(head.locked){appearanceFailure('makeup','ปลดล็อกเลเยอร์หัวก่อนแต่งเมคอัพ');return}
-  if(head.makeupStyles?.look===lookId&&(head.makeupIntensity??100)===100&&!head.mask&&!head.warpSource)return;
+  if(head.makeupRenderVersion==='natural-brows-v2'&&head.makeupStyles?.look===lookId&&(head.makeupIntensity??100)===100&&!head.mask&&!head.warpSource)return;
   let base,cachedFull;
   try{
    const asset=assets.current.get(head.id);if(!asset?.buffer)throw Error('ภาพยังไม่พร้อมสำหรับเมคอัพ กรุณาเปิดรูปอีกครั้ง');
    base=head.makeupBaseSource&&!head.mask&&!head.warpSource?head.makeupBaseSource:asset.buffer.toDataURL('image/png');
-   cachedFull=makeupLookCacheRef.current.peek(head.id,base,lookId)||(head.makeupStyles?.look===lookId&&head.makeupBaseSource===base?head.makeupFullSource:null);
+   cachedFull=makeupLookCacheRef.current.peek(head.id,base,lookId)||(head.makeupRenderVersion==='natural-brows-v2'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base?head.makeupFullSource:null);
   }catch(e){appearanceFailure('makeup',e.message||'เตรียมภาพเมคอัพไม่สำเร็จ กรุณาเปิดรูปอีกครั้ง');return}
   const reused=Boolean(cachedFull);
   const operation=new AbortController();makeupOperationRef.current=operation;setMakeupCancelled(false);
@@ -500,7 +500,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   try{
    flushTransforms();paintScene(canvasRef.current.getContext('2d'),state.current,assets.current);
    const previous=historySnapshot();
-   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal,onProgress:value=>{if(mounted.current&&!operation.signal.aborted)setMakeupProgress(v=>Math.max(v,Math.min(98,value)))}}));
+   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupRenderVersion==='natural-brows-v2'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal,onProgress:value=>{if(mounted.current&&!operation.signal.aborted)setMakeupProgress(v=>Math.max(v,Math.min(98,value)))}}));
    if(!reused)setMakeupProgress(v=>Math.max(v,95));
    const source=await mixMakeupLookSources(base,full,100);
    if(!reused)setMakeupProgress(v=>Math.max(v,98));
