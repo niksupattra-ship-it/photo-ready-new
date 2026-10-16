@@ -138,7 +138,12 @@ function innerDistance(support,oldSkin,newSkin,face,w,h,limit){
 export function softYoucamPortraitEraser(face,w,h){
  const f=frame(face,w,h),inside=new Uint8Array(w*h);
  const fromLocal=(u,v)=>({x:f.cx+u*f.ux+v*f.vx,y:f.cy+u*f.uy+v*f.vy});
- const points=OVAL.map(id=>{const q=f.local(f.point(id));return fromLocal(q.u*.93,Math.max(q.v,f.brow))});
+ const feather=clamp(f.d*.14,4,40)*1.4;
+ // Follow the upper contour of BOTH generated brows, not their average
+ // height. Start the soft transition above it so brow hairs are fully erased.
+ const browLine=[70,63,105,66,107,336,296,334,293,300].map(id=>f.local(f.point(id))).sort((a,b)=>a.u-b.u);
+ const browTop=u=>{if(u<=browLine[0].u)return browLine[0].v;for(let k=1;k<browLine.length;k++)if(u<=browLine[k].u){const a=browLine[k-1],b=browLine[k],t=clamp((u-a.u)/Math.max(.001,b.u-a.u));return a.v+(b.v-a.v)*t}return browLine[browLine.length-1].v};
+ const points=OVAL.map(id=>{const q=f.local(f.point(id));return fromLocal(q.u*.93,Math.max(q.v,browTop(q.u)-feather-f.d*.04))});
  fillPolygon(inside,points,w,h);
  // The neck cut joins the lower face without a horizontal seam. Keep the
  // shoulder field outside this central opening out of the eraser footprint.
@@ -148,7 +153,7 @@ export function softYoucamPortraitEraser(face,w,h){
  const diag=Math.SQRT2;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(x)distance[i]=Math.min(distance[i],distance[i-1]+1);if(y){distance[i]=Math.min(distance[i],distance[i-w]+1);if(x)distance[i]=Math.min(distance[i],distance[i-w-1]+diag);if(x+1<w)distance[i]=Math.min(distance[i],distance[i-w+1]+diag)}}
  for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){const i=y*w+x;if(x+1<w)distance[i]=Math.min(distance[i],distance[i+1]+1);if(y+1<h){distance[i]=Math.min(distance[i],distance[i+w]+1);if(x)distance[i]=Math.min(distance[i],distance[i+w-1]+diag);if(x+1<w)distance[i]=Math.min(distance[i],distance[i+w+1]+diag)}}
- const feather=clamp(f.d*.14,4,40),erase=new Float32Array(w*h);
+ const erase=new Float32Array(w*h);
  for(let i=0;i<erase.length;i++)erase[i]=inside[i]?smooth(0,feather,distance[i]):0;
  return {erase,feather};
 }
