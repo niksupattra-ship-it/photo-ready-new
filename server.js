@@ -569,6 +569,16 @@ Apply this grooming within the SAME initial portrait request. Preserve the origi
 
     if(!creditUse){creditUse=await requireCredit(req,res,"ai-finish");if(!creditUse)return;}
 
+    // Female initial portraits only; separate from subsequent local skin controls.
+    if(keepOriginalHair&&!inpaint&&!cleanHead&&!hairDonor&&req.body?.portraitMode==='female')seedreamPrompt += `
+
+FEMALE INITIAL PORTRAIT — LOCAL BROW REPAIR AND FRESH SKIN FINISH:
+Keep the original identity, facial width/height, all eye/nose/mouth geometry, expression and identifying asymmetry exactly unchanged. Preserve the current hairstyle procedure, ear clearance, original brow positions/width/arch, complete neck fitting anatomy, framing and transparent-output requirements.
+Repair ONLY visibly sparse or missing eyebrow-hair patches inside the existing natural brow footprint. Add fine, individually curved, tapered hairs following the adjacent real hairs' direction, colour and density. Make local patch density visually even and balanced without mirroring the brows, repositioning, widening, reshaping or making them identical. Keep natural head-to-tail variation and translucent gaps between hairs. No solid brow fill, stamped outline, straight geometric border, rectangular patch, hard edge or drawn block.
+Give face, forehead and full neck a slightly brighter softly diffused professional studio finish, with a restrained healthy rosy cast and smooth tonal transitions. Reduce temporary acne spots/redness and small blemishes, retaining stable moles, freckles, pores and natural skin grain. Keep photographic sharpness of eyes, hair, real skin texture and silhouette: softness means flattering illumination, not defocus, waxy blur or feature replacement. Preserve the person's recognizable complexion; avoid chalky white skin, clipped highlights, heavy foundation or a pink mask.
+Keep the exact existing lip contour and colour family; add just a little transparent natural moisture shine, no heavy lipstick or enlarged lips. Add only a few fine, light natural lashes rooted along the existing upper lash line; no eyeliner, eye enlargement, thick lash strip or dramatic extension.
+For this FEMALE FIRST PORTRAIT only, the specified local sparse-brow repair, temporary-acne cleanup, softly brighter rosy skin and slight lip sheen supersede earlier instructions that prohibit those exact local finish changes. They do NOT override face identity, facial geometry, hairstyle, ears, neck coverage, output alpha or any other protection. Do not apply this policy to male portraits, hair replacement, inpaint or clean-head routes.`;
+
     // Alpha output is supported only by Pro/Flash 5.x with ONE RGBA input.
     // Keep multi-reference, donor, clean-head and inpaint routes unchanged.
     const arkModel=process.env.ARK_MODEL||"dola-seedream-5-0-pro-260628";
