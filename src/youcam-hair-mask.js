@@ -165,68 +165,26 @@ function writeHair(source,mask,support,rgba,index,opacity){
  support[j]=support[j+1]=support[j+2]=support[j+3]=255;
 }
 
-export function buildYoucamHairLayers({original,generated,width:w,height:h,originalHair,generatedHair,originalSkin,generatedSkin,originalFace,generatedFace,separateBack=false}){
+export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>33554432)throw failure('ขนาดภาพแยกผมไม่ถูกต้อง');
  const n=w*h;if(original?.length!==n*4||generated?.length!==n*4)throw failure('พิกเซลภาพแยกผมไม่ครบ');
- const oh=confidence(originalHair,n,'ผมต้นฉบับ'),gh=confidence(generatedHair,n,'ผมที่สร้าง'),os=confidence(originalSkin,n,'ผิวต้นฉบับ'),gs=confidence(generatedSkin,n,'ผิวที่สร้าง');
- const f=frame(originalFace,w,h),gf=frame(generatedFace||originalFace,w,h),fm=faceMasks(f,w,h),gm=faceMasks(gf,w,h);
- if(Math.hypot(f.cx-gf.cx,f.cy-gf.cy)>f.d*.06||Math.abs(f.d-gf.d)>f.d*.06||f.ux*gf.ux+f.uy*gf.uy<Math.cos(.05))throw failure('ตำแหน่งใบหน้าจาก YouCam ยังไม่ตรงภาพเดิม');
- const generatedConnected=connectedHair(generated,gh,gs,gf,gm,w,h),nativeSupport=generatedConnected.support;
- if(generatedConnected.count<Math.max(12,f.d*f.d*.002))throw failure('แยกเนื้อผมจาก YouCam ได้ไม่ชัดเจน');
- let featureCount=0,coveredFeatures=0;
- for(let i=0;i<n;i++)if(gm.features[i]){featureCount++;if(nativeSupport[i])coveredFeatures++}
- if(coveredFeatures>Math.max(6,featureCount*.18))throw failure('ผลแยกผมทับรายละเอียดใบหน้ามากเกินไป');
- const refined=refineYoucamHairConfidence(generated,gh,w,h,Math.max(1,Math.min(4,w/256))),feather=clamp(f.d*.015,1.2,5);
- const distance=innerDistance(nativeSupport,os,gs,gm.oval,w,h,feather),alpha=new Float32Array(n);
- const portraitEraser=softYoucamPortraitEraser(generatedFace||originalFace,w,h);
- let totalAlpha=0,lowerAlpha=0;
- for(let i=0;i<n;i++)if(nativeSupport[i]){
-  // Strong hair keeps native alpha; uncertain semantic edges use a native-guided
-  // matte, always restricted to supported hair rather than generated skin.
-  const matte=gh[i]>=.88?1:smooth(.035,.82,refined[i]);
-  // There is no skin hidden beneath photographed old hair. Do not add a
-  // translucent cut there: opaque selected hair covers its old colour, while
-  // only transitions over genuinely available original skin feather inward.
-  const oldHairUnderlay=oh[i]>.9&&os[i]<.025;
-  const innerFeather=oldHairUnderlay?1:smooth(0,feather,distance[i]+.25);
-  alpha[i]=generated[i*4+3]/255*matte*innerFeather*(1-portraitEraser.erase[i]);
-  totalAlpha+=alpha[i];const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5});if(q.v>f.chin+f.d*.2)lowerAlpha+=alpha[i];
- }
- if(totalAlpha<Math.max(8,f.d*f.d*.0015))throw failure('เนื้อผมหลังเกลี่ยขอบไม่เพียงพอ');
- const hasBack=Boolean(separateBack&&lowerAlpha>Math.max(16,f.d*f.d*.025));
- const front=rgbaMask(n),frontMask=rgbaMask(n),frontSupport=rgbaMask(n),back=hasBack?rgbaMask(n):null,backMask=hasBack?rgbaMask(n):null,backSupport=hasBack?rgbaMask(n):null;
- // Hair actually crossing the original face is foreground evidence. Preserve
- // its projected strand corridor rather than cutting every lower lock at chin.
- const corridorSize=Math.ceil(f.d*4)+3,corridors=new Uint8Array(corridorSize),center=Math.floor(corridorSize/2);
- if(hasBack)for(let i=0;i<n;i++)if(alpha[i]>.7&&os[i]>.55&&fm.oval[i]){
-  const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5});if(q.v>f.brow&&q.v<f.chin-f.d*.05){const u=Math.round(q.u)+center;for(let k=Math.max(0,u-Math.ceil(f.d*.035));k<=Math.min(corridorSize-1,u+Math.ceil(f.d*.035));k++)corridors[k]=1}
- }
- for(let i=0;i<n;i++)if(alpha[i]>0){
-  const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5}),u=Math.round(q.u)+center;
-  const protectedLock=u>=0&&u<corridorSize&&corridors[u];
-  const rear=hasBack&&!protectedLock?smooth(f.chin+f.d*.08,f.chin+f.d*.62,q.v):0;
-  const partition=partitionYoucamHairAlpha(alpha[i],rear);
-  writeHair(front,frontMask,frontSupport,generated,i,partition.front);
-  if(hasBack)writeHair(back,backMask,backSupport,generated,i,partition.back);
- }
- const cleanedHead=new Uint8ClampedArray(original),oldConnected=connectedHair(original,oh,os,f,fm,w,h).support;
- let erased=0,retainedInteriorHair=0,retainedOccludedSkin=0;
- // Generated skin where the original contains hair is missing source data,
- // not exterior excess. Preserve a small existing temple/hairline strip; a
- // larger newly exposed forehead/ear/neck cannot be reconstructed honestly.
- const occludedSkin=new Uint8Array(n);
- for(let i=0;i<n;i++)if(oldConnected[i]&&oh[i]>.6&&os[i]<.12&&gs[i]>.55&&alpha[i]<.985&&original[i*4+3]>192){occludedSkin[i]=1;retainedOccludedSkin++}
- // Missing skin is not a reason to reject the selected hair. Keep those
- // original pixels below the hair layers; never synthesize or erase skin here.
+ // Erase ONLY the aligned YouCam image. The processed native portrait,
+ // including face, neck, ears, skin and existing alpha, is byte-for-byte intact.
+ const f=frame(generatedFace||originalFace,w,h),{erase,feather}=softYoucamPortraitEraser(generatedFace||originalFace,w,h);
+ const front=rgbaMask(n),frontMask=rgbaMask(n),frontSupport=rgbaMask(n);
+ let retained=0;
  for(let i=0;i<n;i++){
-  const j=i*4;if(!original[j+3]||!oldConnected[i]||os[i]>.12)continue;
-  if(occludedSkin[i])continue;
-  // Do not punch a hole into an occluded forehead: that skin does not exist.
-  // Interior old hair is only hidden when the selected new hair is opaque.
-  if(fm.oval[i]&&alpha[i]<.985){if(oh[i]>.7)retainedInteriorHair++;continue}
-  if(fm.features[i]||fm.brows[i])continue;
-  const remove=smooth(.10,.58,oh[i])*(1-smooth(.025,.12,os[i]));
-  const next=Math.round(original[j+3]*(1-remove));if(next!==cleanedHead[j+3]){cleanedHead[j+3]=next;erased++}
+  const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5});
+  // Widen the soft eraser below the jaw through the neck and shoulders,
+  // leaving the outer long hair. Remove the full bottom torso field softly.
+  const neckWidth=f.d*(.35+.55*smooth(f.chin,f.chin+f.d*1.4,q.v));
+  const neckErase=smooth(f.chin-f.d*.25,f.chin+f.d*.1,q.v)*(1-smooth(neckWidth-feather,neckWidth,Math.abs(q.u)));
+  const shoulderErase=smooth(f.chin+f.d*1.15,f.chin+f.d*1.65,q.v);
+  const removed=Math.max(erase[i],neckErase,shoulderErase);
+  const opacity=generated[i*4+3]/255*(1-removed);
+  writeHair(front,frontMask,frontSupport,generated,i,opacity);
+  if(opacity>0)retained++;
  }
- return {width:w,height:h,front,frontMask,frontSupport,back,backMask,backSupport,cleanedHead,report:{hairPixels:generatedConnected.count,erasedOriginalHairPixels:erased,retainedInteriorHair,retainedOccludedSkin,hasBack,featherPixels:feather,portraitEraserFeatherPixels:portraitEraser.feather}};
+ if(!retained)throw failure('ภาพจาก YouCam ไม่มีส่วนที่เหลือสำหรับวาง');
+ return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead:new Uint8ClampedArray(original),report:{hairPixels:retained,erasedOriginalHairPixels:0,hasBack:false,portraitEraserFeatherPixels:feather}};
 }
