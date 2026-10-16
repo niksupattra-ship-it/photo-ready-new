@@ -32,6 +32,8 @@ import {makeupLook} from '../makeup-presets.js';
 import {blendHairlineSeam} from './hairline-seam.js';
 import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
 import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
+import {fitYoucamToNative} from './youcam-native-face.js';
+import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
@@ -1606,18 +1608,89 @@ async function prepareStudioHairOverlay(headSource,hairId){
  if(layers.gapReport&&(layers.gapReport.remaining>0||layers.gapReport.unavailable))result.hairGapWarning=true;
  return result;
 }
+// Keep confidence output separate from the category-only segmenter used by PNG
+// hair and skin tools. Changing that shared instance's options would race them.
+let youcamHairSegmenterPromise;
+async function getYoucamHairSegmenter(){
+ if(!youcamHairSegmenterPromise)youcamHairSegmenterPromise=(async()=>{
+  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  return ImageSegmenter.createFromOptions(vision,{
+   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},
+   runningMode:'IMAGE',outputCategoryMask:false,outputConfidenceMasks:true
+  });
+ })().catch(error=>{youcamHairSegmenterPromise=null;throw error});
+ return youcamHairSegmenterPromise;
+}
+function youcamDetectionCanvas(source,W,H){
+ const c=canvasFor(W,H),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);x.drawImage(source,0,0,W,H);return c;
+}
+async function youcamHairConfidence(source,W,H){
+ const segmenter=await getYoucamHairSegmenter(),detection=youcamDetectionCanvas(source,W,H);
+ const copied=await new Promise((resolve,reject)=>{
+  try{segmenter.segment(detection,result=>{
+   try{
+    const masks=result.confidenceMasks;if(!masks?.[1]||!masks?.[2]||!masks?.[3])throw Error('ตรวจขอบผมจาก YouCam ไม่สำเร็จ · เก็บภาพเดิมไว้');
+    // Read owned copies while the callback's MediaPipe buffers are still valid.
+    const hair=new Float32Array(masks[1].getAsFloat32Array()),body=masks[2].getAsFloat32Array(),face=masks[3].getAsFloat32Array(),skin=new Float32Array(hair.length);
+    for(let i=0;i<skin.length;i++)skin[i]=Math.min(1,body[i]+face[i]);
+    resolve({hair,skin,width:masks[1].width,height:masks[1].height});
+   }catch(error){reject(error)}
+  })}catch(error){reject(error)}
+ });
+ const native=plane=>{
+  const small=canvasFor(copied.width,copied.height),sx=small.getContext('2d'),pixels=sx.createImageData(small.width,small.height);
+  for(let i=0;i<plane.length;i++){const j=i*4;pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=Math.round(Math.max(0,Math.min(1,plane[i]))*255);pixels.data[j+3]=255}
+  sx.putImageData(pixels,0,0);const full=canvasFor(W,H),fx=full.getContext('2d');fx.imageSmoothingEnabled=true;fx.imageSmoothingQuality='high';fx.drawImage(small,0,0,W,H);
+  const values=fx.getImageData(0,0,W,H).data,out=new Float32Array(W*H);for(let i=0;i<out.length;i++)out[i]=values[i*4]/255;return out;
+ };
+ return {hair:native(copied.hair),skin:native(copied.skin)};
+}
+function youcamPixelsSource(data,W,H){
+ const c=canvasFor(W,H),x=c.getContext('2d'),pixels=x.createImageData(W,H);pixels.data.set(data);x.putImageData(pixels,0,0);return c.toDataURL('image/png');
+}
+async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,options={}){
+ const gw=generated.naturalWidth||generated.width,gh=generated.naturalHeight||generated.height;
+ const generatedFace=landmarker.detect(youcamDetectionCanvas(generated,gw,gh)).faceLandmarks?.[0];
+ const matrix=fitYoucamToNative(face,generatedFace,W,H,gw,gh);
+ const aligned=canvasFor(W,H),ax=aligned.getContext('2d',{willReadFrequently:true});ax.imageSmoothingEnabled=true;ax.imageSmoothingQuality='high';ax.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);ax.drawImage(generated,0,0);ax.setTransform(1,0,0,1,0,0);
+ const original=canvasFor(W,H),ox=original.getContext('2d',{willReadFrequently:true});ox.drawImage(target,0,0,W,H);
+ const nativePixels=ox.getImageData(0,0,W,H).data;
+ // Only generated hair moves. The source face/skin/neck keep native RGB pixels.
+ const transformedFace=generatedFace.map(p=>({...p,x:(matrix.a*p.x*gw+matrix.c*p.y*gh+matrix.e)/W,y:(matrix.b*p.x*gw+matrix.d*p.y*gh+matrix.f)/H}));
+ const oldMasks=await youcamHairConfidence(original,W,H),newMasks=await youcamHairConfidence(aligned,W,H);
+ const layers=buildYoucamHairLayers({original:nativePixels,generated:ax.getImageData(0,0,W,H).data,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,separateBack:true});
+ let previousMask=null;
+ if(options.nativeHeadMask){
+  const saved=typeof options.nativeHeadMask==='string'?await loadImage(options.nativeHeadMask):options.nativeHeadMask;
+  if((saved.naturalWidth||saved.width)!==W||(saved.naturalHeight||saved.height)!==H)throw Error('ขนาดมาสก์ใบหน้าเดิมไม่ตรงภาพ · เก็บภาพเดิมไว้');
+  const c=canvasFor(W,H),x=c.getContext('2d');x.drawImage(saved,0,0);previousMask=x.getImageData(0,0,W,H).data;
+ }
+ const headMask=new Uint8ClampedArray(W*H*4);
+ for(let i=0;i<W*H;i++){
+  const k=i*4;headMask[k]=headMask[k+1]=headMask[k+2]=255;
+  const cleanup=nativePixels[k+3]?Math.min(255,Math.round(layers.cleanedHead[k+3]*255/nativePixels[k+3])):255;
+  // Carry manual face/neck erasures, but recalculate automatic old-hair cleanup.
+  headMask[k+3]=previousMask&&oldMasks.hair[i]<.1?Math.round(cleanup*previousMask[k+3]/255):cleanup;
+  layers.cleanedHead[k+3]=Math.round(nativePixels[k+3]*headMask[k+3]/255);
+ }
+ // Restore the original feather, not an opaque replacement for translucent hair.
+ const frontMaskSource=youcamPixelsSource(layers.frontMask,W,H),backMaskSource=layers.back?youcamPixelsSource(layers.backMask,W,H):null;
+ return {aiHairLayers:true,width:W,height:H,nativeHeadSource:original.toDataURL('image/png'),headMaskSource:youcamPixelsSource(headMask,W,H),cleanedHeadSource:youcamPixelsSource(layers.cleanedHead,W,H),source:youcamPixelsSource(layers.front,W,H),maskSource:frontMaskSource,maskRestoreSource:frontMaskSource,...(layers.back?{backSource:youcamPixelsSource(layers.back,W,H),backMaskSource,backMaskRestoreSource:backMaskSource}:{})};
+}
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
  if(!/^youcam-(?:f(?:[1-9]|1[0-8])|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',/^youcam-f(?:16|17|18)$/.test(hairId)?'youcam-rear-reference-v1':'youcam-direct-v2']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-mask-v1']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height,landmarker=await getLandmarker();
- const face=landmarker.detect(target).faceLandmarks?.[0];if(!face)throw Error('ไม่พบใบหน้าสำหรับเปลี่ยนทรงผม');
+ const face=landmarker.detect(youcamDetectionCanvas(target,W,H)).faceLandmarks?.[0];if(!face)throw Error('ไม่พบใบหน้าสำหรับเปลี่ยนทรงผม');
+ // Load the local mask model before starting a provider job or reserving rights.
+ await getYoucamHairSegmenter();
  const scale=Math.min(1,1024/Math.max(W,H)),fw=Math.abs(face[454].x-face[234].x)*W*scale;
  if(fw<128)throw Error('ใบหน้าเล็กเกินไปสำหรับ YouCam กรุณาใช้ภาพหน้าตรงที่เห็นใบหน้าชัดขึ้น');
  const input=canvasFor(Math.round(W*scale),Math.round(H*scale)),ix=input.getContext('2d');ix.fillStyle='#ffffff';ix.fillRect(0,0,input.width,input.height);ix.drawImage(target,0,0,input.width,input.height);
@@ -1639,14 +1712,10 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  const u=URL.createObjectURL(cutout);
  try{
   const generated=await loadImage(u);
-  // Preserve YouCam's composition without landmark realignment or skin replacement.
-  const out=canvasFor(W,H),ox=out.getContext('2d');
-  const fit=Math.min(W/generated.naturalWidth,H/generated.naturalHeight);
-  const width=generated.naturalWidth*fit,height=generated.naturalHeight*fit;
-  ox.drawImage(generated,(W-width)/2,(H-height)/2,width,height);
-  const cleanedHeadSource=out.toDataURL('image/png');
+  options.onProgress?.(82);
+  const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,options);
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
-  return {aiComposed:true,cleanedHeadSource};
+  return fitted;
  }finally{URL.revokeObjectURL(u)}
  }catch(e){await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/cancel',{method:'POST',headers:walletHeaders()}).catch(()=>{});throw e}
 }
