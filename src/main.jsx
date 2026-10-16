@@ -1612,7 +1612,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',/^youcam-f(?:16|17|18)$/.test(hairId)?'youcam-rear-reference-v1':'youcam-direct-v2']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'','youcam-direct-single-encode-v3']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1635,7 +1635,6 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
  const imageResponse=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store'});if(!imageResponse.ok)throw Error('รับรูป YouCam ไม่สำเร็จ');
  const cutout=await removeBackgroundBlob(await imageResponse.blob());
- const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
  const u=URL.createObjectURL(cutout);
  try{
   const generated=await loadImage(u);
