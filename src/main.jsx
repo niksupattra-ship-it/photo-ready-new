@@ -1,4 +1,3 @@
-import {needsRearHair,splitRearHair} from './youcam-rear-hair.js';
 import {homePreviewSource} from './home-previews.js';
 import {portraitJobError} from './portrait-job-error.js';
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
@@ -1613,7 +1612,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',needsRearHair(hairId)?'youcam-rear-neck-v1':'youcam-direct-v2']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',/^youcam-f(?:16|17|18)$/.test(hairId)?'youcam-rear-reference-v1':'youcam-direct-v2']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1645,18 +1644,9 @@ async function requestYoucamStudioHair(target,hairId,options={}){
   const fit=Math.min(W/generated.naturalWidth,H/generated.naturalHeight);
   const width=generated.naturalWidth*fit,height=generated.naturalHeight*fit;
   ox.drawImage(generated,(W-width)/2,(H-height)/2,width,height);
-  let backSource=null;
-  if(needsRearHair(hairId)){
-   const [hair,skin]=await Promise.all([semanticClassMask(out,W,H,[1]),semanticClassMask(target,W,H,[2,3])]);
-   if(!hair||!skin)throw Error('แยกผมด้านหลังไม่สำเร็จ · เก็บภาพเดิมไว้');
-   const pixels=ox.getImageData(0,0,W,H),src=original.getContext('2d').getImageData(0,0,W,H);
-   const split=splitRearHair(pixels.data,src.data,hair.getContext('2d').getImageData(0,0,W,H).data,skin.getContext('2d').getImageData(0,0,W,H).data,W,H,face[152].y*H,Math.max(2,Math.abs(face[152].y-face[10].y)*H*.025));
-   pixels.data.set(split.front);ox.putImageData(pixels,0,0);
-   const rear=canvasFor(W,H),rx=rear.getContext('2d'),rp=rx.createImageData(W,H);rp.data.set(split.back);rx.putImageData(rp,0,0);backSource=rear.toDataURL('image/png');
-  }
   const cleanedHeadSource=out.toDataURL('image/png');
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
-  return {aiComposed:true,cleanedHeadSource,...(backSource?{backSource,rearBehindSuit:true}:{})};
+  return {aiComposed:true,cleanedHeadSource};
  }finally{URL.revokeObjectURL(u)}
  }catch(e){await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/cancel',{method:'POST',headers:walletHeaders()}).catch(()=>{});throw e}
 }
@@ -2484,9 +2474,9 @@ const HAIR_OPTIONS=[
  {id:'youcam-f13',name:'ทรงผม 16',src:'/assets/youcam-hair/female-preview-13.webp'},
  {id:'youcam-f14',name:'ทรงผม 17',src:'/assets/youcam-hair/female-preview-14.webp'},
  {id:'youcam-f15',name:'ทรงผม 18',src:'/assets/youcam-hair/female-preview-15.webp'},
- {id:'youcam-f16',name:'ทรงผม 19',src:'/assets/youcam-hair/female-preview-16.webp'},
- {id:'youcam-f17',name:'ทรงผม 20',src:'/assets/youcam-hair/female-preview-17.webp'},
- {id:'youcam-f18',name:'ทรงผม 21',src:'/assets/youcam-hair/female-preview-18.webp'},
+ {id:'youcam-f16',name:'ทรงผม 19',src:'/assets/youcam-hair/female-preview-16.webp?v=rear-reference-v1'},
+ {id:'youcam-f17',name:'ทรงผม 20',src:'/assets/youcam-hair/female-preview-17.webp?v=rear-reference-v1'},
+ {id:'youcam-f18',name:'ทรงผม 21',src:'/assets/youcam-hair/female-preview-18.webp?v=rear-reference-v1'},
 ];
 
 const JOB_UNIFORMS=[

@@ -422,7 +422,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){appearanceFailure('hair','ปลดล็อกเลเยอร์หัวก่อนเปลี่ยนทรงผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0]||(/^youcam-[fm]/.test(head.hairId||'')?head:null);
-  const previewVersion=/^youcam-(?:f(?:[1-9]|1[0-8])|m(?:[1-9]|1[0-3]))$/.test(id)?(/^youcam-f(?:16|17|18)$/.test(id)?'youcam-rear-neck-v1':'youcam-direct-v2'):((/^manhair-\d{2}$/.test(id)||isSingleFemaleHair(id))?'png-lower-short-02-v2:':'png-lower-face-03-v1:')+(id==='hair-01'?78:id==='hair-02'?79:id==='hair-03'?80:/^hair-0[2-5]$/.test(id)?76:id==='hair-06'?83:id==='hair-07'?84:/^manhair-0[1-3]$/.test(id)?85:/^manhair-\d{2}$/.test(id)?71:isSingleFemaleHair(id)?75:57);
+  const previewVersion=/^youcam-(?:f(?:[1-9]|1[0-8])|m(?:[1-9]|1[0-3]))$/.test(id)?(/^youcam-f(?:16|17|18)$/.test(id)?'youcam-rear-reference-v1':'youcam-direct-v2'):((/^manhair-\d{2}$/.test(id)||isSingleFemaleHair(id))?'png-lower-short-02-v2:':'png-lower-face-03-v1:')+(id==='hair-01'?78:id==='hair-02'?79:id==='hair-03'?80:/^hair-0[2-5]$/.test(id)?76:id==='hair-06'?83:id==='hair-07'?84:/^manhair-0[1-3]$/.test(id)?85:/^manhair-\d{2}$/.test(id)?71:isSingleFemaleHair(id)?75:57);
   // Re-selecting the active style must preserve manual edits as-is.
   if((existing?.hairId===id&&existing.hairPreviewVersion===previewVersion)||(!id&&!attached.length&&!/^youcam-[fm]/.test(head.hairId||''))){setSelected(existing?.id||head.id);setTool('move');setStatus('เลือกทรงเดิมพร้อมการปรับแต่งแล้ว · ไม่โหลดใหม่');return}
   setAppearanceError(null);processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
@@ -447,7 +447,6 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    }
    let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,...(!id?{source:l.processedOriginalSource||l.hairOriginalSource||l.source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairOriginalSource:null,makeupBaseSource:null,makeupCleanBaseSource:null,makeupFullSource:null,makeupStyles:{},makeupIntensity:100,hairId:''}:{}),hairBaseMask:null,hairOuterEraser:null}:l),selectedId=head.id,hairGapWarning=false,maleSideburnWarning=false;
    if(id){
-    if(/^youcam-f(?:16|17|18)$/.test(id)&&next.length>=20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
     const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผม');
     // Refit from the untouched portrait so an older erasure never carries over.
     const fitted=await onPrepareHairOverlay(head.hairOriginalSource||asset.warped||asset.original,id,{sourceJobId:head.jobId,onProgress:value=>{if(mounted.current)setHairPlacementProgress(Math.min(89,Math.max(1,value)))}});
@@ -464,16 +463,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     const index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
     selectedId=front.id;
-    }else{
-     next=next.map(l=>l.id===head.id?{...l,hairId:id,hairPreviewVersion:previewVersion}:l);
-     if(fitted.rearBehindSuit&&fitted.backSource){
-      if(next.length>=20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
-      const back=fresh({kind:'hair-preview',name:'ผมด้านหลังคอและบ่า',hairRole:'back',hairLinked:true,hairId:id,hairPreviewVersion:previewVersion,mask:null,source:fitted.backSource,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)});
-      const headIndex=next.findIndex(l=>l.id===head.id),suitIndex=next.findIndex(l=>layerKind(l)==='suit');
-      next.splice(suitIndex<0?headIndex:Math.min(headIndex,suitIndex),0,back);
-     }
-     selectedId=head.id;
-    }
+    }else{next=next.map(l=>l.id===head.id?{...l,hairId:id,hairPreviewVersion:previewVersion}:l);selectedId=head.id;}
    }
    setHairPlacementProgress(90);await hairUiFrame();
    if(await hydrate(next,new Set(previous.filter(l=>l.kind!=='hair-preview'&&l.id!==head.id).map(l=>l.id)))){
