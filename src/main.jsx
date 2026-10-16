@@ -1,4 +1,3 @@
-import {currentPortraitPolicy,retainAiCosmetics} from './portrait-finish-guard.js';
 import {needsRearHair,splitRearHair} from './youcam-rear-hair.js';
 import {homePreviewSource} from './home-previews.js';
 import {portraitJobError} from './portrait-job-error.js';
@@ -795,7 +794,7 @@ async function readOriginalSkinProfile(sourceBlob){
 // Automatic V227 skin enhancement on the existing transparent AI portrait, not the
 // original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
 // bounded by original exposure and highlight protection; preserve pores.
-async function optionalHealthySkin10(masterBlob,sourceBlob,portraitMode=null){
+async function optionalHealthySkin10(masterBlob,sourceBlob){
  try{
   const image=await decodedPortraitImage(masterBlob),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
   const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
@@ -809,15 +808,7 @@ async function optionalHealthySkin10(masterBlob,sourceBlob,portraitMode=null){
   const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
   const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile);
   // One restrained texture pass per new AI master; reuse its skin mask.
-  const finished=await refineSkinTextureBlob(await canvasPng(tinted),skinMask);
-  if(portraitMode!=='female')return finished;
-  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
-  // Fail closed: preserve the AI image rather than apply an unprotected second finish.
-  if(!face)return masterBlob;
-  const finalImage=await decodedPortraitImage(finished),out=canvasFor(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(finalImage,0,0);
-  const pixels=ctx.getImageData(0,0,W,H),base=canvasFor(W,H),bx=base.getContext('2d',{willReadFrequently:true});bx.drawImage(image,0,0);
-  pixels.data.set(retainAiCosmetics(bx.getImageData(0,0,W,H).data,pixels.data,W,H,face));ctx.putImageData(pixels,0,0);
-  return await canvasPng(out);
+  return await refineSkinTextureBlob(await canvasPng(tinted),skinMask);
  }catch(e){console.warn('V231 automatic skin enhancement skipped',e);return masterBlob}
  
 }
@@ -2113,9 +2104,8 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const policyRevision=options.portraitMode==='female'?await currentPortraitPolicy():null;
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(policyRevision?[policyRevision]:[]),...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[])]);
- const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,{...options,portraitPolicyRevision:policyRevision},neckline));
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[])]);
+ const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  await checkPortraitProportions(originalFile,cached.value);
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
@@ -2157,7 +2147,6 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  if(['female','male'].includes(options.portraitMode))fd.append('portraitMode',options.portraitMode);
- if(options.portraitPolicyRevision)fd.append('portraitPolicyRevision',options.portraitPolicyRevision);
  if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
  fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
@@ -3596,10 +3585,10 @@ function App(){
    const delivery=deliverImage(downloadBlob,photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`);analyticsEvent('idprom_download_requested',{size_id:photoCrop.sizeId,delivery});
   }catch(e){analyticsEvent('idprom_download_error',{error_stage:'download'});suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId,portraitMode=null)=>{
+ const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile,portraitMode))));
+  const headNeckTransparent=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile))));
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
@@ -3625,7 +3614,7 @@ function App(){
  const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,portraitMode,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
-  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair,portraitMode);analyticsStage='cleanup';
+  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
  }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
