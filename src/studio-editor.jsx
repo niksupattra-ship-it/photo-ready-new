@@ -430,7 +430,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   try{
    await hairUiFrame();if(!mounted.current)return;
    const previous=historySnapshot(),previousPixels=historyAssets.current.get(previous);
-   if(attached.length||!head.youcamNativeHead)hairStyleMemory.current.remember(previous,previousPixels,head.id,existing?.hairId||'',existing?.hairPreviewVersion||0);
+   hairStyleMemory.current.remember(previous,previousPixels,head.id,existing?.hairId||head.hairId||'',existing?.hairPreviewVersion||head.hairPreviewVersion||0);
    const memoryKey=(style,version)=>JSON.stringify([head.id,head.jobId||'',style,version]);
    if(!attached.length&&!head.youcamNativeHead)youcamHairMemory.current.set(memoryKey(head.hairId||'',head.hairPreviewVersion||0),{layer:previous.find(l=>l.id===head.id),pixel:previousPixels.get(head.id)});
    while(youcamHairMemory.current.size>24)youcamHairMemory.current.delete(youcamHairMemory.current.keys().next().value);

@@ -1,28 +1,27 @@
-// Session-local style snapshots. Keep only this head and its hair, never
-// restore the outfit/background/other layers from an older hairstyle.
+// Session memory of native, already-decoded hair results and manual edits.
+// Restore only the head and its hair; current outfit/background/accessories stay.
+const belongs=(layer,headId)=>layer.id===headId||(layer.kind==='hair-preview'&&layer.hairHeadId===headId);
+const clone=value=>{if(Array.isArray(value))return value.map(clone);if(value&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,clone(v)]));return value};
 export function createHairStyleMemory(){
- const heads=new Map();
- const origin=head=>[head.jobId||'',head.processedOriginalSource||head.hairOriginalSource||head.source,JSON.stringify(head.makeupStyles||{})];
- const scope=head=>{const key=origin(head),old=heads.get(head.id);if(old&&old.key.every((v,i)=>v===key[i]))return old;const value={key,styles:new Map()};heads.set(head.id,value);return value};
+ const entries=new Map();
+ const key=(head,style,version)=>JSON.stringify([head.id,head.jobId||'',style||'',version||0]);
  return {
-  clear:()=>heads.clear(),
-  remember(layers,pixelMap,headId,id,version){
-   const head=layers.find(l=>l.id===headId);if(!head||!pixelMap)return;
-   const selected=layers.filter(l=>l.id===headId||l.kind==='hair-preview'&&l.hairHeadId===headId);
-   if(selected.some(l=>!pixelMap.has(l.id)))return;
-   scope(head).styles.set(id||'',{version,layers:selected.map(l=>({...l})),pixels:new Map(selected.map(l=>[l.id,pixelMap.get(l.id)]))});
+  clear(){entries.clear()},
+  remember(layers,pixels,headId,style,version){
+   const head=layers.find(l=>l.id===headId);if(!head||!pixels)return;
+   const selected=layers.filter(l=>belongs(l,headId));if(selected.some(l=>!pixels.has(l.id)))return;
+   const k=key(head,style,version);entries.set(k,{layers:selected.map(clone),pixels:new Map(selected.map(l=>[l.id,pixels.get(l.id)]))});
   },
-  restore(layers,pixelMap,headId,id,version){
-   const head=layers.find(l=>l.id===headId);if(!head||!pixelMap)return null;
-   const saved=scope(head).styles.get(id||'');if(!saved||saved.version!==version)return null;
-   const oldHead=saved.layers.find(l=>l.id===headId),hairs=saved.layers.filter(l=>l.id!==headId).map(l=>({...l}));
-   const restoredHead={...oldHead,id:head.id,jobId:head.jobId,x:head.x,y:head.y,scale:head.scale,rotation:head.rotation,squeezeX:head.squeezeX,squeezeY:head.squeezeY,visible:head.visible,locked:head.locked,outputUnlocked:head.outputUnlocked,restrictedTrial:head.restrictedTrial,fullEditUnlocked:head.fullEditUnlocked};
-   const next=layers.filter(l=>l.id!==headId&&!(l.kind==='hair-preview'&&l.hairHeadId===headId));
-   const index=layers.slice(0,layers.findIndex(l=>l.id===headId)).filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===headId)).length;
-   next.splice(index,0,...hairs.filter(l=>l.hairRole==='back'),restoredHead,...hairs.filter(l=>l.hairRole!=='back'));
-   const pixels=new Map(next.map(l=>[l.id,saved.pixels.get(l.id)||pixelMap.get(l.id)]));
-   if(next.length>20||next.some(l=>!pixels.get(l.id)))return null;
-   return {layers:next,pixels,selectedId:hairs.find(l=>l.hairRole!=='back')?.id||headId};
+  restore(current,currentPixels,headId,style,version){
+   const head=current.find(l=>l.id===headId);if(!head||!currentPixels)return null;
+   const saved=entries.get(key(head,style,version));if(!saved)return null;
+   const keep=current.filter(l=>!belongs(l,headId)),pixels=new Map(keep.map(l=>[l.id,currentPixels.get(l.id)]));
+   if(keep.some(l=>!pixels.get(l.id)))return null;
+   const layers=keep.map(clone),restored=saved.layers.map(clone),cachedHead=restored.find(l=>l.id===headId);
+   const before=current.slice(0,current.findIndex(l=>l.id===headId)).filter(l=>!belongs(l,headId)).length;
+   layers.splice(before,0,...restored);
+   for(const [id,pixel]of saved.pixels)pixels.set(id,pixel);
+   return {layers,pixels,selectedId:restored.find(l=>l.kind==='hair-preview'&&l.hairRole!=='back')?.id||cachedHead.id};
   }
  };
 }
