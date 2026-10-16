@@ -173,53 +173,6 @@ function koreanEyeDetails(g,masks){
  return result;
 }
 
-// Smooth centre lines and tapered curved strands replace polygon-cut brow marks.
-// Both boundaries are the existing eyebrow landmarks; neither is moved.
-function naturalMakeupBrows(g,masks,source,strength){
- const t=maskTools(g),draw=t.make();
- const random=n=>{const x=Math.sin(n*127.1+311.7)*43758.5453;return x-Math.floor(x)};
- const spline=(points,u)=>{const q=clamp(u)*(points.length-1),i=Math.min(points.length-2,Math.floor(q)),f=q-i,a=points[Math.max(0,i-1)],b=points[i],c=points[i+1],d=points[Math.min(points.length-1,i+2)];
-  const value=k=>.5*((2*b[k])+(-a[k]+c[k])*f+(2*a[k]-5*b[k]+4*c[k]-d[k])*f*f+(-a[k]+3*b[k]-3*c[k]+d[k])*f*f*f);return {x:value('x'),y:value('y')};
- };
- const blend=(a,b,f)=>({x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f});
- const at=p=>{const x=Math.round(p.x-g.x),y=Math.round(p.y-g.y);return x<0||y<0||x>=g.w||y>=g.h?-1:y*g.w+x};
- const candidates=[];
- const borders=[[[107,66,105,63,70],[55,65,52,53,46]],[[336,296,334,293,300],[285,295,282,283,276]]];
- for(let side=0;side<2;side++){
-  const [upper,lower]=borders[side].map(ids=>ids.map(g.point));
-  const length=upper.slice(1).reduce((sum,p,i)=>sum+Math.hypot(p.x-upper[i].x,p.y-upper[i].y),0);
-  if(length<g.d*.045)continue;
-  for(let n=0;n<40;n++){const u=(n+.5)/40,p=blend(spline(upper,u),spline(lower,u),.5),i=at(p);if(i>=0&&source[i*4+3]>240&&masks.support[i]>.5)candidates.push([source[i*4],source[i*4+1],source[i*4+2]])}
-  const count=Math.round(clamp(length*1.05,24,90));
-  for(let n=0;n<count;n++){
-   const seed=side*199+n,u=clamp((n+.25+random(seed)*.5)/count,.015,.985);
-   const top=spline(upper,u),bottom=spline(lower,u),thickness=Math.hypot(top.x-bottom.x,top.y-bottom.y);
-   if(thickness<.6||thickness>g.d*.11)continue;
-   const root=blend(top,bottom,.66+random(seed+7)*.26);
-   const travel=(.008+.085*smooth(.1,.85,u))*(.75+random(seed+13)*.5),endU=clamp(u+travel,.01,.995);
-   const tip=blend(spline(upper,endU),spline(lower,endU),.12+random(seed+21)*.25);
-   const control=blend(root,tip,.52);control.x-=g.vx*thickness*.16;control.y-=g.vy*thickness*.16;
-   const point=f=>({x:(1-f)*(1-f)*root.x+2*(1-f)*f*control.x+f*f*tip.x,y:(1-f)*(1-f)*root.y+2*(1-f)*f*control.y+f*f*tip.y});
-   const fade=smooth(0,.13,u)*(1-smooth(.78,1,u)),alpha=(.20+random(seed+29)*.18)*fade;
-   for(let k=0;k<10;k++){
-    const f=k/10,a=point(f),b=point((k+1)/10);draw.ctx.globalAlpha=alpha*(1-f*.8);draw.ctx.lineWidth=Math.max(.25,g.d*.00135)*(.75+random(seed+41)*.5)*(1-f*.84);draw.ctx.lineCap='round';draw.ctx.beginPath();draw.ctx.moveTo(a.x-g.x,a.y-g.y);draw.ctx.lineTo(b.x-g.x,b.y-g.y);draw.ctx.stroke();
-   }
-  }
- }
- candidates.sort((a,b)=>luma(...a)-luma(...b));
- const sample=candidates.length?candidates[Math.floor(candidates.length*.22)]:[65,52,47];
- const color=sample.map(v=>clamp(v*.72,25,125)),pixels=t.pixels(draw.canvas),alpha=new Float32Array(g.w*g.h),r=Math.max(1,Math.round(g.d*.007));
- for(let y=0;y<g.h;y++)for(let x=0;x<g.w;x++){
-  const i=y*g.w+x,j=i*4;if(pixels[j+3]===0)continue;
-  const Y=luma(source[j],source[j+1],source[j+2]);let sum=0,count=0;
-  for(const [dx,dy]of [[-r,0],[r,0],[0,-r],[0,r]]){const px=clamp(x+dx,0,g.w-1),py=clamp(y+dy,0,g.h-1),k=(py*g.w+px)*4;sum+=luma(source[k],source[k+1],source[k+2]);count++}
-  // Existing dark strands are left intact; new strokes favour their lighter gaps.
-  const sparse=(1-smooth(3,22,sum/count-Y))*(.25+.75*smooth(45,145,Y));
-  alpha[i]=pixels[j+3]/255*strength*sparse*masks.support[i]*(1-masks.eyes[i]);
- }
- return {alpha,color};
-}
-
 export async function renderLocalMakeup({original,face,hairMask=null,skinMask=null,lookId='local-natural-pink-v1',signal,onProgress}){
  abortIfNeeded(signal);
  const W=original?.naturalWidth||original?.width,H=original?.naturalHeight||original?.height;
@@ -230,7 +183,7 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
- const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks),eyeDetail=korean?koreanEyeDetails(g,masks):null,browDetail=naturalMakeupBrows(g,masks,source,korean?1:glow?.65:.45);progress(30);await pause(signal);
+ const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks),eyeDetail=korean?koreanEyeDetails(g,masks):null;progress(30);await pause(signal);
  const luminance=new Float32Array(g.w*g.h);let sum=0,weight=0;
  for(let i=0;i<luminance.length;i++){
   const j=i*4,Y=luma(source[j],source[j+1],source[j+2]);luminance[i]=Y;
@@ -288,7 +241,6 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
      const delta=(highlight*3.2-shade*2.4)*tone;for(let c=0;c<3;c++)pixels[j+c]+=delta;
     }
    }
-   const brow=browDetail.alpha[i];if(brow>.0001)for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-brow)+browDetail.color[c]*brow;
    const lash=effects.lashMask[i];if(lash>.0001){const brown=[49,34,31];for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-lash)+brown[c]*lash}
   }
   if(y&&y%32===0){progress(68+Math.round(y/g.h*25));await pause(signal)}
