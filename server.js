@@ -651,6 +651,11 @@ Return the completed person as a genuine RGBA PNG with an alpha channel. Remove 
     res.status(500).send("AI finishing ไม่สำเร็จ: "+e.message);
   }
 };
+// The cache revision tracks the actual portrait handler and configured model.
+// Hash only: never expose prompt text, credentials or environment values.
+function portraitFinishRevision(){return crypto.createHash('sha256').update(aiFinishHandler.toString()).update('\0'+(process.env.ARK_MODEL||'dola-seedream-5-0-pro-260628')).digest('hex').slice(0,24)}
+app.get('/api/portrait-finish-policy',(req,res)=>{res.set('Cache-Control','no-store');res.json({revision:portraitFinishRevision()})});
+
 app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),aiFinishHandler);
 
 
@@ -672,7 +677,7 @@ async function runAiJob(id){
 }
 app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1}]),async(req,res)=>{
  let creditUse=null;
- try{const image=req.files?.image?.[0],mask=req.files?.mask?.[0];if(!image)return res.status(400).json({error:'image_required'});if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';creditUse=await requireCredit(req,res,creditKind);if(!creditUse)return;const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:{...req.body,delivery_pending:true,delivery_confirmed:false},image,mask});res.status(202).json({jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});setImmediate(()=>runAiJob(id))}
+ try{if(req.body?.portraitMode==='female'&&req.body?.portraitPolicyRevision&&req.body.portraitPolicyRevision!==portraitFinishRevision())return res.status(409).json({error:'portrait_policy_changed',message:'รุ่นประมวลผลเปลี่ยนแล้ว กรุณาลองใหม่อีกครั้ง'});const image=req.files?.image?.[0],mask=req.files?.mask?.[0];if(!image)return res.status(400).json({error:'image_required'});if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';creditUse=await requireCredit(req,res,creditKind);if(!creditUse)return;const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:{...req.body,delivery_pending:true,delivery_confirmed:false},image,mask});res.status(202).json({jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});setImmediate(()=>runAiJob(id))}
  catch(e){if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message})}
 });
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
