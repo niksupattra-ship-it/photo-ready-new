@@ -1683,7 +1683,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-fringe-aware-v8']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-full-exterior-v9']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){

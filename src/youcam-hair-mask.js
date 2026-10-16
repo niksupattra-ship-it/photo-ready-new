@@ -216,14 +216,21 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  const oh=confidence(originalHair,n,'ผมต้นฉบับ'),os=confidence(originalSkin,n,'ผิวต้นฉบับ');
  const cleanedHead=new Uint8ClampedArray(original),left=new Int32Array(h),right=new Int32Array(h);left.fill(w);right.fill(-1);
  let first=h,last=-1;
- for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(generated[(y*w+x)*4+3]>=32){left[y]=Math.min(left[y],x);right[y]=Math.max(right[y],x);first=Math.min(first,y);last=Math.max(last,y)}
+ // Measure the NEW HAIR silhouette, not the full YouCam portrait: its neck
+ // and shirt otherwise widen the envelope and leave old hair outside it.
+ let hairSupport=0;for(let i=0;i<n;i++)if(gh[i]>.15&&generated[i*4+3]>=8)hairSupport++;
+ const useHair=hairSupport>=Math.max(12,f.d*f.d*.002);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(generated[i*4+3]>=(useHair?8:32)&&(!useHair||gh[i]>.15)){left[y]=Math.min(left[y],x);right[y]=Math.max(right[y],x);first=Math.min(first,y);last=Math.max(last,y)}}
+ const originalFaceArea=faceMasks(frame(originalFace,w,h),w,h).oval;
  let erased=0;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const i=y*w+x,j=i*4;if(!original[j+3])continue;
   const exterior=y<first||y>last||x<left[y]||x>right[y];
-  if(!exterior||os[i]>=.2||oh[i]<=.1)continue;
-  const amount=smooth(.10,.45,oh[i])*(1-smooth(.02,.20,os[i]));
-  const a=Math.round(original[j+3]*(1-amount));if(a!==original[j+3]){cleanedHead[j+3]=a;erased++;}
+  // Erase the entire exterior field, including low-confidence wisps and
+  // disconnected scraps, right through to the border. Keep source skin and
+  // the anatomical face interior; never carve a hole into the face/neck.
+  if(!exterior||os[i]>=.2||originalFaceArea[i])continue;
+  const a=0;if(a!==original[j+3]){cleanedHead[j+3]=a;erased++;}
  }
  return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather}};
 }
