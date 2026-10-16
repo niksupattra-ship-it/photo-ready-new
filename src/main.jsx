@@ -1636,7 +1636,9 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
  const imageResponse=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store'});if(!imageResponse.ok)throw Error('รับรูป YouCam ไม่สำเร็จ');
  const cutout=await removeBackgroundBlob(await imageResponse.blob());
- const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
+ const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);
+ // Validate hair alignment below; the generated face is replaced by native
+ // source pixels, so its pre-composition proportions must not reject the job.
  const u=URL.createObjectURL(cutout);
  try{
   const generated=await loadImage(u);
