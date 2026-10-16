@@ -422,7 +422,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){appearanceFailure('hair','ปลดล็อกเลเยอร์หัวก่อนเปลี่ยนทรงผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0]||(/^youcam-[fm]/.test(head.hairId||'')?head:null);
-  const previewVersion=/^youcam-(?:f(?:[1-9]|1[0-8])|m(?:[1-9]|1[0-3]))$/.test(id)?'youcam-direct-single-encode-v3':((/^manhair-\d{2}$/.test(id)||isSingleFemaleHair(id))?'png-lower-short-02-v2:':'png-lower-face-03-v1:')+(id==='hair-01'?78:id==='hair-02'?79:id==='hair-03'?80:/^hair-0[2-5]$/.test(id)?76:id==='hair-06'?83:id==='hair-07'?84:/^manhair-0[1-3]$/.test(id)?85:/^manhair-\d{2}$/.test(id)?71:isSingleFemaleHair(id)?75:57);
+  const previewVersion=/^youcam-(?:f(?:[1-9]|1[0-8])|m(?:[1-9]|1[0-3]))$/.test(id)?(/^youcam-f(?:16|17|18)$/.test(id)?'youcam-rear-reference-v1':'youcam-direct-v2'):((/^manhair-\d{2}$/.test(id)||isSingleFemaleHair(id))?'png-lower-short-02-v2:':'png-lower-face-03-v1:')+(id==='hair-01'?78:id==='hair-02'?79:id==='hair-03'?80:/^hair-0[2-5]$/.test(id)?76:id==='hair-06'?83:id==='hair-07'?84:/^manhair-0[1-3]$/.test(id)?85:/^manhair-\d{2}$/.test(id)?71:isSingleFemaleHair(id)?75:57);
   // Re-selecting the active style must preserve manual edits as-is.
   if((existing?.hairId===id&&existing.hairPreviewVersion===previewVersion)||(!id&&!attached.length&&!/^youcam-[fm]/.test(head.hairId||''))){setSelected(existing?.id||head.id);setTool('move');setStatus('เลือกทรงเดิมพร้อมการปรับแต่งแล้ว · ไม่โหลดใหม่');return}
   setAppearanceError(null);processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');

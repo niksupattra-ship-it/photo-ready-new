@@ -1612,7 +1612,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'','youcam-direct-single-encode-v3']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',/^youcam-f(?:16|17|18)$/.test(hairId)?'youcam-rear-reference-v1':'youcam-direct-v2']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1621,7 +1621,7 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  const scale=Math.min(1,1024/Math.max(W,H)),fw=Math.abs(face[454].x-face[234].x)*W*scale;
  if(fw<128)throw Error('ใบหน้าเล็กเกินไปสำหรับ YouCam กรุณาใช้ภาพหน้าตรงที่เห็นใบหน้าชัดขึ้น');
  const input=canvasFor(Math.round(W*scale),Math.round(H*scale)),ix=input.getContext('2d');ix.fillStyle='#ffffff';ix.fillRect(0,0,input.width,input.height);ix.drawImage(target,0,0,input.width,input.height);
- const upload=await new Promise((resolve,reject)=>input.toBlob(b=>b?resolve(b):reject(Error('เตรียม JPG ไม่สำเร็จ')),'image/jpeg',.98));
+ const upload=await new Promise((resolve,reject)=>input.toBlob(b=>b?resolve(b):reject(Error('เตรียม JPG ไม่สำเร็จ')),'image/jpeg',.95));
  const fd=new FormData();fd.append('image',upload,'portrait.jpg');fd.append('hairId',hairId);fd.append('sourceJobId',options.sourceJobId||'');
  const response=await fetch('/api/youcam/hair/jobs',{method:'POST',headers:walletHeaders(),body:fd});const info=await response.json();if(!response.ok)throw Object.assign(Error(info.message||'เริ่มงาน YouCam ไม่สำเร็จ'),{code:info.error||''});
  try{
@@ -1635,6 +1635,7 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
  const imageResponse=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store'});if(!imageResponse.ok)throw Error('รับรูป YouCam ไม่สำเร็จ');
  const cutout=await removeBackgroundBlob(await imageResponse.blob());
+ const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
  const u=URL.createObjectURL(cutout);
  try{
   const generated=await loadImage(u);
