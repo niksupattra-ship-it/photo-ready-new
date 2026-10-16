@@ -116,7 +116,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
   let jobId=String(req.body?.jobId||'');
   if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_')){
-   if(offer.id!=='159_v4')return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});
+   if(!['159_v4','159_v5'].includes(offer.id))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});
    // Credit-only purchase can continue; never unlock an invalid or foreign image.
    console.warn('IDPROM checkout:',JSON.stringify({event:'invalid_trial_ignored',packageId:offer.id}));jobId='';
   }}
