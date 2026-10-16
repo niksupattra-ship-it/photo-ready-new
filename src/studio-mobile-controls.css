@@ -15,3 +15,16 @@
 .idstudio.studio-touch .studio-touch-header-actions>.studio-header-credits{min-width:47px;font-size:13px;font-variant-numeric:tabular-nums}
 .idstudio.studio-touch .studio-header-process-progress{padding:0 10px 5px;background:#14242c}
 .idstudio.studio-touch .studio-header-process-progress>progress{display:block;width:100%;height:3px;accent-color:#58d8c9}
+
+/* Mobile/tablet: full header-width upload CTA, with credits/menu kept above. */
+.idstudio.studio-touch .studio-touch-header{display:grid;height:auto;max-height:none;grid-template-columns:42px minmax(0,1fr) auto auto;gap:6px 8px;align-items:center;padding:8px 10px}
+.idstudio.studio-touch .studio-touch-header>button:first-child{grid-row:1;grid-column:1}
+.idstudio.studio-touch .studio-touch-header>strong{grid-row:1;grid-column:2;overflow:hidden;text-overflow:ellipsis}
+.idstudio.studio-touch .studio-touch-header-actions{display:contents}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-credits{grid-row:1;grid-column:3}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-mobile-file-menu{grid-row:1;grid-column:4}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-upload{grid-row:2;grid-column:1/-1;width:100%;height:46px;min-height:46px;box-sizing:border-box;gap:9px;padding:9px 14px;border:2px solid #77e8d9;border-radius:12px;background:#20494c;color:#ecfffc;font-size:15px;font-weight:700;box-shadow:0 0 0 2px #57d8c922}
+.idstudio.studio-touch .studio-header-upload .studio-png-icon{width:23px;height:23px}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-upload-start{background:#56d9c9;border-color:#b6fff2;color:#11393a;box-shadow:0 0 0 3px #56d9c92b,0 3px 12px #0003}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-upload:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.idstudio.studio-touch .studio-touch-header-actions>.studio-header-upload:disabled{opacity:.5}
