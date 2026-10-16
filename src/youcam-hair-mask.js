@@ -170,12 +170,28 @@ function writeHair(source,mask,support,rgba,index,opacity){
  support[j]=support[j+1]=support[j+2]=support[j+3]=255;
 }
 
-export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin}){
+// Track only crown-connected fringe reaching the brow. Detached eyebrow
+// pixels cannot lower the eraser, and open-brow columns keep the old rule.
+export function youcamFringeBoundary(rgba,hair,skin,face,w,h){
+ const f=frame(face,w,h),support=connectedHair(rgba,hair,skin,f,faceMasks(f,w,h),w,h).support;
+ const step=Math.max(1,f.d*.025),count=Math.ceil(f.d*1.8/step)+1,start=-f.d*.9;
+ const bottom=new Float32Array(count);bottom.fill(-Infinity);
+ for(let i=0;i<w*h;i++)if(support[i]&&hair[i]>.55){
+  const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5});
+  if(q.v<f.brow-f.d*.06||q.v>f.d*.18)continue;
+  const bin=Math.round((q.u-start)/step);if(bin>=0&&bin<count)bottom[bin]=Math.max(bottom[bin],q.v);
+ }
+ return {f,bottom,step,start};
+}
+
+export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>33554432)throw failure('ขนาดภาพแยกผมไม่ถูกต้อง');
  const n=w*h;if(original?.length!==n*4||generated?.length!==n*4)throw failure('พิกเซลภาพแยกผมไม่ครบ');
  // Erase ONLY the aligned YouCam image. The processed native portrait,
  // including face, neck, ears, skin and existing alpha, is byte-for-byte intact.
  const f=frame(generatedFace||originalFace,w,h),{erase,feather}=softYoucamPortraitEraser(generatedFace||originalFace,w,h);
+ const gh=confidence(generatedHair,n,'ผมที่สร้าง'),gs=confidence(generatedSkin,n,'ผิวที่สร้าง');
+ const fringe=youcamFringeBoundary(generated,gh,gs,generatedFace||originalFace,w,h);
  const front=rgbaMask(n),frontMask=rgbaMask(n),frontSupport=rgbaMask(n);
  let retained=0;
  for(let i=0;i<n;i++){
@@ -185,7 +201,10 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   const neckWidth=f.d*(.35+.55*smooth(f.chin,f.chin+f.d*1.4,q.v));
   const neckErase=smooth(f.chin-f.d*.25,f.chin+f.d*.1,q.v)*(1-smooth(neckWidth-feather,neckWidth,Math.abs(q.u)));
   const shoulderErase=smooth(f.chin+f.d*1.15,f.chin+f.d*1.65,q.v);
-  const removed=Math.max(erase[i],neckErase,shoulderErase);
+  const bin=Math.round((q.u-fringe.start)/fringe.step),tip=fringe.bottom[bin];
+  // Begin the soft eraser BELOW the detected fringe tips, never through them.
+  const fringeGate=Number.isFinite(tip)?smooth(tip+f.d*.015,tip+f.d*.015+feather,q.v):1;
+  const removed=Math.max(erase[i]*fringeGate,neckErase,shoulderErase);
   const opacity=generated[i*4+3]/255*(1-removed);
   writeHair(front,frontMask,frontSupport,generated,i,opacity);
   if(opacity>0)retained++;
