@@ -138,7 +138,7 @@ function innerDistance(support,oldSkin,newSkin,face,w,h,limit){
 export function softYoucamPortraitEraser(face,w,h){
  const f=frame(face,w,h),inside=new Uint8Array(w*h);
  const fromLocal=(u,v)=>({x:f.cx+u*f.ux+v*f.vx,y:f.cy+u*f.uy+v*f.vy});
- const points=OVAL.map(id=>{const q=f.local(f.point(id));return fromLocal(q.u*.93,Math.max(q.v,f.brow-f.d*.32))});
+ const points=OVAL.map(id=>{const q=f.local(f.point(id));return fromLocal(q.u*.93,Math.max(q.v,f.brow))});
  fillPolygon(inside,points,w,h);
  // The neck cut joins the lower face without a horizontal seam. Keep the
  // shoulder field outside this central opening out of the eraser footprint.
@@ -216,7 +216,8 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  // larger newly exposed forehead/ear/neck cannot be reconstructed honestly.
  const occludedSkin=new Uint8Array(n);
  for(let i=0;i<n;i++)if(oldConnected[i]&&oh[i]>.6&&os[i]<.12&&gs[i]>.55&&alpha[i]<.985&&original[i*4+3]>192){occludedSkin[i]=1;retainedOccludedSkin++}
- if(retainedOccludedSkin>Math.max(64,f.d*f.d*.025))throw failure('ทรงนี้เปิดผิวที่ถูกผมเดิมบังมากเกินไป จึงยังประกอบโดยรักษาผิวเดิมไม่ได้');
+ // Missing skin is not a reason to reject the selected hair. Keep those
+ // original pixels below the hair layers; never synthesize or erase skin here.
  for(let i=0;i<n;i++){
   const j=i*4;if(!original[j+3]||!oldConnected[i]||os[i]>.12)continue;
   if(occludedSkin[i])continue;
