@@ -83,13 +83,14 @@ function nativeMaskPixels(mask,g,W,H,expand=0){
  return ctx.getImageData(0,0,g.w,g.h).data;
 }
 
-function buildMasks(g,hairMask,skinMask,W,H){
+function buildMasks(g,hairMask,skinMask,W,H,source){
  const t=maskTools(g),hard=t.make(),inset=t.make(),details=t.make(),eyeHoles=t.make(),lip=t.make(),mouth=t.make();
  t.polygon(hard.ctx,LOCAL_MAKEUP_CONTOURS.face);
  t.polygon(inset.ctx,LOCAL_MAKEUP_CONTOURS.face,.965);
  for(const ids of LOCAL_MAKEUP_CONTOURS.eyes){t.polygon(eyeHoles.ctx,ids);eyeHoles.ctx.lineWidth=Math.max(.8,g.d*.005);eyeHoles.ctx.stroke()}
  details.ctx.drawImage(eyeHoles.canvas,0,0);
- for(const ids of LOCAL_MAKEUP_CONTOURS.brows){t.polygon(details.ctx,ids);details.ctx.lineWidth=g.d*.012;details.ctx.stroke()}
+ const browArea=t.make();for(const ids of LOCAL_MAKEUP_CONTOURS.brows){t.polygon(browArea.ctx,ids);browArea.ctx.lineWidth=g.d*.018;browArea.ctx.stroke()}
+ const browSoft=t.pixels(t.feather(browArea.canvas,Math.max(1,g.d*.015)));
  t.polygon(details.ctx,LOCAL_MAKEUP_CONTOURS.lips);details.ctx.lineWidth=g.d*.014;details.ctx.stroke();
  // The nose retains its sharp original texture, but receives the same gentle
  // illumination as adjacent skin. Only its nostril openings reject the tone.
@@ -109,8 +110,14 @@ function buildMasks(g,hairMask,skinMask,W,H){
   support[i]=hardPixels[j+3]/255*(1-smooth(1,36,hp[j+3]));
   eyes[i]=eyePixels[j+3]/255;
   protectedDetails[i]=detailHard[j+3]/255;
-  skin[i]=support[i]*(softPixels[j+3]/255)*(sp[j+3]/255)*(1-protectedPixels[j+3]/255)*(1-protectedDetails[i]);
-  tone[i]=support[i]*(softPixels[j+3]/255)*(sp[j+3]/255)*(1-toneHard[j+3]/255)*(1-toneSoft[j+3]/255);
+  // No hard polygon is subtracted around brows. Protect actual dark hairs by
+  // source contrast, with a soft local transition for the surrounding skin.
+  const near=browSoft[j+3]/255,x=i%g.w,y=Math.floor(i/g.w),r=Math.max(2,Math.round(g.d*.027));
+  let hair=0;
+  if(near>.001){let light=0;for(const [dx,dy]of [[-r,0],[r,0],[0,-r],[0,r]]){const k=(clamp(y+dy,0,g.h-1)*g.w+clamp(x+dx,0,g.w-1))*4;light=Math.max(light,luma(source[k],source[k+1],source[k+2]))}hair=Math.max(smooth(7,35,light-luma(source[j],source[j+1],source[j+2])),1-smooth(35,95,luma(source[j],source[j+1],source[j+2])))}
+  const skinCoverage=(sp[j+3]/255)*(1-near)+near*(1-hair);
+  skin[i]=support[i]*(softPixels[j+3]/255)*skinCoverage*(1-protectedPixels[j+3]/255)*(1-protectedDetails[i]);
+  tone[i]=support[i]*(softPixels[j+3]/255)*skinCoverage*(1-toneHard[j+3]/255)*(1-toneSoft[j+3]/255);
   lips[i]=support[i]*(lipHard[j+3]/255)*(lipSoft[j+3]/255)*(1-mouthPixels[j+3]/255);
  }
  return {skin,tone,support,lips,eyes,protectedDetails,skinPixels:sp};
@@ -223,7 +230,7 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
- const masks=buildMasks(g,hairMask,skinMask,W,H),effects=eyeEffects(g,masks),eyeDetail=korean?koreanEyeDetails(g,masks):null,browDetail=naturalMakeupBrows(g,masks,source,korean?1:glow?.65:.45);progress(30);await pause(signal);
+ const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks),eyeDetail=korean?koreanEyeDetails(g,masks):null,browDetail=naturalMakeupBrows(g,masks,source,korean?1:glow?.65:.45);progress(30);await pause(signal);
  const luminance=new Float32Array(g.w*g.h);let sum=0,weight=0;
  for(let i=0;i<luminance.length;i++){
   const j=i*4,Y=luma(source[j],source[j+1],source[j+2]);luminance[i]=Y;
