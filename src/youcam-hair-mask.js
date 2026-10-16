@@ -165,7 +165,7 @@ function writeHair(source,mask,support,rgba,index,opacity){
  support[j]=support[j+1]=support[j+2]=support[j+3]=255;
 }
 
-export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace}){
+export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>33554432)throw failure('ขนาดภาพแยกผมไม่ถูกต้อง');
  const n=w*h;if(original?.length!==n*4||generated?.length!==n*4)throw failure('พิกเซลภาพแยกผมไม่ครบ');
  // Erase ONLY the aligned YouCam image. The processed native portrait,
@@ -186,5 +186,20 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   if(opacity>0)retained++;
  }
  if(!retained)throw failure('ภาพจาก YouCam ไม่มีส่วนที่เหลือสำหรับวาง');
- return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead:new Uint8ClampedArray(original),report:{hairPixels:retained,erasedOriginalHairPixels:0,hasBack:false,portraitEraserFeatherPixels:feather}};
+ // Remove only obsolete SOURCE HAIR outside the new outer silhouette.
+ // Each exterior row continues all the way to the image boundary; there is
+ // no short eraser stroke that leaves floating old hair above/at the sides.
+ const oh=confidence(originalHair,n,'ผมต้นฉบับ'),os=confidence(originalSkin,n,'ผิวต้นฉบับ');
+ const cleanedHead=new Uint8ClampedArray(original),left=new Int32Array(h),right=new Int32Array(h);left.fill(w);right.fill(-1);
+ let first=h,last=-1;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(generated[(y*w+x)*4+3]>=32){left[y]=Math.min(left[y],x);right[y]=Math.max(right[y],x);first=Math.min(first,y);last=Math.max(last,y)}
+ let erased=0;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x,j=i*4;if(!original[j+3])continue;
+  const exterior=y<first||y>last||x<left[y]||x>right[y];
+  if(!exterior||os[i]>=.2||oh[i]<=.1)continue;
+  const amount=smooth(.10,.45,oh[i])*(1-smooth(.02,.20,os[i]));
+  const a=Math.round(original[j+3]*(1-amount));if(a!==original[j+3]){cleanedHead[j+3]=a;erased++;}
+ }
+ return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather}};
 }

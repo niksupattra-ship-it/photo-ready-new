@@ -1670,7 +1670,7 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
   const k=i*4;headMask[k]=headMask[k+1]=headMask[k+2]=255;
   const cleanup=nativePixels[k+3]?Math.min(255,Math.round(layers.cleanedHead[k+3]*255/nativePixels[k+3])):255;
   // Carry manual face/neck erasures, but recalculate automatic old-hair cleanup.
-  headMask[k+3]=previousMask?previousMask[k+3]:255;
+  headMask[k+3]=Math.round(cleanup*(previousMask?previousMask[k+3]:255)/255);
   layers.cleanedHead[k+3]=Math.round(nativePixels[k+3]*headMask[k+3]/255);
  }
  // Restore the original feather, not an opaque replacement for translucent hair.
@@ -1683,7 +1683,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-generated-only-eraser-v4']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-exterior-source-hair-v5']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
