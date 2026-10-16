@@ -132,6 +132,27 @@ function innerDistance(support,oldSkin,newSkin,face,w,h,limit){
  return out;
 }
 
+// Soft Round erasure follows the face and continues through the neck.
+// Distance is measured INWARD: outer hair and ears are never clipped by a
+// rectangular cut. Hardness 22% leaves a broad graduated opacity transition.
+export function softYoucamPortraitEraser(face,w,h){
+ const f=frame(face,w,h),inside=new Uint8Array(w*h);
+ const fromLocal=(u,v)=>({x:f.cx+u*f.ux+v*f.vx,y:f.cy+u*f.uy+v*f.vy});
+ const points=OVAL.map(id=>{const q=f.local(f.point(id));return fromLocal(q.u*.93,Math.max(q.v,f.brow-f.d*.32))});
+ fillPolygon(inside,points,w,h);
+ // The neck cut joins the lower face without a horizontal seam. Keep the
+ // shoulder field outside this central opening out of the eraser footprint.
+ fillPolygon(inside,[fromLocal(-f.d*.35,f.chin-f.d*.28),fromLocal(f.d*.35,f.chin-f.d*.28),fromLocal(f.d*.39,f.chin+f.d*1.45),fromLocal(-f.d*.39,f.chin+f.d*1.45)],w,h);
+ const distance=new Float32Array(w*h),far=w+h;distance.fill(far);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(!inside[i])distance[i]=0;else if(!x||!y||x===w-1||y===h-1)distance[i]=1;}
+ const diag=Math.SQRT2;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(x)distance[i]=Math.min(distance[i],distance[i-1]+1);if(y){distance[i]=Math.min(distance[i],distance[i-w]+1);if(x)distance[i]=Math.min(distance[i],distance[i-w-1]+diag);if(x+1<w)distance[i]=Math.min(distance[i],distance[i-w+1]+diag)}}
+ for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){const i=y*w+x;if(x+1<w)distance[i]=Math.min(distance[i],distance[i+1]+1);if(y+1<h){distance[i]=Math.min(distance[i],distance[i+w]+1);if(x)distance[i]=Math.min(distance[i],distance[i+w-1]+diag);if(x+1<w)distance[i]=Math.min(distance[i],distance[i+w+1]+diag)}}
+ const feather=clamp(f.d*.14,4,40),erase=new Float32Array(w*h);
+ for(let i=0;i<erase.length;i++)erase[i]=inside[i]?smooth(0,feather,distance[i]):0;
+ return {erase,feather};
+}
+
 export function partitionYoucamHairAlpha(alpha,backWeight){
  const a=clamp(alpha),t=clamp(backWeight),front=a*(1-t);
  return {front,back:front>=1?0:clamp(a*t/(1-front))};
@@ -157,6 +178,7 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  if(coveredFeatures>Math.max(6,featureCount*.18))throw failure('ผลแยกผมทับรายละเอียดใบหน้ามากเกินไป');
  const refined=refineYoucamHairConfidence(generated,gh,w,h,Math.max(1,Math.min(4,w/256))),feather=clamp(f.d*.015,1.2,5);
  const distance=innerDistance(nativeSupport,os,gs,gm.oval,w,h,feather),alpha=new Float32Array(n);
+ const portraitEraser=softYoucamPortraitEraser(generatedFace||originalFace,w,h);
  let totalAlpha=0,lowerAlpha=0;
  for(let i=0;i<n;i++)if(nativeSupport[i]){
   // Strong hair keeps native alpha; uncertain semantic edges use a native-guided
@@ -167,7 +189,7 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   // only transitions over genuinely available original skin feather inward.
   const oldHairUnderlay=oh[i]>.9&&os[i]<.025;
   const innerFeather=oldHairUnderlay?1:smooth(0,feather,distance[i]+.25);
-  alpha[i]=generated[i*4+3]/255*matte*innerFeather;
+  alpha[i]=generated[i*4+3]/255*matte*innerFeather*(1-portraitEraser.erase[i]);
   totalAlpha+=alpha[i];const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5});if(q.v>f.chin+f.d*.2)lowerAlpha+=alpha[i];
  }
  if(totalAlpha<Math.max(8,f.d*f.d*.0015))throw failure('เนื้อผมหลังเกลี่ยขอบไม่เพียงพอ');
@@ -205,5 +227,5 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   const remove=smooth(.10,.58,oh[i])*(1-smooth(.025,.12,os[i]));
   const next=Math.round(original[j+3]*(1-remove));if(next!==cleanedHead[j+3]){cleanedHead[j+3]=next;erased++}
  }
- return {width:w,height:h,front,frontMask,frontSupport,back,backMask,backSupport,cleanedHead,report:{hairPixels:generatedConnected.count,erasedOriginalHairPixels:erased,retainedInteriorHair,retainedOccludedSkin,hasBack,featherPixels:feather}};
+ return {width:w,height:h,front,frontMask,frontSupport,back,backMask,backSupport,cleanedHead,report:{hairPixels:generatedConnected.count,erasedOriginalHairPixels:erased,retainedInteriorHair,retainedOccludedSkin,hasBack,featherPixels:feather,portraitEraserFeatherPixels:portraitEraser.feather}};
 }
