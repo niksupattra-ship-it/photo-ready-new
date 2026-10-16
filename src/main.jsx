@@ -1,4 +1,3 @@
-import {fitYoucamToNative,compositeNativeFace} from './youcam-native-face.js';
 import {homePreviewSource} from './home-previews.js';
 import {portraitJobError} from './portrait-job-error.js';
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
@@ -1613,7 +1612,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'','youcam-native-face-v1']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',/^youcam-f(?:16|17|18)$/.test(hairId)?'youcam-rear-reference-v1':'youcam-direct-v2']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1636,33 +1635,15 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
  const imageResponse=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store'});if(!imageResponse.ok)throw Error('รับรูป YouCam ไม่สำเร็จ');
  const cutout=await removeBackgroundBlob(await imageResponse.blob());
- const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);
- // Validate hair alignment below; the generated face is replaced by native
- // source pixels, so its pre-composition proportions must not reject the job.
+ const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
  const u=URL.createObjectURL(cutout);
  try{
   const generated=await loadImage(u);
-  // Transform generated hair/result ONCE to the native source geometry.
-  const generatedFace=landmarker.detect(generated).faceLandmarks?.[0];
-  const matrix=fitYoucamToNative(face,generatedFace,W,H,generated.naturalWidth,generated.naturalHeight);
-  const out=canvasFor(W,H),ox=out.getContext('2d',{willReadFrequently:true});ox.imageSmoothingEnabled=true;ox.imageSmoothingQuality='high';
-  ox.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);ox.drawImage(generated,0,0);ox.setTransform(1,0,0,1,0,0);
-  // Segment sequentially: the shared MediaPipe segmenter is not re-entrant.
-  const skin=await semanticClassMask(target,W,H,[2,3]),oldHair=await semanticClassMask(target,W,H,[1]),newHair=await semanticClassMask(out,W,H,[1]);
-  if(!skin||!oldHair||!newHair)throw Error('แยกผมกับใบหน้าไม่สำเร็จ · เก็บภาพเดิมไว้');
-  const sourcePixels=original.getContext('2d').getImageData(0,0,W,H).data,pixels=ox.getImageData(0,0,W,H);
-  const softened=mask=>{const c=canvasFor(W,H),x=c.getContext('2d');x.filter='blur(1px)';x.drawImage(mask,0,0);return x.getImageData(0,0,W,H).data};
-  const faceArea=canvasFor(W,H),fx=faceArea.getContext('2d');
-  const oval=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
-  fx.fillStyle='#fff';fx.beginPath();oval.forEach((id,k)=>{const p=face[id];if(!p)throw Error('ตรวจกรอบหน้าไม่ครบ · เก็บภาพเดิมไว้');if(k)fx.lineTo(p.x*W,p.y*H);else fx.moveTo(p.x*W,p.y*H)});fx.closePath();fx.fill();
-  const core=canvasFor(W,H),cx=core.getContext('2d'),fw=Math.abs(face[454].x-face[234].x)*W;
-  const centre=(face[234].x+face[454].x)*W/2,top=Math.min(face[159].y,face[386].y)*H-fw*.025;
-  // Inner facial features are protected even if segmentation confuses makeup
-  // with hair. Forehead/brow fringe and outer cheek occlusion remain possible.
-  cx.fillStyle='#fff';cx.beginPath();
-  const corePoints=[{x:centre-fw*.34,y:top},{x:centre+fw*.34,y:top},...oval.map(id=>({x:centre+(face[id].x*W-centre)*.86,y:face[id].y*H})).filter(p=>p.y>top).sort((a,b)=>Math.atan2(a.y-top,a.x-centre)-Math.atan2(b.y-top,b.x-centre))];
-  corePoints.forEach((p,k)=>{if(k)cx.lineTo(p.x,p.y);else cx.moveTo(p.x,p.y)});cx.closePath();cx.fill();
-  pixels.data.set(compositeNativeFace(sourcePixels,pixels.data,softened(skin),softened(oldHair),softened(newHair),softened(faceArea),cx.getImageData(0,0,W,H).data,W,H));ox.putImageData(pixels,0,0);
+  // Preserve YouCam's composition without landmark realignment or skin replacement.
+  const out=canvasFor(W,H),ox=out.getContext('2d');
+  const fit=Math.min(W/generated.naturalWidth,H/generated.naturalHeight);
+  const width=generated.naturalWidth*fit,height=generated.naturalHeight*fit;
+  ox.drawImage(generated,(W-width)/2,(H-height)/2,width,height);
   const cleanedHeadSource=out.toDataURL('image/png');
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
   return {aiComposed:true,cleanedHeadSource};
