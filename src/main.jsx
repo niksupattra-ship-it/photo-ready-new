@@ -27,7 +27,7 @@ import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-visio
 import'./style.css';
 import './trial-choice.css';
 import {StudioEditor} from './studio-editor.jsx';
-import {renderLocalMakeup} from './local-makeup.js';
+import {renderLocalSkin} from './local-skin.js';
 import {makeupLook} from '../makeup-presets.js';
 import {blendHairlineSeam} from './hairline-seam.js';
 import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
@@ -1387,10 +1387,10 @@ async function prepareStudioMakeup(source){
    const mw=labels.width,mh=labels.height,values=labels.getAsUint8Array();
    const mask=category=>{
     const small=canvasFor(mw,mh),sx=small.getContext('2d'),pixels=sx.createImageData(mw,mh);
-    for(let i=0;i<values.length;i++){const j=i*4;pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=255;pixels.data[j+3]=values[i]===category?255:0}
+    for(let i=0;i<values.length;i++){const j=i*4;pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=255;pixels.data[j+3]=(Array.isArray(category)?category.includes(values[i]):values[i]===category)?255:0}
     sx.putImageData(pixels,0,0);const full=canvasFor(W,H),fx=full.getContext('2d');fx.imageSmoothingEnabled=false;fx.drawImage(small,0,0,W,H);return full;
    };
-   hairMask=mask(1);skinMask=mask(3);
+   hairMask=mask(1);skinMask=mask([2,3]);
   }finally{labels.close?.()}
   return {original,W,H,face,hairMask,skinMask};
  })().catch(error=>{if(studioMakeupPreparation===entry)studioMakeupPreparation=null;throw error});
@@ -1406,18 +1406,18 @@ function currentResultCacheScope(){
 }
 async function requestStudioMakeup(source,styles,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(source);
- const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b)),'local-makeup-v1']);
+ const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b)),'local-skin-v1']);
  const result=await makeupResultCache.get(key,()=>requestStudioMakeupUncached(source,styles,options));
  if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
  return result.value;
 }
 async function requestStudioMakeupUncached(source,styles,options={}){
  const abort=()=>{if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการแต่งเมคอัพแล้ว'),{name:'AbortError'})};abort();
- if(!makeupLook(styles.look))throw Error('กรุณาเลือกโทนเมคอัพ');
+ if(!makeupLook(styles.look))throw Error('กรุณาเลือกโทนปรับผิว');
  options.onProgress?.(8);
  const {original,face,hairMask,skinMask}=await prepareStudioMakeup(source);abort();
  options.onProgress?.(32);
- return renderLocalMakeup({original,face,hairMask,skinMask,lookId:styles.look,signal:options.signal,onProgress:value=>options.onProgress?.(32+value*.66)});
+ return renderLocalSkin({original,face,hairMask,skinMask,lookId:styles.look,signal:options.signal,onProgress:value=>options.onProgress?.(32+value*.66)});
 }
 
 function opaqueBounds(canvas){
