@@ -381,6 +381,18 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
  }finally{}
 }
 
+const MALE_INITIAL_NECK_SPACING_VERSION='male-clear-submental-normal-neck-v2';
+function applyInitialMaleNeckSpacing(lock){
+ if(!lock||lock.maleInitialNeckSpacingVersion===MALE_INITIAL_NECK_SPACING_VERSION)return lock;
+ if(![lock.W,lock.H,lock.hX,lock.hY,lock.scale,lock.opaqueHeadTop].every(Number.isFinite)||lock.W<=0||lock.H<=0||lock.scale<=0||lock.opaqueHeadTop<0)return lock;
+ const crownTop=lock.hY+lock.opaqueHeadTop*lock.scale;
+ if(!Number.isFinite(crownTop))return lock;
+ // Give the chin a little more collar clearance without enlarging the head
+ // or moving its crown into the portrait's minimum top margin.
+ const lift=Math.min(lock.H*.02,Math.max(0,crownTop-lock.H*.025));
+ return {...lock,hY:lock.hY-lift,maleInitialNeckSpacingVersion:MALE_INITIAL_NECK_SPACING_VERSION};
+}
+
 
 async function restoreIdentityCore(aiBlob,headBlob,lock,composedBlob){
  // AI ใช้เพื่อเติมคอ/ผมเท่านั้น จากนั้นวางใบหน้าต้นฉบับที่ normalize แล้วกลับคืน
@@ -2254,7 +2266,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
@@ -3682,6 +3694,7 @@ function App(){
   try{
    clearTimeout(renderTimer.current);const seq=++renderSeqRef.current;
    const composed=await composePortrait(editCache.current.master,{scale:1,x:0,y:0},option.template);
+   if(previousLock?.maleInitialNeckSpacingVersion===MALE_INITIAL_NECK_SPACING_VERSION)composed.lock=applyInitialMaleNeckSpacing(composed.lock);
    setProgressStage(76,'กำลังจัดตำแหน่งชุด');
    const out=await renderWithRibbon(editCache.current.master,composed.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
    if(seq!==renderSeqRef.current)return;
@@ -3769,6 +3782,7 @@ function App(){
   const headNeckTransparent=await finishFirstPortraitMaster(aiHeadNeck,originalFile,{portraitMode});
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
+  if(portraitMode==='male')composed.lock=applyInitialMaleNeckSpacing(composed.lock);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
   assertProcessActive();
   initialProcessedMasterRef.current=headNeckTransparent;
