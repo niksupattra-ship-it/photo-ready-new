@@ -33,7 +33,7 @@ import {blendHairlineSeam} from './hairline-seam.js';
 import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
 import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
 import {fitYoucamToNative} from './youcam-native-face.js';
-import {buildYoucamHairLayers} from './youcam-hair-mask.js';
+import {buildYoucamHairLayers,youcamStyleCoversBrows} from './youcam-hair-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
@@ -1658,7 +1658,7 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
  // Only generated hair moves. The source face/skin/neck keep native RGB pixels.
  const transformedFace=generatedFace.map(p=>({...p,x:(matrix.a*p.x*gw+matrix.c*p.y*gh+matrix.e)/W,y:(matrix.b*p.x*gw+matrix.d*p.y*gh+matrix.f)/H}));
  const oldMasks=await youcamHairConfidence(original,W,H),newMasks=await youcamHairConfidence(aligned,W,H);
- const layers=buildYoucamHairLayers({original:nativePixels,generated:ax.getImageData(0,0,W,H).data,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,separateBack:true});
+ const layers=buildYoucamHairLayers({original:nativePixels,generated:ax.getImageData(0,0,W,H).data,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,separateBack:true,coveredBrows:youcamStyleCoversBrows(options.hairId)});
  let previousMask=null;
  if(options.nativeHeadMask){
   const saved=typeof options.nativeHeadMask==='string'?await loadImage(options.nativeHeadMask):options.nativeHeadMask;
@@ -1683,7 +1683,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-full-exterior-v9']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-brow-coverage-policy-v11']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1713,7 +1713,7 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  try{
   const generated=await loadImage(u);
   options.onProgress?.(82);
-  const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,options);
+  const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,{...options,hairId});
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
   return fitted;
  }finally{URL.revokeObjectURL(u)}

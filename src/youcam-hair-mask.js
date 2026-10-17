@@ -184,7 +184,12 @@ export function youcamFringeBoundary(rgba,hair,skin,face,w,h){
  return {f,bottom,step,start};
 }
 
-export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin}){
+// Audited against the current reference images, independent of hair length.
+export function youcamStyleCoversBrows(id){
+ return /^youcam-(?:f(?:11|12|13|15|17|18)|m(?:1|2|4|5|6|8|13))$/.test(id||'');
+}
+
+export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin,coveredBrows=false}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>33554432)throw failure('ขนาดภาพแยกผมไม่ถูกต้อง');
  const n=w*h;if(original?.length!==n*4||generated?.length!==n*4)throw failure('พิกเซลภาพแยกผมไม่ครบ');
  // Erase ONLY the aligned YouCam image. The processed native portrait,
@@ -192,6 +197,9 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  const f=frame(generatedFace||originalFace,w,h),{erase,feather}=softYoucamPortraitEraser(generatedFace||originalFace,w,h);
  const gh=confidence(generatedHair,n,'ผมที่สร้าง'),gs=confidence(generatedSkin,n,'ผิวที่สร้าง');
  const fringe=youcamFringeBoundary(generated,gh,gs,generatedFace||originalFace,w,h);
+ // Brow-covering styles must keep the generated brow band. Move the start BELOW
+ // the lowest brow hair; any longer fringe still takes precedence below.
+ const coveredBrowEnd=coveredBrows?Math.max(...BROWS.flat().map(id=>f.local(f.point(id)).v))+f.d*.025:-Infinity;
  const front=rgbaMask(n),frontMask=rgbaMask(n),frontSupport=rgbaMask(n);
  let retained=0;
  for(let i=0;i<n;i++){
@@ -204,7 +212,8 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   const bin=Math.round((q.u-fringe.start)/fringe.step),tip=fringe.bottom[bin];
   // Begin the soft eraser BELOW the detected fringe tips, never through them.
   const fringeGate=Number.isFinite(tip)?smooth(tip+f.d*.015,tip+f.d*.015+feather,q.v):1;
-  const removed=Math.max(erase[i]*fringeGate,neckErase,shoulderErase);
+  const coveredGate=coveredBrows?smooth(coveredBrowEnd,coveredBrowEnd+feather,q.v):1;
+  const removed=Math.max(erase[i]*fringeGate*coveredGate,neckErase,shoulderErase);
   const opacity=generated[i*4+3]/255*(1-removed);
   writeHair(front,frontMask,frontSupport,generated,i,opacity);
   if(opacity>0)retained++;
