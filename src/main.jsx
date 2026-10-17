@@ -2533,7 +2533,6 @@ const HAIR_OPTIONS=[
  {id:'youcam-f6',name:'ทรงผม 6',src:'/assets/youcam-hair/preview-6.webp'},
  {id:'youcam-f7',name:'ทรงผม 7',src:'/assets/youcam-hair/preview-7.webp'},
  {id:'hair-01',name:'ทรงผม 8',src:'/assets/hairstyle-previews/hair-01.webp'},
- {id:'hair-03',name:'ทรงผม 9',src:'/assets/hairstyle-previews/hair-03.webp'},
  {id:'hair-07',name:'ทรงผม 22',src:'/assets/hairstyle-previews/hair-07.webp'},
  {id:'hair-26',name:'ทรงผม 10',src:'/assets/hairstyle-previews/hair-26.png'},
  {id:'hair-22',name:'ทรงผม 11',src:'/assets/hairstyle-previews/hair-22.png'},
