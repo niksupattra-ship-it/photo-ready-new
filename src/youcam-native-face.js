@@ -2,18 +2,46 @@
 // resized, warped, sharpened, recoloured or sent through another beauty pass.
 export function fitYoucamToNative(original,generated,w,h,gw,gh){
  const ids=[33,133,362,263,168,6,197];
- if(ids.some(i=>![original?.[i]?.x,original?.[i]?.y,generated?.[i]?.x,generated?.[i]?.y].every(Number.isFinite)))throw Error('ตรวจตำแหน่งใบหน้าสำหรับประกอบผมไม่ครบ · เก็บภาพเดิมไว้');
+ const valid=v=>Number.isFinite(v)&&v>=0&&v<=1;
+ if(![w,h,gw,gh].every(v=>Number.isFinite(v)&&v>0)||ids.some(i=>![original?.[i]?.x,original?.[i]?.y,generated?.[i]?.x,generated?.[i]?.y].every(valid)))throw Error('ตรวจตำแหน่งใบหน้าสำหรับประกอบผมไม่ครบ · เก็บภาพเดิมไว้');
  const p=ids.map(i=>({x:generated[i].x*gw,y:generated[i].y*gh})),q=ids.map(i=>({x:original[i].x*w,y:original[i].y*h}));
- const mean=a=>a.reduce((m,v)=>({x:m.x+v.x/a.length,y:m.y+v.y/a.length}),{x:0,y:0}),pc=mean(p),qc=mean(q);
- let dot=0,cross=0,den=0;
- for(let i=0;i<p.length;i++){const x=p[i].x-pc.x,y=p[i].y-pc.y,u=q[i].x-qc.x,v=q[i].y-qc.y;dot+=x*u+y*v;cross+=x*v-y*u;den+=x*x+y*y;}
- if(den<1)throw Error('ตำแหน่งใบหน้าไม่ชัด · เก็บภาพเดิมไว้');
- const a=dot/den,b=cross/den,tx=qc.x-a*pc.x+b*pc.y,ty=qc.y-b*pc.x-a*pc.y;
- const scale=Math.hypot(a,b),expected=Math.min(w/gw,h/gh),eye=Math.hypot((original[263].x-original[33].x)*w,(original[263].y-original[33].y)*h);
- let error=0;for(let i=0;i<p.length;i++)error+=(a*p[i].x-b*p[i].y+tx-q[i].x)**2+(b*p[i].x+a*p[i].y+ty-q[i].y)**2;
- const rms=Math.sqrt(error/p.length);
- if(eye<20||scale/expected<.85||scale/expected>1.15||Math.abs(Math.atan2(b,a))>.15||rms>Math.max(1.5,eye*.025))throw Error('ใบหน้าจาก YouCam เคลื่อนหรือผิดสัดส่วนเกินกว่าจะประกอบได้เนียน · เก็บภาพเดิมไว้');
- return {a,b,c:-b,d:a,e:tx,f:ty,rms};
+ const eye=Math.hypot(q[3].x-q[0].x,q[3].y-q[0].y),generatedEye=Math.hypot(p[3].x-p[0].x,p[3].y-p[0].y);
+ const failure=()=>Error('สัดส่วนตำแหน่งตาและสันจมูกจาก YouCam ต่างจากภาพเดิม · เก็บภาพเดิมไว้');
+ if(eye<20||generatedEye<12)throw Error('ตำแหน่งใบหน้าไม่ชัด · เก็บภาพเดิมไว้');
+ const fit=indices=>{
+  const mean=(points,key)=>indices.reduce((sum,i)=>sum+points[i][key],0)/indices.length;
+  const px=mean(p,'x'),py=mean(p,'y'),qx=mean(q,'x'),qy=mean(q,'y');
+  let dot=0,cross=0,den=0;
+  for(const i of indices){const x=p[i].x-px,y=p[i].y-py,u=q[i].x-qx,v=q[i].y-qy;dot+=x*u+y*v;cross+=x*v-y*u;den+=x*x+y*y}
+  if(den<1)return null;
+  const a=dot/den,b=cross/den;
+  if(!Number.isFinite(a)||!Number.isFinite(b)||Math.hypot(a,b)<1e-8)return null;
+  return {a,b,e:qx-a*px+b*py,f:qy-b*px-a*py};
+ };
+ const residual=(m,i)=>Math.hypot(m.a*p[i].x-m.b*p[i].y+m.e-q[i].x,m.b*p[i].x+m.a*p[i].y+m.f-q[i].y);
+ const tolerance=Math.max(2,eye*.055);
+ let best=null;
+ // Hair can make one landmark unreliable. Consensus across both eyes and the
+ // nose bridge corrects that point without accepting a reshaped face. Canvas
+ // crop, padding, resize and roll are removable transforms, not anatomy changes.
+ for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+  if(Math.hypot(p[j].x-p[i].x,p[j].y-p[i].y)<generatedEye*.2)continue;
+  const matrix=fit([i,j]);if(!matrix)continue;
+  const inliers=ids.map((_,k)=>k).filter(k=>residual(matrix,k)<=tolerance);
+  if(inliers.length<6||inliers.filter(k=>k<4).length<3||inliers.filter(k=>k>=4).length<2)continue;
+  const error=inliers.reduce((sum,k)=>sum+residual(matrix,k)**2,0);
+  if(!best||inliers.length>best.inliers.length||(inliers.length===best.inliers.length&&error<best.error))best={inliers,error};
+ }
+ if(!best)throw failure();
+ const matrix=fit(best.inliers);if(!matrix)throw failure();
+ const errors=best.inliers.map(i=>residual(matrix,i)),rms=Math.sqrt(errors.reduce((sum,v)=>sum+v*v,0)/errors.length);
+ if(rms>Math.max(1.5,eye*.03)||errors.some(v=>v>tolerance))throw failure();
+ // Keep a broad image-quality bound after fitting: ordinary provider crops
+ // and roll are correctable, but an almost thumbnail-sized or upside-down
+ // face cannot supply usable hair at the original portrait's resolution.
+ const relativeScale=Math.hypot(matrix.a,matrix.b)/Math.min(w/gw,h/gh);
+ if(relativeScale<.2||relativeScale>5||Math.abs(Math.atan2(matrix.b,matrix.a))>Math.PI/3)throw Error('ภาพใบหน้าจาก YouCam เล็กหรือหมุนมากเกินกว่าจะประกอบได้คมชัด · เก็บภาพเดิมไว้');
+ return {...matrix,c:-matrix.b,d:matrix.a,rms};
 }
 
 // Original skin is restored at native pixel coordinates. Generated bangs and

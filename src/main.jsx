@@ -1720,7 +1720,12 @@ function youcamPixelsSource(data,W,H){
 }
 async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,options={}){
  const gw=generated.naturalWidth||generated.width,gh=generated.naturalHeight||generated.height;
- const generatedFace=landmarker.detect(youcamDetectionCanvas(generated,gw,gh)).faceLandmarks?.[0];
+ // Measure the provider's intact face, before background matting can change
+ // the landmark detector's context. Both images use the same detection canvas.
+ const raw=options.rawGenerated,landmarkSource=raw&&(raw.naturalWidth||raw.width)===gw&&(raw.naturalHeight||raw.height)===gh?raw:generated;
+ const generatedFace=landmarker.detect(youcamDetectionCanvas(landmarkSource,gw,gh)).faceLandmarks?.[0];
+ const proportions=compareFaceProportions(faceProportions(face,W,H),faceProportions(generatedFace,gw,gh));
+ if(!proportions.ok)throw Object.assign(Error(proportions.reason==='unmeasurable'?'ตรวจสัดส่วนใบหน้าจาก YouCam ไม่ได้ · เก็บภาพเดิมไว้':'สัดส่วนใบหน้าจาก YouCam ต่างจากต้นฉบับ · เก็บภาพเดิมไว้'),{code:'face_proportion_changed'});
  const matrix=fitYoucamToNative(face,generatedFace,W,H,gw,gh);
  const aligned=canvasFor(W,H),ax=aligned.getContext('2d',{willReadFrequently:true});ax.imageSmoothingEnabled=true;ax.imageSmoothingQuality='high';ax.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);ax.drawImage(generated,0,0);ax.setTransform(1,0,0,1,0,0);
  const original=canvasFor(W,H),ox=original.getContext('2d',{willReadFrequently:true});ox.drawImage(target,0,0,W,H);
@@ -1757,11 +1762,12 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
 }
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
- if(!/^youcam-(?:f(?:[1-9]|1\d|2\d|3[01])|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
+ if(/^youcam-m[1-4]$/.test(hairId))throw Error('ทรงผมนี้ถูกนำออกแล้ว กรุณาเลือกทรงใหม่');
+ if(!/^youcam-(?:f(?:[1-9]|1\d|2\d|3[01])|m(?:[5-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-silhouette-native-brows-v19']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-continuous-feather-fit-v21']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1786,12 +1792,10 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
  const imageResponse=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store'});if(!imageResponse.ok)throw Error('รับรูป YouCam ไม่สำเร็จ');
  const providerBlob=await imageResponse.blob(),cutout=await removeBackgroundBlob(providerBlob);
- const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
  const u=URL.createObjectURL(cutout);let rawUrl=null;
  try{
   const generated=await loadImage(u);
-  let rawGenerated=null;
-  if(/^youcam-f(?:[1-9]|1\d|2\d|3[01])$/.test(hairId)){rawUrl=URL.createObjectURL(providerBlob);rawGenerated=await loadImage(rawUrl)}
+  rawUrl=URL.createObjectURL(providerBlob);const rawGenerated=await loadImage(rawUrl);
   options.onProgress?.(82);
   const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,{...options,hairId,...(rawGenerated?{rawGenerated}:{})});
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
@@ -2600,10 +2604,6 @@ const COLLAR_PIN_OPTIONS=[
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=[
- {id:'youcam-m1',name:'ทรงผม 1',src:'/assets/youcam-hair/male-preview-1.webp'},
- {id:'youcam-m2',name:'ทรงผม 2',src:'/assets/youcam-hair/male-preview-2.webp'},
- {id:'youcam-m3',name:'ทรงผม 3',src:'/assets/youcam-hair/male-preview-3.webp'},
- {id:'youcam-m4',name:'ทรงผม 4',src:'/assets/youcam-hair/male-preview-4.webp'},
  {id:'youcam-m5',name:'ทรงผม 5',src:'/assets/youcam-hair/male-preview-5.webp'},
  {id:'youcam-m6',name:'ทรงผม 6',src:'/assets/youcam-hair/male-preview-6.webp'},
  {id:'youcam-m7',name:'ทรงผม 7',src:'/assets/youcam-hair/male-preview-7.webp'},
