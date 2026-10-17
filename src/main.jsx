@@ -39,7 +39,7 @@ import {buildYoucamHairLayers,youcamStyleCoversBrows} from './youcam-hair-mask.j
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
-import{analyticsContext,analyticsEvent,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
+import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
 
 const WALLET_KEY='idprom_wallet_id';
@@ -2633,6 +2633,7 @@ const UNIFORM_GROUPS=[
  {id:'student',name:'นักศึกษา',items:STUDENT_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
 ];
 const FREE_TEMPLATE_PATHS=UNIFORM_GROUPS.flatMap(group=>{const seen=new Set();return group.items.filter(item=>{const key=(item.cat||group.id)+'/'+item.gender;if(seen.has(key))return false;seen.add(key);return true}).map(item=>item.template)});
+function analyticsUniformSelection(template,surface='process'){try{const option=UNIFORM_GROUPS.flatMap(group=>group.items).find(item=>item.template===template);if(option)analyticsSelection({kind:'uniform',id:option.id,name:option.title||option.name,gender:option.gender,category:option.cat,provider:'uniform',stage:'select',mode:'new',surface})}catch{}}
 function normalizedRights(data){return {...(Number.isFinite(Number(data.trialRemaining))?{trialRemaining:Number(data.trialRemaining)}:{}),...(typeof data.hasPurchased==='boolean'?{hasPurchased:data.hasPurchased}:{}),...(typeof data.trialAvailable==='boolean'?{trialAvailable:data.trialAvailable}:{}),generationRemaining:Number(data.processRemaining??data.generationRemaining??0),hairRemaining:Number(data.processRemaining??data.hairRemaining??0),...(Array.isArray(data.unlockedJobIds)?{unlockedJobIds:data.unlockedJobIds}:{}),...(Array.isArray(data.editableJobIds)?{editableJobIds:data.editableJobIds}:{})}}
 const GOVERNMENT_FINANCE_TEMPLATE=FEMALE_GOVERNMENT_UNIFORMS[0].img;
 
@@ -2892,7 +2893,7 @@ function App(){
  const selectGovernmentGender=(next)=>{setGender(next);if(next==='male'){setSelectedInteriorTemplate((INTERIOR_UNIFORMS.find(t=>t.level===level)||INTERIOR_UNIFORMS[0]).img)}};
  const activeUniformTemplate=uniformCategory==='job'?selectedJobTemplate:uniformCategory==='student'?selectedStudentTemplate:uniformCategory==='government'?selectedGovernmentTemplate:uniformCategory==='gown'?selectedGownTemplate:GOVERNMENT_FINANCE_TEMPLATE;
  // Analytics observes committed selections; it never changes editor state.
- useEffect(()=>{analyticsContext({category:screen==='process'?uniformCategory:'unselected',template:screen==='process'?activeUniformTemplate:'',gender:screen==='process'?gender:'',level});if(screen==='process')analyticsEvent('idprom_uniform_select')},[screen,uniformCategory,activeUniformTemplate,gender,level]);
+ useEffect(()=>{analyticsContext({category:screen==='process'?uniformCategory:'unselected',template:screen==='process'?activeUniformTemplate:'',gender:screen==='process'?gender:'',level});if(screen==='process'){analyticsEvent('idprom_uniform_select');analyticsUniformSelection(activeUniformTemplate)}},[screen,uniformCategory,activeUniformTemplate,gender,level]);
  useEffect(()=>{if(buyOpen)analyticsEvent('idprom_package_view')},[buyOpen]);
  const[headAdjust,setHeadAdjust]=useState({scale:1,x:0,y:0,rotation:0});
  const[collarWarp,setCollarWarp]=useState(0);
@@ -3742,7 +3743,7 @@ function App(){
    const uScale=(W+4)/Math.max(1,ub.w),uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale,uX=-2-ub.l*uScale,uY=H*.425+socketY*(W*.94/uniform.naturalWidth)-socketY*uScale;
    const placement={W,H,uX,uY,uW,uH,templatePath:starterTemplate};
    const background=canvasFor(bg.naturalWidth,bg.naturalHeight),suit=canvasFor(uniform.naturalWidth,uniform.naturalHeight);background.getContext('2d').drawImage(bg,0,0);suit.getContext('2d').drawImage(uniform,0,0);
-   if(!cancelled){studioOriginRef.current={starter:true,placement};setStudioData([{name:'พื้นหลัง',source:background.toDataURL(),sourceFrame:{x:0,y:0,w:900,h:1200}},{name:'ชุด',kind:'suit',templatePath:starterTemplate,source:suit.toDataURL(),sourceFrame:{x:uX/W*900,y:uY/H*1200,w:uW/W*900,h:uH/H*1200}}])}
+   if(!cancelled){studioOriginRef.current={starter:true,placement};setStudioData([{name:'พื้นหลัง',source:background.toDataURL(),sourceFrame:{x:0,y:0,w:900,h:1200}},{name:'ชุด',kind:'suit',templatePath:starterTemplate,source:suit.toDataURL(),sourceFrame:{x:uX/W*900,y:uY/H*1200,w:uW/W*900,h:uH/H*1200}}]);analyticsUniformSelection(starterTemplate,'studio')}
   }catch(e){if(!cancelled)setMsg('เปิด Studio ไม่สำเร็จ กรุณาลองใหม่')}finally{if(!cancelled)setStudioBusy(false)}})();
   return()=>{cancelled=true};
  },[screen,activeUniformTemplate,studioData]);

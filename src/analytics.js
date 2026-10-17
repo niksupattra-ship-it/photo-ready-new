@@ -9,6 +9,26 @@ const attribution={};
 try{const q=new URLSearchParams(location.search);for(const [key,param] of [['campaign_source','utm_source'],['campaign_medium','utm_medium'],['campaign_name','utm_campaign'],['clip_id','utm_content']]){if(q.get(param))attribution[key]=safeText(q.get(param))}if(Object.keys(attribution).length)write('idprom_analytics_source_v1',attribution);else Object.assign(attribution,read('idprom_analytics_source_v1')||{})}catch{}
 export function analyticsContext(value){try{context={uniform_category:safeText(value.category),uniform_style:safeText(value.template?.split('/').pop()?.replace(/\.[^.]+$/,'')),uniform_gender:safeText(value.gender),uniform_level:value.category==='government'?safeText(value.level):'not_applicable'}}catch{}}
 export function analyticsEvent(name,extra={}){try{if(internal||localStorage.getItem('idprom-private-trial-active')==='1')return;const params={...attribution,...context,...extra};const send=()=>{try{if(typeof window.gtag==='function')window.gtag('event',name,params)}catch{}};queueMicrotask(send)}catch{}}
+// Catalog choices use GA4's standard Content type / Content ID dimensions,
+// so ranking needs no new custom definitions. Selection and committed use are
+// separate events; failed or unchanged applications must not count as use.
+export function analyticsSelection(value={}){try{
+ const {kind,stage}=value;
+ if(!['uniform','hair','photo_type'].includes(kind)||!['select','apply'].includes(stage))return;
+ const id=String(value.id||'');
+ if(!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,99}$/.test(id))return;
+ if(kind==='photo_type'&&!['female','male'].includes(id))return;
+ if(stage==='apply'&&value.mode==='unchanged')return;
+ const gender=kind==='photo_type'?id:['female','male'].includes(value.gender)?value.gender:'unknown';
+ const label=String(value.name||id).replace(/[\u0000-\u001f\u007f]/g,'').slice(0,100);
+ analyticsEvent(stage==='select'?'select_content':'idprom_content_apply',{
+  content_type:kind==='photo_type'?'photo_type':kind+'_'+gender,content_id:id,content_group:label,
+  asset_name:label,asset_gender:gender,asset_category:safeText(value.category)||'unknown',
+  asset_provider:['uniform','png','youcam','original','user_choice'].includes(value.provider)?value.provider:'unknown',
+  selection_mode:['new','memory','original','initial','remove','unchanged'].includes(value.mode)?value.mode:'new',
+  event_source:value.surface==='process'?'process':'studio'
+ });
+ }catch{}}
 const item=packageId=>({item_id:'package_'+packageId,item_name:'IDPROM '+packageId,price:Number(packageId),quantity:1});
 export function analyticsCheckout(packageId,checkoutUrl){try{const session=String(checkoutUrl||'').match(/\/(cs_(?:live|test)_[A-Za-z0-9]+)(?:[\/#?]|$)/)?.[1]||(String(checkoutUrl||'').match(/^pi_[A-Za-z0-9]+$/)?.[0]||'');const pending={...context,...attribution,package_id:String(packageId),checkout_session:session,internal,at:Date.now()};write(PENDING,pending);analyticsEvent('begin_checkout',{package_id:String(packageId),currency:'THB',value:Number(packageId),items:[item(packageId)]})}catch{}}
 // Call ONLY after the existing /payments/confirm endpoint has returned ok:true.
