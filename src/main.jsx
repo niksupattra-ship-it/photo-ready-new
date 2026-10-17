@@ -1639,10 +1639,6 @@ async function prepareStudioHairOverlay(headSource,hairId){
  // One uniform fit for the complete hairstyle, based on upper-face anchors.
  // Front and rear are split only after this placement, without a second warp.
  const fit=hairPreviewTransform(ref.face,ref.w,ref.h,targetFace,W,H);
- // Lower short hairstyles by 2% of face height; keep long pairs at 3%.
- const faceHeight=Math.abs(targetFace[152].y-targetFace[10].y)*H;
- const hairDrop=(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId))?.02:.03;
- if(Number.isFinite(faceHeight))fit.f+=faceHeight*hairDrop;
  const [a,b,c,d,e,f]=ref.calibration.sourceToReference;
  const out=canvasFor(W,H),x=out.getContext('2d');
  x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
