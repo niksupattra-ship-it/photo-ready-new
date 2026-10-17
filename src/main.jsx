@@ -801,7 +801,7 @@ async function readOriginalSkinProfile(sourceBlob){
 // Automatic V227 skin enhancement on the existing transparent AI portrait, not the
 // original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
 // bounded by original exposure and highlight protection; preserve pores.
-async function optionalHealthySkin10(masterBlob,sourceBlob){
+async function optionalHealthySkin10(masterBlob,sourceBlob,{portraitMode}={}){
  let failure;
  // Each attempt starts from the unchanged AI master: never apply the lift twice.
  for(let attempt=0;attempt<2;attempt++){
@@ -816,6 +816,9 @@ async function optionalHealthySkin10(masterBlob,sourceBlob){
    const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
    const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
    const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile,true);
+   // The male first portrait already has its requested fine, soft skin texture.
+   // Keep the existing light/tint passes without sharpening those pores again.
+   if(portraitMode==='male')return await canvasPng(tinted);
    return await refineSkinTextureBlob(await canvasPng(tinted),skinMask,true);
   }catch(e){
    failure=e;
@@ -1293,7 +1296,7 @@ async function removeFirstPortraitBackground(blob){
 }
 async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}){
  const cutout=await removeFirstPortraitBackground(aiHeadNeck);
- const master=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(cutout,sourceBlob))));
+ const master=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(cutout,sourceBlob,{portraitMode}))));
  const image=await decodedPortraitImage(master),W=image.naturalWidth,H=image.naturalHeight;
  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
  const frame=ctx.getImageData(0,0,W,H),evidence=await firstPortraitEvidence(master,image);
@@ -2251,7 +2254,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
