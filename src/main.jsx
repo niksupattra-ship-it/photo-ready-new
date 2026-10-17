@@ -1477,6 +1477,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
  }
  const labels=await studioHairLabels(target);
  if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId)){
+  const shortFemale=/^hair-(?:22|24|25|26)$/.test(hairId);
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
   const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H),originalPixels=isSingleFemaleHair(hairId)?new Uint8ClampedArray(pixels.data):null;
   // Only misaligned sideburn corners are skewed; no sideburn eraser/warp grid.
@@ -1485,8 +1486,8 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
    if(fitted.report.adjusted){hair.data.set(fitted.pixels);front.getContext('2d').putImageData(hair,0,0)}
   }
   pixels.data.set(eraseProcessedUpperHair(pixels.data,hair.data,W,H,face,labels));
-  pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));
-  if(isSingleFemaleHair(hairId))pixels.data.set(eraseFemaleHairExterior({original:originalPixels,cleaned:pixels.data,overlay:hair.data,width:W,height:H,face,labels}));
+  if(!shortFemale)pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));
+  if(isSingleFemaleHair(hairId))pixels.data.set(eraseFemaleHairExterior({original:originalPixels,cleaned:pixels.data,overlay:hair.data,width:W,height:H,face,labels,aboveEarsOnly:shortFemale}));
   cc.putImageData(pixels,0,0);
   const result={source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
   return result;

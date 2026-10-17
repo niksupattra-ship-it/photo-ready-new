@@ -58,9 +58,11 @@ function distanceTo(seeds,w,h,limit){
  * `cleaned` may contain previous upper-hair erasure. Its alpha is retained;
  * anatomical skin/face protection restores original alpha when needed. Dark,
  * background-labeled cutout fringes need nearby confirmed old-hair evidence.
+ * `aboveEarsOnly` restores the entire original portrait below a conservative
+ * upper-ear plane; only the four current short female PNG styles opt into it.
  * The input planes are never mutated. Invalid evidence fails without an output.
  */
-export function eraseFemaleHairExterior({original,cleaned=original,overlay,width:w,height:h,face,labels}={}){
+export function eraseFemaleHairExterior({original,cleaned=original,overlay,width:w,height:h,face,labels,aboveEarsOnly=false}={}){
  const n=w*h;
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!rgba(original,n)||!rgba(cleaned,n)||!rgba(overlay,n))throw Error('ภาพไม่พร้อมสำหรับเก็บขอบผมหญิง');
  const {data,width:mw,height:mh}=labels||{};
@@ -74,6 +76,9 @@ export function eraseFemaleHairExterior({original,cleaned=original,overlay,width
  const local=p=>({u:(p.x-cx)*ex+(p.y-cy)*ey,v:-(p.x-cx)*ey+(p.y-cy)*ex});
  const forehead=local(point(10)),chin=local(point(152)),cheeks=[local(point(234)),local(point(454))],ears=[local(point(127)),local(point(356))];
  if(chin.v-forehead.v<eye*.6||Math.abs(cheeks[1].u-cheeks[0].u)<eye)throw Error('กรอบใบหน้าไม่ชัดพอสำหรับเก็บขอบ');
+ // Face-mesh attachment points can sit below the actual upper helix. Use
+ // the higher attachment and a conservative offset, in the head's eye axis.
+ const earCutoff=aboveEarsOnly?Math.min(ears[0].v,ears[1].v)-Math.max(2,eye*.26):Infinity;
  const center=(cheeks[0].u+cheeks[1].u)/2;
  const categories=new Uint8Array(n),faceSupport=new Uint8Array(n),skinSeeds=new Uint8Array(n),protect=new Uint8Array(n);
  rasterPolygon(faceSupport,FACE_OVAL.map(point),w,h);
@@ -89,7 +94,8 @@ export function eraseFemaleHairExterior({original,cleaned=original,overlay,width
   if(overlay[j+3])foundHair=true;
   // A nearly transparent PNG fringe cannot cover opaque original hair. It
   // must not resurrect an old crown/curtain erased by the earlier upper pass.
-  protect[at]=faceSupport[at]||protectedCategory(category)?1:overlay[j+3]>=192?2:0;
+  const earProtected=aboveEarsOnly&&local({x:x+.5,y:y+.5}).v>=earCutoff;
+  protect[at]=earProtected||faceSupport[at]||protectedCategory(category)?1:overlay[j+3]>=192?2:0;
   if(overlay[j+3]>=192){
    const {u,v}=local({x:x+.5,y:y+.5}),row=Math.floor(v)-rowOrigin;
    envelopeLeft[row]=Math.min(envelopeLeft[row],u);envelopeRight[row]=Math.max(envelopeRight[row],u);
@@ -154,6 +160,11 @@ export function eraseFemaleHairExterior({original,cleaned=original,overlay,width
   // Previous eligible upper-hair cleanup may be stronger; do not undo it.
   out[j+3]=Math.min(cleaned[j+3],Math.round(original[j+3]*(1-erase)));
   if(overlay[j+3]>0&&overlay[j+3]<192)out[j+3]=Math.min(out[j+3],overlay[j+3]);
+ }
+ // Apply this last as well: neither prior cleanup nor feathering, model
+ // categories, hair opacity or shadow colour may remove any part of an ear.
+ if(aboveEarsOnly)for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  if(local({x:x+.5,y:y+.5}).v>=earCutoff){const j=(y*w+x)*4;out[j+3]=original[j+3]}
  }
  return out;
 }
