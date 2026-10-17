@@ -21,7 +21,7 @@
 .idstudio.studio-touch>header.studio-touch-header>button:first-child{grid-row:1;grid-column:1;width:32px;min-width:0;height:36px;min-height:36px;padding:4px;box-sizing:border-box}
 .idstudio.studio-touch>header.studio-touch-header>strong{grid-row:1;grid-column:2;min-width:0;font-size:clamp(10px,3vw,15px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions{display:contents}
-.idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions>.studio-header-upload{grid-row:1;grid-column:3;width:100%;min-width:0;height:38px;min-height:38px;max-height:38px;box-sizing:border-box;display:flex;gap:4px;padding:5px 6px;border:1px solid #77e8d9;border-radius:9px;background:#20494c;color:#ecfffc;font-size:11px;font-weight:700;overflow:hidden;box-shadow:0 0 0 1px #57d8c922}
+.idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions>.studio-header-upload{grid-row:1;grid-column:3;width:100%;min-width:0;height:38px;min-height:38px;max-height:38px;box-sizing:border-box;display:flex;gap:4px;padding:5px 6px;border:1px solid #77e8d9;border-radius:9px;background:#20494c;color:#ecfffc;font-size:11px;font-weight:700;overflow:visible;box-shadow:0 0 0 1px #57d8c922}
 .idstudio.studio-touch>header.studio-touch-header .studio-header-upload>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .idstudio.studio-touch>header.studio-touch-header .studio-header-upload .studio-png-icon{width:18px;height:18px;min-width:18px;flex:0 0 18px}
 .idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions>.studio-header-credits{grid-row:1;grid-column:4;min-width:42px;height:38px;min-height:38px;max-height:38px;padding:5px;box-sizing:border-box;font-size:12px}
@@ -30,3 +30,5 @@
 .idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions>.studio-header-upload-start{background:#56d9c9;border-color:#b6fff2;color:#11393a;box-shadow:0 0 0 1px #56d9c940}
 .idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions>.studio-header-upload:focus-visible{outline:2px solid #fff;outline-offset:1px}
 .idstudio.studio-touch>header.studio-touch-header .studio-touch-header-actions>.studio-header-upload:disabled{opacity:.5}
+
+.idstudio.studio-touch>header.studio-touch-header .studio-header-upload>.studio-header-upload-icon{display:block;width:20px;height:20px;min-width:20px;max-width:20px;min-height:20px;max-height:20px;flex:0 0 20px;overflow:visible;object-fit:contain;margin:0;transform:none}
