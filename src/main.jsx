@@ -39,6 +39,7 @@ import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
 import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
 import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
+import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
@@ -1742,23 +1743,17 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
   }
  }
  const layers=buildYoucamHairLayers({original:nativePixels,generated:generatedPixels,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,hairId:options.hairId||''});
- let previousMask=null;
- if(options.nativeHeadMask){
-  const saved=typeof options.nativeHeadMask==='string'?await loadImage(options.nativeHeadMask):options.nativeHeadMask;
+ const readHeadMask=async source=>{
+  if(!source)return null;
+  const saved=typeof source==='string'?await loadImage(source):source;
   if((saved.naturalWidth||saved.width)!==W||(saved.naturalHeight||saved.height)!==H)throw Error('ขนาดมาสก์ใบหน้าเดิมไม่ตรงภาพ · เก็บภาพเดิมไว้');
-  const c=canvasFor(W,H),x=c.getContext('2d');x.drawImage(saved,0,0);previousMask=x.getImageData(0,0,W,H).data;
- }
- const headMask=new Uint8ClampedArray(W*H*4);
- for(let i=0;i<W*H;i++){
-  const k=i*4;headMask[k]=headMask[k+1]=headMask[k+2]=255;
-  const cleanup=nativePixels[k+3]?Math.min(255,Math.round(layers.cleanedHead[k+3]*255/nativePixels[k+3])):255;
-  // Carry manual face/neck erasures, but recalculate automatic old-hair cleanup.
-  headMask[k+3]=Math.round(cleanup*(previousMask?previousMask[k+3]:255)/255);
-  layers.cleanedHead[k+3]=Math.round(nativePixels[k+3]*headMask[k+3]/255);
- }
+  const c=canvasFor(W,H),x=c.getContext('2d');x.drawImage(saved,0,0);return x.getImageData(0,0,W,H).data;
+ };
+ const previousMask=await readHeadMask(options.nativeHeadMask),previousAutomaticMask=await readHeadMask(options.nativeHeadAutomaticMask);
+ const {headMask,automaticHeadMask,cleanedHead}=composeYoucamHeadMasks({original:nativePixels,cleanedHead:layers.cleanedHead,width:W,height:H,previousMask,previousAutomaticMask,nativeEarProtection:layers.nativeEarProtection||null,nativeInnerHairProtection:layers.nativeInnerHairProtection||null});
  // Restore the original feather, not an opaque replacement for translucent hair.
  const frontMaskSource=youcamPixelsSource(layers.frontMask,W,H),backMaskSource=layers.back?youcamPixelsSource(layers.backMask,W,H):null;
- return {aiHairLayers:true,width:W,height:H,nativeHeadSource:original.toDataURL('image/png'),headMaskSource:youcamPixelsSource(headMask,W,H),cleanedHeadSource:youcamPixelsSource(layers.cleanedHead,W,H),source:youcamPixelsSource(layers.front,W,H),maskSource:frontMaskSource,maskRestoreSource:frontMaskSource,...(layers.back?{backSource:youcamPixelsSource(layers.back,W,H),backMaskSource,backMaskRestoreSource:backMaskSource}:{})};
+ return {aiHairLayers:true,width:W,height:H,nativeHeadSource:original.toDataURL('image/png'),headMaskSource:youcamPixelsSource(headMask,W,H),automaticHeadMaskSource:youcamPixelsSource(automaticHeadMask,W,H),cleanedHeadSource:youcamPixelsSource(cleanedHead,W,H),source:youcamPixelsSource(layers.front,W,H),maskSource:frontMaskSource,maskRestoreSource:frontMaskSource,...(layers.back?{backSource:youcamPixelsSource(layers.back,W,H),backMaskSource,backMaskRestoreSource:backMaskSource}:{})};
 }
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
@@ -1767,7 +1762,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-preserved-brows-thin-edge-v22']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',options.nativeHeadAutomaticMask?await resultSourceDigest(options.nativeHeadAutomaticMask):'','youcam-native-ears-inner-hair-v23']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){

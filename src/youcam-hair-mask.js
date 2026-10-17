@@ -283,21 +283,69 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  const oh=confidence(originalHair,n,'ผมต้นฉบับ'),os=confidence(originalSkin,n,'ผิวต้นฉบับ');
  const cleanedHead=new Uint8ClampedArray(original),left=new Int32Array(h),right=new Int32Array(h);left.fill(w);right.fill(-1);
  let first=h,last=-1;
- // Measure the NEW HAIR silhouette, not the full YouCam portrait: its neck
- // and shirt otherwise widen the envelope and leave old hair outside it.
+ // Above the brows, use the actual cutout outline as well as semantic hair:
+ // confidence can vanish across an oblique interior band while one side of
+ // an image row still has hair, falsely squeezing that row's envelope inward.
+ // Below this upper-head region keep semantic hair only; the generated neck
+ // and shirt must not widen the envelope and leave exterior old hair behind.
  let hairSupport=0;for(let i=0;i<n;i++)if(gh[i]>.15&&generated[i*4+3]>=8)hairSupport++;
  const useHair=hairSupport>=Math.max(12,f.d*f.d*.002);
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(generated[i*4+3]>=(useHair?8:32)&&(!useHair||gh[i]>.15)){left[y]=Math.min(left[y],x);right[y]=Math.max(right[y],x);first=Math.min(first,y);last=Math.max(last,y)}}
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x;if(generated[i*4+3]<(useHair?8:32))continue;
+  const upperHead=f.local({x:x+.5,y:y+.5}).v<f.brow-f.d*.075;
+  if(useHair&&gh[i]<=.15&&!upperHead)continue;
+  left[y]=Math.min(left[y],x);right[y]=Math.max(right[y],x);first=Math.min(first,y);last=Math.max(last,y);
+ }
+ // A missing semantic row inside the head is an interior confidence gap,
+ // not an open channel from the frame edge through native hair. Continue
+ // the surrounding silhouette across it while retaining the outer field.
+ let previous=-1;
+ for(let y=first;y<=last;y++)if(right[y]>=0){
+  if(previous>=0&&y>previous+1)for(let row=previous+1;row<y;row++){
+   const t=(row-previous)/(y-previous);
+   left[row]=Math.floor(left[previous]+(left[y]-left[previous])*t);
+   right[row]=Math.ceil(right[previous]+(right[y]-right[previous])*t);
+  }
+  previous=y;
+ }
  const originalFaceArea=originalMasks.oval;
+ // Missing hair on a generated row is not evidence that the native ear,
+ // temple attachment, or a strip of skin beside the face is obsolete hair.
+ // Protect that anatomy geometrically even when its semantic label is wrong.
+ const native=frame(originalFace,w,h),ears=[127,356].map(id=>native.local(native.point(id)));
+ const protectedEar=(x,y)=>{
+  const q=native.local({x:x+.5,y:y+.5}),d=native.d;
+  return ears.some(e=>((q.u-e.u)/(d*.4))**2+((q.v-e.v-d*.2)/(d*.55))**2<=1||((q.u-e.u)/(d*.16))**2+((q.v-e.v+d*.15)/(d*.22))**2<=1);
+ };
+ // Flood the eligible exterior from the actual image boundary. Transparent
+ // background and positively identified old hair are traversable; native
+ // skin/anatomy and the new silhouette block access to interior pockets.
+ // Opaque uncertain pixels are retained instead of creating an internal hole.
+ const nativeEarProtection=new Uint8Array(n),nativeInnerHairProtection=new Uint8Array(n),outside=new Uint8Array(n),queue=new Int32Array(n);let read=0,count=0;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x,exterior=y<first||y>last||x<left[y]||x>right[y];
+  const alpha=original[i*4+3],oldHair=oh[i]>.025&&oh[i]>os[i]*1.5;
+  // Legacy automatic masks could also cut an interior crown row. Bound its
+  // repair to positive native hair inside the continued new silhouette and
+  // above the brows; never restore exterior old hair or manual facial edits.
+  if(!exterior&&!originalFaceArea[i]&&alpha&&oldHair&&os[i]<.2&&native.local({x:x+.5,y:y+.5}).v<native.brow-native.d*.075)nativeInnerHairProtection[i]=1;
+  // Exclude the face oval from the exported ear-only restore guard. It must
+  // never restore unrelated, intentional manual erasures on the native face.
+  if(!originalFaceArea[i]&&protectedEar(x,y))nativeEarProtection[i]=1;
+  if(!exterior||originalFaceArea[i]||nativeEarProtection[i])continue;
+  if(!alpha||(os[i]<.2&&oldHair))outside[i]=1;
+ }
+ const seed=i=>{if(outside[i]===1){outside[i]=2;queue[count++]=i}};
+ for(let x=0;x<w;x++){seed(x);seed((h-1)*w+x)}
+ for(let y=0;y<h;y++){seed(y*w);seed(y*w+w-1)}
+ while(read<count){const i=queue[read++],x=i%w,y=Math.floor(i/w);if(x)seed(i-1);if(x+1<w)seed(i+1);if(y)seed(i-w);if(y+1<h)seed(i+w)}
  let erased=0;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const i=y*w+x,j=i*4;if(!original[j+3])continue;
-  const exterior=y<first||y>last||x<left[y]||x>right[y];
-  // Erase the entire exterior field, including low-confidence wisps and
-  // disconnected scraps, right through to the border. Keep source skin and
-  // the anatomical face interior; never carve a hole into the face/neck.
-  if(!exterior||os[i]>=.2||originalFaceArea[i])continue;
+  // Only remove confirmed, exterior-connected old hair. Keep native RGB and
+  // every other alpha value exactly, including ears and inner hair pockets.
+  if(outside[i]!==2)continue;
   const a=0;if(a!==original[j+3]){cleanedHead[j+3]=a;erased++;}
  }
- return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,protectedGeneratedHairPixels:protectedHair,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather,hairEdgePenetrationPixels:hairPenetration,preservedBrowRegion:preserveBrows,preservedFullBrowRegion:preserveFullBrows,portraitEraserTop:preserveBrows?'eyes':'brows'}};
+ return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,nativeEarProtection,nativeInnerHairProtection,report:{hairPixels:retained,protectedGeneratedHairPixels:protectedHair,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather,hairEdgePenetrationPixels:hairPenetration,preservedBrowRegion:preserveBrows,preservedFullBrowRegion:preserveFullBrows,portraitEraserTop:preserveBrows?'eyes':'brows'}};
 }
