@@ -1698,11 +1698,11 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
 }
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
- if(!/^youcam-(?:f(?:[1-9]|1\d|2[0-3])|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
+ if(!/^youcam-(?:f(?:[1-9]|1\d|2[0-7])|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:3|4|6|1[5-9]|23)$/.test(hairId)?'youcam-all-hair-behind-neck-v14':'youcam-brow-coverage-policy-v11']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:3|4|6|1[5-9]|23|2[4-7])$/.test(hairId)?'youcam-all-hair-behind-neck-v14':'youcam-brow-coverage-policy-v11']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -2570,6 +2570,10 @@ const HAIR_OPTIONS=[
  {id:'youcam-f21',name:'ทรงผม 25',src:'/assets/female-hair-catalog-v12/new-f21.webp'},
  {id:'youcam-f22',name:'ทรงผม 26',src:'/assets/female-hair-catalog-v12/new-f22.webp'},
  {id:'youcam-f23',name:'ทรงผม 27',src:'/assets/female-hair-catalog-v12/new-f23.webp?v=behind-neck-v13'},
+ {id:'youcam-f24',name:'ทรงผม 28',src:'/assets/female-hair-catalog-v12/new-f24.webp'},
+ {id:'youcam-f25',name:'ทรงผม 29',src:'/assets/female-hair-catalog-v12/new-f25.webp'},
+ {id:'youcam-f26',name:'ทรงผม 30',src:'/assets/female-hair-catalog-v12/new-f26.webp'},
+ {id:'youcam-f27',name:'ทรงผม 31',src:'/assets/female-hair-catalog-v12/new-f27.webp'},
 ];
 
 const JOB_UNIFORMS=[
@@ -3395,7 +3399,7 @@ function App(){
   // Refit local hair from the untouched base; female YouCam choices use the
   // same hairstyle request and feather masks as Studio instead of the PNG fitter.
   const base=current.pngHairBase||current.master;
-  const femaleYoucam=/^youcam-f(?:[1-9]|1\d|2[0-3])$/.test(id||'');
+  const femaleYoucam=/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(id||'');
   hairRequestRef.current=true;setHairBusy(true);setMsg(femaleYoucam?'กำลังเปลี่ยนทรงผมด้วย YouCam…':'กำลังวาง PNG ผม…');
   try{
    let nextMaster=base;
