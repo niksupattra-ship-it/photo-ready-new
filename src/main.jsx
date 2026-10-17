@@ -3,6 +3,7 @@ import {portraitJobError} from './portrait-job-error.js';
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair,isSingleFemaleHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
+import {eraseFemaleHairExterior} from './female-hair-exterior.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -1464,22 +1465,29 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
  // exterior hair from the selected FRONT crown through the image boundary.
  if(contourContext?.authoredPair&&contourContext?.preservePortrait){
   const originalHead=canvasFor(W,H),headContext=originalHead.getContext('2d');headContext.drawImage(target,0,0,W,H);
-  const labels=await studioHairLabels(target),pixels=headContext.getImageData(0,0,W,H);
+  const labels=await studioHairLabels(target),pixels=headContext.getImageData(0,0,W,H),originalPixels=new Uint8ClampedArray(pixels.data);
   const frontPixels=front.getContext('2d').getImageData(0,0,W,H).data;
-  pixels.data.set(eraseProcessedUpperHair(pixels.data,frontPixels,W,H,face,labels));headContext.putImageData(pixels,0,0);
+  pixels.data.set(eraseProcessedUpperHair(pixels.data,frontPixels,W,H,face,labels));
+  if(hairId==='hair-01'||hairId==='hair-07'){
+   const coverage=canvasFor(W,H),cx=coverage.getContext('2d');if(back)cx.drawImage(back,0,0);cx.drawImage(front,0,0);
+   pixels.data.set(eraseFemaleHairExterior({original:originalPixels,cleaned:pixels.data,overlay:cx.getImageData(0,0,W,H).data,width:W,height:H,face,labels}));
+  }
+  headContext.putImageData(pixels,0,0);
   return {source:front.toDataURL('image/png'),backSource:back?back.toDataURL('image/png'):null,cleanedHeadSource:originalHead.toDataURL('image/png')};
  }
  const labels=await studioHairLabels(target);
  if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId)){
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
-  const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H);
+  const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H),originalPixels=isSingleFemaleHair(hairId)?new Uint8ClampedArray(pixels.data):null;
   // Only misaligned sideburn corners are skewed; no sideburn eraser/warp grid.
   if(contourContext?.maleGuide){
    const fitted=skewMaleSideburnCorners(hair.data,pixels.data,W,H,face,labels,contourContext.maleGuide,contourContext.matrix);
    if(fitted.report.adjusted){hair.data.set(fitted.pixels);front.getContext('2d').putImageData(hair,0,0)}
   }
   pixels.data.set(eraseProcessedUpperHair(pixels.data,hair.data,W,H,face,labels));
-  pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));cc.putImageData(pixels,0,0);
+  pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));
+  if(isSingleFemaleHair(hairId))pixels.data.set(eraseFemaleHairExterior({original:originalPixels,cleaned:pixels.data,overlay:hair.data,width:W,height:H,face,labels}));
+  cc.putImageData(pixels,0,0);
   const result={source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
   return result;
  }
@@ -2536,23 +2544,23 @@ const MALE_HAIR_OPTIONS=[
  {id:'manhair-03',name:'ทรงผม 16',src:'/assets/hairstyle-previews/manhair-03.webp?v=85'},
 ];
 const HAIR_OPTIONS=[
- {id:'youcam-f1',name:'ทรงผม 1',src:'/assets/female-hair-catalog-v12/old-f1.webp'},
- {id:'youcam-f2',name:'ทรงผม 2',src:'/assets/female-hair-catalog-v12/old-f2.webp'},
+ {id:'youcam-f1',name:'ทรงผม 1',src:'/assets/female-hair-catalog-v12/old-f1.webp?v=female-reference-v15'},
+ {id:'youcam-f2',name:'ทรงผม 2',src:'/assets/female-hair-catalog-v12/old-f2.webp?v=female-reference-v15'},
  {id:'youcam-f3',name:'ทรงผม 3',src:'/assets/female-hair-catalog-v12/old-f3.webp?v=behind-neck-v14'},
  {id:'youcam-f4',name:'ทรงผม 4',src:'/assets/female-hair-catalog-v12/old-f4.webp?v=behind-neck-v14'},
- {id:'youcam-f5',name:'ทรงผม 5',src:'/assets/female-hair-catalog-v12/old-f5.webp'},
+ {id:'youcam-f5',name:'ทรงผม 5',src:'/assets/female-hair-catalog-v12/old-f5.webp?v=female-reference-v15'},
  {id:'youcam-f6',name:'ทรงผม 6',src:'/assets/female-hair-catalog-v12/old-f6.webp?v=behind-neck-v14'},
- {id:'youcam-f7',name:'ทรงผม 7',src:'/assets/female-hair-catalog-v12/old-f7.webp'},
- {id:'hair-01',name:'ทรงผม 8',src:'/assets/female-hair-catalog-v12/free-01.webp'},
+ {id:'youcam-f7',name:'ทรงผม 7',src:'/assets/female-hair-catalog-v12/old-f7.webp?v=female-reference-v15'},
+ {id:'hair-01',name:'ทรงผม 8',src:'/assets/female-hair-catalog-v12/free-01.webp?v=female-audit-v15'},
  {id:'hair-07',name:'ทรงผม 22',src:'/assets/female-hair-catalog-v12/free-07.webp?v=behind-neck-v14'},
  {id:'hair-26',name:'ทรงผม 10',src:'/assets/female-hair-catalog-v12/free-26.webp'},
  {id:'hair-22',name:'ทรงผม 11',src:'/assets/female-hair-catalog-v12/free-22.webp'},
  {id:'hair-24',name:'ทรงผม 12',src:'/assets/female-hair-catalog-v12/free-24.webp'},
  {id:'hair-25',name:'ทรงผม 13',src:'/assets/female-hair-catalog-v12/free-25.webp'},
- {id:'youcam-f11',name:'ทรงผม 14',src:'/assets/female-hair-catalog-v12/old-f11.webp'},
- {id:'youcam-f12',name:'ทรงผม 15',src:'/assets/female-hair-catalog-v12/old-f12.webp'},
- {id:'youcam-f13',name:'ทรงผม 16',src:'/assets/female-hair-catalog-v12/old-f13.webp'},
- {id:'youcam-f14',name:'ทรงผม 17',src:'/assets/female-hair-catalog-v12/old-f14.webp'},
+ {id:'youcam-f11',name:'ทรงผม 14',src:'/assets/female-hair-catalog-v12/old-f11.webp?v=female-reference-v15'},
+ {id:'youcam-f12',name:'ทรงผม 15',src:'/assets/female-hair-catalog-v12/old-f12.webp?v=female-reference-v15'},
+ {id:'youcam-f13',name:'ทรงผม 16',src:'/assets/female-hair-catalog-v12/old-f13.webp?v=female-reference-v15'},
+ {id:'youcam-f14',name:'ทรงผม 17',src:'/assets/female-hair-catalog-v12/old-f14.webp?v=female-reference-v15'},
  {id:'youcam-f15',name:'ทรงผม 18',src:'/assets/female-hair-catalog-v12/old-f15.webp?v=behind-neck-v14'},
  {id:'youcam-f16',name:'ทรงผม 19',src:'/assets/female-hair-catalog-v12/old-f16.webp?v=behind-neck-v14'},
  {id:'youcam-f17',name:'ทรงผม 20',src:'/assets/female-hair-catalog-v12/old-f17.webp?v=behind-neck-v14'},
@@ -3384,26 +3392,32 @@ function App(){
   if(hairRequestRef.current||hairBusy||busy)return;
   const current=editCache.current;
   if(!current){setMsg('ประมวลผลรูปด้วยผมเดิมก่อน แล้วเลือกทรงเพื่อวาง PNG');return}
-  // This older workspace must use the same local fitting route as Studio.
-  // Always start from its untouched base, never stack PNGs or request another AI job.
+  // Refit local hair from the untouched base; female YouCam choices use the
+  // same hairstyle request and feather masks as Studio instead of the PNG fitter.
   const base=current.pngHairBase||current.master;
-  hairRequestRef.current=true;setHairBusy(true);setMsg('กำลังวาง PNG ผม…');
+  const femaleYoucam=/^youcam-f(?:[1-9]|1\d|2[0-3])$/.test(id||'');
+  hairRequestRef.current=true;setHairBusy(true);setMsg(femaleYoucam?'กำลังเปลี่ยนทรงผมด้วย YouCam…':'กำลังวาง PNG ผม…');
   try{
    let nextMaster=base;
    if(id){
     const url=URL.createObjectURL(base);
     try{
-     const original=await loadImage(url),fitted=await prepareStudioHairOverlay(url,id),overlay=await loadImage(fitted.source);
+     const original=await loadImage(url),fitted=femaleYoucam?await prepareSelectedStudioHair(original,id,{sourceJobId:currentOutputJobRef.current}):await prepareStudioHairOverlay(url,id);
      const c=canvasFor(original.naturalWidth,original.naturalHeight),x=c.getContext('2d');
-     if(fitted.backSource)x.drawImage(await loadImage(fitted.backSource),0,0);
-     x.drawImage(await loadImage(fitted.cleanedHeadSource),0,0);x.drawImage(overlay,0,0);nextMaster=await canvasPng(c);
+     const drawHair=async(source,maskSource)=>{
+      const layer=await loadImage(source);
+      if(!maskSource){x.drawImage(layer,0,0);return}
+      const masked=canvasFor(c.width,c.height),mx=masked.getContext('2d');mx.drawImage(layer,0,0);mx.globalCompositeOperation='destination-in';mx.drawImage(await loadImage(maskSource),0,0);x.drawImage(masked,0,0);
+     };
+     if(fitted.backSource)await drawHair(fitted.backSource,fitted.backMaskSource);
+     x.drawImage(await loadImage(fitted.cleanedHeadSource),0,0);await drawHair(fitted.source,fitted.maskSource);nextMaster=await canvasPng(c);
     }finally{URL.revokeObjectURL(url)}
    }
    const out=await renderWithRibbon(nextMaster,current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current);
    beginOptionRender();editCache.current={...current,master:nextMaster,pngHairBase:base};
    if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
    setHeadMasterPreview(URL.createObjectURL(nextMaster));setHeadPreviewLock(current.lock);
-   showBlob(out);setHairId(id||'');setMsg(id?'วาง PNG ผมแล้ว · ยังไม่ส่ง AI และไม่ใช้เครดิต':'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
+   showBlob(out);setHairId(id||'');setMsg(id?(femaleYoucam?'เปลี่ยนทรงผมด้วย YouCam แล้ว':'วาง PNG ผมแล้ว · ยังไม่ส่ง AI และไม่ใช้เครดิต'):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
   }catch(e){setMsg(e.message||'วางผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{hairRequestRef.current=false;setHairBusy(false)}
  };
  const changeHairForStudio=async id=>{
