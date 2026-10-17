@@ -1741,7 +1741,7 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
    generatedPixels=refineYoucamFemaleHairEdges({cutout:generatedPixels,source:rx.getImageData(0,0,W,H).data,width:W,height:H,hair:newMasks.hair,skin:newMasks.skin,face:transformedFace}).pixels;
   }
  }
- const layers=buildYoucamHairLayers({original:nativePixels,generated:generatedPixels,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace});
+ const layers=buildYoucamHairLayers({original:nativePixels,generated:generatedPixels,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,hairId:options.hairId||''});
  let previousMask=null;
  if(options.nativeHeadMask){
   const saved=typeof options.nativeHeadMask==='string'?await loadImage(options.nativeHeadMask):options.nativeHeadMask;
@@ -1767,7 +1767,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-continuous-feather-fit-v21']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-preserved-brows-thin-edge-v22']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){

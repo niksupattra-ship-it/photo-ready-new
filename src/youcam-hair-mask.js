@@ -146,7 +146,7 @@ function distanceToZero(inside,w,h,frameIsOutside=false){
 // Its upper edge is a smooth arch, never a trace of individual eyebrow/lid
 // points. Fringe starts below the brows; an open forehead reveals native
 // brows through the same broad fade rather than small, separate brow holes.
-export function softYoucamPortraitEraser(face,w,h,{preserveBrows=false,originalFace=null}={}){
+export function softYoucamPortraitEraser(face,w,h,{preserveBrows=false,preserveFullBrows=false,originalFace=null}={}){
  const f=frame(face,w,h),inside=new Uint8Array(w*h);
  const fromLocal=(u,v)=>({x:f.cx+u*f.ux+v*f.vx,y:f.cy+u*f.uy+v*f.vy});
  const feather=clamp(f.d*.16,4,40)*1.4;
@@ -159,18 +159,43 @@ export function softYoucamPortraitEraser(face,w,h,{preserveBrows=false,originalF
  fillPolygon(inside,[fromLocal(-f.d*.35,f.chin-f.d*.28),fromLocal(f.d*.35,f.chin-f.d*.28),fromLocal(f.d*.39,f.chin+f.d*1.45),fromLocal(-f.d*.39,f.chin+f.d*1.45)],w,h);
  const distance=distanceToZero(inside,w,h,true);
  const browHeights=BROWS.flat().map(id=>f.local(f.point(id)).v),lids=UPPER_LIDS.flat().map(id=>f.local(f.point(id)));
- if(originalFace){const native=frame(originalFace,w,h);for(const id of BROWS.flat())browHeights.push(f.local(native.point(id)).v);for(const id of UPPER_LIDS.flat())lids.push(f.local(native.point(id)))}
+ const browContours=BROWS.map(ids=>ids.map(id=>f.local(f.point(id)))),eyeContours=EYES.map(ids=>ids.map(id=>f.local(f.point(id))));
+ if(originalFace){const native=frame(originalFace,w,h);for(const id of BROWS.flat())browHeights.push(f.local(native.point(id)).v);for(const id of UPPER_LIDS.flat())lids.push(f.local(native.point(id)));for(const ids of BROWS)browContours.push(ids.map(id=>f.local(native.point(id))));for(const ids of EYES)eyeContours.push(ids.map(id=>f.local(native.point(id))))}
  const browTop=Math.min(...browHeights);
  // The arch uses a whole-face span instead of joining left/right eyelids or
  // eyebrows across the nose. That removes the old flat bridges and corners.
- const curve=preserveBrows?f.d*.08:f.d*.10;
+ let curve=preserveBrows?f.d*.08:f.d*.10;
  const arch=u=>curve*(u/(f.d*.75))**2;
  // Clear both complete eyes with this ONE arch. If brows sit very close to
  // the eyes, let the broad fade touch their lower edge instead of narrowing
  // it into a hard seam or retaining a second, generated pair of eyes.
- const topSpan=preserveBrows?clamp(f.d*.14,5,56):clamp(f.d*.20,6,64);
+ let topSpan=preserveFullBrows?clamp(f.d*.08,5,32):preserveBrows?clamp(f.d*.14,5,56):clamp(f.d*.20,6,64);
  const topEnd=preserveBrows?Math.min(...lids.map(q=>q.v-arch(q.u)))-f.d*.012:browTop-f.d*.10;
- const topStart=topEnd-topSpan;
+ // Male style 5 keeps the COMPLETE native/generated brow band. Move this
+ // one continuous opening below it; never punch small holes around brows.
+ let topStart=topEnd-topSpan;
+ if(preserveFullBrows){
+  // Fit one gentle arch into the actual brow-to-eye gap. A fixed broad band
+  // below the brows can retain generated eyelids when that gap is small.
+  // Bound whole polygon edges, not just vertices: a curved arch can attain
+  // its extreme between landmarks and must still preserve every brow pixel.
+  const bound=(contours,k,maximum)=>{
+   let result=maximum?-Infinity:Infinity;
+   const take=value=>{result=maximum?Math.max(result,value):Math.min(result,value)};
+   for(const points of contours)for(let i=0,j=points.length-1;i<points.length;j=i++){
+    const a=points[j],b=points[i],du=b.u-a.u,dv=b.v-a.v;
+    take(a.v-k*a.u*a.u);take(b.v-k*b.u*b.u);
+    if(Math.abs(k*du*du)>1e-12){const t=(dv-2*k*a.u*du)/(2*k*du*du);if(t>0&&t<1){const u=a.u+t*du;take(a.v+t*dv-k*u*u)}}
+   }
+   return result;
+  };
+  const margin=clamp(f.d*.00625,.5,1);let best=null;
+  for(const bend of [.08,.04,0,-.04]){
+   const candidate=f.d*bend,k=candidate/(f.d*.75)**2,start=bound(browContours,k,true)+margin,end=bound(eyeContours,k,false)-margin,gap=end-start;
+   if(!best||gap>best.gap)best={curve:candidate,start,gap};
+  }
+  curve=best.curve;topStart=best.start;topSpan=Math.min(topSpan,Math.max(.5,best.gap));
+ }
  const erase=new Float32Array(w*h);
  for(let i=0;i<erase.length;i++){
   if(!inside[i])continue;
@@ -212,7 +237,7 @@ export function youcamFringeBoundary(rgba,hair,skin,face,w,h){
  return {f,bottom,step,start,support,hasFringe};
 }
 
-export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin}){
+export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin,hairId=''}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>33554432)throw failure('ขนาดภาพแยกผมไม่ถูกต้อง');
  const n=w*h;if(original?.length!==n*4||generated?.length!==n*4)throw failure('พิกเซลภาพแยกผมไม่ครบ');
  // Erase ONLY the aligned YouCam image. The processed native portrait,
@@ -220,14 +245,16 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  const f=frame(generatedFace||originalFace,w,h);
  const gh=confidence(generatedHair,n,'ผมที่สร้าง'),gs=confidence(generatedSkin,n,'ผิวที่สร้าง');
  const fringe=youcamFringeBoundary(generated,gh,gs,generatedFace||originalFace,w,h);
- const {erase,feather}=softYoucamPortraitEraser(generatedFace||originalFace,w,h,{preserveBrows:fringe.hasFringe,originalFace});
+ const preserveFullBrows=hairId==='youcam-m5';
+ const preserveBrows=preserveFullBrows||fringe.hasFringe;
+ const {erase,feather}=softYoucamPortraitEraser(generatedFace||originalFace,w,h,{preserveBrows,preserveFullBrows,originalFace});
  const originalMasks=faceMasks(frame(originalFace,w,h),w,h);
- // All upper-face pixels share the same broad fade, including fringe tips:
- // binary hair exemptions otherwise leave notches at the eyebrows. Gradually
- // protect connected lengths below the lower jaw so the joined neck opening
- // cannot fade bob ends or long hair hanging over the shoulders.
+ // Blend continuously across the hair edge instead of exempting binary hair
+ // pixels. Keep confident interiors intact; only a tiny inner edge can fade,
+ // with the rest of the transition on the skin side. Lower jaw protection
+ // still preserves bob ends and lengths in the joined neck opening.
  const outsideHair=new Uint8Array(n);for(let i=0;i<n;i++)outsideHair[i]=fringe.support[i]?0:1;
- const hairDistance=distanceToZero(outsideHair,w,h),hairFeather=clamp(f.d*.045,2,16);
+ const hairDistance=distanceToZero(outsideHair,w,h),hairInnerDistance=distanceToZero(fringe.support,w,h),hairFeather=clamp(f.d*.045,2,16),hairPenetration=clamp(f.d*.008,1,3);
  const front=rgbaMask(n),frontMask=rgbaMask(n),frontSupport=rgbaMask(n);
  let retained=0,protectedHair=0;
  for(let i=0;i<n;i++){
@@ -239,8 +266,9 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   const shoulderErase=smooth(f.chin+f.d*1.15,f.chin+f.d*1.65,q.v);
   const keepHair=fringe.support[i]===1;
   const hairEraser=smooth(0,hairFeather,hairDistance[i]);
+  const edgeEraser=smooth(-hairPenetration,hairFeather,hairDistance[i]-hairInnerDistance[i]);
   const lowerHairProtection=smooth(f.chin-f.d*.45,f.chin-f.d*.25,q.v);
-  const faceErase=erase[i]*(1-lowerHairProtection*(1-hairEraser));
+  const faceErase=erase[i]*(edgeEraser+(hairEraser-edgeEraser)*lowerHairProtection);
   const lowerErase=Math.max(neckErase,shoulderErase)*hairEraser;
   const removed=Math.max(faceErase,lowerErase);
   const opacity=generated[i*4+3]/255*(1-removed);
@@ -271,5 +299,5 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   if(!exterior||os[i]>=.2||originalFaceArea[i])continue;
   const a=0;if(a!==original[j+3]){cleanedHead[j+3]=a;erased++;}
  }
- return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,protectedGeneratedHairPixels:protectedHair,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather,preservedBrowRegion:fringe.hasFringe,portraitEraserTop:fringe.hasFringe?'eyes':'brows'}};
+ return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,protectedGeneratedHairPixels:protectedHair,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather,hairEdgePenetrationPixels:hairPenetration,preservedBrowRegion:preserveBrows,preservedFullBrowRegion:preserveFullBrows,portraitEraserTop:preserveBrows?'eyes':'brows'}};
 }
