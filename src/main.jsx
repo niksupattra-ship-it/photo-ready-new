@@ -4,6 +4,7 @@ import {lowerPortraitOutline} from './lower-portrait-outline.js';
 import {isSingleLayerHair,isSingleFemaleHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {eraseFemaleHairExterior} from './female-hair-exterior.js';
+import {refineYoucamFemaleHairEdges} from './youcam-hair-edge.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -1678,7 +1679,15 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
  // Only generated hair moves. The source face/skin/neck keep native RGB pixels.
  const transformedFace=generatedFace.map(p=>({...p,x:(matrix.a*p.x*gw+matrix.c*p.y*gh+matrix.e)/W,y:(matrix.b*p.x*gw+matrix.d*p.y*gh+matrix.f)/H}));
  const oldMasks=await youcamHairConfidence(original,W,H),newMasks=await youcamHairConfidence(aligned,W,H);
- const layers=buildYoucamHairLayers({original:nativePixels,generated:ax.getImageData(0,0,W,H).data,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,separateBack:true,coveredBrows:youcamStyleCoversBrows(options.hairId)});
+ let generatedPixels=ax.getImageData(0,0,W,H).data;
+ if(/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(options.hairId||'')&&options.rawGenerated){
+  const raw=options.rawGenerated;
+  if((raw.naturalWidth||raw.width)===gw&&(raw.naturalHeight||raw.height)===gh){
+   const rawAligned=canvasFor(W,H),rx=rawAligned.getContext('2d',{willReadFrequently:true});rx.imageSmoothingEnabled=true;rx.imageSmoothingQuality='high';rx.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);rx.drawImage(raw,0,0);rx.setTransform(1,0,0,1,0,0);
+   generatedPixels=refineYoucamFemaleHairEdges({cutout:generatedPixels,source:rx.getImageData(0,0,W,H).data,width:W,height:H,hair:newMasks.hair,skin:newMasks.skin,face:transformedFace}).pixels;
+  }
+ }
+ const layers=buildYoucamHairLayers({original:nativePixels,generated:generatedPixels,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,separateBack:true,coveredBrows:youcamStyleCoversBrows(options.hairId)});
  let previousMask=null;
  if(options.nativeHeadMask){
   const saved=typeof options.nativeHeadMask==='string'?await loadImage(options.nativeHeadMask):options.nativeHeadMask;
@@ -1703,7 +1712,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:3|4|6|1[5-9]|23|2[4-7])$/.test(hairId)?'youcam-all-hair-behind-neck-v14':'youcam-brow-coverage-policy-v11']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(hairId)?'youcam-female-hair-edge-v18':(/^youcam-f(?:3|4|6|1[5-9]|23|2[4-7])$/.test(hairId)?'youcam-all-hair-behind-neck-v14':'youcam-brow-coverage-policy-v11')]);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -1727,16 +1736,18 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  }
  if(!completed)throw Error('หมดเวลารอ YouCam · เก็บภาพเดิมไว้');
  const imageResponse=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/image',{headers:walletHeaders(),cache:'no-store'});if(!imageResponse.ok)throw Error('รับรูป YouCam ไม่สำเร็จ');
- const cutout=await removeBackgroundBlob(await imageResponse.blob());
+ const providerBlob=await imageResponse.blob(),cutout=await removeBackgroundBlob(providerBlob);
  const original=canvasFor(W,H);original.getContext('2d').drawImage(target,0,0,W,H);await checkPortraitProportions(await canvasPng(original),cutout);
- const u=URL.createObjectURL(cutout);
+ const u=URL.createObjectURL(cutout);let rawUrl=null;
  try{
   const generated=await loadImage(u);
+  let rawGenerated=null;
+  if(/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(hairId)){rawUrl=URL.createObjectURL(providerBlob);rawGenerated=await loadImage(rawUrl)}
   options.onProgress?.(82);
-  const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,{...options,hairId});
+  const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,{...options,hairId,...(rawGenerated?{rawGenerated}:{})});
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
   return fitted;
- }finally{URL.revokeObjectURL(u)}
+ }finally{URL.revokeObjectURL(u);if(rawUrl)URL.revokeObjectURL(rawUrl)}
  }catch(e){await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/cancel',{method:'POST',headers:walletHeaders()}).catch(()=>{});throw e}
 }
 async function getHairAiAccess(sourceJobId){const r=await fetch('/api/youcam/hair/access?sourceJobId='+encodeURIComponent(sourceJobId||''),{headers:walletHeaders(),cache:'no-store'});const a=await r.json();if(!r.ok)throw Error(a.message||'ตรวจสิทธิ์ทรงผมไม่สำเร็จ');return a}
