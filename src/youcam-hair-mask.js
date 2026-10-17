@@ -48,6 +48,23 @@ function faceMasks(f,w,h){
  return {oval,features,brows};
 }
 
+// Reveal the native brows through gaps in the fringe. A style name must never
+// authorize a generated skin/brow patch to cover the person's actual eyebrows.
+function browEraseWeight(originalBrows,generatedBrows,w,h,eye){
+ const padding=clamp(eye*.025,1,5),feather=clamp(eye*.015,1,3),far=padding+feather+2;
+ const distance=new Float32Array(w*h);
+ for(let i=0;i<distance.length;i++)distance[i]=originalBrows[i]||generatedBrows[i]?0:far;
+ const diag=Math.SQRT2;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=y*w+x;let d=distance[i];if(x)d=Math.min(d,distance[i-1]+1);if(y){d=Math.min(d,distance[i-w]+1);if(x)d=Math.min(d,distance[i-w-1]+diag);if(x+1<w)d=Math.min(d,distance[i-w+1]+diag)}distance[i]=d;
+ }
+ for(let y=h-1;y>=0;y--)for(let x=w-1;x>=0;x--){
+  const i=y*w+x;let d=distance[i];if(x+1<w)d=Math.min(d,distance[i+1]+1);if(y+1<h){d=Math.min(d,distance[i+w]+1);if(x)d=Math.min(d,distance[i+w-1]+diag);if(x+1<w)d=Math.min(d,distance[i+w+1]+diag)}distance[i]=d;
+ }
+ for(let i=0;i<distance.length;i++)distance[i]=1-smooth(padding,padding+feather,distance[i]);
+ return distance;
+}
+
 function boxMean(input,w,h,r){
  const tmp=new Float32Array(input.length),out=new Float32Array(input.length),span=2*r+1;
  for(let y=0;y<h;y++){
@@ -140,7 +157,7 @@ export function softYoucamPortraitEraser(face,w,h){
  const fromLocal=(u,v)=>({x:f.cx+u*f.ux+v*f.vx,y:f.cy+u*f.uy+v*f.vy});
  const feather=clamp(f.d*.14,4,40)*1.4;
  // Follow the upper contour of BOTH generated brows, not their average
- // height. Start the soft transition above it so brow hairs are fully erased.
+ // height. Remove generated brows here to reveal the unchanged native brows.
  const browLine=[70,63,105,66,107,336,296,334,293,300].map(id=>f.local(f.point(id))).sort((a,b)=>a.u-b.u);
  const browTop=u=>{if(u<=browLine[0].u)return browLine[0].v;for(let k=1;k<browLine.length;k++)if(u<=browLine[k].u){const a=browLine[k-1],b=browLine[k],t=clamp((u-a.u)/Math.max(.001,b.u-a.u));return a.v+(b.v-a.v)*t}return browLine[browLine.length-1].v};
  const points=OVAL.map(id=>{const q=f.local(f.point(id));return fromLocal(q.u*.93,Math.max(q.v,browTop(q.u)-feather-f.d*.04))});
@@ -170,8 +187,8 @@ function writeHair(source,mask,support,rgba,index,opacity){
  support[j]=support[j+1]=support[j+2]=support[j+3]=255;
 }
 
-// Track only crown-connected fringe reaching the brow. Detached eyebrow
-// pixels cannot lower the eraser, and open-brow columns keep the old rule.
+// Crown-connected support distinguishes actual fringe from detached generated
+// eyebrow pixels. Preserve native hair opacity even on its low-confidence tips.
 export function youcamFringeBoundary(rgba,hair,skin,face,w,h){
  const f=frame(face,w,h),support=connectedHair(rgba,hair,skin,f,faceMasks(f,w,h),w,h).support;
  const step=Math.max(1,f.d*.025),count=Math.ceil(f.d*1.8/step)+1,start=-f.d*.9;
@@ -181,15 +198,10 @@ export function youcamFringeBoundary(rgba,hair,skin,face,w,h){
   if(q.v<f.brow-f.d*.06||q.v>f.d*.18)continue;
   const bin=Math.round((q.u-start)/step);if(bin>=0&&bin<count)bottom[bin]=Math.max(bottom[bin],q.v);
  }
- return {f,bottom,step,start};
+ return {f,bottom,step,start,support};
 }
 
-// Audited against the current reference images, independent of hair length.
-export function youcamStyleCoversBrows(id){
- return /^youcam-(?:f(?:11|12|13|15|17|18|19|22)|m(?:1|2|4|5|6|8|13))$/.test(id||'');
-}
-
-export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin,coveredBrows=false}){
+export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin}){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||w*h>33554432)throw failure('ขนาดภาพแยกผมไม่ถูกต้อง');
  const n=w*h;if(original?.length!==n*4||generated?.length!==n*4)throw failure('พิกเซลภาพแยกผมไม่ครบ');
  // Erase ONLY the aligned YouCam image. The processed native portrait,
@@ -197,11 +209,10 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  const f=frame(generatedFace||originalFace,w,h),{erase,feather}=softYoucamPortraitEraser(generatedFace||originalFace,w,h);
  const gh=confidence(generatedHair,n,'ผมที่สร้าง'),gs=confidence(generatedSkin,n,'ผิวที่สร้าง');
  const fringe=youcamFringeBoundary(generated,gh,gs,generatedFace||originalFace,w,h);
- // Brow-covering styles must keep the generated brow band. Move the start BELOW
- // the lowest brow hair; any longer fringe still takes precedence below.
- const coveredBrowEnd=coveredBrows?Math.max(...BROWS.flat().map(id=>f.local(f.point(id)).v))+f.d*.025:-Infinity;
+ const originalMasks=faceMasks(frame(originalFace,w,h),w,h),generatedMasks=faceMasks(f,w,h);
+ const browErase=browEraseWeight(originalMasks.brows,generatedMasks.brows,w,h,f.d);
  const front=rgbaMask(n),frontMask=rgbaMask(n),frontSupport=rgbaMask(n);
- let retained=0;
+ let retained=0,protectedHair=0;
  for(let i=0;i<n;i++){
   const q=f.local({x:i%w+.5,y:Math.floor(i/w)+.5});
   // Widen the soft eraser below the jaw through the neck and shoulders,
@@ -209,14 +220,15 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   const neckWidth=f.d*(.35+.55*smooth(f.chin,f.chin+f.d*1.4,q.v));
   const neckErase=smooth(f.chin-f.d*.25,f.chin+f.d*.1,q.v)*(1-smooth(neckWidth-feather,neckWidth,Math.abs(q.u)));
   const shoulderErase=smooth(f.chin+f.d*1.15,f.chin+f.d*1.65,q.v);
-  const bin=Math.round((q.u-fringe.start)/fringe.step),tip=fringe.bottom[bin];
-  // Begin the soft eraser BELOW the detected fringe tips, never through them.
-  const fringeGate=Number.isFinite(tip)?smooth(tip+f.d*.015,tip+f.d*.015+feather,q.v):1;
-  const coveredGate=coveredBrows?smooth(coveredBrowEnd,coveredBrowEnd+feather,q.v):1;
-  const removed=Math.max(erase[i]*fringeGate*coveredGate,neckErase,shoulderErase);
+  // Every eraser excludes actual crown-connected hair, including bob ends,
+  // long sections beside the neck/shoulders and fine fringe over the brows.
+  // Keep its native alpha; confidence is evidence, not replacement opacity.
+  const keepHair=fringe.support[i]===1;
+  const removed=keepHair?0:Math.max(erase[i],neckErase,shoulderErase,browErase[i]);
   const opacity=generated[i*4+3]/255*(1-removed);
   writeHair(front,frontMask,frontSupport,generated,i,opacity);
   if(opacity>0)retained++;
+  if(keepHair)protectedHair++;
  }
  if(!retained)throw failure('ภาพจาก YouCam ไม่มีส่วนที่เหลือสำหรับวาง');
  // Remove only obsolete SOURCE HAIR outside the new outer silhouette.
@@ -230,7 +242,7 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
  let hairSupport=0;for(let i=0;i<n;i++)if(gh[i]>.15&&generated[i*4+3]>=8)hairSupport++;
  const useHair=hairSupport>=Math.max(12,f.d*f.d*.002);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;if(generated[i*4+3]>=(useHair?8:32)&&(!useHair||gh[i]>.15)){left[y]=Math.min(left[y],x);right[y]=Math.max(right[y],x);first=Math.min(first,y);last=Math.max(last,y)}}
- const originalFaceArea=faceMasks(frame(originalFace,w,h),w,h).oval;
+ const originalFaceArea=originalMasks.oval;
  let erased=0;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const i=y*w+x,j=i*4;if(!original[j+3])continue;
@@ -241,5 +253,5 @@ export function buildYoucamHairLayers({original,generated,width:w,height:h,origi
   if(!exterior||os[i]>=.2||originalFaceArea[i])continue;
   const a=0;if(a!==original[j+3]){cleanedHead[j+3]=a;erased++;}
  }
- return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather}};
+ return {width:w,height:h,front,frontMask,frontSupport,back:null,backMask:null,backSupport:null,cleanedHead,report:{hairPixels:retained,protectedGeneratedHairPixels:protectedHair,erasedOriginalHairPixels:erased,hasBack:false,portraitEraserFeatherPixels:feather}};
 }

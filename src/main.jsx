@@ -37,7 +37,7 @@ import {blendHairlineSeam} from './hairline-seam.js';
 import {HAIRSTYLE_RULES,clearSourceHairTails} from '../hairstyle-rules.js';
 import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
 import {fitYoucamToNative} from './youcam-native-face.js';
-import {buildYoucamHairLayers,youcamStyleCoversBrows} from './youcam-hair-mask.js';
+import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
@@ -1727,7 +1727,7 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
    generatedPixels=refineYoucamFemaleHairEdges({cutout:generatedPixels,source:rx.getImageData(0,0,W,H).data,width:W,height:H,hair:newMasks.hair,skin:newMasks.skin,face:transformedFace}).pixels;
   }
  }
- const layers=buildYoucamHairLayers({original:nativePixels,generated:generatedPixels,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace,separateBack:true,coveredBrows:youcamStyleCoversBrows(options.hairId)});
+ const layers=buildYoucamHairLayers({original:nativePixels,generated:generatedPixels,width:W,height:H,originalHair:oldMasks.hair,generatedHair:newMasks.hair,originalSkin:oldMasks.skin,generatedSkin:newMasks.skin,originalFace:face,generatedFace:transformedFace});
  let previousMask=null;
  if(options.nativeHeadMask){
   const saved=typeof options.nativeHeadMask==='string'?await loadImage(options.nativeHeadMask):options.nativeHeadMask;
@@ -1752,7 +1752,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(hairId)?'youcam-female-hair-edge-v18':(/^youcam-f(?:3|4|6|1[5-9]|23|2[4-7])$/.test(hairId)?'youcam-all-hair-behind-neck-v14':'youcam-brow-coverage-policy-v11')]);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'','youcam-hair-silhouette-native-brows-v19']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
