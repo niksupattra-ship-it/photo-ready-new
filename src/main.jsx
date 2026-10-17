@@ -7,6 +7,7 @@ import {eraseFemaleHairExterior} from './female-hair-exterior.js';
 import {refineYoucamFemaleHairEdges} from './youcam-hair-edge.js';
 import {finishPortraitLighting} from './portrait-adaptive-light.js';
 import {inspectPortraitAlpha,refinePortraitAlpha} from './portrait-native-alpha.js';
+import {auditFemalePortraitFinish} from './female-portrait-finish-check.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -1289,7 +1290,7 @@ async function removeFirstPortraitBackground(blob){
  // complete: even one repaired pixel can change a later segmentation result.
  return blob;
 }
-async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob){
+async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}){
  const cutout=await removeFirstPortraitBackground(aiHeadNeck);
  const master=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(cutout,sourceBlob))));
  const image=await decodedPortraitImage(master),W=image.naturalWidth,H=image.naturalHeight;
@@ -1302,6 +1303,14 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob){
   if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
   const error=Error('แยกขอบภาพบุคคลไม่สมบูรณ์ กรุณาลองประมวลผลอีกครั้ง · รูปและเลเยอร์เดิมยังอยู่');
   error.code='portrait_quality_failed';throw error;
+ }
+ if(portraitMode==='female'){
+  const finishAudit=auditFemalePortraitFinish({pixels:edge.pixels,width:W,height:H,...evidence});
+  if(!finishAudit.ok){
+   if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
+   const error=Error('ภาพที่สร้างยังเติมคิ้วไม่ครบ กรุณาประมวลผลใหม่ · รูปและเลเยอร์เดิมยังอยู่');
+   error.code='portrait_finish_incomplete';throw error;
+  }
  }
  if(!lighting.changed&&!edge.changed)return master;
  frame.data.set(edge.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
@@ -2243,7 +2252,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
@@ -3752,9 +3761,9 @@ function App(){
    const delivery=deliverImage(downloadBlob,photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`);analyticsEvent('idprom_download_requested',{size_id:photoCrop.sizeId,delivery});
   }catch(e){analyticsEvent('idprom_download_error',{error_stage:'download'});suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
- const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
+ const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId,portraitMode)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  const headNeckTransparent=await finishFirstPortraitMaster(aiHeadNeck,originalFile);
+  const headNeckTransparent=await finishFirstPortraitMaster(aiHeadNeck,originalFile,{portraitMode});
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
@@ -3780,10 +3789,10 @@ function App(){
  const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,portraitMode,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
-  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
+  analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair,portraitMode);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed','portrait_finish_incomplete'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
