@@ -1683,7 +1683,7 @@ async function prepareSelectedStudioHair(source,hairId,options={}){
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:19|23)$/.test(hairId)?'youcam-new-hair-behind-neck-v13':'youcam-brow-coverage-policy-v11']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',/^youcam-f(?:3|4|6|1[5-9]|23)$/.test(hairId)?'youcam-all-hair-behind-neck-v14':'youcam-brow-coverage-policy-v11']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -2527,13 +2527,13 @@ const MALE_HAIR_OPTIONS=[
 const HAIR_OPTIONS=[
  {id:'youcam-f1',name:'ทรงผม 1',src:'/assets/female-hair-catalog-v12/old-f1.webp'},
  {id:'youcam-f2',name:'ทรงผม 2',src:'/assets/female-hair-catalog-v12/old-f2.webp'},
- {id:'youcam-f3',name:'ทรงผม 3',src:'/assets/female-hair-catalog-v12/old-f3.webp'},
- {id:'youcam-f4',name:'ทรงผม 4',src:'/assets/female-hair-catalog-v12/old-f4.webp'},
+ {id:'youcam-f3',name:'ทรงผม 3',src:'/assets/female-hair-catalog-v12/old-f3.webp?v=behind-neck-v14'},
+ {id:'youcam-f4',name:'ทรงผม 4',src:'/assets/female-hair-catalog-v12/old-f4.webp?v=behind-neck-v14'},
  {id:'youcam-f5',name:'ทรงผม 5',src:'/assets/female-hair-catalog-v12/old-f5.webp'},
- {id:'youcam-f6',name:'ทรงผม 6',src:'/assets/female-hair-catalog-v12/old-f6.webp'},
+ {id:'youcam-f6',name:'ทรงผม 6',src:'/assets/female-hair-catalog-v12/old-f6.webp?v=behind-neck-v14'},
  {id:'youcam-f7',name:'ทรงผม 7',src:'/assets/female-hair-catalog-v12/old-f7.webp'},
  {id:'hair-01',name:'ทรงผม 8',src:'/assets/female-hair-catalog-v12/free-01.webp'},
- {id:'hair-07',name:'ทรงผม 22',src:'/assets/female-hair-catalog-v12/free-07.webp'},
+ {id:'hair-07',name:'ทรงผม 22',src:'/assets/female-hair-catalog-v12/free-07.webp?v=behind-neck-v14'},
  {id:'hair-26',name:'ทรงผม 10',src:'/assets/female-hair-catalog-v12/free-26.webp'},
  {id:'hair-22',name:'ทรงผม 11',src:'/assets/female-hair-catalog-v12/free-22.webp'},
  {id:'hair-24',name:'ทรงผม 12',src:'/assets/female-hair-catalog-v12/free-24.webp'},
@@ -2542,10 +2542,10 @@ const HAIR_OPTIONS=[
  {id:'youcam-f12',name:'ทรงผม 15',src:'/assets/female-hair-catalog-v12/old-f12.webp'},
  {id:'youcam-f13',name:'ทรงผม 16',src:'/assets/female-hair-catalog-v12/old-f13.webp'},
  {id:'youcam-f14',name:'ทรงผม 17',src:'/assets/female-hair-catalog-v12/old-f14.webp'},
- {id:'youcam-f15',name:'ทรงผม 18',src:'/assets/female-hair-catalog-v12/old-f15.webp'},
- {id:'youcam-f16',name:'ทรงผม 19',src:'/assets/female-hair-catalog-v12/old-f16.webp'},
- {id:'youcam-f17',name:'ทรงผม 20',src:'/assets/female-hair-catalog-v12/old-f17.webp'},
- {id:'youcam-f18',name:'ทรงผม 21',src:'/assets/female-hair-catalog-v12/old-f18.webp'},
+ {id:'youcam-f15',name:'ทรงผม 18',src:'/assets/female-hair-catalog-v12/old-f15.webp?v=behind-neck-v14'},
+ {id:'youcam-f16',name:'ทรงผม 19',src:'/assets/female-hair-catalog-v12/old-f16.webp?v=behind-neck-v14'},
+ {id:'youcam-f17',name:'ทรงผม 20',src:'/assets/female-hair-catalog-v12/old-f17.webp?v=behind-neck-v14'},
+ {id:'youcam-f18',name:'ทรงผม 21',src:'/assets/female-hair-catalog-v12/old-f18.webp?v=behind-neck-v14'},
  {id:'youcam-f19',name:'ทรงผม 23',src:'/assets/female-hair-catalog-v12/new-f19.webp?v=behind-neck-v13'},
  {id:'youcam-f20',name:'ทรงผม 24',src:'/assets/female-hair-catalog-v12/new-f20.webp'},
  {id:'youcam-f21',name:'ทรงผม 25',src:'/assets/female-hair-catalog-v12/new-f21.webp'},
