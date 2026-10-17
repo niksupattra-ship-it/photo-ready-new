@@ -1758,11 +1758,11 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
  if(/^youcam-m[1-4]$/.test(hairId))throw Error('ทรงผมนี้ถูกนำออกแล้ว กรุณาเลือกทรงใหม่');
- if(!/^youcam-(?:f(?:[1-9]|1\d|2\d|3[01])|m(?:[5-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
+ if(!/^youcam-(?:f(?:[1-9]|1\d|2\d|3[01])|m(?:[5-9]|1[0-8]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
- const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',options.nativeHeadAutomaticMask?await resultSourceDigest(options.nativeHeadAutomaticMask):'','youcam-native-ears-inner-hair-v23']);
+ const key=JSON.stringify([currentResultCacheScope(),await resultSourceDigest(await canvasPng(base)),hairId,options.sourceJobId||'',options.nativeHeadMask?await resultSourceDigest(options.nativeHeadMask):'',options.nativeHeadAutomaticMask?await resultSourceDigest(options.nativeHeadAutomaticMask):'',/^youcam-m/.test(hairId)?'male-catalog-14-v1:youcam-native-ears-inner-hair-v23':'youcam-native-ears-inner-hair-v23']);
  return (await youcamHairCache.get(key,()=>requestYoucamStudioHair(target,hairId,options))).value;
 }
 async function requestYoucamStudioHair(target,hairId,options={}){
@@ -2599,15 +2599,20 @@ const COLLAR_PIN_OPTIONS=[
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=[
- {id:'youcam-m5',name:'ทรงผม 5',src:'/assets/youcam-hair/male-preview-5.webp'},
- {id:'youcam-m6',name:'ทรงผม 6',src:'/assets/youcam-hair/male-preview-6.webp'},
- {id:'youcam-m7',name:'ทรงผม 7',src:'/assets/youcam-hair/male-preview-7.webp'},
- {id:'youcam-m8',name:'ทรงผม 8',src:'/assets/youcam-hair/male-preview-8.webp'},
- {id:'youcam-m9',name:'ทรงผม 9',src:'/assets/youcam-hair/male-preview-9.webp'},
- {id:'youcam-m10',name:'ทรงผม 10',src:'/assets/youcam-hair/male-preview-10.webp'},
- {id:'youcam-m11',name:'ทรงผม 11',src:'/assets/youcam-hair/male-preview-11.webp'},
- {id:'youcam-m12',name:'ทรงผม 12',src:'/assets/youcam-hair/male-preview-12.webp'},
- {id:'youcam-m13',name:'ทรงผม 13',src:'/assets/youcam-hair/male-preview-13.webp'},
+ {id:'youcam-m5',name:'ทรงผม AI 1',src:'/assets/youcam-hair/male-refresh-20261017-preview-01.webp'},
+ {id:'youcam-m6',name:'ทรงผม AI 2',src:'/assets/youcam-hair/male-refresh-20261017-preview-02.webp'},
+ {id:'youcam-m7',name:'ทรงผม AI 3',src:'/assets/youcam-hair/male-refresh-20261017-preview-03.webp'},
+ {id:'youcam-m8',name:'ทรงผม AI 4',src:'/assets/youcam-hair/male-refresh-20261017-preview-04.webp'},
+ {id:'youcam-m9',name:'ทรงผม AI 5',src:'/assets/youcam-hair/male-refresh-20261017-preview-05.webp'},
+ {id:'youcam-m10',name:'ทรงผม AI 6',src:'/assets/youcam-hair/male-refresh-20261017-preview-06.webp'},
+ {id:'youcam-m11',name:'ทรงผม AI 7',src:'/assets/youcam-hair/male-refresh-20261017-preview-07.webp'},
+ {id:'youcam-m12',name:'ทรงผม AI 8',src:'/assets/youcam-hair/male-refresh-20261017-preview-08.webp'},
+ {id:'youcam-m13',name:'ทรงผม AI 9',src:'/assets/youcam-hair/male-refresh-20261017-preview-09.webp'},
+ {id:'youcam-m14',name:'ทรงผม AI 10',src:'/assets/youcam-hair/male-refresh-20261017-preview-10.webp'},
+ {id:'youcam-m15',name:'ทรงผม AI 11',src:'/assets/youcam-hair/male-refresh-20261017-preview-11.webp'},
+ {id:'youcam-m16',name:'ทรงผม AI 12',src:'/assets/youcam-hair/male-refresh-20261017-preview-12.webp'},
+ {id:'youcam-m17',name:'ทรงผม AI 13',src:'/assets/youcam-hair/male-refresh-20261017-preview-13.webp'},
+ {id:'youcam-m18',name:'ทรงผม AI 14',src:'/assets/youcam-hair/male-refresh-20261017-preview-14.webp'},
  {id:'manhair-01',name:'ทรงผม 14',src:'/assets/hairstyle-previews/manhair-01.webp?v=85'},
  {id:'manhair-02',name:'ทรงผม 15',src:'/assets/hairstyle-previews/manhair-02.webp?v=85'},
  {id:'manhair-03',name:'ทรงผม 16',src:'/assets/hairstyle-previews/manhair-03.webp?v=85'},
