@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {createHash,randomUUID} from 'node:crypto';
 import path from 'node:path';
-export const YOUCAM_STYLES=Object.freeze(Object.fromEntries([...['08','12','15','16','18','20','27'].map((n,i)=>[`youcam-f${i+1}`,`hair-${n}.jpg`]),...Array.from({length:24},(_,i)=>[`youcam-f${i+8}`,`female-${i+8}.jpg`]),...Array.from({length:9},(_,i)=>[`youcam-m${i+5}`,`male-${i+5}.jpg`])]));
+export const YOUCAM_STYLES=Object.freeze(Object.fromEntries([...['08','12','15','16','18','20','27'].map((n,i)=>[`youcam-f${i+1}`,`hair-${n}.jpg`]),...Array.from({length:24},(_,i)=>[`youcam-f${i+8}`,`female-${i+8}.jpg`]),...Array.from({length:14},(_,i)=>[`youcam-m${i+5}`,`male-refresh-20261017-${String(i+1).padStart(2,'0')}.jpg`])]));
 const BASE='https://yce-api-01.makeupar.com';
 // A browser-prepared compatible JPEG is already correctly encoded: forward
 // its exact bytes. Only other orientations/formats/sizes need preparation.
