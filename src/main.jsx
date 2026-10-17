@@ -5,6 +5,8 @@ import {isSingleLayerHair,isSingleFemaleHair} from './short-female-hair.js';
 import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-eraser.js';
 import {eraseFemaleHairExterior} from './female-hair-exterior.js';
 import {refineYoucamFemaleHairEdges} from './youcam-hair-edge.js';
+import {finishPortraitLighting} from './portrait-adaptive-light.js';
+import {inspectPortraitAlpha,refinePortraitAlpha} from './portrait-native-alpha.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -1263,6 +1265,48 @@ async function removeBackgroundBlob(blob){
  return refineAiCutoutEdges(cutout,blob);
 }
 
+// First-portrait checks are isolated from all later PNG/YouCam hair edits.
+function portraitConfidencePlane(mask,W,H,endY=H){
+ if(!mask)return null;
+ const rgba=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ const out=new Float32Array(W*H),stop=Math.min(out.length,Math.max(0,Math.floor(endY))*W);
+ for(let i=0;i<stop;i++)out[i]=rgba[i*4+3]/255;
+ return out;
+}
+async function firstPortraitEvidence(blob,image){
+ const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+ const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+ const masks=await getV192MasterMasks(blob,image);
+ return {face,skin:portraitConfidencePlane(masks.skinMask,W,H),hair:portraitConfidencePlane(masks.hairMask,W,H)};
+}
+async function removeFirstPortraitBackground(blob){
+ const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
+ const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+ const frame=ctx.getImageData(0,0,W,H),inspection=inspectPortraitAlpha({pixels:frame.data,width:W,height:H});
+ // Bypass the old "any alpha" shortcut when the AI merely returns padding.
+ if(inspection.needsMatting){const cutout=await removeBackgroundRobust(blob,'ai-person.png');return refineAiCutoutEdges(cutout,blob)}
+ // Keep native alpha untouched until the existing finishing/model passes are
+ // complete: even one repaired pixel can change a later segmentation result.
+ return blob;
+}
+async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob){
+ const cutout=await removeFirstPortraitBackground(aiHeadNeck);
+ const master=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(cutout,sourceBlob))));
+ const image=await decodedPortraitImage(master),W=image.naturalWidth,H=image.naturalHeight;
+ const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+ const frame=ctx.getImageData(0,0,W,H),evidence=await firstPortraitEvidence(master,image);
+ const lighting=finishPortraitLighting({pixels:frame.data,width:W,height:H,...evidence,stage:'output'});
+ const edge=refinePortraitAlpha({pixels:lighting.pixels,width:W,height:H,...evidence});
+ const inspection=inspectPortraitAlpha({pixels:edge.pixels,width:W,height:H});
+ if(inspection.needsMatting){
+  if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
+  const error=Error('แยกขอบภาพบุคคลไม่สมบูรณ์ กรุณาลองประมวลผลอีกครั้ง · รูปและเลเยอร์เดิมยังอยู่');
+  error.code='portrait_quality_failed';throw error;
+ }
+ if(!lighting.changed&&!edge.changed)return master;
+ frame.data.set(edge.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
+}
+
 // First frontal portrait only; hair PNG placement and makeup do not use this.
 async function cleanLowerPortraitOutline(blob){
  try{
@@ -2103,7 +2147,7 @@ async function compositeHairOnCleanMaster(aiBlob,prepared){
 }
 // V103: supply only the head and a short neck to the AI edit endpoint.
 // Keep the full-resolution original/master untouched for pixel-safe compositing.
-async function headOnlyAIEditFile(file,hairId){
+async function headOnlyAIEditFile(file,hairId,options={}){
  const url=URL.createObjectURL(file);
  try{
   const im=await loadImage(url),W=im.naturalWidth,H=im.naturalHeight;
@@ -2116,6 +2160,12 @@ async function headOnlyAIEditFile(file,hairId){
   const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#f2f2f2';ctx.fillRect(0,0,W,H);
   ctx.drawImage(im,0,0,W,cutoff,0,0,W,cutoff);
+  let inputCorrection=false;
+  if(options.firstPortrait&&['female','male'].includes(options.portraitMode)&&W*H<=33554432){
+   const masks=await getV192MasterMasks(file,im),skin=portraitConfidencePlane(masks.skinMask,W,H,cutoff);
+   const frame=ctx.getImageData(0,0,W,H),lighting=finishPortraitLighting({pixels:frame.data,width:W,height:H,face,skin,stage:'input'});
+   if(lighting.changed){frame.data.set(lighting.pixels);ctx.putImageData(frame,0,0);inputCorrection=true}
+  }
   // Remove obsolete exterior source hair from the temporary upload only.
   // Central face, ears, source file and current editor master remain untouched.
   if(HAIRSTYLE_RULES[hairId]){
@@ -2148,7 +2198,9 @@ async function headOnlyAIEditFile(file,hairId){
   // to silently submit the unmodified image or consume another API request.
   if(cutoff>=H*.93)throw Error('ตัดภาพเฉพาะศีรษะไม่ได้ กรุณาใช้รูปที่เห็นศีรษะและคอชัดเจน');
   const png=await canvasPng(canvas);
-  return new File([png],'head-only-ai-input.png',{type:'image/png'});
+  const prepared=new File([png],'head-only-ai-input.png',{type:'image/png'});
+  if(inputCorrection)prepared.idpromPortraitInputCorrection='low-light-v1';
+  return prepared;
  }finally{URL.revokeObjectURL(url)}
 }
 // Read only the fixed template alpha; this never edits the outfit or skin.
@@ -2194,9 +2246,11 @@ async function checkPortraitProportions(source,result){
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[])]);
+ const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
- await checkPortraitProportions(originalFile,cached.value);
+ try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
+ if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
   // Never reuse an old watermark decision or grant rights from memory alone.
@@ -2205,6 +2259,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const verified=await verifyOutputRights(jobId);
   const result=cached.value.slice(0,cached.value.size,cached.value.type);
   result.idpromJobId=jobId;result.idpromTrial=!verified.unlocked;
+  if(firstPortrait)result.idpromPortraitCacheKey=key;
   await saveAiJobFile(originalFile);
   writeActiveAiJob({jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
   window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:result.idpromTrial,fullEdit:verified.fullEdit}}));
@@ -2233,10 +2288,12 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
  const operation=activeProcessOperation;assertProcessActive(operation);
- const aiInput=await headOnlyAIEditFile(originalFile,hairId);assertProcessActive(operation);
+ const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
+ const aiInput=await headOnlyAIEditFile(originalFile,hairId,{portraitMode:options.portraitMode,firstPortrait});assertProcessActive(operation);
  fd.append('image',aiInput,aiInput.name);
  fd.append('hairId',hairId||'original');
  if(['female','male'].includes(options.portraitMode))fd.append('portraitMode',options.portraitMode);
+ if(firstPortrait&&['female','male'].includes(options.portraitMode)&&aiInput.idpromPortraitInputCorrection==='low-light-v1')fd.append('portraitInputCorrection','low-light-v1');
  if(hairId&&hairId!=='original')fd.append('hairRootTarget',JSON.stringify(await measuredHairRootTarget(aiInput)));
  fd.append('neckInputPrepared','1');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
@@ -3693,8 +3750,7 @@ function App(){
  };
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
-  const originalHeadNeckTransparent=await removeBackgroundBlob(aiHeadNeck);
-  const headNeckTransparent=await levelPortraitCutout(await cleanLowerPortraitOutline(await finishHairlineSeam(await optionalHealthySkin10(originalHeadNeckTransparent,originalFile))));
+  const headNeckTransparent=await finishFirstPortraitMaster(aiHeadNeck,originalFile);
   setProgressStage(78,'กำลังประกอบกับชุด');
   const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
@@ -3723,7 +3779,7 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{

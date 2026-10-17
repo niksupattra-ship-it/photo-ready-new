@@ -4,6 +4,7 @@ export function createAiResultCache({maxBytes=128*1024*1024,maxEntries=96}={}){
  const remove=key=>{const entry=records.get(key);if(entry){bytes-=entry.bytes||0;records.delete(key)}};
  return {
   clear(){records.clear();bytes=0},
+  delete(key){remove(key)},
   async get(key,generate){
    if(records.has(key)){const entry=records.get(key);records.delete(key);records.set(key,entry);return {value:await entry.promise,reused:true}}
    const entry={bytes:0,promise:null};
