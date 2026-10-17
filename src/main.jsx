@@ -1720,7 +1720,7 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
  const transformedFace=generatedFace.map(p=>({...p,x:(matrix.a*p.x*gw+matrix.c*p.y*gh+matrix.e)/W,y:(matrix.b*p.x*gw+matrix.d*p.y*gh+matrix.f)/H}));
  const oldMasks=await youcamHairConfidence(original,W,H),newMasks=await youcamHairConfidence(aligned,W,H);
  let generatedPixels=ax.getImageData(0,0,W,H).data;
- if(/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(options.hairId||'')&&options.rawGenerated){
+ if(/^youcam-f(?:[1-9]|1\d|2\d|3[01])$/.test(options.hairId||'')&&options.rawGenerated){
   const raw=options.rawGenerated;
   if((raw.naturalWidth||raw.width)===gw&&(raw.naturalHeight||raw.height)===gh){
    const rawAligned=canvasFor(W,H),rx=rawAligned.getContext('2d',{willReadFrequently:true});rx.imageSmoothingEnabled=true;rx.imageSmoothingQuality='high';rx.setTransform(matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f);rx.drawImage(raw,0,0);rx.setTransform(1,0,0,1,0,0);
@@ -1748,7 +1748,7 @@ async function prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,op
 }
 const youcamHairCache=createAiResultCache({maxEntries:24});
 async function prepareSelectedStudioHair(source,hairId,options={}){
- if(!/^youcam-(?:f(?:[1-9]|1\d|2[0-7])|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
+ if(!/^youcam-(?:f(?:[1-9]|1\d|2\d|3[01])|m(?:[1-9]|1[0-3]))$/.test(hairId))return prepareStudioHairOverlay(source,hairId);
  const target=typeof source==='string'?await loadImage(source):source;
  const W=target.naturalWidth||target.width,H=target.naturalHeight||target.height;
  const base=canvasFor(W,H);base.getContext('2d').drawImage(target,0,0,W,H);
@@ -1782,7 +1782,7 @@ async function requestYoucamStudioHair(target,hairId,options={}){
  try{
   const generated=await loadImage(u);
   let rawGenerated=null;
-  if(/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(hairId)){rawUrl=URL.createObjectURL(providerBlob);rawGenerated=await loadImage(rawUrl)}
+  if(/^youcam-f(?:[1-9]|1\d|2\d|3[01])$/.test(hairId)){rawUrl=URL.createObjectURL(providerBlob);rawGenerated=await loadImage(rawUrl)}
   options.onProgress?.(82);
   const fitted=await prepareYoucamMaskedResult(target,generated,face,landmarker,W,H,{...options,hairId,...(rawGenerated?{rawGenerated}:{})});
   let confirmed=false;for(let attempt=0;attempt<3;attempt++){try{const c=await fetch('/api/youcam/hair/jobs/'+encodeURIComponent(info.jobId)+'/confirm',{method:'POST',headers:walletHeaders()});if(c.ok){confirmed=true;break}if(c.status<500)throw Object.assign(Error('ยืนยันสิทธิ์เปลี่ยนผมไม่สำเร็จ กรุณาลองใหม่'),{final:true})}catch(e){if(e.final)throw e}if(attempt<2)await new Promise(r=>setTimeout(r,800))}if(!confirmed)throw Error('การเชื่อมต่อสะดุดขณะยืนยันผล กรุณาเลือกทรงเดิมอีกครั้ง');
@@ -2622,10 +2622,10 @@ const HAIR_OPTIONS=[
  {id:'hair-22',name:'ทรงผม 11',src:'/assets/female-hair-catalog-v12/free-22.webp'},
  {id:'hair-24',name:'ทรงผม 12',src:'/assets/female-hair-catalog-v12/free-24.webp'},
  {id:'hair-25',name:'ทรงผม 13',src:'/assets/female-hair-catalog-v12/free-25.webp'},
- {id:'hair-08',name:'ผมฟรี 08',src:'/assets/hairstyle-previews/hair-08.png'},
- {id:'hair-09',name:'ผมฟรี 09',src:'/assets/hairstyle-previews/hair-09.png'},
- {id:'hair-12',name:'ผมฟรี 12',src:'/assets/hairstyle-previews/hair-12.png'},
- {id:'hair-19',name:'ผมฟรี 19',src:'/assets/hairstyle-previews/hair-19.png'},
+ {id:'hair-08',name:'ผมฟรี 08',src:'/assets/female-hair-catalog-v12/free-08.webp?v=female-catalog-face-v20'},
+ {id:'hair-09',name:'ผมฟรี 09',src:'/assets/female-hair-catalog-v12/free-09.webp?v=female-catalog-face-v20'},
+ {id:'hair-12',name:'ผมฟรี 12',src:'/assets/female-hair-catalog-v12/free-12.webp?v=female-catalog-face-v20'},
+ {id:'hair-19',name:'ผมฟรี 19',src:'/assets/female-hair-catalog-v12/free-19.webp?v=female-catalog-face-v20'},
  {id:'youcam-f11',name:'ทรงผม 14',src:'/assets/female-hair-catalog-v12/old-f11.webp?v=female-catalog-face-v17'},
  {id:'youcam-f12',name:'ทรงผม 15',src:'/assets/female-hair-catalog-v12/old-f12.webp?v=female-catalog-face-v17'},
  {id:'youcam-f13',name:'ทรงผม 16',src:'/assets/female-hair-catalog-v12/old-f13.webp?v=female-catalog-face-v17'},
@@ -2643,6 +2643,10 @@ const HAIR_OPTIONS=[
  {id:'youcam-f25',name:'ทรงผม 29',src:'/assets/female-hair-catalog-v12/new-f25.webp'},
  {id:'youcam-f26',name:'ทรงผม 30',src:'/assets/female-hair-catalog-v12/new-f26.webp'},
  {id:'youcam-f27',name:'ทรงผม 31',src:'/assets/female-hair-catalog-v12/new-f27.webp'},
+ {id:'youcam-f28',name:'ทรงผม 32',src:'/assets/female-hair-catalog-v12/new-f28.webp'},
+ {id:'youcam-f29',name:'ทรงผม 33',src:'/assets/female-hair-catalog-v12/new-f29.webp'},
+ {id:'youcam-f30',name:'ทรงผม 34',src:'/assets/female-hair-catalog-v12/new-f30.webp'},
+ {id:'youcam-f31',name:'ทรงผม 35',src:'/assets/female-hair-catalog-v12/new-f31.webp'},
 ];
 
 const JOB_UNIFORMS=[
@@ -3469,7 +3473,7 @@ function App(){
   // Refit local hair from the untouched base; female YouCam choices use the
   // same hairstyle request and feather masks as Studio instead of the PNG fitter.
   const base=current.pngHairBase||current.master;
-  const femaleYoucam=/^youcam-f(?:[1-9]|1\d|2[0-7])$/.test(id||'');
+  const femaleYoucam=/^youcam-f(?:[1-9]|1\d|2\d|3[01])$/.test(id||'');
   hairRequestRef.current=true;setHairBusy(true);setMsg(femaleYoucam?'กำลังเปลี่ยนทรงผมด้วย YouCam…':'กำลังวาง PNG ผม…');
   try{
    let nextMaster=base;
