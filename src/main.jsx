@@ -717,19 +717,19 @@ async function gentlyEvenSkin(image,skinMask){
 
 // V212: localized, low-strength tonal tint on the existing RGB pixels only.
 // No AI face regeneration, landmark movement, blur or flat-color skin replacement.
-async function gentlyWarmCheeksAndLips(image,skinMask,sourceProfile=null){
+async function gentlyWarmCheeksAndLips(image,skinMask,sourceProfile=null,required=false){
  if(!skinMask)return image;
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  let landmarks;
- try{landmarks=(await getLandmarker()).detect(image).faceLandmarks?.[0]}catch{return image}
- if(!landmarks)return image;
+ try{landmarks=(await getLandmarker()).detect(image).faceLandmarks?.[0]}catch(e){if(required)throw e;return image}
+ if(!landmarks){if(required)throw Error('skin_finish_landmarks_missing');return image}
  const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,W,H);
  const data=ctx.getImageData(0,0,W,H),d=data.data;
  const m=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
  const a=landmarks[234],b=landmarks[454],top=landmarks[10],chin=landmarks[152];
- if(!a||!b||!top||!chin)return image;
+ if(!a||!b||!top||!chin){if(required)throw Error('skin_finish_landmarks_incomplete');return image;}
  const fw=Math.abs(b.x-a.x)*W,fh=Math.abs(chin.y-top.y)*H;
- if(fw<20||fh<20)return image;
+ if(fw<20||fh<20){if(required)throw Error('skin_finish_face_too_small');return image;}
  const cheeks=[landmarks[117],landmarks[346]].filter(Boolean).map(v=>[v.x*W,v.y*H,fw*.16,fh*.105]);
  const lip=landmarks[13]&&landmarks[14]&&landmarks[61]&&landmarks[291]?
   [((landmarks[13].x+landmarks[14].x)/2)*W,((landmarks[13].y+landmarks[14].y)/2)*H,
@@ -796,22 +796,33 @@ async function readOriginalSkinProfile(sourceBlob){
 // original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
 // bounded by original exposure and highlight protection; preserve pores.
 async function optionalHealthySkin10(masterBlob,sourceBlob){
- try{
-  const image=await decodedPortraitImage(masterBlob),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
-  const skinMask=await semanticClassMask(image,W,H,[2,3]).catch(()=>null);
-  if(!skinMask)return masterBlob;
-  const profile=await originalSkinProfile(sourceBlob);
-  // Darker source photographs receive the full extra lift. Already-bright
-  // photographs receive less, preventing blown-out skin and lost pore detail.
-  const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
-  // V231: modest extra studio fill, adapting to original exposure; keep the
-  // per-pixel shadow/highlight protection and original high-frequency texture.
-  const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
-  const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile);
-  // One restrained texture pass per new AI master; reuse its skin mask.
-  return await refineSkinTextureBlob(await canvasPng(tinted),skinMask);
- }catch(e){console.warn('V231 automatic skin enhancement skipped',e);return masterBlob}
- 
+ let failure;
+ // Each attempt starts from the unchanged AI master: never apply the lift twice.
+ for(let attempt=0;attempt<2;attempt++){
+  try{
+   const image=await decodedPortraitImage(masterBlob),W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
+   const skinMask=await semanticClassMask(image,W,H,[2,3]);
+   if(!skinMask)throw Error('skin_finish_mask_missing');
+   const mask=skinMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+   let skinPixels=0;for(let i=3;i<mask.length;i+=4)if(mask[i]>128)skinPixels++;
+   if(!skinPixels)throw Error('skin_finish_mask_empty');
+   const profile=await originalSkinProfile(sourceBlob);
+   const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
+   const brighter=await applySkinBrightness(image,1.15+.10*exposureWeight,skinMask);
+   const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile,true);
+   return await refineSkinTextureBlob(await canvasPng(tinted),skinMask,true);
+  }catch(e){
+   failure=e;
+   // Evict only rejected model loads; healthy shared model instances stay intact.
+   if(attempt===0){
+    if(segmenterPromise)await segmenterPromise.catch(()=>{segmenterPromise=null});
+    if(landmarkerPromise)await landmarkerPromise.catch(()=>{landmarkerPromise=null});
+   }
+  }
+ }
+ console.warn('Automatic skin finish failed after retry',failure);
+ const error=Error('ปรับผิวไม่สำเร็จหลังลองใหม่ กรุณาลองอีกครั้ง · ยังไม่แสดงภาพที่ข้ามการปรับผิว');
+ error.code='skin_finish_failed';throw error;
 }
 
 async function applySkinBrightness(image,factor=null,skinMask=null){
@@ -2268,7 +2279,7 @@ async function restoreOriginalFacePixels(processedBlob,originalFile){
 // V207: one coherent image layer, with a restrained local unsharp-mask only on
 // segmented skin. It clarifies real pore texture without pasting another face,
 // reshaping landmarks, whitening skin or touching hair/background/clothing.
-async function refineSkinTextureBlob(blob,skinMask=null){
+async function refineSkinTextureBlob(blob,skinMask=null,required=false){
  const url=URL.createObjectURL(blob);
  try{
   const image=await loadImage(url),W=image.naturalWidth,H=image.naturalHeight;
@@ -2283,7 +2294,7 @@ async function refineSkinTextureBlob(blob,skinMask=null){
    for(let c=0;c<3;c++)out.data[j+c]=Math.max(0,Math.min(255,Math.round(out.data[j+c]+(out.data[j+c]-soft[j+c])*amount)));
   }
   bx.putImageData(out,0,0);return await canvasPng(base);
- }catch(e){console.warn('Skin texture refinement skipped',e);return blob}
+ }catch(e){if(required)throw e;console.warn('Skin texture refinement skipped',e);return blob}
  finally{URL.revokeObjectURL(url)}
 }
 
@@ -3681,7 +3692,7 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
