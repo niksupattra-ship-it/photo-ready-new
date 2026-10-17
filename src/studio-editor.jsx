@@ -26,7 +26,7 @@ import thumbnailMap from './studio-thumbnail-map.json';
 import {MakeupPanel} from './studio-makeup.jsx';
 import {makeupLook} from '../makeup-presets.js';
 import {createMakeupLookCache,mixMakeupLookSources} from './makeup-look-tools.js';
-function CatalogPreview({src,eager=false}){return <img src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>}
+function CatalogPreview({src,eager=false}){return <img src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={src.includes('/female-hair-catalog-v12/')?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>}
 const W=900,H=1200;
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});
 const nativeCanvas=(placement)=>{const w=placement?.W||1128,h=placement?.H||1536;return Object.assign(document.createElement('canvas'),{width:Math.round(Math.max(1,Math.min(8192,w))),height:Math.round(Math.max(1,Math.min(8192,h)))})};
@@ -423,7 +423,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(head.locked){appearanceFailure('hair','ปลดล็อกเลเยอร์หัวก่อนเปลี่ยนทรงผม');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0]||(/^youcam-[fm]/.test(head.hairId||'')?head:null);
-  const youcamLayers=/^youcam-(?:f(?:[1-9]|1[0-8])|m(?:[1-9]|1[0-3]))$/.test(id);
+  const youcamLayers=/^youcam-(?:f(?:[1-9]|1\d|2[0-3])|m(?:[1-9]|1[0-3]))$/.test(id);
   const previewVersion=youcamLayers?'youcam-brow-coverage-policy-v11':((/^manhair-\d{2}$/.test(id)||isSingleFemaleHair(id))?'png-lower-short-02-v2:':'png-lower-face-03-v1:')+(id==='hair-01'?78:id==='hair-02'?79:id==='hair-03'?80:/^hair-0[2-5]$/.test(id)?76:id==='hair-06'?83:id==='hair-07'?84:/^manhair-0[1-3]$/.test(id)?85:/^manhair-\d{2}$/.test(id)?71:isSingleFemaleHair(id)?75:57);
   // Re-selecting the active style must preserve manual edits as-is.
   if((existing?.hairId===id&&existing.hairPreviewVersion===previewVersion)||(!id&&!attached.length&&!head.youcamNativeHead&&!/^youcam-[fm]/.test(head.hairId||''))){setSelected(existing?.id||head.id);setTool('move');setStatus('เลือกทรงเดิมพร้อมการปรับแต่งแล้ว · ไม่โหลดใหม่');return}

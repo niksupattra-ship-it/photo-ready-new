@@ -186,7 +186,7 @@ export function youcamFringeBoundary(rgba,hair,skin,face,w,h){
 
 // Audited against the current reference images, independent of hair length.
 export function youcamStyleCoversBrows(id){
- return /^youcam-(?:f(?:11|12|13|15|17|18)|m(?:1|2|4|5|6|8|13))$/.test(id||'');
+ return /^youcam-(?:f(?:11|12|13|15|17|18|19|22)|m(?:1|2|4|5|6|8|13))$/.test(id||'');
 }
 
 export function buildYoucamHairLayers({original,generated,width:w,height:h,originalFace,generatedFace,originalHair,originalSkin,generatedHair,generatedSkin,coveredBrows=false}){
