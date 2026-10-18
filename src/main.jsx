@@ -2636,6 +2636,8 @@ const MALE_HAIR_OPTIONS=[
  {id:'manhair-01',name:'ทรงผม 14',src:'/assets/hairstyle-previews/manhair-01.webp?v=85'},
  {id:'manhair-02',name:'ทรงผม 15',src:'/assets/hairstyle-previews/manhair-02.webp?v=85'},
  {id:'manhair-03',name:'ทรงผม 16',src:'/assets/hairstyle-previews/manhair-03.webp?v=85'},
+ {id:'manhair-12',name:'ทรงผมฟรี 12',src:'/assets/hairstyle-previews/manhair-12-menu.webp?v=male-free-20261018'},
+ {id:'manhair-16',name:'ทรงผมฟรี 16',src:'/assets/hairstyle-previews/manhair-16-menu.webp?v=male-free-20261018'},
 ];
 const HAIR_OPTIONS=[
  {id:'youcam-f14',name:'ทรงผม 17',src:'/assets/female-hair-catalog-v12/old-f14.webp?v=female-catalog-face-v17'},
