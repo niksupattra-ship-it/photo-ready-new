@@ -560,3 +560,16 @@
 .studio-portrait-choice-icon svg{width:32px;height:32px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .studio-portrait-choice-arrow{width:20px;height:20px;flex:0 0 20px;margin-left:auto;stroke:#75e4d7;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media(max-width:480px){.studio-portrait-choice-overlay{padding:20px}.studio-processing-card.studio-portrait-choice-card{padding:24px 20px}.studio-portrait-choice-card h2{font-size:19px}.studio-portrait-choice-card .studio-portrait-choice-button{min-height:74px;padding:12px 14px}}
+
+/* Touch tools open as one horizontal submenu; the photo keeps the full workspace. */
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu{grid-area:auto;position:absolute;top:64px;right:8px;left:8px;z-index:13;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;align-self:auto;justify-self:auto;width:auto;min-width:0;height:68px;min-height:0;max-height:calc(100% - 72px);margin:0;padding:5px;gap:4px;border:1px solid #50616d;border-radius:14px;background:#192b35f5;box-shadow:0 6px 22px #0006;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;touch-action:pan-x;scrollbar-width:none}
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu[hidden]{display:none!important}
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu>button:not(.studio-rail-history){display:flex;flex-direction:column;align-items:center;justify-content:center;order:0;flex:1 0 56px;width:auto;min-width:56px;height:56px;min-height:44px;margin:0;padding:4px 3px;gap:3px;border:1px solid transparent;border-radius:9px;white-space:nowrap}
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu>button.active{background:#285d6b;border-color:#64d7cb}
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu>button>span{display:block;max-width:none;font-size:9px;line-height:1.2;white-space:nowrap;text-align:center}
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu .studio-png-icon,.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu .studio-pan-icon{width:26px;height:26px}
+.idstudio.studio-touch .studio-tools.studio-mobile-tool-menu>button:focus-visible,.idstudio.studio-touch .studio-floating-tools:focus-visible{outline:2px solid #b6fff2;outline-offset:-2px}
+.idstudio.studio-touch .studio-floating-tools{width:44px;height:44px;min-width:44px;min-height:44px;flex:none}
+.idstudio.studio-touch .studio-floating-tools>svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.idstudio.studio-touch .studio-stage,.idstudio.studio-touch[data-tools-open=false] .studio-stage{padding:10px 8px}
+.idstudio.studio-touch .studio-workspace footer,.idstudio.studio-touch[data-tools-open=false] .studio-workspace footer{left:8px}
