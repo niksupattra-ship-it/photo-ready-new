@@ -327,7 +327,7 @@
 /* V1.48: pen editing and floating touch history */
 .studio-stage,.studio-stage canvas,.studio-selection-outline,.studio-shape-grip{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:none}
 .studio-touch .studio-tools .studio-rail-history{display:none}
-.studio-touch .studio-touch-floating-actions{position:absolute;top:12px;right:12px;z-index:6;display:flex;gap:8px;align-items:center}
+.studio-touch .studio-touch-floating-actions{position:absolute;top:12px;left:50%;right:auto;transform:translateX(-50%);z-index:6;display:flex;flex-wrap:nowrap;gap:8px;align-items:center}
 .studio-touch .studio-touch-floating-actions .studio-tool-toggle{position:static}
 .studio-touch .studio-floating-history{width:42px;height:42px;min-height:42px;display:grid;place-items:center;padding:9px;border-radius:50%;background:#243941ed;border:1px solid #64d7cb;box-shadow:0 4px 16px #0006;touch-action:manipulation}
 .studio-touch .studio-floating-history .studio-png-icon{width:24px;height:24px}
