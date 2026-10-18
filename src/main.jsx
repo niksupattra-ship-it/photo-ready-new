@@ -827,8 +827,8 @@ async function optionalHealthySkin10(masterBlob,sourceBlob,{portraitMode}={}){
    if(!skinPixels)throw Error('skin_finish_mask_empty');
    const profile=await originalSkinProfile(sourceBlob);
    const exposureWeight=profile?Math.max(.20,Math.min(1,(225-profile.luma)/75)):1;
-   // Female only: reduce the added skin-light lift by 25%, retaining shadow/highlight protection.
-   const skinLightFactor=portraitMode==='female'?1+(.15+.10*exposureWeight)*.75:1.15+.10*exposureWeight;
+   // Female only: added skin-light lift ranges from 11% to 16.5%; retain shadow/highlight protection.
+   const skinLightFactor=portraitMode==='female'?1+.11+.055*((exposureWeight-.20)/.80):1.15+.10*exposureWeight;
    const brighter=await applySkinBrightness(image,skinLightFactor,skinMask);
    const tinted=await gentlyWarmCheeksAndLips(brighter,skinMask,profile,true);
    // The male first portrait already has its requested fine, soft skin texture.
@@ -2271,7 +2271,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-clean-ear-neck-edge-v1','female-lip-ff747f-f0a2a8-gloss-v2','female-gentler-skin-light-v1']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-clean-ear-neck-edge-v1','female-lip-ff747f-f0a2a8-gloss-v2','female-skin-light-11-16_5-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
