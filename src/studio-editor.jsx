@@ -27,7 +27,7 @@ import thumbnailMap from './studio-thumbnail-map.json';
 import {MakeupPanel} from './studio-makeup.jsx';
 import {makeupLook} from '../makeup-presets.js';
 import {createMakeupLookCache,mixMakeupLookSources} from './makeup-look-tools.js';
-function CatalogPreview({src,eager=false}){return <img src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={src.includes('/female-hair-catalog-v12/')?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>}
+function CatalogPreview({src,eager=false}){return <img src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>}
 const W=900,H=1200;
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});
 const nativeCanvas=(placement)=>{const w=placement?.W||1128,h=placement?.H||1536;return Object.assign(document.createElement('canvas'),{width:Math.round(Math.max(1,Math.min(8192,w))),height:Math.round(Math.max(1,Math.min(8192,h)))})};
@@ -227,7 +227,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const visibleProcessRemaining=typeof processRemaining==='number'&&!hasCredits&&paidSessionOutput?0:processRemaining;
  const canChooseHair=state.current.some(l=>l.name==='หัว · คอ · ผม')||trialUnlocked||hasCredits||(allOptionsAvailable&&!paidSessionOutput);
  const trackUniformSelection=(option,stage,mode)=>analyticsSelection({kind:'uniform',id:option?.id||option?.template?.split('/').pop()?.replace(/\.[^.]+$/,'')||'none',name:option?.title||option?.name||'ไม่เลือกชุด',gender:option?.gender||'unknown',category:option?.cat||'unknown',provider:'uniform',stage,mode,surface:'studio'});
- const trackHairSelection=(id,stage,mode)=>{const option=femaleHair.find(h=>h.id===id)||maleHair.find(h=>h.id===id);if(id&&!option)return;const gender=femaleHair.some(h=>h.id===id)?'female':maleHair.some(h=>h.id===id)?'male':'unknown';analyticsSelection({kind:'hair',id:id||'original',name:option?.name||'ผมเดิม',gender,category:'hair',provider:id?(/^youcam-[fm]/.test(id)?'youcam':'png'):'original',stage,mode,surface:'studio'})};
+ const trackHairSelection=(id,stage,mode)=>{const option=femaleHair.find(h=>h.id===id)||maleHair.find(h=>h.id===id);if(id&&!option)return;const gender=femaleHair.some(h=>h.id===id)?'female':maleHair.some(h=>h.id===id)?'male':'unknown';analyticsSelection({kind:'hair',id:id||'original',name:option?.name||'ผมเดิม',gender,category:'hair',provider:id?'seedream':'original',stage,mode,surface:'studio'})};
  const trackPhotoType=(mode,stage)=>analyticsSelection({kind:'photo_type',id:mode,name:mode==='female'?'รูปผู้หญิง':'รูปผู้ชาย',gender:mode,category:'photo',provider:'user_choice',stage,mode:'new',surface:'studio'});
  const chooseHair=id=>{
   if(processRequestRef.current||processActive||assetBusy){appearanceFailure('hair','กรุณารอการทำงานก่อนหน้าให้เสร็จก่อน');return}
@@ -444,82 +444,22 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  useEffect(()=>{if(!sourcePhoto){setSourcePreview(null);return}const url=URL.createObjectURL(sourcePhoto);setSourcePreview(url);return()=>URL.revokeObjectURL(url)},[sourcePhoto]);
  const applyHair=async id=>{
   if(processRequestRef.current||processActive||assetBusy||!ready)return;
-  if(id&&!onPrepareHairOverlay){appearanceFailure('hair','ระบบเปลี่ยนทรงผมยังไม่พร้อม กรุณารีเฟรชหน้าแล้วลองใหม่');return}
-  flushTransforms();const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
-  if(!head){appearanceFailure('hair','ประมวลผลด้วยผมเดิมก่อนเลือกทรง');return}
+  const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
+  if(!head||!onChangeHair){appearanceFailure('hair','เพิ่มรูปและประมวลผลก่อนเลือกทรงผม');return}
   if(head.locked){appearanceFailure('hair','ปลดล็อกเลเยอร์หัวก่อนเปลี่ยนทรงผม');return}
-  const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
-  const existing=attached.find(l=>l.hairRole==='front')||attached[0]||(/^youcam-[fm]/.test(head.hairId||'')?head:null);
-  const youcamLayers=/^youcam-(?:f(?:[1-9]|1\d|2\d|3[01])|m(?:[5-9]|1[0-8]))$/.test(id);
-  const previewVersion=/^hair-(?:08|09|12|15)$/.test(id)?'authored-pair-20261018':youcamLayers?(/^youcam-m/.test(id)?'male-catalog-14-v1:youcam-native-ears-inner-hair-v23':'youcam-native-ears-inner-hair-v23'):(/^hair-(?:22|24|25|26)$/.test(id)?'png-female-short-above-ears-v16:':/^hair-(?:01|07)$/.test(id)?'png-female-exterior-v15:':((/^manhair-\d{2}$/.test(id)||isSingleFemaleHair(id))?'png-lower-short-02-v2:':'png-lower-face-03-v1:'))+(id==='hair-01'?78:id==='hair-02'?79:id==='hair-03'?80:/^hair-0[2-5]$/.test(id)?76:id==='hair-06'?83:id==='hair-07'?84:/^manhair-0[1-3]$/.test(id)?85:/^manhair-\d{2}$/.test(id)?71:isSingleFemaleHair(id)?75:57)+':native-face-fit-v1';
-  // Re-selecting the active style must preserve manual edits as-is.
-  if((existing?.hairId===id&&existing.hairPreviewVersion===previewVersion)||(!id&&!attached.length&&!head.youcamNativeHead&&!/^youcam-[fm]/.test(head.hairId||''))){setSelected(existing?.id||head.id);setTool('move');setStatus('เลือกทรงเดิมพร้อมการปรับแต่งแล้ว · ไม่โหลดใหม่');return}
-  setAppearanceError(null);processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus('กำลังจัดทรงผมและเก็บขอบ…');
+  if((head.hairId||'')===(id||'')){setSelected(head.id);setSelectedHair(id||'');setTool('move');return}
+  flushTransforms();const previous=historySnapshot();
+  setAppearanceError(null);processRequestRef.current=true;setAssetBusy(true);setStatus('กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   await hairUiFrame();if(!mounted.current)return;
-   const previous=historySnapshot(),previousPixels=historyAssets.current.get(previous);
-   hairStyleMemory.current.remember(previous,previousPixels,head.id,existing?.hairId||head.hairId||'',existing?.hairPreviewVersion||head.hairPreviewVersion||0);
-   const memoryKey=(style,version)=>JSON.stringify([head.id,head.jobId||'',style,version]);
-   if(!attached.length&&!head.youcamNativeHead)youcamHairMemory.current.set(memoryKey(head.hairId||'',head.hairPreviewVersion||0),{layer:previous.find(l=>l.id===head.id),pixel:previousPixels.get(head.id)});
-   while(youcamHairMemory.current.size>24)youcamHairMemory.current.delete(youcamHairMemory.current.keys().next().value);
-   const saved=youcamLayers||head.youcamNativeHead?null:youcamHairMemory.current.get(memoryKey(id||'',id?previewVersion:0));
-   let remembered=hairStyleMemory.current.restore(previous,previousPixels,head.id,id||'',id?previewVersion:0);
-   if(saved?.pixel){const pixels=new Map(previousPixels),layers=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...saved.layer}:l);pixels.set(head.id,saved.pixel);remembered={layers,pixels,selectedId:head.id};}
-
-   if(remembered&&youcamLayers){const back=remembered.layers.filter(l=>l.youcamHairMask&&l.hairHeadId===head.id&&l.hairRole==='back');if(back.length){const layers=remembered.layers.filter(l=>!back.includes(l)),headIndex=layers.findIndex(l=>l.id===head.id),suitIndex=layers.findIndex(l=>layerKind(l)==='suit');layers.splice(suitIndex<0?headIndex:Math.min(headIndex,suitIndex),0,...back);remembered={...remembered,layers}}}
-   if(remembered){
-    historyAssets.current.set(remembered.layers,remembered.pixels);selectedRef.current=remembered.selectedId;
-    if(!restoreHistory(remembered.layers))throw Error('คืนทรงผมเดิมไม่สำเร็จ · เก็บงานเดิมไว้');
-    undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[];
-    setSelected(remembered.selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
-    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
-    drawNow();setStatus('คืนทรงผมพร้อมการปรับแต่งเดิมแล้ว · ไม่โหลดใหม่และไม่ใช้เครดิต');trackHairSelection(id,'apply',id?'memory':'original');return;
-   }
-   if(youcamLayers&&previous.length-attached.length+2>20)throw Error('ต้องมีพื้นที่ว่าง 2 เลเยอร์สำหรับผม AI · ลบเลเยอร์ที่ไม่ใช้ก่อน');
-   let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,...(!id?{source:l.processedOriginalSource||l.hairOriginalSource||l.source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairOriginalSource:null,makeupBaseSource:null,makeupCleanBaseSource:null,makeupFullSource:null,makeupStyles:{},makeupIntensity:100,hairId:'',youcamAutomaticHeadMaskSource:null,...(l.youcamNativeHead?{youcamNativeHead:false}:{})}:{}),hairBaseMask:null,hairOuterEraser:null}:l),selectedId=head.id,hairGapWarning=false,maleSideburnWarning=false;
-   if(id){
-    const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผม');
-    // YouCam receives current native edits; PNG fitting retains its original base.
-    let hairInput=youcamLayers?(asset.warped||asset.original):(head.hairOriginalSource||asset.warped||asset.original);
-    if(youcamLayers&&!head.youcamNativeHead){hairInput=copySurface(asset.warped||asset.original);const inputContext=hairInput.getContext('2d');inputContext.globalCompositeOperation='destination-in';inputContext.drawImage(asset.mask,0,0,hairInput.width,hairInput.height);inputContext.globalCompositeOperation='source-over'}
-    // A warped mask no longer shares the saved automatic baseline's grid;
-    // migrate only native ear/inner-hair regions instead of dividing mismatched masks.
-    const fitted=await onPrepareHairOverlay(hairInput,id,{sourceJobId:head.jobId,...(youcamLayers&&head.youcamNativeHead?{nativeHeadMask:surfaceURL(asset.mask),...(!asset.warped&&head.youcamAutomaticHeadMaskSource?{nativeHeadAutomaticMask:head.youcamAutomaticHeadMaskSource}:{})}:{}),onProgress:value=>{if(mounted.current)setHairPlacementProgress(Math.min(89,Math.max(1,value)))}});
-    if(!mounted.current)return;
-    hairGapWarning=Boolean(fitted.hairGapWarning);maleSideburnWarning=/^manhair-\d{2}$/.test(id)&&Boolean(fitted.maleSideburnWarning);
-    setHairPlacementProgress(75);await hairUiFrame();
-    if(!mounted.current)return;
-    if(!fitted.cleanedHeadSource)throw Error('ภาพลบผมโดยตรงยังไม่พร้อม · เก็บภาพเดิมไว้');
-    if(youcamLayers){
-     if(!fitted.aiHairLayers||!fitted.nativeHeadSource||!fitted.headMaskSource||!fitted.automaticHeadMaskSource||!fitted.source||!fitted.maskSource||!fitted.maskRestoreSource||(fitted.backSource&&(!fitted.backMaskSource||!fitted.backMaskRestoreSource)))throw Error('ข้อมูลเลเยอร์และมาสก์ผม AI ไม่ครบ · เก็บภาพเดิมไว้');
-     next=next.map(l=>l.id===head.id?{...l,source:fitted.nativeHeadSource,sourceFrame:head.sourceFrame?{...head.sourceFrame}:{x:0,y:0,w:W,h:H},mask:fitted.headMaskSource,youcamAutomaticHeadMaskSource:fitted.automaticHeadMaskSource,youcamNativeHead:true,hairOriginalSource:head.hairOriginalSource||surfaceURL(hairInput),hairId:'',hairPreviewVersion:undefined,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairBaseMask:null,hairOuterEraser:null}:l);
-     const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource),hairId:id,hairPreviewVersion:previewVersion,youcamHairMask:true,sourceFrame:head.sourceFrame?{...head.sourceFrame}:{x:0,y:0,w:W,h:H},...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
-     const front=fresh({...common,name:'ผม AI ด้านหน้า',hairRole:'front',source:fitted.source,mask:fitted.maskSource,eraseRestoreSource:fitted.maskRestoreSource});
-     if(fitted.backSource){const back=fresh({...common,name:'ผม AI ด้านหลัง',hairRole:'back',source:fitted.backSource,mask:fitted.backMaskSource,eraseRestoreSource:fitted.backMaskRestoreSource});const headIndex=next.findIndex(l=>l.id===head.id),suitIndex=next.findIndex(l=>layerKind(l)==='suit');next.splice(suitIndex<0?headIndex:Math.min(headIndex,suitIndex),0,back)}
-     next.splice(next.findIndex(l=>l.id===head.id)+1,0,front);selectedId=front.id;
-    }else{
-    next=next.map(l=>l.id===head.id?{...l,source:fitted.cleanedHeadSource,youcamAutomaticHeadMaskSource:null,...(l.youcamNativeHead?{youcamNativeHead:false,mask:null}:{}),...(fitted.aiComposed?{mask:null,makeupBaseSource:fitted.cleanedHeadSource,makeupCleanBaseSource:fitted.cleanedHeadSource,makeupFullSource:null,makeupStyles:{}}:{}),hairOriginalSource:head.hairOriginalSource||surfaceURL(asset.warped||asset.original),warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairBaseMask:null,hairOuterEraser:null}:l);
-    if(!fitted.aiComposed&&next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
-    if(!fitted.aiComposed){
-    const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource),hairId:id,hairPreviewVersion:previewVersion,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(head),hairHeadId:head.id,hairHeadPose:headPose(head)};
-    const front=fresh({...common,name:'ผมด้านหน้า',hairRole:'front',source:fitted.source,...(/^manhair-\d{2}$/.test(id)&&fitted.maleSideburnReport?{maleSideburnReport:fitted.maleSideburnReport}:{})});
-    const index=next.findIndex(l=>l.id===head.id);
-    if(fitted.backSource){const back=fresh({...common,name:'ผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
-    selectedId=front.id;
-    }else{next=next.map(l=>l.id===head.id?{...l,hairId:id,hairPreviewVersion:previewVersion}:l);selectedId=head.id;}
-    }
-   }
-   setHairPlacementProgress(90);await hairUiFrame();
-   if(await hydrate(next,new Set(previous.filter(l=>l.kind!=='hair-preview'&&l.id!==head.id).map(l=>l.id)))){
-    undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[];
-    if(!id){const session=brushSession.current;if(session?.layerId&&!session.awaitingLayer){if(!state.current.some(l=>l.id===session.layerId))session.layerId=head.id;selectedId=session.layerId}selectedRef.current=selectedId}
-    drawNow();setSelected(selectedId);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
-    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
-    setStatus(id?(maleSideburnWarning?'วางทรงแล้ว · จอนบางข้างตรวจตำแหน่งไม่ผ่าน จึงคงตำแหน่งเดิม':hairGapWarning?'วางทรงแล้ว แต่บางช่องยังเก็บไม่ครบ':(/^youcam-[fm]/.test(id)?'เปลี่ยนทรงผมด้วย YouCam แล้ว':'ปรับทรงผมและเก็บขอบแล้ว · ไม่ใช้เครดิต')):'กลับเป็นผมเดิมแล้ว · ไม่ใช้เครดิต');
-    trackHairSelection(id,'apply',id?'new':'original');
-    setHairPlacementProgress(100);await hairUiFrame();
-   }else throw Error('วางผมไม่สำเร็จ · เก็บภาพเดิมไว้');
-  }catch(e){if(e.code==='hair_credit_required')onRequestUnlock?.();appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current){setHairPlacementProgress(null);setAssetBusy(false)}}
+   const result=await onChangeHair(id);
+   if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+   if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
+   const next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...result.layer,...headPose(head),id:head.id,kind:'head',hairId:id||'',processedOriginalSource:head.processedOriginalSource||head.source}:l);
+   if(!await hydrate(next))throw Error('แสดงภาพไม่สำเร็จ');
+   undo.current.push(previous);redo.current=[];setSelected(head.id);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
+   if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
+   setStatus('เปลี่ยนทรงผม ปรับผิว และเก็บขอบแล้ว');trackHairSelection(id,'apply',id?'new':'original');
+  }catch(e){appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
   const next=previous.map(l=>l.id===head.id?{...l,source,mask:head.youcamNativeHead?(l.mask||head.mask):null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupCleanBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'skin-only-clean-base-v1'}:l);
