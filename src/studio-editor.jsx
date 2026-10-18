@@ -477,7 +477,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   }catch(e){await hydrate(previous).catch(()=>{});await onFinishProcess?.(false).catch(()=>{});appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
-  const next=previous.map(l=>l.id===head.id?{...l,source,mask:head.youcamNativeHead?(l.mask||head.mask):null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupCleanBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'skin-only-clean-base-v1'}:l);
+  const next=previous.map(l=>l.id===head.id?{...l,source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupCleanBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'skin-current-layer-v2'}:l);
   if(signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
   if(!mounted.current)return false;
   if(!await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id))))throw Error('แสดงผลผิวไม่สำเร็จ');
@@ -489,12 +489,19 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(!ready){appearanceFailure('makeup','รูปยังไม่พร้อม กรุณารอสักครู่หรือเปิดรูปอีกครั้ง');return}
   if(!onMakeup||!makeupLook(lookId)){appearanceFailure('makeup','ระบบผิวยังไม่พร้อม กรุณารีเฟรชหน้าแล้วลองใหม่');return}
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head){appearanceFailure('makeup','เพิ่มรูปและประมวลผลก่อนใช้ผิว');return}if(head.locked){appearanceFailure('makeup','ปลดล็อกเลเยอร์หัวก่อนปรับผิว');return}
-  if(head.makeupRenderVersion==='skin-only-clean-base-v1'&&head.makeupStyles?.look===lookId&&(head.makeupIntensity??100)===100&&(!head.mask||head.youcamNativeHead)&&!head.warpSource)return;
+  if(head.makeupRenderVersion==='skin-current-layer-v2'&&head.makeupStyles?.look===lookId&&(head.makeupIntensity??100)===100&&(!head.mask||head.youcamNativeHead)&&!head.warpSource)return;
   let base,cachedFull;
   try{
    const asset=assets.current.get(head.id);if(!asset?.buffer)throw Error('ภาพยังไม่พร้อมสำหรับผิว กรุณาเปิดรูปอีกครั้ง');
-   base=surfaceURL(studioMakeupBase(head));
-   cachedFull=makeupLookCacheRef.current.peek(head.id,base,lookId)||(head.makeupRenderVersion==='skin-only-clean-base-v1'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base?head.makeupFullSource:null);
+   // Capture current layer pixels in native coordinates, including edits/mask.
+   // Placement stays in the layer metadata and is never baked into the image.
+   flushTransforms();
+   const currentPixels=asset.warped||asset.original;
+   const currentSurface=Object.assign(document.createElement('canvas'),{width:currentPixels.width,height:currentPixels.height});
+   const skinCtx=currentSurface.getContext('2d');skinCtx.drawImage(currentPixels,0,0);
+   if(asset.mask){skinCtx.globalCompositeOperation='destination-in';skinCtx.drawImage(asset.mask,0,0,currentSurface.width,currentSurface.height);skinCtx.globalCompositeOperation='source-over'}
+   base=surfaceURL(studioMakeupBase(head,currentSurface));
+   cachedFull=makeupLookCacheRef.current.peek(head.id,base,lookId)||(head.makeupRenderVersion==='skin-current-layer-v2'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base?head.makeupFullSource:null);
   }catch(e){appearanceFailure('makeup',e.message||'เตรียมภาพผิวไม่สำเร็จ กรุณาเปิดรูปอีกครั้ง');return}
   const reused=Boolean(cachedFull);
   const operation=new AbortController();makeupOperationRef.current=operation;setMakeupCancelled(false);
@@ -502,7 +509,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   try{
    flushTransforms();paintScene(canvasRef.current.getContext('2d'),state.current,assets.current);
    const previous=historySnapshot();
-   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupRenderVersion==='skin-only-clean-base-v1'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal,onProgress:value=>{if(mounted.current&&!operation.signal.aborted)setMakeupProgress(v=>Math.max(v,Math.min(98,value)))}}));
+   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupRenderVersion==='skin-current-layer-v2'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal,onProgress:value=>{if(mounted.current&&!operation.signal.aborted)setMakeupProgress(v=>Math.max(v,Math.min(98,value)))}}));
    if(!reused)setMakeupProgress(v=>Math.max(v,95));
    const source=await mixMakeupLookSources(base,full,100);
    if(!reused)setMakeupProgress(v=>Math.max(v,98));
@@ -542,7 +549,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  };
  const restoreMakeup=async()=>{
   if(processActive||assetBusy||!ready)return;const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');if(!head?.makeupBaseSource||head.locked)return;
-  setAssetBusy(true);try{const previous=historySnapshot(),next=previous.map(l=>l.id===head.id?{...l,source:l.makeupBaseSource,mask:l.youcamNativeHead?l.mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupStyles:{},makeupBaseSource:null,makeupFullSource:null,makeupIntensity:100}:l);if(await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id)))){undo.current.push(previous);redo.current=[];setRevision(v=>v+1);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}setStatus('คืนภาพก่อนปรับผิวแล้ว · ไม่ใช้เครดิต')}}finally{setAssetBusy(false)}
+  setAssetBusy(true);try{const previous=historySnapshot(),next=previous.map(l=>l.id===head.id?{...l,source:l.makeupBaseSource,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupStyles:{},makeupBaseSource:null,makeupFullSource:null,makeupIntensity:100}:l);if(await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id)))){undo.current.push(previous);redo.current=[];setRevision(v=>v+1);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}setStatus('คืนภาพก่อนปรับผิวแล้ว · ไม่ใช้เครดิต')}}finally{setAssetBusy(false)}
  };
  const scrollCatalog=direction=>{
   const rail=catalogRailRef.current;if(!rail)return;
