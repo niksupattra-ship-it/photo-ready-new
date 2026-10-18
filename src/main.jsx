@@ -1,3 +1,4 @@
+import {finishFemaleRosePigment} from './female-rose-finish.js';
 import {homePreviewSource} from './home-previews.js';
 import {portraitJobError} from './portrait-job-error.js';
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
@@ -1314,6 +1315,7 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
  const frame=ctx.getImageData(0,0,W,H),evidence=await firstPortraitEvidence(master,image);
  const lighting=finishPortraitLighting({pixels:frame.data,width:W,height:H,...evidence,stage:'output'});
  const edge=refinePortraitAlpha({pixels:lighting.pixels,width:W,height:H,...evidence});
+ const rose=portraitMode==='female'?finishFemaleRosePigment({pixels:edge.pixels,width:W,height:H,...evidence}):{pixels:edge.pixels,changed:false};
  const inspection=inspectPortraitAlpha({pixels:edge.pixels,width:W,height:H});
  if(inspection.needsMatting){
   if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
@@ -1321,15 +1323,15 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
   error.code='portrait_quality_failed';throw error;
  }
  if(portraitMode==='female'){
-  const finishAudit=auditFemalePortraitFinish({pixels:edge.pixels,width:W,height:H,...evidence});
+  const finishAudit=auditFemalePortraitFinish({pixels:rose.pixels,width:W,height:H,...evidence});
   if(!finishAudit.ok){
    if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
    const error=Error('ภาพที่สร้างยังเติมคิ้วไม่ครบ กรุณาประมวลผลใหม่ · รูปและเลเยอร์เดิมยังอยู่');
    error.code='portrait_finish_incomplete';throw error;
   }
  }
- if(!lighting.changed&&!edge.changed)return master;
- frame.data.set(edge.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
+ if(!lighting.changed&&!edge.changed&&!rose.changed)return master;
+ frame.data.set(rose.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
 }
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.
@@ -2266,7 +2268,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-visible-soft-rose-cosmetics-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-visible-soft-rose-cosmetics-v3-local-pigment']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
