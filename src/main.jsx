@@ -1614,7 +1614,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   const pending=(async()=>{
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
    // Replaced 2–5 assets must not reuse the old pattern/reference browser cache.
-   const assetVersion=/^manhair-0[1-3]$/.test(hairId)?'?v=male-new-85':hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-83':hairId==='hair-07'?'?v=authored-pair-84':'';
+   const assetVersion=/^hair-(?:08|09|12|15)$/.test(hairId)?'?v=authored-pair-20261018':/^manhair-0[1-3]$/.test(hairId)?'?v=male-new-85':hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-83':hairId==='hair-07'?'?v=authored-pair-84':'';
    const hairAsset=async path=>{try{return await loadImage(path+assetVersion)}catch{throw Error('โหลดไฟล์ทรงผมไม่สำเร็จ: '+path+' · กรุณาอัปโหลดไฟล์ใน ZIP ให้ครบ')}};
    const [cutout,preview]=await Promise.all([hairAsset(`/assets/hair/${hairId}.png`),hairAsset(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
@@ -2649,6 +2649,7 @@ const HAIR_OPTIONS=[
  {id:'hair-08',name:'ผมฟรี 08',src:'/assets/female-hair-catalog-v12/free-08.webp?v=female-catalog-face-v20'},
  {id:'hair-09',name:'ผมฟรี 09',src:'/assets/female-hair-catalog-v12/free-09.webp?v=female-catalog-face-v20'},
  {id:'hair-12',name:'ผมฟรี 12',src:'/assets/female-hair-catalog-v12/free-12.webp?v=female-catalog-face-v20'},
+ {id:'hair-15',name:'ผมฟรี 15',src:'/assets/female-hair-catalog-v12/free-15.webp?v=authored-pair-20261018'},
  {id:'hair-19',name:'ผมฟรี 19',src:'/assets/female-hair-catalog-v12/free-19.webp?v=female-catalog-face-v20'},
  {id:'youcam-f11',name:'ทรงผม 14',src:'/assets/female-hair-catalog-v12/old-f11.webp?v=female-catalog-face-v17'},
  {id:'youcam-f12',name:'ทรงผม 15',src:'/assets/female-hair-catalog-v12/old-f12.webp?v=female-catalog-face-v17'},

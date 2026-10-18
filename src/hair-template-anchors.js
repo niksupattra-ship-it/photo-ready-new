@@ -150,42 +150,46 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
 },
  "hair-08": {
   "sourceToReference": [
-   0.141045,
-   0.0007071,
-   -0.0007071,
-   0.141045,
-   10.8929505,
-   6.0529772
+    0.141045,
+    0.0007071,
+    -0.0007071,
+    0.141045,
+    10.8929505,
+    6.0529772
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    200,
+    200
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-08-back.png",
+  "preservePortrait": true
+},
  "hair-09": {
   "sourceToReference": [
-   0.1509902,
-   -0.0008813,
-   0.0008813,
-   0.1509902,
-   4.4252874,
-   3.788667
+    0.1509902,
+    -0.0008813,
+    0.0008813,
+    0.1509902,
+    4.4252874,
+    3.788667
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    200,
+    200
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-09-back.png",
+  "preservePortrait": true
+},
  "hair-10": {
   "sourceToReference": [
    0.1468744,
@@ -226,23 +230,25 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  },
  "hair-12": {
   "sourceToReference": [
-   0.142831,
-   0.0009379,
-   -0.0009379,
-   0.142831,
-   10.3745885,
-   6.0393399
+    0.142831,
+    0.0009379,
+    -0.0009379,
+    0.142831,
+    10.3745885,
+    6.0393399
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    200,
+    200
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-12-back.png",
+  "preservePortrait": true
+},
  "hair-13": {
   "sourceToReference": [
    0.1455379,
@@ -283,23 +289,25 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
  },
  "hair-15": {
   "sourceToReference": [
-   0.1449781,
-   0.0056017,
-   -0.0056017,
-   0.1449781,
-   9.8874372,
-   4.0610968
+    0.1449781,
+    0.0056017,
+    -0.0056017,
+    0.1449781,
+    9.8874372,
+    4.0610968
   ],
   "sourceSize": [
-   1254,
-   1254
+    1254,
+    1254
   ],
   "referenceSize": [
-   200,
-   200
+    200,
+    200
   ],
-  "layout": "long"
- },
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-15-back.png",
+  "preservePortrait": true
+},
  "hair-16": {
   "sourceToReference": [
    0.1572979,
