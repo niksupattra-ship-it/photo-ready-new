@@ -1,3 +1,4 @@
+import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
 import {homePreviewSource} from './home-previews.js';
 import {portraitJobError} from './portrait-job-error.js';
 import {lowerPortraitOutline} from './lower-portrait-outline.js';
@@ -1313,7 +1314,9 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
  const frame=ctx.getImageData(0,0,W,H),evidence=await firstPortraitEvidence(master,image);
  const lighting=finishPortraitLighting({pixels:frame.data,width:W,height:H,...evidence,stage:'output'});
- const edge=refinePortraitAlpha({pixels:lighting.pixels,width:W,height:H,...evidence});
+ const alphaEdge=refinePortraitAlpha({pixels:lighting.pixels,width:W,height:H,...evidence});
+ const neckEdge=portraitMode==='female'?cleanFemaleNeckRim({pixels:alphaEdge.pixels,width:W,height:H,...evidence}):{pixels:alphaEdge.pixels,changed:false};
+ const edge={...alphaEdge,pixels:neckEdge.pixels,changed:alphaEdge.changed||neckEdge.changed};
  const inspection=inspectPortraitAlpha({pixels:edge.pixels,width:W,height:H});
  if(inspection.needsMatting){
   if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
@@ -2266,7 +2269,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-clean-ear-neck-edge-v1']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
