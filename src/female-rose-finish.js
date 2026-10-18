@@ -47,7 +47,7 @@ export function finishFemaleRosePigment({pixels,width:w,height:h,face,skin,hair}
   const a=median(samples.map(p=>p.value[1])),b=median(samples.map(p=>p.value[2])),medianL=median(samples.map(p=>p.value[0]));
   // Retain person-specific lip depth/chroma. Move only a bounded distance toward
   // muted rose with a little natural red; do not force every lip to one colour.
-  const chroma=clamp(Math.hypot(a,b),14,32),target=region.kind==='lip'?[chroma*.914,chroma*.406]:region.target;
+  const chroma=clamp(Math.hypot(a,b),14,32),target=region.kind==='lip'?[chroma*.966,chroma*.259]:region.target;
   let da=target[0]-a,db=target[1]-b;
   const scale=Math.min(1,region.limit/Math.max(.001,Math.hypot(da,db)));da*=scale;db*=scale;
   if(Math.hypot(da,db)<.5)continue;
