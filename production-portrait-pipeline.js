@@ -1,0 +1,68 @@
+import sharp from 'sharp';
+import path from 'node:path';
+import {readFile} from 'node:fs/promises';
+import {requestReviewSeedream} from './seedream-review-transport.js';
+import {REVIEW_FEMALE_FINISH} from './review-portrait-finish.js';
+import {productionHair} from './hairstyle-catalog.js';
+
+export function validateProductionPortrait(input,fields={}){
+ if(!input?.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(input.mimetype))throw Error('กรุณาใช้ภาพ PNG, JPG หรือ WEBP');
+ if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
+ const id=fields.hairId||'original',selected=productionHair(id);
+ if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
+ if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
+ return selected;
+}
+export function productionPortraitPrompt(selected){
+  const cosmetics=selected.gender==='female'?(REVIEW_FEMALE_FINISH+`\nEYESHADOW COLOUR OVERRIDE: Replace any earlier pink/rose eyeshadow colour or density instruction with #DD9C8C only. Target 60% TRANSPARENCY, equivalent to 40% pigment opacity / alpha 0.40, so the natural eyelid skin remains visible. This applies to eyeshadow pigment only, not eyeliner, eyelashes, brows, lips or the output PNG alpha. Keep pigment softly confined inside the existing upper-eyelid fold; no colour wash across the brow bone or lower-eye skin. Preserve the existing eyeliner, lashes and subtle inner-corner shimmer.
+INNER LIP COLOUR OVERRIDE: Replace earlier inner-lip targets, including #FF747F, with #DD9C8C at 60% transparency (40% pigment opacity, alpha 0.40). Apply this translucent colour ONLY to the inner lip tissue and blend naturally outward into the existing outer-lip colour #F0A2A8. Preserve the existing lip contour, size, expression, natural lip texture and wet gloss; do not darken the mouth opening or tint teeth/surrounding skin. This overrides previous inner-lip colour/intensity instructions only; outer-lip colour and gloss stay unchanged.
+LOWER EYE COLOUR OVERRIDE: No coloured eyeshadow, pink/rose/peach tint, blush or red/brown cosmetic wash along the LOWER lash line or under-eye skin. Remove any existing lower-eye cosmetic colour and match that area naturally to adjacent skin, preserving real anatomy and gentle natural shadows. Do not create a pale concealer stripe. KEEP the tiny subtle luminous inner-corner highlight, including the lower inner corner, as a neutral natural sheen without coloured pigment. Preserve upper-eyelid eyeshadow, eyeliner, lashes and eye geometry.`):`MALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Make facial and neck skin slightly brighter and more even while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Reduce dull or uneven shadowing naturally; no whitening, blur, beauty filter, foundation mask or porcelain skin. Preserve the exact original eyebrows, eyes, nose, cheeks, jaw and chin. Preserve the exact original lip contour and size; add only a very slight healthy natural pink tone to the lips, not lipstick and not glossy. Keep the result clean, natural and masculine with real photographic skin detail. Hair should remain naturally detailed with separated strands and realistic restrained highlights; never plastic or painted.`;
+  const prompt=`เปลี่ยนทรงผมให้กับคนในภาพที่ 1 เป็นทรงที่แนบในภาพที่ 2 พร้อมปรับผิว แต่งหน้าและเตรียมคอในภาพเดียว
+IMAGE AUTHORITY: Image 1 supplies the person's identity, facial anatomy, expression, head size, body scale and framing. Image 2 supplies the selected hairstyle only. Match its actual parting, fringe, hairline opening, braids when present, crown volume, side silhouette and length. Do not transfer reference skin or head shape, add hair volume, enlarge the head or zoom the portrait. Fit the reference hair naturally to the existing skull and face. Preserve identity, face width/height and eye/nose/mouth/jaw geometry.
+SKIN / COSMETICS: ${cosmetics}
+NECKLINE-CONTOUR CUTOUT: Keep the person's chin position and natural neck length/width. Preserve complete neck skin down to the clavicles and small upper-sternum area, matching the finished face. Use a plain white top with a broad low ROUND SCOOP NECKLINE ONLY as the construction guide for the cutout boundary, not as visible final clothing. Trace the actual curved SKIN-TO-NECKLINE boundary: start at the left side of the neck/clavicle opening, follow the wide smooth U-shaped opening below the clavicles, and rise to its right side. KEEP the neck/clavicle skin INSIDE that opening. REMOVE every garment pixel OUTSIDE/below that neckline curve, including the white top, collar edge, sleeves, shoulder fabric, upper torso, bare outer shoulders and both arms/hands. Replace those removed regions with the SAME solid medium-blue temporary background for subsequent matting. Do not retain a white shirt outline or a horizontal torso crop. Do not replace removed clothing with newly generated bare shoulders, chest or a torso. The output is a head/hair asset with a broad curved neck base suitable for laying under a uniform. Keep a small smooth natural skin overlap along the lower U contour without stretching the neck. Preserve all selected hair, including rear lengths, independently of the clothing cutout; never clip hair ends to the neckline. No dark neck rim, notch, white fringe or background holes within retained skin.
+REFERENCE HAIR EXTENT LOCK: Do not create hair beyond the selected reference's actual cut length or silhouette. For a short men's cut, keep the nape tapered and clean: NO added mullet tail, hanging hair behind ears, neck tufts, side locks or shoulder-length strands unless explicitly present in the selected reference. Existing long hair in the person's upload is not authority for the new length. "Hair behind" is a placement rule only for lengths that already exist in the selected design, never permission to generate rear extensions. Remove obsolete source hair outside the selected design without changing ear/neck anatomy.
+HAIR BEHIND SHOULDERS — ALL SELECTED STYLES: Keep every selected style's hanging side lengths and ends in the REAR hair plane behind the ears, behind the neck and, when long enough, behind the shoulders/upper back. No front hair panels, long locks or hair ends crossing the front of the neck, clavicles, chest or garment placement field. Keep the whole broad neck base clear. Keep reference bangs/fringe and root geometry at the forehead unchanged; "behind" applies to side lengths and ends, not removing the reference fringe. For short hair retain the actual short length and tuck its side ends behind the ears; do not lengthen a bob/pixie to make it reach the shoulders. For tied styles keep the tie/bun at the rear. Do not invent extra hair, side locks or ear wisps. Keep lower hair in the rear plane, preserving it as a separate visual silhouette beside/behind the neck; do not regenerate shoulders or clothing merely to occlude hair. Preserve the reference crown volume, parting, forehead opening, length and original ear anatomy. Rear hair may remain as a natural back layer outside the neck contour; do not cut the hair short or cover the neck to simulate rear placement.
+NO EARRINGS: Remove all earrings and ear jewellery from the person and hairstyle reference, including studs, hoops, dangling earrings, ear cuffs and decorative piercing jewellery. Never copy earrings from Image 2 or invent new earrings. Reconstruct the underlying ear skin naturally, preserving original ear anatomy, ear position, lobes, skin texture and complexion. Do not erase, cover or deform ears to hide jewellery, and do not replace earrings with hair wisps or dark spots.
+FINAL PRIORITY: Selected hairstyle from Image 2 replaces Image 1's old hair. Preserve the person's head size, face anatomy and framing. Apply the stated finish without whitening or plastic skin. OUTPUT: isolated head, complete selected hair and a wide neck/clavicle skin base ending on the smooth rounded scoop-neck opening curve. The former shirt, shoulders, sleeves, arms and torso regions MUST be the same plain solid medium-blue temporary background as the outer background so matting removes them. No final visible shirt or body below that curve. This final cutout requirement overrides earlier broad portrait or garment-coverage instructions; do not generate an undressed body. Preserve the selected hair and retain only the anatomical skin within the wide neck opening. Keep the original head size and camera framing; do not zoom in to fill the canvas. All edits happen together in ONE coherent portrait, no pasted face or cutout seam.`;
+  return prompt;
+}
+export async function processProductionPortrait({input,fields,root,removeBackground,key}){
+ const chosen=validateProductionPortrait(input,fields);
+ const selected=chosen||{gender:fields.portraitMode};
+ let prompt=productionPortraitPrompt(selected);
+ if(!chosen)prompt=prompt.replaceAll('Image 2',"the original hairstyle in Image 1")+'\nORIGINAL HAIRSTYLE OVERRIDE: No second image is supplied. Preserve the original hairstyle, length, parting, fringe, hairline and volume in Image 1. Do not invent a replacement hairstyle. Apply the same gender-specific finish, neckline cutout and ear-jewellery removal.';
+ const hair=chosen?await readFile(path.join(root,'public','assets','seedream-hairstyles','references',chosen.file)):null;
+ const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair});
+ const transparent=await cleanTrialCutoutEdges(await removeBackground(result.png));
+ const stats=await sharp(transparent).ensureAlpha().stats();
+ const alpha=stats.channels[3];
+ if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
+ return transparent;
+}
+function cleanTrialAlphaPixels(pixels,width,height){
+ const count=width*height;
+ if(pixels.length!==count*4)throw Error('Invalid cutout pixels');
+ const seen=new Uint8Array(count),queue=new Int32Array(count);let tail=0;
+ // The generated temporary field is medium blue. Remove only blue regions
+ // connected to canvas edges, including remaining blue garment-shaped islands.
+ const blue=n=>{const i=n*4,r=pixels[i],g=pixels[i+1],b=pixels[i+2];return b>120&&b-r>65&&b-g>25&&g>45};
+ const add=n=>{if(!seen[n]&&(pixels[n*4+3]<12||blue(n))){seen[n]=1;queue[tail++]=n}};
+ for(let x=0;x<width;x++){add(x);add((height-1)*width+x)}
+ for(let y=0;y<height;y++){add(y*width);add(y*width+width-1)}
+ for(let head=0;head<tail;head++){
+  const n=queue[head],x=n%width,y=Math.floor(n/width);pixels[n*4+3]=0;
+  if(x>0)add(n-1);if(x+1<width)add(n+1);if(y>0)add(n-width);if(y+1<height)add(n+width);
+ }
+ for(let n=0;n<count;n++){
+  const i=n*4+3,a=pixels[i];
+  pixels[i]=a<=30?0:a>=225?255:Math.round((a-30)*255/195);
+ }
+ return pixels;
+}
+async function cleanTrialCutoutEdges(input){
+ const {data,info}=await sharp(input).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ cleanTrialAlphaPixels(data,info.width,info.height);
+ return sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
+}
+
