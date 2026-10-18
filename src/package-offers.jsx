@@ -49,21 +49,21 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>สร้างรูปหน้าตรง 1 รูป</Feature><Feature>เครดิตทรงผม 1 ครั้ง (ไม่รวมทรงผมฟรี)</Feature>
+     <Feature>เปลี่ยนรูปหรือทรงผม รวม 2 ครั้ง</Feature><Feature>ไม่หักรูปทดลองใช้ฟรีที่ใช้ไป</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
      <Feature>ดาวน์โหลดไม่จำกัด</Feature>
     </ul>
-    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'หรือรับรูปนี้'}</button>
+    <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
    </article>
    <article className="package-card popular">
     <span className="package-badge">แนะนำ</span>
     <div className="package-original-price"><del>199 บาท</del></div>
     <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>สร้างรูปหน้าตรง 5 รูป</Feature>
-     <Feature>เครดิตทรงผม 5 ครั้ง (ไม่รวมทรงผมฟรี)</Feature>
+     <Feature>เปลี่ยนรูปหรือทรงผม รวม 10 ครั้ง</Feature>
+     <Feature>ไม่หักรูปทดลองใช้ฟรีที่ใช้ไป</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานไว้แก้ไขภายหลัง</Feature>
@@ -72,8 +72,8 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองหน้าตรงฟรีวันละ 2 ครั้งต่อเครื่อง · ผมเพชร 1 ครั้งต่อวัน</strong><br/>แพ็ก 89 บาทเพิ่ม 1 เครดิต • แพ็ก 159 บาท: หน้าตรง 5 รูป + ผมเพชร 5 ครั้ง พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ และยกเลิกสิทธิ์ทดลองที่เหลือของวันนั้น</p>
-  <p style={{fontSize:12,textAlign:'center',color:'#66758c'}}>ผม PNG เลือกได้ทุกทรง ไม่หักเครดิต · หักสิทธิ์เฉพาะงานที่สำเร็จ</p>
+  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 รูปต่อเครื่อง พร้อมลายน้ำ · เลือกผมได้ 4 ทรงแรกต่อหญิง/ชาย</strong><br/>แพ็ก 89 บาทประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง • แพ็ก 159 บาทรวม 10 ครั้ง ไม่รวมรูปทดลองใช้ฟรีที่ใช้ไป พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ และยกเลิกสิทธิ์ทดลองที่เหลือของวันนั้น</p>
+  <p style={{fontSize:12,textAlign:'center',color:'#66758c'}}>เปลี่ยนรูปหรือทรงผมใช้สิทธิ์จากจำนวนเดียวกัน · หักสิทธิ์เฉพาะงานที่สำเร็จ</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
