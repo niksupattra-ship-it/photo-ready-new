@@ -7,11 +7,15 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(hair?.length)image.push(`data:image/png;base64,${Buffer.from(hair).toString('base64')}`);
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image:image.length===1?image[0]:image,size,output_format:'png',response_format:'b64_json',watermark:false};
 }
-export async function requestReviewSeedream(options,{fetchImpl=fetch}={}){
+export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
  const {key}=options;
  if(!key)throw Object.assign(Error('ยังไม่ได้ตั้งค่า ARK_API_KEY '),{status:500});
- const response=await fetchImpl(REVIEW_SEEDREAM_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(seedreamReviewPayload(options))});
+ const signal=AbortSignal.timeout(timeoutMs);
+ let response;
+ try{response=await fetchImpl(REVIEW_SEEDREAM_ENDPOINT,{signal,method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(seedreamReviewPayload(options))});}
+ catch(e){if(signal.aborted)throw Object.assign(Error('Seedream ใช้เวลาเกิน 4 นาที กรุณาลองใหม่'),{status:504,code:'seedream_timeout'});throw e}
  const body=await response.json().catch(()=>null);
+ if(signal.aborted)throw Object.assign(Error('Seedream ใช้เวลาเกิน 4 นาที กรุณาลองใหม่'),{status:504,code:'seedream_timeout'});
  if(!response.ok){
   const detail=String(body?.error?.message||body?.message||'คำขอไม่สำเร็จ').slice(0,600);
   throw Object.assign(Error(`Seedream ประมวลผลไม่สำเร็จ (${response.status}): ${detail}`),{status:response.status,code:body?.error?.code||'seedream_failed'});
