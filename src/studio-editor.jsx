@@ -466,10 +466,12 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    const next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...result.layer,...headPose(head),id:head.id,kind:'head',hairId:id||'',processedOriginalSource:head.processedOriginalSource||head.source}:l);
    if(!await hydrate(next))throw Error('แสดงภาพไม่สำเร็จ');
+   if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}
+   await onFinishProcess?.(true);
    undo.current.push(previous);redo.current=[];setSelected(head.id);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
    setStatus('เปลี่ยนทรงผม ปรับผิว และเก็บขอบแล้ว');trackHairSelection(id,'apply',id?'new':'original');
-  }catch(e){appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
+  }catch(e){await hydrate(previous).catch(()=>{});await onFinishProcess?.(false).catch(()=>{});appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
   const next=previous.map(l=>l.id===head.id?{...l,source,mask:head.youcamNativeHead?(l.mask||head.mask):null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupCleanBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'skin-only-clean-base-v1'}:l);
