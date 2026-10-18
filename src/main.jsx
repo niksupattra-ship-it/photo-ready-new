@@ -6,11 +6,8 @@ import {eraseHeadExteriorExcess,eraseDetachedUpperHair} from './upper-hair-erase
 import {eraseFemaleHairExterior} from './female-hair-exterior.js';
 import {refineYoucamFemaleHairEdges} from './youcam-hair-edge.js';
 import {finishPortraitLighting} from './portrait-adaptive-light.js';
-import {finishFemaleStudioLighting} from './female-studio-finish.js';
 import {inspectPortraitAlpha,refinePortraitAlpha} from './portrait-native-alpha.js';
 import {auditFemalePortraitFinish} from './female-portrait-finish-check.js';
-import {finishFemaleRosePigment} from './female-rose-finish.js';
-import {refineFemaleSkinTexture,applyFemaleReferenceMakeup} from './female-reference-finish.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -817,9 +814,6 @@ async function readOriginalSkinProfile(sourceBlob){
 // original file or AI prompt. +10% further light lift vs V225's 1.10 setting,
 // bounded by original exposure and highlight protection; preserve pores.
 async function optionalHealthySkin10(masterBlob,sourceBlob,{portraitMode}={}){
- // Female output uses one measured studio finish after cleanup. The old
- // source-dependent lift/tint/sharpen pass would brighten that result twice.
- if(portraitMode==='female')return masterBlob;
  let failure;
  // Each attempt starts from the unchanged AI master: never apply the lift twice.
  for(let attempt=0;attempt<2;attempt++){
@@ -1318,9 +1312,7 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
  const image=await decodedPortraitImage(master),W=image.naturalWidth,H=image.naturalHeight;
  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
  const frame=ctx.getImageData(0,0,W,H),evidence=await firstPortraitEvidence(master,image);
- const lighting=portraitMode==='female'
-  ?finishFemaleStudioLighting({pixels:frame.data,width:W,height:H,...evidence})
-  :finishPortraitLighting({pixels:frame.data,width:W,height:H,...evidence,stage:'output'});
+ const lighting=finishPortraitLighting({pixels:frame.data,width:W,height:H,...evidence,stage:'output'});
  const edge=refinePortraitAlpha({pixels:lighting.pixels,width:W,height:H,...evidence});
  const inspection=inspectPortraitAlpha({pixels:edge.pixels,width:W,height:H});
  if(inspection.needsMatting){
@@ -1328,25 +1320,16 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
   const error=Error('แยกขอบภาพบุคคลไม่สมบูรณ์ กรุณาลองประมวลผลอีกครั้ง · รูปและเลเยอร์เดิมยังอยู่');
   error.code='portrait_quality_failed';throw error;
  }
- const texture=portraitMode==='female'?refineFemaleSkinTexture({pixels:edge.pixels,width:W,height:H,...evidence}):{pixels:edge.pixels,changed:false};
- const pigment=portraitMode==='female'?finishFemaleRosePigment({pixels:texture.pixels,width:W,height:H,...evidence}):{pixels:texture.pixels,changed:false};
- const makeup=portraitMode==='female'?applyFemaleReferenceMakeup({pixels:pigment.pixels,width:W,height:H,...evidence}):{pixels:pigment.pixels,changed:false};
  if(portraitMode==='female'){
-  const lightQuality=lighting.report?.quality;
-  if(lighting.report?.status==='unmeasurable'||!lightQuality?.independentIlluminantMeasured||lightQuality.correctionCapped||lightQuality.unrecoverable||pigment.status==='unmeasurable'||pigment.regions?.lips?.status==='unavailable'||pigment.regions?.lips?.lightness?.status!=='measured'){
-   if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
-   const error=Error('ตรวจมาตรฐานแสงและสีปากในภาพที่สร้างไม่ครบ กรุณาใช้ภาพหน้าตรงที่เห็นใบหน้าชัดเจน · รูปและเลเยอร์เดิมยังอยู่');
-   error.code='portrait_finish_incomplete';throw error;
-  }
-  const finishAudit=auditFemalePortraitFinish({pixels:makeup.pixels,width:W,height:H,...evidence});
+  const finishAudit=auditFemalePortraitFinish({pixels:edge.pixels,width:W,height:H,...evidence});
   if(!finishAudit.ok){
    if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
    const error=Error('ภาพที่สร้างยังเติมคิ้วไม่ครบ กรุณาประมวลผลใหม่ · รูปและเลเยอร์เดิมยังอยู่');
    error.code='portrait_finish_incomplete';throw error;
   }
  }
- if(!lighting.changed&&!edge.changed&&!texture.changed&&!pigment.changed&&!makeup.changed)return master;
- frame.data.set(makeup.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
+ if(!lighting.changed&&!edge.changed)return master;
+ frame.data.set(edge.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
 }
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.
@@ -2283,7 +2266,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-soft-rose-cosmetics-v1','female-local-rose-hue-v2','female-rose-gradient-gloss-lips-v1','female-standard-studio-finish-v1']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
