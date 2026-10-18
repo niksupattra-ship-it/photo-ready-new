@@ -8,6 +8,7 @@ import {refineYoucamFemaleHairEdges} from './youcam-hair-edge.js';
 import {finishPortraitLighting} from './portrait-adaptive-light.js';
 import {inspectPortraitAlpha,refinePortraitAlpha} from './portrait-native-alpha.js';
 import {auditFemalePortraitFinish} from './female-portrait-finish-check.js';
+import {finishFemaleRosePigment} from './female-rose-finish.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -1320,16 +1321,17 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
   const error=Error('แยกขอบภาพบุคคลไม่สมบูรณ์ กรุณาลองประมวลผลอีกครั้ง · รูปและเลเยอร์เดิมยังอยู่');
   error.code='portrait_quality_failed';throw error;
  }
+ const pigment=portraitMode==='female'?finishFemaleRosePigment({pixels:edge.pixels,width:W,height:H,...evidence}):{pixels:edge.pixels,changed:false};
  if(portraitMode==='female'){
-  const finishAudit=auditFemalePortraitFinish({pixels:edge.pixels,width:W,height:H,...evidence});
+  const finishAudit=auditFemalePortraitFinish({pixels:pigment.pixels,width:W,height:H,...evidence});
   if(!finishAudit.ok){
    if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
    const error=Error('ภาพที่สร้างยังเติมคิ้วไม่ครบ กรุณาประมวลผลใหม่ · รูปและเลเยอร์เดิมยังอยู่');
    error.code='portrait_finish_incomplete';throw error;
   }
  }
- if(!lighting.changed&&!edge.changed)return master;
- frame.data.set(edge.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
+ if(!lighting.changed&&!edge.changed&&!pigment.changed)return master;
+ frame.data.set(pigment.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
 }
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.
@@ -1614,7 +1616,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
   const pending=(async()=>{
    const calibration=HAIR_TEMPLATE_ANCHORS[hairId];
    // Replaced 2–5 assets must not reuse the old pattern/reference browser cache.
-   const assetVersion=/^manhair-0[1-3]$/.test(hairId)?'?v=male-new-85':hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-83':hairId==='hair-07'?'?v=authored-pair-84':'';
+   const assetVersion=/^hair-(?:08|09|12|15)$/.test(hairId)?'?v=authored-pair-20261018':/^manhair-0[1-3]$/.test(hairId)?'?v=male-new-85':hairId==='hair-01'?'?v=authored-pair-78':hairId==='hair-02'?'?v=authored-pair-79':hairId==='hair-03'?'?v=authored-pair-80':/^hair-0[2-5]$/.test(hairId)?'?v=authored-pair-76':hairId==='hair-06'?'?v=authored-pair-83':hairId==='hair-07'?'?v=authored-pair-84':'';
    const hairAsset=async path=>{try{return await loadImage(path+assetVersion)}catch{throw Error('โหลดไฟล์ทรงผมไม่สำเร็จ: '+path+' · กรุณาอัปโหลดไฟล์ใน ZIP ให้ครบ')}};
    const [cutout,preview]=await Promise.all([hairAsset(`/assets/hair/${hairId}.png`),hairAsset(`/assets/hairstyle-previews/${hairId}.png`)]);
    const face=landmarker.detect(preview).faceLandmarks?.[0];
@@ -2266,7 +2268,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=await templateNecklineProfile(options.templatePath||options.jobContext?.uniformTemplate);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-soft-rose-cosmetics-v1']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
+ const key=JSON.stringify(['measured-forehead-hairline-root-v2',scope,digest,hairId||'original',neckline,...(['female','male'].includes(options.portraitMode)?[options.portraitMode,options.portraitMode==='male'?'male-neat-short-open-forehead-v17':'restored-pre-center-part-portrait-v16']:[]),...(firstPortrait?['adaptive-first-portrait-light-alpha-v1']:[]),...(firstPortrait&&options.portraitMode==='female'?['female-complete-finish-brow-check-v2','female-soft-rose-cosmetics-v1','female-local-rose-hue-v2']:[]),...(firstPortrait&&options.portraitMode==='male'?['male-wide-deep-neck-v1','male-soft-skin-stubble-submental-v1','male-clear-submental-normal-neck-v2','male-clean-shaven-soft-frontlight-v1']:[])]);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
@@ -2649,6 +2651,7 @@ const HAIR_OPTIONS=[
  {id:'hair-08',name:'ผมฟรี 08',src:'/assets/female-hair-catalog-v12/free-08.webp?v=female-catalog-face-v20'},
  {id:'hair-09',name:'ผมฟรี 09',src:'/assets/female-hair-catalog-v12/free-09.webp?v=female-catalog-face-v20'},
  {id:'hair-12',name:'ผมฟรี 12',src:'/assets/female-hair-catalog-v12/free-12.webp?v=female-catalog-face-v20'},
+ {id:'hair-15',name:'ผมฟรี 15',src:'/assets/female-hair-catalog-v12/free-15.webp?v=authored-pair-20261018'},
  {id:'hair-19',name:'ผมฟรี 19',src:'/assets/female-hair-catalog-v12/free-19.webp?v=female-catalog-face-v20'},
  {id:'youcam-f11',name:'ทรงผม 14',src:'/assets/female-hair-catalog-v12/old-f11.webp?v=female-catalog-face-v17'},
  {id:'youcam-f12',name:'ทรงผม 15',src:'/assets/female-hair-catalog-v12/old-f12.webp?v=female-catalog-face-v17'},
