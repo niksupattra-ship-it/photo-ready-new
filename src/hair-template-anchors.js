@@ -382,7 +382,9 @@ export const HAIR_TEMPLATE_ANCHORS=Object.freeze({
    200,
    200
   ],
-  "layout": "long"
+  "layout": "authored-pair",
+  "backSource": "/assets/hair/hair-19-back.png",
+  "preservePortrait": true
  },
  "hair-20": {
   "sourceToReference": [
