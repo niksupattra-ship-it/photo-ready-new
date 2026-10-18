@@ -10,6 +10,7 @@ import {finishFemaleStudioLighting} from './female-studio-finish.js';
 import {inspectPortraitAlpha,refinePortraitAlpha} from './portrait-native-alpha.js';
 import {auditFemalePortraitFinish} from './female-portrait-finish-check.js';
 import {finishFemaleRosePigment} from './female-rose-finish.js';
+import {refineFemaleSkinTexture,applyFemaleReferenceMakeup} from './female-reference-finish.js';
 import {shortHairInterior} from './short-hair-skin-fill.js';
 import {cleanTemplateForehead} from './hair-template-forehead-clean.js';
 import {featherLongCrown} from './long-upper-hair-eraser.js';
@@ -1327,7 +1328,9 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
   const error=Error('แยกขอบภาพบุคคลไม่สมบูรณ์ กรุณาลองประมวลผลอีกครั้ง · รูปและเลเยอร์เดิมยังอยู่');
   error.code='portrait_quality_failed';throw error;
  }
- const pigment=portraitMode==='female'?finishFemaleRosePigment({pixels:edge.pixels,width:W,height:H,...evidence}):{pixels:edge.pixels,changed:false};
+ const texture=portraitMode==='female'?refineFemaleSkinTexture({pixels:edge.pixels,width:W,height:H,...evidence}):{pixels:edge.pixels,changed:false};
+ const pigment=portraitMode==='female'?finishFemaleRosePigment({pixels:texture.pixels,width:W,height:H,...evidence}):{pixels:texture.pixels,changed:false};
+ const makeup=portraitMode==='female'?applyFemaleReferenceMakeup({pixels:pigment.pixels,width:W,height:H,...evidence}):{pixels:pigment.pixels,changed:false};
  if(portraitMode==='female'){
   const lightQuality=lighting.report?.quality;
   if(lighting.report?.status==='unmeasurable'||!lightQuality?.independentIlluminantMeasured||lightQuality.correctionCapped||lightQuality.unrecoverable||pigment.status==='unmeasurable'||pigment.regions?.lips?.status==='unavailable'||pigment.regions?.lips?.lightness?.status!=='measured'){
@@ -1335,15 +1338,15 @@ async function finishFirstPortraitMaster(aiHeadNeck,sourceBlob,{portraitMode}={}
    const error=Error('ตรวจมาตรฐานแสงและสีปากในภาพที่สร้างไม่ครบ กรุณาใช้ภาพหน้าตรงที่เห็นใบหน้าชัดเจน · รูปและเลเยอร์เดิมยังอยู่');
    error.code='portrait_finish_incomplete';throw error;
   }
-  const finishAudit=auditFemalePortraitFinish({pixels:pigment.pixels,width:W,height:H,...evidence});
+  const finishAudit=auditFemalePortraitFinish({pixels:makeup.pixels,width:W,height:H,...evidence});
   if(!finishAudit.ok){
    if(aiHeadNeck.idpromPortraitCacheKey)portraitResultCache.delete(aiHeadNeck.idpromPortraitCacheKey);
    const error=Error('ภาพที่สร้างยังเติมคิ้วไม่ครบ กรุณาประมวลผลใหม่ · รูปและเลเยอร์เดิมยังอยู่');
    error.code='portrait_finish_incomplete';throw error;
   }
  }
- if(!lighting.changed&&!edge.changed&&!pigment.changed)return master;
- frame.data.set(pigment.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
+ if(!lighting.changed&&!edge.changed&&!texture.changed&&!pigment.changed&&!makeup.changed)return master;
+ frame.data.set(makeup.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
 }
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.

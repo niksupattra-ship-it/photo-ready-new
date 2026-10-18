@@ -52,7 +52,7 @@ export function finishFemaleRosePigment({pixels,width:w,height:h,face,skin,hair}
   // A narrow mobile-lid band above the upper lash line, separated from brows.
   // Increase evidence over the old subpixel strip without painting the socket.
   const depth=Math.min(gap*.24,fw*.018),top=edge.map((p,i)=>({...p,y:p.y-depth*Math.sin(Math.PI*i/8)}));
-  descriptors.push({name:eye.name,kind:'eye',poly:[...edge,...top.reverse()],hole:null,target:[15,3.5],feather:Math.max(.6,depth*.25),minSamples:4});
+  descriptors.push({name:eye.name,kind:'eye',poly:[...edge,...top.reverse()],hole:null,target:[10,2],feather:Math.max(.6,depth*.25),minSamples:4});
  }
  if([...LIP,...HOLE].some(i=>!validPoint(face[i])))regions.lips=unavailable('invalid-landmarks');
  else{
@@ -60,7 +60,7 @@ export function finishFemaleRosePigment({pixels,width:w,height:h,face,skin,hair}
   if(lipWidth<fw*.12||lipWidth>fw*.65||lipHeight<fw*.015||lipHeight>fw*.25||hole.some(p=>!inside(p.x,p.y,lip)))regions.lips=unavailable('unreliable-lip-geometry');
   // Keep the feather inside the original lip outline. A subpixel rim looks
   // pasted onto a softer/upscaled source; cap its width for genuinely thin lips.
-  else descriptors.push({name:'lips',kind:'lip',poly:lip,hole,target:[29,10],lipHeight,feather:Math.max(.7,Math.min(fw*.009,lipHeight*.16)),minSamples:12});
+  else descriptors.push({name:'lips',kind:'lip',poly:lip,hole,target:[38,5],lipHeight,feather:Math.max(.7,Math.min(fw*.009,lipHeight*.16)),minSamples:12});
  }
  const out=new Uint8ClampedArray(pixels);let changed=false;
  for(const region of descriptors){
@@ -90,7 +90,7 @@ export function finishFemaleRosePigment({pixels,width:w,height:h,face,skin,hair}
   if(invalid){regions[region.name]={...unavailable('invalid-mask-evidence'),...evidence};continue}
   if(samples.length<region.minSamples||samples.length<area*.12){regions[region.name]={...unavailable(occluded>area*.5?'occluded-or-low-confidence':protectedCount>area*.5?'protected-highlights-or-deep-shadows':'insufficient-visible-pixels'),sampleCount:samples.length,...evidence};continue}
   const before=medians(samples.map(p=>p.value)),core=samples.filter(p=>p.weight>.8),medianCore=core.length>=region.minSamples?medians(core.map(p=>p.value)):before,outerTone=edgeSkin.length>=12?medians(edgeSkin):null;
-  const requestedL=region.kind==='lip'&&skinReferenceL!==null?clamp(skinReferenceL-16,30,76):null,requestedShift=requestedL===null?0:requestedL-before[0],lightnessShift=clamp(requestedShift,-24,24);
+  const requestedL=region.kind==='lip'&&skinReferenceL!==null?clamp(skinReferenceL-18,30,76):null,requestedShift=requestedL===null?0:requestedL-before[0],lightnessShift=clamp(requestedShift,-24,24);
   const lightness=region.kind==='lip'?{status:requestedL===null?'unavailable':Math.abs(lightnessShift-requestedShift)>.01?'limited':'measured',reason:requestedL===null?'insufficient-skin-light-reference':Math.abs(lightnessShift-requestedShift)>.01?'lip-lightness-correction-limit':'relative-to-normalized-skin',referenceSkinL:skinReferenceL,referenceSamples:skinLightSamples.length,targetMedianL:requestedL,shift:lightnessShift,correctionCapped:Math.abs(lightnessShift-requestedShift)>.01}:undefined;
   const deviation=Math.hypot(medianCore[1]-region.target[0],medianCore[2]-region.target[1]),colourDistances=samples.map(p=>Math.hypot(p.value[1]-region.target[0],p.value[2]-region.target[1])).sort((a,b)=>a-b);
   // Preserve an already matching finish, including the model's genuine lip
