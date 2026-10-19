@@ -491,7 +491,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    reused=result?.reused===true;
    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
-   const next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...result.layer,...headPose(placedHead),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:placedHead.sourceFrame?{...placedHead.sourceFrame}:result.layer.sourceFrame,processedOriginalSource:placedHead.processedOriginalSource||placedHead.source}:l);
+   const next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,processedOriginalSource:placedHead.processedOriginalSource||placedHead.source}:l);
    if(!await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id))))throw Error('แสดงภาพไม่สำเร็จ');
    if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}
    if(!reused)await onFinishProcess?.(true);

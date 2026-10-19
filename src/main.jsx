@@ -1,3 +1,4 @@
+import {fitHairMasterFrame} from './hair-master-frame.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed} from '../hairstyle-catalog.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
@@ -3464,6 +3465,12 @@ function App(){
  };
  const canReuseHair=(id,portraitMode)=>Boolean(cachedHairResult(id,portraitMode));
  const changeHair=async id=>{if(!canReuseHair(id)&&!privateTrialActive&&rights.generationRemaining<1&&!isTrialHairAllowed(id)){setBuyOpen(true);return}return changeHairForStudio(id)};
+ const fitChangedHairMaster=async(master,previous)=>{
+  const [oldImage,newImage]=await Promise.all([decodedPortraitImage(previous.master),decodedPortraitImage(master)]);
+  const detector=await getLandmarker();
+  const oldFace=detector.detect(oldImage).faceLandmarks?.[0],newFace=detector.detect(newImage).faceLandmarks?.[0];
+  return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
+ };
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false}={})=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
@@ -3495,15 +3502,16 @@ function App(){
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
    if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
-   const out=studioOnly?null:await renderWithRibbon(nextMaster,current.lock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
+   const nextLock=await fitChangedHairMaster(nextMaster,current);
+   const out=studioOnly?null:await renderWithRibbon(nextMaster,nextLock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
    if(!cached)assertProcessActive();
    // The old editor canvas may otherwise cover the newly generated PNG.
    beginOptionRender();
-   editCache.current={...current,master:nextMaster};
+   editCache.current={...current,master:nextMaster,lock:nextLock};
    liveAdjustRef.current={...snap.adjust};setHeadAdjust({...snap.adjust});
    liveCollarWarpRef.current=snap.collarWarp;setCollarWarp(snap.collarWarp);liveCollarHeightRef.current=snap.collarHeight;setCollarHeight(snap.collarHeight);
    liveNeckAdjustRef.current={...snap.neckAdjust};setNeckAdjust({...snap.neckAdjust});
-   if(!studioOnly){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(URL.createObjectURL(nextMaster));setHeadPreviewLock(current.lock);}
+   if(!studioOnly){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(URL.createObjectURL(nextMaster));setHeadPreviewLock(nextLock);}
    if(cached)await restoreHairResultRights(cached);
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
