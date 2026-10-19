@@ -1,3 +1,4 @@
+import {fillPortraitShadows} from './portrait-shadow-fill.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed} from '../hairstyle-catalog.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
@@ -1349,9 +1350,23 @@ async function removeFirstPortraitBackground(blob){
  // complete: even one repaired pixel can change a later segmentation result.
  return blob;
 }
+const portraitFillCache=new WeakMap();
 async function finishFirstPortraitMaster(aiHeadNeck){
- // Seedream finish, MODNet and alpha cleanup already run once on the server.
- return aiHeadNeck;
+ // Start from the raw server output once; reuse the finished native master.
+ let pending=portraitFillCache.get(aiHeadNeck);
+ if(!pending){
+  pending=(async()=>{
+   const image=await decodedPortraitImage(aiHeadNeck),W=image.naturalWidth,H=image.naturalHeight;
+   const evidence=await firstPortraitEvidence(aiHeadNeck,image);
+   const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+   const frame=ctx.getImageData(0,0,W,H),filled=fillPortraitShadows({pixels:frame.data,width:W,height:H,...evidence});
+   if(!filled.changed)return aiHeadNeck;
+   frame.data.set(filled.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
+  })().catch(error=>{console.warn("Portrait shadow fill skipped",error);return aiHeadNeck});
+  portraitFillCache.set(aiHeadNeck,pending);
+  pending.catch(()=>{if(portraitFillCache.get(aiHeadNeck)===pending)portraitFillCache.delete(aiHeadNeck)});
+ }
+ return pending;
 }
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.
@@ -3485,7 +3500,7 @@ function App(){
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
      const transparent=aiHeadNeck;
      setProgressStage(76,'กำลังเตรียมภาพที่ประมวลผลแล้ว');
-     nextMaster=transparent;
+     nextMaster=await finishFirstPortraitMaster(transparent);
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
