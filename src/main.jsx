@@ -2306,7 +2306,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['combined-seedream-server4-catalog34-v1',scope,digest,hairId||'original',options.portraitMode,neckline]);
+ const key=JSON.stringify(['combined-seedream-server4-catalog34-neck-upright-v2',scope,digest,hairId||'original',options.portraitMode,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
