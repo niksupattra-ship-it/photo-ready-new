@@ -1,3 +1,4 @@
+import {isTrialHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
@@ -117,7 +118,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
   let jobId=String(req.body?.jobId||'');
   if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_')){
-   if(!['159_v4','159_v5'].includes(offer.id))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});
+   if(!['159_v4','159_v5','89_v4','159_v6'].includes(offer.id))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});
    // Credit-only purchase can continue; never unlock an invalid or foreign image.
    console.warn('IDPROM checkout:',JSON.stringify({event:'invalid_trial_ignored',packageId:offer.id}));jobId='';
   }}
@@ -177,7 +178,8 @@ async function requireCredit(req,res,kind){
   const user=req.accountUser||await authUser(req);
   const r=user&&user.wallet_id===wid?await reserveCredit(wid,kind):null;
   if(r)return r;
-  if(kind==='ai-finish'){
+  if(kind==='ai-finish'||kind==='hairstyle'){
+    if(!isTrialHairAllowed(req.body?.hairId)){res.status(402).json({error:'trial_hair_locked',message:'ทดลองฟรีเลือกได้ 4 ทรงแรกต่อหญิง/ชาย กรุณาเลือกแพ็กเกจเพื่อใช้ทุกทรง'});return null}
     const fingerprint=trialDeviceFingerprint(req,res,wid);
     if(fingerprint){
       const access=await trialOptionAccess(wid,fingerprint,trialNetworkFingerprint(req));
