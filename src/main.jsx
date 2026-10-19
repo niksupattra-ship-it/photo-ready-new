@@ -1,4 +1,3 @@
-import {fillPortraitShadows} from './portrait-shadow-fill.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed} from '../hairstyle-catalog.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
@@ -1350,23 +1349,10 @@ async function removeFirstPortraitBackground(blob){
  // complete: even one repaired pixel can change a later segmentation result.
  return blob;
 }
-const portraitFillCache=new WeakMap();
 async function finishFirstPortraitMaster(aiHeadNeck){
- // Start from the raw server output once; reuse the finished native master.
- let pending=portraitFillCache.get(aiHeadNeck);
- if(!pending){
-  pending=(async()=>{
-   const image=await decodedPortraitImage(aiHeadNeck),W=image.naturalWidth,H=image.naturalHeight;
-   const evidence=await firstPortraitEvidence(aiHeadNeck,image);
-   const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
-   const frame=ctx.getImageData(0,0,W,H),filled=fillPortraitShadows({pixels:frame.data,width:W,height:H,...evidence});
-   if(!filled.changed)return aiHeadNeck;
-   frame.data.set(filled.pixels);ctx.putImageData(frame,0,0);return canvasPng(canvas);
-  })().catch(error=>{console.warn("Portrait shadow fill skipped",error);return aiHeadNeck});
-  portraitFillCache.set(aiHeadNeck,pending);
-  pending.catch(()=>{if(portraitFillCache.get(aiHeadNeck)===pending)portraitFillCache.delete(aiHeadNeck)});
- }
- return pending;
+ // Lighting and neck anatomy are finished together in the server AI request.
+ // Keep the returned native master unchanged: no regional exposure overlay.
+ return aiHeadNeck;
 }
 
 // First frontal portrait only; hair PNG placement and makeup do not use this.
@@ -2306,7 +2292,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify(['combined-seedream-server4-catalog34-neck-upright-v2',scope,digest,hairId||'original',options.portraitMode,neckline]);
+ const key=JSON.stringify(['combined-seedream-server4-catalog34-neck-ai-light-v3',scope,digest,hairId||'original',options.portraitMode,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
