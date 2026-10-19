@@ -2783,7 +2783,7 @@ function App(){
  const [featureSession,setFeatureSession]=useState(false),[freeFeatureSession,setFreeFeatureSession]=useState(false);
  const [purchaseEditing,setPurchaseEditing]=useState(false),[sessionEditJob,setSessionEditJob]=useState('');
  const [outputJobId,setOutputJobId]=useState(''),[restoredSourcePhoto,setRestoredSourcePhoto]=useState(null);const currentOutputJobRef=useRef(''),currentOutputTrialRef=useRef(false),paymentStudioRef=useRef(null);
- useEffect(()=>{const onJob=e=>{if(e.detail.isTrial)setFreeFeatureSession(true);if(e.detail.fullEdit){setPurchaseEditing(true);setSessionEditJob(e.detail.jobId)}currentOutputJobRef.current=e.detail.jobId;currentOutputTrialRef.current=e.detail.isTrial;studioTrialRef.current=e.detail.isTrial;setTrialPreview(e.detail.isTrial);setOutputJobId(e.detail.jobId)};window.addEventListener('idprom-output-job',onJob);return()=>window.removeEventListener('idprom-output-job',onJob)},[]);
+ useEffect(()=>{const onJob=e=>{if(studioPhotoTransactionRef.current)return;if(e.detail.isTrial)setFreeFeatureSession(true);if(e.detail.fullEdit){setPurchaseEditing(true);setSessionEditJob(e.detail.jobId)}currentOutputJobRef.current=e.detail.jobId;currentOutputTrialRef.current=e.detail.isTrial;studioTrialRef.current=e.detail.isTrial;setTrialPreview(e.detail.isTrial);setOutputJobId(e.detail.jobId)};window.addEventListener('idprom-output-job',onJob);return()=>window.removeEventListener('idprom-output-job',onJob)},[]);
 
  const [qrPayment,setQrPayment]=useState(null);const checkoutBusyRef=useRef(false);
  const[rights,setRights]=useState({generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]}),[buyOpen,setBuyOpen]=useState(false),[payBusy,setPayBusy]=useState(false),[payMsg,setPayMsg]=useState('');
@@ -3782,16 +3782,42 @@ function App(){
  };
  const fullCatalog=allOptionsAvailable||Boolean(outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)));
  const allowTemplate=(template,existing=true)=>{if(allOptionsAvailable||(existing&&outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)))||FREE_TEMPLATE_PATHS.includes(template))return true;setPayMsg('เครดิตหมดแล้ว เลือกชุดได้หมวดละ 1 แบบต่อชาย/หญิง ซื้อแพ็ก 159 บาทเพื่อเปิดทุกแบบ');setBuyOpen(true);return false};
+ const studioPhotoTransactionRef=useRef(false);
  const processStudioPhoto=async(file,template,selectedHair='',portraitMode)=>{
-  // Overlap local asset downloads with the existing AI request, never submit AI twice.
-  void Promise.allSettled([loadImage(backgroundRef.current),loadImage(template)]);
-  pick({target:{files:[file]}});
-  file.idpromPortraitMode=portraitMode;
-  const success=await goForStudio(file,template,selectedHair,portraitMode);if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
-  const layers=[],current=editCache.current;layers.headOnly=true;
-  await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=selectedHair||'';head.portraitMode=portraitMode;studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');rememberHairResult(selectedHair,current.master,portraitMode);
-  return {layer:head,placement:current.lock};
+  if(busy||hairBusy||studioPhotoTransactionRef.current)throw Error('กรุณารอการทำงานก่อนหน้าให้เสร็จ');
+  studioPhotoTransactionRef.current=true;setBusy(true);beginProgress();
+  let delivered=false;
+  const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
+  try{
+   const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,templatePath:template});
+   const master=await finishFirstPortraitMaster(aiHead);
+   const composed=await composePortrait(master,{scale:1,x:0,y:0},template);
+   const layers=[];layers.headOnly=true;
+   await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
+   assertProcessActive();
+   const head=layers.find(l=>l.name==='หัว · คอ · ผม');
+   if(!head)throw Error('ไม่ได้รับเลเยอร์ภาพใหม่');
+   const jobId=aiHead.idpromJobId,isTrial=Boolean(aiHead.idpromTrial);
+   Object.assign(head,{jobId,restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',portraitMode});
+   const commit=()=>{
+    if(delivered)return;delivered=true;
+    file.idpromPortraitMode=portraitMode;firstUploadedPhotoRef.current=file;setF(file);
+    editCache.current={master,lock:composed.lock};initialProcessedMasterRef.current=master;
+    currentOutputJobRef.current=jobId;currentOutputTrialRef.current=isTrial;studioTrialRef.current=isTrial;
+    setOutputJobId(jobId);setTrialPreview(isTrial);setLiveCanvasVisible(false);
+    liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust({...liveAdjustRef.current});
+    liveCollarWarpRef.current=0;setCollarWarp(0);liveCollarHeightRef.current=0;setCollarHeight(0);
+    liveNeckAdjustRef.current={width:0,length:0};setNeckAdjust({...liveNeckAdjustRef.current});
+    setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;
+    hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;
+    cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
+    studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');
+    const entry=rememberHairResult(selectedHair,master,portraitMode);entry.confirmed=true;
+    studioPhotoTransactionRef.current=false;
+    window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
+   };
+   return {layer:head,placement:composed.lock,commit,rollback};
+  }catch(error){rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
