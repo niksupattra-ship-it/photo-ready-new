@@ -1,4 +1,5 @@
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed} from '../hairstyle-catalog.js';
+import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
 import {homePreviewSource} from './home-previews.js';
 import {portraitJobError} from './portrait-job-error.js';
@@ -64,10 +65,30 @@ function updateCreditsFromResponse(response){const value=response.headers.get('X
 
 const ACTIVE_AI_JOB_KEY='idprom-active-ai-job-v1';
 const AI_JOB_DB='idprom-ai-jobs-v1';
-function aiJobDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open(AI_JOB_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-async function saveAiJobFile(file){const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(file,'original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
-async function loadAiJobFile(){const db=await aiJobDb();const file=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly');const req=tx.objectStore('files').get('original');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});db.close();return file}
-async function clearAiJobFile(){try{const db=await aiJobDb();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete('original');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch{}}
+function aiJobDb(){
+ let abandoned=false;
+ return withDeadline(()=>new Promise((resolve,reject)=>{
+  const req=indexedDB.open(AI_JOB_DB,1);
+  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files')};
+  req.onsuccess=()=>{const db=req.result;if(abandoned){db.close();return}db.onversionchange=()=>db.close();resolve(db)};
+  req.onerror=()=>{abandoned=true;reject(req.error)};
+  req.onblocked=()=>{abandoned=true;reject(Error('พื้นที่เก็บงานยังไม่พร้อม กรุณาลองอีกครั้ง'))};
+ }),{timeoutMs:5000,message:'พื้นที่เก็บงานตอบสนองช้า กรุณาลองอีกครั้ง',code:'JOB_STORAGE_TIMEOUT',onTimeout:()=>{abandoned=true}});
+}
+async function aiJobFileTransaction(db,mode,run){
+ let tx;
+ try{return await withDeadline(()=>new Promise((resolve,reject)=>{
+  tx=db.transaction('files',mode);const request=run(tx.objectStore('files'));let value;
+  if(request)request.onsuccess=()=>{value=request.result};
+  tx.oncomplete=()=>resolve(value);
+  tx.onerror=()=>reject(tx.error||Error('บันทึกงานไม่สำเร็จ'));
+  tx.onabort=()=>reject(tx.error||Error('การเก็บงานถูกยกเลิก'));
+ }),{timeoutMs:5000,message:'พื้นที่เก็บงานตอบสนองช้า กรุณาลองอีกครั้ง',code:'JOB_STORAGE_TIMEOUT',onTimeout:()=>{try{tx?.abort()}catch{}}})}
+ finally{db.close()}
+}
+async function saveAiJobFile(file){return aiJobFileTransaction(await aiJobDb(),'readwrite',store=>store.put(file,'original'))}
+async function loadAiJobFile(){return aiJobFileTransaction(await aiJobDb(),'readonly',store=>store.get('original'))}
+async function clearAiJobFile(){try{await aiJobFileTransaction(await aiJobDb(),'readwrite',store=>store.delete('original'))}catch{}}
 function readActiveAiJob(){try{return JSON.parse(localStorage.getItem(ACTIVE_AI_JOB_KEY)||'null')}catch{return null}}
 function writeActiveAiJob(value){if(value)localStorage.setItem(ACTIVE_AI_JOB_KEY,JSON.stringify(value));else localStorage.removeItem(ACTIVE_AI_JOB_KEY)}
 let activeProcessOperation=null;
@@ -88,13 +109,19 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){con
 let landmarkerPromise;
 let segmenterPromise;
 async function getPersonSegmenter(){
- if(!segmenterPromise) segmenterPromise=(async()=>{
+ if(!segmenterPromise){
+  let expired;
+  const pending=withDeadline(async()=>{
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  if(expired)throw expired;
   return ImageSegmenter.createFromOptions(vision,{
    baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},
    runningMode:'IMAGE',outputCategoryMask:true,outputConfidenceMasks:false
   });
- })();
+  },{timeoutMs:60000,message:'โหลดข้อมูลสำหรับปรับภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'PORTRAIT_MODEL_TIMEOUT',onTimeout:error=>{expired=error},onLateResolve:model=>model?.close?.()});
+  segmenterPromise=pending;
+  pending.catch(()=>{if(segmenterPromise===pending)segmenterPromise=null});
+ }
  return segmenterPromise;
 }
 async function semanticProtectedSkinMask(image,W,H){
@@ -136,13 +163,19 @@ async function semanticClassMask(image,W,H,classes){
 }
 
 async function getLandmarker(){
- if(!landmarkerPromise) landmarkerPromise=(async()=>{
+ if(!landmarkerPromise){
+  let expired;
+  const pending=withDeadline(async()=>{
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  if(expired)throw expired;
   return FaceLandmarker.createFromOptions(vision,{
    baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'},
    runningMode:'IMAGE',numFaces:1,minFaceDetectionConfidence:.5,minFacePresenceConfidence:.5
   });
- })();
+  },{timeoutMs:60000,message:'โหลดข้อมูลสำหรับปรับภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'PORTRAIT_MODEL_TIMEOUT',onTimeout:error=>{expired=error},onLateResolve:model=>model?.close?.()});
+  landmarkerPromise=pending;
+  pending.catch(()=>{if(landmarkerPromise===pending)landmarkerPromise=null});
+ }
  return landmarkerPromise;
 }
 const staticImageCache=new Map();
@@ -150,7 +183,11 @@ function loadImage(src){
  // Cache decoded immutable app assets only. User photos/blob URLs remain fresh.
  const reusable=typeof src==='string'&&src.startsWith('/assets/');
  if(reusable&&staticImageCache.has(src)){const hit=staticImageCache.get(src);staticImageCache.delete(src);staticImageCache.set(src,hit);return hit}
- const pending=new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=bad;im.src=src});
+ let im;
+ const pending=withDeadline(()=>new Promise((ok,bad)=>{im=new Image();im.onload=()=>ok(im);im.onerror=()=>bad(Error('โหลดภาพไม่สำเร็จ กรุณาลองอีกครั้ง'));im.src=src}),{
+  timeoutMs:30000,message:'โหลดภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'IMAGE_LOAD_TIMEOUT',
+  onTimeout:()=>{if(im){im.onload=im.onerror=null;im.removeAttribute('src')}}
+ }).finally(()=>{if(im)im.onload=im.onerror=null});
  if(reusable){staticImageCache.set(src,pending);while(staticImageCache.size>12)staticImageCache.delete(staticImageCache.keys().next().value);pending.catch(()=>{if(staticImageCache.get(src)===pending)staticImageCache.delete(src)})}
  return pending;
 }
@@ -712,6 +749,8 @@ async function getV192MasterMasks(blob,image){
 
   })();
   v192MasterMaskCache.set(blob,pending);
+  const evict=()=>{if(v192MasterMaskCache.get(blob)===pending)v192MasterMaskCache.delete(blob)};
+  pending.then(value=>{if(!value?.skinMask||!value?.hairMask||!value?.clothingMask)evict()},evict);
  }
  return pending;
 }
@@ -842,11 +881,7 @@ async function optionalHealthySkin10(masterBlob,sourceBlob,{portraitMode}={}){
    return await refineSkinTextureBlob(await canvasPng(tinted),skinMask,true);
   }catch(e){
    failure=e;
-   // Evict only rejected model loads; healthy shared model instances stay intact.
-   if(attempt===0){
-    if(segmenterPromise)await segmenterPromise.catch(()=>{segmenterPromise=null});
-    if(landmarkerPromise)await landmarkerPromise.catch(()=>{landmarkerPromise=null});
-   }
+   // Failed resource loads evict themselves; never wait for an unrelated warm load.
   }
  }
  console.warn('Automatic skin finish failed after retry',failure);
@@ -3465,7 +3500,7 @@ function App(){
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
-  finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await refreshWallet();}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
+  finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await finishProgress(true);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
   return completed;
  };
  const downloadHairDonor=async()=>{
@@ -3608,7 +3643,7 @@ function App(){
    }
    setMsg('');completed=true;
   }catch(e){editCache.current={...editCache.current,lock:previousLock};suppressUiError(e,'เปลี่ยนชุดไม่สำเร็จ')}
-  finally{await finishProgress(completed);setUniformChanging(false)}
+  finally{try{await finishProgress(completed)}finally{setUniformChanging(false)}}
  };
  const updateBeauty=next=>{
   beautyRef.current=next;setBeauty(next);
@@ -3699,14 +3734,14 @@ function App(){
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';setHairId('');
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{try{await refreshWallet();await finishProgress(completed)}finally{setBusy(false)}}};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg('ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{try{await refreshWallet();await finishProgress(completed)}finally{setBusy(false)}}};
  const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(busy||hairBusy)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress('กำลังประมวลผลรูป');setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,portraitMode,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair,portraitMode);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed','portrait_finish_incomplete'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await fetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed','portrait_finish_incomplete'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
