@@ -55,7 +55,7 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
   const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty) VALUES($1,$2,0,$3,$4,$5) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h]);
   if(ins.rowCount){
-   if(packageId==='79_v2'||packageId==='89_v4')await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,packageId==='89_v4'?p.g:1]);
+   if(packageId==='79_v2')await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+1 WHERE id=$1',[walletId]);
    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
    if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   }
