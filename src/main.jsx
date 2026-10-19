@@ -2997,6 +2997,8 @@ function App(){
     // boundary the close button can cancel and return the reservation.
     if(operation)operation.finishing=true;
     if(!operation?.settled)await settleProcessOperation(operation,'confirm');
+    // Only delivered results may be selected again without another AI job.
+    if(operation?.jobId&&!operation.cancelled)for(const entry of hairResultCacheRef.current.values())if(entry.jobId===operation.jobId)entry.confirmed=true;
    }
    else if(operation?.jobId&&!operation.settled){operation.cancelled=true;portraitResultCache.clear();await settleProcessOperation(operation,'cancel');for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);}
    if(activeProcessOperation===operation){
@@ -3441,21 +3443,26 @@ function App(){
  // Kept only for compatibility with the hidden legacy row in this build.
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
- const rememberHairResult=(id,master)=>hairResultCacheRef.current.set(id||'original',{
-  master,sourcePhoto:firstUploadedPhotoRef.current,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current
- });
+ const hairResultMode=(id,portraitMode)=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)?.gender||portraitMode||firstUploadedPhotoRef.current?.idpromPortraitMode||(/female|woman|women/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'female':/male|man|men/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'male':'female');
+ const hairResultKey=(id,portraitMode)=>JSON.stringify([hairResultMode(id,portraitMode),id||'original']);
+ const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
+ const rememberHairResult=(id,master,portraitMode)=>{
+  const key=hairResultKey(id,portraitMode),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
+  const entry={master,sourcePhoto:firstUploadedPhotoRef.current,scope,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current,confirmed:Boolean(previous?.confirmed&&previous.master===master&&previous.sourcePhoto===firstUploadedPhotoRef.current&&previous.scope===scope&&previous.jobId===currentOutputJobRef.current)};
+  hairResultCacheRef.current.set(key,entry);return entry;
+ };
  const restoreHairResultRights=async cached=>{
   const verified=await verifyOutputRights(cached.jobId);
   const isTrial=!verified.unlocked;
   currentOutputJobRef.current=cached.jobId;currentOutputTrialRef.current=isTrial;
   studioTrialRef.current=isTrial;setOutputJobId(cached.jobId);setTrialPreview(isTrial);
  };
- const cachedHairResult=id=>{
-  const entry=hairResultCacheRef.current.get(id||'original');
-  return entry?.sourcePhoto===firstUploadedPhotoRef.current&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
+ const cachedHairResult=(id,portraitMode)=>{
+  const entry=hairResultCacheRef.current.get(hairResultKey(id,portraitMode));
+  return entry?.confirmed&&entry.sourcePhoto===firstUploadedPhotoRef.current&&entry.scope===hairResultScope()&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
  };
- const canReuseHair=()=>false;
- const changeHair=async id=>{if(!privateTrialActive&&rights.generationRemaining<1&&!isTrialHairAllowed(id)){setBuyOpen(true);return}return changeHairForStudio(id)};
+ const canReuseHair=(id,portraitMode)=>Boolean(cachedHairResult(id,portraitMode));
+ const changeHair=async id=>{if(!canReuseHair(id)&&!privateTrialActive&&rights.generationRemaining<1&&!isTrialHairAllowed(id)){setBuyOpen(true);return}return changeHairForStudio(id)};
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false}={})=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
@@ -3464,7 +3471,7 @@ function App(){
   // Re-run the SAME first-processing pipeline from the untouched uploaded File.
   // Never send the previously AI-generated head or the completed uniform portrait
   // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
-  const cached=null; // Every hairstyle change starts a fresh request from the untouched upload.
+  const cached=cachedHairResult(id,portraitMode);
   if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
   hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
@@ -3482,7 +3489,7 @@ function App(){
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
-     assertProcessActive();rememberHairResult(id,nextMaster);
+     assertProcessActive();rememberHairResult(id,nextMaster,portraitMode);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
@@ -3501,7 +3508,7 @@ function App(){
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
   finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await finishProgress(true);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
-  return completed;
+  return completed?{reused:Boolean(cached)}:false;
  };
  const downloadHairDonor=async()=>{
   if(!(await verifyOutputRights(currentOutputJobRef.current)).unlocked){setBuyOpen(true);return;}
@@ -3722,8 +3729,7 @@ function App(){
   if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);
   const masterPreviewURL=URL.createObjectURL(headNeckTransparent);setHeadMasterPreview(masterPreviewURL);setHeadPreviewLock(composed.lock);
   setHeadAdjust({scale:1,x:0,y:0,rotation:0});liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;setCollarWarp(0);liveCollarWarpRef.current=0;setCollarHeight(0);liveCollarHeightRef.current=0;setNeckAdjust({width:0,length:0});liveNeckAdjustRef.current={width:0,length:0};
-  rememberHairResult(processedHair,headNeckTransparent);
-  const firstHair=hairResultCacheRef.current.get(processedHair||'original');
+  const firstHair=rememberHairResult(processedHair,headNeckTransparent,portraitMode);
   firstHair.isTrial=Boolean(aiHeadNeck?.idpromTrial);firstHair.studioTrial=firstHair.isTrial;
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');showBlob(finished);
@@ -3783,19 +3789,19 @@ function App(){
   const success=await goForStudio(file,template,selectedHair,portraitMode);if(!success)throw Error('ประมวลผลไม่สำเร็จ กรุณาลองอีกครั้งหรือเปลี่ยนรูป');
   const layers=[],current=editCache.current;layers.headOnly=true;
   await renderAdjustedFinal(current.master,current.lock,{...liveAdjustRef.current},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=selectedHair||'';head.portraitMode=portraitMode;studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');rememberHairResult(selectedHair,current.master);
+  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=selectedHair||'';head.portraitMode=portraitMode;studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');rememberHairResult(selectedHair,current.master,portraitMode);
   return {layer:head,placement:current.lock};
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
  };
  const changeStudioHair=async(id,portraitMode)=>{
-  if(!privateTrialActive&&rights.generationRemaining<1&&(!(rights.trialAvailable&&rights.trialRemaining>0)||!isTrialHairAllowed(id))){setBuyOpen(true);throw Error('สิทธิ์ไม่พอหรือทรงนี้อยู่นอก 4 ทรงทดลอง กรุณาเลือกแพ็กเกจเพื่อประมวลผลเพิ่ม');}
+  if(!canReuseHair(id,portraitMode)&&!privateTrialActive&&rights.generationRemaining<1&&(!(rights.trialAvailable&&rights.trialRemaining>0)||!isTrialHairAllowed(id))){setBuyOpen(true);throw Error('สิทธิ์ไม่พอหรือทรงนี้อยู่นอก 4 ทรงทดลอง กรุณาเลือกแพ็กเกจเพื่อประมวลผลเพิ่ม');}
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
   const ok=await changeHairForStudio(id,portraitMode,{studioOnly:true});if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
   const layers=[],current=editCache.current;layers.headOnly=true;
   await renderAdjustedFinal(current.master,current.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=id;head.portraitMode=portraitMode;return {layer:head};
+  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=id;head.portraitMode=portraitMode;return {layer:head,reused:ok.reused};
  };
  if(screen==='home'){
   const rows=[
