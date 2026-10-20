@@ -1,48 +1,6 @@
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
   {
-    "id": "seedream-01",
-    "gender": "female",
-    "name": "ทรงผม 1",
-    "file": "1.png",
-    "src": "/assets/seedream-hairstyles/previews/1.webp"
-  },
-  {
-    "id": "seedream-02",
-    "gender": "female",
-    "name": "ทรงผม 2",
-    "file": "2.png",
-    "src": "/assets/seedream-hairstyles/previews/2.webp"
-  },
-  {
-    "id": "seedream-03",
-    "gender": "female",
-    "name": "ทรงผม 3",
-    "file": "3.png",
-    "src": "/assets/seedream-hairstyles/previews/3.webp"
-  },
-  {
-    "id": "seedream-04",
-    "gender": "female",
-    "name": "ทรงผม 4",
-    "file": "4.png",
-    "src": "/assets/seedream-hairstyles/previews/4.webp"
-  },
-  {
-    "id": "seedream-05",
-    "gender": "female",
-    "name": "ทรงผม 5",
-    "file": "5.png",
-    "src": "/assets/seedream-hairstyles/previews/5.webp"
-  },
-  {
-    "id": "seedream-06",
-    "gender": "female",
-    "name": "ทรงผม 6",
-    "file": "6.png",
-    "src": "/assets/seedream-hairstyles/previews/6.webp"
-  },
-  {
     "id": "seedream-07",
     "gender": "female",
     "name": "ทรงผม 7",
@@ -57,20 +15,6 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/8.webp"
   },
   {
-    "id": "seedream-09",
-    "gender": "female",
-    "name": "ทรงผม 9",
-    "file": "9.png",
-    "src": "/assets/seedream-hairstyles/previews/9.webp"
-  },
-  {
-    "id": "seedream-10",
-    "gender": "female",
-    "name": "ทรงผม 10",
-    "file": "10.png",
-    "src": "/assets/seedream-hairstyles/previews/10.webp"
-  },
-  {
     "id": "seedream-11",
     "gender": "female",
     "name": "ทรงผม 11",
@@ -78,11 +22,46 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/11.webp"
   },
   {
-    "id": "seedream-12",
+    "id": "seedream-14",
     "gender": "female",
-    "name": "ทรงผม 12",
-    "file": "12.png",
-    "src": "/assets/seedream-hairstyles/previews/12.webp"
+    "name": "ทรงผม 14",
+    "file": "14.png",
+    "src": "/assets/seedream-hairstyles/previews/14.webp"
+  },
+  {
+    "id": "seedream-17",
+    "gender": "female",
+    "name": "ทรงผม 17",
+    "file": "17.png",
+    "src": "/assets/seedream-hairstyles/previews/17.webp"
+  },
+  {
+    "id": "seedream-25",
+    "gender": "female",
+    "name": "ทรงผม 25",
+    "file": "25.png",
+    "src": "/assets/seedream-hairstyles/previews/25.webp"
+  },
+  {
+    "id": "seedream-03",
+    "gender": "female",
+    "name": "ทรงผม 3",
+    "file": "3.png",
+    "src": "/assets/seedream-hairstyles/previews/3.webp"
+  },
+  {
+    "id": "seedream-05",
+    "gender": "female",
+    "name": "ทรงผม 5",
+    "file": "5.png",
+    "src": "/assets/seedream-hairstyles/previews/5.webp"
+  },
+  {
+    "id": "seedream-09",
+    "gender": "female",
+    "name": "ทรงผม 9",
+    "file": "9.png",
+    "src": "/assets/seedream-hairstyles/previews/9.webp"
   },
   {
     "id": "seedream-13",
@@ -90,13 +69,6 @@ export const PRODUCTION_HAIR_CATALOG=[
     "name": "ทรงผม 13",
     "file": "13.png",
     "src": "/assets/seedream-hairstyles/previews/13.webp"
-  },
-  {
-    "id": "seedream-14",
-    "gender": "female",
-    "name": "ทรงผม 14",
-    "file": "14.png",
-    "src": "/assets/seedream-hairstyles/previews/14.webp"
   },
   {
     "id": "seedream-15",
@@ -113,18 +85,46 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/16.webp"
   },
   {
-    "id": "seedream-17",
-    "gender": "female",
-    "name": "ทรงผม 17",
-    "file": "17.png",
-    "src": "/assets/seedream-hairstyles/previews/17.webp"
-  },
-  {
     "id": "seedream-18",
     "gender": "female",
     "name": "ทรงผม 18",
     "file": "18.png",
     "src": "/assets/seedream-hairstyles/previews/18.webp"
+  },
+  {
+    "id": "seedream-20",
+    "gender": "female",
+    "name": "ทรงผม 20",
+    "file": "20.png",
+    "src": "/assets/seedream-hairstyles/previews/20.webp"
+  },
+  {
+    "id": "seedream-26",
+    "gender": "female",
+    "name": "ทรงผม 26",
+    "file": "26.png",
+    "src": "/assets/seedream-hairstyles/previews/26.webp"
+  },
+  {
+    "id": "seedream-27",
+    "gender": "female",
+    "name": "ทรงผม 27",
+    "file": "27.png",
+    "src": "/assets/seedream-hairstyles/previews/27.webp"
+  },
+  {
+    "id": "seedream-10",
+    "gender": "female",
+    "name": "ทรงผม 10",
+    "file": "10.png",
+    "src": "/assets/seedream-hairstyles/previews/10.webp"
+  },
+  {
+    "id": "seedream-12",
+    "gender": "female",
+    "name": "ทรงผม 12",
+    "file": "12.png",
+    "src": "/assets/seedream-hairstyles/previews/12.webp"
   },
   {
     "id": "seedream-19",
@@ -134,11 +134,32 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/19.webp"
   },
   {
-    "id": "seedream-20",
+    "id": "seedream-01",
     "gender": "female",
-    "name": "ทรงผม 20",
-    "file": "20.png",
-    "src": "/assets/seedream-hairstyles/previews/20.webp"
+    "name": "ทรงผม 1",
+    "file": "1.png",
+    "src": "/assets/seedream-hairstyles/previews/1.webp"
+  },
+  {
+    "id": "seedream-02",
+    "gender": "female",
+    "name": "ทรงผม 2",
+    "file": "2.png",
+    "src": "/assets/seedream-hairstyles/previews/2.webp"
+  },
+  {
+    "id": "seedream-04",
+    "gender": "female",
+    "name": "ทรงผม 4",
+    "file": "4.png",
+    "src": "/assets/seedream-hairstyles/previews/4.webp"
+  },
+  {
+    "id": "seedream-06",
+    "gender": "female",
+    "name": "ทรงผม 6",
+    "file": "6.png",
+    "src": "/assets/seedream-hairstyles/previews/6.webp"
   },
   {
     "id": "seedream-21",
@@ -167,27 +188,6 @@ export const PRODUCTION_HAIR_CATALOG=[
     "name": "ทรงผม 24",
     "file": "24.png",
     "src": "/assets/seedream-hairstyles/previews/24.webp"
-  },
-  {
-    "id": "seedream-25",
-    "gender": "female",
-    "name": "ทรงผม 25",
-    "file": "25.png",
-    "src": "/assets/seedream-hairstyles/previews/25.webp"
-  },
-  {
-    "id": "seedream-26",
-    "gender": "female",
-    "name": "ทรงผม 26",
-    "file": "26.png",
-    "src": "/assets/seedream-hairstyles/previews/26.webp"
-  },
-  {
-    "id": "seedream-27",
-    "gender": "female",
-    "name": "ทรงผม 27",
-    "file": "27.png",
-    "src": "/assets/seedream-hairstyles/previews/27.webp"
   },
   {
     "id": "seedream-35",
@@ -250,3 +250,4 @@ export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>ite
 
 // Trial eligibility is catalog-wide; the shared daily reservation controls the count.
 export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(productionHair(id))}
+
