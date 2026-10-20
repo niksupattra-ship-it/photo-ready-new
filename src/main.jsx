@@ -341,35 +341,9 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  // V158 PROPORTIONAL EDGE-FIT BODY MASTER:
-  // Fit the REAL opaque width to the frame with one uniform X/Y scale. The collar
-  // socket is re-anchored after scaling, so the outfit reaches both side edges
-  // without looking horizontally stretched or vertically compressed.
-  const ub=await alphaBounds(uniform);
-  const edgeBleed=2;
-  const collarCX=W*.5;
-  // V12: anchor the anatomy to the REAL first opaque row of the uniform PNG.
-  // The old .015 estimate pointed into transparent padding and made AI invent a long neck.
-  // V14: COLLAR SOCKET ANCHOR — ห้ามใช้ pixel ทึบแถวแรกของทั้งชุด เพราะนั่นคือปลายปก/บ่า
-  // ซึ่งอยู่สูงกว่าช่องคอกลางจริงมากและเป็นสาเหตุหลักที่ทำให้ AI เติมคอยาว
-  // หา pixel ทึบแถวแรกเฉพาะบริเวณกึ่งกลางชุด (ช่องคอ/ปมเนกไท) แล้วใช้เป็น socket จริง
-  const uc=document.createElement('canvas'); uc.width=uniform.naturalWidth; uc.height=uniform.naturalHeight;
-  const ux=uc.getContext('2d',{willReadFrequently:true}); ux.drawImage(uniform,0,0);
+  const uc=document.createElement('canvas');uc.width=uniform.naturalWidth;uc.height=uniform.naturalHeight;
+  const ux=uc.getContext('2d',{willReadFrequently:true});ux.drawImage(uniform,0,0);
   const ud=ux.getImageData(0,0,uc.width,uc.height).data;
-  const cx0=Math.floor(uc.width*.46), cx1=Math.ceil(uc.width*.54);
-  let socketY=ub.t;
-  outer: for(let y=ub.t;y<=ub.b;y++){
-    let opaque=0;
-    for(let x=cx0;x<=cx1;x++){ if(ud[(y*uc.width+x)*4+3]>48) opaque++; }
-    if(opaque>=(cx1-cx0+1)*.12){ socketY=y; break outer; }
-  }
-  const approvedScale=(W*.94)/uniform.naturalWidth;
-  const approvedCollarSocketY=H*.425+socketY*approvedScale;
-  const uScale=(W+edgeBleed*2)/Math.max(1,ub.w);
-  const uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale;
-  const uX=-edgeBleed-ub.l*uScale;
-  const uY=approvedCollarSocketY-socketY*uScale;
-  const collarSocketY=approvedCollarSocketY;
   // FACE MASTER SCALE V10
   // วัดจาก landmark บนใบหน้าจริง (ขมับ/กราม) ไม่ใช้กรอบภาพ ไม่ใช้คอเดิม และไม่ใช้ alpha ของทรงผม
   // ดังนั้นภาพที่ถ่ายใกล้/ไกลจะถูก normalize ให้ขนาดหัวมาตรฐานเดียวกันก่อนประกอบ
@@ -383,8 +357,9 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const faceCX=((L.x+R.x)/2)*head.naturalWidth;
   const chinX=chin.x*head.naturalWidth,chinY=chin.y*head.naturalHeight;
   const uniformAnchors=measureUniformAnchors(ud,uc.width,uc.height);
-  const fitted=planPortraitUniformFit({W,H,uniform:uniformAnchors,frame:{x:uX,y:uY,w:uW,h:uH},face:{width:head.naturalWidth,height:head.naturalHeight,cx:faceCX,chinY,faceWidth:sourceFaceW,faceHeight:sourceFaceH,eyeWidth:sourceEyeW},opaqueTop:hb.t,adjust});
+  const fitted=planPortraitUniformFit({W,H,uniform:uniformAnchors,face:{width:head.naturalWidth,height:head.naturalHeight,cx:faceCX,chinY,faceWidth:sourceFaceW,faceHeight:sourceFaceH,eyeWidth:sourceEyeW},opaqueTop:hb.t,adjust});
   const {scale,hX,hY,shoulderSpan}=fitted;
+  const {x:uX,y:uY,w:uW,h:uH}=fitted.uniformFrame;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
   // background -> normalized head only -> original uniform template
@@ -2537,8 +2512,7 @@ const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
  {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
- {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-example.webp',preview:'/assets/job-uniforms/female-suit-04-example.webp',template:'/assets/job-uniforms/female-suit-04.png',cat:'job',gender:'female'},
- {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.png',cat:'job',gender:'female'},
+ {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.webp',cat:'job',gender:'female'},
  {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
  {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
  {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
@@ -3760,10 +3734,10 @@ function App(){
   const faceWidth=Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height);
   const faceHeight=Math.hypot((face[152].x-face[10].x)*width,(face[152].y-face[10].y)*height);
   const eyeWidth=Math.hypot((face[263].x-face[33].x)*width,(face[263].y-face[33].y)*height);
-  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,frame,face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
-  const lock={W:900,H:1200,...fitted,headW:width,headH:height,faceCX,chinY,opaqueHeadTop:top,templatePath:suitLayer.templatePath,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,hairFitEyeSize:eyeWidth*fitted.scale,hairFitEyeCentreX:fitted.collarCX,hairFitChinAnchorY:fitted.chinTargetY};
+  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,headFrame:headLayer.sourceFrame||{x:0,y:0,w:900,h:1200},face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
+  const lock={W:900,H:1200,...fitted,headW:width,headH:height,faceCX,chinY,opaqueHeadTop:top,templatePath:suitLayer.templatePath,uX:fitted.uniformFrame.x,uY:fitted.uniformFrame.y,uW:fitted.uniformFrame.w,uH:fitted.uniformFrame.h,uniformFitVersion:fitted.fitVersion,hairFitEyeSize:eyeWidth*fitted.scale,hairFitEyeCentreX:fitted.collarCX,hairFitChinAnchorY:fitted.chinTargetY};
   const master=await canvasPng(source);
-  return {layer:{...headLayer,sourceFrame:{x:fitted.hX,y:fitted.hY,w:width*fitted.scale,h:height*fitted.scale},x:suitLayer.x||0,y:suitLayer.y||0,scale:suitLayer.scale||1,rotation:suitLayer.rotation||0,squeezeX:1,squeezeY:1},placement:lock,commit:()=>{editCache.current={master,lock};studioOriginRef.current={...studioOriginRef.current,placement:lock}}};
+  return {layer:headLayer,suitLayer:{...suitLayer,sourceFrame:fitted.uniformFrame,collarFrame:{...fitted.uniformFrame},x:headLayer.x||0,y:headLayer.y||0,scale:headLayer.scale||1,rotation:headLayer.rotation||0,squeezeX:1,squeezeY:1},placement:lock,commit:()=>{editCache.current={master,lock};studioOriginRef.current={...studioOriginRef.current,placement:lock}}};
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);

@@ -1,10 +1,11 @@
 // Full-resolution layer sources; placement is workspace metadata, not baked pixels.
 const make=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
+import {measureUniformAnchors,placeUniformForPortrait} from './portrait-uniform-fit.js';
 import {decodedStudioImage as load} from './studio-image-cache.js';
 export function nativeSource(im){const c=make(im.naturalWidth||im.width,im.naturalHeight||im.height);c.getContext('2d').drawImage(im,0,0);return c.toDataURL('image/png')}
 async function cropped(src){const im=await load(src),c=make(im.naturalWidth,im.naturalHeight),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let l=c.width,t=c.height,r=-1,b=-1;for(let y=0;y<c.height;y++)for(let px=0;px<c.width;px++)if(d[(y*c.width+px)*4+3]>8){l=Math.min(l,px);r=Math.max(r,px);t=Math.min(t,y);b=Math.max(b,y)}if(r<l)throw Error('ภาพเครื่องหมายไม่มีส่วนที่แสดง');const out=make(r-l+1,b-t+1);out.getContext('2d').drawImage(c,l,t,out.width,out.height,0,0,out.width,out.height);return out}
 async function buildNativeAsset(kind,option,frame,preset){
- if(kind==='suit'||kind==='background'){const im=await load(kind==='suit'?option.template:option.src);const source=make(im.naturalWidth||im.width,im.naturalHeight||im.height);source.getContext('2d').drawImage(im,0,0);return {source,sourceFrame:kind==='suit'?frame:{x:0,y:0,w:900,h:1200},collarParts:null}}
+ if(kind==='suit'||kind==='background'){const im=await load(kind==='suit'?option.template:option.src);const source=make(im.naturalWidth||im.width,im.naturalHeight||im.height);source.getContext('2d').drawImage(im,0,0);const sourceFrame=kind==='suit'?placeUniformForPortrait({W:900,H:1200,uniform:measureUniformAnchors(source.getContext('2d',{willReadFrequently:true}).getImageData(0,0,source.width,source.height).data,source.width,source.height)}):{x:0,y:0,w:900,h:1200};return {source,sourceFrame,collarParts:null}}
  if(kind==='chest'||kind==='ribbon'){const c=await cropped(option.src),v=preset[kind],w=frame.w*v.width,h=w*c.height/c.width;return {source:c,sourceFrame:{x:frame.x+frame.w*v.x-w/2,y:frame.y+frame.h*(kind==='ribbon'?v.top:v.y)-(kind==='ribbon'?0:h/2),w,h},collarParts:null}}
  const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar,w=frame.w*v.width,y=frame.y+frame.h*v.y;
  const frames=[left,right].map((c,i)=>({x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:y-w*c.height/c.width/2,w,h:w*c.height/c.width}));
@@ -26,4 +27,3 @@ export async function nativeAsset(kind,option,frame,preset){
  }
  const result=await entry.promise;return {...result,sourceFrame:result.sourceFrame?{...result.sourceFrame}:null,collarParts:result.collarParts?{...result.collarParts}:null};
 }
-
