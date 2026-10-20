@@ -1,4 +1,4 @@
-import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
+import {measureUniformAnchors,planPortraitUniformFit,measurePortraitNeck} from './portrait-uniform-fit.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 import {withDeadline} from './async-deadline.js';
@@ -357,7 +357,9 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const faceCX=((L.x+R.x)/2)*head.naturalWidth;
   const chinX=chin.x*head.naturalWidth,chinY=chin.y*head.naturalHeight;
   const uniformAnchors=measureUniformAnchors(ud,uc.width,uc.height);
-  const fitted=planPortraitUniformFit({W,H,uniform:uniformAnchors,face:{width:head.naturalWidth,height:head.naturalHeight,cx:faceCX,chinY,faceWidth:sourceFaceW,faceHeight:sourceFaceH,eyeWidth:sourceEyeW},opaqueTop:hb.t,adjust});
+  const neckCanvas=canvasFor(head.naturalWidth,head.naturalHeight),neckContext=neckCanvas.getContext('2d',{willReadFrequently:true});neckContext.drawImage(head,0,0);
+  const neck=measurePortraitNeck(neckContext.getImageData(0,0,head.naturalWidth,head.naturalHeight).data,head.naturalWidth,head.naturalHeight,{cx:faceCX,chinY,faceWidth:sourceFaceW,faceHeight:sourceFaceH});
+  const fitted=planPortraitUniformFit({W,H,uniform:uniformAnchors,neck,face:{width:head.naturalWidth,height:head.naturalHeight,cx:faceCX,chinY,faceWidth:sourceFaceW,faceHeight:sourceFaceH,eyeWidth:sourceEyeW},opaqueTop:hb.t,adjust});
   const {scale,hX,hY,shoulderSpan}=fitted;
   const {x:uX,y:uY,w:uW,h:uH}=fitted.uniformFrame;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
@@ -3734,7 +3736,8 @@ function App(){
   const faceWidth=Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height);
   const faceHeight=Math.hypot((face[152].x-face[10].x)*width,(face[152].y-face[10].y)*height);
   const eyeWidth=Math.hypot((face[263].x-face[33].x)*width,(face[263].y-face[33].y)*height);
-  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,headFrame:headLayer.sourceFrame||{x:0,y:0,w:900,h:1200},face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
+  const neck=measurePortraitNeck(px,width,height,{cx:faceCX,chinY,faceWidth,faceHeight});
+  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,neck,headFrame:headLayer.sourceFrame||{x:0,y:0,w:900,h:1200},face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
   const lock={W:900,H:1200,...fitted,headW:width,headH:height,faceCX,chinY,opaqueHeadTop:top,templatePath:suitLayer.templatePath,uX:fitted.uniformFrame.x,uY:fitted.uniformFrame.y,uW:fitted.uniformFrame.w,uH:fitted.uniformFrame.h,uniformFitVersion:fitted.fitVersion,hairFitEyeSize:eyeWidth*fitted.scale,hairFitEyeCentreX:fitted.collarCX,hairFitChinAnchorY:fitted.chinTargetY};
   const master=await canvasPng(source);
   return {layer:headLayer,suitLayer:{...suitLayer,sourceFrame:fitted.uniformFrame,collarFrame:{...fitted.uniformFrame},x:headLayer.x||0,y:headLayer.y||0,scale:headLayer.scale||1,rotation:headLayer.rotation||0,squeezeX:1,squeezeY:1},placement:lock,commit:()=>{editCache.current={master,lock};studioOriginRef.current={...studioOriginRef.current,placement:lock}}};
