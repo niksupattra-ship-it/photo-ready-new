@@ -1090,7 +1090,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   if(collarPinPair){
    const [leftPin,rightPin]=await Promise.all([loadImage(collarPinPair.left),loadImage(collarPinPair.right)]);
    const isFemale=/\/government-uniforms\/female-/.test(lock.templatePath||'');
-   const pinBoxW=lock.uW*(isFemale?.0572832:.0544)*(collarPinAdjust.scale||1);
+   const pinBoxW=lock.uW*(isFemale?.062438688:.0544)*(collarPinAdjust.scale||1);
    const drawPin=(pin,cx,cy)=>{
     const pinBoxH=pinBoxW*(pin.naturalHeight/pin.naturalWidth);
     x.drawImage(pin,cx-pinBoxW/2,cy-pinBoxH/2,pinBoxW,pinBoxH);
@@ -2645,6 +2645,7 @@ const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
  {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
+ {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-example.webp',preview:'/assets/job-uniforms/female-suit-04-example.webp',template:'/assets/job-uniforms/female-suit-04.png',cat:'job',gender:'female'},
  {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
  {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
  {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
