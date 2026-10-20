@@ -190,6 +190,13 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/27.webp"
   },
   {
+    "id": "seedream-35",
+    "gender": "male",
+    "name": "ทรงผม 1",
+    "file": "35.png",
+    "src": "/assets/seedream-hairstyles/previews/35.webp"
+  },
+  {
     "id": "seedream-28",
     "gender": "male",
     "name": "ทรงผม 28",
@@ -244,3 +251,4 @@ export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>ite
 // Four trial designs per gender; original hair remains available.
 export const TRIAL_HAIR_IDS=Object.freeze(['seedream-01','seedream-02','seedream-03','seedream-04','seedream-28','seedream-29','seedream-30','seedream-31']);
 export function isTrialHairAllowed(id){return !id||id==='original'||TRIAL_HAIR_IDS.includes(id)}
+
