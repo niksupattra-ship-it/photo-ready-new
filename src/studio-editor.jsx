@@ -494,13 +494,11 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    reused=result?.reused===true;
    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
-   // New AI output is a new layer, never a patch over the previous head.
-   const newHead=fresh({...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,processedOriginalSource:result.layer.source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null});
-   const next=previous.flatMap(l=>l.id===head.id?[newHead]:l.hairHeadId===head.id?[]:[l]);
+   const next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,processedOriginalSource:placedHead.processedOriginalSource||placedHead.source}:l);
    if(!await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id))))throw Error('แสดงภาพไม่สำเร็จ');
    if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}
    if(!reused)await onFinishProcess?.(true);
-   undo.current.push(previous);redo.current=[];resetBrushSession();setSelected(newHead.id);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
+   undo.current.push(previous);redo.current=[];resetBrushSession();setSelected(head.id);setSelectedHair(id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
    setStatus(reused?'แสดงทรงผมที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิตเพิ่ม':'เปลี่ยนทรงผม ปรับผิว และเก็บขอบแล้ว');trackHairSelection(id,'apply',reused?'reuse':id?'new':'original');
   }catch(e){await hydrate(previous).catch(()=>{});if(!reused)await onFinishProcess?.(false).catch(()=>{});appearanceFailure('hair',e.message||'เปลี่ยนทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
