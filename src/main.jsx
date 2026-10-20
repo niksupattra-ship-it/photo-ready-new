@@ -1090,7 +1090,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   if(collarPinPair){
    const [leftPin,rightPin]=await Promise.all([loadImage(collarPinPair.left),loadImage(collarPinPair.right)]);
    const isFemale=/\/government-uniforms\/female-/.test(lock.templatePath||'');
-   const pinBoxW=lock.uW*(isFemale?.0663:.068)*(collarPinAdjust.scale||1);
+   const pinBoxW=lock.uW*(isFemale?.05304:.0544)*(collarPinAdjust.scale||1);
    const drawPin=(pin,cx,cy)=>{
     const pinBoxH=pinBoxW*(pin.naturalHeight/pin.naturalWidth);
     x.drawImage(pin,cx-pinBoxW/2,cy-pinBoxH/2,pinBoxW,pinBoxH);

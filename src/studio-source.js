@@ -9,8 +9,8 @@ async function buildNativeAsset(kind,option,frame,preset){
  const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar,w=frame.w*v.width,y=frame.y+frame.h*v.y;
  const frames=[left,right].map((c,i)=>({x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:y-w*c.height/c.width/2,w,h:w*c.height/c.width}));
  // Preserve native insignia detail and room for the existing independent +/-300px controls.
- const f={x:Math.min(...frames.map(q=>q.x))-300,y:Math.min(...frames.map(q=>q.y)),w:0,h:0};f.w=Math.max(...frames.map(q=>q.x+q.w))+300-f.x;f.h=Math.max(...frames.map(q=>q.y+q.h))-f.y;
- const density=Math.max(left.width/w,right.width/w),bw=Math.ceil(f.w*density),bh=Math.ceil(f.h*density);if(bw>16384||bh>8192)throw Error('ภาพเข็มมีขนาดใหญ่เกินขีดจำกัดเลเยอร์');
+ const f={x:-128,y:-128,w:0,h:0};f.w=1156;f.h=1456;
+ const density=Math.min(2,Math.max(left.width/w,right.width/w)),bw=Math.ceil(f.w*density),bh=Math.ceil(f.h*density);if(bw>16384||bh>8192)throw Error('ภาพเข็มมีขนาดใหญ่เกินขีดจำกัดเลเยอร์');
  const parts=[left,right].map((c,i)=>{const out=make(bw,bh),q=frames[i];out.getContext('2d').drawImage(c,(q.x-f.x)*bw/f.w,(q.y-f.y)*bh/f.h,q.w*bw/f.w,q.h*bh/f.h);return out});const combined=make(bw,bh);for(const c of parts)combined.getContext('2d').drawImage(c,0,0);
  return {source:combined,sourceFrame:f,collarParts:{left:parts[0],right:parts[1]}};
 }
@@ -26,3 +26,4 @@ export async function nativeAsset(kind,option,frame,preset){
  }
  const result=await entry.promise;return {...result,sourceFrame:result.sourceFrame?{...result.sourceFrame}:null,collarParts:result.collarParts?{...result.collarParts}:null};
 }
+
