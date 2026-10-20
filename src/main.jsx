@@ -105,7 +105,7 @@ async function settleProcessOperation(operation,action){
  if(!response.ok)throw Error(action==='cancel'?'ยกเลิกงานไม่สำเร็จ กรุณากดปิดอีกครั้ง':'ยืนยันภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
  operation.settled=true;writeActiveAiJob(null);await clearAiJobFile();
 }
-async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const deadline=Date.now()+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await out.blob();assertProcessActive(operation);const verified=await verifyOutputRights(jobId);blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,900))}}
+async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const deadline=Date.now()+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});const blob=await levelPortraitCutout(await out.blob());assertProcessActive(operation);const verified=await verifyOutputRights(jobId);blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,900))}}
 
 let landmarkerPromise;
 let segmenterPromise;
@@ -2293,7 +2293,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([gender==='male'?'combined-seedream-server4-catalog34-male-shave-v18-upright-head':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v18-upright-head':'combined-seedream-server4-catalog34-eye-choice-v18-upright-head',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v19-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
@@ -2336,8 +2336,8 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const fd=new FormData();
  const operation=activeProcessOperation;assertProcessActive(operation);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const aiInput=originalFile;assertProcessActive(operation);
- fd.append('image',aiInput,aiInput.name||'portrait.png');
+ const aiInput=await levelPortraitCutout(originalFile);assertProcessActive(operation);
+ fd.append('image',aiInput,aiInput===originalFile?(originalFile.name||'portrait.png'):'portrait-upright.png');
  fd.append('hairId',hairId||'original');
  fd.append('femaleEyeStyle',options.femaleEyeStyle==='makeup'?'makeup':'natural');
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
@@ -3448,7 +3448,7 @@ function App(){
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
  const hairResultMode=(id,portraitMode)=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)?.gender||portraitMode||firstUploadedPhotoRef.current?.idpromPortraitMode||(/female|woman|women/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'female':/male|man|men/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'male':'female');
- const hairResultKey=(id,portraitMode)=>JSON.stringify([hairResultMode(id,portraitMode),id||'original',firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v18-upright-head':'unchanged']);
+ const hairResultKey=(id,portraitMode)=>JSON.stringify([hairResultMode(id,portraitMode),id||'original',firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v19-measured-roll':'unchanged']);
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode)=>{
   const key=hairResultKey(id,portraitMode),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
@@ -3960,6 +3960,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+
 
 
 
