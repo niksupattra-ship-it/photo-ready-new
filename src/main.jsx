@@ -1,4 +1,3 @@
-import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 import {withDeadline} from './async-deadline.js';
@@ -341,9 +340,44 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   ctx.drawImage(bg,0,0,W,H);
 
-  const uc=document.createElement('canvas');uc.width=uniform.naturalWidth;uc.height=uniform.naturalHeight;
-  const ux=uc.getContext('2d',{willReadFrequently:true});ux.drawImage(uniform,0,0);
+  // V158 PROPORTIONAL EDGE-FIT BODY MASTER:
+  // Fit the REAL opaque width to the frame with one uniform X/Y scale. The collar
+  // socket is re-anchored after scaling, so the outfit reaches both side edges
+  // without looking horizontally stretched or vertically compressed.
+  const ub=await alphaBounds(uniform);
+  const edgeBleed=2;
+  const collarCX=W*.5;
+  // V12: anchor the anatomy to the REAL first opaque row of the uniform PNG.
+  // The old .015 estimate pointed into transparent padding and made AI invent a long neck.
+  // V14: COLLAR SOCKET ANCHOR — ห้ามใช้ pixel ทึบแถวแรกของทั้งชุด เพราะนั่นคือปลายปก/บ่า
+  // ซึ่งอยู่สูงกว่าช่องคอกลางจริงมากและเป็นสาเหตุหลักที่ทำให้ AI เติมคอยาว
+  // หา pixel ทึบแถวแรกเฉพาะบริเวณกึ่งกลางชุด (ช่องคอ/ปมเนกไท) แล้วใช้เป็น socket จริง
+  const uc=document.createElement('canvas'); uc.width=uniform.naturalWidth; uc.height=uniform.naturalHeight;
+  const ux=uc.getContext('2d',{willReadFrequently:true}); ux.drawImage(uniform,0,0);
   const ud=ux.getImageData(0,0,uc.width,uc.height).data;
+  const cx0=Math.floor(uc.width*.46), cx1=Math.ceil(uc.width*.54);
+  let socketY=ub.t;
+  outer: for(let y=ub.t;y<=ub.b;y++){
+    let opaque=0;
+    for(let x=cx0;x<=cx1;x++){ if(ud[(y*uc.width+x)*4+3]>48) opaque++; }
+    if(opaque>=(cx1-cx0+1)*.12){ socketY=y; break outer; }
+  }
+  const approvedScale=(W*.94)/uniform.naturalWidth;
+  const approvedCollarSocketY=H*.425+socketY*approvedScale;
+  const uScale=(W+edgeBleed*2)/Math.max(1,ub.w);
+  const uW=uniform.naturalWidth*uScale,uH=uniform.naturalHeight*uScale;
+  const uX=-edgeBleed-ub.l*uScale;
+  const uY=approvedCollarSocketY-socketY*uScale;
+  const collarSocketY=approvedCollarSocketY;
+  // V15: SHOULDER-RELATIVE BODY MASTER
+  // หลังวางตำแหน่งคางแล้ว ขนาดหัวขั้นสุดท้ายต้องอิงไหล่ของชุด ไม่ใช่กรอบ input
+  // ใช้ช่วงไหล่ของ template เป็น physical reference คงที่สำหรับทุกภาพต้นฉบับ
+  // Head normalization stays tied to the approved 94% body master. Horizontal
+  // edge fitting must not make the person's head larger.
+  const shoulderSpan=W*.94*.84;
+  const targetHeadToShoulder=.385; // optical adult ID-photo balance for this fixed template
+  const targetHeadW=shoulderSpan*targetHeadToShoulder;
+
   // FACE MASTER SCALE V10
   // วัดจาก landmark บนใบหน้าจริง (ขมับ/กราม) ไม่ใช้กรอบภาพ ไม่ใช้คอเดิม และไม่ใช้ alpha ของทรงผม
   // ดังนั้นภาพที่ถ่ายใกล้/ไกลจะถูก normalize ให้ขนาดหัวมาตรฐานเดียวกันก่อนประกอบ
@@ -354,12 +388,32 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const sourceEyeW=Math.hypot((re.x-le.x)*head.naturalWidth,(re.y-le.y)*head.naturalHeight);
   if(sourceFaceW<20||sourceFaceH<20||sourceEyeW<12) throw Error('วัดขนาดใบหน้าไม่สำเร็จ');
 
+  // Keep head placement tied to the facial eye anchor, not hair silhouette.
+  // One common X/Y scale preserves the source face aspect ratio.
+  const targetEyeW=W*.160;
+  const canonicalScale=targetEyeW/sourceEyeW;
+  const corrected=1;
+
+  // V17: หลังได้ตำแหน่ง V16 แล้ว เพิ่ม optical head size เล็กน้อยให้สัมพันธ์กับช่วงไหล่มากขึ้น
+  // ใช้ multiplier ภายใน ไม่ผูกกับขนาด/crop ของภาพต้นฉบับ
+  // V37 FINAL HEAD PROPORTION: after canonical face normalization and shoulder fitting,
+  // reduce the final head block slightly so head/neck reads naturally against the fixed real uniform.
+  // Uniform geometry is untouched; only the head layer scale changes, uniformly in X/Y.
+  // V228: return to V226's original placement; proportion is handled when
+  // the AI creates the hair and neck, not by shrinking the finished layer.
+  const v37FinalHeadScale=1.35; // Larger initial head; retain the selected template collar anchor.
+  let scale=canonicalScale*corrected*v37FinalHeadScale*(adjust.scale||1);
+  scale=Math.max(.25,Math.min(4.0,scale));
+
+  // ใช้ midpoint ของ landmark ซ้าย/ขวาเป็นแกนกลาง ป้องกัน alpha/hair ทำให้หัวเยื้อง
   const faceCX=((L.x+R.x)/2)*head.naturalWidth;
-  const chinX=chin.x*head.naturalWidth,chinY=chin.y*head.naturalHeight;
-  const uniformAnchors=measureUniformAnchors(ud,uc.width,uc.height);
-  const fitted=planPortraitUniformFit({W,H,uniform:uniformAnchors,face:{width:head.naturalWidth,height:head.naturalHeight,cx:faceCX,chinY,faceWidth:sourceFaceW,faceHeight:sourceFaceH,eyeWidth:sourceEyeW},opaqueTop:hb.t,adjust});
-  const {scale,hX,hY,shoulderSpan}=fitted;
-  const {x:uX,y:uY,w:uW,h:uH}=fitted.uniformFrame;
+  const chinX=chin.x*head.naturalWidth, chinY=chin.y*head.naturalHeight;
+
+  // Initial placement: anchor the detected chin at the vertical midpoint.
+  // Keep the existing head scale, horizontal anchor and all user adjustments.
+  const chinTargetY=H*.50;
+  const hX=collarCX-faceCX*scale + (adjust.x||0)*W;
+  const hY=chinTargetY-chinY*scale + (adjust.y||0)*H;
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
   // background -> normalized head only -> original uniform template
@@ -367,13 +421,13 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   ctx.drawImage(uniform,uX,uY,uW,uH);
 
   const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
-  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,opaqueHeadW:hb.w*scale,opaqueHeadTop:hb.t,placedFaceW:sourceFaceW*scale,shoulderSpan,uX,uY,uW,uH,collarSocketY:fitted.collarSocketY,templatePath,uniformFitVersion:fitted.fitVersion}};
+  return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,opaqueHeadW:hb.w*scale,opaqueHeadTop:hb.t,placedFaceW:sourceFaceW*scale,shoulderSpan,uX,uY,uW,uH,collarSocketY,templatePath}};
  }finally{}
 }
 
 const MALE_INITIAL_NECK_SPACING_VERSION='male-clear-submental-normal-neck-v2';
 function applyInitialMaleNeckSpacing(lock){
- if(!lock||lock.uniformFitVersion||lock.maleInitialNeckSpacingVersion===MALE_INITIAL_NECK_SPACING_VERSION)return lock;
+ if(!lock||lock.maleInitialNeckSpacingVersion===MALE_INITIAL_NECK_SPACING_VERSION)return lock;
  if(![lock.W,lock.H,lock.hX,lock.hY,lock.scale,lock.opaqueHeadTop].every(Number.isFinite)||lock.W<=0||lock.H<=0||lock.scale<=0||lock.opaqueHeadTop<0)return lock;
  const crownTop=lock.hY+lock.opaqueHeadTop*lock.scale;
  if(!Number.isFinite(crownTop))return lock;
@@ -2512,7 +2566,8 @@ const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
  {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
- {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.webp',cat:'job',gender:'female'},
+ {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-example.webp',preview:'/assets/job-uniforms/female-suit-04-example.webp',template:'/assets/job-uniforms/female-suit-04.png',cat:'job',gender:'female'},
+ {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.png',cat:'job',gender:'female'},
  {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
  {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
  {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
@@ -3718,27 +3773,6 @@ function App(){
    return {layer:head,placement:composed.lock,commit,rollback};
   }catch(error){rollback();throw error}finally{setBusy(false)}
  };
- const fitStudioUniform=async(headLayer,suitLayer)=>{
-  const portrait=headLayer.source instanceof HTMLCanvasElement?headLayer.source:await loadImage(headLayer.source);
-  const garment=suitLayer.source instanceof HTMLCanvasElement?suitLayer.source:await loadImage(suitLayer.source);
-  const width=portrait.naturalWidth||portrait.width,height=portrait.naturalHeight||portrait.height;
-  const gw=garment.naturalWidth||garment.width,gh=garment.naturalHeight||garment.height;
-  const face=(await getLandmarker()).detect(portrait).faceLandmarks?.[0];
-  if(!face)throw Error('วัดใบหน้าเพื่อจัดให้เข้ากับชุดไม่สำเร็จ');
-  const source=canvasFor(width,height),sx=source.getContext('2d',{willReadFrequently:true});sx.drawImage(portrait,0,0);
-  const px=sx.getImageData(0,0,width,height).data;let top=height;
-  outer:for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(px[(y*width+x)*4+3]>12){top=y;break outer}
-  const uc=canvasFor(gw,gh),ux=uc.getContext('2d',{willReadFrequently:true});ux.drawImage(garment,0,0);
-  const uniform=measureUniformAnchors(ux.getImageData(0,0,gw,gh).data,gw,gh),frame=suitLayer.sourceFrame||{x:0,y:0,w:900,h:1200};
-  const faceCX=(face[234].x+face[454].x)*width/2,chinY=face[152].y*height;
-  const faceWidth=Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height);
-  const faceHeight=Math.hypot((face[152].x-face[10].x)*width,(face[152].y-face[10].y)*height);
-  const eyeWidth=Math.hypot((face[263].x-face[33].x)*width,(face[263].y-face[33].y)*height);
-  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,frame,face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
-  const lock={W:900,H:1200,...fitted,headW:width,headH:height,faceCX,chinY,opaqueHeadTop:top,templatePath:suitLayer.templatePath,uX:fitted.uniformFrame.x,uY:fitted.uniformFrame.y,uW:fitted.uniformFrame.w,uH:fitted.uniformFrame.h,uniformFitVersion:fitted.fitVersion,hairFitEyeSize:eyeWidth*fitted.scale,hairFitEyeCentreX:fitted.collarCX,hairFitChinAnchorY:fitted.chinTargetY};
-  const master=await canvasPng(source);
-  return {layer:{...headLayer,sourceFrame:{x:fitted.hX,y:fitted.hY,w:width*fitted.scale,h:height*fitted.scale},x:suitLayer.x||0,y:suitLayer.y||0,scale:suitLayer.scale||1,rotation:suitLayer.rotation||0,squeezeX:1,squeezeY:1},suitLayer,placement:lock,commit:()=>{editCache.current={master,lock};studioOriginRef.current={...studioOriginRef.current,placement:lock}}};
- };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
  };
@@ -3821,7 +3855,7 @@ function App(){
  const renderPreviewActions=(extraClass)=>( <div className={"preview-floating-actions "+extraClass}><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div> );
  const renderProcessActions=(desktop=false)=>(<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||busy||privateTrialChecking} onClick={go}>{busy?'กำลังประมวลผล…':privateTrialActive?'ประมวลผลรูป':rights.generationRemaining>0?'ประมวลผลรูป':'ทดลองประมวลผลฟรี'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="photo-size-trigger" disabled={photoSizeBusy||downloadBusy||hairBusy||busy||uniformChanging} onClick={openPhotoSize} aria-label="เลือกขนาดรูป" aria-haspopup="dialog"><span>{photoSizeBusy?'กำลังเตรียม…':PHOTO_SIZES.find(s=>s.id===photoCrop.sizeId)?.label||'ขนาดเดิม'}</span><span aria-hidden="true">⌄</span></button>}{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging||photoSizeBusy} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy} onClick={e=>{if(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy){e.preventDefault();return}const input=fileInputRef.current;if(input)input.value=''}}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label>{desktop&&<button type="button" className="photo-guide-trigger desktop-photo-guide" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button>}</div>}</div>);
- if(studioData)return <><SavedWorkUI/><StudioEditor key={savedWorkRevision} savedWorkUnlocked={savedWorkUnlocked} onSaveWork={saveAccountWork} onOpenSavedWorks={()=>setSavedWorksOpen(true)} hasCredits={rights.generationRemaining>0} processRemaining={privateTrialActive?'∞':rights.generationRemaining>0?rights.generationRemaining:rights.trialAvailable===true?(rights.trialRemaining??2):0} allOptionsAvailable={allOptionsAvailable} trialUnlocked={privateTrialActive} paidOutputIds={rights.unlockedJobIds} editableOutputIds={purchaseEditing?rights.editableJobIds:[]} onVerifyOutput={verifyOutputRights} editingPurchasedImage={purchaseEditing} fullCatalog={fullCatalog} freeTemplatePaths={FREE_TEMPLATE_PATHS} purchaseSnapshotRef={paymentStudioRef} initialSourcePhoto={restoredSourcePhoto} onRequestUnlock={()=>{setPayMsg('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลดภาพที่สร้าง');setBuyOpen(true)}} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={HAIR_OPTIONS} paidHairAccess={privateTrialActive||rights.generationRemaining>0} trialHairRemaining={rights.trialAvailable?Math.max(0,rights.trialRemaining||0):0} onChangeHair={changeStudioHair} onHairAiAccess={getHairAiAccess} onPrepareHairOverlay={prepareSelectedStudioHair} canReuseHair={canReuseHair} onMakeup={applyStudioMakeup} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onFitUniform={fitStudioUniform} onProcessPhoto={processStudioPhoto} onBeforeProcess={beforeProcess} processing={busy||hairGenerating} processProgress={processProgress} onCancelProcess={cancelProgress} onFinishProcess={finishProgress} isProcessCancelled={()=>Boolean(activeProcessOperation?.cancelled)} onClose={layers=>{studioDraftRef.current={...studioOriginRef.current,layers};setPurchaseEditing(false);setSessionEditJob('');setSavedWorkUnlocked(false);savedWorkIdRef.current='';setStudioData(null);setScreen('home')}}/>{buyOpen&&<div className="studio-payment-dialog"><CreditUI/>{AuthUI()}</div>}</>;
+ if(studioData)return <><SavedWorkUI/><StudioEditor key={savedWorkRevision} savedWorkUnlocked={savedWorkUnlocked} onSaveWork={saveAccountWork} onOpenSavedWorks={()=>setSavedWorksOpen(true)} hasCredits={rights.generationRemaining>0} processRemaining={privateTrialActive?'∞':rights.generationRemaining>0?rights.generationRemaining:rights.trialAvailable===true?(rights.trialRemaining??2):0} allOptionsAvailable={allOptionsAvailable} trialUnlocked={privateTrialActive} paidOutputIds={rights.unlockedJobIds} editableOutputIds={purchaseEditing?rights.editableJobIds:[]} onVerifyOutput={verifyOutputRights} editingPurchasedImage={purchaseEditing} fullCatalog={fullCatalog} freeTemplatePaths={FREE_TEMPLATE_PATHS} purchaseSnapshotRef={paymentStudioRef} initialSourcePhoto={restoredSourcePhoto} onRequestUnlock={()=>{setPayMsg('เลือกแพ็กเกจเพื่อบันทึกและดาวน์โหลดภาพที่สร้าง');setBuyOpen(true)}} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={HAIR_OPTIONS} paidHairAccess={privateTrialActive||rights.generationRemaining>0} trialHairRemaining={rights.trialAvailable?Math.max(0,rights.trialRemaining||0):0} onChangeHair={changeStudioHair} onHairAiAccess={getHairAiAccess} onPrepareHairOverlay={prepareSelectedStudioHair} canReuseHair={canReuseHair} onMakeup={applyStudioMakeup} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} onBeforeProcess={beforeProcess} processing={busy||hairGenerating} processProgress={processProgress} onCancelProcess={cancelProgress} onFinishProcess={finishProgress} isProcessCancelled={()=>Boolean(activeProcessOperation?.cancelled)} onClose={layers=>{studioDraftRef.current={...studioOriginRef.current,layers};setPurchaseEditing(false);setSessionEditJob('');setSavedWorkUnlocked(false);savedWorkIdRef.current='';setStudioData(null);setScreen('home')}}/>{buyOpen&&<div className="studio-payment-dialog"><CreditUI/>{AuthUI()}</div>}</>;
  if(screen==='studio')return <main className="idstudio studio-starting"><p>{studioBusy?'กำลังเปิด Studio…':msg}</p><button onClick={()=>setScreen('home')}>กลับหน้าหลัก</button></main>;
  return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}><TrialChoiceUI/>{photoSizeBlob&&<PhotoSizeEditor blob={photoSizeBlob} value={photoCrop} trial={trialPreview} onClose={()=>setPhotoSizeBlob(null)} onApply={crop=>{setPhotoCrop(crop);setPhotoSizeBlob(null)}}/>}<header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={()=>{setScreen('home');setHomeFilter(uniformCategory==='government'?'government':uniformCategory)}} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{{government:'ข้าราชการ',job:'สมัครงาน',student:'นักศึกษา',gown:'ครุย'}[uniformCategory]||'สร้างรูป'}</h1></div><div className="editor-credit-actions"><AccountUI/><CreditUI showBalance={false}/>{AuthUI()}<ContactUI/></div></header><div className="editor-mobile-actions">{renderProcessActions()}</div><div className="editor-mobile-help"><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button></div><section className="modern-flow">
   <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="แนะนำรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูปที่ถูกต้อง</button>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onChange={pick} disabled={busy||hairBusy}/>{b&&renderPreviewActions('preview-desktop-actions')}<div className="editor-workspace"><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(trialPreview?" trial-preview-active":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)fileInputRef.current?.click()}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/>{trialPreview&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}{renderPreviewActions('preview-mobile-actions')}{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className={"image-progress-card "+(processProgress.value>=100?'is-complete':processProgress.value>=90?'is-waiting':'is-processing')} style={{position:'relative',paddingTop:52}}><ProcessingCloseButton disabled={processProgress.value>=100} onClose={cancelProgress}/><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{`${Math.floor(processProgress.value)}%`}</strong></div><div className="image-progress-track" aria-hidden="true"><i style={{width:`${processProgress.value}%`}}/></div><p className="image-progress-hint">{processProgress.value>=100?'ภาพพร้อมแล้ว':processProgress.value>=99?'กำลังเก็บรายละเอียดขั้นสุดท้าย กรุณาเปิดหน้านี้ไว้':'กำลังสร้างภาพให้คุณ กรุณาเปิดหน้านี้ไว้จนเสร็จ'}</p></div></div>}</div>{b&&<div className="desktop-workspace-caption"><span>เลื่อนล้อเมาส์เพื่อซูม · ลากพื้นที่ว่างเพื่อเลื่อน</span><output>{Math.round(previewZoom*100)}%</output></div>}</div>
@@ -3882,7 +3916,6 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
-
 
 
 
