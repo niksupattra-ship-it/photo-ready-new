@@ -573,3 +573,13 @@
 .idstudio.studio-touch .studio-floating-tools>svg{display:block;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .idstudio.studio-touch .studio-stage,.idstudio.studio-touch[data-tools-open=false] .studio-stage{padding:10px 8px}
 .idstudio.studio-touch .studio-workspace footer,.idstudio.studio-touch[data-tools-open=false] .studio-workspace footer{left:8px}
+
+
+/* Two visual finish choices; scoped to avoid changing the gender chooser. */
+.studio-processing-card.studio-finish-choice-card{width:min(480px,100%);padding:24px;max-height:calc(100dvh - 40px);overflow-y:auto}
+.studio-finish-choice-card h2{margin:0 0 20px}
+.studio-finish-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.studio-finish-choice-card .studio-finish-choice-option{display:flex;flex-direction:column;gap:0;min-width:0;min-height:0;padding:0;overflow:hidden;text-align:center;border-radius:16px;background:#25414d;border:1px solid #64d7cb45}
+.studio-finish-choice-image{display:block;width:100%;height:auto;aspect-ratio:1128/1284;object-fit:contain;background:#fff;border-radius:0;flex:none}
+.studio-finish-choice-label{display:block;width:100%;box-sizing:border-box;padding:13px 6px;font-size:16px;line-height:1.4;color:#f0fbfc}
+@media(max-width:480px){.studio-processing-card.studio-finish-choice-card{padding:20px 16px}.studio-finish-choice-grid{gap:10px}.studio-finish-choice-card h2{margin-bottom:16px;font-size:18px}.studio-finish-choice-card .studio-finish-choice-option{padding:0;min-height:0;border-radius:13px}.studio-finish-choice-label{padding:11px 4px;font-size:15px}}
