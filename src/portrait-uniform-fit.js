@@ -1,5 +1,5 @@
 // Measure native alpha pixels; transforms stay in metadata so faces and insignia are not stretched.
-export const UNIFORM_FIT_VERSION='garment-relative-v2';
+export const UNIFORM_FIT_VERSION='fixed-uniform-head-fit-v3';
 const median=a=>[...a].sort((x,y)=>x-y)[Math.floor(a.length/2)];
 export function measureUniformAnchors(pixels,w,h){
  if(pixels.length!==w*h*4||w<2||h<2)throw Error('ข้อมูลแพทเทิร์นชุดไม่ถูกต้อง');
@@ -27,18 +27,26 @@ export function placeUniformForPortrait({W,H,uniform,collarX=W/2,collarY=H*.55,f
  if(uniform.bounds.w*scale>W*1.65)throw Error('ภาพชุดสั้นเกินไปสำหรับระยะนี้ กรุณาเลือกไฟล์ชุดเต็มช่วงตัว');
  return {x:collarX-uniform.centerX*scale,y:collarY-uniform.collarTopY*scale,w:uniform.width*scale,h:uniform.height*scale};
 }
-export function planPortraitUniformFit({W,H,uniform,face,opaqueTop=0,adjust={},headFrame=null}){
+export function planPortraitUniformFit({W,H,uniform,face,opaqueTop=0,adjust={},frame=null}){
  const {width,height,cx,chinY,faceWidth,faceHeight,eyeWidth}=face;
  if(![W,H,width,height,faceWidth,faceHeight,eyeWidth].every(v=>Number.isFinite(v)&&v>0)||![cx,chinY,opaqueTop].every(Number.isFinite))throw Error('วัดจุดอ้างอิงหัวและชุดไม่สำเร็จ');
- const scale=headFrame?headFrame.w/width:W*.29/faceWidth*(adjust.scale||1);
- if(!Number.isFinite(scale)||scale<=0||headFrame&&![headFrame.x,headFrame.y,headFrame.w,headFrame.h].every(Number.isFinite))throw Error('ตำแหน่งหัวไม่ถูกต้อง');
- const hX=headFrame?headFrame.x:W/2-cx*scale+(adjust.x||0)*W;
- const hY=headFrame?headFrame.y:H*.13-opaqueTop*scale+(adjust.y||0)*H;
- const chinTargetY=hY+chinY*scale,collarCX=hX+cx*scale;
- const collarTopY=chinTargetY+faceHeight*scale*.16;
- const uniformFrame=placeUniformForPortrait({W,H,uniform,collarX:collarCX,collarY:collarTopY,faceWidth:faceWidth*scale});
+ // The garment is the fixed reference. Only the head receives a uniform scale and translation.
+ const uniformFrame=frame?{...frame}:placeUniformForPortrait({W,H,uniform});
+ if(![uniformFrame.x,uniformFrame.y,uniformFrame.w,uniformFrame.h].every(Number.isFinite)||uniformFrame.w<=0||uniformFrame.h<=0)throw Error('ตำแหน่งชุดไม่ถูกต้อง');
  const garmentScale=uniformFrame.w/uniform.width;
- return {scale,hX,hY,uniformFrame,shoulderSpan:uniform.shoulderWidth*garmentScale,collarSocketY:uniformFrame.y+uniform.socketY*garmentScale,collarTopY,collarCX,chinTargetY,placedFaceW:faceWidth*scale,fitVersion:UNIFORM_FIT_VERSION};
+ const shoulderSpan=uniform.shoulderWidth*garmentScale;
+ const collarCX=uniformFrame.x+uniform.centerX*garmentScale;
+ const collarTopY=uniformFrame.y+uniform.collarTopY*uniformFrame.h/uniform.height;
+ const collarSocketY=uniformFrame.y+uniform.socketY*uniformFrame.h/uniform.height;
+ let scale=shoulderSpan*.32/faceWidth*(adjust.scale||1);
+ const available=collarTopY-H*.045;
+ const crownToCollar=chinY-opaqueTop+faceHeight*.16;
+ if(crownToCollar>0&&available>0)scale=Math.min(scale,available/crownToCollar);
+ if(!Number.isFinite(scale)||scale<=0)throw Error('จัดขนาดหัวให้เข้ากับชุดไม่สำเร็จ');
+ const chinTargetY=collarTopY-faceHeight*scale*.16;
+ const hX=collarCX-cx*scale+(adjust.x||0)*W;
+ const hY=chinTargetY-chinY*scale+(adjust.y||0)*H;
+ return {scale,hX,hY,uniformFrame,shoulderSpan,collarSocketY,collarTopY,collarCX,chinTargetY,placedFaceW:faceWidth*scale,fitVersion:UNIFORM_FIT_VERSION};
 }
 export function replaceUniformPlacement(layers,previousSuit,nextSuit){
  if(!previousSuit||!nextSuit)return layers;

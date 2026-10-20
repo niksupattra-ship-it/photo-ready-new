@@ -3734,10 +3734,10 @@ function App(){
   const faceWidth=Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height);
   const faceHeight=Math.hypot((face[152].x-face[10].x)*width,(face[152].y-face[10].y)*height);
   const eyeWidth=Math.hypot((face[263].x-face[33].x)*width,(face[263].y-face[33].y)*height);
-  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,headFrame:headLayer.sourceFrame||{x:0,y:0,w:900,h:1200},face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
+  const fitted=planPortraitUniformFit({W:900,H:1200,uniform,frame,face:{width,height,cx:faceCX,chinY,faceWidth,faceHeight,eyeWidth},opaqueTop:top});
   const lock={W:900,H:1200,...fitted,headW:width,headH:height,faceCX,chinY,opaqueHeadTop:top,templatePath:suitLayer.templatePath,uX:fitted.uniformFrame.x,uY:fitted.uniformFrame.y,uW:fitted.uniformFrame.w,uH:fitted.uniformFrame.h,uniformFitVersion:fitted.fitVersion,hairFitEyeSize:eyeWidth*fitted.scale,hairFitEyeCentreX:fitted.collarCX,hairFitChinAnchorY:fitted.chinTargetY};
   const master=await canvasPng(source);
-  return {layer:headLayer,suitLayer:{...suitLayer,sourceFrame:fitted.uniformFrame,collarFrame:{...fitted.uniformFrame},x:headLayer.x||0,y:headLayer.y||0,scale:headLayer.scale||1,rotation:headLayer.rotation||0,squeezeX:1,squeezeY:1},placement:lock,commit:()=>{editCache.current={master,lock};studioOriginRef.current={...studioOriginRef.current,placement:lock}}};
+  return {layer:{...headLayer,sourceFrame:{x:fitted.hX,y:fitted.hY,w:width*fitted.scale,h:height*fitted.scale},x:suitLayer.x||0,y:suitLayer.y||0,scale:suitLayer.scale||1,rotation:suitLayer.rotation||0,squeezeX:1,squeezeY:1},suitLayer,placement:lock,commit:()=>{editCache.current={master,lock};studioOriginRef.current={...studioOriginRef.current,placement:lock}}};
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);

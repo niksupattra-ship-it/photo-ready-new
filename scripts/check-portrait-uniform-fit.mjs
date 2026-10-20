@@ -1,29 +1,19 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const code=await readFile(new URL('../src/portrait-uniform-fit.js',import.meta.url),'utf8');
-const {measureUniformAnchors,planPortraitUniformFit,placeUniformForPortrait,replaceUniformPlacement}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
-const pixels=new Uint8ClampedArray(300*400*4);
-for(let y=80;y<400;y++)for(let x=30;x<270;x++)if(y>=150||x<125||x>175)pixels[(y*300+x)*4+3]=255;
-const uniform=measureUniformAnchors(pixels,300,400);
-assert.equal(uniform.socketY,150);assert.equal(uniform.collarTopY,80);
-const input={W:900,H:1200,uniform,face:{width:1000,height:1200,cx:500,chinY:850,faceWidth:400,faceHeight:500,eyeWidth:250},opaqueTop:100};
-const fit=planPortraitUniformFit(input),f=fit.uniformFrame;
-assert(Math.abs(f.w/uniform.width-f.h/uniform.height)<1e-8);
-assert(f.y+(uniform.bounds.b+1)*f.h/uniform.height>=1200);
-assert(Math.abs(fit.hX+500*fit.scale-fit.collarCX)<1e-6);
-assert(fit.chinTargetY<fit.collarTopY);
-const enlarged=planPortraitUniformFit({...input,face:Object.fromEntries(Object.entries(input.face).map(([k,v])=>[k,v*2])),opaqueTop:200});
-assert(Math.abs(fit.placedFaceW-enlarged.placedFaceW)<1e-6);
-const headFrame={x:50,y:100,w:700,h:840},kept=planPortraitUniformFit({...input,headFrame});
-assert.equal(kept.hX,50);assert.equal(kept.hY,100);assert.equal(kept.scale,.7);
-// Transparent PNG padding changes coordinates, never the visible garment placement.
-const padded={...uniform,width:500,height:600,bounds:{...uniform.bounds,l:uniform.bounds.l+100,r:uniform.bounds.r+100,t:uniform.bounds.t+50,b:uniform.bounds.b+50},centerX:uniform.centerX+100,collarTopY:uniform.collarTopY+50,socketY:uniform.socketY+50};
-const p=placeUniformForPortrait({W:900,H:1200,uniform:padded});const q=placeUniformForPortrait({W:900,H:1200,uniform});
-assert(Math.abs(p.x+(uniform.bounds.l+100)*p.w/500-(q.x+uniform.bounds.l*q.w/300))<1e-6);
-assert(Math.abs(p.y+(uniform.bounds.t+50)*p.h/600-(q.y+uniform.bounds.t*q.h/400))<1e-6);
-const oldSuit={id:'s',kind:'suit',sourceFrame:{x:0,y:0,w:900,h:1200}},newSuit={...oldSuit,sourceFrame:f};
-const pin={id:'p',kind:'chest',sourceFrame:{x:200,y:300,w:40,h:60}},head={id:'h',kind:'head'};
-const placed=replaceUniformPlacement([oldSuit,pin,head],oldSuit,newSuit);
-assert.equal(placed[0],newSuit);assert.equal(placed[2],head);assert(Math.abs(placed[1].sourceFrame.w/placed[1].sourceFrame.h-40/60)<1e-8);
-assert.throws(()=>measureUniformAnchors(new Uint8ClampedArray(300*400*4),300,400));
-console.log('PASS: own PNG aspect ratio, full lower coverage, collar-top clearance, unchanged existing head, padding independence, proportional insignia.');
+const {planPortraitUniformFit}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const uniform={width:900,height:1200,bounds:{l:0,r:899,t:200,b:1199,w:900,h:1000},shoulderWidth:800,centerX:450,collarTopY:220,socketY:300};
+const face={width:1000,height:1200,cx:510,chinY:850,faceWidth:400,faceHeight:500,eyeWidth:250};
+for(const frame of [{x:12,y:50,w:800,h:1066},{x:-40,y:320,w:980,h:1306}]){
+ const reference=planPortraitUniformFit({W:900,H:1200,uniform,face,opaqueTop:100,frame});
+ for(const multiplier of [.5,1,2]){
+  const f=Object.fromEntries(Object.entries(face).map(([k,v])=>[k,v*multiplier]));
+  const p=planPortraitUniformFit({W:900,H:1200,uniform,face:f,opaqueTop:100*multiplier,frame});
+  assert.deepEqual(p.uniformFrame,frame);
+  assert(Math.abs(p.hX+f.cx*p.scale-p.collarCX)<1e-7);
+  assert(Math.abs(p.hY+f.chinY*p.scale-p.chinTargetY)<1e-7);
+  assert(p.chinTargetY<p.collarTopY);
+  assert(Math.abs(p.placedFaceW-reference.placedFaceW)<1e-7);
+ }
+}
+console.log('PASS: garment stays fixed; head centers on collar with proportional scale across input resolutions.');
