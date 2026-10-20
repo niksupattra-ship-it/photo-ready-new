@@ -1098,9 +1098,9 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const leftOffset=collarPinAdjust.left||{x:0,y:0},rightOffset=collarPinAdjust.right||{x:0,y:0};
    if(isFemale){
     // Female reference: 15% smaller, nearer the tie; retain lapel height.
-    const y=lock.uY+lock.uH*.28-2*lock.H/1200;
-    drawPin(leftPin,lock.uX+lock.uW*(.34+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
-    drawPin(rightPin,lock.uX+lock.uW*(.66+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
+    const y=lock.uY+lock.uH*.28-4*lock.H/1200;
+    drawPin(leftPin,lock.uX+lock.uW*(.34+(leftOffset.x||0))-2*lock.W/900,y+lock.uH*(leftOffset.y||0));
+    drawPin(rightPin,lock.uX+lock.uW*(.66+(rightOffset.x||0))+2*lock.W/900,y+lock.uH*(rightOffset.y||0));
    }else{
     const y=lock.uY+lock.uH*.245-2*lock.H/1200;
     drawPin(leftPin,lock.uX+lock.uW*(.455+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
