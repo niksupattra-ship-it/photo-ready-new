@@ -2646,6 +2646,7 @@ const JOB_UNIFORMS=[
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
  {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
  {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-example.webp',preview:'/assets/job-uniforms/female-suit-04-example.webp',template:'/assets/job-uniforms/female-suit-04.png',cat:'job',gender:'female'},
+ {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.png',cat:'job',gender:'female'},
  {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
  {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
  {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
@@ -3960,6 +3961,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+
 
 
 
