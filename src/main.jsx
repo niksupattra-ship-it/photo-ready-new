@@ -1,5 +1,5 @@
 import {fitHairMasterFrame} from './hair-master-frame.js';
-import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed} from '../hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
 import {homePreviewSource} from './home-previews.js';
@@ -2293,7 +2293,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v19-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v19-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
@@ -3449,7 +3449,7 @@ function App(){
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
  const hairResultMode=(id,portraitMode)=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)?.gender||portraitMode||firstUploadedPhotoRef.current?.idpromPortraitMode||(/female|woman|women/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'female':/male|man|men/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'male':'female');
- const hairResultKey=(id,portraitMode)=>JSON.stringify([hairResultMode(id,portraitMode),id||'original',firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v19-measured-roll':'unchanged']);
+ const hairResultKey=(id,portraitMode)=>JSON.stringify([HAIR_DESIGN_VERSION,hairResultMode(id,portraitMode),id||'original',firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v19-measured-roll':'unchanged']);
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode)=>{
   const key=hairResultKey(id,portraitMode),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
@@ -3809,7 +3809,7 @@ function App(){
    const head=layers.find(l=>l.name==='หัว · คอ · ผม');
    if(!head)throw Error('ไม่ได้รับเลเยอร์ภาพใหม่');
    const jobId=aiHead.idpromJobId,isTrial=Boolean(aiHead.idpromTrial);
-   Object.assign(head,{jobId,restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',portraitMode,femaleEyeStyle:file.idpromFemaleEyeStyle||'natural'});
+   Object.assign(head,{jobId,restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle:file.idpromFemaleEyeStyle||'natural'});
    const commit=()=>{
     if(delivered)return;delivered=true;
     file.idpromPortraitMode=portraitMode;firstUploadedPhotoRef.current=file;setF(file);
@@ -3840,7 +3840,7 @@ function App(){
   const ok=await changeHairForStudio(id,portraitMode,{studioOnly:true});if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
   const layers=[],current=editCache.current;layers.headOnly=true;
   await renderAdjustedFinal(current.master,current.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=id;head.portraitMode=portraitMode;head.femaleEyeStyle=firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural';return {layer:head,reused:ok.reused};
+  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=id;head.hairPolicyVersion=HAIR_DESIGN_VERSION;head.portraitMode=portraitMode;head.femaleEyeStyle=firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural';return {layer:head,reused:ok.reused};
  };
  if(screen==='home'){
   const rows=[
@@ -3961,6 +3961,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+
 
 
 

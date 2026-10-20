@@ -251,3 +251,40 @@ export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>ite
 // Trial eligibility is catalog-wide; the shared daily reservation controls the count.
 export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(productionHair(id))}
 
+
+
+// Increment when generated style semantics change; old successful results must not
+// be reused under a newly selected silhouette policy.
+export const HAIR_DESIGN_VERSION='selected-silhouette-v2';
+const compact={
+ 'seedream-01':['short','neck-length layered shag with a centre-parted fringe; only the short ends shown in the reference'],
+ 'seedream-05':['bob','sleek centre-parted short bob ending at the jaw'],
+ 'seedream-09':['gathered','fully gathered braided crown updo; no loose side or back lengths'],
+ 'seedream-10':['bob','side-parted rounded jaw-length bob'],
+ 'seedream-12':['short','compact side-swept pixie with short tapered sides and nape'],
+ 'seedream-13':['gathered','fully gathered braided updo, open forehead and clean neck'],
+ 'seedream-19':['bob','straight shoulder-skimming blunt bob, centre part; stop at the reference ends'],
+ 'seedream-20':['gathered','compact centre-parted gathered hairstyle, wispy short temple pieces only; no hanging back curtain'],
+ 'seedream-22':['short','neck-length layered shag with centre-parted fringe; no extensions below its short ends'],
+ 'seedream-24':['bob','short textured chin-length bob with a light fringe'],
+ 'seedream-27':['gathered','fully gathered swept-back hairstyle with open forehead and clean neck'],
+};
+export function selectedHairDesign(selected){
+ if(!selected?.id)return null;
+ const pair=compact[selected.id];
+ return pair?{kind:pair[0],description:pair[1]}:{kind:selected.gender==='male'?'short':'long',description:'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
+}
+export function selectedHairInstruction(selected){
+ const design=selectedHairDesign(selected);if(!design)return '';
+ const extent=design.kind==='gathered'
+  ?'ALL hair is gathered at the back/crown as shown. Keep the neck silhouette clear. NO loose long hair, straight hanging panels, ponytail extensions or curtains behind either ear, jaw, neck or shoulder. Do not interpret a transparent cutout as missing long hair to complete.'
+  :design.kind==='short'||design.kind==='bob'
+  ?'The selected SHORT cut ends at the exact anatomical level shown in Image 2. Preserve its bob/pixie/shag shape and intended fringe. NO additional rear curtain, mullet, long tail, ponytail or shoulder/back extensions beyond those reference ends. A short bob must stay a short bob when tucked behind the ears; never extend it to reach the shoulders.'
+  :'Only the long sections actually present in Image 2 may hang behind the ears/neck; never blend source hair or invent extra length. Trim only excess beyond the upper-armpit maximum.';
+ return `SELECTED HAIRSTYLE ${selected.id} — ${design.description}. Image 2 is a complete hairstyle design, not just a crown overlay. Its transparent regions are intentional absence of hair, not instructions to preserve Image 1 hair there. Replace ALL source scalp hair, including old lengths behind the ears and beside the neck, with this single selected design. ${extent} Background replaces removed hair outside the unchanged face/ears/neck; reconstruct only newly exposed anatomy naturally. Preserve the original face, ears, jaw, chin, skin and head size. The selected cut length has priority over all generic rear-hair or maximum-length wording. Before finishing inspect both neck sides: no obsolete source hair or invented extensions. Never add volume.`;
+}
+export function selectedHairPlacement(selected){
+ const design=selectedHairDesign(selected);
+ if(design&&design.kind!=='long')return `SHORT / GATHERED HAIR PLACEMENT: ${selectedHairInstruction(selected)} Behind-the-ears placement never authorizes extra hair below the selected cut. Keep the front neck and clavicles clear; retain natural short tips only where Image 2 shows them.`;
+ return 'REAR PLACEMENT FOR EXISTING LENGTHS ONLY: Keep only the selected hairstyle lengths (or the original length when no new hairstyle is selected). Move front-draped long sections behind the ears and behind the neck/shoulders without lengthening them. Keep the neck and clavicles unobstructed, preserve crown/fringe and the actual cut length, and never invent extra strands or a rear curtain. The upper-armpit level is a maximum for already-long hair, never a target length.';
+}
