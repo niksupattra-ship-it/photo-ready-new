@@ -255,7 +255,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-export const HAIR_DESIGN_VERSION='selected-silhouette-v3-no-bun-no-ear-locks';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v4-independent-results';
 const compact={
  'seedream-01':['short','neck-length layered shag with a centre-parted fringe; only the short ends shown in the reference'],
  'seedream-05':['bob','sleek centre-parted short bob ending at the jaw'],
@@ -269,10 +269,28 @@ const compact={
  'seedream-24':['bob','short textured chin-length bob with a light fringe'],
  'seedream-27':['gathered','fully gathered swept-back hairstyle with open forehead and clean neck'],
 };
+const longDesigns={
+ "seedream-03": "straight medium-long hair, centre part, smooth side lengths with inward-curved ends",
+ "seedream-07": "long sleek straight hair with a precise centre part and open forehead",
+ "seedream-08": "long straight hair with a side part and diagonal upper sweep",
+ "seedream-11": "long straight hair with a side part and smooth upper sweep",
+ "seedream-14": "long straight hair with a centre part and smooth crown",
+ "seedream-17": "long straight hair with a side part and softly swept crown",
+ "seedream-25": "long sleek straight hair with a centre part and open forehead",
+ "seedream-15": "centre-parted half-up hairstyle with swept-back upper sides and loose long rear lengths",
+ "seedream-16": "centre-parted half-up hairstyle with braided upper side detail and loose long rear lengths",
+ "seedream-18": "centre-parted braided half-up hairstyle with long loose rear lengths",
+ "seedream-26": "half-up swept-back upper sides with long loose rear lengths; no added top bun",
+ "seedream-02": "long wavy hair with a full straight forehead fringe",
+ "seedream-04": "straight medium-long hair with a full straight forehead fringe",
+ "seedream-06": "long wavy hair with a centre-parted curtain fringe",
+ "seedream-21": "straight shoulder-length hair with a full straight forehead fringe",
+ "seedream-23": "long straight hair with a light centre-parted curtain fringe"
+};
 export function selectedHairDesign(selected){
  if(!selected?.id)return null;
  const pair=compact[selected.id];
- return pair?{kind:pair[0],description:pair[1]}:{kind:selected.gender==='male'?'short':'long',description:'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
+ return pair?{kind:pair[0],description:pair[1]}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
  const design=selectedHairDesign(selected);if(!design)return '';
@@ -281,10 +299,11 @@ export function selectedHairInstruction(selected){
   :design.kind==='short'||design.kind==='bob'
   ?'The selected SHORT cut ends at the exact anatomical level shown in Image 2. Preserve its bob/pixie/shag shape and intended forehead fringe. Never convert a short haircut into an updo. NO additional rear curtain, mullet, long tail, ponytail or shoulder/back extensions beyond those reference ends. A short bob must stay a short bob when tucked behind the ears; never extend it to reach the shoulders.'
   :'Only the long sections actually present in Image 2 may hang behind the ears/neck; never blend source hair or invent extra length. Trim only excess beyond the upper-armpit maximum.';
- return `SELECTED HAIRSTYLE ${selected.id} — ${design.description}. Image 2 is a complete hairstyle design, not just a crown overlay. Its transparent regions are intentional absence of hair, not instructions to preserve Image 1 hair there. Replace ALL source scalp hair, including old lengths behind the ears and beside the neck, with this single selected design. ${extent} ${design.kind!=='long'?'NO TOP BUN OR EAR LOCKS: Do not generate any topknot, top bun, high bun, protruding rear bun, piled coil, hair ball or raised knot above the natural skull silhouette. Keep any reference braid flat against the scalp; a braided crown is not a bun. No hanging temple tendrils, curled ear wisps, separate face-framing strands, dangling locks in front of or behind either ear, or thin tails beside the cheeks/neck. Keep both ear attachments and temples clean, with hair integrated into the main selected silhouette. Remove these unwanted additions even if present in Image 1 or the reference. Preserve actual forehead bangs and the continuous bob/shag edge; do not cut rectangular gaps into the side hair, reshape ears or alter the face.':''} Background replaces removed hair outside the unchanged face/ears/neck; reconstruct only newly exposed anatomy naturally. Preserve the original face, ears, jaw, chin, skin and head size. The selected cut length has priority over all generic rear-hair or maximum-length wording. Before finishing inspect both neck sides: no obsolete source hair or invented extensions. Never add volume.`;
+ return `SELECTED HAIRSTYLE ${selected.id} — ${design.description}. Image 2 is the ONLY hairstyle design authority. This is a fresh replacement from the original uploaded person, never a continuation, blend or variation of any previously generated hairstyle. Match the selected parting, actual forehead fringe, braid structure, texture and cut silhouette together; do not substitute a generic neat hairstyle. Image 2 is a complete hairstyle design, not just a crown overlay. Its transparent regions are intentional absence of hair, not instructions to preserve Image 1 hair there. Replace ALL source scalp hair, including old lengths behind the ears and beside the neck, with this single selected design. ${extent} ${design.kind!=='long'?'NO TOP BUN OR EAR LOCKS: Do not generate any topknot, top bun, high bun, protruding rear bun, piled coil, hair ball or raised knot above the natural skull silhouette. Keep any reference braid flat against the scalp; a braided crown is not a bun. No hanging temple tendrils, curled ear wisps, separate face-framing strands, dangling locks in front of or behind either ear, or thin tails beside the cheeks/neck. Keep both ear attachments and temples clean, with hair integrated into the main selected silhouette. Remove these unwanted additions even if present in Image 1 or the reference. Preserve actual forehead bangs and the continuous bob/shag edge; do not cut rectangular gaps into the side hair, reshape ears or alter the face.':''} Background replaces removed hair outside the unchanged face/ears/neck; reconstruct only newly exposed anatomy naturally. Preserve the original face, ears, jaw, chin, skin and head size. The selected cut length has priority over all generic rear-hair or maximum-length wording. Before finishing inspect both neck sides: no obsolete source hair or invented extensions. Never add volume.`;
 }
 export function selectedHairPlacement(selected){
  const design=selectedHairDesign(selected);
  if(design&&design.kind!=='long')return `SHORT / GATHERED HAIR PLACEMENT: ${selectedHairInstruction(selected)} Behind-the-ears placement never authorizes extra hair below the selected cut. Keep the front neck and clavicles clear; retain natural short tips only where Image 2 shows them.`;
  return 'REAR PLACEMENT FOR EXISTING LENGTHS ONLY: Keep only the selected hairstyle lengths (or the original length when no new hairstyle is selected). Move front-draped long sections behind the ears and behind the neck/shoulders without lengthening them. Keep the neck and clavicles unobstructed, preserve crown/fringe and the actual cut length, and never invent extra strands or a rear curtain. The upper-armpit level is a maximum for already-long hair, never a target length.';
 }
+

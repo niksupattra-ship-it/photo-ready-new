@@ -3409,11 +3409,12 @@ function App(){
   hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
   let completed=false;
   try{
-   let nextMaster;
+   let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate,onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
-     if(aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
+     generatedResult=aiHeadNeck;
+     if(!studioOnly&&aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
      const transparent=aiHeadNeck;
      setProgressStage(76,'กำลังเตรียมภาพที่ประมวลผลแล้ว');
@@ -3421,12 +3422,33 @@ function App(){
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
-     assertProcessActive();rememberHairResult(id,nextMaster,portraitMode);
+     assertProcessActive();if(!studioOnly)rememberHairResult(id,nextMaster,portraitMode);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
    if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
    const nextLock=await fitChangedHairMaster(nextMaster,current);
+   if(studioOnly){
+    // Do not replace App's master or populate reusable results until Studio has
+    // decoded/hydrated the exact selected result and delivery is confirmed.
+    const operation=activeProcessOperation,jobId=cached?.jobId||generatedResult?.idpromJobId;
+    if(!jobId)throw Error('ไม่ได้รับหมายเลขผลลัพธ์ทรงผม');
+    const isTrial=cached?!(await verifyOutputRights(jobId)).unlocked:Boolean(generatedResult.idpromTrial);
+    assertProcessActive(operation);
+    let committed=false;
+    const commit=()=>{
+     if(committed)return;
+     if(activeProcessOperation!==operation||firstUploadedPhotoRef.current!==firstUploadedPhoto)throw Error('รูปต้นฉบับหรืองานเปลี่ยนแล้ว กรุณาเลือกทรงใหม่');
+     assertProcessActive(operation);
+     beginOptionRender();editCache.current={...current,master:nextMaster,lock:nextLock};
+     currentOutputJobRef.current=jobId;currentOutputTrialRef.current=isTrial;studioTrialRef.current=isTrial;
+     setOutputJobId(jobId);setTrialPreview(isTrial);setHairId(id||'');
+     const entry=rememberHairResult(id,nextMaster,portraitMode);entry.confirmed=true;
+     committed=true;
+    };
+    completed=true;
+    return {reused:Boolean(cached),master:nextMaster,lock:nextLock,jobId,isTrial,hairId:id||'',commit};
+   }
    const out=studioOnly?null:await renderWithRibbon(nextMaster,nextLock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
    if(!cached)assertProcessActive();
    // The old editor canvas may otherwise cover the newly generated PNG.
@@ -3758,10 +3780,22 @@ function App(){
   if(firstUploadedPhotoRef.current)firstUploadedPhotoRef.current.idpromFemaleEyeStyle=femaleEyeStyle==='makeup'?'makeup':'natural';
   if(!canReuseHair(id,portraitMode)&&!privateTrialActive&&rights.generationRemaining<1&&(!(rights.trialAvailable&&rights.trialRemaining>0)||!isTrialHairAllowed(id))){setBuyOpen(true);throw Error('ใช้สิทธิ์ทดลองครบแล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลทรงใหม่');}
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
-  const ok=await changeHairForStudio(id,portraitMode,{studioOnly:true});if(!ok)throw Error('เปลี่ยนทรงผมไม่สำเร็จ กรุณาลองใหม่');
-  const layers=[],current=editCache.current;layers.headOnly=true;
-  await renderAdjustedFinal(current.master,current.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
-  const head=layers.find(l=>l.name==='หัว · คอ · ผม');head.jobId=currentOutputJobRef.current;head.restrictedTrial=studioTrialRef.current;head.outputUnlocked=!studioTrialRef.current;head.hairId=id;head.hairPolicyVersion=HAIR_DESIGN_VERSION;head.portraitMode=portraitMode;head.femaleEyeStyle=firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural';return {layer:head,reused:ok.reused};
+  const previous={jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current};
+  let staged,committed=false;
+  const rollback=()=>{
+   if(committed)return;
+   currentOutputJobRef.current=previous.jobId;currentOutputTrialRef.current=previous.isTrial;studioTrialRef.current=previous.studioTrial;
+   setOutputJobId(previous.jobId);setTrialPreview(previous.studioTrial);
+  };
+  try{
+   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true});
+   if(!staged?.master||staged.hairId!==(id||''))throw Error('ผลลัพธ์ไม่ตรงกับทรงที่เลือก กรุณาลองใหม่');
+   const layers=[];layers.headOnly=true;
+   await renderAdjustedFinal(staged.master,staged.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
+   const head=layers.find(l=>l.name==='หัว · คอ · ผม');if(!head)throw Error('ไม่ได้รับเลเยอร์ทรงผมใหม่');
+   Object.assign(head,{jobId:staged.jobId,restrictedTrial:staged.isTrial,outputUnlocked:!staged.isTrial,hairId:id||'',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle});
+   return {layer:head,reused:staged.reused,commit:()=>{staged.commit();committed=true},rollback};
+  }catch(error){rollback();throw error}
  };
  if(screen==='home'){
   const rows=[
@@ -3882,6 +3916,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+
 
 
 
