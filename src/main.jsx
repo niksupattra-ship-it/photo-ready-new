@@ -923,99 +923,6 @@ async function applySkinBrightness(image,factor=null,skinMask=null){
  x.putImageData(out,0,0);return c;
 }
 
-// V163: retain a longer, softly feathered strip of the photographed neck below
-// the jaw. The smoothstep fade removes the horizontal join without repainting
-// face pixels or introducing a flat sampled skin colour.
-function isolateHeadHairAndNeck(image,faceCX,chinY,semanticHairMask=null,semanticSkinMask=null,semanticClothingMask=null){
- const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- const c=document.createElement('canvas');c.width=W;c.height=H;
- const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(image,0,0,W,H);
- const out=x.getImageData(0,0,W,H),d=out.data;
- const semanticHair=semanticHairMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
- const expandedSkin=canvasFor(W,H),esc=expandedSkin.getContext('2d');
- if(semanticSkinMask){
-  const spread=Math.max(2,Math.round(W*.006));
-  for(let dy=-spread;dy<=spread;dy+=spread)for(let dx=-spread;dx<=spread;dx+=spread)esc.drawImage(semanticSkinMask,dx,dy);
- }
- const skinSoft=canvasFor(W,H),ssc=skinSoft.getContext('2d');
- if(semanticSkinMask){ssc.filter=`blur(${Math.max(2,Math.min(6,W*.004))}px)`;ssc.drawImage(expandedSkin,0,0);ssc.filter='none'}
- const semanticSkin=semanticSkinMask?ssc.getImageData(0,0,W,H).data:null;
- const clothing=semanticClothingMask?.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data||null;
- const start=Math.max(0,Math.floor(chinY-H*.012));
- // V199: retain the real AI-generated neck and clavicle field. Canvas only
- // feathers its outer alpha; it never synthesizes, stretches or repaints skin.
- // V233: retain 20% more of the actual generated lower-neck pixels so the
- // open-collar V is filled with skin rather than fading to white/background.
- // Never invent or stretch pixels: this only preserves AI-generated anatomy.
- const solidEnd=Math.min(H,Math.ceil(chinY+H*.64*1.20));
- const fadeEnd=Math.min(H,Math.ceil(chinY+H*.78*1.20));
- const hairSolidEnd=Math.min(H,Math.ceil(chinY+H*.29));
- const hairFadeEnd=Math.min(H,Math.ceil(chinY+H*.46));
- for(let yy=start;yy<H;yy++)for(let xx=0;xx<W;xx++){
-  const i=(yy*W+xx)*4,a=d[i+3];if(!a)continue;
-  const dist=Math.abs(xx-faceCX);
-  const segmentedHair=Boolean(semanticHair&&semanticHair[i+3]>96);
-  const skinAlpha=semanticSkin?semanticSkin[i+3]/255:1;
-  // V194: below the jaw only confirmed hair can survive. The previous darkness
-  // heuristic misread black shirts as hair and kept a duplicate torso layer.
-  const hair=yy<hairFadeEnd&&dist<W*.38&&segmentedHair;
-  const neckProgress=Math.max(0,Math.min(1,(yy-start)/Math.max(1,fadeEnd-start)));
-  // Neck/half-shoulder repair: do not pinch the neck into a narrow central
-  // strip. Keep the AI's real neck and skin up to the midpoint of each
-  // shoulder, then taper only the covered lower margin behind the uniform.
-  // The old .190 -> .130 half-width cut away both sides of the neck and
-  // exposed a blue V at the standing collar. Never manufacture skin pixels.
-  const smoothstep=t=>{const q=Math.max(0,Math.min(1,t));return q*q*(3-2*q)};
-  let anatomical;
-  if(neckProgress<.12){
-   anatomical=W*(.245+.025*smoothstep(neckProgress/.12));
-  }else if(neckProgress<.36){
-   anatomical=W*(.270+.090*smoothstep((neckProgress-.12)/.24));
-  }else{
-   anatomical=W*(.360-.075*smoothstep((neckProgress-.36)/.64));
-  }
-  // Only soften the outer silhouette, never the central skin/neck bridge.
-  const sideFeather=Math.max(3,W*.010);
-  const sideAlpha=Math.max(0,Math.min(1,(anatomical-dist)/sideFeather));
-  // V203: the MODNet master alpha already identifies the generated person.
-  // Do not intersect this mandatory neck/shoulder field with the low-resolution
-  // semantic skin mask: that intersection caused the blue bites on both sides.
-  const neck=yy<=fadeEnd&&(sideAlpha>0||(semanticSkin&&skinAlpha>.5&&dist<W*.38));
-  // V211: NEVER erase pixels inside the anatomical neck to clear hair.
-  // Hair segmentation sometimes labels shadowed neck as hair; the old clearing
-  // branch punched transparent holes that revealed the blue background.
-  // The template covers the lower margin; keep the continuous AI skin here.
-  if(hair){
-   if(yy<=hairSolidEnd)continue;
-   const ht=Math.max(0,Math.min(1,(yy-hairSolidEnd)/Math.max(1,hairFadeEnd-hairSolidEnd)));
-   const edgeDelay=Math.max(0,Math.min(.18,dist/Math.max(1,W*.34)*.18));
-   const eased=Math.max(0,Math.min(1,(ht-edgeDelay)/Math.max(.01,1-edgeDelay)));
-   const hairAlpha=1-eased*eased*(3-2*eased);
-   d[i+3]=Math.round(a*hairAlpha);
-   if(d[i+3]>0)continue;
-  }
-  // Remove positively classified shirt pixels, not all pixels missed by the
-  // low-resolution skin classifier. Expanded skin protects neckline edges.
-  // Face/jaw and confirmed hair were preserved above; RGB detail is untouched.
-  if(clothing && yy>chinY+H*.025 && clothing[i+3]>192 && skinAlpha<.08){
-   d[i+3]=0;continue;
-  }
-  // Keep the existing anatomical envelope and remove pixels outside it.
-  // Clothing removal above is conservative to protect real neckline edges.
-  if(!neck){d[i+3]=0;continue}
-  // Keep original MODNet opacity throughout the required neck fill. Semantic
-  // skin classification is advisory, never allowed to cut away neck pixels.
-  let alpha=semanticSkin&&skinAlpha>.5&&dist<W*.38?Math.max(sideAlpha,skinAlpha):sideAlpha;
-  if(yy>solidEnd){
-   const t=Math.max(0,Math.min(1,(yy-solidEnd)/Math.max(1,fadeEnd-solidEnd)));
-   const smooth=t*t*(3-2*t);
-   alpha*=1-smooth;
-  }
-  d[i+3]=Math.round(a*alpha);
- }
- x.clearRect(0,0,W,H);x.putImageData(out,0,0);return c;
-}
-
 const editorPreparedCache=new WeakMap();
 async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckAdjust={width:0,length:0},backgroundPath='/assets/background.jpg',ribbonPath=null,ribbonAdjust={x:0,y:0,scale:1},collarPinPair=null,collarPinAdjust={left:{x:0,y:0},right:{x:0,y:0}},preview=false,liveCanvas=null,collarHeight=0,chestPinPath=null,chestPinAdjust={x:0,y:0,scale:1},studioLayers=null){
  // V80 MASTER-RESOLUTION COMPOSITE:
@@ -1033,7 +940,6 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   try{return await loadImage(url)}finally{URL.revokeObjectURL(url)}
  })());
  {
-  const masterMasks=await (cache.masksPromise||(cache.masksPromise=getV192MasterMasks(headMasterBlob,head)));
   const neckKey=`${lock.chinY}|${neckAdjust.width||0}|${neckAdjust.length||0}`;
   if(cache.neckKey!==neckKey){cache.neckKey=neckKey;cache.neckPromise=warpPersonNeck(head,lock.chinY,neckAdjust);cache.cleanHead=null}
   const neckHead=await cache.neckPromise;
@@ -1042,7 +948,10 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   // V210: gentle 20% fill-flash ceiling on existing skin pixels; no AI face redraw.
   // V217: V116 skin fidelity. No post-AI skin brightening, smoothing or makeup.
   // Preserve the exact skin pixels of the master layer; V216 hairstyle/compositor stays intact.
-  const cleanHead=cache.cleanHead||(cache.cleanHead=isolateHeadHairAndNeck(neckHead,lock.faceCX,lock.chinY,masterMasks.hairMask,masterMasks.skinMask,masterMasks.clothingMask));
+  // The production master already contains the matted head, hair and neck.
+  // Preserve its complete native silhouette: a second anatomical envelope or
+  // low-resolution semantic mask cuts side hair into square steps below the jaw.
+  const cleanHead=neckHead;
   // V231: compose offscreen. Resizing the visible canvas clears it on every slider tick.
  const c=preview&&liveCanvas?(cache.previewCanvas||(cache.previewCanvas=document.createElement('canvas'))):document.createElement('canvas');const ratio=preview?Math.min(1,Math.max(320,Math.round(liveCanvas?.clientWidth||320)*Math.min(1.5,window.devicePixelRatio||1))/lock.W):1;const targetW=Math.round(lock.W*ratio),targetH=Math.round(lock.H*ratio);if(c.width!==targetW||c.height!==targetH){c.width=targetW;c.height=targetH}
   // V299: a reused preview canvas retains its 2D transform between frames.
