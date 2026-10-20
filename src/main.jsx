@@ -1102,7 +1102,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
     drawPin(leftPin,lock.uX+lock.uW*(.34+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
     drawPin(rightPin,lock.uX+lock.uW*(.66+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }else{
-    const y=lock.uY+lock.uH*.245;
+    const y=lock.uY+lock.uH*.245-2*lock.H/1200;
     drawPin(leftPin,lock.uX+lock.uW*(.455+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
     drawPin(rightPin,lock.uX+lock.uW*(.545+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }
@@ -1113,7 +1113,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const chestPin=await loadImage(chestPinPath);
    const w=lock.uW*.073*(chestPinAdjust.scale||1);
    const h=w*(chestPin.naturalHeight/chestPin.naturalWidth);
-   const cx=lock.uX+lock.uW*(.28+(chestPinAdjust.x||0));
+   const cx=lock.uX+lock.uW*(.28+(chestPinAdjust.x||0))+(/female-/.test(lock.templatePath||'')?0:5*lock.W/900);
    const cy=lock.uY+lock.uH*(.405+(chestPinAdjust.y||0));
    x.drawImage(chestPin,cx-w/2,cy-h/2,w,h);
   }
@@ -1126,7 +1126,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const ribbonWidth=lock.uW*.205*(ribbonAdjust.scale||1);
    const ribbonHeight=ribbonWidth*(ribbon.naturalHeight/ribbon.naturalWidth);
    // Anchor above the pocket flap (the previous .70/.54 landed on the pocket).
-   const centerX=lock.uX+lock.uW*(.73+(ribbonAdjust.x||0));
+   const centerX=lock.uX+lock.uW*(.73+(ribbonAdjust.x||0))-(/female-/.test(lock.templatePath||'')?0:3*lock.W/900);
    const topY=lock.uY+lock.uH*(.495+(ribbonAdjust.y||0));
    x.drawImage(ribbon,centerX-ribbonWidth/2,topY,ribbonWidth,ribbonHeight);
   }
