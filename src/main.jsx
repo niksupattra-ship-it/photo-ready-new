@@ -1090,7 +1090,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
   if(collarPinPair){
    const [leftPin,rightPin]=await Promise.all([loadImage(collarPinPair.left),loadImage(collarPinPair.right)]);
    const isFemale=/\/government-uniforms\/female-/.test(lock.templatePath||'');
-   const pinBoxW=lock.uW*(isFemale?.05304:.0544)*(collarPinAdjust.scale||1);
+   const pinBoxW=lock.uW*(isFemale?.0572832:.0544)*(collarPinAdjust.scale||1);
    const drawPin=(pin,cx,cy)=>{
     const pinBoxH=pinBoxW*(pin.naturalHeight/pin.naturalWidth);
     x.drawImage(pin,cx-pinBoxW/2,cy-pinBoxH/2,pinBoxW,pinBoxH);
@@ -1098,7 +1098,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    const leftOffset=collarPinAdjust.left||{x:0,y:0},rightOffset=collarPinAdjust.right||{x:0,y:0};
    if(isFemale){
     // Female reference: 15% smaller, nearer the tie; retain lapel height.
-    const y=lock.uY+lock.uH*.28;
+    const y=lock.uY+lock.uH*.28-2*lock.H/1200;
     drawPin(leftPin,lock.uX+lock.uW*(.34+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
     drawPin(rightPin,lock.uX+lock.uW*(.66+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
    }else{
