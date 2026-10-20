@@ -1102,18 +1102,18 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
     drawPin(leftPin,lock.uX+lock.uW*(.34+(leftOffset.x||0))-2*lock.W/900,y+lock.uH*(leftOffset.y||0));
     drawPin(rightPin,lock.uX+lock.uW*(.66+(rightOffset.x||0))+2*lock.W/900,y+lock.uH*(rightOffset.y||0));
    }else{
-    const y=lock.uY+lock.uH*.245-2*lock.H/1200;
-    drawPin(leftPin,lock.uX+lock.uW*(.455+(leftOffset.x||0)),y+lock.uH*(leftOffset.y||0));
-    drawPin(rightPin,lock.uX+lock.uW*(.545+(rightOffset.x||0)),y+lock.uH*(rightOffset.y||0));
+    const y=lock.uY+lock.uH*.245-4*lock.H/1200;
+    drawPin(leftPin,lock.uX+lock.uW*(.455+(leftOffset.x||0))+14*lock.W/900,y+lock.uH*(leftOffset.y||0));
+    drawPin(rightPin,lock.uX+lock.uW*(.545+(rightOffset.x||0))-14*lock.W/900,y+lock.uH*(rightOffset.y||0));
    }
   }
   if(collarPinPair)captureStudioLayer('เข็มปกคอ');
   // V264: independent single chest insignia on the wearer's left breast (image right).
   if(chestPinPath){
    const chestPin=await loadImage(chestPinPath);
-   const w=lock.uW*.073*(chestPinAdjust.scale||1);
+   const w=lock.uW*.073*(/female-/.test(lock.templatePath||'')?1:.85)*(chestPinAdjust.scale||1);
    const h=w*(chestPin.naturalHeight/chestPin.naturalWidth);
-   const cx=lock.uX+lock.uW*(.28+(chestPinAdjust.x||0))+(/female-/.test(lock.templatePath||'')?0:5*lock.W/900);
+   const cx=lock.uX+lock.uW*(.28+(chestPinAdjust.x||0))+(/female-/.test(lock.templatePath||'')?0:49*lock.W/900);
    const cy=lock.uY+lock.uH*(.405+(chestPinAdjust.y||0));
    x.drawImage(chestPin,cx-w/2,cy-h/2,w,h);
   }
