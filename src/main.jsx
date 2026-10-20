@@ -928,6 +928,18 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
  // V80 MASTER-RESOLUTION COMPOSITE:
  // Always render the FINAL from the untouched full-resolution transparent head master (02).
  // Never use the already-resampled 03 placed-head canvas as a source for final/export.
+ // A hairstyle-only Studio update needs the native head, not outfit/background
+ // downloads or uniform preparation. Do not let those block an already-ready PNG.
+ if(studioLayers?.headOnly&&!(adjust.rotation||0)&&!(neckAdjust.width||0)&&!(neckAdjust.length||0)){
+  const head=await decodedPortraitImage(headMasterBlob);
+  const master=canvasFor(head.naturalWidth||head.width,head.naturalHeight||head.height);
+  master.getContext('2d').drawImage(head,0,0);
+  const baseW=lock.headW*lock.scale,baseH=lock.headH*lock.scale,s=adjust.scale||1;
+  const drawW=baseW*s,drawH=baseH*s;
+  const cx=lock.hX+baseW/2+(adjust.x||0)*lock.W,cy=lock.hY+baseH/2+(adjust.y||0)*lock.H;
+  studioLayers.push({name:'หัว · คอ · ผม',source:master.toDataURL('image/png'),sourceFrame:{x:(cx-drawW/2)/lock.W*900,y:(cy-drawH/2)/lock.H*1200,w:drawW/lock.W*900,h:drawH/lock.H*1200}});
+  return studioLayers;
+ }
  const [bg,uniform]=await Promise.all([loadImage(backgroundPath),loadImage(lock.templatePath||'/assets/uniform.png')]);
  let cache=editorPreparedCache.get(headMasterBlob);
  if(!cache){cache={};editorPreparedCache.set(headMasterBlob,cache)}
@@ -1368,7 +1380,7 @@ function refineOldHairMask(locked,semanticHair,protect,eyeD,chinY,centerX){
 // master beneath a new hairstyle. Generate missing ears/scalp/neck once and
 // restore ONLY originally visible face/neck pixels that are also skin in donor.
 function canvasFor(W,H){const c=document.createElement('canvas');c.width=W;c.height=H;return c}
-function canvasPng(c){return new Promise((ok,bad)=>c.toBlob(b=>b?ok(b):bad(Error('บันทึก Clean Head Master ไม่สำเร็จ')),'image/png'))}
+function canvasPng(c){return withDeadline(()=>new Promise((ok,bad)=>c.toBlob(b=>b?ok(b):bad(Error('บันทึกภาพ PNG ไม่สำเร็จ')),'image/png')),{timeoutMs:30000,message:'เตรียมไฟล์ภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'PORTRAIT_ENCODE_TIMEOUT'})}
 function alignFaceCanvas(source,from,to,W,H){
  const c=canvasFor(W,H),x=c.getContext('2d');
  const a=from[33],b=from[263],la=to[33],lb=to[263];
@@ -3870,6 +3882,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+
 
 
 
