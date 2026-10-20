@@ -179,7 +179,7 @@ async function requireCredit(req,res,kind){
   const r=user&&user.wallet_id===wid?await reserveCredit(wid,kind):null;
   if(r)return r;
   if(kind==='ai-finish'||kind==='hairstyle'){
-    if(!isTrialHairAllowed(req.body?.hairId)){res.status(402).json({error:'trial_hair_locked',message:'ทดลองฟรีเลือกได้ 4 ทรงแรกต่อหญิง/ชาย กรุณาเลือกแพ็กเกจเพื่อใช้ทุกทรง'});return null}
+    if(!isTrialHairAllowed(req.body?.hairId)){res.status(402).json({error:'trial_hair_locked',message:'ไม่พบทรงผมที่เลือก กรุณารีเฟรชและเลือกใหม่'});return null}
     const fingerprint=trialDeviceFingerprint(req,res,wid);
     if(fingerprint){
       const access=await trialOptionAccess(wid,fingerprint,trialNetworkFingerprint(req));
@@ -430,3 +430,4 @@ app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",confi
 app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
+
