@@ -1,6 +1,9 @@
 // A rigid rotation only: no face warp, stretching, scaling or AI regeneration.
 export function portraitLevelTransform(face,W,H){
- const a=face?.[33],b=face?.[263];
+ const outerLeft=face?.[33],innerLeft=face?.[133],innerRight=face?.[362],outerRight=face?.[263];
+ // Average each eye's corners rather than aligning a single corner pair.
+ const midpoint=(a,b)=>a&&b?{x:(a.x+b.x)/2,y:(a.y+b.y)/2}:a;
+ const a=midpoint(outerLeft,innerLeft),b=midpoint(outerRight,innerRight);
  if(!a||!b||![a.x,a.y,b.x,b.y,W,H].every(Number.isFinite)||W<=0||H<=0)return null;
  const dx=(b.x-a.x)*W,dy=(b.y-a.y)*H;
  if(dx<=0||Math.hypot(dx,dy)<W*.06)return null;
@@ -9,3 +12,4 @@ export function portraitLevelTransform(face,W,H){
  const c=Math.abs(Math.cos(angle)),s=Math.abs(Math.sin(angle));
  return {angle:-angle,width:Math.ceil(W*c+H*s),height:Math.ceil(W*s+H*c)};
 }
+
