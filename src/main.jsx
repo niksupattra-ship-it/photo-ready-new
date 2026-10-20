@@ -2293,7 +2293,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([gender==='male'?'combined-seedream-server4-catalog34-male-shave-v11':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-skin-v10':'combined-seedream-server4-catalog34-eye-choice-v8',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([gender==='male'?'combined-seedream-server4-catalog34-male-shave-v12':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-skin-v10':'combined-seedream-server4-catalog34-eye-choice-v8',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
  try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
@@ -3447,7 +3447,7 @@ function App(){
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
  const hairResultMode=(id,portraitMode)=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)?.gender||portraitMode||firstUploadedPhotoRef.current?.idpromPortraitMode||(/female|woman|women/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'female':/male|man|men/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'male':'female');
- const hairResultKey=(id,portraitMode)=>JSON.stringify([hairResultMode(id,portraitMode),id||'original',firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v11':'unchanged']);
+ const hairResultKey=(id,portraitMode)=>JSON.stringify([hairResultMode(id,portraitMode),id||'original',firstUploadedPhotoRef.current?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v12':'unchanged']);
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode)=>{
   const key=hairResultKey(id,portraitMode),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
