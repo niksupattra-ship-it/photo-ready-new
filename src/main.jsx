@@ -2745,8 +2745,8 @@ function App(){
   const data=await r.json();if(!r.ok)throw Error(data.message||'รับสิทธิ์ไม่สำเร็จ');
   setRights(previous=>({...previous,...normalizedRights(data)}));setPurchaseEditing(true);
   if(data.unlockedJobIds?.includes(currentOutputJobRef.current)){currentOutputTrialRef.current=false;studioTrialRef.current=false;setTrialPreview(false)}
-  const message='รับสิทธิ์แพ็ก '+data.packagePrice+' บาทฟรีแล้ว · เครดิตคงเหลือ '+data.processRemaining+' ครั้ง · ไม่ต้องชำระเงินเพิ่มสำหรับรูปที่รับสิทธิ์แล้ว';
-  setPayMsg(message);setMsg(message);setBuyOpen(false);setAccountSaveNotice({state:'success',title:'รับสิทธิ์สำเร็จ',message});history.replaceState({},'',location.pathname);
+  const message=data.alreadyRedeemed?(data.processRemaining>0?'คุณรับสิทธิ์จากลิงก์นี้แล้ว · ยังใช้เครดิตคงเหลือได้อีก '+data.processRemaining+' ครั้ง':'คุณรับสิทธิ์จากลิงก์นี้แล้ว · เครดิตหมดแล้ว แต่รูปที่รับสิทธิ์ไว้ยังบันทึกและดาวน์โหลดได้'):'รับสิทธิ์แพ็ก '+data.packagePrice+' บาทฟรีแล้ว · เครดิตคงเหลือ '+data.processRemaining+' ครั้ง · ไม่ต้องชำระเงินเพิ่มสำหรับรูปที่รับสิทธิ์แล้ว';
+  setPayMsg(message);setMsg(message);setBuyOpen(false);setAccountSaveNotice({state:'success',title:data.alreadyRedeemed?'สิทธิ์ในบัญชีของคุณ':'รับสิทธิ์สำเร็จ',message});history.replaceState({},'',location.pathname);
  }catch(e){const message=e.message||'ยังรับสิทธิ์ไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่';setPayMsg(message);setMsg(message);setBuyOpen(false);setAccountSaveNotice({state:'error',title:'รับสิทธิ์ไม่สำเร็จ',message})}};
  const requireOutputAccess=async()=>{
   const result=outputAccessResult([await verifyOutputRights(currentOutputJobRef.current)]);

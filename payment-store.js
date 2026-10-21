@@ -137,7 +137,15 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
   const ins=await c.query('INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,$3) ON CONFLICT(code) DO NOTHING RETURNING code',['promo_v2_'+key,walletId,packageId]);
-  if(!ins.rowCount){await c.query('ROLLBACK');return {ok:false,reason:'used'}}
+  if(!ins.rowCount){
+   const redemption=await c.query('SELECT wallet_id,package_id FROM promo_redemptions WHERE code=$1',['promo_v2_'+key]);
+   const original=redemption.rows[0];
+   if(!original||original.wallet_id!==walletId){await c.query('ROLLBACK');return {ok:false,reason:'used'}}
+   // Reopening one's own link reads current rights; never credit or unlock another image.
+   const balance=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);
+   await c.query('COMMIT');
+   return {ok:true,alreadyRedeemed:true,packagePrice:packageFor(original.package_id).price,...shape(walletId,balance.rows[0]),...await imageEntitlements(walletId)};
+  }
   await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,packageId==='89_v4'?p.g:packageId==='79_v2'?1:0]);
   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
