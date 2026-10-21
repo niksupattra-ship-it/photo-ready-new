@@ -1,5 +1,6 @@
 import {skinBlemishField} from './skin-blemish-retouch.js';
 import {guidedMakeupLuminance,LOCAL_MAKEUP_CONTOURS} from './local-makeup.js';
+import {readBlurredMaskAlpha} from './canvas-mask-blur.js';
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t)};
 const luma=(r,g,b)=>r*.2126+g*.7152+b*.0722;
@@ -14,18 +15,19 @@ export async function renderLocalSkin({original,face,hairMask,skinMask,lookId,si
  const scale=Math.min(1,1024/Math.max(W,H)),w=Math.max(1,Math.round(W*scale)),h=Math.max(1,Math.round(H*scale)),work=canvas(w,h),wx=work.getContext('2d',{willReadFrequently:true});wx.drawImage(original,0,0,w,h);
  const data=wx.getImageData(0,0,w,h).data,Y=new Float32Array(w*h);for(let i=0;i<Y.length;i++)Y[i]=luma(data[i*4],data[i*4+1],data[i*4+2]);onProgress?.(15);
  const guide=await guidedMakeupLuminance(Y,w,h,Math.max(2,w*.006),signal);abort(signal);
- const softMask=canvas(w,h),mx=softMask.getContext('2d');mx.filter='blur(1.3px)';mx.drawImage(skinMask,0,0,w,h);mx.filter='none';
- const hair=canvas(w,h),hx=hair.getContext('2d');hx.filter='blur(1.2px)';hx.drawImage(hairMask,0,0,w,h);hx.filter='none';
+ const skinAlpha=await readBlurredMaskAlpha(skinMask,w,h,1.3,{signal});
+ const hairAlpha=await readBlurredMaskAlpha(hairMask,w,h,1.2,{signal});
  const protectedFeatures=canvas(w,h),px=protectedFeatures.getContext('2d');px.fillStyle='#fff';px.strokeStyle='#fff';px.lineJoin='round';px.lineWidth=Math.max(1,w*.003);
  for(const ids of [...LOCAL_MAKEUP_CONTOURS.eyes,LOCAL_MAKEUP_CONTOURS.lips]){px.beginPath();ids.forEach((id,i)=>{const p=face[id];if(!p)throw Error('ตรวจตำแหน่งใบหน้าไม่ครบ');i?px.lineTo(p.x*w,p.y*h):px.moveTo(p.x*w,p.y*h)});px.closePath();px.fill();px.stroke()}
- const feather=canvas(w,h),fx=feather.getContext('2d');fx.filter='blur(2px)';fx.drawImage(protectedFeatures,0,0);fx.filter='none';
+ const protectedAlpha=await readBlurredMaskAlpha(protectedFeatures,w,h,0,{signal});
+ const featherAlpha=await readBlurredMaskAlpha(protectedFeatures,w,h,2,{signal});
  const brow=canvas(w,h),bx=brow.getContext('2d');bx.fillStyle='#fff';
  for(const ids of LOCAL_MAKEUP_CONTOURS.brows){bx.beginPath();ids.forEach((id,i)=>{const p=face[id];i?bx.lineTo(p.x*w,p.y*h):bx.moveTo(p.x*w,p.y*h)});bx.closePath();bx.fill()}
- const browSoft=canvas(w,h),bs=browSoft.getContext('2d');bs.filter='blur(3px)';bs.drawImage(brow,0,0);bs.filter='none';const browPixels=bs.getImageData(0,0,w,h).data;
- const masks=[mx,hx,px,fx].map(c=>c.getImageData(0,0,w,h).data),field=canvas(w,h),fc=field.getContext('2d'),f=fc.createImageData(w,h);
+ const browAlpha=await readBlurredMaskAlpha(brow,w,h,3,{signal});
+ const field=canvas(w,h),fc=field.getContext('2d'),f=fc.createImageData(w,h);
  const coverageField=new Float32Array(w*h);
  for(let i=0;i<Y.length;i++){
-  const j=i*4;coverageField[i]=masks[0][j+3]/255*(1-smooth(1,35,masks[1][j+3]))*(1-masks[2][j+3]/255)*(1-masks[3][j+3]/255)*(1-browPixels[j+3]/255*(1-smooth(55,130,Y[i])));
+  coverageField[i]=skinAlpha[i]/255*(1-smooth(1,35,hairAlpha[i]))*(1-protectedAlpha[i]/255)*(1-featherAlpha[i]/255)*(1-browAlpha[i]/255*(1-smooth(55,130,Y[i])));
  }
  // Only the smoothing option applies conservative blemish/texture corrections.
  const retouch=lookId==='skin-smooth-v1'?skinBlemishField(data,w,h,coverageField):null;

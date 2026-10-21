@@ -36,6 +36,7 @@ import {deliverImage} from './image-download.js';
 import {appStorage} from './browser-storage.js';
 import {preparePhotoInput} from './photo-input.js';
 import {requestPromptpay} from './promptpay-request.js';
+import {deadlineFetch} from './deadline-fetch.js';
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
@@ -102,15 +103,7 @@ let activeProcessOperation=null;
 function cancelledProcessError(){return Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{code:'USER_CANCELLED'})}
 function assertProcessActive(operation=activeProcessOperation){if(operation?.cancelled)throw cancelledProcessError()}
 async function portraitFetch(url,options={},timeoutMs=30000){
- let timer;
- try{
-  let signal;
-  if(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function')signal=AbortSignal.timeout(timeoutMs);
-  else{const controller=new AbortController();signal=controller.signal;timer=setTimeout(()=>controller.abort(),timeoutMs)}
-  return await fetch(url,{...options,signal});
- }
- catch(e){if(e.name==='TimeoutError'||e.name==='AbortError')throw Error('การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่');throw e}
- finally{if(timer!==undefined)clearTimeout(timer)}
+ return deadlineFetch(url,options,{timeoutMs,timeoutMessage:'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่'});
 }
 async function settleProcessOperation(operation,action){
  if(!operation?.jobId)return;
@@ -2779,8 +2772,17 @@ function App(){
   const targetId=options.workId||savedWorkIdRef.current;
   const body=JSON.stringify({id:options.createCopy?'':targetId,project});
   if(new Blob([body]).size>64*1024*1024)throw Error('งานนี้มีขนาดเกิน 64 MB กรุณาลบเลเยอร์ที่ไม่ใช้แล้วบันทึกใหม่');
-  const r=await portraitFetch('/api/saved-work',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body},90000);
-  const d=await r.json().catch(()=>({message:r.status===413?'งานมีขนาดใหญ่เกินไป กรุณาลดจำนวนเลเยอร์':'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'}));
+  const send=payload=>portraitFetch('/api/saved-work',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:payload},90000);
+  let r=await send(body);
+  let d=await r.json().catch(()=>({message:r.status===413?'งานมีขนาดใหญ่เกินไป กรุณาลดจำนวนเลเยอร์':'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'}));
+  // A cancelled DELETE may already have completed on the server. Only a
+  // confirmed missing target permits saving a replacement; never retry an
+  // unknown write outcome or change accounts/work scopes to do so.
+  if(r.status===404&&targetId&&!options.createCopy){
+   if(wallet!==currentWalletId()||scope!==savedWorkOpenRequestRef.current)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาบันทึกงานปัจจุบันอีกครั้ง');
+   r=await send(JSON.stringify({id:'',project}));
+   d=await r.json().catch(()=>({message:r.status===413?'งานมีขนาดใหญ่เกินไป กรุณาลดจำนวนเลเยอร์':'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'}));
+  }
   if(!r.ok){if(d?.error==='saved_work_limit')setSavedWorksOpen(true);throw Error(d?.message||'บันทึกงานไม่สำเร็จ')}
   if(typeof d?.id!=='string'||!d.id.trim())throw Error('เซิร์ฟเวอร์ยังไม่ยืนยันการบันทึกงาน กรุณากดบันทึกอีกครั้ง');
   if(currentWalletId()===wallet&&scope===savedWorkOpenRequestRef.current&&savedWorkIdRef.current===targetId)savedWorkIdRef.current=d.id;
@@ -2790,12 +2792,19 @@ function App(){
  saveAccountWork.currentWorkId=()=>savedWorkIdRef.current;
  saveAccountWork.currentScope=()=>savedWorkOpenRequestRef.current;
  const savedWorkOpenRequestRef=useRef(0);
- const openAccountWork=async work=>{
-  const request=++savedWorkOpenRequestRef.current;
-  await refreshWallet();const wallet=currentWalletId();
-  const restored=await prepareSavedProject(work.project,{decode:loadImage});
-  if(request!==savedWorkOpenRequestRef.current||wallet!==currentWalletId())throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานอีกครั้ง');
+ const savedWorkLoadRequestRef=useRef(0);
+ const openAccountWork=async(work,{signal,accountScope}={})=>{
+  const request=++savedWorkLoadRequestRef.current,workScope=savedWorkOpenRequestRef.current,token=authToken();let wallet;
+  const ensureCurrent=()=>{
+   if(signal?.aborted)throw Object.assign(Error('ยกเลิกการเปิดงานแล้ว'),{name:'AbortError'});
+   const headers=walletHeaders(),currentScope=JSON.stringify([headers.Authorization||'',headers['X-Wallet-Id']||'']);
+   if(request!==savedWorkLoadRequestRef.current||workScope!==savedWorkOpenRequestRef.current||token!==authToken()||(wallet!==undefined&&wallet!==currentWalletId())||(accountScope!==undefined&&accountScope!==currentScope))throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานอีกครั้ง');
+  };
+  ensureCurrent();await refreshWallet();ensureCurrent();wallet=currentWalletId();
+  const restored=await prepareSavedProject(work.project,{decode:loadImage,signal});
+  ensureCurrent();
   // Commit only the completely decoded project, and discard all previous-person state.
+  ++savedWorkOpenRequestRef.current;
   firstUploadedPhotoRef.current=restored.source;editCache.current=restored.editCache;
   initialProcessedMasterRef.current=restored.editCache?.master||null;
   hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;

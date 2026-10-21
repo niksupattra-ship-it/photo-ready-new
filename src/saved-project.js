@@ -1,6 +1,9 @@
+import {createProjectResourceGuard} from './project-resource-guard.js';
 const imageURL=/^data:image\/(png|jpeg|webp);base64,/;
 const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const isHead=l=>l.kind==='head'||l.name==='หัว · คอ · ผม';
+const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเลิกการเปิดงานแล้ว'),{name:'AbortError'})};
+export function assertSavedProjectResources(project){validateSavedProject(project);return createProjectResourceGuard(project)}
 export function validateSavedProject(project){
  if(project?.format!=='idprom-studio'||project.version!==1||project.width!==900||project.height!==1200||!Array.isArray(project.layers)||!project.layers.length||project.layers.length>20)throw Error('รูปแบบโปรเจกต์ไม่ถูกต้อง');
  for(const l of project.layers){
@@ -21,16 +24,24 @@ export async function makeSavedProject(snapshot){
  return validateSavedProject(project);
 }
 // Decode everything before changing the active project; a failed image leaves the current work intact.
-export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type})}){
- validateSavedProject(project);
+export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal}){
+ abort(signal);const resources=assertSavedProjectResources(project);
  const decoded=new Map();
- const read=async(src,collar=false)=>{if(!decoded.has(src)){const im=await decode(src),w=im.naturalWidth||im.width,h=im.naturalHeight||im.height;if(w<1||h<1||w>(collar?16384:8192)||h>8192)throw Error('ขนาดภาพเลเยอร์ไม่ถูกต้อง');decoded.set(src,im)}return decoded.get(src)};
+ const bounded=operation=>new Promise((resolve,reject)=>{
+  let settled=false,timer;const finish=(callback,value)=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);callback(value)};
+  const cancel=()=>{try{abort(signal)}catch(error){finish(reject,error)}};
+  if(signal?.aborted){cancel();return}signal?.addEventListener('abort',cancel,{once:true});
+  timer=setTimeout(()=>finish(reject,Object.assign(Error('เปิดไฟล์งานใช้เวลานาน กรุณาลองอีกครั้ง งานปัจจุบันยังอยู่'),{code:'PROJECT_READ_TIMEOUT'})),15000);
+  Promise.resolve().then(async()=>{abort(signal);const value=await operation();abort(signal);return value}).then(value=>finish(resolve,value),error=>finish(reject,error));
+ });
+ const read=async(src,collar=false)=>{abort(signal);if(!decoded.has(src)){const im=await bounded(()=>decode(src)),w=im.naturalWidth||im.width,h=im.naturalHeight||im.height;resources.checkDecoded(src,w,h);if(w<1||h<1||w>(collar?16384:8192)||h>8192)throw Error('ขนาดภาพเลเยอร์ไม่ถูกต้อง');decoded.set(src,im)}return decoded.get(src)};
+ const blob=src=>bounded(async()=>{const response=await fetchImage(src,{signal});abort(signal);const data=await response.blob();abort(signal);return data});
  for(const l of project.layers){
   const original=await read(l.source,Boolean(l.collarParts));
   for(const key of imageFields.slice(1))if(l[key]){const im=await read(l[key],Boolean(l.collarParts));if(['eraseRestoreSource','warpRestoreBase'].includes(key)&&((im.naturalWidth||im.width)!==(original.naturalWidth||original.width)||(im.naturalHeight||im.height)!==(original.naturalHeight||original.height)))throw Error('ขนาดภาพอ้างอิงคืนขอบไม่ตรงกับเลเยอร์')}
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }
- let source=null;if(project.compareSource){await read(project.compareSource);source=makeFile(await(await fetchImage(project.compareSource)).blob())}
+ let source=null;if(project.compareSource){await read(project.compareSource);source=makeFile(await blob(project.compareSource))}
  const head=project.layers.find(isHead),suit=project.layers.find(l=>l.kind==='suit'||l.name==='ชุด');
  let editCache=null;
  if(head&&source){
@@ -41,7 +52,8 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   const lock={...p,W,H,hX:f.x/900*W,hY:f.y/1200*H,headW:width,headH:height,scale:f.w/900*W/width,uX:u.x/900*W,uY:u.y/1200*H,uW:u.w/900*W,uH:u.h/1200*H,templatePath:suit?.templatePath||p.templatePath};
   // The saved layer may have been moved/resized since its first AI generation.
   for(const key of ['hairFitEyeSize','hairFitEyeCentreX','hairFitChinAnchorY'])delete lock[key];
-  editCache={master:await(await fetchImage(head.source)).blob(),lock};
+  editCache={master:await blob(head.source),lock};
  }
+ abort(signal);
  return {project,source,head,editCache};
 }
