@@ -1,3 +1,4 @@
+import {fetchOutputRights,outputAccessResult} from './output-rights.js';
 import {makeSavedProject,prepareSavedProject} from './saved-project.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
@@ -60,7 +61,7 @@ const PRIVATE_TRIAL_KEY='idprom-private-trial-active';
 // Restore private mode only after fresh server verification on each visit.
 try{localStorage.removeItem(PRIVATE_TRIAL_KEY)}catch{}
 function browserTrialTraits(){try{return JSON.stringify([navigator.platform,navigator.hardwareConcurrency||0,screen.width,screen.height,screen.colorDepth,Intl.DateTimeFormat().resolvedOptions().timeZone])}catch{return 'unknown'}}
-async function verifyOutputRights(jobId){if(!jobId)return {unlocked:false,fullEdit:false};try{const r=await portraitFetch('/api/images/'+encodeURIComponent(jobId)+'/rights',{headers:walletHeaders(),cache:'no-store'});return r.ok?await r.json():{unlocked:false,fullEdit:false}}catch{return {unlocked:false,fullEdit:false}}}
+async function verifyOutputRights(jobId){return fetchOutputRights(jobId,portraitFetch,walletHeaders())}
 function privateTrialRequested(){try{return localStorage.getItem(PRIVATE_TRIAL_KEY)==='1'}catch{return false}}
 function walletHeaders(){const id=currentWalletId();return {'X-IDPROM-Device':browserTrialTraits(),...authHeaders(),...(id?{'X-Wallet-Id':id}:{}),...(privateTrialRequested()?{'X-IDPROM-Private-Trial':'1'}:{})}}
 function updateCreditsFromResponse(response){const value=response.headers.get('X-Rights-Remaining');if(value){try{window.dispatchEvent(new CustomEvent('idprom-rights',{detail:JSON.parse(value)}))}catch{}}}
@@ -2739,7 +2740,22 @@ function App(){
  useEffect(()=>{if(rights.generationRemaining>0)setFeatureSession(true)},[rights.generationRemaining]);
  const allOptionsAvailable=privateTrialActive||rights.generationRemaining>0||featureSession||freeFeatureSession||rights.hasPurchased!==true||rights.trialAvailable===true;
  const refreshWallet=async()=>{try{const token=authToken();if(token){const me=await portraitFetch('/api/auth/me',{headers:authHeaders(),cache:'no-store'});if(me.ok){const account=await me.json();if(account.walletId&&account.walletId!==currentWalletId())localStorage.setItem(WALLET_KEY,account.walletId)}else if(me.status===401){localStorage.removeItem(AUTH_TOKEN_KEY)}}let id=currentWalletId();let r;if(!id){r=await portraitFetch('/api/wallet',{method:'POST',headers:walletHeaders()});const data=await r.json();id=data.walletId;localStorage.setItem(WALLET_KEY,id);setRights(previous=>({...previous,...normalizedRights(data)}));return}r=await portraitFetch('/api/wallet',{headers:walletHeaders(),cache:'no-store'});if(r.status===404){localStorage.removeItem(WALLET_KEY);return refreshWallet()}if(r.ok){const data=await r.json();setRights(previous=>({...previous,...normalizedRights(data)}))}}catch{}};
- const redeemFreeLink=async code=>{try{await refreshWallet();const r=await fetch('/api/promo/redeem',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({code,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});const data=await r.json();if(!r.ok)throw Error(data.message||'รับสิทธิ์ไม่สำเร็จ');setRights(previous=>({...previous,...normalizedRights(data)}));setPurchaseEditing(true);setPayMsg('รับสิทธิ์แพ็ก '+data.packagePrice+' บาทฟรีแล้ว · เครดิตคงเหลือ '+data.processRemaining+' ครั้ง');setBuyOpen(true);history.replaceState({},'',location.pathname)}catch(e){setPayMsg(e.message);setBuyOpen(true)}};
+ const redeemFreeLink=async code=>{try{
+  await refreshWallet();const r=await portraitFetch('/api/promo/redeem',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({code,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});
+  const data=await r.json();if(!r.ok)throw Error(data.message||'รับสิทธิ์ไม่สำเร็จ');
+  setRights(previous=>({...previous,...normalizedRights(data)}));setPurchaseEditing(true);
+  if(data.unlockedJobIds?.includes(currentOutputJobRef.current)){currentOutputTrialRef.current=false;studioTrialRef.current=false;setTrialPreview(false)}
+  const message='รับสิทธิ์แพ็ก '+data.packagePrice+' บาทฟรีแล้ว · เครดิตคงเหลือ '+data.processRemaining+' ครั้ง · ไม่ต้องชำระเงินเพิ่มสำหรับรูปที่รับสิทธิ์แล้ว';
+  setPayMsg(message);setMsg(message);setBuyOpen(false);setAccountSaveNotice({state:'success',title:'รับสิทธิ์สำเร็จ',message});history.replaceState({},'',location.pathname);
+ }catch(e){const message=e.message||'ยังรับสิทธิ์ไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่';setPayMsg(message);setMsg(message);setBuyOpen(false);setAccountSaveNotice({state:'error',title:'รับสิทธิ์ไม่สำเร็จ',message})}};
+ const requireOutputAccess=async()=>{
+  const result=outputAccessResult([await verifyOutputRights(currentOutputJobRef.current)]);
+  if(result.allowed)return true;
+  setMsg(result.message);setPayMsg(result.message);
+  if(result.purchase){setTrialPreview(true);setBuyOpen(true)}
+  return false;
+ };
+
  useEffect(()=>{const code=new URLSearchParams(location.search).get('free');if(!code)return;let cancelled=false;refreshWallet().then(()=>{if(cancelled)return;if(authToken())redeemFreeLink(code);else{setPendingPackage('promo:'+code);setAuthMode('register');setAuthMsg('');setAuthOpen(true)}}).catch(e=>{if(!cancelled){setPayMsg(e.message);setBuyOpen(true)}});return()=>{cancelled=true}},[]);
  const [savedWorksOpen,setSavedWorksOpen]=useState(false),[savedWorkUnlocked,setSavedWorkUnlocked]=useState(false),[savedWorkRevision,setSavedWorkRevision]=useState(0);const savedWorkIdRef=useRef('');
  const workSaveQueueRef=useRef(Promise.resolve()),[accountSaveNotice,setAccountSaveNotice]=useState(null);
@@ -3427,6 +3443,7 @@ function App(){
  };
  const restoreHairResultRights=async cached=>{
   const verified=await verifyOutputRights(cached.jobId);
+  if(verified.checked===false)throw Error(verified.message);
   const isTrial=!verified.unlocked;
   currentOutputJobRef.current=cached.jobId;currentOutputTrialRef.current=isTrial;
   studioTrialRef.current=isTrial;setOutputJobId(cached.jobId);setTrialPreview(isTrial);
@@ -3481,7 +3498,9 @@ function App(){
     // decoded/hydrated the exact selected result and delivery is confirmed.
     const operation=activeProcessOperation,jobId=cached?.jobId||generatedResult?.idpromJobId;
     if(!jobId)throw Error('ไม่ได้รับหมายเลขผลลัพธ์ทรงผม');
-    const isTrial=cached?!(await verifyOutputRights(jobId)).unlocked:Boolean(generatedResult.idpromTrial);
+    const cachedRights=cached?await verifyOutputRights(jobId):null;
+    if(cachedRights?.checked===false)throw Error(cachedRights.message);
+    const isTrial=cached?!cachedRights.unlocked:Boolean(generatedResult.idpromTrial);
     assertProcessActive(operation);
     let committed=false;
     const commit=()=>{
@@ -3514,7 +3533,7 @@ function App(){
   return completed?{reused:Boolean(cached)}:false;
  };
  const downloadHairDonor=async()=>{
-  if(!(await verifyOutputRights(currentOutputJobRef.current)).unlocked){setBuyOpen(true);return;}
+  if(!await requireOutputAccess())return;
   const blob=lastHairDonorRef.current;
   if(!blob){setMsg('ยังไม่มีภาพทรงผมจาก AI ให้ตรวจ');return;}
   const url=URL.createObjectURL(blob),link=document.createElement('a');
@@ -3522,7 +3541,7 @@ function App(){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
  };
  const downloadCleanHead=async()=>{
-  if(!(await verifyOutputRights(currentOutputJobRef.current)).unlocked){setBuyOpen(true);return;}
+  if(!await requireOutputAccess())return;
   const prepared=preparedHairBaseRef.current;
   if(!prepared?.blob){setMsg('ยังไม่มีภาพฐาน Clean Head — ล็อกตำแหน่งและลองเลือกทรงผมก่อน');return;}
   const url=URL.createObjectURL(prepared.blob),link=document.createElement('a');
@@ -3694,7 +3713,7 @@ function App(){
  };
  const openStudio=async()=>{
   if(!editCache.current||studioBusy||busy||hairBusy||uniformChanging||downloadBusy)return;
-  if(!(await verifyOutputRights(currentOutputJobRef.current)).unlocked){setTrialPreview(true);setBuyOpen(true);setPayMsg('ชำระเงินเพื่อปลดล็อก Studio และดาวน์โหลดภาพ');return;}
+  if(!await requireOutputAccess())return;
   const origin={master:editCache.current.master,key:JSON.stringify([editCache.current.lock,liveAdjustRef.current,liveCollarWarpRef.current,liveCollarHeightRef.current,liveNeckAdjustRef.current,backgroundRef.current,ribbonRef.current,ribbonAdjustRef.current,collarPinRef.current,collarPinAdjustRef.current,chestPinRef.current,chestPinAdjustRef.current,beautyRef.current])};
   studioOriginRef.current=origin;
   if(studioDraftRef.current?.master===origin.master&&studioDraftRef.current?.key===origin.key){setStudioData(studioDraftRef.current.layers);return;}
@@ -3707,7 +3726,7 @@ function App(){
  const downloadCurrentFinal=async()=>{
   if(!editCache.current||downloadBusy||hairBusy||busy||photoSizeBusy)return;
   analyticsEvent('idprom_download_click',{is_trial:trialPreview});
-  if(!(await verifyOutputRights(currentOutputJobRef.current)).unlocked){setTrialPreview(true);setBuyOpen(true);setPayMsg('ชำระเงินเพื่อปลดล็อกการดาวน์โหลดภาพความละเอียดสูง');return;}
+  if(!await requireOutputAccess())return;
   setDownloadBusy(true);setMsg('');
   try{
    clearTimeout(beautyTimerRef.current);++beautyRenderRef.current;
