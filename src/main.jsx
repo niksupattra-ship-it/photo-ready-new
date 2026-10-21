@@ -2831,7 +2831,7 @@ function App(){
  <h2 id="credit-notice-title">{trialChoice.purchased?'เครดิตของคุณหมดแล้ว':'สิทธิ์ทดลองวันนี้หมดแล้ว'}</h2>
  {trialChoice.remaining>0&&<button className="idprom-credit-notice-trial idprom-credit-notice-trial-primary" onClick={()=>chooseTrial(true)}>ทดลองใช้งานฟรี (มีลายน้ำ)</button>}
  <p id="credit-notice-description" className="idprom-credit-notice-intro">{trialChoice.remaining>0?`เหลือสิทธิ์ทดลอง ${trialChoice.remaining} ครั้ง`:'เริ่มทดลองใหม่ได้วันถัดไป'}</p>
- {trialChoice.remaining>0&&<p className="idprom-credit-notice-warning">บันทึกงานเดิมก่อนทดลอง รูปใหม่จะแทนรูปเดิม</p>}
+ {trialChoice.remaining>0&&<p className="idprom-credit-notice-warning">บันทึกงานเดิมก่อนทดลอง ผลใหม่จะมีลายน้ำและแทนรูปที่กำลังแก้ไข งานเดิมที่บันทึกไว้ยังเปิดใช้ได้ตามสิทธิ์เดิม</p>}
  {trialChoice.purchased&&<p className="idprom-credit-notice-saved-compact">งานที่บันทึกแล้ว เปิดต่อได้โดยไม่มีลายน้ำ</p>}
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;

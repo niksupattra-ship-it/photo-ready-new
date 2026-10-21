@@ -507,7 +507,14 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   let reused=canRestoreHair(id),stagedResult=null;
-  setAppearanceError(null);processRequestRef.current=true;setAssetBusy(true);setStatus(reused?'กำลังแสดงทรงผมที่เคยสร้างไว้…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
+  setAppearanceError(null);processRequestRef.current=true;
+  // Cached styles do not start a generation or consume a daily trial.
+  if(!reused&&typeof onBeforeProcess==='function'){
+   try{if(!await onBeforeProcess()){processRequestRef.current=false;return}}
+   catch(e){processRequestRef.current=false;appearanceFailure('hair',e.message||'ตรวจสอบสิทธิ์ไม่สำเร็จ กรุณาลองใหม่');return}
+   if(!mounted.current){processRequestRef.current=false;return}
+  }
+  setAssetBusy(true);setStatus(reused?'กำลังแสดงทรงผมที่เคยสร้างไว้…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
    const result=stagedResult=await onChangeHair(id,hairGender,head.femaleEyeStyle||sourcePhoto?.idpromFemaleEyeStyle||'natural');
    reused=result?.reused===true;
