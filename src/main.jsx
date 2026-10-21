@@ -2573,8 +2573,7 @@ const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
  {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
- {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-example.webp',preview:'/assets/job-uniforms/female-suit-04-example.webp',template:'/assets/job-uniforms/female-suit-04.png',cat:'job',gender:'female'},
- {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.png',cat:'job',gender:'female'},
+ {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-v2-example.webp',preview:'/assets/job-uniforms/female-suit-04-v2-example.webp',template:'/assets/job-uniforms/female-suit-04-v2.png',cat:'job',gender:'female'},
  {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
  {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
  {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
@@ -3953,7 +3952,7 @@ function App(){
    {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
    {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'ชุดครุย สจล.\nสำหรับชายและหญิง',image:null}
   ];
-  const featured=[JOB_UNIFORMS[2],JOB_UNIFORMS[3],JOB_UNIFORMS[5],JOB_UNIFORMS[0],JOB_UNIFORMS[1],JOB_UNIFORMS[4],
+  const featured=[...['female-suit-03','female-suit-04','male-suit-03','female-formal-suit','female-lapel-suit'].map(id=>JOB_UNIFORMS.find(item=>item.id===id)),
    {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},
    {...FEMALE_GOVERNMENT_UNIFORMS[0],title:'ข้าราชการหญิง',cat:'government',gender:'female',img:FEMALE_GOVERNMENT_UNIFORMS[0].preview}].filter(item=>item&&item.img);
   const openFeatured=item=>{
