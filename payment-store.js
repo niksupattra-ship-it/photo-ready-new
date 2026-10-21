@@ -14,6 +14,8 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS package_id text`);
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS generation_qty integer NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS hair_qty integer NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS full_edit_reconciled boolean NOT NULL DEFAULT false`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS payments_pending_159_full_edit ON payments(wallet_id) WHERE package_id='159_v6' AND NOT full_edit_reconciled`);
   await pool.query(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
   await pool.query(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credit_column text`);
   await pool.query(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS full_edit_output boolean NOT NULL DEFAULT false`);
@@ -44,7 +46,30 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
 })();return initPromise}
 function shape(id,row){const count=remaining(row);return {walletId:id,processRemaining:count,generationRemaining:count,hairRemaining:count}}
-export async function imageEntitlements(id){await ready();const {rows}=await pool.query('SELECT job_id,full_edit FROM paid_image_unlocks WHERE wallet_id=$1',[id]);return {unlockedJobIds:rows.map(r=>r.job_id),editableJobIds:rows.filter(r=>r.full_edit).map(r=>r.job_id)}}
+// The current 159 offer promised full editing from launch. Older grants did not
+// record that allowance. Repair each such payment once without adding credits
+// or changing the rights of legacy packages. PostgreSQL now() is shared by all
+// inserts in creditPaid's transaction, including its selected trial unlock.
+async function reconcileCurrentFullEdit(walletId,attempt=0){
+ await ready();if(!walletId)return;
+ const pending=await pool.query("SELECT session_id FROM payments WHERE wallet_id=$1 AND package_id='159_v6' AND NOT full_edit_reconciled LIMIT 1",[walletId]);
+ if(!pending.rowCount)return;
+ let retry=false;const c=await pool.connect();try{
+  await c.query('BEGIN');
+  await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  const payments=await c.query("SELECT session_id,generation_qty,hair_qty FROM payments WHERE wallet_id=$1 AND package_id='159_v6' AND NOT full_edit_reconciled ORDER BY created_at,session_id FOR UPDATE",[walletId]);
+  for(const payment of payments.rows){
+   const allowance=Math.max(0,Number(payment.generation_qty||0)+Number(payment.hair_qty||0));
+   const used=await c.query("WITH candidates AS (SELECT id FROM credit_usage WHERE wallet_id=$1 AND created_at >= (SELECT created_at FROM payments WHERE session_id=$2 AND wallet_id=$1 AND package_id='159_v6') AND status IN ('reserved','completed') AND NOT full_edit_output ORDER BY created_at,id LIMIT $3 FOR UPDATE) UPDATE credit_usage SET full_edit_output=true WHERE id IN (SELECT id FROM candidates) RETURNING id",[walletId,payment.session_id,allowance]);
+   await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,Math.max(0,allowance-used.rowCount)]);
+   await c.query("UPDATE paid_image_unlocks SET full_edit=true WHERE wallet_id=$1 AND created_at=(SELECT created_at FROM payments WHERE session_id=$2 AND wallet_id=$1 AND package_id='159_v6') AND NOT full_edit",[walletId,payment.session_id]);
+   await c.query('UPDATE payments SET full_edit_reconciled=true WHERE session_id=$1',[payment.session_id]);
+  }
+  await c.query('COMMIT');
+ }catch(e){await c.query('ROLLBACK');if(e?.code==='40P01'&&attempt<2)retry=true;else throw e}finally{c.release()}
+ if(retry)await reconcileCurrentFullEdit(walletId,attempt+1);
+}
+export async function imageEntitlements(id){await reconcileCurrentFullEdit(id);const {rows}=await pool.query('SELECT job_id,full_edit FROM paid_image_unlocks WHERE wallet_id=$1',[id]);return {unlockedJobIds:rows.map(r=>r.job_id),editableJobIds:rows.filter(r=>r.full_edit).map(r=>r.job_id)}}
 export async function newWallet(){await ready();const id='wal_'+crypto.randomBytes(24).toString('hex');await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0)',[id]);return {...shape(id,{}),unlockedJobIds:[],editableJobIds:[]}}
 export async function getWallet(id){if(!id)return null;await ready();const {rows}=await pool.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[id]);return rows[0]?{...shape(id,rows[0]),...await imageEntitlements(id)}:null}
 export async function ensureWallet(id){await ready();await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[id]);return getWallet(id)}
@@ -53,9 +78,9 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
  const c=await pool.connect();try{
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
-  const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty) VALUES($1,$2,0,$3,$4,$5) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h]);
+  const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty,full_edit_reconciled) VALUES($1,$2,0,$3,$4,$5,$6) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h,packageId==='159_v6']);
   if(ins.rowCount){
-   if(packageId==='79_v2'||packageId==='89_v4')await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,packageId==='89_v4'?p.g:1]);
+   if(p.fullEdit&&(p.g+p.h)>0)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,p.g+p.h]);
    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
    if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   }
@@ -87,7 +112,7 @@ export async function redeemPromo199(walletId,code){
 }
 
 export async function reserveCredit(walletId,kind){
- await ready();const c=await pool.connect();try{
+ await reconcileCurrentFullEdit(walletId);const c=await pool.connect();try{
   await c.query('BEGIN');const w=await c.query('SELECT generation_remaining,hair_remaining,full_edit_remaining FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
   if(!w.rows[0]||remaining(w.rows[0])<1){await c.query('ROLLBACK');return null}
   const fullEdit=Number(w.rows[0].full_edit_remaining)>0;
@@ -104,7 +129,7 @@ export async function reserveTrialPreview(walletId,fingerprint,networkFingerprin
   try{
     await c.query('BEGIN');
     await c.query('SELECT pg_advisory_xact_lock(77149231)');
-    const purchasedToday=await c.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
+    const purchasedToday=await c.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date UNION ALL SELECT 1 FROM promo_redemptions WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
     if(purchasedToday.rowCount){await c.query('COMMIT');return null}
     const used=await c.query("SELECT id,fingerprint,trial_slot FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
     if(used.rowCount>=2){await c.query('COMMIT');return null;}
@@ -146,7 +171,7 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
    await c.query('COMMIT');
    return {ok:true,alreadyRedeemed:true,packagePrice:packageFor(original.package_id).price,...shape(walletId,balance.rows[0]),...await imageEntitlements(walletId)};
   }
-  await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,packageId==='89_v4'?p.g:packageId==='79_v2'?1:0]);
+  await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,p.fullEdit?p.g+p.h:0]);
   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
   return {ok:true,packagePrice:offer==='89_current'?p.price:packageFor(['79','89_credit'].includes(offer)?'79_v2':'149_v2').price,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
@@ -157,7 +182,7 @@ export async function trialOptionAccess(walletId,fingerprint,networkFingerprint)
  await ready();const paid=await pool.query('SELECT EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased',[walletId]);
  if(!fingerprint)return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:false,trialRemaining:0};
  const used=await pool.query("SELECT count(*)::integer AS n FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
- const purchasedToday=await pool.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
+ const purchasedToday=await pool.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date UNION ALL SELECT 1 FROM promo_redemptions WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
  const trialRemaining=purchasedToday.rowCount?0:Math.max(0,2-Number(used.rows[0]?.n||0));
  return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:trialRemaining>0,trialRemaining};
 }

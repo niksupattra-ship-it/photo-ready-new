@@ -1,7 +1,7 @@
 // Versioned IDs preserve the rights of payments created before these offers.
 export const PACKAGES=Object.freeze({
  '89_v4':{price:89,g:2,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง',requiresImage:false,fullEdit:true},
- '159_v6':{price:159,g:10,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 10 ครั้ง',requiresImage:false,fullEdit:false},
+ '159_v6':{price:159,g:10,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 10 ครั้ง',requiresImage:false,fullEdit:true},
  '79':{price:79,g:0,h:0,name:'รับรูปนี้',requiresImage:true,fullEdit:true},
  '79_v2':{price:89,g:1,h:0,name:'รับรูป / สร้าง 1 ครั้ง',requiresImage:false,fullEdit:true},
  '149_v2':{price:159,g:3,h:0,name:'สร้าง 3 ครั้ง',requiresImage:false,fullEdit:false},
