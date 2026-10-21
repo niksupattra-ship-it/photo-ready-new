@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const code=await readFile(new URL('../src/studio-rights-dialog.jsx',import.meta.url),'utf8');
+const summary=new Function(code.slice(code.indexOf('export function rightsSummary'),code.indexOf('export function StudioRightsDialog')).replace('export ','')+';return rightsSummary')();
+assert.deepEqual(summary({processRemaining:2,generationRemaining:2,hairRemaining:2,trialAvailable:true,trialRemaining:1}),{credits:2,trial:1});
+assert.deepEqual(summary({processRemaining:0,trialAvailable:true,trialRemaining:2}),{credits:0,trial:2});
+assert.deepEqual(summary({processRemaining:3,trialAvailable:false,trialRemaining:2}),{credits:3,trial:0});
+assert.deepEqual(summary({processRemaining:0},true),{credits:'∞',trial:'∞'});
+const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+assert.equal(editor.split('onClick={onOpenRights||onRequestUnlock}').length-1,2);
+assert(editor.includes('if(result.purchase)onRequestUnlock?.()'));
+const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+assert(main.includes('onOpenRights={()=>setRightsOpen(true)}'));
+assert(main.includes("onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}}"));
+console.log('PASS: exact wallet credit count without double-counting, independent eligible daily trials, private mode, both Studio credit buttons open rights, packages remain an explicit action.');
