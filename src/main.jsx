@@ -99,8 +99,15 @@ let activeProcessOperation=null;
 function cancelledProcessError(){return Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{code:'USER_CANCELLED'})}
 function assertProcessActive(operation=activeProcessOperation){if(operation?.cancelled)throw cancelledProcessError()}
 async function portraitFetch(url,options={},timeoutMs=30000){
- try{return await fetch(url,{...options,signal:AbortSignal.timeout(timeoutMs)})}
+ let timer;
+ try{
+  let signal;
+  if(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function')signal=AbortSignal.timeout(timeoutMs);
+  else{const controller=new AbortController();signal=controller.signal;timer=setTimeout(()=>controller.abort(),timeoutMs)}
+  return await fetch(url,{...options,signal});
+ }
  catch(e){if(e.name==='TimeoutError'||e.name==='AbortError')throw Error('การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่');throw e}
+ finally{if(timer!==undefined)clearTimeout(timer)}
 }
 async function settleProcessOperation(operation,action){
  if(!operation?.jobId)return;
@@ -2770,7 +2777,8 @@ function App(){
   if(new Blob([body]).size>64*1024*1024)throw Error('งานนี้มีขนาดเกิน 64 MB กรุณาลบเลเยอร์ที่ไม่ใช้แล้วบันทึกใหม่');
   const r=await portraitFetch('/api/saved-work',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body},90000);
   const d=await r.json().catch(()=>({message:r.status===413?'งานมีขนาดใหญ่เกินไป กรุณาลดจำนวนเลเยอร์':'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'}));
-  if(!r.ok){if(d.error==='saved_work_limit')setSavedWorksOpen(true);throw Error(d.message||'บันทึกงานไม่สำเร็จ')}
+  if(!r.ok){if(d?.error==='saved_work_limit')setSavedWorksOpen(true);throw Error(d?.message||'บันทึกงานไม่สำเร็จ')}
+  if(typeof d?.id!=='string'||!d.id.trim())throw Error('เซิร์ฟเวอร์ยังไม่ยืนยันการบันทึกงาน กรุณากดบันทึกอีกครั้ง');
   if(currentWalletId()===wallet&&scope===savedWorkOpenRequestRef.current&&savedWorkIdRef.current===targetId)savedWorkIdRef.current=d.id;
   return d;
   });workSaveQueueRef.current=task;return task;
@@ -2797,16 +2805,20 @@ function App(){
   setStudioData(work.project.layers);setSavedWorkRevision(v=>v+1);setScreen('studio');
  };
  const paidSaveInFlightRef=useRef(new Map()),restoredCheckoutRef=useRef(null);
- const savePaidCheckout=async paymentId=>{
-  const key=paymentId||currentOutputJobRef.current;if(!key)return false;
+ const savePaidCheckout=async(paymentId,options={})=>{
+  const jobId=options.jobId??currentOutputJobRef.current,key=paymentId||jobId,workScope=savedWorkOpenRequestRef.current,wallet=currentWalletId();
   if(paidSaveInFlightRef.current.has(key))return paidSaveInFlightRef.current.get(key);
   const task=(async()=>{try{
    setAccountSaveNotice({state:'saving',message:'ชำระเงินสำเร็จ กำลังบันทึกงานในบัญชี กรุณารอสักครู่'});
-   const snapshot=paymentStudioRef.current?.()||restoredCheckoutRef.current;
-   if(!snapshot?.layers?.some(l=>l.kind==='head'||l.name==='หัว · คอ · ผม')){setAccountSaveNotice(null);return false;}
+   const matches=snapshot=>Boolean(jobId&&snapshot?.layers?.some(l=>(l.kind==='head'||l.name==='หัว · คอ · ผม')&&l.jobId===jobId));
+   let snapshot;
+   if(Object.prototype.hasOwnProperty.call(options,'snapshot'))snapshot=options.snapshot;
+   else{let live;try{live=paymentStudioRef.current?.()}catch{}snapshot=[live,restoredCheckoutRef.current].find(matches)}
+   if(!matches(snapshot))throw Error('ยังไม่พบงานที่ตรงกับรูปนี้ กรุณาเปิดงานเดิมแล้วกดบันทึกอีกครั้ง');
    const project=await makeSavedProject(snapshot);project.purchaseKey=key;
-   await saveAccountWork(project);setMsg('ชำระเงินสำเร็จ · บันทึกงานในบัญชีแล้ว');setAccountSaveNotice({state:'success',message:'ชำระเงินสำเร็จ · บันทึกงานในบัญชีแล้ว เปิดด้วยอีเมลเดิมได้'});return true;
-  }catch(e){const message='ชำระเงินสำเร็จ แต่ยังบันทึกงานไม่ได้: '+e.message+' · กรุณากดบันทึกอีกครั้งก่อนออกจาก Studio';setMsg(message);setPayMsg(message);setAccountSaveNotice({state:'error',message});return false;}})();
+   if(wallet!==currentWalletId()||jobId!==currentOutputJobRef.current)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานเดิมแล้วกดบันทึกอีกครั้ง');
+   await saveAccountWork(project,{workScope});setMsg('ชำระเงินสำเร็จ · บันทึกงานในบัญชีแล้ว');setAccountSaveNotice({state:'success',message:'ชำระเงินสำเร็จ · บันทึกงานในบัญชีแล้ว เปิดด้วยอีเมลเดิมได้'});return true;
+  }catch(e){const message='ชำระเงินสำเร็จ สิทธิ์ยังอยู่ในบัญชี แต่ยังบันทึกงานไม่ได้: '+e.message+' · ไม่ต้องชำระเงินซ้ำ';setMsg(message);setPayMsg(message);setAccountSaveNotice({state:'error',message});return false;}})();
   paidSaveInFlightRef.current.set(key,task);try{return await task}finally{paidSaveInFlightRef.current.delete(key)}
  };
 
@@ -2837,7 +2849,7 @@ function App(){
  {trialChoice.purchased&&<p className="idprom-credit-notice-saved-compact">งานที่บันทึกแล้ว เปิดต่อได้โดยไม่มีลายน้ำ</p>}
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;
- const SavedWorkUI=()=> <><TrialChoiceUI/>{rightsOpen&&<StudioRightsDialog request={portraitFetch} headers={walletHeaders} unlimited={privateTrialActive} onRights={data=>setRights(previous=>({...previous,...normalizedRights(data)}))} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
+ const SavedWorkUI=()=> <><TrialChoiceUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog request={portraitFetch} headers={walletHeaders} unlimited={privateTrialActive} onRights={data=>setRights(previous=>({...previous,...normalizedRights(data)}))} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{
   analyticsEvent('idprom_checkout_click',{package_id:packageId});
   if(!authenticated&&!authToken()){setPendingPackage(packageId);setAuthMode('register');setAuthMsg('');setAuthOpen(true);return}
@@ -2850,22 +2862,21 @@ function App(){
    await refreshWallet();
    if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
    stage='save_draft';
-   let draftStorage;
-   try{draftStorage=await savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,workId:savedWorkIdRef.current,studio:paymentStudioRef.current?.()||null,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null},{allowMemoryFallback:true})}
-   catch(error){const failure=Error('บันทึกงานก่อนชำระเงินไม่ได้ กรุณาเพิ่มพื้นที่ว่างหรือเปิดเว็บใน Chrome / Safari แล้วลองอีกครั้ง');failure.code=error?.name||'draft_save_failed';throw failure}
-   if(draftStorage?.persistent===false){
-    analyticsEvent('idprom_checkout_backup_warning',{error_stage:'save_draft',error_code:'memory_backup',package_id:packageId,attempt_id:attemptId});
-    void fetch('/api/payments/checkout-diagnostic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({attemptId,stage:'save_draft',code:'memory_backup',primaryCode:draftStorage.primaryCode,backupCode:draftStorage.backupCode,httpStatus:0,packageId}),keepalive:true}).catch(()=>{});
-   }
+   const checkoutWallet=currentWalletId(),checkoutJobId=currentOutputJobRef.current,checkoutTrial=currentOutputTrialRef.current,checkoutScope=savedWorkOpenRequestRef.current;
+   let checkoutSnapshot;
+   try{checkoutSnapshot=paymentStudioRef.current?.()||null;await savePurchaseDraft({walletId:checkoutWallet,jobId:checkoutJobId,isTrial:checkoutTrial,workId:savedWorkIdRef.current,studio:checkoutSnapshot,originalFile:firstUploadedPhotoRef.current,template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,classicLock:editCache.current?.lock||null})}
+   catch(error){const failure=Error('ยังเปิด QR ไม่ได้ เพราะสำรองงานไม่สำเร็จ กรุณาเก็บหน้านี้ไว้ เพิ่มพื้นที่ว่างหรือใช้ Safari / Chrome แบบปกติ แล้วลองอีกครั้ง');failure.code=error?.name||'draft_save_failed';throw failure}
+   if(checkoutWallet!==currentWalletId()||checkoutScope!==savedWorkOpenRequestRef.current||checkoutJobId!==currentOutputJobRef.current)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานเดิมแล้วลองอีกครั้ง');
+   restoredCheckoutRef.current=checkoutSnapshot;
    stage='create_session';
-   const r=await fetch('/api/payments/promptpay',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json','X-Checkout-Attempt':attemptId},body:JSON.stringify({packageId,jobId:currentOutputTrialRef.current?currentOutputJobRef.current:''})});
+   const r=await fetch('/api/payments/promptpay',{method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json','X-Checkout-Attempt':attemptId},body:JSON.stringify({packageId,jobId:checkoutTrial?checkoutJobId:''})});
    httpStatus=r.status;stage='read_response';const data=await r.json();
    if(r.status===401){localStorage.removeItem(AUTH_TOKEN_KEY);setPendingPackage(packageId);setAuthMode('login');setAuthMsg(data.message||'กรุณาเข้าสู่ระบบใหม่');setAuthOpen(true)}
    if(!r.ok){stage='create_session';const failure=Error(data.message||data.error||'สร้างรายการชำระเงินไม่สำเร็จ');failure.code=data.error;throw failure}
    stage='redirect';if(!data.paymentIntentId||!data.qrImage)throw Error('ไม่พบ QR ชำระเงิน กรุณาลองใหม่');
    const payment={...data,walletId:currentWalletId(),packageId};
    try{localStorage.setItem('idprom_pending_qr_v1',JSON.stringify(payment))}catch{}
-   analyticsCheckout(packageId,data.paymentIntentId);setQrPayment(payment);setPayMsg(draftStorage?.persistent===false?'ระหว่างชำระเงิน กรุณาเปิดหน้านี้ไว้ หลังชำระสำเร็จให้บันทึกงานก่อนปิดหรือรีเฟรชหน้า':'');setBuyOpen(true);
+   analyticsCheckout(packageId,data.paymentIntentId);setQrPayment(payment);setPayMsg('');setBuyOpen(true);
   }catch(e){
    const code=String(e.code||e.name||'checkout_failed').slice(0,80);
    analyticsEvent('idprom_checkout_error',{error_stage:stage,error_code:code,http_status:httpStatus,package_id:packageId,attempt_id:attemptId});
@@ -2873,7 +2884,7 @@ function App(){
    setPayMsg(e.message||'เปิดหน้าชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง');
   }finally{checkoutBusyRef.current=false;setPayBusy(false)}
  };
- useEffect(()=>{refreshWallet().then(activatePrivateTrial);const onRights=e=>setRights(previous=>({...previous,...normalizedRights(e.detail||{})})),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-rights',onRights);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){setPurchaseEditing(true);const sessionId=q.get('session_id');setPayMsg('ชำระเงินสำเร็จ กำลังเพิ่มสิทธิ์…');(async()=>{try{await restorePurchaseDraft();await refreshWallet();if(sessionId){const r=await fetch('/api/payments/confirm',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sessionId})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบการชำระเงินไม่สำเร็จ');setRights(previous=>({...previous,...normalizedRights(data)}));setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');if(data.ok===true){analyticsPurchase(sessionId);await savePaidCheckout(sessionId)}}else{await refreshWallet();setPayMsg('ชำระเงินสำเร็จ');await savePaidCheckout(currentOutputJobRef.current)}}catch(e){setPayMsg(e.message||'กำลังรอการยืนยันการชำระเงิน');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000)}})();history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){restorePurchaseDraft();analyticsEvent('idprom_checkout_cancel');setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy)}},[]);
+ useEffect(()=>{refreshWallet().then(activatePrivateTrial);const onRights=e=>setRights(previous=>({...previous,...normalizedRights(e.detail||{})})),onBuy=()=>setBuyOpen(true);window.addEventListener('idprom-rights',onRights);window.addEventListener('idprom-buy',onBuy);const q=new URLSearchParams(location.search);if(q.get('payment')==='success'){setPurchaseEditing(true);const sessionId=q.get('session_id');setPayMsg('ชำระเงินสำเร็จ กำลังเพิ่มสิทธิ์…');(async()=>{try{await refreshWallet();let recoveredSnapshot=null;try{recoveredSnapshot=await restorePurchaseDraft()}catch{}if(sessionId){const r=await fetch('/api/payments/confirm',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({sessionId})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบการชำระเงินไม่สำเร็จ');setRights(previous=>({...previous,...normalizedRights(data)}));setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');if(data.ok===true){analyticsPurchase(sessionId);await savePaidCheckout(sessionId,{snapshot:recoveredSnapshot,jobId:recoveredSnapshot?.jobId||''})}}else{await refreshWallet();setPayMsg('ชำระเงินสำเร็จ');await savePaidCheckout(currentOutputJobRef.current,{snapshot:recoveredSnapshot,jobId:recoveredSnapshot?.jobId||''})}}catch(e){setPayMsg(e.message||'กำลังรอการยืนยันการชำระเงิน');let tries=0;const t=setInterval(async()=>{await refreshWallet();if(++tries>=10)clearInterval(t)},1000)}})();history.replaceState({},'',location.pathname)}else if(q.get('payment')==='cancelled'){restorePurchaseDraft();analyticsEvent('idprom_checkout_cancel');setPayMsg('ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname)}return()=>{window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy)}},[]);
  useEffect(()=>{if(outputJobId&&rights.unlockedJobIds.includes(outputJobId)){currentOutputTrialRef.current=false;studioTrialRef.current=false;setTrialPreview(false)}},[outputJobId,rights.unlockedJobIds]);
 
  const AuthUI=()=> authOpen&&<div className="credit-modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget){setAuthOpen(false);setPendingPackage(null)}}}><section role="dialog" aria-modal="true" aria-label="สมัครสมาชิก IDพร้อม" style={{width:'min(420px,calc(100vw - 28px))',background:'#fff',borderRadius:24,padding:26,boxShadow:'0 24px 70px rgba(15,35,65,.24)',position:'relative'}}><button type="button" className="credit-modal-close" onClick={()=>{setAuthOpen(false);setPendingPackage(null)}}>×</button><div style={{fontWeight:900,fontSize:20,color:'#1769c8',marginBottom:6}}>IDพร้อม</div><h2 style={{margin:'0 0 6px',fontSize:26,color:'#12233f'}}>{authMode==='register'?'สมัครสมาชิก':'เข้าสู่ระบบ'}</h2><p style={{margin:'0 0 20px',fontSize:14,color:'#718097'}}>{pendingPackage?.startsWith('promo:')?'สมัครสมาชิกหรือเข้าสู่ระบบเพื่อรับสิทธิ์ฟรีและเก็บเครดิตในบัญชี':authMode==='register'?'สมัครสมาชิกก่อนชำระเงิน เพื่อเก็บสิทธิ์การใช้งานของคุณ':'เข้าสู่ระบบเพื่อชำระเงินต่อ'}</p><label style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>อีเมล</label><input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" placeholder="example@email.com" style={{width:'100%',boxSizing:'border-box',padding:'12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16,marginBottom:14}}/><label style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>รหัสผ่าน</label><div style={{position:'relative'}}><input type={showPassword?'text':'password'} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={authMode==='register'?'new-password':'current-password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="อย่างน้อย 8 ตัวอักษร" onKeyDown={e=>{if(e.key==='Enter'&&!authBusy)submitAuth()}} style={{width:'100%',boxSizing:'border-box',padding:'12px 46px 12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16}}/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} title={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',width:36,height:36,border:0,background:'transparent',padding:0,cursor:'pointer',display:'grid',placeItems:'center',color:'#53657d'}}>{showPassword?<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 4.2A10.5 10.5 0 0112 4c5.5 0 9.5 5.2 9.5 5.2a15.6 15.6 0 01-3.1 3.6"/><path d="M6.6 6.6C4 8.3 2.5 10.2 2.5 10.2S6.5 16 12 16c1 0 2-.2 2.9-.5"/></svg>:<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12S6.5 6 12 6s9.5 6 9.5 6-4 6-9.5 6S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.5"/></svg>}</button></div>{authMode==='login'&&<button type="button" disabled={authBusy} onClick={()=>window.dispatchEvent(new Event('idprom-forgot-password'))} style={{display:'block',margin:'10px 0 0 auto',border:0,background:'transparent',color:'#1769c8',fontSize:13,cursor:'pointer'}}>ลืมรหัสผ่าน?</button>}{authMsg&&<p style={{color:'#c62828',fontSize:13,margin:'10px 0 0'}}>{authMsg}</p>}<button type="button" disabled={authBusy||!authEmail||authPassword.length<8} onClick={submitAuth} style={{width:'100%',border:0,borderRadius:13,padding:'13px 16px',background:'#176fd2',color:'#fff',fontWeight:800,fontSize:15,marginTop:18,cursor:'pointer',opacity:(authBusy||!authEmail||authPassword.length<8)?.6:1}}>{authBusy?'กำลังดำเนินการ…':pendingPackage?.startsWith('promo:')?(authMode==='register'?'สมัครสมาชิกและรับสิทธิ์ฟรี':'เข้าสู่ระบบและรับสิทธิ์ฟรี'):authMode==='register'?'สมัครสมาชิกและชำระเงินต่อ':'เข้าสู่ระบบและชำระเงินต่อ'}</button><button type="button" onClick={()=>{setAuthMode(authMode==='register'?'login':'register');setAuthMsg('')}} style={{width:'100%',border:0,background:'transparent',padding:'13px 0 0',color:'#1769c8',fontWeight:700,cursor:'pointer'}}>{authMode==='register'?'มีบัญชีแล้ว? เข้าสู่ระบบ':'ยังไม่มีบัญชี? สมัครสมาชิก'}</button></section></div>;
@@ -2889,8 +2900,9 @@ function App(){
  };
  const finishQrPayment=async data=>{
   setRights(previous=>({...previous,...normalizedRights(data)}));setPurchaseEditing(true);
-  if(qrPayment?.recovered){try{await restorePurchaseDraft()}catch{setMsg('ชำระเงินสำเร็จ แต่เปิดงานเดิมไม่ได้ กรุณาเปิดงานที่บันทึกหรือเพิ่มรูปใหม่')}}
-  await refreshWallet();analyticsPurchase(data.paymentIntentId);clearQrPayment();setBuyOpen(false);setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');await savePaidCheckout(data.paymentIntentId);
+  await refreshWallet();let recoveredSnapshot=null;
+  if(qrPayment?.recovered){try{recoveredSnapshot=await restorePurchaseDraft()}catch{setMsg('ชำระเงินสำเร็จ แต่เปิดงานเดิมไม่ได้ กรุณาเปิดงานที่บันทึกหรือเพิ่มรูปใหม่')}}
+  analyticsPurchase(data.paymentIntentId);clearQrPayment();setBuyOpen(false);setPayMsg('ชำระเงินสำเร็จ เพิ่มสิทธิ์เรียบร้อยแล้ว');await savePaidCheckout(data.paymentIntentId,qrPayment?.recovered?{snapshot:recoveredSnapshot,jobId:recoveredSnapshot?.jobId||''}:{});
  };
  useEffect(()=>{let cancelled=false;(async()=>{
   const removeStored=()=>{try{localStorage.removeItem('idprom_pending_qr_v1');sessionStorage.removeItem('idprom_qr_attempt_v1')}catch{}};
@@ -3796,13 +3808,27 @@ function App(){
   return()=>{cancelled=true};
  },[screen,activeUniformTemplate,studioData]);
  const restorePurchaseDraft=async()=>{
-  const draft=await loadPurchaseDraft();if(!draft||draft.walletId!==currentWalletId())return;
-  currentOutputJobRef.current=draft.jobId||'';currentOutputTrialRef.current=Boolean(draft.isTrial);setOutputJobId(draft.jobId||'');setTrialPreview(Boolean(draft.isTrial));studioTrialRef.current=Boolean(draft.isTrial);
-  if(draft.originalFile){firstUploadedPhotoRef.current=draft.originalFile;setF(draft.originalFile);setA(URL.createObjectURL(draft.originalFile))}
-  if(draft.classicMaster&&draft.classicLock){editCache.current={master:draft.classicMaster,lock:draft.classicLock};initialProcessedMasterRef.current=draft.classicMaster;setHairId(draft.hairId);}
-  savedWorkIdRef.current=draft.workId||'';
-  if(draft.studio){restoredCheckoutRef.current=draft.studio;setRestoredSourcePhoto(draft.studio.sourcePhoto||draft.originalFile||null);studioOriginRef.current={starter:true,placement:draft.studio.placement};setScreen('studio');setStudioData(draft.studio.layers)}
-  else if(draft.classicMaster&&draft.classicLock){const layers=[];await renderAdjustedFinal(draft.classicMaster,draft.classicLock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);for(const layer of layers.filter(l=>l.name==='หัว · คอ · ผม'))Object.assign(layer,{jobId:draft.jobId,restrictedTrial:draft.isTrial,outputUnlocked:!draft.isTrial});restoredCheckoutRef.current={layers,placement:draft.classicLock,sourcePhoto:draft.originalFile};studioOriginRef.current={starter:true,placement:draft.classicLock};setScreen('studio');setStudioData(layers)}
+  const wallet=currentWalletId(),request=++savedWorkOpenRequestRef.current;
+  const draft=await loadPurchaseDraft();
+  if(request!==savedWorkOpenRequestRef.current||wallet!==currentWalletId())throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานเดิมอีกครั้ง');
+  if(!draft||draft.walletId!==wallet)return null;
+  let snapshot=draft.studio?{...draft.studio,sourcePhoto:draft.studio.sourcePhoto||draft.originalFile||null}:null;
+  if(!snapshot&&draft.classicMaster&&draft.classicLock){const layers=[];await renderAdjustedFinal(draft.classicMaster,draft.classicLock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);for(const layer of layers.filter(l=>l.name==='หัว · คอ · ผม'))Object.assign(layer,{jobId:draft.jobId,restrictedTrial:draft.isTrial,outputUnlocked:!draft.isTrial});snapshot={layers,placement:draft.classicLock,sourcePhoto:draft.originalFile||null}}
+  if(!snapshot)return null;
+  const layers=snapshot.layers.map(l=>({x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,...l}));
+  const project=await makeSavedProject({...snapshot,layers});
+  snapshot={...snapshot,layers:project.layers,placement:project.placement,compareSource:project.compareSource,jobId:draft.jobId||project.layers.find(l=>l.kind==='head'||l.name==='หัว · คอ · ผม')?.jobId||''};
+  if(request!==savedWorkOpenRequestRef.current||wallet!==currentWalletId())throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานเดิมอีกครั้ง');
+  const source=snapshot.sourcePhoto||null;
+  firstUploadedPhotoRef.current=source;setF(source);setA(source?URL.createObjectURL(source):undefined);
+  editCache.current=draft.classicMaster&&draft.classicLock?{master:draft.classicMaster,lock:draft.classicLock}:null;initialProcessedMasterRef.current=editCache.current?.master||null;
+  hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
+  currentOutputJobRef.current=snapshot.jobId;currentOutputTrialRef.current=Boolean(draft.isTrial);studioTrialRef.current=Boolean(draft.isTrial);
+  setOutputJobId(snapshot.jobId);setTrialPreview(Boolean(draft.isTrial));setHairId(draft.hairId||'');
+  savedWorkIdRef.current=draft.workId||'';paymentStudioRef.current=null;restoredCheckoutRef.current=snapshot;
+  setSavedWorkUnlocked(false);setSessionEditJob('');setRestoredSourcePhoto(source);studioOriginRef.current={starter:true,placement:snapshot.placement};
+  setStudioData(snapshot.layers);setSavedWorkRevision(v=>v+1);setScreen('studio');
+  return snapshot;
  };
  const fullCatalog=allOptionsAvailable||Boolean(outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)));
  const allowTemplate=(template,existing=true)=>{if(allOptionsAvailable||(existing&&outputJobId&&(purchaseEditing&&(rights.editableJobIds.includes(outputJobId)||sessionEditJob===outputJobId)))||FREE_TEMPLATE_PATHS.includes(template))return true;setPayMsg('เครดิตหมดแล้ว เลือกชุดได้หมวดละ 1 แบบต่อชาย/หญิง ซื้อแพ็ก 159 บาทเพื่อเปิดทุกแบบ');setBuyOpen(true);return false};
