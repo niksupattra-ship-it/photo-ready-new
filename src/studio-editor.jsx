@@ -246,6 +246,10 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const restrictedTrial=outputHeads(layers).length?!outputHeads(layers).every(l=>verifiedJobs[l.jobId]?.unlocked):!hasCredits&&!trialUnlocked;
  const allowOutput=async({errorTitle}={})=>{
   const heads=outputHeads(state.current),key=heads.map(l=>l.jobId||'missing').join('|');
+  if(state.current.some(l=>l.kind==='source-photo'&&l.id===sourceLayerRef.current)||!heads.length||heads.some(l=>!l.jobId)){
+   const message='กรุณาเลือกทรงผมเพื่อประมวลผลรูปก่อน จึงจะบันทึกงานหรือดาวน์โหลดรูปได้';
+   setStatus(message);setSavePopup({state:'error',title:'กรุณาประมวลผลรูปก่อน',message});return false;
+  }
   const results=await Promise.all(heads.map(async l=>{try{return await onVerifyOutput?.(l.jobId)||unavailableOutputRights()}catch{return unavailableOutputRights()}}));
   if(key!==outputHeads(state.current).map(l=>l.jobId||'missing').join('|')){const message='งานเปลี่ยนแล้ว กรุณากดบันทึกหรือดาวน์โหลดอีกครั้ง';setStatus(message);if(errorTitle)setSavePopup({state:'error',title:errorTitle,message});return false}
   const result=outputAccessResult(results);setVerifiedJobs(previous=>mergeOutputRights(previous,heads.map((l,i)=>[l.jobId,results[i]])));
