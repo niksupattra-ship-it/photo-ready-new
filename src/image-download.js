@@ -27,6 +27,6 @@ export function deliverImage(blob,name){
  const close=()=>{host.remove();previousFocus?.focus?.();setTimeout(()=>URL.revokeObjectURL(url),60000)};
  root.querySelector('#close').addEventListener('click',close);
  root.querySelector('.backdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)close()});
- root.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close()}if(e.key==='Tab'){const buttons=[save,...(!share.hidden?[share]:[]),root.querySelector('#close')];const index=buttons.indexOf(root.activeElement);if(e.shiftKey&&index<=0){e.preventDefault();buttons.at(-1).focus()}else if(!e.shiftKey&&index===buttons.length-1){e.preventDefault();save.focus()}}});
+ root.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close()}if(e.key==='Tab'){const buttons=[save,...(!share.hidden?[share]:[]),root.querySelector('#close')];const index=buttons.indexOf(root.activeElement);if(e.shiftKey&&index<=0){e.preventDefault();buttons[buttons.length-1].focus()}else if(!e.shiftKey&&index===buttons.length-1){e.preventDefault();save.focus()}}});
  document.body.appendChild(host);save.focus();return 'panel';
 }

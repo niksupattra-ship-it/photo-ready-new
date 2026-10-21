@@ -1,7 +1,8 @@
 // Full-resolution layer sources; placement is workspace metadata, not baked pixels.
 const make=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
 import {decodedStudioImage as load} from './studio-image-cache.js';
-export function nativeSource(im){const c=make(im.naturalWidth||im.width,im.naturalHeight||im.height);c.getContext('2d').drawImage(im,0,0);return c.toDataURL('image/png')}
+import {boundedPhotoCanvas} from './photo-input.js';
+export function nativeSource(im){const c=boundedPhotoCanvas(im);try{const source=c.toDataURL('image/png');if(!source.startsWith('data:image/'))throw Error('เตรียมภาพไม่สำเร็จ กรุณาลองเลือกภาพใหม่');return source}finally{c.width=1;c.height=1}}
 async function cropped(src){const im=await load(src),c=make(im.naturalWidth,im.naturalHeight),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);const d=x.getImageData(0,0,c.width,c.height).data;let l=c.width,t=c.height,r=-1,b=-1;for(let y=0;y<c.height;y++)for(let px=0;px<c.width;px++)if(d[(y*c.width+px)*4+3]>8){l=Math.min(l,px);r=Math.max(r,px);t=Math.min(t,y);b=Math.max(b,y)}if(r<l)throw Error('ภาพเครื่องหมายไม่มีส่วนที่แสดง');const out=make(r-l+1,b-t+1);out.getContext('2d').drawImage(c,l,t,out.width,out.height,0,0,out.width,out.height);return out}
 async function buildNativeAsset(kind,option,frame,preset){
  if(kind==='suit'||kind==='background'){const im=await load(kind==='suit'?option.template:option.src);const source=make(im.naturalWidth||im.width,im.naturalHeight||im.height);source.getContext('2d').drawImage(im,0,0);return {source,sourceFrame:kind==='suit'?frame:{x:0,y:0,w:900,h:1200},collarParts:null}}

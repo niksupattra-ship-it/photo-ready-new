@@ -72,7 +72,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 รูปต่อเครื่อง พร้อมลายน้ำ · เลือกผมได้ 4 ทรงแรกต่อหญิง/ชาย</strong><br/>แพ็ก 89 บาทประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง • แพ็ก 159 บาทรวม 10 ครั้ง ไม่รวมรูปทดลองใช้ฟรีที่ใช้ไป พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ และยกเลิกสิทธิ์ทดลองที่เหลือของวันนั้น</p>
+  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 ครั้งต่อเครื่อง พร้อมลายน้ำ · เลือกทรงผมหญิง/ชายในแคตตาล็อกได้ทุกทรง</strong><br/>แพ็ก 89 บาทประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง • แพ็ก 159 บาทรวม 10 ครั้ง ไม่รวมรูปทดลองใช้ฟรีที่ใช้ไป พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ และยกเลิกสิทธิ์ทดลองที่เหลือของวันนั้น</p>
   <p style={{fontSize:12,textAlign:'center',color:'#66758c'}}>เปลี่ยนรูปหรือทรงผมใช้สิทธิ์จากจำนวนเดียวกัน · หักสิทธิ์เฉพาะงานที่สำเร็จ</p>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
