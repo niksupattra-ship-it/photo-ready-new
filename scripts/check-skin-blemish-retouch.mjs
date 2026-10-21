@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {skinBlemishField} from '../src/skin-blemish-retouch.js';
+import {femaleFinishFor} from '../review-portrait-finish.js';
+const W=80,H=80,pixels=new Uint8ClampedArray(W*H*4),coverage=new Float32Array(W*H).fill(1);
+for(let i=0;i<W*H;i++)pixels.set([184,145,126,255],i*4);
+const point=(x,y,c)=>pixels.set(c,(y*W+x)*4);
+for(let y=36;y<40;y++)for(let x=36;x<40;x++)point(x,y,[210,145,135,255]);
+for(let y=18;y<21;y++)for(let x=18;x<21;x++)point(x,y,[75,54,40,255]);
+for(let y=55;y<60;y++)for(let x=25;x<30;x++)point(x,y,[195,155,136,255]);
+coverage[12*W+12]=0;point(12,12,[210,145,135,255]);point(65,65,[210,145,135,150]);
+const {deltas,protectedPixels}=skinBlemishField(pixels,W,H,coverage,{radius:6});
+const acne=(37*W+37)*3,mole=(19*W+19)*3,rough=(57*W+27)*3;
+assert(deltas[acne]<0);assert(deltas[acne]-deltas[acne+1]<0,'red excess must decrease');
+assert(protectedPixels[19*W+19]);assert.deepEqual([...deltas.slice(mole,mole+3)],[0,0,0]);
+assert(deltas[rough]<0,'raised bright rough patches should soften');
+for(const [x,y] of [[12,12],[65,65]])assert.deepEqual([...deltas.slice((y*W+x)*3,(y*W+x)*3+3)],[0,0,0]);
+assert([...deltas].every(v=>Number.isFinite(v)&&Math.abs(v)<=10));
+const clear=skinBlemishField(new Uint8ClampedArray(Array.from({length:W*H},()=>[184,145,126,255]).flat()),W,H,coverage,{radius:6});assert(clear.deltas.every(v=>v===0));
+for(const style of ['natural','makeup']){const prompt=femaleFinishFor(style);for(const text of ['FEMALE ACNE AND ROUGH-SKIN PRIORITY','whiteheads, blackheads','shallow acne pits','stable mole','No whitening'])assert(prompt.includes(text));}
+console.log('PASS: red blemish contrast reduced, rough surface softened, dark marks/excluded features/alpha protected, clear skin unchanged, corrections bounded, both female prompts include acne policy.');

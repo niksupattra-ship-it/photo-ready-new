@@ -12,13 +12,14 @@ function replaceSection(text,start,end,replacement){
  if(a<0||b<a)throw new Error('Female makeup section missing: '+start);
  return text.slice(0,a)+replacement+text.slice(b);
 }
+const FEMALE_ACNE_PRIORITY="\nFEMALE ACNE AND ROUGH-SKIN PRIORITY — NATURAL AND MAKEUP OPTIONS: On visibly acne-prone skin, remove active pimples, whiteheads, blackheads and temporary red blemishes; blend the repaired spots with adjacent healthy skin in this same generation. Reduce temporary acne redness and uneven surface bumps. Gently soften the contrast and hard edges of shallow acne pits and rough texture while preserving natural facial volume, fine believable pores and photographic grain. Do not leave pronounced acne bumps or rough patches merely to preserve source texture. Retouch only affected skin; already clear skin needs minimal correction. Preserve every stable mole, beauty mark and freckle in its original position, size and colour; preserve ambiguous marks rather than guessing. Retain normal age lines, real facial folds, identity, jaw/chin shape, and all eye/brow/lip cosmetics. No whitening, global blur, plastic skin, enlarged head, changed hairstyle, changed neck geometry or extra generation. This instruction overrides source-skin-texture retention only for confirmed temporary acne and restrained rough-skin smoothing; it does not authorize changing stable pigmentation or anatomy.\n";
 export function femaleFinishFor(style="natural"){
- if(style!=="makeup")return REVIEW_FEMALE_FINISH;
+ if(style!=="makeup")return REVIEW_FEMALE_FINISH+FEMALE_ACNE_PRIORITY;
  let finish=REVIEW_FEMALE_FINISH;
  finish=replaceSection(finish,"EYES — BARELY MADE-UP","\nDo not add glitter particles",EYE);
  finish=replaceSection(finish,"UPPER LASH-ROOT DEFINITION ONLY:","Make the upper lashes slightly LONGER",LINER);
  finish=finish.replace("A bare-faced source receives only the skin-like beige upper-lash-root tint specified above; it is acceptable for the cosmetic colour to be barely perceptible at normal portrait size.","Apply the same fresh translucent pink makeup to a bare-faced source, keeping it delicate and visible rather than omitting it.");
  finish=replaceSection(finish,"LIPS — NATURAL KOREAN SOFT ROSE","\nPreserve the exact original lip outline",LIPS);
  finish=finish.replace("Smooth only the small acne-related surface irregularities.","Apply the restrained professional photo-studio skin smoothing specified below, while preserving fine realistic texture.");
- return finish+ACNE+STUDIO_SOFT_SKIN;
+ return finish+ACNE+STUDIO_SOFT_SKIN+FEMALE_ACNE_PRIORITY;
 }
