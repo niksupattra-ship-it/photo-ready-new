@@ -5,7 +5,7 @@ const savedWorkAccountScope=headers=>{const values=new Headers(headers);return J
 const savedWorkData=async response=>{try{return await response.json()}catch(error){if(response.ok||error.name==='TimeoutError'||error.name==='AbortError')throw error;return null}};
 const Icon=({kind})=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{kind==='trash'?<><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></>:kind==='close'?<path d="m6 6 12 12M18 6 6 18"/>:kind==='open'?<><path d="M9 5h10v14H9M3 12h11m-4-4 4 4-4 4"/></>:<><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="m5 18 5-5 3 3 3-4 3 6"/></>}</svg>;
 export function SavedWorks({headers,onOpen,onClose,onDelete}){
- const [items,setItems]=useState([]),[message,setMessage]=useState('กำลังโหลดงาน…'),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[limit,setLimit]=useState(5),[deleteId,setDeleteId]=useState(null),[revision,setRevision]=useState(0),[canReload,setCanReload]=useState(false);
+ const [items,setItems]=useState([]),[message,setMessage]=useState('กำลังโหลดงาน…'),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[limit,setLimit]=useState(3),[deleteId,setDeleteId]=useState(null),[revision,setRevision]=useState(0),[canReload,setCanReload]=useState(false);
  const panel=useRef(null),lifetime=useRef({active:true}),listRequest=useRef(null),action=useRef(null),callbacks=useRef({headers,onOpen,onClose,onDelete});callbacks.current={headers,onOpen,onClose,onDelete};
  const scopeNow=()=>{try{return savedWorkAccountScope(callbacks.current.headers())}catch{return null}};
  const accountScope=scopeNow();
@@ -19,7 +19,7 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
   (async()=>{try{
    const r=await deadlineFetch('/api/saved-work',{headers:callbacks.current.headers(),cache:'no-store',signal:controller.signal});const d=await savedWorkData(r);
    if(!r.ok)throw Error(d?.message||'โหลดงานไม่สำเร็จ');if(!Array.isArray(d?.items))throw Error('ข้อมูลรายการงานไม่ครบ กรุณาโหลดรายการอีกครั้ง');
-   if(active()){setItems(d.items);setLimit(Number(d.limit)>0?Number(d.limit):5);setMessage('')}
+   if(active()){setItems(d.items);setLimit(Number(d.limit)>0?Number(d.limit):3);setMessage('')}
   }catch(error){if(active()){setMessage(error.message||'โหลดงานไม่สำเร็จ');setCanReload(true)}}finally{if(active())setLoading(false)}})();
   return()=>{controller.abort();if(listRequest.current===controller)listRequest.current=null};
  },[revision,accountScope]);
