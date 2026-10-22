@@ -336,6 +336,8 @@ const aiFinishHandler=async(req,res)=>{
   if(req.files?.mask?.length)return res.status(400).send('ขั้นตอนใหม่ไม่ใช้ mask กรุณารีเฟรชหน้าเว็บ');
   if(!process.env.ARK_API_KEY)return res.status(500).send('ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์');
   if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!creditUse)return;}
+  // Prepare the unchanged matting model while the external image generation runs.
+  void getModnetSession().catch(e=>console.warn("MODNet warmup:",e.message));
   const data=await processProductionPortrait({input,fields:req.body,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,key:process.env.ARK_API_KEY});
   if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
   res.set('Cache-Control','no-store');res.set('X-Credits-Remaining',String(creditUse.credits));
