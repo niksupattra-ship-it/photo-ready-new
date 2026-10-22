@@ -1,3 +1,4 @@
+import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {createProjectResourceGuard} from './project-resource-guard.js';
 const imageURL=/^data:image\/(png|jpeg|webp);base64,/;
 const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
@@ -45,7 +46,7 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
  const head=project.layers.find(isHead),suit=project.layers.find(l=>l.kind==='suit'||l.name==='ชุด');
  let editCache=null;
  if(head&&source){
-  source.idpromPortraitMode=head.portraitMode;source.idpromFemaleEyeStyle=head.femaleEyeStyle||'natural';
+  source.idpromPortraitMode=head.portraitMode;source.idpromFemaleEyeStyle=portraitFinishChoice(head.initialFemaleEyeStyle,head.femaleEyeStyle);
   const im=decoded.get(head.source),width=im.naturalWidth||im.width,height=im.naturalHeight||im.height;
   const f=head.sourceFrame||{x:0,y:0,w:900,h:1200},p=project.placement||{},W=p.W||900,H=p.H||1200;
   const u=suit?.sourceFrame||{x:p.uX/W*900||0,y:p.uY/H*1200||0,w:p.uW/W*900||900,h:p.uH/H*1200||1200};

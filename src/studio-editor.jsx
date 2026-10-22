@@ -1,3 +1,4 @@
+import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {createPortal} from 'react-dom';
 import {PHOTO_SIZES,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
@@ -557,7 +558,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   setProcessHairPending(false);setPicker(false);setHairNotice(false);
   const previous=historySnapshot(),suit=previous.find(l=>layerKind(l)==='suit');if(touch){setPicker(false);setTouchMore(false);setTouchMenu(false);setTouchOpen(false)}setHairConfirmed(false);setProcessingPhoto(true);setStatus('กำลังประมวลผลรูป…');
   let stagedResult;
-  try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,processedOriginalSource:result.layer.source};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,squeezeX:anchor.squeezeX??1,squeezeY:anchor.squeezeY??1,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
+  try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,squeezeX:anchor.squeezeX??1,squeezeY:anchor.squeezeY??1,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
    if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;undo.current.push(previous);redo.current=[];resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply')}else throw Error('แสดงภาพไม่สำเร็จ');
   }catch(e){await hydrate(previous);stagedResult?.rollback?.();await onFinishProcess?.(false).catch(()=>{});setProcessHairPending(true);const message=e.message||'ประมวลผลไม่สำเร็จ กรุณาลองใหม่';setStatus(message);if(e.code!=='USER_CANCELLED')setPortraitProcessError(message)}finally{processRequestRef.current=false;setProcessingPhoto(false)}
@@ -581,7 +582,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   }
   setAssetBusy(true);setStatus(reused?'กำลังแสดงทรงผมที่เคยสร้างไว้…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   const result=stagedResult=await onChangeHair(id,hairGender,head.femaleEyeStyle||sourcePhoto?.idpromFemaleEyeStyle||'natural');
+   const result=stagedResult=await onChangeHair(id,hairGender,portraitFinishChoice(head.initialFemaleEyeStyle,head.femaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle));
    reused=result?.reused===true;
    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');

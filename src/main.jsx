@@ -1,3 +1,4 @@
+import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {StudioRightsDialog} from './studio-rights-dialog.jsx';
 import {fetchOutputRights,outputAccessResult} from './output-rights.js';
 import {makeSavedProject,prepareSavedProject} from './saved-project.js';
@@ -3489,7 +3490,7 @@ function App(){
   const oldFace=detector.detect(oldImage).faceLandmarks?.[0],newFace=detector.detect(newImage).faceLandmarks?.[0];
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
- const changeHairForStudio=async (id,portraitMode,{studioOnly=false}={})=>{
+ const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle}={})=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current;
@@ -3506,7 +3507,7 @@ function App(){
    let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate,onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:portraitFinishChoice(femaleEyeStyle,firstUploadedPhoto.idpromFemaleEyeStyle),maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate,onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
      generatedResult=aiHeadNeck;
      if(!studioOnly&&aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
@@ -3872,7 +3873,8 @@ function App(){
   let delivered=false;
   const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
   try{
-   const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,templatePath:template});
+   const femaleEyeStyle=portraitFinishChoice(file.idpromFemaleEyeStyle);
+   const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,femaleEyeStyle,templatePath:template});
    const master=await finishFirstPortraitMaster(aiHead);
    const composed=await composePortrait(master,{scale:1,x:0,y:0},template);
    const layers=[];layers.headOnly=true;
@@ -3881,7 +3883,7 @@ function App(){
    const head=layers.find(l=>l.name==='หัว · คอ · ผม');
    if(!head)throw Error('ไม่ได้รับเลเยอร์ภาพใหม่');
    const jobId=aiHead.idpromJobId,isTrial=Boolean(aiHead.idpromTrial);
-   Object.assign(head,{jobId,restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle:file.idpromFemaleEyeStyle||'natural'});
+   Object.assign(head,{jobId,restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle,initialFemaleEyeStyle:femaleEyeStyle});
    const commit=()=>{
     if(delivered)return;delivered=true;
     file.idpromPortraitMode=portraitMode;firstUploadedPhotoRef.current=file;setF(file);
@@ -3905,8 +3907,9 @@ function App(){
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
  };
- const changeStudioHair=async(id,portraitMode,femaleEyeStyle='natural')=>{
-  if(firstUploadedPhotoRef.current)firstUploadedPhotoRef.current.idpromFemaleEyeStyle=femaleEyeStyle==='makeup'?'makeup':'natural';
+ const changeStudioHair=async(id,portraitMode,femaleEyeStyle)=>{
+  femaleEyeStyle=portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle);
+  if(firstUploadedPhotoRef.current)firstUploadedPhotoRef.current.idpromFemaleEyeStyle=femaleEyeStyle;
   if(!canReuseHair(id,portraitMode)&&!privateTrialActive&&rights.generationRemaining<1&&(!(rights.trialAvailable&&rights.trialRemaining>0)||!isTrialHairAllowed(id))){setBuyOpen(true);throw Error('ใช้สิทธิ์ทดลองครบแล้ว กรุณาเลือกแพ็กเกจเพื่อประมวลผลทรงใหม่');}
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
   const previous={jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current};
@@ -3917,12 +3920,12 @@ function App(){
    setOutputJobId(previous.jobId);setTrialPreview(previous.studioTrial);
   };
   try{
-   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true});
+   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true,femaleEyeStyle});
    if(!staged?.master||staged.hairId!==(id||''))throw Error('ผลลัพธ์ไม่ตรงกับทรงที่เลือก กรุณาลองใหม่');
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(staged.master,staged.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    const head=layers.find(l=>l.name==='หัว · คอ · ผม');if(!head)throw Error('ไม่ได้รับเลเยอร์ทรงผมใหม่');
-   Object.assign(head,{jobId:staged.jobId,restrictedTrial:staged.isTrial,outputUnlocked:!staged.isTrial,hairId:id||'',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle});
+   Object.assign(head,{jobId:staged.jobId,restrictedTrial:staged.isTrial,outputUnlocked:!staged.isTrial,hairId:id||'',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle,initialFemaleEyeStyle:femaleEyeStyle});
    return {layer:head,reused:staged.reused,commit:()=>{staged.commit();committed=true},rollback};
   }catch(error){rollback();throw error}
  };
