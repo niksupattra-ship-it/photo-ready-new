@@ -28,14 +28,21 @@ export function pixelEraserStroke(surface,reference,{radius,radiusY=radius,softn
    const key=tx+','+ty;let tile=tiles.get(key);
    if(!tile){const x=tx*size,y=ty*size,w=Math.min(size,surface.width-x),h=Math.min(size,surface.height-y),image=ctx.getImageData(x,y,w,h);tile={x,y,w,h,image,before:new Uint8ClampedArray(image.data),reference:restore?rc.getImageData(x,y,w,h).data:null,coverage:new Float32Array(w*h)};tiles.set(key,tile)}
    let changed=false;
-   for(let y=Math.max(top,tile.y);y<Math.min(bottom,tile.y+tile.h);y++)for(let x=Math.max(left,tile.x);x<Math.min(right,tile.x+tile.w);x++){
-    const d=radiusY===radius?Math.hypot(x+.5-p.x,y+.5-p.y)/radius:Math.hypot((x+.5-p.x)/radius,(y+.5-p.y)/radiusY);if(d>=1)continue;
+   const rightX=Math.min(right,tile.x+tile.w),bottomY=Math.min(bottom,tile.y+tile.h),hard2=hard*hard;
+   for(let y=Math.max(top,tile.y);y<bottomY;y++){
+    const yn=(y+.5-p.y)/radiusY,yn2=yn*yn;
+    for(let x=Math.max(left,tile.x);x<rightX;x++){
+    const xn=(x+.5-p.x)/radius,d2=xn*xn+yn2;if(d2>=1)continue;
+    // Most hard-brush pixels need no distance/smooth calculation. Retain the
+    // original falloff expression on the soft edge for matching alpha values.
+    const d=d2<=hard2?0:radiusY===radius?Math.hypot(x+.5-p.x,y+.5-p.y)/radius:Math.hypot(xn,yn);
     const coverage=d<=hard?1:1-smooth((d-hard)/(1-hard)),n=(y-tile.y)*tile.w+x-tile.x;
     if(coverage<=tile.coverage[n])continue;tile.coverage[n]=coverage;
     const amount=strength*coverage,j=n*4,b=tile.before,out=tile.image.data;
     if(!restore)out[j+3]=Math.round(b[j+3]*(1-amount));
     else{const r=tile.reference,ba=b[j+3]*(1-amount),ra=r[j+3]*amount,a=ba+ra;for(let k=0;k<3;k++)out[j+k]=a?Math.round((b[j+k]*ba+r[j+k]*ra)/a):b[j+k];out[j+3]=Math.round(a)}
     changed=true;
+   }
    }
    if(changed)pending.add(tile);
   }
@@ -62,3 +69,4 @@ export function brushSceneRegion(rect,layer,surface,display){
  const points=[[rect.x-2,rect.y-2],[rect.x+rect.w+2,rect.y-2],[rect.x-2,rect.y+rect.h+2],[rect.x+rect.w+2,rect.y+rect.h+2]].map(([x,y])=>{const u=(f.x+x/surface.width*f.w-450)*(layer.squeezeX??1),v=(f.y+y/surface.height*f.h-600)*(layer.squeezeY??1);return {x:(450+layer.x+(u*c-v*s)*layer.scale)*display.width/900,y:(600+layer.y+(u*s+v*c)*layer.scale)*display.height/1200}});
  const x=Math.max(0,Math.floor(Math.min(...points.map(p=>p.x)))),y=Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))));return {x,y,w:Math.max(0,Math.min(display.width,Math.ceil(Math.max(...points.map(p=>p.x))))-x),h:Math.max(0,Math.min(display.height,Math.ceil(Math.max(...points.map(p=>p.y))))-y)};
 }
+
