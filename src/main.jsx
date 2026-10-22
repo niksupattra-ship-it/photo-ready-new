@@ -2573,7 +2573,8 @@ const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
  {id:'female-suit-03',title:'สูทหญิง แบบ 3',img:'/assets/job-uniforms/female-suit-03-example.png',template:'/assets/job-uniforms/female-suit-03.png',cat:'job',gender:'female'},
- {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-v2-example.webp',preview:'/assets/job-uniforms/female-suit-04-v2-example.webp',template:'/assets/job-uniforms/female-suit-04-v2.png',cat:'job',gender:'female'},
+ {id:'female-suit-04',title:'สูทหญิง แบบ 4',img:'/assets/job-uniforms/female-suit-04-example.webp',preview:'/assets/job-uniforms/female-suit-04-example.webp',template:'/assets/job-uniforms/female-suit-04.png',cat:'job',gender:'female'},
+ {id:'female-suit-05',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/female-suit-05-example.webp',preview:'/assets/job-uniforms/female-suit-05-example.webp',template:'/assets/job-uniforms/female-suit-05.png',cat:'job',gender:'female'},
  {id:'male-suit-03',title:'สูทชาย แบบ 3',img:'/assets/job-uniforms/male-suit-03-example.png',template:'/assets/job-uniforms/male-suit-03.png',cat:'job',gender:'male'},
  {id:'male-suit-04',title:'สูทชาย แบบ 4',img:'/assets/job-uniforms/male-suit-04-example.png',template:'/assets/job-uniforms/male-suit-04.png',cat:'job',gender:'male'},
  {id:'male-formal-tie-suit',title:'สูทชาย',img:'/assets/job-uniforms/male-formal-tie-suit-example.png',template:'/assets/job-uniforms/male-navy-tie.png',cat:'job',gender:'male'},
@@ -2861,8 +2862,7 @@ function App(){
  {trialChoice.purchased&&<p className="idprom-credit-notice-saved-compact">งานที่บันทึกแล้ว เปิดต่อได้โดยไม่มีลายน้ำ</p>}
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;
- const DownloadNoticeUI=()=>downloadNotice&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role={downloadNotice.state==='error'?'alertdialog':'dialog'} aria-modal="true" aria-labelledby="preview-download-title" aria-busy={downloadNotice.state==='working'}><h2 id="preview-download-title">{downloadNotice.title}</h2><p role={downloadNotice.state==='working'?'status':undefined} aria-live="polite">{downloadNotice.message}</p>{downloadNotice.state==='error'&&<button autoFocus style={{marginTop:20}} onClick={()=>setDownloadNotice(null)}>ตกลง</button>}</section></div>;
- const SavedWorkUI=()=> <><TrialChoiceUI/><DownloadNoticeUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog request={portraitFetch} headers={walletHeaders} unlimited={privateTrialActive} onRights={data=>setRights(previous=>({...previous,...normalizedRights(data)}))} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
+ const SavedWorkUI=()=> <><TrialChoiceUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog request={portraitFetch} headers={walletHeaders} unlimited={privateTrialActive} onRights={data=>setRights(previous=>({...previous,...normalizedRights(data)}))} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{
   analyticsEvent('idprom_checkout_click',{package_id:packageId});
   if(!authenticated&&!authToken()){setPendingPackage(packageId);setAuthMode('register');setAuthMsg('');setAuthOpen(true);return}
@@ -3055,7 +3055,7 @@ function App(){
  const beautyBaseRef=useRef(null);
  const beautyPreviewBaseRef=useRef(null);
  const beautyWorkingRef=useRef(false);
- const[downloadBusy,setDownloadBusy]=useState(false),[downloadNotice,setDownloadNotice]=useState(null);const downloadBusyRef=useRef(false);
+ const[downloadBusy,setDownloadBusy]=useState(false);
  const[photoCrop,setPhotoCrop]=useState({...DEFAULT_PHOTO_CROP});
  const[photoSizeBlob,setPhotoSizeBlob]=useState(null),[photoSizeBusy,setPhotoSizeBusy]=useState(false);
  const[backgroundId,setBackgroundId]=useState('default');const backgroundRef=useRef('/assets/background.jpg');
@@ -3753,37 +3753,19 @@ function App(){
   }catch(e){suppressUiError(e,'เปิด Studio ไม่สำเร็จ')}finally{setStudioBusy(false)}
  };
  const downloadCurrentFinal=async()=>{
-  if(!editCache.current||downloadBusyRef.current||downloadBusy||hairBusy||busy||uniformChanging||photoSizeBusy)return;
-  downloadBusyRef.current=true;setDownloadBusy(true);setMsg('');
-  setDownloadNotice({state:'working',title:'กำลังเตรียมดาวน์โหลด',message:'กำลังตรวจสอบสิทธิ์ในรูปนี้…'});
-  const jobId=currentOutputJobRef.current,wallet=currentWalletId(),token=authToken(),workScope=savedWorkOpenRequestRef.current;
-  const {master,lock}=editCache.current,crop={...photoCrop};
-  const ensureCurrent=()=>{if(jobId!==currentOutputJobRef.current||wallet!==currentWalletId()||token!==authToken()||workScope!==savedWorkOpenRequestRef.current||master!==editCache.current?.master||lock!==editCache.current?.lock)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานเดิมแล้วดาวน์โหลดอีกครั้ง')};
+  if(!editCache.current||downloadBusy||hairBusy||busy||photoSizeBusy)return;
   analyticsEvent('idprom_download_click',{is_trial:trialPreview});
+  if(!await requireOutputAccess())return;
+  setDownloadBusy(true);setMsg('');
   try{
-   const verified=await withDeadline(()=>verifyOutputRights(jobId),{timeoutMs:30000,message:'ยังตรวจสอบสิทธิ์ไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง ไม่จำเป็นต้องชำระเงินซ้ำ',code:'DOWNLOAD_RIGHTS_TIMEOUT'});
-   ensureCurrent();
-   const access=outputAccessResult([verified]);
-   if(!access.allowed){
-    if(!access.purchase)throw Error(access.message);
-    setMsg(access.message);setPayMsg(access.message);setTrialPreview(true);setBuyOpen(true);setDownloadNotice(null);return;
-   }
-   setDownloadNotice({state:'working',title:'กำลังเตรียมดาวน์โหลด',message:'กำลังสร้างไฟล์ภาพ…'});
    clearTimeout(beautyTimerRef.current);++beautyRenderRef.current;
    clearTimeout(renderTimer.current);
    ++renderSeqRef.current;
-   const renderArgs=[master,lock,{...liveAdjustRef.current},liveCollarWarpRef.current,{...liveNeckAdjustRef.current},backgroundRef.current,ribbonRef.current,{...ribbonAdjustRef.current},collarPinRef.current,{...collarPinAdjustRef.current,left:{...collarPinAdjustRef.current.left},right:{...collarPinAdjustRef.current.right}},false,null,liveCollarHeightRef.current,chestPinRef.current,{...chestPinAdjustRef.current}],beautySettings={...beautyRef.current};
-   const {base,out}=await withDeadline(async()=>{
-    const base=await renderAdjustedFinal(...renderArgs);ensureCurrent();
-    return {base,out:await applyLocalBeauty(base,beautySettings)};
-   },{timeoutMs:60000,message:'สร้างไฟล์ภาพใช้เวลานานเกินไป กรุณาลองดาวน์โหลดอีกครั้ง',code:'DOWNLOAD_RENDER_TIMEOUT'});
-   ensureCurrent();
-   const downloadBlob=await withDeadline(()=>cropPhotoForDownload(out,crop),{timeoutMs:30000,message:'เตรียมขนาดภาพใช้เวลานานเกินไป กรุณาลองดาวน์โหลดอีกครั้ง',code:'DOWNLOAD_CROP_TIMEOUT'});
-   ensureCurrent();
-   beautyBaseRef.current=base;beautyPreviewBaseRef.current=null;showBlob(out);
-   const delivery=deliverImage(downloadBlob,crop.sizeId==='original'?'photo-ready.png':`photo-ready-${crop.sizeId}.png`);analyticsEvent('idprom_download_requested',{size_id:crop.sizeId,delivery});
-   setDownloadNotice(null);
-  }catch(e){const message=e?.message||'ดาวน์โหลดภาพไม่สำเร็จ กรุณาลองอีกครั้ง';analyticsEvent('idprom_download_error',{error_stage:'download'});setMsg(message);setDownloadNotice({state:'error',title:'ดาวน์โหลดไม่สำเร็จ',message})}finally{downloadBusyRef.current=false;setDownloadBusy(false)}
+   const out=await renderWithRibbon(editCache.current.master,editCache.current.lock,{...liveAdjustRef.current},liveCollarWarpRef.current,liveNeckAdjustRef.current,backgroundRef.current);
+   showBlob(out);
+   const downloadBlob=await cropPhotoForDownload(out,photoCrop);
+   const delivery=deliverImage(downloadBlob,photoCrop.sizeId==='original'?'photo-ready.png':`photo-ready-${photoCrop.sizeId}.png`);analyticsEvent('idprom_download_requested',{size_id:photoCrop.sizeId,delivery});
+  }catch(e){analyticsEvent('idprom_download_error',{error_stage:'download'});suppressUiError(e,'ดาวน์โหลดภาพไม่สำเร็จ')}finally{setDownloadBusy(false)}
  };
  const applyFinishedAiPortrait=async(aiHeadNeck,originalFile,uniformTemplate,processedHair=hairId,portraitMode)=>{
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
@@ -3952,7 +3934,7 @@ function App(){
    {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชาย/หญิง\nมีทั้งแบบผูกไทด์\nและไม่ผูกไทด์',image:'/assets/home-cutouts/student.png'},
    {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'ชุดครุย สจล.\nสำหรับชายและหญิง',image:null}
   ];
-  const featured=[...['female-suit-03','female-suit-04','male-suit-03','female-formal-suit','female-lapel-suit'].map(id=>JOB_UNIFORMS.find(item=>item.id===id)),
+  const featured=[JOB_UNIFORMS[2],JOB_UNIFORMS[3],JOB_UNIFORMS[5],JOB_UNIFORMS[0],JOB_UNIFORMS[1],JOB_UNIFORMS[4],
    {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},
    {...FEMALE_GOVERNMENT_UNIFORMS[0],title:'ข้าราชการหญิง',cat:'government',gender:'female',img:FEMALE_GOVERNMENT_UNIFORMS[0].preview}].filter(item=>item&&item.img);
   const openFeatured=item=>{

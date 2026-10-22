@@ -18,7 +18,7 @@ import {headPose,syncHairAttachments,syncHairPairTransforms} from './hair-previe
 import {StudioPhotoGuide} from './studio-photo-guide.jsx';
 import {StudioFileActions} from './studio-file-actions.jsx';
 import {ProcessingCloseButton} from './processing-close-button.jsx';
-import {deliverImage,dismissFileSavePanel} from './image-download.js';
+import {deliverImage} from './image-download.js';
 import {withDeadline} from './async-deadline.js';
 import {createBrowserId,listenMediaQuery,observeElementResize,lastItem,isPrimaryEditingPointer,hasSecondaryPointerButton,preventEditorControlContextMenu} from './browser-compat.js';
 import React,{useEffect,useRef,useState} from 'react';
@@ -124,9 +124,9 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  const [femaleFinishChoiceOpen,setFemaleFinishChoiceOpen]=useState(false);
  const pendingHairProcessRef=useRef(null);
  const [portraitProcessError,setPortraitProcessError]=useState(null);
- const [savePopup,setSavePopup]=useState(null);const savingRef=useRef(false),exportingRef=useRef(false),savingDoneRef=useRef(null),saveSequenceRef=useRef(0),downloadSaveQueueRef=useRef(Promise.resolve()),historyTruncatedRef=useRef(false),historyBoundaryNoticeRef=useRef(false);
+ const [savePopup,setSavePopup]=useState(null);const savingRef=useRef(false),savingDoneRef=useRef(null),saveSequenceRef=useRef(0),downloadSaveQueueRef=useRef(Promise.resolve()),historyTruncatedRef=useRef(false),historyBoundaryNoticeRef=useRef(false);
  useEffect(()=>{if(accountSaveNotice){setSavePopup(accountSaveNotice);setStatus(accountSaveNotice.message)}},[accountSaveNotice]);
- useEffect(()=>{const warn=e=>{if(savingRef.current||exportingRef.current||accountSaveNotice?.state==='saving'){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[accountSaveNotice]);
+ useEffect(()=>{const warn=e=>{if(savingRef.current||accountSaveNotice?.state==='saving'){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[accountSaveNotice]);
  const [historyNotice,setHistoryNotice]=useState(null);
  const [makeupStyles,setMakeupStyles]=useState({}),[makeupBusy,setMakeupBusy]=useState(false);const makeupRequestRef=useRef(false),makeupLookCacheRef=useRef(null);
  useEffect(()=>{if(picker==='hair')void refreshHairAiAccess()},[picker,hairAccessJob,assetBusy]);
@@ -244,16 +244,12 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  },[outputKey,paidOutputIds,onVerifyOutput,trialUnlocked,hasCredits,editingPurchasedImage]);
  const sessionAllowsOutput=heads=>trialUnlocked||hasCredits||editingPurchasedImage||savedWorkUnlocked||heads.every(l=>sessionUnlockedJobs.current.has(l.jobId));
  const restrictedTrial=outputHeads(layers).length?!outputHeads(layers).every(l=>verifiedJobs[l.jobId]?.unlocked):!hasCredits&&!trialUnlocked;
- const allowOutput=async({errorTitle}={})=>{
+ const allowOutput=async()=>{
   const heads=outputHeads(state.current),key=heads.map(l=>l.jobId||'missing').join('|');
-  if(state.current.some(l=>l.kind==='source-photo'&&l.id===sourceLayerRef.current)||!heads.length||heads.some(l=>!l.jobId)){
-   const message='กรุณาเลือกทรงผมเพื่อประมวลผลรูปก่อน จึงจะบันทึกงานหรือดาวน์โหลดรูปได้';
-   setStatus(message);setSavePopup({state:'error',title:'กรุณาประมวลผลรูปก่อน',message});return false;
-  }
   const results=await Promise.all(heads.map(async l=>{try{return await onVerifyOutput?.(l.jobId)||unavailableOutputRights()}catch{return unavailableOutputRights()}}));
-  if(key!==outputHeads(state.current).map(l=>l.jobId||'missing').join('|')){const message='งานเปลี่ยนแล้ว กรุณากดบันทึกหรือดาวน์โหลดอีกครั้ง';setStatus(message);if(errorTitle)setSavePopup({state:'error',title:errorTitle,message});return false}
+  if(key!==outputHeads(state.current).map(l=>l.jobId||'missing').join('|')){setStatus('งานเปลี่ยนแล้ว กรุณากดบันทึกหรือดาวน์โหลดอีกครั้ง');return false}
   const result=outputAccessResult(results);setVerifiedJobs(previous=>mergeOutputRights(previous,heads.map((l,i)=>[l.jobId,results[i]])));
-  if(!result.allowed){setStatus(result.message);if(errorTitle)setSavePopup(result.purchase?null:{state:'error',title:errorTitle,message:result.message});if(result.purchase)onRequestUnlock?.();return false}
+  if(!result.allowed){setStatus(result.message);if(result.purchase)onRequestUnlock?.();return false}
   for(const head of heads)sessionUnlockedJobs.current.add(head.jobId);return true;
  };
  const canUseAllSuits=allOptionsAvailable||hasCredits||trialUnlocked||state.current.some(l=>(layerKind(l)==='head'||l.name==='หัว · คอ · ผม')&&(editableOutputIds.includes(l.jobId)||(verifiedJobs[l.jobId]?.checked!==false&&verifiedJobs[l.jobId]?.unlocked===true&&verifiedJobs[l.jobId]?.fullEdit===true)));
@@ -291,7 +287,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  useEffect(()=>()=>{if(viewFrame.current!==null)cancelAnimationFrame(viewFrame.current);clearTimeout(viewTimer.current)},[]);
  const current=layers.find(l=>l.id===selected);
  const exitDialogRef=useRef(),exitRequestRef=useRef();
- const requestExit=()=>{if(dismissFileSavePanel())return;if(processActive||assetBusy||!ready||savingRef.current||exportingRef.current||accountSaveNotice?.state==='saving')return;setExitPrompt(true)};
+ const requestExit=()=>{if(processActive||assetBusy||!ready)return;setExitPrompt(true)};
  exitRequestRef.current=requestExit;
  useEffect(()=>{if(!touch)return;const token=uid(),prior=window.history.state,guard={...prior,idpromStudioExit:token};let active=true;window.history.pushState(guard,'');const back=()=>{if(!active)return;window.history.pushState(guard,'');exitRequestRef.current()};window.addEventListener('popstate',back);return()=>{active=false;window.removeEventListener('popstate',back);if(window.history.state?.idpromStudioExit===token)window.history.back()}},[touch]);
  useEffect(()=>{const dialog=exitDialogRef.current;if(exitPrompt&&dialog&&!dialog.open)dialog.showModal();else if(!exitPrompt&&dialog?.open)dialog.close()},[exitPrompt]);
@@ -448,7 +444,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   let finishSaving;const showPopup=options.showPopup!==false;savingRef.current=true;savingDoneRef.current=new Promise(resolve=>{finishSaving=resolve});
   if(showPopup)setSavePopup({state:'saving',message:'กำลังบันทึกงาน กรุณารอสักครู่'});
   try{
-   if(!options.outputVerified&&!(await allowOutput({errorTitle:showPopup?'บันทึกงานไม่สำเร็จ':null}))){setHistoryNotice(null);return false}
+   if(!options.outputVerified&&!(await allowOutput())){setHistoryNotice(null);if(showPopup)setSavePopup(null);return false}
    flushTransforms();const project=options.project?{...options.project,layers:options.project.layers.map(l=>({...l,source:surfaceURL(l.source),processedOriginalSource:surfaceURL(l.processedOriginalSource),collarParts:l.collarParts?{left:surfaceURL(l.collarParts.left),right:surfaceURL(l.collarParts.right)}:l.collarParts,makeupBaseSource:surfaceURL(l.makeupBaseSource),makeupFullSource:surfaceURL(l.makeupFullSource),mask:surfaceURL(l.mask),warpSource:surfaceURL(l.warpSource),warpBaseMask:surfaceURL(l.warpBaseMask),eraseRestoreSource:surfaceURL(l.eraseRestoreSource),warpRestoreBase:surfaceURL(l.warpRestoreBase)}))}:await makeSavedProject({placement:placementRef.current,compareSource:compareSourceRef.current,sourcePhoto,layers:snapshot()});
    if(!project.compareSource&&sourcePhoto)project.compareSource=(await makeSavedProject({...project,sourcePhoto})).compareSource;
    if(staleBackground())return false;
@@ -459,22 +455,14 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  };
  const load=async e=>{const file=e.target.files?.[0];e.target.value='';if(!file)return;try{if(file.size>80*1024*1024)throw Error('ไฟล์ใหญ่เกิน 80 MB');const data=JSON.parse(await file.text());if(onOpenProject){await onOpenProject(data);return}await prepareSavedProject(data,{decode:image});if(data.format!=='idprom-studio'||data.version!==1||data.width!==W||data.height!==H||!Array.isArray(data.layers)||!data.layers.length||data.layers.length>20)throw Error('รูปแบบโปรเจกต์ไม่ถูกต้อง');const next=data.layers.map(l=>{if(typeof l.name!=='string'||typeof l.source!=='string'||![l.x,l.y,l.scale,l.rotation,l.opacity].every(Number.isFinite)||l.scale<.1||l.scale>5||l.opacity<0||l.opacity>1||['squeezeX','squeezeY'].some(k=>l[k]!==undefined&&(!Number.isFinite(l[k])||l[k]<.1||l[k]>3)))throw Error('ข้อมูลเลเยอร์ไม่ถูกต้อง');return {...l,visible:!!l.visible,locked:!!l.locked}});const remapped=freshLinkedLayers(next);next.splice(0,next.length,...remapped);let original=null;if(data.compareSource){if(!/^data:image\/(png|jpeg|webp);base64,/.test(data.compareSource))throw Error('รูปต้นฉบับไม่ถูกต้อง');original=await image(data.compareSource);if(original.width>8192||original.height>8192)throw Error('รูปต้นฉบับใหญ่เกินไป')}const previous=historySnapshot();if(await hydrate(next)){compareSourceRef.current=data.compareSource||null;before.current=original;setCompareReady(Boolean(original));setComparing(false);if(data.placement&&['W','H','uX','uY','uW','uH'].every(k=>Number.isFinite(data.placement[k]))&&data.placement.W>0&&data.placement.H>0)placementRef.current=data.placement;undo.current.push(previous);redo.current=[];setRevision(v=>v+1)}}catch(err){setStatus(err.message)}};
  const exportImage=async type=>{
-  if(exportingRef.current){setStatus('กำลังเตรียมไฟล์ภาพ กรุณารอสักครู่');return}
-  exportingRef.current=true;
   const saveSequence=++saveSequenceRef.current;
-  let c,b;
-  setSavePopup({state:'saving',title:'กำลังเตรียมดาวน์โหลด',message:'กำลังตรวจสิทธิ์และเตรียมไฟล์ภาพ กรุณารอสักครู่'});
   try{
-   if(!(await allowOutput({errorTitle:'ดาวน์โหลดไม่สำเร็จ'})))return;flushTransforms();c=nativeCanvas(placementRef.current);if(type==='image/jpeg'){b=nativeCanvas(placementRef.current);paintScene(b.getContext('2d'),state.current,assets.current);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0);b.width=1;b.height=1}else paintScene(c.getContext('2d'),state.current,assets.current);
-   const workId=onSaveWork?.currentWorkId?.(),workScope=onSaveWork?.currentScope?.();let project=null,backupError=null;
-   // An optional account backup must not prevent delivery of the painted image.
-   if(onSaveWork&&!trialUnlocked)try{project={format:'idprom-studio',version:1,width:W,height:H,placement:{...placementRef.current},compareSource:compareSourceRef.current,layers:historySnapshot()}}catch(error){backupError=error}
+   if(!(await allowOutput()))return;flushTransforms();const c=nativeCanvas(placementRef.current);if(type==='image/jpeg'){const b=nativeCanvas(placementRef.current);paintScene(b.getContext('2d'),state.current,assets.current);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0)}else paintScene(c.getContext('2d'),state.current,assets.current);
+   const workId=onSaveWork?.currentWorkId?.(),workScope=onSaveWork?.currentScope?.();const project=onSaveWork&&!trialUnlocked?{format:'idprom-studio',version:1,width:W,height:H,placement:{...placementRef.current},compareSource:compareSourceRef.current,layers:historySnapshot()}:null;
    const blob=await withDeadline(()=>new Promise((resolve,reject)=>c.toBlob(blob=>blob?resolve(blob):reject(Error('ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่')),type,.97)),{timeoutMs:30000,message:'เตรียมไฟล์ภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'STUDIO_EXPORT_TIMEOUT'});
-   setSavePopup(null);const delivery=download(blob,type==='image/jpeg'?'IDPROM-Studio.jpg':'IDPROM-Studio.png');setStatus(delivery==='panel'?'รูปพร้อมแล้ว · เลือกบันทึกหรือแชร์รูป':`ส่งคำขอดาวน์โหลดภาพ ${c.width} × ${c.height} แล้ว`);
-   if(backupError)setSavePopup({state:'error',title:'รูปพร้อมแล้ว แต่ยังสำรองงานไม่สำเร็จ',message:'บันทึกรูปได้ตามปกติ แต่งานยังไม่ถูกสำรองเข้าบัญชี กรุณากดบันทึกงานอีกครั้ง รูปและเลเยอร์เดิมยังอยู่'});
+   const delivery=download(blob,type==='image/jpeg'?'IDPROM-Studio.jpg':'IDPROM-Studio.png');setStatus(delivery==='panel'?'รูปพร้อมแล้ว · เลือกบันทึกหรือแชร์รูป':`ส่งคำขอดาวน์โหลดภาพ ${c.width} × ${c.height} แล้ว`);
    if(project&&saveSequence===saveSequenceRef.current)setTimeout(()=>{downloadSaveQueueRef.current=downloadSaveQueueRef.current.then(()=>save({showPopup:false,outputVerified:true,background:true,project,workId,workScope,saveSequence})).catch(()=>setStatus('ดาวน์โหลดรูปแล้ว แต่บันทึกงานไม่สำเร็จ กรุณากดบันทึกอีกครั้ง'))},0);
   }catch(e){const message=e.message||'ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่';setStatus(message);setSavePopup({state:'error',title:'ดาวน์โหลดไม่สำเร็จ',message})}
-  finally{exportingRef.current=false;for(const surface of [c,b])if(surface){surface.width=1;surface.height=1}}
  };
  const duplicate=async()=>{if(!current||layers.length>=20)return;const all=historySnapshot();remember();const suitCopy=layerKind(current)==='suit',copy={...all.find(l=>l.id===selected),id:uid(),name:current.name+' สำเนา',kind:suitCopy?'suit':null,locked:false};if(await hydrate([...all,copy])&&suitCopy)setSelected(copy.id)};
  const neckSuit=()=>state.current.find(l=>l.id===selectedRef.current&&layerKind(l)==='suit')||[...state.current].reverse().find(l=>layerKind(l)==='suit');
