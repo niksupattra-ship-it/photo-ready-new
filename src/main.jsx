@@ -1,4 +1,5 @@
 import {inspectPortraitGarments,inspectUnchangedPortraitHair} from './portrait-completion-check.js';
+import {inspectSelectedPortraitHair} from './selected-hair-check.js';
 import {removePortraitClothingAlpha} from './replace-studio-source.js';
 import {ServiceTermsLink} from './service-terms.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
@@ -2247,7 +2248,9 @@ async function portraitCompletionEvidence(blob,includeGarments=false){
  if(d<8)throw Object.assign(Error('ใบหน้าเล็กเกินไปสำหรับตรวจผล กรุณาใช้รูปที่เห็นใบหน้าชัด'),{code:'portrait_finish_incomplete'});
  const ex=(rx-lx)/d,ey=(ry-ly)/d,k=64/d,cx=(lx+rx)/2,cy=(ly+ry)/2;
  const normal=src=>{const c=canvasFor(256,320),ctx=c.getContext('2d');ctx.setTransform(k*ex,-k*ey,k*ey,k*ex,128-k*(ex*cx+ey*cy),144-k*(-ey*cx+ex*cy));ctx.drawImage(src,0,0);return ctx.getImageData(0,0,256,320).data};
- const evidence={pixels:normal(im),hair:normal(masks.hairMask)};
+ const normalY=point=>point?144+k*(-ey*(point.x*W-cx)+ex*(point.y*H-cy)):null;
+ const normalPoint=(x,y)=>({x:128+k*(ex*(x-cx)+ey*(y-cy)),y:144+k*(-ey*(x-cx)+ex*(y-cy))});
+ const evidence={pixels:normal(im),hair:normal(masks.hairMask),chinY:normalY(face[152]),faceTopY:normalY(face[10]),sourceBounds:[[0,0],[W,0],[W,H],[0,H]].map(([x,y])=>normalPoint(x,y))};
  if(includeGarments){
   const scale=Math.min(1,384/Math.max(W,H)),w=Math.max(1,Math.round(W*scale)),h=Math.max(1,Math.round(H*scale));
   const sample=src=>{const c=canvasFor(w,h),ctx=c.getContext('2d');ctx.drawImage(src,0,0,w,h);return ctx.getImageData(0,0,w,h).data};
@@ -2255,11 +2258,33 @@ async function portraitCompletionEvidence(blob,includeGarments=false){
  }
  return evidence;
 }
+const selectedHairEvidenceCache=new Map();
+async function selectedHairEvidence(hairId){
+ const selected=PRODUCTION_HAIR_CATALOG.find(item=>item.id===hairId);
+ if(!selected)return null;
+ const key=HAIR_DESIGN_VERSION+'|'+selected.src;
+ if(!selectedHairEvidenceCache.has(key)){
+  const pending=(async()=>{
+   try{
+    const response=await portraitFetch(selected.src,{cache:'force-cache'},8000);
+    if(!response.ok)return null;
+    return await portraitCompletionEvidence(await response.blob());
+   }catch{return null}
+  })();
+  selectedHairEvidenceCache.set(key,pending);
+  pending.then(value=>{if(!value&&selectedHairEvidenceCache.get(key)===pending)selectedHairEvidenceCache.delete(key)});
+ }
+ return selectedHairEvidenceCache.get(key);
+}
 async function checkPortraitCompletion(originalFile,result,hairId){
  const output=await portraitCompletionEvidence(result,true);
  if(!output.garments?.measurable)throw Object.assign(Error('ตรวจเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(output.garments.retained)throw Object.assign(Error('AI ยังตัดเสื้อเดิมออกไม่ครบ ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(hairId&&hairId!=='original'){
+  if(originalFile.idpromStudioSourceReplacement===true){
+   const reference=await selectedHairEvidence(hairId);
+   if(reference&&inspectSelectedPortraitHair(reference,output).mismatch)throw Object.assign(Error('ทรงผมที่ได้ยังไม่ตรงกับแบบที่เลือก · เก็บรูปและเลเยอร์เดิมไว้ กรุณาลองอีกครั้ง'),{code:'selected_hairstyle_mismatch'});
+  }
   const source=await portraitCompletionEvidence(originalFile),hair=inspectUnchangedPortraitHair(source,output);
   if(hair.unchanged)throw Object.assign(Error('AI ยังคืนทรงผมเดิมโดยแทบไม่เปลี่ยนแปลง ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  }
@@ -2274,7 +2299,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([HAIR_DESIGN_VERSION,'garment-alpha-v1',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v19-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,'garment-alpha-v1',originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v19-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -2323,6 +2348,16 @@ async function measuredHairRootTarget(blob){
   return calculateHairRootTarget({brow,foreheadTop});
  }finally{URL.revokeObjectURL(url)}
 }
+async function replacementFaceIdentityBox(blob){
+ const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
+ const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+ const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+ if(!face||ids.some(id=>!Number.isFinite(face[id]?.x)||!Number.isFinite(face[id]?.y)))throw Error('ตรวจใบหน้าในรูปใหม่ไม่สำเร็จ กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
+ const xs=ids.map(id=>face[id].x),ys=ids.map(id=>face[id].y);
+ const box=[Math.max(0,Math.min(...xs)),Math.max(0,Math.min(...ys)),Math.min(1,Math.max(...xs)),Math.min(1,Math.max(...ys))];
+ if((box[2]-box[0])*W<16||(box[3]-box[1])*H<16)throw Error('ใบหน้าในรูปใหม่เล็กเกินไป กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
+ return box;
+}
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const fd=new FormData();
@@ -2333,6 +2368,9 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  fd.append('hairId',hairId||'original');
  fd.append('femaleEyeStyle',options.femaleEyeStyle==='makeup'?'makeup':'natural');
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
+ if(originalFile.idpromStudioSourceReplacement===true&&selected){
+  fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation);
+ }
  fd.append('portraitMode',selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female');
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
