@@ -4,8 +4,40 @@ import {packageFor,remaining} from './package-rules.js';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for payment storage');
 const pool=new Pool({connectionTimeoutMillis:5000,connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}});
+// Balance display must not queue behind schema migration or entitlement repair.
+let balancePool;
+function balanceReader(){return balancePool||(balancePool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false},max:2,connectionTimeoutMillis:2000,statement_timeout:5000,query_timeout:5500,idleTimeoutMillis:10000,options:'-c default_transaction_read_only=on'}))}
+async function currentPaymentSchema(){
+ const {rows}=await pool.query(`
+  WITH required(table_name,columns) AS (VALUES
+   ('wallets',ARRAY['id','credits','created_at','generation_remaining','hair_remaining','full_edit_remaining']),
+   ('payments',ARRAY['session_id','wallet_id','credits','created_at','package_id','generation_qty','hair_qty','full_edit_reconciled']),
+   ('credit_usage',ARRAY['id','wallet_id','kind','status','created_at','completed_at','refunded_at','credit_column','full_edit_output']),
+   ('paid_image_unlocks',ARRAY['wallet_id','job_id','full_edit','created_at']),
+   ('trial_previews',ARRAY['id','wallet_id','fingerprint','status','created_at','completed_at','trial_slot']),
+   ('trial_daily_devices',ARRAY['device_key','trial_day','trial_id']),
+   ('promo_redemptions',ARRAY['code','wallet_id','package_id','created_at'])
+  )
+  SELECT
+   NOT EXISTS(SELECT 1 FROM required r CROSS JOIN LATERAL unnest(r.columns) col(name)
+    WHERE NOT EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=to_regclass(r.table_name) AND a.attname=col.name AND a.attnum>0 AND NOT a.attisdropped))
+   AND EXISTS(SELECT 1 FROM pg_constraint c WHERE c.conrelid=to_regclass('credit_usage') AND c.conname='credit_usage_status_check' AND c.contype='c' AND c.convalidated
+    AND regexp_replace(pg_get_constraintdef(c.oid),'[[:space:]]','','g')=$1)
+   AND EXISTS(SELECT 1 FROM pg_index i WHERE i.indexrelid=to_regclass('trial_previews_device_day_slot_key') AND i.indrelid=to_regclass('trial_previews') AND i.indisunique AND i.indisvalid
+    AND (SELECT array_agg(COALESCE(a.attname,'<expression>')::text ORDER BY k.ord) FROM unnest(i.indkey) WITH ORDINALITY k(attnum,ord) LEFT JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=k.attnum)=ARRAY['fingerprint','<expression>','trial_slot']::text[]
+    AND pg_get_expr(i.indexprs,i.indrelid) IN ('((created_at AT TIME ZONE ''Asia/Bangkok''::text))::date','(created_at AT TIME ZONE ''Asia/Bangkok''::text)::date'))
+   AND EXISTS(SELECT 1 FROM pg_index i WHERE i.indexrelid=to_regclass('trial_daily_devices_use_key') AND i.indrelid=to_regclass('trial_daily_devices') AND i.indisunique AND i.indisvalid
+    AND (SELECT array_agg(a.attname::text ORDER BY k.ord) FROM unnest(i.indkey) WITH ORDINALITY k(attnum,ord) JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=k.attnum)=ARRAY['device_key','trial_day','trial_id']::text[])
+   AND NOT EXISTS(SELECT 1 FROM pg_constraint c WHERE (c.conrelid=to_regclass('trial_previews') AND c.conname='trial_previews_fingerprint_key') OR (c.conrelid=to_regclass('trial_daily_devices') AND c.conname='trial_daily_devices_pkey'))
+   AND to_regclass('trial_previews_device_day_key') IS NULL AS current
+ `,["CHECK((status=ANY(ARRAY['reserved'::text,'completed'::text,'refunded'::text])))"]);
+ return rows[0]?.current===true;
+}
 let initPromise;
 async function ready(){if(!initPromise)initPromise=(async()=>{
+  // Existing databases only need a catalog read; repeated ALTER TABLE can wait
+  // for locks and hold every wallet request even though its schema is current.
+  if(await currentPaymentSchema())return;
   await pool.query(`CREATE TABLE IF NOT EXISTS wallets (id text PRIMARY KEY, credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
   await pool.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS generation_remaining integer NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS hair_remaining integer NOT NULL DEFAULT 0`);
@@ -188,8 +220,10 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
 }
 
 export async function trialOptionAccess(walletId,fingerprint,networkFingerprint){
- await ready();
- const {rows}=await pool.query(`
+ await ready();return readTrialOptionAccess(pool,walletId,fingerprint,networkFingerprint);
+}
+async function readTrialOptionAccess(reader,walletId,fingerprint,networkFingerprint){
+ const {rows}=await reader.query(`
   WITH today AS (
    SELECT date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok') AT TIME ZONE 'Asia/Bangkok' AS starts,
     (date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok')+interval '1 day') AT TIME ZONE 'Asia/Bangkok' AS ends
@@ -215,4 +249,15 @@ export async function trialOptionAccess(walletId,fingerprint,networkFingerprint)
  if(!fingerprint)return {hasPurchased,trialAvailable:false,trialRemaining:0};
  const trialRemaining=row.purchased_today?0:Math.max(0,2-Number(row.used||0));
  return {hasPurchased,trialAvailable:trialRemaining>0,trialRemaining};
+}
+
+// Display-only snapshot. It neither migrates tables nor repairs/grants rights.
+export async function getWalletBalance(id,fingerprint,networkFingerprint){
+ if(!id)return null;
+ const reader=balanceReader();
+ const [wallet,trial]=await Promise.all([
+  reader.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[id]),
+  readTrialOptionAccess(reader,id,fingerprint,networkFingerprint)
+ ]);
+ return wallet.rows[0]?{...shape(id,wallet.rows[0]),...trial}:null;
 }

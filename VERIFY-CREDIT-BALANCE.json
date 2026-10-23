@@ -1,0 +1,164 @@
+{
+  "baseline": "aa0078bfdac7162094e3e3e84b87a1bef74f7e74",
+  "production_files": [
+    "payment-store.js",
+    "server.js",
+    "src/main.jsx",
+    "src/studio-rights-dialog.jsx"
+  ],
+  "build": {
+    "passed": true,
+    "vite": "8.3.0",
+    "modules": 117,
+    "js": "index-CEQOfCdG.js"
+  },
+  "client_cases_passed": 7,
+  "prior_login_cases_passed": 18,
+  "prior_server_cases_passed": 23,
+  "server": {
+    "passed": 10,
+    "reports": [
+      {
+        "name": "empty schema retains migration fallback",
+        "passed": true,
+        "detail": {
+          "queries": 32
+        }
+      },
+      {
+        "name": "complete current schema performs exactly one catalog read and no DDL",
+        "passed": true
+      },
+      {
+        "name": "balance snapshot uses two read-only queries and preserves trial policy without rights arrays",
+        "passed": true
+      },
+      {
+        "name": "blocked migration cannot hold the independent bounded balance reader",
+        "passed": true
+      },
+      {
+        "name": "blocked reconciliation cannot hold the independent bounded balance reader",
+        "passed": true
+      },
+      {
+        "name": "unknown wallet has no fabricated zero balance",
+        "passed": true
+      },
+      {
+        "name": "incorrect validated status constraint retains repair fallback",
+        "passed": true
+      },
+      {
+        "name": "partial trial schema retains original migration and becomes current",
+        "passed": true
+      },
+      {
+        "name": "missing optional performance indexes do not trigger runtime migrations",
+        "passed": true
+      },
+      {
+        "name": "balance route uses validated account wallet rather than supplied wallet header",
+        "passed": true
+      }
+    ]
+  },
+  "browser": [
+    {
+      "label": "isolated-fixed",
+      "browser": "chromium",
+      "passed": true,
+      "calls": [
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": false
+        },
+        {
+          "path": "/api/auth/login",
+          "search": "",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "GET",
+          "authorization": true
+        },
+        {
+          "path": "/api/wallet/balance",
+          "search": "",
+          "method": "GET",
+          "authorization": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "label": "isolated-fixed",
+      "browser": "webkit",
+      "passed": true,
+      "calls": [
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": false
+        },
+        {
+          "path": "/api/auth/login",
+          "search": "",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "GET",
+          "authorization": true
+        },
+        {
+          "path": "/api/wallet/balance",
+          "search": "",
+          "method": "GET",
+          "authorization": true
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "credit_dialog_browser": [
+    {
+      "browser": "chromium",
+      "checks": 6,
+      "passed": true,
+      "reads": 4,
+      "errors": []
+    },
+    {
+      "browser": "webkit",
+      "checks": 6,
+      "passed": true,
+      "reads": 4,
+      "errors": []
+    }
+  ],
+  "customer_credentials_used": false,
+  "production_credit_or_account_writes": false,
+  "production_deployed": false,
+  "production_db_lock_reason_confirmed": false
+}

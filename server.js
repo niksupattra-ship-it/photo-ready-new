@@ -15,7 +15,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
@@ -100,6 +100,13 @@ app.post("/api/payments/confirm",async(req,res)=>{
   }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req))})});
+// A credit display reads current counters without migrations or image-right repair.
+app.get('/api/wallet/balance',async(req,res)=>{res.set('Cache-Control','no-store');try{
+ const id=walletId(req);if(!id)return res.status(404).json({error:'wallet_not_found'});
+ const data=await getWalletBalance(id,trialDeviceFingerprint(req,res,id),trialNetworkFingerprint(req));
+ if(!data)return res.status(404).json({error:'wallet_not_found'});
+ res.json(data);
+}catch(error){console.error('Wallet balance:',error.code||'read_failed');res.status(503).json({error:'wallet_balance_unavailable',message:'ยังอ่านเครดิตไม่ได้ กรุณาลองอีกครั้ง'})}});
 // Credit refreshes need balances and rights, not the account-history query.
 // The default route retains history for existing account views.
 app.get("/api/wallet",async(req,res)=>{res.set("Cache-Control","no-store");try{
