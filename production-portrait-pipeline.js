@@ -26,6 +26,27 @@ export async function portraitIdentityCrop(input,box){
  return sharp(input.buffer).rotate().extract({left,top,width:right-left,height:bottom-top}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
 }
 
+export function parseFemaleMakeupReference(fields,selected){
+ const value=fields.femaleMakeupReference;
+ if(value===undefined)return null;
+ if((selected?.gender||fields.portraitMode)!=='female'||fields.portraitMode!=='female'||fields.femaleEyeStyle!=='makeup'||fields.creditKind!=='hairstyle')throw Error('รูปอ้างอิงการแต่งหน้าใช้ได้เฉพาะการเปลี่ยนทรงผมหญิงที่เลือกแต่งหน้า');
+ if(typeof value!=='string'||value.length>512*1024||!value.startsWith('data:image/jpeg;base64,'))throw Error('ข้อมูลรูปอ้างอิงการแต่งหน้าไม่ถูกต้อง กรุณาลองใหม่');
+ const encoded=value.slice('data:image/jpeg;base64,'.length);
+ if(!encoded.length||encoded.length%4||!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))throw Error('ข้อมูลรูปอ้างอิงการแต่งหน้าไม่ถูกต้อง กรุณาลองใหม่');
+ const image=Buffer.from(encoded,'base64');
+ if(image.length<4||image[0]!==255||image[1]!==216||image[2]!==255||image.toString('base64')!==encoded)throw Error('ข้อมูลรูปอ้างอิงการแต่งหน้าไม่ถูกต้อง กรุณาลองใหม่');
+ return image;
+}
+export async function checkedFemaleMakeupReference(image){
+ if(!image)return null;
+ try{
+  const metadata=await sharp(image).metadata();
+  if(metadata.format!=='jpeg'||!metadata.width||!metadata.height||metadata.width<16||metadata.height<16||metadata.width>512||metadata.height>512||(metadata.pages||1)>1)throw Error('invalid makeup reference dimensions');
+  await sharp(image).raw().toBuffer();
+  return image;
+ }catch{throw Error('อ่านรูปอ้างอิงการแต่งหน้าไม่ได้ กรุณาลองใหม่')}
+}
+
 export function validateProductionPortrait(input,fields={}){
  if(!input?.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(input.mimetype))throw Error('กรุณาใช้ภาพ PNG, JPG หรือ WEBP');
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
@@ -33,6 +54,7 @@ export function validateProductionPortrait(input,fields={}){
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
  parsePortraitIdentityBox(fields.faceIdentityBox);
+ parseFemaleMakeupReference(fields,selected);
  return selected;
 }
 export function productionPortraitPrompt(selected,femaleEyeStyle="natural"){
@@ -64,8 +86,14 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const hair=chosen?await readFile(path.join(root,'public','assets','seedream-hairstyles','references',chosen.file)):null;
  const identity=await portraitIdentityCrop(input,parsePortraitIdentityBox(fields.faceIdentityBox));
  if(identity)prompt+=`\nUPLOADED-PERSON IDENTITY DETAIL — IMAGE ${hair?3:2}: This last image is a close-up cropped directly from Image 1 in this same request, showing the SAME uploaded person, not another person or another hairstyle reference. Use it to retain this person's individual eye shapes and spacing, nose, mouth, cheeks, jaw/chin, stable marks and recognisable identity while applying the requested cosmetic and lighting finish. Image 1 remains the authority for head scale, framing and overall pose; the magnified close-up must NOT enlarge the output head or change camera distance. ${hair?'Image 2 supplies HAIR DESIGN ONLY: never copy its face, skin, ears, skull or beauty proportions. The selected parting, fringe, cut length and silhouette still come only from Image 2.':'There is no separate hairstyle-reference image; do not treat this identity close-up as a new haircut request.'} Keep all existing skin/makeup, pose, neck, cutout and selected-hair instructions. This is one coherent generation of the same uploaded person; no face substitution.\n`;
+ const makeup=await checkedFemaleMakeupReference(parseFemaleMakeupReference(fields,chosen));
+ if(makeup){
+  prompt=prompt.replace('The style reference is the following written specification; no separate makeup-reference image is supplied in this request.','The written cosmetic specification below is supported by an accepted makeup close-up supplied as the last image in this request.');
+  if(identity)prompt=prompt.replace('This last image is a close-up cropped directly from Image 1','This image is a close-up cropped directly from Image 1');
+  prompt+=`\nACCEPTED FEMALE MAKEUP CONTINUITY — IMAGE ${2+(hair?1:0)+(identity?1:0)}: The last image is a cropped cosmetic-appearance reference from the accepted first finished portrait of this SAME uploaded woman. This is the intentional accepted finish to PRESERVE, not a new reference person or source makeup to neutralize. Match the accepted upper-eyelid cosmetic colour, placement and intensity, brown lash-root definition, eyebrow colour and strand coverage, rose-pink lip colour and hydrated gloss, facial skin complexion, restrained smoothing and balanced studio exposure. Retain that actual accepted colour/intensity and exposure instead of designing makeup again from the generic written target. Do not revert these areas to the bare face, old lipstick or old lighting of Image 1, omit makeup, switch to natural mode, reconstruct different brows, or redesign it as a new weaker/stronger look on each hairstyle change. Do not tone down the accepted makeup just because Image 1 is bare-faced or generic barely-perceptible/sheer wording would otherwise produce a weaker result. Apply the existing written cosmetic specification consistently with this accepted appearance. The makeup close-up is ONLY authority for cosmetic pigment, texture and illumination: Image 1 remains the sole authority for the woman's identity, intrinsic eye/nose/mouth/jaw geometry, expression, anatomy, head scale and framing; any optional uploaded-person detail crop supports that same original anatomy. Iris colour/texture, pupil dimensions, original gaze and corneal catchlights remain from Image 1, never from the cosmetic reference. Do not copy altered anatomy, pose or head size from a generated finish. ${hair?'Image 2 remains the EXCLUSIVE hairstyle authority, including parting, fringe, cut length and silhouette.':'There is no hairstyle-reference image in this request: restore only the original hairstyle from Image 1; the makeup close-up is not a hair reference.'} Ignore any old hair or fringe visible in the makeup close-up and never blend it into the requested design. Makeup must not expose skin that the requested hairstyle naturally covers or change its bangs to reveal cosmetics. Preserve the existing neck construction, cutout, skin-detail and no-jewellery policies. This cosmetic-continuity priority overrides treating this hairstyle change as a fresh first makeup design and conflicting generic cosmetic strength only; it does not authorize facial reshaping, eye-detail replacement or a pasted face. Deliver one coherent portrait in this same request.\n`;
+ }
  await onStage('generation');
- const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair,identity});
+ const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair,identity,makeup});
  await onStage('matting');
  const matted=await removeBackground(result.png);
  await onStage('edges');

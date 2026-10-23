@@ -1,0 +1,341 @@
+{
+  "baseline": {
+    "repository": "niksupattra-ship-it/photo-ready-new",
+    "branch": "main",
+    "commit": "9997b616e51904c7b3a5a94263d394faed44c591"
+  },
+  "runtimeFiles": {
+    "src/main.jsx": {
+      "baselineSha256": "963fd692413024b34454e146f4b2475fa1cff9338fac19e5ee8dddf0d85ca1ee",
+      "updatedSha256": "1759a563e1535948b02fdb4262549af8701973cfa785966f6a4ef780b76f8072"
+    },
+    "production-portrait-pipeline.js": {
+      "baselineSha256": "7ae17213ab9114e8ad01a187981d27bd5c1beca1e5280a3776f0f2558550f86e",
+      "updatedSha256": "cd58e65b7afd81eb0d6075c4c6c10e6300fca138d77f734d9557333b5f52c302"
+    },
+    "seedream-review-transport.js": {
+      "baselineSha256": "72ff7923ede63c06d2c70d0ff93ea3dc5c14e341c9408d73b6298a714999052a",
+      "updatedSha256": "167d9a26c3d2c7332e8eeae1746376195c53d18dfbdfd7764fc0215680ab3444"
+    },
+    "job-store.js": {
+      "baselineSha256": "10c767dc376126e28b8643190274c9a5521131d4c6963d83c1fce093e47b6fb6",
+      "updatedSha256": "ea133d0b9cb20da9df887095de21cdae9727bc9c27d31a25461ff247cf43335e"
+    }
+  },
+  "scope": "Female makeup continuity on hairstyle changes; original source identity and selected hairstyle remain separate authorities.",
+  "diagnosis": "Makeup metadata retained. Accepted first makeup appearance was absent from hairstyle-generation inputs.",
+  "automatedChecks": [
+    {
+      "script": "check-makeup-hair-retention.mjs",
+      "passed": 15
+    },
+    {
+      "script": "check-female-makeup-continuity.mjs",
+      "passedGroups": 8
+    },
+    {
+      "script": "check-second-upload-contract.mjs",
+      "passed": 12
+    },
+    {
+      "script": "check-portrait-identity-anchor.mjs",
+      "passed": 10
+    },
+    {
+      "script": "check-hairstyle-selection.mjs",
+      "passedPromptCases": 35,
+      "pipelineMockPassed": true
+    },
+    {
+      "script": "check-portrait-clothing-completion.mjs",
+      "passed": 15
+    },
+    {
+      "script": "check-selected-hair-check.mjs",
+      "passed": 15
+    },
+    {
+      "script": "check-process-credit-preflight.mjs",
+      "passed": 12
+    },
+    {
+      "script": "check-process-result-balance.mjs",
+      "passed": 9
+    },
+    {
+      "script": "check-studio-rights.mjs",
+      "passed": true
+    },
+    {
+      "script": "check-portrait-uniform-fit.mjs",
+      "passed": true
+    }
+  ],
+  "build": {
+    "command": "npm run build",
+    "passed": true,
+    "modules": 118,
+    "warning": "Existing bundle exceeds 500KB"
+  },
+  "actualBrowserAndSqlReview": {
+    "helperSha256": "27311e21984a2b6254a6ddc66a66a93bc883b8135228aae083a041b6c1bba157",
+    "actualCanvasAndMediaPipe": {
+      "chromium": {
+        "engine": "chromium",
+        "passed": 4,
+        "results": [
+          {
+            "name": "open",
+            "input": {
+              "W": 512,
+              "H": 512
+            },
+            "crop": {
+              "left": 145.5316141829783,
+              "right": 357.0696431412405,
+              "top": 143.45164959744602,
+              "bottom": 322.9529875260442
+            },
+            "width": 212,
+            "height": 180,
+            "jpegDataUrlBytes": 11555,
+            "sourceChanged": 0,
+            "hairPixels": 9030,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          },
+          {
+            "name": "bangs",
+            "input": {
+              "W": 512,
+              "H": 512
+            },
+            "crop": {
+              "left": 146.57593802325187,
+              "right": 355.78416939862313,
+              "top": 139.73548140547058,
+              "bottom": 317.8712645114265
+            },
+            "width": 209,
+            "height": 178,
+            "jpegDataUrlBytes": 11759,
+            "sourceChanged": 0,
+            "hairPixels": 12091,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          },
+          {
+            "name": "other-face",
+            "input": {
+              "W": 500,
+              "H": 626
+            },
+            "crop": {
+              "left": 165.63812603679656,
+              "right": 321.22357974323273,
+              "top": 116.88253180020833,
+              "bottom": 251.8967929923303
+            },
+            "width": 156,
+            "height": 135,
+            "jpegDataUrlBytes": 8671,
+            "sourceChanged": 0,
+            "hairPixels": 5598,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          },
+          {
+            "name": "high-resolution",
+            "input": {
+              "W": 2560,
+              "H": 2560
+            },
+            "crop": {
+              "left": 729.8879145842083,
+              "right": 1785.5411625642294,
+              "top": 721.2798981299719,
+              "bottom": 1617.3639072638273
+            },
+            "width": 512,
+            "height": 435,
+            "jpegDataUrlBytes": 34491,
+            "sourceChanged": 0,
+            "hairPixels": 52082,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          }
+        ],
+        "limits": "Actual local MediaPipe and browser Canvas/JPEG; accepted reference/test catalog images only, no production AI or customer image edit."
+      },
+      "webkit": {
+        "engine": "webkit",
+        "passed": 4,
+        "results": [
+          {
+            "name": "open",
+            "input": {
+              "W": 512,
+              "H": 512
+            },
+            "crop": {
+              "left": 145.5316141829783,
+              "right": 357.0696431412405,
+              "top": 143.45164959744602,
+              "bottom": 322.9529875260442
+            },
+            "width": 212,
+            "height": 180,
+            "jpegDataUrlBytes": 11507,
+            "sourceChanged": 0,
+            "hairPixels": 9024,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          },
+          {
+            "name": "bangs",
+            "input": {
+              "W": 512,
+              "H": 512
+            },
+            "crop": {
+              "left": 146.57593802325187,
+              "right": 355.78416939862313,
+              "top": 139.73548140547058,
+              "bottom": 317.8712645114265
+            },
+            "width": 209,
+            "height": 178,
+            "jpegDataUrlBytes": 11767,
+            "sourceChanged": 0,
+            "hairPixels": 12092,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          },
+          {
+            "name": "other-face",
+            "input": {
+              "W": 500,
+              "H": 626
+            },
+            "crop": {
+              "left": 165.63812603679656,
+              "right": 321.22357974323273,
+              "top": 116.88253180020831,
+              "bottom": 251.8967929923303
+            },
+            "width": 156,
+            "height": 135,
+            "jpegDataUrlBytes": 8627,
+            "sourceChanged": 0,
+            "hairPixels": 5594,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          },
+          {
+            "name": "high-resolution",
+            "input": {
+              "W": 2560,
+              "H": 2560
+            },
+            "crop": {
+              "left": 729.501565746034,
+              "right": 1785.7760679209582,
+              "top": 720.7350002113911,
+              "bottom": 1617.1407640868401
+            },
+            "width": 512,
+            "height": 435,
+            "jpegDataUrlBytes": 35027,
+            "sourceChanged": 0,
+            "hairPixels": 52148,
+            "nonNeutralHair": 0,
+            "cachedWithoutReencode": true
+          }
+        ],
+        "limits": "Actual local MediaPipe and browser Canvas/JPEG; accepted reference/test catalog images only, no production AI or customer image edit."
+      }
+    },
+    "sqlReview": {
+      "passed": 11,
+      "jobStoreOnlyThreeFieldErasures": true,
+      "results": [
+        {
+          "name": "complete processing result",
+          "passed": true
+        },
+        {
+          "name": "complete queued does not revive work",
+          "passed": true
+        },
+        {
+          "name": "fail queued",
+          "passed": true
+        },
+        {
+          "name": "fail processing",
+          "passed": true
+        },
+        {
+          "name": "cancel queued paid",
+          "passed": true
+        },
+        {
+          "name": "cancel processing paid",
+          "passed": true
+        },
+        {
+          "name": "cancel completed undelivered paid",
+          "passed": true
+        },
+        {
+          "name": "cancel trial reservation",
+          "passed": true
+        },
+        {
+          "name": "cancel hairstyle/full edit reservation",
+          "passed": true
+        },
+        {
+          "name": "complete then confirm paid",
+          "passed": true
+        },
+        {
+          "name": "complete then confirm trial",
+          "passed": true
+        }
+      ],
+      "limits": "Real PostgreSQL WASM on isolated fixture rows; no production database, accounts or financial writes. Confirmation follows completed cleanup; confirm SQL remains unchanged."
+    },
+    "sourceBindingReview": {
+      "passed": true,
+      "checks": [
+        "initial anchor captured only from accepted female makeup master",
+        "source object identity required before crop",
+        "operation, original source and anchor rechecked after async crop",
+        "new source commit resets anchor, natural/male clears anchor",
+        "hair changes retain first accepted master rather than accumulating result guide",
+        "cache keys include anchor identity and reference digest"
+      ]
+    },
+    "limits": [
+      "Tests use local catalog/example image fixtures, not production AI responses",
+      "Classified hair neutralized; segmentation can leave unclassified hair traces, prompt excludes them",
+      "No guarantee of exact makeup appearance or physical device validation"
+    ]
+  },
+  "limitations": [
+    "No production deployment",
+    "No live provider image generation or visual makeup-fidelity validation",
+    "WebKit engine tests do not substitute for physical iPhone/iPad tests",
+    "Semantic mask may miss some hair; prompt explicitly excludes residual hair"
+  ],
+  "noChangesTo": [
+    "Database schema",
+    "Account data",
+    "Entitlement policy",
+    "Credit ledger SQL",
+    "Provider model and output size",
+    "StudioEditor toolbar and UI"
+  ],
+  "generationRequests": "Adds optional appearance image within the existing single generation request; no extra generation/retry added."
+}

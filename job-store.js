@@ -20,8 +20,8 @@ async function ready(){
 export async function createAiJob({walletId,usageId,fields,image,mask}){await ready();const id='job_'+crypto.randomBytes(18).toString('hex');await pool.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,mask,mask_name,mask_type) VALUES($1,$2,$3,'queued',$4,$5,$6,$7,$8,$9,$10)`,[id,walletId,usageId,fields||{},image.buffer,image.originalname||'image.png',image.mimetype||'image/png',mask?.buffer||null,mask?.originalname||null,mask?.mimetype||null]);return id}
 export async function claimAiJob(id){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='processing',updated_at=now() WHERE id=$1 AND status='queued' RETURNING *`,[id]);return rows[0]||null}
 export async function touchAiJob(id,stage=null){await ready();await pool.query(`UPDATE ai_jobs SET updated_at=now(),fields=CASE WHEN $2::text IS NULL THEN fields ELSE fields||jsonb_build_object('processing_stage',$2::text) END WHERE id=$1 AND status='processing'`,[id,stage])}
-export async function completeAiJob(id,result){await ready();await pool.query(`UPDATE ai_jobs SET status='completed',result=$2,error=NULL,image='\\x'::bytea,mask=NULL,updated_at=now() WHERE id=$1 AND status='processing'`,[id,result])}
-export async function failAiJob(id,error){await ready();await pool.query(`UPDATE ai_jobs SET status='failed',error=$2,image='\\x'::bytea,mask=NULL,updated_at=now() WHERE id=$1 AND status IN ('queued','processing')`,[id,String(error||'AI processing failed').slice(0,2000)])}
+export async function completeAiJob(id,result){await ready();await pool.query(`UPDATE ai_jobs SET status='completed',result=$2,error=NULL,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference',updated_at=now() WHERE id=$1 AND status='processing'`,[id,result])}
+export async function failAiJob(id,error){await ready();await pool.query(`UPDATE ai_jobs SET status='failed',error=$2,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference',updated_at=now() WHERE id=$1 AND status IN ('queued','processing')`,[id,String(error||'AI processing failed').slice(0,2000)])}
 export async function getAiJob(id,walletId){await ready();const {rows}=await pool.query(`SELECT id,status,error,created_at,updated_at,fields->>'processing_stage' AS stage,(result IS NOT NULL) AS has_result FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
 export async function getAiJobResult(id,walletId){await ready();const {rows}=await pool.query(`SELECT status,result,error,usage_id FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
 export async function queuedAiJobs(){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='queued',updated_at=now() WHERE status='processing' AND updated_at < now()-interval '3 minutes' RETURNING id`);const q=await pool.query(`SELECT id FROM ai_jobs WHERE status='queued' ORDER BY created_at ASC LIMIT 20`);return q.rows.map(r=>r.id)}
@@ -57,7 +57,7 @@ export async function settleAiJobDelivery(id,walletId,action){
    }
   }
   if(action==='confirm')await c.query(`UPDATE ai_jobs SET fields=fields||'{"delivery_confirmed":true}'::jsonb,updated_at=now() WHERE id=$1`,[id]);
-  else await c.query("UPDATE ai_jobs SET status='failed',error='USER_CANCELLED',result=NULL,image='\\x'::bytea,mask=NULL,updated_at=now() WHERE id=$1",[id]);
+  else await c.query("UPDATE ai_jobs SET status='failed',error='USER_CANCELLED',result=NULL,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference',updated_at=now() WHERE id=$1",[id]);
   await c.query('COMMIT');return {status:200,ok:true,cancelled:action==='cancel'};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
