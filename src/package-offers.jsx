@@ -1,3 +1,4 @@
+import {ServiceTermsLink} from './service-terms.jsx';
 import React from 'react';
 
 function Feature({children,unavailable=false}){
@@ -77,8 +78,11 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
   </div>
   <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.65,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 ครั้งต่อเครื่อง พร้อมลายน้ำ · เลือกทรงผมหญิง/ชายในแคตตาล็อกได้ทุกทรง</strong><br/>แพ็ก 89 บาทประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง • แพ็ก 159 บาทรวม 10 ครั้ง ไม่รวมรูปทดลองใช้ฟรีที่ใช้ไป พร้อมรับรูปทดลองที่เลือกไม่มีลายน้ำ และยกเลิกสิทธิ์ทดลองที่เหลือของวันนั้น</p>
   <p style={{fontSize:12,textAlign:'center',color:'#66758c'}}>สร้างรูปหรือเปลี่ยนทรงผมใช้สิทธิ์จากจำนวนเดียวกัน · ใช้สิทธิ์เมื่อประมวลผลสำเร็จ · การออกจากเว็บไม่คืนสิทธิ์ที่ใช้แล้ว</p>
+  <p style={{fontSize:12,lineHeight:1.7,textAlign:'center',color:'#66758c'}}>โปรดตรวจสอบสถานะบันทึกสำเร็จก่อนออก งานที่ไม่ได้บันทึกอาจเรียกคืนไม่ได้ หากได้รับภาพแล้ว การออกโดยไม่บันทึกเพียงอย่างเดียวไม่เป็นเหตุให้คืนเงินหรือคืนสิทธิ์ ทั้งนี้ไม่รวมความผิดพลาดจากระบบ</p>
+  <ServiceTermsLink/>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
 }
+
 

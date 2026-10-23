@@ -1,3 +1,4 @@
+import {ServiceTermsLink} from './service-terms.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {StudioRightsDialog} from './studio-rights-dialog.jsx';
 import {fetchOutputRights,outputAccessResult} from './output-rights.js';
@@ -4047,7 +4048,8 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
 
  </section></main>
 }
-createRoot(document.getElementById('root')).render(<><App/><PasswordReset/></>);
+createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+
 
 
 
