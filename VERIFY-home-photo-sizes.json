@@ -1,0 +1,1219 @@
+{
+  "baselineGitHubCommit": "6010a0562ffcdc682e536dc5f0ca4f6d2265efdf",
+  "runtimeFiles": [
+    "src/main.jsx",
+    "src/home-photo-sizes.jsx",
+    "src/home-photo-sizes.css"
+  ],
+  "sourceSha256": {
+    "src/main.jsx": "bad3920f8f02887aea96c29547bcf8f824abbffd8e0e955806b7640c66841e5a",
+    "src/home-photo-sizes.jsx": "cfa33a868584d28e8728fbdf3f22b15412d5d0ab7f0b80c0c4344c84bf757f1c",
+    "src/home-photo-sizes.css": "06557237186a0edeb8a92ec8b4fd6816ad2baa8799d24aa68b85c9d8052f82bd"
+  },
+  "scope": "Homepage size example, isolated component and CSS, canonical existing female job photo, related stale size text correction",
+  "homeFilter": "all",
+  "canonicalSample": {
+    "id": "female-suit-03",
+    "preview": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+    "fallback": "/assets/job-uniforms/female-suit-03-example.png",
+    "previewNaturalPixels": [
+      409,
+      512
+    ],
+    "newImageGenerated": false
+  },
+  "outputs": {
+    "original": [
+      2256,
+      3072
+    ],
+    "1-inch": [
+      590,
+      780
+    ],
+    "1.5-inch": [
+      708,
+      944
+    ],
+    "2-inch": [
+      944,
+      1252
+    ],
+    "2.5-inch": [
+      1134,
+      1488
+    ]
+  },
+  "existingExporterRightsAccountsAndCreditFilesByteIdentical": true,
+  "mainDelta": "3homepage integration additions and1 relatedsizecopy correction",
+  "build": {
+    "passed": true,
+    "modules": 120,
+    "js": "index-CRRJyf7q.js",
+    "css": "index-BCjP0RPx.css"
+  },
+  "browserChecks": [
+    {
+      "engine": "chromium",
+      "passed": 5,
+      "optionCases": 25,
+      "results": [
+        {
+          "width": 320,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 390,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 768,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 1024,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 1440,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        }
+      ],
+      "errors": [],
+      "networkMutations": [],
+      "sourceSha256": {
+        "src/home-photo-sizes.jsx": "cfa33a868584d28e8728fbdf3f22b15412d5d0ab7f0b80c0c4344c84bf757f1c",
+        "src/home-photo-sizes.css": "06557237186a0edeb8a92ec8b4fd6816ad2baa8799d24aa68b85c9d8052f82bd",
+        "src/main.jsx": "bad3920f8f02887aea96c29547bcf8f824abbffd8e0e955806b7640c66841e5a"
+      },
+      "limits": "Actual HomePhotoSizes and project global CSS with canonical downloaded sample image in temporary harness. No production mutation, download/write API or physical device checks."
+    },
+    {
+      "engine": "webkit",
+      "passed": 5,
+      "optionCases": 25,
+      "results": [
+        {
+          "width": 320,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 390,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 768,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 1024,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        },
+        {
+          "width": 1440,
+          "passed": true,
+          "cases": [
+            {
+              "label": "ขนาดเดิม",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "true",
+                "false",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 0,
+              "px": "2256 × 3072 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "true",
+                "false",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "590 × 780 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "1.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "true",
+                "false",
+                "false"
+              ],
+              "guides": 1,
+              "px": "708 × 944 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "true",
+                "false"
+              ],
+              "guides": 1,
+              "px": "944 × 1252 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            },
+            {
+              "label": "2.5 นิ้ว",
+              "passed": true,
+              "bodyOverflow": false,
+              "sectionOverflow": false,
+              "selected": [
+                "false",
+                "false",
+                "false",
+                "false",
+                "true"
+              ],
+              "guides": 1,
+              "px": "1134 × 1488 px",
+              "decoded": [
+                409,
+                512
+              ],
+              "src": "/assets/home-previews/job-uniforms--female-suit-03-example.webp",
+              "allButtonsVisible": true
+            }
+          ],
+          "keyboardEnterAndSpace": true,
+          "ctaOnce": true
+        }
+      ],
+      "errors": [],
+      "networkMutations": [],
+      "sourceSha256": {
+        "src/home-photo-sizes.jsx": "cfa33a868584d28e8728fbdf3f22b15412d5d0ab7f0b80c0c4344c84bf757f1c",
+        "src/home-photo-sizes.css": "06557237186a0edeb8a92ec8b4fd6816ad2baa8799d24aa68b85c9d8052f82bd",
+        "src/main.jsx": "bad3920f8f02887aea96c29547bcf8f824abbffd8e0e955806b7640c66841e5a"
+      },
+      "limits": "Actual HomePhotoSizes and project global CSS with canonical downloaded sample image in temporary harness. No production mutation, download/write API or physical device checks."
+    }
+  ],
+  "notDeployed": true,
+  "noLiveGenerationPaymentOrAccountWrites": true
+}
