@@ -158,7 +158,7 @@ await test('the actual Studio upload-to-selection path commits B and preserves s
  const suit={id:'suit',kind:'suit',name:'ชุด',templatePath:'female-uniform.png',x:0,y:0,scale:1,rotation:0};
  const background={id:'background',kind:'background',source:'blue'},pin={id:'pin',kind:'chest',source:'pin'};
  const env={
-  ready:true,assetBusy:false,processActive:false,busy:false,hairBusy:false,W:2256,H:3072,sourcePhoto:A,firstUploadedPhotoRef:{current:A},
+  ready:true,assetBusy:false,processActive:false,busy:false,hairBusy:false,W:2256,H:3072,sourcePhoto:A,firstUploadedPhotoRef:{current:A},initialFemaleMakeupRef:{current:null},
   state:{current:[background,oldHead,{id:'old-hair',kind:'hair-preview',hairHeadId:'head-A'},suit,pin]},
   preparePhotoInput:async file=>file,URL:{createObjectURL:()=> 'blob:fixture',revokeObjectURL:noop},image:async()=>({width:500,height:700}),nativeSource:()=> 'native-B',
   historySnapshot:()=>env.state.current.map(l=>({...l})),fresh:layer=>({id:'new-'+(++uid),...layer}),replaceStudioSourceLayers,
