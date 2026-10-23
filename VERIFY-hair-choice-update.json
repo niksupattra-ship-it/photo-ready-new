@@ -1,0 +1,30 @@
+{
+  "baselineGitHubCommit": "9997b616e51904c7b3a5a94263d394faed44c591",
+  "priorDeliveredPatch": "IDPROM-female-makeup-hair-continuity-20261023.zip",
+  "newRuntimeFilesChanged": [
+    "src/main.jsx",
+    "src/studio-editor.jsx"
+  ],
+  "newExactReplacements": 3,
+  "removedFromOptions": "seedream-35",
+  "maleOptionCountBefore": 8,
+  "maleOptionCountAfter": 7,
+  "nextMaleOption": "seedream-28",
+  "otherOptionOrderUnchanged": true,
+  "sharedCatalogAndAssetsPreserved": true,
+  "originalChoiceHandlersUnchanged": true,
+  "bothGenderLabel": "ไม่เลือกผม",
+  "build": {
+    "passed": true,
+    "modules": 118
+  },
+  "priorServerFilesByteIdentical": true,
+  "notDeployed": true,
+  "cumulativeRuntimeFileSha256": {
+    "src/main.jsx": "5df0a7fe2a62e79076e158273da6e80c439a0bb6dc3f11a8f739d3c9e74d2b71",
+    "src/studio-editor.jsx": "71794d350f850aa74df36880a7946118bebb3b1c56097205485f60414d711aa1",
+    "production-portrait-pipeline.js": "cd58e65b7afd81eb0d6075c4c6c10e6300fca138d77f734d9557333b5f52c302",
+    "seedream-review-transport.js": "167d9a26c3d2c7332e8eeae1746376195c53d18dfbdfd7764fc0215680ab3444",
+    "job-store.js": "ea133d0b9cb20da9df887095de21cdae9727bc9c27d31a25461ff247cf43335e"
+  }
+}
