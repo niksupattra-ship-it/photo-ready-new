@@ -45,17 +45,17 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
    .package-promptpay-footer{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
    .package-promptpay-symbol{display:inline-flex;align-items:center;gap:6px;color:#14395a;background:#fff;border:1px solid #dde5ed;border-radius:7px;padding:5px 8px;font-size:15px;font-weight:800;line-height:1}
   `}</style>
-  <header className="package-pro-head"><div className="package-pro-brand">IDพร้อม</div><h2 className="package-pro-title">เลือกแพ็กเกจ</h2><p className="package-pro-sub">เลือกจำนวนสิทธิ์ประมวลผลรูปหรือเปลี่ยนทรงผม</p></header>
+  <header className="package-pro-head"><h2 className="package-pro-title">เลือกแพ็กเกจ</h2></header>
   <div className="package-pro-grid">
    <article className="package-card">
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>สิทธิ์ประมวลผลรูปหรือเปลี่ยนผม 2 ครั้ง</Feature><Feature>ไม่หักรูปทดลองใช้ฟรีที่ใช้ไป</Feature>
+     <Feature>สิทธิ์ประมวลผลรูปหรือเปลี่ยนผม 2 ครั้ง</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
-     <Feature>ดาวน์โหลดรูปที่มีสิทธิ์ได้ไม่จำกัด ไม่หักเพิ่ม</Feature>
+     <Feature>ดาวน์โหลดรูปได้ทุกขนาด</Feature>
     </ul>
     <div className="package-usage-explanation"><strong>สร้างรูปสำเร็จ 1 ครั้ง = ใช้ 1 สิทธิ์</strong><p>ใช้สิทธิ์แม้ยังไม่บันทึกหรือดาวน์โหลด กรุณาบันทึกงานหรือดาวน์โหลดรูปก่อนออกจากเว็บ</p></div>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
@@ -66,11 +66,10 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
      <Feature>สิทธิ์ประมวลผลรูปหรือเปลี่ยนผม 10 ครั้ง</Feature>
-     <Feature>ไม่หักรูปทดลองใช้ฟรีที่ใช้ไป</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
-     <Feature>ดาวน์โหลดรูปที่มีสิทธิ์ได้ไม่จำกัด ไม่หักเพิ่ม</Feature>
+     <Feature>ดาวน์โหลดรูปได้ทุกขนาด</Feature>
     </ul>
     <div className="package-usage-explanation"><strong>สร้างรูปสำเร็จ 1 ครั้ง = ใช้ 1 สิทธิ์</strong><p>ใช้สิทธิ์แม้ยังไม่บันทึกหรือดาวน์โหลด กรุณาบันทึกงานหรือดาวน์โหลดรูปก่อนออกจากเว็บ</p></div>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
