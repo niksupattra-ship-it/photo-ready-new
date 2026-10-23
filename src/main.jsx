@@ -1,3 +1,4 @@
+import {removePortraitClothingAlpha} from './replace-studio-source.js';
 import {ServiceTermsLink} from './service-terms.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {StudioRightsDialog} from './studio-rights-dialog.jsx';
@@ -1279,6 +1280,20 @@ async function removeFirstPortraitBackground(blob){
  // complete: even one repaired pixel can change a later segmentation result.
  return blob;
 }
+// A replacement upload must not carry source-shirt pixels beside the outfit.
+// Use native pixels and the existing segmentation classes; no AI retry or resize.
+async function cleanReplacementPortraitClothing(blob){
+ const im=await decodedPortraitImage(blob),W=im.naturalWidth,H=im.naturalHeight;
+ const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+ if(!face?.[152])throw Error('ตรวจตำแหน่งคางของรูปใหม่ไม่ได้ กรุณาลองรูปหน้าตรง');
+ const masks=await getV192MasterMasks(blob,im);
+ if(!masks.clothingMask||!masks.skinMask||!masks.hairMask)throw Error('ตรวจแยกเสื้อเดิมของรูปใหม่ไม่สำเร็จ กรุณาลองอีกครั้ง');
+ const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
+ const frame=ctx.getImageData(0,0,W,H),read=m=>m.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+ if(!removePortraitClothingAlpha(frame.data,read(masks.clothingMask),read(masks.skinMask),read(masks.hairMask),W,H,face[152].y*H))return blob;
+ ctx.putImageData(frame,0,0);return canvasPng(c);
+}
+
 async function finishFirstPortraitMaster(aiHeadNeck){
  // Lighting and neck anatomy are finished together in the server AI request.
  // Keep the returned native master unchanged: no regional exposure overlay.
@@ -3876,7 +3891,8 @@ function App(){
   try{
    const femaleEyeStyle=portraitFinishChoice(file.idpromFemaleEyeStyle);
    const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,femaleEyeStyle,templatePath:template});
-   const master=await finishFirstPortraitMaster(aiHead);
+   let master=await finishFirstPortraitMaster(aiHead);
+   if(file.idpromStudioSourceReplacement===true)master=await cleanReplacementPortraitClothing(master);
    const composed=await composePortrait(master,{scale:1,x:0,y:0},template);
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
@@ -4049,6 +4065,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+
 
 
 
