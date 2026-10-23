@@ -1,5 +1,7 @@
 import {ServiceTermsLink} from './service-terms.jsx';
 import React from 'react';
+import {PackageGuideArt,PackageGuideNotice,PackageGuideClock} from './package-guide-art.jsx';
+import './package-guidance.css';
 
 function Feature({children,unavailable=false,credit=false}){
  return <li>{credit?<svg width="24" height="22" viewBox="0 0 24 22" fill="none" aria-hidden="true" style={{flex:'0 0 24px'}}><path d="M2 7 7 1.5h10L22 7 12 20.5Z" fill="#42bfd9" stroke="#249dbb" strokeWidth=".8"/><path d="m7 1.5 5 5.5 5-5.5M2 7h20M7 1.5l5 19 5-19" stroke="#c7f3fa" strokeWidth=".7"/></svg>:<span className={'package-round-check'+(unavailable?' unavailable':'')} aria-hidden="true">{unavailable?'−':'✓'}</span>}<span>{children}</span></li>;
@@ -32,29 +34,6 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     .package-pro-modal .package-features li{font-size:13px}
     .package-select-btn{padding:11px 14px}
     .package-secure{margin-top:10px;padding:8px 12px}
-   }
-   .package-pro-modal .package-usage-explanation{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px 18px;margin:18px 0 0;border:1px solid #e4e9ef;border-radius:14px;background:#f8fafc;text-align:left}
-   .package-pro-modal .package-note-item{min-width:0}
-   .package-pro-modal .package-note-item+ .package-note-item{border-left:1px solid #e1e7ef;padding-left:20px}
-   .package-pro-modal .package-note-item h3{margin:0 0 7px;color:#166f70;font-size:12px;line-height:1.5;font-weight:700}
-   .package-pro-modal .package-note-item p{margin:5px 0 0;color:#627184;font-size:12.5px;line-height:1.75;overflow-wrap:anywhere}
-   .package-pro-modal .package-note-item .package-note-primary{margin:0;color:#344b60;font-size:13px;line-height:1.7;font-weight:600}
-   .package-pro-modal .package-credit-unit{white-space:nowrap}
-   .package-pro-modal .package-trial-note{display:flex;align-items:baseline;justify-content:space-between;gap:8px 20px;margin:14px 2px 0;text-align:left;font-size:12.5px;line-height:1.7;color:#66758c}
-   .package-pro-modal .package-trial-note strong{flex:0 0 auto;color:#243650;font-size:13px}
-   .package-pro-modal .package-trial-note span{max-width:340px}
-   .package-pro-modal .package-offer-footer{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;margin-top:14px;padding-top:12px;border-top:1px solid #e7edf3}
-   .package-pro-modal .package-offer-footer .idprom-terms-link-wrap{min-width:0;margin:0;text-align:left;font-size:12px}
-   .package-pro-modal .package-offer-footer .idprom-terms-link{padding:8px 0;line-height:1.6;text-align:left}
-   .package-pro-modal .package-offer-footer .package-promptpay-footer{margin:0;padding:0;border-radius:0;background:transparent;gap:8px;justify-content:flex-end;flex-shrink:0}
-   @media(max-width:640px){
-    .package-pro-modal .package-usage-explanation{grid-template-columns:1fr;gap:14px;padding:16px;margin-top:16px}
-    .package-pro-modal .package-note-item+ .package-note-item{border-left:0;border-top:1px solid #e1e7ef;padding-left:0;padding-top:14px}
-    .package-pro-modal .package-trial-note{flex-direction:column;gap:3px;margin:14px 0 0}
-    .package-pro-modal .package-trial-note strong{flex-basis:auto}
-    .package-pro-modal .package-trial-note span{max-width:none}
-    .package-pro-modal .package-offer-footer{align-items:flex-start;flex-direction:column;gap:8px;margin-top:14px;padding-top:8px}
-    .package-pro-modal .package-offer-footer .package-promptpay-footer{justify-content:flex-start;flex-shrink:1}
    }
    .package-original-price{color:#dc2626;font-size:20px;font-weight:700;margin-bottom:4px}
    .package-original-price del{text-decoration-color:#dc2626;text-decoration-thickness:2px}
@@ -93,13 +72,19 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <section className="package-usage-explanation" aria-label="ข้อมูลเครดิตและการเก็บงาน">
-   <div className="package-note-item"><h3>การใช้เครดิต</h3><p className="package-note-primary"><strong>สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ <span className="package-credit-unit">1 เครดิต</span></strong></p><p>(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)</p></div>
-   <div className="package-note-item"><h3>การเก็บงาน</h3><p className="package-note-primary">กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio</p><p>หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้</p></div>
+  <section className="package-guidance" aria-label="ข้อมูลเครดิตและการเก็บงาน">
+   <article className="package-guidance-card package-guidance-credit-card">
+    <div className="package-guidance-card-main"><PackageGuideArt kind="credit"/><div className="package-guidance-copy"><h3>การใช้เครดิต</h3><p>สร้างภาพ <b>1 ครั้ง</b> แสดงผลบนพื้นที่ทำงานสำเร็จ = <strong className="package-guidance-credit">ใช้ 1 เครดิต</strong></p></div></div>
+    <div className="package-guidance-callout"><PackageGuideNotice/><p>(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)</p></div>
+   </article>
+   <article className="package-guidance-card package-guidance-save-card">
+    <div className="package-guidance-card-main"><PackageGuideArt kind="save"/><div className="package-guidance-copy"><h3>การเก็บงาน</h3><p>กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio</p></div></div>
+    <div className="package-guidance-callout"><PackageGuideNotice warning/><p>หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้</p></div>
+   </article>
   </section>
-  <div className="package-trial-note"><strong>ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ</strong><span>เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด</span></div>
+  <div className="package-guidance-trial"><div className="package-guidance-trial-title"><PackageGuideArt kind="gift"/><strong>ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ</strong></div><div className="package-guidance-trial-condition"><PackageGuideClock/><span>เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด</span></div></div>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
-  <footer className="package-offer-footer"><ServiceTermsLink/><div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div></footer>
+  <footer className="package-offer-footer package-guidance-footer"><ServiceTermsLink/><div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div></footer>
  </>;
 }
 
