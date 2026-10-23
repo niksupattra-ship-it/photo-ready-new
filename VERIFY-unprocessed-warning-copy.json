@@ -1,0 +1,22 @@
+{
+  "baselineGitHubCommit": "97975dfbce3afe8534db42a3ad364538a0a32787",
+  "previousDeliveredPatch": "IDPROM-home-exit-actions-20261023.zip",
+  "newRuntimeFilesChanged": [
+    "src/studio-editor.jsx"
+  ],
+  "textLiteralsChanged": 2,
+  "title": "รูปที่ไม่ผ่านการประมวลจากระบบ ไม่สามารถดาวน์โหลดได้",
+  "message": "กรุณาเพิ่มรูป เลือกทรงผม ปรับแต่งเพื่อดาวน์โหลด",
+  "conditionsAndHandlersUnchanged": true,
+  "previousExitButtonsPreserved": true,
+  "build": {
+    "passed": true,
+    "modules": 118,
+    "bundle": "index-CFgfQvnb.js"
+  },
+  "notDeployed": true,
+  "sourceSha256": {
+    "priorDelivered": "212c78fd0d922f57476dda27de07c32334a871a0f8c224b60383f3301d11b1e5",
+    "updated": "35c6904578c57037e43f22913cef910410fa9ba82a5896c7a51d0657998f6117"
+  }
+}
