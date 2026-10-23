@@ -1,0 +1,746 @@
+{
+  "baselineGitHubCommit": "9769ab8b53317e9a7c31b1a01916365bf1770bc2",
+  "runtimeFiles": [
+    "src/package-offers.jsx",
+    "src/package-guide-art.jsx",
+    "src/package-guidance.css"
+  ],
+  "sourceSha256": {
+    "src/package-offers.jsx": "a406fbb946ee19f04e0b60cbdcf601df4c38c8bd568e39c413b8400ace31bd14",
+    "src/package-guide-art.jsx": "1215c746da9c165ff06ce7b903f080a3b87ab631ba53e4f231eb6d2f7290c14d",
+    "src/package-guidance.css": "95d77752605d5c875c02ba2696c74d407a940bb4332637ecb4dfa8b6f84ded8c"
+  },
+  "scope": "Lower package explanation reference design: blue credit card, pink save card, mint trial banner and footer",
+  "priceFeatureAndCheckoutBlockByteIdentical": true,
+  "businessConditionsAndCreditsUnchanged": true,
+  "usesExistingFemalePortrait": true,
+  "newImageGeneration": false,
+  "build": {
+    "passed": true,
+    "modules": 122,
+    "js": "index-DL1chUSR.js",
+    "css": "index-DXPwFY1K.css"
+  },
+  "browserChecks": [
+    {
+      "engine": "chromium",
+      "passed": 5,
+      "results": [
+        {
+          "width": 320,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "260px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 390,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "330px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 768,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "334px 334px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1024,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "344px 344px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1440,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "344px 344px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        }
+      ],
+      "svgIDs": {
+        "count": 18,
+        "unique": true,
+        "allRefsResolve": true
+      },
+      "errors": [],
+      "networkMutations": [],
+      "sourceSha256": {
+        "src/package-offers.jsx": "a406fbb946ee19f04e0b60cbdcf601df4c38c8bd568e39c413b8400ace31bd14",
+        "src/package-guide-art.jsx": "1215c746da9c165ff06ce7b903f080a3b87ab631ba53e4f231eb6d2f7290c14d",
+        "src/package-guidance.css": "95d77752605d5c875c02ba2696c74d407a940bb4332637ecb4dfa8b6f84ded8c"
+      },
+      "limits": "Actual components, project global CSS and extracted CreditUI modal CSS with canonical local sample asset in temporary browser harness. No real payment/account writes or physical device checks."
+    },
+    {
+      "engine": "webkit",
+      "passed": 5,
+      "results": [
+        {
+          "width": 320,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "260px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 390,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "330px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 768,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "334px 334px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1024,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "344px 344px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1440,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "344px 344px",
+          "phrases": [
+            {
+              "phrase": "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+              "retained": true
+            },
+            {
+              "phrase": "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+              "retained": true
+            },
+            {
+              "phrase": "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+              "retained": true
+            },
+            {
+              "phrase": "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+              "retained": true
+            },
+            {
+              "phrase": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+              "retained": true
+            },
+            {
+              "phrase": "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+              "retained": true
+            },
+            {
+              "phrase": "ชำระเงินผ่านพร้อมเพย์",
+              "retained": true
+            }
+          ],
+          "leftAlignedCards": true,
+          "photos": [
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            },
+            {
+              "width": 409,
+              "height": 512,
+              "source": "/assets/home-previews/job-uniforms--female-suit-03-example.webp"
+            }
+          ],
+          "prices": [
+            "89 บาท",
+            "159 บาท"
+          ],
+          "oldPrices": [
+            "149 บาท",
+            "199 บาท"
+          ],
+          "credits": [
+            "2 เครดิต",
+            "10 เครดิต"
+          ],
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        }
+      ],
+      "svgIDs": {
+        "count": 18,
+        "unique": true,
+        "allRefsResolve": true
+      },
+      "errors": [],
+      "networkMutations": [],
+      "sourceSha256": {
+        "src/package-offers.jsx": "a406fbb946ee19f04e0b60cbdcf601df4c38c8bd568e39c413b8400ace31bd14",
+        "src/package-guide-art.jsx": "1215c746da9c165ff06ce7b903f080a3b87ab631ba53e4f231eb6d2f7290c14d",
+        "src/package-guidance.css": "95d77752605d5c875c02ba2696c74d407a940bb4332637ecb4dfa8b6f84ded8c"
+      },
+      "limits": "Actual components, project global CSS and extracted CreditUI modal CSS with canonical local sample asset in temporary browser harness. No real payment/account writes or physical device checks."
+    }
+  ],
+  "notDeployed": true,
+  "noLivePaymentsOrAccountWrites": true
+}
