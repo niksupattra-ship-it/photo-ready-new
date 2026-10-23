@@ -1,0 +1,213 @@
+{
+  "baselineGitHubCommit": "8d113bf9aa4eb5d40385c29c4e027271a50454b8",
+  "runtimeFilesChanged": [
+    "src/package-offers.jsx"
+  ],
+  "scope": "Lower package explanation markup and scoped CSS only",
+  "existingExplanationPhrasesPreserved": [
+    "สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต",
+    "(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)",
+    "กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio",
+    "หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+    "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ",
+    "เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+    "ชำระเงินผ่านพร้อมเพย์"
+  ],
+  "packageCardsPricesFeaturesAndCheckoutByteIdentical": true,
+  "noOtherRuntimeFileChanged": true,
+  "newGroupLabels": [
+    "การใช้เครดิต",
+    "การเก็บงาน"
+  ],
+  "build": {
+    "passed": true,
+    "modules": 118,
+    "bundle": "index-X8FwFX3R.js"
+  },
+  "browserChecks": [
+    {
+      "engine": "chromium",
+      "passed": 5,
+      "results": [
+        {
+          "width": 320,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "226px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 390,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "296px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 768,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "313px 313px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1024,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "323px 323px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1440,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "323px 323px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        }
+      ],
+      "pageErrors": [],
+      "sourceSha256": "3afc834d39948b70ea8d4155cb6f6454ff7a28c5d4490227b5351155bad93ee0",
+      "limits": "Actual PackageOffers, ServiceTermsLink, global style.css and extracted CreditUI modal CSS in temporary browser harness. No real payment/network/account writes or physical device checks."
+    },
+    {
+      "engine": "webkit",
+      "passed": 5,
+      "results": [
+        {
+          "width": 320,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "226px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 390,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "296px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 768,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "313px 313px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1024,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "323px 323px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        },
+        {
+          "width": 1440,
+          "passed": true,
+          "bodyOverflow": false,
+          "modalOverflow": false,
+          "columns": "323px 323px",
+          "usageText": "การใช้เครดิต\n\nสร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต\n\n(ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)\n\nการเก็บงาน\n\nกรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio\n\nหากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้",
+          "trialText": "ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ\nเมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด",
+          "footerText": "เงื่อนไขการใช้บริการและความรับผิดชอบ\nPromptPay\nชำระเงินผ่านพร้อมเพย์",
+          "checkoutIds": [
+            "89",
+            "159"
+          ],
+          "termsOpens": true,
+          "busyDisablesBoth": true
+        }
+      ],
+      "pageErrors": [],
+      "sourceSha256": "3afc834d39948b70ea8d4155cb6f6454ff7a28c5d4490227b5351155bad93ee0",
+      "limits": "Actual PackageOffers, ServiceTermsLink, global style.css and extracted CreditUI modal CSS in temporary browser harness. No real payment/network/account writes or physical device checks."
+    }
+  ],
+  "notDeployed": true,
+  "noLivePaymentOrAccountWrites": true,
+  "sourceSha256": {
+    "baseline": "e9ebb7c56983c3e7c3e3dbc6378cd3cc5f90325611f815da0e20f30212e014a9",
+    "updated": "3afc834d39948b70ea8d4155cb6f6454ff7a28c5d4490227b5351155bad93ee0"
+  }
+}
