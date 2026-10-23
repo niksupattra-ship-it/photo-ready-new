@@ -2955,16 +2955,23 @@ function App(){
  const beforeProcess=async()=>{
   if(privateTrialActive)return true;
   if(trialChoiceResolve.current)return false;
-  await refreshWallet();
-  const response=await fetch('/api/wallet',{headers:walletHeaders(),cache:'no-store'});const data=await response.json();
+  // Reading eligibility must not join the richer history/entitlement refresh.
+  // A new guest needs a wallet first; members already carry their account wallet.
+  if(!authToken()&&!currentWalletId())await refreshWallet({throwOnError:true});
+  const token=authToken(),wallet=currentWalletId(),scope=walletScope(token,wallet);
+  if(!wallet)throw Error('ยังตรวจสอบบัญชีไม่ได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง');
+  const ensureCurrent=()=>{if(walletScope(authToken(),currentWalletId())!==scope)throw Error('บัญชีเปลี่ยนแล้ว กรุณากดประมวลผลอีกครั้ง')};
+  const response=await portraitFetch('/api/wallet/balance',{headers:walletHeaders(),cache:'no-store'},8000);ensureCurrent();
+  const data=await response.json();ensureCurrent();
   if(!response.ok)throw Error(data.message||'ตรวจสอบเครดิตไม่สำเร็จ');
+  if(data.walletId!==wallet||!hasWalletBalance(data)||!Number.isInteger(Number(data.processRemaining??data.generationRemaining))||typeof data.hasPurchased!=='boolean'||typeof data.trialAvailable!=='boolean'||!hasWalletBalance({processRemaining:data.trialRemaining})||!Number.isInteger(Number(data.trialRemaining))||data.trialAvailable!==(Number(data.trialRemaining)>0))throw Error('ยังตรวจสอบเครดิตไม่ได้ กรุณาลองอีกครั้ง');
   acceptWalletRights(data);
   acceptedPaidTrial=false;
   if(Number(data.processRemaining??data.generationRemaining)>0)return true;
   const remaining=Number(data.trialRemaining)||0;
   if(!data.hasPurchased&&remaining>0)return true;
   setTrialChoice({remaining,purchased:Boolean(data.hasPurchased)});
-  return new Promise(resolve=>{trialChoiceResolve.current=resolve});
+  const choice=await new Promise(resolve=>{trialChoiceResolve.current=resolve});ensureCurrent();return choice;
  };
  const TrialChoiceUI=()=>trialChoice&&<div className="idprom-credit-notice-overlay" onKeyDown={e=>{if(e.key==='Escape')chooseTrial(false)}}><section className="idprom-credit-notice" role="dialog" aria-modal="true" aria-labelledby="credit-notice-title" aria-describedby="credit-notice-description">
  <button className="idprom-credit-notice-close" aria-label="ปิด" onClick={()=>chooseTrial(false)}>×</button>
