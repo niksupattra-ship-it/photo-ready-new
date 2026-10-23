@@ -1,0 +1,228 @@
+{
+  "baseline": {
+    "repository": "niksupattra-ship-it/photo-ready-new",
+    "commit": "615ff0d789d48d5601e38410cfcc0970c601ab56",
+    "mainGitBlob": "09dd05062b2115e4fccb839242b1d62ac40ba471"
+  },
+  "runtimeChanged": [
+    "src/main.jsx"
+  ],
+  "unchangedComparedByteForByte": [
+    "server.js",
+    "payment-store.js",
+    "src/studio-editor.jsx",
+    "src/replace-studio-source.js",
+    "src/portrait-completion-check.js",
+    "src/ai-result-cache.js",
+    "package.json",
+    "package-lock.json"
+  ],
+  "runtimeSha256": "0bc9969bb64207f57637b1591cd210a9c67bb15aaa9ba41f324b4ec786f3a0dd",
+  "verification": {
+    "build": {
+      "passed": true,
+      "modules": 117,
+      "bundle": "index-CFisnu1Q.js",
+      "existingLargeBundleWarning": true
+    },
+    "focusedRegressionScenarios": 15,
+    "processCreditPreflightScenarios": 12,
+    "loginWalletScenarios": 18,
+    "creditViewScenarios": 7,
+    "studioRights": "passed",
+    "portraitUniformFit": "passed",
+    "actualMediaPipeAndCanvas": {
+      "chromium": [
+        {
+          "name": "male-black-shirt",
+          "W": 300,
+          "H": 360,
+          "chin": 302.200391292572,
+          "removed": 7654,
+          "protectedChanged": 0,
+          "visibleRgbChanged": 0,
+          "before": {
+            "measurable": true,
+            "garment": 7654,
+            "foreground": 17100,
+            "retained": true
+          },
+          "after": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 9446,
+            "retained": false
+          },
+          "actualEvidence": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 9446,
+            "retained": false
+          },
+          "rawGuardRejected": true,
+          "cleanedGuardAccepted": true,
+          "maskCacheReused": true
+        },
+        {
+          "name": "female-suit",
+          "W": 500,
+          "H": 626,
+          "chin": 254.43382161855698,
+          "removed": 136366,
+          "protectedChanged": 0,
+          "visibleRgbChanged": 0,
+          "before": {
+            "measurable": true,
+            "garment": 136366,
+            "foreground": 185498,
+            "retained": true
+          },
+          "after": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 49132,
+            "retained": false
+          },
+          "actualEvidence": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 18330,
+            "retained": false
+          },
+          "rawGuardRejected": true,
+          "cleanedGuardAccepted": true,
+          "maskCacheReused": true
+        },
+        {
+          "name": "female-long-hair",
+          "W": 256,
+          "H": 256,
+          "chin": 166.60836791992188,
+          "removed": 10174,
+          "protectedChanged": 0,
+          "visibleRgbChanged": 0,
+          "before": {
+            "measurable": true,
+            "garment": 10174,
+            "foreground": 22784,
+            "retained": true
+          },
+          "after": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 12610,
+            "retained": false
+          },
+          "actualEvidence": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 12610,
+            "retained": false
+          },
+          "rawGuardRejected": true,
+          "cleanedGuardAccepted": true,
+          "maskCacheReused": true
+        }
+      ],
+      "webkit": [
+        {
+          "name": "male-black-shirt",
+          "W": 300,
+          "H": 360,
+          "chin": 302.200391292572,
+          "removed": 7654,
+          "protectedChanged": 0,
+          "visibleRgbChanged": 0,
+          "before": {
+            "measurable": true,
+            "garment": 7654,
+            "foreground": 17100,
+            "retained": true
+          },
+          "after": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 9446,
+            "retained": false
+          },
+          "actualEvidence": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 9446,
+            "retained": false
+          },
+          "rawGuardRejected": true,
+          "cleanedGuardAccepted": true,
+          "maskCacheReused": true
+        },
+        {
+          "name": "female-suit",
+          "W": 500,
+          "H": 626,
+          "chin": 254.43382161855698,
+          "removed": 136366,
+          "protectedChanged": 0,
+          "visibleRgbChanged": 0,
+          "before": {
+            "measurable": true,
+            "garment": 136366,
+            "foreground": 185498,
+            "retained": true
+          },
+          "after": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 49132,
+            "retained": false
+          },
+          "actualEvidence": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 18329,
+            "retained": false
+          },
+          "rawGuardRejected": true,
+          "cleanedGuardAccepted": true,
+          "maskCacheReused": true
+        },
+        {
+          "name": "female-long-hair",
+          "W": 256,
+          "H": 256,
+          "chin": 166.60836791992188,
+          "removed": 10174,
+          "protectedChanged": 0,
+          "visibleRgbChanged": 0,
+          "before": {
+            "measurable": true,
+            "garment": 10174,
+            "foreground": 22784,
+            "retained": true
+          },
+          "after": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 12610,
+            "retained": false
+          },
+          "actualEvidence": {
+            "measurable": true,
+            "garment": 0,
+            "foreground": 12610,
+            "retained": false
+          },
+          "rawGuardRejected": true,
+          "cleanedGuardAccepted": true,
+          "maskCacheReused": true
+        }
+      ]
+    }
+  },
+  "limits": [
+    "No deployment or production writes",
+    "No customer account or paid AI call",
+    "Local browser engines, not physical iOS/Android devices",
+    "Three project example images per engine; not a guarantee for all model classifications"
+  ],
+  "installation": "Replace src/main.jsx only on this baseline, then build/deploy using existing process; reload page for new bundle. Test and documentation files are not runtime."
+}
