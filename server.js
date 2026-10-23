@@ -101,12 +101,12 @@ app.post("/api/payments/confirm",async(req,res)=>{
 });
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req))})});
 // A credit display reads current counters without migrations or image-right repair.
-app.get('/api/wallet/balance',async(req,res)=>{res.set('Cache-Control','no-store');try{
+app.get('/api/wallet/balance',async(req,res)=>{const started=Date.now();res.set('Cache-Control','no-store');try{
  const id=walletId(req);if(!id)return res.status(404).json({error:'wallet_not_found'});
  const data=await getWalletBalance(id,trialDeviceFingerprint(req,res,id),trialNetworkFingerprint(req));
  if(!data)return res.status(404).json({error:'wallet_not_found'});
  res.json(data);
-}catch(error){console.error('Wallet balance:',error.code||'read_failed');res.status(503).json({error:'wallet_balance_unavailable',message:'ยังอ่านเครดิตไม่ได้ กรุณาลองอีกครั้ง'})}});
+}catch(error){const stage=['wallet_counter','trial_policy'].includes(error.balanceStage)?error.balanceStage:'credit_read',code=/^[A-Z0-9_]{1,32}$/.test(String(error.code||''))?String(error.code):'READ_UNAVAILABLE';console.error('Wallet balance:',JSON.stringify({stage,code,elapsedMs:Date.now()-started}));res.status(503).json({error:'wallet_balance_unavailable',stage,code,message:'ยังอ่านเครดิตไม่ได้ กรุณาลองอีกครั้ง'})}});
 // Credit refreshes need balances and rights, not the account-history query.
 // The default route retains history for existing account views.
 app.get("/api/wallet",async(req,res)=>{res.set("Cache-Control","no-store");try{
@@ -387,9 +387,26 @@ async function runAiJob(id){
  }catch(e){console.error('AI job:',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job finished',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
 app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1}]),async(req,res)=>{
- let creditUse=null;
- try{const image=req.files?.image?.[0],mask=req.files?.mask?.[0];if(!image)return res.status(400).json({error:'image_required'});try{validateProductionPortrait(image,req.body);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';creditUse=await requireCredit(req,res,creditKind);if(!creditUse)return;const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:{...req.body,delivery_pending:true,delivery_confirmed:false},image,mask});res.status(202).json({jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});setImmediate(()=>runAiJob(id))}
- catch(e){if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message})}
+ let creditUse=null,stage='validate';const started=Date.now();
+ const logStage=(next,extra={})=>{stage=next;console.info('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,...extra}))};
+ try{
+  const image=req.files?.image?.[0],mask=req.files?.mask?.[0];
+  if(!image)return res.status(400).json({error:'image_required'});
+  try{validateProductionPortrait(image,req.body);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
+  if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
+  const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
+  logStage('reserve_credit',{kind:creditKind});
+  creditUse=await requireCredit(req,res,creditKind);
+  if(!creditUse){logStage('rejected',{status:res.statusCode});return}
+  logStage('persist_job');
+  const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:{...req.body,delivery_pending:true,delivery_confirmed:false},image,mask});
+  res.status(202).json({jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});
+  logStage('queued',{jobId:id});setImmediate(()=>runAiJob(id));
+ }catch(e){
+  // Log the failed stage before refund/storage recovery can itself wait.
+  console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
+  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message});
+ }
 });
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
  if(!['cancel','confirm'].includes(req.params.action))return next();

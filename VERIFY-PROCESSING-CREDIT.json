@@ -1,0 +1,396 @@
+{
+  "baseline": "9d8b16a9303f8e964a6256753ac5dc85d2b12b55",
+  "tree_identical_to_verified_baseline": "6f7e3bff33341b54ce099b886eea1dd8bbf83a53",
+  "runtime_files": [
+    "payment-store.js",
+    "server.js",
+    "src/main.jsx",
+    "src/studio-editor.jsx"
+  ],
+  "build": {
+    "passed": true,
+    "vite": "8.3.0",
+    "modules": 117,
+    "js": "index-CLi0BdOd.js"
+  },
+  "process_credit_preflight_cases": 12,
+  "login_cases": 18,
+  "credit_view_cases": 7,
+  "schema_cases": {
+    "passed": 11,
+    "reports": [
+      {
+        "name": "empty schema still initializes required components",
+        "passed": true
+      },
+      {
+        "name": "complete text schema performs one catalog query and no DDL",
+        "passed": true
+      },
+      {
+        "name": "historical varchar status with identical validated rule skips all DDL",
+        "passed": true
+      },
+      {
+        "name": "missing trial index repairs only that index with zero wallet/payment/credit DDL",
+        "passed": true,
+        "detail": {
+          "changes": [
+            "CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_slot_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date), trial_slot)"
+          ]
+        }
+      },
+      {
+        "name": "missing trial column and index keep unrelated tables untouched",
+        "passed": true,
+        "detail": {
+          "changes": [
+            "ALTER TABLE trial_previews ADD COLUMN IF NOT EXISTS trial_slot integer NOT NULL DEFAULT 1",
+            "CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_slot_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date), trial_slot)"
+          ]
+        }
+      },
+      {
+        "name": "wider incorrect lifecycle rule still runs original repair",
+        "passed": true
+      },
+      {
+        "name": "normalization permits harmless casts and parentheses only, rejecting changed rules",
+        "passed": true
+      },
+      {
+        "name": "unknown diagnostic wallet performs only counter read and cannot wait for trial query",
+        "passed": true
+      },
+      {
+        "name": "wallet_counter failure carries only safe stage while preserving SQLSTATE",
+        "passed": true
+      },
+      {
+        "name": "trial_policy failure carries only safe stage while preserving SQLSTATE",
+        "passed": true
+      },
+      {
+        "name": "known wallet reads exact counter sum and unchanged trial rule",
+        "passed": true
+      }
+    ]
+  },
+  "ai_start_cases": {
+    "passed": 8,
+    "reports": [
+      {
+        "name": "deferred credit blocks persist/schedule, then accepts202 exactly once",
+        "passed": true
+      },
+      {
+        "name": "paid acceptance preserves reservation and delivery contract without sensitive logs",
+        "passed": true
+      },
+      {
+        "name": "trial acceptance preserves reservation and delivery contract without sensitive logs",
+        "passed": true
+      },
+      {
+        "name": "explicit 402 credit denial never persists/schedules/refunds",
+        "passed": true
+      },
+      {
+        "name": "explicit 409 credit denial never persists/schedules/refunds",
+        "passed": true
+      },
+      {
+        "name": "persistence error logs precise stage and refunds reserved usage once without queue",
+        "passed": true
+      },
+      {
+        "name": "reservation error logs reserve stage and does not refund an unreserved credit",
+        "passed": true
+      },
+      {
+        "name": "input validation failure does not reserve or persist",
+        "passed": true
+      }
+    ]
+  },
+  "financial_and_trial_regressions": {
+    "passed": 23,
+    "reports": [
+      {
+        "name": "base login pending-credit behavior",
+        "pass": true,
+        "detail": {
+          "settledBeforeWallet": false,
+          "walletReads": 1,
+          "trialReads": 1
+        }
+      },
+      {
+        "name": "fixed login pending-credit behavior",
+        "pass": true,
+        "detail": {
+          "settledBeforeWallet": true,
+          "walletReads": 0,
+          "trialReads": 0
+        }
+      },
+      {
+        "name": "legacy client bundled-login compatibility false",
+        "pass": true
+      },
+      {
+        "name": "legacy client bundled-login compatibility undefined",
+        "pass": true
+      },
+      {
+        "name": "login rejects wrong password",
+        "pass": true
+      },
+      {
+        "name": "login rejects storage failure",
+        "pass": true
+      },
+      {
+        "name": "wallet summary compatibility undefined",
+        "pass": true,
+        "detail": {
+          "events": [
+            "balance",
+            "trial",
+            "history"
+          ]
+        }
+      },
+      {
+        "name": "wallet summary compatibility 0",
+        "pass": true,
+        "detail": {
+          "events": [
+            "balance",
+            "trial",
+            "history"
+          ]
+        }
+      },
+      {
+        "name": "wallet summary compatibility 1",
+        "pass": true,
+        "detail": {
+          "events": [
+            "balance",
+            "trial"
+          ]
+        }
+      },
+      {
+        "name": "auth me reuses validated middleware identity",
+        "pass": true
+      },
+      {
+        "name": "base payment-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 1
+        }
+      },
+      {
+        "name": "fixed payment-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 57
+        }
+      },
+      {
+        "name": "base auth-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 1
+        }
+      },
+      {
+        "name": "fixed auth-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 3
+        }
+      },
+      {
+        "name": "async password hashing preserves legacy format and event loop",
+        "pass": true
+      },
+      {
+        "name": "payment migration SQL executes in PostgreSQL WASM",
+        "pass": true,
+        "detail": {
+          "queries": 58
+        }
+      },
+      {
+        "name": "trial status SQL retains all rules across timezone/midnight fixtures",
+        "pass": true,
+        "detail": {
+          "equivalences": 210,
+          "queriesPerRead": 1,
+          "originalQueriesPerFingerprintRead": 3
+        }
+      },
+      {
+        "name": "real SQL payment replay retains 89_v4 credit/unlock rights",
+        "pass": true,
+        "detail": {
+          "credits": 2,
+          "duplicate": true
+        }
+      },
+      {
+        "name": "real SQL payment replay retains 159_v6 credit/unlock rights",
+        "pass": true,
+        "detail": {
+          "credits": 10,
+          "duplicate": true
+        }
+      },
+      {
+        "name": "base creditPaid ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": false,
+          "secondaryReads": 0,
+          "active": 10,
+          "released": 0
+        }
+      },
+      {
+        "name": "fixed creditPaid ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": true,
+          "secondaryReads": 10,
+          "active": 0,
+          "released": 20
+        }
+      },
+      {
+        "name": "base redeemPromoPackage ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": false,
+          "secondaryReads": 0,
+          "active": 10,
+          "released": 0
+        }
+      },
+      {
+        "name": "fixed redeemPromoPackage ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": true,
+          "secondaryReads": 10,
+          "active": 0,
+          "released": 20
+        }
+      }
+    ]
+  },
+  "browser": [
+    {
+      "label": "processing-cumulative",
+      "browser": "chromium",
+      "passed": true,
+      "calls": [
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": false
+        },
+        {
+          "path": "/api/auth/login",
+          "search": "",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "GET",
+          "authorization": true
+        },
+        {
+          "path": "/api/wallet/balance",
+          "search": "",
+          "method": "GET",
+          "authorization": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "label": "processing-cumulative",
+      "browser": "webkit",
+      "passed": true,
+      "calls": [
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": false
+        },
+        {
+          "path": "/api/auth/login",
+          "search": "",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "GET",
+          "authorization": true
+        },
+        {
+          "path": "/api/wallet/balance",
+          "search": "",
+          "method": "GET",
+          "authorization": true
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "production_observations": {
+    "health_status": 200,
+    "missing_job_read_status": 404,
+    "missing_job_read_seconds": 0.483,
+    "nonexistent_wallet_balance_status": 503,
+    "nonexistent_wallet_balance_seconds": [
+      5.384,
+      5.485
+    ],
+    "current_failing_sql_stage_not_confirmed": true
+  },
+  "confirmed_reproductions": [
+    "varchar status constraint fails previous exact canonical schema check even after repeated DDL fallback",
+    "missing trial index must not re-lock existing wallets",
+    "redundant/unbounded full wallet preflight can stop a request before AI"
+  ],
+  "actual_customer_AI_generation_tested": false,
+  "production_account_or_credit_writes": false,
+  "production_deployed": false
+}

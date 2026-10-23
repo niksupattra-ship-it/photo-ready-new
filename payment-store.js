@@ -7,6 +7,28 @@ const pool=new Pool({connectionTimeoutMillis:5000,connectionString:process.env.D
 // Balance display must not queue behind schema migration or entitlement repair.
 let balancePool;
 function balanceReader(){return balancePool||(balancePool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false},max:2,connectionTimeoutMillis:2000,statement_timeout:5000,query_timeout:5500,idleTimeoutMillis:10000,options:'-c default_transaction_read_only=on'}))}
+function currentStatusDefinition(definition){
+ return String(definition||'').replace(/::(?:text|character varying)(?:\(\d+\))?(?:\[\])?/g,'').replace(/[()\s]/g,'')==="CHECKstatus=ANYARRAY['reserved','completed','refunded']";
+}
+async function currentStatusPolicy(){
+ const {rows}=await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid=to_regclass('credit_usage') AND conname='credit_usage_status_check' AND contype='c' AND convalidated");
+ return currentStatusDefinition(rows[0]?.definition);
+}
+// PostgreSQL takes table locks even for ALTER ... IF NOT EXISTS. Check each
+// component before DDL so a missing trial index cannot re-lock current wallets.
+async function migrationQuery(sql){
+ let match=sql.match(/^\s*CREATE TABLE IF NOT EXISTS ([a-z_][a-z_0-9]*)/i);
+ if(match){const r=await pool.query('SELECT to_regclass($1) IS NOT NULL AS present',[match[1]]);if(r.rows[0]?.present)return;return pool.query(sql)}
+ match=sql.match(/^\s*ALTER TABLE ([a-z_][a-z_0-9]*) ADD COLUMN IF NOT EXISTS ([a-z_][a-z_0-9]*)/i);
+ if(match){const r=await pool.query('SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid=to_regclass($1) AND attname=$2 AND attnum>0 AND NOT attisdropped) AS present',[match[1],match[2]]);if(r.rows[0]?.present)return;return pool.query(sql)}
+ match=sql.match(/^\s*ALTER TABLE ([a-z_][a-z_0-9]*) DROP CONSTRAINT IF EXISTS ([a-z_][a-z_0-9]*)/i);
+ if(match){const r=await pool.query('SELECT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass($1) AND conname=$2) AS present',[match[1],match[2]]);if(!r.rows[0]?.present)return;return pool.query(sql)}
+ match=sql.match(/^\s*CREATE (?:UNIQUE )?INDEX (?:CONCURRENTLY )?IF NOT EXISTS ([a-z_][a-z_0-9]*)/i);
+ if(match){const r=await pool.query('SELECT EXISTS(SELECT 1 FROM pg_index WHERE indexrelid=to_regclass($1) AND indisvalid) AS present',[match[1]]);if(r.rows[0]?.present)return;return pool.query(sql)}
+ match=sql.match(/^\s*DROP INDEX IF EXISTS ([a-z_][a-z_0-9]*)/i);
+ if(match){const r=await pool.query('SELECT to_regclass($1) IS NOT NULL AS present',[match[1]]);if(!r.rows[0]?.present)return;return pool.query(sql)}
+ return pool.query(sql);
+}
 async function currentPaymentSchema(){
  const {rows}=await pool.query(`
   WITH required(table_name,columns) AS (VALUES
@@ -21,52 +43,52 @@ async function currentPaymentSchema(){
   SELECT
    NOT EXISTS(SELECT 1 FROM required r CROSS JOIN LATERAL unnest(r.columns) col(name)
     WHERE NOT EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid=to_regclass(r.table_name) AND a.attname=col.name AND a.attnum>0 AND NOT a.attisdropped))
-   AND EXISTS(SELECT 1 FROM pg_constraint c WHERE c.conrelid=to_regclass('credit_usage') AND c.conname='credit_usage_status_check' AND c.contype='c' AND c.convalidated
-    AND regexp_replace(pg_get_constraintdef(c.oid),'[[:space:]]','','g')=$1)
    AND EXISTS(SELECT 1 FROM pg_index i WHERE i.indexrelid=to_regclass('trial_previews_device_day_slot_key') AND i.indrelid=to_regclass('trial_previews') AND i.indisunique AND i.indisvalid
     AND (SELECT array_agg(COALESCE(a.attname,'<expression>')::text ORDER BY k.ord) FROM unnest(i.indkey) WITH ORDINALITY k(attnum,ord) LEFT JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=k.attnum)=ARRAY['fingerprint','<expression>','trial_slot']::text[]
     AND pg_get_expr(i.indexprs,i.indrelid) IN ('((created_at AT TIME ZONE ''Asia/Bangkok''::text))::date','(created_at AT TIME ZONE ''Asia/Bangkok''::text)::date'))
    AND EXISTS(SELECT 1 FROM pg_index i WHERE i.indexrelid=to_regclass('trial_daily_devices_use_key') AND i.indrelid=to_regclass('trial_daily_devices') AND i.indisunique AND i.indisvalid
     AND (SELECT array_agg(a.attname::text ORDER BY k.ord) FROM unnest(i.indkey) WITH ORDINALITY k(attnum,ord) JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=k.attnum)=ARRAY['device_key','trial_day','trial_id']::text[])
    AND NOT EXISTS(SELECT 1 FROM pg_constraint c WHERE (c.conrelid=to_regclass('trial_previews') AND c.conname='trial_previews_fingerprint_key') OR (c.conrelid=to_regclass('trial_daily_devices') AND c.conname='trial_daily_devices_pkey'))
-   AND to_regclass('trial_previews_device_day_key') IS NULL AS current
- `,["CHECK((status=ANY(ARRAY['reserved'::text,'completed'::text,'refunded'::text])))"]);
- return rows[0]?.current===true;
+   AND to_regclass('trial_previews_device_day_key') IS NULL AS current,
+   (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conrelid=to_regclass('credit_usage') AND c.conname='credit_usage_status_check' AND c.contype='c' AND c.convalidated) AS status_policy
+ `);
+ return rows[0]?.current===true&&currentStatusDefinition(rows[0]?.status_policy);
 }
 let initPromise;
 async function ready(){if(!initPromise)initPromise=(async()=>{
   // Existing databases only need a catalog read; repeated ALTER TABLE can wait
   // for locks and hold every wallet request even though its schema is current.
   if(await currentPaymentSchema())return;
-  await pool.query(`CREATE TABLE IF NOT EXISTS wallets (id text PRIMARY KEY, credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
-  await pool.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS generation_remaining integer NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS hair_remaining integer NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS full_edit_remaining integer NOT NULL DEFAULT 0`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS payments (session_id text PRIMARY KEY, wallet_id text NOT NULL REFERENCES wallets(id), credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
-  await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS package_id text`);
-  await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS generation_qty integer NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS hair_qty integer NOT NULL DEFAULT 0`);
-  await pool.query(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS full_edit_reconciled boolean NOT NULL DEFAULT false`);
-  await pool.query(`CREATE INDEX IF NOT EXISTS payments_pending_159_full_edit ON payments(wallet_id) WHERE package_id='159_v6' AND NOT full_edit_reconciled`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
-  await pool.query(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credit_column text`);
-  await pool.query(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS full_edit_output boolean NOT NULL DEFAULT false`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS trial_daily_devices (device_key text NOT NULL,trial_day date NOT NULL,trial_id text NOT NULL REFERENCES trial_previews(id) ON DELETE CASCADE,PRIMARY KEY(device_key,trial_day))`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS wallets (id text PRIMARY KEY, credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
+  await migrationQuery(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS generation_remaining integer NOT NULL DEFAULT 0`);
+  await migrationQuery(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS hair_remaining integer NOT NULL DEFAULT 0`);
+  await migrationQuery(`ALTER TABLE wallets ADD COLUMN IF NOT EXISTS full_edit_remaining integer NOT NULL DEFAULT 0`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS payments (session_id text PRIMARY KEY, wallet_id text NOT NULL REFERENCES wallets(id), credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
+  await migrationQuery(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS package_id text`);
+  await migrationQuery(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS generation_qty integer NOT NULL DEFAULT 0`);
+  await migrationQuery(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS hair_qty integer NOT NULL DEFAULT 0`);
+  await migrationQuery(`ALTER TABLE payments ADD COLUMN IF NOT EXISTS full_edit_reconciled boolean NOT NULL DEFAULT false`);
+  await migrationQuery(`CREATE INDEX IF NOT EXISTS payments_pending_159_full_edit ON payments(wallet_id) WHERE package_id='159_v6' AND NOT full_edit_reconciled`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
+  await migrationQuery(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credit_column text`);
+  await migrationQuery(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS full_edit_output boolean NOT NULL DEFAULT false`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS trial_daily_devices (device_key text NOT NULL,trial_day date NOT NULL,trial_id text NOT NULL REFERENCES trial_previews(id) ON DELETE CASCADE,PRIMARY KEY(device_key,trial_day))`);
   // Keep previous trials; two slots per device per Bangkok calendar day.
-  await pool.query(`ALTER TABLE trial_previews DROP CONSTRAINT IF EXISTS trial_previews_fingerprint_key`);
-  await pool.query(`ALTER TABLE trial_previews ADD COLUMN IF NOT EXISTS trial_slot integer NOT NULL DEFAULT 1`);
-  await pool.query(`DROP INDEX IF EXISTS trial_previews_device_day_key`);
-  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_slot_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date), trial_slot)`);
-  await pool.query(`ALTER TABLE trial_daily_devices DROP CONSTRAINT IF EXISTS trial_daily_devices_pkey`);
-  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS trial_daily_devices_use_key ON trial_daily_devices(device_key,trial_day,trial_id)`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS promo_redemptions (code text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),package_id text NOT NULL,created_at timestamptz NOT NULL DEFAULT now())`);
+  await migrationQuery(`ALTER TABLE trial_previews DROP CONSTRAINT IF EXISTS trial_previews_fingerprint_key`);
+  await migrationQuery(`ALTER TABLE trial_previews ADD COLUMN IF NOT EXISTS trial_slot integer NOT NULL DEFAULT 1`);
+  await migrationQuery(`DROP INDEX IF EXISTS trial_previews_device_day_key`);
+  await migrationQuery(`CREATE UNIQUE INDEX IF NOT EXISTS trial_previews_device_day_slot_key ON trial_previews (fingerprint, ((created_at AT TIME ZONE 'Asia/Bangkok')::date), trial_slot)`);
+  await migrationQuery(`ALTER TABLE trial_daily_devices DROP CONSTRAINT IF EXISTS trial_daily_devices_pkey`);
+  await migrationQuery(`CREATE UNIQUE INDEX IF NOT EXISTS trial_daily_devices_use_key ON trial_daily_devices(device_key,trial_day,trial_id)`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS promo_redemptions (code text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),package_id text NOT NULL,created_at timestamptz NOT NULL DEFAULT now())`);
   // Migrate older production rows before installing the current lifecycle constraint.
   // Historical deployments used statuses such as used/success/failed; keeping an
   // unknown historical row as completed is safer than granting a credit again.
-  await pool.query(`ALTER TABLE credit_usage DROP CONSTRAINT IF EXISTS credit_usage_status_check`);
-  await pool.query(`
+  if(!await currentStatusPolicy()){
+  await migrationQuery(`ALTER TABLE credit_usage DROP CONSTRAINT IF EXISTS credit_usage_status_check`);
+  await migrationQuery(`
     UPDATE credit_usage
     SET status = CASE
       WHEN lower(status) IN ('reserved','pending','processing') THEN 'reserved'
@@ -75,12 +97,13 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
     END
     WHERE status IS NULL OR lower(status) NOT IN ('reserved','completed','refunded')
   `);
-  await pool.query(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
+  await migrationQuery(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
+  }
   // Standalone concurrent builds keep credit/trial writes available during indexing.
-  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS payments_wallet_created_idx ON payments(wallet_id,created_at)`);
-  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS promo_redemptions_wallet_created_idx ON promo_redemptions(wallet_id,created_at)`);
-  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS credit_usage_wallet_created_idx ON credit_usage(wallet_id,created_at)`);
-  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS trial_previews_wallet_created_idx ON trial_previews(wallet_id,created_at)`);
+  await migrationQuery(`CREATE INDEX CONCURRENTLY IF NOT EXISTS payments_wallet_created_idx ON payments(wallet_id,created_at)`);
+  await migrationQuery(`CREATE INDEX CONCURRENTLY IF NOT EXISTS promo_redemptions_wallet_created_idx ON promo_redemptions(wallet_id,created_at)`);
+  await migrationQuery(`CREATE INDEX CONCURRENTLY IF NOT EXISTS credit_usage_wallet_created_idx ON credit_usage(wallet_id,created_at)`);
+  await migrationQuery(`CREATE INDEX CONCURRENTLY IF NOT EXISTS trial_previews_wallet_created_idx ON trial_previews(wallet_id,created_at)`);
 })().catch(error=>{initPromise=null;throw error});return initPromise}
 function shape(id,row){const count=remaining(row);return {walletId:id,processRemaining:count,generationRemaining:count,hairRemaining:count}}
 // The current 159 offer promised full editing from launch. Older grants did not
@@ -254,10 +277,12 @@ async function readTrialOptionAccess(reader,walletId,fingerprint,networkFingerpr
 // Display-only snapshot. It neither migrates tables nor repairs/grants rights.
 export async function getWalletBalance(id,fingerprint,networkFingerprint){
  if(!id)return null;
- const reader=balanceReader();
- const [wallet,trial]=await Promise.all([
-  reader.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[id]),
-  readTrialOptionAccess(reader,id,fingerprint,networkFingerprint)
- ]);
- return wallet.rows[0]?{...shape(id,wallet.rows[0]),...trial}:null;
+ const reader=balanceReader();let wallet;
+ try{wallet=await reader.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[id])}
+ catch(error){error.balanceStage='wallet_counter';throw error}
+ if(!wallet.rows[0])return null;
+ let trial;
+ try{trial=await readTrialOptionAccess(reader,id,fingerprint,networkFingerprint)}
+ catch(error){error.balanceStage='trial_policy';throw error}
+ return {...shape(id,wallet.rows[0]),...trial};
 }
