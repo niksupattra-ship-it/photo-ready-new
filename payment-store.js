@@ -3,7 +3,7 @@ import pg from 'pg';
 import {packageFor,remaining} from './package-rules.js';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for payment storage');
-const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}});
+const pool=new Pool({connectionTimeoutMillis:5000,connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}});
 let initPromise;
 async function ready(){if(!initPromise)initPromise=(async()=>{
   await pool.query(`CREATE TABLE IF NOT EXISTS wallets (id text PRIMARY KEY, credits integer NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now())`);
@@ -44,7 +44,12 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
     WHERE status IS NULL OR lower(status) NOT IN ('reserved','completed','refunded')
   `);
   await pool.query(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
-})();return initPromise}
+  // Standalone concurrent builds keep credit/trial writes available during indexing.
+  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS payments_wallet_created_idx ON payments(wallet_id,created_at)`);
+  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS promo_redemptions_wallet_created_idx ON promo_redemptions(wallet_id,created_at)`);
+  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS credit_usage_wallet_created_idx ON credit_usage(wallet_id,created_at)`);
+  await pool.query(`CREATE INDEX CONCURRENTLY IF NOT EXISTS trial_previews_wallet_created_idx ON trial_previews(wallet_id,created_at)`);
+})().catch(error=>{initPromise=null;throw error});return initPromise}
 function shape(id,row){const count=remaining(row);return {walletId:id,processRemaining:count,generationRemaining:count,hairRemaining:count}}
 // The current 159 offer promised full editing from launch. Older grants did not
 // record that allowance. Repair each such payment once without adding credits
@@ -75,7 +80,7 @@ export async function getWallet(id){if(!id)return null;await ready();const {rows
 export async function ensureWallet(id){await ready();await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[id]);return getWallet(id)}
 export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
  await ready();const p=packageFor(packageId);if(p.requiresImage&&!jobId)throw Error('image_required');
- const c=await pool.connect();try{
+ let result;const c=await pool.connect();try{
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
   const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty,full_edit_reconciled) VALUES($1,$2,0,$3,$4,$5,$6) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h,packageId==='159_v6']);
@@ -85,8 +90,10 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
    if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   }
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
-  return {duplicate:!ins.rowCount,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
+  result={duplicate:!ins.rowCount,...shape(walletId,w.rows[0])};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+ // Release the transaction connection before querying the pool again.
+ return {...result,...await imageEntitlements(walletId)};
 }
 
 export async function redeemPromo199(walletId,code){
@@ -158,7 +165,7 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
  await ready();const key=crypto.createHash('sha256').update(String(code||'').trim().toUpperCase()).digest('hex');
  const offer=singleUsePromoPackages[key];if(!offer)return {ok:false,reason:'invalid'};
  const packageId=offer==='89_current'?'89_v4':offer==='89_credit'?'79_v2':offer==='79'?(jobId?'79':'79_v2'):(jobId?'149_trial_v3':'149_v2');const p=packageFor(packageId);
- const c=await pool.connect();try{
+ let result;const c=await pool.connect();try{
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
   const ins=await c.query('INSERT INTO promo_redemptions(code,wallet_id,package_id) VALUES($1,$2,$3) ON CONFLICT(code) DO NOTHING RETURNING code',['promo_v2_'+key,walletId,packageId]);
@@ -169,20 +176,43 @@ export async function redeemPromoPackage(walletId,code,jobId=''){
    // Reopening one's own link reads current rights; never credit or unlock another image.
    const balance=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);
    await c.query('COMMIT');
-   return {ok:true,alreadyRedeemed:true,packagePrice:packageFor(original.package_id).price,...shape(walletId,balance.rows[0]),...await imageEntitlements(walletId)};
-  }
+   result={ok:true,alreadyRedeemed:true,packagePrice:packageFor(original.package_id).price,...shape(walletId,balance.rows[0])};
+  }else{
   await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3,full_edit_remaining=full_edit_remaining+$4 WHERE id=$1',[walletId,p.g,p.h,p.fullEdit?p.g+p.h:0]);
   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
-  return {ok:true,packagePrice:offer==='89_current'?p.price:packageFor(['79','89_credit'].includes(offer)?'79_v2':'149_v2').price,...shape(walletId,w.rows[0]),...await imageEntitlements(walletId)};
+  result={ok:true,packagePrice:offer==='89_current'?p.price:packageFor(['79','89_credit'].includes(offer)?'79_v2':'149_v2').price,...shape(walletId,w.rows[0])};
+  }
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+ return {...result,...await imageEntitlements(walletId)};
 }
 
 export async function trialOptionAccess(walletId,fingerprint,networkFingerprint){
- await ready();const paid=await pool.query('SELECT EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased',[walletId]);
- if(!fingerprint)return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:false,trialRemaining:0};
- const used=await pool.query("SELECT count(*)::integer AS n FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
- const purchasedToday=await pool.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date UNION ALL SELECT 1 FROM promo_redemptions WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
- const trialRemaining=purchasedToday.rowCount?0:Math.max(0,2-Number(used.rows[0]?.n||0));
- return {hasPurchased:Boolean(paid.rows[0]?.purchased),trialAvailable:trialRemaining>0,trialRemaining};
+ await ready();
+ const {rows}=await pool.query(`
+  WITH today AS (
+   SELECT date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok') AT TIME ZONE 'Asia/Bangkok' AS starts,
+    (date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok')+interval '1 day') AT TIME ZONE 'Asia/Bangkok' AS ends
+  )
+  SELECT
+   EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased,
+   EXISTS(SELECT 1 FROM payments,today WHERE wallet_id=$1 AND created_at>=today.starts AND created_at<today.ends)
+    OR EXISTS(SELECT 1 FROM promo_redemptions,today WHERE wallet_id=$1 AND created_at>=today.starts AND created_at<today.ends) AS purchased_today,
+   -- UNION counts a shared wallet/device/network trial only once without a full-table OR scan.
+   CASE WHEN $2::text IS NULL THEN 0 ELSE (
+    SELECT count(*)::integer FROM (
+     SELECT t.id FROM trial_previews t,today WHERE t.wallet_id=$1 AND t.created_at>=today.starts AND t.created_at<today.ends
+     UNION
+     SELECT t.id FROM trial_previews t,today WHERE t.fingerprint=$2 AND t.created_at>=today.starts AND t.created_at<today.ends
+     UNION
+     SELECT t.id FROM trial_daily_devices d JOIN trial_previews t ON t.id=d.trial_id CROSS JOIN today
+      WHERE d.device_key=$3 AND d.trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date
+       AND t.created_at>=today.starts AND t.created_at<today.ends
+    ) eligible
+   ) END AS used
+ `,[walletId,fingerprint||null,networkFingerprint]);
+ const row=rows[0]||{},hasPurchased=Boolean(row.purchased);
+ if(!fingerprint)return {hasPurchased,trialAvailable:false,trialRemaining:0};
+ const trialRemaining=row.purchased_today?0:Math.max(0,2-Number(row.used||0));
+ return {hasPurchased,trialAvailable:trialRemaining>0,trialRemaining};
 }

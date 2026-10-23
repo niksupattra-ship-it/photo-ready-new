@@ -1,0 +1,311 @@
+{
+  "baseline": "3c9896abcba2a3697e713d5f0905d1bced85d469",
+  "repository": "niksupattra-ship-it/photo-ready-new",
+  "source_blobs_verified": 152,
+  "production_files": [
+    "auth-store.js",
+    "payment-store.js",
+    "server.js",
+    "src/main.jsx",
+    "src/studio-rights-dialog.jsx",
+    "src/wallet-refresh.js"
+  ],
+  "client_regressions": {
+    "passed": 18,
+    "script": "scripts/check-login-wallet.mjs"
+  },
+  "server_regressions": {
+    "passed": 23,
+    "reports": [
+      {
+        "name": "base login pending-credit behavior",
+        "pass": true,
+        "detail": {
+          "settledBeforeWallet": false,
+          "walletReads": 1,
+          "trialReads": 1
+        }
+      },
+      {
+        "name": "fixed login pending-credit behavior",
+        "pass": true,
+        "detail": {
+          "settledBeforeWallet": true,
+          "walletReads": 0,
+          "trialReads": 0
+        }
+      },
+      {
+        "name": "legacy client bundled-login compatibility false",
+        "pass": true
+      },
+      {
+        "name": "legacy client bundled-login compatibility undefined",
+        "pass": true
+      },
+      {
+        "name": "login rejects wrong password",
+        "pass": true
+      },
+      {
+        "name": "login rejects storage failure",
+        "pass": true
+      },
+      {
+        "name": "wallet summary compatibility undefined",
+        "pass": true,
+        "detail": {
+          "events": [
+            "balance",
+            "trial",
+            "history"
+          ]
+        }
+      },
+      {
+        "name": "wallet summary compatibility 0",
+        "pass": true,
+        "detail": {
+          "events": [
+            "balance",
+            "trial",
+            "history"
+          ]
+        }
+      },
+      {
+        "name": "wallet summary compatibility 1",
+        "pass": true,
+        "detail": {
+          "events": [
+            "balance",
+            "trial"
+          ]
+        }
+      },
+      {
+        "name": "auth me reuses validated middleware identity",
+        "pass": true
+      },
+      {
+        "name": "base payment-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 1
+        }
+      },
+      {
+        "name": "fixed payment-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 31
+        }
+      },
+      {
+        "name": "base auth-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 1
+        }
+      },
+      {
+        "name": "fixed auth-store.js initialization recovery",
+        "pass": true,
+        "detail": {
+          "calls": 3
+        }
+      },
+      {
+        "name": "async password hashing preserves legacy format and event loop",
+        "pass": true
+      },
+      {
+        "name": "payment migration SQL executes in PostgreSQL WASM",
+        "pass": true,
+        "detail": {
+          "queries": 30
+        }
+      },
+      {
+        "name": "trial status SQL retains all rules across timezone/midnight fixtures",
+        "pass": true,
+        "detail": {
+          "equivalences": 210,
+          "queriesPerRead": 1,
+          "originalQueriesPerFingerprintRead": 3
+        }
+      },
+      {
+        "name": "real SQL payment replay retains 89_v4 credit/unlock rights",
+        "pass": true,
+        "detail": {
+          "credits": 2,
+          "duplicate": true
+        }
+      },
+      {
+        "name": "real SQL payment replay retains 159_v6 credit/unlock rights",
+        "pass": true,
+        "detail": {
+          "credits": 10,
+          "duplicate": true
+        }
+      },
+      {
+        "name": "base creditPaid ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": false,
+          "secondaryReads": 0,
+          "active": 10,
+          "released": 0
+        }
+      },
+      {
+        "name": "fixed creditPaid ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": true,
+          "secondaryReads": 10,
+          "active": 0,
+          "released": 20
+        }
+      },
+      {
+        "name": "base redeemPromoPackage ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": false,
+          "secondaryReads": 0,
+          "active": 10,
+          "released": 0
+        }
+      },
+      {
+        "name": "fixed redeemPromoPackage ten-connection starvation test",
+        "pass": true,
+        "detail": {
+          "commits": 10,
+          "completed": true,
+          "secondaryReads": 10,
+          "active": 0,
+          "released": 20
+        }
+      }
+    ]
+  },
+  "browser_checks": [
+    {
+      "label": "fixed",
+      "browser": "chromium",
+      "passed": true,
+      "calls": [
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": false
+        },
+        {
+          "path": "/api/auth/login",
+          "search": "",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "GET",
+          "authorization": true
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "browser": "chromium",
+      "checks": 6,
+      "passed": true,
+      "reads": 4,
+      "errors": []
+    },
+    {
+      "label": "fixed",
+      "browser": "webkit",
+      "passed": true,
+      "calls": [
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": false
+        },
+        {
+          "path": "/api/auth/login",
+          "search": "",
+          "method": "POST",
+          "authorization": false
+        },
+        {
+          "path": "/api/wallet",
+          "search": "?summary=1",
+          "method": "GET",
+          "authorization": true
+        },
+        {
+          "path": "/api/private-trial",
+          "search": "",
+          "method": "GET",
+          "authorization": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "browser": "webkit",
+      "checks": 6,
+      "passed": true,
+      "reads": 4,
+      "errors": []
+    }
+  ],
+  "build": {
+    "passed": true,
+    "modules": 117,
+    "js": "index-CWHbHD8f.js",
+    "warning": "existing chunk size >500kB"
+  },
+  "output_access_regression": {
+    "passed_with_updated_fixture_dependencies_and_current_UI_copy": true,
+    "original_baseline_checks_have_stale_fixtures": [
+      "check-output-rights.mjs",
+      "check-promo-reopen.mjs",
+      "check-hairstyle-trial-confirmation.mjs"
+    ],
+    "unchanged_original_test_files": true
+  },
+  "production_customer_login_verified": false,
+  "production_deployed": false,
+  "live_customer_payment_or_credit_writes": false,
+  "new_runtime_dependencies": false
+}
