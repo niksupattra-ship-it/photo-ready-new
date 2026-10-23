@@ -73,13 +73,14 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
   </div>
-  <div className="package-usage-explanation" style={{textAlign:'center',margin:'16px 0 0'}}><strong>สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต (ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)</strong><p>กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio</p></div>
-  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.8,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ</strong><br/>เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด<br/>สร้างรูปหรือเปลี่ยนผมสำเร็จ 1 ครั้ง ใช้ 1 เครดิต<br/>ก่อนออก กรุณาตรวจสอบว่า “บันทึกงานสำเร็จ”<br/>หากได้รับภาพแล้วแต่ออกโดยไม่บันทึก งานอาจหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้</p>
+  <div className="package-usage-explanation" style={{textAlign:'center',margin:'16px 0 0'}}><strong>สร้างภาพ 1 ครั้ง แสดงผลบนพื้นที่ทำงานสำเร็จ = ใช้ 1 เครดิต (ไม่ใช่การดาวน์โหลดแล้วหักเครดิต)</strong><p>กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio</p><p>หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้</p></div>
+  <p className="package-trial-note" style={{margin:'16px 0 0',fontSize:13,lineHeight:1.8,color:'#66758c',textAlign:'center'}}><strong style={{color:'#243650'}}>ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ</strong><br/>เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด</p>
   <ServiceTermsLink/>
   {showMessage&&<p className="credit-pay-msg">{payMsg}</p>}
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
 }
+
 
 
 
