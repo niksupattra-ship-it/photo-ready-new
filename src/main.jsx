@@ -59,6 +59,7 @@ import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {PackageOffers} from './package-offers.jsx';
+import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
@@ -4200,6 +4201,7 @@ function App(){
   const governmentLevels=[['operational','ปฏิบัติงาน'],['academic','ปฏิบัติการ'],['senior','ชำนาญการ / อาวุโส'],['government-employee','พนักงานราชการ']];
   const maleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='male');
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
+  const photoSizeSample=JOB_UNIFORMS.find(item=>item.id==='female-suit-03');
   const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setStudioData(null);setScreen('studio')};
   const homeCategories=[
    {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
@@ -4231,7 +4233,8 @@ function App(){
     {homeFilter==='government'&&<section className="government-filter-panel"><section className="government-gender-section"><h2 className="government-section-title">ชุดข้าราชการชาย</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=INTERIOR_UNIFORMS.find(t=>t.level===id)||INTERIOR_UNIFORMS[0];return <button type="button" key={'male-'+id} className={gender==='male'&&level===id?'selected':''} onClick={()=>{setGender('male');setLevel(id);setSelectedInteriorTemplate(u.img);setUniformCategory('government');setSelectedStyle(n);setStudioData(null);setScreen('studio')}}><img src={homePreviewSource(u.preview)} decoding="async" loading="lazy" alt={'ชุดข้าราชการชาย '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section><section className="government-gender-section female-government-section"><h2 className="government-section-title">ชุดข้าราชการหญิง</h2><div className="government-level-grid">{governmentLevels.map(([id,n])=>{const u=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===id)||FEMALE_GOVERNMENT_UNIFORMS[0];return <button type="button" key={'female-'+id} className={gender==='female'&&level===id?'selected':''} onClick={()=>{setGender('female');setLevel(id);setUniformCategory('government');setSelectedStyle(n);setStudioData(null);setScreen('studio')}}><img src={homePreviewSource(u.preview)} decoding="async" loading="lazy" alt={'ชุดข้าราชการหญิง '+n}/><strong>{n}</strong><span className="selected-mark">✓</span></button>})}</div></section></section>}
     {homeFilter==='gown'&&<section className="government-filter-panel">{[['male','ชาย'],['female','หญิง']].map(([g,title])=><section key={g} className={'government-gender-section'+(g==='female'?' female-government-section':'')}><h2 className="government-section-title">{title}</h2><div className="government-level-grid">{GOWN_UNIFORMS.filter(item=>item.gender===g).map(item=><button type="button" key={item.id} className={selectedGownTemplate===item.template?'selected':''} onClick={()=>{commitUniformSelection(item);setStudioData(null);setScreen('studio')}}><img src={homePreviewSource(item.img)} decoding="async" loading="lazy" alt={item.title}/><strong>สจล.</strong><span className="selected-mark">✓</span></button>)}</div></section>)}</section>}{homeFilter!=='government'&&homeFilter!=='job'&&homeFilter!=='gown'&&visibleRows.map(r=><HomeRow key={r.id} tag={r.tag} title={r.title} cards={r.cards}/>)}
    </section>}
-   {homeFilter==='all'&&<div className="studio-home-benefits">{[['✦','ใบหน้าเดิม 100%','ไม่เปลี่ยนโครงหน้า รักษารายละเอียดผิวเดิม'],['▣','คุณภาพสตูดิโอ','คมชัด ดูเป็นธรรมชาติ ไม่เป็นพลาสติก'],['◉','ปรับแต่งได้อิสระ','ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม'],['▧','ดาวน์โหลดความละเอียดสูง','ขนาด 900 × 1200 px ตรงกับตัวอย่าง 100%']].map(([icon,title,desc])=><div key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{desc}</small></div></div>)}</div>}
+   {homeFilter==='all'&&photoSizeSample&&<HomePhotoSizes sample={photoSizeSample} onStart={()=>chooseJobUniform(photoSizeSample)}/>}
+   {homeFilter==='all'&&<div className="studio-home-benefits">{[['✦','ใบหน้าเดิม 100%','ไม่เปลี่ยนโครงหน้า รักษารายละเอียดผิวเดิม'],['▣','คุณภาพสตูดิโอ','คมชัด ดูเป็นธรรมชาติ ไม่เป็นพลาสติก'],['◉','ปรับแต่งได้อิสระ','ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม'],['▧','ดาวน์โหลดความละเอียดสูง','ไฟล์ 2256 × 3072 px และขนาดรูปมาตรฐาน']].map(([icon,title,desc])=><div key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{desc}</small></div></div>)}</div>}
    </div>
   </main>;
  }
