@@ -1,0 +1,87 @@
+{
+  "baselineGitHubCommit": "97975dfbce3afe8534db42a3ad364538a0a32787",
+  "changedRuntimeFiles": [
+    "src/studio-editor.jsx"
+  ],
+  "scope": "Exit confirmation buttons only. Save and exit after success; discard exits immediately without invoking save.",
+  "build": {
+    "passed": true,
+    "modules": 118,
+    "bundle": "index-D21SOwzd.js"
+  },
+  "browserChecks": [
+    {
+      "engine": "chromium",
+      "passed": 6,
+      "results": [
+        {
+          "name": "native dialog focuses save action",
+          "passed": true
+        },
+        {
+          "name": "discard exits immediately once without saving",
+          "passed": true
+        },
+        {
+          "name": "save waits pending then exits on success",
+          "passed": true
+        },
+        {
+          "name": "false save retains editor and denial message",
+          "passed": true
+        },
+        {
+          "name": "actual save catches rejected account save and stays editor",
+          "passed": true
+        },
+        {
+          "name": "Escape dismisses only and keeps editor",
+          "passed": true
+        }
+      ],
+      "saveFunctionSha256": "5be23eb0a80987acaf2097d363ce30e372b91f8140cb742c9c009311e83e405f",
+      "dialogSha256": "5a21aace0f66c01cee889deb9b838694b28f821670b75d276eb187aafca5b366",
+      "limits": "Actual native browser dialog with exact extracted production handlers and save function; fixture account saving/allowOutput and snapshot, no live account/network writes, no physical iOS device."
+    },
+    {
+      "engine": "webkit",
+      "passed": 6,
+      "results": [
+        {
+          "name": "native dialog focuses save action",
+          "passed": true
+        },
+        {
+          "name": "discard exits immediately once without saving",
+          "passed": true
+        },
+        {
+          "name": "save waits pending then exits on success",
+          "passed": true
+        },
+        {
+          "name": "false save retains editor and denial message",
+          "passed": true
+        },
+        {
+          "name": "actual save catches rejected account save and stays editor",
+          "passed": true
+        },
+        {
+          "name": "Escape dismisses only and keeps editor",
+          "passed": true
+        }
+      ],
+      "saveFunctionSha256": "5be23eb0a80987acaf2097d363ce30e372b91f8140cb742c9c009311e83e405f",
+      "dialogSha256": "5a21aace0f66c01cee889deb9b838694b28f821670b75d276eb187aafca5b366",
+      "limits": "Actual native browser dialog with exact extracted production handlers and save function; fixture account saving/allowOutput and snapshot, no live account/network writes, no physical iOS device."
+    }
+  ],
+  "notDeployed": true,
+  "productionAccountWrites": false,
+  "originalSaveFunctionUnchanged": true,
+  "sourceSha256": {
+    "baseline": "71794d350f850aa74df36880a7946118bebb3b1c56097205485f60414d711aa1",
+    "updated": "212c78fd0d922f57476dda27de07c32334a871a0f8c224b60383f3301d11b1e5"
+  }
+}
