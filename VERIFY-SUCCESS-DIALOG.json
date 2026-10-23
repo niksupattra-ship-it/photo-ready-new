@@ -1,0 +1,126 @@
+{
+  "baseline": {
+    "repository": "niksupattra-ship-it/photo-ready-new",
+    "commit": "e7d259cfc086c1c3c69233ee09a9b729ee30ef52",
+    "mainGitBlob": "d441ebf9fbf43c8e1c455445b6f417dd81823353"
+  },
+  "runtimeChanged": [
+    "src/main.jsx",
+    "src/studio-editor.jsx",
+    "src/process-result-notice.jsx",
+    "src/process-result-notice.css"
+  ],
+  "runtimeHashes": {
+    "src/main.jsx": "f28e3c47b9850673c32757fa17aedce71d9a47cc66e54fce9ffa3b6c59c508bd",
+    "src/studio-editor.jsx": "5d4d5f17dd8a0aad451959e778a918485e2bb8474da2284a306e5b05d630f2fb",
+    "src/process-result-notice.jsx": "ce883ad9d8ce48ca6ccdc247b3ff08cacf7866222739ad9332bd996521741574",
+    "src/process-result-notice.css": "dbafd30e2418c8524f466923bb159ac8af8340c01a15bd9631cf5d8edce29bdf"
+  },
+  "verification": {
+    "build": {
+      "passed": true,
+      "modules": 117,
+      "css": "index-y8E6fkvU.css",
+      "js": "index-CZe9ip42.js"
+    },
+    "balanceData": {
+      "passed": 9,
+      "results": [
+        {
+          "name": "post-delivery read uses one bounded read-only request and returns validated zero/numeric string counts",
+          "passed": true
+        },
+        {
+          "name": "unknown identity cannot read or fabricate a balance",
+          "passed": true
+        },
+        {
+          "name": "failed, wrong-wallet and malformed balances never return usable numbers",
+          "passed": true
+        },
+        {
+          "name": "account changes during transport or JSON parsing discard the old response",
+          "passed": true
+        },
+        {
+          "name": "paid success shows balance loading immediately while existing autosave completes independently",
+          "passed": true
+        },
+        {
+          "name": "trial receipt uses the trial quota without auto-saving or mixing paid credits",
+          "passed": true
+        },
+        {
+          "name": "private preview and reused images do not read or consume paid credits",
+          "passed": true
+        },
+        {
+          "name": "a failed balance read leaves delivered image/save state intact and never fabricates zero",
+          "passed": true
+        },
+        {
+          "name": "a stale or closed receipt cannot receive an old balance or re-open itself",
+          "passed": true
+        }
+      ],
+      "limitations": "Functions extracted from current source; network and saves mocked; no customer or financial writes."
+    },
+    "browser": {
+      "chromium": {
+        "engine": "chromium",
+        "passed": true,
+        "checks": [
+          "paid usage, warning and real save handler",
+          "responsive two-button layout 390x844",
+          "responsive two-button layout 320x568",
+          "responsive two-button layout 768x1024",
+          "responsive two-button layout 844x390",
+          "unknown balance loading never fabricates or blocks editing",
+          "unknown balance error never fabricates or blocks editing",
+          "verified zero is displayed",
+          "trial purchase gate retained",
+          "private preview has no paid credit claim",
+          "saving does not block continuing",
+          "saved state retains continue action",
+          "saved-work limit management retained",
+          "save retry retained",
+          "focus trap and Escape"
+        ],
+        "errors": []
+      },
+      "webkit": {
+        "engine": "webkit",
+        "passed": true,
+        "checks": [
+          "paid usage, warning and real save handler",
+          "responsive two-button layout 390x844",
+          "responsive two-button layout 320x568",
+          "responsive two-button layout 768x1024",
+          "responsive two-button layout 844x390",
+          "unknown balance loading never fabricates or blocks editing",
+          "unknown balance error never fabricates or blocks editing",
+          "verified zero is displayed",
+          "trial purchase gate retained",
+          "private preview has no paid credit claim",
+          "saving does not block continuing",
+          "saved state retains continue action",
+          "saved-work limit management retained",
+          "save retry retained",
+          "focus trap and Escape"
+        ],
+        "errors": []
+      }
+    },
+    "portraitClothingScenarios": 15,
+    "processCreditPreflightScenarios": 12,
+    "creditViewScenarios": 7,
+    "studioRights": "passed"
+  },
+  "limits": [
+    "No production deployment or writes",
+    "No customer account or paid AI call",
+    "Browser engines on test machine, not physical devices",
+    "Preview credit amounts are fixture values"
+  ],
+  "retainedPreviousFix": "Portrait native garment cleanup before existing completion checks; exact previous source retained except the new receipt balance reader and prop wiring."
+}
