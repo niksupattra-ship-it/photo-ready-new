@@ -55,7 +55,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
-     <Feature>ดาวน์โหลดรูปได้ทุกขนาด</Feature>
+     <Feature>ดาวน์โหลดรูปได้ทุกขนาด 1″ 1.5″ 2″ 2.5″<br/>หรือไฟล์ความละเอียดสูง 2256 × 3072 px</Feature>
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
    </article>
@@ -68,7 +68,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
-     <Feature>ดาวน์โหลดรูปได้ทุกขนาด</Feature>
+     <Feature>ดาวน์โหลดรูปได้ทุกขนาด 1″ 1.5″ 2″ 2.5″<br/>หรือไฟล์ความละเอียดสูง 2256 × 3072 px</Feature>
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
    </article>
