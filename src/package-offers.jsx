@@ -1,8 +1,8 @@
 import {ServiceTermsLink} from './service-terms.jsx';
 import React from 'react';
 
-function Feature({children,unavailable=false}){
- return <li><span className={'package-round-check'+(unavailable?' unavailable':'')} aria-hidden="true">{unavailable?'−':'✓'}</span><span>{children}</span></li>;
+function Feature({children,unavailable=false,credit=false}){
+ return <li>{credit?<svg width="24" height="22" viewBox="0 0 24 22" fill="none" aria-hidden="true" style={{flex:'0 0 24px'}}><path d="M2 7 7 1.5h10L22 7 12 20.5Z" fill="#42bfd9" stroke="#249dbb" strokeWidth=".8"/><path d="m7 1.5 5 5.5 5-5.5M2 7h20M7 1.5l5 19 5-19" stroke="#c7f3fa" strokeWidth=".7"/></svg>:<span className={'package-round-check'+(unavailable?' unavailable':'')} aria-hidden="true">{unavailable?'−':'✓'}</span>}<span>{children}</span></li>;
 }
 function PromptPaySymbol(){
  return <span className="package-promptpay-symbol" aria-label="PromptPay"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h2v2h-2zM17 17h2v2h-2z" fill="currentColor"/></svg><span>Prompt<span style={{color:'#168db7'}}>Pay</span></span></span>;
@@ -51,7 +51,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>149 บาท</del></div>
     <div className="package-price">89 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>เครดิตประมวลผลรูปหรือเปลี่ยนผม 2 ครั้ง</Feature>
+     <Feature credit>2 เครดิต</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
@@ -64,7 +64,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
     <div className="package-original-price"><del>199 บาท</del></div>
     <div className="package-price">159 <small>บาท</small></div>
     <ul className="package-features">
-     <Feature>เครดิตประมวลผลรูปหรือเปลี่ยนผม 10 ครั้ง</Feature>
+     <Feature credit>10 เครดิต</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
      <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
@@ -80,6 +80,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
   <div className="package-secure package-promptpay-footer"><PromptPaySymbol/><span>ชำระเงินผ่านพร้อมเพย์</span></div>
  </>;
 }
+
 
 
 
