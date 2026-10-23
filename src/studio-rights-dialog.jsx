@@ -3,12 +3,12 @@ export function rightsSummary(data,unlimited=false){
  const count=value=>Math.max(0,Math.floor(Number(value)||0));
  return {credits:unlimited?'∞':count(data.processRemaining??data.generationRemaining),trial:unlimited?'∞':data.trialAvailable===true?count(data.trialRemaining):0};
 }
-export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,unlimited=false}){
- const [data,setData]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,unlimited=false,initialData=null}){
+ const [data,setData]=useState(()=>initialData&&Number.isFinite(Number(initialData.processRemaining??initialData.generationRemaining))?initialData:null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
  const panel=useRef(null),callbacks=useRef({request,headers,onRights});callbacks.current={request,headers,onRights};
  useEffect(()=>{const previous=document.activeElement;panel.current?.querySelector('button')?.focus();return()=>previous?.focus?.()},[]);
  useEffect(()=>{let cancelled=false;setLoading(true);setError('');(async()=>{
-  try{const c=callbacks.current,r=await c.request('/api/wallet',{headers:c.headers(),cache:'no-store'});
+  try{const c=callbacks.current,r=await c.request('/api/wallet',{headers:c.headers(),cache:'no-store'},8000);
    if(r.status===401)throw Error('กรุณาเข้าสู่ระบบด้วยบัญชีที่รับเครดิตไว้');
    const next=await r.json();if(!r.ok)throw Error(next.message||'โหลดเครดิตไม่สำเร็จ กรุณาลองใหม่');
    if(!Number.isFinite(Number(next.processRemaining??next.generationRemaining)))throw Error('ยังตรวจสอบยอดเครดิตไม่ได้ กรุณาลองใหม่');
@@ -23,7 +23,9 @@ export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,
   <section ref={panel} className="studio-rights-card" role="dialog" aria-modal="true" aria-labelledby="studio-rights-title" aria-busy={loading}>
    <div className="studio-rights-heading"><h2 id="studio-rights-title">เครดิตคงเหลือของคุณ</h2><button className="studio-rights-close" onClick={onClose} aria-label="ปิดเครดิตคงเหลือ">×</button></div>
    <p className="studio-rights-brand">IDพร้อม Studio</p>
-   {loading?<p className="studio-rights-status" role="status">กำลังตรวจสอบเครดิตล่าสุด…</p>:error?<><p className="studio-rights-status studio-rights-error" role="alert">{error}</p><button className="studio-rights-retry" onClick={()=>setRevision(v=>v+1)}>ตรวจสอบอีกครั้ง</button></>:<>
+   {loading&&!data?<p className="studio-rights-status" role="status">กำลังตรวจสอบเครดิตล่าสุด…</p>:error&&!data?<><p className="studio-rights-status studio-rights-error" role="alert">{error}</p><button className="studio-rights-retry" onClick={()=>setRevision(v=>v+1)}>ตรวจสอบอีกครั้ง</button></>:<>
+    {loading&&<p className="studio-rights-status" role="status">ยอดที่แสดงเป็นข้อมูลล่าสุดที่โหลดไว้ กำลังอัปเดต…</p>}
+    {error&&<><p className="studio-rights-status studio-rights-error" role="alert">ยังอัปเดตยอดไม่ได้ ยอดที่แสดงอาจเปลี่ยนแปลง กรุณาลองใหม่</p><button className="studio-rights-retry" onClick={()=>setRevision(v=>v+1)}>ตรวจสอบอีกครั้ง</button></>}
     <div className="studio-rights-row"><span>เครดิตในบัญชี<small>ประมวลผลรูปหรือเปลี่ยนทรงผม</small></span><strong className="studio-rights-count">{balance.credits}<small>ครั้ง</small></strong></div>
     <div className="studio-rights-row"><span>เครดิตทดลองวันนี้<small>ผลใหม่มีลายน้ำ</small></span><strong className="studio-rights-count">{balance.trial}<small>ครั้ง</small></strong></div>
     <p className="studio-rights-note">รูปที่รับเครดิตแล้ว ยังบันทึกและดาวน์โหลดต่อได้แม้เครดิตหมด การประมวลผลรูปหรือทรงผมใหม่ใช้เครดิตตามที่แสดงข้างต้น</p>
@@ -32,4 +34,5 @@ export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,
   </section>
  </div>;
 }
+
 
