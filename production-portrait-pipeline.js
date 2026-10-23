@@ -6,12 +6,33 @@ import {requestReviewSeedream} from './seedream-review-transport.js';
 import {femaleFinishFor} from './review-portrait-finish.js';
 import {productionHair,selectedHairInstruction,selectedHairPlacement} from './hairstyle-catalog.js';
 
+export function parsePortraitIdentityBox(value){
+ if(value===undefined||value===null||value==='')return null;
+ let box;try{box=typeof value==='string'?JSON.parse(value):value}catch{throw Error('ข้อมูลกรอบใบหน้าต้นฉบับไม่ถูกต้อง กรุณาลองใหม่')}
+ if(!Array.isArray(box)||box.length!==4||box.some(n=>typeof n!=='number'||!Number.isFinite(n)||n<0||n>1)||box[0]>=box[2]||box[1]>=box[3])throw Error('ข้อมูลกรอบใบหน้าต้นฉบับไม่ถูกต้อง กรุณาลองใหม่');
+ return [...box];
+}
+export async function portraitIdentityCrop(input,box){
+ if(!box)return null;
+ // Browser landmarks use the display orientation, including EXIF rotation.
+ const metadata=await sharp(input.buffer).metadata(),{width,height}=metadata.autoOrient||metadata;
+ if(!width||!height)throw Error('อ่านภาพต้นฉบับสำหรับยืนยันใบหน้าไม่ได้');
+ const left=Math.floor(box[0]*width),top=Math.floor(box[1]*height),right=Math.ceil(box[2]*width),bottom=Math.ceil(box[3]*height);
+ if(right-left<16||bottom-top<16)throw Error('ใบหน้าในภาพต้นฉบับเล็กเกินไป กรุณาใช้ภาพที่เห็นใบหน้าชัดเจน');
+ // The close-up is derived only from this request's uploaded image. It is an
+ // additional view of the same person, never a previous output or reference.
+ // Bound only the conditioning view. The original input and generated master
+ // retain their existing dimensions, and small faces are never enlarged.
+ return sharp(input.buffer).rotate().extract({left,top,width:right-left,height:bottom-top}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+}
+
 export function validateProductionPortrait(input,fields={}){
  if(!input?.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(input.mimetype))throw Error('กรุณาใช้ภาพ PNG, JPG หรือ WEBP');
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
  const id=fields.hairId||'original',selected=productionHair(id);
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
+ parsePortraitIdentityBox(fields.faceIdentityBox);
  return selected;
 }
 export function productionPortraitPrompt(selected,femaleEyeStyle="natural"){
@@ -41,8 +62,10 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
   prompt+="\nMALE DEFAULT HAIRSTYLE: No second image is supplied. Create the following haircut instead of preserving source hair; this instruction overrides references to keeping the old haircut, fringe, parting or length. Keep the existing skin/cosmetics, neckline cutout, no-earrings and transparent-edge requirements.\nMALE INITIAL PORTRAIT — CONSISTENT NEAT SHORT HAIRCUT:\nFor EVERY customer-selected MALE first portrait, create a NEW neat professional short haircut, even if the source has long hair, thick bangs, a fringe covering the forehead/brows or an untidy style. Use the unchanged customer's skull and face to fit the cut. Keep the top short but naturally combable, lying close to the head with modest volume and individually resolved strands. Brush it gently back or slightly to one side, leaving the ENTIRE forehead and BOTH eyebrows uncovered. Do not require a central part or invent a tall quiff, pompadour, spiky crown, excessive thickness or a helmet-like wig.\nKeep both sides and the nape short with a soft natural taper; no skin-shaved sides, extreme high fade, harsh undercut, shaved line or decorative cut. Expose both complete ears. Keep the upper side hair above or discreetly behind the upper ear attachment, without dangling wisps, hanging strands, long sideburns or tails beside the cheek, below the ears or onto the neck. Remove obsolete original long/back hair and source fringe; reconstruct only previously hidden skin/ear regions according to the existing clean-ear policy. Use natural deep-black/charcoal variation and restrained photographic highlights, not flat painted black or metallic gloss.\nApply this grooming within the SAME initial portrait request. Preserve the original identity, facial geometry and proportions, eyes, eyebrows, nose, mouth, expression and asymmetry; do not masculinize, slim, stretch or mirror the face. Preserve the established skin treatment, pores, complexion, neck anatomy/coverage, lighting, framing and transparency. This overrides only conflicting SOURCE hairstyle, fringe, parting or volume retention for the MALE first portrait. It does not affect female portraits or subsequent local PNG hairstyle placement.";
  }else if(!chosen)prompt=prompt.replaceAll('Image 2',"the original hairstyle in Image 1")+'\nORIGINAL HAIRSTYLE OVERRIDE: No second image is supplied. Preserve the original hairstyle, length, parting, fringe, hairline and volume in Image 1. Do not invent a replacement hairstyle. Apply the same gender-specific finish, neckline cutout and ear-jewellery removal.';
  const hair=chosen?await readFile(path.join(root,'public','assets','seedream-hairstyles','references',chosen.file)):null;
+ const identity=await portraitIdentityCrop(input,parsePortraitIdentityBox(fields.faceIdentityBox));
+ if(identity)prompt+=`\nUPLOADED-PERSON IDENTITY DETAIL — IMAGE ${hair?3:2}: This last image is a close-up cropped directly from Image 1 in this same request, showing the SAME uploaded person, not another person or another hairstyle reference. Use it to retain this person's individual eye shapes and spacing, nose, mouth, cheeks, jaw/chin, stable marks and recognisable identity while applying the requested cosmetic and lighting finish. Image 1 remains the authority for head scale, framing and overall pose; the magnified close-up must NOT enlarge the output head or change camera distance. ${hair?'Image 2 supplies HAIR DESIGN ONLY: never copy its face, skin, ears, skull or beauty proportions. The selected parting, fringe, cut length and silhouette still come only from Image 2.':'There is no separate hairstyle-reference image; do not treat this identity close-up as a new haircut request.'} Keep all existing skin/makeup, pose, neck, cutout and selected-hair instructions. This is one coherent generation of the same uploaded person; no face substitution.\n`;
  await onStage('generation');
- const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair});
+ const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair,identity});
  await onStage('matting');
  const matted=await removeBackground(result.png);
  await onStage('edges');

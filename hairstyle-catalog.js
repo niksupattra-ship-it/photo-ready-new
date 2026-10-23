@@ -263,7 +263,7 @@ const compact={
  'seedream-10':['bob','side-parted rounded jaw-length bob'],
  'seedream-12':['short','compact side-swept pixie with short tapered sides and nape'],
  'seedream-13':['gathered','fully gathered braided updo, open forehead and clean neck'],
- 'seedream-19':['bob','straight shoulder-skimming blunt bob, centre part; stop at the reference ends'],
+ 'seedream-19':['bob','straight shoulder-skimming blunt bob with a centre part and completely open forehead, NO forehead bangs or fringe; stop at the reference ends'],
  'seedream-20':['gathered','compact centre-parted hairstyle lying close to the scalp; clean temples and ears, no loose temple pieces, no visible bun and no hanging back curtain'],
  'seedream-22':['short','neck-length layered shag with centre-parted fringe; no extensions below its short ends'],
  'seedream-24':['bob','short textured chin-length bob with a light fringe'],

@@ -1,0 +1,215 @@
+{
+  "baseline": {
+    "repository": "niksupattra-ship-it/photo-ready-new",
+    "commit": "97e8854f553304d7a035f34393c385c2c8cccb9c"
+  },
+  "runtimeChanged": [
+    "src/main.jsx",
+    "hairstyle-catalog.js",
+    "production-portrait-pipeline.js",
+    "seedream-review-transport.js",
+    "src/selected-hair-check.js"
+  ],
+  "runtimeHashes": {
+    "src/main.jsx": "963fd692413024b34454e146f4b2475fa1cff9338fac19e5ee8dddf0d85ca1ee",
+    "hairstyle-catalog.js": "e26c3a3299f4b4847b4b57fa5f60f45d50d598f23fcd0b43c24ecf0d89a9a276",
+    "production-portrait-pipeline.js": "7ae17213ab9114e8ad01a187981d27bd5c1beca1e5280a3776f0f2558550f86e",
+    "seedream-review-transport.js": "72ff7923ede63c06d2c70d0ff93ea3dc5c14e341c9408d73b6298a714999052a",
+    "src/selected-hair-check.js": "828efcc6fe87507e84b676e32a2e34f2649a5544a7b48640886a460c155a2987"
+  },
+  "unchangedComparedByteForByte": [
+    "server.js",
+    "payment-store.js",
+    "job-store.js",
+    "src/studio-editor.jsx",
+    "src/process-result-notice.jsx",
+    "src/process-result-notice.css",
+    "src/package-offers.jsx",
+    "src/replace-studio-source.js",
+    "src/portrait-completion-check.js",
+    "src/wallet-refresh.js",
+    "package.json",
+    "package-lock.json"
+  ],
+  "verification": {
+    "build": {
+      "passed": true,
+      "modules": 118,
+      "bundle": "index-CcGDR6Ao.js",
+      "existingLargeBundleWarning": true
+    },
+    "secondUploadContractScenarios": 12,
+    "identityAnchorScenarios": 10,
+    "selectedHairStructuralScenarios": 15,
+    "legacyHairstyleCatalogPrompts": 35,
+    "productionPipelineMock": "passed",
+    "portraitClothingScenarios": 15,
+    "processCreditPreflightScenarios": 12,
+    "receiptBalanceScenarios": 9,
+    "studioRights": "passed",
+    "portraitUniformFit": "passed",
+    "realMediaPipeBrowserChecks": {
+      "chromium": {
+        "engine": "Chromium",
+        "method": "Actual local MediaPipe image segmenter and face landmarker; exact eye alignment + candidate pure JS helper",
+        "helperSha256": "828efcc6fe87507e84b676e32a2e34f2649a5544a7b48640886a460c155a2987",
+        "attemptedImages": 42,
+        "detectedImages": 40,
+        "catalogSelfMatches": 35,
+        "totalSelfMismatches": 0,
+        "selected19vs21": {
+          "measurable": true,
+          "mismatch": true,
+          "reason": "unexpected_fringe",
+          "reference": {
+            "measurable": true,
+            "hairPixels": 14129,
+            "fringe": 0,
+            "fringeTop": 124,
+            "fringeBottom": 137,
+            "leftBottom": 262,
+            "rightBottom": 262,
+            "chinY": 223.23603820676686,
+            "length": 0.6056869030192678,
+            "lengthMeasurable": true
+          },
+          "output": {
+            "measurable": true,
+            "hairPixels": 22784,
+            "fringe": 0.7375,
+            "fringeTop": 123,
+            "fringeBottom": 137,
+            "leftBottom": 319,
+            "rightBottom": 319,
+            "chinY": 222.45186295181884,
+            "length": 1.5085646413778306,
+            "lengthMeasurable": false
+          }
+        },
+        "negativeVariants": [
+          {
+            "id": "other-female-open",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "other-male-open",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "19-warm",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "19-scaled",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "19-short-forehead",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          }
+        ],
+        "limitations": [
+          "No production AI output or original photo B available",
+          "Cannot identify every hairstyle or detect face identity",
+          "Catalog reference PNGs have no face and intentionally cannot normalize; compare uses their catalog previews",
+          "False-positive evaluation limited to these catalog and five perturbed/example images"
+        ]
+      },
+      "webkit": {
+        "engine": "WebKit",
+        "method": "Actual local MediaPipe image segmenter and face landmarker; exact eye alignment + candidate pure JS helper",
+        "helperSha256": "828efcc6fe87507e84b676e32a2e34f2649a5544a7b48640886a460c155a2987",
+        "attemptedImages": 42,
+        "detectedImages": 40,
+        "catalogSelfMatches": 35,
+        "totalSelfMismatches": 0,
+        "selected19vs21": {
+          "measurable": true,
+          "mismatch": true,
+          "reason": "unexpected_fringe",
+          "reference": {
+            "measurable": true,
+            "hairPixels": 14130,
+            "fringe": 0,
+            "fringeTop": 124,
+            "fringeBottom": 137,
+            "leftBottom": 262,
+            "rightBottom": 262,
+            "chinY": 223.2360382067669,
+            "length": 0.6056869030192673,
+            "lengthMeasurable": true
+          },
+          "output": {
+            "measurable": true,
+            "hairPixels": 22782,
+            "fringe": 0.7375,
+            "fringeTop": 123,
+            "fringeBottom": 137,
+            "leftBottom": 319,
+            "rightBottom": 319,
+            "chinY": 222.4518629518188,
+            "length": 1.508564641377831,
+            "lengthMeasurable": false
+          }
+        },
+        "negativeVariants": [
+          {
+            "id": "other-female-open",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "other-male-open",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "19-warm",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "19-scaled",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          },
+          {
+            "id": "19-short-forehead",
+            "mismatch": false,
+            "reason": null,
+            "fringe": 0
+          }
+        ],
+        "limitations": [
+          "No production AI output or original photo B available",
+          "Cannot identify every hairstyle or detect face identity",
+          "Catalog reference PNGs have no face; compare uses catalog previews",
+          "Limited catalog/example/perturbed images, not an all-photo guarantee or physical iOS device test"
+        ]
+      }
+    }
+  },
+  "scope": "Optional source-bound face crop and selected-style structural validation apply to replacement-source selected hairstyles. Original and initial request shapes stay unchanged; seedream-19 prompt explicitly forbids fringe.",
+  "limits": [
+    "No live AI generation or production/customer/financial writes",
+    "Original photo B and raw output for reported job unavailable",
+    "Identity crop conditions the model but is not a pixel identity guarantee or identity recognition",
+    "Structural hair check covers clear fringe and measurable length contradictions, not all style IDs; uncertain reference evidence retains existing checks",
+    "Local browser engines, not physical devices",
+    "No extra generation request or automatic paid retry; provider billing was not live-tested"
+  ]
+}
