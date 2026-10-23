@@ -92,7 +92,7 @@ app.post("/api/payments/confirm",async(req,res)=>{
     if(!wid||!sessionId)return res.status(400).json({error:"payment_confirmation_required"});
     const session=await stripeGet(`checkout/sessions/${encodeURIComponent(sessionId)}`);
     if(session?.payment_status!=="paid")return res.status(409).json({error:"payment_not_paid",message:"ยังไม่พบการชำระเงินสำเร็จ"});
-    if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าสิทธิ์ของเครื่อง"});
+    if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าเครดิตของเครื่อง"});
     const packageId=String(session.metadata?.package_id||"149");
     const out=await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
     res.json({ok:true,...out});
@@ -101,16 +101,16 @@ app.post("/api/payments/confirm",async(req,res)=>{
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req))})});
 app.get("/api/wallet",async(req,res)=>{try{const w=await getWallet(walletId(req));if(!w)return res.status(404).json({error:"wallet_not_found"});res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req)),history:await walletHistory(w.walletId)})}catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
-app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับสิทธิ์โค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
+app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับเครดิตโค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
 app.post('/api/promo/redeem',async(req,res)=>{
  try{
-  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาสมัครสมาชิกหรือเข้าสู่ระบบเพื่อรับสิทธิ์ฟรี'});
+  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาสมัครสมาชิกหรือเข้าสู่ระบบเพื่อรับเครดิตฟรี'});
   const wid=user.wallet_id,jobId=String(req.body?.jobId||'');
   if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id||'').startsWith('trial_'))return res.status(403).json({error:'image_not_owned',message:'ไม่พบรูปทดลองของบัญชีนี้'})}
   const out=await redeemPromoPackage(wid,req.body?.code,jobId);
   if(!out.ok)return res.status(409).json({error:out.reason,message:out.reason==='used'?'ลิงก์นี้ถูกใช้แล้ว':'ลิงก์ไม่ถูกต้อง'});
   res.json(out);
- }catch(e){console.error('Promo redemption:',e);res.status(500).json({error:'promo_failed',message:'รับสิทธิ์ไม่สำเร็จ กรุณาลองใหม่'})}
+ }catch(e){console.error('Promo redemption:',e);res.status(500).json({error:'promo_failed',message:'รับเครดิตไม่สำเร็จ กรุณาลองใหม่'})}
 });
 app.post('/api/payments/checkout',async(req,res)=>{
  try{
@@ -408,12 +408,12 @@ async function savedWorkRights(wid,project){
 }
 app.post('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const user=req.accountUser;if(!user)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อบันทึกงาน'});
- const project=req.body?.project;if(!await savedWorkRights(user.wallet_id,project))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับสิทธิ์แล้ว'});
+ const project=req.body?.project;if(!await savedWorkRights(user.wallet_id,project))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับเครดิตแล้ว'});
  const work=await saveWork(user.wallet_id,String(req.body?.id||''),project);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json(work);
 }catch(e){if(e.code==='saved_work_limit')return res.status(409).json({error:e.code,limit:MAX_SAVED_WORKS,message:e.message});res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
 app.get('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});res.json({items:await listWorks(req.accountUser.wallet_id),limit:MAX_SAVED_WORKS})}catch(e){res.status(500).json({message:'โหลดงานไม่สำเร็จ'})}});
 app.delete('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อลบงาน'});const removed=await deleteWork(req.accountUser.wallet_id,req.params.id);if(!removed)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json({ok:true,id:removed.id})}catch(e){res.status(500).json({message:'ลบงานไม่สำเร็จ กรุณาลองใหม่'})}});
-app.get('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});const work=await getWork(req.accountUser.wallet_id,req.params.id);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});if(!await savedWorkRights(req.accountUser.wallet_id,work.project))return res.status(403).json({message:'ไม่มีสิทธิ์เปิดงานนี้'});res.json({...work,unlocked:true})}catch(e){res.status(500).json({message:'เปิดงานไม่สำเร็จ'})}});
+app.get('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});const work=await getWork(req.accountUser.wallet_id,req.params.id);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});if(!await savedWorkRights(req.accountUser.wallet_id,work.project))return res.status(403).json({message:'ไม่มีเครดิตเปิดงานนี้'});res.json({...work,unlocked:true})}catch(e){res.status(500).json({message:'เปิดงานไม่สำเร็จ'})}});
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{
@@ -432,4 +432,5 @@ app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",confi
 app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
+
 

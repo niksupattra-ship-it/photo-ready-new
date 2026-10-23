@@ -14,7 +14,7 @@ async function access(c,owner,sourceJobId,reserving=false){
  let used;
  if(bucket==='trial'){
   const trial=await c.query('SELECT fingerprint FROM trial_previews WHERE id=$1',[source.rows[0].usage_id]);
-  if(!trial.rowCount)throw Error('ไม่พบสิทธิ์ทดลองของรูปนี้');
+  if(!trial.rowCount)throw Error('ไม่พบเครดิตทดลองของรูปนี้');
   const fingerprint=trial.rows[0].fingerprint;
   // Same device/day is shared by both trial portraits, including linked wallets.
   if(reserving){
@@ -39,5 +39,6 @@ export async function settleHairAi(id,success){
  const r=await pool.query(success?"UPDATE youcam_hair_usage SET status='completed' WHERE id=$1 AND status='reserved' AND expires_at>now() RETURNING status":"UPDATE youcam_hair_usage SET status='released' WHERE id=$1 AND status='reserved' RETURNING status",[id]);
  if(r.rowCount)return r.rows[0].status;
  const old=await pool.query('SELECT status FROM youcam_hair_usage WHERE id=$1',[id]);const status=old.rows[0]?.status;
- if(success&&status!=='completed')throw Error('สิทธิ์งานนี้หมดอายุ กรุณาลองใหม่');return status;
+ if(success&&status!=='completed')throw Error('เครดิตงานนี้หมดอายุ กรุณาลองใหม่');return status;
 }
+
