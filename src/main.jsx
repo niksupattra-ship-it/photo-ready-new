@@ -1,3 +1,4 @@
+import {inspectPortraitGarments,inspectUnchangedPortraitHair} from './portrait-completion-check.js';
 import {removePortraitClothingAlpha} from './replace-studio-source.js';
 import {ServiceTermsLink} from './service-terms.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
@@ -2230,6 +2231,35 @@ async function checkPortraitProportions(source,result){
   error.code='face_proportion_changed';throw error;
  }
 }
+// Check the returned AI cutout before hydration and delivery confirmation.
+// Evidence canvases are small; the output master is never resampled or edited.
+async function portraitCompletionEvidence(blob,includeGarments=false){
+ const im=await decodedPortraitImage(blob),W=im.naturalWidth,H=im.naturalHeight;
+ const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+ const masks=await getV192MasterMasks(blob,im);
+ if(!face?.[33]||!face?.[263]||!face?.[152]||!face?.[234]||!face?.[454]||!masks.hairMask||(includeGarments&&!masks.clothingMask))throw Object.assign(Error('ตรวจความครบถ้วนของภาพไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+ const lx=face[33].x*W,ly=face[33].y*H,rx=face[263].x*W,ry=face[263].y*H,d=Math.hypot(rx-lx,ry-ly);
+ if(d<8)throw Object.assign(Error('ใบหน้าเล็กเกินไปสำหรับตรวจผล กรุณาใช้รูปที่เห็นใบหน้าชัด'),{code:'portrait_finish_incomplete'});
+ const ex=(rx-lx)/d,ey=(ry-ly)/d,k=64/d,cx=(lx+rx)/2,cy=(ly+ry)/2;
+ const normal=src=>{const c=canvasFor(256,320),ctx=c.getContext('2d');ctx.setTransform(k*ex,-k*ey,k*ey,k*ex,128-k*(ex*cx+ey*cy),144-k*(-ey*cx+ex*cy));ctx.drawImage(src,0,0);return ctx.getImageData(0,0,256,320).data};
+ const evidence={pixels:normal(im),hair:normal(masks.hairMask)};
+ if(includeGarments){
+  const scale=Math.min(1,384/Math.max(W,H)),w=Math.max(1,Math.round(W*scale)),h=Math.max(1,Math.round(H*scale));
+  const sample=src=>{const c=canvasFor(w,h),ctx=c.getContext('2d');ctx.drawImage(src,0,0,w,h);return ctx.getImageData(0,0,w,h).data};
+  evidence.garments=inspectPortraitGarments({pixels:sample(im),clothing:sample(masks.clothingMask),width:w,height:h,chinY:face[152].y*h,faceWidth:Math.hypot((face[454].x-face[234].x)*w,(face[454].y-face[234].y)*h)});
+ }
+ return evidence;
+}
+async function checkPortraitCompletion(originalFile,result,hairId){
+ const output=await portraitCompletionEvidence(result,true);
+ if(!output.garments?.measurable)throw Object.assign(Error('ตรวจเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+ if(output.garments.retained)throw Object.assign(Error('AI ยังตัดเสื้อเดิมออกไม่ครบ ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+ if(hairId&&hairId!=='original'){
+  const source=await portraitCompletionEvidence(originalFile),hair=inspectUnchangedPortraitHair(source,output);
+  if(hair.unchanged)throw Object.assign(Error('AI ยังคืนทรงผมเดิมโดยแทบไม่เปลี่ยนแปลง ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+ }
+}
+
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const template=options.templatePath||options.jobContext?.uniformTemplate||'';
  const gender=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
@@ -2240,7 +2270,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const key=JSON.stringify([HAIR_DESIGN_VERSION,gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-korean-gloss-v19-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  const cached=await portraitResultCache.get(key,()=>aiFinishPortraitUncached(originalFile,hairId,options,neckline));
- try{await checkPortraitProportions(originalFile,cached.value)}catch(error){if(firstPortrait)portraitResultCache.delete(key);throw error}
+ try{await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId)}catch(error){portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
@@ -4065,6 +4095,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+
 
 
 
