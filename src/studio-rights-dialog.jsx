@@ -6,22 +6,25 @@ export function rightsSummary(data,unlimited=false){
 }
 export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,unlimited=false,initialData=null,refresh=null,accountScope=''}){
  const [data,setData]=useState(()=>hasWalletBalance(initialData)?initialData:null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
- const panel=useRef(null),callbacks=useRef({request,headers,onRights,refresh});callbacks.current={request,headers,onRights,refresh};
+ const panel=useRef(null),callbacks=useRef({request,headers,onRights,refresh,initialData});callbacks.current={request,headers,onRights,refresh,initialData};
  useEffect(()=>{const previous=document.activeElement;panel.current?.querySelector('button')?.focus();return()=>previous?.focus?.()},[]);
  // An authoritative payment/usage update can arrive while a read is pending.
  // Adopt its scoped balance without starting another request on each render.
  useEffect(()=>{if(hasWalletBalance(initialData))setData(initialData)},[accountScope,initialData?.processRemaining,initialData?.generationRemaining,initialData?.trialRemaining,initialData?.trialAvailable,initialData?.hasPurchased]);
- useEffect(()=>{let cancelled=false;setData(hasWalletBalance(initialData)?initialData:null);setLoading(true);setError('');(async()=>{
+ useEffect(()=>{let cancelled=false;setData(hasWalletBalance(initialData)?initialData:null);setLoading(true);setError('');
+  const version=value=>JSON.stringify([value?.walletId??'',value?.processRemaining??value?.generationRemaining??null,value?.trialRemaining??null,value?.trialAvailable??null,value?.hasPurchased??null]);
+  const requestedVersion=version(callbacks.current.initialData),current=()=>!cancelled&&version(callbacks.current.initialData)===requestedVersion;
+  (async()=>{
   try{const c=callbacks.current;let next;
    if(c.refresh)next=await c.refresh();
    else{
-    const r=await c.request('/api/wallet?summary=1',{headers:c.headers(),cache:'no-store'},15000);
+    const r=await c.request('/api/wallet/balance',{headers:c.headers(),cache:'no-store'},8000);
     if(r.status===401)throw Error('กรุณาเข้าสู่ระบบด้วยบัญชีที่รับเครดิตไว้');
     next=await r.json();if(!r.ok)throw Error(next.message||'โหลดเครดิตไม่สำเร็จ กรุณาลองใหม่');
    }
    if(!hasWalletBalance(next))throw Error('ยังตรวจสอบยอดเครดิตไม่ได้ กรุณาลองใหม่');
-   if(!cancelled){setData(next);if(!c.refresh)c.onRights(next)}
-  }catch(e){if(!cancelled&&e.code!=='WALLET_REFRESH_SUPERSEDED')setError(e.message||'ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')}
+   if(current()){setData(next);if(!c.refresh)c.onRights(next)}
+  }catch(e){if(current()&&e.code!=='WALLET_REFRESH_SUPERSEDED')setError(e.message||'ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')}
   finally{if(!cancelled)setLoading(false)}
  })();return()=>{cancelled=true}},[revision,accountScope]);
  const displayData=data||(hasWalletBalance(initialData)?initialData:null),balance=displayData?rightsSummary(displayData,unlimited):null;
