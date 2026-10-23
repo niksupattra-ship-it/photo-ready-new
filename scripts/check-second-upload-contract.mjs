@@ -4,6 +4,7 @@ import {createAiResultCache,resultSourceDigest} from '../src/ai-result-cache.js'
 import {inspectSelectedPortraitHair} from '../src/selected-hair-check.js';
 import {replaceStudioSourceLayers} from '../src/replace-studio-source.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
+import {isFreeFemaleHair} from '../src/free-female-hair.js';
 
 // Run the real browser request/cache/completion functions with mocked network,
 // landmarks and decoded pixels. No provider request, payment or customer data.
@@ -178,6 +179,7 @@ await test('the actual Studio upload-to-selection path commits B and preserves s
   liveAdjustRef:{current:{}},setHeadAdjust:noop,liveCollarWarpRef:{current:0},setCollarWarp:noop,liveCollarHeightRef:{current:0},setCollarHeight:noop,liveNeckAdjustRef:{current:{}},setNeckAdjust:noop,setPlacementLocked:noop,lockedPlacementRef:{current:null},lockedMasterRef:{current:null},
   hairResultCacheRef:{current:new Map([['old','old-A']])},preparedHairBaseRef:{current:null},lastHairDonorRef:{current:null},cleanHairBaseRef:{current:null},initialStyledHairRef:{current:null},studioHairOriginRef:{current:'old'},setHairId:noop,rememberHairResult:()=>({}),window:{dispatchEvent:noop},CustomEvent:class{}
  };
+ Object.assign(env,{isFreeFemaleHair,hasFreeHair:()=>false,applyFreeHair:()=>{throw Error('paid second-upload fixture must not use local hair')},showFreeHairNotice:()=>{throw Error('paid second-upload fixture must not use the free-hair guard')}});
  const from=(source,start,end,name)=>{const a=source.indexOf(start),b=source.indexOf(end,a);assert(a>=0&&b>a,name);return new Function('env',`with(env){${source.slice(a,b)};return ${name}}`)(env)};
  env.onProcessPhoto=from(main," const processStudioPhoto=async(file,template,selectedHair='',portraitMode)=>{",'\n const applyStudioMakeup=','processStudioPhoto');
  const process=from(editor,' const processPhoto=async(options={})=>{','\n useEffect','processPhoto');

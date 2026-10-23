@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {hasWalletBalance,walletScope} from '../src/wallet-refresh.js';
+import {isFreeFemaleHair} from '../src/free-female-hair.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
 function extract(source,start,end,name,env){const a=source.indexOf(start),b=source.indexOf(end,a);assert(a>=0&&b>a,name);return new Function('env','with(env){'+source.slice(a,b)+';return '+name+'}')(env)}
 const tick=()=>new Promise(r=>setImmediate(r)),deferred=()=>{let resolve,reject;const promise=new Promise((r,j)=>{resolve=r;reject=j});return {promise,resolve,reject}};
@@ -22,7 +23,9 @@ await test('changing account while checking eligibility cannot apply or use an o
 await test('changing account while the trial decision is open cannot authorize the previous request',async()=>{const f=fixture(eligible(0,1,true));f.env.setTrialChoice=value=>f.calls.prompts.push(value);const pending=f.run();await tick();assert.equal(f.calls.prompts.length,1);f.identity.token='other';f.identity.wallet='other-wallet';f.env.trialChoiceResolve.current(true);await assert.rejects(pending,/บัญชีเปลี่ยน/)});
 await test('private trial and an already-open trial decision keep their previous bypass rules',async()=>{const f=fixture();f.env.privateTrialActive=true;assert.equal(await f.run(),true);assert.equal(f.calls.read.length,0);f.env.privateTrialActive=false;f.env.trialChoiceResolve.current=()=>{};assert.equal(await f.run(),false);assert.equal(f.calls.read.length,0)});
 function editorFixture(onBeforeProcess){
+ const freeHairFixture={isFreeFemaleHair,showFreeHairNotice:()=>{throw Error('paid fixture must not use the free-hair guard')}};
  const events=[],env={setCheckingCredits:v=>events.push(['checking',v]),setAssetBusy:v=>events.push(['assetBusy',v]),setStatus:v=>events.push(['status',v]),onBeforeProcess,processRequestRef:{current:false},sourcePhoto:{idpromFemaleEyeStyle:'makeup'},processActive:false,assetBusy:false,ready:true,onProcessPhoto:async()=>{events.push(['AI']);return {layer:{source:'output',jobId:'fixture',femaleEyeStyle:'makeup'},placement:{}}},state:{current:[{id:'source',kind:'source-photo'}]},sourceLayerRef:{current:'source'},pendingHairProcessRef:{current:{hairId:'hair-01',portraitMode:'female'}},portraitMode:'female',setPortraitProcessError:v=>events.push(['error',v]),mounted:{current:true},setProcessHairPending:()=>{},setPicker:()=>{},setHairNotice:()=>{},historySnapshot:()=>[{id:'source',kind:'source-photo'}],layerKind:l=>l.kind,touch:false,setHairConfirmed:()=>{},setProcessingPhoto:v=>events.push(['processing',v]),placementRef:{current:{}},isProcessCancelled:()=>false,fresh:v=>v,portraitFinishChoice:()=> 'makeup',hydrate:async()=>true,onFinishProcess:async()=>{},sessionUnlockedJobs:{current:new Set()},hairStyleMemory:{current:{clear(){}}},youcamHairMemory:{current:{clear(){}}},undo:{current:[]},redo:{current:[]},resetBrushSession:()=>{},setTool:()=>{},setSelected:()=>{},setRevision:()=>{},setSelectedHair:()=>{},trackPhotoType:()=>{},reportProcessedResult:()=>{}};
+ Object.assign(env,freeHairFixture);
  env.checkProcessCredits=extract(editor,' const checkProcessCredits=async()=>{','\n const processPhoto=','checkProcessCredits',env);
  const run=extract(editor,' const processPhoto=async(options={})=>{','\n useEffect','processPhoto',env);return {events,env,run};
 }
