@@ -4,6 +4,7 @@ import {packageFor} from './package-rules.js';
 // Separate, best-effort notification store. Payment/credit settlement never depends on this.
 const {Pool}=pg;
 let pool;
+let tableReady;
 function db(){
  if(!pool)pool=new Pool({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:3000,ssl:process.env.DATABASE_URL?.includes('localhost')?false:{rejectUnauthorized:false},max:2});
  return pool;
@@ -20,11 +21,12 @@ export async function sendPaymentConfirmation({id,email,packageId}){
  // A short lease prevents concurrent webhook, polling and return-confirmation emails.
  // Failed sends can be retried by subsequent verified settlement events.
  const client=db();
- await client.query(`CREATE TABLE IF NOT EXISTS payment_email_notifications (
+ if(!tableReady)tableReady=client.query(`CREATE TABLE IF NOT EXISTS payment_email_notifications (
   payment_id text PRIMARY KEY, recipient text NOT NULL,
   status text NOT NULL DEFAULT 'pending', claimed_at timestamptz,
   sent_at timestamptz, resend_id text
- )`);
+ )`).catch(error=>{tableReady=null;throw error});
+ await tableReady;
  await client.query("INSERT INTO payment_email_notifications(payment_id,recipient) VALUES($1,$2) ON CONFLICT(payment_id) DO NOTHING",[id,recipient]);
  const claim=await client.query(`UPDATE payment_email_notifications SET status='sending',claimed_at=now()
   WHERE payment_id=$1 AND (status='pending' OR (status='sending' AND claimed_at<now()-interval '2 minutes'))
