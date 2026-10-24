@@ -18,7 +18,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
+import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -438,8 +438,8 @@ setInterval(resumeQueuedAiJobs,60000);
 
 
 async function savedWorkRights(wid,project){
- const ids=validateProject(project),ent=await imageEntitlements(wid);
- for(const id of ids){const j=await getAiJobResult(id,wid);if(!j||j.status!=='completed'||!(String(j.usage_id||'').startsWith('use_')||ent.unlockedJobIds.includes(id)))return false}return true;
+ const ids=validateProject(project),[jobs,ent]=await Promise.all([getAiJobsAccess(ids,wid),imageEntitlements(wid)]),byId=new Map(jobs.map(job=>[job.id,job]));
+ for(const id of ids){const j=byId.get(id);if(!j||j.status!=='completed'||!(String(j.usage_id||'').startsWith('use_')||ent.unlockedJobIds.includes(id)))return false}return true;
 }
 registerSavedWorkApi(app,{savedWorkRights});
 

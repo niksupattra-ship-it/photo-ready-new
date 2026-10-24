@@ -3,12 +3,13 @@ import {readFile} from 'node:fs/promises';
 import {once} from 'node:events';
 import http from 'node:http';
 import express from 'express';
+import {packSavedProjectTransfer,getSavedWorkRequestSize} from '../src/saved-work-transfer.js';
 
 // Replace only database dependencies; exercise the actual HTTP/worker modules.
 const stub='data:text/javascript,'+encodeURIComponent('const fail=()=>{throw Error("unexpected default store call")};export const MAX_SAVED_WORKS=3,saveWork=fail,listWorks=fail,getWork=fail,deleteWork=fail,getSavedWorkRetentionPolicy=fail,purgeExpiredWorks=fail;');
 async function isolated(path){
  const source=await readFile(new URL(path,import.meta.url),'utf8');
- const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`);
+ const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,new URL(path,import.meta.url)).href}'`);
  assert.notEqual(code,source,'store import must be replaced');
  return import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 }
@@ -115,7 +116,7 @@ await check('stop prevents later work and rescheduling during an in-flight opera
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const code=main.slice(main.indexOf(' const saveAccountWork='),main.indexOf(' const savedWorkOpenRequestRef='));
 function saveHandler(response){
- const requests=[],env={workSaveQueueRef:{current:Promise.resolve()},savedWorkIdRef:{current:'work_expired'},savedWorkOpenRequestRef:{current:1},currentWalletId:()=> 'wallet_A',walletHeaders:()=>({}),setSavedWorksOpen:()=>{},Blob,portraitFetch:async(url,options)=>{requests.push(JSON.parse(options.body));return response(requests.length)}};
+ const requests=[],env={packSavedProjectTransfer,getSavedWorkRequestSize,encodeSavedWorkRequest:async body=>({body,headers:{}}),workSaveQueueRef:{current:Promise.resolve()},savedWorkIdRef:{current:'work_expired'},savedWorkOpenRequestRef:{current:1},currentWalletId:()=> 'wallet_A',walletHeaders:()=>({}),setSavedWorksOpen:()=>{},Blob,portraitFetch:async(url,options)=>{requests.push(JSON.parse(options.body));return response(requests.length)}};
  return {save:new Function('env','with(env){'+code+';return saveAccountWork}')(env),requests,env};
 }
 await check('expired410 never falls through to deleted-work replacement or resets active id',async()=>{
