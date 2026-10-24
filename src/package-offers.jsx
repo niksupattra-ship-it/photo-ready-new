@@ -53,7 +53,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      <Feature credit>2 เครดิต</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
-     <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
+     <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน (หมดอายุ 45 วัน)</Feature>
      <Feature>ดาวน์โหลดรูปได้ทุกขนาด 1″ 1.5″ 2″ 2.5″<br/>หรือไฟล์ความละเอียดสูง 2256 × 3072 px</Feature>
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 89 บาท'}</button>
@@ -66,7 +66,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
      <Feature credit>10 เครดิต</Feature>
      <Feature>เปลี่ยนชุด / พื้นหลัง ได้ทุกแบบ</Feature>
      <Feature>ใช้เครื่องมือปรับแต่งรูป</Feature>
-     <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน</Feature>
+     <Feature>บันทึกงานในบัญชีได้สูงสุด 3 งาน (หมดอายุ 45 วัน)</Feature>
      <Feature>ดาวน์โหลดรูปได้ทุกขนาด 1″ 1.5″ 2″ 2.5″<br/>หรือไฟล์ความละเอียดสูง 2256 × 3072 px</Feature>
     </ul>
     <button className="package-select-btn" disabled={payBusy} onClick={()=>startCheckout('159')}>{payBusy?'กำลังเปิด PromptPay…':'เลือก 159 บาท'}</button>
@@ -79,7 +79,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,startCheckout}){
    </article>
    <article className="package-guidance-card package-guidance-save-card">
     <div className="package-guidance-card-main"><PackageGuideArt kind="save"/><div className="package-guidance-copy"><h3>การเก็บงาน</h3><p>กรุณาบันทึกหรือดาวน์โหลดรูป ก่อนออกจากหน้า Studio</p></div></div>
-    <div className="package-guidance-callout"><PackageGuideNotice warning/><p>หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้</p></div>
+    <div className="package-guidance-callout"><PackageGuideNotice warning/><p>หากไม่บันทึกหรือดาวน์โหลดภาพไว้บนอุปกรณ์ของท่าน งานเดิมจะหายและจะเรียกเครดิตคืนหรือเงินคืนไม่ได้ งานที่บันทึกมีอายุ 45 วันหลังจากบันทึกครั้งแรก</p></div>
    </article>
   </section>
   <div className="package-guidance-trial"><div className="package-guidance-trial-title"><PackageGuideArt kind="gift"/><strong>ทดลองฟรีวันละ 2 ครั้งพร้อมลายน้ำ</strong></div><div className="package-guidance-trial-condition"><PackageGuideClock/><span>เมื่อซื้อแพ็กเกจ เครดิตทดลองที่เหลือของวันนั้นจะสิ้นสุด</span></div></div>
