@@ -16,5 +16,5 @@ assert(deltas[rough]<0,'raised bright rough patches should soften');
 for(const [x,y] of [[12,12],[65,65]])assert.deepEqual([...deltas.slice((y*W+x)*3,(y*W+x)*3+3)],[0,0,0]);
 assert([...deltas].every(v=>Number.isFinite(v)&&Math.abs(v)<=10));
 const clear=skinBlemishField(new Uint8ClampedArray(Array.from({length:W*H},()=>[184,145,126,255]).flat()),W,H,coverage,{radius:6});assert(clear.deltas.every(v=>v===0));
-for(const style of ['natural','makeup']){const prompt=femaleFinishFor(style);for(const text of ['FEMALE ACNE AND ROUGH-SKIN PRIORITY','whiteheads, blackheads','shallow acne pits','stable mole','No whitening'])assert(prompt.includes(text));}
+for(const style of ['natural','makeup']){const prompt=femaleFinishFor(style);for(const text of ['FEMALE ACNE AND ROUGH-SKIN PRIORITY','whiteheads, blackheads','shallow acne pits','stable mole'])assert(prompt.includes(text));if(style==='natural')assert(prompt.includes('No whitening'));else{assert(prompt.includes('Retain the specified fairer, brighter cosmetic skin tone.'));assert(prompt.includes('No chalk-white clipping'));assert(!prompt.includes('No whitening'));}}
 console.log('PASS: red blemish contrast reduced, rough surface softened, dark marks/excluded features/alpha protected, clear skin unchanged, corrections bounded, both female prompts include acne policy.');
