@@ -223,6 +223,20 @@ export const PRODUCTION_HAIR_CATALOG=[
     "name": "ทรงผม 34",
     "file": "34.png",
     "src": "/assets/seedream-hairstyles/previews/34.webp"
+  },
+  {
+    "id": "seedream-36",
+    "gender": "male",
+    "name": "ทรงผม 36",
+    "file": "36.png",
+    "src": "/assets/seedream-hairstyles/previews/36.webp"
+  },
+  {
+    "id": "seedream-37",
+    "gender": "male",
+    "name": "ทรงผม 37",
+    "file": "37.png",
+    "src": "/assets/seedream-hairstyles/previews/37.webp"
   }
 ];
 export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||null}
@@ -236,6 +250,8 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 export const HAIR_DESIGN_VERSION='selected-silhouette-v4-independent-results';
 const compact={
+ 'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
+ 'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
  'seedream-01':['short','neck-length layered shag with a centre-parted fringe; only the short ends shown in the reference'],
  'seedream-05':['bob','sleek centre-parted short bob ending at the jaw'],
  'seedream-09':['gathered','fully gathered braided crown updo; no loose side or back lengths'],
