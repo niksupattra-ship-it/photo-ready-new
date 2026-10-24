@@ -1,0 +1,39 @@
+.idprom-support-trigger{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #cbdfee;border-radius:999px;padding:7px 10px;background:#f1f7ff;color:#1768b6;font:inherit;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;min-height:44px;box-sizing:border-box}
+.idprom-support-trigger svg{width:26px;height:26px;flex:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.idprom-support-trigger.is-compact{width:44px;min-width:44px;padding:8px;border-radius:12px}
+.idstudio .idprom-support-trigger.is-compact{background:#20353e;color:#78dcd3;border:1px solid #49616a}
+.idprom-support-trigger:focus-visible,.idprom-support-dialog button:focus-visible,.idprom-support-dialog a:focus-visible,.idprom-support-dialog summary:focus-visible{outline:3px solid #40a8d9;outline-offset:3px}
+.idprom-support-dialog{box-sizing:border-box;width:min(720px,calc(100% - 24px));max-height:calc(100dvh - 32px);padding:0;border:0;border-radius:22px;background:#fff;color:#20364d;box-shadow:0 24px 80px #071b3740;overflow:auto;overscroll-behavior:contain;font-family:inherit}
+.idprom-support-dialog::backdrop{background:#071525b8;backdrop-filter:blur(3px)}
+.idprom-support-header{display:flex;justify-content:space-between;align-items:center;gap:16px;position:sticky;top:0;z-index:1;padding:22px 24px;background:#fff;border-bottom:1px solid #e5edf1}
+.idprom-support-header small{font-size:12px;color:#667c8d}
+.idprom-support-header h2{font-size:24px;line-height:1.4;margin:4px 0 0;color:#20364d}
+.idprom-support-header button{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;border:0;border-radius:12px;background:#f0f5f7;color:#405465;font:inherit;font-size:27px;cursor:pointer}
+.idprom-support-content{padding:22px 24px;line-height:1.8;font-size:14px;overflow-wrap:anywhere}
+.idprom-support-content h3{margin:0 0 7px;font-size:17px;line-height:1.5;color:#20364d}
+.idprom-support-content p{margin:0 0 12px;color:#526b7b}
+.idprom-support-contact{padding:18px;border:1px solid #d8e6f5;border-radius:16px;background:#f5f9ff}
+.idprom-support-email-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:10px 0}
+.idprom-support-email-row a{color:#1768b6;font-size:19px;font-weight:700;text-decoration:none;user-select:text;-webkit-user-select:text}
+.idprom-support-email-row button{padding:7px 11px;border:1px solid #cbdfee;border-radius:9px;background:#fff;color:#295b83;font:inherit;font-size:12px;cursor:pointer;min-height:40px}
+.idprom-support-send{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:10px;background:#176fd2;color:#fff;text-decoration:none;font-weight:700;box-sizing:border-box}
+.idprom-support-content .idprom-support-copy-status{margin:7px 0 0;font-size:12px;color:#176858}
+.idprom-support-copy-status:empty{display:none}
+.idprom-support-troubleshooting{margin-top:24px}
+.idprom-support-content .idprom-support-note{padding:12px 14px;border-radius:12px;background:#f3f7f9;color:#516779;font-size:12px}
+.idprom-support-topics{display:grid;gap:9px}
+.idprom-support-topics details{border:1px solid #dde7ee;border-radius:12px;overflow:hidden;background:#fff}
+.idprom-support-topics summary{display:flex;justify-content:space-between;align-items:center;gap:14px;list-style:none;padding:14px 16px;cursor:pointer;font-weight:700;line-height:1.6}
+.idprom-support-topics summary::-webkit-details-marker{display:none}
+.idprom-support-topics summary svg{width:19px;height:19px;flex:none;stroke:#5c788c;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.idprom-support-topics details[open] summary{background:#f6fafc;color:#166d79}
+.idprom-support-topics details[open] summary svg{transform:rotate(180deg)}
+.idprom-support-topics ol{margin:12px 16px 16px;padding-left:24px;color:#526b7b}
+.idprom-support-topics li+li{margin-top:8px}
+.idprom-support-evidence{margin-top:24px;padding-top:20px;border-top:1px solid #e5edf1}
+.idprom-support-evidence ul{padding-left:21px;margin:8px 0 12px;color:#526b7b}
+.idprom-support-content .idprom-support-evidence p{margin:0;font-size:12px;color:#667c8d}
+.idprom-support-footer{padding:16px 24px;border-top:1px solid #e5edf1}
+.idprom-support-footer button{width:100%;padding:12px 16px;min-height:46px;border:0;border-radius:11px;background:#117c70;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+@media(max-width:720px){.studio-top-actions .idprom-support-trigger,.process-mobile-topbar .idprom-support-trigger{width:40px;min-width:40px;min-height:40px;padding:6px}.studio-top-actions .idprom-support-trigger>span,.process-mobile-topbar .idprom-support-trigger>span{display:none}}
+@media(max-width:600px){.idprom-support-header{padding:16px}.idprom-support-header h2{font-size:21px}.idprom-support-content{padding:16px}.idprom-support-contact{padding:15px}.idprom-support-email-row a{font-size:18px}.idprom-support-topics summary{padding:13px}.idprom-support-footer{padding:14px 16px}}
