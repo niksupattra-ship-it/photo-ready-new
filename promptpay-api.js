@@ -26,7 +26,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
  }catch(e){console.error('IDPROM checkout: QR create',e);res.status(400).json({error:'promptpay_create_failed',message:'สร้าง QR ไม่สำเร็จ กรุณาลองอีกครั้ง'})}});
  app.get('/api/payments/promptpay/:id',async(req,res)=>{try{
   res.set('Cache-Control','no-store');const intent=await owned(req);
-  if(intent.status==='succeeded'){const out=await settlePromptpay(intent,creditPaid);await notifyPaymentSafely({id:intent.id,email:intent.metadata?.receipt_email||intent.receipt_email,packageId:intent.metadata?.package_id});return res.json({...details(intent),ok:true,...out})}
+  if(intent.status==='succeeded'){const out=await settlePromptpay(intent,creditPaid);void notifyPaymentSafely({id:intent.id,email:intent.metadata?.receipt_email||intent.receipt_email,packageId:intent.metadata?.package_id});return res.json({...details(intent),ok:true,...out})}
   res.json({...details(intent),ok:false});
  }catch(e){console.error('IDPROM checkout: QR status',e);res.status(e.message==='payment_not_owned'?403:400).json({error:e.message,message:'ตรวจสอบการชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง'})}});
  app.post('/api/payments/promptpay/:id/cancel',async(req,res)=>{try{
