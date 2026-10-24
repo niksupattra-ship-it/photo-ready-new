@@ -7,7 +7,9 @@ import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
 import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY} from './hairstyle-fit-policy.js';
 import {selectedHairstyleRule} from './hairstyle-rules.js';
-import {validateProject,saveWork,listWorks,getWork,deleteWork,MAX_SAVED_WORKS} from './saved-work-store.js';
+import {validateProject} from './saved-work-store.js';
+import {registerSavedWorkApi} from './saved-work-api.js';
+import {startSavedWorkRetentionCleanup} from './saved-work-retention-worker.js';
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -439,14 +441,7 @@ async function savedWorkRights(wid,project){
  const ids=validateProject(project),ent=await imageEntitlements(wid);
  for(const id of ids){const j=await getAiJobResult(id,wid);if(!j||j.status!=='completed'||!(String(j.usage_id||'').startsWith('use_')||ent.unlockedJobIds.includes(id)))return false}return true;
 }
-app.post('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{
- const user=req.accountUser;if(!user)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อบันทึกงาน'});
- const project=req.body?.project;if(!await savedWorkRights(user.wallet_id,project))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับเครดิตแล้ว'});
- const work=await saveWork(user.wallet_id,String(req.body?.id||''),project);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json(work);
-}catch(e){if(e.code==='saved_work_limit')return res.status(409).json({error:e.code,limit:MAX_SAVED_WORKS,message:e.message});res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
-app.get('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});res.json({items:await listWorks(req.accountUser.wallet_id),limit:MAX_SAVED_WORKS})}catch(e){res.status(500).json({message:'โหลดงานไม่สำเร็จ'})}});
-app.delete('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อลบงาน'});const removed=await deleteWork(req.accountUser.wallet_id,req.params.id);if(!removed)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json({ok:true,id:removed.id})}catch(e){res.status(500).json({message:'ลบงานไม่สำเร็จ กรุณาลองใหม่'})}});
-app.get('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});const work=await getWork(req.accountUser.wallet_id,req.params.id);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});if(!await savedWorkRights(req.accountUser.wallet_id,work.project))return res.status(403).json({message:'ไม่มีเครดิตเปิดงานนี้'});res.json({...work,unlocked:true})}catch(e){res.status(500).json({message:'เปิดงานไม่สำเร็จ'})}});
+registerSavedWorkApi(app,{savedWorkRights});
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{
@@ -465,6 +460,7 @@ app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",confi
 app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
+startSavedWorkRetentionCleanup();
 
 
 

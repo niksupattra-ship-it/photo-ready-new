@@ -3,9 +3,19 @@ import {deadlineFetch} from './deadline-fetch.js';
 import {withDeadline} from './async-deadline.js';
 const savedWorkAccountScope=headers=>{const values=new Headers(headers);return JSON.stringify([values.get('Authorization')||'',values.get('X-Wallet-Id')||''])};
 const savedWorkData=async response=>{try{return await response.json()}catch(error){if(response.ok||error.name==='TimeoutError'||error.name==='AbortError')throw error;return null}};
+const savedWorkTimestamp=value=>typeof value==='string'&&value?Date.parse(value):NaN;
+const savedWorkDate=value=>{const time=savedWorkTimestamp(value);return Number.isFinite(time)?new Date(time).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}):null};
+function WorkExpiry({expiresAt,serverNow}){
+ const expires=savedWorkTimestamp(expiresAt),date=savedWorkDate(expiresAt);
+ if(!date)return <p className="idprom-saved-expiry">วันหมดอายุยังไม่พร้อม กรุณาโหลดรายการอีกครั้ง</p>;
+ const remaining=expires-savedWorkTimestamp(serverNow),known=Number.isFinite(remaining);
+ const state=!known?'':remaining<=0?' expired':remaining<86400000?' urgent':remaining<=604800000?' soon':'';
+ const label=!known?'':remaining<=0?'ครบกำหนดจัดเก็บแล้ว':remaining<86400000?'เหลือน้อยกว่า 1 วัน':'เหลือ '+Math.ceil(remaining/86400000)+' วัน';
+ return <p className={'idprom-saved-expiry'+state}><time dateTime={expiresAt}>เก็บถึง {date} น. (เวลาไทย)</time>{label&&<span>{label}</span>}</p>;
+}
 const Icon=({kind})=><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{kind==='trash'?<><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></>:kind==='close'?<path d="m6 6 12 12M18 6 6 18"/>:kind==='open'?<><path d="M9 5h10v14H9M3 12h11m-4-4 4 4-4 4"/></>:<><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="m5 18 5-5 3 3 3-4 3 6"/></>}</svg>;
 export function SavedWorks({headers,onOpen,onClose,onDelete}){
- const [items,setItems]=useState([]),[message,setMessage]=useState('กำลังโหลดงาน…'),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[limit,setLimit]=useState(3),[deleteId,setDeleteId]=useState(null),[revision,setRevision]=useState(0),[canReload,setCanReload]=useState(false);
+ const [items,setItems]=useState([]),[message,setMessage]=useState('กำลังโหลดงาน…'),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[limit,setLimit]=useState(3),[deleteId,setDeleteId]=useState(null),[revision,setRevision]=useState(0),[canReload,setCanReload]=useState(false),[retention,setRetention]=useState(null);
  const panel=useRef(null),lifetime=useRef({active:true}),listRequest=useRef(null),action=useRef(null),callbacks=useRef({headers,onOpen,onClose,onDelete});callbacks.current={headers,onOpen,onClose,onDelete};
  const scopeNow=()=>{try{return savedWorkAccountScope(callbacks.current.headers())}catch{return null}};
  const accountScope=scopeNow();
@@ -14,12 +24,12 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
  useEffect(()=>{const life={active:true};lifetime.current=life;const previous=document.activeElement;panel.current?.querySelector('button')?.focus();const escape=event=>{if(event.key==='Escape'&&life.active){event.preventDefault();event.stopPropagation();close()}};document.addEventListener('keydown',escape,true);return()=>{life.active=false;listRequest.current?.abort();action.current?.controller.abort();document.removeEventListener('keydown',escape,true);previous?.focus?.()}},[]);
  useEffect(()=>{
   const controller=new AbortController();listRequest.current=controller;const active=()=>lifetime.current.active&&listRequest.current===controller&&!controller.signal.aborted&&scopeNow()===accountScope;
-  action.current?.controller.abort();action.current=null;setBusy(false);setItems([]);setDeleteId(null);
+  action.current?.controller.abort();action.current=null;setBusy(false);setItems([]);setDeleteId(null);setRetention(null);
   setLoading(true);setCanReload(false);setMessage('กำลังโหลดงาน…');
   (async()=>{try{
    const r=await deadlineFetch('/api/saved-work',{headers:callbacks.current.headers(),cache:'no-store',signal:controller.signal});const d=await savedWorkData(r);
    if(!r.ok)throw Error(d?.message||'โหลดงานไม่สำเร็จ');if(!Array.isArray(d?.items))throw Error('ข้อมูลรายการงานไม่ครบ กรุณาโหลดรายการอีกครั้ง');
-   if(active()){setItems(d.items);setLimit(Number(d.limit)>0?Number(d.limit):3);setMessage('')}
+   if(active()){setItems(d.items);setLimit(Number(d.limit)>0?Number(d.limit):3);setRetention(d.retention&&d.retention.days===45?d.retention:null);setMessage('')}
   }catch(error){if(active()){setMessage(error.message||'โหลดงานไม่สำเร็จ');setCanReload(true)}}finally{if(active())setLoading(false)}})();
   return()=>{controller.abort();if(listRequest.current===controller)listRequest.current=null};
  },[revision,accountScope]);
@@ -27,15 +37,19 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
  const finish=task=>{if(action.current===task){action.current=null;if(lifetime.current.active)setBusy(false)}};
  const open=async id=>{const task=begin();if(!task)return;setMessage('กำลังเปิดงานเต็มความละเอียด…');try{
   const r=await deadlineFetch('/api/saved-work/'+encodeURIComponent(id),{headers:task.headers,cache:'no-store',signal:task.controller.signal});const d=await savedWorkData(r);
-  if(!r.ok)throw Error(d?.message||'เปิดงานไม่สำเร็จ');if(!current(task))return;
+  if(!current(task))return;
+  if(r.status===410&&d?.error==='saved_work_expired'){setItems(previous=>previous.filter(item=>item.id!==id));setDeleteId(null);setMessage(d.message||'งานนี้หมดอายุการจัดเก็บแล้ว กรุณาดาวน์โหลดงานอื่นก่อนหมดอายุ');setCanReload(true);return}
+  if(!r.ok)throw Error(d?.message||'เปิดงานไม่สำเร็จ');
   await withDeadline(()=>callbacks.current.onOpen(d,{signal:task.controller.signal,accountScope:task.accountScope}),{timeoutMs:60000,message:'เปิดงานใช้เวลานาน กรุณาลองอีกครั้ง งานเดิมยังอยู่',code:'SAVED_WORK_OPEN_TIMEOUT',onTimeout:()=>task.controller.abort()});
   if(current(task))close();
- }catch(error){if(lifetime.current.active&&action.current===task){setMessage(error.message||'เปิดงานไม่สำเร็จ');setCanReload(true)}}finally{finish(task)}};
+ }catch(error){if(lifetime.current.active&&action.current===task&&task.accountScope===scopeNow()){setMessage(error.message||'เปิดงานไม่สำเร็จ');setCanReload(true)}}finally{finish(task)}};
  const remove=async id=>{const task=begin();if(!task)return;setMessage('กำลังลบงาน…');try{
   const r=await deadlineFetch('/api/saved-work/'+encodeURIComponent(id),{method:'DELETE',headers:task.headers,signal:task.controller.signal});const d=await savedWorkData(r);
-  if(!r.ok)throw Error(d?.message||'ลบงานไม่สำเร็จ');if(!current(task))return;
+  if(!current(task))return;
+  if(r.status===410&&d?.error==='saved_work_expired'){setItems(previous=>previous.filter(item=>item.id!==id));setDeleteId(null);setMessage(d.message||'งานนี้หมดอายุการจัดเก็บแล้ว');setCanReload(true);return}
+  if(!r.ok)throw Error(d?.message||'ลบงานไม่สำเร็จ');
   setItems(previous=>previous.filter(item=>item.id!==id));setDeleteId(null);callbacks.current.onDelete?.(id);setMessage('ลบงานแล้ว · บันทึกงานใหม่ได้เมื่อมีช่องว่าง');
- }catch(error){if(lifetime.current.active&&action.current===task){setDeleteId(null);setMessage(error.name==='TimeoutError'?'ยังยืนยันผลการลบไม่ได้ กรุณาโหลดรายการอีกครั้งเพื่อตรวจสอบ':error.message||'ลบงานไม่สำเร็จ');setCanReload(true)}}finally{finish(task)}};
+ }catch(error){if(lifetime.current.active&&action.current===task&&task.accountScope===scopeNow()){setDeleteId(null);setMessage(error.name==='TimeoutError'?'ยังยืนยันผลการลบไม่ได้ กรุณาโหลดรายการอีกครั้งเพื่อตรวจสอบ':error.message||'ลบงานไม่สำเร็จ');setCanReload(true)}}finally{finish(task)}};
  const keys=e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close()}if(e.key==='Tab'){const buttons=[...panel.current.querySelectorAll('button:not(:disabled)')];if(!buttons.length)return;const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}};
  return <div className="idprom-saved-overlay" onKeyDown={keys} onClick={e=>{if(e.target===e.currentTarget)close()}}>
  <style>{`
@@ -47,6 +61,8 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
  .idprom-saved-full{padding:12px 14px;margin:0 0 16px;border:1px solid #7b6040;background:#3d3328;color:#f9d9a4;border-radius:11px;font-size:13px;line-height:1.65}.idprom-saved-full strong{display:block}
  .idprom-saved-list{display:grid;gap:10px}.idprom-saved-row{display:flex;gap:12px;align-items:center;padding:14px;background:#1d313d;border:1px solid #35505d;border-radius:13px;flex-wrap:wrap}.idprom-saved-index{width:38px;height:43px;display:grid;place-items:center;background:#29424d;border-radius:8px;color:#6fded5;flex-shrink:0}.idprom-saved-detail{flex:1;min-width:130px}.idprom-saved-detail strong{display:block;font-size:14px;color:#f0f7f8;line-height:1.5}.idprom-saved-detail time{display:block;font-size:12px;color:#a9bec8;margin:3px 0}.idprom-saved-detail small{font-size:11px;color:#68d9c9}.idprom-saved-actions{display:flex;gap:7px}.idprom-saved-open,.idprom-saved-delete,.idprom-saved-cancel{display:flex;gap:6px;align-items:center;justify-content:center;border-radius:8px;padding:9px 11px;font-size:12px;border:1px solid #42606b;background:#223b46;color:#e1f1f4}.idprom-saved-open{border-color:#51d8cf;background:#4edbcf;color:#102e35;font-weight:600}.idprom-saved-delete{border-color:#795054;background:#392f37;color:#f4afb4}.idprom-saved-confirm{width:100%;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;border-top:1px solid #3c515c;padding-top:12px;font-size:12px;color:#f0b5b8}.idprom-saved-confirm span{margin-right:auto}
  .idprom-saved-empty{padding:30px 12px;text-align:center;color:#abc1c9;font-size:14px;line-height:1.8;border:1px dashed #3c5662;border-radius:12px}.idprom-saved-status{font-size:13px;color:#bcece5;line-height:1.65;margin:14px 0 0}.idprom-saved-footer{margin-top:20px;padding-top:15px;border-top:1px solid #304752;display:flex;align-items:center;justify-content:space-between;gap:12px}.idprom-saved-footer small{font-size:12px;color:#a5bbc6;line-height:1.5}
+ .idprom-saved-retention{padding:12px 14px;margin:0 0 16px;border:1px solid #355a61;background:#19343c;border-radius:11px;font-size:12px;line-height:1.75;color:#c5dedf;overflow-wrap:anywhere}.idprom-saved-retention strong{display:block;color:#8ce6dc;font-size:13px}.idprom-saved-retention p{margin:4px 0 0}.idprom-saved-retention .idprom-saved-legacy{padding-top:7px;margin-top:7px;border-top:1px solid #355a61;color:#d4e6e8}
+ .idprom-saved-detail .idprom-saved-expiry{margin:6px 0;font-size:12px;color:#b4d7d9;line-height:1.65}.idprom-saved-expiry time{color:inherit;margin:0}.idprom-saved-expiry span{display:block;font-weight:600}.idprom-saved-detail .idprom-saved-expiry.soon{color:#f2d89e}.idprom-saved-detail .idprom-saved-expiry.urgent,.idprom-saved-detail .idprom-saved-expiry.expired{color:#ffb6b5}
  /* Keep this dialog within the viewport even inside a wide Studio canvas. */
  .idprom-saved-overlay{box-sizing:border-box;grid-template-columns:minmax(0,1fr);justify-items:center;min-width:0;overflow:hidden}
  .idprom-saved-dialog{min-width:0;width:min(580px,100%);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
@@ -65,11 +81,12 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
  <section ref={panel} className="idprom-saved-dialog" role="dialog" aria-modal="true" aria-labelledby="idprom-saved-title" aria-describedby="idprom-saved-description" aria-busy={busy||loading}>
  <header className="idprom-saved-heading"><span className="idprom-saved-brand"><Icon/></span><div><h2 id="idprom-saved-title">งานที่บันทึกไว้</h2><p id="idprom-saved-description">เปิดงานเดิมด้วยบัญชีอีเมลเดียวกัน</p></div><button className="idprom-saved-close" aria-label="ปิดรายการงาน" onClick={close}><Icon kind="close"/></button></header>
  <div className="idprom-saved-capacity"><div className="idprom-saved-capacity-label"><span>พื้นที่เก็บงานของคุณ</span><strong>{loading?'…':items.length} / {limit} งาน</strong></div><div className="idprom-saved-meter" aria-hidden="true"><span style={{width:Math.min(100,items.length/limit*100)+'%'}}/></div></div>
+ {!loading&&<aside className="idprom-saved-retention" aria-label="ระยะเวลาเก็บงาน"><strong>เก็บงานในบัญชี 45 วัน</strong><p>นับจากการบันทึกครั้งแรก เมื่อครบกำหนดระบบจะลบงานอัตโนมัติ กรุณาดาวน์โหลดรูปเก็บไว้ในอุปกรณ์</p><p>การเปิด แก้ไข หรือบันทึกซ้ำไม่ต่ออายุงาน</p>{savedWorkDate(retention?.effectiveAt)&&savedWorkDate(retention?.legacyExpiresAt)&&<p className="idprom-saved-legacy">งานเดิมที่บันทึกก่อนเริ่มเงื่อนไข {savedWorkDate(retention.effectiveAt)} น. ได้เวลาเก็บอีก 45 วัน ถึง {savedWorkDate(retention.legacyExpiresAt)} น. (เวลาไทย)</p>}</aside>}
  {!loading&&items.length>=limit&&<p className="idprom-saved-full" role="alert"><strong>พื้นที่เก็บงานเต็มแล้ว</strong>ลบงานเก่าก่อนบันทึกงานใหม่ · ยังบันทึกทับงานเดิมได้</p>}
- <div className="idprom-saved-list">{items.map((item,index)=><article key={item.id} className="idprom-saved-row"><span className="idprom-saved-index"><Icon/></span><div className="idprom-saved-detail"><strong>{item.name||'รูป IDพร้อม'}</strong><time dateTime={item.updated_at}>{new Date(item.updated_at).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})}</time><small>เปิดแก้ไขต่อได้ · ไม่มีลายน้ำ</small></div><div className="idprom-saved-actions"><button className="idprom-saved-open" disabled={busy||loading||deleteId===item.id} onClick={()=>open(item.id)} aria-label={'เปิดงาน '+(index+1)}><Icon kind="open"/>เปิดงาน</button><button className="idprom-saved-delete" disabled={busy||loading} aria-label={'ลบงาน '+(index+1)} onClick={()=>setDeleteId(deleteId===item.id?null:item.id)}><Icon kind="trash"/>ลบ</button></div>{deleteId===item.id&&<div className="idprom-saved-confirm"><span>ลบงานนี้? เมื่อลบแล้วจะกู้คืนไม่ได้</span><button className="idprom-saved-cancel" disabled={busy} onClick={()=>setDeleteId(null)}>ยกเลิก</button><button className="idprom-saved-delete" disabled={busy} onClick={()=>remove(item.id)}>ยืนยันลบ</button></div>}</article>)}</div>
+ <div className="idprom-saved-list">{items.map((item,index)=><article key={item.id} className="idprom-saved-row"><span className="idprom-saved-index"><Icon/></span><div className="idprom-saved-detail"><strong>{item.name||'รูป IDพร้อม'}</strong><time dateTime={item.updated_at}>บันทึกล่าสุด {savedWorkDate(item.updated_at)||'ไม่ระบุเวลา'}</time><WorkExpiry expiresAt={item.expires_at} serverNow={retention?.serverNow}/><small>เปิดแก้ไขต่อได้ · ไม่มีลายน้ำ</small></div><div className="idprom-saved-actions"><button className="idprom-saved-open" disabled={busy||loading||deleteId===item.id} onClick={()=>open(item.id)} aria-label={'เปิดงาน '+(index+1)}><Icon kind="open"/>เปิดงาน</button><button className="idprom-saved-delete" disabled={busy||loading} aria-label={'ลบงาน '+(index+1)} onClick={()=>setDeleteId(deleteId===item.id?null:item.id)}><Icon kind="trash"/>ลบ</button></div>{deleteId===item.id&&<div className="idprom-saved-confirm"><span>ลบงานนี้? เมื่อลบแล้วจะกู้คืนไม่ได้</span><button className="idprom-saved-cancel" disabled={busy} onClick={()=>setDeleteId(null)}>ยกเลิก</button><button className="idprom-saved-delete" disabled={busy} onClick={()=>remove(item.id)}>ยืนยันลบ</button></div>}</article>)}</div>
  {!loading&&!items.length&&!message&&<div className="idprom-saved-empty">ยังไม่มีงานที่บันทึกไว้<br/>กด “บันทึก” ใน Studio เพื่อเก็บงาน</div>}
  {message&&<p className="idprom-saved-status" role="status">{message}</p>}
  {canReload&&<button className="idprom-saved-cancel" disabled={busy||loading} onClick={()=>{setDeleteId(null);setRevision(value=>value+1)}}>โหลดรายการอีกครั้ง</button>}
- <footer className="idprom-saved-footer"><small>เก็บได้สูงสุด {limit} งานต่อบัญชี</small><button className="idprom-saved-cancel" onClick={close}>กลับไป Studio</button></footer>
+ <footer className="idprom-saved-footer"><small>เก็บได้สูงสุด {limit} งานต่อบัญชี · งานละ 45 วัน</small><button className="idprom-saved-cancel" onClick={close}>กลับไป Studio</button></footer>
  </section></div>;
 }
