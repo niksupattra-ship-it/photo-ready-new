@@ -7,6 +7,9 @@ import {StudioRightsDialog} from './studio-rights-dialog.jsx';
 import {createWalletRefresh,hasWalletBalance,walletScope} from './wallet-refresh.js';
 import {fetchOutputRights,outputAccessResult} from './output-rights.js';
 import {makeSavedProject,prepareSavedProject} from './saved-project.js';
+import {packSavedProjectTransfer,getSavedWorkRequestSize} from './saved-work-transfer.js';
+import {encodeSavedWorkRequest} from './saved-work-request.js';
+import {decodedStudioImage} from './studio-image-cache.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 import {FREE_FEMALE_HAIR_OPTIONS,isFreeFemaleHair} from './free-female-hair.js';
@@ -2989,9 +2992,19 @@ function App(){
   const task=workSaveQueueRef.current.catch(()=>{}).then(async()=>{
   if(wallet!==currentWalletId()||scope!==savedWorkOpenRequestRef.current)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาบันทึกงานปัจจุบันอีกครั้ง');
   const targetId=options.workId||savedWorkIdRef.current;
-  const body=JSON.stringify({id:options.createCopy?'':targetId,project});
-  if(new Blob([body]).size>64*1024*1024)throw Error('งานนี้มีขนาดเกิน 64 MB กรุณาลบเลเยอร์ที่ไม่ใช้แล้วบันทึกใหม่');
-  const send=payload=>portraitFetch('/api/saved-work',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:payload},90000);
+  const transfer=packSavedProjectTransfer(project);
+  const bodyFor=id=>{
+   if(transfer?.format==='idprom-project-transfer')getSavedWorkRequestSize(id,transfer);
+   const payload=JSON.stringify({id,project:transfer});
+   if(new Blob([payload]).size>64*1024*1024)throw Error('งานนี้มีขนาดเกิน 64 MB กรุณาลบเลเยอร์ที่ไม่ใช้แล้วบันทึกใหม่');
+   return payload;
+  };
+  const body=bodyFor(options.createCopy?'':targetId);
+  const send=async payload=>{
+   const encoded=await encodeSavedWorkRequest(payload);
+   if(wallet!==currentWalletId()||scope!==savedWorkOpenRequestRef.current)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาบันทึกงานปัจจุบันอีกครั้ง');
+   return portraitFetch('/api/saved-work',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json',...encoded.headers},body:encoded.body},90000);
+  };
   let r=await send(body);
   let d=await r.json().catch(()=>({message:r.status===413?'งานมีขนาดใหญ่เกินไป กรุณาลดจำนวนเลเยอร์':'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'}));
   // A cancelled DELETE may already have completed on the server. Only a
@@ -2999,7 +3012,7 @@ function App(){
   // unknown write outcome or change accounts/work scopes to do so.
   if(r.status===404&&targetId&&!options.createCopy){
    if(wallet!==currentWalletId()||scope!==savedWorkOpenRequestRef.current)throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาบันทึกงานปัจจุบันอีกครั้ง');
-   r=await send(JSON.stringify({id:'',project}));
+   r=await send(bodyFor(''));
    d=await r.json().catch(()=>({message:r.status===413?'งานมีขนาดใหญ่เกินไป กรุณาลดจำนวนเลเยอร์':'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'}));
   }
   if(!r.ok){if(d?.error==='saved_work_limit'&&!options.auto)setSavedWorksOpen(true);throw Object.assign(Error(d?.message||'บันทึกงานไม่สำเร็จ'),{code:d?.error,limit:d?.limit})}
@@ -3019,8 +3032,14 @@ function App(){
    const headers=walletHeaders(),currentScope=JSON.stringify([headers.Authorization||'',headers['X-Wallet-Id']||'']);
    if(request!==savedWorkLoadRequestRef.current||workScope!==savedWorkOpenRequestRef.current||token!==authToken()||(wallet!==undefined&&wallet!==currentWalletId())||(accountScope!==undefined&&accountScope!==currentScope))throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานอีกครั้ง');
   };
-  ensureCurrent();await refreshWallet();ensureCurrent();wallet=currentWalletId();
-  const restored=await prepareSavedProject(work.project,{decode:loadImage,signal});
+  ensureCurrent();
+  const preparation=new AbortController(),cancelPreparation=()=>preparation.abort();
+  signal?.addEventListener('abort',cancelPreparation,{once:true});let restored;
+  try{
+   const refreshing=Promise.resolve(refreshWallet()).then(()=>{ensureCurrent();wallet=currentWalletId()});
+   const preparing=prepareSavedProject(work.project,{decode:decodedStudioImage,signal:preparation.signal});
+   [,restored]=await Promise.all([refreshing,preparing]);
+  }catch(error){preparation.abort();throw error}finally{signal?.removeEventListener('abort',cancelPreparation)}
   ensureCurrent();
   // Commit only the completely decoded project, and discard all previous-person state.
   ++savedWorkOpenRequestRef.current;

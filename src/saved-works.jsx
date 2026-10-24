@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {deadlineFetch} from './deadline-fetch.js';
 import {withDeadline} from './async-deadline.js';
 import {SavedWorkPreview} from './saved-work-preview.jsx';
+import {TRANSFER_HEADER,TRANSFER_VERSION,unpackSavedProjectTransfer} from './saved-work-transfer.js';
 const savedWorkAccountScope=headers=>{const values=new Headers(headers);return JSON.stringify([values.get('Authorization')||'',values.get('X-Wallet-Id')||''])};
 const savedWorkData=async response=>{try{return await response.json()}catch(error){if(response.ok||error.name==='TimeoutError'||error.name==='AbortError')throw error;return null}};
 const savedWorkTimestamp=value=>typeof value==='string'&&value?Date.parse(value):NaN;
@@ -36,10 +37,12 @@ export function SavedWorks({headers,onOpen,onClose,onDelete}){
  const begin=()=>{if(!lifetime.current.active||action.current||loading)return null;let requestHeaders;try{requestHeaders=callbacks.current.headers()}catch(error){setMessage(error.message||'ตรวจบัญชีไม่สำเร็จ');return null}const task={controller:new AbortController(),headers:requestHeaders,accountScope:savedWorkAccountScope(requestHeaders)};action.current=task;setBusy(true);setCanReload(false);return task};
  const finish=task=>{if(action.current===task){action.current=null;if(lifetime.current.active)setBusy(false)}};
  const open=async id=>{const task=begin();if(!task)return;setMessage('กำลังเปิดงานเต็มความละเอียด…');try{
-  const r=await deadlineFetch('/api/saved-work/'+encodeURIComponent(id),{headers:task.headers,cache:'no-store',signal:task.controller.signal});const d=await savedWorkData(r);
+  const requestHeaders=new Headers(task.headers);requestHeaders.set(TRANSFER_HEADER,TRANSFER_VERSION);
+  const r=await deadlineFetch('/api/saved-work/'+encodeURIComponent(id),{headers:requestHeaders,cache:'no-store',signal:task.controller.signal});const d=await savedWorkData(r);
   if(!current(task))return;
   if(r.status===410&&d?.error==='saved_work_expired'){setItems(previous=>previous.filter(item=>item.id!==id));setDeleteId(null);setMessage(d.message||'งานนี้หมดอายุการจัดเก็บแล้ว กรุณาดาวน์โหลดงานอื่นก่อนหมดอายุ');setCanReload(true);return}
   if(!r.ok)throw Error(d?.message||'เปิดงานไม่สำเร็จ');
+  if(d?.project?.format==='idprom-project-transfer')d.project=unpackSavedProjectTransfer(d.project);
   await withDeadline(()=>callbacks.current.onOpen(d,{signal:task.controller.signal,accountScope:task.accountScope}),{timeoutMs:60000,message:'เปิดงานใช้เวลานาน กรุณาลองอีกครั้ง งานเดิมยังอยู่',code:'SAVED_WORK_OPEN_TIMEOUT',onTimeout:()=>task.controller.abort()});
   if(current(task))close();
  }catch(error){if(lifetime.current.active&&action.current===task&&task.accountScope===scopeNow()){setMessage(error.message||'เปิดงานไม่สำเร็จ');setCanReload(true)}}finally{finish(task)}};

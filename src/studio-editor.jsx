@@ -335,7 +335,17 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
  useEffect(()=>{if(!touch)return;const token=uid(),prior=window.history.state,guard={...prior,idpromStudioExit:token};let active=true;window.history.pushState(guard,'');const back=()=>{if(!active)return;window.history.pushState(guard,'');exitRequestRef.current()};window.addEventListener('popstate',back);return()=>{active=false;window.removeEventListener('popstate',back);if(window.history.state?.idpromStudioExit===token)window.history.back()}},[touch]);
  useEffect(()=>{const dialog=exitDialogRef.current;if(exitPrompt&&dialog&&!dialog.open)dialog.showModal();else if(!exitPrompt&&dialog?.open)dialog.close()},[exitPrompt]);
 
- const snapshot=()=>state.current.map(l=>({...l,source:surfaceURL(l.source),processedOriginalSource:surfaceURL(l.processedOriginalSource),collarParts:l.collarParts?{left:surfaceURL(l.collarParts.left),right:surfaceURL(l.collarParts.right)}:l.collarParts,makeupBaseSource:surfaceURL(l.makeupBaseSource),makeupFullSource:surfaceURL(l.makeupFullSource),mask:assets.current.get(l.id)?.mask.toDataURL()||l.mask,warpSource:assets.current.get(l.id)?.warped?.toDataURL()||null,warpBaseMask:surfaceURL(assets.current.get(l.id)?.warpBaseMask)||null,eraseRestoreSource:surfaceURL(assets.current.get(l.id)?.eraseRestoreSource)||null,warpRestoreBase:surfaceURL(assets.current.get(l.id)?.warpRestoreBase)||null}));
+ const snapshot=()=>{
+  // Reuse PNG strings only during this synchronous snapshot; edited canvases
+  // must be encoded again by the next save, even when their identity is unchanged.
+  const encoded=new WeakMap();
+  const encodeCanvas=surface=>{if(!encoded.has(surface))encoded.set(surface,surface.toDataURL());return encoded.get(surface)};
+  const encode=source=>source instanceof HTMLCanvasElement?encodeCanvas(source):source;
+  return state.current.map(l=>{
+   const a=assets.current.get(l.id);
+   return {...l,source:encode(l.source),processedOriginalSource:encode(l.processedOriginalSource),collarParts:l.collarParts?{left:encode(l.collarParts.left),right:encode(l.collarParts.right)}:l.collarParts,makeupBaseSource:encode(l.makeupBaseSource),makeupFullSource:encode(l.makeupFullSource),mask:a==null?l.mask:encodeCanvas(a.mask)||l.mask,warpSource:a?.warped==null?null:encodeCanvas(a.warped)||null,warpBaseMask:encode(a?.warpBaseMask)||null,eraseRestoreSource:encode(a?.eraseRestoreSource)||null,warpRestoreBase:encode(a?.warpRestoreBase)||null};
+  });
+ };
  if(purchaseSnapshotRef)purchaseSnapshotRef.current=()=>{flushTransforms();return {layers:snapshot(),placement:placementRef.current,sourcePhoto,originalPreview:compareSourceRef.current}};
  const historyAssets=useRef(new WeakMap());
  const hairStyleMemory=useRef(createHairStyleMemory());
