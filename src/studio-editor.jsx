@@ -44,7 +44,10 @@ import thumbnailMap from './studio-thumbnail-map.json';
 import {MakeupPanel} from './studio-makeup.jsx';
 import {makeupLook} from '../makeup-presets.js';
 import {createMakeupLookCache,mixMakeupLookSources} from './makeup-look-tools.js';
-function CatalogPreview({src,eager=false,maleHair=false}){return <img src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={maleHair?{objectFit:'cover',objectPosition:'50% 12%',transform:'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>}
+function CatalogPreview({src,eager=false,maleHair=false}){
+ const closeMalePreview=maleHair&&/\/seedream-hairstyles\/previews\/(?:36|37)\.webp(?:\?|$)/.test(src);
+ return <img src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={maleHair?{objectFit:'cover',objectPosition:closeMalePreview?'50% 57.5%':'50% 12%',transform:closeMalePreview?'scale(1.01)':'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>;
+}
 const STUDIO_DOWNLOAD_SIZES=PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id));
 const W=900,H=1200;
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});
