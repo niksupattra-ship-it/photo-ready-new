@@ -16,7 +16,13 @@
 .idprom-support-email-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:10px 0}
 .idprom-support-email-row a{color:#1768b6;font-size:19px;font-weight:700;text-decoration:none;user-select:text;-webkit-user-select:text}
 .idprom-support-email-row button{padding:7px 11px;border:1px solid #cbdfee;border-radius:9px;background:#fff;color:#295b83;font:inherit;font-size:12px;cursor:pointer;min-height:40px}
-.idprom-support-send{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:10px;background:#176fd2;color:#fff;text-decoration:none;font-weight:700;box-sizing:border-box}
+.idprom-support-send{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border:0;border-radius:10px;background:#176fd2;color:#fff;text-decoration:none;font:inherit;font-weight:700;box-sizing:border-box;cursor:pointer}
+.idprom-support-email-options{margin-top:14px;padding-top:14px;border-top:1px solid #d8e6f5}
+.idprom-support-email-options[hidden]{display:none}
+.idprom-support-email-options h4{margin:0 0 10px;font-size:14px;color:#20364d}
+.idprom-support-email-services{display:flex;flex-wrap:wrap;gap:8px}
+.idprom-support-email-services a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border:1px solid #cbdfee;border-radius:10px;background:#fff;color:#1768b6;text-decoration:none;font-weight:700;box-sizing:border-box}
+.idprom-support-content .idprom-support-email-options p{margin:10px 0 0;font-size:12px}
 .idprom-support-content .idprom-support-copy-status{margin:7px 0 0;font-size:12px;color:#176858}
 .idprom-support-copy-status:empty{display:none}
 .idprom-support-troubleshooting{margin-top:24px}
