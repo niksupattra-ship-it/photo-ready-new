@@ -11,7 +11,7 @@ function db(){
 }
 function validEmail(value){
  const email=String(value||'').trim().toLowerCase();
- return email.length<=254&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)?email:null;
+ return email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;
 }
 export async function sendPaymentConfirmation({id,email,packageId}){
  const key=process.env.CONTACT_RESEND_API_KEY;
