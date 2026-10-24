@@ -95,7 +95,7 @@ export async function purgeExpiredWorks({limit=100}={}){
  await ready();const batch=Math.min(500,Math.max(1,Math.trunc(Number(limit)||100)));
  const r=await pool.query(`WITH expired AS (
   SELECT id,wallet_id,expires_at,project->>'purchaseKey' AS purchase_key FROM saved_studio_work
-  WHERE expires_at IS NOT NULL AND retention_started_at IS NOT NULL AND retention_policy_version=$1 AND expires_at <= clock_timestamp()
+  WHERE expires_at IS NOT NULL AND retention_started_at IS NOT NULL AND retention_policy_version=$1 AND expires_at <= statement_timestamp()
   ORDER BY expires_at,id FOR UPDATE SKIP LOCKED LIMIT $2
  ),remembered AS (
   INSERT INTO saved_studio_work_expired(id,wallet_id,expires_at,purchase_key_hash)
