@@ -55,9 +55,9 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid){await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');await notifyPaymentSafely({id:session.id,email:session.customer_details?.email||session.customer_email,packageId});}
+      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid){await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');void notifyPaymentSafely({id:session.id,email:session.customer_details?.email||session.customer_email,packageId});}
     }
-    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1'){await settlePromptpay(session,creditPaid);await notifyPaymentSafely({id:session.id,email:session.receipt_email||session.charges?.data?.[0]?.billing_details?.email||session.metadata?.receipt_email,packageId:session.metadata?.package_id});}
+    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1'){await settlePromptpay(session,creditPaid);void notifyPaymentSafely({id:session.id,email:session.receipt_email||session.charges?.data?.[0]?.billing_details?.email||session.metadata?.receipt_email,packageId:session.metadata?.package_id});}
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
@@ -97,7 +97,7 @@ app.post("/api/payments/confirm",async(req,res)=>{
     if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าเครดิตของเครื่อง"});
     const packageId=String(session.metadata?.package_id||"149");
     const out=await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
-    await notifyPaymentSafely({id:session.id,email:session.customer_details?.email||session.customer_email,packageId});
+    void notifyPaymentSafely({id:session.id,email:session.customer_details?.email||session.customer_email,packageId});
     res.json({ok:true,...out});
   }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
