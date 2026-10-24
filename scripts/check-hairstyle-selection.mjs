@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {PRODUCTION_HAIR_CATALOG,productionHair,selectedHairDesign,selectedHairInstruction,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
-import {productionPortraitPrompt} from '../production-portrait-pipeline.js';
+import {PRODUCTION_HAIR_CATALOG,productionHair,selectedHairDesign,selectedHairInstruction,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
+import {productionPortraitPrompt,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {replaceHairstyleLayer} from '../src/replace-hairstyle-layer.js';
 for(const style of PRODUCTION_HAIR_CATALOG){
@@ -11,11 +11,15 @@ for(const style of PRODUCTION_HAIR_CATALOG){
  const kind=selectedHairDesign(style).kind;
  if(kind!=='long')assert(prompt.includes('never authorizes extra hair below the selected cut'));
 }
-for(const id of ['seedream-09','seedream-13','seedream-20','seedream-27']){
+for(const id of ['seedream-09','seedream-12','seedream-13']){
+ assert.equal(productionHair(id),null);assert.equal(isTrialHairAllowed(id),false);
+ assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{hairId:id,portraitMode:'female'}),/ทรงผมเดิมถูกนำออกแล้ว/);
+}
+for(const id of ['seedream-20','seedream-27']){
  assert.equal(selectedHairDesign(productionHair(id)).kind,'gathered');
  assert(productionPortraitPrompt(productionHair(id)).includes('NO loose long hair'));
 }
-for(const id of ['seedream-05','seedream-10','seedream-12','seedream-24'])assert(productionPortraitPrompt(productionHair(id)).includes('NO additional rear curtain'));
+for(const id of ['seedream-05','seedream-10','seedream-24'])assert(productionPortraitPrompt(productionHair(id)).includes('NO additional rear curtain'));
 assert.equal(selectedHairDesign(productionHair('seedream-07')).kind,'long');
 const layers=[{id:'bg',source:'bg'},{id:'tail-child',hairHeadId:'tail',source:'old'},{id:'tail',kind:'hair-back',hairHeadId:'head',source:'long'},{id:'head',source:'old-head',mask:'old-mask'},{id:'suit',source:'suit'},{id:'other-hair',hairHeadId:'other',source:'other'}];
 const result=replaceHairstyleLayer(layers,'head',{source:'new-short',kind:'head',hairId:'seedream-20',x:123,scale:1.2,hairPolicyVersion:HAIR_DESIGN_VERSION});

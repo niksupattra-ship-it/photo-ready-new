@@ -670,10 +670,14 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(id&&existing?.hairId===id&&existing.hairPreviewVersion===version){setSelected(existing.id);setSelectedHair(id);setTool('move');setStatus('เลือกผมฟรีพร้อมการปรับแต่งเดิมแล้ว · ไม่ใช้เครดิต');return}
   const previous=historySnapshot(),previousPixels=historyAssets.current.get(previous),placedHead=previous.find(l=>l.id===head.id)||head;
   const current=()=>mounted.current&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId)&&!state.current.some(l=>l.id===sourceLayerRef.current);
-  setAppearanceError(null);processRequestRef.current=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus(id?'กำลังวางผมฟรีและเก็บขอบ…':'กำลังกลับเป็นไม่เลือกผม…');
+  let placementLoading=false;
+  setAppearanceError(null);processRequestRef.current=true;
   try{
-   // A fresh original-hair base replaces the previous person's or edited base's memory.
-   if(!head.freeHairBaseOriginal)hairStyleMemory.current.clear();
+   const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผมฟรี');
+   // Scope reuse to the actual original pixels, not the temporary cleaned head.
+   const baseSource=head.freeHairBaseOriginal?head.hairOriginalSource:surfaceURL(copySurface(asset.warped||asset.original));
+   if(typeof baseSource!=='string'||!/^data:image\/(png|jpeg|webp);base64,/.test(baseSource))throw Error('ไม่พบภาพตั้งต้นของผมฟรี กรุณาเลือกไม่เลือกผมและประมวลผลก่อน');
+   hairStyleMemory.current.useBase(head.id,head.jobId,baseSource);
    hairStyleMemory.current.remember(previous,previousPixels,head.id,existing?.hairId||(isFreeFemaleHair(head.hairId)?head.hairId:''),existing?(existing.hairPreviewVersion||'free-female-png-v1'):0);
    const remembered=hairStyleMemory.current.restore(previous,previousPixels,head.id,id||'',id?version:0);
    if(remembered){
@@ -686,11 +690,9 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
     setStatus(id?'แสดงผมฟรีพร้อมการปรับแต่งเดิมแล้ว · ไม่ใช้เครดิต':'กลับเป็นไม่เลือกผมแล้ว · ไม่ใช้เครดิต');trackHairSelection(id,'apply',id?'free_reuse':'original');return;
    }
-   const asset=assets.current.get(head.id);if(!asset)throw Error('ไม่พบภาพหัวสำหรับวางผมฟรี');
+   placementLoading=true;setAssetBusy(true);setHairPlacementProgress(1);setStatus(id?'กำลังวางผมฟรีและเก็บขอบ…':'กำลังกลับเป็นไม่เลือกผม…');
    // Freeze the accepted original-hair portrait once. Later free styles never use
    // a previously cleaned head or another free hairstyle as their fitting input.
-   const baseSource=head.freeHairBaseOriginal?head.hairOriginalSource:surfaceURL(copySurface(asset.warped||asset.original));
-   if(typeof baseSource!=='string'||!/^data:image\/(png|jpeg|webp);base64,/.test(baseSource))throw Error('ไม่พบภาพตั้งต้นของผมฟรี กรุณาเลือกไม่เลือกผมและประมวลผลก่อน');
    let next=previous.filter(l=>!(l.kind==='hair-preview'&&l.hairHeadId===head.id)),selectedId=head.id;
    if(id){
     const fitted=await onPrepareHairOverlay(baseSource,id,{sourceJobId:head.jobId,onProgress:value=>{if(current())setHairPlacementProgress(Math.min(85,Math.max(1,value)))}});
@@ -713,7 +715,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
    setStatus(id?'วางผมฟรีและเก็บขอบแล้ว · ไม่ใช้เครดิต':'กลับเป็นไม่เลือกผมแล้ว · ไม่ใช้เครดิต');trackHairSelection(id,'apply',id?'free':'original');
    setHairPlacementProgress(100);await hairUiFrame();
-  }catch(e){if(current()){await hydrate(previous).catch(()=>{});appearanceFailure('hair',e.message||'วางผมฟรีไม่สำเร็จ · เก็บภาพเดิมไว้')}}finally{processRequestRef.current=false;if(mounted.current){setHairPlacementProgress(null);setAssetBusy(false)}}
+  }catch(e){if(current()){await hydrate(previous).catch(()=>{});appearanceFailure('hair',e.message||'วางผมฟรีไม่สำเร็จ · เก็บภาพเดิมไว้')}}finally{processRequestRef.current=false;if(mounted.current&&placementLoading){setHairPlacementProgress(null);setAssetBusy(false)}}
  };
  const applyHair=async id=>{
   if(processRequestRef.current||processActive||assetBusy||!ready)return;

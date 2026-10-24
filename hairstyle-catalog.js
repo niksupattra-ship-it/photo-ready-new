@@ -57,20 +57,6 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/5.webp"
   },
   {
-    "id": "seedream-09",
-    "gender": "female",
-    "name": "ทรงผม 9",
-    "file": "9.png",
-    "src": "/assets/seedream-hairstyles/previews/9.webp"
-  },
-  {
-    "id": "seedream-13",
-    "gender": "female",
-    "name": "ทรงผม 13",
-    "file": "13.png",
-    "src": "/assets/seedream-hairstyles/previews/13.webp"
-  },
-  {
     "id": "seedream-15",
     "gender": "female",
     "name": "ทรงผม 15",
@@ -118,13 +104,6 @@ export const PRODUCTION_HAIR_CATALOG=[
     "name": "ทรงผม 10",
     "file": "10.png",
     "src": "/assets/seedream-hairstyles/previews/10.webp"
-  },
-  {
-    "id": "seedream-12",
-    "gender": "female",
-    "name": "ทรงผม 12",
-    "file": "12.png",
-    "src": "/assets/seedream-hairstyles/previews/12.webp"
   },
   {
     "id": "seedream-19",

@@ -23,7 +23,7 @@ function fixture(options={}){
  const head={id:'head-A',kind:'head',name:'หัว · คอ · ผม',source:BASE,processedOriginalSource:BASE,jobId:'job-A',portraitMode:'female',hairId:'',hairPolicyVersion:HAIR_DESIGN_VERSION,restrictedTrial:true,outputUnlocked:false,femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup',makeupStyles:{look:'rose'},x:41,y:-19,scale:.87,squeezeX:.96,squeezeY:1.03,rotation:3,opacity:.91,visible:true,locked:false,sourceFrame:{x:12,y:24,w:740,h:1000},...(options.head||{})};
  const background={id:'background',kind:'background',source:'background'},suit={id:'suit',kind:'suit',source:'suit'},pin={id:'pin',kind:'chest',source:'pin'};
  const layers=[background,...(options.withoutHead?[]:[head]),suit,pin,...(options.layers||[])];
- const calls={fit:[],ai:[],process:[],before:0,finish:[],receipt:[],unlock:0,popups:[],errors:[],status:[],tracking:[],hydrate:[],progress:[],commits:0,restore:[]};
+ const calls={fit:[],ai:[],process:[],before:0,finish:[],receipt:[],unlock:0,popups:[],errors:[],status:[],tracking:[],hydrate:[],progress:[],busy:[],commits:0,restore:[]};
  let serial=0,pending;
  const assetFor=layer=>({original:{source:layer.source,width:900,height:1200},buffer:{},mask:null,dirty:false});
  const env={
@@ -45,7 +45,7 @@ function fixture(options={}){
   isProcessCancelled:()=>Boolean(env.cancelled),hairUiFrame:async()=>{},flushTransforms:noop,drawNow:noop,resetBrushSession:noop,
   appearanceFailure:(kind,message)=>calls.errors.push({kind,message}),setSavePopup:value=>calls.popups.push(value),setStatus:value=>calls.status.push(value),trackHairSelection:(...args)=>calls.tracking.push(args),
   setAppearanceError:noop,setSelected:value=>{env.selected=value},setSelectedHair:value=>{env.selectedHair=value},setTool:noop,setHairConfirmed:noop,setHairNotice:noop,setRevision:noop,setComparing:noop,
-  setHairPlacementProgress:value=>calls.progress.push(value),setAssetBusy:value=>{env.assetBusy=value},setPicker:noop,setTouchMore:noop,setTouchOpen:noop,setToolRailOpen:noop,
+  setHairPlacementProgress:value=>calls.progress.push(value),setAssetBusy:value=>{calls.busy.push(value);env.assetBusy=value},setPicker:noop,setTouchMore:noop,setTouchOpen:noop,setToolRailOpen:noop,
   setPortraitChoiceOpen:noop,pendingHairProcessRef:{current:null},touch:false,
  };
  Object.assign(env,options.env||{});
@@ -127,6 +127,35 @@ await test('cached free hair follows the current head position, scale and rotati
 await test('choosing none clears the local overlay and restores its base without an AI cache or credits',async()=>{
  const f=fixture();await f.chooseAndWait('hair-25');assert.equal(f.getHairs().length,1);await f.chooseAndWait('');
  assert.equal(f.getHairs().length,0);assert.equal(f.getHead().source,BASE);assert.equal(f.getHead().jobId,'job-A');assert.equal(f.env.selectedHair,'');assert.equal(f.calls.fit.length,1);noBilling(f.calls);
+});
+await test('all fitted free styles return immediately after none without fitting, hydration or loading state',async()=>{
+ const f=fixture();for(const id of ['hair-21','hair-25','hair-26'])await f.chooseAndWait(id);
+ for(const id of ['hair-21','hair-25','hair-26','hair-21']){
+  await f.chooseAndWait('');const fits=f.calls.fit.length,hydrates=f.calls.hydrate.length,restores=f.calls.restore.length,busy=f.calls.busy.length,progress=f.calls.progress.length;
+  await f.chooseAndWait(id);assert.equal(f.calls.fit.length,fits,id);assert.equal(f.calls.hydrate.length,hydrates,id);assert.equal(f.calls.restore.length,restores+1,id);
+  assert.equal(f.calls.busy.length,busy,id+' cached native pixels must not change loading state');assert.equal(f.calls.progress.length,progress,id+' cached native pixels must not set placement progress');
+  assert.equal(f.getHairs()[0].hairId,id);assert.equal(f.getHead().jobId,'job-A');
+ }
+ assert.equal(f.calls.fit.length,3);noBilling(f.calls);
+});
+await test('returning through none preserves manual free-hair pixels and follows the current head pose',async()=>{
+ const f=fixture({head:{squeezeX:1,squeezeY:1}});await f.chooseAndWait('hair-21');const edited=f.getHairs()[0];edited.x+=13;edited.y-=7;edited.mask='manual-paint';edited.opacity=.62;
+ const savedPixels={...f.env.assets.current.get(edited.id),mask:{painted:true}};f.env.assets.current.set(edited.id,savedPixels);await f.chooseAndWait('');
+ const head=f.getHead();head.x+=40;head.y-=11;head.rotation+=90;head.scale*=2;head.outputUnlocked=true;head.restrictedTrial=false;
+ f.env.state.current.find(l=>l.id==='suit').source='changed-current-outfit';const pose=headPose(head),hydrates=f.calls.hydrate.length;await f.chooseAndWait('hair-21');
+ assert.equal(f.calls.fit.length,1);assert.equal(f.calls.hydrate.length,hydrates);assert.deepEqual(headPose(f.getHead()),pose);
+ const restored=f.getHairs()[0];assert.equal(restored.id,edited.id);assert.equal(restored.mask,'manual-paint');assert.equal(restored.opacity,.62);assert.equal(f.env.assets.current.get(restored.id),savedPixels);
+ assert(Math.abs(restored.x-(pose.x+14))<1e-9);assert(Math.abs(restored.y-(pose.y+26))<1e-9);assert.equal(f.getHead().outputUnlocked,true);assert.equal(f.getHead().restrictedTrial,false);
+ assert.equal(f.env.state.current.find(l=>l.id==='suit').source,'changed-current-outfit');noBilling(f.calls);
+});
+await test('editing the restored original base invalidates old free pixels even in the same job',async()=>{
+ const editedBase='data:image/png;base64,ZWRpdGVkLWJhc2U=';
+ const f=fixture();await f.chooseAndWait('hair-21');await f.chooseAndWait('');f.getHead().source=editedBase;f.env.assets.current.get(f.getHead().id).original.source=editedBase;
+ await f.chooseAndWait('hair-21');assert.equal(f.calls.fit.length,2);assert.equal(fitInput(f.calls.fit.at(-1).input),editedBase);assert.equal(f.getHead().hairOriginalSource,editedBase);noBilling(f.calls);
+});
+await test('an original head with a different job cannot restore a prior job free hairstyle',async()=>{
+ const f=fixture();await f.chooseAndWait('hair-21');await f.chooseAndWait('');f.getHead().jobId='job-B';
+ await f.chooseAndWait('hair-21');assert.equal(f.calls.fit.length,2);assert.equal(f.getHead().jobId,'job-B');assert.equal(f.getHead().freeHairSourceJobId,'job-B');noBilling(f.calls);
 });
 await test('reopened free work clears locally using persisted source metadata without session hairstyle cache',async()=>{
  const f=fixture({head:{source:'cleaned-hair-26',hairOriginalSource:PERSISTED,processedOriginalSource:PERSISTED,freeHairBaseOriginal:true,freeHairSourceJobId:'job-A'},layers:[{id:'persisted-free',kind:'hair-preview',hairHeadId:'head-A',hairId:'hair-26',source:'persisted-front',hairRole:'front'}]});

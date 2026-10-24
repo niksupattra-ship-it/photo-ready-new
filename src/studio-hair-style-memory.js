@@ -4,9 +4,15 @@ const belongs=(layer,headId)=>layer.id===headId||(layer.kind==='hair-preview'&&l
 const clone=value=>{if(Array.isArray(value))return value.map(clone);if(value&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,clone(v)]));return value};
 export function createHairStyleMemory(){
  const entries=new Map();
+ let base=null;
  const key=(head,style,version)=>JSON.stringify([head.id,head.jobId||'',style||'',version||0]);
  return {
-  clear(){entries.clear()},
+  clear(){entries.clear();base=null},
+  useBase(headId,jobId,source){
+   // Returning to the same original portrait must retain decoded free styles.
+   // A new job or edited original pixels must never restore the former base.
+   if(!base||base.headId!==headId||base.jobId!==(jobId||'')||base.source!==source){entries.clear();base={headId,jobId:jobId||'',source}}
+  },
   remember(layers,pixels,headId,style,version){
    const head=layers.find(l=>l.id===headId);if(!head||!pixels)return;
    const selected=layers.filter(l=>belongs(l,headId));if(selected.some(l=>!pixels.has(l.id)))return;
