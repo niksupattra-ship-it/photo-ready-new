@@ -20,6 +20,7 @@ import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
+import {notifyPaymentSafely} from './payment-confirmation-email.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
 import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
@@ -56,9 +57,9 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid)await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
+      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid){await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');void notifyPaymentSafely({id:session.id,email:session.customer_details?.email||session.customer_email,packageId});}
     }
-    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1')await settlePromptpay(session,creditPaid);
+    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1'){await settlePromptpay(session,creditPaid);void notifyPaymentSafely({id:session.id,email:session.receipt_email||session.charges?.data?.[0]?.billing_details?.email||session.metadata?.receipt_email,packageId:session.metadata?.package_id});}
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
@@ -98,6 +99,7 @@ app.post("/api/payments/confirm",async(req,res)=>{
     if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าเครดิตของเครื่อง"});
     const packageId=String(session.metadata?.package_id||"149");
     const out=await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
+    void notifyPaymentSafely({id:session.id,email:session.customer_details?.email||session.customer_email,packageId});
     res.json({ok:true,...out});
   }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
@@ -145,12 +147,12 @@ app.post('/api/payments/checkout',async(req,res)=>{
   const session=await stripePost('checkout/sessions',{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
    'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
-   'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
+   'payment_method_types[0]':'promptpay','customer_email':user.email,success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
    'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 89 หรือ 159 บาท':e.message})}
 });
-registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid});
+registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,notifyPaymentSafely});
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
 function trialDeviceFingerprint(req,res,wid){
