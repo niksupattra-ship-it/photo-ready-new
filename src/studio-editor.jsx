@@ -666,7 +666,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   if(id&&!onPrepareHairOverlay){appearanceFailure('hair','ระบบวางผมฟรียังไม่พร้อม กรุณารีเฟรชหน้าแล้วลองใหม่');return}
   const attached=state.current.filter(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id);
   const existing=attached.find(l=>l.hairRole==='front')||attached[0];
-  const version='free-female-png-v1';
+  const version='free-female-png-v2-ear-interior';
   if(id&&existing?.hairId===id&&existing.hairPreviewVersion===version){setSelected(existing.id);setSelectedHair(id);setTool('move');setStatus('เลือกผมฟรีพร้อมการปรับแต่งเดิมแล้ว · ไม่ใช้เครดิต');return}
   const previous=historySnapshot(),previousPixels=historyAssets.current.get(previous),placedHead=previous.find(l=>l.id===head.id)||head;
   const current=()=>mounted.current&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId)&&!state.current.some(l=>l.id===sourceLayerRef.current);
@@ -674,7 +674,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
   try{
    // A fresh original-hair base replaces the previous person's or edited base's memory.
    if(!head.freeHairBaseOriginal)hairStyleMemory.current.clear();
-   hairStyleMemory.current.remember(previous,previousPixels,head.id,existing?.hairId||(isFreeFemaleHair(head.hairId)?head.hairId:''),existing?version:0);
+   hairStyleMemory.current.remember(previous,previousPixels,head.id,existing?.hairId||(isFreeFemaleHair(head.hairId)?head.hairId:''),existing?(existing.hairPreviewVersion||'free-female-png-v1'):0);
    const remembered=hairStyleMemory.current.restore(previous,previousPixels,head.id,id||'',id?version:0);
    if(remembered){
     // Keep the current pose and access flags when restoring native hair pixels.
@@ -699,7 +699,7 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
     if(next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
     next=next.map(l=>l.id===head.id?{...l,source:fitted.cleanedHeadSource,hairOriginalSource:baseSource,freeHairBaseOriginal:true,freeHairSourceJobId:head.jobId,hairId:'',warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,hairBaseMask:null,hairOuterEraser:null}:l);
     const common={kind:'hair-preview',hairLinked:Boolean(fitted.backSource),hairId:id,hairPreviewVersion:version,freeHair:true,mask:null,sourceFrame:head.sourceFrame?{...head.sourceFrame}:undefined,...headPose(placedHead),hairHeadId:head.id,hairHeadPose:headPose(placedHead)};
-    const front=fresh({...common,name:'ผมฟรี '+id.slice(5),hairRole:'front',source:fitted.source}),index=next.findIndex(l=>l.id===head.id);
+    const front=existing?.hairId===id&&existing.hairRole!=='back'?{...existing,hairPreviewVersion:version}:fresh({...common,name:'ผมฟรี '+id.slice(5),hairRole:'front',source:fitted.source}),index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const back=fresh({...common,name:'ผมฟรีด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
     selectedId=front.id;
    }else{

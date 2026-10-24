@@ -132,6 +132,21 @@ await test('reopened free work clears locally using persisted source metadata wi
  const f=fixture({head:{source:'cleaned-hair-26',hairOriginalSource:PERSISTED,processedOriginalSource:PERSISTED,freeHairBaseOriginal:true,freeHairSourceJobId:'job-A'},layers:[{id:'persisted-free',kind:'hair-preview',hairHeadId:'head-A',hairId:'hair-26',source:'persisted-front',hairRole:'front'}]});
  await f.chooseAndWait('');assert.equal(f.getHairs().length,0);assert.equal(f.getHead().source,PERSISTED);assert.equal(f.calls.fit.length,0);noBilling(f.calls);
 });
+await test('reselecting saved old free hair refits from its intact base without AI or credits',async()=>{
+ for(const version of [undefined,'free-female-png-v1']){
+  const oldFront={id:'old-free',kind:'hair-preview',hairHeadId:'head-A',hairId:'hair-21',hairRole:'front',hairPreviewVersion:version,source:'old-front',x:71,y:-42,scale:1.2,rotation:8,opacity:.73,mask:'manual-mask'};
+  const f=fixture({head:{source:'old-cleaned-with-holes',hairOriginalSource:PERSISTED,freeHairBaseOriginal:true,freeHairSourceJobId:'job-A'},layers:[oldFront]});
+  await f.chooseAndWait('hair-21');assert.equal(f.calls.fit.length,1);assert.equal(fitInput(f.calls.fit[0].input),PERSISTED);assert.equal(f.calls.restore.length,0);
+  assert.notEqual(f.getHairs()[0].hairPreviewVersion,version);assert.notEqual(f.getHairs()[0].hairPreviewVersion,'free-female-png-v1');assert.equal(f.getHead().source,'cleaned-hair-21');assert.equal(f.getHead().hairOriginalSource,PERSISTED);
+  const {hairPreviewVersion:correctedVersion,...correctedFront}=f.getHairs()[0],{hairPreviewVersion:oldVersion,...retainedFront}=oldFront;assert.deepEqual(correctedFront,retainedFront,'repair the head while preserving manual free-hair pixels, mask and placement');
+  assert.deepEqual(headPose(f.getHead()),headPose(f.head));assert.equal(f.getHead().jobId,'job-A');assert.equal(f.getHead().restrictedTrial,true);noBilling(f.calls);
+ }
+});
+await test('switching away from old free hair cannot cache its damaged pixels as the corrected version',async()=>{
+ const f=fixture({head:{source:'old-cleaned-with-holes',hairOriginalSource:PERSISTED,freeHairBaseOriginal:true,freeHairSourceJobId:'job-A'},layers:[{id:'old-free',kind:'hair-preview',hairHeadId:'head-A',hairId:'hair-21',hairRole:'front',hairPreviewVersion:'free-female-png-v1',source:'old-front'}]});
+ await f.chooseAndWait('hair-25');await f.chooseAndWait('hair-21');assert.deepEqual(f.calls.fit.map(c=>c.id),['hair-25','hair-21']);assert.equal(f.calls.restore.length,0);assert.equal(f.getHead().source,'cleaned-hair-21');assert.equal(f.getHairs()[0].source,'front-hair-21');
+ await f.chooseAndWait('hair-25');assert.equal(f.calls.fit.length,2);assert.equal(f.calls.restore.length,1);assert.equal(f.getHead().source,'cleaned-hair-25');noBilling(f.calls);
+});
 await test('failed fitting keeps the original head, outfit and history without settlement or billing',async()=>{
  const f=fixture({fit:async()=>{throw Error('local fitting unavailable')}}),before=clone(f.env.state.current);await f.chooseAndWait('hair-21');
  assert.deepEqual(f.env.state.current,before);assert.equal(f.env.undo.current.length,0);assert.match(f.calls.errors.at(-1)?.message||'',/local fitting unavailable/);assert.equal(f.env.processRequestRef.current,false);assert.equal(f.env.assetBusy,false);noBilling(f.calls);

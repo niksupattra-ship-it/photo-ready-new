@@ -9,7 +9,7 @@ import {fetchOutputRights,outputAccessResult} from './output-rights.js';
 import {makeSavedProject,prepareSavedProject} from './saved-project.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
-import {FREE_FEMALE_HAIR_OPTIONS} from './free-female-hair.js';
+import {FREE_FEMALE_HAIR_OPTIONS,isFreeFemaleHair} from './free-female-hair.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
 import {homePreviewSource} from './home-previews.js';
@@ -1524,7 +1524,7 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
  }
  const labels=await studioHairLabels(target);
  if(/^manhair-\d{2}$/.test(hairId)||isSingleFemaleHair(hairId)){
-  const shortFemale=/^hair-(?:22|24|25|26)$/.test(hairId);
+  const shortFemale=/^hair-(?:22|24|25|26)$/.test(hairId),freeFemale=isFreeFemaleHair(hairId);
   const cleaned=canvasFor(W,H),cc=cleaned.getContext('2d');cc.drawImage(target,0,0,W,H);
   const pixels=cc.getImageData(0,0,W,H),hair=front.getContext('2d').getImageData(0,0,W,H),originalPixels=isSingleFemaleHair(hairId)?new Uint8ClampedArray(pixels.data):null;
   // Only misaligned sideburn corners are skewed; no sideburn eraser/warp grid.
@@ -1533,8 +1533,8 @@ async function finishStudioHairPreview(target,front,back,face,hairId,contourCont
    if(fitted.report.adjusted){hair.data.set(fitted.pixels);front.getContext('2d').putImageData(hair,0,0)}
   }
   pixels.data.set(eraseProcessedUpperHair(pixels.data,hair.data,W,H,face,labels));
-  if(!shortFemale)pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));
-  if(isSingleFemaleHair(hairId))pixels.data.set(eraseFemaleHairExterior({original:originalPixels,cleaned:pixels.data,overlay:hair.data,width:W,height:H,face,labels,aboveEarsOnly:shortFemale}));
+  if(!shortFemale&&!freeFemale)pixels.data.set(eraseMaleTempleExcess(pixels.data,hair.data,W,H,face,labels));
+  if(isSingleFemaleHair(hairId))pixels.data.set(eraseFemaleHairExterior({original:originalPixels,cleaned:pixels.data,overlay:hair.data,width:W,height:H,face,labels,aboveEarsOnly:shortFemale,preserveInterior:freeFemale}));
   cc.putImageData(pixels,0,0);
   const result={source:front.toDataURL('image/png'),backSource:null,cleanedHeadSource:cleaned.toDataURL('image/png')};
   return result;

@@ -59,10 +59,11 @@ function distanceTo(seeds,w,h,limit){
  * anatomical skin/face protection restores original alpha when needed. Dark,
  * background-labeled cutout fringes need nearby confirmed old-hair evidence.
  * `aboveEarsOnly` restores the entire original portrait below a conservative
- * upper-ear plane; only the four current short female PNG styles opt into it.
+ * upper-ear plane. Free female PNGs additionally protect the complete ear
+ * regions and restore interior pixels erased underneath replacement hair.
  * The input planes are never mutated. Invalid evidence fails without an output.
  */
-export function eraseFemaleHairExterior({original,cleaned=original,overlay,width:w,height:h,face,labels,aboveEarsOnly=false}={}){
+export function eraseFemaleHairExterior({original,cleaned=original,overlay,width:w,height:h,face,labels,aboveEarsOnly=false,preserveInterior=false}={}){
  const n=w*h;
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||!rgba(original,n)||!rgba(cleaned,n)||!rgba(overlay,n))throw Error('ภาพไม่พร้อมสำหรับเก็บขอบผมหญิง');
  const {data,width:mw,height:mh}=labels||{};
@@ -94,7 +95,8 @@ export function eraseFemaleHairExterior({original,cleaned=original,overlay,width
   if(overlay[j+3])foundHair=true;
   // A nearly transparent PNG fringe cannot cover opaque original hair. It
   // must not resurrect an old crown/curtain erased by the earlier upper pass.
-  const earProtected=aboveEarsOnly&&local({x:x+.5,y:y+.5}).v>=earCutoff;
+  const q=local({x:x+.5,y:y+.5});
+  const earProtected=(aboveEarsOnly&&q.v>=earCutoff)||(preserveInterior&&ears.some(e=>((q.u-e.u)/(eye*.22))**2+((q.v-e.v-eye*.24)/(eye*.58))**2<=1));
   protect[at]=earProtected||faceSupport[at]||protectedCategory(category)?1:overlay[j+3]>=192?2:0;
   if(overlay[j+3]>=192){
    const {u,v}=local({x:x+.5,y:y+.5}),row=Math.floor(v)-rowOrigin;
@@ -115,7 +117,7 @@ export function eraseFemaleHairExterior({original,cleaned=original,overlay,width
  // Empty rows below a short cap have no span, so this cannot retain an old bob.
  // Directly covered pixels still keep any stronger existing upper erasure.
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const at=y*w+x;if(protect[at])continue;
+  const at=y*w+x;if(protect[at]&&!(preserveInterior&&protect[at]===2))continue;
   const {u,v}=local({x:x+.5,y:y+.5}),row=Math.floor(v)-rowOrigin;
   if(u>envelopeLeft[row]&&u<envelopeRight[row])protect[at]=1;
  }
