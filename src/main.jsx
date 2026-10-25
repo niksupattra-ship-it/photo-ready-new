@@ -2820,7 +2820,8 @@ const COLLAR_PIN_OPTIONS=[
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35');
 const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female');
-const STUDIO_FEMALE_HAIR_OPTIONS=[...FREE_FEMALE_HAIR_OPTIONS,...HAIR_OPTIONS];
+const BASIC_FEMALE_HAIR_IDS=['seedream-25','seedream-14','seedream-16','seedream-23'];
+const STUDIO_FEMALE_HAIR_OPTIONS=[...BASIC_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...FREE_FEMALE_HAIR_OPTIONS,...HAIR_OPTIONS.filter(h=>!BASIC_FEMALE_HAIR_IDS.includes(h.id))];
 const JOB_UNIFORMS=[
  {id:'female-formal-suit',title:'สูทหญิง',img:'/assets/job-uniforms/female-formal-suit-example.png',template:'/assets/job-uniforms/female-formal-suit.png',cat:'job',gender:'female'},
  {id:'female-lapel-suit',title:'สูทหญิงคอแบะ',img:'/assets/job-uniforms/female-lapel-suit-example.png',template:'/assets/job-uniforms/female-lapel-suit.png',cat:'job',gender:'female'},
