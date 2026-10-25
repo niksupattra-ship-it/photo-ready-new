@@ -17,7 +17,7 @@ export function strokeSampler(spacing,emit,stabilize=0){
 
 // Edit actual layer RGBA in small tiles. Temporary coverage only controls one
 // stroke's saturation; it is never a project mask or a new image layer.
-export function pixelEraserStroke(surface,reference,{radius,radiusY=radius,softness=30,opacity=1,restore=false,stabilize=0}={}){
+export function pixelEraserStroke(surface,reference,{radius,radiusY=radius,softness=30,opacity=1,restore=false,stabilize=0,color=null}={}){
  if(!surface||!reference||surface.width!==reference.width||surface.height!==reference.height||!Number.isFinite(radius)||radius<=0||!Number.isFinite(radiusY)||radiusY<=0)throw Error('ข้อมูลยางลบไม่ตรงกับเลเยอร์');
  const ctx=surface.getContext('2d',{willReadFrequently:true}),rc=reference.getContext('2d',{willReadFrequently:true}),size=64,tiles=new Map(),pending=new Set(),strength=clamp(opacity,0,1),hard=clamp(1-softness/100,0,.999);
  let region=null;
@@ -39,7 +39,8 @@ export function pixelEraserStroke(surface,reference,{radius,radiusY=radius,softn
     const coverage=d<=hard?1:1-smooth((d-hard)/(1-hard)),n=(y-tile.y)*tile.w+x-tile.x;
     if(coverage<=tile.coverage[n])continue;tile.coverage[n]=coverage;
     const amount=strength*coverage,j=n*4,b=tile.before,out=tile.image.data;
-    if(!restore)out[j+3]=Math.round(b[j+3]*(1-amount));
+    if(color){const ca=amount,ba=b[j+3]/255*(1-ca),a=ca+ba;for(let k=0;k<3;k++)out[j+k]=a?Math.round((color[k]*ca+b[j+k]*ba)/a):0;out[j+3]=Math.round(a*255)}
+    else if(!restore)out[j+3]=Math.round(b[j+3]*(1-amount));
     else{const r=tile.reference,ba=b[j+3]*(1-amount),ra=r[j+3]*amount,a=ba+ra;for(let k=0;k<3;k++)out[j+k]=a?Math.round((b[j+k]*ba+r[j+k]*ra)/a):b[j+k];out[j+3]=Math.round(a)}
     changed=true;
    }
@@ -69,4 +70,5 @@ export function brushSceneRegion(rect,layer,surface,display){
  const points=[[rect.x-2,rect.y-2],[rect.x+rect.w+2,rect.y-2],[rect.x-2,rect.y+rect.h+2],[rect.x+rect.w+2,rect.y+rect.h+2]].map(([x,y])=>{const u=(f.x+x/surface.width*f.w-450)*(layer.squeezeX??1),v=(f.y+y/surface.height*f.h-600)*(layer.squeezeY??1);return {x:(450+layer.x+(u*c-v*s)*layer.scale)*display.width/900,y:(600+layer.y+(u*s+v*c)*layer.scale)*display.height/1200}});
  const x=Math.max(0,Math.floor(Math.min(...points.map(p=>p.x)))),y=Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))));return {x,y,w:Math.max(0,Math.min(display.width,Math.ceil(Math.max(...points.map(p=>p.x))))-x),h:Math.max(0,Math.min(display.height,Math.ceil(Math.max(...points.map(p=>p.y))))-y)};
 }
+
 
