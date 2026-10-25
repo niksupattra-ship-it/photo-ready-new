@@ -304,6 +304,7 @@ export function selectedHairPlacement(selected){
 
 
 
-// Shared free catalogue: five women and five men, ten AI styles in total.
-export const DOWNLOAD_HAIR_IDS=new Set([...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female').slice(0,5),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35').slice(0,5)].map(h=>h.id));
+// Restore the existing full AI catalogue; local free hairstyles stay client-side.
+export const DOWNLOAD_HAIR_IDS=new Set(PRODUCTION_HAIR_CATALOG.map(h=>h.id));
 export function downloadHairAllowed(id){return !id||id==='original'||DOWNLOAD_HAIR_IDS.has(id)}
+
