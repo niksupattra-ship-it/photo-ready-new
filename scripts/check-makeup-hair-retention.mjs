@@ -107,7 +107,7 @@ function finishFixture(){
   currentResultCacheScope:()=> 'fixture-wallet',resultSourceDigest,
   portraitResultCache:{...cache,get:(key,generate)=>{keys.push(key);return cache.get(key,generate)}},
   aiFinishPortraitUncached:async(file,hair,options)=>{calls.push({file,hair,options});return Object.assign(new Blob([hair]),{idpromJobId:'job-'+calls.length,idpromTrial:false,idpromFullEdit:true})},
-  cleanPortraitClothing:async value=>value,checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({checked:true,unlocked:true,fullEdit:true}),saveAiJobFile:async()=>{},writeActiveAiJob:noop,
+  cleanPortraitClothing:async value=>value,finishFemaleMakeupEyeToneBlob:async value=>value,checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({checked:true,unlocked:true,fullEdit:true}),saveAiJobFile:async()=>{},writeActiveAiJob:noop,
   CustomEvent:class{constructor(type,init){this.type=type;this.detail=init.detail}},window:{dispatchEvent:event=>events.push(event)}
  };
  const run=extract('async function aiFinishPortrait(','\nlet acceptedPaidTrial=','aiFinishPortrait',env);

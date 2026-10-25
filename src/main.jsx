@@ -4,6 +4,7 @@ import {removePortraitClothingAlpha} from './replace-studio-source.js';
 import {ServiceTermsLink} from './service-terms.jsx';
 import {SupportCenter} from './support-center.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
+import {finishFemaleMakeupEyeTone} from './female-makeup-eye-tone.js';
 import {StudioRightsDialog} from './studio-rights-dialog.jsx';
 import {createWalletRefresh,hasWalletBalance,walletScope} from './wallet-refresh.js';
 import {fetchOutputRights,outputAccessResult} from './output-rights.js';
@@ -1307,6 +1308,30 @@ async function cleanPortraitClothing(blob){
  return cleaned;
 }
 
+// Only the female AI makeup result receives this bounded colour correction.
+// Model/landmark evidence is already available from clothing cleanup. Any
+// unavailable local evidence leaves the generated result usable and unchanged.
+async function finishFemaleMakeupEyeToneBlob(blob){
+ try{
+  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
+  if(!W||!H||W*H>8388608)return blob;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  const masks=await getV192MasterMasks(blob,image);
+  if(!masks.skinMask||!masks.hairMask)return blob;
+  const read=mask=>mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
+  const skin=read(masks.skinMask),hair=read(masks.hairMask);
+  const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+  const frame=ctx.getImageData(0,0,W,H);
+  const result=finishFemaleMakeupEyeTone({pixels:frame.data,width:W,height:H,face,skin,hair});
+  if(!result.changed)return blob;
+  frame.data.set(result.pixels);ctx.putImageData(frame,0,0);
+  const corrected=await canvasPng(c);
+  for(const key of Object.getOwnPropertyNames(blob))if(key.startsWith('idprom'))Object.defineProperty(corrected,key,Object.getOwnPropertyDescriptor(blob,key));
+  const cachedMasks=v192MasterMaskCache.get(blob);if(cachedMasks)v192MasterMaskCache.set(corrected,cachedMasks);
+  return corrected;
+ }catch{return blob}
+}
+
 async function finishFirstPortraitMaster(aiHeadNeck){
  // Lighting and neck anatomy are finished together in the server AI request.
  // Keep the returned native master unchanged: no regional exposure overlay.
@@ -2351,7 +2376,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey=makeupReference?'female-makeup-reference-v1:'+await resultSourceDigest(makeupReference):'no-makeup-reference';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([HAIR_DESIGN_VERSION,'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-pinknude-clearskin-v21-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-pinknude-local-eye-v22-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -2360,7 +2385,9 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   const cleaned=await cleanPortraitClothing(result);
   assertCurrentOperation();
-  return cleaned;
+  const finished=gender==='female'&&options.femaleEyeStyle==='makeup'?await finishFemaleMakeupEyeToneBlob(cleaned):cleaned;
+  assertCurrentOperation();
+  return finished;
  });
  try{await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
