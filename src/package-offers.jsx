@@ -1,135 +1,50 @@
 import React from 'react';
 import {ServiceTermsLink} from './service-terms.jsx';
-
-function DownloadIcon(){return <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 6v25m-9-9 9 9 9-9M9 32v9h30v-9" stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-function Check(){return <span className="ready-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
-
 export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCredit,startCheckout,isAuthenticated=true,onAuthenticate}){
- const showMessage=payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(prefix=>payMsg.startsWith(prefix));
- return <div className="idprom-ready-offer">
-  <style>{`
-   .credit-modal-backdrop:has(.idprom-ready-offer){background:rgba(8,24,45,.8);backdrop-filter:blur(6px)}
-   .package-pro-modal:has(.idprom-ready-offer){width:min(760px,calc(100vw - 28px));padding:38px 32px 24px;background:#fff;border:1px solid #dce4ee;border-radius:24px;box-shadow:0 28px 90px #020c2266;overflow:auto;max-height:calc(100dvh - 28px)}
-   .package-pro-modal:has(.idprom-ready-offer)>.credit-modal-close{top:15px;right:18px;color:#617492;font-size:28px}
-   .idprom-ready-offer{color:#0b2244;line-height:1.5;font-family:inherit}
-   .idprom-ready-offer *{box-sizing:border-box}
-   .idprom-ready-offer .ready-heading{text-align:center;padding:4px 12px 23px}
-   .idprom-ready-offer .ready-heading h2{font:inherit;font-size:clamp(28px,3.8vw,42px);font-weight:800;line-height:1.35;margin:0 0 7px;color:#071d3d;letter-spacing:-.5px}
-   .idprom-ready-offer .ready-heading p{margin:0;color:#617593;font-size:20px;font-weight:500}
-   .idprom-ready-offer .ready-price-card{display:flex;align-items:center;justify-content:center;gap:32px;padding:24px;border-radius:20px;background:#eef7ff;margin-bottom:14px}
-   .idprom-ready-offer .ready-download-emblem{width:104px;height:104px;flex:0 0 104px;border-radius:50%;display:grid;place-items:center;background:#dceeff;color:#0670df}
-   .idprom-ready-offer .ready-download-emblem svg{width:60px;height:60px}
-   .idprom-ready-offer .ready-price-divider{height:92px;width:1px;background:#b7d9fb;flex:0 0 1px}
-   .idprom-ready-offer .ready-price-body{min-width:0}
-   .idprom-ready-offer .ready-price{display:flex;align-items:baseline;gap:16px;color:#056bd7;white-space:nowrap;line-height:1.1;margin-bottom:14px}
-   .idprom-ready-offer .ready-price strong{font-size:86px;font-weight:800;letter-spacing:-3px}
-   .idprom-ready-offer .ready-price span{font-size:28px;font-weight:700}
-   .idprom-ready-offer .ready-benefits{display:flex;gap:24px;flex-wrap:wrap;font-size:17px;font-weight:600}
-   .idprom-ready-offer .ready-benefits>span{display:inline-flex;align-items:center;gap:10px}
-   .idprom-ready-offer .ready-check{display:inline-grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:50%;background:#076dd8;color:white}
-   .idprom-ready-offer .ready-check svg{width:22px;height:22px}
-   .idprom-ready-offer .ready-review{display:flex;align-items:center;gap:24px;padding:17px 28px;margin:0 0 16px;background:#eef5ff;border-radius:17px}
-   .idprom-ready-offer .ready-review>svg{width:44px;height:44px;flex:0 0 44px}
-   .idprom-ready-offer .ready-review strong{font-size:18px;font-weight:700;display:block}
-   .idprom-ready-offer .ready-review p{font-size:17px;color:#617593;margin:0}
-   .idprom-ready-offer .ready-warning{display:flex;align-items:center;gap:26px;padding:15px 29px;margin:0 0 14px;border-radius:16px;background:#fff2d8;color:#a65c08;font-size:17px;font-weight:600}
-   .idprom-ready-offer .ready-warning svg{width:37px;height:37px;flex:0 0 37px}
-   .idprom-ready-offer .ready-pay,.idprom-ready-offer .ready-use-credit{width:100%;border:0;border-radius:15px;background:#066cda;color:#fff;padding:17px 14px;font:inherit;font-size:21px;font-weight:700;cursor:pointer;min-height:64px}
-   .idprom-ready-offer .ready-pay:hover:not(:disabled){background:#005fca}
-   .idprom-ready-offer button:focus-visible{outline:3px solid #69b5ff;outline-offset:3px}
-   .idprom-ready-offer .ready-pay:disabled,.idprom-ready-offer .ready-use-credit:disabled{opacity:.6;cursor:default}
-   .idprom-ready-offer .ready-credit{padding:13px 16px;background:#f3f8fe;border:1px solid #cde2f8;border-radius:14px;margin:0 0 14px}
-   .idprom-ready-offer .ready-credit p{margin:0 0 9px;text-align:center;font-size:15px;color:#476180}
-   .idprom-ready-offer .ready-use-credit{background:#e0efff;color:#075fb9;font-size:16px;min-height:44px;padding:10px}
-   .idprom-ready-offer .ready-message{font-size:15px;text-align:center;color:#a23d22;margin:12px 0 0}
-   .idprom-ready-offer .ready-footer{text-align:center;color:#617593;font-size:16px;padding-top:16px}
-   .idprom-ready-offer .ready-footer p{margin:0 0 10px}
-   .idprom-ready-offer .ready-footer .idprom-terms-link-wrap{margin:0}
-   .idprom-ready-offer .ready-footer .idprom-terms-link{font:inherit;color:#617593;text-decoration:underline;text-underline-offset:3px;background:transparent;border:0;padding:2px 0;cursor:pointer}
-   @media(max-width:640px){
-    .package-pro-modal:has(.idprom-ready-offer){padding:38px 18px 20px;border-radius:21px}
-    .idprom-ready-offer .ready-heading{padding:0 0 19px}
-    .idprom-ready-offer .ready-heading h2{font-size:27px;letter-spacing:-.3px}
-    .idprom-ready-offer .ready-heading p{font-size:15px}
-    .idprom-ready-offer .ready-price-card{gap:14px;padding:20px 14px;border-radius:16px}
-    .idprom-ready-offer .ready-download-emblem{width:64px;height:64px;flex-basis:64px}
-    .idprom-ready-offer .ready-download-emblem svg{width:39px;height:39px}
-    .idprom-ready-offer .ready-price-divider{height:90px}
-    .idprom-ready-offer .ready-price{gap:9px;margin-bottom:10px}
-    .idprom-ready-offer .ready-price strong{font-size:57px;letter-spacing:-2px}
-    .idprom-ready-offer .ready-price span{font-size:19px}
-    .idprom-ready-offer .ready-benefits{gap:6px;font-size:13px;flex-direction:column}
-    .idprom-ready-offer .ready-benefits>span{gap:7px}
-    .idprom-ready-offer .ready-check{width:20px;height:20px;flex-basis:20px}
-    .idprom-ready-offer .ready-check svg{width:17px;height:17px}
-    .idprom-ready-offer .ready-review{gap:14px;padding:15px;margin-bottom:12px;border-radius:14px}
-    .idprom-ready-offer .ready-review>svg{width:33px;height:33px;flex-basis:33px}
-    .idprom-ready-offer .ready-review strong{font-size:15px}
-    .idprom-ready-offer .ready-review p{font-size:14px}
-    .idprom-ready-offer .ready-warning{gap:13px;padding:13px 15px;font-size:14px;border-radius:14px}
-    .idprom-ready-offer .ready-warning svg{width:28px;height:28px;flex-basis:28px}
-    .idprom-ready-offer .ready-pay{font-size:17px;padding:15px 9px;min-height:55px}
-    .idprom-ready-offer .ready-footer{font-size:14px;padding-top:14px}
-   }
-
-   .package-pro-modal:has(.idprom-ready-offer){width:min(540px,calc(100vw - 32px));padding:30px 24px 20px;border-radius:20px;max-height:calc(100dvh - 32px)}
-   .idprom-ready-offer .ready-heading{padding:0 18px 20px}
-   .idprom-ready-offer .ready-heading h2{font-size:28px;letter-spacing:0}
-   .idprom-ready-offer .ready-heading p{font-size:15px}
-   .idprom-ready-offer .ready-price-card{gap:22px;padding:20px;border-radius:15px;margin-bottom:12px}
-   .idprom-ready-offer .ready-download-emblem{width:64px;height:64px;flex-basis:64px}
-   .idprom-ready-offer .ready-download-emblem svg{width:36px;height:36px}
-   .idprom-ready-offer .ready-price-divider{height:68px}
-   .idprom-ready-offer .ready-price{gap:10px;margin-bottom:10px}
-   .idprom-ready-offer .ready-price strong{font-size:58px;letter-spacing:-1px}
-   .idprom-ready-offer .ready-price span{font-size:19px}
-   .idprom-ready-offer .ready-benefits{gap:12px;font-size:13px}
-   .idprom-ready-offer .ready-benefits>span{gap:6px}
-   .idprom-ready-offer .ready-check{width:19px;height:19px;flex-basis:19px}
-   .idprom-ready-offer .ready-check svg{width:16px;height:16px}
-   .idprom-ready-offer .ready-review{gap:14px;padding:14px 16px;border-radius:12px;margin-bottom:10px}
-   .idprom-ready-offer .ready-review>svg{width:28px;height:28px;flex-basis:28px}
-   .idprom-ready-offer .ready-review strong{font-size:15px}
-   .idprom-ready-offer .ready-review p{font-size:13px;margin-top:3px}
-   .idprom-ready-offer .ready-warning{gap:12px;padding:12px 16px;font-size:13px;font-weight:500;border-radius:12px;margin-bottom:12px}
-   .idprom-ready-offer .ready-warning svg{width:25px;height:25px;flex-basis:25px}
-   .idprom-ready-offer .ready-pay{min-height:48px;padding:12px 14px;border-radius:11px;font-size:16px}
-   .idprom-ready-offer .ready-credit{padding:12px;border-radius:12px;margin-bottom:12px}
-   .idprom-ready-offer .ready-credit p{font-size:13px}
-   .idprom-ready-offer .ready-use-credit{font-size:14px;border-radius:9px}
-   .idprom-ready-offer .ready-footer{font-size:12px;padding-top:14px}
-   .idprom-ready-offer .ready-footer p{margin-bottom:6px}
-   @media(max-width:640px){
-    .package-pro-modal:has(.idprom-ready-offer){width:calc(100vw - 24px);padding:32px 18px 18px;border-radius:18px;max-height:calc(100dvh - 24px)}
-    .idprom-ready-offer .ready-heading h2{font-size:24px}
-    .idprom-ready-offer .ready-heading p{font-size:13px}
-    .idprom-ready-offer .ready-price-card{padding:17px 12px;gap:14px}
-    .idprom-ready-offer .ready-download-emblem{width:48px;height:48px;flex-basis:48px}
-    .idprom-ready-offer .ready-download-emblem svg{width:29px;height:29px}
-    .idprom-ready-offer .ready-price strong{font-size:48px}
-    .idprom-ready-offer .ready-price span{font-size:17px}
-    .idprom-ready-offer .ready-benefits{gap:5px;flex-direction:column;font-size:12px}
-   }
-
-  `}</style>
-  <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>ดาวน์โหลดรูปที่ปรับแต่งแล้ว ไม่มีลายน้ำ</p></header>
-  <section className="ready-price-card" aria-label="ราคาและสิ่งที่จะได้รับ">
-   <span className="ready-download-emblem"><DownloadIcon/></span><span className="ready-price-divider" aria-hidden="true"/>
-   <div className="ready-price-body"><div style={{color:'#718097',fontSize:13,marginBottom:5}}>ราคาปกติ <del>199 บาท</del></div><div className="ready-price"><strong>119</strong><span>บาท / งาน</span></div><div className="ready-benefits"><span><Check/>รูปไม่มีลายน้ำ</span><span><Check/>พร้อมนำไปใช้งาน</span><span><Check/>หลังชำระเงิน เลือกชุดได้ 3 ชุด</span></div></div>
-  </section>
-  <div className="ready-review"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 24S11 10 24 10s20 14 20 14-7 14-20 14S4 24 4 24Z" stroke="currentColor" strokeWidth="3.2" strokeLinejoin="round"/><circle cx="24" cy="24" r="6" stroke="currentColor" strokeWidth="3.2"/></svg><div><strong>ตรวจสอบภาพก่อนดาวน์โหลด</strong><p>ใบหน้า • ทรงผม • ชุด • พื้นหลัง</p></div></div>
-  <div className="ready-warning"><DownloadIcon/><span>ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</span></div>
-  {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={payBusy||!hasTrial} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
-  {isAuthenticated?<button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>startCheckout('119')}>{payBusy?'กำลังเตรียม…':'ชำระ 119 บาท เพื่อรับรูปนี้'}</button>:<div style={{display:'grid',gap:10}}><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
-  <div style={{borderTop:'1px solid #dce7f3',marginTop:16,paddingTop:14}}><p style={{margin:'0 0 10px',fontSize:14,textAlign:'center'}}>💎 โปร 159 บาท · ดาวน์โหลดงานนี้และปลดล็อกทรงผมหญิงทั้งหมด · เลือกชุดได้ 3 ชุด</p><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>isAuthenticated?startCheckout('159'):onAuthenticate('register')}>เลือกโปร 159 บาท</button></div>
-  {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
-  {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
-  <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
+ const disabled=payBusy||!hasTrial;
+ const showMessage=payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(p=>payMsg.startsWith(p));
+ return <div className="idprom-ready-offer paired-offers">
+ <style>{`
+ .credit-modal-backdrop:has(.paired-offers){background:#08182dcc;backdrop-filter:blur(5px)}
+ .package-pro-modal:has(.paired-offers){width:min(740px,calc(100vw - 28px));padding:32px 24px 20px;background:#fff;border:1px solid #dce4ee;border-radius:22px;max-height:calc(100dvh - 28px);overflow:auto;box-sizing:border-box}
+ .package-pro-modal:has(.paired-offers)>.credit-modal-close{top:12px;right:14px;color:#718097}
+ .paired-offers{font-family:inherit;color:#12284e;line-height:1.55}.paired-offers *{box-sizing:border-box}
+ .paired-offers .ready-heading{text-align:center;padding:0 20px 22px}
+ .paired-offers .ready-heading h2{font:inherit;font-size:28px;font-weight:800;line-height:1.4;margin:0 0 6px}
+ .paired-offers .ready-heading p{margin:0;font-size:14px;color:#718097}
+ .paired-offers .offer-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
+ .paired-offers .offer-card{min-width:0;display:flex;flex-direction:column;padding:22px 18px;border:1px solid #dce7f3;border-radius:16px;background:#f7fbff}
+ .paired-offers .offer-card.premium{background:#eff7ff;border-color:#a8cef6}
+ .paired-offers .offer-name{font-size:17px;font-weight:750;margin:0 0 7px;color:#175a9f}
+ .paired-offers .offer-regular{height:22px;font-size:12px;color:#718097;margin:0}
+ .paired-offers .offer-price{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;color:#086bce;margin:5px 0 18px}
+ .paired-offers .offer-price strong{font-size:52px;line-height:1;font-weight:800}.paired-offers .offer-price span{font-size:14px}
+ .paired-offers .offer-features{list-style:none;margin:0 0 20px;padding:0;display:grid;gap:11px;font-size:14px;flex:1}
+ .paired-offers .offer-features li{display:flex;gap:8px;align-items:flex-start}.paired-offers .offer-check{color:#0873d5;font-weight:800;flex:0 0 14px}
+ .paired-offers button{font:inherit;cursor:pointer}
+ .paired-offers .ready-pay,.paired-offers .ready-use-credit{width:100%;padding:12px 9px;border:0;border-radius:10px;background:#096bcf;color:#fff;font-weight:700;font-size:15px;min-height:46px}
+ .paired-offers .offer-card:not(.premium) .ready-pay{background:#e0edfc;color:#175a9f}
+ .paired-offers button:disabled{opacity:.5;cursor:default}.paired-offers button:focus-visible{outline:2px solid #2984dd;outline-offset:3px}
+ .paired-offers .offer-auth{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+ .paired-offers .offer-auth button:last-child{background:#e9f2fc;color:#175a9f}
+ .paired-offers .ready-review{background:#f0f5fb;border-radius:11px;padding:12px 16px;margin-bottom:10px;font-size:14px}.paired-offers .ready-review p{margin:2px 0 0;color:#718097;font-size:13px}
+ .paired-offers .ready-warning{background:#fff4df;color:#95611d;border-radius:11px;padding:12px 16px;font-size:13px;margin-bottom:12px}
+ .paired-offers .ready-credit{padding:12px;border:1px solid #dce7f3;border-radius:11px;margin-bottom:12px;text-align:center}
+ .paired-offers .ready-credit p{font-size:13px;margin:0 0 8px}.paired-offers .ready-use-credit{background:#e5f1ff;color:#175a9f;font-size:14px}
+ .paired-offers .ready-footer{text-align:center;color:#718097;font-size:12px;padding-top:12px}.paired-offers .ready-footer p{margin:0 0 6px}
+ .paired-offers .ready-footer .idprom-terms-link-wrap{margin:0}.paired-offers .ready-footer .idprom-terms-link{font:inherit;color:inherit;background:transparent;border:0;text-decoration:underline}
+ .paired-offers .ready-message{text-align:center;font-size:13px;color:#a53e24}
+ @media(max-width:640px){.package-pro-modal:has(.paired-offers){width:calc(100vw - 20px);padding:34px 12px 16px;border-radius:18px;max-height:calc(100dvh - 20px)}.paired-offers .ready-heading{padding:0 12px 16px}.paired-offers .ready-heading h2{font-size:23px}.paired-offers .ready-heading p{font-size:12px}.paired-offers .offer-pair{gap:8px}.paired-offers .offer-card{padding:16px 10px;border-radius:12px}.paired-offers .offer-name{font-size:15px}.paired-offers .offer-price{gap:4px;margin-bottom:16px}.paired-offers .offer-price strong{font-size:38px}.paired-offers .offer-price span{font-size:11px}.paired-offers .offer-features{font-size:12px;gap:10px}.paired-offers .ready-pay{font-size:13px;padding:11px 6px}.paired-offers .offer-regular{font-size:11px}.paired-offers .ready-review,.paired-offers .ready-warning{padding:11px 12px}}
+ `}</style>
+ <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>เลือกโปรสำหรับงานนี้ · ดาวน์โหลดรูปไม่มีลายน้ำ</p></header>
+ <div className="offer-pair">{[{price:'119',name:'โปร 119',premium:false,features:['รูปไม่มีลายน้ำ ทุกขนาด','เลือกชุดได้ 3 ชุด','ทรงผมพื้นฐานและผมสั้นเดิม']},{price:'159',name:'💎 โปร 159',premium:true,features:['รูปไม่มีลายน้ำ ทุกขนาด','เลือกชุดได้ 3 ชุด','ปลดล็อกทรงผมหญิงทั้งหมด รวมทรงเพชร']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={'โปร '+o.price+' บาท'}><h3 className="offer-name">{o.name}</h3><p className="offer-regular">{!o.premium?<>ราคาปกติ <del>199 บาท</del></>:'รวมทรงผมเพชร'}</p><div className="offer-price"><strong>{o.price}</strong><span>บาท / งาน</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span>{f}</span></li>)}</ul>{isAuthenticated&&<button type="button" className="ready-pay" disabled={disabled} onClick={()=>startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
+ {!isAuthenticated&&<div className="offer-auth"><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
+ <div className="ready-review"><strong>ตรวจสอบภาพก่อนดาวน์โหลด</strong><p>ใบหน้า • ทรงผม • ชุด • พื้นหลัง</p></div>
+ <div className="ready-warning">ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</div>
+ {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={disabled} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
+ {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
+ {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
+ <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
-
-
-
-
-
 
