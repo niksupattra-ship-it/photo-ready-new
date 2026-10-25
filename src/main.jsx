@@ -3257,8 +3257,10 @@ function App(){
  const finishQrPayment=async data=>{
   acceptWalletRights(data);setPurchaseEditing(true);
   await refreshWallet();let recoveredSnapshot=null;
-  if(qrPayment?.recovered){try{recoveredSnapshot=await restorePurchaseDraft()}catch{setMsg('ชำระเงินสำเร็จ แต่เปิดงานเดิมไม่ได้ กรุณาเปิดงานที่บันทึกหรือเพิ่มรูปใหม่')}}
-  analyticsPurchase(data.paymentIntentId);clearQrPayment();setBuyOpen(false);setPayMsg('ปลดล็อกดาวน์โหลดงานนี้แล้ว');await savePaidCheckout(data.paymentIntentId,{jobId:qrPayment?.jobId||recoveredSnapshot?.jobId||currentOutputJobRef.current});
+  if(qrPayment?.recovered){try{recoveredSnapshot=await restorePurchaseDraft()}catch{throw Error('ชำระเงินแล้ว แต่เปิดงานเดิมยังไม่สำเร็จ กรุณาตรวจสอบอีกครั้ง ไม่ต้องชำระซ้ำ')}}
+  const unlocked=await savePaidCheckout(data.paymentIntentId,{jobId:qrPayment?.jobId||recoveredSnapshot?.jobId||currentOutputJobRef.current});
+  if(!unlocked)throw Error('ชำระเงินแล้ว กำลังตรวจสอบสิทธิ์ กรุณากดตรวจสอบการชำระเงินอีกครั้ง ไม่ต้องชำระซ้ำ');
+  analyticsPurchase(data.paymentIntentId);clearQrPayment();setBuyOpen(false);setPayMsg('ปลดล็อกดาวน์โหลดงานนี้แล้ว');
  };
  useEffect(()=>{let cancelled=false;const controller=new AbortController();(async()=>{
   const removeStored=()=>{try{appStorage.removeItem('idprom_pending_qr_v1');appStorage.removeItem('idprom_qr_attempt_v1')}catch{}};
@@ -4401,6 +4403,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+
 
 
 
