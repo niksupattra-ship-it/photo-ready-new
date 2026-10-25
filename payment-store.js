@@ -187,24 +187,10 @@ export async function reserveCredit(walletId,kind){
   const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
+// Compatibility entry point: free processing has no daily/device/network quota.
 export async function reserveTrialPreview(walletId,fingerprint,networkFingerprint=null){
-  await ready();
-  const c=await pool.connect();
-  try{
-    await c.query('BEGIN');
-    await c.query('SELECT pg_advisory_xact_lock(77149231)');
-    const purchasedToday=await c.query("SELECT 1 FROM payments WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date UNION ALL SELECT 1 FROM promo_redemptions WHERE wallet_id=$1 AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date LIMIT 1",[walletId]);
-    if(purchasedToday.rowCount){await c.query('COMMIT');return null}
-    const used=await c.query("SELECT id,fingerprint,trial_slot FROM trial_previews WHERE (created_at AT TIME ZONE 'Asia/Bangkok')::date=(now() AT TIME ZONE 'Asia/Bangkok')::date AND (wallet_id=$1 OR fingerprint=$2 OR id IN (SELECT trial_id FROM trial_daily_devices WHERE device_key=$3 AND trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date))",[walletId,fingerprint,networkFingerprint]);
-    if(used.rowCount>=2){await c.query('COMMIT');return null;}
-    const slot=used.rows.some(r=>r.fingerprint===fingerprint&&r.trial_slot===1)?2:1;
-    const id='trial_'+crypto.randomBytes(18).toString('hex');
-    await c.query("INSERT INTO trial_previews(id,wallet_id,fingerprint,status,trial_slot) VALUES($1,$2,$3,'reserved',$4)",[id,walletId,fingerprint,slot]);
-    if(networkFingerprint)await c.query("INSERT INTO trial_daily_devices(device_key,trial_day,trial_id) VALUES($1,(now() AT TIME ZONE 'Asia/Bangkok')::date,$2)",[networkFingerprint,id]);
-    await c.query('COMMIT');
-    return {usageId:id,trialPreview:true,trialRemaining:1-used.rowCount,generationRemaining:0,hairRemaining:0};
-  }catch(e){await c.query('ROLLBACK');if(e?.code==='23505')return null;throw e}
-  finally{c.release()}
+ if(!walletId)return null;
+ return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,freeGeneration:true,unlimitedGeneration:true,trialRemaining:0,generationRemaining:0,hairRemaining:0};
 }
 export async function commitCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const r=await pool.query("UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}
 export async function refundCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("DELETE FROM trial_previews WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const c=await pool.connect();try{await c.query('BEGIN');const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}const col=u.rows[0].credit_column==='hair_remaining'?'hair_remaining':u.rows[0].credit_column==='generation_remaining'?'generation_remaining':u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.rows[0].wallet_id]);if(u.rows[0].full_edit_output)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+1 WHERE id=$1',[u.rows[0].wallet_id]);await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);await c.query('COMMIT');return true}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
@@ -248,32 +234,12 @@ export async function trialOptionAccess(walletId,fingerprint,networkFingerprint)
  await ready();return readTrialOptionAccess(pool,walletId,fingerprint,networkFingerprint);
 }
 async function readTrialOptionAccess(reader,walletId,fingerprint,networkFingerprint){
- const {rows}=await reader.query(`
-  WITH today AS (
-   SELECT date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok') AT TIME ZONE 'Asia/Bangkok' AS starts,
-    (date_trunc('day',now() AT TIME ZONE 'Asia/Bangkok')+interval '1 day') AT TIME ZONE 'Asia/Bangkok' AS ends
-  )
-  SELECT
-   EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1) OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased,
-   EXISTS(SELECT 1 FROM payments,today WHERE wallet_id=$1 AND created_at>=today.starts AND created_at<today.ends)
-    OR EXISTS(SELECT 1 FROM promo_redemptions,today WHERE wallet_id=$1 AND created_at>=today.starts AND created_at<today.ends) AS purchased_today,
-   -- UNION counts a shared wallet/device/network trial only once without a full-table OR scan.
-   CASE WHEN $2::text IS NULL THEN 0 ELSE (
-    SELECT count(*)::integer FROM (
-     SELECT t.id FROM trial_previews t,today WHERE t.wallet_id=$1 AND t.created_at>=today.starts AND t.created_at<today.ends
-     UNION
-     SELECT t.id FROM trial_previews t,today WHERE t.fingerprint=$2 AND t.created_at>=today.starts AND t.created_at<today.ends
-     UNION
-     SELECT t.id FROM trial_daily_devices d JOIN trial_previews t ON t.id=d.trial_id CROSS JOIN today
-      WHERE d.device_key=$3 AND d.trial_day=(now() AT TIME ZONE 'Asia/Bangkok')::date
-       AND t.created_at>=today.starts AND t.created_at<today.ends
-    ) eligible
-   ) END AS used
- `,[walletId,fingerprint||null,networkFingerprint]);
- const row=rows[0]||{},hasPurchased=Boolean(row.purchased);
- if(!fingerprint)return {hasPurchased,trialAvailable:false,trialRemaining:0};
- const trialRemaining=row.purchased_today?0:Math.max(0,2-Number(row.used||0));
- return {hasPurchased,trialAvailable:trialRemaining>0,trialRemaining};
+ // Purchase history remains separate from free access. Old daily trial records
+ // are retained for history and never used to limit generation.
+ const {rows}=await reader.query(`SELECT
+  EXISTS(SELECT 1 FROM payments WHERE wallet_id=$1)
+   OR EXISTS(SELECT 1 FROM promo_redemptions WHERE wallet_id=$1) AS purchased`,[walletId]);
+ return {hasPurchased:Boolean(rows[0]?.purchased),freeGeneration:true,unlimitedGeneration:true,trialAvailable:true,trialRemaining:0};
 }
 
 // Display-only snapshot. It neither migrates tables nor repairs/grants rights.
@@ -288,5 +254,6 @@ export async function getWalletBalance(id,fingerprint,networkFingerprint){
  catch(error){error.balanceStage='trial_policy';throw error}
  return {...shape(id,wallet.rows[0]),...trial};
 }
+
 
 
