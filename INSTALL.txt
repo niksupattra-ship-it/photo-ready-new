@@ -1,21 +1,5 @@
-เพิ่มทรงใหม่ 38 และ 39 เป็นทรงพื้นฐาน ไม่แทนที่ทรงเดิม
-
-แทนที่ไฟล์โค้ดตามเส้นทาง:
-hairstyle-catalog.js
-server.js
-src/main.jsx
-src/studio-editor.jsx
-
-เพิ่มไฟล์ภาพใหม่:
-public/assets/seedream-hairstyles/references/38.png
-public/assets/seedream-hairstyles/references/39.png
-public/assets/seedream-hairstyles/previews/38.webp
-public/assets/seedream-hairstyles/previews/39.webp
-
-อัปเดตทั้ง frontend/backend และ restart backend
-ห้ามลบไฟล์ทรงเดิมใน references/previews ให้วางเฉพาะไฟล์ใหม่เพิ่ม
-38: รูปแรกแสกกลาง ผมยาวด้านข้างโค้งนุ่ม
-39: รูปที่สองแสกเยื้อง ผมตรงทัดหู
-PNG อ้างอิง 464x548 โปร่งใส; ตัวอย่างนางแบบ 512x512
-ตรวจ build, mapping ไฟล์, ความโปร่งใส, สิทธิ์พื้นฐานและสิทธิ์เดิมแล้ว
-ยังไม่ได้เรียก AI ของเว็บจริง จึงยังไม่ยืนยันผลการสร้างจริงของผู้ให้บริการ
+แทนที่ review-portrait-finish.js, production-portrait-pipeline.js, src/main.jsx ตามเส้นทางเดิม แล้วอัปเดตทั้ง frontend/backend และ restart backend
+ปรับเฉพาะหญิงที่เลือกแต่งหน้า ให้เกลี่ยรูขุมขนและผิวหยาบละเอียดขึ้น พร้อมแก้คำสั่งรักษา grain ที่อาจขัดกัน และเปลี่ยนรุ่นแคชแต่งหน้าหญิง
+รูปที่สร้างก่อนอัปเดตไม่เปลี่ยนเอง ต้องสร้างใหม่
+ไม่เปลี่ยนคำสั่งผู้ชายและหญิงที่ไม่แต่งหน้า ไม่เพิ่มรอบเรียก AI
+ผ่าน build/syntax และตรวจ prompt โหมดอื่นตรงกับเดิมทุกตัวอักษรแล้ว ยังไม่ได้ยืนยันผลกับ AI บนระบบจริง
