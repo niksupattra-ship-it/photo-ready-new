@@ -20,7 +20,7 @@ async function check(name,run){await run();checks++;console.log('PASS '+name)}
 const policy={days:45,version:'saved-work-45-v1',effectiveAt:'2026-10-24T08:00:00.000Z',legacyExpiresAt:'2026-12-08T08:00:00.000Z',serverNow:'2026-10-24T08:00:00.000Z'};
 const project={layers:[{jobId:'job_a'}]},work={id:'work_a',name:'รูป IDพร้อม',project,expires_at:policy.legacyExpiresAt};
 const error=code=>Object.assign(Error(code),{code});
-let mode='ok',rights=true,calls=[];
+let mode='ok',rights=true,calls=[],canSave=true;
 const store={MAX_SAVED_WORKS:3,
  async getSavedWorkRetentionPolicy(){calls.push(['policy']);if(mode==='policy-error')throw error('08006');return policy},
  async listWorks(wallet){calls.push(['list',wallet]);if(mode==='list-error')throw error('08006');return [{id:work.id,expires_at:work.expires_at}]},
@@ -29,7 +29,7 @@ const store={MAX_SAVED_WORKS:3,
  async deleteWork(wallet,id){calls.push(['delete',wallet,id]);if(mode==='expired')throw error('saved_work_expired');if(mode==='delete-error')throw error('08006');return mode==='missing'?null:{id:work.id}}
 };
 const app=express();app.use(express.json());app.use((req,res,next)=>{if(req.get('X-Test-Account')==='A')req.accountUser={wallet_id:'wallet_A'};next()});
-registerSavedWorkApi(app,{store,savedWorkRights:async(wallet,p)=>{calls.push(['rights',wallet,p]);return rights}});
+registerSavedWorkApi(app,{store,downloadPolicy:{summary:async()=>({canSave}),isLegacySaved:async()=>false},savedWorkRights:async(wallet,p)=>{calls.push(['rights',wallet,p]);return rights}});
 const server=http.createServer(app);server.listen(0,'127.0.0.1');await once(server,'listening');
 const base='http://127.0.0.1:'+server.address().port;
 async function request(path,{method='GET',account=true,body}={}){
@@ -50,6 +50,9 @@ try{
  await check('list uses authenticated wallet and returns active-work expiry metadata',async()=>{
   calls=[];const r=await request('/api/saved-work');assert.equal(r.status,200);assert.deepEqual(r.data,{items:[{id:work.id,expires_at:work.expires_at}],limit:3,retention:policy});assert(calls.some(c=>c[0]==='list'&&c[1]==='wallet_A'));
  });
+ await check('accounts without grandfathered saving cannot write even an otherwise unlocked project',async()=>{
+  canSave=false;calls=[];const r=await request('/api/saved-work',{method:'POST',body:{project}});assert.equal(r.status,403);assert.equal(r.data.error,'saving_disabled');assert.deepEqual(calls,[]);canSave=true;
+ });
  await check('save retains the existing authoritative output-rights check',async()=>{
   rights=false;calls=[];const r=await request('/api/saved-work',{method:'POST',body:{id:'work_a',project}});assert.equal(r.status,403);assert.deepEqual(calls,[['rights','wallet_A',project]]);rights=true;
  });
@@ -57,7 +60,7 @@ try{
   calls=[];const r=await request('/api/saved-work',{method:'POST',body:{id:'work_a',project}});assert.equal(r.status,200);assert.deepEqual(r.data,work);assert.deepEqual(calls,[['rights','wallet_A',project],['save','wallet_A','work_a',project]]);
  });
  await check('normal open rechecks output rights before returning full project',async()=>{
-  calls=[];const r=await request('/api/saved-work/work_a');assert.equal(r.status,200);assert.deepEqual(r.data,{...work,unlocked:true});assert.deepEqual(calls,[['get','wallet_A','work_a'],['rights','wallet_A',project]]);
+  calls=[];const r=await request('/api/saved-work/work_a');assert.equal(r.status,200);assert.deepEqual(r.data,{...work,unlocked:true,legacyDownload:false});assert.deepEqual(calls,[['get','wallet_A','work_a'],['rights','wallet_A',project]]);
   rights=false;assert.equal((await request('/api/saved-work/work_a')).status,403);rights=true;
  });
  await check('normal delete remains wallet-scoped and returns removed id',async()=>{
@@ -127,6 +130,6 @@ await check('ordinary confirmed404 retains existing manual-delete recovery',asyn
 });
 const serverSource=await readFile(new URL('../server.js',import.meta.url),'utf8');
 await check('server wires saved-work routes once and starts cleanup after listen',async()=>{
- assert.equal(serverSource.split('registerSavedWorkApi(app,{savedWorkRights});').length-1,1);assert(!serverSource.includes("app.post('/api/saved-work'"));assert(serverSource.indexOf('startSavedWorkRetentionCleanup();')>serverSource.indexOf('app.listen('));assert(serverSource.includes("app.use('/api/saved-work',express.json({limit:\"64mb\"}));"));
+ assert.equal(serverSource.split('registerSavedWorkApi(app,{savedWorkRights,downloadPolicy});').length-1,1);assert(!serverSource.includes("app.post('/api/saved-work'"));assert(serverSource.indexOf('startSavedWorkRetentionCleanup();')>serverSource.indexOf('app.listen('));assert(serverSource.includes("app.use('/api/saved-work',express.json({limit:\"64mb\"}));"));
 });
 console.log(JSON.stringify({passed:checks,scope:'actual saved-work HTTP routes, cleanup scheduler and existing save handler; injected account/store fixtures, no production writes'}));

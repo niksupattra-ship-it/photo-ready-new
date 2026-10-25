@@ -36,6 +36,7 @@ async function currentPaymentSchema(){
    ('payments',ARRAY['session_id','wallet_id','credits','created_at','package_id','generation_qty','hair_qty','full_edit_reconciled']),
    ('credit_usage',ARRAY['id','wallet_id','kind','status','created_at','completed_at','refunded_at','credit_column','full_edit_output']),
    ('paid_image_unlocks',ARRAY['wallet_id','job_id','full_edit','created_at']),
+   ('premium_hair_unlocks',ARRAY['wallet_id','job_id']),
    ('trial_previews',ARRAY['id','wallet_id','fingerprint','status','created_at','completed_at','trial_slot']),
    ('trial_daily_devices',ARRAY['device_key','trial_day','trial_id']),
    ('promo_redemptions',ARRAY['code','wallet_id','package_id','created_at'])
@@ -96,7 +97,7 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
       WHEN lower(status) IN ('refunded','refund','cancelled','canceled') THEN 'refunded'
       ELSE 'completed'
     END
-    WHERE status IS NULL OR lower(status) NOT IN ('reserved','completed','refunded')
+    WHERE status IS NULL OR status NOT IN ('reserved','completed','refunded')
   `);
   await migrationQuery(`ALTER TABLE credit_usage ADD CONSTRAINT credit_usage_status_check CHECK (status IN ('reserved','completed','refunded'))`);
   }
@@ -193,7 +194,25 @@ export async function reserveTrialPreview(walletId,fingerprint,networkFingerprin
  return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,freeGeneration:true,unlimitedGeneration:true,trialRemaining:0,generationRemaining:0,hairRemaining:0};
 }
 export async function commitCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const r=await pool.query("UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}
-export async function refundCredit(usageId){await ready();if(String(usageId||'').startsWith('trial_')){const r=await pool.query("DELETE FROM trial_previews WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}const c=await pool.connect();try{await c.query('BEGIN');const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}const col=u.rows[0].credit_column==='hair_remaining'?'hair_remaining':u.rows[0].credit_column==='generation_remaining'?'generation_remaining':u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.rows[0].wallet_id]);if(u.rows[0].full_edit_output)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+1 WHERE id=$1',[u.rows[0].wallet_id]);await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);await c.query('COMMIT');return true}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}
+export async function refundCredit(usageId){
+ await ready();
+ if(String(usageId||'').startsWith('trial_')){const r=await pool.query("DELETE FROM trial_previews WHERE id=$1 AND status='reserved' RETURNING id",[usageId]);return !!r.rowCount}
+ const c=await pool.connect();try{
+  await c.query('BEGIN');
+  const owner=await c.query('SELECT wallet_id FROM credit_usage WHERE id=$1',[usageId]);
+  if(!owner.rows[0]){await c.query('ROLLBACK');return false}
+  // Match reserve/reconciliation: wallet first, then usage. Taking these locks
+  // in reverse order can deadlock a refund against legacy entitlement repair.
+  await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[owner.rows[0].wallet_id]);
+  const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);
+  if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}
+  const col=u.rows[0].credit_column==='hair_remaining'?'hair_remaining':u.rows[0].credit_column==='generation_remaining'?'generation_remaining':u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';
+  await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.rows[0].wallet_id]);
+  if(u.rows[0].full_edit_output)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+1 WHERE id=$1',[u.rows[0].wallet_id]);
+  await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
+  await c.query('COMMIT');return true;
+ }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
 export async function walletHistory(walletId){await ready();const {rows}=await pool.query(`SELECT session_id AS id,'purchase' AS type,package_id AS kind,(generation_qty+hair_qty) AS credits,created_at AS at FROM payments WHERE wallet_id=$1 UNION ALL SELECT id,CASE WHEN status='refunded' THEN 'refund' ELSE 'usage' END AS type,kind,CASE WHEN status='refunded' THEN 1 ELSE -1 END AS credits,COALESCE(refunded_at,completed_at,created_at) AS at FROM credit_usage WHERE wallet_id=$1 ORDER BY at DESC LIMIT 30`,[walletId]);return rows.map(r=>({...r,at:new Date(r.at).toISOString()}))}
 
 export async function creditOutputFullEdit(id){await ready();const r=await pool.query("SELECT full_edit_output FROM credit_usage WHERE id=$1 AND status='completed'",[id]);return Boolean(r.rows[0]?.full_edit_output)}

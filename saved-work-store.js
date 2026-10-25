@@ -28,6 +28,7 @@ async function migrate(){
   // Defaults also cover old instances still accepting saves during a rolling deploy.
   await client.query("ALTER TABLE saved_studio_work ALTER COLUMN retention_started_at SET DEFAULT statement_timestamp(),ALTER COLUMN expires_at SET DEFAULT (statement_timestamp()+interval '1080 hours'),ALTER COLUMN retention_policy_version SET DEFAULT 'saved-work-45-v1'");
   await client.query('CREATE INDEX IF NOT EXISTS saved_studio_work_expiry_idx ON saved_studio_work(expires_at,id) WHERE expires_at IS NOT NULL');
+  await client.query('CREATE INDEX IF NOT EXISTS saved_studio_work_wallet_updated_idx ON saved_studio_work(wallet_id,updated_at DESC)');
   // Retain only identifiers and a hashed purchase key, never images or project data.
   await client.query('CREATE TABLE IF NOT EXISTS saved_studio_work_expired(id text PRIMARY KEY,wallet_id text NOT NULL,expires_at timestamptz NOT NULL,purchase_key_hash text)');
   await client.query('CREATE INDEX IF NOT EXISTS saved_studio_work_expired_purchase_idx ON saved_studio_work_expired(wallet_id,purchase_key_hash) WHERE purchase_key_hash IS NOT NULL');

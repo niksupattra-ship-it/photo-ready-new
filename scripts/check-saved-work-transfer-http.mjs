@@ -39,7 +39,7 @@ const store={MAX_SAVED_WORKS:3,
 const app=express();
 app.use('/api/saved-work',express.json({limit:'64mb'}));
 app.use((req,res,next)=>{const account=req.get('X-Test-Account');if(account==='A'||account==='B')req.accountUser={wallet_id:'wallet_'+account};next()});
-registerSavedWorkApi(app,{store,savedWorkRights:async(wallet,value)=>{rightsCalls.push([wallet,value]);if(mode==='rights-error')throw Error('fixture rights failure');return allow}});
+registerSavedWorkApi(app,{store,downloadPolicy:{summary:async()=>({canSave:true}),isLegacySaved:async()=>false},savedWorkRights:async(wallet,value)=>{rightsCalls.push([wallet,value]);if(mode==='rights-error')throw Error('fixture rights failure');return allow}});
 app.use((error,req,res,next)=>{parseErrors.push(error.type);res.set('Cache-Control','no-store').status(error.status||500).json({error:error.type||'fixture_error'})});
 const server=http.createServer(app);server.listen(0,'127.0.0.1');await once(server,'listening');
 const port=server.address().port;
@@ -63,7 +63,7 @@ async function request(path,{method='GET',account='A',body,raw,encoding='identit
 }
 const reset=()=>{rightsCalls=[];storeCalls=[];parseErrors=[];mode='ok';allow=true;currentWork=work};
 const assertPrivate=response=>{assert.equal(response.headers['cache-control'],'no-store');assert.match(response.headers['content-type'],/^application\/json/)};
-const expectedOpen=()=>({...work,unlocked:true});
+const expectedOpen=()=>({...work,unlocked:true,legacyDownload:false});
 try{
  await check('legacy JSON saves still pass exact editable project and account wallet to the store',async()=>{
   reset();const response=await request('/api/saved-work',{method:'POST',body:{id:'work_A',project}});assert.equal(response.status,200);assertPrivate(response);

@@ -46,6 +46,9 @@ export async function settleAiJobDelivery(id,walletId,action){
  await ready();const c=await pool.connect();
  try{
   await c.query('BEGIN');
+  // Paid cancellation returns credit. Match reserve/refund/reconciliation's
+  // wallet-before-usage order before locking the job and its usage row.
+  if(action==='cancel')await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
   const row=await c.query('SELECT * FROM ai_jobs WHERE id=$1 AND wallet_id=$2 FOR UPDATE',[id,walletId]);
   const j=row.rows[0];if(!j){await c.query('ROLLBACK');return {status:404,error:'job_not_found'}}
   if(j.fields?.delivery_confirmed){await c.query('ROLLBACK');return action==='confirm'?{status:200,ok:true}:{status:409,error:'already_delivered'}}

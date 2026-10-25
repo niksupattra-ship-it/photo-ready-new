@@ -6,6 +6,7 @@ import {refineBackgroundAlpha} from './background-edge-refine.js';
 import {hairRootTargetInstruction} from './hair-root-target.js';
 import {registerPasswordResetApi} from './password-reset-api.js';
 import {registerPromptpayApi,settlePromptpay} from './promptpay-api.js';
+import {verifyStripeSignature,settleCheckout} from './stripe-payment-validation.js';
 import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY} from './hairstyle-fit-policy.js';
 import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject} from './saved-work-store.js';
@@ -33,12 +34,6 @@ const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7
 const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
 const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
 function walletId(req){return req.accountUser?.wallet_id||String(req.get("X-Wallet-Id")||"").trim()}
-function verifyStripeSignature(raw,header,secret){
-  if(!header||!secret)return false;const parts=Object.fromEntries(header.split(",").map(x=>x.split("=",2)));
-  const t=parts.t,v1=parts.v1;if(!t||!v1)return false;if(Math.abs(Date.now()/1000-Number(t))>300)return false;
-  const expected=crypto.createHmac("sha256",secret).update(`${t}.${raw.toString("utf8")}`).digest("hex");
-  try{return crypto.timingSafeEqual(Buffer.from(expected),Buffer.from(v1))}catch{return false}
-}
 async function stripePost(endpoint,params,idempotencyKey){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
   const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null)body.append(k,String(v));
@@ -57,7 +52,7 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      const wid=session.metadata?.wallet_id;const packageId=session.metadata?.package_id||"149";if(wid)await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
+      if(session.metadata?.wallet_id)await settleCheckout(session,creditPaid);
     }
     if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1')await settlePromptpay(session,creditPaid);
     res.json({received:true});
@@ -95,12 +90,9 @@ app.post("/api/payments/confirm",async(req,res)=>{
     const wid=walletId(req),sessionId=String(req.body?.sessionId||"").trim();
     if(!wid||!sessionId)return res.status(400).json({error:"payment_confirmation_required"});
     const session=await stripeGet(`checkout/sessions/${encodeURIComponent(sessionId)}`);
-    if(session?.payment_status!=="paid")return res.status(409).json({error:"payment_not_paid",message:"ยังไม่พบการชำระเงินสำเร็จ"});
-    if(String(session.metadata?.wallet_id||"")!==wid)return res.status(403).json({error:"wallet_mismatch",message:"รายการชำระเงินนี้ไม่ตรงกับกระเป๋าเครดิตของเครื่อง"});
-    const packageId=String(session.metadata?.package_id||"149");
-    const out=await creditPaid(wid,session.id,packageId,session.metadata?.job_id||'');
-    res.json({ok:true,...out});
-  }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
+    const out=await settleCheckout(session,creditPaid,wid);
+    res.json({ok:true,...out,jobId:String(session.metadata?.job_id||'')});
+  }catch(e){console.error("Stripe confirm:",e);const status=e.status||500;res.status(status).json({error:status<500?e.message:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
 app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req)),...await downloadPolicy.summary(w.walletId)})});
 // A credit display reads current counters without migrations or image-right repair.
@@ -137,12 +129,14 @@ app.post('/api/payments/checkout',async(req,res)=>{
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
   const jobId=String(req.body?.jobId||'');await downloadPolicy.ownedJob(wid,jobId);if(offer.id==='download_159_hair_v1'?await downloadPolicy.premiumHair(wid,jobId):await downloadPolicy.allowed(wid,jobId))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
   const base=APP_URL||`${req.protocol}://${req.get('host')}`;
+  const attempt=String(req.get('X-Checkout-Attempt')||'');if(attempt&&!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
+  const idempotencyKey=attempt?crypto.createHash('sha256').update(JSON.stringify(['idprom_checkout_v1',wid,offer.id,jobId,attempt])).digest('hex'):undefined;
   const session=await stripePost('checkout/sessions',{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
    'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
    'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
-  });res.json({url:session.url});
+  },idempotencyKey);res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'กรุณาโหลดหน้าใหม่เพื่อเลือกโปร 119 หรือ 159 บาท':e.message})}
 });
 registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
@@ -444,7 +438,7 @@ setInterval(resumeQueuedAiJobs,60000);
 async function savedWorkRights(wid,project,workId=''){
  const ids=validateProject(project);
  if(await downloadPolicy.legacyAllows(wid,workId,ids))return true;
- const results=await Promise.all(ids.map(id=>downloadPolicy.allowed(wid,id,{savedWorkId:workId})));return results.every(Boolean);
+ return downloadPolicy.allowedJobs(wid,ids);
 }
 
 registerSavedWorkApi(app,{savedWorkRights,downloadPolicy});

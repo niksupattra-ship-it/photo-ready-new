@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {makeSavedProject,prepareSavedProject,validateSavedProject} from '../src/saved-project.js';
+import {packSavedProjectTransfer,getSavedWorkRequestSize} from '../src/saved-work-transfer.js';
+import {encodeSavedWorkRequest} from '../src/saved-work-request.js';
+import {walletScope} from '../src/wallet-refresh.js';
+import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 const root=new URL('../',import.meta.url),read=p=>readFile(new URL(p,root),'utf8');
 const png='data:image/png;base64,AAAA',other='data:image/png;base64,BBBB';
 const head={id:'h',kind:'head',name:'หัว · คอ · ผม',jobId:'paid_A',portraitMode:'female',femaleEyeStyle:'makeup',hairId:'seedream-07',source:png,sourceFrame:{x:40,y:60,w:500,h:600},x:9,y:12,scale:1,rotation:0,opacity:1};
@@ -17,26 +21,30 @@ assert.throws(()=>validateSavedProject({...project,layers:[{...head,mask:'https:
 validateSavedProject({...project,layers:[{...head,source:'data:image/jpeg;base64,AAAA'}]});
 assert.deepEqual((await makeSavedProject({layers:[head],placement:project.placement,originalPreview:other})).compareSource,other);
 const main=await read('src/main.jsx');
-const handler=main.slice(main.indexOf(' const openAccountWork=async'),main.indexOf(' const paidSaveInFlightRef='));
-const makeOpen=new Function('env','with(env){'+handler+';return openAccountWork}');
-function env(){const e={savedWorkOpenRequestRef:{current:0},refreshWallet:async()=>{},currentWalletId:()=> 'wallet_A',prepareSavedProject:(p)=>prepareSavedProject(p,deps),loadImage:deps.decode,firstUploadedPhotoRef:{current:'person_B'},editCache:{current:{master:'person_B'}},initialProcessedMasterRef:{current:null},hairResultCacheRef:{current:new Map([['old',1]])}};
+function compile(name,env){
+ const start=main.indexOf(' const '+name+'=');assert(start>=0,`missing ${name}`);const end=main.indexOf('\n };',start);assert(end>start,`missing end of ${name}`);
+ return new Function('env','with(env){'+main.slice(start,end+4)+';return '+name+'}')(env);
+}
+function env(){const e={savedWorkOpenRequestRef:{current:0},savedWorkLoadRequestRef:{current:0},refreshWallet:async()=>{},authToken:()=> 'token_A',currentWalletId:()=> 'wallet_A',walletHeaders:()=>({Authorization:'Bearer token_A','X-Wallet-Id':'wallet_A'}),prepareSavedProject:p=>prepareSavedProject(p,deps),decodedStudioImage:deps.decode,firstUploadedPhotoRef:{current:'person_B'},editCache:{current:{master:'person_B'}},initialProcessedMasterRef:{current:null},initialFemaleMakeupRef:{current:null},portraitFinishChoice,femaleFinishAnchor:(source,master)=>({source,master}),activeSavedDownloadWork:'',hairResultCacheRef:{current:new Map([['old',1]])}};
  for(const n of ['preparedHairBaseRef','lastHairDonorRef','cleanHairBaseRef','initialStyledHairRef','liveAdjustRef','liveCollarWarpRef','liveCollarHeightRef','liveNeckAdjustRef','currentOutputJobRef','currentOutputTrialRef','studioTrialRef','studioOriginRef','savedWorkIdRef'])e[n]={current:null};
  for(const n of ['setAccountSaveNotice','setOutputJobId','setTrialPreview','setHairId','setF','setRestoredSourcePhoto','setSavedWorkUnlocked','setPurchaseEditing','setSessionEditJob','setStudioData','setSavedWorkRevision','setScreen'])e[n]=()=>{};
  return e;}
-const e=env();await makeOpen(e)({id:'work_A',unlocked:true,project});assert.equal(await e.firstUploadedPhotoRef.current.text(),other);assert(e.editCache.current.master instanceof Blob);assert.equal(e.currentOutputJobRef.current,'paid_A');assert.equal(e.hairResultCacheRef.current.size,0);
-const failed=env();failed.prepareSavedProject=async()=>{throw Error('corrupt')};await assert.rejects(makeOpen(failed)({id:'bad',project}),/corrupt/);assert.equal(failed.firstUploadedPhotoRef.current,'person_B');assert.equal(failed.editCache.current.master,'person_B');
-await makeOpen(e)({id:'legacy',unlocked:true,project:{...project,compareSource:null}});assert.equal(e.firstUploadedPhotoRef.current,null);assert.equal(e.editCache.current,null);
-const saveCode=main.slice(main.indexOf(' const saveAccountWork='),main.indexOf(' const savedWorkOpenRequestRef='));
-const requests=[],saveEnv={workSaveQueueRef:{current:Promise.resolve()},savedWorkIdRef:{current:''},savedWorkOpenRequestRef:{current:1},currentWalletId:()=> 'wallet_A',walletHeaders:()=>({}),setSavedWorksOpen:()=>{},Blob,portraitFetch:async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({id:'work_new'})}}};
-const save=new Function('env','with(env){'+saveCode+';return saveAccountWork}')(saveEnv);
+const e=env();await compile('openAccountWork',e)({id:'work_A',unlocked:true,project});assert.equal(await e.firstUploadedPhotoRef.current.text(),other);assert(e.editCache.current.master instanceof Blob);assert.equal(e.currentOutputJobRef.current,'paid_A');assert.equal(e.hairResultCacheRef.current.size,0);assert.equal(e.initialFemaleMakeupRef.current.source,e.firstUploadedPhotoRef.current);
+const failed=env();failed.prepareSavedProject=async()=>{throw Error('corrupt')};await assert.rejects(compile('openAccountWork',failed)({id:'bad',project}),/corrupt/);assert.equal(failed.firstUploadedPhotoRef.current,'person_B');assert.equal(failed.editCache.current.master,'person_B');
+await compile('openAccountWork',e)({id:'legacy',unlocked:true,project:{...project,compareSource:null}});assert.equal(e.firstUploadedPhotoRef.current,null);assert.equal(e.editCache.current,null);assert.equal(e.initialFemaleMakeupRef.current,null);
+const requests=[],saveEnv={workSaveQueueRef:{current:Promise.resolve()},savedWorkIdRef:{current:''},savedWorkOpenRequestRef:{current:1},currentWalletId:()=> 'wallet_A',walletHeaders:()=>({}),setSavedWorksOpen:()=>{},Blob,packSavedProjectTransfer,getSavedWorkRequestSize,encodeSavedWorkRequest,portraitFetch:async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({id:'work_new'})}}};
+const save=compile('saveAccountWork',saveEnv);
 await Promise.all([save(project),save(project)]);assert.equal(requests[0].id,'');assert.equal(requests[1].id,'work_new');
 await assert.rejects(save(project,{workScope:0}),/งานเปลี่ยน/);
 saveEnv.portraitFetch=async()=>({ok:false,status:413,json:async()=>{throw Error('HTML')}});await assert.rejects(save(project),/ขนาดใหญ่/);
-assert(main.includes('await savePaidCheckout(sessionId)'));assert(main.includes('await savePaidCheckout(data.paymentIntentId)'));
-const paidCode=main.slice(main.indexOf(' const savePaidCheckout=async'),main.indexOf('\n const [trialChoice',main.indexOf(' const savePaidCheckout=async')));
-let paidCalls=0,notice;
-const paidEnv={paidSaveInFlightRef:{current:new Map()},currentOutputJobRef:{current:'paid_A'},paymentStudioRef:{current:()=>({layers:[head],placement:project.placement,originalPreview:other})},restoredCheckoutRef:{current:null},makeSavedProject,saveAccountWork:async()=>{paidCalls++;await Promise.resolve()},setMsg:()=>{},setPayMsg:()=>{},setAccountSaveNotice:n=>{notice=n}};
-const paid=new Function('env','with(env){'+paidCode+';return savePaidCheckout}')(paidEnv);
-assert.deepEqual(await Promise.all([paid('pi_test'),paid('pi_test')]),[true,true]);assert.equal(paidCalls,1);assert.equal(notice.state,'success');
-paidEnv.saveAccountWork=async()=>{throw Error('5 งาน')};assert.equal(await paid('pi_full'),false);assert.equal(notice.state,'error');assert(notice.message.includes('5 งาน'));
-console.log('PASS: saved original/master/placement roundtrip, cross-person isolation, legacy missing-original isolation, corrupt image rejection, JPEG compatibility, queued saves, stale background rejection, oversized response, both payment paths, duplicate payment and visible failed-save notice.');
+function paidEnv(){const e={currentOutputJobRef:{current:'paid_A'},savedWorkOpenRequestRef:{current:1},authToken:()=> 'token_A',currentWalletId:()=> 'wallet_A',walletScope,verifyOutputRights:async()=>({checked:true,unlocked:true}),setTrialPreview:value=>{e.trial=value},setAccountSaveNotice:value=>{e.notice=value},setDownloadUnlockSignal:value=>{e.unlock=value},setPayMsg:value=>{e.message=value},saveAccountWork:()=>{throw Error('payment must not overwrite saved work')}};return e}
+for(const paymentId of ['cs_return','pi_promptpay']){
+ const e=paidEnv(),paid=compile('savePaidCheckout',e);assert.equal(await paid(paymentId),true);assert.deepEqual(e.unlock,{id:paymentId,jobId:'paid_A'});assert.equal(e.trial,false);assert.equal(e.notice,null);
+}
+for(const right of [{checked:false,unlocked:null},{checked:true,unlocked:false}]){
+ const e=paidEnv();e.verifyOutputRights=async()=>right;assert.equal(await compile('savePaidCheckout',e)('pi_pending'),false);assert.equal(e.unlock,undefined);assert(e.message.includes('ไม่ต้องชำระซ้ำ'));
+}
+const changedPhoto=paidEnv();changedPhoto.verifyOutputRights=async()=>{changedPhoto.currentOutputJobRef.current='paid_B';return {checked:true,unlocked:true}};assert.equal(await compile('savePaidCheckout',changedPhoto)('pi_old',{jobId:'paid_A'}),true);assert.equal(changedPhoto.unlock,undefined);
+const changedWork=paidEnv();changedWork.verifyOutputRights=async()=>{changedWork.savedWorkOpenRequestRef.current++;return {checked:true,unlocked:true}};assert.equal(await compile('savePaidCheckout',changedWork)('pi_old'),true);assert.equal(changedWork.unlock,undefined);
+const changedAccount=paidEnv();changedAccount.verifyOutputRights=async()=>{changedAccount.authToken=()=> 'token_B';return {checked:true,unlocked:true}};await assert.rejects(compile('savePaidCheckout',changedAccount)('pi_old'),/บัญชีเปลี่ยน/);assert.equal(changedAccount.unlock,undefined);
+console.log('PASS: saved original/master/placement roundtrip, cross-person isolation, makeup continuity, legacy missing-original isolation, corrupt image rejection, JPEG compatibility, queued saves, stale save rejection, oversized response, verified card/PromptPay unlock signals without implicit saved-work writes, pending rights, and changed-photo/work/account isolation.');

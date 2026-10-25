@@ -1,7 +1,31 @@
 const DB='idprom-purchase-draft-v1',BACKUP='idprom-purchase-draft-backup-v1',STORE='checkout-drafts-v2';
 let memoryDraft=null;
 const bounded=(operation)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new DOMException('Draft storage timed out','TimeoutError')),10000);Promise.resolve().then(operation).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)})});
-async function open(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.onblocked=()=>reject(new DOMException('Draft storage blocked','InvalidStateError'))});}
+// A timed-out database request may resume after the banking app closes. Abort
+// its transaction and close any late connection before a newer draft is saved.
+function draftTransaction(store,mode,operation){return new Promise((resolve,reject)=>{
+ let db,tx,finished=false,value;
+ const close=()=>{try{db?.close()}catch{}};
+ const fail=error=>{if(finished)return;finished=true;clearTimeout(timer);try{tx?.abort()}catch{}close();reject(error)};
+ const timer=setTimeout(()=>fail(new DOMException('Draft storage timed out','TimeoutError')),10000);
+ try{
+  const request=indexedDB.open(DB,2);
+  request.onupgradeneeded=()=>{if(finished){try{request.transaction?.abort()}catch{}return}if(!request.result.objectStoreNames.contains(STORE))request.result.createObjectStore(STORE)};
+  request.onerror=()=>fail(request.error);
+  request.onblocked=()=>fail(new DOMException('Draft storage blocked','InvalidStateError'));
+  request.onsuccess=()=>{
+   db=request.result;if(finished){close();return}
+   try{
+    if(!db.objectStoreNames.contains(store)){finished=true;clearTimeout(timer);close();resolve(null);return}
+    tx=db.transaction(store,mode);
+    tx.oncomplete=()=>{if(finished)return;finished=true;clearTimeout(timer);close();resolve(value)};
+    tx.onerror=()=>fail(tx.error||new DOMException('Draft storage failed','UnknownError'));
+    tx.onabort=()=>fail(tx.error||new DOMException('Draft storage aborted','AbortError'));
+    const result=operation(tx.objectStore(store));if(result)result.onsuccess=()=>{value=result.result};
+   }catch(error){fail(error)}
+  };
+ }catch(error){fail(error)}
+})}
 async function encode(value){
  if(value instanceof Blob){const bytes=new Uint8Array(await value.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));return {__idpromBlob:true,data:btoa(binary),type:value.type,name:typeof File!=='undefined'&&value instanceof File?value.name:null,lastModified:value.lastModified}}
  if(Array.isArray(value))return Promise.all(value.map(encode));
@@ -15,7 +39,7 @@ function decode(value){
 export async function savePurchaseDraft(value,{allowMemoryFallback=false}={}){
  memoryDraft=value;
  try{
-  await bounded(async()=>{const db=await open();try{await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);tx.objectStore(STORE).put(value,'current')})}finally{db.close()}});
+  await draftTransaction(STORE,'readwrite',store=>store.put(value,'current'));
   try{sessionStorage.removeItem(BACKUP)}catch{}return {storage:'indexeddb',persistent:true};
  }catch(primaryError){
   // Preserve the complete project in this tab, including original blobs. Never silently discard edits.
@@ -29,5 +53,5 @@ export async function savePurchaseDraft(value,{allowMemoryFallback=false}={}){
 export async function loadPurchaseDraft(){
  if(memoryDraft)return memoryDraft;
  try{const backup=sessionStorage.getItem(BACKUP);if(backup)return decode(JSON.parse(backup))}catch{}
- return bounded(async()=>{const db=await open();try{return await new Promise((resolve,reject)=>{const tx=db.transaction(STORE),r=tx.objectStore(STORE).get('current');r.onsuccess=()=>{if(r.result||!db.objectStoreNames.contains('drafts'))resolve(r.result||null);else{const legacy=db.transaction('drafts').objectStore('drafts').get('current');legacy.onsuccess=()=>resolve(legacy.result||null);legacy.onerror=()=>reject(legacy.error)}};r.onerror=()=>reject(r.error)})}finally{db.close()}});
+ return await draftTransaction(STORE,'readonly',store=>store.get('current'))||await draftTransaction('drafts','readonly',store=>store.get('current'))||null;
 }

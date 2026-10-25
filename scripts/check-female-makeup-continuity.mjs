@@ -34,47 +34,46 @@ try{
   for(const change of [{hairId:'seedream-35',portraitMode:'male'},{portraitMode:'male'},{femaleEyeStyle:'natural'},{femaleEyeStyle:undefined},{creditKind:undefined},{creditKind:'ai-finish'}])assert.throws(()=>validateProductionPortrait(portrait,{...fields,...change}));
   assert.equal(requests.length,0);
  });
- await test('actual image decoding rejects tiny, oversized and damaged references before any provider call',async()=>{
+ await test('the legacy reference decoder rejects tiny, oversized and damaged JPEGs independently',async()=>{
   const bad=[await jpeg('#d6889b',8,8),await jpeg('#d6889b',513,512),Buffer.from([255,216,255,224,0,16,0,0])];
-  for(const bytes of bad)await assert.rejects(process(portrait,{...fields,femaleMakeupReference:url(bytes)}));
+  for(const bytes of bad)await assert.rejects(checkedFemaleMakeupReference(bytes));
   assert.equal(requests.length,0);
  });
- await test('female makeup hair change carries current source, exact hairstyle and accepted finish in one existing 2K request',async()=>{
+ // The current production policy deliberately ignores legacy generated makeup
+ // crops. Every hairstyle is grounded in this request's upload and written finish.
+ await test('female makeup hair change uses the uploaded source and selected hairstyle without a legacy generated-face reference',async()=>{
   const before=requests.length,out=await process(portrait,fields),body=requests.at(-1);
-  assert.equal(requests.length,before+1);assert.equal(body.model,REVIEW_SEEDREAM_MODEL);assert.equal(body.size,'2K');assert.equal(body.image.length,3);
-  assert.deepEqual(data(body.image[0]),sourceB);assert.deepEqual(data(body.image[1]),reference);assert.deepEqual(data(body.image[2]),acceptedB);
-  assert(body.image[2].startsWith('data:image/jpeg;base64,'));assert(body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY — IMAGE 3'));
-  assert(!body.prompt.includes('no separate makeup-reference image is supplied'));
-  assert(body.prompt.includes('intentional accepted finish to PRESERVE'));assert(body.prompt.includes('Preserve their actual accepted cosmetic strength'));
-  assert(body.prompt.includes('CURRENT EYE / SKIN TARGET TAKES PRIORITY'));assert(body.prompt.includes('subtle skin-balanced pink-nude upper-lid ceiling'));assert(body.prompt.includes('neutral lower-eye exclusion'));
-  assert(body.prompt.includes('including older flat acne spots visible in Image 1 or the accepted reference'));assert(body.prompt.includes('Protect genuine discrete moles, beauty marks and freckles'));
-  assert(body.prompt.includes('do not authorize redesigning the accepted brows, eyeliner, lashes, lips, gloss, healthy skin complexion or luminous studio finish'));
-  assert(!body.prompt.includes('Do not tone down the accepted makeup'));assert(!body.prompt.includes('Retain that actual accepted colour/intensity and exposure instead of designing makeup again'));
-  assert(body.prompt.includes('Image 1 remains the sole authority'));assert(body.prompt.includes('Image 2 remains the EXCLUSIVE hairstyle authority'));assert(body.prompt.includes('Iris colour/texture, pupil dimensions, original gaze and corneal catchlights remain from Image 1'));
+  assert.equal(requests.length,before+1);assert.equal(body.model,REVIEW_SEEDREAM_MODEL);assert.equal(body.size,'2K');assert.equal(body.image.length,2);
+  assert.deepEqual(data(body.image[0]),sourceB);assert.deepEqual(data(body.image[1]),reference);assert(!body.image.includes(url(acceptedB)));
+  assert.equal(body.prompt,productionPortraitPrompt(productionHair(fields.hairId),fields.femaleEyeStyle));
+  assert(!body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY'));assert(body.prompt.includes('previously generated makeup or skin finish'));
+  assert(body.prompt.includes('FINAL FEMALE MAKEUP TEXTURE PRIORITY'));assert(body.prompt.includes('restrained translucent rosy glow'));
+  assert(body.prompt.includes('neutral lower-eye skin'));assert(body.prompt.includes('Keep stable moles, freckles'));
+  assert(body.prompt.includes('Image 1 supplies the person'));assert(body.prompt.includes('Image 2 supplies the selected hairstyle only'));
   assert.deepEqual((await sharp(out).raw().toBuffer()).subarray((40*64+32)*4,(40*64+32)*4+4),Buffer.from([180,140,110,255]),'no original or reference face pixels are pasted over the generated output');
  });
- await test('identity and cosmetics remain separate references with the correct dynamic fourth-image role',async()=>{
+ await test('the optional third image is an identity crop derived only from this uploaded person',async()=>{
   const box=[.25,.2,.75,.8],before=requests.length;
   await process(portrait,{...fields,faceIdentityBox:JSON.stringify(box)});const body=requests.at(-1);
-  assert.equal(requests.length,before+1);assert.equal(body.image.length,4);assert.deepEqual(data(body.image[2]),await portraitIdentityCrop(portrait,box));assert.deepEqual(data(body.image[3]),acceptedB);
-  assert(body.prompt.includes('UPLOADED-PERSON IDENTITY DETAIL — IMAGE 3'));assert(body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY — IMAGE 4'));assert(!body.prompt.includes('This last image is a close-up cropped directly from Image 1'));
+  assert.equal(requests.length,before+1);assert.equal(body.image.length,3);assert.deepEqual(data(body.image[0]),sourceB);assert.deepEqual(data(body.image[1]),reference);assert.deepEqual(data(body.image[2]),await portraitIdentityCrop(portrait,box));
+  assert(!body.image.includes(url(acceptedB)));assert(body.prompt.includes('UPLOADED-PERSON IDENTITY DETAIL — IMAGE 3'));assert(!body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY'));assert(body.prompt.includes('This last image is a close-up cropped directly from Image 1'));
  });
- await test('requests A then B do not cache or transfer another photo cosmetic crop',async()=>{
+ await test('requests A then B keep their own source and never transfer either legacy generated makeup crop',async()=>{
   for(const [source,accepted] of [[sourceA,acceptedA],[sourceB,acceptedB]]){
    await process({buffer:source,mimetype:'image/png'},{...fields,femaleMakeupReference:url(accepted)});const body=requests.at(-1);
-   assert.deepEqual(data(body.image[0]),source);assert.deepEqual(data(body.image.at(-1)),accepted);
+   assert.equal(body.image.length,2);assert.deepEqual(data(body.image[0]),source);assert.deepEqual(data(body.image[1]),reference);assert(!body.image.includes(url(acceptedA)));assert(!body.image.includes(url(acceptedB)));
   }
-  assert.notDeepEqual(data(requests.at(-2).image.at(-1)),data(requests.at(-1).image.at(-1)));
+  assert.notDeepEqual(data(requests.at(-2).image[0]),data(requests.at(-1).image[0]));
  });
- await test('returning to original hair preserves makeup without treating the makeup crop as hairstyle Image 2',async()=>{
+ await test('the female default uses only the uploaded person and the current compact gathered hair instruction',async()=>{
   await process(portrait,{...fields,hairId:'original'});const body=requests.at(-1);
-  assert.equal(body.image.length,2);assert.deepEqual(data(body.image[1]),acceptedB);assert(body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY — IMAGE 2'));assert(body.prompt.includes('There is no hairstyle-reference image in this request'));
-  assert(!body.prompt.includes('Image 2 remains the EXCLUSIVE hairstyle authority'));
+  assert.equal(typeof body.image,'string');assert.deepEqual(data(body.image),sourceB);assert(body.prompt.includes('FEMALE DEFAULT HAIRSTYLE — FULLY GATHERED'));assert(body.prompt.includes('No hairstyle-reference image is supplied'));
+  assert(body.prompt.includes('FINAL FEMALE DEFAULT — COMPACT FULLY GATHERED HAIR AND ROUND NECK BASE'));assert(!body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY'));assert(body.prompt.includes('FINAL FEMALE MAKEUP TEXTURE PRIORITY'));
  });
  await test('natural, male and existing makeup requests with no new field retain their previous prompt and payload',async()=>{
   for(const oldFields of [{hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural'},{hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'makeup'},{hairId:'seedream-35',portraitMode:'male',femaleEyeStyle:'natural'}]){
    await process(portrait,oldFields);const body=requests.at(-1);
-   assert.equal(body.image.length,2);assert.equal(body.prompt,productionPortraitPrompt(productionHair(oldFields.hairId),oldFields.femaleEyeStyle));if(oldFields.portraitMode==='female')assert(body.prompt.includes('no separate makeup-reference image is supplied'));
+   assert.equal(body.image.length,2);assert.equal(body.prompt,productionPortraitPrompt(productionHair(oldFields.hairId),oldFields.femaleEyeStyle));if(oldFields.portraitMode==='female'&&oldFields.femaleEyeStyle==='natural')assert(body.prompt.includes('no separate makeup-reference image is supplied'));if(oldFields.femaleEyeStyle==='makeup')assert(body.prompt.includes('previously generated makeup or skin finish'));
   }
  });
  console.log(`PASS: ${count} female makeup continuity scenarios; real Sharp reference pixels, provider mocked, no customer or paid AI calls.`);

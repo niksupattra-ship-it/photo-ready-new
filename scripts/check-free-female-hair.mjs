@@ -31,7 +31,7 @@ function fixture(options={}){
   sourceLayerRef:{current:null},processRequestRef:{current:false},mounted:{current:true},loading:{current:0},selectedRef:{current:head.id},brushSession:{current:null},
   FREE_FEMALE_HAIR_MESSAGE,isFreeFemaleHair,HAIR_DESIGN_VERSION,headPose,replaceHairstyleLayer,portraitFinishChoice,
   layerKind:l=>l.kind,freeHairRequestRef:{current:0},
-  paidHairAccess:false,trialHairRemaining:0,canRestoreHair:()=>false,canReuseHair:()=>false,isTrialHairAllowed:id=>!id||id==='original'||PRODUCTION_HAIR_CATALOG.some(h=>h.id===id),
+  paidHairAccess:false,premiumHairAllowed:false,trialHairRemaining:0,canRestoreHair:()=>false,canReuseHair:()=>false,isTrialHairAllowed:id=>!id||id==='original'||PRODUCTION_HAIR_CATALOG.some(h=>h.id===id),
   femaleHair:[...FREE_FEMALE_HAIR_OPTIONS,...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female')],maleHair:PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'),
   surfaceURL:value=>typeof value==='string'?value:value?.source||'serialized-surface',copySurface:value=>({...value}),fresh:l=>({id:'new-layer-'+(++serial),x:0,y:0,scale:1,rotation:0,visible:true,opacity:1,locked:false,...l}),
   historyAssets:{current:new WeakMap()},hairStyleMemory:{current:createHairStyleMemory()},youcamHairMemory:{current:new Map()},undo:{current:[]},redo:{current:[]},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},
@@ -44,11 +44,13 @@ function fixture(options={}){
   onFinishProcess:async success=>calls.finish.push(success),reportProcessedResult:(...args)=>calls.receipt.push(args),onRequestUnlock:()=>calls.unlock++,
   isProcessCancelled:()=>Boolean(env.cancelled),hairUiFrame:async()=>{},flushTransforms:noop,drawNow:noop,resetBrushSession:noop,
   appearanceFailure:(kind,message)=>calls.errors.push({kind,message}),setSavePopup:value=>calls.popups.push(value),setStatus:value=>calls.status.push(value),trackHairSelection:(...args)=>calls.tracking.push(args),
-  setAppearanceError:noop,setSelected:value=>{env.selected=value},setSelectedHair:value=>{env.selectedHair=value},setTool:noop,setHairConfirmed:noop,setHairNotice:noop,setRevision:noop,setComparing:noop,
+  setAppearanceError:noop,setHistoryNotice:noop,setSelected:value=>{env.selected=value},setSelectedHair:value=>{env.selectedHair=value},setTool:noop,setHairConfirmed:noop,setHairNotice:noop,setRevision:noop,setComparing:noop,
   setHairPlacementProgress:value=>calls.progress.push(value),setAssetBusy:value=>{calls.busy.push(value);env.assetBusy=value},setPicker:noop,setTouchMore:noop,setTouchOpen:noop,setToolRailOpen:noop,
   setPortraitChoiceOpen:noop,pendingHairProcessRef:{current:null},touch:false,
  };
  Object.assign(env,options.env||{});
+ env.isPremiumHair=extract(' const isPremiumHair=','\n const chooseHair=','isPremiumHair',env);
+ env.resetPhotoHistory=extract(' const resetPhotoHistory=','\n const remember=','resetPhotoHistory',env);
  env.showFreeHairNotice=extract(' const showFreeHairNotice=','\n const ','showFreeHairNotice',env);
  env.hasFreeHair=extract(' const hasFreeHair=','\n const ','hasFreeHair',env);
  env.freeHairAllowed=extract(' const freeHairAllowed=','\n const ','freeHairAllowed',env);
@@ -73,7 +75,7 @@ await test('unprocessed, pending-source, male and paid-hair bases show original-
  for(const setup of setups)for(const id of ['hair-21','hair-25','hair-26']){
   const f=fixture(setup),before=clone(f.env.state.current);await f.chooseAndWait(id);
   assert.equal(f.calls.fit.length,0,id);assert.equal(f.calls.hydrate.length,0,id);assert.deepEqual(f.env.state.current,before);
-  assert.equal(f.calls.popups.length,1,id);assert.match(f.calls.popups[0].message,/ไม่เลือกผม/);assert.equal(f.calls.popups[0].message,FREE_FEMALE_HAIR_MESSAGE);noBilling(f.calls);
+  assert(f.calls.popups.length>=1,id);for(const popup of f.calls.popups){assert.equal(popup.state,'info');assert.match(popup.message,/ไม่เลือกผม/);assert.equal(popup.message,FREE_FEMALE_HAIR_MESSAGE)};noBilling(f.calls);
  }
 });
 await test('processed female original-hair output accepts free PNGs with zero remaining credits and retains rights and makeup',async()=>{
@@ -86,7 +88,7 @@ await test('processed female original-hair output accepts free PNGs with zero re
   assert.equal(f.getHairs().length,1);const front=f.getHairs()[0];assert.equal(front.hairId,id);assert.equal(front.hairHeadId,head.id);assert.equal(front.source,'front-'+id);
   for(const key of ['x','y','scale','squeezeX','squeezeY','rotation'])assert.equal(front[key],f.head[key],key);
   assert.deepEqual(f.env.state.current.filter(l=>['background','suit','pin'].includes(l.id)),[f.background,f.suit,f.pin]);
-  assert.equal(f.calls.popups.length,0);assert.equal(f.env.undo.current.length,1);assert.equal(f.env.processRequestRef.current,false);assert.equal(f.env.assetBusy,false);noBilling(f.calls);
+  assert.equal(f.calls.popups.length,1);assert.equal(f.calls.popups[0].state,'info');assert.equal(f.calls.popups[0].message,FREE_FEMALE_HAIR_MESSAGE);assert.equal(f.env.undo.current.length,1);assert.equal(f.env.processRequestRef.current,false);assert.equal(f.env.assetBusy,false);noBilling(f.calls);
  }
 });
 await test('switching three free styles always fits the same original processed base without accumulating overlays',async()=>{

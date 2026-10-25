@@ -16,21 +16,21 @@ assert.equal(outputAccessResult([undefined]).purchase,false);assert.equal(output
 assert.equal(mergeOutputRights({job:granted},[['job',unavailableOutputRights()]]).job,granted);
 assert.equal(mergeOutputRights({job:granted},[['job',denied]]).job,denied);
 const main=await read('src/main.jsx'),editor=await read('src/studio-editor.jsx');
-const start=editor.indexOf(' const allowOutput=async'),end=editor.indexOf('\n const canUseAllSuits',start);
+const start=editor.indexOf(' const allowOutput=async'),end=editor.indexOf('\n const [suitPolicy',start);
 const makeAllow=new Function('env','with(env){'+editor.slice(start,end)+';return allowOutput;}');
 for(const [name,reply,allowed,purchase] of [['paid-zero-credits',granted,true,false],['promo-zero-credits',granted,true,false],['offline',unavailableOutputRights(),false,false],['unpaid',denied,false,true]]){
- const e={state:{current:[{jobId:'job'}]},outputHeads:l=>l,onVerifyOutput:async()=>reply,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:m=>{e.message=m},onRequestUnlock:()=>{e.opened=true}};
+ const e={accountScope:'A',outputScopeRef:{current:'A'},state:{current:[{jobId:'job'}]},outputHeads:l=>l,onVerifyOutput:async()=>reply,onSelectSuit:null,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:m=>{e.message=m},onRequestUnlock:()=>{e.opened=true}};
  assert.equal(await makeAllow(e)(),allowed,name);assert.equal(!!e.opened,purchase,name);
  if(allowed)assert(e.sessionUnlockedJobs.current.has('job'));
 }
-let reply=unavailableOutputRights();const retryEnv={state:{current:[{jobId:'job'}]},outputHeads:l=>l,onVerifyOutput:async()=>reply,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:()=>{},onRequestUnlock:()=>{throw Error('must not buy')}};
+let reply=unavailableOutputRights();const retryEnv={accountScope:'A',outputScopeRef:{current:'A'},state:{current:[{jobId:'job'}]},outputHeads:l=>l,onVerifyOutput:async()=>reply,onSelectSuit:null,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:()=>{},onRequestUnlock:()=>{throw Error('must not buy')}};
 const retry=makeAllow(retryEnv);assert.equal(await retry(),false);reply=granted;assert.equal(await retry(),true);
 const classicStart=main.indexOf(' const requireOutputAccess=async'),classicEnd=main.indexOf('\n useEffect',classicStart);
 const classic=new Function('env','with(env){'+main.slice(classicStart,classicEnd)+';return requireOutputAccess}');
 for(const r of [unavailableOutputRights(),granted,denied]){const e={verifyOutputRights:async()=>r,currentOutputJobRef:{current:'job'},outputAccessResult,setMsg:()=>{},setPayMsg:()=>{},setTrialPreview:()=>{},setBuyOpen:v=>{e.bought=v}};assert.equal(await classic(e)(),r===granted);assert.equal(!!e.bought,r===denied)}
 const redeemText=main.slice(main.indexOf(' const redeemFreeLink=async'),main.indexOf(' const requireOutputAccess=async'));
-const promoEnv={refreshWallet:async()=>{},portraitFetch:async()=>({ok:true,json:async()=>({packagePrice:89,processRemaining:2,unlockedJobIds:['job']})}),walletHeaders:()=>({}),currentOutputJobRef:{current:'job'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},normalizedRights:d=>d,setRights:()=>{},setPurchaseEditing:()=>{},setTrialPreview:()=>{},setPayMsg:()=>{},setMsg:()=>{},setBuyOpen:v=>{promoEnv.open=v},setAccountSaveNotice:n=>{promoEnv.notice=n},history:{replaceState:()=>{}},location:{pathname:'/'}};
+const promoEnv={claimAccountOutput:async()=>{},refreshWallet:async()=>{},portraitFetch:async()=>({ok:true,json:async()=>({packagePrice:89,processRemaining:2,unlockedJobIds:['job']})}),walletHeaders:()=>({}),currentOutputJobRef:{current:'job'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},acceptWalletRights:()=>{},setPurchaseEditing:()=>{},setTrialPreview:()=>{},setPayMsg:()=>{},setMsg:()=>{},setBuyOpen:v=>{promoEnv.open=v},setAccountSaveNotice:n=>{promoEnv.notice=n},history:{replaceState:()=>{}},location:{pathname:'/'}};
 await new Function('env','with(env){'+redeemText+';return redeemFreeLink}')(promoEnv)('TEST');
-assert.equal(promoEnv.open,false);assert.equal(promoEnv.currentOutputTrialRef.current,false);assert.equal(promoEnv.notice.title,'รับสิทธิ์สำเร็จ');
+assert.equal(promoEnv.open,false);assert.equal(promoEnv.currentOutputTrialRef.current,false);assert.equal(promoEnv.notice.title,'รับเครดิตสำเร็จ');
 assert(!main.includes('if(!(await verifyOutputRights(currentOutputJobRef.current)).unlocked)'));
 console.log('PASS: paid/promo images at zero credits, offline/timeouts/HTTP failures/malformed responses, retry success, mixed layers, retained verified preview, explicit denial, all legacy output gates and promo success without opening checkout.');

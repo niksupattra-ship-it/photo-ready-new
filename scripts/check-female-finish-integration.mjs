@@ -12,8 +12,8 @@ import {PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.
 // Integration boundaries use the actual main.jsx functions. Codec, landmark,
 // transport and pixel-matcher stubs keep these checks deterministic and offline;
 // numerical image quality is tested separately by check-female-finish-profile.
-const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const args=Object.fromEntries(process.argv.slice(2).map(a=>{const i=a.indexOf('=');return [a.slice(0,i),a.slice(i+1)]}));
+const main=await readFile(args['--main']||new URL('../src/main.jsx',import.meta.url),'utf8');
 const baseline=args['--baseline']?await readFile(args['--baseline'],'utf8'):null;
 const cases=[],noop=()=>{};
 const profile={version:1,kind:'female-finish',coordinate:'face-v1',scale:{faceWidth:200,roughnessRadius:3},regions:['leftCheek','rightCheek'].map(id=>({id,lightness:[50,60,70],chroma:[9,12],roughness:1,samples:100,coverage:.6}))};
@@ -113,7 +113,7 @@ function restorationFixture(){
  const initial=photo(),master=Object.assign(new Blob(['latest changed hairstyle']),{idpromFemaleFinishProfile:otherProfile,idpromFemaleFinishReference:otherReference}),head={kind:'head',name:'หัว · คอ · ผม',jobId:'saved-job',portraitMode:'female',femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup',femaleFinishProfile:profile,femaleFinishReference:reference};
  let wallet='account-A',token='token-A';const oldMaster=new Blob(['active master']),mutations=[];
  const restored={source:initial,editCache:{master,lock:{templatePath:'female.png'}},head};
- const env={...helpers,femaleFinishMetadata:metadata,femaleFinishHeadMetadata:headMetadata,femaleFinishAnchor:anchor,portraitFinishChoice,
+ const env={...helpers,femaleFinishMetadata:metadata,femaleFinishHeadMetadata:headMetadata,femaleFinishAnchor:anchor,portraitFinishChoice,activeSavedDownloadWork:'',
   currentWalletId:()=>wallet,authToken:()=>token,walletHeaders:()=>({Authorization:token,'X-Wallet-Id':wallet}),refreshWallet:async()=>{},
   savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:0},prepareSavedProject:async()=>restored,decodedStudioImage:noop,
   firstUploadedPhotoRef:{current:photo()},editCache:{current:{master:oldMaster}},initialFemaleMakeupRef:{current:null},initialProcessedMasterRef:{current:oldMaster},
@@ -125,8 +125,8 @@ function restorationFixture(){
   makeSavedProject:async snapshot=>({layers:snapshot.layers,placement:snapshot.placement,compareSource:'fixture-data-url'}),
   renderAdjustedFinal:async(...args)=>args.at(-1).push({kind:'head',name:'หัว · คอ · ผม',source:'fixture-current-head'})
  };
- const open=extract(' const openAccountWork=async(','\n const paidSaveInFlightRef=','openAccountWork',env);
- const checkout=extract(' const restorePurchaseDraft=async()=>{','\n const fullCatalog=','restorePurchaseDraft',env);
+ const open=extract(' const openAccountWork=async(','\n const [downloadUnlockSignal','openAccountWork',env);
+ const checkout=extract(' const restorePurchaseDraft=async','\n const fullCatalog=','restorePurchaseDraft',env);
  return {env,open,checkout,restored,initial,master,head,oldMaster,mutations,setWallet:value=>{wallet=value},setToken:value=>{token=value}};
 }
 await test('account reopen uses saved first finish with latest head pixels and clears previous-person caches',async()=>{
@@ -155,10 +155,11 @@ await test('classic finish metadata includes the mode needed by later account re
 function pipelineFixture(source=main){
  const calls=[],events=[],keys=[],cache=createAiResultCache(),file=photo();let jobs=0;
  const cancel=()=>Object.assign(Error('cancelled'),{code:'USER_CANCELLED'});
+ const uploadGenerationScope=extract('const uploadGenerationScopes=','\nasync function aiFinishPortrait(','uploadGenerationScope',{},source);
  const env={...helpers,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,femaleFinishMetadata:metadata,validateFemaleMakeupReference:validator,activeProcessOperation:{cancelled:false},
-  assertProcessActive:operation=>{if(operation?.cancelled)throw cancel()},cancelledProcessError:cancel,currentResultCacheScope:()=> 'fixture-account',resultSourceDigest,
+  assertProcessActive:operation=>{if(operation?.cancelled)throw cancel()},cancelledProcessError:cancel,currentResultCacheScope:()=> 'fixture-account',resultSourceDigest,uploadGenerationScope,
   portraitResultCache:{...cache,get:(key,generate)=>{keys.push(key);return cache.get(key,generate)}},
-  aiFinishPortraitUncached:async(input,hair,options)=>{jobs++;calls.push({stage:'generate',input,hair,options});return Object.assign(new Blob(['generated output']),{idpromJobId:'job-'+jobs,idpromTrial:false,idpromFullEdit:true})},
+  aiFinishPortraitUncached:async(input,hair,options)=>{jobs++;calls.push({stage:'generate',input,hair,options});return Object.assign(new Blob(['generated output']),{idpromJobId:'job-'+jobs,idpromTrial:false,idpromFullEdit:true,...env.generatedMetadata})},
   cleanPortraitClothing:async blob=>{calls.push({stage:'clean'});return blob},finishFemaleMakeupEyeToneBlob:async blob=>{calls.push({stage:'eye'});return blob},
   finishFemaleSkinContinuityBlob:async(blob,target,guide)=>{calls.push({stage:'skin',target,guide});return Object.assign(blob,{idpromFemaleFinishProfile:target||profile,idpromFemaleFinishReference:guide||reference})},
   checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({checked:true,unlocked:true,fullEdit:true}),saveAiJobFile:async()=>{},writeActiveAiJob:noop,
@@ -167,24 +168,26 @@ function pipelineFixture(source=main){
  const run=extract('async function aiFinishPortrait(','\nlet acceptedPaidTrial=','aiFinishPortrait',env,source);
  return {env,run,calls,events,keys,file};
 }
-await test('female makeup factory runs clean then eye grade then target match on raw input',async()=>{
+await test('female makeup generation uses the upload and ignores previous-profile cosmetic repaint',async()=>{
  const f=pipelineFixture();await f.run(f.file,'seedream-21',{portraitMode:'female',femaleEyeStyle:'makeup',creditKind:'hairstyle',femaleFinishProfile:profile,femaleMakeupReference:reference});
- assert.deepEqual(f.calls.map(c=>c.stage),['generate','clean','eye','skin']);assert.equal(f.calls[0].input,f.file);assert.equal(f.calls[0].options.femaleMakeupReference,reference);assert.equal(f.calls[3].target,profile);assert.equal(f.calls[3].guide,reference);assert.equal(f.events.length,1);
- assert(f.keys[0].includes('soft-finish-v23'));assert(f.keys[0].includes('skin-finish-v1:'));
+ assert.deepEqual(f.calls.map(c=>c.stage),['generate','clean']);assert.equal(f.calls[0].input,f.file);assert.equal(f.calls[0].options.femaleMakeupReference,null);assert.equal(f.calls[0].options.femaleFinishProfile,null);assert.equal(f.events.length,1);
+ assert(f.keys[0].includes('upload-adaptive-korean-v1'));assert(f.keys[0].includes('download-v1'));assert(!f.keys[0].includes('skin-finish-v1:'));
 });
 await test('initial first-result cache reuse preserves finish metadata without running local work twice',async()=>{
- const f=pipelineFixture(),first=await f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'}),again=await f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'});
- assert.notEqual(again,first);assert.equal(again.idpromReused,true);assert.equal(again.idpromJobId,first.idpromJobId);assert.equal(again.idpromFemaleFinishProfile,profile);assert.equal(again.idpromFemaleFinishReference,reference);assert.deepEqual(f.calls.map(c=>c.stage),['generate','clean','eye','skin']);assert.equal(f.events.length,2);
+ const f=pipelineFixture();f.env.generatedMetadata={idpromFemaleFinishProfile:profile,idpromFemaleFinishReference:reference};
+ const first=await f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'}),again=await f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'});
+ assert.notEqual(again,first);assert.equal(again.idpromReused,true);assert.equal(again.idpromJobId,first.idpromJobId);assert.equal(again.idpromFemaleFinishProfile,profile);assert.equal(again.idpromFemaleFinishReference,reference);assert.deepEqual(f.calls.map(c=>c.stage),['generate','clean']);assert.equal(f.events.length,2);
 });
-await test('different accepted profiles isolate female makeup cache entries',async()=>{
- const f=pipelineFixture();for(const target of [profile,otherProfile])await f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup',femaleFinishProfile:target});assert.notEqual(f.keys[0],f.keys[1]);assert.equal(f.calls.filter(c=>c.stage==='generate').length,2);
+await test('new uploads isolate cache entries while obsolete accepted profiles cannot change the current upload',async()=>{
+ const f=pipelineFixture();for(const target of [profile,otherProfile])await f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup',femaleFinishProfile:target});assert.equal(f.keys[0],f.keys[1]);assert.equal(f.calls.filter(c=>c.stage==='generate').length,1);
+ await f.run(photo(),'original',{portraitMode:'female',femaleEyeStyle:'makeup',femaleFinishProfile:profile});assert.notEqual(f.keys[0],f.keys[2]);assert.equal(f.calls.filter(c=>c.stage==='generate').length,2);
 });
-await test('cancellation and active-operation replacement during local finish prevent delivery',async()=>{
- for(const kind of ['cancel','replace']){const f=pipelineFixture();f.env.finishFemaleSkinContinuityBlob=async blob=>{if(kind==='cancel')f.env.activeProcessOperation.cancelled=true;else f.env.activeProcessOperation={cancelled:false};return blob};await assert.rejects(f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'}),e=>e.code==='USER_CANCELLED');assert.equal(f.events.length,0)}
+await test('cancellation and active-operation replacement during portrait cleanup prevent delivery',async()=>{
+ for(const kind of ['cancel','replace']){const f=pipelineFixture();f.env.cleanPortraitClothing=async blob=>{if(kind==='cancel')f.env.activeProcessOperation.cancelled=true;else f.env.activeProcessOperation={cancelled:false};return blob};await assert.rejects(f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'}),e=>e.code==='USER_CANCELLED');assert.equal(f.events.length,0)}
 });
-await test('drift rejection evicts the failed result and does not add a generation or financial settlement',async()=>{
- const f=pipelineFixture();let settlements=0;f.env.settleProcessOperation=async()=>{settlements++};f.env.finishFemaleSkinContinuityBlob=async()=>{throw Object.assign(Error('confident drift'),{code:'FEMALE_FINISH_DRIFT'})};
- for(let i=0;i<2;i++)await assert.rejects(f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'}),e=>e.code==='FEMALE_FINISH_DRIFT');
+await test('portrait completion rejection evicts the failed result without another financial settlement',async()=>{
+ const f=pipelineFixture();let settlements=0;f.env.settleProcessOperation=async()=>{settlements++};f.env.checkPortraitCompletion=async()=>{throw Object.assign(Error('incomplete fixture portrait'),{code:'PORTRAIT_FINISH_FIXTURE_REJECTION'})};
+ for(let i=0;i<2;i++)await assert.rejects(f.run(f.file,'original',{portraitMode:'female',femaleEyeStyle:'makeup'}),e=>e.code==='PORTRAIT_FINISH_FIXTURE_REJECTION');
  assert.equal(f.calls.filter(c=>c.stage==='generate').length,2);assert.equal(f.events.length,0);assert.equal(settlements,0);
 });
 await test('natural and male paths keep their established cache keys and skip female finish work',async()=>{

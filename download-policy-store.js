@@ -8,7 +8,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
  const ready=()=>initialized||(initialized=(async()=>{
   await prepareSavedWorks();
   const c=await pool.connect();try{
-   await c.query('BEGIN');await c.query("SET LOCAL lock_timeout='5s'");
+   await c.query('BEGIN');await c.query("SET LOCAL lock_timeout='5s'");await c.query("SET LOCAL statement_timeout='30s'");
    await c.query('SELECT pg_advisory_xact_lock(714269046)');
    await c.query(`CREATE TABLE IF NOT EXISTS download_policy(version text PRIMARY KEY,activated_at timestamptz NOT NULL DEFAULT now())`);
    await c.query(`CREATE TABLE IF NOT EXISTS download_legacy_wallets(wallet_id text PRIMARY KEY)`);
@@ -21,7 +21,9 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    const first=await c.query("INSERT INTO download_policy(version) VALUES('download-v1') ON CONFLICT DO NOTHING RETURNING version");
    if(first.rowCount){
     await c.query(`INSERT INTO download_legacy_wallets(wallet_id) SELECT id FROM wallets WHERE generation_remaining+hair_remaining>0 UNION SELECT wallet_id FROM payments UNION SELECT wallet_id FROM promo_redemptions UNION SELECT wallet_id FROM saved_studio_work ON CONFLICT DO NOTHING`);
-    await c.query(`INSERT INTO download_legacy_works(work_id,wallet_id,job_ids,source_hash) SELECT id,wallet_id,ARRAY(SELECT DISTINCT layer->>'jobId' FROM jsonb_array_elements(project->'layers') layer WHERE (layer->>'kind'='head' OR layer->>'name'='หัว · คอ · ผม') AND COALESCE(layer->>'jobId','')<>''),CASE WHEN project->>'compareSource' LIKE 'data:image/%;base64,%' THEN encode(sha256(decode(split_part(project->>'compareSource',',',2),'base64')),'hex') ELSE NULL END FROM saved_studio_work ON CONFLICT DO NOTHING`);
+    // An invalid historical original must not prevent every account from using
+    // the policy. Keep its saved-work exemption, without fabricating image proof.
+    await c.query(`INSERT INTO download_legacy_works(work_id,wallet_id,job_ids,source_hash) SELECT id,wallet_id,ARRAY(SELECT DISTINCT layer->>'jobId' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(project->'layers')='array' THEN project->'layers' ELSE '[]'::jsonb END) layer WHERE (layer->>'kind'='head' OR layer->>'name'='หัว · คอ · ผม') AND COALESCE(layer->>'jobId','')<>''),CASE WHEN project->>'compareSource' LIKE 'data:image/%;base64,%' AND split_part(project->>'compareSource',',',2) ~ '^[A-Za-z0-9+/]*={0,2}$' AND length(split_part(project->>'compareSource',',',2))%4=0 THEN encode(sha256(decode(split_part(project->>'compareSource',',',2),'base64')),'hex') ELSE NULL END FROM saved_studio_work ON CONFLICT DO NOTHING`);
    }
    await c.query('COMMIT');
   }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
@@ -40,21 +42,41 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   const r=await pool.query('SELECT job_ids FROM download_legacy_works WHERE work_id=$1 AND wallet_id=$2',[work,wallet]);
   return Boolean(r.rows[0]&&ids.every(id=>r.rows[0].job_ids.includes(id)));
  };
+ const legacyGroup=async(wallet,job,db=pool)=>{
+  const r=await db.query('SELECT 1 FROM download_work_jobs j JOIN download_works w ON w.id=j.work_id AND w.wallet_id=j.wallet_id JOIN download_legacy_works l ON l.work_id=w.legacy_work_id AND l.wallet_id=w.wallet_id WHERE j.job_id=$1 AND j.wallet_id=$2 LIMIT 1',[job,wallet]);
+  return r.rowCount>0;
+ };
+ const oldPaid=async(wallet,ids,db=pool)=>{
+  const r=await db.query("SELECT 1 FROM ai_jobs WHERE wallet_id=$1 AND id=ANY($2::text[]) AND status='completed' AND left(usage_id,4)='use_' LIMIT 1",[wallet,ids]);
+  return r.rowCount>0;
+ };
  const allowed=async(wallet,job,{savedWorkId='',db=pool}={})=>{
   await ready();const j=await ownedJob(wallet,job,db);
-  if(await legacyAllows(wallet,savedWorkId,[job]))return true;
-  if(savedWorkId){const inherited=await db.query('SELECT 1 FROM download_work_jobs j JOIN download_works w ON w.id=j.work_id WHERE j.job_id=$1 AND j.wallet_id=$2 AND w.legacy_work_id=$3',[job,wallet,savedWorkId]);if(inherited.rowCount)return true}
+  if(String(j.usage_id).startsWith('use_')||await legacyAllows(wallet,savedWorkId,[job])||await legacyGroup(wallet,job,db))return true;
   const ids=await jobIds(wallet,job,db);
   const r=await db.query('SELECT job_id FROM paid_image_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);
-  // Old paid renders remain paid; free_ renders never inherit this shortcut.
-  return Boolean(r.rowCount||String(j.usage_id).startsWith('use_'));
+  // Historical paid renders also cover later renders of the same owned work.
+  return Boolean(r.rowCount||await oldPaid(wallet,ids,db));
  };
  const premiumHair=async(wallet,job)=>{await ready();await ownedJob(wallet,job);const ids=await jobIds(wallet,job);const q=await pool.query('SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);return q.rowCount>0};
- const premiumWork=async(wallet,work)=>{await ready();if(!work)return false;const q=await pool.query('SELECT job_id FROM download_work_jobs WHERE wallet_id=$1 AND work_id=$2 LIMIT 1',[wallet,work]);return q.rows[0]?premiumHair(wallet,q.rows[0].job_id):false};
- return {ready,ownedJob,jobIds,legacyAllows,allowed,premiumHair,premiumWork,
+ const premiumWork=async(wallet,work)=>{await ready();if(!work)return false;const q=await pool.query('SELECT 1 FROM download_work_jobs j JOIN download_works w ON w.id=j.work_id AND w.wallet_id=j.wallet_id JOIN premium_hair_unlocks p ON p.job_id=j.job_id AND p.wallet_id=j.wallet_id WHERE j.wallet_id=$1 AND j.work_id=$2 LIMIT 1',[wallet,work]);return q.rowCount>0};
+ const allowedJobs=async(wallet,jobs)=>{
+  const ids=[...new Set(jobs)];if(!ids.length)return false;await ready();
+  // Saved projects can contain many heads. Read ownership and grouped rights in
+  // one metadata query, without loading results or issuing one query per layer.
+  const r=await pool.query(`SELECT j.id,j.status,(left(j.usage_id,4)='use_' OR l.work_id IS NOT NULL OR
+   EXISTS(SELECT 1 FROM paid_image_unlocks p WHERE p.wallet_id=$1 AND (p.job_id=j.id OR p.job_id IN (SELECT peer.job_id FROM download_work_jobs peer WHERE peer.work_id=w.id AND peer.wallet_id=$1))) OR
+   EXISTS(SELECT 1 FROM ai_jobs old WHERE old.wallet_id=$1 AND old.status='completed' AND left(old.usage_id,4)='use_' AND old.id IN (SELECT peer.job_id FROM download_work_jobs peer WHERE peer.work_id=w.id AND peer.wallet_id=$1))) AS unlocked
+   FROM ai_jobs j LEFT JOIN download_work_jobs m ON m.job_id=j.id AND m.wallet_id=j.wallet_id
+   LEFT JOIN download_works w ON w.id=m.work_id AND w.wallet_id=j.wallet_id
+   LEFT JOIN download_legacy_works l ON l.work_id=w.legacy_work_id AND l.wallet_id=w.wallet_id
+   WHERE j.wallet_id=$1 AND j.id=ANY($2::text[])`,[wallet,ids]);
+  return r.rows.length===ids.length&&r.rows.every(row=>row.status==='completed'&&row.unlocked);
+ };
+ return {ready,ownedJob,jobIds,legacyAllows,allowed,allowedJobs,premiumHair,premiumWork,
   async suits(wallet,job,templates=[],savedWorkId=''){
    await ready();await ownedJob(wallet,job);
-   if(!await allowed(wallet,job,{savedWorkId})||await legacyAllows(wallet,savedWorkId,[job]))return {limited:false,choices:[]};
+   if(!await allowed(wallet,job,{savedWorkId})||await legacyAllows(wallet,savedWorkId,[job])||await legacyGroup(wallet,job)||await oldPaid(wallet,await jobIds(wallet,job)))return {limited:false,choices:[]};
    const w=await pool.query('SELECT work_id FROM download_work_jobs WHERE job_id=$1 AND wallet_id=$2',[job,wallet]),scope=w.rows[0]?.work_id||job,c=await pool.connect();
    try{await c.query('BEGIN');await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',[wallet+':suits:'+scope]);
     await c.query('INSERT INTO download_suit_choices(wallet_id,scope) VALUES($1,$2) ON CONFLICT DO NOTHING',[wallet,scope]);
@@ -71,7 +93,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    let legacy=null;if(savedWorkId){const saved=await pool.query('SELECT work_id FROM download_legacy_works WHERE work_id=$1 AND wallet_id=$2 AND source_hash=$3',[savedWorkId,wallet,hash]);if(saved.rowCount)legacy=savedWorkId;else throw Object.assign(Error('ต้นฉบับไม่ตรงกับงานที่บันทึก กรุณาเปิดงานเดิมอีกครั้ง'),{status:409})}
    const id='dwork_'+crypto.randomBytes(18).toString('hex');await pool.query('INSERT INTO download_works(id,wallet_id,source_hash,legacy_work_id) VALUES($1,$2,$3,$4)',[id,wallet,hash,legacy]);return id;
   },
-  async attach(wallet,work,job){await ready();await pool.query('INSERT INTO download_work_jobs(job_id,work_id,wallet_id) VALUES($1,$2,$3)',[job,work,wallet])},
+  async attach(wallet,work,job){await ready();const r=await pool.query('INSERT INTO download_work_jobs(job_id,work_id,wallet_id) SELECT $1,w.id,w.wallet_id FROM download_works w JOIN ai_jobs j ON j.id=$1 AND j.wallet_id=w.wallet_id WHERE w.id=$2 AND w.wallet_id=$3 RETURNING job_id',[job,work,wallet]);if(!r.rowCount)throw Object.assign(Error('ไม่พบงานของบัญชีนี้'),{status:404})},
   async claim(source,target,job){
    await ready();const ids=await jobIds(source,job),c=await pool.connect();try{
     await c.query('BEGIN');

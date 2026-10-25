@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
 import {packageFor,checkoutPackage} from './package-rules.js';
+import {verifyPaymentAmount} from './stripe-payment-validation.js';
 const FLOW='idprom_promptpay_v1';
 export async function settlePromptpay(intent,creditPaid){
  if(intent?.status!=='succeeded'||intent.metadata?.flow!==FLOW)throw Error('payment_not_paid');
  const {wallet_id:walletId,package_id:packageId,job_id:jobId=''}=intent.metadata;
- if(!walletId||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1','download_159_hair_v1'].includes(packageId))throw Error('invalid_payment_metadata');
+ if(!walletId||!/^pi_[A-Za-z0-9]+$/.test(intent.id||'')||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1','download_159_hair_v1'].includes(packageId))throw Error('invalid_payment_metadata');
  const offer=packageFor(packageId);
- if(intent.currency!=='thb'||intent.amount!==offer.price*100||intent.amount_received<intent.amount||(offer.requiresImage&&!jobId))throw Error('payment_amount_mismatch');
+ verifyPaymentAmount(intent,offer);if(offer.requiresImage&&!jobId)throw Error('image_required');
  return creditPaid(walletId,intent.id,packageId,jobId);
 }
 function details(intent){const qr=intent.next_action?.promptpay_display_qr_code;return {paymentIntentId:intent.id,status:intent.status,amount:intent.amount/100,qrImage:qr?.image_url_png||null,expiresAt:qr?.expires_at||null}}
@@ -21,8 +22,12 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   await ensureWallet(user.wallet_id);
   const attempt=String(req.get('X-Checkout-Attempt')||'');if(!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
   const packageId=offer.id;
+  // Keep the existing key format so retries of in-flight QR payments still
+  // reach the same Stripe intent after a deployment. Clients scope attempts
+  // to the image; Stripe also rejects changed parameters for the same key.
   const idempotencyKey=crypto.createHash('sha256').update(FLOW+user.wallet_id+packageId+attempt).digest('hex');
   const intent=await stripePost('payment_intents',{amount:offer.price*100,currency:'thb','payment_method_types[0]':'promptpay','payment_method_data[type]':'promptpay','payment_method_data[billing_details][email]':user.email,confirm:'true',description:`IDพร้อม — ${offer.name}`,'metadata[flow]':FLOW,'metadata[wallet_id]':user.wallet_id,'metadata[package_id]':packageId,'metadata[job_id]':jobId},idempotencyKey);
+  if(intent.status==='succeeded'){const out=await settlePromptpay(intent,creditPaid);return res.json({...details(intent),ok:true,...out})}
   if(!intent.next_action?.promptpay_display_qr_code?.image_url_png)throw Error('qr_unavailable');
   console.info('IDPROM checkout:',JSON.stringify({event:'qr_created',paymentIntentId:intent.id,packageId}));res.json(details(intent));
  }catch(e){console.error('IDPROM checkout: QR create',e);res.status(400).json({error:'promptpay_create_failed',message:'สร้าง QR ไม่สำเร็จ กรุณาลองอีกครั้ง'})}});
