@@ -1,5 +1,5 @@
 import {downloadPolicy} from './download-policy-store.js';
-import {isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
@@ -135,7 +135,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
  try{
   const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
-  const jobId=String(req.body?.jobId||'');await downloadPolicy.ownedJob(wid,jobId);if(await downloadPolicy.allowed(wid,jobId))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
+  const jobId=String(req.body?.jobId||'');await downloadPolicy.ownedJob(wid,jobId);if(offer.id==='download_159_hair_v1'?await downloadPolicy.premiumHair(wid,jobId):await downloadPolicy.allowed(wid,jobId))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
   const base=APP_URL||`${req.protocol}://${req.get('host')}`;
   const session=await stripePost('checkout/sessions',{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
@@ -143,9 +143,9 @@ app.post('/api/payments/checkout',async(req,res)=>{
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
    'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
- }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'กรุณาโหลดหน้าใหม่เพื่อเลือกโปร 119 บาท':e.message})}
+ }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'กรุณาโหลดหน้าใหม่เพื่อเลือกโปร 119 หรือ 159 บาท':e.message})}
 });
-registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id)});
+registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
 function trialDeviceFingerprint(req,res,wid){
@@ -190,6 +190,8 @@ async function requireCredit(req,res,kind){
   }
   if(kind==='ai-finish'||kind==='hairstyle'){
    if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
+   const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
+   if(chosen?.gender==='female'&&![25,14,16,23].includes(Number(chosen.id.slice(9)))&&!await downloadPolicy.premiumWork(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท กรุณาสร้างรูปด้วยทรงพื้นฐานก่อนชำระเงิน'});return null}
    return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
   res.status(403).json({error:'unsupported_generation'});return null;
@@ -421,7 +423,7 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
  res.json({ok:true});
 }catch(e){res.status(500).json({error:'image_claim_failed'})}});
 app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{
- const wid=walletId(req),unlocked=await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked});
+ const wid=walletId(req),unlocked=await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked,premiumHair:await downloadPolicy.premiumHair(wid,req.params.id)});
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});
@@ -465,6 +467,7 @@ app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
 startSavedWorkRetentionCleanup();
+
 
 
 

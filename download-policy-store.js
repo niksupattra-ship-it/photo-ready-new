@@ -17,6 +17,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    await c.query(`CREATE TABLE IF NOT EXISTS download_work_jobs(job_id text PRIMARY KEY,work_id text NOT NULL REFERENCES download_works(id),wallet_id text NOT NULL)`);
    await c.query('CREATE INDEX IF NOT EXISTS download_work_jobs_work_idx ON download_work_jobs(work_id,wallet_id)');
    await c.query('CREATE TABLE IF NOT EXISTS download_suit_choices(wallet_id text NOT NULL,scope text NOT NULL,choices text[] NOT NULL DEFAULT ARRAY[]::text[],PRIMARY KEY(wallet_id,scope))');
+   await c.query('CREATE TABLE IF NOT EXISTS premium_hair_unlocks(wallet_id text NOT NULL,job_id text NOT NULL,PRIMARY KEY(wallet_id,job_id))');
    const first=await c.query("INSERT INTO download_policy(version) VALUES('download-v1') ON CONFLICT DO NOTHING RETURNING version");
    if(first.rowCount){
     await c.query(`INSERT INTO download_legacy_wallets(wallet_id) SELECT id FROM wallets WHERE generation_remaining+hair_remaining>0 UNION SELECT wallet_id FROM payments UNION SELECT wallet_id FROM promo_redemptions UNION SELECT wallet_id FROM saved_studio_work ON CONFLICT DO NOTHING`);
@@ -48,7 +49,9 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   // Old paid renders remain paid; free_ renders never inherit this shortcut.
   return Boolean(r.rowCount||String(j.usage_id).startsWith('use_'));
  };
- return {ready,ownedJob,jobIds,legacyAllows,allowed,
+ const premiumHair=async(wallet,job)=>{await ready();await ownedJob(wallet,job);const ids=await jobIds(wallet,job);const q=await pool.query('SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);return q.rowCount>0};
+ const premiumWork=async(wallet,work)=>{await ready();if(!work)return false;const q=await pool.query('SELECT job_id FROM download_work_jobs WHERE wallet_id=$1 AND work_id=$2 LIMIT 1',[wallet,work]);return q.rows[0]?premiumHair(wallet,q.rows[0].job_id):false};
+ return {ready,ownedJob,jobIds,legacyAllows,allowed,premiumHair,premiumWork,
   async suits(wallet,job,templates=[],savedWorkId=''){
    await ready();await ownedJob(wallet,job);
    if(!await allowed(wallet,job,{savedWorkId})||await legacyAllows(wallet,savedWorkId,[job]))return {limited:false,choices:[]};
@@ -94,4 +97,5 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
 }
 const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:5000,ssl:process.env.DATABASE_URL?.includes('localhost')?false:{rejectUnauthorized:false}});
 export const downloadPolicy=createDownloadPolicy(pool,{prepareSavedWorks:getSavedWorkRetentionPolicy});
+
 

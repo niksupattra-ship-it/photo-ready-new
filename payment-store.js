@@ -72,6 +72,7 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await migrationQuery(`CREATE TABLE IF NOT EXISTS credit_usage (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),kind text NOT NULL,status text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz,refunded_at timestamptz)`);
   await migrationQuery(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credit_column text`);
   await migrationQuery(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS full_edit_output boolean NOT NULL DEFAULT false`);
+  await migrationQuery('CREATE TABLE IF NOT EXISTS premium_hair_unlocks(wallet_id text NOT NULL,job_id text NOT NULL,PRIMARY KEY(wallet_id,job_id))');
   await migrationQuery(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
   await migrationQuery(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
   await migrationQuery(`CREATE TABLE IF NOT EXISTS trial_daily_devices (device_key text NOT NULL,trial_day date NOT NULL,trial_id text NOT NULL REFERENCES trial_previews(id) ON DELETE CASCADE,PRIMARY KEY(device_key,trial_day))`);
@@ -142,6 +143,7 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
   if(ins.rowCount){
    if(p.fullEdit&&(p.g+p.h)>0)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,p.g+p.h]);
    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
+   if(jobId&&packageId==='download_159_hair_v1')await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
    if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   }
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
@@ -286,4 +288,5 @@ export async function getWalletBalance(id,fingerprint,networkFingerprint){
  catch(error){error.balanceStage='trial_policy';throw error}
  return {...shape(id,wallet.rows[0]),...trial};
 }
+
 
