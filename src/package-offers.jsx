@@ -71,6 +71,46 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
     .idprom-ready-offer .ready-pay{font-size:17px;padding:15px 9px;min-height:55px}
     .idprom-ready-offer .ready-footer{font-size:14px;padding-top:14px}
    }
+
+   .package-pro-modal:has(.idprom-ready-offer){width:min(540px,calc(100vw - 32px));padding:30px 24px 20px;border-radius:20px;max-height:calc(100dvh - 32px)}
+   .idprom-ready-offer .ready-heading{padding:0 18px 20px}
+   .idprom-ready-offer .ready-heading h2{font-size:28px;letter-spacing:0}
+   .idprom-ready-offer .ready-heading p{font-size:15px}
+   .idprom-ready-offer .ready-price-card{gap:22px;padding:20px;border-radius:15px;margin-bottom:12px}
+   .idprom-ready-offer .ready-download-emblem{width:64px;height:64px;flex-basis:64px}
+   .idprom-ready-offer .ready-download-emblem svg{width:36px;height:36px}
+   .idprom-ready-offer .ready-price-divider{height:68px}
+   .idprom-ready-offer .ready-price{gap:10px;margin-bottom:10px}
+   .idprom-ready-offer .ready-price strong{font-size:58px;letter-spacing:-1px}
+   .idprom-ready-offer .ready-price span{font-size:19px}
+   .idprom-ready-offer .ready-benefits{gap:12px;font-size:13px}
+   .idprom-ready-offer .ready-benefits>span{gap:6px}
+   .idprom-ready-offer .ready-check{width:19px;height:19px;flex-basis:19px}
+   .idprom-ready-offer .ready-check svg{width:16px;height:16px}
+   .idprom-ready-offer .ready-review{gap:14px;padding:14px 16px;border-radius:12px;margin-bottom:10px}
+   .idprom-ready-offer .ready-review>svg{width:28px;height:28px;flex-basis:28px}
+   .idprom-ready-offer .ready-review strong{font-size:15px}
+   .idprom-ready-offer .ready-review p{font-size:13px;margin-top:3px}
+   .idprom-ready-offer .ready-warning{gap:12px;padding:12px 16px;font-size:13px;font-weight:500;border-radius:12px;margin-bottom:12px}
+   .idprom-ready-offer .ready-warning svg{width:25px;height:25px;flex-basis:25px}
+   .idprom-ready-offer .ready-pay{min-height:48px;padding:12px 14px;border-radius:11px;font-size:16px}
+   .idprom-ready-offer .ready-credit{padding:12px;border-radius:12px;margin-bottom:12px}
+   .idprom-ready-offer .ready-credit p{font-size:13px}
+   .idprom-ready-offer .ready-use-credit{font-size:14px;border-radius:9px}
+   .idprom-ready-offer .ready-footer{font-size:12px;padding-top:14px}
+   .idprom-ready-offer .ready-footer p{margin-bottom:6px}
+   @media(max-width:640px){
+    .package-pro-modal:has(.idprom-ready-offer){width:calc(100vw - 24px);padding:32px 18px 18px;border-radius:18px;max-height:calc(100dvh - 24px)}
+    .idprom-ready-offer .ready-heading h2{font-size:24px}
+    .idprom-ready-offer .ready-heading p{font-size:13px}
+    .idprom-ready-offer .ready-price-card{padding:17px 12px;gap:14px}
+    .idprom-ready-offer .ready-download-emblem{width:48px;height:48px;flex-basis:48px}
+    .idprom-ready-offer .ready-download-emblem svg{width:29px;height:29px}
+    .idprom-ready-offer .ready-price strong{font-size:48px}
+    .idprom-ready-offer .ready-price span{font-size:17px}
+    .idprom-ready-offer .ready-benefits{gap:5px;flex-direction:column;font-size:12px}
+   }
+
   `}</style>
   <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>ดาวน์โหลดรูปที่ปรับแต่งแล้ว ไม่มีลายน้ำ</p></header>
   <section className="ready-price-card" aria-label="ราคาและสิ่งที่จะได้รับ">
@@ -86,5 +126,6 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
   <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
+
 
 
