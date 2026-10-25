@@ -15,7 +15,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  .paired-offers .offer-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
  .paired-offers .offer-card{min-width:0;display:flex;flex-direction:column;padding:22px 18px;border:1px solid #dce7f3;border-radius:16px;background:#f7fbff}
  .paired-offers .offer-card.premium{background:#eff7ff;border-color:#a8cef6}
- .paired-offers .offer-name{font-size:17px;font-weight:750;margin:0 0 7px;color:#175a9f}
+ .paired-offers .offer-recommended{display:inline-block;margin-left:7px;padding:3px 8px;border-radius:20px;background:#086bce;color:white;font-size:11px;font-weight:650;vertical-align:middle;white-space:nowrap}.paired-offers .offer-name{font-size:17px;font-weight:750;margin:0 0 7px;color:#175a9f}
  .paired-offers .offer-regular{height:22px;font-size:12px;color:#718097;margin:0}
  .paired-offers .offer-price{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;color:#086bce;margin:5px 0 18px}
  .paired-offers .offer-price strong{font-size:52px;line-height:1;font-weight:800}.paired-offers .offer-price span{font-size:14px}
@@ -37,9 +37,9 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  @media(max-width:640px){.package-pro-modal:has(.paired-offers){width:calc(100vw - 20px);padding:34px 12px 16px;border-radius:18px;max-height:calc(100dvh - 20px)}.paired-offers .ready-heading{padding:0 12px 16px}.paired-offers .ready-heading h2{font-size:23px}.paired-offers .ready-heading p{font-size:12px}.paired-offers .offer-pair{gap:8px}.paired-offers .offer-card{padding:16px 10px;border-radius:12px}.paired-offers .offer-name{font-size:15px}.paired-offers .offer-price{gap:4px;margin-bottom:16px}.paired-offers .offer-price strong{font-size:38px}.paired-offers .offer-price span{font-size:11px}.paired-offers .offer-features{font-size:12px;gap:10px}.paired-offers .ready-pay{font-size:13px;padding:11px 6px}.paired-offers .offer-regular{font-size:11px}.paired-offers .ready-review,.paired-offers .ready-warning{padding:11px 12px}}
  `}</style>
  <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>เลือกโปรสำหรับงานนี้ · ดาวน์โหลดรูปไม่มีลายน้ำ</p></header>
- <div className="offer-pair">{[{price:'119',name:'โปร 119',premium:false,features:['รูปไม่มีลายน้ำ ทุกขนาด','เลือกชุดได้ 3 ชุด','ทรงผมพื้นฐานและผมสั้นเดิม']},{price:'159',name:'💎 โปร 159',premium:true,features:['รูปไม่มีลายน้ำ ทุกขนาด','เลือกชุดได้ 3 ชุด','ปลดล็อกทรงผมหญิงทั้งหมด รวมทรงเพชร']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={'โปร '+o.price+' บาท'}><h3 className="offer-name">{o.name}</h3><p className="offer-regular">{!o.premium?<>ราคาปกติ <del>199 บาท</del></>:'รวมทรงผมเพชร'}</p><div className="offer-price"><strong>{o.price}</strong><span>บาท / งาน</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span>{f}</span></li>)}</ul>{isAuthenticated&&<button type="button" className="ready-pay" disabled={disabled} onClick={()=>startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
+ <div className="offer-pair">{[{price:'119',name:'โปร 119',premium:false,features:['รูปไม่มีลายน้ำ ทุกขนาด','เลือกชุดได้ 3 ชุด','ทรงผมพื้นฐานและผมสั้นเดิม']},{price:'159',name:'💎 โปร 159',premium:true,features:['รูปไม่มีลายน้ำ ทุกขนาด','เลือกชุดได้ 3 ชุด','ปลดล็อคทรงผม']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={'โปร '+o.price+' บาท'}><h3 className="offer-name">{o.name}{o.premium&&<span className="offer-recommended">แนะนำ</span>}</h3><p className="offer-regular"><>ราคาปกติ <del>{o.premium?'249':'199'} บาท</del></></p><div className="offer-price"><strong>{o.price}</strong><span>บาท / งาน</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span>{f}</span></li>)}</ul>{isAuthenticated&&<button type="button" className="ready-pay" disabled={disabled} onClick={()=>startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
  {!isAuthenticated&&<div className="offer-auth"><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
- <div className="ready-review"><strong>ตรวจสอบภาพก่อนดาวน์โหลด</strong><p>ใบหน้า • ทรงผม • ชุด • พื้นหลัง</p></div>
+ 
  <div className="ready-warning">ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</div>
  {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={disabled} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
  {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
@@ -47,4 +47,5 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
+
 
