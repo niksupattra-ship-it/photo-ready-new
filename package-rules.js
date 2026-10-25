@@ -1,5 +1,6 @@
 // Versioned IDs preserve the rights of payments created before these offers.
 export const PACKAGES=Object.freeze({
+ 'download_119_v1':{price:119,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
  'download_89_v1':{price:89,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
  '89_v4':{price:89,g:2,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง',requiresImage:false,fullEdit:true},
  '159_v6':{price:159,g:10,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 10 ครั้ง',requiresImage:false,fullEdit:true},
@@ -14,6 +15,7 @@ export const PACKAGES=Object.freeze({
  '199':{price:199,g:2,h:3,legacy:true}
 });
 export function packageFor(id){const p=PACKAGES[String(id)];if(!p)throw Error('invalid_package');return p;}
-export function checkoutPackage(id){if(!['89','download_89_v1'].includes(String(id)))throw Error('invalid_package');return {id:'download_89_v1',...packageFor('download_89_v1')}}
+export function checkoutPackage(id){if(!['119','download_119_v1'].includes(String(id)))throw Error('invalid_package');return {id:'download_119_v1',...packageFor('download_119_v1')}}
 export function remaining(row){return Number(row?.generation_remaining||0)+Number(row?.hair_remaining||0);}
+
 

@@ -4,7 +4,7 @@ const FLOW='idprom_promptpay_v1';
 export async function settlePromptpay(intent,creditPaid){
  if(intent?.status!=='succeeded'||intent.metadata?.flow!==FLOW)throw Error('payment_not_paid');
  const {wallet_id:walletId,package_id:packageId,job_id:jobId=''}=intent.metadata;
- if(!walletId||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1'].includes(packageId))throw Error('invalid_payment_metadata');
+ if(!walletId||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1'].includes(packageId))throw Error('invalid_payment_metadata');
  const offer=packageFor(packageId);
  if(intent.currency!=='thb'||intent.amount!==offer.price*100||intent.amount_received<intent.amount||(offer.requiresImage&&!jobId))throw Error('payment_amount_mismatch');
  return creditPaid(walletId,intent.id,packageId,jobId);
@@ -14,14 +14,14 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
  const owned=async(req)=>{const id=String(req.params.id||'');if(!/^pi_[A-Za-z0-9]+$/.test(id))throw Error('invalid_payment_id');const intent=await stripeGet('payment_intents/'+id);if(!req.accountUser||intent.metadata?.wallet_id!==req.accountUser.wallet_id||intent.metadata?.flow!==FLOW)throw Error('payment_not_owned');return intent};
  app.post('/api/payments/promptpay',async(req,res)=>{try{
   const user=req.accountUser;if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบใหม่'});
-  const offer=checkoutPackage(req.body?.packageId);if(offer.id!=='download_89_v1')return res.status(400).json({error:'invalid_package',message:'เลือกแพ็กเกจ 89 หรือ 159 บาท'});
+  const offer=checkoutPackage(req.body?.packageId);if(offer.id!=='download_119_v1')return res.status(400).json({error:'invalid_package',message:'กรุณาโหลดหน้าใหม่เพื่อเลือกโปร 119 บาท'});
   const jobId=String(req.body?.jobId||'');const job=jobId&&await getAiJobResult(jobId,user.wallet_id);
   if(!job||job.status!=='completed')return res.status(400).json({error:'image_required',message:'กรุณาสร้างรูปให้สำเร็จก่อนปลดล็อกดาวน์โหลด'});
   if(await isUnlocked(user.wallet_id,jobId))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
   await ensureWallet(user.wallet_id);
   const attempt=String(req.get('X-Checkout-Attempt')||'');if(!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
   const packageId=offer.id;
-  const idempotencyKey=crypto.createHash('sha256').update(FLOW+user.wallet_id+attempt).digest('hex');
+  const idempotencyKey=crypto.createHash('sha256').update(FLOW+user.wallet_id+packageId+attempt).digest('hex');
   const intent=await stripePost('payment_intents',{amount:offer.price*100,currency:'thb','payment_method_types[0]':'promptpay','payment_method_data[type]':'promptpay','payment_method_data[billing_details][email]':user.email,confirm:'true',description:`IDพร้อม — ${offer.name}`,'metadata[flow]':FLOW,'metadata[wallet_id]':user.wallet_id,'metadata[package_id]':packageId,'metadata[job_id]':jobId},idempotencyKey);
   if(!intent.next_action?.promptpay_display_qr_code?.image_url_png)throw Error('qr_unavailable');
   console.info('IDPROM checkout:',JSON.stringify({event:'qr_created',paymentIntentId:intent.id,packageId}));res.json(details(intent));
@@ -47,4 +47,5 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   res.set({'Content-Type':'image/png','Content-Disposition':'attachment; filename="IDPROM-PromptPay.png"','Cache-Control':'no-store'}).send(bytes);
  }catch(e){console.error('IDPROM checkout: QR image',e);res.status(400).json({error:'qr_download_failed'})}});
 }
+
 

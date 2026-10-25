@@ -143,7 +143,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
    'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
    'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
   });res.json({url:session.url});
- }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 89 หรือ 159 บาท':e.message})}
+ }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'กรุณาโหลดหน้าใหม่เพื่อเลือกโปร 119 บาท':e.message})}
 });
 registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id)});
 // Trial identity is a signed, first-party browser cookie, independent of IP.
@@ -461,6 +461,7 @@ app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
 startSavedWorkRetentionCleanup();
+
 
 
 
