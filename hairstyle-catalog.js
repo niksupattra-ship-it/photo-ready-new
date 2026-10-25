@@ -237,7 +237,21 @@ export const PRODUCTION_HAIR_CATALOG=[
     "name": "ทรงผม 37",
     "file": "37.png",
     "src": "/assets/seedream-hairstyles/previews/37.webp"
-  }
+  },
+{
+  "id": "seedream-38",
+  "gender": "female",
+  "name": "ทรงผม 38",
+  "file": "38.png",
+  "src": "/assets/seedream-hairstyles/previews/38.webp"
+},
+{
+  "id": "seedream-39",
+  "gender": "female",
+  "name": "ทรงผม 39",
+  "file": "39.png",
+  "src": "/assets/seedream-hairstyles/previews/39.webp"
+}
 ];
 export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||null}
 
@@ -265,6 +279,9 @@ const compact={
  'seedream-27':['gathered','fully gathered swept-back hairstyle with open forehead and clean neck'],
 };
 const longDesigns={
+ "seedream-38": "long smooth straight dark brown hair, precise middle part, broad softly swept crown and upper sides, open forehead, fuller side panels with ears partly visible and softly tapered inward-curving lower ends; match Image 2 exactly without extra volume",
+ "seedream-39": "sleek straight medium-long dark brown hair, slightly off-centre part, low compact crown, both ears visible with sides tucked behind them, clean shoulder-length angled ends and no fringe; match Image 2 exactly",
+
  "seedream-03": "straight medium-long hair, centre part, smooth side lengths with inward-curved ends",
  "seedream-07": "long sleek straight hair with a precise centre part and open forehead",
  "seedream-08": "long straight hair with a side part and diagonal upper sweep",
@@ -307,4 +324,5 @@ export function selectedHairPlacement(selected){
 // Restore the existing full AI catalogue; local free hairstyles stay client-side.
 export const DOWNLOAD_HAIR_IDS=new Set(PRODUCTION_HAIR_CATALOG.map(h=>h.id));
 export function downloadHairAllowed(id){return !id||id==='original'||DOWNLOAD_HAIR_IDS.has(id)}
+
 

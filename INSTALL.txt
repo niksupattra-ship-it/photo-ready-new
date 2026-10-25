@@ -1,5 +1,21 @@
-แทนที่ payment-store.js ที่รากโปรเจ็กต์ แล้ว deploy/restart backend
-ใช้ฟรีไม่จำกัดทุกวัน รวมผู้ที่เคยชำระเงิน ไม่มีการหักเครดิตจากการประมวลผลฟรี
-trialRemaining=0 เป็นฟิลด์รองรับระบบเดิม ใช้ freeGeneration/unlimitedGeneration แสดงสิทธิ์ไม่จำกัด
-ไม่เปลี่ยนสิทธิ์ดาวน์โหลด ราคา หรือทรงผมเพชร
-ไม่ลบประวัติหรือแก้จำนวนสิทธิ์เดิม
+เพิ่มทรงใหม่ 38 และ 39 เป็นทรงพื้นฐาน ไม่แทนที่ทรงเดิม
+
+แทนที่ไฟล์โค้ดตามเส้นทาง:
+hairstyle-catalog.js
+server.js
+src/main.jsx
+src/studio-editor.jsx
+
+เพิ่มไฟล์ภาพใหม่:
+public/assets/seedream-hairstyles/references/38.png
+public/assets/seedream-hairstyles/references/39.png
+public/assets/seedream-hairstyles/previews/38.webp
+public/assets/seedream-hairstyles/previews/39.webp
+
+อัปเดตทั้ง frontend/backend และ restart backend
+ห้ามลบไฟล์ทรงเดิมใน references/previews ให้วางเฉพาะไฟล์ใหม่เพิ่ม
+38: รูปแรกแสกกลาง ผมยาวด้านข้างโค้งนุ่ม
+39: รูปที่สองแสกเยื้อง ผมตรงทัดหู
+PNG อ้างอิง 464x548 โปร่งใส; ตัวอย่างนางแบบ 512x512
+ตรวจ build, mapping ไฟล์, ความโปร่งใส, สิทธิ์พื้นฐานและสิทธิ์เดิมแล้ว
+ยังไม่ได้เรียก AI ของเว็บจริง จึงยังไม่ยืนยันผลการสร้างจริงของผู้ให้บริการ
