@@ -1341,7 +1341,7 @@ function femaleFinishMetadata(master,head={}){
  return {...(isFemaleFinishProfile(profile)?{femaleFinishProfile:profile}:{}),...(isFemaleFinishReference(reference)?{femaleFinishReference:reference}:{})};
 }
 function femaleFinishHeadMetadata(master,head={}){const metadata=femaleFinishMetadata(master,head);return Object.keys(metadata).length?{...metadata,portraitMode:'female',femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup'}:{}}
-function femaleFinishAnchor(source,master,head={}){return {source,master,...femaleFinishMetadata(master,head)}}
+function femaleFinishAnchor(source,master,head={}){const metadata=femaleFinishMetadata(master,head);const legacyBaseSource=!metadata.femaleFinishProfile&&head.makeupStyles?.look&&typeof head.makeupBaseSource==='string'&&/^data:image\/(png|jpeg|webp);base64,/.test(head.makeupBaseSource)?head.makeupBaseSource:null;return {source,master,...metadata,...(legacyBaseSource?{legacyBaseSource}:{})}}
 async function runFemaleFinishWorker(input,profile){
  if(typeof Worker==='undefined')return {pixels:input.pixels,changed:false,profile:isFemaleFinishProfile(profile)?profile:null,report:{status:'unavailable'}};
  const worker=new Worker(new URL('./female-finish-worker.js',import.meta.url),{type:'module'});
@@ -1382,6 +1382,9 @@ async function finishFemaleSkinContinuityBlob(blob,profile=null,reference=null,c
 }
 async function prepareFemaleFinishAnchor(anchor){
  if(!anchor?.master)return anchor;
+ // Legacy saved head.source may already include its local Studio skin recipe.
+ // Measure the stored clean base so that recipe is not applied twice.
+ if(!isFemaleFinishProfile(anchor.femaleFinishProfile)&&anchor.legacyBaseSource){try{const cleanBase=await withDeadline(async()=>{const response=await fetch(anchor.legacyBaseSource);if(!response.ok)throw Error('legacy_finish_base_unavailable');return response.blob()},{timeoutMs:15000,code:'FEMALE_FINISH_BASE_TIMEOUT'});if(!cleanBase.size)throw Error('legacy_finish_base_empty');anchor.master=cleanBase;delete anchor.legacyBaseSource}catch{throw Error('อ่านภาพฐานก่อนปรับผิวในงานเก่าไม่ได้ · งานเดิมยังอยู่ กรุณาลองเปิดงานอีกครั้ง')}}
  if(!isFemaleFinishProfile(anchor.femaleFinishProfile)||!isFemaleFinishReference(anchor.femaleFinishReference)){
   const captured=await finishFemaleSkinContinuityBlob(anchor.master,anchor.femaleFinishProfile,anchor.femaleFinishReference,true);
   const capturedMeta=femaleFinishMetadata(captured);

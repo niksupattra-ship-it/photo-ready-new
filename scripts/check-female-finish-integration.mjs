@@ -27,7 +27,7 @@ function extract(start,end,name,env,source=main){return new Function('env',`with
 const helpers={isFemaleFinishProfile,isFemaleFinishReference};
 const metadata=extract('function femaleFinishMetadata(','\nfunction femaleFinishAnchor(','femaleFinishMetadata',helpers);
 const headMetadata=extract('function femaleFinishHeadMetadata(','\nfunction femaleFinishAnchor(','femaleFinishHeadMetadata',{femaleFinishMetadata:metadata});
-const anchor=(source,master,head={})=>({source,master,...metadata(master,head)});
+const anchor=extract('function femaleFinishAnchor(','\nasync function runFemaleFinishWorker(','femaleFinishAnchor',{femaleFinishMetadata:metadata});
 const validator=extract('function validateFemaleMakeupReference(','\nasync function aiFinishPortrait(','validateFemaleMakeupReference',{});
 async function test(name,run){try{await run();cases.push({name,status:'PASS'});console.log('PASS '+name)}catch(error){cases.push({name,status:'FAIL',error:error.stack});console.error('FAIL '+name+'\n'+error.stack)}}
 
@@ -75,6 +75,26 @@ await test('older anchors capture missing metadata once and retain each availabl
  const old={source:photo(),master:new Blob(['old saved head'])};await prepare(old);await prepare(old);assert.equal(count,1);assert.equal(old.femaleFinishProfile,otherProfile);assert.equal(old.femaleFinishReference,otherReference);
  const partialProfile={source:photo(),master:new Blob(['latest']),femaleFinishProfile:profile};await prepare(partialProfile);assert.equal(partialProfile.femaleFinishProfile,profile,'a saved profile must not become current-head measurements');
  const partialReference={source:photo(),master:new Blob(['latest']),femaleFinishReference:reference};await prepare(partialReference);assert.equal(partialReference.femaleFinishReference,reference,'a saved first guide must not become current-head colours');
+});
+await test('legacy Studio skin recipes measure their clean stored base once before any recipe is reapplied',async()=>{
+ const visible=new Blob(['retouched visible skin']),clean=new Blob(['raw AI base']),source=photo();let fetched=0,captured=0;
+ const restored=anchor(source,visible,{makeupStyles:{look:'skin-bright-v1'},makeupBaseSource:reference});assert.equal(restored.legacyBaseSource,reference);
+ const env={...helpers,femaleFinishMetadata:metadata,withDeadline:async(operation,options)=>{assert.equal(options.timeoutMs,15000);return operation()},fetch:async url=>{fetched++;assert.equal(url,reference);return {ok:true,blob:async()=>clean}},finishFemaleSkinContinuityBlob:async(blob,target,guide,captureOnly)=>{captured++;assert.equal(blob,clean,'profile capture must use the base before local skin treatment');assert.equal(captureOnly,true);return Object.assign(blob,{idpromFemaleFinishProfile:profile,idpromFemaleFinishReference:reference})}};
+ const prepare=extract('async function prepareFemaleFinishAnchor(','\nasync function finishFirstPortraitMaster(','prepareFemaleFinishAnchor',env);await prepare(restored);await prepare(restored);
+ assert.equal(restored.source,source);assert.equal(restored.master,clean);assert.equal(restored.femaleFinishProfile,profile);assert.equal(restored.femaleFinishReference,reference);assert.equal(restored.legacyBaseSource,undefined);assert.equal(fetched,1);assert.equal(captured,1);assert.equal(await visible.text(),'retouched visible skin');
+});
+await test('valid first profiles and heads without a local recipe ignore legacy base sources',async()=>{
+ const visible=new Blob(['visible head']);for(const head of [{femaleFinishProfile:profile,femaleFinishReference:reference,makeupStyles:{look:'skin-bright-v1'},makeupBaseSource:otherReference},{makeupBaseSource:otherReference},{makeupStyles:{look:'skin-bright-v1'},makeupBaseSource:'https://fixture.invalid/base.png'}])assert.equal(anchor(photo(),visible,head).legacyBaseSource,undefined);
+ const restored=anchor(photo(),visible,{femaleFinishProfile:profile,femaleFinishReference:reference,makeupStyles:{look:'skin-bright-v1'},makeupBaseSource:otherReference});restored.legacyBaseSource=otherReference;
+ const env={...helpers,femaleFinishMetadata:metadata,fetch:async()=>{throw Error('valid profile must not fetch legacy pixels')},finishFemaleSkinContinuityBlob:async()=>{throw Error('valid finish must not be recaptured')}};
+ const prepare=extract('async function prepareFemaleFinishAnchor(','\nasync function finishFirstPortraitMaster(','prepareFemaleFinishAnchor',env);await prepare(restored);assert.equal(restored.master,visible);assert.equal(restored.femaleFinishProfile,profile);assert.equal(restored.femaleFinishReference,reference);
+});
+await test('failed legacy base reads reject before generation and retain current pixels and known metadata',async()=>{
+ for(const failure of ['fetch','http','timeout','empty']){
+  const visible=new Blob(['retouched visible skin']),restored=anchor(photo(),visible,{femaleFinishReference:reference,makeupStyles:{look:'skin-smooth-v1'},makeupBaseSource:otherReference});let captured=0;
+  const env={...helpers,femaleFinishMetadata:metadata,withDeadline:async operation=>{if(failure==='timeout')throw Error('deadline');return operation()},fetch:async()=>{if(failure==='fetch')throw Error('local read unavailable');return {ok:failure==='empty',blob:async()=>{if(failure==='empty')return new Blob([]);throw Error('failed response must not decode')}}},finishFemaleSkinContinuityBlob:async blob=>{captured++;return Object.assign(blob,{idpromFemaleFinishProfile:otherProfile,idpromFemaleFinishReference:otherReference})}};
+  const prepare=extract('async function prepareFemaleFinishAnchor(','\nasync function finishFirstPortraitMaster(','prepareFemaleFinishAnchor',env);await assert.rejects(prepare(restored));assert.equal(restored.master,visible);assert.equal(restored.femaleFinishProfile,undefined);assert.equal(restored.femaleFinishReference,reference);assert.equal(restored.legacyBaseSource,otherReference);assert.equal(captured,0,'failed raw-base read must not capture the retouched visible master');
+ }
 });
 await test('worker transport transfers native buffers, enforces its deadline, and terminates on every exit',async()=>{
  const code=section(main,'async function runFemaleFinishWorker(','\nasync function finishFemaleSkinContinuityBlob(').replace('import.meta.url',JSON.stringify('https://fixture.invalid/src/main.jsx'));
