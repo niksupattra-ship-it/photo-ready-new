@@ -45,7 +45,11 @@ try{
   assert.deepEqual(data(body.image[0]),sourceB);assert.deepEqual(data(body.image[1]),reference);assert.deepEqual(data(body.image[2]),acceptedB);
   assert(body.image[2].startsWith('data:image/jpeg;base64,'));assert(body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY — IMAGE 3'));
   assert(!body.prompt.includes('no separate makeup-reference image is supplied'));
-  assert(body.prompt.includes('intentional accepted finish to PRESERVE'));assert(body.prompt.includes('Do not tone down the accepted makeup'));
+  assert(body.prompt.includes('intentional accepted finish to PRESERVE'));assert(body.prompt.includes('Preserve their actual accepted cosmetic strength'));
+  assert(body.prompt.includes('CURRENT EYE / SKIN TARGET TAKES PRIORITY'));assert(body.prompt.includes('subtle skin-balanced pink-nude upper-lid ceiling'));assert(body.prompt.includes('neutral lower-eye exclusion'));
+  assert(body.prompt.includes('including older flat acne spots visible in Image 1 or the accepted reference'));assert(body.prompt.includes('Protect genuine discrete moles, beauty marks and freckles'));
+  assert(body.prompt.includes('do not authorize redesigning the accepted brows, eyeliner, lashes, lips, gloss, healthy skin complexion or luminous studio finish'));
+  assert(!body.prompt.includes('Do not tone down the accepted makeup'));assert(!body.prompt.includes('Retain that actual accepted colour/intensity and exposure instead of designing makeup again'));
   assert(body.prompt.includes('Image 1 remains the sole authority'));assert(body.prompt.includes('Image 2 remains the EXCLUSIVE hairstyle authority'));assert(body.prompt.includes('Iris colour/texture, pupil dimensions, original gaze and corneal catchlights remain from Image 1'));
   assert.deepEqual((await sharp(out).raw().toBuffer()).subarray((40*64+32)*4,(40*64+32)*4+4),Buffer.from([180,140,110,255]),'no original or reference face pixels are pasted over the generated output');
  });
