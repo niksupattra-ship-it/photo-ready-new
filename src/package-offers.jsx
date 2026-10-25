@@ -4,7 +4,7 @@ import {ServiceTermsLink} from './service-terms.jsx';
 function DownloadIcon(){return <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 6v25m-9-9 9 9 9-9M9 32v9h30v-9" stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
 function Check(){return <span className="ready-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-9" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"/></svg></span>}
 
-export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCredit,startCheckout}){
+export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCredit,startCheckout,isAuthenticated=true,onAuthenticate}){
  const showMessage=payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(prefix=>payMsg.startsWith(prefix));
  return <div className="idprom-ready-offer">
   <style>{`
@@ -79,11 +79,12 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
   </section>
   <div className="ready-review"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 24S11 10 24 10s20 14 20 14-7 14-20 14S4 24 4 24Z" stroke="currentColor" strokeWidth="3.2" strokeLinejoin="round"/><circle cx="24" cy="24" r="6" stroke="currentColor" strokeWidth="3.2"/></svg><div><strong>ตรวจสอบภาพก่อนดาวน์โหลด</strong><p>ใบหน้า • ทรงผม • ชุด • พื้นหลัง</p></div></div>
   <div className="ready-warning"><DownloadIcon/><span>ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</span></div>
-  {creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={payBusy||!hasTrial} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
-  <button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเตรียม…':'ชำระ 89 บาท เพื่อรับรูปนี้'}</button>
+  {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={payBusy||!hasTrial} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
+  {isAuthenticated?<button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเตรียม…':'ชำระ 89 บาท เพื่อรับรูปนี้'}</button>:<div style={{display:'grid',gap:10}}><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
   {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
   <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
+
 
