@@ -121,11 +121,13 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
   <div className="ready-warning"><DownloadIcon/><span>ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</span></div>
   {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={payBusy||!hasTrial} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
   {isAuthenticated?<button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>startCheckout('119')}>{payBusy?'กำลังเตรียม…':'ชำระ 119 บาท เพื่อรับรูปนี้'}</button>:<div style={{display:'grid',gap:10}}><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
+  <div style={{borderTop:'1px solid #dce7f3',marginTop:16,paddingTop:14}}><p style={{margin:'0 0 10px',fontSize:14,textAlign:'center'}}>💎 โปร 159 บาท · ดาวน์โหลดงานนี้และปลดล็อกทรงผมหญิงทั้งหมด · เลือกชุดได้ 3 ชุด</p><button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>isAuthenticated?startCheckout('159'):onAuthenticate('register')}>เลือกโปร 159 บาท</button></div>
   {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
   <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
+
 
 
 

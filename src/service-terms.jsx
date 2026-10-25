@@ -2,7 +2,7 @@ import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import './service-terms.css';
 
-export const SERVICE_TERMS_VERSION='2026-10-25-v2';
+export const SERVICE_TERMS_VERSION='2026-10-25-v3';
 export const SERVICE_TERMS_TITLE="ข้อกำหนดและเงื่อนไขการใช้บริการ IDพร้อม";
 export const SERVICE_TERMS_INTRO=[
  "เว็บไซต์: idpromth.com",
@@ -74,5 +74,6 @@ export function ServiceTermsLink({footer=false}){
  const [open,setOpen]=useState(false);
  return <><div className={footer?'idprom-terms-site-footer':'idprom-terms-link-wrap'}><button type="button" className="idprom-terms-link" onClick={()=>setOpen(true)}>เงื่อนไขการใช้บริการและความรับผิดชอบ</button></div>{open&&<TermsDialog onClose={()=>setOpen(false)}/>}</>;
 }
+
 
 

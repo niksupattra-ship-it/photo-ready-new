@@ -3210,7 +3210,7 @@ function App(){
   try{
    await claimAccountOutput();await refreshWallet();
    if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
-   const existingRight=await verifyOutputRights(currentOutputJobRef.current);if(existingRight.unlocked===true){setBuyOpen(false);await savePaidCheckout('existing:'+currentOutputJobRef.current);return}
+   const existingRight=await verifyOutputRights(currentOutputJobRef.current);if(packageId==='159'?existingRight.premiumHair===true:existingRight.unlocked===true){setBuyOpen(false);await savePaidCheckout('existing:'+currentOutputJobRef.current);return}
    stage='save_draft';
    const checkoutWallet=currentWalletId(),checkoutJobId=currentOutputJobRef.current,checkoutTrial=currentOutputTrialRef.current,checkoutScope=savedWorkOpenRequestRef.current;
    const attemptScope=JSON.stringify([checkoutWallet,packageId,checkoutTrial?checkoutJobId:'']);
@@ -4399,6 +4399,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+
 
 
 
