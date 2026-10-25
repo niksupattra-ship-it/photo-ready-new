@@ -61,6 +61,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  .paired-offers .ready-warning-item p span{margin:0 0 0 5px;color:#89735b}
  .paired-offers .ready-warning .ready-browser-note{margin:6px 0 0;padding-top:6px;border-color:#eee2cf;font-size:11px;color:#89735b}
  @media(max-width:640px){.paired-offers .ready-warning{padding:9px 11px}.paired-offers .ready-warning-title{font-size:12px;margin-bottom:4px}.paired-offers .ready-warning-item p strong,.paired-offers .ready-warning-item p span{font-size:12px}}
+ @media(max-width:640px){.paired-offers .offer-pair{grid-template-columns:minmax(0,1fr);gap:18px}}
  `}</style>
  <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>เลือกโปรสำหรับงานนี้ · ดาวน์โหลดรูปไม่มีลายน้ำ</p></header>
  <div className="offer-pair">{[{price:'119',name:'โปร 119',premium:false,features:['ดาวน์โหลดรูปนี้/ปลดลายน้ำ','ลองชุด 3 ชุด','ทรงผมพื้นฐาน']},{price:'159',name:'💎 โปร 159',premium:true,features:['ดาวน์โหลดรูปนี้/ปลดลายน้ำ','ลองชุด 3 ชุด','ปลดล็อคทรงผม']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={'โปร '+o.price+' บาท'}>{o.premium&&<span className="offer-recommended">แนะนำ</span>}<p className="offer-regular"><>ราคาปกติ <del>{o.premium?'249':'199'} บาท</del></></p><div className="offer-price"><strong>{o.price}</strong><span>บาท / งาน</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span>{f}{o.premium&&f==='ปลดล็อคทรงผม'&&<span aria-hidden="true"> 💎</span>}</span></li>)}</ul>{isAuthenticated&&<button type="button" className="ready-pay" disabled={disabled} onClick={()=>startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
@@ -73,6 +74,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  <footer className="ready-footer"><div className="ready-payment-brand"><span>ชำระผ่าน</span><img src="/assets/payment/promptpay-logo.png" alt="พร้อมเพย์ PromptPay" width="104" height="35"/></div><ServiceTermsLink/></footer>
  </div>;
 }
+
 
 
 
