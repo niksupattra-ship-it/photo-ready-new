@@ -16,6 +16,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    await c.query(`CREATE TABLE IF NOT EXISTS download_works(id text PRIMARY KEY,wallet_id text NOT NULL,source_hash text NOT NULL,legacy_work_id text,created_at timestamptz NOT NULL DEFAULT now())`);
    await c.query(`CREATE TABLE IF NOT EXISTS download_work_jobs(job_id text PRIMARY KEY,work_id text NOT NULL REFERENCES download_works(id),wallet_id text NOT NULL)`);
    await c.query('CREATE INDEX IF NOT EXISTS download_work_jobs_work_idx ON download_work_jobs(work_id,wallet_id)');
+   await c.query('CREATE TABLE IF NOT EXISTS download_suit_choices(wallet_id text NOT NULL,scope text NOT NULL,choices text[] NOT NULL DEFAULT ARRAY[]::text[],PRIMARY KEY(wallet_id,scope))');
    const first=await c.query("INSERT INTO download_policy(version) VALUES('download-v1') ON CONFLICT DO NOTHING RETURNING version");
    if(first.rowCount){
     await c.query(`INSERT INTO download_legacy_wallets(wallet_id) SELECT id FROM wallets WHERE generation_remaining+hair_remaining>0 UNION SELECT wallet_id FROM payments UNION SELECT wallet_id FROM promo_redemptions UNION SELECT wallet_id FROM saved_studio_work ON CONFLICT DO NOTHING`);
@@ -48,6 +49,17 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   return Boolean(r.rowCount||String(j.usage_id).startsWith('use_'));
  };
  return {ready,ownedJob,jobIds,legacyAllows,allowed,
+  async suits(wallet,job,templates=[],savedWorkId=''){
+   await ready();await ownedJob(wallet,job);
+   if(!await allowed(wallet,job,{savedWorkId})||await legacyAllows(wallet,savedWorkId,[job]))return {limited:false,choices:[]};
+   const w=await pool.query('SELECT work_id FROM download_work_jobs WHERE job_id=$1 AND wallet_id=$2',[job,wallet]),scope=w.rows[0]?.work_id||job,c=await pool.connect();
+   try{await c.query('BEGIN');await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',[wallet+':suits:'+scope]);
+    await c.query('INSERT INTO download_suit_choices(wallet_id,scope) VALUES($1,$2) ON CONFLICT DO NOTHING',[wallet,scope]);
+    const q=await c.query('SELECT choices FROM download_suit_choices WHERE wallet_id=$1 AND scope=$2 FOR UPDATE',[wallet,scope]);const choices=q.rows[0].choices;
+    for(const value of templates){if(!value)continue;if(typeof value!=='string'||value.length>500||!value.startsWith('/'))throw Object.assign(Error('ชุดไม่ถูกต้อง'),{status:400});if(!choices.includes(value)){if(choices.length>=3)throw Object.assign(Error('เลือกชุดครบ 3 ชุดแล้ว กรุณาเลือกชุดที่เคยเลือกไว้'),{status:409});choices.push(value)}}
+    await c.query('UPDATE download_suit_choices SET choices=$3 WHERE wallet_id=$1 AND scope=$2',[wallet,scope,choices]);await c.query('COMMIT');return {limited:true,choices,limit:3};
+   }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+  },
   async isLegacySaved(wallet,id){await ready();const q=await pool.query('SELECT 1 FROM download_legacy_works WHERE wallet_id=$1 AND work_id=$2',[wallet,id]);return q.rowCount>0},
   async summary(wallet){await ready();const r=await pool.query('SELECT 1 FROM download_legacy_wallets WHERE wallet_id=$1',[wallet]);return {downloadPolicy:'download-v1',freeGeneration:true,canSave:r.rowCount>0}},
   async beginWork(wallet,image,requested='',savedWorkId=''){
@@ -82,3 +94,4 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
 }
 const pool=new pg.Pool({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:5000,ssl:process.env.DATABASE_URL?.includes('localhost')?false:{rejectUnauthorized:false}});
 export const downloadPolicy=createDownloadPolicy(pool,{prepareSavedWorks:getSavedWorkRetentionPolicy});
+

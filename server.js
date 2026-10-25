@@ -423,6 +423,10 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
 app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const wid=walletId(req),unlocked=await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked});
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
+app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
+ const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});
+ res.json(await downloadPolicy.suits(walletId(req),req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
+}catch(e){res.status(e.status||503).json({message:e.message||'ตรวจสอบชุดไม่สำเร็จ กรุณาลองใหม่'})}});
 app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{
  if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ดาวน์โหลด'});
  const out=await downloadPolicy.redeem(req.accountUser.wallet_id,req.params.id);
@@ -461,6 +465,7 @@ app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
 startSavedWorkRetentionCleanup();
+
 
 
 
