@@ -62,18 +62,32 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  .paired-offers .ready-warning .ready-browser-note{margin:6px 0 0;padding-top:6px;border-color:#eee2cf;font-size:11px;color:#89735b}
  @media(max-width:640px){.paired-offers .ready-warning{padding:9px 11px}.paired-offers .ready-warning-title{font-size:12px;margin-bottom:4px}.paired-offers .ready-warning-item p strong,.paired-offers .ready-warning-item p span{font-size:12px}}
  @media(max-width:640px){.paired-offers .offer-pair{grid-template-columns:minmax(0,1fr);gap:18px}}
+
+ .paired-offers .ready-prepay-note{margin:0 0 12px;padding:14px;border:1px solid #ffca91;border-radius:14px;background:linear-gradient(120deg,#fffbf6,#fff8ef);color:#53483e;line-height:1.65}
+ .paired-offers .ready-prepay-main{display:flex;align-items:center;gap:16px;padding:1px 3px 12px}
+ .paired-offers .ready-prepay-icon{display:grid;place-items:center;flex:0 0 56px;height:56px;border-radius:50%;background:#ffe8cc;color:#ee8405}
+ .paired-offers .ready-prepay-icon svg{width:31px;height:31px}
+ .paired-offers .ready-prepay-copy{min-width:0;flex:1}
+ .paired-offers .ready-prepay-copy h3{margin:0 0 5px;color:#5c310d;font-size:17px;line-height:1.4;font-weight:750}
+ .paired-offers .ready-prepay-copy p{margin:3px 0 0;font-size:12px}
+ .paired-offers .ready-prepay-copy strong{color:#795020;font-weight:700}
+ .paired-offers .ready-prepay-caution{display:flex;align-items:center;gap:9px;margin:0;padding:8px 11px;border-radius:10px;background:#ffecd6;color:#70502d;font-size:12px}
+ .paired-offers .ready-prepay-caution>span:first-child{display:grid;place-items:center;flex:0 0 20px;height:20px;border-radius:50%;background:#ed870d;color:#fff;font-size:15px;font-weight:800}
+ .paired-offers .ready-prepay-caution strong{color:#d56f00}
+ @media(max-width:640px){.paired-offers .ready-prepay-note{padding:11px;border-radius:12px}.paired-offers .ready-prepay-main{align-items:flex-start;gap:10px;padding:1px 0 10px}.paired-offers .ready-prepay-icon{flex-basis:36px;height:36px}.paired-offers .ready-prepay-icon svg{width:23px;height:23px}.paired-offers .ready-prepay-copy h3{font-size:15px;margin-bottom:6px}.paired-offers .ready-prepay-copy p{margin-top:5px}.paired-offers .ready-prepay-caution{align-items:flex-start;padding:8px 9px;font-size:11px;gap:7px}.paired-offers .ready-prepay-caution>span:first-child{flex-basis:18px;height:18px;font-size:13px;margin-top:1px}}
  `}</style>
  <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>เลือกโปรสำหรับงานนี้ · ดาวน์โหลดรูปไม่มีลายน้ำ</p></header>
  <div className="offer-pair">{[{price:'119',name:'โปร 119',premium:false,features:['ดาวน์โหลดรูปนี้/ปลดลายน้ำ','ลองชุด 3 ชุด','ทรงผมพื้นฐาน']},{price:'159',name:'💎 โปร 159',premium:true,features:['ดาวน์โหลดรูปนี้/ปลดลายน้ำ','ลองชุด 3 ชุด','ปลดล็อคทรงผม']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={'โปร '+o.price+' บาท'}>{o.premium&&<span className="offer-recommended">แนะนำ</span>}<p className="offer-regular"><>ราคาปกติ <del>{o.premium?'249':'199'} บาท</del></></p><div className="offer-price"><strong>{o.price}</strong><span>บาท / งาน</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span>{f}{o.premium&&f==='ปลดล็อคทรงผม'&&<span aria-hidden="true"> 💎</span>}</span></li>)}</ul>{isAuthenticated&&<button type="button" className="ready-pay" disabled={disabled} onClick={()=>startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
  {!isAuthenticated&&<div className="offer-auth"><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
  
- <aside className="ready-warning" aria-label="ข้อควรตรวจสอบก่อนชำระเงิน"><div className="ready-warning-title"><span aria-hidden="true">i</span><strong>ก่อนชำระเงิน เช็กให้พร้อม</strong></div><div className="ready-warning-items"><div className="ready-warning-item"><span className="ready-warning-number" aria-hidden="true">1</span><p><strong>ตรวจสอบเบราว์เซอร์ที่ดาวน์โหลดได้</strong><span>แนะนำเปิดเว็บไซต์ผ่าน Safari หรือ Chrome โดยตรง</span></p></div><div className="ready-warning-item"><span className="ready-warning-number" aria-hidden="true">2</span><p><strong>ปรับแต่งภาพให้พร้อมใช้งาน</strong><span>ตรวจสอบใบหน้า ทรงผม ชุด และพื้นหลังให้เรียบร้อยก่อนชำระเงิน</span></p></div></div><p className="ready-browser-note"><strong>ข้อควรระวัง:</strong> เบราว์เซอร์ภายในแอป LINE, Facebook หรือ TikTok อาจดาวน์โหลดไม่ได้</p></aside>
+ <aside className="ready-prepay-note" aria-label="ข้อควรตรวจสอบก่อนชำระเงิน"><div className="ready-prepay-main"><div className="ready-prepay-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M16 4v16m-6-6 6 6 6-6M6 23v4h20v-4" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg></div><div className="ready-prepay-copy"><h3>ก่อนชำระเงิน เช็กให้พร้อม</h3><p><strong>ตรวจสอบเบราว์เซอร์ที่ดาวน์โหลดได้</strong> แนะนำเปิดเว็บไซต์ผ่าน Safari หรือ Chrome โดยตรง</p><p><strong>ปรับแต่งภาพให้พร้อมใช้งาน</strong> ตรวจสอบใบหน้า ทรงผม ชุด และพื้นหลังให้เรียบร้อยก่อนชำระเงิน</p></div></div><p className="ready-prepay-caution"><span aria-hidden="true">!</span><span><strong>ข้อควรระวัง:</strong> เบราว์เซอร์ภายในแอป LINE, Facebook หรือ TikTok อาจดาวน์โหลดไม่ได้</span></p></aside>
  {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={disabled} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
  {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
  {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
  <footer className="ready-footer"><div className="ready-payment-brand"><span>ชำระผ่าน</span><img src="/assets/payment/promptpay-logo.png" alt="พร้อมเพย์ PromptPay" width="104" height="35"/></div><ServiceTermsLink/></footer>
  </div>;
 }
+
 
 
 
