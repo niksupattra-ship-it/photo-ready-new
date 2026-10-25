@@ -115,7 +115,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
   <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>ดาวน์โหลดรูปที่ปรับแต่งแล้ว ไม่มีลายน้ำ</p></header>
   <section className="ready-price-card" aria-label="ราคาและสิ่งที่จะได้รับ">
    <span className="ready-download-emblem"><DownloadIcon/></span><span className="ready-price-divider" aria-hidden="true"/>
-   <div className="ready-price-body"><div style={{color:'#718097',fontSize:13,marginBottom:5}}>ราคาปกติ <del>199 บาท</del></div><div className="ready-price"><strong>119</strong><span>บาท / งาน</span></div><div className="ready-benefits"><span><Check/>รูปไม่มีลายน้ำ</span><span><Check/>พร้อมนำไปใช้งาน</span></div></div>
+   <div className="ready-price-body"><div style={{color:'#718097',fontSize:13,marginBottom:5}}>ราคาปกติ <del>199 บาท</del></div><div className="ready-price"><strong>119</strong><span>บาท / งาน</span></div><div className="ready-benefits"><span><Check/>รูปไม่มีลายน้ำ</span><span><Check/>พร้อมนำไปใช้งาน</span><span><Check/>หลังชำระเงิน เลือกชุดได้ 3 ชุด</span></div></div>
   </section>
   <div className="ready-review"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 24S11 10 24 10s20 14 20 14-7 14-20 14S4 24 4 24Z" stroke="currentColor" strokeWidth="3.2" strokeLinejoin="round"/><circle cx="24" cy="24" r="6" stroke="currentColor" strokeWidth="3.2"/></svg><div><strong>ตรวจสอบภาพก่อนดาวน์โหลด</strong><p>ใบหน้า • ทรงผม • ชุด • พื้นหลัง</p></div></div>
   <div className="ready-warning"><DownloadIcon/><span>ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</span></div>
@@ -126,6 +126,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
   <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
+
 
 
 
