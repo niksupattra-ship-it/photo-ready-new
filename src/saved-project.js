@@ -1,5 +1,7 @@
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {createProjectResourceGuard} from './project-resource-guard.js';
+import {isFemaleFinishProfile} from './female-finish-profile.js';
+import {isFemaleFinishReference,FEMALE_FINISH_REFERENCE_MAX_EDGE} from './female-finish-reference.js';
 const imageURL=/^data:image\/(png|jpeg|webp);base64,/;
 const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const isHead=l=>l.kind==='head'||l.name==='หัว · คอ · ผม';
@@ -11,6 +13,8 @@ export function validateSavedProject(project){
   if(typeof l.name!=='string'||!imageURL.test(l.source)||![l.x,l.y,l.scale,l.rotation,l.opacity].every(Number.isFinite)||l.scale<.1||l.scale>5||l.opacity<0||l.opacity>1)throw Error('ข้อมูลเลเยอร์ไม่ถูกต้อง');
   if(['squeezeX','squeezeY'].some(k=>l[k]!==undefined&&(!Number.isFinite(l[k])||l[k]<.1||l[k]>3)))throw Error('สัดส่วนเลเยอร์ไม่ถูกต้อง');
   if(l.sourceFrame&&(!['x','y','w','h'].every(k=>Number.isFinite(l.sourceFrame[k]))||l.sourceFrame.w<=0||l.sourceFrame.h<=0))throw Error('ตำแหน่งภาพต้นทางไม่ถูกต้อง');
+  if(l.femaleFinishProfile!==undefined&&!isFemaleFinishProfile(l.femaleFinishProfile))throw Error('ข้อมูลโทนผิวที่บันทึกไม่ถูกต้อง');
+  if(l.femaleFinishReference!==undefined&&!isFemaleFinishReference(l.femaleFinishReference))throw Error('ภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง');
   for(const key of imageFields)if(l[key]&&!imageURL.test(l[key]))throw Error('ภาพในโปรเจกต์ไม่ถูกต้อง');
   if(l.collarParts&&(!imageURL.test(l.collarParts.left)||!imageURL.test(l.collarParts.right)))throw Error('ภาพเข็มปกคอไม่ถูกต้อง');
  }
@@ -40,6 +44,7 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
  for(const l of project.layers){
   const original=await read(l.source,Boolean(l.collarParts));
   for(const key of imageFields.slice(1))if(l[key]){const im=await read(l[key],Boolean(l.collarParts));if(['eraseRestoreSource','warpRestoreBase'].includes(key)&&((im.naturalWidth||im.width)!==(original.naturalWidth||original.width)||(im.naturalHeight||im.height)!==(original.naturalHeight||original.height)))throw Error('ขนาดภาพอ้างอิงคืนขอบไม่ตรงกับเลเยอร์')}
+  if(l.femaleFinishReference){const im=await read(l.femaleFinishReference);if((im.naturalWidth||im.width)>FEMALE_FINISH_REFERENCE_MAX_EDGE||(im.naturalHeight||im.height)>FEMALE_FINISH_REFERENCE_MAX_EDGE)throw Error('ขนาดภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง')}
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }
  let source=null;if(project.compareSource){await read(project.compareSource);source=makeFile(await blob(project.compareSource))}
@@ -56,5 +61,6 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   editCache={master:await blob(head.source),lock};
  }
  abort(signal);
- return {project,source,head,editCache};
+ const femaleFinish=head&&(head.femaleFinishProfile!==undefined||head.femaleFinishReference!==undefined)?{profile:head.femaleFinishProfile,reference:head.femaleFinishReference}:undefined;
+ return {project,source,head,editCache,femaleFinish};
 }

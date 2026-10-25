@@ -71,7 +71,10 @@ function surfaceSize(layer,size){
 export function createProjectResourceGuard(project){
  const entries=new Map();let encodedChars=0;
  const add=(src,collar=false)=>{if(!src)return;encodedChars+=src.length;const entry=entries.get(src);if(entry){entry.collar=entry.collar&&collar;return}entries.set(src,{size:encodedImageSize(src),collar})};
- for(const layer of project.layers){for(const key of fields)add(layer[key],Boolean(layer.collarParts));if(layer.collarParts){add(layer.collarParts.left,true);add(layer.collarParts.right,true)}}
+ for(const layer of project.layers){for(const key of fields)add(layer[key],Boolean(layer.collarParts));if(layer.collarParts){add(layer.collarParts.left,true);add(layer.collarParts.right,true)}
+  // Finish references consume encoded and decoded memory, but no editable surface.
+  add(layer.femaleFinishReference);
+ }
  add(project.compareSource);
  const budget=()=>{
   let uniquePixels=0,mutablePixels=900*1200*2;

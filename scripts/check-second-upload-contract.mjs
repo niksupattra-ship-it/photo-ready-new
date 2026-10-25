@@ -5,6 +5,8 @@ import {inspectSelectedPortraitHair} from '../src/selected-hair-check.js';
 import {replaceStudioSourceLayers} from '../src/replace-studio-source.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 import {isFreeFemaleHair} from '../src/free-female-hair.js';
+import {isFemaleFinishProfile} from '../src/female-finish-profile.js';
+import {isFemaleFinishReference} from '../src/female-finish-reference.js';
 
 // Run the real browser request/cache/completion functions with mocked network,
 // landmarks and decoded pixels. No provider request, payment or customer data.
@@ -16,6 +18,8 @@ function extract(start,end,name,env){
  return new Function('env',`with(env){${main.slice(a,b)};return ${name}}`)(env);
 }
 const noop=()=>{};
+const femaleFinishMetadata=extract('function femaleFinishMetadata(','\nfunction femaleFinishAnchor(','femaleFinishMetadata',{isFemaleFinishProfile,isFemaleFinishReference});
+const femaleFinishAnchor=(source,master,head={})=>({source,master,...femaleFinishMetadata(master,head)});
 let passed=0;
 async function test(name,run){await run();passed++;console.log('PASS: '+name)}
 function photo(value,replacement=false){
@@ -93,7 +97,7 @@ function finishFixture({wrongHair=false,missingReference=false,sourceReplacement
  const A=photo('source-A',sourceReplacement),B=photo('source-B',sourceReplacement),calls=[],events=[],references=[],sourceChecks=[];
  const expected=evidence(false),actual=evidence(wrongHair);
  const env={
-  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION:'fixture-policy',activeProcessOperation:{cancelled:false},
+  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION:'fixture-policy',activeProcessOperation:{cancelled:false},isFemaleFinishProfile,femaleFinishMetadata,
   assertProcessActive:o=>{if(o?.cancelled)throw Error('cancelled')},cancelledProcessError:()=>Error('cancelled'),
   currentResultCacheScope:()=> 'fixture-wallet',resultSourceDigest,portraitResultCache:createAiResultCache(),
   aiFinishPortraitUncached:async(source,hair)=>{
@@ -159,7 +163,7 @@ await test('the actual Studio upload-to-selection path commits B and preserves s
  const suit={id:'suit',kind:'suit',name:'ชุด',templatePath:'female-uniform.png',x:0,y:0,scale:1,rotation:0};
  const background={id:'background',kind:'background',source:'blue'},pin={id:'pin',kind:'chest',source:'pin'};
  const env={
-  ready:true,assetBusy:false,processActive:false,busy:false,hairBusy:false,W:2256,H:3072,sourcePhoto:A,firstUploadedPhotoRef:{current:A},initialFemaleMakeupRef:{current:null},
+  ready:true,assetBusy:false,processActive:false,busy:false,hairBusy:false,W:2256,H:3072,sourcePhoto:A,firstUploadedPhotoRef:{current:A},initialFemaleMakeupRef:{current:null},femaleFinishMetadata,femaleFinishAnchor,
   state:{current:[background,oldHead,{id:'old-hair',kind:'hair-preview',hairHeadId:'head-A'},suit,pin]},
   preparePhotoInput:async file=>file,URL:{createObjectURL:()=> 'blob:fixture',revokeObjectURL:noop},image:async()=>({width:500,height:700}),nativeSource:()=> 'native-B',
   historySnapshot:()=>env.state.current.map(l=>({...l})),fresh:layer=>({id:'new-'+(++uid),...layer}),replaceStudioSourceLayers,

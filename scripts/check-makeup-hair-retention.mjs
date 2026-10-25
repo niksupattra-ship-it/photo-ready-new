@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createAiResultCache,resultSourceDigest} from '../src/ai-result-cache.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
+import {isFemaleFinishProfile} from '../src/female-finish-profile.js';
+import {isFemaleFinishReference} from '../src/female-finish-reference.js';
 import {PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 
 // Actual client functions; decoded pixels, codecs and network are mocked.
@@ -19,11 +21,13 @@ const jpeg=value=>'data:image/jpeg;base64,'+Buffer.from(value).toString('base64'
 const guideA=jpeg('accepted initial rose makeup A'),guideB=jpeg('accepted initial rose makeup B');
 const photo=(value,style='makeup')=>Object.assign(new File([value],'portrait.jpg',{type:'image/jpeg'}),{idpromFemaleEyeStyle:style,idpromPortraitMode:'female'});
 const validator=extract('function validateFemaleMakeupReference(','\nasync function aiFinishPortrait(','validateFemaleMakeupReference',{});
+const finishMetadata=extract('function femaleFinishMetadata(','\nfunction femaleFinishAnchor(','femaleFinishMetadata',{isFemaleFinishProfile,isFemaleFinishReference});
+const finishAnchor=(source,master,head={})=>({source,master,...finishMetadata(master,head)});
 
 function guideFixture({missingMask=false,missingFace=false}={}){
  const masters={A:Object.assign(new Blob(['accepted-A']),{fixtureName:'A',fixtureColor:[183,91,111]}),B:Object.assign(new Blob(['accepted-B']),{fixtureName:'B',fixtureColor:[202,112,131]})};
  const decoded=[],segmented=[],encoded=[];let failMask=missingMask;
- const face=[];for(const [id,x,y] of [[33,.35,.4],[263,.65,.4],[152,.5,.8],[70,.35,.32],[300,.65,.32],[105,.4,.33],[334,.6,.33]])face[id]={x,y};
+ const face=[];for(const [id,x,y] of [[10,.5,.18],[234,.24,.5],[454,.76,.5],[33,.35,.4],[263,.65,.4],[152,.5,.8],[70,.35,.32],[300,.65,.32],[105,.4,.33],[334,.6,.33]])face[id]={x,y};
  const env={
   femaleMakeupGuideCache:new WeakMap(),femaleMakeupMasterKeys:new WeakMap(),femaleMakeupMasterSequence:0,
   decodedPortraitImage:async master=>{decoded.push(master);return {master,naturalWidth:1200,naturalHeight:1600}},
@@ -31,7 +35,7 @@ function guideFixture({missingMask=false,missingFace=false}={}){
   getV192MasterMasks:async master=>{segmented.push(master);return {hairMask:failMask?null:{fixtureHair:true,master}}},
   canvasFor:(width,height)=>{
    const canvas={width,height,image:null,frame:null};
-   canvas.getContext=()=>({fillRect:noop,drawImage:source=>{canvas.image=source},getImageData:()=>{
+   canvas.getContext=()=>({fillRect:noop,drawImage:(source,...crop)=>{canvas.image=source;canvas.crop=crop},getImageData:()=>{
     const data=new Uint8ClampedArray(width*height*4);
     if(canvas.image.fixtureHair)data[3]=255;
     else for(let i=0;i<data.length;i+=4){data.set(canvas.image.master.fixtureColor,i);data[i+3]=255}
@@ -52,7 +56,7 @@ await test('the makeup guide comes from the accepted master, is bounded, masks h
  const f=guideFixture(),one=await f.crop(f.masters.A),again=await f.crop(f.masters.A),other=await f.crop(f.masters.B);
  assert.equal(one,again);assert.notEqual(one,other);assert.deepEqual(f.decoded,[f.masters.A,f.masters.B]);assert.deepEqual(f.segmented,[f.masters.A,f.masters.B]);
  assert.equal(f.encoded.length,2);
- for(const canvas of f.encoded){assert(Math.max(canvas.width,canvas.height)<=512);assert.deepEqual([...canvas.frame.data.subarray(0,4)],[213,213,213,255]);assert.deepEqual([...canvas.frame.data.subarray(4,7)],canvas.image.master.fixtureColor)}
+ for(const canvas of f.encoded){assert(Math.max(canvas.width,canvas.height)<=512);assert.deepEqual([...canvas.frame.data.subarray(0,4)],[213,213,213,255]);assert.deepEqual([...canvas.frame.data.subarray(4,7)],canvas.image.master.fixtureColor);const [left,top,width,height]=canvas.crop;assert(left<.24*1200&&left+width>.76*1200,'guide covers both outer cheeks');assert(top<=.18*1600,'guide covers the measured forehead');assert(top+height>.8*1600,'guide includes the neck below the chin')}
  assert(one.length<512*1024);assert.equal(validator(one),one);
  assert.equal(f.key(f.masters.A),f.key(f.masters.A));assert.notEqual(f.key(f.masters.A),f.key(f.masters.B));
 });
@@ -102,12 +106,12 @@ await test('malformed or oversized eligible guides fail before a paid job is sub
 function finishFixture(){
  const source=photo('untouched source A'),calls=[],keys=[],events=[],cache=createAiResultCache();
  const env={
-  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,validateFemaleMakeupReference:validator,activeProcessOperation:{cancelled:false},
+  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,validateFemaleMakeupReference:validator,activeProcessOperation:{cancelled:false},isFemaleFinishProfile,femaleFinishMetadata:finishMetadata,
   assertProcessActive:operation=>{if(operation?.cancelled)throw Object.assign(Error('cancelled'),{code:'USER_CANCELLED'})},cancelledProcessError:()=>Object.assign(Error('cancelled'),{code:'USER_CANCELLED'}),
   currentResultCacheScope:()=> 'fixture-wallet',resultSourceDigest,
   portraitResultCache:{...cache,get:(key,generate)=>{keys.push(key);return cache.get(key,generate)}},
   aiFinishPortraitUncached:async(file,hair,options)=>{calls.push({file,hair,options});return Object.assign(new Blob([hair]),{idpromJobId:'job-'+calls.length,idpromTrial:false,idpromFullEdit:true})},
-  cleanPortraitClothing:async value=>value,finishFemaleMakeupEyeToneBlob:async value=>value,checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({checked:true,unlocked:true,fullEdit:true}),saveAiJobFile:async()=>{},writeActiveAiJob:noop,
+  cleanPortraitClothing:async value=>value,finishFemaleMakeupEyeToneBlob:async value=>value,finishFemaleSkinContinuityBlob:async value=>value,checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({checked:true,unlocked:true,fullEdit:true}),saveAiJobFile:async()=>{},writeActiveAiJob:noop,
   CustomEvent:class{constructor(type,init){this.type=type;this.detail=init.detail}},window:{dispatchEvent:event=>events.push(event)}
  };
  const run=extract('async function aiFinishPortrait(','\nlet acceptedPaidTrial=','aiFinishPortrait',env);
@@ -135,7 +139,10 @@ function appFixture(){
  const calls=[],guideSources=[],settled=[],events=[],messages=[];
  const cancel=()=>Object.assign(Error('cancelled'),{code:'USER_CANCELLED'});
  const env={
-  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,portraitFinishChoice,
+  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,portraitFinishChoice,isFemaleFinishReference,femaleFinishMetadata:finishMetadata,femaleFinishAnchor:finishAnchor,
+  // Pixel/profile capture is covered by the finish integration suite. Keep
+  // this guide-provenance suite independent of decoded-pixel fixtures.
+  prepareFemaleFinishAnchor:async anchor=>anchor,
   activeProcessOperation:{cancelled:false},busy:false,hairBusy:false,privateTrialActive:false,rights:{generationRemaining:10},isTrialHairAllowed:()=>true,
   firstUploadedPhotoRef:{current:A},initialFemaleMakeupRef:{current:null},initialProcessedMasterRef:{current:null},editCache:{current:{master:null,lock:{templatePath:'female.png'}}},
   studioPhotoTransactionRef:{current:false},hairRequestRef:{current:false},hairResultCacheRef:{current:new Map()},

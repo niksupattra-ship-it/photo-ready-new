@@ -754,7 +754,26 @@ export function StudioEditor({initialLayers,templates=[],collarPins=[],chestPins
    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||''))throw Error('ผลลัพธ์ไม่ตรงกับทรงผมที่เลือก');
-   const next=replaceHairstyleLayer(previous,head.id,{...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source});
+   const keepFemaleFinish=hairGender==='female'&&(head.portraitMode||hairGender)==='female'&&portraitFinishChoice(head.initialFemaleEyeStyle,head.femaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle)==='makeup';
+   const replacement={...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
+   if(keepFemaleFinish){
+    replacement.femaleFinishProfile=result.layer.femaleFinishProfile??placedHead.femaleFinishProfile;
+    replacement.femaleFinishReference=result.layer.femaleFinishReference??placedHead.femaleFinishReference;
+   }
+   let next=replaceHairstyleLayer(previous,head.id,replacement);
+   const look=keepFemaleFinish&&makeupLook(placedHead.makeupStyles?.look)?.id;
+   if(look){
+    if(typeof onMakeup!=='function')throw Error('ระบบผิวยังไม่พร้อม กรุณารีเฟรชหน้าแล้วลองใหม่');
+    // Every style starts with its clean master. Detect masks on these new native
+    // pixels and reapply the current recipe once; cached masters stay immutable.
+    const base=surfaceURL(result.layer.source),intensity=Math.max(0,Math.min(100,Number(placedHead.makeupIntensity??100)));
+    if(!Number.isFinite(intensity))throw Error('ความเข้มผิวไม่ถูกต้อง');
+    const full=await onMakeup(base,{look});
+    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+    const source=await mixMakeupLookSources(base,full,intensity);
+    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+    next=next.map(l=>l.id===head.id?{...l,source,processedOriginalSource:result.layer.source,makeupBaseSource:base,makeupCleanBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'skin-current-layer-v2'}:l);
+   }
    if(!await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id))))throw Error('แสดงภาพไม่สำเร็จ');
    if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}
    if(!reused)await onFinishProcess?.(true);
