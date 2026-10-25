@@ -302,3 +302,8 @@ export function selectedHairPlacement(selected){
  return 'REAR PLACEMENT FOR EXISTING LENGTHS ONLY: Keep only the selected hairstyle lengths (or the original length when no new hairstyle is selected). Move front-draped long sections behind the ears and behind the neck/shoulders without lengthening them. Keep the neck and clavicles unobstructed, preserve crown/fringe and the actual cut length, and never invent extra strands or a rear curtain. The upper-armpit level is a maximum for already-long hair, never a target length.';
 }
 
+
+
+// Shared free catalogue: five women and five men, ten AI styles in total.
+export const DOWNLOAD_HAIR_IDS=new Set([...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female').slice(0,5),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35').slice(0,5)].map(h=>h.id));
+export function downloadHairAllowed(id){return !id||id==='original'||DOWNLOAD_HAIR_IDS.has(id)}

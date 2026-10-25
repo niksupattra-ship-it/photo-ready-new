@@ -17,7 +17,16 @@ async function ready(){
  })().catch(e=>{readyPromise=null;throw e});
  return readyPromise;
 }
-export async function createAiJob({walletId,usageId,fields,image,mask}){await ready();const id='job_'+crypto.randomBytes(18).toString('hex');await pool.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,mask,mask_name,mask_type) VALUES($1,$2,$3,'queued',$4,$5,$6,$7,$8,$9,$10)`,[id,walletId,usageId,fields||{},image.buffer,image.originalname||'image.png',image.mimetype||'image/png',mask?.buffer||null,mask?.originalname||null,mask?.mimetype||null]);return id}
+export async function createAiJob({walletId,usageId,fields,image,mask}){
+ await ready();const id='job_'+crypto.randomBytes(18).toString('hex'),c=await pool.connect();
+ try{await c.query('BEGIN');await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  const active=await c.query("SELECT id FROM ai_jobs WHERE wallet_id=$1 AND status IN ('queued','processing') LIMIT 1",[walletId]);
+  if(active.rowCount)throw Object.assign(Error('กรุณารอภาพก่อนหน้าสร้างเสร็จก่อน ไม่จำกัดจำนวนครั้งต่อวัน'),{status:429});
+  await c.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,mask,mask_name,mask_type) VALUES($1,$2,$3,'queued',$4,$5,$6,$7,$8,$9,$10)`,[id,walletId,usageId,fields||{},image.buffer,image.originalname||'image.png',image.mimetype||'image/png',mask?.buffer||null,mask?.originalname||null,mask?.mimetype||null]);
+  await c.query('COMMIT');return id;
+ }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
+
 export async function claimAiJob(id){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='processing',updated_at=now() WHERE id=$1 AND status='queued' RETURNING *`,[id]);return rows[0]||null}
 export async function touchAiJob(id,stage=null){await ready();await pool.query(`UPDATE ai_jobs SET updated_at=now(),fields=CASE WHEN $2::text IS NULL THEN fields ELSE fields||jsonb_build_object('processing_stage',$2::text) END WHERE id=$1 AND status='processing'`,[id,stage])}
 export async function completeAiJob(id,result){await ready();await pool.query(`UPDATE ai_jobs SET status='completed',result=$2,error=NULL,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference',updated_at=now() WHERE id=$1 AND status='processing'`,[id,result])}
@@ -27,7 +36,7 @@ export async function getAiJobResult(id,walletId){await ready();const {rows}=awa
 export async function getAiJobsAccess(ids,walletId){if(!ids.length)return [];await ready();const {rows}=await pool.query('SELECT id,status,usage_id FROM ai_jobs WHERE wallet_id=$1 AND id=ANY($2::text[])',[walletId,ids]);return rows}
 export async function queuedAiJobs(){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='queued',updated_at=now() WHERE status='processing' AND updated_at < now()-interval '3 minutes' RETURNING id`);const q=await pool.query(`SELECT id FROM ai_jobs WHERE status='queued' ORDER BY created_at ASC LIMIT 20`);return q.rows.map(r=>r.id)}
 
-export async function claimTrialImage(id,sourceWalletId,targetWalletId){await ready();const r=await pool.query("UPDATE ai_jobs SET wallet_id=$3,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND usage_id LIKE 'trial_%' RETURNING id",[id,sourceWalletId,targetWalletId]);return r.rowCount>0}
+export async function claimTrialImage(id,sourceWalletId,targetWalletId){await ready();const r=await pool.query("UPDATE ai_jobs SET wallet_id=$3,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND (usage_id LIKE 'trial_%' OR usage_id LIKE 'free_%') RETURNING id",[id,sourceWalletId,targetWalletId]);return r.rowCount>0}
 
 // Serialize cancellation and delivery with credit settlement in ONE transaction.
 // AI output is retained only until delivery is confirmed; late workers cannot
@@ -46,7 +55,7 @@ export async function settleAiJobDelivery(id,walletId,action){
   const usage=await c.query(trial?'SELECT status FROM trial_previews WHERE id=$1 FOR UPDATE':'SELECT * FROM credit_usage WHERE id=$1 FOR UPDATE',[j.usage_id]);
   const u=usage.rows[0];
   if(action==='cancel'&&u?.status==='completed'){await c.query('ROLLBACK');return {status:409,error:'already_delivered'}}
-  if(action==='confirm'&&!String(j.usage_id).startsWith('private_full_')&&(!u||u.status==='refunded')){await c.query('ROLLBACK');return {status:409,error:'credit_not_reserved'}}
+  if(action==='confirm'&&!String(j.usage_id).startsWith('private_full_')&&!String(j.usage_id).startsWith('free_')&&(!u||u.status==='refunded')){await c.query('ROLLBACK');return {status:409,error:'credit_not_reserved'}}
   if(u?.status==='reserved'){
    if(action==='confirm')await c.query(trial?"UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1":"UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1",[j.usage_id]);
    else if(trial)await c.query('DELETE FROM trial_previews WHERE id=$1',[j.usage_id]);
@@ -62,3 +71,4 @@ export async function settleAiJobDelivery(id,walletId,action){
   await c.query('COMMIT');return {status:200,ok:true,cancelled:action==='cancel'};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
+

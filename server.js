@@ -1,4 +1,5 @@
-import {isTrialHairAllowed} from './hairstyle-catalog.js';
+import {downloadPolicy} from './download-policy-store.js';
+import {isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
@@ -101,13 +102,13 @@ app.post("/api/payments/confirm",async(req,res)=>{
     res.json({ok:true,...out});
   }catch(e){console.error("Stripe confirm:",e);res.status(500).json({error:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
-app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req))})});
+app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req)),...await downloadPolicy.summary(w.walletId)})});
 // A credit display reads current counters without migrations or image-right repair.
 app.get('/api/wallet/balance',async(req,res)=>{const started=Date.now();res.set('Cache-Control','no-store');try{
  const id=walletId(req);if(!id)return res.status(404).json({error:'wallet_not_found'});
  const data=await getWalletBalance(id,trialDeviceFingerprint(req,res,id),trialNetworkFingerprint(req));
  if(!data)return res.status(404).json({error:'wallet_not_found'});
- res.json(data);
+ res.json({...data,...await downloadPolicy.summary(id)});
 }catch(error){const stage=['wallet_counter','trial_policy'].includes(error.balanceStage)?error.balanceStage:'credit_read',code=/^[A-Z0-9_]{1,32}$/.test(String(error.code||''))?String(error.code):'READ_UNAVAILABLE';console.error('Wallet balance:',JSON.stringify({stage,code,elapsedMs:Date.now()-started}));res.status(503).json({error:'wallet_balance_unavailable',stage,code,message:'ยังอ่านเครดิตไม่ได้ กรุณาลองอีกครั้ง'})}});
 // Credit refreshes need balances and rights, not the account-history query.
 // The default route retains history for existing account views.
@@ -116,7 +117,7 @@ app.get("/api/wallet",async(req,res)=>{res.set("Cache-Control","no-store");try{
  const summary=req.query?.summary==='1';
  const [w,trial,history]=await Promise.all([getWallet(id),trialOptionAccess(id,trialDeviceFingerprint(req,res,id),trialNetworkFingerprint(req)),summary?undefined:walletHistory(id)]);
  if(!w)return res.status(404).json({error:"wallet_not_found"});
- res.json({...w,...trial,...(summary?{}:{history})});
+ res.json({...w,...trial,...await downloadPolicy.summary(id),...(summary?{}:{history})});
 }catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับเครดิตโค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
@@ -134,13 +135,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
  try{
   const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});
   const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
-  let jobId=String(req.body?.jobId||'');
-  if(jobId){const job=await getAiJobResult(jobId,wid);if(!job||job.status!=='completed'||!String(job.usage_id).startsWith('trial_')){
-   if(!['159_v4','159_v5','89_v4','159_v6'].includes(offer.id))return res.status(400).json({error:'trial_image_required',message:'เลือกรูปทดลองที่ประมวลผลสำเร็จก่อนชำระเงิน'});
-   // Credit-only purchase can continue; never unlock an invalid or foreign image.
-   console.warn('IDPROM checkout:',JSON.stringify({event:'invalid_trial_ignored',packageId:offer.id}));jobId='';
-  }}
-  if(offer.requiresImage&&!jobId)return res.status(400).json({error:'trial_image_required',message:'ทดลองสร้างรูปก่อน แล้วเลือก 89 บาทเพื่อรับรูปนั้น'});
+  const jobId=String(req.body?.jobId||'');await downloadPolicy.ownedJob(wid,jobId);if(await downloadPolicy.allowed(wid,jobId))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
   const base=APP_URL||`${req.protocol}://${req.get('host')}`;
   const session=await stripePost('checkout/sessions',{
    mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
@@ -150,7 +145,7 @@ app.post('/api/payments/checkout',async(req,res)=>{
   });res.json({url:session.url});
  }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'เลือกแพ็กเกจ 89 หรือ 159 บาท':e.message})}
 });
-registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid});
+registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id)});
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
 function trialDeviceFingerprint(req,res,wid){
@@ -193,20 +188,11 @@ async function requireCredit(req,res,kind){
     if(!wallet){res.status(403).json({error:'private_trial_inactive'});return null}
     return {usageId:'private_full_'+crypto.randomBytes(18).toString('hex'),trialPreview:false,generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining};
   }
-  const user=req.accountUser||await authUser(req);
-  const r=user&&user.wallet_id===wid?await reserveCredit(wid,kind):null;
-  if(r)return r;
   if(kind==='ai-finish'||kind==='hairstyle'){
-    if(!isTrialHairAllowed(req.body?.hairId)){res.status(402).json({error:'trial_hair_locked',message:'ไม่พบทรงผมที่เลือก กรุณารีเฟรชและเลือกใหม่'});return null}
-    const fingerprint=trialDeviceFingerprint(req,res,wid);
-    if(fingerprint){
-      const access=await trialOptionAccess(wid,fingerprint,trialNetworkFingerprint(req));
-      if(access.hasPurchased&&req.get('X-IDPROM-Accept-Trial')!=='1'){res.status(409).json({error:'trial_confirmation_required',message:'เครดิตของคุณหมดแล้ว กรุณาบันทึกงานเพื่อเก็บรูปไม่มีลายน้ำ'});return null}
-      const trial=await reserveTrialPreview(wid,fingerprint,trialNetworkFingerprint(req));if(trial)return trial
-    }
+   if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
+   return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
-  res.status(402).json({error:'credit_required',message:'ทดลองฟรีได้เครื่องละ 2 ครั้งต่อวัน กรุณาลองใหม่วันถัดไปหรือเลือกแพ็กเกจเพื่อประมวลผลต่อ'});
-  return null;
+  res.status(403).json({error:'unsupported_generation'});return null;
 }
 
 const upload=multer({
@@ -389,7 +375,7 @@ async function runAiJob(id){
  }catch(e){console.error('AI job:',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job finished',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
 app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1}]),async(req,res)=>{
- let creditUse=null,stage='validate';const started=Date.now();
+ let createdJobId=null,creditUse=null,stage='validate';const started=Date.now();
  const logStage=(next,extra={})=>{stage=next;console.info('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,...extra}))};
  try{
   const image=req.files?.image?.[0],mask=req.files?.mask?.[0];
@@ -401,13 +387,16 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   creditUse=await requireCredit(req,res,creditKind);
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}
   logStage('persist_job');
+  const downloadWorkId=await downloadPolicy.beginWork(walletId(req),image.buffer,String(req.body?.downloadWorkId||''),req.get('X-IDPROM-Saved-Work')||'');
   const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:{...req.body,delivery_pending:true,delivery_confirmed:false},image,mask});
-  res.status(202).json({jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});
+  createdJobId=id;await downloadPolicy.attach(walletId(req),downloadWorkId,id);
+  res.status(202).json({downloadWorkId,jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});
   logStage('queued',{jobId:id});setImmediate(()=>runAiJob(id));
  }catch(e){
   // Log the failed stage before refund/storage recovery can itself wait.
   console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
-  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(500).json({error:'job_create_failed',message:e.message});
+  if(createdJobId)try{await failAiJob(createdJobId,'work_binding_failed')}catch(cleanupError){console.error('AI binding cleanup:',cleanupError.code||'storage_error')}
+  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:'job_create_failed',message:e.message});
  }
 });
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
@@ -419,7 +408,7 @@ app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.param
 app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{
  const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j)return res.status(404).send('ไม่พบงาน');
  if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');
- const rights=await imageEntitlements(wid),trial=String(j.usage_id||'').startsWith('trial_')&&!rights.unlockedJobIds.includes(req.params.id);
+ const trial=!await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});
  res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(j.result);
 }catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
 app.post('/api/images/:id/claim',async(req,res)=>{try{
@@ -427,21 +416,32 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
  const source=String(req.body?.sourceWalletId||'');
  if(source===user.wallet_id)return res.json({ok:true});
  if(!source||await walletHasAccount(source))return res.status(403).json({error:'image_account_mismatch',message:'รูปนี้อยู่ในบัญชีอื่น กรุณาเข้าสู่ระบบบัญชีเดิม'});
- if(!await claimTrialImage(req.params.id,source,user.wallet_id))return res.status(404).json({error:'trial_image_not_found'});
+ await downloadPolicy.claim(source,user.wallet_id,req.params.id);
+ if(!await claimTrialImage(req.params.id,source,user.wallet_id)&&!await getAiJobResult(req.params.id,user.wallet_id))return res.status(404).json({error:'trial_image_not_found'});
  res.json({ok:true});
 }catch(e){res.status(500).json({error:'image_claim_failed'})}});
-app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j||j.status!=='completed')return res.status(404).json({unlocked:false,fullEdit:false});const ent=await imageEntitlements(wid),usage=String(j.usage_id||'');const privateAccess=req.get('X-IDPROM-Private-Trial')==='1'&&hasPrivateTrial(req,wid);const unlocked=privateAccess||Boolean(req.accountUser&&(usage.startsWith('use_')||ent.unlockedJobIds.includes(req.params.id)));res.json({unlocked,fullEdit:unlocked&&(ent.editableJobIds.includes(req.params.id)||await creditOutputFullEdit(usage))})}catch(e){res.status(500).json({unlocked:false,fullEdit:false})}});
+app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{
+ const wid=walletId(req),unlocked=await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked});
+}catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
+app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{
+ if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ดาวน์โหลด'});
+ const out=await downloadPolicy.redeem(req.accountUser.wallet_id,req.params.id);
+ res.status(out.ok?200:402).json({...out,...await getWallet(req.accountUser.wallet_id),...await downloadPolicy.summary(req.accountUser.wallet_id)});
+}catch(e){res.status(e.status||503).json({error:'unlock_failed',message:'ยังปลดล็อกไม่ได้ กรุณาลองใหม่ ไม่ต้องจ่ายซ้ำ'})}});
+
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(()=>{void getModnetSession().then(()=>console.info('MODNet ready')).catch(e=>console.error('MODNet warmup:',e.message))},2000).unref();
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);
 
 
-async function savedWorkRights(wid,project){
- const ids=validateProject(project),[jobs,ent]=await Promise.all([getAiJobsAccess(ids,wid),imageEntitlements(wid)]),byId=new Map(jobs.map(job=>[job.id,job]));
- for(const id of ids){const j=byId.get(id);if(!j||j.status!=='completed'||!(String(j.usage_id||'').startsWith('use_')||ent.unlockedJobIds.includes(id)))return false}return true;
+async function savedWorkRights(wid,project,workId=''){
+ const ids=validateProject(project);
+ if(await downloadPolicy.legacyAllows(wid,workId,ids))return true;
+ const results=await Promise.all(ids.map(id=>downloadPolicy.allowed(wid,id,{savedWorkId:workId})));return results.every(Boolean);
 }
-registerSavedWorkApi(app,{savedWorkRights});
+
+registerSavedWorkApi(app,{savedWorkRights,downloadPolicy});
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{
@@ -461,6 +461,7 @@ app.use(express.static(path.join(dir,"dist")));
 app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
 startSavedWorkRetentionCleanup();
+
 
 
 

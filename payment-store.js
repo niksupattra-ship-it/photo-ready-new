@@ -105,7 +105,7 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await migrationQuery(`CREATE INDEX CONCURRENTLY IF NOT EXISTS credit_usage_wallet_created_idx ON credit_usage(wallet_id,created_at)`);
   await migrationQuery(`CREATE INDEX CONCURRENTLY IF NOT EXISTS trial_previews_wallet_created_idx ON trial_previews(wallet_id,created_at)`);
 })().catch(error=>{initPromise=null;throw error});return initPromise}
-function shape(id,row){const count=remaining(row);return {walletId:id,processRemaining:count,generationRemaining:count,hairRemaining:count}}
+function shape(id,row){const count=remaining(row);return {walletId:id,processRemaining:count,generationRemaining:count,hairRemaining:count,downloadRemaining:count}}
 // The current 159 offer promised full editing from launch. Older grants did not
 // record that allowance. Repair each such payment once without adding credits
 // or changing the rights of legacy packages. PostgreSQL now() is shared by all
@@ -286,3 +286,4 @@ export async function getWalletBalance(id,fingerprint,networkFingerprint){
  catch(error){error.balanceStage='trial_policy';throw error}
  return {...shape(id,wallet.rows[0]),...trial};
 }
+
