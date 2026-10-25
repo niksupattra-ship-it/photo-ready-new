@@ -4024,3 +4024,14 @@
  .photo-size-dialog>footer button{font-size:12px}
 }
 
+
+/* Full-screen download size editor on phones, including safe areas. */
+@media(max-width:599px){
+ .photo-size-overlay{padding:0;align-items:stretch}
+ .photo-size-dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
+ .photo-size-dialog>header{padding-top:calc(16px + env(safe-area-inset-top));min-height:calc(76px + env(safe-area-inset-top));flex-shrink:0}
+ .photo-size-dialog>header:before{top:calc(17px + env(safe-area-inset-top))}
+ .photo-size-body{flex:1;min-height:0;align-content:start}
+ .photo-size-dialog>footer{padding-bottom:max(14px,env(safe-area-inset-bottom));flex-shrink:0}
+}
+
