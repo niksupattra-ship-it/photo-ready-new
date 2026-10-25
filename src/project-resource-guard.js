@@ -75,7 +75,7 @@ export function createProjectResourceGuard(project){
   // Finish references consume encoded and decoded memory, but no editable surface.
   add(layer.femaleFinishReference);
  }
- add(project.compareSource);
+ add(project.compareSource);add(project.downloadSource);
  const budget=()=>{
   let uniquePixels=0,mutablePixels=900*1200*2;
   for(const entry of entries.values())uniquePixels+=imageArea(entry.size,entry.collar);
@@ -104,3 +104,4 @@ export function createProjectResourceGuard(project){
   }
  };
 }
+

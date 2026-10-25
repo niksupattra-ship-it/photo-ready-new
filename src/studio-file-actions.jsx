@@ -10,7 +10,7 @@ export function StudioFileActions({disabled,onSave,onOpen,onWorks,onExport}){
  useEffect(()=>{if(disabled&&menu.current)menu.current.open=false},[disabled]);
  return <div className="studio-file-actions">
   <div className="studio-project-actions" role="group" aria-label="จัดการโปรเจกต์">
-   <button type="button" title="บันทึก" aria-label="บันทึก" disabled={disabled} onClick={onSave}><FileIcon kind="save"/></button>
+   {onSave&&<button type="button" title="บันทึก" aria-label="บันทึก" disabled={disabled} onClick={onSave}><FileIcon kind="save"/></button>}
    <button type="button" title="เปิดโปรเจกต์" aria-label="เปิดโปรเจกต์" disabled={disabled} onClick={onOpen}><FileIcon kind="open"/></button>
    <button type="button" title="งานที่บันทึก" aria-label="งานที่บันทึก" disabled={disabled} onClick={onWorks}><FileIcon kind="works"/></button>
   </div>
@@ -21,3 +21,4 @@ export function StudioFileActions({disabled,onSave,onOpen,onWorks,onExport}){
   <SupportCenter compact/>
  </div>;
 }
+

@@ -18,6 +18,8 @@ export function validateSavedProject(project){
   for(const key of imageFields)if(l[key]&&!imageURL.test(l[key]))throw Error('ภาพในโปรเจกต์ไม่ถูกต้อง');
   if(l.collarParts&&(!imageURL.test(l.collarParts.left)||!imageURL.test(l.collarParts.right)))throw Error('ภาพเข็มปกคอไม่ถูกต้อง');
  }
+ if(project.downloadSource&&!imageURL.test(project.downloadSource))throw Error('ต้นฉบับดาวน์โหลดไม่ถูกต้อง');
+ if(project.downloadWorkId!==undefined&& !/^dwork_[a-f0-9]{36}$/.test(project.downloadWorkId))throw Error('รหัสงานไม่ถูกต้อง');
  if(project.compareSource&&!imageURL.test(project.compareSource))throw Error('รูปต้นฉบับไม่ถูกต้อง');
  if(project.placement&&(!['W','H','uX','uY','uW','uH'].every(k=>Number.isFinite(project.placement[k]))||project.placement.W<=0||project.placement.H<=0||project.placement.uW<=0||project.placement.uH<=0))throw Error('ตำแหน่งชุดไม่ถูกต้อง');
  return project;
@@ -26,6 +28,7 @@ export function blobDataURL(blob){return new Promise((resolve,reject)=>{const re
 export async function makeSavedProject(snapshot){
  const project={format:'idprom-studio',version:1,width:900,height:1200,placement:snapshot.placement||null,layers:snapshot.layers,compareSource:snapshot.compareSource||snapshot.originalPreview||null};
  if(!project.compareSource&&snapshot.sourcePhoto)project.compareSource=await blobDataURL(snapshot.sourcePhoto);
+ if(snapshot.sourcePhoto?.idpromDownloadWorkId){project.downloadWorkId=snapshot.sourcePhoto.idpromDownloadWorkId;project.downloadSource=await blobDataURL(snapshot.sourcePhoto)}
  return validateSavedProject(project);
 }
 // Decode everything before changing the active project; a failed image leaves the current work intact.
@@ -47,7 +50,7 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   if(l.femaleFinishReference){const im=await read(l.femaleFinishReference);if((im.naturalWidth||im.width)>FEMALE_FINISH_REFERENCE_MAX_EDGE||(im.naturalHeight||im.height)>FEMALE_FINISH_REFERENCE_MAX_EDGE)throw Error('ขนาดภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง')}
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }
- let source=null;if(project.compareSource){await read(project.compareSource);source=makeFile(await blob(project.compareSource))}
+ let source=null;const original=project.downloadSource||project.compareSource;if(original){await read(original);source=makeFile(await blob(original));if(project.downloadWorkId)source.idpromDownloadWorkId=project.downloadWorkId}
  const head=project.layers.find(isHead),suit=project.layers.find(l=>l.kind==='suit'||l.name==='ชุด');
  let editCache=null;
  if(head&&source){
@@ -64,3 +67,4 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
  const femaleFinish=head&&(head.femaleFinishProfile!==undefined||head.femaleFinishReference!==undefined)?{profile:head.femaleFinishProfile,reference:head.femaleFinishReference}:undefined;
  return {project,source,head,editCache,femaleFinish};
 }
+
