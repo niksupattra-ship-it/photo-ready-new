@@ -78,7 +78,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
    <div className="ready-price-body"><div className="ready-price"><strong>89</strong><span>บาท / งาน</span></div><div className="ready-benefits"><span><Check/>รูปไม่มีลายน้ำ</span><span><Check/>พร้อมนำไปใช้งาน</span></div></div>
   </section>
   <div className="ready-review"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M4 24S11 10 24 10s20 14 20 14-7 14-20 14S4 24 4 24Z" stroke="currentColor" strokeWidth="3.2" strokeLinejoin="round"/><circle cx="24" cy="24" r="6" stroke="currentColor" strokeWidth="3.2"/></svg><div><strong>ตรวจสอบภาพก่อนดาวน์โหลด</strong><p>ใบหน้า • ทรงผม • ชุด • พื้นหลัง</p></div></div>
-  <div className="ready-warning"><DownloadIcon/><span>ดาวน์โหลดลงอุปกรณ์ก่อนออกจากหน้านี้</span></div>
+  <div className="ready-warning"><DownloadIcon/><span>ตรวจสอบบราวเซอร์ที่สามารถดาวน์โหลดได้ ก่อนชำระเงิน</span></div>
   {creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={payBusy||!hasTrial} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
   <button type="button" className="ready-pay" disabled={payBusy||!hasTrial} onClick={()=>startCheckout('89')}>{payBusy?'กำลังเตรียม…':'ชำระ 89 บาท เพื่อรับรูปนี้'}</button>
   {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
@@ -86,3 +86,4 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
   <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
  </div>;
 }
+
