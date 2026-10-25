@@ -36,18 +36,32 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,onUseCred
  .paired-offers .ready-footer .idprom-terms-link-wrap{margin:0}.paired-offers .ready-footer .idprom-terms-link{font:inherit;color:inherit;background:transparent;border:0;text-decoration:underline}
  .paired-offers .ready-message{text-align:center;font-size:13px;color:#a53e24}
  @media(max-width:640px){.package-pro-modal:has(.paired-offers){width:calc(100vw - 20px);padding:34px 12px 16px;border-radius:18px;max-height:calc(100dvh - 20px)}.paired-offers .ready-heading{padding:0 12px 16px}.paired-offers .ready-heading h2{font-size:23px}.paired-offers .ready-heading p{font-size:12px}.paired-offers .offer-pair{gap:8px}.paired-offers .offer-card{padding:16px 10px;border-radius:12px}.paired-offers .offer-name{font-size:15px}.paired-offers .offer-price{gap:4px;margin-bottom:16px}.paired-offers .offer-price strong{font-size:38px}.paired-offers .offer-price span{font-size:11px}.paired-offers .offer-features{font-size:12px;gap:10px}.paired-offers .ready-pay{font-size:13px;padding:11px 6px}.paired-offers .offer-regular{font-size:11px}.paired-offers .ready-review,.paired-offers .ready-warning{padding:11px 12px}}
+
+ .paired-offers .ready-warning{padding:17px 18px;border:1px solid #f4d8a4;background:#fff7e8;border-radius:14px;color:#784b15;font-size:13px;line-height:1.65}
+ .paired-offers .ready-warning-title{display:flex;align-items:center;gap:9px;margin-bottom:13px;color:#825014;font-size:15px}
+ .paired-offers .ready-warning-title>span{display:grid;place-items:center;width:23px;height:23px;flex:0 0 23px;border:1.5px solid #c88b36;border-radius:50%;font:700 15px Georgia,serif}
+ .paired-offers .ready-warning-items{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+ .paired-offers .ready-warning-item{display:flex;align-items:flex-start;gap:9px;min-width:0}
+ .paired-offers .ready-warning-number{display:grid;place-items:center;flex:0 0 23px;height:23px;border-radius:7px;background:#f8e7c7;color:#875515;font-size:12px;font-weight:750;margin-top:1px}
+ .paired-offers .ready-warning-item p{margin:0}.paired-offers .ready-warning-item p strong,.paired-offers .ready-warning-item p span{display:block}
+ .paired-offers .ready-warning-item p span{margin-top:3px;color:#856848;font-size:12px}
+ .paired-offers .ready-warning .ready-browser-note{margin:14px 0 0;padding-top:11px;border-top:1px solid #efd9b3;font-size:12px;color:#8c6230}
+ .paired-offers .ready-payment-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 13px}
+ .paired-offers .ready-payment-brand img{display:block;width:104px;height:35px;object-fit:contain}
+ @media(max-width:640px){.paired-offers .ready-warning{padding:15px 13px}.paired-offers .ready-warning-items{grid-template-columns:1fr;gap:12px}.paired-offers .ready-warning-title{font-size:14px;margin-bottom:12px}}
  `}</style>
  <header className="ready-heading"><h2>รับรูปนี้ พร้อมใช้งาน</h2><p>เลือกโปรสำหรับงานนี้ · ดาวน์โหลดรูปไม่มีลายน้ำ</p></header>
  <div className="offer-pair">{[{price:'119',name:'โปร 119',premium:false,features:['ดาวน์โหลดรูปนี้/ปลดลายน้ำ','ลองชุด 3 ชุด','ทรงผมพื้นฐาน']},{price:'159',name:'💎 โปร 159',premium:true,features:['ดาวน์โหลดรูปนี้/ปลดลายน้ำ','ลองชุด 3 ชุด','ปลดล็อคทรงผม']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={'โปร '+o.price+' บาท'}>{o.premium&&<span className="offer-recommended">แนะนำ</span>}<p className="offer-regular"><>ราคาปกติ <del>{o.premium?'249':'199'} บาท</del></></p><div className="offer-price"><strong>{o.price}</strong><span>บาท / งาน</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span>{f}{o.premium&&f==='ปลดล็อคทรงผม'&&<span aria-hidden="true"> 💎</span>}</span></li>)}</ul>{isAuthenticated&&<button type="button" className="ready-pay" disabled={disabled} onClick={()=>startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
  {!isAuthenticated&&<div className="offer-auth"><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('register')}>สมัครสมาชิก</button><button type="button" className="ready-pay" disabled={disabled} onClick={()=>onAuthenticate('login')}>เข้าสู่ระบบ</button></div>}
  
- <div className="ready-warning"><p>กรุณาตรวจสอบเบราว์เซอร์ที่สามารถดาวน์โหลดได้ และกรุณาปรับแต่งภาพให้พร้อมใช้งานก่อนชำระเงิน</p><p>เบราว์เซอร์ภายในแอป เช่น LINE, Facebook หรือ TikTok อาจดาวน์โหลดไม่ได้ แนะนำเปิดเว็บไซต์ผ่าน Safari หรือ Chrome โดยตรง</p></div>
+ <aside className="ready-warning" aria-label="ข้อควรตรวจสอบก่อนชำระเงิน"><div className="ready-warning-title"><span aria-hidden="true">i</span><strong>ก่อนชำระเงิน เช็กให้พร้อม</strong></div><div className="ready-warning-items"><div className="ready-warning-item"><span className="ready-warning-number" aria-hidden="true">1</span><p><strong>ตรวจสอบเบราว์เซอร์ที่ดาวน์โหลดได้</strong><span>แนะนำเปิดเว็บไซต์ผ่าน Safari หรือ Chrome โดยตรง</span></p></div><div className="ready-warning-item"><span className="ready-warning-number" aria-hidden="true">2</span><p><strong>ปรับแต่งภาพให้พร้อมใช้งาน</strong><span>ตรวจสอบใบหน้า ทรงผม ชุด และพื้นหลังให้เรียบร้อยก่อนชำระเงิน</span></p></div></div><p className="ready-browser-note"><strong>ข้อควรระวัง:</strong> เบราว์เซอร์ภายในแอป LINE, Facebook หรือ TikTok อาจดาวน์โหลดไม่ได้</p></aside>
  {isAuthenticated&&creditBalance>0&&<div className="ready-credit"><p>สิทธิ์ดาวน์โหลดคงเหลือ <strong>{creditBalance}</strong> งาน</p><button type="button" className="ready-use-credit" disabled={disabled} onClick={onUseCredit}>ใช้ 1 สิทธิ์ เพื่อรับรูปนี้</button></div>}
  {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
  {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
- <footer className="ready-footer"><p>ชำระผ่าน PromptPay</p><ServiceTermsLink/></footer>
+ <footer className="ready-footer"><div className="ready-payment-brand"><span>ชำระผ่าน</span><img src="/assets/payment/promptpay-logo.png" alt="พร้อมเพย์ PromptPay" width="104" height="35"/></div><ServiceTermsLink/></footer>
  </div>;
 }
+
 
 
 
