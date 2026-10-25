@@ -61,7 +61,7 @@ function TermsBody({text}){
  });
 }
 
-function TermsDialog({onClose}){
+export function TermsDialog({onClose}){
  const ref=useRef(null),title=useId();
  useEffect(()=>{const previous=document.activeElement;ref.current.showModal();return()=>{ref.current?.close();previous?.focus?.()}},[]);
  return createPortal(<dialog ref={ref} className="idprom-terms-dialog" aria-labelledby={title} onCancel={e=>{e.preventDefault();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
@@ -74,3 +74,4 @@ export function ServiceTermsLink({footer=false}){
  const [open,setOpen]=useState(false);
  return <><div className={footer?'idprom-terms-site-footer':'idprom-terms-link-wrap'}><button type="button" className="idprom-terms-link" onClick={()=>setOpen(true)}>เงื่อนไขการใช้บริการและความรับผิดชอบ</button></div>{open&&<TermsDialog onClose={()=>setOpen(false)}/>}</>;
 }
+
