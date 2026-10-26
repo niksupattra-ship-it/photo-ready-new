@@ -3162,6 +3162,7 @@ function App(){
   cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
   liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};liveCollarWarpRef.current=0;liveCollarHeightRef.current=0;liveNeckAdjustRef.current={width:0,length:0};
   currentOutputJobRef.current=restored.head?.jobId||'';currentOutputTrialRef.current=false;studioTrialRef.current=false;
+  rememberRestoredHairResult(restored.head);
   setOutputJobId(restored.head?.jobId||'');setTrialPreview(false);setHairId(restored.head?.hairId||'');
   setF(restored.source);setRestoredSourcePhoto(restored.source);setAccountSaveNotice(null);
   studioOriginRef.current={starter:true,placement:restored.project.placement};savedWorkIdRef.current=work.id||'';
@@ -3967,16 +3968,38 @@ function App(){
  const lockPlacement=()=>{};
  const unlockPlacement=()=>{};
  const hairResultMode=(id,portraitMode)=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)?.gender||portraitMode||firstUploadedPhotoRef.current?.idpromPortraitMode||(/female|woman|women/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'female':/male|man|men/i.test(editCache.current?.lock?.templatePath||activeUniformTemplate)?'male':'female');
- const hairResultKey=(id,portraitMode)=>{
-  const source=firstUploadedPhotoRef.current;
-  const makeupKey=hairResultMode(id,portraitMode)==='female'&&source?.idpromFemaleEyeStyle==='makeup'?'upload-adaptive-korean-v1':'';
-  return JSON.stringify([HAIR_DESIGN_VERSION,hairResultMode(id,portraitMode),id||'original',source?.idpromFemaleEyeStyle==='makeup'&&hairResultMode(id,portraitMode)==='female'?'makeup-fine-clear-blemish-diffusion-v27':source?.idpromFemaleEyeStyle||'natural',hairResultMode(id,portraitMode)==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference']);
+ const hairResultKey=(id,portraitMode,femaleEyeStyle)=>{
+  const source=firstUploadedPhotoRef.current,mode=hairResultMode(id,portraitMode);
+  const finishStyle=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
+  const makeupKey=mode==='female'&&finishStyle==='makeup'?'upload-adaptive-korean-v1':'';
+  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-fine-clear-blemish-diffusion-v27':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference']);
  };
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
- const rememberHairResult=(id,master,portraitMode)=>{
-  const key=hairResultKey(id,portraitMode),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
+ const rememberHairResult=(id,master,portraitMode,femaleEyeStyle)=>{
+  const key=hairResultKey(id,portraitMode,femaleEyeStyle),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
   const entry={master,sourcePhoto:firstUploadedPhotoRef.current,scope,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current,confirmed:Boolean(previous?.confirmed&&previous.master===master&&previous.sourcePhoto===firstUploadedPhotoRef.current&&previous.scope===scope&&previous.jobId===currentOutputJobRef.current)};
   hairResultCacheRef.current.set(key,entry);return entry;
+ };
+ const rememberRestoredHairResult=head=>{
+  const source=firstUploadedPhotoRef.current;let master=editCache.current?.master;
+  if(!source||!head)return;
+  const localHair=isFreeFemaleHair(head.hairId),id=localHair?'':head.hairId;
+  const mode=hairResultMode(id,head.portraitMode);
+  const finishStyle=mode==='female'?portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle):'natural';
+  source.idpromPortraitMode=mode;source.idpromFemaleEyeStyle=finishStyle;
+  if(!master||!head.jobId||head.jobId!==currentOutputJobRef.current)return;
+  // A free PNG style stores a cleaned head separately from its untouched AI
+  // base. Cache that base so a later local refit keeps ears and inner hair.
+  if(head.freeHairBaseOriginal===true||localHair){
+   const original=head.hairOriginalSource;
+   if(typeof original!=='string'||original.length>32*1024*1024)return;
+   const match=/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(original);
+   if(!match)return;
+   try{const binary=atob(match[2]);if(!binary.length)return;const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);master=new Blob([bytes],{type:'image/'+match[1]})}catch{return}
+  }
+  // Reopened work already has an accepted visible result. Remember that exact
+  // current variant so switching back to it does not submit the upload again.
+  const entry=rememberHairResult(id,master,mode,finishStyle);entry.confirmed=true;
  };
  const restoreHairResultRights=async cached=>{
   const verified=await verifyOutputRights(cached.jobId);
@@ -3985,11 +4008,11 @@ function App(){
   currentOutputJobRef.current=cached.jobId;currentOutputTrialRef.current=isTrial;
   studioTrialRef.current=isTrial;setOutputJobId(cached.jobId);setTrialPreview(isTrial);
  };
- const cachedHairResult=(id,portraitMode)=>{
-  const entry=hairResultCacheRef.current.get(hairResultKey(id,portraitMode));
+ const cachedHairResult=(id,portraitMode,femaleEyeStyle)=>{
+  const entry=hairResultCacheRef.current.get(hairResultKey(id,portraitMode,femaleEyeStyle));
   return entry?.confirmed&&entry.sourcePhoto===firstUploadedPhotoRef.current&&entry.scope===hairResultScope()&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
  };
- const canReuseHair=(id,portraitMode)=>Boolean(cachedHairResult(id,portraitMode));
+ const canReuseHair=(id,portraitMode,femaleEyeStyle)=>Boolean(cachedHairResult(id,portraitMode,femaleEyeStyle));
  const changeHair=async id=>changeHairForStudio(id);
  const fitChangedHairMaster=async(master,previous)=>{
   const [oldImage,newImage]=await Promise.all([decodedPortraitImage(previous.master),decodedPortraitImage(master)]);
@@ -4000,12 +4023,15 @@ function App(){
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle}={})=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
-  const firstUploadedPhoto=firstUploadedPhotoRef.current;
+  const firstUploadedPhoto=firstUploadedPhotoRef.current,requestScope=hairResultScope();
   if(!firstUploadedPhoto){setMsg('ไม่พบรูปที่อัปโหลดครั้งแรก กรุณาเพิ่มรูปใหม่');return;}
   // Re-run the SAME first-processing pipeline from the untouched uploaded File.
   // Never send the previously AI-generated head or the completed uniform portrait
   // to the hairstyle-only endpoint: it can alter identity and leave old hair behind.
-  const cached=cachedHairResult(id,portraitMode);
+  // Resolve the requested finish before lookup; the source's selected finish
+  // changes only after the exact new layer has been delivered successfully.
+  const finishStyle=hairResultMode(id,portraitMode)==='female'?portraitFinishChoice(femaleEyeStyle,firstUploadedPhoto.idpromFemaleEyeStyle):'natural';
+  const cached=cachedHairResult(id,portraitMode,finishStyle);
   if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
   hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
@@ -4013,7 +4039,6 @@ function App(){
   try{
    let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;}else{
-     const finishStyle=portraitFinishChoice(femaleEyeStyle,firstUploadedPhoto.idpromFemaleEyeStyle);
      // Only the untouched first upload is submitted for the new hairstyle.
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate,onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
      generatedResult=aiHeadNeck;
@@ -4025,7 +4050,7 @@ function App(){
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
-     assertProcessActive();if(!studioOnly)rememberHairResult(id,nextMaster,portraitMode);
+     assertProcessActive();if(!studioOnly)rememberHairResult(id,nextMaster,portraitMode,finishStyle);
    }
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
@@ -4043,12 +4068,13 @@ function App(){
     let committed=false;
     const commit=()=>{
      if(committed)return;
-     if(activeProcessOperation!==operation||firstUploadedPhotoRef.current!==firstUploadedPhoto)throw Error('รูปต้นฉบับหรืองานเปลี่ยนแล้ว กรุณาเลือกทรงใหม่');
+     if(activeProcessOperation!==operation||firstUploadedPhotoRef.current!==firstUploadedPhoto||hairResultScope()!==requestScope)throw Error('บัญชี รูปต้นฉบับ หรืองานเปลี่ยนแล้ว กรุณาเลือกใหม่');
      assertProcessActive(operation);
      beginOptionRender();editCache.current={...current,master:nextMaster,lock:nextLock};
      currentOutputJobRef.current=jobId;currentOutputTrialRef.current=isTrial;studioTrialRef.current=isTrial;
      setOutputJobId(jobId);setTrialPreview(isTrial);setHairId(id||'');
-     const entry=rememberHairResult(id,nextMaster,portraitMode);entry.confirmed=true;
+     if(hairResultMode(id,portraitMode)==='female')firstUploadedPhoto.idpromFemaleEyeStyle=finishStyle;
+     const entry=rememberHairResult(id,nextMaster,portraitMode,finishStyle);entry.confirmed=true;
      committed=true;
     };
     completed=true;
@@ -4065,6 +4091,7 @@ function App(){
    if(!studioOnly){if(headMasterPreview)URL.revokeObjectURL(headMasterPreview);setHeadMasterPreview(URL.createObjectURL(nextMaster));setHeadPreviewLock(nextLock);}
    if(cached)await restoreHairResultRights(cached);
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
+   if(hairResultMode(id,portraitMode)==='female')firstUploadedPhoto.idpromFemaleEyeStyle=finishStyle;
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
   }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
   finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await finishProgress(true);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
@@ -4373,6 +4400,7 @@ function App(){
   initialFemaleMakeupRef.current=source&&editCache.current?.master&&restoredHead?.portraitMode==='female'&&portraitFinishChoice(restoredHead.initialFemaleEyeStyle,restoredHead.femaleEyeStyle)==='makeup'?femaleFinishAnchor(source,editCache.current.master,restoredHead):null;
   hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
   currentOutputJobRef.current=snapshot.jobId;currentOutputTrialRef.current=Boolean(draft.isTrial);studioTrialRef.current=Boolean(draft.isTrial);
+  rememberRestoredHairResult(restoredHead);
   setOutputJobId(snapshot.jobId);setTrialPreview(Boolean(draft.isTrial));setHairId(draft.hairId||'');
   savedWorkIdRef.current=draft.workId||'';paymentStudioRef.current=null;restoredCheckoutRef.current=snapshot;
   setSavedWorkUnlocked(false);setSessionEditJob('');setRestoredSourcePhoto(source);studioOriginRef.current={starter:true,placement:snapshot.placement};
@@ -4424,8 +4452,7 @@ function App(){
   return requestStudioMakeup(source,styles,options);
  };
  const changeStudioHair=async(id,portraitMode,femaleEyeStyle)=>{
-  femaleEyeStyle=portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle);
-  if(firstUploadedPhotoRef.current)firstUploadedPhotoRef.current.idpromFemaleEyeStyle=femaleEyeStyle;
+  femaleEyeStyle=hairResultMode(id,portraitMode)==='female'?portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle):'natural';
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
   const previous={jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current};
   let staged,committed=false;

@@ -7,6 +7,7 @@ import {createAiResultCache,resultSourceDigest} from '../src/ai-result-cache.js'
 import {isFemaleFinishProfile} from '../src/female-finish-profile.js';
 import {isFemaleFinishReference} from '../src/female-finish-reference.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
+import {isFreeFemaleHair} from '../src/free-female-hair.js';
 import {PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 
 // Integration boundaries use the actual main.jsx functions. Codec, landmark,
@@ -115,6 +116,7 @@ function restorationFixture(){
  const restored={source:initial,editCache:{master,lock:{templatePath:'female.png'}},head,project:{layers:[head],placement:null}};
  const env={...helpers,femaleFinishMetadata:metadata,femaleFinishHeadMetadata:headMetadata,femaleFinishAnchor:anchor,portraitFinishChoice,activeSavedDownloadWork:'',
   currentWalletId:()=>wallet,authToken:()=>token,walletHeaders:()=>({Authorization:token,'X-Wallet-Id':wallet}),refreshWallet:async()=>{},
+  PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,isFreeFemaleHair,currentResultCacheScope:()=>wallet,privateTrialRequested:()=>false,activeProcessOperation:null,activeUniformTemplate:'female.png',
   savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:0},prepareSavedProject:async()=>restored,decodedStudioImage:noop,
   firstUploadedPhotoRef:{current:photo()},editCache:{current:{master:oldMaster}},initialFemaleMakeupRef:{current:null},initialProcessedMasterRef:{current:oldMaster},
   hairResultCacheRef:{current:new Map([['old','entry']])},preparedHairBaseRef:{current:null},lastHairDonorRef:{current:null},cleanHairBaseRef:{current:null},initialStyledHairRef:{current:null},
@@ -125,13 +127,14 @@ function restorationFixture(){
   makeSavedProject:async snapshot=>({layers:snapshot.layers,placement:snapshot.placement,compareSource:'fixture-data-url'}),
   renderAdjustedFinal:async(...args)=>args.at(-1).push({kind:'head',name:'หัว · คอ · ผม',source:'fixture-current-head'})
  };
+ const memory=new Function('env',`with(env){${section(main,' const hairResultMode=',' const changeHair=async')};return {rememberRestoredHairResult,cachedHairResult,hairResultKey}}`)(env);Object.assign(env,memory);
  const open=extract(' const openAccountWork=async(','\n const [downloadUnlockSignal','openAccountWork',env);
  const checkout=extract(' const restorePurchaseDraft=async','\n const fullCatalog=','restorePurchaseDraft',env);
  return {env,open,checkout,restored,initial,master,head,oldMaster,mutations,setWallet:value=>{wallet=value},setToken:value=>{token=value}};
 }
-await test('account reopen uses saved first finish with latest head pixels and clears previous-person caches',async()=>{
+await test('account reopen uses saved first finish, drops previous-person cache and remembers the restored current variant',async()=>{
  const f=restorationFixture();await f.open({id:'saved-work',project:{layers:[f.head],placement:null}});
- const a=f.env.initialFemaleMakeupRef.current;assert.equal(a.source,f.initial);assert.equal(a.master,f.master);assert.equal(a.femaleFinishProfile,profile);assert.equal(a.femaleFinishReference,reference);assert.equal(f.env.hairResultCacheRef.current.size,0);assert.equal(f.mutations.length,1);
+ const a=f.env.initialFemaleMakeupRef.current;assert.equal(a.source,f.initial);assert.equal(a.master,f.master);assert.equal(a.femaleFinishProfile,profile);assert.equal(a.femaleFinishReference,reference);assert.equal(f.env.hairResultCacheRef.current.size,1);assert.equal(f.env.hairResultCacheRef.current.has('old'),false);const cached=f.env.cachedHairResult(f.head.hairId,'female','makeup');assert(cached?.confirmed);assert.equal(cached.master,f.master);assert.equal(cached.sourcePhoto,f.initial);assert.equal(cached.jobId,'saved-job');assert.equal(f.mutations.length,1);
 });
 await test('account reopen rejects stale account, work, request and abort before changing the active image',async()=>{
  for(const kind of ['wallet','token','work','request','abort']){

@@ -36,6 +36,9 @@ function fixture({status='requires_action',job='',draftKind='studio'}={}){
   savePurchaseDraft:async value=>{draft=value;events.push(['persistDraft',value]);return{storage:'indexeddb',persistent:true}},
   makeSavedProject:async value=>value,
   renderAdjustedFinal:async(...args)=>{args.at(-1).push({...head});events.push(['renderClassic'])},femaleFinishHeadMetadata:()=>({}),femaleFinishMetadata:()=>null,portraitFinishChoice:()=> 'natural',
+  // Cache seeding is independently exercised by check-makeup-choice-cache; here
+  // verify recovery invokes it only after the matching source/job are restored.
+  rememberRestoredHairResult:restoredHead=>{assert.equal(restoredHead.jobId,e.currentOutputJobRef.current);assert.equal(e.firstUploadedPhotoRef.current,draft.originalFile);events.push(['rememberRestored',restoredHead])},
   refreshWallet:async()=>{events.push(['refresh']);return{walletId:e.currentWalletId()}},claimAccountOutput:async()=>{},
   verifyOutputRights:async target=>{events.push(['verify',target]);return{checked:true,unlocked:completeStates.includes(status),premiumHair:false}},
   acceptWalletRights:data=>events.push(['rights',data]),analyticsEvent:()=>{},analyticsCheckout:()=>{},analyticsPurchase:id=>events.push(['purchase',id]),
@@ -70,7 +73,7 @@ for(const status of ['requires_action','processing','succeeded','work_unlocked',
  });
  await test('explicit '+status+' recovery restores the original from an empty page',async()=>{
   const f=fixture({status});await f.e.resumeStoredCheckout();
-  assert.equal(f.e.currentOutputJobRef.current,'job_original');assert.equal(f.e.studioData[0].jobId,'job_original');assert.equal(f.e.firstUploadedPhotoRef.current,f.draft.originalFile);assert.equal(f.e.firstUploadedPhotoRef.current.idpromDownloadWorkId,'dwork_original');assert.equal(f.requests.length,1);assert.equal(eventsOf(f,'confirm').length,0);assert.equal(eventsOf(f,'navigate').length,0);
+  assert.equal(f.e.currentOutputJobRef.current,'job_original');assert.equal(f.e.studioData[0].jobId,'job_original');assert.equal(f.e.firstUploadedPhotoRef.current,f.draft.originalFile);assert.equal(f.e.firstUploadedPhotoRef.current.idpromDownloadWorkId,'dwork_original');assert.equal(f.requests.length,1);assert.equal(eventsOf(f,'rememberRestored').length,1);assert.equal(eventsOf(f,'rememberRestored')[0][1].jobId,'job_original');assert.equal(eventsOf(f,'confirm').length,0);assert.equal(eventsOf(f,'navigate').length,0);
   if(completeStates.includes(status)){assert.equal(eventsOf(f,'unlock').length,1);assert.equal(eventsOf(f,'unlock')[0][1].jobId,'job_original');assert.equal(f.e.qrPaymentRef.current,null);assert.equal(f.storage.has('idprom_pending_qr_v1'),false);assert.equal(f.e.buyOpen,false)}
   else if(['expired','canceled'].includes(status)){assert.equal(eventsOf(f,'unlock').length,0);assert.equal(f.e.qrPaymentRef.current,null);assert.equal(f.e.buyOpen,true);assert.equal(f.storage.has('idprom_pending_qr_v1'),false)}
   else{assert.equal(eventsOf(f,'unlock').length,0);assert.equal(f.e.qrPaymentRef.current.paymentIntentId,'pi_original');assert.equal(f.e.buyOpen,true);assert(f.storage.has('idprom_pending_qr_v1'))}
