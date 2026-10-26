@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {STUDIO_ACCESSORY_PLACEMENT} from '../src/studio-accessory-placement.js';
 import {syncHairAttachments,headPose} from '../src/hair-preview-fit.js';
+import {STUDIO_SUIT_FIT_VERSION} from '../src/studio-suit-fit.js';
 
 // Exercise the production selection handler. Native image decoding, the face
 // measurement boundary and server policy use deterministic local doubles.
@@ -16,7 +17,7 @@ const makeHandler=new Function('env',`with(env){${cap}${editor.slice(begin,end)}
 const noop=()=>{};
 const option={id:'new-suit',template:'/assets/job-uniforms/female-white-shirt.png',name:'ชุดใหม่'};
 
-function fixture({processed=true,callback=true,fitError=false,nativeError=false,apiError=false,hydrateError=false,warped=true}={}){
+function fixture({processed=true,callback=true,fitError=false,fitCode=null,fitMessage='face measurement failed',nativeError=false,apiError=false,hydrateError=false,warped=true}={}){
  const source={tag:'immutable native head and makeup pixels'};
  const mask={tag:'edited head alpha'},warp={tag:'current warped head pixels'},original={tag:'current head asset pixels'};
  const head={id:'head',kind:'head',name:'หัว · คอ · ผม',jobId:'paid-output-current',source,processedOriginalSource:source,mask,
@@ -36,7 +37,7 @@ function fixture({processed=true,callback=true,fitError=false,nativeError=false,
  const env={ready:true,assetBusy:false,processActive:false,comparing:false,
   suitPolicy:{limited:true,limit:5,choices:[suit.templatePath]},canUseAllSuits:true,freeTemplatePaths:[],
   layerKind:l=>l.kind,ASSET_NAMES:{suit:'ชุด',background:'พื้นหลัง',collar:'เข็มปกคอ',chest:'เข็มติดอก',ribbon:'แพรแถบ'},
-  STUDIO_ACCESSORY_PLACEMENT,W:900,H:1200,state:{current:originalLayers},assets:{current:new Map([[head.id,{original,warped:warped?warp:null,mask}]])},
+  STUDIO_ACCESSORY_PLACEMENT,STUDIO_SUIT_FIT_VERSION,W:900,H:1200,state:{current:originalLayers},assets:{current:new Map([[head.id,{original,warped:warped?warp:null,mask}]])},
   placementRef:{current:{W:2256,H:3072,uX:0,uY:1800,uW:2256,uH:2100,templatePath:suit.templatePath}},
   onMeasureSuitFace:callback?measured:undefined,outputHeads:layers=>layers.filter(l=>l.kind==='head'),
   trackUniformSelection:(...args)=>selection.push(args),onRequestUnlock:noop,
@@ -45,8 +46,8 @@ function fixture({processed=true,callback=true,fitError=false,nativeError=false,
   fresh:layer=>({id:'created-'+layer.name,x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,...layer}),
   nativeAsset:async(kind,value,frame,preset)=>{native.push({kind,option:value,frame,preset});if(nativeError)throw Error('native image decode failed');return{source:{tag:'new native pixels'},sourceFrame:frame,collarParts:null}},
   fitStudioSuit:async args=>{
-   fit.push(args);if(fitError)throw Error('face measurement failed');
-   return args.layers.map(l=>l.id===head.id?{...l,x:-14,y:26,scale:.96,rotation:1}:l.id===suit.id?{...l,neckWidth:-43,neckHeight:0,sourceFrame:{x:-8,y:312,w:916,h:1180},collarFrame:{x:-8,y:312,w:916,h:1180}}:l.id===accessory.id?{...l,sourceFrame:{x:559,y:617,w:70,h:28}}:l);
+   fit.push(args);if(fitError)throw Object.assign(Error(fitMessage),fitCode?{code:fitCode}:{});
+   return args.layers.filter(l=>!(l.kind==='neck-fit'&&l.hairHeadId===head.id)).map(l=>l.id===head.id?{...l,x:-14,y:26,scale:.96,rotation:1}:l.id===suit.id?{...l,neckWidth:-33,neckHeight:0}:l);
   },
   hydrate:async(layers,unchangedIds)=>{hydrations.push({layers,unchangedIds});if(hydrateError)return false;env.state.current=syncHairAttachments(layers);return true},
   onSelectSuit:async(jobId,templates)=>{api.push({jobId,templates});if(apiError)throw Error('server denied suit choice');return{...env.suitPolicy,choices:[...new Set([...env.suitPolicy.choices,...templates])]}},
@@ -64,8 +65,24 @@ await check('processed suit selection fits the current edited head and commits g
  assert.equal(args.nextSuit.templatePath,option.template);assert.equal(args.layers.find(l=>l.id==='head'),f.head);
  const result=f.env.state.current.find(l=>l.id==='head');assert.notEqual(result.x,f.head.x);assert.equal(result.scale,.96);
  for(const key of ['id','source','processedOriginalSource','mask','sourceFrame','jobId','femaleEyeStyle','initialFemaleEyeStyle','femaleFinishReference','hairId','restrictedTrial','outputUnlocked'])assert.equal(result[key],f.head[key],key+' must survive fitting');
- assert.equal(f.env.state.current.find(l=>l.id==='suit').neckWidth,-43);
+ const fittedSuit=f.env.state.current.find(l=>l.id==='suit');assert.equal(fittedSuit.neckWidth,-33);
+ for(const key of ['x','y','scale','rotation','squeezeX','squeezeY','sourceFrame','collarFrame','opacity'])assert.equal(fittedSuit[key],f.suit[key],'garment '+key+' must stay fixed');
+ assert.equal(f.env.state.current.find(l=>l.id==='ribbon'),f.accessory);assert(!f.env.state.current.some(l=>l.kind==='neck-fit'));
  assert.deepEqual(f.api,[{jobId:f.head.jobId,templates:[f.suit.templatePath,option.template]}]);assert.equal(f.env.undo.current[0],f.originalLayers);assert.deepEqual(f.env.redo.current,[]);assert.equal(f.env.assetBusy,false);
+});
+
+await check('the body frame and collar reference remain independently fixed on a moved, rotated and squeezed suit',async()=>{
+ const f=fixture();f.suit.sourceFrame={x:-47,y:287,w:991,h:1286};f.suit.collarFrame={x:-11,y:332,w:905,h:1170};
+ Object.assign(f.suit,{x:41,y:-28,scale:1.19,squeezeX:.94,squeezeY:1.06,rotation:-4});
+ const before=Object.fromEntries(['sourceFrame','collarFrame','x','y','scale','squeezeX','squeezeY','rotation'].map(k=>[k,f.suit[k]]));
+ await f.run();assert.equal(f.native[0].frame,f.suit.sourceFrame,'native PNG must use the body frame, not the collar reference or stale placement');
+ for(const key of Object.keys(before)){assert.equal(f.fit[0].nextSuit[key],before[key],'fit input '+key);assert.equal(f.env.state.current.find(l=>l.id==='suit')[key],before[key],'committed '+key)}
+ assert.equal(f.env.state.current.find(l=>l.id==='ribbon'),f.accessory);assert.equal(f.env.state.current.find(l=>l.id==='head').source,f.source);
+});
+
+await check('an old generated neck fill is removed instead of being recreated or stretched',async()=>{
+ const f=fixture();f.originalLayers.splice(2,0,{id:'old-neck',kind:'neck-fit',hairHeadId:f.head.id,source:{tag:'old artificial neck'},locked:false});
+ await f.run();assert.equal(f.fit.length,1);assert(!f.env.state.current.some(l=>l.kind==='neck-fit'));assert.equal(f.env.state.current.find(l=>l.id==='head').source,f.source);assert.equal(f.env.undo.current[0],f.originalLayers);
 });
 
 await check('unwarped head analysis uses its current original asset and existing edited mask',async()=>{
@@ -84,13 +101,16 @@ await check('linked free hair follows the fitted head while preserving its sourc
  assert.equal(result.rotation-nextHead.rotation,f.hair.rotation-f.head.rotation);assert.deepEqual(result.hairHeadPose,headPose(nextHead));
 });
 
-await check('remapped accessory frames reload their bounds while unchanged native head pixels are reused',async()=>{
+await check('fixed accessory and head pixel assets are reused while the changed garment image reloads',async()=>{
  const f=fixture();await f.run();const ids=f.hydrations[0].unchangedIds;
- assert(ids.has('head'));assert(ids.has('hair'));assert(ids.has('background'));assert(!ids.has('suit'));assert(!ids.has('ribbon'));
- assert.equal(f.env.state.current.find(l=>l.id==='ribbon').source,f.accessory.source);assert.notDeepEqual(f.env.state.current.find(l=>l.id==='ribbon').sourceFrame,f.accessory.sourceFrame);
+ assert(ids.has('head'));assert(ids.has('hair'));assert(ids.has('background'));assert(!ids.has('suit'));assert(ids.has('ribbon'));
+ assert.equal(f.env.state.current.find(l=>l.id==='ribbon').source,f.accessory.source);assert.equal(f.env.state.current.find(l=>l.id==='ribbon'),f.accessory);
 });
 
-for(const changed of ['mask','warpSource','source'])await check('new head '+changed+' pixels invalidate the old asset even when the placement frame stays identical',async()=>{
+// Hydration still must honor an explicitly replaced pixel surface from an injected
+// replacement dependency. The production fitter's separate contract forbids
+// changing these head fields during ordinary garment fitting.
+for(const changed of ['mask','warpSource','source'])await check('an injected replacement '+changed+' surface cannot reuse a stale pixel cache when its frame is identical',async()=>{
  const f=fixture(),fit=f.env.fitStudioSuit,replacement={tag:'newly fitted '+changed+' pixels'},oldValue=f.head[changed];
  f.env.fitStudioSuit=async args=>(await fit(args)).map(l=>l.id===f.head.id?{...l,[changed]:replacement}:l);
  await f.run();assert.equal(f.fit.length,1);assert.equal(f.hydrations.length,1);assert(!f.hydrations[0].unchangedIds.has(f.head.id),'old asset must not bypass new pixel hydration');assert(f.hydrations[0].unchangedIds.has(f.background.id));
@@ -123,6 +143,12 @@ await check('returning to the already selected suit preserves manual collar and 
  const f=fixture();await f.run('suit',{id:'same',template:f.suit.templatePath});assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.env.state.current.find(l=>l.id==='suit').neckWidth,-27);assert.equal(f.native.length,0);assert.equal(f.fit.length,0);assert.equal(f.api.length,0);assert.equal(f.hydrations.length,0);assert.equal(f.env.undo.current.length,0);assert.equal(f.env.assetBusy,false);assert.deepEqual(f.selected,['suit']);
 });
 
+await check('clicking the current outfit repairs an old generated neck instead of keeping the rejected extension',async()=>{
+ const f=fixture();f.suit.autoSuitFitVersion='suit-switch-fit-v1';f.originalLayers.splice(2,0,{id:'old-neck',kind:'neck-fit',hairHeadId:f.head.id,source:{tag:'old copied neck'},locked:false});
+ await f.run('suit',{id:'same',template:f.suit.templatePath});assert.equal(f.fit.length,1,'legacy generated neck must not bypass the corrected fitting');assert.equal(f.hydrations.length,1);assert(!f.env.state.current.some(l=>l.kind==='neck-fit'));
+ for(const key of ['x','y','scale','rotation','squeezeX','squeezeY','sourceFrame','collarFrame'])assert.equal(f.env.state.current.find(l=>l.id==='suit')[key],f.suit[key],'repair must keep garment '+key);
+});
+
 for(const locked of ['head','hair'])await check('a locked '+locked+' keeps the entire existing composition unchanged before native work',async()=>{
  const f=fixture();f[locked].locked=true;await f.run();assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.native.length,0);assert.equal(f.fit.length,0);assert.equal(f.api.length,0);assert.equal(f.env.undo.current.length,0);assert(f.messages[0].includes('ปลดล็อก'));
 });
@@ -133,6 +159,15 @@ await check('the existing purchased suit cap rejects a new suit before any fit o
 
 for(const failure of ['nativeError','fitError','hydrateError'])await check(failure+' preserves the old work, undo and policy without a false completed selection',async()=>{
  const f=fixture({[failure]:true});await f.run();assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.api.length,0);assert.equal(f.env.undo.current.length,0);assert.deepEqual(f.env.redo.current,['existing redo']);assert.equal(f.env.assetBusy,false);assert(!f.selection.some(([,stage])=>stage==='apply'));
+});
+
+await check('a short-neck safety rejection keeps the old work and explains the fitting limit clearly',async()=>{
+ const message='รูปนี้มีช่วงคอไม่พอกับชุดที่เลือก งานเดิมยังอยู่ กรุณาเลือกชุดอื่น';
+ const f=fixture({fitError:true,fitCode:'SUIT_FIT_SOURCE_SHORT',fitMessage:message}),rights=f.env.suitPolicy;
+ await f.run();assert.equal(f.fit.length,1);assert.equal(f.native.length,1);assert.equal(f.api.length,0);assert.equal(f.hydrations.length,0);
+ assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.env.suitPolicy,rights);assert.equal(f.env.undo.current.length,0);assert.deepEqual(f.env.redo.current,['existing redo']);assert.equal(f.env.assetBusy,false);
+ assert.equal(f.messages.at(-1),message,'show the actionable Thai safety result instead of a generic failure');assert(!f.selection.some(([,stage])=>stage==='apply'));
+ assert.equal(f.env.state.current.find(l=>l.id==='head').source,f.source);assert.equal(f.env.state.current.find(l=>l.id==='suit'),f.suit);assert.equal(f.env.state.current.find(l=>l.id==='ribbon'),f.accessory);
 });
 
 await check('a missing current head asset rejects fitting without replacing any layers or rights',async()=>{

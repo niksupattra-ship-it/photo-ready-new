@@ -37,7 +37,7 @@ import {liquifyCanvas} from './studio-liquify.js';
 import {pixelEraserStroke,preparePixelSurface,brushSceneRegion} from './studio-pixel-eraser.js';
 import {warpStudioCollar,invalidateCollarSource} from './studio-collar.js';
 import {nativeAsset,nativeSource} from './studio-source.js';
-import {fitStudioSuit} from './studio-suit-fit.js';
+import {fitStudioSuit,STUDIO_SUIT_FIT_VERSION} from './studio-suit-fit.js';
 import {prepareSavedProject} from './saved-project.js';
 import {preparePhotoInput} from './photo-input.js';
 import {decodedStudioImage as image} from './studio-image-cache.js';
@@ -606,9 +606,10 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
   if(kind==='suit'&&option&&!canUseAllSuits&&!freeTemplatePaths.includes(option.template)){onRequestUnlock?.();setStatus('กรุณาตรวจสอบสิทธิ์ก่อนเลือกชุดนี้');return;}
   const target=state.current.find(l=>layerKind(l)===kind);
   if(target?.locked){setStatus('ปลดล็อกเลเยอร์ '+ASSET_NAMES[kind]+' ก่อนเปลี่ยน');return}
-  if(kind==='suit'&&option&&target?.templatePath===option.template){setSelected(target.id);return}
+  const repairSuitFit=Boolean(target?.autoSuitFitVersion&&target.autoSuitFitVersion!==STUDIO_SUIT_FIT_VERSION)||state.current.some(l=>l.kind==='neck-fit');
+  if(kind==='suit'&&option&&target?.templatePath===option.template&&!repairSuitFit){setSelected(target.id);return}
   const fitHead=kind==='suit'&&option&&typeof onMeasureSuitFace==='function'?outputHeads(state.current).find(l=>l.jobId):null;
-  if(fitHead&&(fitHead.locked||state.current.some(l=>l.hairHeadId===fitHead.id&&l.locked))){setStatus('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดให้พอดีกับชุดใหม่');return}
+  if(fitHead&&(fitHead.locked||state.current.some(l=>l.hairHeadId===fitHead.id&&l.kind!=='neck-fit'&&l.locked))){setStatus('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดให้พอดีกับชุดใหม่');return}
   if(!target&&option&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}
   setAssetBusy(true);
   try{
@@ -617,19 +618,20 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
    else{
     const suit=previous.find(l=>layerKind(l)==='suit');
     const p=placementRef.current;let collarParts=null;
-    const frame=kind!=='suit'&&(suit?.collarFrame||suit?.sourceFrame)|| (p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H});
+    const defaultFrame=p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H};
+    const frame=kind==='suit'?(suit?.sourceFrame||suit?.collarFrame||defaultFrame):(suit?.collarFrame||suit?.sourceFrame||defaultFrame);
     const path=suit?.templatePath||p?.templatePath||'';
     const female=/female-/.test(path),base=STUDIO_ACCESSORY_PLACEMENT[female?'female':'male'];
     const preset={...base,collar:{...base.collar,width:base.collar.width*(female?.9*.85*1.08*1.09:1)*.8,y:base.collar.y-4/frame.h,left:base.collar.left+(female?.025-2/frame.w:14/frame.w),right:base.collar.right-(female?.025-2/frame.w:14/frame.w)},chest:{...base.chest,width:base.chest.width*(female?1:.85),x:base.chest.x+(female?.035:49/frame.w),y:base.chest.y-(female?0:.02)},ribbon:{...base.ribbon,x:base.ribbon.x-(female?.055:3/frame.w),width:base.ribbon.width*(female?.95:1),top:base.ribbon.top-(female?0:.02)}};
     const native=await nativeAsset(kind,option,frame,preset);collarParts=native.collarParts;
-    const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),kind,source:native.source,sourceFrame:native.sourceFrame,collarFrame:kind==='suit'?frame:target?.collarFrame,neckWidth:kind==='suit'?0:target?.neckWidth,neckHeight:kind==='suit'?0:target?.neckHeight,collarParts,collarLeftX:target?.collarLeftX||0,collarRightX:target?.collarRightX||0,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,visible:true,assetId:option.id,templatePath:kind==='suit'?option.template:target?.templatePath};
+    const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),kind,source:native.source,sourceFrame:kind==='suit'?(target?.sourceFrame||native.sourceFrame):native.sourceFrame,collarFrame:kind==='suit'?(target?.collarFrame||frame):target?.collarFrame,neckWidth:kind==='suit'?0:target?.neckWidth,neckHeight:kind==='suit'?0:target?.neckHeight,collarParts,collarLeftX:target?.collarLeftX||0,collarRightX:target?.collarRightX||0,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,visible:true,assetId:option.id,templatePath:kind==='suit'?option.template:target?.templatePath};
     if(kind==='background')Object.assign(created,{x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1});
     if(['collar','chest','ribbon'].includes(kind))Object.assign(created,{x:suit?.x||0,y:suit?.y||0,scale:suit?.scale||1,rotation:suit?.rotation||0,opacity:1,collarLeftX:0,collarRightX:0,collarLeftY:0,collarRightY:0});
     next=target?previous.map(l=>l.id===target.id?created:l):kind==='background'?[created,...previous]:[...previous,created];
     if(fitHead){const asset=assets.current.get(fitHead.id);if(!asset)throw Error('ยังเตรียมภาพหัวไม่สำเร็จ');setStatus('กำลังจัดหัวและคอให้พอดีกับชุด…');next=await fitStudioSuit({layers:next,previousSuit:target,nextSuit:created,headSource:asset.warped||asset.original,headMask:asset.mask,measureFace:onMeasureSuitFace});}
    }
    if(await hydrate(next,new Set(previous.filter(l=>{const n=next.find(n=>n.id===l.id);return l.id!==target?.id&&n&&['sourceFrame','source','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'].every(key=>n[key]===l[key])}).map(l=>l.id)))){if(kind==='suit'&&option&&onSelectSuit){const head=outputHeads(state.current).find(l=>l.jobId);if(head)try{setSuitPolicy(await onSelectSuit(head.jobId,[target?.templatePath,option.template].filter(Boolean)))}catch(e){await hydrate(previous);setStatus(e.message);return}}undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];const chosen=next.find(l=>layerKind(l)===kind);if(chosen)setSelected(chosen.id);setRevision(v=>v+1);setStatus(option?'เลือก '+(option.name||option.title||ASSET_NAMES[kind])+' แล้ว':'นำ '+ASSET_NAMES[kind]+' ออกแล้ว');if(kind==='suit'&&(option?!target||!((option.id&&target.assetId===option.id)||(option.template&&target.templatePath===option.template)):Boolean(target)))trackUniformSelection(option,'apply',option?'new':'remove')}
-  }catch(e){setStatus(e.code==='SUIT_FIT_UNCLEAR'?e.message:'เลือก '+ASSET_NAMES[kind]+' ไม่สำเร็จ กรุณาลองใหม่')}
+  }catch(e){setStatus(typeof e.code==='string'&&e.code.startsWith('SUIT_FIT_')?e.message:'เลือก '+ASSET_NAMES[kind]+' ไม่สำเร็จ กรุณาลองใหม่')}
   finally{setAssetBusy(false)}
  };
  const openBackgroundColor=()=>{
