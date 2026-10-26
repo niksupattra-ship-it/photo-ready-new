@@ -86,10 +86,11 @@ await test('paid Checkout return retains recovery until its original draft is ac
  assert.equal(f.events.filter(([kind])=>kind==='history').length,1);
 });
 await test('payment panel is rendered in a stable React tree across wallet and rights updates',async()=>{
- assert(!main.includes('<CreditUI'),'inline component types remount QR and re-enter settlement on every App state change');assert(main.includes('CreditUI({showBalance:false})'));assert(main.includes('!authOpen&&CreditUI()'));
+ assert(!main.includes('<CreditUI'),'inline component types remount QR and re-enter settlement on every App state change');assert(main.includes('CreditUI({showBalance:false})'));assert(main.includes('{CreditUI()}{AuthUI()}'),'checkout remains in the same modal during embedded authentication');assert(main.includes("if(!authOpen||(checkoutAuth&&!embedded))return null"),'embedded checkout authentication cannot open a second backdrop');
 });
 await test('closing and reopening a QR shares its in-flight paid settlement',async()=>{
  const f=fixture(),rights=deferred();let reads=0;f.e.verifyOutputRights=()=>{reads++;return rights.promise};const data={ok:true,status:'succeeded',paymentIntentId:f.payment.paymentIntentId};const a=f.e.finishQrPayment(data,f.payment);await tick();const b=f.e.finishQrPayment(data,f.payment);await tick();assert.equal(reads,1);assert.equal(f.events.filter(([kind])=>kind==='rights').length,1);rights.resolve({checked:true,unlocked:true});await Promise.all([a,b]);assert.equal(f.events.filter(([kind])=>kind==='unlock').length,1);assert.equal(f.events.filter(([kind])=>kind==='clear').length,1);
 });
 console.log(`${passed} checkout continuity scenarios passed; ${failed} failed. Mock requests only; no payments or customer writes.`);
 if(failed)process.exitCode=1;
+
