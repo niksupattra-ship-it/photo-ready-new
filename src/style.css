@@ -4055,3 +4055,19 @@
  .photo-size-reset{min-height:32px;margin:2px auto 0}
 }
 
+
+/* Balanced mobile download actions, retaining the existing blue and white. */
+@media(max-width:599px){
+ .photo-size-dialog>footer{display:grid;grid-template-columns:minmax(76px,.32fr) minmax(0,1fr);align-items:stretch;gap:10px;padding:12px 18px max(16px,env(safe-area-inset-bottom));background:#fff;border-top:1px solid #e3e9f2}
+ .photo-size-dialog>footer button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:48px;margin:0;padding:11px 10px;border-radius:13px;font-family:inherit;font-size:13px;line-height:1.45;font-weight:650;letter-spacing:0;text-align:center;white-space:nowrap;transition:box-shadow .15s,transform .15s}
+ .photo-size-dialog>footer button:not(.photo-size-apply){background:#fff;border-color:#dce3ec;color:#26374e;box-shadow:0 1px 2px #14263e05}
+ .photo-size-dialog>footer .photo-size-apply{background:#315bea;border-color:#315bea;color:#fff;box-shadow:0 3px 8px #315bea26;font-weight:700}
+ .photo-size-dialog>footer .photo-size-apply:before{content:'';display:block;flex:0 0 16px;width:16px;height:16px;background:currentColor;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3h2v10l3.5-3.5 1.4 1.4L12 16.8l-5.9-5.9 1.4-1.4L11 13V3ZM4 17h2v3h12v-3h2v5H4v-5Z'/%3E%3C/svg%3E") center/contain no-repeat}
+ .photo-size-dialog>footer button:not(:disabled):active{transform:translateY(1px);box-shadow:none}
+}
+@media(max-width:359px){
+ .photo-size-dialog>footer{padding-left:12px;padding-right:12px;gap:8px;grid-template-columns:76px minmax(0,1fr)}
+ .photo-size-dialog>footer button{font-size:12px;gap:6px;padding-left:7px;padding-right:7px}
+}
+@media(prefers-reduced-motion:reduce){.photo-size-dialog>footer button{transition:none}}
+
