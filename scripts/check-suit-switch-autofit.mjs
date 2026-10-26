@@ -157,21 +157,17 @@ await check('the existing purchased suit cap rejects a new suit before any fit o
  const f=fixture();f.env.suitPolicy={limited:true,limit:3,choices:[f.suit.templatePath,'/used2','/used3']};await f.run();assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.fit.length,0);assert.equal(f.native.length,0);assert.equal(f.api.length,0);assert.equal(f.hydrations.length,0);assert(f.messages[0].includes('ครบ 3 ชุด'));
 });
 
-for(const failure of ['nativeError','fitError','hydrateError'])await check(failure+' preserves the old work, undo and policy without a false completed selection',async()=>{
- const f=fixture({[failure]:true});await f.run();assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.api.length,0);assert.equal(f.env.undo.current.length,0);assert.deepEqual(f.env.redo.current,['existing redo']);assert.equal(f.env.assetBusy,false);assert(!f.selection.some(([,stage])=>stage==='apply'));
+for(const failure of ['nativeError','hydrateError'])await check(failure+' preserves the old work, undo and policy without a false completed selection',async()=>{
+ const f=fixture({[failure]:true});await f.run();assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.api.length,0);assert.equal(f.env.undo.current.length,0);assert.deepEqual(f.env.redo.current,['existing redo']);assert.equal(f.env.assetBusy,false);assert(!f.selection.some(([,stage])=>stage==='apply'));if(failure==='hydrateError')assert(f.messages.at(-1).includes('งานเดิมยังอยู่'));
 });
 
-await check('a short-neck safety rejection keeps the old work and explains the fitting limit clearly',async()=>{
- const message='รูปนี้มีช่วงคอไม่พอกับชุดที่เลือก งานเดิมยังอยู่ กรุณาเลือกชุดอื่น';
- const f=fixture({fitError:true,fitCode:'SUIT_FIT_SOURCE_SHORT',fitMessage:message}),rights=f.env.suitPolicy;
- await f.run();assert.equal(f.fit.length,1);assert.equal(f.native.length,1);assert.equal(f.api.length,0);assert.equal(f.hydrations.length,0);
- assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.env.suitPolicy,rights);assert.equal(f.env.undo.current.length,0);assert.deepEqual(f.env.redo.current,['existing redo']);assert.equal(f.env.assetBusy,false);
- assert.equal(f.messages.at(-1),message,'show the actionable Thai safety result instead of a generic failure');assert(!f.selection.some(([,stage])=>stage==='apply'));
- assert.equal(f.env.state.current.find(l=>l.id==='head').source,f.source);assert.equal(f.env.state.current.find(l=>l.id==='suit'),f.suit);assert.equal(f.env.state.current.find(l=>l.id==='ribbon'),f.accessory);
-});
-
-await check('a missing current head asset rejects fitting without replacing any layers or rights',async()=>{
- const f=fixture();f.env.assets.current.clear();await f.run();assert.equal(f.env.state.current,f.originalLayers);assert.equal(f.fit.length,0);assert.equal(f.api.length,0);assert.equal(f.hydrations.length,0);assert.equal(f.env.undo.current.length,0);assert.equal(f.env.assetBusy,false);
+for(const missing of ['fitError','missingAsset'])await check(missing+' shows the selected garment with a warning and keeps the original portrait intact',async()=>{
+ const f=fixture({fitError:missing==='fitError',fitCode:'SUIT_FIT_SOURCE_SHORT'});if(missing==='missingAsset')f.env.assets.current.clear();
+ await f.run();assert.equal(f.native.length,1);assert.equal(f.api.length,1);assert.equal(f.hydrations.length,1);
+ const head=f.env.state.current.find(l=>l.id===f.head.id),suit=f.env.state.current.find(l=>l.id===f.suit.id);
+ assert.equal(head,f.head);assert.equal(head.source,f.source);assert.equal(suit.templatePath,option.template);assert.equal(suit.autoCollarFitApplied,false);assert(suit.autoSuitFitWarning);
+ for(const key of ['x','y','scale','rotation','squeezeX','squeezeY','sourceFrame','collarFrame'])assert.equal(suit[key],f.suit[key]);
+ assert.equal(f.env.state.current.find(l=>l.id==='ribbon'),f.accessory);assert.equal(f.env.undo.current[0],f.originalLayers);assert.deepEqual(f.env.redo.current,[]);assert(f.messages.at(-1).includes('เลือก ชุดใหม่ แล้ว'));assert(f.messages.at(-1).includes('ยังจัดหัว'));
 });
 
 await check('server policy rejection restores head, free hair, collar and accessories and retains undo/redo',async()=>{

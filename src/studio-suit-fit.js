@@ -4,7 +4,7 @@ import {warpStudioCollar} from './studio-collar.js';
 import {layerToScene,sceneToLayer} from './studio-transform.js';
 import {measureCollarOpeningProfile,measureSkinNeckProfile,solveAutoCollarWidth} from './studio-auto-collar-fit.js';
 
-export const STUDIO_SUIT_FIT_VERSION='fixed-suit-head-fit-v2';
+export const STUDIO_SUIT_FIT_VERSION='proportional-fixed-suit-v3';
 const W=900,H=1200;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)];
@@ -34,7 +34,8 @@ async function garmentMeasurement(source){
  entry.uniform=measureUniformAnchors(entry.pixels,entry.width,entry.height);
  entry.uniform.nativeAspect=entry.originalHeight/entry.originalWidth;
  entry.opening=measureCollarOpeningProfile({pixels:entry.pixels,width:entry.width,height:entry.height,centerX:entry.uniform.centerX,minY:entry.uniform.bounds.t,maxY:Math.min(entry.uniform.bounds.b,entry.uniform.bounds.t+entry.uniform.bounds.w*.55)});
- if(!entry.opening.length)throw Error('ไม่พบช่องคอของชุดสำหรับจัดตำแหน่งอัตโนมัติ');
+ if(!entry.opening.length)entry.opening=[{y:entry.uniform.collarTopY,left:entry.uniform.centerX-entry.width*.09,right:entry.uniform.centerX+entry.width*.09,width:entry.width*.18,centerX:entry.uniform.centerX}];
+ const torso=[];for(let y=Math.round(entry.uniform.bounds.t+entry.uniform.bounds.h*.55);y<entry.uniform.bounds.t+entry.uniform.bounds.h*.8;y+=4){const cx=Math.round(entry.uniform.centerX),opaque=x=>entry.pixels[(y*entry.width+x)*4+3]>96;if(!opaque(cx))continue;let l=cx,r=cx;while(l>0&&opaque(l-1))l--;while(r<entry.width-1&&opaque(r+1))r++;if(r-l>entry.uniform.bounds.w*.35&&r-l<entry.uniform.bounds.w*.98)torso.push(r-l+1)}entry.uniform.torsoWidth=torso.length?median(torso):entry.uniform.shoulderWidth*.8;
  // A tie or one lapel can cross the centre before the side of the V closes.
  // Anchor the existing neck to the first solid strip across the whole tip.
  const last=entry.opening[entry.opening.length-1],cx=median(entry.opening.slice(-5).map(row=>row.centerX)),left=Math.max(0,Math.floor(Math.min(last.left,cx-entry.width*.02))),right=Math.min(entry.width-1,Math.ceil(Math.max(last.right,cx+entry.width*.02)));
@@ -62,28 +63,25 @@ function faceMeasurement(face,width,height,pixels){
  return {width,height,cx,chin,forehead,left:l,right:r,leftEye:le,rightEye:re,faceWidth:fw,faceHeight:fh,eyeWidth:eye,opaqueTop:top,oval:[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109].filter(id=>face[id]&&[face[id].x,face[id].y].every(Number.isFinite)).map(id=>point(id)),protectedFace:[33,263,1,61,291,152,172,397,150,379,149,378,136,365].filter(id=>face[id]&&[face[id].x,face[id].y].every(Number.isFinite)).map(id=>({id,...point(id)}))};
 }
 
-export function planStudioSuitGeometry({uniform,opening,face,head,suit,neckProfile=null}){
+export function planStudioSuitGeometry({uniform,face,head,suit}){
  const hf=frame(head),garmentFrame=frame(suit);
- if(!validFrame(hf)||!validFrame(garmentFrame)||!uniform||!opening?.length)throw Error('ตำแหน่งหัวหรือชุดไม่ถูกต้อง');
- const headPoint=p=>({x:hf.x+p.x/face.width*hf.w,y:hf.y+p.y/face.height*hf.h});
- const left=headPoint(face.left),right=headPoint(face.right),le=headPoint(face.leftEye),re=headPoint(face.rightEye);
- const eyeAngle=Math.atan2(re.y-le.y,re.x-le.x),crown=headPoint({x:face.cx,y:face.opaqueTop});
- const rows=neckProfile?.rows||[],end=rows.length?rows[rows.length-1]:null;
- const neck=headPoint(end?{x:(end.left+end.right)/2,y:end.y}:{x:face.cx,y:face.chin.y+face.faceHeight*.25});
- const sp=pose(suit),shoulderSpan=uniform.shoulderWidth/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX);
- const socket={x:garmentFrame.x+uniform.centerX/uniform.width*garmentFrame.w,y:garmentFrame.y+Math.max(uniform.neckSocketY??uniform.socketY,opening[opening.length-1].y+1)/uniform.height*garmentFrame.h};
- const target=layerToScene(sp,socket),faceWidth=Math.hypot(right.x-left.x,right.y-left.y);
- const crownToNeck=-(neck.x-crown.x)*Math.sin(eyeAngle)+(neck.y-crown.y)*Math.cos(eyeAngle);
- if(faceWidth<4||crownToNeck<8||shoulderSpan<=0)throw Error('วัดสัดส่วนหัวและคอไม่สำเร็จ');
- // The garment is immutable. Fit the original crown-to-neck span inside its
- // existing socket; a single scale keeps facial and neck proportions intact.
- const heightScale=(socket.y-H*.045)/crownToNeck*sp.scale*Math.abs(sp.squeezeY);
- const scale=clamp(heightScale,shoulderSpan*.30/faceWidth,shoulderSpan*.50/faceWidth);
- if(!Number.isFinite(scale)||scale<.1||scale>5)throw Error('ขนาดหัวอยู่นอกช่วงที่รองรับ');
- const rotation=sp.rotation-eyeAngle*180/Math.PI,radians=rotation*Math.PI/180,u=(neck.x-W/2)*scale,v=(neck.y-H/2)*scale;
- const headPose={x:target.x-W/2-u*Math.cos(radians)+v*Math.sin(radians),y:target.y-H/2-u*Math.sin(radians)-v*Math.cos(radians),scale,rotation,squeezeX:1,squeezeY:1};
- const chin=headPoint(face.chin),chinTarget=layerToScene(headPose,chin);
- return {garmentFrame,headPose,collarAnchor:target,chinTarget,shoulderSpan,localScale:scale/sp.scale};
+ if(!validFrame(hf)||!validFrame(garmentFrame)||!uniform?.bounds)throw Error('ตำแหน่งหัวหรือชุดไม่ถูกต้อง');
+ const point=p=>({x:hf.x+p.x/face.width*hf.w,y:hf.y+p.y/face.height*hf.h});
+ const le=point(face.leftEye),re=point(face.rightEye),chin=point(face.chin),left=point(face.left),right=point(face.right),sp=pose(suit);
+ const eyeAngle=Math.atan2(re.y-le.y,re.x-le.x),eyeWidth=Math.hypot(re.x-le.x,re.y-le.y),faceWidth=Math.hypot(right.x-left.x,right.y-left.y);
+ const referenceScale=904/uniform.bounds.w,referenceFrame={x:-2-uniform.bounds.l*referenceScale,y:H*.425+uniform.socketY*(W*.94/uniform.width)-uniform.socketY*referenceScale,w:uniform.width*referenceScale,h:uniform.height*referenceScale};
+ const localChin={x:garmentFrame.x+(W*.5-referenceFrame.x)/referenceFrame.w*garmentFrame.w,y:garmentFrame.y+(H*.5-referenceFrame.y)/referenceFrame.h*garmentFrame.h};
+ const chinTarget=layerToScene(sp,localChin),shoulderSpan=uniform.shoulderWidth/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX),torsoSpan=(uniform.torsoWidth||uniform.shoulderWidth*.8)/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX);
+ // Match composePortrait's actual eye normalization (160‰ ×1.28), mapped
+ // through this garment's own initial frame. The neck cut edge never sizes a face.
+ let scale=W*.160*1.28*(garmentFrame.w/referenceFrame.w)*sp.scale*Math.abs(sp.squeezeX)/eyeWidth;
+ scale=Math.min(scale,shoulderSpan*.46/faceWidth,torsoSpan*.72/faceWidth);
+ const crown=point({x:face.cx,y:face.opaqueTop}),span=Math.hypot(chin.x-crown.x,chin.y-crown.y);
+ if(span>0&&chinTarget.y>H*.045)scale=Math.min(scale,(chinTarget.y-H*.045)/span);
+ if(!Number.isFinite(scale)||scale<.1||scale>5)throw Error('วัดขนาดหัวกับชุดไม่สำเร็จ');
+ const rotation=sp.rotation-eyeAngle*180/Math.PI,r=rotation*Math.PI/180,u=(chin.x-W/2)*scale,v=(chin.y-H/2)*scale;
+ const headPose={x:chinTarget.x-W/2-u*Math.cos(r)+v*Math.sin(r),y:chinTarget.y-H/2-u*Math.sin(r)-v*Math.cos(r),scale,rotation,squeezeX:1,squeezeY:1};
+ return {garmentFrame,headPose,chinTarget,shoulderSpan,torsoSpan,localScale:scale/sp.scale};
 }
 
 function pixelTransform(head,headSample,suit,uniformSample){
@@ -125,59 +123,33 @@ export function hasStudioCollarGap({garment,portrait,headToUniform,previewPixels
  return false;
 }
 
+
 export async function fitStudioSuit({layers,previousSuit,nextSuit,headSource,headMask=null,measureFace,preservePlacement=false}){
- const head=layers.find(layer=>kind(layer)==='head'&&layer.jobId);
- if(!head)return layers;
+ const head=layers.find(layer=>kind(layer)==='head'&&layer.jobId);if(!head)return layers;
  if(head.locked||layers.some(layer=>layer.hairHeadId===head.id&&layer.kind!=='neck-fit'&&layer.locked))throw Error('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดชุดอัตโนมัติ');
  if(!nextSuit||typeof measureFace!=='function')throw Error('ระบบจัดชุดอัตโนมัติยังไม่พร้อม');
  const [garment,portrait]=await Promise.all([garmentMeasurement(nextSuit.source),sampleSurface(headSource||head.source,headMask)]);
- const detected=await measureFace(portrait.canvas),face=Array.isArray(detected)?detected:detected?.faceLandmarks?.[0];
- const landmarks=faceMeasurement(face,portrait.width,portrait.height,portrait.pixels);
- const neck=measureSkinNeckProfile({pixels:portrait.pixels,width:portrait.width,height:portrait.height,face});
- if(neck.rows.length<3||neck.confidence<.25)throw Object.assign(Error('ยังวัดแนวคอให้พอดีกับชุดไม่ได้ งานเดิมยังอยู่ กรุณาตรวจสอบว่าบริเวณคอเห็นชัดเจน'),{code:'SUIT_FIT_UNCLEAR'});
- const plan=preservePlacement?null:planStudioSuitGeometry({uniform:garment.uniform,opening:garment.opening,face:landmarks,head,suit:nextSuit,neckProfile:neck});
- let fittedHead=preservePlacement?head:{...head,...plan.headPose};
- // Only the local collar control may change. Body frame, pose, source and
- // independent accessories retain exactly the values supplied by the editor.
- const fittedSuit={...nextSuit,neckWidth:0,autoSuitFitVersion:STUDIO_SUIT_FIT_VERSION};
-
- const upperRows=neck.rows.filter(row=>row.y<=neck.chin.y+neck.faceHeight*.17),upperWidth=median(upperRows.map(row=>row.right-row.left));
- const collarNeck={...neck,rows:upperRows.filter(row=>row.right-row.left<=upperWidth*1.08)};
- const sf=frame(nextSuit),cf=nextSuit.collarFrame||sf,warpFrame={x:(cf.x-sf.x)*garment.width/sf.w,y:(cf.y-sf.y)*garment.height/sf.h,w:cf.w*garment.width/sf.w,h:cf.h*garment.height/sf.h};
- const smoothTop=(nextSuit.templatePath||'').includes('/job-uniforms/');
- const nativeW=garment.originalWidth,nativeH=garment.originalHeight,nativeFrame={x:warpFrame.x*nativeW/garment.width,y:warpFrame.y*nativeH/garment.height,w:warpFrame.w*nativeW/garment.width,h:warpFrame.h*nativeH/garment.height};
- let previousWidth=null,previewPixels=null;
- const faceCY=landmarks.oval.length?landmarks.oval.reduce((n,p)=>n+p.y,0)/landmarks.oval.length:(landmarks.forehead.y+landmarks.chin.y)*.5,faceCX=landmarks.oval.length?landmarks.oval.reduce((n,p)=>n+p.x,0)/landmarks.oval.length:landmarks.cx,oval=landmarks.oval.map(p=>({x:p.x*.92+faceCX*.08,y:p.y*.92+faceCY*.08}));
- const inside=(x,y)=>{let result=false;for(let i=0,j=oval.length-1;i<oval.length;j=i++){const p=oval[i],q=oval[j];if((p.y>y)!==(q.y>y)&&x<(q.x-p.x)*(y-p.y)/(q.y-p.y)+p.x)result=!result}return result};
- const protectedPoints=[];
- if(oval.length>=3){const l=Math.min(...oval.map(p=>p.x)),r=Math.max(...oval.map(p=>p.x)),t=Math.min(...oval.map(p=>p.y)),bottom=Math.max(...oval.map(p=>p.y));for(let y=t;y<bottom;y+=Math.max(1,(bottom-t)/60))for(let x=l;x<r;x+=Math.max(1,(r-l)/50))if(inside(x,y))protectedPoints.push({x,y})}
- if(!protectedPoints.length)for(const p of landmarks.protectedFace)protectedPoints.push({x:p.x*.92+landmarks.cx*.08,y:p.y*.92+faceCY*.08});
- const candidate=headLayer=>{
-  const headToUniform=pixelTransform(headLayer,portrait,fittedSuit,garment);
-  const collar=solveAutoCollarWidth({pixels:garment.pixels,width:garment.width,height:garment.height,neckProfile:collarNeck,headToUniform,frame:warpFrame,smoothTop});
-  const width=collar.confidence>=.25?clamp(collar.neckWidth,-40,40):0;
-  if(width!==previousWidth){let preview=warpStudioCollar(garment.image,width/100,(nextSuit.neckHeight||0)/100,nativeFrame,{smoothTop});if(!preview.getContext){const surface=Object.assign(document.createElement('canvas'),{width:nativeW,height:nativeH});surface.getContext('2d').drawImage(preview,0,0);preview=surface}previewPixels=preview.getContext('2d',{willReadFrequently:true}).getImageData(0,0,nativeW,nativeH).data;previousWidth=width}
-  const [a,b,c,d,e,f]=headToUniform;let blocked=0;
-  for(const p of protectedPoints){
-   const ux=Math.round((a*p.x+c*p.y+e)*nativeW/garment.width),uy=Math.round((b*p.x+d*p.y+f)*nativeH/garment.height);
-   if(ux>=0&&ux<nativeW&&uy>=0&&uy<nativeH&&previewPixels[(uy*nativeW+ux)*4+3]>96)blocked++;
+ const detected=await measureFace(portrait.canvas),face=Array.isArray(detected)?detected:detected?.faceLandmarks?.[0],landmarks=faceMeasurement(face,portrait.width,portrait.height,portrait.pixels);
+ let neck=measureSkinNeckProfile({pixels:portrait.pixels,width:portrait.width,height:portrait.height,face});
+ if(neck.rows.length<3){
+  const rows=[],cx=Math.round(landmarks.chin.x),half=landmarks.faceWidth*.32;
+  for(let y=Math.round(landmarks.chin.y+landmarks.faceHeight*.06);y<Math.min(portrait.height,landmarks.chin.y+landmarks.faceHeight*.6);y+=Math.max(1,Math.round(landmarks.faceHeight*.025))){
+   const alpha=x=>portrait.pixels[(y*portrait.width+x)*4+3]>128;if(!alpha(cx)){if(rows.length)break;continue}let l=cx,r=cx;while(l>cx-half&&alpha(l-1))l--;while(r<cx+half&&alpha(r+1))r++;rows.push({y,left:l,right:r});
   }
-  const gap=hasStudioCollarGap({garment,portrait,headToUniform,previewPixels,frameHeight:sf.h});
-  return {width,confidence:collar.confidence,blocked,gap};
- };
- let fit=candidate(fittedHead);
- if(fit.blocked>0&&!preservePlacement){
-  const original=fittedHead,sp=pose(nextSuit),r=sp.rotation*Math.PI/180;
-  for(let up=3;up<=36;up+=3){
-   const next={...original,x:original.x+Math.sin(r)*up*sp.scale*Math.abs(sp.squeezeY),y:original.y-Math.cos(r)*up*sp.scale*Math.abs(sp.squeezeY)},result=candidate(next);
-   if(result.blocked===0&&!result.gap){fittedHead=next;fit=result;break}
-  }
+  neck={...neck,rows,chin:landmarks.chin,faceHeight:landmarks.faceHeight};
  }
- if(fit.blocked>0||fit.gap)throw Object.assign(Error('รูปนี้มีช่วงคอไม่พอกับชุดที่เลือก งานเดิมยังอยู่ กรุณาเลือกชุดอื่น'),{code:'SUIT_FIT_SOURCE_SHORT'});
- fittedSuit.neckWidth=fit.width;
- fittedSuit.autoCollarFitWidth=fittedSuit.neckWidth;
- fittedSuit.autoCollarFitConfidence=Number((fit.confidence||0).toFixed(3));
- fittedSuit.autoCollarFitApplied=fit.confidence>=.25;
+ if(neck.rows.length<2)throw Object.assign(Error('ยังไม่พบช่วงคอที่ชัดเจน กรุณาเลือกชุดแล้วปรับตำแหน่งหัวเพิ่มเติม'),{code:'SUIT_FIT_UNCLEAR'});
+ const plan=preservePlacement?null:planStudioSuitGeometry({uniform:garment.uniform,face:landmarks,head,suit:nextSuit});
+ const fittedHead=preservePlacement?head:{...head,...plan.headPose};
+ const sf=frame(nextSuit),cf=nextSuit.collarFrame||sf,warpFrame={x:(cf.x-sf.x)*garment.width/sf.w,y:(cf.y-sf.y)*garment.height/sf.h,w:cf.w*garment.width/sf.w,h:cf.h*garment.height/sf.h};
+ const upperRows=neck.rows.filter(row=>row.y<=neck.chin.y+neck.faceHeight*.22),profile={...neck,rows:upperRows.length>=3?upperRows:neck.rows};
+ const collar=solveAutoCollarWidth({pixels:garment.pixels,width:garment.width,height:garment.height,neckProfile:profile,headToUniform:pixelTransform(fittedHead,portrait,nextSuit,garment),frame:warpFrame,smoothTop:(nextSuit.templatePath||'').includes('/job-uniforms/')});
+ const width=collar.confidence>=.25?clamp(collar.neckWidth,-60,60):0;
+ const nativeFrame={x:warpFrame.x*garment.originalWidth/garment.width,y:warpFrame.y*garment.originalHeight/garment.height,w:warpFrame.w*garment.originalWidth/garment.width,h:warpFrame.h*garment.originalHeight/garment.height};
+ let preview=warpStudioCollar(garment.image,width/100,(nextSuit.neckHeight||0)/100,nativeFrame,{smoothTop:(nextSuit.templatePath||'').includes('/job-uniforms/')});
+ if(!preview.getContext){const c=Object.assign(document.createElement('canvas'),{width:garment.originalWidth,height:garment.originalHeight});c.getContext('2d').drawImage(preview,0,0);preview=c}
+ const gap=hasStudioCollarGap({garment,portrait,headToUniform:pixelTransform(fittedHead,portrait,nextSuit,garment),previewPixels:preview.getContext('2d',{willReadFrequently:true}).getImageData(0,0,garment.originalWidth,garment.originalHeight).data,frameHeight:sf.h});
+ const fittedSuit={...nextSuit,neckWidth:width,autoSuitFitVersion:STUDIO_SUIT_FIT_VERSION,autoCollarFitWidth:width,autoCollarFitConfidence:Number((collar.confidence||0).toFixed(3)),autoCollarFitApplied:collar.confidence>=.25,autoSuitFitWarning:gap?'ช่วงคอรูปนี้ไม่พอกับช่องคอชุด กรุณาปรับคอเสื้อเพิ่มเติม':''};
  const result=layers.filter(layer=>!(layer.kind==='neck-fit'&&layer.hairHeadId===head.id)).map(layer=>layer.id===head.id?fittedHead:layer.id===previousSuit?.id||layer.id===nextSuit.id?fittedSuit:layer);
  if(!result.some(layer=>layer.id===fittedSuit.id))result.push(fittedSuit);
  return result;

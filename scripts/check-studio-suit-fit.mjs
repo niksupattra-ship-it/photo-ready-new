@@ -42,22 +42,20 @@ for(const path of paths){
   assert.equal(JSON.stringify({head,suit,face,uniform,opening,neckProfile:measured}),before,'input pixels, frames and poses must not change');
   assert(Object.values(plan.headPose).every(Number.isFinite));assert.equal(plan.headPose.squeezeX,1);assert.equal(plan.headPose.squeezeY,1);
   const l=headPoint(face.left),r=headPoint(face.right),placedFaceWidth=Math.hypot(r.x-l.x,r.y-l.y)*plan.headPose.scale;
-  const ratio=placedFaceWidth/plan.shoulderSpan;assert(ratio>=.30-1e-10&&ratio<=.50+1e-10,'head width stays proportional to fixed shoulders');
-  const last=measured?.rows[measured.rows.length-1],neck=headPoint(last?{x:(last.left+last.right)/2,y:last.y}:{x:face.cx,y:face.chin.y+face.faceHeight*.25});
-  const mappedNeck=layerToScene(plan.headPose,neck),socket=layerToScene(suit,{x:suit.sourceFrame.x+uniform.centerX/uniform.width*suit.sourceFrame.w,y:suit.sourceFrame.y+Math.max(uniform.socketY,opening[opening.length-1].y+1)/uniform.height*suit.sourceFrame.h});
-  close(mappedNeck.x,socket.x,'native neck/socket X');close(mappedNeck.y,socket.y,'native neck/socket Y');
-  close(plan.collarAnchor.x,socket.x,'reported fixed collar X');close(plan.collarAnchor.y,socket.y,'reported fixed collar Y');
+  const ratio=placedFaceWidth/plan.shoulderSpan;assert(ratio>.15&&ratio<=.46+1e-10,'head stays bounded by this garment shoulder span');
+  assert(placedFaceWidth<=plan.torsoSpan*.72+1e-8,'head cannot overwhelm the measured torso');
+  const longer=planStudioSuitGeometry({uniform,opening,face,head,suit,neckProfile:{rows:[{y:950,left:370,right:530}]}});
+  assert.deepEqual(plan,longer,'a cut-off or longer neck must not enlarge the face');
   const mappedChin=layerToScene(plan.headPose,headPoint(face.chin));close(mappedChin.x,plan.chinTarget.x,'reported chin X');close(mappedChin.y,plan.chinTarget.y,'reported chin Y');
   count++;
  }
 }
-// An opaque tie knot can precede a thin off-centre V tail. The later full-tip
-// socket supplied by native garment measurement must win over the early knot.
+// A deep V is not authority to enlarge the face or move the garment.
 {
- const uniform={width:1000,height:1000,centerX:500,shoulderWidth:820,socketY:120,neckSocketY:250},opening=[{y:50,left:400,right:600},{y:200,left:485,right:515}];
+ const uniform={width:1000,height:1000,bounds:{l:0,r:999,t:0,b:999,w:1000,h:1000},centerX:500,shoulderWidth:820,socketY:120,neckSocketY:250},opening=[{y:50,left:400,right:600},{y:200,left:485,right:515}];
  const fixedFrame={x:7,y:310,w:900,h:900},suit={sourceFrame:fixedFrame,x:0,y:0,scale:1,rotation:0,squeezeX:1,squeezeY:1};
  const plan=planStudioSuitGeometry({uniform,opening,face,head,suit,neckProfile});
- close(plan.collarAnchor.y,535,'later full-V closure wins over early opaque tie');assert.equal(plan.garmentFrame,fixedFrame);
+ assert.deepEqual(plan,planStudioSuitGeometry({uniform:{...uniform,neckSocketY:450},opening,face,head,suit}));assert.equal(plan.garmentFrame,fixedFrame);
 }
 // Exercise the actual lower-opening guard with independent alpha fixtures.
 // Cloth has a real enclosed V and transparent air beyond its outer lapels.
@@ -72,7 +70,7 @@ const alphaGrid=(width,height,alpha)=>{const pixels=new Uint8ClampedArray(width*
  const beforePortrait=covered.pixels.slice(),beforeCloth=previewPixels.slice();
  assert.equal(call(covered),false,'an existing neck covering the enclosed V is accepted');
  const cut={width,height,pixels:alphaGrid(width,height,(x,y)=>x>=22&&x<=38&&y<58?255:0)};
- assert.equal(call(cut),true,'a real transparent V below a cut-off neck is rejected');
+ assert.equal(call(cut),true,'a real transparent V below a cut-off neck is detected for the adjustment notice');
  const outsideAir={width,height,pixels:alphaGrid(width,height,(x)=>x>=22&&x<=38?255:0)};
  assert.equal(call(outsideAir),false,'transparent background outside lapels is not a missing neck');
  const antialias={width,height,pixels:alphaGrid(width,height,(x,y)=>x>=22&&x<=38?(y===60||y===61?80:255):0)};
@@ -84,8 +82,8 @@ const alphaGrid=(width,height,alpha)=>{const pixels=new Uint8ClampedArray(width*
  const rotated={width:80,height:80,pixels:alphaGrid(80,80,(x,y)=>80-y>=22&&80-y<=38?255:0)};
  assert.equal(call(rotated,[0,1,-1,0,80,0]),false,'inverse affine mapping handles portrait rotation');
  assert.equal(call({width,height,pixels:alphaGrid(width,height,()=>0)},[1,0,0,1,0,0],alphaGrid(nativeW,nativeH,()=>255)),false,'opaque cloth does not require hidden portrait pixels');
- assert.equal(call(covered,[0,0,0,0,0,0]),true,'singular transforms cannot authorize an uncovered result');
+ assert.equal(call(covered,[0,0,0,0,0,0]),true,'singular transforms report unresolved neck coverage');
  assert.deepEqual(covered.pixels,beforePortrait);assert.deepEqual(previewPixels,beforeCloth);
 }
 assert.throws(()=>planStudioSuitGeometry({uniform:{},opening:[],face,head,suit:{}}));
-console.log(`PASS ${count} fixed-garment geometry plans across all25catalogue PNGs: unchanged body frame/pose, proportional head scaling, neck/socket alignment and repeat stability. Plus9 actual V-coverage guard cases. Geometry coverage does not claim every short-neck/deep-V photo is visually feasible.`);
+console.log(`PASS ${count} fixed-garment geometry plans across all25catalogue PNGs: unchanged body frame/pose, proportional head scaling, first-pass eye normalization, shoulder/torso bounds, neck-cut independence and repeat stability. Plus9 actual V-coverage guard cases. Geometry coverage does not claim every short-neck/deep-V photo is fully fitted without manual adjustment.`);
