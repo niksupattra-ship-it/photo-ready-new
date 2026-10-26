@@ -3174,7 +3174,7 @@ function App(){
   }
   return true;
  };
- const requestDownloadUnlock=()=>{setPayMsg('สร้างและปรับแต่งฟรี ปลดล็อกงานนี้เพื่อดาวน์โหลดไม่มีลายน้ำ');setBuyOpen(true)};
+ const requestDownloadUnlock=()=>{if(qrPaymentRef.current&&(qrPaymentRef.current.walletId!==currentWalletId()||qrPaymentRef.current.jobId!==currentOutputJobRef.current))setQrPayment(null);setPayMsg('สร้างและปรับแต่งฟรี ปลดล็อกงานนี้เพื่อดาวน์โหลดไม่มีลายน้ำ');setBuyOpen(true)};
  const useDownloadCredit=async()=>{
   if(!authToken()){setPendingPackage('download-flow');setAuthMode('login');setAuthOpen(true);return}
   if(checkoutReturnRef.current){setPayMsg('กำลังตรวจสอบรายการที่ชำระแล้ว ไม่ต้องชำระเงินซ้ำ');return}
@@ -3229,6 +3229,21 @@ function App(){
    await claimAccountOutput();ensureCurrent();await refreshWallet();ensureCurrent();
    if(!authToken()){setPendingPackage(packageId);setAuthMode('login');setAuthMsg('กรุณาเข้าสู่ระบบใหม่เพื่อชำระเงิน');setAuthOpen(true);return}
    if(!checkoutJobId)throw Error('กรุณาสร้างรูปให้สำเร็จก่อนปลดล็อกดาวน์โหลด');
+   // Resume only an explicitly requested checkout for the same account and image.
+   let storedPayment=null;try{storedPayment=JSON.parse(appStorage.getItem('idprom_pending_qr_v1')||'null')}catch{}
+   if(storedPayment?.walletId===checkoutWallet&&storedPayment.jobId===checkoutJobId&&/^pi_[A-Za-z0-9]+$/.test(storedPayment.paymentIntentId||'')){
+    const {response:pendingResponse,data:pendingStatus}=await requestPromptpay('/api/payments/promptpay/'+encodeURIComponent(storedPayment.paymentIntentId),{headers:{...walletHeaders(),...authHeaders()}});
+    ensureCurrent();
+    if(!pendingResponse.ok)throw Error(pendingStatus?.message||'ยังตรวจสอบรายการเดิมไม่ได้ กรุณาลองอีกครั้ง ไม่ต้องชำระซ้ำ');
+    if(pendingStatus?.ok===true&&pendingStatus.status==='succeeded'){
+     acceptWalletRights(pendingStatus);
+     if(storedPayment.packageId===packageId){const payment={...storedPayment,...pendingStatus,recovered:true};setQrPayment(payment);await finishQrPayment(pendingStatus,payment);return}
+    }else if(pendingStatus?.status==='processing'||(pendingStatus?.status==='requires_action'&&(!pendingStatus.expiresAt||Date.now()<pendingStatus.expiresAt*1000))){
+     setQrPayment({...storedPayment,...pendingStatus,recovered:true});setPayMsg('');setBuyOpen(true);return;
+    }else if(pendingStatus?.status==='canceled'||(pendingStatus?.expiresAt&&Date.now()>=pendingStatus.expiresAt*1000)){
+     appStorage.removeItem('idprom_pending_qr_v1');appStorage.removeItem('idprom_qr_attempt_v1');
+    }else throw Error('กำลังตรวจสอบรายการเดิม กรุณาลองอีกครั้ง ไม่ต้องชำระซ้ำ');
+   }
    const existingRight=await verifyOutputRights(checkoutJobId);ensureCurrent();
    if(existingRight.checked===false)throw Error(existingRight.message||'ยังตรวจสอบสิทธิ์ไม่ได้ กรุณาลองอีกครั้ง ไม่ต้องชำระเงินซ้ำ');
    if(packageId==='159'?existingRight.premiumHair===true:existingRight.unlocked===true){if(await savePaidCheckout('existing:'+checkoutJobId,{jobId:checkoutJobId}))setBuyOpen(false);return}
@@ -3358,11 +3373,11 @@ function App(){
    if(response.status===401)return;
    if(!response.ok)return;
    if(latest?.ok===true&&latest?.status==='succeeded'){
-    setQrPayment({...stored,...latest,recovered:true});setBuyOpen(true);return;
+    acceptWalletRights(latest);return;
    }
    if(latest?.status==='canceled'||(latest?.expiresAt&&Date.now()>=latest?.expiresAt*1000&&latest?.status!=='processing')){removeStored();return}
    if(['requires_action','processing'].includes(latest?.status)){
-    setQrPayment({...stored,...latest,recovered:true});setBuyOpen(true);return;
+    return;
    }
    removeStored();
   }catch{}
@@ -4490,6 +4505,7 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
  </section></main>
 }
 createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+
 
 
 
