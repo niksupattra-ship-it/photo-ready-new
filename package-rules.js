@@ -16,7 +16,9 @@ export const PACKAGES=Object.freeze({
  '199':{price:199,g:2,h:3,legacy:true}
 });
 export function packageFor(id){const p=PACKAGES[String(id)];if(!p)throw Error('invalid_package');return p;}
-export function checkoutPackage(id){const key=['159','download_159_hair_v1'].includes(String(id))?'download_159_hair_v1':['119','download_119_v1'].includes(String(id))?'download_119_v1':null;if(!key)throw Error('invalid_package');return {id:key,...packageFor(key)}}
+// Fresh basic purchases use the current 89-baht offer. Frozen 119-baht
+// reservations and receipts still resolve through packageFor, never this alias.
+export function checkoutPackage(id){const key=['159','download_159_hair_v1'].includes(String(id))?'download_159_hair_v1':['89','download_89_v1','119','download_119_v1'].includes(String(id))?'download_89_v1':null;if(!key)throw Error('invalid_package');return {id:key,...packageFor(key)}}
 export function remaining(row){return Number(row?.generation_remaining||0)+Number(row?.hair_remaining||0);}
 
 

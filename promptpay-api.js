@@ -3,7 +3,9 @@ import {packageFor,checkoutPackage} from './package-rules.js';
 import {verifyPaymentAmount,settleCheckout} from './stripe-payment-validation.js';
 import {promptpayIntentStore} from './promptpay-intent-store.js';
 const FLOW='idprom_promptpay_v1';
-const CURRENT=new Set(['download_119_v1','download_159_hair_v1']);
+// Both basic prices remain recognizable for pending historical payments.
+const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1']);
+const publicPackageId=id=>id==='download_159_hair_v1'?'159':id==='download_89_v1'?'89':'119';
 const keyFor=value=>crypto.createHash('sha256').update(value).digest('hex');
 export async function reconcileDuplicatePayment(out,{receiptId,paymentIntentId,amount,stripePost,stripeGet,recordDownloadRefund}={}){
  if(!out?.overlap||!['pending','failed','manual_review'].includes(out.refundStatus)||!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId||'')||!stripePost||!recordDownloadRefund)return out;
@@ -26,7 +28,7 @@ export async function settlePromptpay(intent,creditPaid,options={}){
  if(CURRENT.has(packageId)&&options.onSettlement)await options.onSettlement(intent,reconciled);
  return reconciled;
 }
-function details(intent){const qr=intent.status==='requires_action'?intent.next_action?.promptpay_display_qr_code:null;return {paymentIntentId:intent.id,status:intent.status,amount:intent.amount/100,qrImage:qr?.image_url_png||null,expiresAt:qr?.expires_at||null,jobId:intent.metadata?.job_id||'',packageId:intent.metadata?.package_id==='download_159_hair_v1'?'159':'119',packageKey:intent.metadata?.package_id}}
+function details(intent){const qr=intent.status==='requires_action'?intent.next_action?.promptpay_display_qr_code:null;return {paymentIntentId:intent.id,status:intent.status,amount:intent.amount/100,qrImage:qr?.image_url_png||null,expiresAt:qr?.expires_at||null,jobId:intent.metadata?.job_id||'',packageId:publicPackageId(intent.metadata?.package_id),packageKey:intent.metadata?.package_id}}
 export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked=async()=>false,isPremium=async()=>false,scopeForJob=async(w,id)=>'job:'+id,walletRights=async()=>({}),intentStore=promptpayIntentStore,recordDownloadRefund,pendingDownloadRefunds=async()=>[],appUrl=''}={}){
  let reconciliationFlight=null;
  const settlementOptions={stripePost,stripeGet,recordDownloadRefund,onSettlement:intent=>reconcileSiblings(intent.metadata.wallet_id,intent.metadata.job_id,intent.id)};
@@ -210,6 +212,6 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   const session=await checkoutState(row);
   if(session.payment_status==='paid'){const out=await settleSession(session);await intentStore.close(row.id,session.id);return res.json({ok:true,status:'succeeded',...out,jobId:row.job_id})}
   if(session.status==='expired'){await intentStore.close(row.id,session.id);return res.status(409).json({error:'payment_expired',message:'รายการเดิมหมดอายุแล้ว กรุณาเริ่มรายการใหม่'})}
-  res.json({url:session.url,packageId:row.package_id==='download_159_hair_v1'?'159':'119',jobId:row.job_id,workId:scope});
+  res.json({url:session.url,packageId:publicPackageId(row.package_id),packageKey:row.package_id,jobId:row.job_id,workId:scope});
  }catch(error){console.error('Stripe checkout:',error);if(error.message==='payment_recovery_required')return res.status(409).json({error:'payment_recovery_required',message:'ยังยืนยันรายการเดิมไม่ได้ กรุณาติดต่อเจ้าหน้าที่เพื่อตรวจสอบรายการ ไม่ต้องชำระเงินซ้ำ'});res.status(400).json({error:'checkout_failed',message:'สร้างรายการชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง'})}}};
 }

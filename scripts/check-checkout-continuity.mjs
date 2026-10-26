@@ -92,6 +92,27 @@ await test('payment panel is rendered in a stable React tree across wallet and r
 await test('closing and reopening a QR shares its in-flight paid settlement',async()=>{
  const f=fixture(),rights=deferred();let reads=0;f.e.verifyOutputRights=()=>{reads++;return rights.promise};const data={ok:true,status:'succeeded',paymentIntentId:f.payment.paymentIntentId};const a=f.e.finishQrPayment(data,f.payment);await tick();const b=f.e.finishQrPayment(data,f.payment);await tick();assert.equal(reads,1);assert.equal(f.events.filter(([kind])=>kind==='rights').length,1);rights.resolve({checked:true,unlocked:true});await Promise.all([a,b]);assert.equal(f.events.filter(([kind])=>kind==='unlock').length,1);assert.equal(f.events.filter(([kind])=>kind==='clear').length,1);
 });
+await test('new basic and obsolete119 selections open authentication for89 without a request',async()=>{
+ for(const selected of ['89','119']){const f=fixture();f.storage.delete('token');const pending=[],calls=[];f.e.setPendingPackage=id=>pending.push(id);f.e.requestPromptpay=async(...args)=>calls.push(args);await f.e.startCheckout(selected);assert.deepEqual(pending,['89']);assert(f.events.some(([kind,value])=>kind==='auth'&&value===true));assert.equal(calls.length,0)}
+});
+await test('fresh basic requests and obsolete119 aliases create only89 and record the returned amount',async()=>{
+ for(const selected of ['89','119']){const f=fixture(),calls=[],analytics=[];f.e.verifyOutputRights=async()=>({checked:true,unlocked:false});f.e.analyticsCheckout=(...args)=>analytics.push(args);f.e.requestPromptpay=async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {response:response({}),data:{paymentIntentId:'pi_new89',status:'requires_action',packageId:'89',amount:89,qrImage:'fixture-qr',jobId:'jobA'}}};await f.e.startCheckout(selected);assert.equal(calls.length,1);assert.equal(calls[0].body.packageId,'89');assert.equal(f.e.qrPayment.packageId,'89');assert.equal(f.e.qrPayment.amount,89);assert.deepEqual(analytics,[['89','pi_new89']])}
+});
+await test('an active frozen119 QR keeps its original amount and prevents new89 creation',async()=>{
+ const f=fixture(),calls=[];f.storage.set('idprom_pending_qr_v1',JSON.stringify({...f.payment,amount:119,expiresAt:Math.floor(Date.now()/1000)+600}));f.e.requestPromptpay=async(url,options)=>{calls.push({url,method:options?.method||'GET'});return {response:response({}),data:{...f.payment,status:'requires_action',amount:119,qrImage:'old119qr',expiresAt:Math.floor(Date.now()/1000)+600}}};await f.e.startCheckout('89');assert.equal(calls.length,1);assert.equal(calls[0].method,'GET');assert.equal(f.e.qrPayment.amount,119);assert.equal(f.e.qrPayment.packageId,'119');
+});
+await test('paid119 and premium159 receipts cover requested89 without a second charge',async()=>{
+ for(const oldOffer of ['119','159']){const f=fixture(),calls=[];const payment={...f.payment,packageId:oldOffer,amount:Number(oldOffer)};f.storage.set('idprom_pending_qr_v1',JSON.stringify(payment));f.e.requestPromptpay=async(url,options)=>{calls.push({url,method:options?.method||'GET'});return {response:response({}),data:{...payment,ok:true,status:'succeeded'}}};await f.e.startCheckout('89');assert.equal(calls.length,1);assert.equal(calls[0].method,'GET');assert.equal(f.events.filter(([kind])=>kind==='clear').length,1);assert(f.events.some(([kind])=>kind==='unlock'))}
+});
+await test('a paid89 work may upgrade once through a full159 checkout',async()=>{
+ const f=fixture(),calls=[];f.e.verifyOutputRights=async()=>({checked:true,unlocked:true,premiumHair:false});f.e.requestPromptpay=async(url,options)=>{calls.push(JSON.parse(options.body));return {response:response({}),data:{paymentIntentId:'pi_upgrade159',status:'requires_action',packageId:'159',amount:159,qrImage:'upgrade-qr',jobId:'jobA'}}};await f.e.startCheckout('159');assert.equal(calls.length,1);assert.equal(calls[0].packageId,'159');assert.equal(f.e.qrPayment.amount,159);assert(!f.events.some(([kind])=>kind==='unlock'));
+});
+await test('a saved119 attempt id is reused across the89 price cutover',async()=>{
+ const f=fixture(),headers=[];f.storage.set('idprom_qr_attempt_v1',JSON.stringify({scope:JSON.stringify(['walletA','119','jobA']),id:'prior-attempt',at:Date.now()}));f.e.verifyOutputRights=async()=>({checked:true,unlocked:false});f.e.requestPromptpay=async(_url,options)=>{headers.push(options.headers['X-Checkout-Attempt']);return {response:response({}),data:{paymentIntentId:'pi_frozen119',status:'requires_action',packageId:'119',amount:119,qrImage:'frozen-qr'}}};await f.e.startCheckout('89');assert.deepEqual(headers,['prior-attempt']);assert.equal(f.e.qrPayment.packageId,'119');assert.equal(f.e.qrPayment.amount,119);
+});
+await test('analytics and QR use the actual frozen119 offer returned for a retried89 request',async()=>{
+ const f=fixture(),analytics=[];f.e.verifyOutputRights=async()=>({checked:true,unlocked:false});f.e.analyticsCheckout=(...args)=>analytics.push(args);f.e.requestPromptpay=async()=>({response:response({}),data:{paymentIntentId:'pi_returned119',status:'requires_action',packageId:'119',amount:119,qrImage:'frozen-qr'}});await f.e.startCheckout('89');assert.deepEqual(analytics,[['119','pi_returned119']]);assert.equal(f.e.qrPayment.amount,119);
+});
 console.log(`${passed} checkout continuity scenarios passed; ${failed} failed. Mock requests only; no payments or customer writes.`);
 if(failed)process.exitCode=1;
 

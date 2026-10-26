@@ -72,8 +72,8 @@ const route=async(method,path,{wallet='walletA',body={},attempt='attempt_grouped
  const res={status(value){status=value;return this},set(){return this},json(value){data=value;return this},send(value){data=value;return this},sendStatus(value){status=value;return this}};
  await routes.get(method+' '+path)(req,res);return {status,data};
 };
-const create=(jobId,{wallet='walletA',packageId='119',attempt='attempt_'+jobId+'_0001'}={})=>route('POST','/api/payments/promptpay',{wallet,body:{jobId,packageId},attempt});
-const checkout=(jobId,{wallet='walletA',packageId='119',attempt='attempt_checkout_'+jobId+'_0001'}={})=>route('POST','/api/payments/checkout',{wallet,body:{jobId,packageId},attempt});
+const create=(jobId,{wallet='walletA',packageId='89',attempt='attempt_'+jobId+'_0001'}={})=>route('POST','/api/payments/promptpay',{wallet,body:{jobId,packageId},attempt});
+const checkout=(jobId,{wallet='walletA',packageId='89',attempt='attempt_checkout_'+jobId+'_0001'}={})=>route('POST','/api/payments/checkout',{wallet,body:{jobId,packageId},attempt});
 const poll=(id,wallet='walletA')=>route('GET','/api/payments/promptpay/:id',{wallet,id});
 const cancel=(id,wallet='walletA')=>route('POST','/api/payments/promptpay/:id/cancel',{wallet,id});
 const pay=id=>{const intent=intents.get(id);intent.status='succeeded';intent.amount_received=intent.amount};
@@ -106,7 +106,7 @@ try{
   const a=await create(g.jobs[0],{attempt}),b=await create(g.jobs[1],{attempt:'attempt_device_B_0001'});
   assert.equal(a.status,200);assert.equal(b.status,200);assert.equal(a.data.paymentIntentId,b.data.paymentIntentId);
   const request=gatewayCalls.find(call=>call.endpoint==='payment_intents'&&call.params['metadata[job_id]']===g.jobs[0]);
-  assert.equal(request.key,crypto.createHash('sha256').update('idprom_promptpay_v1walletAdownload_119_v1'+attempt).digest('hex'));
+  assert.equal(request.key,crypto.createHash('sha256').update('idprom_promptpay_v1walletAdownload_89_v1'+attempt).digest('hex'));
   assert.equal(request.params['metadata[job_id]'],g.jobs[0]);
   const row=await intentStore.findByIntent(a.data.paymentIntentId);assert.equal(row.work_scope,g.scope);assert.equal(row.job_id,g.jobs[0]);
  });
@@ -205,9 +205,11 @@ try{
   const g=await group('settlementduringcreate'),pause=pauseNextCreation(),creation=create(g.jobs[1]);await pause.started;const old=makeIntent({walletId:g.wallet,jobId:g.jobs[0],status:'succeeded'});intents.set(old.id,old);
   const paid=paymentApi.settleIntent(clone(old));await new Promise(resolve=>setImmediate(resolve));pause.release();const [created]=await Promise.all([creation,paid]);assert.equal(created.status,200);assert.equal(intents.get(created.data.paymentIntentId).status,'canceled');assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);
  });
- await check('119 payment permits a distinct full-price159 premium upgrade',async()=>{
+ await check('89 payment permits a distinct full-price159 premium upgrade with five retained suit choices',async()=>{
   const g=await group('upgrade'),a=await create(g.jobs[0]);pay(a.data.paymentIntentId);assert.equal((await poll(a.data.paymentIntentId)).data.ok,true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[0]),false);
+  const basicSuits=await policy.suits(g.wallet,g.jobs[0],['/suit/1','/suit/2','/suit/3']);assert.equal(basicSuits.limit,3);await assert.rejects(policy.suits(g.wallet,g.jobs[1],['/suit/4']));
   const premium=await create(g.jobs[1],{packageId:'159'});assert.equal(premium.status,200);assert.notEqual(premium.data.paymentIntentId,a.data.paymentIntentId);assert.equal(premium.data.amount,159);pay(premium.data.paymentIntentId);assert.equal((await poll(premium.data.paymentIntentId)).data.ok,true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[0]),true);
+  const expanded=await policy.suits(g.wallet,g.jobs[1],['/suit/4','/suit/5']);assert.equal(expanded.limit,5);assert.deepEqual(expanded.choices,['/suit/1','/suit/2','/suit/3','/suit/4','/suit/5']);await assert.rejects(policy.suits(g.wallet,g.jobs[0],['/suit/6']));
  });
  await check('159 premium right suppresses a redundant legacy119 QR without hiding a genuine159 upgrade',async()=>{
   const g=await group('premiumcovered'),a=await create(g.jobs[0],{packageId:'159'});pay(a.data.paymentIntentId);assert.equal((await poll(a.data.paymentIntentId)).data.ok,true);
@@ -250,10 +252,10 @@ try{
   const g=await group('checkoutfirst'),attempt='attempt_checkout_stable_01',a=await checkout(g.jobs[0],{attempt});assert.equal(a.status,200);assert.match(a.data.url,/checkout\.stripe\.com/);
   const b=await create(g.jobs[1]);assert.equal(b.status,409);assert.equal(b.data.error,'payment_pending_checkout');
   const replay=await checkout(g.jobs[1],{attempt:'attempt_checkout_sibling_01'});assert.equal(replay.status,200);assert.equal(replay.data.url,a.data.url);
-  const call=gatewayCalls.find(item=>item.endpoint==='checkout/sessions'&&item.params['metadata[job_id]']===g.jobs[0]);assert.equal(call.key,crypto.createHash('sha256').update(JSON.stringify(['idprom_checkout_v1',g.wallet,'download_119_v1',g.jobs[0],attempt])).digest('hex'));
+  const call=gatewayCalls.find(item=>item.endpoint==='checkout/sessions'&&item.params['metadata[job_id]']===g.jobs[0]);assert.equal(call.key,crypto.createHash('sha256').update(JSON.stringify(['idprom_checkout_v1',g.wallet,'download_89_v1',g.jobs[0],attempt])).digest('hex'));
   const other=await group('qrbeforecheckout'),qr=await create(other.jobs[0]),blocked=await checkout(other.jobs[1]);assert.equal(blocked.status,409);assert.equal(blocked.data.error,'payment_pending_promptpay');assert.equal(blocked.data.paymentIntentId,qr.data.paymentIntentId);
  });
- await check('Checkout119 success permits159 upgrade and same-session replay never refunds its own grant',async()=>{
+ await check('Checkout89 success permits159 upgrade and same-session replay never refunds its own grant',async()=>{
   const g=await group('checkoutupgrade'),a=await checkout(g.jobs[0]);assert.equal(a.status,200);const session=[...sessions.values()].find(value=>value.metadata.job_id===g.jobs[0]),paid=paySession(session.id);
   const out=await paymentApi.settleSession(paid,g.wallet);assert.equal(out.overlap,false);const ownReplay=await paymentApi.settleSession(paid,g.wallet);assert.equal(ownReplay.duplicate,true);assert.equal(ownReplay.overlap,false);
   let upgrade=await create(g.jobs[1],{packageId:'159'});if(upgrade.status===409&&upgrade.data.error==='payment_finished')upgrade=await create(g.jobs[1],{packageId:'159'});
@@ -279,6 +281,47 @@ try{
   const a=await group('isolate'),b=await group('unrelated'),c=await group('foreign','walletB');const one=await create(a.jobs[0]),two=await create(b.jobs[0]),three=await create(c.jobs[0],{wallet:'walletB'});
   assert.notEqual(one.data.paymentIntentId,two.data.paymentIntentId);assert.notEqual(one.data.paymentIntentId,three.data.paymentIntentId);assert.equal((await poll(one.data.paymentIntentId,'walletB')).status,403);assert((await create(c.jobs[0])).status>=400);
   const malicious=makeIntent({walletId:'walletA',jobId:c.jobs[0]});intents.set(malicious.id,malicious);assert((await poll(malicious.id)).status>=400);
+ });
+ await check('current89 and premium159 create exact THB prices with distinct public offer IDs',async()=>{
+  for(const [publicId,key,amount] of [['89','download_89_v1',8900],['159','download_159_hair_v1',15900]]){
+   const g=await group('currentprice'+publicId),out=await create(g.jobs[0],{packageId:publicId});assert.equal(out.status,200);assert.equal(out.data.amount,amount/100);assert.equal(out.data.packageId,publicId);assert.equal(out.data.packageKey,key);
+   const intent=intents.get(out.data.paymentIntentId);assert.equal(intent.amount,amount);assert.equal(intent.metadata.package_id,key);const before=(await payment.getWallet(g.wallet)).processRemaining;pay(intent.id);const paid=await poll(intent.id);assert.equal(paid.data.ok,true);assert.equal((await payment.getWallet(g.wallet)).processRemaining,before);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);
+  }
+ });
+ await check('obsolete119 aliases create new89 charges in both QR and Checkout without changing frozen descriptors',async()=>{
+  assert.equal(packageFor('download_119_v1').price,119);assert.equal(packageFor('download_89_v1').price,89);
+  for(const publicId of ['119','download_119_v1'])for(const channel of ['qr','checkout']){
+   const g=await group('obsolete'+publicId+channel),out=await (channel==='qr'?create:checkout)(g.jobs[0],{packageId:publicId});assert.equal(out.status,200);assert.equal(out.data.packageId,'89');assert.equal(out.data.packageKey,'download_89_v1');
+   const row=await intentStore.findActive(g.wallet,g.scope);assert.equal(row.package_id,'download_89_v1');assert.equal(channel==='qr'?intents.get(row.intent_id).amount:sessions.get(row.intent_id).amount_total,8900);
+  }
+ });
+ await check('pending unbound119 retry preserves the original key, price, email and job across the cutover',async()=>{
+  const g=await group('cutoverpending119'),attempt='attempt_cutover_pending119_01',row=await intentStore.reserve({walletId:g.wallet,scope:g.scope,packageId:'download_119_v1',jobId:g.jobs[0],email:'frozen119@fixture.invalid',attempt});
+  const out=await create(g.jobs[1],{packageId:'89',attempt});assert.equal(out.status,200);assert.equal(out.data.amount,119);assert.equal(out.data.packageId,'119');assert.equal(out.data.packageKey,'download_119_v1');
+  const post=gatewayCalls.find(call=>call.endpoint==='payment_intents'&&call.key===row.idempotency_key);assert(post);assert.equal(post.params.amount,11900);assert.equal(post.params['metadata[job_id]'],g.jobs[0]);assert.equal(post.params['payment_method_data[billing_details][email]'],row.email);assert.equal((await intentStore.findActive(g.wallet,g.scope)).id,row.id);
+  const again=await create(g.jobs[1],{packageId:'89',attempt:'attempt_cutover_other_device_01'});assert.equal(again.data.paymentIntentId,out.data.paymentIntentId);assert.equal(again.data.amount,119);
+  pay(out.data.paymentIntentId);assert.equal((await poll(out.data.paymentIntentId)).data.ok,true);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);assert.equal((await create(g.jobs[1],{packageId:'89'})).status,409);
+ });
+ await check('closed119 attempt stays terminal while an explicitly new attempt uses89',async()=>{
+  const g=await group('cutoverclosed119'),attempt='attempt_cutover_closed119_01';await intentStore.reserve({walletId:g.wallet,scope:g.scope,packageId:'download_119_v1',jobId:g.jobs[0],email:'old@fixture.invalid',attempt});
+  const old=await create(g.jobs[0],{packageId:'89',attempt});assert.equal(old.data.amount,119);assert.equal((await cancel(old.data.paymentIntentId)).data.status,'canceled');const created=intents.size;
+  const replay=await create(g.jobs[0],{packageId:'89',attempt});assert.equal(replay.data.status,'canceled');assert.equal(intents.size,created);assert.equal(replay.data.paymentIntentId,old.data.paymentIntentId);
+  const fresh=await create(g.jobs[1],{packageId:'89',attempt:'attempt_cutover_fresh89_01'});assert.equal(fresh.data.amount,89);assert.equal(fresh.data.packageId,'89');assert.notEqual(fresh.data.paymentIntentId,old.data.paymentIntentId);
+ });
+ await check('frozen119 Checkout retry reuses its stored payload and settles at119 after cutover',async()=>{
+  const g=await group('cutovercheckout119'),attempt='attempt_cutover_checkout119_01',offer=packageFor('download_119_v1'),payload={mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':11900,'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,'payment_method_types[0]':'promptpay',success_url:'https://frozen.invalid/?payment=success&session_id={CHECKOUT_SESSION_ID}',cancel_url:'https://frozen.invalid/?payment=cancelled','metadata[wallet_id]':g.wallet,'metadata[package_id]':'download_119_v1','metadata[job_id]':g.jobs[0]};
+  const row=await intentStore.reserve({walletId:g.wallet,scope:g.scope,packageId:'download_119_v1',jobId:g.jobs[0],email:'old@fixture.invalid',attempt,channel:'checkout',payload});
+  const out=await checkout(g.jobs[1],{packageId:'89',attempt});assert.equal(out.status,200);assert.equal(out.data.packageId,'119');assert.equal(out.data.packageKey,'download_119_v1');const post=gatewayCalls.find(call=>call.endpoint==='checkout/sessions'&&call.key===row.idempotency_key);assert.deepEqual(post.params,payload);
+  const bound=await intentStore.findActive(g.wallet,g.scope),paid=paySession(bound.intent_id),settled=await paymentApi.settleSession(paid,g.wallet);assert.equal(settled.overlap,false);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);assert.equal((await create(g.jobs[1],{packageId:'89'})).status,409);
+ });
+ await check('89 duplicate after a paid119 uses one8900 refund and retains the original paid work',async()=>{
+  const g=await group('duplicate89after119'),first=makeIntent({walletId:g.wallet,jobId:g.jobs[0],status:'succeeded'});intents.set(first.id,first);await paymentApi.settleIntent(clone(first));const duplicate=makeIntent({walletId:g.wallet,jobId:g.jobs[1],packageId:'download_89_v1',status:'succeeded'});intents.set(duplicate.id,duplicate);
+  const settled=await paymentApi.settleIntent(clone(duplicate));assert.equal(settled.overlap,true);assert.equal(settled.refundStatus,'succeeded');await paymentApi.settleIntent(clone(duplicate));const posts=gatewayCalls.filter(call=>call.endpoint==='refunds'&&call.params.payment_intent===duplicate.id);assert.equal(posts.length,1);assert.equal(posts[0].params.amount,8900);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);
+ });
+ await check('historic89 own receipt replay does not fabricate a refund or rewrite the old ledger',async()=>{
+  const g=await group('historic89own'),old=makeIntent({walletId:g.wallet,jobId:g.jobs[0],packageId:'download_89_v1',status:'succeeded'});intents.set(old.id,old);
+  await pool.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty,full_edit_reconciled) VALUES($1,$2,0,$3,0,0,false)',[old.id,g.wallet,'download_89_v1']);await pool.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,true)',[g.wallet,g.jobs[0]]);
+  const before=refunds.size,out=await paymentApi.settleIntent(clone(old));assert.equal(out.duplicate,true);assert.equal(out.overlap,undefined);assert.equal(refunds.size,before);assert.equal((await pool.query('SELECT count(*)::int AS n FROM download_payment_receipts WHERE session_id=$1',[old.id])).rows[0].n,0);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);
  });
  const results={passed:cases.length,cases,concurrentTrace,fixtureIntentCount:intents.size,scope:'Actual grouped PromptPay API, reservation SQL, download-policy SQL and payment grants in isolated PGlite; inert provider fixtures only',limits:'PGlite has one connection; a serialized connection adapter plus paused gateway models transaction interleavings and provider idempotency, not native PostgreSQL multi-process lock execution'};
  if(process.env.GROUPED_PROMPTPAY_RESULTS){await mkdir(dirname(process.env.GROUPED_PROMPTPAY_RESULTS),{recursive:true});await writeFile(process.env.GROUPED_PROMPTPAY_RESULTS,JSON.stringify(results,null,2)+'\n')}

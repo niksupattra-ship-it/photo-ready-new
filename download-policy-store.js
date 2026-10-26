@@ -70,7 +70,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   // Historical paid renders also cover later renders of the same owned work.
   return Boolean(r.rowCount||await oldPaid(wallet,ids,db));
  };
- const premiumHair=async(wallet,job)=>{await ready();await ownedJob(wallet,job);const ids=await jobIds(wallet,job);const q=await pool.query('SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);return q.rowCount>0};
+ const premiumHair=async(wallet,job,{db=pool}={})=>{await ready();await ownedJob(wallet,job,db);const ids=await jobIds(wallet,job,db);const q=await db.query('SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);return q.rowCount>0};
  const premiumWork=async(wallet,work)=>{await ready();if(!work)return false;const q=await pool.query('SELECT 1 FROM download_work_jobs j JOIN download_works w ON w.id=j.work_id AND w.wallet_id=j.wallet_id JOIN premium_hair_unlocks p ON p.job_id=j.job_id AND p.wallet_id=j.wallet_id WHERE j.wallet_id=$1 AND j.work_id=$2 LIMIT 1',[wallet,work]);return q.rowCount>0};
  const allowedJobs=async(wallet,jobs)=>{
   const ids=[...new Set(jobs)];if(!ids.length)return false;await ready();
@@ -92,10 +92,13 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    if(!await allowed(wallet,job,{savedWorkId})||await legacyAllows(wallet,savedWorkId,[job])||await legacyGroup(wallet,job)||await oldPaid(wallet,await jobIds(wallet,job)))return {limited:false,choices:[]};
    const w=await pool.query('SELECT work_id FROM download_work_jobs WHERE job_id=$1 AND wallet_id=$2',[job,wallet]),scope=w.rows[0]?.work_id||job,c=await pool.connect();
    try{await c.query('BEGIN');await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',[wallet+':suits:'+scope]);
+    // Read the owned work's current premium grant under the same transaction
+    // that serializes its choices. Upgrades retain the existing chosen suits.
+    const limit=await premiumHair(wallet,job,{db:c})?5:3;
     await c.query('INSERT INTO download_suit_choices(wallet_id,scope) VALUES($1,$2) ON CONFLICT DO NOTHING',[wallet,scope]);
     const q=await c.query('SELECT choices FROM download_suit_choices WHERE wallet_id=$1 AND scope=$2 FOR UPDATE',[wallet,scope]);const choices=q.rows[0].choices;
-    for(const value of templates){if(!value)continue;if(typeof value!=='string'||value.length>500||!value.startsWith('/'))throw Object.assign(Error('ชุดไม่ถูกต้อง'),{status:400});if(!choices.includes(value)){if(choices.length>=3)throw Object.assign(Error('เลือกชุดครบ 3 ชุดแล้ว กรุณาเลือกชุดที่เคยเลือกไว้'),{status:409});choices.push(value)}}
-    await c.query('UPDATE download_suit_choices SET choices=$3 WHERE wallet_id=$1 AND scope=$2',[wallet,scope,choices]);await c.query('COMMIT');return {limited:true,choices,limit:3};
+    for(const value of templates){if(!value)continue;if(typeof value!=='string'||value.length>500||!value.startsWith('/'))throw Object.assign(Error('ชุดไม่ถูกต้อง'),{status:400});if(!choices.includes(value)){if(choices.length>=limit)throw Object.assign(Error(`เลือกชุดครบ ${limit} ชุดแล้ว กรุณาเลือกชุดที่เคยเลือกไว้`),{status:409});choices.push(value)}}
+    await c.query('UPDATE download_suit_choices SET choices=$3 WHERE wallet_id=$1 AND scope=$2',[wallet,scope,choices]);await c.query('COMMIT');return {limited:true,choices,limit};
    }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
   },
   async isLegacySaved(wallet,id){await ready();const q=await pool.query('SELECT 1 FROM download_legacy_works WHERE wallet_id=$1 AND work_id=$2',[wallet,id]);return q.rowCount>0},

@@ -146,9 +146,9 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
   await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
   const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty,full_edit_reconciled) VALUES($1,$2,0,$3,$4,$5,$6) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h,packageId==='159_v6']);
   let overlap=false;
-  if(ins.rowCount&&['download_119_v1','download_159_hair_v1'].includes(packageId)){
-   // Only current offers with an owned completed job can enter automatic
-   // reconciliation. Historical packages and unknown old jobs keep their grant.
+  if(ins.rowCount&&['download_89_v1','download_119_v1','download_159_hair_v1'].includes(packageId)){
+   // Download offers with an owned completed job can enter automatic
+   // reconciliation. Historical credit packages and unknown old jobs keep their grant.
    const tables=await c.query("SELECT to_regclass('ai_jobs') IS NOT NULL AS jobs,to_regclass('download_work_jobs') IS NOT NULL AS groups");
    const owned=tables.rows[0]?.jobs?await c.query("SELECT id FROM ai_jobs WHERE id=$1 AND wallet_id=$2 AND status='completed'",[jobId,walletId]):{rowCount:0};
    if(owned.rowCount){

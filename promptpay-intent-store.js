@@ -30,7 +30,11 @@ export function createPromptpayIntentStore(pool,{prepare=async()=>{}}={}){
  return {ready,
   async reserve({walletId,scope,packageId,jobId,email,attempt,channel='promptpay',payload=null}){
    return transaction(walletId,scope,async c=>{
-    const replay=await c.query('SELECT * FROM promptpay_work_intents WHERE wallet_id=$1 AND package_id=$2 AND attempt_key=$3',[walletId,packageId,attempt]);
+    // A stale client can retry an old basic checkout after the price cutover.
+    // Keep its exact historical reservation/key even when its public alias now
+    // resolves to 89; never create a second charge for the same basic attempt.
+    const replayPackages=packageId==='download_89_v1'?['download_89_v1','download_119_v1']:[packageId];
+    const replay=await c.query('SELECT * FROM promptpay_work_intents WHERE wallet_id=$1 AND package_id=ANY($2::text[]) AND attempt_key=$3 ORDER BY created_at,id LIMIT 1',[walletId,replayPackages,attempt]);
     if(replay.rows[0]){if(replay.rows[0].work_scope!==scope)throw Error('payment_attempt_mismatch');return replay.rows[0]}
     const active=await c.query('SELECT * FROM promptpay_work_intents WHERE wallet_id=$1 AND work_scope=$2 AND active',[walletId,scope]);
     if(active.rows[0])return active.rows[0];

@@ -65,11 +65,41 @@ try{
   assert.equal(await policy.allowed('new','group-a'),false);assert.equal((await policy.redeem('new','group-a')).reused,false);assert.equal((await policy.redeem('new','group-b')).reused,true);assert.equal(await policy.allowed('new','group-b'),true);
   const wallet=await balance('new');assert.equal(wallet.generation_remaining,0);assert.equal(wallet.hair_remaining,1);assert.equal(wallet.credits,99);assert.equal(wallet.full_edit_remaining,7);
   assert.equal((await query("SELECT count(*)::int AS n FROM credit_usage WHERE wallet_id='new'")).rows[0].n,1);
-  assert.equal(await policy.premiumHair('new','group-b'),false);await query("INSERT INTO premium_hair_unlocks VALUES('new','group-a')");assert.equal(await policy.premiumHair('new','group-b'),true);assert.equal(await policy.premiumWork('foreign',work),false);
+  assert.equal(await policy.premiumHair('new','group-b'),false);assert.equal(await policy.premiumWork('foreign',work),false);
  });
- await check('new paid work enforces three distinct suits across all its renders and rolls back a fourth',async()=>{
-  assert.deepEqual((await policy.suits('new','group-a',['/a','/b'])).choices,['/a','/b']);assert.deepEqual((await policy.suits('new','group-b',['/b','/c'])).choices,['/a','/b','/c']);
-  await assert.rejects(policy.suits('new','group-a',['/d']),e=>e.status===409);assert.deepEqual((await policy.suits('new','group-b',['/a'])).choices,['/a','/b','/c']);
+ await check('basic paid work enforces three distinct suits across all renders and rolls back an over-limit batch',async()=>{
+  const first=await policy.suits('new','group-a',['/a','/b']);assert.equal(first.limit,3);assert.deepEqual(first.choices,['/a','/b']);
+  const third=await policy.suits('new','group-b',['/b','/c']);assert.equal(third.limit,3);assert.deepEqual(third.choices,['/a','/b','/c']);
+  await assert.rejects(policy.suits('new','group-a',['/d','/e']),e=>e.status===409&&e.message.includes('3 ชุด'));
+  assert.deepEqual(await policy.suits('new','group-b',['/a']),{limited:true,limit:3,choices:['/a','/b','/c']});
+ });
+ await check('premium upgrade expands the existing work to five suits without resetting choices or credits',async()=>{
+  const before=await balance('new');await query("INSERT INTO premium_hair_unlocks VALUES('new','group-a')");
+  assert.equal(await policy.premiumHair('new','group-b'),true);
+  assert.deepEqual(await policy.suits('new','group-b'),{limited:true,choices:['/a','/b','/c'],limit:5});
+  assert.deepEqual(await policy.suits('new','group-b',['/d']),{limited:true,choices:['/a','/b','/c','/d'],limit:5});
+  assert.deepEqual(await policy.suits('new','group-a',['/e']),{limited:true,choices:['/a','/b','/c','/d','/e'],limit:5});
+  await assert.rejects(policy.suits('new','group-b',['/f']),e=>e.status===409&&e.message.includes('5 ชุด'));
+  assert.deepEqual(await policy.suits('new','group-b',['/b']),{limited:true,choices:['/a','/b','/c','/d','/e'],limit:5});
+  assert.deepEqual(await balance('new'),before);
+ });
+ await check('existing premium works start with five slots while unrelated basic89 and historic119 works stay at three',async()=>{
+  for(const offer of ['basic89','historic119','existing159']){
+   const work=await policy.beginWork('new',bytes);const id='offer-'+offer;await job(id);await policy.attach('new',work,id);
+   await query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,true)',['new',id]);
+   if(offer==='existing159')await query('INSERT INTO premium_hair_unlocks VALUES($1,$2)',['new',id]);
+   else await query('INSERT INTO premium_hair_unlocks VALUES($1,$2)',['foreign',id]);
+   const limit=offer==='existing159'?5:3,paths=Array.from({length:limit},(_,i)=>'/'+offer+'-'+i);
+   assert.deepEqual(await policy.suits('new',id,paths),{limited:true,choices:paths,limit});
+   await assert.rejects(policy.suits('new',id,['/over-'+offer]),e=>e.status===409&&e.message.includes(limit+' ชุด'));
+   assert.deepEqual((await policy.suits('new',id,[paths[0]])).choices,paths);
+  }
+ });
+ await check('suit limits preserve ownership and completed-job checks before reading or changing choices',async()=>{
+  const before=(await query('SELECT wallet_id,scope,choices FROM download_suit_choices ORDER BY wallet_id,scope')).rows;
+  for(const [wallet,id] of [['foreign','group-a'],['new','foreign-job'],['new','missing-job']])await assert.rejects(policy.suits(wallet,id,['/forbidden']),e=>e.status===404);
+  await job('incomplete-suit','new','free_fixture','processing');await assert.rejects(policy.suits('new','incomplete-suit',['/forbidden']),e=>e.status===404);
+  assert.deepEqual((await query('SELECT wallet_id,scope,choices FROM download_suit_choices ORDER BY wallet_id,scope')).rows,before);
  });
  await check('a failed earlier render cannot hide a later premium unlock for the same work',async()=>{
   const work=await policy.beginWork('new',bytes);await job('premium-failed','new','free_earlier','failed');await policy.attach('new',work,'premium-failed');await job('premium-completed');await policy.attach('new',work,'premium-completed');
