@@ -37,6 +37,7 @@ async function currentPaymentSchema(){
    ('credit_usage',ARRAY['id','wallet_id','kind','status','created_at','completed_at','refunded_at','credit_column','full_edit_output']),
    ('paid_image_unlocks',ARRAY['wallet_id','job_id','full_edit','created_at']),
    ('premium_hair_unlocks',ARRAY['wallet_id','job_id']),
+   ('download_payment_receipts',ARRAY['session_id','wallet_id','work_scope','package_id','overlap','refund_status','refund_id','error_code','updated_at']),
    ('trial_previews',ARRAY['id','wallet_id','fingerprint','status','created_at','completed_at','trial_slot']),
    ('trial_daily_devices',ARRAY['device_key','trial_day','trial_id']),
    ('promo_redemptions',ARRAY['code','wallet_id','package_id','created_at'])
@@ -75,6 +76,8 @@ async function ready(){if(!initPromise)initPromise=(async()=>{
   await migrationQuery(`ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS full_edit_output boolean NOT NULL DEFAULT false`);
   await migrationQuery('CREATE TABLE IF NOT EXISTS premium_hair_unlocks(wallet_id text NOT NULL,job_id text NOT NULL,PRIMARY KEY(wallet_id,job_id))');
   await migrationQuery(`CREATE TABLE IF NOT EXISTS paid_image_unlocks (wallet_id text NOT NULL REFERENCES wallets(id),job_id text NOT NULL,full_edit boolean NOT NULL DEFAULT false,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,job_id))`);
+  await migrationQuery(`CREATE TABLE IF NOT EXISTS download_payment_receipts(session_id text PRIMARY KEY REFERENCES payments(session_id),wallet_id text NOT NULL,work_scope text NOT NULL,package_id text NOT NULL,overlap boolean NOT NULL,refund_status text NOT NULL,refund_id text,error_code text,created_at timestamptz NOT NULL DEFAULT now())`);
+  await migrationQuery(`ALTER TABLE download_payment_receipts ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`);
   await migrationQuery(`CREATE TABLE IF NOT EXISTS trial_previews (id text PRIMARY KEY,wallet_id text NOT NULL REFERENCES wallets(id),fingerprint text NOT NULL UNIQUE,status text NOT NULL CHECK(status IN ('reserved','completed')),created_at timestamptz NOT NULL DEFAULT now(),completed_at timestamptz)`);
   await migrationQuery(`CREATE TABLE IF NOT EXISTS trial_daily_devices (device_key text NOT NULL,trial_day date NOT NULL,trial_id text NOT NULL REFERENCES trial_previews(id) ON DELETE CASCADE,PRIMARY KEY(device_key,trial_day))`);
   // Keep previous trials; two slots per device per Bangkok calendar day.
@@ -140,18 +143,43 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
  let result;const c=await pool.connect();try{
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
+  await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
   const ins=await c.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty,full_edit_reconciled) VALUES($1,$2,0,$3,$4,$5,$6) ON CONFLICT(session_id) DO NOTHING RETURNING session_id',[sessionId,walletId,String(packageId),p.g,p.h,packageId==='159_v6']);
+  let overlap=false;
+  if(ins.rowCount&&['download_119_v1','download_159_hair_v1'].includes(packageId)){
+   // Only current offers with an owned completed job can enter automatic
+   // reconciliation. Historical packages and unknown old jobs keep their grant.
+   const tables=await c.query("SELECT to_regclass('ai_jobs') IS NOT NULL AS jobs,to_regclass('download_work_jobs') IS NOT NULL AS groups");
+   const owned=tables.rows[0]?.jobs?await c.query("SELECT id FROM ai_jobs WHERE id=$1 AND wallet_id=$2 AND status='completed'",[jobId,walletId]):{rowCount:0};
+   if(owned.rowCount){
+    const group=tables.rows[0].groups?await c.query('SELECT work_id FROM download_work_jobs WHERE wallet_id=$1 AND job_id=$2',[walletId,jobId]):{rows:[]};
+    const scope=group.rows[0]?.work_id||'job:'+jobId;
+    const peers=group.rows[0]?await c.query('SELECT job_id FROM download_work_jobs WHERE wallet_id=$1 AND work_id=$2',[walletId,scope]):{rows:[{job_id:jobId}]};
+    const ids=peers.rows.map(row=>row.job_id);
+    const prior=await c.query(packageId==='download_159_hair_v1'?'SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1':'SELECT 1 FROM paid_image_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[walletId,ids]);
+    overlap=prior.rowCount>0;
+    await c.query('INSERT INTO download_payment_receipts(session_id,wallet_id,work_scope,package_id,overlap,refund_status) VALUES($1,$2,$3,$4,$5,$6)',[sessionId,walletId,scope,packageId,overlap,overlap?(/^pi_[A-Za-z0-9]+$/.test(sessionId)?'pending':'manual_review'):'not_required']);
+   }
+  }
   if(ins.rowCount){
    if(p.fullEdit&&(p.g+p.h)>0)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,p.g+p.h]);
    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
-   if(jobId&&packageId==='download_159_hair_v1')await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
-   if(jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
+   if(!overlap&&jobId&&packageId==='download_159_hair_v1')await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
+   if(!overlap&&jobId)await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
   }
+  const receipt=await c.query('SELECT overlap,refund_status,refund_id FROM download_payment_receipts WHERE session_id=$1 AND wallet_id=$2',[sessionId,walletId]);
   const w=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');
-  result={duplicate:!ins.rowCount,...shape(walletId,w.rows[0])};
+  result={duplicate:!ins.rowCount,...(receipt.rows[0]?{overlap:receipt.rows[0].overlap,refundStatus:receipt.rows[0].refund_status,refundId:receipt.rows[0].refund_id}:{}),...shape(walletId,w.rows[0])};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
  // Release the transaction connection before querying the pool again.
  return {...result,...await imageEntitlements(walletId)};
+}
+export async function recordDownloadRefund(sessionId,status,refundId='',errorCode=''){
+ if(!['pending','succeeded','failed','canceled'].includes(status))throw Error('invalid_refund_status');
+ await ready();await pool.query("UPDATE download_payment_receipts SET refund_status=$2,refund_id=COALESCE(NULLIF($3,''),refund_id),error_code=NULLIF($4,''),updated_at=now() WHERE session_id=$1 AND overlap AND refund_status IN ('pending','failed','manual_review')",[sessionId,status,refundId,String(errorCode).replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)]);
+}
+export async function pendingDownloadRefunds(){
+ await ready();return (await pool.query("SELECT session_id,wallet_id,work_scope,package_id FROM download_payment_receipts WHERE refund_status='pending' OR (refund_status='failed' AND COALESCE(error_code,'') NOT IN ('provider_refund_failed','provider_refund_canceled')) OR (refund_status='manual_review' AND error_code IS NULL) ORDER BY updated_at,session_id LIMIT 10")).rows;
 }
 
 export async function redeemPromo199(walletId,code){

@@ -14,6 +14,8 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    await c.query(`CREATE TABLE IF NOT EXISTS download_legacy_wallets(wallet_id text PRIMARY KEY)`);
    await c.query(`CREATE TABLE IF NOT EXISTS download_legacy_works(work_id text PRIMARY KEY,wallet_id text NOT NULL,job_ids text[] NOT NULL,source_hash text)`);
    await c.query(`CREATE TABLE IF NOT EXISTS download_works(id text PRIMARY KEY,wallet_id text NOT NULL,source_hash text NOT NULL,legacy_work_id text,created_at timestamptz NOT NULL DEFAULT now())`);
+   await c.query('ALTER TABLE download_works ADD COLUMN IF NOT EXISTS original_source_hash text');
+   await c.query('ALTER TABLE download_works ADD COLUMN IF NOT EXISTS canonical_image bytea,ADD COLUMN IF NOT EXISTS canonical_type text');
    await c.query(`CREATE TABLE IF NOT EXISTS download_work_jobs(job_id text PRIMARY KEY,work_id text NOT NULL REFERENCES download_works(id),wallet_id text NOT NULL)`);
    await c.query('CREATE INDEX IF NOT EXISTS download_work_jobs_work_idx ON download_work_jobs(work_id,wallet_id)');
    await c.query('CREATE TABLE IF NOT EXISTS download_suit_choices(wallet_id text NOT NULL,scope text NOT NULL,choices text[] NOT NULL DEFAULT ARRAY[]::text[],PRIMARY KEY(wallet_id,scope))');
@@ -25,6 +27,16 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
     // the policy. Keep its saved-work exemption, without fabricating image proof.
     await c.query(`INSERT INTO download_legacy_works(work_id,wallet_id,job_ids,source_hash) SELECT id,wallet_id,ARRAY(SELECT DISTINCT layer->>'jobId' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(project->'layers')='array' THEN project->'layers' ELSE '[]'::jsonb END) layer WHERE (layer->>'kind'='head' OR layer->>'name'='หัว · คอ · ผม') AND COALESCE(layer->>'jobId','')<>''),CASE WHEN project->>'compareSource' LIKE 'data:image/%;base64,%' AND split_part(project->>'compareSource',',',2) ~ '^[A-Za-z0-9+/]*={0,2}$' AND length(split_part(project->>'compareSource',',',2))%4=0 THEN encode(sha256(decode(split_part(project->>'compareSource',',',2),'base64')),'hex') ELSE NULL END FROM saved_studio_work ON CONFLICT DO NOTHING`);
    }
+   // Freeze existing stored originals once, before upgraded clients can edit
+   // them. Never use a later, client-editable saved project to rebind a work.
+   await c.query('CREATE TABLE IF NOT EXISTS download_source_binding_migrations(version text PRIMARY KEY,activated_at timestamptz NOT NULL DEFAULT now())');
+   const sourceBinding=await c.query("INSERT INTO download_source_binding_migrations(version) VALUES('original-input-v1') ON CONFLICT DO NOTHING RETURNING version");
+   if(sourceBinding.rowCount)await c.query(`WITH saved_originals AS (
+    SELECT wallet_id,project->>'downloadWorkId' AS work_id,CASE WHEN project->>'downloadSource' LIKE 'data:image/%;base64,%' AND split_part(project->>'downloadSource',',',2) ~ '^[A-Za-z0-9+/]*={0,2}$' AND length(split_part(project->>'downloadSource',',',2))%4=0 THEN encode(sha256(decode(split_part(project->>'downloadSource',',',2),'base64')),'hex') ELSE NULL END AS original_hash
+    FROM saved_studio_work WHERE project->>'downloadWorkId' IS NOT NULL
+   ),proven AS (
+    SELECT wallet_id,work_id,min(original_hash) AS original_hash FROM saved_originals WHERE original_hash IS NOT NULL GROUP BY wallet_id,work_id HAVING count(DISTINCT original_hash)=1
+   ) UPDATE download_works w SET original_source_hash=p.original_hash FROM proven p WHERE w.id=p.work_id AND w.wallet_id=p.wallet_id AND w.original_source_hash IS NULL`);
    await c.query('COMMIT');
   }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
  })().catch(e=>{initialized=null;throw e}));
@@ -74,6 +86,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   return r.rows.length===ids.length&&r.rows.every(row=>row.status==='completed'&&row.unlocked);
  };
  return {ready,ownedJob,jobIds,legacyAllows,allowed,allowedJobs,premiumHair,premiumWork,
+  async scopeForJob(wallet,job){await ready();await ownedJob(wallet,job);const q=await pool.query('SELECT work_id FROM download_work_jobs WHERE wallet_id=$1 AND job_id=$2',[wallet,job]);return q.rows[0]?.work_id||'job:'+job},
   async suits(wallet,job,templates=[],savedWorkId=''){
    await ready();await ownedJob(wallet,job);
    if(!await allowed(wallet,job,{savedWorkId})||await legacyAllows(wallet,savedWorkId,[job])||await legacyGroup(wallet,job)||await oldPaid(wallet,await jobIds(wallet,job)))return {limited:false,choices:[]};
@@ -87,12 +100,28 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   },
   async isLegacySaved(wallet,id){await ready();const q=await pool.query('SELECT 1 FROM download_legacy_works WHERE wallet_id=$1 AND work_id=$2',[wallet,id]);return q.rowCount>0},
   async summary(wallet){await ready();const r=await pool.query('SELECT 1 FROM download_legacy_wallets WHERE wallet_id=$1',[wallet]);return {downloadPolicy:'download-v1',freeGeneration:true,canSave:r.rowCount>0}},
-  async beginWork(wallet,image,requested='',savedWorkId=''){
+  async beginWork(wallet,image,requested='',savedWorkId='',originalSource=null,{imageType='image/png',originalType='image/png'}={}){
    await ready();const hash=crypto.createHash('sha256').update(image).digest('hex');
-   if(requested){const r=await pool.query('SELECT id FROM download_works WHERE id=$1 AND wallet_id=$2 AND source_hash=$3',[requested,wallet,hash]);if(!r.rows[0])throw Object.assign(Error('รูปต้นฉบับไม่ตรงกับงานเดิม กรุณาเริ่มงานใหม่'),{status:409});return requested}
+   const originalHash=originalSource?.length?crypto.createHash('sha256').update(originalSource).digest('hex'):null;
+   if(requested){
+    const c=await pool.connect();try{
+     await c.query('BEGIN');const r=await c.query('SELECT id,source_hash,original_source_hash,(canonical_image IS NOT NULL) AS has_canonical FROM download_works WHERE id=$1 AND wallet_id=$2 FOR UPDATE',[requested,wallet]),work=r.rows[0];
+     // The raw upload is stable across optional leveling and browser encoders.
+     // Old clients still prove the exact previously submitted input bytes.
+     const matches=work&&(originalHash&&work.original_source_hash?originalHash===work.original_source_hash:hash===work.source_hash||Boolean(originalHash&&originalHash===work.source_hash));
+     if(!matches)throw Object.assign(Error('ยังยืนยันต้นฉบับกับงานเดิมไม่ได้ · งานและสิทธิ์เดิมยังอยู่ กรุณาเปิดจากเบราว์เซอร์เดิมหรือติดต่อผู้ดูแล'),{status:409});
+     if(originalHash&&!work.original_source_hash)await c.query('UPDATE download_works SET original_source_hash=$3 WHERE id=$1 AND wallet_id=$2 AND original_source_hash IS NULL',[requested,wallet,originalHash]);
+     // Existing canonical proof can be pinned as-is. When only the frozen raw
+     // original is proven, pin that actual original, never an unproven image
+     // supplied beside it. Later requests cannot substitute another person.
+     if(!work.has_canonical){const exact=hash===work.source_hash;await c.query('UPDATE download_works SET canonical_image=$3,canonical_type=$4 WHERE id=$1 AND wallet_id=$2 AND canonical_image IS NULL',[requested,wallet,exact?image:originalSource,exact?imageType:originalType]);}
+     await c.query('COMMIT');return requested;
+    }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
+   }
    let legacy=null;if(savedWorkId){const saved=await pool.query('SELECT work_id FROM download_legacy_works WHERE work_id=$1 AND wallet_id=$2 AND source_hash=$3',[savedWorkId,wallet,hash]);if(saved.rowCount)legacy=savedWorkId;else throw Object.assign(Error('ต้นฉบับไม่ตรงกับงานที่บันทึก กรุณาเปิดงานเดิมอีกครั้ง'),{status:409})}
-   const id='dwork_'+crypto.randomBytes(18).toString('hex');await pool.query('INSERT INTO download_works(id,wallet_id,source_hash,legacy_work_id) VALUES($1,$2,$3,$4)',[id,wallet,hash,legacy]);return id;
+   const id='dwork_'+crypto.randomBytes(18).toString('hex');await pool.query('INSERT INTO download_works(id,wallet_id,source_hash,legacy_work_id,original_source_hash,canonical_image,canonical_type) VALUES($1,$2,$3,$4,$5,$6,$7)',[id,wallet,hash,legacy,originalHash,image,imageType]);return id;
   },
+  async inputForWork(wallet,work){await ready();const r=await pool.query('SELECT canonical_image,canonical_type FROM download_works WHERE id=$1 AND wallet_id=$2',[work,wallet]);const row=r.rows[0];if(!row?.canonical_image?.length)throw Object.assign(Error('ยังอ่านต้นฉบับของงานเดิมไม่ได้ กรุณาลองอีกครั้ง'),{status:409});return {buffer:Buffer.from(row.canonical_image),mimetype:row.canonical_type||'image/png'}},
   async attach(wallet,work,job){await ready();const r=await pool.query('INSERT INTO download_work_jobs(job_id,work_id,wallet_id) SELECT $1,w.id,w.wallet_id FROM download_works w JOIN ai_jobs j ON j.id=$1 AND j.wallet_id=w.wallet_id WHERE w.id=$2 AND w.wallet_id=$3 RETURNING job_id',[job,work,wallet]);if(!r.rowCount)throw Object.assign(Error('ไม่พบงานของบัญชีนี้'),{status:404})},
   async claim(source,target,job){
    await ready();const ids=await jobIds(source,job),c=await pool.connect();try{

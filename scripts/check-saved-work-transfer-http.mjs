@@ -11,7 +11,7 @@ import {TRANSFER_HEADER,TRANSFER_VERSION,packSavedProjectTransfer,unpackSavedPro
 // Execute the real routes, wire codec and HTTP compression, replacing only the DB.
 const stub='data:text/javascript,'+encodeURIComponent('const fail=()=>{throw Error("unexpected production store call")};export const MAX_SAVED_WORKS=3,saveWork=fail,listWorks=fail,getWork=fail,deleteWork=fail,getSavedWorkRetentionPolicy=fail;');
 const apiURL=new URL('../saved-work-api.js',import.meta.url),source=await readFile(apiURL,'utf8');
-const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,apiURL).href}'`);
+const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|src\/saved-project|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,apiURL).href}'`);
 assert.notEqual(code,source);
 const {registerSavedWorkApi}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 const cases=[],measurements=[];

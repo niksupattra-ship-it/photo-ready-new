@@ -52,16 +52,18 @@ const creditPaid=async(walletId,id,packageId,jobId)=>{
 const stripeGet=async endpoint=>{const value=gateway.get(endpoint);if(!value)throw Error('missing_gateway_fixture');return structuredClone(value)};
 const stripePost=async(endpoint,params,key)=>{posted.push({endpoint,params,key});if(endpoint.endsWith('/cancel'))return {status:'canceled'};return structuredClone(createResult)};
 const silent={info(){},warn(){},error(){}};
+const paymentApi={};
+const fixtureIntentStore={async reserve({walletId,scope,packageId,jobId,email,attempt,channel='promptpay',payload}){return {id:'local-reservation',wallet_id:walletId,work_scope:scope,package_id:packageId,job_id:jobId,email,channel,payload,idempotency_key:crypto.createHash('sha256').update(channel==='checkout'?JSON.stringify(['idprom_checkout_v1',walletId,packageId,jobId,attempt]):'idprom_promptpay_v1'+walletId+packageId+attempt).digest('hex')}},async bind(){},async close(){},async findByIntent(){return null},async adopt({walletId,scope,intent}){return {id:'local-adopted',intent_id:intent.id,wallet_id:walletId,work_scope:scope,package_id:intent.metadata.package_id}}};
 const webhookSource=source.slice(source.indexOf('app.post("/api/payments/stripe-webhook"'),source.indexOf("app.use('/api/saved-work'"));
-new Function('app','express','verifyStripeSignature','settleCheckout','creditPaid','settlePromptpay','console','process',webhookSource)(app,express,verifyStripeSignature,settleCheckout,creditPaid,settlePromptpay,silent,{env:{STRIPE_WEBHOOK_SECRET:secret}});
+new Function('app','express','verifyStripeSignature','settleCheckout','creditPaid','settlePromptpay','console','process','paymentApi','stripePost','stripeGet','recordDownloadRefund',webhookSource)(app,express,verifyStripeSignature,settleCheckout,creditPaid,settlePromptpay,silent,{env:{STRIPE_WEBHOOK_SECRET:secret}},paymentApi,stripePost,stripeGet,undefined);
 app.use(express.json());
 app.use((req,res,next)=>{if(req.get('X-Test-Account'))req.accountUser={wallet_id:req.get('X-Test-Account'),email:'fixture@example.test'};next()});
 const confirmSource=source.slice(source.indexOf('app.post("/api/payments/confirm"'),source.indexOf('app.post("/api/wallet"'));
-new Function('app','walletId','stripeGet','settleCheckout','creditPaid','console',confirmSource)(app,req=>req.accountUser?.wallet_id||req.get('X-Wallet-Id'),stripeGet,settleCheckout,creditPaid,silent);
-const checkoutSource=source.slice(source.indexOf("app.post('/api/payments/checkout',async"),source.indexOf('registerPromptpayApi(app'));
+new Function('app','walletId','stripeGet','settleCheckout','creditPaid','console','paymentApi',confirmSource)(app,req=>req.accountUser?.wallet_id||req.get('X-Wallet-Id'),stripeGet,settleCheckout,creditPaid,silent,paymentApi);
+const checkoutSource=source.slice(source.indexOf("app.post('/api/payments/checkout'"),source.indexOf('paymentApi=registerPromptpayApi(app'));
 const {checkoutPackage}=await import('../package-rules.js');
-new Function('app','authUser','ensureWallet','checkoutPackage','downloadPolicy','APP_URL','crypto','stripePost','console',checkoutSource)(app,async()=>null,async()=>{},checkoutPackage,{ownedJob:async(wid,id)=>{if(wid!=='walletA'||id!=='jobA')throw Error('image_not_owned')},premiumHair:async()=>false,allowed:async()=>false},'https://fixture.invalid',crypto,stripePost,silent);
-registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet:async()=>{},getAiJobResult:async(id,wallet)=>id==='jobA'&&wallet==='walletA'?{status:'completed'}:null,creditPaid});
+new Function('app','paymentApi',checkoutSource)(app,paymentApi);
+Object.assign(paymentApi,registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet:async()=>{},getAiJobResult:async(id,wallet)=>id==='jobA'&&wallet==='walletA'?{status:'completed'}:null,creditPaid,intentStore:fixtureIntentStore,appUrl:'https://fixture.invalid'}));
 const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
 const base=`http://127.0.0.1:${server.address().port}`;
 const request=async(path,{account='walletA',method='GET',body,headers={}}={})=>{
@@ -86,7 +88,7 @@ try{
  });
  await check('Checkout confirmation cannot transfer another account purchase',async()=>{const out=await request('/api/payments/confirm',{account:'walletB',method:'POST',body:{sessionId:'cs_test_fixture'}});assert.equal(out.status,403);assert.equal(out.data.error,'wallet_mismatch');assert.equal(ledger.size,1)});
  await check('Checkout retries use stable optional keys and fixed PromptPay THB prices',async()=>{
-  createResult={url:'https://checkout.stripe.com/fixture'};posted.length=0;
+  createResult=checkout('download_119_v1',{payment_status:'unpaid',status:'open',url:'https://checkout.stripe.com/fixture'});posted.length=0;
   for(let i=0;i<2;i++)assert.equal((await request('/api/payments/checkout',{method:'POST',body:{packageId:'119',jobId:'jobA'},headers:{'X-Checkout-Attempt':'attempt_fixture_123'}})).status,200);
   assert.equal(posted[0].key,posted[1].key);assert(posted[0].key);assert.equal(posted[0].params['line_items[0][price_data][unit_amount]'],11900);assert.equal(posted[0].params['payment_method_types[0]'],'promptpay');
  });

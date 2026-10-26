@@ -1,5 +1,5 @@
 import {portraitFinishChoice} from './portrait-finish-choice.js';
-import {createProjectResourceGuard} from './project-resource-guard.js';
+import {createProjectResourceGuard,encodedImageSize,PROJECT_IMAGE_MAX_PIXELS} from './project-resource-guard.js';
 import {isFemaleFinishProfile} from './female-finish-profile.js';
 import {isFemaleFinishReference,FEMALE_FINISH_REFERENCE_MAX_EDGE} from './female-finish-reference.js';
 const imageURL=/^data:image\/(png|jpeg|webp);base64,/;
@@ -7,6 +7,38 @@ const imageFields=['source','processedOriginalSource','hairOriginalSource','make
 const isHead=l=>l.kind==='head'||l.name==='หัว · คอ · ผม';
 const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเลิกการเปิดงานแล้ว'),{name:'AbortError'})};
 export function assertSavedProjectResources(project){validateSavedProject(project);return createProjectResourceGuard(project)}
+// A fully opaque mask is the identity for destination-in. Inspect only bounded
+// mask images, one at a time, so older saves can recover before aggregate limits
+// are checked without weakening the native-image or project resource limits.
+async function opaqueMaskImage(source,{signal}={}){
+ if(typeof document==='undefined'||typeof Image==='undefined')return false;
+ abort(signal);let im,canvas;
+ try{
+  im=new Image();await new Promise((resolve,reject)=>{
+   let settled=false;const finish=(callback,value)=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);callback(value)};
+   const cancel=()=>{try{abort(signal)}catch(error){finish(reject,error)}};
+   const timer=setTimeout(()=>finish(reject,Object.assign(Error('ตรวจไฟล์งานใช้เวลานาน กรุณาลองอีกครั้ง งานปัจจุบันยังอยู่'),{code:'PROJECT_READ_TIMEOUT'})),15000);
+   signal?.addEventListener('abort',cancel,{once:true});im.onload=()=>finish(resolve);im.onerror=()=>finish(reject,Error('อ่านมาสก์ในไฟล์งานไม่สำเร็จ'));im.src=source;
+  });
+  abort(signal);const w=im.naturalWidth||im.width,h=im.naturalHeight||im.height;
+  if(w<1||h<1||w>8192||h>8192||w*h>PROJECT_IMAGE_MAX_PIXELS)return false;
+  canvas=Object.assign(document.createElement('canvas'),{width:w,height:h});const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  if(!ctx)throw Error('หน่วยความจำสำหรับเปิดงานไม่พอ กรุณาลองอีกครั้ง');ctx.drawImage(im,0,0);
+  for(let y=0;y<h;y+=32){abort(signal);const pixels=ctx.getImageData(0,y,w,Math.min(32,h-y)).data;for(let i=3;i<pixels.length;i+=4)if(pixels[i]!==255)return false}
+  return true;
+ }finally{if(im){im.onload=im.onerror=null;im.removeAttribute('src')}if(canvas){canvas.width=1;canvas.height=1}}
+}
+export async function normalizeSavedProjectMasks(project,{inspectMask=opaqueMaskImage,signal}={}){
+ validateSavedProject(project);abort(signal);const inspected=new Map();let changed=false;const layers=[];
+ for(const layer of project.layers){
+  let opaque=false;const size=layer.mask&&encodedImageSize(layer.mask);
+  if(size&&size.width>0&&size.height>0&&size.width<=8192&&size.height<=8192&&size.width*size.height<=PROJECT_IMAGE_MAX_PIXELS){
+   if(!inspected.has(layer.mask))inspected.set(layer.mask,await inspectMask(layer.mask,{signal}));opaque=inspected.get(layer.mask)===true;
+  }
+  abort(signal);layers.push(opaque?{...layer,mask:null}:layer);changed ||= opaque;
+ }
+ return changed?{...project,layers}:project;
+}
 export function validateSavedProject(project){
  if(project?.format!=='idprom-studio'||project.version!==1||project.width!==900||project.height!==1200||!Array.isArray(project.layers)||!project.layers.length||project.layers.length>20)throw Error('รูปแบบโปรเจกต์ไม่ถูกต้อง');
  for(const l of project.layers){
@@ -19,21 +51,23 @@ export function validateSavedProject(project){
   if(l.collarParts&&(!imageURL.test(l.collarParts.left)||!imageURL.test(l.collarParts.right)))throw Error('ภาพเข็มปกคอไม่ถูกต้อง');
  }
  if(project.downloadSource&&!imageURL.test(project.downloadSource))throw Error('ต้นฉบับดาวน์โหลดไม่ถูกต้อง');
+ if(project.canonicalInput&&!imageURL.test(project.canonicalInput))throw Error('รูปต้นทางประมวลผลไม่ถูกต้อง');
  if(project.downloadWorkId!==undefined&& !/^dwork_[a-f0-9]{36}$/.test(project.downloadWorkId))throw Error('รหัสงานไม่ถูกต้อง');
  if(project.compareSource&&!imageURL.test(project.compareSource))throw Error('รูปต้นฉบับไม่ถูกต้อง');
  if(project.placement&&(!['W','H','uX','uY','uW','uH'].every(k=>Number.isFinite(project.placement[k]))||project.placement.W<=0||project.placement.H<=0||project.placement.uW<=0||project.placement.uH<=0))throw Error('ตำแหน่งชุดไม่ถูกต้อง');
  return project;
 }
 export function blobDataURL(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('อ่านรูปต้นฉบับไม่สำเร็จ'));reader.readAsDataURL(blob)})}
-export async function makeSavedProject(snapshot){
- const project={format:'idprom-studio',version:1,width:900,height:1200,placement:snapshot.placement||null,layers:snapshot.layers,compareSource:snapshot.compareSource||snapshot.originalPreview||null};
+export async function makeSavedProject(snapshot,options={}){
+ let project={format:'idprom-studio',version:1,width:900,height:1200,placement:snapshot.placement||null,layers:snapshot.layers,compareSource:snapshot.compareSource||snapshot.originalPreview||null};
  if(!project.compareSource&&snapshot.sourcePhoto)project.compareSource=await blobDataURL(snapshot.sourcePhoto);
  if(snapshot.sourcePhoto?.idpromDownloadWorkId){project.downloadWorkId=snapshot.sourcePhoto.idpromDownloadWorkId;project.downloadSource=await blobDataURL(snapshot.sourcePhoto)}
- return validateSavedProject(project);
+ if(snapshot.sourcePhoto?.idpromCanonicalInput)project.canonicalInput=await blobDataURL(snapshot.sourcePhoto.idpromCanonicalInput);else if(snapshot.canonicalInput)project.canonicalInput=snapshot.canonicalInput;
+ project=await normalizeSavedProjectMasks(project,options);assertSavedProjectResources(project);return project;
 }
 // Decode everything before changing the active project; a failed image leaves the current work intact.
-export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal}){
- abort(signal);const resources=assertSavedProjectResources(project);
+export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal,inspectMask}={}){
+ abort(signal);project=await normalizeSavedProjectMasks(project,{inspectMask,signal});const resources=assertSavedProjectResources(project);
  const decoded=new Map();
  const bounded=operation=>new Promise((resolve,reject)=>{
   let settled=false,timer;const finish=(callback,value)=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);callback(value)};
@@ -51,6 +85,7 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }
  let source=null;const original=project.downloadSource||project.compareSource;if(original){await read(original);source=makeFile(await blob(original));if(project.downloadWorkId)source.idpromDownloadWorkId=project.downloadWorkId}
+ if(project.canonicalInput&&source)source.idpromCanonicalInput=await blob(project.canonicalInput);
  const head=project.layers.find(isHead),suit=project.layers.find(l=>l.kind==='suit'||l.name==='ชุด');
  let editCache=null;
  if(head&&source){

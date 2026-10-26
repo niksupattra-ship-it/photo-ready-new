@@ -7,7 +7,7 @@ import express from 'express';
 // Exercise the real route and queue. Replace only the unused production store import.
 const stub='data:text/javascript,'+encodeURIComponent('const fail=()=>{throw Error("unexpected default store call")};export const MAX_SAVED_WORKS=3,saveWork=fail,listWorks=fail,getWork=fail,deleteWork=fail,getSavedWorkRetentionPolicy=fail;');
 const source=await readFile(new URL('../saved-work-api.js',import.meta.url),'utf8');
-const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,new URL('../saved-work-api.js',import.meta.url)).href}'`);
+const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|src\/saved-project|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,new URL('../saved-work-api.js',import.meta.url)).href}'`);
 assert.notEqual(code,source);
 const {registerSavedWorkApi}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 const cases=[];

@@ -19,7 +19,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
@@ -28,6 +28,7 @@ import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
+let paymentApi;
 app.set("trust proxy",1);
 
 const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7kE";
@@ -37,12 +38,12 @@ function walletId(req){return req.accountUser?.wallet_id||String(req.get("X-Wall
 async function stripePost(endpoint,params,idempotencyKey){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
   const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null)body.append(k,String(v));
-  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded",...(idempotencyKey?{"Idempotency-Key":idempotencyKey}:{})},body});
+  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded",...(idempotencyKey?{"Idempotency-Key":idempotencyKey}:{})},body,signal:AbortSignal.timeout(20000)});
   const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
 }
 async function stripeGet(endpoint){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
-  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{headers:{Authorization:`Bearer ${key}`}});
+  const r=await fetch(`https://api.stripe.com/v1/${endpoint}`,{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(20000)});
   const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||"Stripe request failed");return data
 }
 
@@ -52,9 +53,9 @@ app.post("/api/payments/stripe-webhook",express.raw({type:"application/json"}),a
     if(!verifyStripeSignature(req.body,req.get("stripe-signature"),process.env.STRIPE_WEBHOOK_SECRET))return res.status(400).send("Invalid Stripe signature");
     const event=JSON.parse(req.body.toString("utf8")),session=event.data?.object;
     if((event.type==="checkout.session.completed"||event.type==="checkout.session.async_payment_succeeded")&&session?.payment_status==="paid"){
-      if(session.metadata?.wallet_id)await settleCheckout(session,creditPaid);
+      if(session.metadata?.wallet_id)await paymentApi.settleSession(session);
     }
-    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1')await settlePromptpay(session,creditPaid);
+    if(event.type==='payment_intent.succeeded'&&session?.metadata?.flow==='idprom_promptpay_v1')await paymentApi.settleIntent(session);
     res.json({received:true});
   }catch(e){console.error("Stripe webhook:",e);res.status(500).send("Webhook failed")}
 });
@@ -90,7 +91,7 @@ app.post("/api/payments/confirm",async(req,res)=>{
     const wid=walletId(req),sessionId=String(req.body?.sessionId||"").trim();
     if(!wid||!sessionId)return res.status(400).json({error:"payment_confirmation_required"});
     const session=await stripeGet(`checkout/sessions/${encodeURIComponent(sessionId)}`);
-    const out=await settleCheckout(session,creditPaid,wid);
+    const out=await paymentApi.settleSession(session,wid);
     res.json({ok:true,...out,jobId:String(session.metadata?.job_id||'')});
   }catch(e){console.error("Stripe confirm:",e);const status=e.status||500;res.status(status).json({error:status<500?e.message:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
@@ -123,23 +124,9 @@ app.post('/api/promo/redeem',async(req,res)=>{
   res.json(out);
  }catch(e){console.error('Promo redemption:',e);res.status(500).json({error:'promo_failed',message:'รับเครดิตไม่สำเร็จ กรุณาลองใหม่'})}
 });
-app.post('/api/payments/checkout',async(req,res)=>{
- try{
-  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});
-  const wid=user.wallet_id;await ensureWallet(wid);const offer=checkoutPackage(req.body?.packageId||'149');
-  const jobId=String(req.body?.jobId||'');await downloadPolicy.ownedJob(wid,jobId);if(offer.id==='download_159_hair_v1'?await downloadPolicy.premiumHair(wid,jobId):await downloadPolicy.allowed(wid,jobId))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
-  const base=APP_URL||`${req.protocol}://${req.get('host')}`;
-  const attempt=String(req.get('X-Checkout-Attempt')||'');if(attempt&&!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
-  const idempotencyKey=attempt?crypto.createHash('sha256').update(JSON.stringify(['idprom_checkout_v1',wid,offer.id,jobId,attempt])).digest('hex'):undefined;
-  const session=await stripePost('checkout/sessions',{
-   mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,
-   'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,
-   'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,
-   'metadata[wallet_id]':wid,'metadata[package_id]':offer.id,'metadata[job_id]':jobId
-  },idempotencyKey);res.json({url:session.url});
- }catch(e){console.error('Stripe checkout:',e);res.status(400).json({error:e.message,message:e.message==='invalid_package'?'กรุณาโหลดหน้าใหม่เพื่อเลือกโปร 119 หรือ 159 บาท':e.message})}
-});
-registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
+app.post('/api/payments/checkout',(req,res)=>paymentApi.checkout(req,res));
+paymentApi=registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,recordDownloadRefund,pendingDownloadRefunds,appUrl:APP_URL,scopeForJob:(wid,id)=>downloadPolicy.scopeForJob(wid,id),walletRights:getWallet,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
+setInterval(()=>{void paymentApi.retryReconciliations().catch(error=>console.warn('IDPROM payment reconciliation:',error.code||'storage_unavailable'))},60000).unref();
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
 function trialDeviceFingerprint(req,res,wid){
@@ -370,21 +357,26 @@ async function runAiJob(id){
   if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length)await completeAiJob(id,out.payload);else{await refundCredit(job.usage_id);await failAiJob(id,out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);}
  }catch(e){console.error('AI job:',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job finished',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
-app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1}]),async(req,res)=>{
+app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1},{name:'originalSource',maxCount:1}]),async(req,res)=>{
  let createdJobId=null,creditUse=null,stage='validate';const started=Date.now();
  const logStage=(next,extra={})=>{stage=next;console.info('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,...extra}))};
  try{
-  const image=req.files?.image?.[0],mask=req.files?.mask?.[0];
+  const image=req.files?.image?.[0],mask=req.files?.mask?.[0],originalSource=req.files?.originalSource?.[0];
   if(!image)return res.status(400).json({error:'image_required'});
-  try{validateProductionPortrait(image,req.body);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
+  try{validateProductionPortrait(image,req.body);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   logStage('reserve_credit',{kind:creditKind});
   creditUse=await requireCredit(req,res,creditKind);
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}
   logStage('persist_job');
-  const downloadWorkId=await downloadPolicy.beginWork(walletId(req),image.buffer,String(req.body?.downloadWorkId||''),req.get('X-IDPROM-Saved-Work')||'');
-  const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields:{...req.body,delivery_pending:true,delivery_confirmed:false},image,mask});
+  const downloadWorkId=await downloadPolicy.beginWork(walletId(req),image.buffer,String(req.body?.downloadWorkId||''),req.get('X-IDPROM-Saved-Work')||'',originalSource?.buffer||null,{imageType:image.mimetype,originalType:originalSource?.mimetype||image.mimetype});
+  const pinned=await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,delivery_pending:true,delivery_confirmed:false};
+  // Only the immutable, owned work input reaches generation. A raw-upload proof
+  // does not authorize substituting unrelated pixels beside that proof.
+  if(!pinned.buffer.equals(image.buffer))delete fields.faceIdentityBox;
+  const jobImage={...image,buffer:pinned.buffer,mimetype:pinned.mimetype,originalname:'portrait-input'+(pinned.mimetype==='image/jpeg'?'.jpg':pinned.mimetype==='image/webp'?'.webp':'.png')};
+  const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields,image:jobImage,mask});
   createdJobId=id;await downloadPolicy.attach(walletId(req),downloadWorkId,id);
   res.status(202).json({downloadWorkId,jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});
   logStage('queued',{jobId:id});setImmediate(()=>runAiJob(id));

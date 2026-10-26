@@ -2,7 +2,7 @@
 export const TRANSFER_HEADER='X-IDPROM-Project-Transfer';
 export const TRANSFER_VERSION='images-v1';
 export const SAVED_WORK_TRANSFER_MAX_BYTES=64*1024*1024;
-const FORMAT='idprom-project-transfer',MAX_IMAGES=242,MIN_SAVINGS=1024;
+const FORMAT='idprom-project-transfer',MAX_IMAGES=243,MIN_SAVINGS=1024;
 const imageURL=/^data:image\/(?:png|jpeg|webp);base64,/;
 const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const own=(value,key)=>Object.prototype.hasOwnProperty.call(value,key);
@@ -36,7 +36,7 @@ function mapImages(project,visit){
   }
   return copy;
  });
- const copy={...project,layers};if(own(project,'compareSource'))copy.compareSource=visit(project.compareSource);if(own(project,'downloadSource'))copy.downloadSource=visit(project.downloadSource);return copy;
+ const copy={...project,layers};for(const key of ['compareSource','downloadSource','canonicalInput'])if(own(project,key))copy[key]=visit(project[key]);return copy;
 }
 function projectBytes(project){
  if(!plain(project)||project.format!=='idprom-studio'||!Array.isArray(project.layers))return jsonBytes(project);

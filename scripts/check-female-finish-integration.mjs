@@ -112,7 +112,7 @@ await test('worker transport transfers native buffers, enforces its deadline, an
 function restorationFixture(){
  const initial=photo(),master=Object.assign(new Blob(['latest changed hairstyle']),{idpromFemaleFinishProfile:otherProfile,idpromFemaleFinishReference:otherReference}),head={kind:'head',name:'หัว · คอ · ผม',jobId:'saved-job',portraitMode:'female',femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup',femaleFinishProfile:profile,femaleFinishReference:reference};
  let wallet='account-A',token='token-A';const oldMaster=new Blob(['active master']),mutations=[];
- const restored={source:initial,editCache:{master,lock:{templatePath:'female.png'}},head};
+ const restored={source:initial,editCache:{master,lock:{templatePath:'female.png'}},head,project:{layers:[head],placement:null}};
  const env={...helpers,femaleFinishMetadata:metadata,femaleFinishHeadMetadata:headMetadata,femaleFinishAnchor:anchor,portraitFinishChoice,activeSavedDownloadWork:'',
   currentWalletId:()=>wallet,authToken:()=>token,walletHeaders:()=>({Authorization:token,'X-Wallet-Id':wallet}),refreshWallet:async()=>{},
   savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:0},prepareSavedProject:async()=>restored,decodedStudioImage:noop,

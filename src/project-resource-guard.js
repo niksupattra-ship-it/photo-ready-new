@@ -76,6 +76,9 @@ export function createProjectResourceGuard(project){
   add(layer.femaleFinishReference);
  }
  add(project.compareSource);add(project.downloadSource);
+ // The canonical AI input is retained as encoded bytes and restored as a Blob;
+ // it is never decoded or rendered while opening the editable project.
+ if(project.canonicalInput){const size=encodedImageSize(project.canonicalInput);if(!size)throw Error('รูปต้นทางประมวลผลไม่ถูกต้อง');imageArea(size);encodedChars+=project.canonicalInput.length}
  const budget=()=>{
   let uniquePixels=0,mutablePixels=900*1200*2;
   for(const entry of entries.values())uniquePixels+=imageArea(entry.size,entry.collar);

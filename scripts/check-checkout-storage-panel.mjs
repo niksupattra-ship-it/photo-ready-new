@@ -36,7 +36,7 @@ await test('blocked database falls back to session and closes any late connectio
 });
 function panelEnv(){
  const effects=[],requests=[],intervals=[],events={focus:[],visibilitychange:[]},messages=[],checking=[],payment={paymentIntentId:'pi_fixture',walletId:'A'},settlement=deferred();let paid=0,received;
- const e={payment,callbacks:{current:{headers:()=>({'X-Wallet-Id':'A'}),onPaid:async(...args)=>{paid++;received=args;return settlement.promise}}},checkRef:{current:null},lifecycleRef:{current:null},downloadRef:{current:null},actionRef:{current:null},setExpired:()=>{},setImageError:()=>{},setDownloading:()=>{},setMessage:value=>messages.push(value),setChecking:value=>checking.push(value),AbortController,Date,encodeURIComponent,requestPromptpay:(url,options)=>{const d=deferred();requests.push({url,options,...d});return d.promise},useEffect:effect=>effects.push(effect),setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval:()=>{},window:{addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:()=>{}},document:{visibilityState:'visible',addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:()=>{}}};
+ const e={payment,coveredRef:{current:false},setCovered:()=>{},callbacks:{current:{headers:()=>({'X-Wallet-Id':'A'}),onPaid:async(...args)=>{paid++;received=args;return settlement.promise}}},checkRef:{current:null},lifecycleRef:{current:null},downloadRef:{current:null},actionRef:{current:null},setExpired:()=>{},setImageError:()=>{},setDownloading:()=>{},setMessage:value=>messages.push(value),setChecking:value=>checking.push(value),AbortController,Date,encodeURIComponent,requestPromptpay:(url,options)=>{const d=deferred();requests.push({url,options,...d});return d.promise},useEffect:effect=>effects.push(effect),setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval:()=>{},window:{addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:()=>{}},document:{visibilityState:'visible',addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:()=>{}}};
  const start=panelSource.indexOf(' useEffect(()=>{'),end=panelSource.indexOf('\n const download=',start);assert(start>=0&&end>start);new Function('env',`with(env){${panelSource.slice(start,end)}}`)(e);const cleanup=effects[0]();
  return {e,requests,events,messages,checking,payment,settlement,cleanup,paid:()=>paid,received:()=>received,intervals};
 }
@@ -48,5 +48,26 @@ await test('failed paid-rights verification permits a later manual retry',async(
 });
 await test('focus replaces a suspended status read and ignores its late response',async()=>{
  const e=panelEnv();e.events.focus[0]();assert.equal(e.requests.length,2);assert.equal(e.requests[0].options.signal.aborted,true);e.requests[0].resolve({response:{ok:true},data:{ok:true,status:'succeeded'}});await tick();assert.equal(e.paid(),0);e.requests[1].resolve({response:{ok:true},data:{status:'processing'}});await tick();assert.equal(e.messages.at(-1),'กำลังยืนยันการชำระเงิน…');e.cleanup();
+});
+await test('a sibling payment hides the old QR and settles the existing output once',async()=>{
+ const e=panelEnv();e.requests[0].resolve({response:{ok:true},data:{ok:true,status:'work_unlocked',paymentIntentId:'pi_fixture',paidElsewhere:true}});await tick();assert.equal(e.paid(),1);assert.equal(e.e.coveredRef.current,true);e.events.focus[0]();assert.equal(e.requests.length,1);e.settlement.resolve();await tick();e.events.focus[0]();assert.equal(e.requests.length,1);e.cleanup();
+});
+await test('covered-work verification failure permits retry while keeping old QR unavailable',async()=>{
+ const e=panelEnv();e.requests[0].resolve({response:{ok:true},data:{ok:true,status:'work_unlocked',paymentIntentId:'pi_fixture'}});await tick();e.settlement.reject(Error('rights temporarily unavailable'));await tick();assert.equal(e.e.coveredRef.current,true);assert(e.messages.includes('rights temporarily unavailable'));e.e.checkRef.current();assert.equal(e.requests.length,2);e.cleanup();
+});
+await test('a QR image requested before another payment settles is never delivered late',async()=>{
+ const e=panelEnv(),delivered=[];e.e.deliverImage=(...args)=>delivered.push(args);
+ const start=panelSource.indexOf(' const download=async'),end=panelSource.indexOf('\n const changePackage=',start);assert(start>=0&&end>start);
+ const download=new Function('env',`with(env){${panelSource.slice(start,end)};return download}`)(e.e);
+ const pending=download();await tick();assert.equal(e.requests.length,2);assert(e.requests[1].url.endsWith('/image'));
+ e.requests[0].resolve({response:{ok:true},data:{ok:true,status:'work_unlocked',paymentIntentId:'pi_fixture'}});await tick();assert.equal(e.e.coveredRef.current,true);
+ e.requests[1].resolve({response:{ok:true},data:new Blob(['old QR'],{type:'image/png'})});await pending;assert.equal(delivered.length,0);assert(!e.messages.some(m=>m.startsWith('ส่งคำขอบันทึก QR')));
+ await download();assert.equal(e.requests.length,2,'a covered work must not request another QR image');e.settlement.resolve();await tick();e.cleanup();
+});
+await test('closed QR download refreshes settled rights instead of suggesting a screenshot',async()=>{
+ const e=panelEnv(),delivered=[];e.e.deliverImage=(...args)=>delivered.push(args);e.requests[0].resolve({response:{ok:true},data:{status:'requires_action'}});await tick();
+ const start=panelSource.indexOf(' const download=async'),end=panelSource.indexOf('\n const changePackage=',start);const download=new Function('env',`with(env){${panelSource.slice(start,end)};return download}`)(e.e);
+ const pending=download();await tick();e.requests[1].resolve({response:{ok:false,status:409},data:new Blob(['closed'])});await tick();assert.equal(e.requests.length,3);assert(!e.messages.some(m=>m.includes('ถ่ายภาพหน้าจอ')));
+ e.requests[2].resolve({response:{ok:true},data:{ok:true,status:'work_unlocked',paymentIntentId:'pi_fixture'}});await tick();assert.equal(e.paid(),1);e.settlement.resolve();await pending;assert.equal(delivered.length,0);assert.equal(e.e.coveredRef.current,true);e.cleanup();
 });
 console.log(`PASS: ${tested} checkout storage and QR lifecycle regressions; isolated mocks, no external requests.`);

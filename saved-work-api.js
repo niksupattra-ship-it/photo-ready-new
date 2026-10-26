@@ -1,6 +1,7 @@
 import {saveWork,listWorks,getWork,deleteWork,getSavedWorkRetentionPolicy,MAX_SAVED_WORKS} from './saved-work-store.js';
 import {TRANSFER_HEADER,TRANSFER_VERSION,packSavedProjectTransfer,unpackSavedProjectTransfer,getSavedWorkRequestSize} from './src/saved-work-transfer.js';
 import {sendSavedWorkResponse} from './saved-work-response.js';
+import {assertSavedProjectResources} from './src/saved-project.js';
 
 export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,store={saveWork,listWorks,getWork,deleteWork,getSavedWorkRetentionPolicy,MAX_SAVED_WORKS},buildPreview=async(project,options)=>(await import('./saved-work-thumbnail.js')).compactSavedWorkPreview(project,options)}){
  // Read and shrink one project at a time; never load three full projects for cards.
@@ -36,8 +37,9 @@ export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,store={
   let project=incoming;
   if(incoming?.format==='idprom-project-transfer'){getSavedWorkRequestSize(id,incoming);project=unpackSavedProjectTransfer(incoming)}
   if(!await savedWorkRights(user.wallet_id,project,id))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับเครดิตแล้ว'});
+  assertSavedProjectResources(project);
   const work=await store.saveWork(user.wallet_id,id,project);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json(work);
- }catch(error){if(expired(res,error))return;if(error.code==='saved_work_too_large')return res.status(413).json({error:error.code,message:error.message});if(error.code==='saved_work_limit')return res.status(409).json({error:error.code,limit:store.MAX_SAVED_WORKS,message:error.message});res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
+ }catch(error){if(expired(res,error))return;if(error.code==='PROJECT_RESOURCE_LIMIT')return res.status(413).json({error:error.code,message:'งานนี้มีภาพหรือเลเยอร์ใหญ่เกินขีดจำกัดที่เปิดได้ กรุณาลดเลเยอร์ที่ไม่ใช้แล้วบันทึกใหม่ งานปัจจุบันยังอยู่'});if(error.code==='saved_work_too_large')return res.status(413).json({error:error.code,message:error.message});if(error.code==='saved_work_limit')return res.status(409).json({error:error.code,limit:store.MAX_SAVED_WORKS,message:error.message});res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
  app.get('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{
   if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});
   const [items,retention]=await Promise.all([store.listWorks(req.accountUser.wallet_id),store.getSavedWorkRetentionPolicy()]);

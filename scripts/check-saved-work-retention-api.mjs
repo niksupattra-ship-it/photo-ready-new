@@ -9,7 +9,7 @@ import {packSavedProjectTransfer,getSavedWorkRequestSize} from '../src/saved-wor
 const stub='data:text/javascript,'+encodeURIComponent('const fail=()=>{throw Error("unexpected default store call")};export const MAX_SAVED_WORKS=3,saveWork=fail,listWorks=fail,getWork=fail,deleteWork=fail,getSavedWorkRetentionPolicy=fail,purgeExpiredWorks=fail;');
 async function isolated(path){
  const source=await readFile(new URL(path,import.meta.url),'utf8');
- const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,new URL(path,import.meta.url)).href}'`);
+ const code=source.replace(/from '\.\/saved-work-store\.js'/g,`from '${stub}'`).replace(/from '(\.\/(?:src\/saved-work-transfer|src\/saved-project|saved-work-response)\.js)'/g,(_,relative)=>`from '${new URL(relative,new URL(path,import.meta.url)).href}'`);
  assert.notEqual(code,source,'store import must be replaced');
  return import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
 }
@@ -18,7 +18,7 @@ const {startSavedWorkRetentionCleanup}=await isolated('../saved-work-retention-w
 let checks=0;
 async function check(name,run){await run();checks++;console.log('PASS '+name)}
 const policy={days:45,version:'saved-work-45-v1',effectiveAt:'2026-10-24T08:00:00.000Z',legacyExpiresAt:'2026-12-08T08:00:00.000Z',serverNow:'2026-10-24T08:00:00.000Z'};
-const project={layers:[{jobId:'job_a'}]},work={id:'work_a',name:'รูป IDพร้อม',project,expires_at:policy.legacyExpiresAt};
+const project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{jobId:'job_a',name:'หัว · คอ · ผม',source:'data:image/png;base64,AAAA',x:0,y:0,scale:1,rotation:0,opacity:1}]},work={id:'work_a',name:'รูป IDพร้อม',project,expires_at:policy.legacyExpiresAt};
 const error=code=>Object.assign(Error(code),{code});
 let mode='ok',rights=true,calls=[],canSave=true;
 const store={MAX_SAVED_WORKS:3,
