@@ -10,3 +10,11 @@
 .idprom-qr-panel .idprom-qr-check{width:100%;background:#edf5ff!important;color:#1769c8!important;border:1px solid #d4e5fb!important}
 .idprom-qr-panel button:disabled{opacity:.65;cursor:wait}
 .idprom-qr-panel small{font-size:11px;line-height:1.4;color:#64748b}
+
+/* Clear payment instructions and a persistent, non-flashing reminder. */
+.idprom-qr-panel .idprom-qr-help{width:100%;padding:10px 12px;border-radius:10px;background:#f1f6ff;color:#405674;font-size:12px!important;line-height:1.65!important;box-sizing:border-box}
+.idprom-qr-panel .idprom-qr-help strong{color:#174f94;font-weight:750}
+.idprom-qr-panel .idprom-qr-stay-notice{display:flex!important;align-items:flex-start;gap:9px;width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #efb55e;border-left:4px solid #e99321;border-radius:10px;background:#fff3d9;color:#7d450c;text-align:left;font-size:13px!important;line-height:1.55!important}
+.idprom-qr-stay-notice>span{display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;width:20px;height:20px;margin-top:1px;border-radius:50%;background:#e99321;color:#fff;font-weight:850}
+.idprom-qr-stay-notice strong{font-weight:750}
+
