@@ -8,32 +8,11 @@ export const PRODUCTION_HAIR_CATALOG=[
     "src": "/assets/seedream-hairstyles/previews/7.webp"
   },
   {
-    "id": "seedream-08",
-    "gender": "female",
-    "name": "ทรงผม 8",
-    "file": "8.png",
-    "src": "/assets/seedream-hairstyles/previews/8.webp"
-  },
-  {
-    "id": "seedream-11",
-    "gender": "female",
-    "name": "ทรงผม 11",
-    "file": "11.png",
-    "src": "/assets/seedream-hairstyles/previews/11.webp"
-  },
-  {
     "id": "seedream-14",
     "gender": "female",
     "name": "ทรงผม 14",
     "file": "14.png",
     "src": "/assets/seedream-hairstyles/previews/14.webp"
-  },
-  {
-    "id": "seedream-17",
-    "gender": "female",
-    "name": "ทรงผม 17",
-    "file": "17.png",
-    "src": "/assets/seedream-hairstyles/previews/17.webp"
   },
   {
     "id": "seedream-25",
@@ -139,20 +118,6 @@ export const PRODUCTION_HAIR_CATALOG=[
     "name": "ทรงผม 6",
     "file": "6.png",
     "src": "/assets/seedream-hairstyles/previews/6.webp"
-  },
-  {
-    "id": "seedream-21",
-    "gender": "female",
-    "name": "ทรงผม 21",
-    "file": "21.png",
-    "src": "/assets/seedream-hairstyles/previews/21.webp"
-  },
-  {
-    "id": "seedream-22",
-    "gender": "female",
-    "name": "ทรงผม 22",
-    "file": "22.png",
-    "src": "/assets/seedream-hairstyles/previews/22.webp"
   },
   {
     "id": "seedream-23",
@@ -324,5 +289,6 @@ export function selectedHairPlacement(selected){
 // Restore the existing full AI catalogue; local free hairstyles stay client-side.
 export const DOWNLOAD_HAIR_IDS=new Set(PRODUCTION_HAIR_CATALOG.map(h=>h.id));
 export function downloadHairAllowed(id){return !id||id==='original'||DOWNLOAD_HAIR_IDS.has(id)}
+
 
 
