@@ -18,3 +18,47 @@
 .idprom-qr-stay-notice>span{display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;width:20px;height:20px;margin-top:1px;border-radius:50%;background:#e99321;color:#fff;font-weight:850}
 .idprom-qr-stay-notice strong{font-weight:750}
 
+
+/* Fit the payment panel to the viewport without a long single-column action list. */
+.credit-modal.package-pro-modal.idprom-qr-modal{width:min(440px,calc(100vw - 24px));padding:14px 16px;max-height:calc(100dvh - 24px);box-sizing:border-box}
+.idprom-qr-modal .checkout-flow-steps{padding:2px 24px 12px;gap:7px;font-size:11px}
+.idprom-qr-modal .credit-modal-close{top:10px;right:12px}
+.idprom-qr-panel{gap:6px}
+.idprom-qr-panel h2{font-size:18px!important;margin:0 28px!important}
+.idprom-qr-panel .idprom-qr-amount{font-size:25px}
+.idprom-qr-panel .idprom-qr-image{width:clamp(140px,24dvh,190px);height:clamp(140px,24dvh,190px)}
+.idprom-qr-panel .idprom-qr-help{padding:8px 10px;font-size:12px!important;line-height:1.5!important}
+.idprom-qr-panel .idprom-qr-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;width:100%}
+.idprom-qr-panel button{min-height:38px!important;padding:7px 10px!important;font-size:13px!important}
+.idprom-qr-panel .idprom-qr-status{min-height:18px;font-size:12px!important}
+.idprom-qr-panel .idprom-qr-stay-notice{padding:9px 10px;font-size:12px!important;line-height:1.45!important;gap:8px}
+.idprom-qr-panel small{font-size:10px;line-height:1.35}
+@media(max-height:660px){
+ .credit-modal.package-pro-modal.idprom-qr-modal{padding:10px 12px;max-height:calc(100dvh - 16px)}
+ .idprom-qr-modal .checkout-flow-steps{padding-bottom:8px}
+ .idprom-qr-panel{gap:5px}
+ .idprom-qr-panel .idprom-qr-image{width:140px;height:140px}
+ .idprom-qr-panel .idprom-qr-help{font-size:11px!important;line-height:1.45!important;padding:7px 8px}
+ .idprom-qr-panel .idprom-qr-stay-notice{padding:7px 8px}
+}
+@media(max-height:560px) and (min-width:520px){
+ .credit-modal.package-pro-modal.idprom-qr-modal:has(.idprom-qr-image){width:min(660px,calc(100vw - 24px))}
+ .idprom-qr-panel:has(.idprom-qr-image){display:grid;grid-template-columns:minmax(132px,.7fr) minmax(0,1fr);column-gap:16px;align-items:center}
+ .idprom-qr-panel:has(.idprom-qr-image)>h2,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-amount,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-stay-notice{grid-column:1/-1}
+ .idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-image{grid-column:1;grid-row:3/8;justify-self:center;width:min(100%,180px);height:auto;aspect-ratio:1}
+ .idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-help,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-save,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-status,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-actions,.idprom-qr-panel:has(.idprom-qr-image)>small{grid-column:2}
+ .idprom-qr-panel button{min-height:34px!important;padding:5px 8px!important;font-size:12px!important}
+}
+
+
+@media(max-height:360px) and (min-width:520px){
+ .idprom-qr-modal .checkout-flow-steps{padding-bottom:4px;font-size:10px}
+ .idprom-qr-panel:has(.idprom-qr-image){row-gap:3px;column-gap:12px}
+ .idprom-qr-panel h2{font-size:16px!important}
+ .idprom-qr-panel .idprom-qr-amount{font-size:22px}
+ .idprom-qr-panel:has(.idprom-qr-image)>small{display:none}
+ .idprom-qr-panel button{min-height:32px!important;font-size:11px!important;padding:4px 6px!important}
+ .idprom-qr-panel .idprom-qr-stay-notice{padding:6px 8px;font-size:11px!important}
+}
+
+@media(max-height:360px) and (min-width:520px){.credit-modal.package-pro-modal.idprom-qr-modal{padding-top:6px;padding-bottom:6px}.idprom-qr-panel:has(.idprom-qr-image){row-gap:2px}}
