@@ -3,7 +3,7 @@ import {TRANSFER_HEADER,TRANSFER_VERSION,packSavedProjectTransfer,unpackSavedPro
 import {sendSavedWorkResponse} from './saved-work-response.js';
 import {assertSavedProjectResources} from './src/saved-project.js';
 
-export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,store={saveWork,listWorks,getWork,deleteWork,getSavedWorkRetentionPolicy,MAX_SAVED_WORKS},buildPreview=async(project,options)=>(await import('./saved-work-thumbnail.js')).compactSavedWorkPreview(project,options)}){
+export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,policyForRequest=()=>downloadPolicy,store={saveWork,listWorks,getWork,deleteWork,getSavedWorkRetentionPolicy,MAX_SAVED_WORKS},buildPreview=async(project,options)=>(await import('./saved-work-thumbnail.js')).compactSavedWorkPreview(project,options)}){
  // Read and shrink one project at a time; never load three full projects for cards.
  let previewActive=false;const previewWaiting=[];
  const previewError=code=>Object.assign(Error(code),{code});
@@ -32,11 +32,12 @@ export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,store={
  }catch(error){res.status(503).json({error:'saved_work_policy_unavailable',message:'ยังตรวจสอบระยะเก็บงานไม่ได้ กรุณาลองใหม่'})}});
  app.post('/api/saved-work',async(req,res)=>{res.set('Cache-Control','no-store');try{
   const user=req.accountUser;if(!user)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อบันทึกงาน'});
-  if(!(await downloadPolicy.summary(user.wallet_id)).canSave)return res.status(403).json({error:'saving_disabled',message:'บัญชีใหม่ใช้งานฟรีได้ แต่ไม่รองรับการบันทึกงาน กรุณาดาวน์โหลดรูปก่อนออก'});
+  const policy=policyForRequest(req);
+  if(!(await policy.summary(user.wallet_id)).canSave)return res.status(403).json({error:'saving_disabled',message:'บัญชีใหม่ใช้งานฟรีได้ แต่ไม่รองรับการบันทึกงาน กรุณาดาวน์โหลดรูปก่อนออก'});
   const id=String(req.body?.id||''),incoming=req.body?.project;
   let project=incoming;
   if(incoming?.format==='idprom-project-transfer'){getSavedWorkRequestSize(id,incoming);project=unpackSavedProjectTransfer(incoming)}
-  if(!await savedWorkRights(user.wallet_id,project,id))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับเครดิตแล้ว'});
+  if(!await savedWorkRights(user.wallet_id,project,id,policy))return res.status(403).json({message:'บันทึกได้เฉพาะรูปที่รับเครดิตแล้ว'});
   assertSavedProjectResources(project);
   const work=await store.saveWork(user.wallet_id,id,project);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});res.json(work);
  }catch(error){if(expired(res,error))return;if(error.code==='PROJECT_RESOURCE_LIMIT')return res.status(413).json({error:error.code,message:'งานนี้มีภาพหรือเลเยอร์ใหญ่เกินขีดจำกัดที่เปิดได้ กรุณาลดเลเยอร์ที่ไม่ใช้แล้วบันทึกใหม่ งานปัจจุบันยังอยู่'});if(error.code==='saved_work_too_large')return res.status(413).json({error:error.code,message:error.message});if(error.code==='saved_work_limit')return res.status(409).json({error:error.code,limit:store.MAX_SAVED_WORKS,message:error.message});res.status(400).json({message:'บันทึกงานไม่สำเร็จ กรุณาลองใหม่'})}});
@@ -52,7 +53,7 @@ export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,store={
    release=await takePreview(req,res);if(disconnected(req,res))return;
    const work=await store.getWork(user.wallet_id,req.params.id);if(disconnected(req,res))return;
    if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});
-   if(!await savedWorkRights(user.wallet_id,work.project,work.id))return res.status(403).json({message:'ไม่มีเครดิตเปิดงานนี้'});
+   if(!await savedWorkRights(user.wallet_id,work.project,work.id,policyForRequest(req)))return res.status(403).json({message:'ไม่มีเครดิตเปิดงานนี้'});
    if(disconnected(req,res))return;
    const preview=await buildPreview(work.project,{signal:controller.signal});if(disconnected(req,res))return;
    res.json(preview);
@@ -70,7 +71,7 @@ export function registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,store={
  app.get('/api/saved-work/:id',async(req,res)=>{res.set('Cache-Control','no-store');try{
   if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบเพื่อเปิดงาน'});
   const work=await store.getWork(req.accountUser.wallet_id,req.params.id);if(!work)return res.status(404).json({message:'ไม่พบงานของบัญชีนี้'});
-  if(!await savedWorkRights(req.accountUser.wallet_id,work.project,work.id))return res.status(403).json({message:'ไม่มีเครดิตเปิดงานนี้'});
+  if(!await savedWorkRights(req.accountUser.wallet_id,work.project,work.id,policyForRequest(req)))return res.status(403).json({message:'ไม่มีเครดิตเปิดงานนี้'});
   const transfer=req.get(TRANSFER_HEADER)===TRANSFER_VERSION;res.vary(TRANSFER_HEADER);
   const project=transfer?packSavedProjectTransfer(work.project):work.project;
   if(transfer)res.set(TRANSFER_HEADER,TRANSFER_VERSION);

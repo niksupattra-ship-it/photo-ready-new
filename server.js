@@ -24,7 +24,8 @@ import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAi
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
-import {hasPrivateTrial,registerPrivateTrial} from "./private-trial.js";
+import {hasPrivateTrial,isPrivateOwner,registerPrivateTrial} from "./private-trial.js";
+import {requestDownloadPolicy} from './account-feature-policy.js';
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
@@ -35,6 +36,7 @@ const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7
 const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
 const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
 function walletId(req){return req.accountUser?.wallet_id||String(req.get("X-Wallet-Id")||"").trim()}
+const accountPolicy=req=>requestDownloadPolicy(req,downloadPolicy,{getJobsAccess:getAiJobsAccess});
 async function stripePost(endpoint,params,idempotencyKey){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
   const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null)body.append(k,String(v));
@@ -95,13 +97,13 @@ app.post("/api/payments/confirm",async(req,res)=>{
     res.json({ok:true,...out,jobId:String(session.metadata?.job_id||'')});
   }catch(e){console.error("Stripe confirm:",e);const status=e.status||500;res.status(status).json({error:status<500?e.message:"payment_confirm_failed",message:e.message||"ตรวจสอบการชำระเงินไม่สำเร็จ"})}
 });
-app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req)),...await downloadPolicy.summary(w.walletId)})});
+app.post("/api/wallet",async(req,res)=>{const current=walletId(req);const w=current&&await getWallet(current)||await newWallet();res.json({...w,...await trialOptionAccess(w.walletId,trialDeviceFingerprint(req,res,w.walletId),trialNetworkFingerprint(req)),...await accountPolicy(req).summary(w.walletId)})});
 // A credit display reads current counters without migrations or image-right repair.
 app.get('/api/wallet/balance',async(req,res)=>{const started=Date.now();res.set('Cache-Control','no-store');try{
  const id=walletId(req);if(!id)return res.status(404).json({error:'wallet_not_found'});
  const data=await getWalletBalance(id,trialDeviceFingerprint(req,res,id),trialNetworkFingerprint(req));
  if(!data)return res.status(404).json({error:'wallet_not_found'});
- res.json({...data,...await downloadPolicy.summary(id)});
+ res.json({...data,...await accountPolicy(req).summary(id)});
 }catch(error){const stage=['wallet_counter','trial_policy'].includes(error.balanceStage)?error.balanceStage:'credit_read',code=/^[A-Z0-9_]{1,32}$/.test(String(error.code||''))?String(error.code):'READ_UNAVAILABLE';console.error('Wallet balance:',JSON.stringify({stage,code,elapsedMs:Date.now()-started}));res.status(503).json({error:'wallet_balance_unavailable',stage,code,message:'ยังอ่านเครดิตไม่ได้ กรุณาลองอีกครั้ง'})}});
 // Credit refreshes need balances and rights, not the account-history query.
 // The default route retains history for existing account views.
@@ -110,7 +112,7 @@ app.get("/api/wallet",async(req,res)=>{res.set("Cache-Control","no-store");try{
  const summary=req.query?.summary==='1';
  const [w,trial,history]=await Promise.all([getWallet(id),trialOptionAccess(id,trialDeviceFingerprint(req,res,id),trialNetworkFingerprint(req)),summary?undefined:walletHistory(id)]);
  if(!w)return res.status(404).json({error:"wallet_not_found"});
- res.json({...w,...trial,...await downloadPolicy.summary(id),...(summary?{}:{history})});
+ res.json({...w,...trial,...await accountPolicy(req).summary(id),...(summary?{}:{history})});
 }catch(e){console.error("Wallet:",e);res.status(500).json({error:"wallet_storage_failed"})}});
 registerPrivateTrial(app,{walletId,getWallet,appUrl:APP_URL});
 app.post("/api/promo/free199",async(req,res)=>{try{const wid=walletId(req);if(!wid)return res.status(400).json({error:"wallet_required"});const out=await redeemPromo199(wid,req.body?.code);if(!out.ok){const messages={invalid:"โค้ดไม่ถูกต้อง",used:"โค้ดนี้ถูกใช้แล้ว",wallet_used:"เครื่องนี้เคยรับเครดิตโค้ดฟรีแล้ว"};return res.status(409).json({error:out.reason,message:messages[out.reason]||"ใช้โค้ดไม่ได้"})}res.json(out)}catch(e){console.error("Free 199 promo:",e);res.status(500).json({error:"promo_failed",message:"ใช้โค้ดไม่สำเร็จ"})}});
@@ -163,7 +165,7 @@ async function requireCredit(req,res,kind){
   const wid=walletId(req);
   if(!wid){res.status(402).json({error:'credit_required',message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});return null}
   // Explicit private testing never consumes purchased credits or normal trial quota.
-  if((kind==='ai-finish'||kind==='hairstyle')&&req.get('X-IDPROM-Private-Trial')==='1'){
+  if((kind==='ai-finish'||kind==='hairstyle')&&(isPrivateOwner(req,wid)||req.get('X-IDPROM-Private-Trial')==='1')){
     if(!hasPrivateTrial(req,wid)){res.status(403).json({error:'private_trial_inactive',message:'กรุณาเปิดลิงก์ทดสอบส่วนตัวอีกครั้ง'});return null}
     const wallet=await getWallet(wid);
     if(!wallet){res.status(403).json({error:'private_trial_inactive'});return null}
@@ -396,7 +398,7 @@ app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.param
 app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{
  const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j)return res.status(404).send('ไม่พบงาน');
  if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');
- const trial=!await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});
+ const trial=!await accountPolicy(req).allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});
  res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(j.result);
 }catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
 app.post('/api/images/:id/claim',async(req,res)=>{try{
@@ -409,16 +411,16 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
  res.json({ok:true});
 }catch(e){res.status(500).json({error:'image_claim_failed'})}});
 app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{
- const wid=walletId(req),unlocked=await downloadPolicy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked,premiumHair:await downloadPolicy.premiumHair(wid,req.params.id)});
+ const wid=walletId(req),policy=accountPolicy(req),unlocked=await policy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id)});
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});
- res.json(await downloadPolicy.suits(walletId(req),req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
+ res.json(await accountPolicy(req).suits(walletId(req),req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
 }catch(e){res.status(e.status||503).json({message:e.message||'ตรวจสอบชุดไม่สำเร็จ กรุณาลองใหม่'})}});
 app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{
  if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ดาวน์โหลด'});
- const out=await downloadPolicy.redeem(req.accountUser.wallet_id,req.params.id);
- res.status(out.ok?200:402).json({...out,...await getWallet(req.accountUser.wallet_id),...await downloadPolicy.summary(req.accountUser.wallet_id)});
+ const policy=accountPolicy(req),out=await policy.redeem(req.accountUser.wallet_id,req.params.id);
+ res.status(out.ok?200:402).json({...out,...await getWallet(req.accountUser.wallet_id),...await policy.summary(req.accountUser.wallet_id)});
 }catch(e){res.status(e.status||503).json({error:'unlock_failed',message:'ยังปลดล็อกไม่ได้ กรุณาลองใหม่ ไม่ต้องจ่ายซ้ำ'})}});
 
 const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
@@ -427,13 +429,13 @@ setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);
 
 
-async function savedWorkRights(wid,project,workId=''){
+async function savedWorkRights(wid,project,workId='',policy=downloadPolicy){
  const ids=validateProject(project);
- if(await downloadPolicy.legacyAllows(wid,workId,ids))return true;
- return downloadPolicy.allowedJobs(wid,ids);
+ if(await policy.legacyAllows(wid,workId,ids))return true;
+ return policy.allowedJobs(wid,ids);
 }
 
-registerSavedWorkApi(app,{savedWorkRights,downloadPolicy});
+registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,policyForRequest:accountPolicy});
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{

@@ -130,6 +130,6 @@ await check('ordinary confirmed404 retains existing manual-delete recovery',asyn
 });
 const serverSource=await readFile(new URL('../server.js',import.meta.url),'utf8');
 await check('server wires saved-work routes once and starts cleanup after listen',async()=>{
- assert.equal(serverSource.split('registerSavedWorkApi(app,{savedWorkRights,downloadPolicy});').length-1,1);assert(!serverSource.includes("app.post('/api/saved-work'"));assert(serverSource.indexOf('startSavedWorkRetentionCleanup();')>serverSource.indexOf('app.listen('));assert(serverSource.includes("app.use('/api/saved-work',express.json({limit:\"64mb\"}));"));
+ assert.equal(serverSource.split('registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,policyForRequest:accountPolicy});').length-1,1);assert(!serverSource.includes("app.post('/api/saved-work'"));assert(serverSource.indexOf('startSavedWorkRetentionCleanup();')>serverSource.indexOf('app.listen('));assert(serverSource.includes("app.use('/api/saved-work',express.json({limit:\"64mb\"}));"));
 });
 console.log(JSON.stringify({passed:checks,scope:'actual saved-work HTTP routes, cleanup scheduler and existing save handler; injected account/store fixtures, no production writes'}));

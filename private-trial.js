@@ -3,7 +3,7 @@ import pg from 'pg';
 const COOKIE='idprom_private_trial';
 // Identity comes only from the server-verified login middleware.
 const OWNER_EMAIL='treeradech009@gmail.com';
-function isPrivateOwner(req,wallet){const user=req.accountUser;return Boolean(user&&wallet&&user.wallet_id===wallet&&String(user.email||'').trim().toLowerCase()===OWNER_EMAIL)}
+export function isPrivateOwner(req,wallet){const user=req.accountUser;return Boolean(user&&wallet&&user.wallet_id===wallet&&String(user.email||'').trim().toLowerCase()===OWNER_EMAIL)}
 let pool,readyPromise;
 const key=()=>String(process.env.IDPROM_PRIVATE_TRIAL_KEY||'');
 const cookieSecret=()=>process.env.TRIAL_DEVICE_SECRET||process.env.STRIPE_WEBHOOK_SECRET||process.env.STRIPE_SECRET_KEY||'';
@@ -24,7 +24,7 @@ async function ready(){
  return readyPromise;
 }
 export function registerPrivateTrial(app,{walletId,getWallet,appUrl}){
- app.get('/api/private-trial',(req,res)=>res.set('Cache-Control','no-store').json({active:hasPrivateTrial(req,walletId(req))}));
+ app.get('/api/private-trial',(req,res)=>{const wallet=walletId(req);res.set('Cache-Control','no-store').json({active:hasPrivateTrial(req,wallet),ownerAccess:isPrivateOwner(req,wallet)})});
  app.post('/api/private-trial',async(req,res)=>{
   res.set('Cache-Control','no-store');
   try{
@@ -33,7 +33,7 @@ export function registerPrivateTrial(app,{walletId,getWallet,appUrl}){
     if(!req.accountUser)return res.status(401).json({message:'กรุณาเข้าสู่ระบบด้วยบัญชีส่วนตัวก่อน แล้วเปิดลิงก์นี้อีกครั้ง'});
     if(!isPrivateOwner(req,wallet))return res.status(403).json({message:'ลิงก์นี้ใช้ได้เฉพาะบัญชีเจ้าของที่กำหนดไว้'});
     if(!await getWallet(wallet))return res.status(400).json({message:'กรุณารีเฟรชหน้าแล้วเปิดลิงก์อีกครั้ง'});
-    return res.json({active:true});
+    return res.json({active:true,ownerAccess:true});
    }
    if(secret.length<48||!cookieSecret()||!equal(secret,token))return res.status(403).json({message:'ลิงก์ทดสอบไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน'});
    if(!wallet||!await getWallet(wallet))return res.status(400).json({message:'กรุณารีเฟรชหน้าแล้วเปิดลิงก์อีกครั้ง'});
@@ -46,7 +46,7 @@ export function registerPrivateTrial(app,{walletId,getWallet,appUrl}){
     WHERE private_trial_access.wallet_id=EXCLUDED.wallet_id AND private_trial_access.device_id=EXCLUDED.device_id RETURNING key_hash`,[keyHash,wallet,device]);
    if(!claim.rowCount)return res.status(403).json({message:'ลิงก์นี้เปิดใช้บนเครื่องอื่นแล้ว กรุณาใช้เบราว์เซอร์เดิม'});
    res.cookie(COOKIE,device+'.'+signature(device,wallet),{httpOnly:true,sameSite:'strict',secure:req.secure||appUrl.startsWith('https://'),path:'/',maxAge:365*24*60*60*1000});
-   res.json({active:true});
+   res.json({active:true,ownerAccess:isPrivateOwner(req,wallet)});
   }catch(e){console.error('Private trial activation failed');res.status(503).json({message:'เปิดโหมดทดสอบไม่สำเร็จ กรุณาลองใหม่'})}
  });
 }
