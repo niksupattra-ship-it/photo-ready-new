@@ -39,7 +39,6 @@ export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,
     {error&&<><p className="studio-rights-status studio-rights-error" role="alert">ยังอัปเดตยอดไม่ได้ ยอดที่แสดงอาจเปลี่ยนแปลง กรุณาลองใหม่</p><button className="studio-rights-retry" onClick={()=>setRevision(v=>v+1)}>ตรวจสอบอีกครั้ง</button></>}
     <div className="studio-rights-row"><span>สิทธิ์จากเครดิตเดิม<small>ปลดล็อกดาวน์โหลดงานใหม่</small></span><strong className="studio-rights-count">{balance.credits}<small>ครั้ง</small></strong></div>
     <div className="studio-rights-row"><span>สร้างและเปลี่ยนผมฟรี<small>มีลายน้ำจนกว่าจะปลดล็อก</small></span><strong className="studio-rights-count">{balance.trial}<small>ครั้ง</small></strong></div>
-    <p className="studio-rights-note">สร้างภาพไม่หักสิทธิ์ ใช้ 1 สิทธิ์ปลดล็อก 1 งานแล้วดาวน์โหลดซ้ำได้ทุกขนาด งานเก่าที่เปิดจากรายการบันทึกเดิมยังดาวน์โหลดได้โดยไม่หักสิทธิ์</p>
    </>}
    <button className="studio-rights-packages" onClick={onPackages}>ปลดล็อกดาวน์โหลด</button>
   </section>
