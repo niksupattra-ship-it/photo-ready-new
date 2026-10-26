@@ -37,6 +37,7 @@ import {liquifyCanvas} from './studio-liquify.js';
 import {pixelEraserStroke,preparePixelSurface,brushSceneRegion} from './studio-pixel-eraser.js';
 import {warpStudioCollar,invalidateCollarSource} from './studio-collar.js';
 import {nativeAsset,nativeSource} from './studio-source.js';
+import {fitStudioSuit} from './studio-suit-fit.js';
 import {prepareSavedProject} from './saved-project.js';
 import {preparePhotoInput} from './photo-input.js';
 import {decodedStudioImage as image} from './studio-image-cache.js';
@@ -111,7 +112,7 @@ export function paintScene(ctx,layers,assets,activeId=null,damage=null){
  if(damage){ctx.beginPath();ctx.rect(damage.x,damage.y,damage.w,damage.h);ctx.clip()}
  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.drawImage(cache.under,0,0);ctx.drawImage(cache.active,0,0);ctx.drawImage(cache.over,0,0);ctx.restore();
 }
-export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal=null,onSelectSuit,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,trialHairRemaining=0,onChangeHair,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onBeforeProcess,onReadProcessBalance,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onOpenRights,onRequestUnlock,onClose}){
+export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal=null,onSelectSuit,onMeasureSuitFace,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,trialHairRemaining=0,onChangeHair,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onBeforeProcess,onReadProcessBalance,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onOpenRights,onRequestUnlock,onClose}){
  const [layers,setLayers]=useState(()=>freshLinkedLayers(initialLayers)),[selected,setSelected]=useState(null),[tool,setToolState]=useState('move'),[brush,setBrush]=useState(40),[soft,setSoft]=useState(30),[eraseOpacity,setEraseOpacity]=useState(100),[paintColor,setPaintColor]=useState('#e7b2a0'),[paintOpacity,setPaintOpacity]=useState(100),[view,setView]=useState({zoom:1,x:0,y:0}),[ready,setReady]=useState(false),[status,setStatus]=useState('กำลังเตรียมเลเยอร์…'),[revision,setRevision]=useState(0),[comparing,setComparing]=useState(false),[picker,setPicker]=useState(false),[warpMode,setWarpMode]=useState('push'),[warpSize,setWarpSize]=useState(120),[warpStrength,setWarpStrength]=useState(40),[cursor,setCursor]=useState(null),[assetBusy,setAssetBusy]=useState(false),[assetGroup,setAssetGroup]=useState('all'),[sourcePhoto,setSourcePhoto]=useState(initialSourcePhoto),[sourcePreview,setSourcePreview]=useState(null),[processingPhoto,setProcessingPhoto]=useState(false),[hairGender,setHairGender]=useState(()=>initialLayers.find(l=>layerKind(l)==='head')?.portraitMode||'female'),[selectedHair,setSelectedHair]=useState(()=>initialLayers.find(l=>layerKind(l)==='head')?.hairId||initialLayers.find(l=>l.kind==='hair-preview')?.hairId||'');
  const [touch,setTouch]=useState(()=>matchMedia('(max-width:1100px), (pointer:coarse) and (max-width:1366px)').matches),[touchOpen,setTouchOpen]=useState(false),[touchTab,setTouchTab]=useState('position'),[touchSide,setTouchSide]=useState('both'),[collarSide,setCollarSide]=useState('auto'),[touchMore,setTouchMore]=useState(false),[touchMenu,setTouchMenu]=useState(false),[layerGuide,setLayerGuide]=useState(false),[toolRailOpen,setToolRailOpen]=useState(true),[exitPrompt,setExitPrompt]=useState(false),[hairConfirmed,setHairConfirmed]=useState(false),[outlineRatio,setOutlineRatio]=useState(1),[selectionBoxes,setSelectionBoxes]=useState([]),[touchThumbnails,setTouchThumbnails]=useState({});
  const [touchLayersOpen,setTouchLayersOpen]=useState(false);
@@ -591,6 +592,13 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
  const duplicate=async()=>{if(!current||layers.length>=20)return;if(current.kind==='source-photo'){setStatus('กรุณาประมวลผลรูปก่อนคัดลอกเลเยอร์');return}const all=historySnapshot();remember();const suitCopy=layerKind(current)==='suit',headCopy=layerKind(current)==='head'||current.name==='หัว · คอ · ผม',copy={...all.find(l=>l.id===selected),id:uid(),name:current.name+' สำเนา',kind:suitCopy?'suit':headCopy?'head':null,locked:false};if(await hydrate([...all,copy])&&suitCopy)setSelected(copy.id)};
  const neckSuit=()=>state.current.find(l=>l.id===selectedRef.current&&layerKind(l)==='suit')||[...state.current].reverse().find(l=>layerKind(l)==='suit');
  const reorder=dir=>{const i=layers.findIndex(l=>l.id===selected),j=i+dir;if(j<0||j>=layers.length)return;remember();const next=[...layers];[next[i],next[j]]=[next[j],next[i]];setLayers(next)};
+ const refitActiveSuit=async next=>{
+  const suit=next.find(l=>layerKind(l)==='suit'),head=outputHeads(next).find(l=>l.jobId);
+  if(!suit?.autoSuitFitVersion||!suit.templatePath||!head||typeof onMeasureSuitFace!=='function'||suit.warpSource||(suit.neckWidth||0)!==(Number.isFinite(suit.autoCollarFitWidth)?suit.autoCollarFitWidth:0)||suit.neckHeight||assets.current.get(suit.id)?.directPixelsReady)return next;
+  const native=await nativeAsset('suit',{template:suit.templatePath},suit.sourceFrame||suit.collarFrame,null);
+  const unbaked={...suit,source:native.source};
+  return fitStudioSuit({layers:next,previousSuit:suit,nextSuit:unbaked,headSource:head.warpSource||head.source,headMask:head.mask,measureFace:onMeasureSuitFace,preservePlacement:true});
+ };
  const selectAsset=async(kind,option)=>{
   if(!ready||assetBusy||processActive||comparing)return;
   if(kind==='suit'&&option&&suitPolicy.limited&&suitPolicy.choices.length>=suitChoiceLimit&&!suitPolicy.choices.includes(option.template)){setStatus(`เลือกชุดครบ ${suitChoiceLimit} ชุดแล้ว กรุณาเลือกชุดที่เคยเลือกไว้`);return}
@@ -598,15 +606,18 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
   if(kind==='suit'&&option&&!canUseAllSuits&&!freeTemplatePaths.includes(option.template)){onRequestUnlock?.();setStatus('กรุณาตรวจสอบสิทธิ์ก่อนเลือกชุดนี้');return;}
   const target=state.current.find(l=>layerKind(l)===kind);
   if(target?.locked){setStatus('ปลดล็อกเลเยอร์ '+ASSET_NAMES[kind]+' ก่อนเปลี่ยน');return}
+  if(kind==='suit'&&option&&target?.templatePath===option.template){setSelected(target.id);return}
+  const fitHead=kind==='suit'&&option&&typeof onMeasureSuitFace==='function'?outputHeads(state.current).find(l=>l.jobId):null;
+  if(fitHead&&(fitHead.locked||state.current.some(l=>l.hairHeadId===fitHead.id&&l.locked))){setStatus('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดให้พอดีกับชุดใหม่');return}
   if(!target&&option&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}
   setAssetBusy(true);
   try{
    flushTransforms();const previous=historySnapshot();let next;
    if(!option){next=previous.filter(l=>l.id!==target?.id);}
    else{
-    const p=placementRef.current;let collarParts=null;
-    const frame=p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H};
     const suit=previous.find(l=>layerKind(l)==='suit');
+    const p=placementRef.current;let collarParts=null;
+    const frame=kind!=='suit'&&(suit?.collarFrame||suit?.sourceFrame)|| (p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H});
     const path=suit?.templatePath||p?.templatePath||'';
     const female=/female-/.test(path),base=STUDIO_ACCESSORY_PLACEMENT[female?'female':'male'];
     const preset={...base,collar:{...base.collar,width:base.collar.width*(female?.9*.85*1.08*1.09:1)*.8,y:base.collar.y-4/frame.h,left:base.collar.left+(female?.025-2/frame.w:14/frame.w),right:base.collar.right-(female?.025-2/frame.w:14/frame.w)},chest:{...base.chest,width:base.chest.width*(female?1:.85),x:base.chest.x+(female?.035:49/frame.w),y:base.chest.y-(female?0:.02)},ribbon:{...base.ribbon,x:base.ribbon.x-(female?.055:3/frame.w),width:base.ribbon.width*(female?.95:1),top:base.ribbon.top-(female?0:.02)}};
@@ -615,9 +626,10 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
     if(kind==='background')Object.assign(created,{x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1});
     if(['collar','chest','ribbon'].includes(kind))Object.assign(created,{x:suit?.x||0,y:suit?.y||0,scale:suit?.scale||1,rotation:suit?.rotation||0,opacity:1,collarLeftX:0,collarRightX:0,collarLeftY:0,collarRightY:0});
     next=target?previous.map(l=>l.id===target.id?created:l):kind==='background'?[created,...previous]:[...previous,created];
+    if(fitHead){const asset=assets.current.get(fitHead.id);if(!asset)throw Error('ยังเตรียมภาพหัวไม่สำเร็จ');setStatus('กำลังจัดหัวและคอให้พอดีกับชุด…');next=await fitStudioSuit({layers:next,previousSuit:target,nextSuit:created,headSource:asset.warped||asset.original,headMask:asset.mask,measureFace:onMeasureSuitFace});}
    }
-   if(await hydrate(next,new Set(previous.filter(l=>l.id!==target?.id).map(l=>l.id)))){if(kind==='suit'&&option&&onSelectSuit){const head=outputHeads(state.current)[0];if(head)try{setSuitPolicy(await onSelectSuit(head.jobId,[target?.templatePath,option.template].filter(Boolean)))}catch(e){await hydrate(previous);setStatus(e.message);return}}undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];const chosen=next.find(l=>layerKind(l)===kind);if(chosen)setSelected(chosen.id);setRevision(v=>v+1);setStatus(option?'เลือก '+(option.name||option.title||ASSET_NAMES[kind])+' แล้ว':'นำ '+ASSET_NAMES[kind]+' ออกแล้ว');if(kind==='suit'&&(option?!target||!((option.id&&target.assetId===option.id)||(option.template&&target.templatePath===option.template)):Boolean(target)))trackUniformSelection(option,'apply',option?'new':'remove')}
-  }catch(e){setStatus('เลือก '+ASSET_NAMES[kind]+' ไม่สำเร็จ กรุณาลองใหม่')}
+   if(await hydrate(next,new Set(previous.filter(l=>{const n=next.find(n=>n.id===l.id);return l.id!==target?.id&&n&&['sourceFrame','source','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'].every(key=>n[key]===l[key])}).map(l=>l.id)))){if(kind==='suit'&&option&&onSelectSuit){const head=outputHeads(state.current).find(l=>l.jobId);if(head)try{setSuitPolicy(await onSelectSuit(head.jobId,[target?.templatePath,option.template].filter(Boolean)))}catch(e){await hydrate(previous);setStatus(e.message);return}}undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];const chosen=next.find(l=>layerKind(l)===kind);if(chosen)setSelected(chosen.id);setRevision(v=>v+1);setStatus(option?'เลือก '+(option.name||option.title||ASSET_NAMES[kind])+' แล้ว':'นำ '+ASSET_NAMES[kind]+' ออกแล้ว');if(kind==='suit'&&(option?!target||!((option.id&&target.assetId===option.id)||(option.template&&target.templatePath===option.template)):Boolean(target)))trackUniformSelection(option,'apply',option?'new':'remove')}
+  }catch(e){setStatus(e.code==='SUIT_FIT_UNCLEAR'?e.message:'เลือก '+ASSET_NAMES[kind]+' ไม่สำเร็จ กรุณาลองใหม่')}
   finally{setAssetBusy(false)}
  };
  const openBackgroundColor=()=>{
@@ -680,6 +692,7 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
   let stagedResult;
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,squeezeX:anchor.squeezeX??1,squeezeY:anchor.squeezeY??1,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
+   if(next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;resetPhotoHistory();resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');reportProcessedResult(result.layer,{reused:result.reused===true})}else throw Error('แสดงภาพไม่สำเร็จ');
   }catch(e){await hydrate(previous);stagedResult?.rollback?.();await onFinishProcess?.(false).catch(()=>{});setProcessHairPending(true);const message=e.message||'ประมวลผลไม่สำเร็จ กรุณาลองใหม่';setStatus(message);if(e.code!=='USER_CANCELLED')setPortraitProcessError(message)}finally{processRequestRef.current=false;setProcessingPhoto(false)}
  };
@@ -792,6 +805,7 @@ export function StudioEditor({initialLayers,accountScope='',downloadUnlockSignal
     const front=fresh({...common,...keepPose(placedFreeHair),name:freeHair.name||'ทรงผม '+freeHair.hairId.slice(5),hairRole:'front',source:fitted.source}),index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const oldBack=previous.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&l.hairId===freeHair.hairId&&l.hairRole==='back');const back=fresh({...common,...keepPose(oldBack),name:'ทรงผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
    }
+   if(next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    if(!await hydrate(next,new Set(previous.filter(l=>next.includes(l)).map(l=>l.id))))throw Error('แสดงภาพไม่สำเร็จ');
    if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}
    if(!reused)await onFinishProcess?.(true);
