@@ -3481,7 +3481,7 @@ function App(){
  const[selectedGownTemplate,setSelectedGownTemplate]=useState(GOWN_UNIFORMS[0].template);
  const[selectedInteriorTemplate,setSelectedInteriorTemplate]=useState(INTERIOR_UNIFORMS[0].img);
  const[homeInfoOpen,setHomeInfoOpen]=useState(false),[homeShowGender,setHomeShowGender]=useState('all');
- const[uniformCategory,setUniformCategory]=useState('government'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState(()=>{try{return appStorage.getItem('idprom_pending_qr_v1')?'home':'studio'}catch{return 'studio'}}),[selectedStyle,setSelectedStyle]=useState(''),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
+ const[uniformCategory,setUniformCategory]=useState('job'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState(()=>{try{return appStorage.getItem('idprom_pending_qr_v1')?'home':'studio'}catch{return 'studio'}}),[selectedStyle,setSelectedStyle]=useState(''),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
  const homeResultsRef=useRef(null);
  const selectedFemaleGovernmentTemplate=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===level)?.img||GOVERNMENT_FINANCE_TEMPLATE;
  const selectedGovernmentTemplate=gender==='male'?selectedInteriorTemplate:selectedFemaleGovernmentTemplate;
