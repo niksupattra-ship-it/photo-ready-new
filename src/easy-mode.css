@@ -181,3 +181,9 @@
 /* Match the Studio preview watermark transparency, without changing its layout or count. */
 .idstudio .easy-mode .easy-watermark{opacity:.576;color:rgba(255,255,255,.28);text-shadow:none}
 .idstudio .easy-mode .easy-watermark span{color:inherit;text-shadow:0 1px 2px rgba(0,0,0,.16)}
+
+/* Homepage: Easy Mode landing flows naturally into the original long-form homepage. */
+.idstudio .easy-home-shell .easy-mode{position:relative;inset:auto;z-index:auto;overflow:visible;min-height:0}
+.idstudio .easy-home-shell .easy-mode .easy-main{padding-bottom:20px}
+.idstudio .studio-home-below-easy{min-height:0}
+.idstudio .studio-home-below-easy .studio-home-topbar{display:none}
