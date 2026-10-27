@@ -228,7 +228,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-export const HAIR_DESIGN_VERSION='selected-silhouette-v5-free-png-ai';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v6-free-png-natural';
 const compact={
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
  'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
@@ -267,7 +267,8 @@ const longDesigns={
 };
 export function selectedHairDesign(selected){
  if(!selected?.id)return null;
- const pair=compact[selected.id]||(['hair-25','hair-26'].includes(selected.id)?['short','the exact hairstyle shown in the transparent PNG']:null);
+ const freeDesigns={'hair-21':['gathered','smooth side-parted hair gathered close to the head'],'hair-25':['short','short side-swept pixie with the same fringe and silhouette as the reference'],'hair-26':['gathered','centre-parted hair with a flat braid across the crown, gathered close to the head']};
+ const pair=compact[selected.id]||freeDesigns[selected.id];
  return pair?{kind:pair[0],description:pair[1]}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
