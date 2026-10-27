@@ -285,3 +285,62 @@
 .idstudio .easy-mode .easy-finish-grid button{flex-direction:column}
 .idstudio .easy-mode .easy-finish-grid img{width:100%;max-height:155px;aspect-ratio:1/1;object-fit:cover;border-radius:9px}
 @media(max-width:1100px),(pointer:coarse) and (max-width:1366px){.idstudio .easy-mode .easy-header-actions{gap:5px}.idstudio .easy-mode .easy-member-button{font-size:11px;padding:8px}.idstudio .easy-mode .easy-header-actions .idprom-account-actions>button{width:32px;height:32px;min-width:32px;min-height:32px;padding:6px}.idstudio .easy-mode .easy-type-grid button{padding:10px 5px}.idstudio .easy-mode .easy-tabs{overflow-x:auto}.idstudio .easy-mode .easy-tabs button{flex:0 0 auto;padding:8px 10px}}
+
+
+/* Reference-inspired control surface, scoped to the existing easy-mode editor. */
+.idstudio .easy-mode .easy-tabs{display:flex;align-items:stretch;gap:5px;padding:7px;border:1px solid #ebe7ff;background:linear-gradient(100deg,#f5f3ff,#f1f2fc);border-radius:17px;min-height:64px;scrollbar-width:none}
+.idstudio .easy-mode .easy-tabs::-webkit-scrollbar{display:none}
+.idstudio .easy-mode .easy-tabs button{display:flex;align-items:center;justify-content:center;gap:9px;flex:1 1 0;min-width:0;padding:10px 8px;border-radius:11px;background:transparent;color:#28355c;font-size:15px;font-weight:750;line-height:1.25;white-space:nowrap;transition:background .15s ease,color .15s ease}
+.idstudio .easy-mode .easy-tabs button+button:not(.active){border-left:1px solid #dedcf4;border-radius:0 10px 10px 0}
+.idstudio .easy-mode .easy-tabs button.active{background:linear-gradient(125deg,#6635f2,#8042ff);color:#fff;box-shadow:0 3px 12px #6635f22b;border:0;border-radius:12px}
+.idstudio .easy-mode .easy-tabs .easy-ui-icon{width:26px;height:26px;flex:none}
+.idstudio .easy-mode .easy-adjustments{display:flex;flex-direction:column;gap:12px;padding:0}
+.idstudio .easy-mode .easy-adjust-card{overflow:hidden;border:1px solid #e3d7ff;border-radius:17px;background:linear-gradient(180deg,#f4efff,#fff 82%);box-shadow:0 2px 10px #2c164709}
+.idstudio .easy-mode .easy-adjust-card-head{border-color:#dcd4ff}
+.idstudio .easy-mode .easy-adjust-card-neck{background:linear-gradient(180deg,#fdf0ff,#fff 80%);border-color:#efd8ff}
+.idstudio .easy-mode .easy-adjust-card-detail{background:linear-gradient(180deg,#ecf4ff,#fff 80%);border-color:#d5e5ff}
+.idstudio .easy-mode .easy-adjust-card-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 14px;background:transparent;border:0;min-height:55px}
+.idstudio .easy-mode .easy-adjust-heading-label{display:flex;align-items:center;gap:9px;min-width:0;color:#5418d1;font-size:17px}
+.idstudio .easy-mode .easy-adjust-heading-label strong{font-weight:800}
+.idstudio .easy-mode .easy-card-reset{display:inline-flex;align-items:center;gap:6px;flex:none;border:1px solid #d5c3ff;border-radius:11px;color:#5622d0;background:#ffffffbc;padding:8px 11px;font-size:12px;font-weight:750}
+.idstudio .easy-mode .easy-adjust-card-content{background:#fff;border-radius:16px 16px 0 0;padding:3px 14px 6px}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-group{border:0;background:transparent;padding:0;margin:0}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-group>h3{display:none}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-control{display:grid;grid-template-columns:minmax(126px,.72fr) minmax(0,1.3fr);align-items:center;gap:12px;padding:8px 0;margin:0;border-bottom:1px solid #eff0fa;color:#1f2c52;font-size:13px}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-control:last-child{border-bottom:0}
+.idstudio .easy-mode .easy-adjust-control .easy-adjust-label{display:flex;align-items:center;gap:9px;min-width:0;font-weight:700;color:#243159}
+.idstudio .easy-mode .easy-adjust-control-icon{display:grid;place-items:center;flex:0 0 35px;width:35px;height:35px;border-radius:10px;background:#f2f0fb;color:#33436d}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-inline{display:grid;grid-template-columns:32px minmax(0,1fr) 32px minmax(56px,66px);gap:8px;align-items:center;margin:0;width:100%}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-inline .easy-adjust-stepper{display:contents}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-stepper button{width:32px;height:32px;min-height:32px;border:1px solid #d8c7ff;background:#f4efff;color:#5419d8;border-radius:9px;font-size:21px;font-weight:800;line-height:1;padding:0}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-stepper button:first-child{grid-column:1;grid-row:1}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-stepper button:last-child{grid-column:3;grid-row:1}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-inline input[type=range]{grid-column:2;grid-row:1;width:100%;min-width:0;margin:0;accent-color:#7437f4;min-height:25px}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-inline output{grid-column:4;grid-row:1;display:grid;place-items:center;min-height:34px;background:#f8f8ff;border:1px solid #ebebf7;border-radius:9px;color:#1e2d57;font-size:12px;font-weight:750;white-space:nowrap}
+.idstudio .easy-mode .easy-adjust-card button:focus-visible,.idstudio .easy-mode .easy-tabs button:focus-visible{outline:2px solid #7445f0;outline-offset:2px}
+@media (max-width:1100px),(pointer:coarse) and (max-width:1366px){
+ .idstudio .easy-mode .easy-tabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;gap:3px;min-height:48px;padding:5px;scroll-snap-type:x proximity}
+ .idstudio .easy-mode .easy-tabs button{flex:0 0 auto;min-width:76px;gap:5px;padding:8px 10px;font-size:11px;scroll-snap-align:start}
+ .idstudio .easy-mode .easy-tabs .easy-ui-icon{width:18px;height:18px}
+ .idstudio .easy-mode .easy-adjust-sheet{max-height:min(59dvh,560px)}
+ .idstudio .easy-mode.easy-adjust-open{--easy-adjust-height:min(48dvh,390px)}
+ .idstudio .easy-mode .easy-adjust-sheet-controls{overflow-y:auto;display:block}
+ .idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjustments{display:block;min-height:0}
+ .idstudio .easy-mode .easy-adjust-tabs{flex:none;position:sticky;top:0;z-index:2;padding:5px 2px;background:#fff}
+ .idstudio .easy-mode .easy-adjust-tabs button{font-size:11px;white-space:nowrap;border-radius:10px}
+ .idstudio .easy-mode .easy-adjust-card-heading{padding:8px 10px;min-height:44px}
+ .idstudio .easy-mode .easy-adjust-heading-label{font-size:14px;gap:7px}
+ .idstudio .easy-mode .easy-adjust-heading-label .easy-ui-icon{width:20px;height:20px}
+ .idstudio .easy-mode .easy-card-reset{padding:6px 9px;font-size:11px}
+ .idstudio .easy-mode .easy-adjust-card-content{padding:2px 10px 6px}
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-sheet-controls .easy-adjust-card .easy-adjust-group{display:block;flex:none;overflow:visible;justify-content:initial;padding:0}
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-card .easy-adjust-control{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-height:0;margin:0;padding:6px 0;font-size:11px}
+ .idstudio .easy-mode .easy-adjust-card .easy-adjust-control-icon{width:25px;height:25px;flex-basis:25px;border-radius:7px}
+ .idstudio .easy-mode .easy-adjust-card .easy-adjust-control-icon .easy-ui-icon{width:15px;height:15px}
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-card .easy-adjust-control .easy-adjust-inline{display:grid;grid-template-columns:29px minmax(0,1fr) 29px 57px;gap:6px;margin:0;width:100%}
+ .idstudio .easy-mode .easy-adjust-card .easy-adjust-stepper button{width:29px;height:29px;min-height:29px}
+ .idstudio .easy-mode .easy-adjust-card .easy-adjust-inline output{min-height:29px;font-size:11px}
+ .idstudio .easy-mode .easy-adjust-actions{display:block;position:sticky;bottom:0;background:#fff;padding:7px 0 0}
+ .idstudio .easy-mode .easy-adjust-actions .easy-adjust-finish{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;min-height:35px;background:linear-gradient(125deg,#6434f2,#8245ff);color:#fff;border:0;border-radius:10px;font-weight:750;font-size:12px}
+}
+@media (max-width:390px){.idstudio .easy-mode .easy-tabs button{padding:7px 8px;min-width:70px;font-size:10px}.idstudio .easy-mode .easy-adjust-card .easy-adjust-inline{gap:4px}}
