@@ -271,3 +271,17 @@
 .idstudio .easy-mode .easy-adjust-actions button{border:1px solid #7044ed;background:#7044ed;color:#fff;border-radius:11px;padding:9px 6px;font-size:13px;font-weight:700}
 .idstudio .easy-mode .easy-adjust-actions .easy-reset{background:#faf7ff;color:#7044ed}
 }
+
+/* Only the easy-mode photo type step and original top account menu. */
+.idstudio .easy-mode .easy-header-actions{display:flex;align-items:center;gap:10px;min-width:0}
+.idstudio .easy-mode .easy-header-actions .idprom-account-actions>button{background:#f2eeff!important;color:#6037d3!important;border-radius:10px!important}
+.idstudio .easy-mode .easy-member-button{border:1px solid #dfd4fc;background:#f5f1ff;color:#5837b6;border-radius:12px;font-size:13px;font-weight:700;padding:9px 12px}
+.idstudio .easy-mode .easy-photo-type{display:flex;flex-direction:column;gap:15px;padding:10px 4px}
+.idstudio .easy-mode .easy-type-grid,.idstudio .easy-mode .easy-finish-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.idstudio .easy-mode .easy-type-grid button,.idstudio .easy-mode .easy-finish-grid button{border:2px solid #e4dff3;background:#f9f7ff;border-radius:14px;padding:12px;display:flex;align-items:center;justify-content:center;gap:9px;color:#38265b;min-width:0}
+.idstudio .easy-mode .easy-type-grid button.selected,.idstudio .easy-mode .easy-finish-grid button.selected{border-color:#7044ed;background:#efeaff}
+.idstudio .easy-mode .easy-type-icon{font-size:25px;color:#7044ed}
+.idstudio .easy-mode .easy-finish-choice h3{margin:4px 0 12px}
+.idstudio .easy-mode .easy-finish-grid button{flex-direction:column}
+.idstudio .easy-mode .easy-finish-grid img{width:100%;max-height:155px;aspect-ratio:1/1;object-fit:cover;border-radius:9px}
+@media(max-width:1100px),(pointer:coarse) and (max-width:1366px){.idstudio .easy-mode .easy-header-actions{gap:5px}.idstudio .easy-mode .easy-member-button{font-size:11px;padding:8px}.idstudio .easy-mode .easy-header-actions .idprom-account-actions>button{width:32px;height:32px;min-width:32px;min-height:32px;padding:6px}.idstudio .easy-mode .easy-type-grid button{padding:10px 5px}.idstudio .easy-mode .easy-tabs{overflow-x:auto}.idstudio .easy-mode .easy-tabs button{flex:0 0 auto;padding:8px 10px}}
