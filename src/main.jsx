@@ -4522,7 +4522,7 @@ function App(){
   const maleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='male');
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
   const photoSizeSample=JOB_UNIFORMS.find(item=>item.id==='female-suit-03');
-  const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);setStudioData(null);setScreen('studio')};
+  const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio')};
   const homeCategories=[
    {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
    {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดปฏิบัติงาน\nปฏิบัติการ\nชำนาญการ\nเลือกเข็มสังกัด และแพรแถบได้เอง',image:'/assets/home-cutouts/government.png'},
@@ -4537,9 +4537,9 @@ function App(){
    if(item.cat==='government'){
     setUniformCategory('government');setGender(item.gender);setLevel(item.level||'operational');
     if(item.gender==='male')setSelectedInteriorTemplate(item.img&&item.id?.startsWith('interior')?INTERIOR_UNIFORMS.find(u=>u.id===item.id)?.img||INTERIOR_UNIFORMS[0].img:INTERIOR_UNIFORMS[0].img);
-    setSelectedStyle(item.name||item.title);setStudioData(null);setScreen('studio');return
+    setSelectedStyle(item.name||item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio');return
    }
-   setUniformCategory(item.cat);setSelectedStyle(item.title);setStudioData(null);setScreen('studio');
+   setUniformCategory(item.cat);setSelectedStyle(item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio');
   };
   return <>{easyLanding}{!landingPhotoPendingRef.current&&<main className="profile-home studio-home studio-home-below-easy">{SavedWorkUI()}
    
