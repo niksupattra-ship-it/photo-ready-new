@@ -4541,7 +4541,7 @@ function App(){
    }
    setUniformCategory(item.cat);setSelectedStyle(item.title);setStudioData(null);setScreen('studio');
   };
-  return <>{easyLanding}<main className="profile-home studio-home studio-home-below-easy">{SavedWorkUI()}
+  return <>{easyLanding}{!landingPhotoPendingRef.current&&<main className="profile-home studio-home studio-home-below-easy">{SavedWorkUI()}
    
    {homeInfoOpen&&<div className="studio-home-help" role="status">เลือกประเภทและแบบชุด → เพิ่มรูปต้นฉบับ → ประมวลผล → ปรับแต่ง → ดาวน์โหลด</div>}
    <div className="studio-home-inner">{checkoutRecovery&&<CheckoutRecovery payment={checkoutRecovery} busy={checkoutRecoveryBusy} message={checkoutRecoveryMessage} onResume={resumeStoredCheckout}/>}
@@ -4556,7 +4556,7 @@ function App(){
    {homeFilter==='all'&&photoSizeSample&&<HomePhotoSizes sample={photoSizeSample} onStart={()=>chooseJobUniform(photoSizeSample)}/>}
    {homeFilter==='all'&&<div className="studio-home-benefits">{[['✦','ใบหน้าเดิม 100%','ไม่เปลี่ยนโครงหน้า รักษารายละเอียดผิวเดิม'],['▣','คุณภาพสตูดิโอ','คมชัด ดูเป็นธรรมชาติ ไม่เป็นพลาสติก'],['◉','ปรับแต่งได้อิสระ','ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม'],['▧','ดาวน์โหลดความละเอียดสูง','ไฟล์ 2256 × 3072 px และขนาดรูปมาตรฐาน']].map(([icon,title,desc])=><div key={title}><span aria-hidden="true">{icon}</span><div><strong>{title}</strong><small>{desc}</small></div></div>)}</div>}
    </div>
-  </main></>;
+  </main>}</>;
  }
  function HomeRow({title,tag,cards}){return <section className="home-row"><div className="home-row-head"><div className="home-row-title">{tag&&<span>{tag}</span>}<h2>{title}</h2></div></div><div className="home-card-strip">{cards.map((c,i)=><button type="button" className="home-style-card" key={c.title+i} onClick={()=>{setUniformCategory(c.cat);if(c.cat==='job'&&(c.template||c.img)?.startsWith('/assets/job-uniforms/')){setSelectedJobTemplate(c.template||c.img);setGender(c.gender)}if(c.cat==='student'&&c.template?.startsWith('/assets/student-uniforms/')){setSelectedStudentTemplate(c.template);setGender(c.gender)}setSelectedStyle(c.title);setStudioData(null);setScreen('studio')}}><div className={'home-card-image '+(c.uniform?'uniform-card':'')}><img src={homePreviewSource(c.img)} decoding="async" loading="lazy"/><div className="home-card-shade"></div>{c.cat==='government'&&<strong>{c.title}</strong>}</div></button>)}</div></section>}
  const renderPreviewActions=(extraClass)=>( <div className={"preview-floating-actions "+extraClass}><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
