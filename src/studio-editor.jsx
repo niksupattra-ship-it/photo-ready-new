@@ -325,7 +325,7 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
  const trackHairSelection=(id,stage,mode)=>{const option=femaleHair.find(h=>h.id===id)||maleHair.find(h=>h.id===id);if(id&&!option)return;const gender=femaleHair.some(h=>h.id===id)?'female':maleHair.some(h=>h.id===id)?'male':'unknown';analyticsSelection({kind:'hair',id:id||'original',name:option?.name||'ผมเดิม',gender,category:'hair',provider:id?'seedream':'original',stage,mode,surface:'studio'})};
  const trackPhotoType=(mode,stage)=>analyticsSelection({kind:'photo_type',id:mode,name:mode==='female'?'รูปผู้หญิง':'รูปผู้ชาย',gender:mode,category:'photo',provider:'user_choice',stage,mode:'new',surface:'studio'});
  const premiumHairAllowed=outputHeads(layers).some(l=>verifiedJobs[l.jobId]?.premiumHair===true);
- const isPremiumHair=id=>(femaleHair.some(h=>h.id===id)&&!isFreeFemaleHair(id)&&!['seedream-14','seedream-16','seedream-38','seedream-39'].includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-33','seedream-34'].includes(id));
+ const isPremiumHair=id=>(femaleHair.some(h=>h.id===id)&&!isFreeFemaleHair(id)&&!['seedream-16','seedream-38','seedream-39'].includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-33','seedream-34'].includes(id));
  const chooseHair=id=>{
   if(processRequestRef.current||processActive||assetBusy){appearanceFailure('hair','กรุณารอการทำงานก่อนหน้าให้เสร็จก่อน');return}
   if(!ready)return;
