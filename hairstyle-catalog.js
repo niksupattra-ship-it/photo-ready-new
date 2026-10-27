@@ -228,7 +228,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-export const HAIR_DESIGN_VERSION='selected-silhouette-v6-free-png-natural';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v7-gathered-clean-reference';
 const compact={
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
  'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
