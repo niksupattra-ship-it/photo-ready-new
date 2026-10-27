@@ -187,3 +187,26 @@
 .idstudio .easy-home-shell .easy-mode .easy-main{padding-bottom:20px}
 .idstudio .studio-home-below-easy{min-height:0}
 .idstudio .studio-home-below-easy .studio-home-topbar{display:none}
+
+/* Mobile adjustment bottom sheet: photo remains visible behind the controls. */
+@media(max-width:700px){
+.idstudio .easy-mode .easy-adjust-scrim{position:fixed;inset:0;z-index:9998;background:rgba(16,13,39,.12)}
+.idstudio .easy-mode .easy-adjust-sheet{position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#fff;border-radius:22px 22px 0 0;box-shadow:0 -8px 28px #19113929;display:flex;flex-direction:column;max-height:min(58dvh,550px);padding-bottom:env(safe-area-inset-bottom)}
+.idstudio .easy-mode .easy-adjust-sheet>header{flex:none;display:flex;justify-content:space-between;align-items:center;padding:14px 17px 10px;border-bottom:1px solid #eee9fa}
+.idstudio .easy-mode .easy-adjust-sheet>header strong{font-size:15px;color:#2d2255}
+.idstudio .easy-mode .easy-adjust-sheet>header button{border:0;background:#f2effb;border-radius:50%;width:32px;height:32px;font-size:22px;color:#56429c}
+.idstudio .easy-mode .easy-adjust-sheet-controls{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:8px 14px;scrollbar-width:thin}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjustments{border:0;margin:0;padding:0}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-group{padding:8px;margin:6px 0;border-radius:12px}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-group h3{font-size:12px;margin:0 0 7px}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-group label{font-size:12px;margin:8px 0;display:block}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline{display:grid;grid-template-columns:32px minmax(0,1fr) 32px auto;align-items:center;gap:7px;width:100%;margin:6px 0 9px}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline .easy-adjust-stepper{display:contents}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline .easy-adjust-stepper button{width:32px;height:32px;border:0;border-radius:8px;background:#eee9ff;color:#643de3;font-size:18px;font-weight:700;padding:0}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline .easy-adjust-stepper button:first-child{grid-column:1;grid-row:1}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline input[type=range]{grid-column:2;grid-row:1;width:100%;min-width:0;margin:0;accent-color:#7044ed}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline .easy-adjust-stepper button:last-child{grid-column:3;grid-row:1}
+.idstudio .easy-mode .easy-adjust-sheet-controls .easy-adjust-inline output{grid-column:4;grid-row:1;font-size:11px;white-space:nowrap}
+.idstudio .easy-mode .easy-adjust-sheet>footer{flex:none;padding:8px 14px 10px;border-top:1px solid #eee9fa}
+.idstudio .easy-mode .easy-adjust-sheet>footer button{width:100%;border:0;border-radius:12px;background:#7044ed;color:#fff;font-size:14px;font-weight:700;padding:12px}
+}
