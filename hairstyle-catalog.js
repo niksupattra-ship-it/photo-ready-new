@@ -218,7 +218,8 @@ export const PRODUCTION_HAIR_CATALOG=[
   "src": "/assets/seedream-hairstyles/previews/39.webp"
 }
 ];
-export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||null}
+export const FREE_PNG_HAIR_CATALOG=[21,25,26].map(number=>({id:'hair-'+number,gender:'female',name:'ทรงผม '+number,file:'hair-'+number+'.png',referenceDirectory:'hair',src:'/assets/hairstyle-previews/hair-'+number+'.png'}));
+export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||FREE_PNG_HAIR_CATALOG.find(item=>item.id===id)||null}
 
 // Trial eligibility is catalog-wide; the shared daily reservation controls the count.
 export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(productionHair(id))}
@@ -227,7 +228,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-export const HAIR_DESIGN_VERSION='selected-silhouette-v4-independent-results';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v5-free-png-ai';
 const compact={
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
  'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
@@ -266,7 +267,7 @@ const longDesigns={
 };
 export function selectedHairDesign(selected){
  if(!selected?.id)return null;
- const pair=compact[selected.id];
+ const pair=compact[selected.id]||(['hair-25','hair-26'].includes(selected.id)?['short','the exact hairstyle shown in the transparent PNG']:null);
  return pair?{kind:pair[0],description:pair[1]}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
@@ -287,7 +288,7 @@ export function selectedHairPlacement(selected){
 
 
 // Restore the existing full AI catalogue; local free hairstyles stay client-side.
-export const DOWNLOAD_HAIR_IDS=new Set(PRODUCTION_HAIR_CATALOG.map(h=>h.id));
+export const DOWNLOAD_HAIR_IDS=new Set([...PRODUCTION_HAIR_CATALOG,...FREE_PNG_HAIR_CATALOG].map(h=>h.id));
 export function downloadHairAllowed(id){return !id||id==='original'||DOWNLOAD_HAIR_IDS.has(id)}
 
 
