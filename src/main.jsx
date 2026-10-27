@@ -4459,6 +4459,29 @@ function App(){
    const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,femaleEyeStyle,templatePath:template});
    const master=await finishFirstPortraitMaster(aiHead);
    const composed=await composePortrait(master,{scale:1,x:0,y:0},template);
+   // Only job attire receives the optional second AI pass. Preserve the original
+   // template in every failure case; never replace the verified head master.
+   let aiJobSuitSource=null;
+   if(/^\/assets\/job-uniforms\/[a-z0-9-]+\.(?:png|webp)$/.test(template||'')&&aiHead.idpromJobId){
+    try{
+     assertProcessActive();
+     const outfitRequest=new FormData();
+     outfitRequest.append('image',composed.blob,'job-portrait.png');
+     outfitRequest.append('jobId',aiHead.idpromJobId);
+     outfitRequest.append('templatePath',template);
+     outfitRequest.append('placement',JSON.stringify({uX:composed.lock.uX,uY:composed.lock.uY,uW:composed.lock.uW,uH:composed.lock.uH}));
+     const outfitResponse=await portraitFetch('/api/job-outfit/generate',{method:'POST',headers:walletHeaders(),body:outfitRequest},180000);
+     if(outfitResponse.ok){
+      const png=await outfitResponse.blob();
+      if(png.type.includes('png')&&png.size>1000&&png.size<20*1024*1024){
+       const bytes=new Uint8Array(await png.arrayBuffer());let binary='';
+       for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+       aiJobSuitSource='data:image/png;base64,'+btoa(binary);
+      }
+     }
+    }catch(error){console.warn('Job outfit AI fallback to selected template:',error?.message)}
+    assertProcessActive();
+   }
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    assertProcessActive();
@@ -4484,7 +4507,7 @@ function App(){
     studioPhotoTransactionRef.current=false;
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
-   return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
+   return {layer:head,placement:composed.lock,aiJobSuitSource,reused:aiHead.idpromReused===true,commit,rollback};
   }catch(error){rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{

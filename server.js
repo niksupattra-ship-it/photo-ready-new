@@ -1,6 +1,7 @@
 import {downloadPolicy} from './download-policy-store.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
+import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
 import {hairRootTargetInstruction} from './hair-root-target.js';
@@ -340,6 +341,31 @@ const aiFinishHandler=async(req,res)=>{
 
 app.post("/api/ai-finish",upload.fields([{name:"image",maxCount:1},{name:"mask",maxCount:1}]),aiFinishHandler);
 
+
+// Optional, post-head outfit finishing for job-interview templates ONLY.
+// Reuse one result per owned AI job + selected template to avoid repeated paid AI calls.
+const jobOutfitGenerationCache=new Map();
+app.post('/api/job-outfit/generate',upload.single('image'),async(req,res)=>{
+ try{
+  const wid=walletId(req),jobId=String(req.body?.jobId||''),templatePath=String(req.body?.templatePath||'');
+  if(!wid||!/^job_[a-f0-9]{36}$/.test(jobId))return res.status(403).send('ไม่พบสิทธิ์งานที่สร้าง');
+  if(!isJobOutfitTemplate(templatePath))return res.status(400).send('รองรับเฉพาะชุดสมัครงาน');
+  const owned=await getAiJobResult(jobId,wid);
+  if(!owned||owned.status!=='completed'||!owned.result?.length)return res.status(403).send('ต้องใช้รูปที่ประมวลผลสำเร็จจากบัญชีนี้');
+  if(!req.file?.buffer||req.file.mimetype!=='image/png')return res.status(400).send('กรุณาส่งภาพ PNG หลังประมวลผล');
+  const cacheKey=jobId+'|'+templatePath;
+  let current=jobOutfitGenerationCache.get(cacheKey);
+  if(!current){
+   if(!process.env.ARK_API_KEY)return res.status(503).send('AI ใส่ชุดยังไม่พร้อม');
+   current=generateJobOutfit({root:dir,templatePath,image:req.file.buffer,placement:req.body?.placement,key:process.env.ARK_API_KEY});
+   jobOutfitGenerationCache.set(cacheKey,current);
+   current.catch(()=>{if(jobOutfitGenerationCache.get(cacheKey)===current)jobOutfitGenerationCache.delete(cacheKey)});
+   setTimeout(()=>{if(jobOutfitGenerationCache.get(cacheKey)===current)jobOutfitGenerationCache.delete(cacheKey)},30*60*1000).unref?.();
+  }
+  const result=await current;
+  return res.type('png').set('Cache-Control','no-store').send(result.png);
+ }catch(error){console.error('Job outfit AI:',error.code||error.message);return res.status(error.status>=400&&error.status<600?error.status:502).send('สร้างชุดสมัครงานด้วย AI ไม่สำเร็จ')}
+});
 
 const activeAiJobs=new Set();
 function captureResponse(){
