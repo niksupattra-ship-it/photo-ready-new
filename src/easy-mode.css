@@ -165,3 +165,15 @@
 @keyframes easy-processing-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.idstudio .easy-mode .easy-processing-spinner{animation:none}}
 @media(max-width:700px){.idstudio .easy-mode .easy-preview .easy-source-photo{max-height:min(64dvh,580px)}}
+
+/* Fine tuning: minus | slider | plus, with value beside label. */
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-label{display:block}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline{display:grid;grid-template-columns:32px minmax(0,1fr) 32px auto;align-items:center;column-gap:7px;width:100%;margin:7px 0 12px}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper{display:contents}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button{width:32px;height:32px;min-width:0;padding:0;border:1px solid #d9cdf8;border-radius:8px;background:#f4efff;color:#6d3ce5;font-size:19px;font-weight:700;line-height:1;touch-action:manipulation}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button:first-child{grid-column:1;grid-row:1}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline input[type=range]{grid-column:2;grid-row:1;width:100%;min-width:0;margin:0}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button:last-child{grid-column:3;grid-row:1}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline output{grid-column:4;grid-row:1;white-space:nowrap;font-size:11px;text-align:right}
+.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button:disabled{opacity:.4}
+@media(max-width:700px){.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline{grid-template-columns:28px minmax(0,1fr) 28px;gap:5px}.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button{width:28px;height:30px}.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline output{grid-column:1/-1;grid-row:2;justify-self:end}}
