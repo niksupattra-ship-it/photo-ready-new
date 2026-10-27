@@ -580,3 +580,18 @@
   white-space:nowrap;
  }
 }
+
+/* Keep labels beside their icons in the adjustment controls and top tabs. */
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-group label.easy-adjust-control > .easy-adjust-label {
+ display:flex;
+ flex-direction:row;
+ flex-wrap:nowrap;
+ align-items:center;
+ gap:8px;
+ min-width:0;
+ line-height:1.35;
+}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-control > .easy-adjust-label > .easy-adjust-control-icon {flex:none}
+.idstudio .easy-mode .easy-adjust-card .easy-adjust-control > .easy-adjust-label > span:last-child {display:block;min-width:0;white-space:nowrap}
+.idstudio .easy-mode .easy-tabs > button {display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center}
+.idstudio .easy-mode .easy-tabs > button > span {display:block;white-space:nowrap;line-height:1.35}
