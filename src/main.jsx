@@ -4468,7 +4468,7 @@ function App(){
      const outfitRequest=new FormData();
      outfitRequest.append('image',composed.blob,'job-portrait.png');
      outfitRequest.append('head',master,'processed-head.png');
-     outfitRequest.append('headFrame',JSON.stringify({hX:composed.lock.hX,hY:composed.lock.hY,headW:composed.lock.headW,headH:composed.lock.headH,scale:composed.lock.scale}));
+     outfitRequest.append('headFrame',JSON.stringify({hX:composed.lock.hX,hY:composed.lock.hY,headW:composed.lock.headW,headH:composed.lock.headH,scale:composed.lock.scale,chinY:composed.lock.chinY,faceCX:composed.lock.faceCX}));
      outfitRequest.append('jobId',aiHead.idpromJobId);
      outfitRequest.append('templatePath',template);
      outfitRequest.append('placement',JSON.stringify({uX:composed.lock.uX,uY:composed.lock.uY,uW:composed.lock.uW,uH:composed.lock.uH}));
