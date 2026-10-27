@@ -148,11 +148,15 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   if(pending){
    if(!/^pi_[A-Za-z0-9]+$/.test(pending))throw Error('invalid_payment_id');
    const old=await stripeGet('payment_intents/'+pending);
-   if(old.metadata?.flow!==FLOW||old.metadata?.wallet_id!==user.wallet_id||!CURRENT.has(old.metadata?.package_id)||await scopeForJob(user.wallet_id,old.metadata.job_id)!==scope)throw Error('payment_not_owned');
+   if(old.metadata?.flow!==FLOW||old.metadata?.wallet_id!==user.wallet_id||!CURRENT.has(old.metadata?.package_id))throw Error('payment_not_owned');
+   // A prior QR for a different work remains untouched. Recover the active
+   // payment for this work from the server-side coordinator below.
+   let oldScope;try{oldScope=await scopeForJob(user.wallet_id,old.metadata.job_id)}catch(error){if(error.status!==404)throw error}
+   if(oldScope===scope){
    const adopted=await intentStore.adopt({walletId:user.wallet_id,scope,intent:old});
    if(adopted.intent_id===old.id){const out=await resolve(old,{row:adopted,requestedJobId:jobId});if((out.ok&&await covered(user.wallet_id,jobId,offer.id))||old.status==='processing'||(!out.ok&&out.status!=='canceled'))return res.json(out)}
    else if(old.status==='succeeded')await resolve(old,{requestedJobId:jobId});
-   else if(old.status!=='canceled'){const stopped=await cancel(old);if(stopped.status==='succeeded')await resolve(stopped,{requestedJobId:jobId});else if(stopped.status==='processing'){await locate(stopped);return res.status(409).json({error:'payment_processing',message:'กำลังยืนยันรายการเดิม กรุณารอ ไม่ต้องจ่ายซ้ำ'})}}
+   else if(old.status!=='canceled'){const stopped=await cancel(old);if(stopped.status==='succeeded')await resolve(stopped,{requestedJobId:jobId});else if(stopped.status==='processing'){await locate(stopped);return res.status(409).json({error:'payment_processing',message:'กำลังยืนยันรายการเดิม กรุณารอ ไม่ต้องจ่ายซ้ำ'})}}   }
   }
   if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
   let row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt});
