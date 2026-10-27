@@ -177,3 +177,7 @@
 .idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline output{grid-column:4;grid-row:1;white-space:nowrap;font-size:11px;text-align:right}
 .idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button:disabled{opacity:.4}
 @media(max-width:700px){.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline{grid-template-columns:28px minmax(0,1fr) 28px;gap:5px}.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline .easy-adjust-stepper button{width:28px;height:30px}.idstudio .easy-mode .easy-adjust-group label .easy-adjust-inline output{grid-column:1/-1;grid-row:2;justify-self:end}}
+
+/* Match the Studio preview watermark transparency, without changing its layout or count. */
+.idstudio .easy-mode .easy-watermark{opacity:.576;color:rgba(255,255,255,.28);text-shadow:none}
+.idstudio .easy-mode .easy-watermark span{color:inherit;text-shadow:0 1px 2px rgba(0,0,0,.16)}
