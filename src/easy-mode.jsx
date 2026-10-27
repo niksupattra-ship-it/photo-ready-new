@@ -70,12 +70,12 @@ export function EasyAdjustmentTabs({children,onReset,onDone}){
   const id=item.props['data-layer-id'],label=item.props['data-label'];
   const kind=label==='หัวและใบหน้า'?'head':label==='คอเสื้อ'?'neck':'detail';
   return <div key={item.key||id} className={'easy-adjust-card easy-adjust-card-'+kind}>
-   <header className="easy-adjust-card-heading">
+   {!compact&&<header className="easy-adjust-card-heading">
     <span className="easy-adjust-heading-label"><EasyUIIcon kind={kind} size={24}/><strong>{label}</strong></span>
     <button type="button" className="easy-card-reset" disabled={item.props['data-reset-disabled']} onClick={()=>onReset?.(id)}><EasyUIIcon kind="reset" size={17}/>คืนค่า</button>
-   </header>
+   </header>}
    <div className="easy-adjust-card-content">{item}</div>
   </div>;
  };
- return <section className="easy-adjustments">{compact?<><nav className="easy-adjust-tabs" aria-label="ส่วนที่ต้องการปรับ">{groups.map(item=><button type="button" key={item.key} aria-pressed={item===active} onClick={()=>setSelected(item.key)}>{item.props['data-label']}</button>)}</nav>{active&&card(active)}<footer className="easy-adjust-actions"><button type="button" className="easy-adjust-finish" onClick={onDone}><EasyUIIcon kind="check" size={17}/>เสร็จสิ้น</button></footer></>:groups.map(card)}</section>;
+ return <section className="easy-adjustments">{compact?<><div className="easy-adjust-toolbar"><nav className="easy-adjust-tabs" aria-label="ส่วนที่ต้องการปรับ">{groups.map(item=><button type="button" key={item.key} aria-pressed={item===active} onClick={()=>setSelected(item.key)}>{item.props['data-label']}</button>)}</nav>{active&&<button type="button" className="easy-card-reset" disabled={active.props['data-reset-disabled']} onClick={()=>onReset?.(active.props['data-layer-id'])}><EasyUIIcon kind="reset" size={17}/>คืนค่า</button>}</div>{active&&card(active)}<footer className="easy-adjust-actions"><button type="button" className="easy-adjust-finish" onClick={onDone}><EasyUIIcon kind="check" size={17}/>เสร็จสิ้น</button></footer></>:groups.map(card)}</section>;
 }
