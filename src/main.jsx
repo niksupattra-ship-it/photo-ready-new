@@ -4462,7 +4462,7 @@ function App(){
    // Only job attire receives the optional second AI pass. Preserve the original
    // template in every failure case; never replace the verified head master.
    let aiJobSuitSource=null;
-   if(/^\\/assets\\/job-uniforms\\/[a-z0-9-]+\\.(?:png|webp)$/.test(template||'')&&aiHead.idpromJobId){
+   if(/^\/assets\/job-uniforms\/[a-z0-9-]+\.(?:png|webp)$/.test(template||'')&&aiHead.idpromJobId){
     try{
      assertProcessActive();
      const outfitRequest=new FormData();
