@@ -704,7 +704,7 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
     // One completely transparent person + newly generated suit, as requested.
     // Keep the selected outfit metadata, but do not draw the old template over it.
     next=next.filter(l=>l.id!==suit.id);
-    Object.assign(head,{source:result.aiJobPortraitSource,processedOriginalSource:result.aiJobPortraitSource,sourceFrame:{x:0,y:0,w:W,h:H},aiJobFullPortrait:true,selectedOutfitTemplate:suit.templatePath});
+    Object.assign(head,{source:result.aiJobPortraitSource,processedOriginalSource:result.aiJobPortraitSource,sourceFrame:{x:0,y:0,w:W,h:H},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1,aiJobFullPortrait:true,selectedOutfitTemplate:suit.templatePath});
    }else{
     const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
    }
