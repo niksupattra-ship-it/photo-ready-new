@@ -82,25 +82,24 @@ function verifySilhouette(candidate,reference,referenceInfo,placement,width,heig
 export async function protectedJobHead(head,frame,width,height){
  const {data,info}=await sharp(head).resize(frame.w,frame.h,{fit:'fill'}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  if(info.channels!==4)throw Error('ภาพหัวมีช่องสีไม่ถูกต้อง');
- const chinGlobalY=frame.chinY!=null?frame.top+frame.chinY*frame.scale:height*.50;
- const faceCenterX=frame.faceCX!=null?frame.left+frame.faceCX*frame.scale:width*.5;
- const fadeFrom=chinGlobalY+height*.012;
- const fadeTo=chinGlobalY+height*.085;
- const halfNeckCorridor=width*.11;
+ const chinY=frame.chinY!=null?frame.top+frame.chinY*frame.scale:height*.50;
+ const centerX=frame.faceCX!=null?frame.left+frame.faceCX*frame.scale:width*.50;
+ // A face-only protection mask. Never restore original clothes, skin bib,
+ // shoulder areas or dark lapels mistakenly classified as long hair.
+ // The outfit AI owns the neck BELOW this contour and the entire garment.
+ const halfFace=Math.max(width*.115,Math.min(width*.20,frame.w*.16));
+ const transition=Math.max(5,Math.round(height*.012));
  for(let y=0;y<info.height;y++){
-  const globalY=frame.top+y;
-  if(globalY<=fadeFrom)continue;
-  const neckOpacity=Math.max(0,Math.min(1,(fadeTo-globalY)/Math.max(1,fadeTo-fadeFrom)));
+  const gy=frame.top+y;
   for(let x=0;x<info.width;x++){
-   const i=(y*info.width+x)*4,alpha=data[i+3];
-   if(!alpha)continue;
-   // Keep dark brown / black hair hanging at the sides of the face.
-   // Remove nude shoulders and the wide U-shaped skin template below chin.
-   const R=data[i],G=data[i+1],B=data[i+2],globalX=frame.left+x;
-   const isSideHair=Math.abs(globalX-faceCenterX)>halfNeckCorridor&&
-     Math.max(R,G,B)<175&&G<160&&B<165&&Math.abs(R-G)<46;
-   const hairOpacity=isSideHair?1:0;
-   data[i+3]=Math.round(alpha*Math.max(neckOpacity,hairOpacity));
+   const i=(y*info.width+x)*4;
+   if(!data[i+3])continue;
+   const gx=frame.left+x;
+   const lateral=Math.abs(gx-centerX)/halfFace;
+   // Move the cutoff upwards at cheek sides and keep the real chin at centre.
+   const lowerEdge=chinY-height*.042*Math.min(1,lateral*lateral);
+   const keep=Math.max(0,Math.min(1,(lowerEdge-gy)/transition));
+   data[i+3]=Math.round(data[i+3]*keep);
   }
  }
  return sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
