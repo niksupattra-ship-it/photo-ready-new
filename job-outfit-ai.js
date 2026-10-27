@@ -27,13 +27,16 @@ function checkedHeadFrame(value,width,height){
  const left=Math.round(p.hX),top=Math.round(p.hY);
  if(w<60||h<100||w>width*4||h>height*4||left<=-w||top<=-h||left>=width||top>=height)
   throw Object.assign(Error('สัดส่วนศีรษะไม่ถูกต้อง'),{status:400});
- return {w,h,left,top};
+ if((p.chinY!=null&&!Number.isFinite(p.chinY))||(p.faceCX!=null&&!Number.isFinite(p.faceCX)))
+  throw Object.assign(Error('จุดอ้างอิงใบหน้าไม่ถูกต้อง'),{status:400});
+ return {w,h,left,top,scale:p.scale,chinY:p.chinY??null,faceCX:p.faceCX??null};
 }
 
 const OUTFIT_PROMPT=[
  'Create ONE photorealistic 3:4 professional job-application portrait. This is a SECOND STEP after the head and haircut are already finished.',
  'IMAGE 1: the exact full-frame ID photo and precise approved garment placement. IMAGE 2: the specific selected job outfit, use its shirt, jacket, collar, color and design. IMAGE 3: the same person\'s FINISHED TRANSPARENT HEAD, HAIR AND NECK, the ONLY identity and hairstyle authority.',
  'Dress the person in Image 3 in the exact chosen outfit from Image 2, naturally rebuilding the real fabric, lapels, collar, sleeves, shadows and torso as one realistic garment. The full shoulders, upper arms, chest and waist should be visible inside the SAME frame and scale as IMAGE 1.',
+ 'CRITICAL CHEST COVERAGE: The head reference may show a temporary shallow-U bare neck base used only for compositing. This is NOT part of the final outfit. Never show a large bare chest, clavicle bib, square nude shoulder patch, or scoop neckline unless the SELECTED outfit genuinely has one. The selected shirt and jacket must cover the torso and sit closely and naturally around the neck, with correct shirt collar opening. No skin patch can overlap the suit lapels.',
  'POSITION AND BODY LOCK: identical head size, eye/chin coordinates, shoulder width, shoulder height, outer sleeves, arm width, waist position, torso bottom crop and camera perspective as Image 1. Never zoom out or in, enlarge or shrink head/body, move shoulders, make a wider/narrower jacket, shorten arms, or crop the sleeves or waist differently.',
  'FACE / HAIR IDENTITY LOCK: absolutely preserve the person in Image 3, including face proportions, eyes, eye shape, mouth, nose, expression, hairline, hair length, ears, neck skin and all natural asymmetries. Do NOT redraw or beautify the face. Do not add accessories, jewelry, pins, tie if not in the selected outfit, logos, decorations, or badges.',
  'The result is an evenly lit professional portrait with the ENTIRE PERSON AND OUTFIT together. Use a clean plain backdrop for easy background removal. No borders, no text, no frame, no extra people. Do not output an isolated outfit without a person.'
@@ -66,8 +69,45 @@ function verifySilhouette(candidate,reference,referenceInfo,placement,width,heig
   throw Error('AI ส่งภาพที่ยังมีพื้นหลัง');
 }
 
-async function preserveOriginalHead(body,head,frame,width,height){
- const image=await sharp(head).resize(frame.w,frame.h,{fit:'fill'}).png().toBuffer();
+
+/**
+ * Protect the original finished FACE/HAIR, not its temporary bare clavicle
+ * cutout. Previous implementation overlaid the ENTIRE transparent head asset
+ * on top of AI's outfit and produced the large U-shaped bare-skin bib.
+ * 
+ * Fade natural neck pixels shortly below the chin, and retain genuine dark
+ * side-hair strands outside the central neck corridor. The generated outfit
+ * remains responsible for collars, shoulders, torso and waist.
+ */
+export async function protectedJobHead(head,frame,width,height){
+ const {data,info}=await sharp(head).resize(frame.w,frame.h,{fit:'fill'}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ if(info.channels!==4)throw Error('ภาพหัวมีช่องสีไม่ถูกต้อง');
+ const chinGlobalY=frame.chinY!=null?frame.top+frame.chinY*frame.scale:height*.50;
+ const faceCenterX=frame.faceCX!=null?frame.left+frame.faceCX*frame.scale:width*.5;
+ const fadeFrom=chinGlobalY+height*.012;
+ const fadeTo=chinGlobalY+height*.085;
+ const halfNeckCorridor=width*.11;
+ for(let y=0;y<info.height;y++){
+  const globalY=frame.top+y;
+  if(globalY<=fadeFrom)continue;
+  const neckOpacity=Math.max(0,Math.min(1,(fadeTo-globalY)/Math.max(1,fadeTo-fadeFrom)));
+  for(let x=0;x<info.width;x++){
+   const i=(y*info.width+x)*4,alpha=data[i+3];
+   if(!alpha)continue;
+   // Keep dark brown / black hair hanging at the sides of the face.
+   // Remove nude shoulders and the wide U-shaped skin template below chin.
+   const R=data[i],G=data[i+1],B=data[i+2],globalX=frame.left+x;
+   const isSideHair=Math.abs(globalX-faceCenterX)>halfNeckCorridor&&
+     Math.max(R,G,B)<175&&G<160&&B<165&&Math.abs(R-G)<46;
+   const hairOpacity=isSideHair?1:0;
+   data[i+3]=Math.round(alpha*Math.max(neckOpacity,hairOpacity));
+  }
+ }
+ return sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
+}
+
+async function preserveOriginalHead(body,protectedHead,frame,width,height){
+ const image=protectedHead;
  const x0=Math.max(0,frame.left),y0=Math.max(0,frame.top);
  const sx=x0-frame.left,sy=y0-frame.top;
  const cropW=Math.min(frame.w-sx,width-x0),cropH=Math.min(frame.h-sy,height-y0);
@@ -101,9 +141,10 @@ export async function generateJobOutfit({root,templatePath,image,head,placement,
  if(refInfo.width<32||refInfo.height<32||refInfo.width*refInfo.height>16_000_000)
   throw Object.assign(Error('ขนาดต้นแบบชุดไม่ถูกต้อง'),{status:400});
  const reference=await sharp(template).flatten({background:'#ffffff'}).png().toBuffer();
+ const faceOnly=await protectedJobHead(head,frame,width,height);
  const generated=await requestReviewSeedream({
   key,prompt:OUTFIT_PROMPT,size:'2K',portrait:image,portraitMime:'image/png',
-  hair:reference,identity:head
+  hair:reference,identity:faceOnly
  });
  // Keep 3:4 camera coordinates without changing aspect ratio.
  const framed=await sharp(generated.png).resize(width,height,{fit:'cover',position:'centre'}).png().toBuffer();
@@ -113,6 +154,6 @@ export async function generateJobOutfit({root,templatePath,image,head,placement,
   throw Error('ภาพชุดโปร่งใสมีขนาดไม่ถูกต้อง');
  verifySilhouette(pixels,refPixels,refInfo,coords,width,height);
  const rgba=await sharp(pixels,{raw:{width,height,channels:4}}).png().toBuffer();
- const png=await preserveOriginalHead(rgba,head,frame,width,height);
+ const png=await preserveOriginalHead(rgba,faceOnly,frame,width,height);
  return {png,provider:'seedream-job-outfit-transparent-v2',requestId:generated.requestId};
 }
