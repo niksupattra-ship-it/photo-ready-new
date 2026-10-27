@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './easy-mode.css';
 
 // The editor remains mounted: all edits, rights checks and exports use the same job.
-export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePreview,hasResult,watermarked,ready,busy,status,gender,hairs,selectedHair,templates,backgrounds,currentSuit,currentBackground,onUpload,onHair,onSuit,onBackground,onDownload,onStudio,onHome}){
+export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePreview,hasResult,watermarked,ready,busy,processing,status,gender,hairs,selectedHair,templates,backgrounds,currentSuit,currentBackground,onUpload,onHair,onSuit,onBackground,onDownload,onStudio,onHome}){
  const preview=useRef(null),[tab,setTab]=useState(hasResult?'adjust':'hair'),[choice,setChoice]=useState(''),[group,setGroup]=useState('ทั้งหมด');
  useEffect(()=>{const src=canvasRef.current;if(!src)return;const draw=()=>{const dst=preview.current;if(!dst||!src.width||!src.height)return;if(dst.width!==src.width||dst.height!==src.height){dst.width=src.width;dst.height=src.height}const ctx=dst.getContext('2d');ctx.clearRect(0,0,dst.width,dst.height);ctx.drawImage(src,0,0)};src.addEventListener('studio-paint',draw);const frame=requestAnimationFrame(draw);return()=>{src.removeEventListener('studio-paint',draw);cancelAnimationFrame(frame)}},[canvasRef,hasResult,sourcePreview,renderVersion]);
  useEffect(()=>{setChoice('')},[sourcePreview,gender]);
@@ -11,6 +11,8 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
  useEffect(()=>{const mq=window.matchMedia('(max-width:700px)');const update=()=>setMobile(mq.matches);mq.addEventListener('change',update);return()=>mq.removeEventListener('change',update)},[]);
  useEffect(()=>{if(hasResult){setTab('adjust');setWizard(false);setCollapsed(window.matchMedia('(max-width:700px)').matches)}},[hasResult]);
  useEffect(()=>{if(sourcePreview&&!hasResult){setTab('hair');setWizard(true)}},[sourcePreview]);
+ const wasProcessing=useRef(false);
+ useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setWizard(false);setTab('adjust');if(mobile)setCollapsed(true)}wasProcessing.current=Boolean(processing)},[processing,hasResult,mobile]);
  const wizardOpen=mobile&&wizard&&!hasResult;
  const wizardTabs=['hair','suit','background','insignia'];
  const openTab=name=>{setCollapsed(mobile&&tab===name&&!collapsed);setTab(name)};
