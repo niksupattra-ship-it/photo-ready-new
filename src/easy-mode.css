@@ -210,3 +210,14 @@
 .idstudio .easy-mode .easy-adjust-sheet>footer{flex:none;padding:8px 14px 10px;border-top:1px solid #eee9fa}
 .idstudio .easy-mode .easy-adjust-sheet>footer button{width:100%;border:0;border-radius:12px;background:#7044ed;color:#fff;font-size:14px;font-weight:700;padding:12px}
 }
+
+/* Homepage is a normal scrolling document, not the full-screen editor.
+   The shell wraps .idstudio (not the other way around). */
+.easy-home-shell{position:relative;display:block;height:auto;min-height:0;overflow:visible}
+.easy-home-shell .idstudio{position:relative;display:block;height:auto;min-height:0;overflow:visible}
+.easy-home-shell .idstudio .easy-mode{position:relative!important;inset:auto!important;z-index:auto!important;height:auto!important;min-height:0!important;overflow:visible!important;display:block!important}
+.easy-home-shell .idstudio .easy-mode .easy-main{height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;display:block!important;padding-bottom:24px}
+.easy-home-shell .idstudio .easy-mode .easy-layout{height:auto!important;min-height:0!important;overflow:visible!important}
+.easy-home-shell .idstudio .easy-mode .easy-preview-card,
+.easy-home-shell .idstudio .easy-mode .easy-options{height:auto!important;max-height:none!important;overflow:visible!important}
+.profile-home.studio-home-below-easy{display:block!important;position:relative!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
