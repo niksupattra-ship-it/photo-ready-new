@@ -4021,7 +4021,7 @@ function App(){
  const rememberRestoredHairResult=head=>{
   const source=firstUploadedPhotoRef.current;let master=editCache.current?.master;
   if(!source||!head)return;
-  const localHair=isFreeFemaleHair(head.hairId),id=localHair?'':head.hairId;
+  const localHair=head.freeHairBaseOriginal===true,id=localHair?'':head.hairId;
   const mode=hairResultMode(id,head.portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle):'natural';
   source.idpromPortraitMode=mode;source.idpromFemaleEyeStyle=finishStyle;
