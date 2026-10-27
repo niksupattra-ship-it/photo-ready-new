@@ -146,3 +146,11 @@
 .idstudio .easy-mode .easy-adjust-dialog footer{flex:none;padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:#fff}
 .idstudio .easy-mode .easy-adjust-dialog footer button{min-height:40px;padding:8px 20px}
 }
+
+/* Compact Studio-style fine tuning buttons on mobile. */
+@media(max-width:700px){
+.idstudio .easy-mode .easy-adjust-dialog-controls .easy-adjust-stepper{grid-column:1/-1;display:flex;justify-content:space-between;gap:5px;margin-top:3px}
+.idstudio .easy-mode .easy-adjust-dialog-controls .easy-adjust-stepper button{flex:1;min-width:0;height:30px;border:1px solid #d9cdf8;border-radius:8px;background:#f4efff;color:#6d3ce5;font-size:19px;font-weight:700;line-height:1;touch-action:manipulation}
+.idstudio .easy-mode .easy-adjust-dialog-controls .easy-adjust-stepper button:active{background:#ded0ff}
+.idstudio .easy-mode .easy-adjust-dialog-controls .easy-adjust-stepper button:disabled{opacity:.4}
+}
