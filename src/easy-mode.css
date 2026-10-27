@@ -670,3 +670,17 @@
   max-height:100%;
  }
 }
+
+/* Homepage help shortcut beside the account button. */
+.easy-home-shell .idstudio .easy-mode .easy-header-actions .idprom-support-trigger {
+ min-height:42px;padding:7px 10px;border-radius:12px;
+ background:#f1f7ff;color:#1768b6;border:1px solid #cbdfee;
+}
+@media (max-width:1100px), (pointer:coarse) and (max-width:1366px) {
+ .easy-home-shell .idstudio .easy-mode .easy-header-actions .idprom-support-trigger {min-width:0;min-height:36px;padding:5px 7px;font-size:11px}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .idprom-support-trigger {order:2}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .easy-studio {order:3}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .idprom-member-popover {order:4}
+}
+
+@media (max-width:360px) { .easy-home-shell .idstudio .easy-mode .easy-header-actions .idprom-support-trigger span {display:none} }
