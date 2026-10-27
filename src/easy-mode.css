@@ -6,3 +6,34 @@
 .idstudio .easy-mode button:focus-visible{outline:3px solid #ae95ff;outline-offset:3px}
 .idstudio .easy-mode .easy-adjustments{border-top:1px solid #e9e4fa;margin-top:16px;padding-top:12px}.idstudio .easy-mode .easy-adjustments label{display:grid;grid-template-columns:1fr auto;gap:8px;margin:14px 0;color:#36314b}.idstudio .easy-mode .easy-adjustments input{grid-column:1;accent-color:#7044ed;width:100%;min-height:30px}.idstudio .easy-mode .easy-adjustments output{grid-column:2;grid-row:2;font-size:13px}.idstudio .easy-mode .easy-tabs{flex-wrap:wrap}
 .idstudio .easy-mode .easy-suit-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.idstudio .easy-mode .easy-suit-grid button{min-width:0;padding:5px;border:2px solid transparent;background:#f3f1fa;color:#36314b;border-radius:10px}.idstudio .easy-mode .easy-suit-grid button.selected{border-color:#7044ed}.idstudio .easy-mode .easy-suit-grid img{width:100%;height:130px;object-fit:contain}.idstudio .easy-mode .easy-suit-grid small{display:block;font-size:12px}.idstudio .easy-mode h3{font-size:15px;margin:18px 0 8px}
+/* Keep the portrait and controls in one viewport; only the catalogue scrolls. */
+.idstudio .easy-mode{height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+.idstudio .easy-mode .easy-header{height:58px;flex:none;padding:0 24px}
+.idstudio .easy-mode .easy-main{width:100%;flex:1;min-height:0;display:flex;flex-direction:column;padding:16px 24px;overflow:hidden}
+.idstudio .easy-mode .easy-intro h1{font-size:24px}.idstudio .easy-mode .easy-intro p{margin:4px 0 10px;font-size:13px}
+.idstudio .easy-mode .easy-steps{margin:0 0 12px}.idstudio .easy-mode .easy-steps b{width:26px;height:26px}
+.idstudio .easy-mode .easy-layout{flex:1;min-height:0;align-items:stretch;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+.idstudio .easy-mode .easy-preview-card{min-height:0;display:flex;flex-direction:column;align-items:center;padding:14px;overflow:hidden}
+.idstudio .easy-mode .easy-preview{flex:1;min-height:0;width:auto;height:100%;max-height:100%;max-width:100%;aspect-ratio:3/4;margin:0 auto;border-radius:8px}
+.idstudio .easy-mode .easy-preview-caption{flex:none;margin:6px 0 0;font-size:12px;color:#6c6280;text-align:center}
+.idstudio .easy-mode .easy-change{flex:none;padding:6px;margin:0 auto;font-size:12px}
+.idstudio .easy-mode .easy-options{min-height:0;display:flex;flex-direction:column;padding:12px;overflow:hidden}
+.idstudio .easy-mode .easy-tabs{flex:none;flex-wrap:nowrap;gap:2px}.idstudio .easy-mode .easy-tabs button{padding:10px 4px;font-size:13px;white-space:nowrap}
+.idstudio .easy-mode .easy-panel{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 3px 10px;scrollbar-width:thin}
+.idstudio .easy-mode .easy-panel h2{font-size:17px;margin:12px 0}.idstudio .easy-mode .easy-panel h2 small{font-size:12px;color:#847896}
+.idstudio .easy-mode .easy-categories{display:flex;gap:6px;overflow:auto;padding:0 0 10px;position:sticky;top:0;background:#fff;z-index:1}
+.idstudio .easy-mode .easy-categories button{flex:none;border:1px solid #e2daef;background:#faf8ff;color:#62556f;padding:8px 12px;border-radius:20px;font-size:12px}
+.idstudio .easy-mode .easy-categories button.selected{background:#7044ed;color:#fff;border-color:#7044ed}
+.idstudio .easy-mode .easy-actions{flex:none;border-top:1px solid #eee8f7;padding-top:8px;background:#fff}
+.idstudio .easy-mode .easy-actions .easy-primary{margin:0;padding:12px}.idstudio .easy-mode .easy-actions .easy-link{margin:0;padding:6px;font-size:12px}
+.idstudio .easy-mode .easy-status{margin:0 0 6px;font-size:12px;max-height:42px;overflow:auto}
+.idstudio .easy-mode .easy-upload{min-height:0;flex:1;width:100%;padding:16px}.idstudio .easy-mode .easy-upload h2{font-size:20px}
+.idstudio .easy-mode .easy-suit-grid img{height:115px}.idstudio .easy-mode .easy-adjustments{margin:0;border:0;padding:0}
+@media(max-width:700px){
+.idstudio .easy-mode .easy-header{height:48px;padding:0 12px}.idstudio .easy-mode .easy-studio{padding:7px 10px}
+.idstudio .easy-mode .easy-main{padding:6px 8px;gap:6px}.idstudio .easy-mode .easy-intro{display:none}.idstudio .easy-mode .easy-steps{margin:0;gap:8px;justify-content:center}.idstudio .easy-mode .easy-steps li{flex-direction:row;font-size:11px;gap:4px}.idstudio .easy-mode .easy-steps b{height:20px;width:20px}
+.idstudio .easy-mode .easy-layout{grid-template-columns:1fr;grid-template-rows:minmax(0,.9fr) minmax(0,1fr);gap:6px}
+.idstudio .easy-mode .easy-preview-card{padding:6px;border-radius:12px}.idstudio .easy-mode .easy-preview{max-width:100%;max-height:100%;width:auto}.idstudio .easy-mode .easy-preview-caption{margin:2px 0 0;font-size:11px}.idstudio .easy-mode .easy-change{padding:2px;font-size:11px}
+.idstudio .easy-mode .easy-options{padding:6px;border-radius:12px}.idstudio .easy-mode .easy-tabs button{font-size:12px;padding:8px 3px}.idstudio .easy-mode .easy-panel h2{font-size:14px;margin:8px 0}.idstudio .easy-mode .easy-suit-grid{gap:6px}.idstudio .easy-mode .easy-suit-grid img{height:90px}.idstudio .easy-mode .easy-suit-grid small{font-size:11px}.idstudio .easy-mode .easy-actions .easy-link{display:none}.idstudio .easy-mode .easy-actions .easy-primary{padding:10px}.idstudio .easy-mode .easy-upload-icon{font-size:28px}.idstudio .easy-mode .easy-upload p{font-size:12px;margin:6px 0}.idstudio .easy-mode .easy-upload h2{margin:4px}.idstudio .easy-mode .easy-upload .easy-primary{margin-top:6px;padding:10px}
+}
+@media(max-height:500px) and (orientation:landscape){.idstudio .easy-mode .easy-intro,.idstudio .easy-mode .easy-steps{display:none}.idstudio .easy-mode .easy-layout{grid-template-columns:1fr 1.2fr;grid-template-rows:minmax(0,1fr)}}
