@@ -965,3 +965,9 @@
   max-width:none;max-height:none;object-fit:contain;object-position:center top;margin:0;
  }
 }
+
+/* Keep the two post-processing actions together. */
+.idstudio .easy-mode .easy-actions.easy-ready-actions {display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px;align-items:stretch}
+.idstudio .easy-mode .easy-actions.easy-ready-actions .easy-status {grid-column:1/-1;margin:0}
+.idstudio .easy-mode .easy-actions.easy-ready-actions .easy-primary {margin:0;min-width:0}
+.idstudio .easy-mode .easy-actions.easy-ready-actions .easy-link {display:block;width:100%;min-width:0;margin:0;padding:9px 6px;border:1px solid #beaaff;border-radius:12px;background:#f7f4ff;color:#6035df;font-size:12px;font-weight:700;line-height:1.3}
