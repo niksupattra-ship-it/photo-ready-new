@@ -4501,7 +4501,7 @@ function App(){
    return {layer:head,reused:staged.reused,commit:()=>{staged.commit();committed=true},rollback};
   }catch(error){rollback();throw error}
  };
- if(screen==='home'&&window.matchMedia('(max-width:700px)').matches){return <main className="idstudio"><input type="file" accept="image/*" aria-label="เลือกรูปต้นฉบับ" style={{display:'none'}} ref={fileInputRef} onChange={pick}/><EasyMode adjustments={null} insignia={null} canvasRef={{current:null}} renderVersion={0} sourcePreview={null} hasResult={false} watermarked={false} ready={true} busy={false} processing={false} status="" gender="female" hairs={[]} selectedHair="" templates={[]} backgrounds={[]} currentSuit="" currentBackground="" onUpload={()=>{mobileLandingUploadRef.current=true;fileInputRef.current?.click()}} onHair={()=>{}} onSuit={()=>{}} onBackground={()=>{}} onDownload={()=>{}} onStudio={()=>{setStudioData(null);setScreen('studio')}} onHome={()=>{}}/></main>}
+ if(screen==='home'){return <main className="idstudio"><input type="file" accept="image/*" aria-label="เลือกรูปต้นฉบับ" style={{display:'none'}} ref={fileInputRef} onChange={pick}/><EasyMode adjustments={null} insignia={null} canvasRef={{current:null}} renderVersion={0} sourcePreview={null} hasResult={false} watermarked={false} ready={true} busy={false} processing={false} status="" gender="female" hairs={[]} selectedHair="" templates={[]} backgrounds={[]} currentSuit="" currentBackground="" onUpload={()=>{mobileLandingUploadRef.current=true;fileInputRef.current?.click()}} onHair={()=>{}} onSuit={()=>{}} onBackground={()=>{}} onDownload={()=>{}} onStudio={()=>{setStudioData(null);setScreen('studio')}} onHome={()=>{}}/></main>}
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
