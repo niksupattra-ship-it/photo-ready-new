@@ -56,3 +56,22 @@
 .idstudio .easy-mode .easy-options.easy-wizard{top:auto;bottom:max(10px,env(safe-area-inset-bottom));max-height:70%;height:480px;padding:8px}
 .idstudio .easy-mode .easy-backgrounds img{height:42px}
 }
+
+/* Compact mobile picker: preserve image thumbnails, give the photo space and keep the result collapsed. */
+@media (max-width:700px){
+.idstudio .easy-mode .easy-options:not(.easy-wizard){padding:7px 8px;gap:4px}
+.idstudio .easy-mode .easy-options:not(.easy-wizard) .easy-tabs{gap:3px;overflow-x:auto;scrollbar-width:none;padding:3px;background:#f4f2fc;border-radius:10px}
+.idstudio .easy-mode .easy-options:not(.easy-wizard) .easy-tabs::-webkit-scrollbar{display:none}
+.idstudio .easy-mode .easy-tabs button{flex:1 0 auto;min-width:0;min-height:34px;padding:7px 8px;font-size:11px;line-height:1.2;border-radius:8px}
+.idstudio .easy-mode .easy-panel{padding:0 2px 6px}
+.idstudio .easy-mode .easy-panel h2{font-size:13px;margin:6px 0 8px}
+.idstudio .easy-mode .easy-rail,.idstudio .easy-mode .easy-suit-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.idstudio .easy-mode .easy-rail button,.idstudio .easy-mode .easy-suit-grid button{min-width:0;min-height:0;padding:3px;border-radius:8px}
+.idstudio .easy-mode .easy-rail img,.idstudio .easy-mode .easy-rail .easy-none,.idstudio .easy-mode .easy-suit-grid img{width:100%;height:58px;object-fit:contain}
+.idstudio .easy-mode .easy-rail small,.idstudio .easy-mode .easy-suit-grid small{font-size:10px;line-height:1.3;padding:3px 1px}
+.idstudio .easy-mode .easy-options.easy-wizard{height:min(450px,68dvh);max-height:68dvh;padding:9px}
+.idstudio .easy-mode .easy-options.easy-wizard .easy-rail img,.idstudio .easy-mode .easy-options.easy-wizard .easy-rail .easy-none,.idstudio .easy-mode .easy-options.easy-wizard .easy-suit-grid img{height:65px}
+.idstudio .easy-mode .easy-collapsed .easy-options:not(.easy-wizard){gap:4px}
+.idstudio .easy-mode .easy-collapsed .easy-options:not(.easy-wizard) .easy-actions{padding-top:5px}
+.idstudio .easy-mode .easy-collapsed .easy-options:not(.easy-wizard) .easy-actions .easy-primary{padding:9px}
+}
