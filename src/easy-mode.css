@@ -892,3 +892,36 @@
  }
  .idstudio .easy-mode.easy-adjust-open .easy-adjustments > .easy-adjust-actions {margin-top:0;padding-top:5px}
 }
+
+/* Show guided choices in a vertically scrollable grid on phones and tablets. */
+@media (max-width:1100px), (pointer:coarse) and (max-width:1366px) {
+ .idstudio .easy-mode .easy-wizard-backdrop {position:fixed;inset:0;z-index:100;background:#17102d88}
+ .idstudio .easy-mode .easy-options.easy-wizard {
+  position:fixed;z-index:101;top:auto;left:12px;right:12px;
+  bottom:max(10px,env(safe-area-inset-bottom));
+  width:auto;max-width:720px;margin:0 auto;
+  max-height:min(82dvh,700px);overflow:hidden;
+ }
+ .idstudio .easy-mode .easy-wizard .easy-panel {
+  flex:0 1 auto;min-height:0;max-height:min(62dvh,550px);
+  overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;
+ }
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-rail,
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-suit-grid {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;overflow:visible;scroll-snap-type:none;
+ }
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-rail > button,
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-suit-grid > button {
+  min-width:0;width:100%;height:auto;scroll-snap-align:none;
+ }
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-rail > button > img,
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-suit-grid > button > img,
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-rail > button > .easy-none {
+  width:100%;height:auto;aspect-ratio:1;
+ }
+}
+@media (min-width:600px) and (max-width:1100px), (pointer:coarse) and (min-width:600px) and (max-width:1366px) {
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-rail,
+ .idstudio .easy-mode .easy-options.easy-wizard .easy-suit-grid {grid-template-columns:repeat(5,minmax(0,1fr))}
+}
