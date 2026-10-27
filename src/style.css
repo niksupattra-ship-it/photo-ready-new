@@ -4071,3 +4071,7 @@
 }
 @media(prefers-reduced-motion:reduce){.photo-size-dialog>footer button{transition:none}}
 
+
+/* Home CTA: desktop unchanged, mobile emphasizes adding a photo. */
+.studio-home-cta-mobile{display:none}
+@media(max-width:700px){.studio-home-cta-desktop{display:none}.studio-home-cta-mobile{display:inline}}
