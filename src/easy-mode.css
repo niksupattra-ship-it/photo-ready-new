@@ -221,3 +221,9 @@
 .easy-home-shell .idstudio .easy-mode .easy-preview-card,
 .easy-home-shell .idstudio .easy-mode .easy-options{height:auto!important;max-height:none!important;overflow:visible!important}
 .profile-home.studio-home-below-easy{display:block!important;position:relative!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+
+/* Keep the preselected outfit catalogue reachable before a photo is added. */
+.idstudio .easy-mode.easy-awaiting-photo{overflow-y:auto}
+.idstudio .easy-mode.easy-awaiting-photo .easy-main{flex:none;overflow:visible}
+.idstudio .easy-mode.easy-awaiting-photo .easy-options{max-height:60dvh;overflow:hidden}
+.idstudio .easy-mode.easy-awaiting-photo .easy-panel{min-height:120px}
