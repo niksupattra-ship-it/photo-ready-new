@@ -494,3 +494,42 @@
   display:none;
  }
 }
+
+
+/* Homepage/mobile: keep the member dropdown in normal layout, never over the editor. */
+@media (max-width:1100px), (pointer:coarse) and (max-width:1366px) {
+ .easy-home-shell .easy-mode .easy-header {
+  height:auto;
+  min-height:52px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  column-gap:8px;
+  row-gap:0;
+  padding:6px 12px;
+  overflow:visible;
+ }
+ .easy-home-shell .easy-mode .easy-header .easy-brand {flex:0 1 auto;min-width:0;font-size:clamp(19px,5.2vw,26px)!important}
+ .easy-home-shell .easy-mode .easy-header-actions {display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;max-width:calc(100% - 120px);margin-left:auto;flex-wrap:nowrap}
+ .easy-home-shell .easy-mode .easy-header-actions .idprom-member-menu {position:static!important;display:flex;align-items:center;flex:none}
+ .easy-home-shell .easy-mode .easy-header-actions .idprom-member-menu>button {width:36px!important;height:36px!important;flex:none!important}
+ .easy-home-shell .easy-mode .easy-header-actions .easy-studio {white-space:nowrap;font-size:12px!important;padding:8px 10px}
+ .easy-home-shell .easy-mode .easy-header-actions .idprom-member-popover {
+  position:relative!important;
+  right:auto!important;
+  top:auto!important;
+  left:auto!important;
+  width:100%!important;
+  max-width:none!important;
+  flex:0 0 100%;
+  margin:8px 0 3px;
+  z-index:1!important;
+  box-shadow:0 6px 18px rgba(0,0,0,.13)!important;
+ }
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .easy-header-actions {display:contents}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .idprom-member-menu {display:contents}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .idprom-member-menu>button {order:1;margin-left:auto}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .easy-studio {order:2}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .easy-brand {order:0}
+ .easy-home-shell .easy-mode .easy-header:has(.idprom-member-popover) .idprom-member-popover {order:3}
+}
