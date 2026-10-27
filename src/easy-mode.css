@@ -684,3 +684,53 @@
 }
 
 @media (max-width:360px) { .easy-home-shell .idstudio .easy-mode .easy-header-actions .idprom-support-trigger span {display:none} }
+
+/* Touch editor: keep the adjustment sheet and Done button at the viewport edge. */
+@media (max-width:1100px), (pointer:coarse) and (max-width:1366px) {
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-sheet {
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:var(--easy-adjust-height);
+  max-height:var(--easy-adjust-height);
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  box-sizing:border-box;
+  overflow:hidden;
+ }
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-sheet-controls {
+  display:flex;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  padding:4px 10px 6px;
+ }
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-sheet-controls > .easy-adjustments {
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  min-height:0;
+  width:100%;
+  gap:0;
+ }
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-tabs {
+  position:static;
+  flex:0 0 auto;
+ }
+ .idstudio .easy-mode.easy-adjust-open .easy-adjustments > .easy-adjust-card {
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+ }
+ .idstudio .easy-mode.easy-adjust-open .easy-adjustments > .easy-adjust-actions {
+  position:static;
+  flex:0 0 auto;
+  margin-top:auto;
+  padding:7px 0 0;
+ }
+ .idstudio .easy-mode.easy-adjust-open .easy-adjust-actions .easy-adjust-finish {
+  min-height:40px;
+  margin:0;
+ }
+}
