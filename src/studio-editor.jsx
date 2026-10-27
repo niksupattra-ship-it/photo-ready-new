@@ -699,17 +699,8 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
   let stagedResult;
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};const anchor=oldHead||suit;if(anchor)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,squeezeX:anchor.squeezeX??1,squeezeY:anchor.squeezeY??1,rotation:anchor.rotation,opacity:oldHead?.opacity??1});
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));
-   const hasAiJobPortrait=Boolean(result.aiJobPortraitSource&&suit?.templatePath?.startsWith('/assets/job-uniforms/'));
-   if(hasAiJobPortrait){
-    // One completely transparent person + newly generated suit, as requested.
-    // Keep the selected outfit metadata, but do not draw the old template over it.
-    next=next.filter(l=>l.id!==suit.id);
-    Object.assign(head,{source:result.aiJobPortraitSource,processedOriginalSource:result.aiJobPortraitSource,sourceFrame:{x:0,y:0,w:W,h:H},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1,aiJobFullPortrait:true,selectedOutfitTemplate:suit.templatePath});
-   }else{
-    const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
-   }
-   if(hasAiJobPortrait)next.push(head);
-   if(!hasAiJobPortrait&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
+   const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
+   if(next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;resetPhotoHistory();resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');reportProcessedResult(result.layer,{reused:result.reused===true})}else throw Error('แสดงภาพไม่สำเร็จ');
   }catch(e){await hydrate(previous);stagedResult?.rollback?.();await onFinishProcess?.(false).catch(()=>{});setProcessHairPending(true);const message=e.message||'ประมวลผลไม่สำเร็จ กรุณาลองใหม่';setStatus(message);if(e.code!=='USER_CANCELLED')setPortraitProcessError(message)}finally{processRequestRef.current=false;setProcessingPhoto(false)}
  };
