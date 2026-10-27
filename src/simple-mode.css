@@ -1,0 +1,10 @@
+/* Simple mode only changes presentation. All existing editor actions remain mounted. */
+.idprom-mode-switch{display:flex;align-items:center;justify-content:center;gap:14px;padding:14px 18px;background:#fff;border-bottom:1px solid #e8e9ee;position:relative;z-index:3;flex-wrap:wrap}
+.idprom-mode-caption{font-size:13px;font-weight:650;color:#626a7a}
+.idprom-mode-tabs{display:flex;gap:4px;padding:4px;border-radius:13px;background:#f0f2f6}
+.idprom-mode-tabs button{border:0;border-radius:10px;background:transparent;color:#485164;padding:10px 18px;font:inherit;font-weight:700;cursor:pointer}
+.idprom-mode-tabs button.selected{background:#fff;color:#1e3c74;box-shadow:0 1px 5px #172b4d1a}
+.idprom-simple-mode .tool-rail-wrap .option-icon-bar>button:nth-child(-n+3){display:none}
+.idprom-simple-mode .tool-rail-wrap .option-icon-bar>button:nth-child(n+4){display:flex}
+.idprom-simple-mode .editor-tool-dock .tool-choice-sheet{max-width:min(100%,720px)}
+@media(max-width:700px){.idprom-mode-switch{padding:9px 10px;gap:6px}.idprom-mode-caption{display:none}.idprom-mode-tabs{width:100%}.idprom-mode-tabs button{flex:1;padding:10px 5px;font-size:13px}}
