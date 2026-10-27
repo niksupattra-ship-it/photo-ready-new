@@ -925,3 +925,31 @@
  .idstudio .easy-mode .easy-options.easy-wizard .easy-rail,
  .idstudio .easy-mode .easy-options.easy-wizard .easy-suit-grid {grid-template-columns:repeat(5,minmax(0,1fr))}
 }
+
+/* The heading and category icons are used by the desktop suit picker. */
+.idstudio .easy-mode .easy-suit-heading,
+.idstudio .easy-mode .easy-suit-category-icon {display:none}
+@media (min-width:1101px) and (hover:hover) and (pointer:fine), (min-width:1367px) {
+ .idstudio .easy-mode .easy-options.easy-suit-view {padding:20px;gap:12px}
+ .idstudio .easy-mode .easy-suit-view .easy-wizard-heading {display:none}
+ .idstudio .easy-mode .easy-suit-view .easy-panel {padding:0 2px 12px;overflow-x:hidden}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-heading {display:flex;align-items:center;gap:12px;margin:0 0 15px;color:#191748}
+ .idstudio .easy-mode .easy-suit-heading > span {display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:#f0ebff;color:#713ff3;flex:none}
+ .idstudio .easy-mode .easy-suit-heading strong,.idstudio .easy-mode .easy-suit-heading small {display:block}
+ .idstudio .easy-mode .easy-suit-heading strong {font-size:19px;line-height:1.3}
+ .idstudio .easy-mode .easy-suit-heading small {font-size:13px;color:#747197}
+ .idstudio .easy-mode .easy-suit-view .easy-categories {display:flex;gap:8px;overflow-x:auto;padding:0 0 12px;scrollbar-width:thin}
+ .idstudio .easy-mode .easy-suit-view .easy-categories button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;flex:1 0 88px;min-height:74px;margin:0;padding:9px 8px;border:1px solid #eeeafa;border-radius:12px;background:#f3f1fc;color:#282054;font-size:12px;font-weight:700;white-space:normal}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-category-icon {display:block;line-height:0}
+ .idstudio .easy-mode .easy-suit-view .easy-categories button.selected {border-color:#7241f3;background:#7044ed;color:#fff}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;overflow:visible;padding:0}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-grid button {position:relative;display:flex;flex-direction:column;min-width:0;padding:0;overflow:hidden;border:2px solid #ebe7f8;border-radius:12px;background:#fff;color:#211b4c;box-shadow:0 2px 8px #2512570d}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-grid button.selected {border-color:#7444f4}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-grid button.selected::after {content:'✓';position:absolute;top:7px;right:7px;display:grid;place-items:center;width:26px;height:26px;border:2px solid #fff;border-radius:50%;background:#7044ed;color:#fff;font-size:16px;font-weight:800}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-grid img {width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:8px 8px 0 0}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-grid small {display:block;width:100%;padding:8px 4px;font-size:12px;font-weight:700;line-height:1.35;text-align:center}
+ .idstudio .easy-mode .easy-suit-view.easy-wizard .easy-actions {display:grid;grid-template-columns:1fr 2fr;gap:10px;align-items:center}
+ .idstudio .easy-mode .easy-suit-view.easy-wizard .easy-actions .easy-wizard-back {width:100%;min-height:44px;margin:0;border-radius:11px;background:#f0ebff;font-weight:700}
+ .idstudio .easy-mode .easy-suit-view.easy-wizard .easy-actions .easy-primary {min-height:44px}
+ .idstudio .easy-mode .easy-suit-view.easy-wizard .easy-actions .easy-status,.idstudio .easy-mode .easy-suit-view.easy-wizard .easy-actions .easy-link {grid-column:1/-1}
+}
