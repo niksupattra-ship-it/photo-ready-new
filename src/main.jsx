@@ -1,3 +1,4 @@
+import {EasyMode} from './easy-mode.jsx';
 import {inspectPortraitGarments,inspectUnchangedPortraitHair} from './portrait-completion-check.js';
 import {inspectSelectedPortraitHair} from './selected-hair-check.js';
 import {removePortraitClothingAlpha} from './replace-studio-source.js';
@@ -3481,7 +3482,7 @@ function App(){
  const[selectedGownTemplate,setSelectedGownTemplate]=useState(GOWN_UNIFORMS[0].template);
  const[selectedInteriorTemplate,setSelectedInteriorTemplate]=useState(INTERIOR_UNIFORMS[0].img);
  const[homeInfoOpen,setHomeInfoOpen]=useState(false),[homeShowGender,setHomeShowGender]=useState('all');
- const[uniformCategory,setUniformCategory]=useState('job'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState(()=>window.matchMedia('(max-width:700px)').matches?'studio':'home'),[selectedStyle,setSelectedStyle]=useState(''),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
+ const[uniformCategory,setUniformCategory]=useState('job'),[homeFilter,setHomeFilter]=useState('all'),[screen,setScreen]=useState('home'),[selectedStyle,setSelectedStyle]=useState(''),[gender,setGender]=useState('female'),[level,setLevel]=useState('operational');
  const homeResultsRef=useRef(null);
  const selectedFemaleGovernmentTemplate=FEMALE_GOVERNMENT_UNIFORMS.find(t=>t.level===level)?.img||GOVERNMENT_FINANCE_TEMPLATE;
  const selectedGovernmentTemplate=gender==='male'?selectedInteriorTemplate:selectedFemaleGovernmentTemplate;
@@ -4499,6 +4500,7 @@ function App(){
    return {layer:head,reused:staged.reused,commit:()=>{staged.commit();committed=true},rollback};
   }catch(error){rollback();throw error}
  };
+ if(screen==='home'&&window.matchMedia('(max-width:700px)').matches){return <main className="idstudio"><EasyMode adjustments={null} insignia={null} canvasRef={{current:null}} renderVersion={0} sourcePreview={null} hasResult={false} watermarked={false} ready={true} busy={false} processing={false} status="" gender="female" hairs={[]} selectedHair="" templates={[]} backgrounds={[]} currentSuit="" currentBackground="" onUpload={()=>{setStudioData(null);setScreen('studio')}} onHair={()=>{}} onSuit={()=>{}} onBackground={()=>{}} onDownload={()=>{}} onStudio={()=>{setStudioData(null);setScreen('studio')}} onHome={()=>{}}/></main>}
  if(screen==='home'){
   const rows=[
    {id:'popular',title:'ตัวเลือกยอดนิยม 🔥',cards:[
