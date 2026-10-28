@@ -1,6 +1,6 @@
 // Versioned IDs preserve the rights of payments created before these offers.
 export const PACKAGES=Object.freeze({
- 'download_159_hair_v1':{price:159,g:0,h:0,name:'ดาวน์โหลดงานนี้ พร้อมปลดล็อกทรงผมหญิงทั้งหมด',requiresImage:true,fullEdit:true},
+ 'download_159_hair_v1':{price:159,g:0,h:0,name:'รับรูปนี้ + ทรงผม',requiresImage:true,fullEdit:true},
  'download_119_v1':{price:119,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
  'download_89_v1':{price:89,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
  '89_v4':{price:89,g:2,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง',requiresImage:false,fullEdit:true},

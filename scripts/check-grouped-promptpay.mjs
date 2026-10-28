@@ -125,6 +125,28 @@ try{
   const second=await create(g.jobs[1],{attempt:'attempt_lost_response_sibling_01'});assert.equal(second.status,200);assert.equal(intents.size,before+1);
   const calls=gatewayCalls.filter(call=>call.endpoint==='payment_intents'&&g.jobs.includes(call.params['metadata[job_id]']));assert.equal(calls.length,2);assert.equal(calls[0].key,calls[1].key);assert.deepEqual(calls[0].params,calls[1].params);
  });
+ await check('new premium reservations freeze the displayed package name across a lost response and later label change',async()=>{
+  const g=await group('premiumlabelnew'),offer=packageFor('download_159_hair_v1'),name=offer.name,before=intents.size;
+  assert.equal(name,'รับรูปนี้ + ทรงผม');dropNextCreateResponse=true;
+  assert.equal((await create(g.jobs[0],{packageId:'159'})).status,400);
+  const row=await intentStore.findActive(g.wallet,g.scope);assert.equal(row.payload.description,'IDพร้อม — '+name);assert.equal(row.intent_id,null);
+  try{
+   offer.name='fixture later package label';
+   const retried=await create(g.jobs[1],{packageId:'159'});assert.equal(retried.status,200);assert.equal(retried.data.packageId,'159');
+  }finally{offer.name=name}
+  const calls=gatewayCalls.filter(call=>call.endpoint==='payment_intents'&&call.key===row.idempotency_key);
+  assert.equal(calls.length,2);assert.deepEqual(calls[1].params,calls[0].params);assert.equal(calls[1].params.description,'IDพร้อม — '+name);assert.equal(intents.size,before+1);
+ });
+ await check('old null-payload premium reservations retry the exact pre-rename provider body without another intent',async()=>{
+  const g=await group('premiumlabelold'),row=await intentStore.reserve({walletId:g.wallet,scope:g.scope,packageId:'download_159_hair_v1',jobId:g.jobs[0],email:'frozen159@fixture.invalid',attempt:'attempt_old_premium_label_01'}),before=intents.size;
+  assert.equal(row.payload,null);
+  const params={amount:15900,currency:'thb','payment_method_types[0]':'promptpay','payment_method_data[type]':'promptpay','payment_method_data[billing_details][email]':row.email,confirm:'true',description:'IDพร้อม — ดาวน์โหลดงานนี้ พร้อมปลดล็อกทรงผมหญิงทั้งหมด','metadata[flow]':'idprom_promptpay_v1','metadata[wallet_id]':row.wallet_id,'metadata[package_id]':row.package_id,'metadata[job_id]':row.job_id};
+  dropNextCreateResponse=true;await assert.rejects(stripePost('payment_intents',params,row.idempotency_key),/response lost/);
+  const retried=await create(g.jobs[1],{packageId:'159'});assert.equal(retried.status,200);assert.equal(retried.data.amount,159);assert.equal(retried.data.packageId,'159');
+  const calls=gatewayCalls.filter(call=>call.endpoint==='payment_intents'&&call.key===row.idempotency_key);assert.equal(calls.length,2);assert.deepEqual(calls[1].params,params);assert.equal(intents.size,before+1);
+  assert.equal((await intentStore.findActive(g.wallet,g.scope)).payload,null);
+  pay(retried.data.paymentIntentId);assert.equal((await poll(retried.data.paymentIntentId)).data.ok,true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[1]),true);
+ });
  await check('crash after provider success before binding cannot create another sibling intent',async()=>{
   const g=await group('lostbind'),before=intents.size,bind=intentStore.bind;let fail=true;
   intentStore.bind=async(...args)=>{if(fail){fail=false;throw Error('simulated database connection lost before bind')}return bind(...args)};

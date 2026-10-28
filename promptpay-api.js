@@ -5,6 +5,8 @@ import {promptpayIntentStore} from './promptpay-intent-store.js';
 const FLOW='idprom_promptpay_v1';
 // Both basic prices remain recognizable for pending historical payments.
 const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1']);
+// Old unbound premium reservations used this description with their Stripe key.
+const LEGACY_PREMIUM_DESCRIPTION='IDพร้อม — ดาวน์โหลดงานนี้ พร้อมปลดล็อกทรงผมหญิงทั้งหมด';
 const publicPackageId=id=>id==='download_159_hair_v1'?'159':id==='download_89_v1'?'89':'119';
 const keyFor=value=>crypto.createHash('sha256').update(value).digest('hex');
 const warnReconciliation=error=>console.warn('IDPROM payment reconciliation pending',String(error?.code||'storage_unavailable').replace(/[^A-Za-z0-9_:-]/g,'').slice(0,40));
@@ -84,7 +86,10 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   if(row.intent_id)return stripeGet('payment_intents/'+row.intent_id);
   if(row.created_at&&Date.now()-new Date(row.created_at).getTime()>23*60*60*1000)throw Error('payment_recovery_required');
   const offer=packageFor(row.package_id);
-  const intent=await stripePost('payment_intents',{amount:offer.price*100,currency:'thb','payment_method_types[0]':'promptpay','payment_method_data[type]':'promptpay','payment_method_data[billing_details][email]':row.email,confirm:'true',description:`IDพร้อม — ${offer.name}`,'metadata[flow]':FLOW,'metadata[wallet_id]':row.wallet_id,'metadata[package_id]':row.package_id,'metadata[job_id]':row.job_id},row.idempotency_key);
+  // Labels can change after a creation response is lost. Reuse the reserved
+  // description, including the exact legacy value for older null-payload rows.
+  const description=typeof row.payload?.description==='string'?row.payload.description:row.package_id==='download_159_hair_v1'?LEGACY_PREMIUM_DESCRIPTION:`IDพร้อม — ${offer.name}`;
+  const intent=await stripePost('payment_intents',{amount:offer.price*100,currency:'thb','payment_method_types[0]':'promptpay','payment_method_data[type]':'promptpay','payment_method_data[billing_details][email]':row.email,confirm:'true',description,'metadata[flow]':FLOW,'metadata[wallet_id]':row.wallet_id,'metadata[package_id]':row.package_id,'metadata[job_id]':row.job_id},row.idempotency_key);
   if(!/^pi_[A-Za-z0-9]+$/.test(intent?.id||'')||intent.metadata?.flow!==FLOW||intent.metadata?.wallet_id!==row.wallet_id||intent.metadata?.package_id!==row.package_id||intent.metadata?.job_id!==row.job_id||intent.amount!==offer.price*100||intent.currency!=='thb')throw Error('payment_reservation_mismatch');
   await intentStore.bind(row.id,intent);return intent;
  };
@@ -184,17 +189,17 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
    else if(old.status!=='canceled'){const stopped=await cancel(old);if(stopped.status==='succeeded')await resolve(stopped,{requestedJobId:jobId});else if(stopped.status==='processing'){await locate(stopped);return res.status(409).json({error:'payment_processing',message:'กำลังยืนยันรายการเดิม กรุณารอ ไม่ต้องจ่ายซ้ำ'})}}   }
   }
   if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
-  let row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt});
+  let row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt,payload:{description:`IDพร้อม — ${offer.name}`}});
   if(row.channel==='checkout'){
    const session=await checkoutState(row);
-   if(session.payment_status==='paid'){await closeGranted(row,session.id,await settleSession(session));if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt})}
-   else if(session.status==='expired'){await intentStore.close(row.id,session.id);row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt})}
+   if(session.payment_status==='paid'){await closeGranted(row,session.id,await settleSession(session));if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt,payload:{description:`IDพร้อม — ${offer.name}`}})}
+   else if(session.status==='expired'){await intentStore.close(row.id,session.id);row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt,payload:{description:`IDพร้อม — ${offer.name}`}})}
    else return res.status(409).json({error:'payment_pending_checkout',checkoutUrl:session.url,message:'มีรายการชำระเงินเดิมของงานนี้ กรุณาดำเนินการรายการเดิม ไม่ต้องจ่ายซ้ำ'});
    if(row.channel==='checkout')return res.status(409).json({error:'payment_finished',message:'ตรวจสอบรายการเดิมแล้ว กรุณาเริ่มรายการใหม่อีกครั้ง'});
   }
   let intent=await getIntent(row),out=await resolve(intent,{row,requestedJobId:jobId});
   if(out.ok&&row.package_id!==offer.id&&!await covered(user.wallet_id,jobId,offer.id)){
-   row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt});intent=await getIntent(row);out=await resolve(intent,{row,requestedJobId:jobId});
+   row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt,payload:{description:`IDพร้อม — ${offer.name}`}});intent=await getIntent(row);out=await resolve(intent,{row,requestedJobId:jobId});
   }
   if(!out.ok&&!out.qrImage&&!['processing','canceled'].includes(out.status))throw Error('qr_unavailable');
   res.json(out);
