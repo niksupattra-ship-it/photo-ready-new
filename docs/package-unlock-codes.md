@@ -1,0 +1,15 @@
+# Single-use package unlock codes
+
+`package-unlock-codes.js` contains the SHA-256 digests and package IDs for the approved batch: ten 89-baht codes and ten 159-baht codes. Plaintext codes belong only in the owner's delivery artifact, never the repository, public assets, client bundle, logs, analytics, or URL parameters.
+
+A customer signs in, creates a portrait, and enters a code through **ใส่โค้ด**. One code unlocks one completed work owned by that authenticated account. Package 89 grants watermark-free export and three suit choices; package 159 also grants premium hair and five suit choices. Original/current work grouping retains those grants across hairstyle renders and repeated downloads. Codes have no expiry in this batch; each can be consumed once globally.
+
+The store writes standard `paid_image_unlocks` and, for 159, `premium_hair_unlocks`, in the same transaction as the code redemption. It does not create a Stripe payment, generation balance, support download credit, or saving exemption. Existing package, saving, retention and export checks continue to apply. Current work is required; entering a code before processing cannot consume it.
+
+The `package_unlock_code_redemptions` primary key is the code digest. Transactions lock the wallet first, validate the current database user and completed work, and reject foreign work mappings. A network retry by the same account for the same work returns the existing redemption, including later grouped render IDs; it never grants another work. An unused code submitted for an equivalent already-unlocked work stays unused. Package 159 may upgrade a basic work; 89 cannot downgrade a premium work. Parallel codes, payments and support-credit redemption follow the same wallet lock order.
+
+Keep the redemption ledger permanently. Restarting, deploying or changing the batch must never reset it; deleting a saved project does not make its code available again. To add future codes, append new digest/package pairs and privately deliver the new plaintext values. Do not regenerate this issued batch or overwrite its historical package meanings.
+
+The client claims any guest-created work, sends `POST /api/package-codes/redeem` with `{code,jobId}`, and verifies current account/work output rights before reporting success. A failed confirmation stays retryable with the same code and work. Applying a code never automatically exports an original-size file; the ordinary Download action retains the customer's size choice. A same-account Home button can explicitly reopen the last package-code draft in that browser without a QR or another redemption. It remains a local recovery copy, not cloud saving. Source/scene guards prevent a delayed restore from overwriting a newly added photo.
+
+Tests use dummy code values and disposable SQL/PostgreSQL only. Never consume one of the owner's issued codes as a production smoke test. Deployment verification can match the published asset hashes, health endpoint and unauthenticated route response without redeeming a code.

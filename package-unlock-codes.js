@@ -1,0 +1,23 @@
+// Approved one-use work-unlock codes. Plaintext codes are never shipped to clients.
+export const PACKAGE_UNLOCK_CODES=Object.freeze([
+ Object.freeze({"codeHash":"06475f30e016923931aedad9dc283f1c5b71de5d9b225254ca11305d4359c21d","packageId":"89"}),
+ Object.freeze({"codeHash":"ce397fc2e5d327f3c085d6f902bb36df0fecc16051ee3184c9c6d390672f524f","packageId":"89"}),
+ Object.freeze({"codeHash":"c5f23ce6a5a57dbedb0fdd40d2aa3012684440e303804a4b1ec8fbe49648c9ff","packageId":"89"}),
+ Object.freeze({"codeHash":"ba6dd6c1f69ecc0bae3c7d3cc261f22688d052748e8398f16e4f39460c77d5be","packageId":"89"}),
+ Object.freeze({"codeHash":"ced4da07417a3cb723ff0b3dfb814f59f97b6154f6d3a329070b63f0cfecf65c","packageId":"89"}),
+ Object.freeze({"codeHash":"5cb9a98f4dbd7c7cbe58c4f815b023b31b28d48a8e862aa35f1575b9753dac4d","packageId":"89"}),
+ Object.freeze({"codeHash":"53341cdd8e631dfee1994439b4689c883baab57d31e37bfbbcf0cdd11addc7b7","packageId":"89"}),
+ Object.freeze({"codeHash":"9687fda284b26ac16393241761b1bbddda67913c88b5c56d84a36e147c865732","packageId":"89"}),
+ Object.freeze({"codeHash":"1ee465c2ea98f9e2f42de2d92f68e6bcd3878a569010519a526b0ec875304fa1","packageId":"89"}),
+ Object.freeze({"codeHash":"5bc39ab9c0e03ecd3ce124df1f4e8519e0bd64846ca03c817f4983d7c9f83afe","packageId":"89"}),
+ Object.freeze({"codeHash":"e4a2246b2793ba7be5561f241a9157320c1f79b78df82f0b3ab813e721019f66","packageId":"159"}),
+ Object.freeze({"codeHash":"598d036bae290fc39333d5304c13a331e6fa6564c05369ca0d7f0d0529a95016","packageId":"159"}),
+ Object.freeze({"codeHash":"8e8367463efe68fb70411491195ecf862938867863968e74cdf6933f6a8024bc","packageId":"159"}),
+ Object.freeze({"codeHash":"7b7c71b5975855d2b088365a1ba492b6bdefa8f9f5ee50cc9e1e076812587b60","packageId":"159"}),
+ Object.freeze({"codeHash":"1946a328a378f56b14e00f3aa1e8c521094f757ac931a5921d2a8a13bd5d0879","packageId":"159"}),
+ Object.freeze({"codeHash":"8ad7703678fcfb9e1b8ba723f6727a3c79d72dd092f8eeccef9492bd89aa9f45","packageId":"159"}),
+ Object.freeze({"codeHash":"da1b4e0932e39eadcd46274cc72fa20c5a1e4346badf4431fef2f2b1d5a8f515","packageId":"159"}),
+ Object.freeze({"codeHash":"dbf5bb61690af7c39d36f9d6c7da1005e16fa08d1244b7b10e47e9710d6dd2b8","packageId":"159"}),
+ Object.freeze({"codeHash":"451ae515c8848e2c851265b45955f027390eb4c9f6a631b7498221415e9d9f7c","packageId":"159"}),
+ Object.freeze({"codeHash":"fb2aede4cc60625dc472aa1b8328521d27dd1987a56ee2472e2f3742cf387df5","packageId":"159"}),
+]);

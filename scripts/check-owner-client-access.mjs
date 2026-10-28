@@ -58,6 +58,7 @@ await test('logout clears the private request flag and owner rights before a gue
  const storage=new Map([['token','member'],['wallet','owner-wallet'],['private','1']]);let active=true,rights={ownerAccess:true,unlimitedDownloads:true};const events=[];
  const env={PRIVATE_TRIAL_KEY:'private',AUTH_TOKEN_KEY:'token',WALLET_KEY:'wallet',activeSavedDownloadWork:'old-work',walletRefreshRef:{current:{invalidate:()=>events.push('invalidate')}},authClaimRef:{current:{}},
   appStorage:{removeItem:k=>storage.delete(k)},setPrivateTrialActive:v=>{active=v},setRights:v=>{rights=v},refreshWallet:()=>{assert.equal(active,false);assert.equal(storage.get('private'),undefined);events.push('refresh')},
+  setPackageCodeRecovery:noop,setPackageCodeRecoveryMessage:noop,setPackageCodeInput:noop,setPackageCodeResult:noop,setPackageCodeMessage:noop,setPackageCodeOpen:noop,
   setQrPayment:noop,setCheckoutRecovery:noop,setCheckoutRecoveryMessage:noop,setPendingLegacyCheckout:noop,setPurchaseEditing:noop,setWalletBalance:noop,setFeatureSession:noop,setFreeFeatureSession:noop,setAccountEmail:noop,setAccountMenuOpen:noop};
  const a=main.indexOf(' const logout=()=>{'),b=main.indexOf('\n',a+1);const logout=new Function('env',`with(env){${main.slice(a,b)};return logout}`)(env);logout();
  assert.equal(active,false);assert.equal(storage.get('token'),undefined);assert.equal(storage.get('wallet'),undefined);assert.equal(rights.ownerAccess,undefined);assert.equal(rights.unlimitedDownloads,undefined);assert.deepEqual(events,['invalidate','refresh']);

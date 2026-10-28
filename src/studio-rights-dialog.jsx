@@ -4,7 +4,7 @@ export function rightsSummary(data,unlimited=false){
  const count=value=>Math.max(0,Math.floor(Number(value)||0));
  return {credits:unlimited||(data.ownerAccess===true&&data.unlimitedDownloads===true)?'∞':count(data.processRemaining??data.generationRemaining)+count(data.premiumDownloadRemaining),trial:'∞'};
 }
-export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,unlimited=false,initialData=null,refresh=null,accountScope=''}){
+export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,onCode,unlimited=false,initialData=null,refresh=null,accountScope=''}){
  const [data,setData]=useState(()=>hasWalletBalance(initialData)?initialData:null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
  const panel=useRef(null),callbacks=useRef({request,headers,onRights,refresh,initialData});callbacks.current={request,headers,onRights,refresh,initialData};
  useEffect(()=>{const previous=document.activeElement;panel.current?.querySelector('button')?.focus();return()=>previous?.focus?.()},[]);
@@ -41,6 +41,7 @@ export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,
     <div className="studio-rights-row"><span>{ownerAccess?'ดาวน์โหลดไม่จำกัด':'สิทธิ์ดาวน์โหลดรวม'}<small>{ownerAccess?'รูปไม่มีลายน้ำ ทุกขนาด':Number(displayData.premiumDownloadRemaining)>0?`รวมสิทธิ์โปร 159 จำนวน ${Math.max(0,Math.floor(Number(displayData.premiumDownloadRemaining)||0))} งาน`:'ปลดล็อกดาวน์โหลดงานใหม่'}</small></span><strong className="studio-rights-count">{balance.credits}<small>ครั้ง</small></strong></div>
     <div className="studio-rights-row"><span>{ownerAccess?'ใช้ได้ทุกฟังก์ชัน':'สร้างและเปลี่ยนผมฟรี'}<small>{ownerAccess?'เมคอัพ ทรงผม และชุดทั้งหมด':'มีลายน้ำจนกว่าจะปลดล็อก'}</small></span><strong className="studio-rights-count">{balance.trial}<small>ครั้ง</small></strong></div>
    </>}
+   {onCode&&<button type="button" className="studio-rights-retry" onClick={onCode}>ใส่โค้ด</button>}
    {!ownerAccess&&<button className="studio-rights-packages" onClick={onPackages}>ปลดล็อกดาวน์โหลด</button>}
   </section>
  </div>;

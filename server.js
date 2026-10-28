@@ -31,6 +31,9 @@ import pg from 'pg';
 import {createPremiumDownloadCredits} from './premium-download-credits.js';
 import {PREMIUM_DOWNLOAD_BATCHES} from './premium-download-batches.js';
 import {activateConfiguredPremiumAccounts} from './premium-download-support.js';
+import {createPackageUnlockCodeStore} from './package-unlock-code-store.js';
+import {registerPackageUnlockCodeApi} from './package-unlock-code-api.js';
+import {PACKAGE_UNLOCK_CODES} from './package-unlock-codes.js';
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
@@ -43,6 +46,7 @@ const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
 function walletId(req){return req.accountUser?.wallet_id||String(req.get("X-Wallet-Id")||"").trim()}
 const premiumCreditPool=new pg.Pool({max:2,connectionTimeoutMillis:5000,connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'||/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL||'')?false:{rejectUnauthorized:false}});
 const premiumDownloadCredits=createPremiumDownloadCredits(premiumCreditPool,{prepare:downloadPolicy.ready,batches:PREMIUM_DOWNLOAD_BATCHES,allowed:downloadPolicy.allowed,premiumHair:downloadPolicy.premiumHair});
+const packageUnlockCodeStore=createPackageUnlockCodeStore(premiumCreditPool,{prepare:downloadPolicy.ready,codes:PACKAGE_UNLOCK_CODES,allowed:downloadPolicy.allowed,premiumHair:downloadPolicy.premiumHair});
 const accountPolicy=req=>requestDownloadPolicy(req,downloadPolicy,{getJobsAccess:getAiJobsAccess,premiumCredits:premiumDownloadCredits});
 async function activateSupportDownloadCredits(attempt=0){
  let retry=false;
@@ -143,6 +147,7 @@ app.post('/api/promo/redeem',async(req,res)=>{
   res.json(out);
  }catch(e){console.error('Promo redemption:',e);res.status(500).json({error:'promo_failed',message:'รับเครดิตไม่สำเร็จ กรุณาลองใหม่'})}
 });
+registerPackageUnlockCodeApi(app,{store:packageUnlockCodeStore,authUser});
 app.post('/api/payments/checkout',(req,res)=>paymentApi.checkout(req,res));
 paymentApi=registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,recordDownloadRefund,pendingDownloadRefunds,appUrl:APP_URL,scopeForJob:(wid,id)=>downloadPolicy.scopeForJob(wid,id),walletRights:getWallet,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
 setInterval(()=>{void paymentApi.retryReconciliations().catch(error=>console.warn('IDPROM payment reconciliation:',error.code||'storage_unavailable'))},60000).unref();
