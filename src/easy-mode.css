@@ -1054,3 +1054,6 @@
  .idstudio .easy-mode .easy-suit-category-header{margin:2px 0 6px}
 }
 
+
+/* Use the same no-selection icon as Studio's hair picker. */
+.idstudio .easy-mode .easy-rail .easy-none .easy-none-icon{display:block;width:40%;height:40%;max-width:52px;max-height:52px;object-fit:contain;aspect-ratio:auto;background:transparent;margin:auto}
