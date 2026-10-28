@@ -16,3 +16,11 @@
 .idprom-face-compare__hint{margin:7px 0 0!important;color:#655c79!important;text-align:center;font-size:12px!important;line-height:1.4}
 @media(max-width:600px){.idprom-face-compare__photo{aspect-ratio:1.44/1;border-radius:15px}.idprom-face-compare__option{padding:0 4px 9px!important}.idprom-face-compare__pill{font-size:12px;min-height:32px;padding:7px 11px}.idprom-face-compare__hint{font-size:11px!important}}
 @media(max-width:370px){.idprom-face-compare__photo{aspect-ratio:1.5/1}.idprom-face-compare__pill{padding:6px 8px;font-size:11px}}
+
+/* Show the whole portrait and keep the choice labels below the face. */
+.idprom-face-compare__photo{aspect-ratio:1/1;max-width:480px;margin:0 auto;background:#fff}
+.idprom-face-compare__image{height:calc(100% - 48px);object-fit:contain;object-position:center center}
+.idprom-face-compare__option{padding-bottom:5px!important}
+@media(max-width:600px){.idprom-face-compare__photo{aspect-ratio:1/1}.idprom-face-compare__image{height:calc(100% - 40px)}}
+@media(max-width:370px){.idprom-face-compare__photo{aspect-ratio:1/1}}
+
