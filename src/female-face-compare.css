@@ -24,3 +24,9 @@
 @media(max-width:600px){.idprom-face-compare__photo{aspect-ratio:1/1}.idprom-face-compare__image{height:calc(100% - 40px)}}
 @media(max-width:370px){.idprom-face-compare__photo{aspect-ratio:1/1}}
 
+
+/* Smaller comparison while retaining the full face and clear choice buttons. */
+.idprom-face-compare{max-width:320px}
+.idprom-face-compare__photo{max-width:320px}
+@media(max-width:600px){.idprom-face-compare{max-width:260px}.idprom-face-compare__photo{max-width:260px}}
+
