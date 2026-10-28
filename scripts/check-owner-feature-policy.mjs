@@ -114,7 +114,7 @@ await check('storage failures and invalid suit inputs cannot silently grant owne
 const creditStart=source.indexOf('async function requireCredit('),creditEnd=source.indexOf('\nconst upload=',creditStart);
 assert(creditStart>=0&&creditEnd>creditStart);
 const requireCredit=new Function('env',`with(env){${source.slice(creditStart,creditEnd)};return requireCredit}`)({
- walletId,hasPrivateTrial,isPrivateOwner,crypto,
+ walletId,hasPrivateTrial,isPrivateOwner,crypto,accountPolicy,
  getWallet:async wallet=>({walletId:wallet,...balances}),
  downloadHairAllowed:id=>['seedream_16','seedream_99'].includes(id),
  PRODUCTION_HAIR_CATALOG:[{id:'seedream_16',gender:'female'},{id:'seedream_99',gender:'female'}],downloadPolicy:base

@@ -4,6 +4,8 @@ The approved server batch in `premium-download-batches.js` gives each specified 
 
 One credit unlocks one owned, completed work under the normal 159-baht conditions: watermark-free downloads in all supported formats, premium hairstyles, and five suit choices for that work. Repeated downloads and later renders of the same work consume no additional credit. Two credits cover two distinct works. An existing basic work uses a premium credit only through an explicit premium upgrade. Existing premium rights reuse their grant for free.
 
+While the verified account has at least one premium download credit remaining, it can select and process premium hairstyles in EasyMode and Studio, including before the first result. Selecting or processing hair does not spend a download credit or unlock a watermark-free export. After the balance reaches zero, new unpaid works need another premium entitlement; works already unlocked with a premium credit retain their premium hairstyles and download rights.
+
 The grant preserves existing balances, generation counters, saving permissions and purchase records. It creates no Stripe payment and supplies no unlimited owner access.
 
 ## Run inside the Railway service runtime
@@ -28,4 +30,4 @@ Explicit apply can initialize the download policy and premium grant tables. Use 
 
 ## Deployment and verification status
 
-The earlier BuildKit failure recovered: the previous payment-recovery revision was verified live by matching its production asset hashes. This support-credit/auth revision still requires its own successful deployment. The session has no production database, Stripe or Railway credential bindings. Local isolated SQL and PostgreSQL concurrency tests passed, but **production balances have not been verified or changed by this operator command**. A successful deployment followed by server activation or a successful runtime `--apply` execution is required before reporting the grants as active. Retain the command's hash-only output as verification evidence.
+The support-credit/auth implementation was deployed successfully with revision `067aaa64655f7376830f2c687e6cf09f2719d0d8`; its exact production asset hashes and health endpoint were verified. The session has no production database, Stripe or Railway credential bindings. Local isolated SQL and PostgreSQL concurrency tests passed, but **production balances have not been verified or changed by this operator command**. Confirm the server's `Premium download support activation:` log or inspect the runtime ledger before reporting either recipient's exact remaining balance. Retain the hash-only output as verification evidence. The separate premium-hairstyle-before-redemption change requires its own deployment verification.

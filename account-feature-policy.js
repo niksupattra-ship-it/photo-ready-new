@@ -16,6 +16,15 @@ export function requestDownloadPolicy(req,policy,{getJobsAccess,premiumCredits}=
   },
   async allowed(wallet,job,options){if(!owner(wallet))return policy.allowed(wallet,job,options);await owned(wallet,job);return true},
   async premiumHair(wallet,job,options){if(!owner(wallet))return policy.premiumHair(wallet,job,options);await owned(wallet,job);return true},
+  async canGeneratePremiumHair(wallet,work=''){
+   // Remaining premium download credits open hairstyle selection, without
+   // unlocking an output or spending a credit before the customer downloads.
+   // A redeemed work keeps its own premium access after the balance reaches 0.
+   if(owner(wallet)||await policy.premiumWork(wallet,work))return true;
+   if(!premiumCredits||!await activate(wallet))return false;
+   const remaining=(await premiumCredits.summary(wallet)).premiumDownloadRemaining;
+   return Number.isSafeInteger(remaining)&&remaining>0;
+  },
   async allowedJobs(wallet,jobs){
    if(!owner(wallet))return policy.allowedJobs(wallet,jobs);
    const ids=[...new Set(jobs)];if(!ids.length)return false;
