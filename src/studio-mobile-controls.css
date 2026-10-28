@@ -39,3 +39,7 @@
 .idstudio.studio-touch>header.studio-touch-header:has(.studio-easy-return) .studio-touch-header-actions>.studio-header-upload {grid-column:4}
 .idstudio.studio-touch>header.studio-touch-header:has(.studio-easy-return) .studio-touch-header-actions>.studio-header-credits {grid-column:5}
 .idstudio.studio-touch>header.studio-touch-header:has(.studio-easy-return) .studio-touch-header-actions>.studio-mobile-file-menu {grid-column:6}
+
+/* Make the mode button fit its label and keep it above the workspace. */
+.idstudio.studio-touch>header.studio-touch-header:has(.studio-easy-return){position:relative;z-index:20;grid-template-columns:30px minmax(0,1fr) max-content minmax(54px,1fr) auto 30px}
+.idstudio.studio-touch>header.studio-touch-header>.studio-easy-return{width:auto;min-width:0;max-width:none;height:38px;max-height:38px;min-height:38px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:4px 7px;font-size:11px;line-height:1.2;overflow:visible;position:relative;z-index:1}
