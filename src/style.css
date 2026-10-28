@@ -4075,3 +4075,7 @@
 /* Home CTA: desktop unchanged, mobile emphasizes adding a photo. */
 .studio-home-cta-mobile{display:none}
 @media(max-width:700px){.studio-home-cta-desktop{display:none}.studio-home-cta-mobile{display:inline}}
+
+/* Keep the account dialog above the easy-mode landing and Studio. */
+.idprom-auth-backdrop{z-index:40000;overflow-y:auto;overscroll-behavior:contain}
+.idprom-auth-backdrop>section{max-height:calc(100dvh - 36px);overflow-y:auto}
