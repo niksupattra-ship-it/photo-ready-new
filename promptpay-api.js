@@ -7,6 +7,11 @@ const FLOW='idprom_promptpay_v1';
 const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1']);
 const publicPackageId=id=>id==='download_159_hair_v1'?'159':id==='download_89_v1'?'89':'119';
 const keyFor=value=>crypto.createHash('sha256').update(value).digest('hex');
+const warnReconciliation=error=>console.warn('IDPROM payment reconciliation pending',String(error?.code||'storage_unavailable').replace(/[^A-Za-z0-9_:-]/g,'').slice(0,40));
+async function afterGrant(out,run){
+ try{if(await run()!==false)return out}catch(error){warnReconciliation(error)}
+ return {...out,reconciliationPending:true};
+}
 export async function reconcileDuplicatePayment(out,{receiptId,paymentIntentId,amount,stripePost,stripeGet,recordDownloadRefund}={}){
  if(!out?.overlap||!['pending','failed','manual_review'].includes(out.refundStatus)||!/^pi_[A-Za-z0-9]+$/.test(paymentIntentId||'')||!stripePost||!recordDownloadRefund)return out;
  try{
@@ -15,7 +20,7 @@ export async function reconcileDuplicatePayment(out,{receiptId,paymentIntentId,a
   const status=refund.status==='requires_action'?'pending':refund.status;
   await recordDownloadRefund(receiptId,status,refund.id,status==='failed'?'provider_refund_failed':status==='canceled'?'provider_refund_canceled':'');
   return {...out,refundStatus:status,refundId:refund.id};
- }catch(error){await recordDownloadRefund(receiptId,'failed','',error.code||'refund_unavailable');return {...out,refundStatus:'failed'}}
+ }catch(error){try{await recordDownloadRefund(receiptId,'failed','',error.code||'refund_unavailable')}catch(storageError){warnReconciliation(storageError)}return {...out,refundStatus:'failed'}}
 }
 export async function settlePromptpay(intent,creditPaid,options={}){
  if(intent?.status!=='succeeded'||intent.metadata?.flow!==FLOW)throw Error('payment_not_paid');
@@ -25,7 +30,7 @@ export async function settlePromptpay(intent,creditPaid,options={}){
  verifyPaymentAmount(intent,offer);if(offer.requiresImage&&!jobId)throw Error('image_required');
  const out=await creditPaid(walletId,intent.id,packageId,jobId);
  const reconciled=await reconcileDuplicatePayment(out,{...options,receiptId:intent.id,paymentIntentId:intent.id,amount:intent.amount});
- if(CURRENT.has(packageId)&&options.onSettlement)await options.onSettlement(intent,reconciled);
+ if(CURRENT.has(packageId)&&options.onSettlement)return afterGrant(reconciled,()=>options.onSettlement(intent,reconciled));
  return reconciled;
 }
 function details(intent){const qr=intent.status==='requires_action'?intent.next_action?.promptpay_display_qr_code:null;return {paymentIntentId:intent.id,status:intent.status,amount:intent.amount/100,qrImage:qr?.image_url_png||null,expiresAt:qr?.expires_at||null,jobId:intent.metadata?.job_id||'',packageId:publicPackageId(intent.metadata?.package_id),packageKey:intent.metadata?.package_id}}
@@ -33,6 +38,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
  let reconciliationFlight=null;
  const settlementOptions={stripePost,stripeGet,recordDownloadRefund,onSettlement:intent=>reconcileSiblings(intent.metadata.wallet_id,intent.metadata.job_id,intent.id)};
  const covered=async(wid,job,offer)=>offer==='download_159_hair_v1'?isPremium(wid,job):isUnlocked(wid,job);
+ const closeGranted=async(row,id,out)=>!row||out.reconciliationPending?out:afterGrant(out,()=>intentStore.close(row.id,id));
  const owned=async(req)=>{const id=String(req.params.id||'');if(!/^pi_[A-Za-z0-9]+$/.test(id))throw Error('invalid_payment_id');const intent=await stripeGet('payment_intents/'+id);if(!req.accountUser||intent.metadata?.wallet_id!==req.accountUser.wallet_id||intent.metadata?.flow!==FLOW)throw Error('payment_not_owned');return intent};
  const cancel=async intent=>{
   if(['canceled','succeeded','processing'].includes(intent.status))return intent;
@@ -52,14 +58,14 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
  const settleSession=async(session,expectedWallet)=>{
   const out=await settleCheckout(session,creditPaid,expectedWallet);
   const reconciled=await reconcileDuplicatePayment(out,{...settlementOptions,receiptId:session.id,paymentIntentId:session.payment_intent,amount:session.amount_total});
-  if(CURRENT.has(session.metadata?.package_id))await reconcileSiblings(session.metadata.wallet_id,session.metadata.job_id,session.id);
+  if(CURRENT.has(session.metadata?.package_id))return afterGrant(reconciled,()=>reconcileSiblings(session.metadata.wallet_id,session.metadata.job_id,session.id));
   return reconciled;
  };
  const resolve=async(intent,{row=null,requestedJobId=''}={})=>{
   const wid=intent.metadata?.wallet_id,jobId=intent.metadata?.job_id,offer=intent.metadata?.package_id;
   const scope=CURRENT.has(offer)?await scopeForJob(wid,jobId):null;
   if(intent.status==='succeeded'){
-   const out=await settlePromptpay(intent,creditPaid,settlementOptions);if(row)await intentStore.close(row.id,intent.id);
+   const out=await closeGranted(row,intent.id,await settlePromptpay(intent,creditPaid,settlementOptions));
    return {...details(intent),ok:true,...out,workId:scope,...(requestedJobId?{requestedJobId}:{})};
   }
   if(CURRENT.has(offer)&&await covered(wid,jobId,offer)){
@@ -99,7 +105,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
       if(canonical.status!=='processing'){const replacement=await intentStore.adopt({walletId:intent.metadata.wallet_id,scope,intent});if(replacement.intent_id===intent.id)row=replacement}
      }else{
       const session=await checkoutState(adopted);
-      if(session.payment_status==='paid'){await settleSession(session);await intentStore.close(adopted.id,session.id)}
+      if(session.payment_status==='paid')await closeGranted(adopted,session.id,await settleSession(session));
       else if(session.status==='open'){
        const expired=await stripePost('checkout/sessions/'+session.id+'/expire',{},keyFor('idprom-checkout-expire-v1:'+session.id));
        if(expired.status!=='expired')throw Error('payment_cancel_unconfirmed');await intentStore.close(adopted.id,session.id);
@@ -130,13 +136,32 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
     else throw Error('payment_processing');
    }
    await intentStore.finishReconcile(wid,scope,'',paidId);
-  }catch(error){await intentStore.finishReconcile(wid,scope,error.code||error.message||'reconciliation_failed',paidId);console.warn('IDPROM payment reconciliation pending',String(error.code||'provider_unavailable').slice(0,40))}
+  }catch(error){await intentStore.finishReconcile(wid,scope,error.code||error.message||'reconciliation_failed',paidId);console.warn('IDPROM payment reconciliation pending',String(error.code||'provider_unavailable').slice(0,40));return false}
  };
  const reconcileSiblings=async(wid,jobId,paidId)=>{
   // Grant already committed. A durable work item survives provider failure,
   // stopped browser timers and a process restart without weakening the grant.
   if(!intentStore.queueReconcile)return;
-  const scope=await scopeForJob(wid,jobId);await intentStore.queueReconcile(wid,scope,jobId,paidId);await reconcileWork({wallet_id:wid,work_scope:scope,paid_id:paidId});
+  try{const scope=await scopeForJob(wid,jobId);await intentStore.queueReconcile(wid,scope,jobId,paidId);return await reconcileWork({wallet_id:wid,work_scope:scope,paid_id:paidId})}
+  catch(error){warnReconciliation(error);return false}
+ };
+ const reconcileReservation=async row=>{
+  try{
+   const checkout=row.channel==='checkout';
+   if(!CURRENT.has(row.package_id)||!row.intent_id||(!checkout&&row.channel!=='promptpay')||!(checkout?/^cs_[A-Za-z0-9_]+$/:/^pi_[A-Za-z0-9]+$/).test(row.intent_id))throw Error('payment_reservation_mismatch');
+   // Read the existing provider object only. Polling must never create a new
+   // charge or cancel an unpaid/processing payment while the browser is away.
+   const payment=await stripeGet((checkout?'checkout/sessions/':'payment_intents/')+row.intent_id);
+   const amount=checkout?payment?.amount_total:payment?.amount;
+   if(payment?.id!==row.intent_id||payment.metadata?.wallet_id!==row.wallet_id||payment.metadata?.job_id!==row.job_id||payment.metadata?.package_id!==row.package_id||payment.currency!=='thb'||!Number.isSafeInteger(amount)||amount!==packageFor(row.package_id).price*100||(checkout?payment.mode!=='payment':payment.metadata?.flow!==FLOW)||await scopeForJob(row.wallet_id,row.job_id)!==row.work_scope)throw Error('payment_reservation_mismatch');
+   if(checkout?payment.payment_status==='paid':payment.status==='succeeded'){
+    const out=checkout?await settleSession(payment,row.wallet_id):await settlePromptpay(payment,creditPaid,settlementOptions);
+    await closeGranted(row,payment.id,out);
+   }else{
+    await intentStore.bind(row.id,{id:payment.id,status:payment.status});
+    if(checkout?payment.status==='expired':payment.status==='canceled')await intentStore.close(row.id,payment.id);
+   }
+  }catch(error){warnReconciliation(error)}
  };
  app.post('/api/payments/promptpay',async(req,res)=>{try{
   res.set('Cache-Control','no-store');const user=req.accountUser;if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบใหม่'});
@@ -162,7 +187,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   let row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt});
   if(row.channel==='checkout'){
    const session=await checkoutState(row);
-   if(session.payment_status==='paid'){await settleSession(session);await intentStore.close(row.id,session.id);if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt})}
+   if(session.payment_status==='paid'){await closeGranted(row,session.id,await settleSession(session));if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt})}
    else if(session.status==='expired'){await intentStore.close(row.id,session.id);row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt})}
    else return res.status(409).json({error:'payment_pending_checkout',checkoutUrl:session.url,message:'มีรายการชำระเงินเดิมของงานนี้ กรุณาดำเนินการรายการเดิม ไม่ต้องจ่ายซ้ำ'});
    if(row.channel==='checkout')return res.status(409).json({error:'payment_finished',message:'ตรวจสอบรายการเดิมแล้ว กรุณาเริ่มรายการใหม่อีกครั้ง'});
@@ -197,6 +222,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
  return {settleSession,settleIntent:intent=>settlePromptpay(intent,creditPaid,settlementOptions),retryReconciliations(){
   if(reconciliationFlight)return reconciliationFlight;
   reconciliationFlight=(async()=>{
+  if(intentStore.pendingSettlements)for(const row of await intentStore.pendingSettlements())await reconcileReservation(row);
   if(intentStore.pendingReconciliations)for(const item of await intentStore.pendingReconciliations())await reconcileWork(item);
   for(const receipt of await pendingDownloadRefunds())try{
    const checkout=receipt.session_id.startsWith('cs_'),payment=await stripeGet((checkout?'checkout/sessions/':'payment_intents/')+receipt.session_id);
@@ -214,7 +240,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   const row=await intentStore.reserve({walletId:user.wallet_id,scope,packageId:offer.id,jobId,email:user.email,attempt,channel:'checkout',payload});
   if(row.channel!=='checkout')return res.status(409).json({error:'payment_pending_promptpay',paymentIntentId:row.intent_id,message:'มี QR ชำระเงินเดิมของงานนี้ กรุณากลับไปตรวจสอบรายการเดิม ไม่ต้องจ่ายซ้ำ'});
   const session=await checkoutState(row);
-  if(session.payment_status==='paid'){const out=await settleSession(session);await intentStore.close(row.id,session.id);return res.json({ok:true,status:'succeeded',...out,jobId:row.job_id})}
+  if(session.payment_status==='paid'){const out=await closeGranted(row,session.id,await settleSession(session));return res.json({ok:true,status:'succeeded',...out,jobId:row.job_id})}
   if(session.status==='expired'){await intentStore.close(row.id,session.id);return res.status(409).json({error:'payment_expired',message:'รายการเดิมหมดอายุแล้ว กรุณาเริ่มรายการใหม่'})}
   res.json({url:session.url,packageId:publicPackageId(row.package_id),packageKey:row.package_id,jobId:row.job_id,workId:scope});
  }catch(error){console.error('Stripe checkout:',error);if(error.message==='payment_recovery_required')return res.status(409).json({error:'payment_recovery_required',message:'ยังยืนยันรายการเดิมไม่ได้ กรุณาติดต่อเจ้าหน้าที่เพื่อตรวจสอบรายการ ไม่ต้องชำระเงินซ้ำ'});res.status(400).json({error:'checkout_failed',message:'สร้างรายการชำระเงินไม่สำเร็จ กรุณาลองอีกครั้ง'})}}};

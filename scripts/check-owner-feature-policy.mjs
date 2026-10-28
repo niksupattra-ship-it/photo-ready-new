@@ -116,8 +116,8 @@ assert(creditStart>=0&&creditEnd>creditStart);
 const requireCredit=new Function('env',`with(env){${source.slice(creditStart,creditEnd)};return requireCredit}`)({
  walletId,hasPrivateTrial,isPrivateOwner,crypto,
  getWallet:async wallet=>({walletId:wallet,...balances}),
- downloadHairAllowed:id=>['seedream_14','seedream_99'].includes(id),
- PRODUCTION_HAIR_CATALOG:[{id:'seedream_14',gender:'female'},{id:'seedream_99',gender:'female'}],downloadPolicy:base
+ downloadHairAllowed:id=>['seedream_16','seedream_99'].includes(id),
+ PRODUCTION_HAIR_CATALOG:[{id:'seedream_16',gender:'female'},{id:'seedream_99',gender:'female'}],downloadPolicy:base
 });
 const response=()=>({statusCode:200,status(code){this.statusCode=code;return this},json(data){this.data=data;return this}});
 await check('actual generation credit gate grants owner nontrial output without a private header or debit',async()=>{
@@ -126,7 +126,7 @@ await check('actual generation credit gate grants owner nontrial output without 
  assert(!calls.some(c=>['redeem','premiumWork'].includes(c[0])));
 });
 await check('actual generation credit gate preserves ordinary free previews premium lock and private-header rejection',async()=>{
- const ordinary=reqFor(CUSTOMER,{}, {hairId:'seedream_14'}),res=response(),out=await requireCredit(ordinary,res,'ai-finish');
+ const ordinary=reqFor(CUSTOMER,{}, {hairId:'seedream_16'}),res=response(),out=await requireCredit(ordinary,res,'ai-finish');
  assert.match(out.usageId,/^free_/);assert.equal(out.trialPreview,true);
  const premiumRes=response();assert.equal(await requireCredit(reqFor(CUSTOMER,{}, {hairId:'seedream_99'}),premiumRes,'ai-finish'),null);assert.equal(premiumRes.statusCode,403);assert.equal(premiumRes.data.error,'premium_hair_required');
  for(const user of [null,CUSTOMER]){

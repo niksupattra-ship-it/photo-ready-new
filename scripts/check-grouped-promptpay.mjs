@@ -10,7 +10,7 @@ import {createPromptpayIntentStore} from '../promptpay-intent-store.js';
 // has no network capability. Its idempotency map models one provider operation
 // while callers pause/retry across separate serialized database transactions.
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
-const db=new PGlite(),cases=[],gatewayCalls=[],intents=new Map(),sessions=new Map(),refunds=new Map(),idempotent=new Map(),idempotentParams=new Map();
+const db=new PGlite(),cases=[],gatewayCalls=[],gatewayReads=[],intents=new Map(),sessions=new Map(),refunds=new Map(),idempotent=new Map(),idempotentParams=new Map();
 let dbTail=Promise.resolve(),sequence=0,nextCreatePause=null,concurrentTrace=[],failNextRefund=false,nextRefundStatus='succeeded',dropNextCreateResponse=false,failNextCancel=false;
 const acquire=async()=>{let release;const previous=dbTail;dbTail=new Promise(resolve=>release=resolve);await previous;return release};
 const rawQuery=async(sql,args=[])=>{const r=await db.query(sql,args);return {...r,rowCount:r.rowCount??r.affectedRows??r.rows.length}};
@@ -62,7 +62,7 @@ const stripePost=async(endpoint,params={},key)=>{
  }
  throw Error('unexpected_mock_gateway_endpoint:'+endpoint);
 };
-const stripeGet=async endpoint=>{const [kind,id]=endpoint.split('/');const value=kind==='payment_intents'?intents.get(id):kind==='refunds'?refunds.get(id):kind==='checkout'?sessions.get(endpoint.split('/')[2]):null;assert(value,'gateway object exists: '+endpoint);return clone(value)};
+const stripeGet=async endpoint=>{gatewayReads.push(endpoint);const [kind,id]=endpoint.split('/');const value=kind==='payment_intents'?intents.get(id):kind==='refunds'?refunds.get(id):kind==='checkout'?sessions.get(endpoint.split('/')[2]):null;assert(value,'gateway object exists: '+endpoint);return clone(value)};
 const routes=new Map(),app={post:(path,handler)=>routes.set('POST '+path,handler),get:(path,handler)=>routes.set('GET '+path,handler)};
 const apiOptions={stripePost,stripeGet,ensureWallet:payment.ensureWallet,getAiJobResult:async(id,wallet)=>(await pool.query('SELECT * FROM ai_jobs WHERE id=$1 AND wallet_id=$2',[id,wallet])).rows[0],creditPaid:payment.creditPaid,recordDownloadRefund:payment.recordDownloadRefund,pendingDownloadRefunds:payment.pendingDownloadRefunds,isUnlocked:(wallet,id)=>policy.allowed(wallet,id),isPremium:(wallet,id)=>policy.premiumHair(wallet,id),intentStore,scopeForJob:(wallet,id)=>policy.scopeForJob(wallet,id),walletRights:payment.getWallet,appUrl:'https://fixture.invalid'};
 const paymentApi=registerPromptpayApi(app,apiOptions);
@@ -322,6 +322,66 @@ try{
   const g=await group('historic89own'),old=makeIntent({walletId:g.wallet,jobId:g.jobs[0],packageId:'download_89_v1',status:'succeeded'});intents.set(old.id,old);
   await pool.query('INSERT INTO payments(session_id,wallet_id,credits,package_id,generation_qty,hair_qty,full_edit_reconciled) VALUES($1,$2,0,$3,0,0,false)',[old.id,g.wallet,'download_89_v1']);await pool.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,true)',[g.wallet,g.jobs[0]]);
   const before=refunds.size,out=await paymentApi.settleIntent(clone(old));assert.equal(out.duplicate,true);assert.equal(out.overlap,undefined);assert.equal(refunds.size,before);assert.equal((await pool.query('SELECT count(*)::int AS n FROM download_payment_receipts WHERE session_id=$1',[old.id])).rows[0].n,0);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);
+ });
+ const prioritize=async id=>pool.query("UPDATE promptpay_work_intents SET updated_at='2020-01-01' WHERE id=$1",[id]);
+ await check('worker recovers paid89 and159 QR and Checkout without a webhook or browser request',async()=>{
+  for(const packageId of ['89','159'])for(const channel of ['promptpay','checkout']){
+   const g=await group('workerpaid'+packageId+channel),created=await (channel==='promptpay'?create:checkout)(g.jobs[0],{packageId});assert.equal(created.status,200);
+   const row=await intentStore.findActive(g.wallet,g.scope);if(channel==='promptpay')pay(row.intent_id);else paySession(row.intent_id);
+   await prioritize(row.id);const posts=gatewayCalls.length;await paymentApi.retryReconciliations();
+   assert.equal(gatewayCalls.length,posts,'recovery reads the bound payment without another provider POST');assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);
+   assert.equal(await policy.premiumHair(g.wallet,g.jobs[1]),packageId==='159');assert.equal((await intentStore.findByIntent(row.intent_id)).active,false);
+   const count=async()=>(await pool.query('SELECT count(*)::int AS n FROM payments WHERE session_id=$1',[row.intent_id])).rows[0].n;assert.equal(await count(),1);
+   if(channel==='promptpay')await paymentApi.settleIntent(clone(intents.get(row.intent_id)));else await paymentApi.settleSession(clone(sessions.get(row.intent_id)),g.wallet);
+   await paymentApi.retryReconciliations();assert.equal(await count(),1);assert.equal((await pool.query('SELECT overlap FROM download_payment_receipts WHERE session_id=$1',[row.intent_id])).rows[0].overlap,false);
+  }
+ });
+ await check('worker preserves unpaid and processing payments and skips aged unbound reservations',async()=>{
+  for(const status of ['requires_action','processing','canceled']){
+   const g=await group('workerstate'+status),created=await create(g.jobs[0]),row=await intentStore.findByIntent(created.data.paymentIntentId);intents.get(row.intent_id).status=status;await prioritize(row.id);
+   const posts=gatewayCalls.length;await paymentApi.retryReconciliations();assert.equal(gatewayCalls.length,posts);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),false);assert.equal((await intentStore.findByIntent(row.intent_id)).active,status!=='canceled');
+  }
+  for(const status of ['open','complete','expired']){
+   const g=await group('workercheckoutstate'+status);await checkout(g.jobs[0]);const row=await intentStore.findActive(g.wallet,g.scope);sessions.get(row.intent_id).status=status;await prioritize(row.id);
+   const posts=gatewayCalls.length;await paymentApi.retryReconciliations();assert.equal(gatewayCalls.length,posts);assert.equal(await policy.allowed(g.wallet,g.jobs[1]),false);assert.equal((await intentStore.findByIntent(row.intent_id)).active,status!=='expired');
+  }
+  for(const channel of ['promptpay','checkout']){
+   const g=await group('workerunbound'+channel),row=await intentStore.reserve({walletId:g.wallet,scope:g.scope,packageId:'download_89_v1',jobId:g.jobs[0],email:'fixture@invalid.test',attempt:'attempt_worker_unbound_'+channel,channel,payload:{}});
+   await pool.query("UPDATE promptpay_work_intents SET created_at=now()-interval '48 hours',updated_at='2020-01-01' WHERE id=$1",[row.id]);const posts=gatewayCalls.length;await paymentApi.retryReconciliations();assert.equal(gatewayCalls.length,posts);assert.equal((await intentStore.findActive(g.wallet,g.scope)).intent_id,null);assert.equal(await policy.allowed(g.wallet,g.jobs[0]),false);
+  }
+ });
+ await check('worker verifies every bound provider identity, frozen amount and owned work before granting',async()=>{
+  const variants=[['id',p=>p.id='pi_other'],['wallet',p=>p.metadata.wallet_id='walletB'],['job',p=>p.metadata.job_id='foreign'],['package',p=>p.metadata.package_id='download_159_hair_v1'],['flow',p=>p.metadata.flow='other_flow'],['currency',p=>p.currency='usd'],['amount',p=>p.amount=15900],['received',p=>p.amount_received=0],['scope',null]];
+  for(const [name,mutate] of variants){
+   const g=await group('workerbad'+name),created=await create(g.jobs[0]),row=await intentStore.findByIntent(created.data.paymentIntentId);pay(row.intent_id);const payment=intents.get(row.intent_id);if(mutate)mutate(payment);else await pool.query('UPDATE promptpay_work_intents SET work_scope=$2 WHERE id=$1',[row.id,'wrong_scope']);
+   await prioritize(row.id);await paymentApi.retryReconciliations();assert.equal((await pool.query('SELECT count(*)::int AS n FROM payments WHERE session_id=$1',[row.intent_id])).rows[0].n,0,name);assert.equal(await policy.allowed(g.wallet,g.jobs[0]),false,name);await intentStore.close(row.id,row.intent_id);
+  }
+  for(const [name,mutate] of [['mode',p=>p.mode='subscription'],['wallet',p=>p.metadata.wallet_id='walletB'],['job',p=>p.metadata.job_id='foreign'],['package',p=>p.metadata.package_id='download_159_hair_v1'],['id',p=>p.id='cs_other'],['amount',p=>p.amount_total=15900],['currency',p=>p.currency='usd']]){
+   const g=await group('workerbadcheckout'+name);await checkout(g.jobs[0]);const row=await intentStore.findActive(g.wallet,g.scope);paySession(row.intent_id);mutate(sessions.get(row.intent_id));await prioritize(row.id);await paymentApi.retryReconciliations();assert.equal((await pool.query('SELECT count(*)::int AS n FROM payments WHERE session_id=$1',[row.intent_id])).rows[0].n,0,name);assert.equal(await policy.allowed(g.wallet,g.jobs[0]),false,name);await intentStore.close(row.id,row.intent_id);
+  }
+ });
+ await check('post-grant queue or close failure still reports paid rights and durable recovery stays idempotent',async()=>{
+  for(const packageId of ['89','159'])for(const channel of ['promptpay','checkout'])for(const method of ['queueReconcile','close']){
+   const g=await group('workeraftergrant'+packageId+channel+method);await (channel==='promptpay'?create:checkout)(g.jobs[0],{packageId});const row=await intentStore.findActive(g.wallet,g.scope);if(channel==='promptpay')pay(row.intent_id);else paySession(row.intent_id);
+   const original=intentStore[method];intentStore[method]=async()=>{throw Object.assign(Error('fixture storage temporarily unavailable'),{code:'TEMPORARY'})};
+   try{
+    const out=channel==='promptpay'?await poll(row.intent_id):{status:200,data:await paymentApi.settleSession(clone(sessions.get(row.intent_id)),g.wallet)};
+    assert.equal(out.status,200);if(channel==='promptpay')assert.equal(out.data.ok,true);assert.equal(out.data.reconciliationPending,true);assert(out.data.unlockedJobIds.includes(g.jobs[0]));assert.equal(await policy.allowed(g.wallet,g.jobs[1]),true);assert.equal((await intentStore.findByIntent(row.intent_id)).active,true);
+   }finally{intentStore[method]=original}
+   await prioritize(row.id);await paymentApi.retryReconciliations();assert.equal((await intentStore.findByIntent(row.intent_id)).active,false);assert.equal((await pool.query('SELECT count(*)::int AS n FROM payments WHERE session_id=$1',[row.intent_id])).rows[0].n,1);assert.equal((await pool.query('SELECT overlap FROM download_payment_receipts WHERE session_id=$1',[row.intent_id])).rows[0].overlap,false);
+  }
+ });
+ await check('bounded oldest-checked batches remain fair through provider outages and overlapping timer calls',async()=>{
+  // Previous cases are finished; isolate scheduling order in this test database.
+  await pool.query('UPDATE promptpay_work_intents SET active=false');await pool.query('UPDATE promptpay_work_reconciliation SET pending=false');
+  const blocked=new Set();let paid;
+  for(let i=0;i<13;i++){
+   const g=await group('workerfair'+i),created=await create(g.jobs[0]),row=await intentStore.findByIntent(created.data.paymentIntentId);await pool.query("UPDATE promptpay_work_intents SET updated_at='2020-01-01'::timestamptz+$2::int*interval '1 second' WHERE id=$1",[row.id,i]);
+   if(i<12)blocked.add(row.intent_id);else{pay(row.intent_id);paid={g,row}}
+  }
+  const reads=[],worker=registerPromptpayApi({post(){},get(){}},{...apiOptions,stripeGet:async endpoint=>{reads.push(endpoint);if(blocked.has(endpoint.split('/').at(-1)))throw Object.assign(Error('fixture provider unavailable'),{code:'TEMPORARY'});return stripeGet(endpoint)}});
+  await Promise.all([worker.retryReconciliations(),worker.retryReconciliations()]);assert.equal(reads.length,10);assert.equal(await policy.allowed(paid.g.wallet,paid.g.jobs[0]),false);
+  const posts=gatewayCalls.length;await worker.retryReconciliations();assert.equal(reads.length,20);assert.equal(await policy.allowed(paid.g.wallet,paid.g.jobs[1]),true);assert.equal(gatewayCalls.length,posts);assert.equal(new Set(reads).size,13);
  });
  const results={passed:cases.length,cases,concurrentTrace,fixtureIntentCount:intents.size,scope:'Actual grouped PromptPay API, reservation SQL, download-policy SQL and payment grants in isolated PGlite; inert provider fixtures only',limits:'PGlite has one connection; a serialized connection adapter plus paused gateway models transaction interleavings and provider idempotency, not native PostgreSQL multi-process lock execution'};
  if(process.env.GROUPED_PROMPTPAY_RESULTS){await mkdir(dirname(process.env.GROUPED_PROMPTPAY_RESULTS),{recursive:true});await writeFile(process.env.GROUPED_PROMPTPAY_RESULTS,JSON.stringify(results,null,2)+'\n')}

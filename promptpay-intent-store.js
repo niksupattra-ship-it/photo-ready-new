@@ -16,6 +16,7 @@ export function createPromptpayIntentStore(pool,{prepare=async()=>{}}={}){
    created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),
    UNIQUE(wallet_id,package_id,attempt_key))`);
   await c.query('CREATE UNIQUE INDEX IF NOT EXISTS promptpay_work_one_active ON promptpay_work_intents(wallet_id,work_scope) WHERE active');
+  await c.query('CREATE INDEX IF NOT EXISTS promptpay_work_pending_settlement ON promptpay_work_intents(updated_at,id) WHERE active AND intent_id IS NOT NULL');
   await c.query(`CREATE TABLE IF NOT EXISTS promptpay_work_reconciliation(wallet_id text NOT NULL,work_scope text NOT NULL,job_id text NOT NULL,paid_id text NOT NULL,pending boolean NOT NULL DEFAULT true,error_code text,updated_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(wallet_id,work_scope))`);
   await c.query('COMMIT');
   }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
@@ -48,6 +49,18 @@ export function createPromptpayIntentStore(pool,{prepare=async()=>{}}={}){
   async close(id,intentId){await ready();await pool.query('UPDATE promptpay_work_intents SET active=false,updated_at=now() WHERE id=$1 AND intent_id=$2',[id,intentId])},
   async findByIntent(intentId){await ready();return (await pool.query('SELECT * FROM promptpay_work_intents WHERE intent_id=$1',[intentId])).rows[0]||null},
   async findActive(walletId,scope){await ready();return (await pool.query('SELECT * FROM promptpay_work_intents WHERE wallet_id=$1 AND work_scope=$2 AND active',[walletId,scope])).rows[0]||null},
+  async pendingSettlements(){
+   await ready();
+   // Claim a small oldest-checked batch atomically. Touch even failed provider
+   // reads so one unavailable payment cannot starve later paid reservations.
+   // Unbound rows need their original creation/recovery path, never this poller.
+   return (await pool.query(`WITH pending AS (
+    SELECT id FROM promptpay_work_intents WHERE active AND intent_id IS NOT NULL
+     AND package_id IN ('download_89_v1','download_119_v1','download_159_hair_v1')
+    ORDER BY updated_at,id LIMIT 10 FOR UPDATE SKIP LOCKED
+   ) UPDATE promptpay_work_intents r SET updated_at=clock_timestamp()
+    FROM pending p WHERE r.id=p.id RETURNING r.*`)).rows;
+  },
   async queueReconcile(walletId,scope,jobId,paidId){await ready();await pool.query('INSERT INTO promptpay_work_reconciliation(wallet_id,work_scope,job_id,paid_id) VALUES($1,$2,$3,$4) ON CONFLICT(wallet_id,work_scope) DO UPDATE SET job_id=EXCLUDED.job_id,paid_id=EXCLUDED.paid_id,pending=true,error_code=NULL,updated_at=now()',[walletId,scope,jobId,paidId])},
   async pendingReconciliations(){await ready();return (await pool.query('SELECT * FROM promptpay_work_reconciliation WHERE pending ORDER BY updated_at LIMIT 10')).rows},
   async finishReconcile(walletId,scope,error='',paidId){await ready();await pool.query('UPDATE promptpay_work_reconciliation SET pending=$3,error_code=NULLIF($4,\'\'),updated_at=now() WHERE wallet_id=$1 AND work_scope=$2 AND ($5::text IS NULL OR paid_id=$5)',[walletId,scope,Boolean(error),String(error).replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80),paidId||null])},

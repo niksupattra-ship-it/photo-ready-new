@@ -34,11 +34,12 @@ await test('completed IndexedDB read restores the saved checkout draft',async()=
 await test('blocked database falls back to session and closes any late connection',async()=>{
  const e=draftEnv(),saving=e.savePurchaseDraft({jobId:'blocked'});await tick();e.opens[0].onblocked();const result=await saving;assert.equal(result.storage,'session');const late=e.connect(0);await tick();assert.equal(late.closed,true);assert.equal(e.transactions.length,0);
 });
-function panelEnv(){
- const effects=[],requests=[],intervals=[],events={focus:[],visibilitychange:[]},messages=[],checking=[],payment={paymentIntentId:'pi_fixture',walletId:'A'},settlement=deferred();let paid=0,received;
- const e={payment,coveredRef:{current:false},setCovered:()=>{},callbacks:{current:{headers:()=>({'X-Wallet-Id':'A'}),onPaid:async(...args)=>{paid++;received=args;return settlement.promise}}},checkRef:{current:null},lifecycleRef:{current:null},downloadRef:{current:null},actionRef:{current:null},setExpired:()=>{},setImageError:()=>{},setDownloading:()=>{},setMessage:value=>messages.push(value),setChecking:value=>checking.push(value),AbortController,Date,encodeURIComponent,requestPromptpay:(url,options)=>{const d=deferred();requests.push({url,options,...d});return d.promise},useEffect:effect=>effects.push(effect),setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval:()=>{},window:{addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:()=>{}},document:{visibilityState:'visible',addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:()=>{}}};
+function panelEnv(packageId='89'){
+ const effects=[],requests=[],intervals=[],clearedIntervals=new Set(),events={focus:[],visibilitychange:[]},messages=[],checking=[],payment={paymentIntentId:'pi_fixture',walletId:'A',packageId,amount:Number(packageId)},settlement=deferred();let paid=0,received;
+ const removeListener=(name,fn)=>{const index=events[name].indexOf(fn);if(index>=0)events[name].splice(index,1)};
+ const e={payment,coveredRef:{current:false},setCovered:()=>{},callbacks:{current:{headers:()=>({'X-Wallet-Id':'A'}),onPaid:async(...args)=>{paid++;received=args;return settlement.promise}}},checkRef:{current:null},lifecycleRef:{current:null},downloadRef:{current:null},actionRef:{current:null},setExpired:()=>{},setImageError:()=>{},setDownloading:()=>{},setMessage:value=>messages.push(value),setChecking:value=>checking.push(value),AbortController,Date,encodeURIComponent,requestPromptpay:(url,options)=>{const d=deferred();requests.push({url,options,...d});return d.promise},useEffect:effect=>effects.push(effect),setInterval:fn=>{intervals.push(fn);return intervals.length},clearInterval:id=>clearedIntervals.add(id),window:{addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:removeListener},document:{visibilityState:'visible',addEventListener:(name,fn)=>events[name].push(fn),removeEventListener:removeListener}};
  const start=panelSource.indexOf(' useEffect(()=>{'),end=panelSource.indexOf('\n const download=',start);assert(start>=0&&end>start);new Function('env',`with(env){${panelSource.slice(start,end)}}`)(e);const cleanup=effects[0]();
- return {e,requests,events,messages,checking,payment,settlement,cleanup,paid:()=>paid,received:()=>received,intervals};
+ return {e,requests,events,messages,checking,payment,settlement,cleanup,paid:()=>paid,received:()=>received,intervals,clearedIntervals};
 }
 await test('banking-app focus events share one pending paid settlement',async()=>{
  const e=panelEnv();e.requests[0].resolve({response:{ok:true},data:{ok:true,status:'succeeded',paymentIntentId:'pi_fixture'}});await tick();assert.equal(e.paid(),1);assert.equal(e.received()[1],e.payment);e.events.focus[0]();e.events.visibilitychange[0]();e.intervals[0]();await tick();assert.equal(e.requests.length,1,'focus must not abort and repeat settlement');e.settlement.resolve();await tick();e.events.focus[0]();assert.equal(e.requests.length,1);e.cleanup();
@@ -69,5 +70,36 @@ await test('closed QR download refreshes settled rights instead of suggesting a 
  const start=panelSource.indexOf(' const download=async'),end=panelSource.indexOf('\n const changePackage=',start);const download=new Function('env',`with(env){${panelSource.slice(start,end)};return download}`)(e.e);
  const pending=download();await tick();e.requests[1].resolve({response:{ok:false,status:409},data:new Blob(['closed'])});await tick();assert.equal(e.requests.length,3);assert(!e.messages.some(m=>m.includes('ถ่ายภาพหน้าจอ')));
  e.requests[2].resolve({response:{ok:true},data:{ok:true,status:'work_unlocked',paymentIntentId:'pi_fixture'}});await tick();assert.equal(e.paid(),1);e.settlement.resolve();await pending;assert.equal(delivered.length,0);assert.equal(e.e.coveredRef.current,true);e.cleanup();
+});
+for(const terminal of ['canceled','expired'])await test('closed 89/159 '+terminal+' receipts stop timer/focus checks only after an authoritative response',async()=>{
+ for(const packageId of ['89','159']){
+  const e=panelEnv(packageId),focus=e.events.focus[0],visibility=e.events.visibilitychange[0];
+  e.requests[0].resolve({response:{ok:true},data:{status:'requires_action',expiresAt:Math.floor(Date.now()/1000)+3600}});await tick();
+  assert.equal(e.clearedIntervals.size,0);focus();assert.equal(e.requests.length,2);
+  const terminalData={status:terminal};
+  e.requests[1].resolve({response:{ok:false,status:503},data:terminalData});await tick();
+  assert.equal(e.clearedIntervals.size,0,'failed HTTP responses cannot stop recovery');
+  visibility();assert.equal(e.requests.length,3);e.requests[2].resolve({response:{ok:true},data:terminalData});await tick();
+  assert(e.clearedIntervals.has(1));assert.equal(e.events.focus.length,0);assert.equal(e.events.visibilitychange.length,0);
+  e.intervals[0]();focus();visibility();await tick();assert.equal(e.requests.length,3,'queued automatic callbacks cannot resume terminal polling');assert.equal(e.paid(),0);assert.equal(e.e.coveredRef.current,false);
+  assert.equal(e.payment.paymentIntentId,'pi_fixture');assert.equal(e.payment.packageId,packageId);
+  e.e.checkRef.current();assert.equal(e.requests.length,4,'explicit status checks remain available without another charge');assert(e.requests.every(({options})=>!options.method||options.method==='GET'));e.cleanup();
+ }
+});
+await test('a past client-clock QR timestamp keeps requires_action/processing polling until authoritative paid success',async()=>{
+ for(const packageId of ['89','159'])for(const status of ['requires_action','processing']){
+  const e=panelEnv(packageId),pending={response:{ok:true},data:{status,expiresAt:1}};
+  e.requests[0].resolve(pending);await tick();e.intervals[0]();assert.equal(e.requests.length,2);e.requests[1].resolve(pending);await tick();e.events.focus[0]();assert.equal(e.requests.length,3);e.requests[2].resolve(pending);await tick();
+  assert.equal(e.clearedIntervals.size,0);assert.equal(e.events.focus.length,1);assert.equal(e.events.visibilitychange.length,1);assert.equal(e.paid(),0);
+  e.intervals[0]();assert.equal(e.requests.length,4);e.requests[3].resolve({response:{ok:true},data:{ok:true,status:'succeeded',paymentIntentId:'pi_fixture',expiresAt:1}});await tick();assert.equal(e.paid(),1);e.settlement.resolve();await tick();e.events.focus[0]();assert.equal(e.requests.length,4,'successful paid verification completes once');e.cleanup();
+ }
+});
+await test('failed verification of a paid receipt keeps automatic timer/focus retries',async()=>{
+ for(const packageId of ['89','159']){
+  const e=panelEnv(packageId),paid={response:{ok:true},data:{ok:true,status:'succeeded',paymentIntentId:'pi_fixture',expiresAt:1}};
+  e.requests[0].resolve(paid);await tick();e.settlement.reject(Error('paid rights temporarily unavailable'));await tick();
+  e.intervals[0]();assert.equal(e.requests.length,2);e.requests[1].resolve(paid);await tick();e.events.focus[0]();assert.equal(e.requests.length,3);
+  assert.equal(e.clearedIntervals.size,0);assert.equal(e.events.visibilitychange.length,1);assert.equal(e.e.coveredRef.current,true);assert(e.messages.includes('paid rights temporarily unavailable'));e.cleanup();
+ }
 });
 console.log(`PASS: ${tested} checkout storage and QR lifecycle regressions; isolated mocks, no external requests.`);

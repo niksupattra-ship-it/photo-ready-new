@@ -141,10 +141,10 @@ for(const status of ['requires_action','succeeded','work_unlocked'])await test('
  if(completeStates.includes(status))assert.equal(eventsOf(f,'unlock')[0]?.[1].jobId,'job_original');
  else{assert.equal(f.e.qrPaymentRef.current.jobId,'job_original');assert.equal(f.e.qrPaymentRef.current.paymentJobId,'job_intent_origin')}
 });
-await test('a sibling checkout forwards its pending intent and preserves the actual existing offer',async()=>{
+await test('a sibling checkout leaves another output receipt to the server coordinator and preserves the actual offer',async()=>{
  const f=fixture({job:'job_sibling'});f.e.paymentStudioRef.current=()=>({layers:[{...f.head,jobId:'job_sibling'}]});let body;
  f.e.requestPromptpay=async(url,options)=>{body=JSON.parse(options.body);return{response:response(),data:{...f.payment,packageId:'119',jobId:'job_original',status:'requires_action'}}};
- await f.e.startCheckout('159');assert.equal(body.pendingPaymentIntentId,'pi_original');assert.equal(body.jobId,'job_sibling');assert.equal(f.e.qrPaymentRef.current.jobId,'job_sibling');assert.equal(f.e.qrPaymentRef.current.paymentJobId,'job_original');assert.equal(f.e.qrPaymentRef.current.packageId,'119');
+ await f.e.startCheckout('159');assert.equal(body.pendingPaymentIntentId,undefined);assert.equal(body.jobId,'job_sibling');assert.equal(f.e.qrPaymentRef.current.jobId,'job_sibling');assert.equal(f.e.qrPaymentRef.current.paymentJobId,'job_original');assert.equal(f.e.qrPaymentRef.current.packageId,'119');
 });
 await test('covered sibling creation settles only the requested output without a QR image',async()=>{
  const f=fixture({job:'job_sibling'});f.e.paymentStudioRef.current=()=>({layers:[{...f.head,jobId:'job_sibling'}]});let reads=0;
