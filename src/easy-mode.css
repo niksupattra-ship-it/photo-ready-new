@@ -1011,3 +1011,10 @@
 .idstudio .easy-mode .easy-collar-side-tabs button{min-width:0;min-height:40px;border:1px solid #e0d7f8;border-radius:10px;background:#f4f1fd;color:#352963;font-weight:700;font-size:12px;padding:7px}
 .idstudio .easy-mode .easy-collar-side-tabs button[aria-pressed=true]{background:#7044ed;border-color:#7044ed;color:#fff}
 
+
+/* Touch editor: keep short lists next to the action buttons; long lists scroll. */
+@media (max-width:1100px), (pointer:coarse) and (max-width:1366px) {
+ .idstudio .easy-mode .easy-options:not(.easy-wizard) .easy-panel:not([hidden]){display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+ .idstudio .easy-mode .easy-options:not(.easy-wizard) .easy-panel-content{width:100%;flex:0 0 auto;margin-top:auto}
+}
+
