@@ -984,3 +984,14 @@
  .easy-home-shell .idstudio .easy-mode .easy-landing-samples>.easy-desktop-example{display:block}
 }
 
+
+.idstudio .easy-mode .easy-suit-category-preview{display:none}
+@media (min-width:1101px) and (hover:hover) and (pointer:fine), (min-width:1367px){
+ .idstudio .easy-mode .easy-suit-view .easy-categories{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(130px,1fr);gap:10px;position:static;overflow-x:auto;align-items:stretch}
+ .idstudio .easy-mode .easy-suit-view .easy-categories button{display:flex;flex-direction:column;gap:0;min-height:0;padding:3px;border:2px solid #e5e0f5;background:#fff;border-radius:12px;overflow:hidden}
+ .idstudio .easy-mode .easy-suit-view .easy-categories button.selected{border-color:#7044ed;background:#f0eaff;color:#29204b}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-category-preview{display:block;width:100%;aspect-ratio:1;overflow:hidden;border-radius:8px;background:#f2f0f8}
+ .idstudio .easy-mode .easy-suit-view .easy-suit-category-preview img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top}
+ .idstudio .easy-mode .easy-suit-view .easy-categories button>span:last-child{display:block;padding:7px 3px;font-weight:700}
+}
+
