@@ -3044,7 +3044,8 @@ function App(){
    if(sourceWalletId!==data.walletId){appStorage.removeItem('idprom-private-trial-active');setQrPayment(null);setPurchaseEditing(false);setPrivateTrialActive(false);setFeatureSession(false);setFreeFeatureSession(false)}
    if(currentOutputTrialRef.current&&currentOutputJobRef.current&&sourceWalletId!==data.walletId)authClaimRef.current={sourceWalletId,jobId:currentOutputJobRef.current,token:data.token,walletId:data.walletId,pending:null};
    if(sourceWalletId!==data.walletId)activeSavedDownloadWork='';
-   authenticated=true;if(['89','119','159'].includes(pendingPackage))setPayBusy(true);setAuthOpen(false);setScreen('studio');
+   authenticated=true;if(['89','119','159'].includes(pendingPackage))setPayBusy(true);setAuthOpen(false);
+   // Keep the current page and the editor's Easy/Studio state after sign-in.
    // Authentication is complete. Balance reads and trial-image transfer must
    // not hold the login form open. Transfer still precedes any purchase.
    void refreshWallet().then(activatePrivateTrial);
