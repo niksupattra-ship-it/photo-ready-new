@@ -116,7 +116,7 @@ export function paintScene(ctx,layers,assets,activeId=null,damage=null){
  if(damage){ctx.beginPath();ctx.rect(damage.x,damage.y,damage.w,damage.h);ctx.clip()}
  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.drawImage(cache.under,0,0);ctx.drawImage(cache.active,0,0);ctx.drawImage(cache.over,0,0);ctx.restore();
 }
-export function StudioEditor({initialLayers,initialEasy=false,accountScope='',downloadUnlockSignal=null,onSelectSuit,onMeasureSuitFace,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,premiumHairCreditAvailable=false,trialHairRemaining=0,onChangeHair,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onBeforeProcess,onReadProcessBalance,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],paidWarningOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,memberMenu=null,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onOpenRights,onRequestUnlock,onClose}){
+export function StudioEditor({initialLayers,initialEasy=false,accountScope='',downloadUnlockSignal=null,onSelectSuit,onMeasureSuitFace,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,premiumHairCreditAvailable=false,trialHairRemaining=0,onChangeHair,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onBeforeProcess,onReadProcessBalance,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],paidWarningOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,memberMenu=null,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onUseDownloadCredit,onOpenRights,onRequestUnlock,onClose}){
  const [easyMode,setEasyMode]=useState(initialEasy);
  const [layers,setLayers]=useState(()=>freshLinkedLayers(initialLayers)),[selected,setSelected]=useState(null),[tool,setToolState]=useState('move'),[brush,setBrush]=useState(40),[soft,setSoft]=useState(30),[eraseOpacity,setEraseOpacity]=useState(100),[paintColor,setPaintColor]=useState('#e7b2a0'),[paintOpacity,setPaintOpacity]=useState(100),[view,setView]=useState({zoom:1,x:0,y:0}),[ready,setReady]=useState(false),[status,setStatus]=useState('กำลังเตรียมเลเยอร์…'),[revision,setRevision]=useState(0),[comparing,setComparing]=useState(false),[picker,setPicker]=useState(false),[warpMode,setWarpMode]=useState('push'),[warpSize,setWarpSize]=useState(120),[warpStrength,setWarpStrength]=useState(40),[cursor,setCursor]=useState(null),[assetBusy,setAssetBusy]=useState(false),[assetGroup,setAssetGroup]=useState('all'),[sourcePhoto,setSourcePhoto]=useState(initialSourcePhoto),[sourcePreview,setSourcePreview]=useState(null),[processingPhoto,setProcessingPhoto]=useState(false),[hairGender,setHairGender]=useState(()=>initialLayers.find(l=>layerKind(l)==='head')?.portraitMode||'female'),[selectedHair,setSelectedHair]=useState(()=>initialLayers.find(l=>layerKind(l)==='head')?.hairId||initialLayers.find(l=>l.kind==='hair-preview')?.hairId||'');
  const [touch,setTouch]=useState(()=>matchMedia('(max-width:1100px), (pointer:coarse) and (max-width:1366px)').matches),[touchOpen,setTouchOpen]=useState(false),[touchTab,setTouchTab]=useState('position'),[touchSide,setTouchSide]=useState('both'),[collarSide,setCollarSide]=useState('auto'),[touchMore,setTouchMore]=useState(false),[touchMenu,setTouchMenu]=useState(false),[layerGuide,setLayerGuide]=useState(false),[toolRailOpen,setToolRailOpen]=useState(true),[exitPrompt,setExitPrompt]=useState(false),[hairConfirmed,setHairConfirmed]=useState(false),[outlineRatio,setOutlineRatio]=useState(1),[selectionBoxes,setSelectionBoxes]=useState([]),[touchThumbnails,setTouchThumbnails]=useState({});
@@ -299,7 +299,7 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
  },[accountScope,outputKey,paidOutputIds,onVerifyOutput,trialUnlocked,hasCredits,editingPurchasedImage,downloadUnlockSignal,warningProofKey]);
  const sessionAllowsOutput=heads=>trialUnlocked||hasCredits||editingPurchasedImage||savedWorkUnlocked||heads.every(l=>sessionUnlockedJobs.current.has(l.jobId));
  const restrictedTrial=outputHeads(layers).length?!outputHeads(layers).every(l=>verifiedJobs[l.jobId]?.unlocked):!hasCredits&&!trialUnlocked;
- const allowOutput=async({errorTitle,closeCropOnPurchase=false,expectedOutputKey,expectedAccountScope=accountScope}={})=>{
+ const allowOutput=async({errorTitle,closeCropOnPurchase=false,expectedOutputKey,expectedAccountScope=accountScope,consumeDownloadCredit=false}={})=>{
   const heads=outputHeads(state.current),key=heads.map(l=>l.jobId||'missing').join('|');
   const current=()=>outputScopeRef.current===expectedAccountScope&&(expectedOutputKey===undefined||expectedOutputKey===key)&&key===outputHeads(state.current).map(l=>l.jobId||'missing').join('|');
   const changed=()=>{const message='บัญชีหรืองานเปลี่ยนแล้ว กรุณากดบันทึกหรือดาวน์โหลดอีกครั้ง';setStatus(message);if(errorTitle)setSavePopup({state:'error',title:errorTitle,message});return false};
@@ -309,9 +309,24 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
    setStatus(message);setSavePopup({state:'error',title:'รูปที่ไม่ผ่านการประมวลจากระบบ ไม่สามารถดาวน์โหลดได้',message});return false;
   }
   const warningStamps=Object.fromEntries(heads.map(l=>[l.jobId,warningProofForJob(l.jobId)]));
-  const results=await Promise.all(heads.map(async l=>{try{return await onVerifyOutput?.(l.jobId)||unavailableOutputRights()}catch{return unavailableOutputRights()}}));
+  const readRights=()=>Promise.all(heads.map(async l=>{try{return await onVerifyOutput?.(l.jobId)||unavailableOutputRights()}catch{return unavailableOutputRights()}}));
+  let results=await readRights();
   if(!current())return changed();
-  const result=outputAccessResult(results);setVerifiedJobs(previous=>mergeOutputRights(previous,heads.map((l,i)=>[l.jobId,{...results[i],paidWarningStamp:warningStamps[l.jobId]}])));
+  let result=outputAccessResult(results);setVerifiedJobs(previous=>mergeOutputRights(previous,heads.map((l,i)=>[l.jobId,{...results[i],paidWarningStamp:warningStamps[l.jobId]}])));
+  if(result.purchase&&consumeDownloadCredit&&typeof onUseDownloadCredit==='function'&&new Set(heads.map(l=>l.jobId)).size===1){
+   const retry=message=>{message=message||'ยังยืนยันสิทธิ์ดาวน์โหลดไม่ได้ กรุณาลองใหม่ ไม่ต้องชำระเงินซ้ำ';setStatus(message);if(errorTitle)setSavePopup({state:'error',title:errorTitle,message});return false};
+   let credit;
+   try{credit=await onUseDownloadCredit(heads[0].jobId)}catch(error){if(!current())return changed();return retry(error.message)}
+   if(!current())return changed();
+   if(credit?.available!==false){
+    if(credit?.available!==true||credit.unlocked!==true)return retry(credit?.message);
+    // Redemption alone cannot authorize pixels. Recheck the same output after
+    // the credit is committed, then retain the user's ordinary size picker.
+    results=await readRights();if(!current())return changed();result=outputAccessResult(results);
+    setVerifiedJobs(previous=>mergeOutputRights(previous,heads.map((l,i)=>[l.jobId,{...results[i],paidWarningStamp:warningStamps[l.jobId]}])));
+    if(!result.allowed)return retry(result.purchase?undefined:result.message);
+   }
+  }
   if(!result.allowed){setStatus(result.message);if(errorTitle)setSavePopup(result.purchase?null:{state:'error',title:errorTitle,message:result.message});if(result.purchase){if(closeCropOnPurchase)setDownloadCrop(null);onRequestUnlock?.()}return false}
   if(onSelectSuit)try{const suit=state.current.find(l=>layerKind(l)==='suit')?.templatePath,policy=await onSelectSuit(heads[0].jobId,suit?[suit]:[]);if(!current())return changed();setSuitPolicy(policy)}catch(e){setStatus(e.message);return false}
   for(const head of heads)sessionUnlockedJobs.current.add(head.jobId);return true;
@@ -570,7 +585,7 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
   let c,b;
   setSavePopup({state:'saving',title:'กำลังเตรียมดาวน์โหลด',message:'กำลังเตรียมไฟล์ภาพ กรุณารอสักครู่'});
   try{
-   if(automatic&&!(await allowOutput({errorTitle:'ดาวน์โหลดไม่สำเร็จ'})))return;flushTransforms();const renderedOutputKey=outputHeads(state.current).map(l=>l.jobId||'missing').join('|');c=nativeCanvas(placementRef.current);if(type==='image/jpeg'){b=nativeCanvas(placementRef.current);paintScene(b.getContext('2d'),state.current,assets.current);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0);b.width=1;b.height=1}else paintScene(c.getContext('2d'),state.current,assets.current);
+   if(!(await allowOutput({errorTitle:'ดาวน์โหลดไม่สำเร็จ',consumeDownloadCredit:!automatic})))return;flushTransforms();const renderedOutputKey=outputHeads(state.current).map(l=>l.jobId||'missing').join('|');c=nativeCanvas(placementRef.current);if(type==='image/jpeg'){b=nativeCanvas(placementRef.current);paintScene(b.getContext('2d'),state.current,assets.current);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0);b.width=1;b.height=1}else paintScene(c.getContext('2d'),state.current,assets.current);
    const workId=onSaveWork?.currentWorkId?.(),workScope=onSaveWork?.currentScope?.();let project=null,backupError=null;
    // Capture the original file with these pixels: its work ID carries the
    // existing paid unlock across saved-work reopen and hairstyle changes.
