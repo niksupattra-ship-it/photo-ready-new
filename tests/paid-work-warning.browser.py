@@ -16,9 +16,9 @@ if os.environ.get('PAID_WARNING_EXPECTED_STUDIO_SHA256'):assert FROZEN['src/stud
 results=[]
 class Case:
  def __init__(self,browser,name,width,height,paid=True,credits=0,owner=False,private=False,can_save=False,pkg='159'):
-  self.hold_next_right=False;self.held_right=None;self.rights_online=True;self.name=name;self.width=width;self.paid=paid;self.credits=credits;self.owner=owner;self.private=private;self.can_save=can_save;self.pkg=pkg;self.calls=[];self.errors=[];self.choosers=[]
+  self.missing_current=False;self.missing_reads=0;self.downloads=[];self.hold_next_right=False;self.held_right=None;self.rights_online=True;self.name=name;self.width=width;self.paid=paid;self.credits=credits;self.owner=owner;self.private=private;self.can_save=can_save;self.pkg=pkg;self.calls=[];self.errors=[];self.choosers=[]
   self.ctx=browser.new_context(viewport={'width':width,'height':height},has_touch=width<1100,accept_downloads=True);self.p=self.ctx.new_page();self.p.set_default_timeout(12000)
-  self.p.on('pageerror',lambda e:self.errors.append(str(e)));self.p.on('filechooser',lambda chooser:self.choosers.append(chooser));self.p.route('**/*',lambda route:route.continue_()if route.request.url.startswith((BASE+'/','blob:','data:'))else route.abort());self.p.route('**/api/**',self.api);self.p.route('**/src/main.jsx*',self.main_fixture);self.p.route('**/src/studio-editor.jsx*',self.studio_fixture);self.p.route('**/src/photo-input.js*',self.photo_fixture)
+  self.p.on('download',lambda download:self.downloads.append(download));self.p.on('pageerror',lambda e:self.errors.append(str(e)));self.p.on('filechooser',lambda chooser:self.choosers.append(chooser));self.p.route('**/*',lambda route:route.continue_()if route.request.url.startswith((BASE+'/','blob:','data:'))else route.abort());self.p.route('**/api/**',self.api);self.p.route('**/src/main.jsx*',self.main_fixture);self.p.route('**/src/studio-editor.jsx*',self.studio_fixture);self.p.route('**/src/photo-input.js*',self.photo_fixture)
  def wallet(self):
   return {'walletId':'wallet_fixture','processRemaining':self.credits,'trialRemaining':2,'canSave':self.can_save,'hasPurchased':True,'ownerAccess':self.owner,'unlimitedDownloads':self.owner,'allFeatures':self.owner,'unlockedJobIds':['job_fixture'] if self.paid else ['older_paid_job'],'editableJobIds':['job_fixture'] if self.paid else []}
  def api(self,r):
@@ -26,6 +26,7 @@ class Case:
   if u.startswith('/api/wallet'):d=self.wallet()
   elif u=='/api/private-trial':d={'active':self.private}
   elif u.endswith('/rights'):
+   if self.missing_current:self.missing_reads+=1;r.fulfill(status=404,content_type='application/json',body=json.dumps({'error':'output_not_found'}));return
    if self.hold_next_right:self.hold_next_right=False;self.held_right=r;return
    if not self.rights_online:r.fulfill(status=503,content_type='application/json',body=json.dumps({'error':'fixture_offline'}));return
    current=u.split('/')[3]=='job_fixture';paid=self.paid and current;yes=paid or self.owner or self.private
@@ -41,7 +42,7 @@ class Case:
   r.fulfill(content_type='application/json',body=json.dumps(d))
  def main_fixture(self,r):
   response=r.fetch();body=response.text();needle='const easyLanding =';assert needle in body,'App insertion point changed'
-  inject='''window.__paidWarningFixture={refresh:refreshWallet,legacy:()=>{setStudioData(null);setScreen("process");const c=document.createElement("canvas");c.width=900;c.height=1200;const x=c.getContext("2d");x.fillStyle="#cbe7ff";x.fillRect(0,0,900,1200);const png=c.toDataURL();window.__warningFixturePng=png;setA(png);setB(png);currentOutputJobRef.current="job_fixture";setOutputJobId("job_fixture");setF(new File(["fixture"],"fixture.png",{type:"image/png"}))}};\n'''
+  inject='''window.__paidWarningFixture={refresh:refreshWallet,downloadMissing:async()=>{editCache.current={master:{fixture:true},lock:{W:900,H:1200}};await downloadCurrentFinal()},legacy:()=>{setStudioData(null);setScreen("process");const c=document.createElement("canvas");c.width=900;c.height=1200;const x=c.getContext("2d");x.fillStyle="#cbe7ff";x.fillRect(0,0,900,1200);const png=c.toDataURL();window.__warningFixturePng=png;setA(png);setB(png);currentOutputJobRef.current="job_fixture";setOutputJobId("job_fixture");setF(new File(["fixture"],"fixture.png",{type:"image/png"}))}};\n'''
   body=body.replace(needle,inject+needle,1);r.fulfill(response=response,body=body)
  def studio_fixture(self,r):
   response=r.fetch();body=response.text();needle='const easyUi =';assert needle in body,'Studio insertion point changed'
@@ -149,6 +150,34 @@ class Case:
   if not legacy:assert p.evaluate("window.__paidStudioFixture.heads().includes('job_fixture')")
   p.get_by_role('button',name='กลับไปแก้ไขรูป',exact=True).click();assert self.unload() is True
   return {'paymentDuringPrepareGuarded':True,'legacy':legacy,'oldPaidWorkRetained':True}
+ def terminal_missing_after_logout(self,legacy=False):
+  p=self.p;self.setup()
+  if legacy:p.evaluate('window.__paidWarningFixture.legacy()');p.locator('.adaptive-editor').wait_for();p.wait_for_timeout(150)
+  else:self.easy()
+  assert self.unload() is True
+  # This is the retained AccountUI logout path, not StudioAccountMenu's exit path.
+  # The old head stays visible but its authenticated ownership no longer exists.
+  self.paid=False;self.missing_current=True
+  p.get_by_role('button',name='บัญชีสมาชิก',exact=True).click();p.get_by_role('button',name='ลงชื่อออก',exact=True).click()
+  p.wait_for_function("!localStorage.getItem('idprom_auth_token')")
+  for attempt in range(30):
+   if self.missing_reads:break
+   p.wait_for_timeout(30)
+  assert self.missing_reads>0;p.wait_for_timeout(100);assert self.unload() is False
+  if not legacy:self.studio()
+  target=p.locator('label[for="process-photo-input"]:visible').first if legacy else self.upload()
+  with p.expect_file_chooser()as event:target.click()
+  event.value.set_files([]);assert p.locator('.paid-work-warning').count()==0
+  before=self.missing_reads
+  if legacy:
+   p.evaluate('window.__paidWarningFixture.downloadMissing()');assert self.missing_reads>before
+  else:
+   p.get_by_role('button',name='ดาวน์โหลดรูป',exact=True).click();p.get_by_role('dialog',name='ขนาดรูป',exact=True).wait_for();p.locator('.photo-size-apply').click();p.get_by_text('ไม่พบงานของบัญชีนี้ กรุณาเปิดงานด้วยบัญชีเดิมแล้วลองอีกครั้ง',exact=True).first.wait_for();assert self.missing_reads>before
+   if p.get_by_role('dialog',name='ขนาดรูป',exact=True).count():p.get_by_role('dialog',name='ขนาดรูป',exact=True).get_by_role('button',name='ยกเลิก',exact=True).click()
+   if p.get_by_role('button',name='ตกลง',exact=True).count():p.get_by_role('button',name='ตกลง',exact=True).click()
+  assert self.downloads==[];assert p.locator('.paired-offers').count()==0
+  p.get_by_role('button',name='กลับหน้าก่อนหน้า' if legacy else 'กลับหน้าหลัก',exact=True).click();p.locator('.profile-home').wait_for();assert self.unload() is False
+  return {'terminal404AfterLogout':True,'legacy':legacy,'canChooseReplacement':True,'canExitHome':True,'noDownloadRightGranted':True}
  def stale_prepaid_reply(self,legacy=False):
   p=self.p;self.rights_online=False;self.setup()
   if legacy:p.evaluate('window.__paidWarningFixture.legacy()');p.locator('.adaptive-editor').wait_for();p.wait_for_timeout(150)
@@ -191,12 +220,13 @@ with sync_playwright()as pw:
  for engine,launcher,executable in engines:
   browser=launcher.launch(executable_path=executable,headless=True,args=['--no-sandbox','--disable-dev-shm-usage']if engine=='chromium'else[])
   plans=[('paid-desktop',1440,1000,{'paid':True,'pkg':'89'},'paid_flow'),('paid-tablet',820,1180,{'paid':True},'paid_flow'),('paid-phone',390,844,{'paid':True},'paid_flow'),('unpaid-credits',1440,1000,{'paid':False,'credits':5},'unpaid_flow'),('unpaid-owner',390,844,{'paid':False,'owner':True},'unpaid_flow'),('unpaid-private',820,1180,{'paid':False,'private':True},'unpaid_flow'),('paid-exit',390,844,{'paid':True},'exit_flow'),('paid-save-exit',1440,1000,{'paid':True,'can_save':True},'exit_flow'),('source-scope',1440,1000,{'paid':True},'fallback_scope'),('legacy-paid',1440,1000,{'paid':True},'legacy_flow'),('legacy-unpaid',390,844,{'paid':False,'credits':3},'legacy_flow')]
-  plans += [('stale-prepay',1440,1000,{'paid':False},'stale_prepaid_reply'),('legacy-stale-prepay',1440,1000,{'paid':False},'legacy_stale_prepaid_reply'),('logout-paid',1440,1000,{'paid':True},'logout_flow'),('logout-unpaid',390,844,{'paid':False},'logout_flow'),('payment-race',1440,1000,{'paid':False},'payment_during_prepare'),('legacy-payment-race',1440,1000,{'paid':False},'legacy_payment_race'),('offline-upload',1440,1000,{'paid':False},'offline_recovery'),('offline-exit',390,844,{'paid':False},'offline_exit'),('legacy-offline-upload',1440,1000,{'paid':False},'legacy_offline_upload'),('legacy-offline-exit',390,844,{'paid':False},'legacy_offline_exit')]
+  plans += [('terminal404-logout',1440,1000,{'paid':True},'terminal_missing_after_logout'),('legacy-terminal404-logout',1440,1000,{'paid':True},'legacy_terminal_missing_after_logout'),('stale-prepay',1440,1000,{'paid':False},'stale_prepaid_reply'),('legacy-stale-prepay',1440,1000,{'paid':False},'legacy_stale_prepaid_reply'),('logout-paid',1440,1000,{'paid':True},'logout_flow'),('logout-unpaid',390,844,{'paid':False},'logout_flow'),('payment-race',1440,1000,{'paid':False},'payment_during_prepare'),('legacy-payment-race',1440,1000,{'paid':False},'legacy_payment_race'),('offline-upload',1440,1000,{'paid':False},'offline_recovery'),('offline-exit',390,844,{'paid':False},'offline_exit'),('legacy-offline-upload',1440,1000,{'paid':False},'legacy_offline_upload'),('legacy-offline-exit',390,844,{'paid':False},'legacy_offline_exit')]
   if os.environ.get('PAID_WARNING_CASE'):plans=[plan for plan in plans if plan[0]in os.environ['PAID_WARNING_CASE'].split(',')]
   for name,width,height,options,method in plans:
    full=engine+'-'+name;case=Case(browser,full,width,height,**options)
    try:
     if method=='paid_flow':details=case.paid_flow(native=engine=='chromium'and name=='paid-desktop')
+    elif method=='legacy_terminal_missing_after_logout':details=case.terminal_missing_after_logout(legacy=True)
     elif method=='legacy_stale_prepaid_reply':details=case.stale_prepaid_reply(legacy=True)
     elif method=='legacy_payment_race':details=case.payment_during_prepare(legacy=True)
     elif method=='offline_exit':details=case.offline_recovery(exit=True)

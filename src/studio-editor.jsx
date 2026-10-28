@@ -674,7 +674,7 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
  const [sourceWarning,setSourceWarning]=useState(null),sourceInputConsent=useRef(null);
  useEffect(()=>{sourceInputConsent.current=null;setSourceWarning(null);setExitPrompt(false)},[accountScope,outputKey]);
  const currentWorkIsPaid=()=>hasPaidDownloadForJobs(outputHeads(state.current).map(l=>l.jobId),warningVerifiedJobs,paidWarningOutputIds);
- const warningRightsKnown=()=>outputHeads(state.current).every(l=>!l.jobId||paidWarningOutputIds.includes(l.jobId)||(warningVerifiedJobs[l.jobId]?.checked===true&&(typeof warningVerifiedJobs[l.jobId]?.paidDownload==='boolean'||warningVerifiedJobs[l.jobId]?.unlocked===false)));
+ const warningRightsKnown=()=>outputHeads(state.current).every(l=>!l.jobId||paidWarningOutputIds.includes(l.jobId)||warningVerifiedJobs[l.jobId]?.code==='output_not_found'||(warningVerifiedJobs[l.jobId]?.checked===true&&(typeof warningVerifiedJobs[l.jobId]?.paidDownload==='boolean'||warningVerifiedJobs[l.jobId]?.unlocked===false)));
  const paidWarningContextRef=useRef(null),warningRightsRetryRef=useRef(null);
  paidWarningContextRef.current={...warningScope(),paid:currentWorkIsPaid(),known:warningRightsKnown()};
  const retryWarningRights=()=>{
@@ -684,7 +684,7 @@ export function StudioEditor({initialLayers,initialEasy=false,accountScope='',do
   request.promise=Promise.all(outputHeads(state.current).filter(l=>l.jobId).map(async l=>{let right;try{right=await onVerifyOutput?.(l.jobId)||unavailableOutputRights()}catch{right=unavailableOutputRights()}return [l.jobId,{...right,paidWarningStamp:proof.proofs[l.jobId]}]})).then(results=>{
    if(!warningIsCurrent(scope)||warningRightsRetryRef.current!==request||warningProofsRef.current?.revision!==request.revision)return;
    setVerifiedJobs(previous=>mergeOutputRights(previous,results));
-   setStatus(results.every(([,right])=>right.checked===true)?'ตรวจสอบสิทธิ์แล้ว กรุณากดอีกครั้ง':'ตรวจสอบสิทธิ์ไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง');
+   setStatus(results.every(([,right])=>right.checked===true||right.code==='output_not_found')?'ตรวจสอบสิทธิ์แล้ว กรุณากดอีกครั้ง':'ตรวจสอบสิทธิ์ไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง');
   }).finally(()=>{if(warningRightsRetryRef.current===request)warningRightsRetryRef.current=null});
   return request.promise;
  };

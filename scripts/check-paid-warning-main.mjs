@@ -21,7 +21,7 @@ function fixture({paid=true,known=true}={}){
  env.setLegacyPaidRights=update=>{
   env.legacyPaidRights=update(env.legacyPaidRights);calls.rights.push(env.legacyPaidRights);
   const right=env.legacyPaidRights.scope===env.scope&&env.legacyPaidRights.stamp===env.legacyWarningContextRef.current.stamp?env.legacyPaidRights.jobs.job_fixture:null;
-  if(right){env.legacyWarningContextRef.current.paid=hasPaidDownloadForJobs(['job_fixture'],{'job_fixture':right},[]);env.legacyWarningContextRef.current.known=right.checked===true&&(typeof right.paidDownload==='boolean'||right.unlocked===false)}
+  if(right){env.legacyWarningContextRef.current.paid=hasPaidDownloadForJobs(['job_fixture'],{'job_fixture':right},[]);env.legacyWarningContextRef.current.known=right.code==='output_not_found'||right.checked===true&&(typeof right.paidDownload==='boolean'||right.unlocked===false)}
  };
  env.fileInputRef={current:{value:'old-input',click(){calls.picker++;assert.equal(env.legacyPickerOpeningRef.current,true)}}};
  return {env,calls,api:make(env)};
@@ -98,6 +98,23 @@ await test('a payment revision rejects an older unpaid verification and clears s
  env.verifyOutputRights=async()=>({checked:false,unlocked:null,code:'rights_unavailable'});await api.readLegacyWarningRights();
  assert.equal(env.legacyPaidRights.stamp,'new-payment');assert.equal(env.legacyPaidRights.jobs.job_fixture.paidDownload,undefined);
  assert.equal(hasPaidDownloadForJobs(['job_fixture'],env.legacyPaidRights.jobs,['job_fixture']),true);
+});
+await test('terminal missing output permits discard after logout while auth and network failures remain blocked',async()=>{
+ for(const action of ['upload','exit']){
+  const {env,calls,api}=fixture({paid:false,known:false});
+  env.verifyOutputRights=async()=>({checked:false,unlocked:null,fullEdit:false,code:'output_not_found'});
+  const run=()=>action==='upload'?api.requestLegacyPhotoUpload({preventDefault(){}}):api.requestLegacyExit();
+  run();assert.equal(calls.picker,0);assert.deepEqual(calls.screen,[]);await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(env.legacyWarningContextRef.current.known,true);assert.equal(env.legacyWarningContextRef.current.paid,false);run();
+  assert.equal(env.warning,undefined);assert.equal(calls.picker,action==='upload'?1:0);assert.deepEqual(calls.screen,action==='exit'?['home']:[]);
+  assert.equal(hasPaidDownloadForJobs(['job_fixture'],env.legacyPaidRights.jobs,[]),false);
+ }
+ for(const code of ['auth_required','rights_unavailable']){
+  const {env,calls,api}=fixture({paid:false,known:false});env.verifyOutputRights=async()=>({checked:false,unlocked:null,fullEdit:false,code});
+  api.requestLegacyPhotoUpload({preventDefault(){}});await new Promise(resolve=>setImmediate(resolve));api.requestLegacyExit();
+  assert.equal(env.legacyWarningContextRef.current.known,false);assert.equal(calls.picker,0);assert.deepEqual(calls.screen,[]);assert.equal(env.warning,undefined);
+ }
+ assert(source.includes("legacyCurrentRight?.code==='output_not_found'"));
 });
 await test('all legacy entry points use guarded handlers and active unload is scoped away from Studio',()=>{
  assert(source.includes('onUpload={()=>requestLegacyPhotoUpload(null,{landing:true})}'));

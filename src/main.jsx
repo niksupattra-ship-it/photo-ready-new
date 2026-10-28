@@ -3717,7 +3717,7 @@ function App(){
  const legacyVerifiedJobs=legacyPaidRights.scope===legacyWarningScope&&legacyPaidRights.stamp===legacyWarningRightsStamp?legacyPaidRights.jobs:{};
  const legacyHasPaidWork=!studioData&&Boolean(b)&&hasPaidDownloadForJobs([outputJobId],legacyVerifiedJobs,legacyPaidIds);
  const legacyCurrentRight=legacyVerifiedJobs[outputJobId];
- const legacyWarningRightsKnown=!b||!outputJobId||legacyPaidIds.includes(outputJobId)||(legacyCurrentRight?.checked===true&&(typeof legacyCurrentRight.paidDownload==='boolean'||legacyCurrentRight.unlocked===false));
+ const legacyWarningRightsKnown=!b||!outputJobId||legacyPaidIds.includes(outputJobId)||legacyCurrentRight?.code==='output_not_found'||(legacyCurrentRight?.checked===true&&(typeof legacyCurrentRight.paidDownload==='boolean'||legacyCurrentRight.unlocked===false));
  legacyWarningContextRef.current={scope:legacyWarningScope,stamp:legacyWarningRightsStamp,paid:legacyHasPaidWork,known:legacyWarningRightsKnown,preview:b};
  const liveLegacyWarningScope=()=>walletScope(authToken(),currentWalletId())+'|'+currentOutputJobRef.current+'|'+savedWorkOpenRequestRef.current;
  const hasCurrentPaidLegacyWork=()=>legacyWarningContextRef.current?.paid===true&&legacyWarningContextRef.current.scope===liveLegacyWarningScope();
@@ -3745,7 +3745,7 @@ function App(){
   const scope=liveLegacyWarningScope();setMsg('กำลังตรวจสอบสิทธิ์รูปเดิม กรุณาลองอีกครั้ง ไม่ต้องชำระเงินซ้ำ');
   void readLegacyWarningRights().then(right=>{
    if(legacyWarningContextRef.current?.scope!==scope||liveLegacyWarningScope()!==scope)return;
-   setMsg(right?.checked===true&&(typeof right.paidDownload==='boolean'||right.unlocked===false)?'ตรวจสอบสิทธิ์แล้ว กรุณากดอีกครั้ง':'ยังตรวจสอบสิทธิ์รูปเดิมไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง ไม่ต้องชำระเงินซ้ำ');
+   setMsg(right?.code==='output_not_found'||right?.checked===true&&(typeof right.paidDownload==='boolean'||right.unlocked===false)?'ตรวจสอบสิทธิ์แล้ว กรุณากดอีกครั้ง':'ยังตรวจสอบสิทธิ์รูปเดิมไม่ได้ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง ไม่ต้องชำระเงินซ้ำ');
   });
  };
  useEffect(()=>{
