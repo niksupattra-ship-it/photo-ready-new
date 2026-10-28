@@ -975,3 +975,12 @@
 /* Make suits outside the purchased selection visibly unavailable. */
 .idstudio .easy-mode .easy-suit-grid button.easy-suit-locked:disabled {opacity:.42;filter:grayscale(.8);cursor:not-allowed}
 
+
+/* Extra examples and top-aligned copy apply on desktop only. */
+.easy-home-shell .idstudio .easy-mode .easy-landing-samples>.easy-desktop-example{display:none}
+@media (min-width:1101px) and (hover:hover) and (pointer:fine), (min-width:1367px){
+ .easy-home-shell .idstudio .easy-mode .easy-landing-hero{align-items:start;grid-template-columns:minmax(180px,.65fr) minmax(0,2fr)}
+ .easy-home-shell .idstudio .easy-mode .easy-landing-samples{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:start}
+ .easy-home-shell .idstudio .easy-mode .easy-landing-samples>.easy-desktop-example{display:block}
+}
+
