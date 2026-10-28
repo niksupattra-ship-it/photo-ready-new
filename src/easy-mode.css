@@ -971,3 +971,7 @@
 .idstudio .easy-mode .easy-actions.easy-ready-actions .easy-status {grid-column:1/-1;margin:0}
 .idstudio .easy-mode .easy-actions.easy-ready-actions .easy-primary {margin:0;min-width:0}
 .idstudio .easy-mode .easy-actions.easy-ready-actions .easy-link {display:block;width:100%;min-width:0;margin:0;padding:9px 6px;border:1px solid #beaaff;border-radius:12px;background:#f7f4ff;color:#6035df;font-size:12px;font-weight:700;line-height:1.3}
+
+/* Make suits outside the purchased selection visibly unavailable. */
+.idstudio .easy-mode .easy-suit-grid button.easy-suit-locked:disabled {opacity:.42;filter:grayscale(.8);cursor:not-allowed}
+
