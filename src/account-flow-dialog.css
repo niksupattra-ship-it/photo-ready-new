@@ -1,0 +1,22 @@
+.idprom-account-flow-dialog{
+ position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;
+ margin:0;padding:0;border:0;background:transparent;color:inherit;
+ overflow:auto;overscroll-behavior:contain;font:inherit;
+}
+.idprom-account-flow-dialog:not([open]){display:none}
+.idprom-account-flow-dialog::backdrop{background:transparent}
+.idprom-account-flow-dialog>.credit-modal-backdrop,
+.idprom-account-flow-dialog>.idprom-password-overlay{
+ box-sizing:border-box;min-height:100%;overflow-y:auto;overscroll-behavior:contain;
+ padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+}
+.idprom-account-flow-dialog .idprom-auth-form{
+ box-sizing:border-box;max-width:100%;max-height:calc(100dvh - 28px);overflow-y:auto;
+ overscroll-behavior:contain;
+}
+.idprom-account-flow-dialog button:focus-visible,
+.idprom-account-flow-dialog input:focus-visible{outline:3px solid #6ba9ee;outline-offset:3px}
+@media(max-width:600px){
+ .idprom-account-flow-dialog .credit-modal-close{min-width:44px;min-height:44px;right:8px;top:6px}
+ .idprom-account-flow-dialog .credit-modal{max-height:calc(100dvh - 28px);overflow-y:auto;box-sizing:border-box}
+}

@@ -27,6 +27,10 @@ import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,res
 
 import {hasPrivateTrial,isPrivateOwner,registerPrivateTrial} from "./private-trial.js";
 import {requestDownloadPolicy} from './account-feature-policy.js';
+import pg from 'pg';
+import {createPremiumDownloadCredits} from './premium-download-credits.js';
+import {PREMIUM_DOWNLOAD_BATCHES} from './premium-download-batches.js';
+import {activateConfiguredPremiumAccounts} from './premium-download-support.js';
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
@@ -37,7 +41,19 @@ const STRIPE_PRICE_ID=process.env.STRIPE_PRICE_ID||"price_1UKKMzJdTdkPeQBPQwtPL7
 const STRIPE_PRICE_ID_199=process.env.STRIPE_PRICE_ID_199||"";
 const APP_URL=(process.env.APP_URL||"").replace(/\/$/,"");
 function walletId(req){return req.accountUser?.wallet_id||String(req.get("X-Wallet-Id")||"").trim()}
-const accountPolicy=req=>requestDownloadPolicy(req,downloadPolicy,{getJobsAccess:getAiJobsAccess});
+const premiumCreditPool=new pg.Pool({max:2,connectionTimeoutMillis:5000,connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'||/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL||'')?false:{rejectUnauthorized:false}});
+const premiumDownloadCredits=createPremiumDownloadCredits(premiumCreditPool,{prepare:downloadPolicy.ready,batches:PREMIUM_DOWNLOAD_BATCHES,allowed:downloadPolicy.allowed,premiumHair:downloadPolicy.premiumHair});
+const accountPolicy=req=>requestDownloadPolicy(req,downloadPolicy,{getJobsAccess:getAiJobsAccess,premiumCredits:premiumDownloadCredits});
+async function activateSupportDownloadCredits(attempt=0){
+ let retry=false;
+ try{
+  const report=await activateConfiguredPremiumAccounts(premiumCreditPool,premiumDownloadCredits,PREMIUM_DOWNLOAD_BATCHES);
+  console.info('Premium download support activation:',{granted:report.granted,active:report.results.filter(row=>row.state==='active').length,missing:report.results.filter(row=>row.state==='missing').length,conflicts:report.results.filter(row=>row.state==='conflict').length});
+  retry=report.retryable;
+ }catch{console.warn('Premium download support activation unavailable; authenticated activation remains enabled');retry=true}
+ if(retry&&attempt<3)setTimeout(()=>void activateSupportDownloadCredits(attempt+1),15000).unref();
+}
+setTimeout(()=>void activateSupportDownloadCredits(),1500).unref();
 async function stripePost(endpoint,params,idempotencyKey){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("ยังไม่ได้ตั้งค่า STRIPE_SECRET_KEY");
   const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null)body.append(k,String(v));
@@ -445,7 +461,7 @@ app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-st
 }catch(e){res.status(e.status||503).json({message:e.message||'ตรวจสอบชุดไม่สำเร็จ กรุณาลองใหม่'})}});
 app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{
  if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ดาวน์โหลด'});
- const policy=accountPolicy(req),out=await policy.redeem(req.accountUser.wallet_id,req.params.id);
+ const policy=accountPolicy(req),out=await policy.redeem(req.accountUser.wallet_id,req.params.id,{premium:req.body?.premium===true});
  res.status(out.ok?200:402).json({...out,...await getWallet(req.accountUser.wallet_id),...await policy.summary(req.accountUser.wallet_id)});
 }catch(e){res.status(e.status||503).json({error:'unlock_failed',message:'ยังปลดล็อกไม่ได้ กรุณาลองใหม่ ไม่ต้องจ่ายซ้ำ'})}});
 

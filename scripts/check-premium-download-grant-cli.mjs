@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import {createPremiumDownloadCredits,recipientHashForEmail} from '../premium-download-credits.js';
+import {parseGrantArgs,runPremiumDownloadGrants} from './grant-premium-download-credits.mjs';
+import {activateConfiguredPremiumAccounts} from '../premium-download-support.js';
+
+const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
+const db=new PGlite(),queries=[];
+const query=async(sql,args)=>{queries.push(sql);const r=await db.query(sql,args);return {...r,rowCount:r.rowCount??r.affectedRows??r.rows.length}};
+const pool={query,async connect(){return {query,release(){}}}};
+const email=['operator','fixture'].join('-')+'@example.test';
+const account={id:'cli-fixture-user',email,wallet_id:'cli-fixture-wallet'};
+const batches=[{batchId:'cli-fixture',recipientHash:recipientHashForEmail(email),quantity:2}];
+try{
+ assert.deepEqual(parseGrantArgs([]),{apply:false,help:false});assert.equal(parseGrantArgs(['--apply']).apply,true);
+ assert.throws(()=>parseGrantArgs(['--apply','--dry-run']),/invalid_arguments/);assert.throws(()=>parseGrantArgs(['--email=unsupported']),/invalid_arguments/);
+ const missing=await activateConfiguredPremiumAccounts(pool,{activateForAccount(){throw Error('missing_schema_must_not_activate')}},batches);
+ assert.equal(missing.results[0].state,'missing');assert.equal(missing.granted,0);assert.equal(missing.retryable,false);
+ await db.exec('CREATE TABLE wallets(id text PRIMARY KEY);CREATE TABLE users(id text PRIMARY KEY,email text NOT NULL UNIQUE,wallet_id text NOT NULL UNIQUE REFERENCES wallets(id))');
+ await query('INSERT INTO wallets(id) VALUES($1)',[account.wallet_id]);await query('INSERT INTO users(id,email,wallet_id) VALUES($1,$2,$3)',[account.id,email,account.wallet_id]);
+ queries.length=0;
+ const preview=await runPremiumDownloadGrants({pool,batches,makeStore(){throw Error('dry_run_initialized_store')}});
+ assert.equal(preview.mode,'dry-run');assert.equal(preview.results[0].state,'pending');
+ assert.equal(queries[0],'BEGIN READ ONLY');assert(queries.every(sql=>!/\b(?:INSERT|UPDATE|DELETE|CREATE|ALTER)\b/i.test(sql)));
+ assert.equal((await query("SELECT to_regclass('premium_download_grants') AS name")).rows[0].name,null);
+ const makeStore=()=>createPremiumDownloadCredits(pool,{batches});
+ const applied=await runPremiumDownloadGrants({pool,batches,apply:true,makeStore});
+ assert.equal(applied.results[0].state,'granted');assert.equal(applied.results[0].premiumDownloadRemaining,2);
+ const repeated=await runPremiumDownloadGrants({pool,batches,apply:true,makeStore});
+ assert.equal(repeated.results[0].state,'already_granted');assert.equal(repeated.results[0].premiumDownloadRemaining,2);
+ assert.equal((await query('SELECT COUNT(*)::int AS n FROM premium_download_grants')).rows[0].n,1);
+ assert(!JSON.stringify({preview,applied,repeated}).includes(email));
+ await query("INSERT INTO wallets(id) VALUES('cli-duplicate-wallet')");await query("INSERT INTO users(id,email,wallet_id) VALUES('cli-duplicate-user',$1,'cli-duplicate-wallet')",[email.toUpperCase()]);
+ const ambiguous=await runPremiumDownloadGrants({pool,batches,apply:true,makeStore});
+ assert.equal(ambiguous.ok,false);assert.equal(ambiguous.results[0].reason,'ambiguous_account');
+ assert.equal((await query('SELECT COUNT(*)::int AS n FROM premium_download_grants')).rows[0].n,1);
+ await query("DELETE FROM users WHERE id='cli-duplicate-user'");
+ const second={id:'cli-second-user',email:'second-'+email,wallet_id:'cli-second-wallet'};
+ await query('INSERT INTO wallets(id) VALUES($1)',[second.wallet_id]);await query('INSERT INTO users(id,email,wallet_id) VALUES($1,$2,$3)',[second.id,second.email,second.wallet_id]);
+ const extra=[{...batches[0],batchId:'cli-extra-approved'}, {batchId:'cli-second-approved',recipientHash:recipientHashForEmail(second.email),quantity:2}];
+ const realStore=createPremiumDownloadCredits(pool,{batches:extra});
+ const partial=await activateConfiguredPremiumAccounts(pool,{...realStore,async activateForAccount(user){if(user.id===second.id)throw Object.assign(Error(second.email),{code:'ECONNRESET'});return realStore.activateForAccount(user)}},extra);
+ assert.equal(partial.granted,2);assert.equal(partial.retryable,true);assert.equal(partial.results[0].state,'active');assert.equal(partial.results[0].premiumDownloadRemaining,4);assert.equal(partial.results[1].state,'failed');
+ assert(!JSON.stringify(partial).includes(second.email));
+ console.log(JSON.stringify({passed:6,cases:['missing account schema defers startup activation','dry run performs only read-only inspection','apply grants exactly two and reruns preserve balance','output excludes fixture email','ambiguous normalized accounts receive no new grant','partial database failure preserves earlier grants and reports safe retry'],productionAccess:false}));
+}finally{await db.close()}

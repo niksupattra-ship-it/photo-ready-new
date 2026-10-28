@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {hasWalletBalance} from './wallet-refresh.js';
 export function rightsSummary(data,unlimited=false){
  const count=value=>Math.max(0,Math.floor(Number(value)||0));
- return {credits:unlimited||(data.ownerAccess===true&&data.unlimitedDownloads===true)?'∞':count(data.processRemaining??data.generationRemaining),trial:'∞'};
+ return {credits:unlimited||(data.ownerAccess===true&&data.unlimitedDownloads===true)?'∞':count(data.processRemaining??data.generationRemaining)+count(data.premiumDownloadRemaining),trial:'∞'};
 }
 export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,unlimited=false,initialData=null,refresh=null,accountScope=''}){
  const [data,setData]=useState(()=>hasWalletBalance(initialData)?initialData:null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[revision,setRevision]=useState(0);
@@ -10,9 +10,9 @@ export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,
  useEffect(()=>{const previous=document.activeElement;panel.current?.querySelector('button')?.focus();return()=>previous?.focus?.()},[]);
  // An authoritative payment/usage update can arrive while a read is pending.
  // Adopt its scoped balance without starting another request on each render.
- useEffect(()=>{if(hasWalletBalance(initialData))setData(initialData)},[accountScope,initialData?.processRemaining,initialData?.generationRemaining,initialData?.trialRemaining,initialData?.trialAvailable,initialData?.hasPurchased,initialData?.ownerAccess,initialData?.unlimitedDownloads]);
+ useEffect(()=>{if(hasWalletBalance(initialData))setData(initialData)},[accountScope,initialData?.processRemaining,initialData?.generationRemaining,initialData?.premiumDownloadRemaining,initialData?.trialRemaining,initialData?.trialAvailable,initialData?.hasPurchased,initialData?.ownerAccess,initialData?.unlimitedDownloads]);
  useEffect(()=>{let cancelled=false;setData(hasWalletBalance(initialData)?initialData:null);setLoading(true);setError('');
-  const version=value=>JSON.stringify([value?.walletId??'',value?.processRemaining??value?.generationRemaining??null,value?.trialRemaining??null,value?.trialAvailable??null,value?.hasPurchased??null,value?.ownerAccess===true,value?.unlimitedDownloads===true]);
+  const version=value=>JSON.stringify([value?.walletId??'',value?.processRemaining??value?.generationRemaining??null,value?.premiumDownloadRemaining??0,value?.trialRemaining??null,value?.trialAvailable??null,value?.hasPurchased??null,value?.ownerAccess===true,value?.unlimitedDownloads===true]);
   const requestedVersion=version(callbacks.current.initialData),current=()=>!cancelled&&version(callbacks.current.initialData)===requestedVersion;
   (async()=>{
   try{const c=callbacks.current;let next;
@@ -38,7 +38,7 @@ export function StudioRightsDialog({request,headers,onRights,onClose,onPackages,
    {loading&&!displayData?<p className="studio-rights-status" role="status">กำลังตรวจสอบเครดิตล่าสุด…</p>:!displayData?<><p className="studio-rights-status studio-rights-error" role="alert">{error||'ยังตรวจสอบยอดเครดิตไม่ได้ กรุณาลองใหม่'}</p><button className="studio-rights-retry" onClick={()=>setRevision(v=>v+1)}>ตรวจสอบอีกครั้ง</button></>:<>
     {loading&&<p className="studio-rights-status" role="status">ยอดที่แสดงเป็นข้อมูลล่าสุดที่โหลดไว้ กำลังอัปเดต…</p>}
     {error&&<><p className="studio-rights-status studio-rights-error" role="alert">ยังอัปเดตยอดไม่ได้ ยอดที่แสดงอาจเปลี่ยนแปลง กรุณาลองใหม่</p><button className="studio-rights-retry" onClick={()=>setRevision(v=>v+1)}>ตรวจสอบอีกครั้ง</button></>}
-    <div className="studio-rights-row"><span>{ownerAccess?'ดาวน์โหลดไม่จำกัด':'สิทธิ์จากเครดิตเดิม'}<small>{ownerAccess?'รูปไม่มีลายน้ำ ทุกขนาด':'ปลดล็อกดาวน์โหลดงานใหม่'}</small></span><strong className="studio-rights-count">{balance.credits}<small>ครั้ง</small></strong></div>
+    <div className="studio-rights-row"><span>{ownerAccess?'ดาวน์โหลดไม่จำกัด':'สิทธิ์ดาวน์โหลดรวม'}<small>{ownerAccess?'รูปไม่มีลายน้ำ ทุกขนาด':Number(displayData.premiumDownloadRemaining)>0?`รวมสิทธิ์โปร 159 จำนวน ${Math.max(0,Math.floor(Number(displayData.premiumDownloadRemaining)||0))} งาน`:'ปลดล็อกดาวน์โหลดงานใหม่'}</small></span><strong className="studio-rights-count">{balance.credits}<small>ครั้ง</small></strong></div>
     <div className="studio-rights-row"><span>{ownerAccess?'ใช้ได้ทุกฟังก์ชัน':'สร้างและเปลี่ยนผมฟรี'}<small>{ownerAccess?'เมคอัพ ทรงผม และชุดทั้งหมด':'มีลายน้ำจนกว่าจะปลดล็อก'}</small></span><strong className="studio-rights-count">{balance.trial}<small>ครั้ง</small></strong></div>
    </>}
    {!ownerAccess&&<button className="studio-rights-packages" onClick={onPackages}>ปลดล็อกดาวน์โหลด</button>}
