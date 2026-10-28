@@ -453,7 +453,10 @@ app.post('/api/images/:id/claim',async(req,res)=>{try{
  res.json({ok:true});
 }catch(e){res.status(500).json({error:'image_claim_failed'})}});
 app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-store');try{
- const wid=walletId(req),policy=accountPolicy(req),unlocked=await policy.allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id)});
+ const wid=walletId(req),policy=accountPolicy(req),options={savedWorkId:req.get('X-IDPROM-Saved-Work')||''},unlocked=await policy.allowed(wid,req.params.id,options);
+ // Account-wide owner/private access is not a paid grant for this work.
+ const paidDownload=await downloadPolicy.allowed(wid,req.params.id,options);
+ res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id),paidDownload});
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});

@@ -20,7 +20,7 @@ const png='data:image/png;base64,QUFBQQ==';
 const head={id:'head-A',kind:'head',name:'หัว · คอ · ผม',jobId:'job-A',source:png,processedOriginalSource:png,x:7,y:8,scale:1.1,rotation:0,opacity:1,visible:true};
 const granted={checked:true,unlocked:true,fullEdit:true},denied={checked:true,unlocked:false,fullEdit:false};
 function accessFixture(reply=granted){
- const events=[],e={accountScope:'account-A',outputScopeRef:{current:'account-A'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,
+ const events=[],e={accountScope:'account-A',outputScopeRef:{current:'account-A'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),warningProofForJob:()=>'fixture',layerKind:l=>l.kind,
   onVerifyOutput:async id=>{events.push(['verify',id]);return typeof reply==='function'?reply(id):reply},outputAccessResult,unavailableOutputRights,mergeOutputRights,
   setVerifiedJobs:fn=>{e.verified=fn(e.verified||{})},sessionUnlockedJobs:{current:new Set()},onSelectSuit:async()=>({limited:false,choices:[]}),setSuitPolicy:no,
   setStatus:message=>events.push(['message',message]),setSavePopup:popup=>events.push(['popup',popup]),setDownloadCrop:no,onRequestUnlock:()=>events.push(['purchase'])};

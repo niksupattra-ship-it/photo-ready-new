@@ -99,10 +99,10 @@ try{
   assert.equal(await count('premium_download_redemptions',wallet),0);assert.equal(await count('premium_download_grants',accounts.foreign.wallet_id),0);
  });
  await check('an unpaid completed work becomes clean with premium hair and five suits after one support credit',async()=>{
-  assert.deepEqual((await request('/api/images/a1/rights')).data,{unlocked:false,fullEdit:false,premiumHair:false});
+  assert.deepEqual((await request('/api/images/a1/rights')).data,{unlocked:false,fullEdit:false,premiumHair:false,paidDownload:false});
   const preview=await request('/api/ai-jobs/a1/result');assert.equal(preview.status,200);assert.equal(preview.headers.get('X-IDPROM-Trial'),'1');
   const unlock=await request('/api/images/a1/unlock',{method:'POST'});assert.equal(unlock.status,200);assert.equal(unlock.data.premiumDownloadRemaining,1);assert.equal(unlock.data.processRemaining,0);
-  assert.deepEqual((await request('/api/images/a1-peer/rights')).data,{unlocked:true,fullEdit:true,premiumHair:true});
+  assert.deepEqual((await request('/api/images/a1-peer/rights')).data,{unlocked:true,fullEdit:true,premiumHair:true,paidDownload:true});
   const clean=await request('/api/ai-jobs/a1/result');assert.equal(clean.status,200);assert.equal(clean.headers.get('X-IDPROM-Trial'),'0');assert.equal(clean.data,preview.data);
   for(let i=0;i<5;i++){const suit=await request('/api/images/a1/suits',{method:'POST',body:{templates:['/suit-'+i+'.png']}});assert.equal(suit.status,200);assert.equal(suit.data.limit,5)}
   assert.equal((await request('/api/images/a1-peer/suits',{method:'POST',body:{templates:['/suit-six.png']}})).status,409);
@@ -114,7 +114,7 @@ try{
   assert.equal((await request('/api/images/a2/unlock',{method:'POST'})).data.premiumDownloadRemaining,0);
   const denied=await request('/api/images/a3/unlock',{method:'POST',body:{premium:true}});assert.equal(denied.status,402);assert.equal(denied.data.error,'premium_download_credit_required');
   assert.equal((await request('/api/images/a3/unlock',{method:'POST'})).status,402);
-  assert.deepEqual((await request('/api/images/a3/rights')).data,{unlocked:false,fullEdit:false,premiumHair:false});
+  assert.deepEqual((await request('/api/images/a3/rights')).data,{unlocked:false,fullEdit:false,premiumHair:false,paidDownload:false});
   assert.equal((await request('/api/ai-jobs/a3/result')).headers.get('X-IDPROM-Trial'),'1');
   assert.equal(await count('premium_download_redemptions',accounts['member-a'].wallet_id),2);
   assert.equal((await request('/fixture/summary')).data.premiumDownloadRemaining,0);
@@ -136,7 +136,7 @@ try{
   assert.equal((await request('/api/images/b-third/unlock',{session:'member-b',method:'POST',body:{premium:true}})).status,402);
   assert.deepEqual(await one('SELECT * FROM wallets WHERE id=$1',[wallet]),before);
   const legacy=await request('/api/images/b-third/unlock',{session:'member-b',method:'POST'});assert.equal(legacy.status,200);assert.equal(legacy.data.premiumDownloadRemaining,0);assert.equal(legacy.data.processRemaining,4);
-  assert.deepEqual((await request('/api/images/b-third/rights',{session:'member-b'})).data,{unlocked:true,fullEdit:true,premiumHair:false});
+  assert.deepEqual((await request('/api/images/b-third/rights',{session:'member-b'})).data,{unlocked:true,fullEdit:true,premiumHair:false,paidDownload:true});
   assert.equal((await request('/api/images/b-third/suits',{session:'member-b',method:'POST',body:{templates:['/legacy-suit.png']}})).data.limit,3);
   assert.equal(await count('premium_download_redemptions',wallet),2);assert.equal((await one('SELECT count(*)::int AS n FROM payments')).n,0);
  });

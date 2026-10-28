@@ -176,9 +176,9 @@ try{
   assert.equal((await request('/api/ai-jobs/owner_pending/result')).status,202);assert.equal((await request('/api/ai-jobs/owner_failed/result')).status,409);
  });
  await check('actual output rights route grants complete owner rights only after owned completed lookup',async()=>{
-  const r=await request('/api/images/owner_free/rights',{headers:{'X-Wallet-Id':CUSTOMER.wallet_id}});assert.equal(r.status,200);assert.deepEqual(r.data,{unlocked:true,fullEdit:true,premiumHair:true});
+  const r=await request('/api/images/owner_free/rights',{headers:{'X-Wallet-Id':CUSTOMER.wallet_id}});assert.equal(r.status,200);assert.deepEqual(r.data,{unlocked:true,fullEdit:true,premiumHair:true,paidDownload:false});
   for(const id of ['customer_free','missing','owner_pending'])assert.equal((await request('/api/images/'+id+'/rights')).status,404);
-  const ordinary=await request('/api/images/customer_free/rights',{session:'customer'});assert.deepEqual(ordinary.data,{unlocked:false,fullEdit:false,premiumHair:false});
+  const ordinary=await request('/api/images/customer_free/rights',{session:'customer'});assert.deepEqual(ordinary.data,{unlocked:false,fullEdit:false,premiumHair:false,paidDownload:false});
  });
  await check('actual owner suit and unlock routes remain unlimited with zero wallet balance and no debit',async()=>{
   for(let i=0;i<7;i++){

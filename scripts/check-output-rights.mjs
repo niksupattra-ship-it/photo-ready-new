@@ -19,11 +19,11 @@ const main=await read('src/main.jsx'),editor=await read('src/studio-editor.jsx')
 const start=editor.indexOf(' const allowOutput=async'),end=editor.indexOf('\n const [suitPolicy',start);
 const makeAllow=new Function('env','with(env){'+editor.slice(start,end)+';return allowOutput;}');
 for(const [name,reply,allowed,purchase] of [['paid-zero-credits',granted,true,false],['promo-zero-credits',granted,true,false],['offline',unavailableOutputRights(),false,false],['unpaid',denied,false,true]]){
- const e={accountScope:'A',outputScopeRef:{current:'A'},state:{current:[{jobId:'job'}]},outputHeads:l=>l,onVerifyOutput:async()=>reply,onSelectSuit:null,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:m=>{e.message=m},onRequestUnlock:()=>{e.opened=true}};
+ const e={accountScope:'A',outputScopeRef:{current:'A'},state:{current:[{jobId:'job'}]},outputHeads:l=>l,warningProofForJob:()=>'fixture',onVerifyOutput:async()=>reply,onSelectSuit:null,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:m=>{e.message=m},onRequestUnlock:()=>{e.opened=true}};
  assert.equal(await makeAllow(e)(),allowed,name);assert.equal(!!e.opened,purchase,name);
  if(allowed)assert(e.sessionUnlockedJobs.current.has('job'));
 }
-let reply=unavailableOutputRights();const retryEnv={accountScope:'A',outputScopeRef:{current:'A'},state:{current:[{jobId:'job'}]},outputHeads:l=>l,onVerifyOutput:async()=>reply,onSelectSuit:null,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:()=>{},onRequestUnlock:()=>{throw Error('must not buy')}};
+let reply=unavailableOutputRights();const retryEnv={accountScope:'A',outputScopeRef:{current:'A'},state:{current:[{jobId:'job'}]},outputHeads:l=>l,warningProofForJob:()=>'fixture',onVerifyOutput:async()=>reply,onSelectSuit:null,outputAccessResult,unavailableOutputRights,mergeOutputRights,setVerifiedJobs:()=>{},sessionUnlockedJobs:{current:new Set()},setStatus:()=>{},onRequestUnlock:()=>{throw Error('must not buy')}};
 const retry=makeAllow(retryEnv);assert.equal(await retry(),false);reply=granted;assert.equal(await retry(),true);
 const classicStart=main.indexOf(' const requireOutputAccess=async'),classicEnd=main.indexOf('\n useEffect',classicStart);
 const classic=new Function('env','with(env){'+main.slice(classicStart,classicEnd)+';return requireOutputAccess}');

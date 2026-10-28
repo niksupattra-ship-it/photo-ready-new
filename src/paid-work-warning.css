@@ -1,0 +1,90 @@
+.paid-work-warning-backdrop{
+ box-sizing:border-box;min-height:100%;display:flex;align-items:center;justify-content:center;
+ padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));
+ background:#101a32aa;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+}
+.paid-work-warning{
+ box-sizing:border-box;position:relative;flex:0 1 730px;width:100%;padding:28px 32px 30px;
+ border:1px solid #e8ebf2;border-radius:26px;background:#fff;color:#0b1439;
+ box-shadow:0 22px 80px #06112d40;font:inherit;text-align:center;
+}
+.paid-work-warning h2{margin:0 36px 24px;font-size:clamp(30px,4.6vw,44px);font-weight:800;line-height:1.25;letter-spacing:-.02em;color:#080f31}
+.paid-work-warning .paid-work-warning-close{
+ position:absolute;top:16px;right:16px;display:grid;place-items:center;width:42px;height:42px;padding:10px;
+ border:0;border-radius:12px;background:transparent;color:#858da4;box-shadow:none;cursor:pointer;
+}
+.paid-work-warning-close svg{width:22px;height:22px}
+.paid-work-warning .paid-work-warning-close:hover{background:#f0f3f8;color:#101b42}
+.paid-work-warning-comparison{display:grid;grid-template-columns:minmax(0,1fr) 44px minmax(0,1fr);align-items:center;gap:18px;max-width:530px;margin:0 auto 24px}
+.paid-work-warning-photo{position:relative;min-width:0;overflow:hidden;border:6px solid #fff;border-radius:19px;background:#e9f4ff;box-shadow:0 3px 16px #16274b29;isolation:isolate}
+.paid-work-warning-photo-image{position:relative;aspect-ratio:3/4;overflow:hidden;background:linear-gradient(#428bf7,#63bdf3)}
+.paid-work-warning-photo-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 35%}
+.paid-work-warning-photo-locked .paid-work-warning-photo-image img{filter:grayscale(.35) brightness(.82)}
+.paid-work-warning-watermark{position:absolute;inset:-18% -22%;display:grid;grid-template-columns:repeat(3,1fr);align-items:center;gap:12px;transform:rotate(-30deg);pointer-events:none;overflow:hidden}
+.paid-work-warning-watermark span{font-size:25px;line-height:1.4;font-weight:800;white-space:nowrap;color:#ffffff75;text-shadow:0 1px 1px #29314a25}
+.paid-work-warning-photo-label{position:absolute;bottom:-1px;left:-1px;right:-1px;display:flex;justify-content:center;align-items:center;gap:10px;padding:12px 5px 10px;border-radius:23px 23px 0 0;background:#fff;text-align:left;box-shadow:0 -2px 12px #091a3a08}
+.paid-work-warning-photo-label strong{display:block;color:#0a153b;font-size:20px;font-weight:800;line-height:1.3}
+.paid-work-warning-photo-label small{display:block;margin-top:1px;font-size:16px;line-height:1.35;font-weight:700;color:#8a92a8}
+.paid-work-warning-badge{display:grid;place-items:center;flex:0 0 37px;width:37px;height:37px;border-radius:50%;color:#fff;background:linear-gradient(145deg,#40ce68,#23b749)}
+.paid-work-warning-badge svg{width:24px;height:24px}
+.paid-work-warning-badge-locked{background:#e8ebf1;color:#7c859a}
+.paid-work-warning-badge-locked svg{width:23px;height:23px;stroke-width:2.7}
+.paid-work-warning-arrow{width:44px;height:44px;color:#9ba3b4;stroke-width:3.6}
+.paid-work-warning-notes{padding:0 20px;border-radius:20px;background:#f1f3f8;text-align:left}
+.paid-work-warning-note{display:flex;gap:17px;align-items:center;padding:15px 3px}
+.paid-work-warning-note+.paid-work-warning-note{border-top:1px solid #dde2ed}
+.paid-work-warning-note-icon{display:grid;place-items:center;flex:0 0 57px;width:57px;height:57px;border-radius:50%;background:#e3e7f0;color:#101a41}
+.paid-work-warning-note-icon svg{width:32px;height:32px}
+.paid-work-warning-note strong{display:block;font-size:21px;font-weight:800;line-height:1.4;color:#0c163e}
+.paid-work-warning-note p{margin:3px 0 0;font-size:16px;font-weight:600;line-height:1.55;color:#7e879f}
+.paid-work-warning-loss{margin:14px 10px 18px;font-size:13px;line-height:1.65;color:#69748a}
+.paid-work-warning-actions{display:flex;align-items:stretch;gap:12px}
+.paid-work-warning .paid-work-warning-button{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:12px;flex:1;min-width:0;min-height:60px;margin:0;padding:13px 18px;border:1.5px solid #98a4c0;border-radius:15px;background:#fff;color:#0e193e;font:inherit;font-size:19px;line-height:1.4;font-weight:800;box-shadow:none;cursor:pointer}
+.paid-work-warning .paid-work-warning-primary{flex:1.3;border-color:#1675f6;background:linear-gradient(140deg,#237fff,#0768ed);color:#fff}
+.paid-work-warning-button svg{flex:0 0 26px;width:26px;height:26px}
+.paid-work-warning .paid-work-warning-button:hover{filter:brightness(.97)}
+.paid-work-warning .paid-work-warning-button:disabled,.paid-work-warning .paid-work-warning-close:disabled{opacity:.55;cursor:wait}
+.paid-work-warning .paid-work-warning-button:focus-visible,.paid-work-warning .paid-work-warning-close:focus-visible{outline:3px solid #89bafd;outline-offset:4px}
+.paid-work-warning-exit{flex-basis:610px;padding:30px}
+.paid-work-warning-exit h2{font-size:31px;margin-bottom:18px}
+.paid-work-warning-exit-copy{padding:0 6px 25px}
+.paid-work-warning-exit-icon{display:grid;place-items:center;width:70px;height:70px;margin:0 auto 17px;border-radius:50%;background:#edf4ff;color:#176fe8}
+.paid-work-warning-exit-icon svg{width:36px;height:36px}
+.paid-work-warning-exit-copy>strong{display:block;font-size:21px;font-weight:800;line-height:1.45}
+.paid-work-warning-exit-copy p{margin:12px 0 0;font-size:16px;line-height:1.75;color:#69748a}
+.paid-work-warning-exit .paid-work-warning-actions{flex-wrap:wrap}
+.paid-work-warning-exit .paid-work-warning-primary{flex-basis:100%}
+.paid-work-warning-exit .paid-work-warning-button{min-height:52px;font-size:17px}
+@media(max-width:600px){
+ .paid-work-warning-backdrop{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+ .paid-work-warning{padding:24px 18px 20px;border-radius:22px}
+ .paid-work-warning h2{font-size:31px;margin:0 24px 22px}
+ .paid-work-warning .paid-work-warning-close{top:9px;right:8px;width:38px;height:38px;padding:8px}
+ .paid-work-warning-comparison{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:9px;margin-bottom:19px;max-width:380px}
+ .paid-work-warning-photo{border-width:4px;border-radius:14px}
+ .paid-work-warning-arrow{width:24px;height:24px}
+ .paid-work-warning-photo-label{gap:6px;padding:9px 3px 8px;border-radius:16px 16px 0 0}
+ .paid-work-warning-photo-label strong{font-size:16px}
+ .paid-work-warning-photo-label small{font-size:12px}
+ .paid-work-warning-badge{flex-basis:27px;width:27px;height:27px}
+ .paid-work-warning-badge svg{width:18px;height:18px}
+ .paid-work-warning-watermark{gap:8px}
+ .paid-work-warning-watermark span{font-size:18px}
+ .paid-work-warning-notes{padding:0 12px;border-radius:16px}
+ .paid-work-warning-note{gap:10px;padding:14px 0}
+ .paid-work-warning-note-icon{flex-basis:39px;width:39px;height:39px}
+ .paid-work-warning-note-icon svg{width:24px;height:24px}
+ .paid-work-warning-note strong{font-size:16px;line-height:1.45}
+ .paid-work-warning-note p{font-size:12px;margin-top:3px;line-height:1.6}
+ .paid-work-warning-loss{font-size:11px;line-height:1.65;margin:12px 4px 15px}
+ .paid-work-warning-actions{gap:10px;flex-direction:column}
+ .paid-work-warning .paid-work-warning-button{flex:auto;min-height:49px;padding:11px 13px;border-radius:12px;font-size:17px;gap:10px}
+ .paid-work-warning-button svg{flex-basis:23px;width:23px;height:23px}
+ .paid-work-warning-exit{padding:25px 21px 22px}
+ .paid-work-warning-exit h2{font-size:27px;margin-bottom:19px}
+ .paid-work-warning-exit-copy{padding:0 0 24px}
+ .paid-work-warning-exit-copy>strong{font-size:18px}
+ .paid-work-warning-exit-copy p{font-size:14px;line-height:1.8}
+ .paid-work-warning-desktop-break{display:none}
+ .paid-work-warning-exit .paid-work-warning-primary{flex-basis:auto}
+}
