@@ -83,9 +83,9 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
     <div className="easy-landing-start">
      <div className="easy-upload easy-landing-upload">
       <div className="easy-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 19H6a4 4 0 0 1-.3-8A6.5 6.5 0 0 1 18 10a4.5 4.5 0 0 1 0 9h-1M12 20V11m-3 3 3-3 3 3"/></svg></div>
-      <h2>เริ่มจากรูปของคุณ</h2><p className="easy-landing-upload-copy">เลือกทรงผม ชุด และพื้นหลัง<br/>แล้วปรับแต่งให้พร้อมใช้งาน</p>
+      <h2>เริ่มสร้างรูปติดบัตร</h2>
       <button className="easy-primary" disabled={!ready||busy} onClick={onUpload}>อัปโหลดรูป</button>
-      <p className="easy-landing-photo-hint">ใช้ภาพหน้าตรง แสงชัด และไม่มีสิ่งบดบังใบหน้า</p>
+      <p className="easy-landing-photo-hint">ใช้รูปหน้าตรง แสงสว่างชัดเจน และไม่มีสิ่งบดบังใบหน้า</p>
      </div>
      <p className="easy-landing-payment"><EasyUIIcon kind="download" size={18}/><span>ดูตัวอย่างก่อน เลือกแพ็กเกจเพื่อดาวน์โหลดรูปไม่มีลายน้ำ</span></p>
     </div>
