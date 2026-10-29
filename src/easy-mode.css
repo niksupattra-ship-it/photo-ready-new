@@ -1102,18 +1102,28 @@
  flex:none;margin:0 0 8px;padding:7px 10px;border:1px solid #e8b1b1;border-radius:8px;
  background:#fff2f2;color:#8b2525;font-size:12px;line-height:1.4;
 }
-/* Match Studio's no-hairstyle tile and reuse its circle-slash icon. */
+/* Easy Mode's no-hairstyle tile keeps the existing Studio circle-slash icon. */
 .idstudio .easy-mode .easy-options .easy-rail > button.easy-no-hair {
  display:flex;flex-direction:column;align-items:center;justify-content:center;
- background:#223941;color:#e8eef4;border-color:#45545f;
+ background:#f7f4ff;color:#6240cf;border-color:#e1d7fb;
 }
-.idstudio .easy-mode .easy-options .easy-rail > button.easy-no-hair.selected {border-color:#64d7cb}
+.idstudio .easy-mode .easy-options .easy-rail > button.easy-no-hair.selected {background:#eee7ff;color:#6035df;border-color:#7545ff}
+.idstudio .easy-mode .easy-options .easy-rail > button.easy-no-hair:not(.selected):not(:disabled):hover {background:#f0eaff;border-color:#bda7f8}
 .idstudio .easy-mode .easy-options .easy-rail .easy-no-hair .easy-none {
  display:grid;place-items:center;width:100%;background:transparent;
 }
 .idstudio .easy-mode .easy-options .easy-rail .easy-no-hair .studio-png-icon {
  display:block;width:28px;height:28px;aspect-ratio:auto;object-fit:contain;
  border-radius:0;background:transparent;margin:0;
+}
+/* Tint the existing icon from its alpha so it follows the Easy Mode palette. */
+@supports (mask-image:url("")) or (-webkit-mask-image:url("")) {
+ .idstudio .easy-mode .easy-options .easy-rail .easy-no-hair .easy-none::before {
+  content:"";grid-area:1/1;width:28px;height:28px;background:currentColor;
+  -webkit-mask:url('/assets/studio-icons/none.png?v=242') center/contain no-repeat;
+  mask:url('/assets/studio-icons/none.png?v=242') center/contain no-repeat;
+ }
+ .idstudio .easy-mode .easy-options .easy-rail .easy-no-hair .studio-png-icon {grid-area:1/1;opacity:0}
 }
 .idstudio .easy-mode .easy-options .easy-rail .easy-no-hair small {font-size:11px}
 @media(max-width:700px) {
