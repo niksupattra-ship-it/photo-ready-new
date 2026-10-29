@@ -24,7 +24,8 @@ class Case:
  def reply(self,r,d,status=200):r.fulfill(status=status,content_type='application/json',body=json.dumps(d))
  def api(self,r):
   u=r.request.url.split(BASE)[-1];method=r.request.method;record={'url':u,'method':method};self.calls.append(record)
-  if u.startswith('/api/wallet'):d=self.wallet()
+  if u=='/api/download-events':d={'ok':True,'accepted':[event['eventId']for event in json.loads(r.request.post_data or '{}').get('events',[])]}
+  elif u.startswith('/api/wallet'):d=self.wallet()
   elif u=='/api/private-trial':d={'active':False}
   elif u.startswith('/api/payments/promptpay/'):d={'paymentIntentId':'pi_fixture','walletId':'wallet_fixture','jobId':'job_fixture','packageId':'89','amount':89,'status':'canceled','ok':False}
   elif u=='/api/package-codes/redeem':
@@ -85,11 +86,26 @@ class Case:
   assert p.locator('.easy-watermark'if self.mode=='easy'else'.studio-trial-watermark').count()==0,'Authoritatively redeemed work still displays preview watermark'
   self.verify_hair();self.download('first');self.download('repeat');assert len(self.code_calls())==3;assert any(c['url'].endswith('/suits')and c.get('limit')==(5 if self.premium else 3)for c in self.calls);assert not self.errors,self.errors
   p.screenshot(path=str(OUT/(self.name+'-success.png')))
-  recovery=False
-  if self.width==1440 and self.package=='89':
-   saved=p.evaluate("""async()=>{const d=await(await import('/src/purchase-draft.js')).loadPurchaseDraft();return {unlockSource:d?.unlockSource,hasPlaintext:JSON.stringify(d).includes('FIXTURE-PACKAGE-89'),hasLocalPlaintext:JSON.stringify(Object.entries(localStorage)).includes('FIXTURE-PACKAGE-89')}}""");assert saved=={'unlockSource':'package-code','hasPlaintext':False,'hasLocalPlaintext':False},saved
-   count=len(self.code_calls());p.reload(wait_until='domcontentloaded');p.locator('.easy-home-shell').wait_for();p.get_by_role('button',name='เปิดรูปที่ใช้โค้ดล่าสุด',exact=True).wait_for();assert p.locator('.studio-stage>canvas').count()==0;p.get_by_role('button',name='เปิดรูปที่ใช้โค้ดล่าสุด',exact=True).click();p.locator('.studio-stage>canvas').wait_for(state='attached');p.locator('.studio-trial-watermark').wait_for(state='detached');assert p.locator('.paired-offers').count()==0;assert len(self.code_calls())==count;recovery=True;p.screenshot(path=str(OUT/(self.name+'-recovered.png')))
-  return {'name':self.name,'passed':True,'packageId':self.package,'mode':self.mode,'explicitReloadRecovery':recovery,'nativeModal':observed,'invalidAndUsedCodesRetryable':True,'successfulCodeApplications':1,'automaticDownloads':0,'actualDownloads':2,'selectedSize':[944,1252],'cleanImageRegion':True,'suitLimit':5 if self.premium else 3,'premiumHair':self.premium,'repeatRedeemCalls':0,'paymentCreates':0,'creditDebits':0,'pageErrors':self.errors}
+  # Prove the home shortcut is absent for an authenticated account that really
+  # has a successfully redeemed local draft, not just for an empty home page.
+  inspect_draft="""async code=>{const d=await(await import('/src/purchase-draft.js')).loadPurchaseDraft();return {unlockSource:d?.unlockSource,walletId:d?.walletId,jobId:d?.jobId,hasLayers:!!d?.studio?.layers?.length,hasPlaintext:JSON.stringify(d).includes(code),hasLocalPlaintext:JSON.stringify(Object.entries(localStorage)).includes(code)}}"""
+  expected={'unlockSource':'package-code','walletId':'wallet_fixture','jobId':'job_fixture','hasLayers':True,'hasPlaintext':False,'hasLocalPlaintext':False}
+  saved=p.evaluate(inspect_draft,'FIXTURE-PACKAGE-'+self.package);assert saved==expected,saved
+  count=len(self.code_calls());calls_before=len(self.calls);downloads_before=len(self.downloads)
+  p.reload(wait_until='domcontentloaded');p.locator('.easy-home-shell').wait_for();p.wait_for_timeout(350)
+  after=p.evaluate(inspect_draft,'FIXTURE-PACKAGE-'+self.package);assert after==expected,after
+  assert p.evaluate("localStorage.getItem('idprom_auth_token')")=='token_fixture'
+  assert p.locator('.package-code-recovery').count()==0,'Removed home recovery bar still renders with a valid local code draft'
+  assert p.get_by_role('region',name='รูปที่ใช้โค้ดล่าสุด',exact=True).count()==0
+  assert p.get_by_role('button',name='เปิดรูปที่ใช้โค้ดล่าสุด',exact=True).count()==0
+  assert p.locator('.studio-stage>canvas').count()==0,'Reload unexpectedly opened an editor'
+  assert p.locator('.paired-offers').count()==0,'Reload unexpectedly opened a package offer'
+  assert len(self.code_calls())==count and len(self.downloads)==downloads_before
+  after_calls=self.calls[calls_before:]
+  forbidden=[call for call in after_calls if call['url'].startswith(('/api/ai-','/api/hairstyle/','/api/payments/','/api/package-codes/'))or call['url'].endswith('/unlock')]
+  assert not forbidden,('Reload started a processing, payment, code, or credit operation',forbidden)
+  assert not self.errors,self.errors;p.screenshot(path=str(OUT/(self.name+'-home-with-code-draft.png')))
+  return {'name':self.name,'passed':True,'packageId':self.package,'mode':self.mode,'homeRecoveryBarAbsentWithValidDraft':True,'draftAndSignedInAccountPreserved':True,'reloadOpensEditor':False,'reloadBusinessMutations':0,'nativeModal':observed,'invalidAndUsedCodesRetryable':True,'successfulCodeApplications':1,'automaticDownloads':0,'actualDownloads':2,'selectedSize':[944,1252],'cleanImageRegion':True,'suitLimit':5 if self.premium else 3,'premiumHair':self.premium,'repeatRedeemCalls':0,'paymentCreates':0,'creditDebits':0,'pageErrors':self.errors}
  def raw_home(self,guest=False):
   p=self.p;p.goto(BASE,wait_until='domcontentloaded')
   if not guest:p.evaluate("localStorage.setItem('idprom_auth_token','token_fixture');localStorage.setItem('idprom_wallet_id','wallet_fixture')");p.reload(wait_until='domcontentloaded')

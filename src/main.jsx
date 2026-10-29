@@ -4799,7 +4799,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    }
    setUniformCategory(item.cat);setSelectedStyle(item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio');
   };
-  return <>{LegacyPaidWarningUI()}{easyLanding}{authOpen&&screen==='home'&&AuthUI()}{!landingPhotoPendingRef.current&&<main className="profile-home studio-home studio-home-below-easy">{SavedWorkUI()}{PackageCodeRecoveryUI()}
+  return <>{LegacyPaidWarningUI()}{easyLanding}{authOpen&&screen==='home'&&AuthUI()}{!landingPhotoPendingRef.current&&<main className="profile-home studio-home studio-home-below-easy">{SavedWorkUI()}
    
    {homeInfoOpen&&<div className="studio-home-help" role="status">เลือกประเภทและแบบชุด → เพิ่มรูปต้นฉบับ → ประมวลผล → ปรับแต่ง → ดาวน์โหลด</div>}
    <div className="studio-home-inner">{checkoutRecovery&&<CheckoutRecovery payment={checkoutRecovery} busy={checkoutRecoveryBusy} message={checkoutRecoveryMessage} onResume={resumeStoredCheckout}/>}
