@@ -68,8 +68,10 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
   {label:'พื้นหลัง',src:chosenBackground?.src,color:backgroundColor,kind:'background',detail:chosenBackground?.name},
   {label:'ประมวลผล',result:hasResult,kind:'process'}
  ];
- // Keep actionable failures above the editor; routine status no longer uses bottom space.
- const actionableStatus=/ไม่สำเร็จ|ไม่ได้|ไม่พบ|ไม่ถูกต้อง|ไม่รองรับ|ไม่ครบ|ไม่พร้อม|ไม่ตรง|ต้องใช้|กรุณา|ปลดล็อกเลเยอร์|ปลดล็อกก่อน|เลเยอร์เต็ม|error|failed|network/i.test(status||'');
+ // These duplicate notices stay in the live region; existing rights and save flows are unchanged.
+ const quietStatus=['รูปนี้ยังไม่ได้รับเครดิตดาวน์โหลด กรุณาเลือกแพ็กเกจ','ดาวน์โหลดรูปแล้ว แต่บันทึกงานไม่สำเร็จ กรุณากดบันทึกอีกครั้ง'].includes(status);
+ // Keep other actionable failures above the editor; routine status uses no layout space.
+ const actionableStatus=!quietStatus&&/ไม่สำเร็จ|ไม่ได้|ไม่พบ|ไม่ถูกต้อง|ไม่รองรับ|ไม่ครบ|ไม่พร้อม|ไม่ตรง|ต้องใช้|กรุณา|ปลดล็อกเลเยอร์|ปลดล็อกก่อน|เลเยอร์เต็ม|error|failed|network/i.test(status||'');
 
 
  // Homepage presentation is separate from the mounted editor and its wizard.
