@@ -1,6 +1,34 @@
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
   {
+    "id": "seedream-40",
+    "gender": "female",
+    "name": "ทรงผมหญิง 1",
+    "file": "40.png",
+    "src": "/assets/seedream-hairstyles/previews/40.webp"
+  },
+  {
+    "id": "seedream-41",
+    "gender": "female",
+    "name": "ทรงผมหญิง 2",
+    "file": "41.png",
+    "src": "/assets/seedream-hairstyles/previews/41.webp"
+  },
+  {
+    "id": "seedream-42",
+    "gender": "female",
+    "name": "ทรงผมหญิง 3",
+    "file": "42.png",
+    "src": "/assets/seedream-hairstyles/previews/42.webp"
+  },
+  {
+    "id": "seedream-43",
+    "gender": "female",
+    "name": "ทรงผมหญิง 4",
+    "file": "43.png",
+    "src": "/assets/seedream-hairstyles/previews/43.webp"
+  },
+  {
     "id": "seedream-07",
     "gender": "female",
     "name": "ทรงผม 7",
@@ -230,6 +258,8 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 export const HAIR_DESIGN_VERSION='selected-silhouette-v7-gathered-clean-reference';
 const compact={
+ 'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp and fully gathered at the low rear, with open forehead, clean visible ears and no hanging rear lengths'],
+ 'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
  'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
  'seedream-01':['short','neck-length layered shag with a centre-parted fringe; only the short ends shown in the reference'],
@@ -245,6 +275,8 @@ const compact={
  'seedream-27':['gathered','fully gathered swept-back hairstyle with open forehead and clean neck'],
 };
 const longDesigns={
+ "seedream-42": "sleek straight dark hair with a precise centre part, a low compact crown, sides tucked behind both visible ears and long smooth rear panels ending at the exact reference length; no forehead fringe or added volume",
+ "seedream-43": "straight dark brown hair with a slightly off-centre side part and a gentle diagonal crown sweep, both ears visible with sides tucked behind them, smooth rear panels and the exact inward-tapered reference ends; no forehead fringe or added volume",
  "seedream-38": "long smooth straight dark brown hair, precise middle part, broad softly swept crown and upper sides, open forehead, fuller side panels with ears partly visible and softly tapered inward-curving lower ends; match Image 2 exactly without extra volume",
  "seedream-39": "sleek straight medium-long dark brown hair, slightly off-centre part, low compact crown, both ears visible with sides tucked behind them, clean shoulder-length angled ends and no fringe; match Image 2 exactly",
 

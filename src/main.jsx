@@ -2839,7 +2839,7 @@ const COLLAR_PIN_OPTIONS=[
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const MALE_HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35');
 const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female');
-const BASIC_FEMALE_HAIR_IDS=['seedream-16','seedream-38','seedream-39'];
+const BASIC_FEMALE_HAIR_IDS=['seedream-40','seedream-41','seedream-42','seedream-43','seedream-16','seedream-38','seedream-39'];
 const PRIORITY_PREMIUM_FEMALE_HAIR_IDS=['seedream-23','seedream-25'];
 const REMOVED_FEMALE_HAIR_IDS=new Set(['hair-21','hair-25','seedream-26','seedream-19','seedream-01']);
 const STUDIO_FEMALE_HAIR_OPTIONS=[...BASIC_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...FREE_FEMALE_HAIR_OPTIONS,...PRIORITY_PREMIUM_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...HAIR_OPTIONS.filter(h=>!BASIC_FEMALE_HAIR_IDS.includes(h.id)&&!PRIORITY_PREMIUM_FEMALE_HAIR_IDS.includes(h.id))].filter(h=>!REMOVED_FEMALE_HAIR_IDS.has(h.id));

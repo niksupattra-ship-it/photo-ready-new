@@ -208,7 +208,7 @@ async function requireCredit(req,res,kind){
   if(kind==='ai-finish'||kind==='hairstyle'){
    if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
-   if(chosen&&((chosen.gender==='female'&&![16,38,39].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,33,34].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   if(chosen&&((chosen.gender==='female'&&![40,41,42,43,16,38,39].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,33,34].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
    return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
   res.status(403).json({error:'unsupported_generation'});return null;

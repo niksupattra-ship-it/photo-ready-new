@@ -94,10 +94,9 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
     <div className="easy-landing-examples">
      <p className="easy-landing-example-heading">จากรูปต้นฉบับ สู่รูปพร้อมใช้งาน</p>
      <div className="easy-landing-samples">
-      <figure><div className="easy-original-sample" role="img" aria-label="ตัวอย่างรูปต้นฉบับรวบผม ไม่แต่งหน้า"/><figcaption>รูปต้นฉบับ</figcaption></figure>
-      <figure><img src="/assets/home-previews/easy-job-v20261029.webp" alt="ตัวอย่างรูปสมัครงาน"/><figcaption>รูปสมัครงาน</figcaption></figure>
-      <figure><img src="/assets/home-previews/easy-shirt-v20261029.webp" alt="ตัวอย่างรูปเชิ้ตหญิง"/><figcaption>เชิ้ตหญิง</figcaption></figure>
-      <figure><img src="/assets/home-previews/easy-government-v20261029.webp" alt="ตัวอย่างรูปชุดข้าราชการ"/><figcaption>ข้าราชการ</figcaption></figure>
+      <figure><img src="/assets/home-previews/easy-job-v20261030.webp" alt="ตัวอย่างรูปชุดสมัครงาน"/><figcaption>ชุดสมัครงาน</figcaption></figure>
+      <figure><img src="/assets/home-previews/easy-government-v20261030.webp" alt="ตัวอย่างรูปชุดข้าราชการ"/><figcaption>ชุดข้าราชการ</figcaption></figure>
+      <figure><img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261030.webp" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/><figcaption>รูปต้นฉบับ</figcaption></figure>
      </div>
     </div>
    </section>
