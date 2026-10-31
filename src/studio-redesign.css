@@ -135,6 +135,7 @@
 
 /* Tint only the existing UI glyph images; photo and canvas colors are untouched. */
 .idstudio.studio-redesign .studio-tools .studio-png-icon,
+.idstudio.studio-redesign .studio-design-compare .studio-png-icon,
 .idstudio.studio-redesign .studio-bottom-choices .studio-png-icon,
 .idstudio.studio-redesign .studio-layer-actions .studio-png-icon,
 .idstudio.studio-redesign .studio-warp-modes .studio-png-icon,
@@ -146,6 +147,7 @@
 }
 
 .idstudio.studio-redesign .studio-tools button.active .studio-png-icon,
+.idstudio.studio-redesign .studio-design-compare.active .studio-png-icon,
 .idstudio.studio-redesign .studio-bottom-choices button.active .studio-png-icon,
 .idstudio.studio-redesign .studio-warp-modes button.active .studio-png-icon,
 .idstudio.studio-redesign .studio-floating-history.active .studio-png-icon {
@@ -611,10 +613,25 @@
   min-width: 0;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding: 18px 16px 20px;
   border-right: 1px solid var(--studio-line);
   background: #fff;
+  overscroll-behavior: contain;
+}
+
+/* Keep upload controls fixed while the catalog scrolls independently. */
+.studio-design-library-options {
+  display: contents;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library-options {
+  display: block;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 
@@ -1051,7 +1068,7 @@
   display: none;
 }
 
-.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom button:last-of-type {
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom .studio-design-fit {
   margin-left: 6px;
   border-left: 1px solid var(--studio-line);
   border-radius: 0;
@@ -1060,6 +1077,24 @@
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom svg {
   width: 21px;
   height: 21px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom .studio-design-compare {
+  gap: 5px;
+  margin-left: 5px;
+  padding-inline: 9px;
+  border-left: 1px solid var(--studio-line);
+  font-size: 11px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-compare .studio-png-icon {
+  width: 21px;
+  height: 21px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom .studio-design-compare.active {
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-tools {
@@ -1088,20 +1123,14 @@
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-padding-inline: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: #d9d2eb transparent;
+  scrollbar-width: none;
   z-index: 8;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-tools::-webkit-scrollbar {
-  display: block;
-  width: 5px;
-  height: 4px;
-}
-
-.idstudio.studio-redesign:not(.studio-touch) .studio-tools::-webkit-scrollbar-thumb {
-  border-radius: 5px;
-  background: #d9d2eb;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-tools button {
@@ -1399,28 +1428,21 @@
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-library,
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library-options,
 .idstudio.studio-redesign:not(.studio-touch) .studio-adjustment,
 .idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices,
 .idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers {
-  scrollbar-width: thin;
-  scrollbar-color: #d9d2eb transparent;
+  scrollbar-width: none;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-library::-webkit-scrollbar,
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library-options::-webkit-scrollbar,
 .idstudio.studio-redesign:not(.studio-touch) .studio-adjustment::-webkit-scrollbar,
 .idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices::-webkit-scrollbar,
 .idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers::-webkit-scrollbar {
-  display: block;
-  width: 5px;
-  height: 5px;
-}
-
-.idstudio.studio-redesign:not(.studio-touch) .studio-design-library::-webkit-scrollbar-thumb,
-.idstudio.studio-redesign:not(.studio-touch) .studio-adjustment::-webkit-scrollbar-thumb,
-.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices::-webkit-scrollbar-thumb,
-.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers::-webkit-scrollbar-thumb {
-  border-radius: 5px;
-  background: #d9d2eb;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 @media (max-width: 1399px) {
