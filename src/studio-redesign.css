@@ -1846,3 +1846,45 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
     transition: none;
   }
 }
+
+/* Shared line icons and legible touch adjustments in the Studio palette. */
+.idstudio.studio-redesign .studio-history-icon {
+  display:block;width:23px;height:23px;flex:none;pointer-events:none;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-history {
+  display:flex;flex:none;gap:0;overflow:hidden;border:1px solid var(--studio-line);
+  border-radius:10px;background:var(--studio-surface);box-shadow:0 4px 16px #24385c17;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-touch-history > button.studio-floating-history {
+  width:44px;height:40px;min-height:40px;padding:8px 10px;border:0;border-radius:0;
+  background:var(--studio-surface);color:var(--studio-ink);box-shadow:none;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-touch-history > button + button {
+  border-left:1px solid var(--studio-line);
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-touch-history > button:hover:not(:disabled),
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-touch-history > button:active:not(:disabled) {
+  background:var(--studio-lavender);color:var(--studio-violet-dark);
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-history > button:focus-visible {outline-offset:-3px}
+.idstudio.studio-redesign.studio-touch .studio-floating-tools > svg {fill:none;stroke:currentColor}
+.idstudio.studio-redesign.studio-touch .studio-touch-adjust-tabs > button,
+.idstudio.studio-redesign.studio-touch .studio-touch-sides > button {
+  border:1px solid #d8ccf5;background:#faf8ff;color:var(--studio-ink);font-weight:600;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-adjust-tabs > button.active,
+.idstudio.studio-redesign.studio-touch .studio-touch-sides > button.active {
+  border-color:var(--studio-violet);background:var(--studio-violet);color:#fff;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-controls label > button,
+.idstudio.studio-redesign.studio-touch .studio-touch-reset {
+  border:1px solid #d8ccf5;background:#f4efff;color:var(--studio-violet-dark);
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-controls label > button:active:not(:disabled) {
+  border-color:var(--studio-violet);background:var(--studio-violet);color:#fff;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-controls label {color:var(--studio-ink)}
+.idstudio.studio-redesign.studio-touch .studio-touch-controls output {color:var(--studio-violet-dark)}
+.idstudio.studio-redesign.studio-touch .studio-touch-sheet-heading {color:var(--studio-violet-dark)}
+.idstudio.studio-redesign.studio-touch .studio-touch-adjust::before {background:#b9a5ef}
+.idstudio.studio-redesign.studio-touch .studio-touch-adjust p {color:#5e6c8a}

@@ -2855,6 +2855,9 @@ const JOB_UNIFORMS=[
  {id:'female-white-shirt',title:'เชิ้ตหญิง',img:'/assets/job-uniforms/female-white-shirt-example.png',template:'/assets/job-uniforms/female-white-shirt.png',cat:'job',gender:'female'},
  {id:'female-white-shirt-02',title:'เชิ้ตหญิง แบบ 2',img:'/assets/job-uniforms/female-white-shirt-02-example.png',template:'/assets/job-uniforms/female-white-shirt-02.png',cat:'job',gender:'female'},
  {id:'male-white-shirt-v132',title:'เชิ้ตชาย',img:'/assets/job-uniforms/male-white-shirt-v132-example.png',template:'/assets/job-uniforms/male-open-collar-suit.png',cat:'job',gender:'male'},
+ {id:'female-navy-suit-6',title:'สูทหญิง แบบ 6',img:'/assets/job-uniforms/previews/female-navy-suit-6.webp',template:'/assets/job-uniforms/female-navy-suit-6.png',cat:'job',gender:'female'},
+ {id:'female-navy-suit-7',title:'สูทหญิง แบบ 7',img:'/assets/job-uniforms/previews/female-navy-suit-7.webp',template:'/assets/job-uniforms/female-navy-suit-7.png',cat:'job',gender:'female'},
+ {id:'male-navy-suit-5',title:'สูทชาย แบบ 5',img:'/assets/job-uniforms/previews/male-navy-suit-5.webp',template:'/assets/job-uniforms/male-navy-suit-5.png',cat:'job',gender:'male'},
 ];
 
 const STUDENT_UNIFORMS=[
@@ -2862,6 +2865,9 @@ const STUDENT_UNIFORMS=[
  {id:'student-female-02',title:'นักศึกษาหญิง แบบ 2',img:'/assets/student-uniforms/previews/female-02.jpg',template:'/assets/student-uniforms/female-02.png',cat:'student',gender:'female'},
  {id:'student-male-01',title:'นักศึกษาชาย แบบ 1',img:'/assets/student-uniforms/previews/male-01.jpg',template:'/assets/student-uniforms/male-01.png',cat:'student',gender:'male'},
  {id:'student-male-02',title:'นักศึกษาชาย แบบ 2',img:'/assets/student-uniforms/previews/male-02.jpg',template:'/assets/student-uniforms/male-02.png',cat:'student',gender:'male'},
+ {id:'student-female-rajamangala',title:'ราชมงคล',img:'/assets/student-uniforms/previews/female-rajamangala.webp',template:'/assets/student-uniforms/female-rajamangala.png',cat:'student',gender:'female'},
+ {id:'student-female-msu',title:'มมส',img:'/assets/student-uniforms/previews/female-msu.webp',template:'/assets/student-uniforms/female-msu.png',cat:'student',gender:'female'},
+ {id:'student-female-rajabhat',title:'ราชภัฏ',img:'/assets/student-uniforms/previews/female-rajabhat.webp',template:'/assets/student-uniforms/female-rajabhat.png',cat:'student',gender:'female'},
 ];
 
 const GOWN_UNIFORMS=[
