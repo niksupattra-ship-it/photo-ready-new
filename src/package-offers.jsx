@@ -15,6 +15,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,premiumCr
  .paired-offers .ready-heading{text-align:center;padding:0 20px 22px}
  .paired-offers .ready-heading h2{font:inherit;font-size:28px;font-weight:800;line-height:1.4;margin:0 0 6px}
  .paired-offers .ready-heading p{margin:0;font-size:14px;color:#718097}
+ .paired-offers .offer-image-scope{margin:0 0 14px;padding:9px 12px;border:1px solid #e2eaf4;border-radius:10px;background:#f4f7fb;color:#3a5678;font-size:13px;font-weight:650;line-height:1.6;text-align:center}
  .paired-offers .offer-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:16px}
  .paired-offers .offer-card{min-width:0;display:flex;flex-direction:column;padding:22px 18px;border:1px solid #dce7f3;border-radius:16px;background:#f7fbff}
  .paired-offers .offer-card.premium{background:linear-gradient(160deg,#fff2f7,#fff9fb);border-color:#eaa2bf;box-shadow:0 4px 16px #b82b6514}.paired-offers .offer-card{position:relative}.paired-offers .premium .offer-name,.paired-offers .premium .offer-price,.paired-offers .premium .offer-check{color:#c62668}.paired-offers .premium .ready-pay{background:#cf286b}.paired-offers .premium>.offer-recommended{position:absolute;right:12px;top:-12px;margin:0;background:#cf286b;padding:4px 11px;font-size:12px}.paired-offers .offer-pair{padding-top:8px}
@@ -81,6 +82,7 @@ export function PackageOffers({payBusy,payMsg,hasTrial,creditBalance=0,premiumCr
  `}</style>
  <header className="ready-heading"><h2>รูปของคุณพร้อมแล้ว!</h2><p>เลือกแพ็กเกจเพื่อรับรูปนี้แบบไม่มีลายน้ำ พร้อมดาวน์โหลดลงอุปกรณ์</p></header>
  {onOpenCode&&<div className="ready-code"><button type="button" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></div>}
+ <p className="offer-image-scope">ราคานี้สำหรับรูปที่แสดงผลขณะนี้เท่านั้น</p>
  <div className="offer-pair">{[{price:'89',regular:'159',name:'รับรูปนี้',premium:false,features:['ปลดลายน้ำ','เลือกชุดได้ 3 ชุด','ทรงผมพื้นฐาน']},{price:'159',regular:'199',name:'รับรูปนี้ + ทรงผม',premium:true,features:['ปลดลายน้ำ','เลือกชุดได้ 5 ชุด','ปลดล็อกทรงผม']}].map(o=><section key={o.price} className={'offer-card'+(o.premium?' premium':'')} aria-label={o.name+' '+o.price+' บาท'}><h3 className="offer-name">{o.premium&&<OfferDiamond/>}{o.name}</h3><p className="offer-regular">จาก <del>{o.regular} ฿</del></p><div className="offer-price"><strong>{o.price}</strong><span>฿</span></div><ul className="offer-features">{o.features.map(f=><li key={f}><span className="offer-check" aria-hidden="true">✓</span><span className="offer-feature-label">{f}{o.premium&&f==='ปลดล็อกทรงผม'&&<OfferDiamond/>}</span></li>)}</ul>{<button type="button" className="ready-pay" disabled={disabled} onClick={()=>o.premium&&usePremium?onUseCredit({premium:true}):startCheckout(o.price)}>{payBusy?'กำลังเตรียม…':o.premium&&usePremium?'ใช้ 1 สิทธิ์โปร 159':'เลือกโปร '+o.price+' บาท'}</button>}</section>)}</div>
 
  
