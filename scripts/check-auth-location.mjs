@@ -31,6 +31,7 @@ function fixture(surface,{mode='login',intent=null,trial=surface!=='home'}={}){
   setAuthOpen:value=>{events.push(['auth-open',value]);state.authOpen=value},setAuthBusy:value=>events.push(['auth-busy',value]),setAuthMsg:value=>events.push(['auth-error',value]),setAccountEmail:value=>events.push(['email',value]),setWalletBalance:value=>events.push(['wallet',value]),setRights:value=>events.push(['rights',value]),
   setQrPayment:value=>events.push(['qr',value]),setPurchaseEditing(){},setPrivateTrialActive(){},setFeatureSession(){},setFreeFeatureSession(){},setPayBusy:value=>events.push(['pay-busy',value]),setPendingPackage(){},setPayMsg:value=>events.push(['pay-error',value]),setBuyOpen:value=>events.push(['buy-open',value]),setAccountSaveNotice:value=>events.push(['notice',value])
  };
+ e.screen=state.screen;e.studioData=layers;e.editCache={current:null};e.packageCodeSourcePending=false;e.currentOutputOwnerRef={current:{jobId:surface==='home'?'':'job-fixture',walletId:'guest-wallet'}};
  const submit=new Function('env',`with(env){return ${handler}}`)(e);
  const unchanged=()=>{
   for(const key of ['screen','easy','project','layers','sourcePhoto','savedWorkId','revision'])assert.equal(state[key],initial[key],surface+' preserves '+key);

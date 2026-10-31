@@ -45,7 +45,7 @@ await test('expired current token is cleared while an old 401 cannot sign out a 
 await test('invalidation blocks anonymous ABA responses after login then logout',async()=>{
  const e=walletEnv({token:'',walletId:''}),pending=e.loader.load();const failure=assert.rejects(pending,{code:'WALLET_REFRESH_SUPERSEDED'});await tick();e.setIdentity({token:'member',walletId:'member'});e.loader.invalidate();e.setIdentity({token:'',walletId:''});e.loader.invalidate();e.calls[0].resolve(response({walletId:'obsolete-guest',processRemaining:0}));await failure;assert.equal(e.applied.length,0);assert.equal(e.identity().walletId,'');
 });
-const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+const main=await readFile(process.env.IDPROM_AUDIT_MAIN||new URL('../src/main.jsx',import.meta.url),'utf8');
 await test('payment grants and usage debits supersede earlier shared balance reads',async()=>{
  const start=main.indexOf(' const acceptWalletRights=data=>{'),end=main.indexOf('\n };',start);
  const expression=main.slice(start,end+4).trim().replace(/^const acceptWalletRights=/,'').replace(/;$/,'');
@@ -73,6 +73,7 @@ function compile(name,env){const start=main.indexOf(' const '+name+'=async');ass
 function authEnv({trial=false,pkg=null}={}){
  const storage=new Map([['wallet','guest-source']]),calls=[],events=[];let walletRefreshes=0;
  const e={AUTH_TOKEN_KEY:'token',WALLET_KEY:'wallet',authMode:'login',authEmail:'fixture@example.invalid',authPassword:'fixture-password',pendingPackage:pkg,appStorage:{setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key),getItem:key=>storage.get(key)},authToken:()=>storage.get('token')||'',currentWalletId:()=>storage.get('wallet')||'',walletHeaders:()=>({Authorization:'Bearer '+(storage.get('token')||''),'X-Wallet-Id':storage.get('wallet')||''}),walletScope,hasWalletBalance,normalizedRights:data=>data,walletRefreshRef:{current:{invalidate:()=>events.push('invalidate')}},authClaimRef:{current:null},currentOutputTrialRef:{current:trial},currentOutputJobRef:{current:trial?'trial-job':''},portraitFetch:(url,options,deadline)=>{const job=deferred();calls.push({url,options,deadline,...job});return job.promise},refreshWallet:()=>{walletRefreshes++;return Promise.resolve(null)},activatePrivateTrial:async()=>events.push('private-trial'),startCheckout:async id=>events.push('checkout:'+id),redeemFreeLink:async code=>events.push('promo:'+code),setAuthBusy:value=>events.push('busy:'+value),setAuthMsg:value=>{e.authError=value;events.push('auth-message:'+value)},setAccountEmail:()=>{},setWalletBalance:value=>{e.walletBalance=value},setRights:value=>{e.rights=value},setQrPayment:()=>{},setPurchaseEditing:()=>{},setPrivateTrialActive:()=>{},setFeatureSession:()=>{},setFreeFeatureSession:()=>{},setAuthOpen:value=>events.push('open:'+value),setScreen:value=>events.push('screen:'+value),setPendingPackage:()=>{},setPayMsg:value=>{e.payError=value},setBuyOpen:value=>events.push('buy:'+value),setAccountSaveNotice:value=>{e.notice=value}};
+ e.screen=trial?'studio':'home';e.studioData=trial?[{jobId:'trial-job'}]:null;e.editCache={current:null};e.packageCodeSourcePending=false;e.currentOutputOwnerRef={current:{jobId:trial?'trial-job':'',walletId:'guest-source'}};
  e.withDeadline=withDeadline;e.authSubmitBusyRef={current:false};e.setPayBusy=value=>events.push('pay-busy:'+value);
  e.claimAccountOutput=compile('claimAccountOutput',e);e.submitAuth=compile('submitAuth',e);
  return {e,storage,calls,events,walletRefreshes:()=>walletRefreshes};
@@ -91,6 +92,22 @@ await test('trial transfer is shared on retry and must finish before pending pur
 });
 await test('transfer response for a replaced photo cannot start a pending checkout',async()=>{
  const a=authEnv({trial:true,pkg:'package89'}),pending=a.e.submitAuth();await tick();a.calls[0].resolve(response({token:'member-token',walletId:'member-wallet'}));await tick();a.e.currentOutputJobRef.current='new-job';a.calls[1].resolve(response({ok:true}));await pending;assert(!a.events.includes('checkout:package89'));assert(a.e.payError.includes('รูปเปลี่ยน'));
+});
+await test('home login ignores a retained trial job and clears any stale transfer',async()=>{
+ const a=authEnv({trial:true});a.e.screen='home';a.e.studioData=null;
+ a.e.authClaimRef.current={jobId:'trial-job',token:'expired',walletId:'old-member'};
+ const pending=a.e.submitAuth();await tick();a.calls[0].resolve(response({token:'member-token',walletId:'member-wallet'}));await tick();assert.equal(a.calls.length,1,'Home login must not request transfer of a retained photo');await pending;
+ assert.equal(a.calls.length,1);assert.equal(a.e.authClaimRef.current,null);assert.equal(a.e.notice,undefined);assert.equal(a.storage.get('token'),'member-token');
+});
+await test('logout-retained or authenticated account work is never claimed from a new guest wallet',async()=>{
+ for(const mode of ['different-owner','authenticated','pending-source']){
+  const a=authEnv({trial:true});
+  if(mode==='different-owner')a.e.currentOutputOwnerRef.current.walletId='former-member';
+  if(mode==='authenticated')a.storage.set('token','former-member-token');
+  if(mode==='pending-source')a.e.packageCodeSourcePending=true;
+  const pending=a.e.submitAuth();await tick();a.calls[0].resolve(response({token:'member-token',walletId:'member-wallet'}));await pending;
+  assert.equal(a.calls.length,1);assert.equal(a.e.authClaimRef.current,null);assert.equal(a.e.notice,undefined);
+ }
 });
 await test('trial transfer failure without purchase intent displays a Studio notice',async()=>{
  const a=authEnv({trial:true}),pending=a.e.submitAuth();await tick();a.calls[0].resolve(response({token:'member-token',walletId:'member-wallet'}));await tick();a.calls[1].reject(Error('offline'));await pending;assert(a.e.notice.title.includes('เข้าสู่ระบบแล้ว'));assert.equal(a.e.authError,'');assert(!a.events.includes('buy:true'));

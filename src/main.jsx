@@ -2989,6 +2989,9 @@ function App(){
  const [featureSession,setFeatureSession]=useState(false),[freeFeatureSession,setFreeFeatureSession]=useState(false);
  const [purchaseEditing,setPurchaseEditing]=useState(false),[sessionEditJob,setSessionEditJob]=useState('');
  const [outputJobId,setOutputJobId]=useState(''),[restoredSourcePhoto,setRestoredSourcePhoto]=useState(null);const currentOutputJobRef=useRef(''),currentOutputTrialRef=useRef(false),paymentStudioRef=useRef(null);
+ // Retained pixels may outlive logout; their job must keep its original owner.
+ const currentOutputOwnerRef=useRef({jobId:'',walletId:''});
+ if(currentOutputOwnerRef.current.jobId!==currentOutputJobRef.current)currentOutputOwnerRef.current={jobId:currentOutputJobRef.current,walletId:currentWalletId()};
  useEffect(()=>{const onJob=e=>{if(studioPhotoTransactionRef.current)return;if(e.detail.isTrial)setFreeFeatureSession(true);if(e.detail.fullEdit){setPurchaseEditing(true);setSessionEditJob(e.detail.jobId)}currentOutputJobRef.current=e.detail.jobId;setPackageCodeSourcePending(false);currentOutputTrialRef.current=e.detail.isTrial;studioTrialRef.current=e.detail.isTrial;setTrialPreview(e.detail.isTrial);setOutputJobId(e.detail.jobId)};window.addEventListener('idprom-output-job',onJob);return()=>window.removeEventListener('idprom-output-job',onJob)},[]);
 
  const [qrPayment,renderQrPayment]=useState(null);const qrPaymentRef=useRef(null),qrSettlementRef=useRef(new Map()),checkoutBusyRef=useRef(false),checkoutReturnRef=useRef(null);
@@ -3040,6 +3043,8 @@ function App(){
   try{
    if(authMode==='register')await withDeadline(()=>refreshWallet(),{timeoutMs:15000,message:'เตรียมบัญชีใช้เวลานาน กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง',code:'AUTH_WALLET_TIMEOUT'});
    const sourceWalletId=currentWalletId(),loginHeaders={...walletHeaders(),'Content-Type':'application/json'};
+   const sourceJobId=currentOutputJobRef.current,sourceOwner=currentOutputOwnerRef.current;
+   const activeGuestOutput=!authToken()&&Boolean(sourceWalletId)&&currentOutputTrialRef.current&&sourceJobId&&sourceOwner.jobId===sourceJobId&&sourceOwner.walletId===sourceWalletId&&((Boolean(studioData)&&!packageCodeSourcePending)||(screen==='process'&&Boolean(editCache.current)));
    delete loginHeaders.Authorization;delete loginHeaders.authorization;
    const {r,data}=await withDeadline(async()=>{const r=await portraitFetch(`/api/auth/${authMode}`,{method:'POST',headers:loginHeaders,body:JSON.stringify({email:authEmail,password:authPassword,...(authMode==='login'?{sessionOnly:true}:{})})},15000);return {r,data:await r.json()}},{timeoutMs:18000,message:'ยืนยันบัญชีใช้เวลานาน กรุณาลองอีกครั้ง หากสมัครแล้วให้ลองเข้าสู่ระบบด้วยอีเมลเดิม',code:'AUTH_REQUEST_TIMEOUT'});
    if(!r.ok)throw Error(data.message||'ดำเนินการไม่สำเร็จ');
@@ -3050,7 +3055,8 @@ function App(){
    setWalletBalance({scope,data:hasWalletBalance(data)?data:null,error:''});
    setRights(hasWalletBalance(data)?normalizedRights(data):{generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]});
    if(sourceWalletId!==data.walletId){appStorage.removeItem('idprom-private-trial-active');setQrPayment(null);setPurchaseEditing(false);setPrivateTrialActive(false);setFeatureSession(false);setFreeFeatureSession(false)}
-   if(currentOutputTrialRef.current&&currentOutputJobRef.current&&sourceWalletId!==data.walletId)authClaimRef.current={sourceWalletId,jobId:currentOutputJobRef.current,token:data.token,walletId:data.walletId,pending:null};
+   authClaimRef.current=null;
+   if(activeGuestOutput&&sourceJobId===currentOutputJobRef.current&&sourceWalletId!==data.walletId)authClaimRef.current={sourceWalletId,jobId:sourceJobId,token:data.token,walletId:data.walletId,pending:null};
    if(sourceWalletId!==data.walletId)activeSavedDownloadWork='';
    authenticated=true;if(['89','119','159'].includes(pendingPackage))setPayBusy(true);setAuthOpen(false);
    // Keep the current page and the editor's Easy/Studio state after sign-in.
@@ -3115,6 +3121,7 @@ function App(){
    ensureCurrent();
    if(transfer.jobId!==currentOutputJobRef.current)throw Error('รูปเปลี่ยนแล้ว กรุณาเลือกแพ็กเกจสำหรับรูปปัจจุบันอีกครั้ง');
    if(!response.ok)throw Error('เข้าสู่ระบบแล้ว แต่ย้ายรูปทดลองยังไม่สำเร็จ กรุณาเลือกแพ็กเกจอีกครั้งเพื่อลองใหม่');
+   currentOutputOwnerRef.current={jobId:transfer.jobId,walletId:transfer.walletId};
    if(authClaimRef.current===transfer)authClaimRef.current=null;
   })();
   transfer.pending=pending;
