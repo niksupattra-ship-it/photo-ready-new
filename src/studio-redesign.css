@@ -1,0 +1,1552 @@
+/* Studio appearance only. Easy mode never receives the studio-redesign class. */
+.idstudio.studio-redesign {
+  --studio-ink: #17244b;
+  --studio-muted: #7c839a;
+  --studio-violet: #7044ed;
+  --studio-violet-dark: #5c2ee1;
+  --studio-lavender: #f0eaff;
+  --studio-line: #e3e6f0;
+  --studio-surface: #fff;
+  --studio-workspace: #eef2fa;
+  --studio-library-width: 246px;
+  --studio-inspector-width: 296px;
+  background: var(--studio-surface);
+  color: var(--studio-ink);
+  color-scheme: light;
+}
+
+.idstudio.studio-redesign button {
+  border-color: var(--studio-line);
+  background: var(--studio-surface);
+  color: var(--studio-ink);
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.idstudio.studio-redesign button:hover:not(:disabled) {
+  background: #f7f4ff;
+  border-color: #cfc1f9;
+}
+
+.idstudio.studio-redesign button.active,
+.idstudio.studio-redesign button[aria-pressed="true"],
+.idstudio.studio-redesign .studio-layers > .selected {
+  border-color: var(--studio-violet);
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign button:focus-visible,
+.idstudio.studio-redesign input:focus-visible,
+.idstudio.studio-redesign select:focus-visible {
+  outline: 2px solid var(--studio-violet);
+  outline-offset: 3px;
+}
+
+.idstudio.studio-redesign button:disabled {
+  opacity: .4;
+}
+
+.idstudio.studio-redesign header {
+  background: var(--studio-surface);
+  border-color: var(--studio-line);
+}
+
+.idstudio.studio-redesign header em,
+.idstudio.studio-redesign .studio-panel h2 small,
+.idstudio.studio-redesign .studio-panel legend,
+.idstudio.studio-redesign .studio-panel output {
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-panel,
+.idstudio.studio-redesign .studio-picker-drawer,
+.idstudio.studio-redesign .studio-floating-picker,
+.idstudio.studio-redesign .studio-bottom-choices {
+  background: var(--studio-surface);
+  border-color: var(--studio-line);
+}
+
+.idstudio.studio-redesign .studio-workspace {
+  background: var(--studio-workspace);
+}
+
+.idstudio.studio-redesign .studio-panel p,
+.idstudio.studio-redesign .studio-picker-drawer p,
+.idstudio.studio-redesign .studio-layer-help,
+.idstudio.studio-redesign .studio-hair-summary {
+  color: var(--studio-muted);
+}
+
+.idstudio.studio-redesign .studio-status {
+  color: var(--studio-violet-dark) !important;
+}
+
+.idstudio.studio-redesign .studio-feedback {
+  border-color: var(--studio-line);
+  background: #fff;
+  color: var(--studio-muted);
+}
+
+.idstudio.studio-redesign .idprom-account-actions .idprom-menu-download,
+.idstudio.studio-redesign .idprom-account-actions .idprom-menu-trigger {
+  background: transparent !important;
+  color: var(--studio-ink) !important;
+}
+
+.idstudio.studio-redesign .studio-photo-panel,
+.idstudio.studio-redesign .studio-panel fieldset {
+  border-color: var(--studio-line);
+  background: var(--studio-surface);
+}
+
+.idstudio.studio-redesign .studio-panel input[type="range"],
+.idstudio.studio-redesign .studio-makeup-intensity input {
+  accent-color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign input[type="number"],
+.idstudio.studio-redesign input[type="text"],
+.idstudio.studio-redesign select,
+.idstudio.studio-redesign .studio-catalog select {
+  border: 1px solid var(--studio-line);
+  background: #fff;
+  color: var(--studio-ink);
+  border-radius: 8px;
+}
+
+.idstudio.studio-redesign .studio-selection-outline path,
+.idstudio.studio-redesign .studio-selection-outline rect {
+  stroke: #8a4fff;
+}
+
+.idstudio.studio-redesign .studio-selection-outline .studio-shape-dot {
+  fill: #8750ff;
+  stroke: #fff;
+}
+
+.idstudio.studio-redesign .studio-selection-outline .studio-shape-grip:focus {
+  fill: #7044ed33;
+}
+
+.idstudio.studio-redesign .studio-source-preview,
+.idstudio.studio-redesign .studio-layer-thumbnail {
+  background: #f0f2f8;
+}
+
+/* Tint only the existing UI glyph images; photo and canvas colors are untouched. */
+.idstudio.studio-redesign .studio-tools .studio-png-icon,
+.idstudio.studio-redesign .studio-bottom-choices .studio-png-icon,
+.idstudio.studio-redesign .studio-layer-actions .studio-png-icon,
+.idstudio.studio-redesign .studio-warp-modes .studio-png-icon,
+.idstudio.studio-redesign .studio-design-history .studio-png-icon,
+.idstudio.studio-redesign .studio-catalog-grid .studio-none-choice .studio-png-icon,
+.idstudio.studio-redesign .studio-floating-history .studio-png-icon,
+.idstudio.studio-redesign .studio-tool-toggle .studio-png-icon {
+  filter: brightness(0) saturate(100%) invert(13%) sepia(26%) saturate(1741%) hue-rotate(186deg) brightness(91%) contrast(93%);
+}
+
+.idstudio.studio-redesign .studio-tools button.active .studio-png-icon,
+.idstudio.studio-redesign .studio-bottom-choices button.active .studio-png-icon,
+.idstudio.studio-redesign .studio-warp-modes button.active .studio-png-icon,
+.idstudio.studio-redesign .studio-floating-history.active .studio-png-icon {
+  filter: brightness(0) saturate(100%) invert(31%) sepia(94%) saturate(3132%) hue-rotate(244deg) brightness(96%) contrast(93%);
+}
+
+.idstudio.studio-redesign .studio-photo-panel .studio-upload-action,
+.idstudio.studio-redesign .studio-process-button,
+.idstudio.studio-redesign .studio-apply-hair,
+.idstudio.studio-redesign .studio-makeup-apply {
+  background: var(--studio-violet) !important;
+  border-color: var(--studio-violet);
+  color: #fff;
+  font-weight: 600;
+}
+
+.idstudio.studio-redesign .studio-photo-panel .studio-upload-action:hover:not(:disabled),
+.idstudio.studio-redesign .studio-process-button:hover:not(:disabled),
+.idstudio.studio-redesign .studio-apply-hair:hover:not(:disabled),
+.idstudio.studio-redesign .studio-makeup-apply:hover:not(:disabled) {
+  background: var(--studio-violet-dark) !important;
+}
+
+.idstudio.studio-redesign .studio-photo-panel .studio-upload-action .studio-png-icon,
+.idstudio.studio-redesign .studio-process-button .studio-png-icon {
+  filter: brightness(0) invert(1);
+}
+
+.idstudio.studio-redesign .studio-catalog-grid > button.active,
+.idstudio.studio-redesign .studio-makeup-choices > button.active {
+  background: #f3efff;
+  border-color: var(--studio-violet);
+  box-shadow: 0 0 0 1px var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-catalog-grid small,
+.idstudio.studio-redesign .studio-makeup-choices small,
+.idstudio.studio-redesign .studio-makeup-intensity {
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign .studio-makeup-description {
+  color: var(--studio-muted);
+}
+
+.idstudio.studio-redesign .studio-makeup-tabs button {
+  background: #f8f7fc;
+  border-color: var(--studio-line);
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign .studio-makeup-tabs button.active {
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
+  border-color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-uniform-group-tabs {
+  border-color: var(--studio-line);
+}
+
+.idstudio.studio-redesign .studio-uniform-group-tabs button {
+  color: var(--studio-muted);
+}
+
+.idstudio.studio-redesign .studio-uniform-group-tabs button.active {
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign .studio-makeup-tabs i,
+.idstudio.studio-redesign .studio-makeup-recommended {
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-makeup-none {
+  background: #f1eff8;
+  color: var(--studio-muted);
+}
+
+.idstudio.studio-redesign .studio-layers > div {
+  border-color: var(--studio-line);
+  background: #fff;
+}
+
+.idstudio.studio-redesign .studio-layers button {
+  background: transparent;
+  color: inherit;
+}
+
+.idstudio.studio-redesign .studio-layers .studio-delete-layer {
+  color: #a5a5b8;
+}
+
+.idstudio.studio-redesign .studio-layers .studio-delete-layer:hover:not(:disabled) {
+  background: #fff0f2;
+  color: #c74e6b;
+}
+
+.idstudio.studio-redesign .studio-processing-overlay {
+  background: #17244b3b;
+}
+
+.idstudio.studio-redesign .studio-processing-card {
+  background: #fff;
+  color: var(--studio-ink);
+  border-color: var(--studio-line);
+  box-shadow: 0 18px 60px #27365b26;
+}
+
+.idstudio.studio-redesign .studio-processing-card p {
+  color: var(--studio-muted);
+}
+
+.idstudio.studio-redesign .studio-processing-card h2 {
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign .studio-processing-card output {
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign .studio-portrait-choice-icon {
+  background: var(--studio-lavender);
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-portrait-choice-arrow {
+  stroke: var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-finish-choice-label {
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign .studio-hair-required,
+.idstudio.studio-redesign .studio-brush-layer-required {
+  border-color: var(--studio-violet);
+  background: #f2edff;
+  color: #6443b1;
+}
+
+.idstudio.studio-redesign .studio-photo-panel > div > button.studio-photo-guide-trigger,
+.idstudio.studio-redesign .studio-workflow-actions > button.studio-photo-guide-trigger {
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign .studio-processing-spinner {
+  border-color: #e6defb;
+  border-top-color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign progress {
+  accent-color: var(--studio-violet);
+}
+
+/* The desktop editor is one grid so the original canvas remains mounted once. */
+.idstudio.studio-redesign:not(.studio-touch) > .studio-design-header {
+  flex: 0 0 70px;
+  min-height: 70px;
+  padding: 11px 24px;
+  gap: 20px;
+  flex-wrap: nowrap;
+  z-index: 12;
+  box-shadow: 0 2px 7px #27365b06;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #111c43;
+  font-size: 23px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand em {
+  font-size: 19px;
+  font-weight: 650;
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand > img,
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand > svg,
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand-icon {
+  display: block;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand > strong {
+  flex: none;
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-brand > img {
+  filter: hue-rotate(40deg);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-easy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 5px 0 5px 21px;
+  border: 0;
+  border-left: 1px solid var(--studio-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--studio-ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  position: static;
+  box-shadow: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-easy svg {
+  width: 18px;
+  height: 18px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-document {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--studio-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-history {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 0;
+  margin-left: auto;
+  border: 1px solid var(--studio-line);
+  border-radius: 10px;
+  overflow: hidden;
+  position: static;
+  width: auto;
+  max-width: none;
+  box-shadow: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-history button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 40px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-history button + button {
+  border-left: 1px solid var(--studio-line);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-history button b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-history button span {
+  display: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-history .studio-png-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-account-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-menu-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: auto;
+  min-width: 155px;
+  height: 42px;
+  padding: 8px 19px;
+  border: 1px solid var(--studio-violet);
+  border-radius: 10px !important;
+  background: var(--studio-violet) !important;
+  color: #fff !important;
+  box-shadow: 0 3px 8px #7044ed1f;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-menu-download::after {
+  content: 'ดาวน์โหลด';
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-menu-download:hover:not(:disabled) {
+  background: var(--studio-violet-dark) !important;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-menu-trigger {
+  width: 43px;
+  height: 42px;
+  border: 1px solid var(--studio-line);
+  border-radius: 10px !important;
+  background: #fff !important;
+  color: var(--studio-ink) !important;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) > .studio-design-header .studio-desktop-credits {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f3efff;
+  border-color: #dfd4fa;
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) > .studio-operation-lock {
+  display: grid;
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  grid-template-columns: 76px var(--studio-library-width) minmax(0, 1fr) var(--studio-inspector-width);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'categories library workspace adjustment';
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-body,
+.idstudio.studio-redesign:not(.studio-touch) .studio-side-panels,
+.idstudio.studio-redesign:not(.studio-touch) .studio-floating-picker {
+  display: contents;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices {
+  grid-area: categories;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 4px;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 5px;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-right: 1px solid var(--studio-line);
+  border-radius: 0;
+  box-shadow: none;
+  z-index: 3;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices button {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 69px;
+  padding: 9px 1px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices button.active {
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices button.active::after {
+  content: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices button span {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices svg,
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices .studio-png-icon,
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices .studio-lipstick-icon {
+  width: 27px;
+  height: 27px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library {
+  grid-area: library;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 18px 16px 20px;
+  border-right: 1px solid var(--studio-line);
+  background: #fff;
+  overscroll-behavior: contain;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library > .studio-photo-panel {
+  flex: none;
+  padding: 0 0 16px;
+  margin: 0 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--studio-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library-title {
+  margin: 0 0 12px;
+  color: var(--studio-ink);
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-photo-panel h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-photo-panel > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-upload-action {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 7px;
+  border-radius: 9px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-source-preview {
+  display: block;
+  width: 68px;
+  height: 88px;
+  object-fit: contain;
+  margin: 0 auto 12px;
+  border: 1px solid var(--studio-line);
+  border-radius: 8px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-picker-drawer {
+  position: static;
+  inset: auto;
+  transform: none;
+  translate: none;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  touch-action: pan-y;
+  animation: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-picker-drawer::before {
+  content: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-picker-close {
+  display: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer h2 {
+  margin: 0 0 14px;
+  padding: 0;
+  color: var(--studio-ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-choice-rail-wrap {
+  display: block;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-rail-arrow {
+  display: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  max-height: none;
+  padding: 2px 1px 10px;
+  margin: 0;
+  overflow: visible;
+  scroll-snap-type: none;
+  touch-action: auto;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid > button {
+  display: block;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px;
+  background: #fff;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid > button.active {
+  border-color: var(--studio-violet);
+  background: #f5f1ff;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid > button > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 101px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: linear-gradient(145deg, #f5f7fc, #e9edf5);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid small {
+  display: block;
+  margin: 6px 1px 3px;
+  color: #626c88;
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-catalog select {
+  width: 100%;
+  max-width: none;
+  margin: 0 0 12px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-catalog-tabs:not(.studio-bottom-choices),
+.idstudio.studio-redesign:not(.studio-touch) .studio-uniform-group-tabs,
+.idstudio.studio-redesign:not(.studio-touch) .studio-hair-gender,
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 100%;
+  margin: 0 0 11px;
+  overflow: visible;
+  border-color: var(--studio-line);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-catalog-tabs:not(.studio-bottom-choices) button,
+.idstudio.studio-redesign:not(.studio-touch) .studio-uniform-group-tabs button,
+.idstudio.studio-redesign:not(.studio-touch) .studio-hair-gender button,
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-tabs button {
+  flex: 1 1 auto;
+  padding: 6px 7px;
+  min-height: 32px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-uniform-group-tabs button {
+  flex: 1 1 calc(50% - 5px);
+  min-width: 0;
+  padding: 5px 4px;
+  min-height: 29px;
+  white-space: normal;
+  color: #69728d;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-uniform-group-tabs button.active {
+  color: var(--studio-violet);
+  background: var(--studio-lavender);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  overflow: visible;
+  padding: 2px 1px 10px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-choices > button {
+  width: 100% !important;
+  min-width: 0;
+  flex: none !important;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-choices img,
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-none {
+  width: 100%;
+  max-width: 100%;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-actions button {
+  width: 100%;
+  font-size: 12px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-workspace {
+  grid-area: workspace;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 0 110px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 42%, #f4f6fc 0, #edf2f9 76%);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-stage {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  padding: 20px 30px 16px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-stage canvas {
+  border-radius: 2px;
+  box-shadow: 0 8px 35px #22345e13;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom {
+  order: -1;
+  display: flex;
+  flex: 0 0 auto;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0;
+  min-height: 42px;
+  margin: 18px 12px 1px;
+  padding: 2px 6px;
+  border: 1px solid #e9edf5;
+  border-radius: 12px;
+  background: #ffffffeb;
+  color: var(--studio-ink);
+  box-shadow: 0 5px 18px #26375b08;
+  position: relative;
+  inset: auto;
+  width: auto;
+  transform: none;
+  z-index: 5;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 35px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 15px;
+  color: var(--studio-ink);
+  white-space: nowrap;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom > span {
+  display: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom button:last-of-type {
+  margin-left: 6px;
+  border-left: 1px solid var(--studio-line);
+  border-radius: 0;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom svg {
+  width: 21px;
+  height: 21px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools {
+  grid-area: workspace;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-self: end;
+  justify-self: center;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  position: relative;
+  inset: auto;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  min-width: 0;
+  min-height: 0;
+  margin: 0 0 22px;
+  padding: 8px;
+  border: 1px solid #fff;
+  border-radius: 18px;
+  background: #fffffff5;
+  box-shadow: 0 10px 35px #24385c12;
+  overflow-x: auto;
+  overflow-y: hidden;
+  z-index: 8;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools button {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 61px;
+  min-height: 66px;
+  margin: 0;
+  padding: 8px 7px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--studio-ink);
+  box-shadow: none;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools button.active {
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools button b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools .studio-png-icon,
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools .studio-pan-icon {
+  width: 29px;
+  height: 29px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools .studio-pan-icon [stroke],
+.idstudio.studio-redesign:not(.studio-touch) .studio-tools .studio-pan-icon [fill]:not([fill="none"]) {
+  color: inherit;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-adjustment {
+  grid-area: adjustment;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 16px 12px;
+  border: 0;
+  border-left: 1px solid var(--studio-line);
+  background: #fff;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-inspector-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 61px;
+  margin: 0 -1px 12px;
+  border-bottom: 1px solid var(--studio-line);
+  background: #fff;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-inspector-tabs button {
+  flex: 1;
+  min-height: 61px;
+  padding: 16px 5px 13px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--studio-muted);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-inspector-tabs button.active,
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-inspector-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--studio-violet);
+  color: var(--studio-violet);
+  background: #fff;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-layer-section,
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts {
+  flex: none;
+  min-width: 0;
+  padding: 0 0 10px;
+  margin: 0;
+  scroll-margin-top: 75px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts h2 {
+  margin: 0 0 8px;
+  color: var(--studio-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers {
+  display: block;
+  max-height: 258px;
+  padding: 1px;
+  border-radius: 0;
+  overflow-y: auto;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers > div {
+  display: flex;
+  align-items: center;
+  min-height: 55px;
+  margin: 0 0 8px;
+  border: 1px solid var(--studio-line);
+  border-radius: 8px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers > div.selected {
+  background: #f2ecff;
+  border-color: #a483ff;
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layer-name {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 6px 7px;
+  color: var(--studio-ink);
+  font-size: 12px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layer-thumbnail {
+  width: 37px;
+  height: 41px;
+  border: 1px solid #e5e7f1;
+  border-radius: 5px;
+  background: #f1f3f9;
+  object-fit: contain;
+  flex: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers > div > button:not(.studio-layer-name) {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  min-width: 0;
+  min-height: 40px;
+  width: 28px;
+  padding: 6px 2px;
+  color: var(--studio-violet);
+  font-size: 14px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers > div > .studio-delete-layer {
+  color: #969cb0;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-layer-actions {
+  display: flex;
+  gap: 7px;
+  margin: 2px 0 5px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-layer-actions button {
+  width: 31px;
+  height: 30px;
+  min-height: 30px;
+  padding: 5px;
+  border-radius: 7px;
+  background: #f8f9fd;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-adjust-scroll {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0 1px 12px;
+  overflow: visible;
+  scroll-margin-top: 75px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-panel fieldset {
+  border: 0;
+  border-top: 1px solid var(--studio-line);
+  border-radius: 0;
+  padding: 15px 0 4px;
+  margin: 10px 0 0;
+  background: transparent;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-panel legend {
+  padding: 0 8px 0 0;
+  color: var(--studio-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-panel label {
+  color: #475475;
+  font-size: 12px;
+  margin: 9px 0 13px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-panel output {
+  color: var(--studio-violet-dark);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) label.studio-desktop-step-range {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  gap: 4px 7px;
+  align-items: center;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-step-range > button {
+  width: 28px;
+  height: 27px;
+  min-height: 27px;
+  margin: 0;
+  padding: 0;
+  border-color: #e2e6f1;
+  border-radius: 6px;
+  background: #fff;
+  color: #667194;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-panel fieldset > button {
+  min-height: 32px;
+  padding: 6px 8px;
+  border-color: #e8e3f6;
+  background: #f8f6fe;
+  color: #6542c9;
+  font-size: 11px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-warp-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 2px 0 12px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-warp-modes button {
+  display: flex;
+  flex: 1 1 40px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: auto;
+  min-width: 0;
+  min-height: 56px;
+  padding: 5px 2px;
+  font-size: 10px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-warp-modes button b {
+  display: flex;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-sides > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-sides > div > button {
+  margin: 0;
+  font-size: 11px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-brush-panel input[type="color"] {
+  border: 1px solid var(--studio-line);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library,
+.idstudio.studio-redesign:not(.studio-touch) .studio-adjustment,
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices,
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d2eb transparent;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library::-webkit-scrollbar,
+.idstudio.studio-redesign:not(.studio-touch) .studio-adjustment::-webkit-scrollbar,
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices::-webkit-scrollbar,
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers::-webkit-scrollbar {
+  display: block;
+  width: 5px;
+  height: 5px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library::-webkit-scrollbar-thumb,
+.idstudio.studio-redesign:not(.studio-touch) .studio-adjustment::-webkit-scrollbar-thumb,
+.idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices::-webkit-scrollbar-thumb,
+.idstudio.studio-redesign:not(.studio-touch) .studio-desktop-parts .studio-layers::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  background: #d9d2eb;
+}
+
+@media (max-width: 1399px) {
+  .idstudio.studio-redesign:not(.studio-touch) {
+    --studio-library-width: 224px;
+    --studio-inspector-width: 270px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) > .studio-design-header {
+    gap: 15px;
+    padding-inline: 18px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-design-brand {
+    font-size: 21px;
+    gap: 8px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-design-brand em {
+    font-size: 17px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-design-library {
+    padding-inline: 13px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-adjustment {
+    padding-inline: 13px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-tools button {
+    min-width: 54px;
+    padding-inline: 5px;
+    font-size: 10px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-stage {
+    padding-inline: 22px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .idstudio.studio-redesign:not(.studio-touch) {
+    --studio-library-width: 260px;
+    --studio-inspector-width: 320px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-tools button {
+    min-width: 74px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-stage {
+    padding-inline: 40px;
+  }
+}
+
+@media (max-height: 820px) {
+  .idstudio.studio-redesign:not(.studio-touch) > .studio-design-header {
+    flex-basis: 62px;
+    min-height: 62px;
+    padding-block: 9px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices {
+    padding-block: 9px;
+    gap: 2px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-bottom-choices button {
+    min-height: 61px;
+    gap: 5px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom {
+    margin-top: 12px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-workspace {
+    padding-bottom: 102px;
+  }
+
+  .idstudio.studio-redesign:not(.studio-touch) .studio-tools {
+    margin-bottom: 15px;
+  }
+}
+
+/* Touch layouts keep their existing positions, gestures and compact drawers. */
+.idstudio.studio-redesign.studio-touch .studio-design-library {
+  display: contents;
+}
+
+.idstudio.studio-redesign.studio-touch > .studio-touch-header {
+  background: #fff;
+  border-color: var(--studio-line);
+  box-shadow: 0 2px 8px #26375b09;
+}
+
+.idstudio.studio-redesign.studio-touch > .studio-touch-header strong {
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign.studio-touch > .studio-touch-header .studio-touch-header-actions > .studio-header-upload,
+.idstudio.studio-redesign.studio-touch > .studio-touch-header .studio-touch-header-actions > .studio-header-upload-start {
+  border-color: var(--studio-violet);
+  background: var(--studio-violet);
+  color: #fff;
+  box-shadow: 0 0 0 1px #7044ed12;
+}
+
+.idstudio.studio-redesign.studio-touch > .studio-touch-header .studio-touch-header-actions > .studio-header-credits {
+  background: #f4efff;
+  border-color: #e2d7fb;
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign.studio-touch > .studio-touch-header .studio-header-upload-icon {
+  filter: brightness(0) invert(1);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-tools,
+.idstudio.studio-redesign.studio-touch .studio-tools.studio-mobile-tool-menu,
+.idstudio.studio-redesign.studio-touch .studio-floating-history,
+.idstudio.studio-redesign.studio-touch .studio-tool-toggle {
+  background: #fffffff5;
+  border-color: var(--studio-line);
+  color: var(--studio-ink);
+  box-shadow: 0 4px 16px #24385c17;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-tools button {
+  background: #fff;
+  border-color: var(--studio-line);
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-tools button.active,
+.idstudio.studio-redesign.studio-touch .studio-floating-history.active,
+.idstudio.studio-redesign.studio-touch .studio-floating-history[aria-expanded="true"] {
+  background: var(--studio-lavender);
+  border-color: var(--studio-violet);
+  color: var(--studio-violet-dark);
+  box-shadow: 0 0 0 1px #7044ed22, 0 4px 16px #24385c17;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-bottom-choices button.active {
+  background: var(--studio-lavender);
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-bottom-choices button.active::after {
+  background: var(--studio-violet);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-side-panels,
+.idstudio.studio-redesign.studio-touch .studio-touch-layer-picker,
+.idstudio.studio-redesign.studio-touch .studio-touch-adjust,
+.idstudio.studio-redesign.studio-touch .studio-picker-drawer {
+  background: #fff;
+  border-color: #dcd5ee;
+  color: var(--studio-ink);
+  box-shadow: 0 -5px 24px #24385c10;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-picker-drawer::before {
+  background: #d6cee6;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-picker-drawer .studio-catalog-grid > button.active,
+.idstudio.studio-redesign.studio-touch .studio-touch-layer-picker .studio-layer-none[aria-pressed="true"],
+.idstudio.studio-redesign.studio-touch .studio-touch-part-rail button.active {
+  border-color: var(--studio-violet);
+  background: var(--studio-lavender);
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-change-tools {
+  border-color: #ded3fa;
+  background: #f4efff;
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-workspace footer {
+  color: #62718f;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-workspace footer button {
+  background: #ffffffed;
+  border-color: var(--studio-line);
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-touch-workflow,
+.idstudio.studio-redesign.studio-touch .studio-workflow-actions {
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-workflow-actions > .studio-upload-action,
+.idstudio.studio-redesign.studio-touch .studio-workflow-actions > .studio-process-action {
+  background: var(--studio-violet);
+  border-color: var(--studio-violet);
+  color: #fff;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-touch-parts,
+.idstudio.studio-redesign.studio-touch .studio-mobile-file-options {
+  border-color: var(--studio-line);
+  background: #fff;
+  color: var(--studio-ink);
+  box-shadow: 0 8px 24px #24385c17;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-touch-part-rail img {
+  background: #f0f2f8;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-touch-part-rail b {
+  color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-touch-sheet-heading span {
+  border-color: #dacdfb;
+  background: #f3eeff;
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-touch-controls input,
+.idstudio.studio-redesign.studio-touch .studio-header-process-progress > progress {
+  accent-color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-header-process-progress {
+  background: #fff;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-floating-tools > svg {
+  stroke: currentColor;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-floating-history:not(.active):not([aria-expanded="true"]) {
+  border-color: var(--studio-line);
+  box-shadow: 0 4px 16px #24385c17;
+}
+
+.idstudio.studio-redesign.studio-touch .studio-mobile-file-options > button:active,
+.idstudio.studio-redesign.studio-touch .studio-mobile-file-options > button:focus-visible {
+  background: var(--studio-lavender);
+  outline-color: var(--studio-violet);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-mobile-file-menu {
+  color: var(--studio-ink);
+}
+
+.idstudio.studio-redesign.studio-touch .studio-mobile-file-menu button {
+  background: #fff;
+  border-color: var(--studio-line);
+  color: var(--studio-ink);
+}
+
+/* These sheets are React portals; the active Studio root limits their theme. */
+body:has(.idstudio.studio-redesign) .studio-color-overlay {
+  color: #17244b;
+}
+
+body:has(.idstudio.studio-redesign) .studio-color-panel {
+  background: #fff;
+  border-color: #e3e6f0;
+  box-shadow: 0 10px 45px #27365b25;
+}
+
+body:has(.idstudio.studio-redesign) .studio-color-panel button {
+  background: #f7f5fc;
+  border-color: #e3def2;
+  color: #17244b;
+}
+
+body:has(.idstudio.studio-redesign) .studio-color-panel footer button:last-child {
+  background: #7044ed;
+  border-color: #7044ed;
+  color: #fff;
+}
+
+body:has(.idstudio.studio-redesign) .studio-color-panel input {
+  accent-color: #7044ed;
+}
+
+body:has(.idstudio.studio-redesign) .studio-color-hex input {
+  background: #fff;
+  border-color: #e3def2;
+  color: #17244b;
+}
+
+body:has(.idstudio.studio-redesign) .studio-color-panel :focus-visible {
+  outline-color: #7044ed;
+}
+
+body:has(.idstudio.studio-redesign) .idprom-account-row.rights {
+  background: #f3efff;
+  color: #5c2ee1;
+}
+
+body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
+  background: #f6f3ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .idstudio.studio-redesign button {
+    transition: none;
+  }
+}
