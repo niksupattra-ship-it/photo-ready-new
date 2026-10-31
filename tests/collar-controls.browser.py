@@ -1,4 +1,4 @@
-"""Real collar controls, native compositor, pointer gestures and history.
+"""Real collar controls without duplicate previews, native compositor and history.
 Only a local Studio fixture is used; no account, AI or payment operations.
 """
 import hashlib,json,os,pathlib,re
@@ -34,7 +34,7 @@ with sync_playwright() as pw:
    body=body.replace(marker,SEED+'\n'+marker,1);r.fulfill(response=response,body=body)
   def readonly(r):
    response=r.fetch();body=response.text();marker='const easyUi =';assert marker in body
-   body=body.replace(marker,'window.collarRead=()=>({preview:collarPreviewData(),asset:assets.current.get(selectedRef.current)});\n'+marker,1)
+   body=body.replace(marker,'window.collarRead=()=>{const layer=state.current.find(l=>l.id===selectedRef.current),asset=assets.current.get(layer?.id);return {asset,pins:asset?.parts?pinBoxes(layer,asset).map(pin=>({side:pin.side,point:layerToScene(layer,{x:pin.box.x+pin.box.w/2,y:pin.box.y+pin.box.h/2})})):[]}};\n'+marker,1)
    r.fulfill(response=response,body=body)
   p.route('**/scripts/fixtures/easy-mode.jsx*',fixture)
   p.route('**/src/studio-editor.jsx*',readonly)
@@ -52,6 +52,8 @@ with sync_playwright() as pw:
    expect(panel.get_by_role('button',name='ซ้าย',exact=True)).to_have_attribute('aria-pressed','true')
    assert p.locator('.studio-collar-sides').count()==0
    assert panel.locator('input[type=range]').count()==0
+   assert panel.locator('canvas,img').count()==0
+   assert p.locator('.collar-preview-wrap,.studio-collar-preview-dialog').count()==0
    assert not p.locator('.studio-design-layer-section').count()
    bottom=panel.get_by_role('button',name='คืนค่าเข็มซ้าย',exact=True).bounding_box()
    assert bottom['y']+bottom['height']<=height,'Collar controls do not fit the desktop height'
@@ -86,18 +88,16 @@ with sync_playwright() as pw:
    assert data()['collarLeftX']==-4 and data()['collarLeftY']==-5 and data().get('collarRightY',0)==0
    panel.get_by_role('button',name='ซ้าย',exact=True).click();panel.get_by_role('button',name='คืนค่าเข็มซ้าย',exact=True).click()
    expect(size).to_have_value('100');expect(angle).to_have_value('0');assert data()['collarRightX']==17
-   # Drag the selected pin directly in the live magnified preview.
-   geom=p.evaluate('()=>{const d=window.collarRead().preview;return {crop:d.crop,pins:d.pins}}')
-   preview=panel.get_by_role('img',name='ภาพขยายตำแหน่งเข็มปกคอ',exact=True);rect=preview.bounding_box();box=next(pin['box'] for pin in geom['pins']if pin['side']=='left');crop=geom['crop']
-   px=rect['x']+(box['x']+box['w']/2-crop['x'])/crop['w']*rect['width'];py=rect['y']+(box['y']+box['h']/2-crop['y'])/crop['h']*rect['height']
+   # Direct canvas dragging remains available after removing the sidebar preview.
+   pin=p.evaluate("window.collarRead().pins.find(pin=>pin.side==='left').point")
+   rect=p.locator('.studio-stage > canvas').bounding_box()
+   px=rect['x']+pin['x']/900*rect['width'];py=rect['y']+pin['y']/1200*rect['height']
    before=data();p.mouse.move(px,py);p.mouse.down();p.mouse.move(px+12,py+5,steps=6);p.mouse.up()
    p.wait_for_function('Math.abs(window.collarSnapshot.current().layers.find(l=>l.kind==="collar").collarLeftX)>1')
    moved=data();assert moved['collarRightX']==17 and moved['x']==before['x'] and moved['rotation']==before['rotation']
    p.get_by_role('button',name='ย้อนกลับ',exact=True).click();p.wait_for_function('window.collarSnapshot.current().layers.find(l=>l.kind==="collar").collarLeftX===0')
    p.get_by_role('button',name='ทำซ้ำ',exact=True).click();p.wait_for_function('Math.abs(window.collarSnapshot.current().layers.find(l=>l.kind==="collar").collarLeftX)>1')
    assert initial==p.evaluate('JSON.stringify(window.collarSnapshot.current().layers.find(l=>l.kind==="collar").collarParts)'),'Original part images were mutated'
-   panel.get_by_role('button',name='ขยายภาพตัวอย่างเข็ม',exact=True).click();expect(p.get_by_role('dialog')).to_be_visible();expect(p.get_by_role('img',name='ภาพขยายเข็มสำหรับปรับตำแหน่ง',exact=True)).to_be_visible()
-   p.get_by_role('button',name='ปิดภาพขยายเข็ม',exact=True).click();expect(p.get_by_role('dialog')).to_have_count(0);expect(panel.get_by_role('button',name='ขยายภาพตัวอย่างเข็ม',exact=True)).to_be_focused()
    panel.get_by_role('button',name='ทั้งคู่',exact=True).click();old=data()['x'];panel.get_by_role('button',name='ขวา เข็มทั้งคู่',exact=True).click();expect(panel.get_by_role('spinbutton',name='เข็มทั้งคู่ X',exact=True)).to_have_value(str(old+5).removesuffix('.0'))
    # The neighboring tools keep their ordinary property controls.
    p.get_by_role('button',name='เลเยอร์',exact=True).click();p.locator('.studio-layers').get_by_role('button',name='ชุด',exact=True).click();p.get_by_role('button',name='คุณสมบัติ',exact=True).click()
@@ -105,7 +105,7 @@ with sync_playwright() as pw:
    p.get_by_role('button',name='เลเยอร์',exact=True).click();p.locator('.studio-layers').get_by_role('button',name='เข็มปกคอ',exact=True).click();p.get_by_role('button',name='คุณสมบัติ',exact=True).click()
    p.screenshot(path=str(OUT/('collar-'+str(width)+'.png')))
    assert not errors,errors;assert not api,api
-   results.append({'viewport':[width,height],'singlePinPositionScaleRotation':True,'oppositeNativePixelsUnchanged':True,'spacingSymmetric':True,'previewDrag':True,'history':True,'nativePartsUnchanged':True,'previewZoom':True,'otherToolsUnchanged':True})
+   results.append({'viewport':[width,height],'singlePinPositionScaleRotation':True,'oppositeNativePixelsUnchanged':True,'spacingSymmetric':True,'canvasDrag':True,'history':True,'nativePartsUnchanged':True,'sidebarPreviewRemoved':True,'otherToolsUnchanged':True})
   except Exception as error:
    try:p.screenshot(path=str(OUT/('error-'+str(width)+'.png')))
    except Exception:pass

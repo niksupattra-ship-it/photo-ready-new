@@ -15,10 +15,6 @@
 .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls p {font-size:10px;line-height:1.5}
 .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-side-hint {margin:5px 0 9px;color:#78829a}
 .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-active-name {margin:5px 0 12px;text-align:center;color:#78829a}
-.collar-preview-wrap {position:relative;overflow:hidden;border:1px solid #e1e5f1;border-radius:9px;background:#eef1f8}
-.collar-preview-wrap canvas {display:block;width:100%;aspect-ratio:2.05;touch-action:none;cursor:grab}
-.collar-preview-wrap canvas:active {cursor:grabbing}
-.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-preview-zoom {position:absolute;top:6px;right:6px;width:28px;min-height:28px;padding:4px;border-radius:50%;background:#fffffff0;color:#7044ed}
 .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-position-section {padding-top:12px;border-top:1px solid var(--collar-line)}
 .collar-position-grid {display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:center}
 .collar-direction-pad {display:grid;grid-template-columns:repeat(3,28px);grid-template-rows:repeat(3,28px);gap:4px}
@@ -41,12 +37,6 @@
 .collar-spacing-row > span svg {width:14px;height:14px;color:#7044ed}
 .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-spacing-row > fieldset {min-width:0;margin:0;padding:0;border:0}
 .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-reset {width:100%;margin-top:1px;min-height:34px;border-color:#d8c9fb;background:#faf7ff;color:#6333dc;font-size:11px}
-.studio-collar-preview-dialog {width:min(760px,calc(100vw - 40px));max-height:90dvh;margin:auto;padding:18px;border:1px solid #dfe3ef;border-radius:16px;background:white;color:#243452;box-shadow:0 20px 70px #17244733}
-.studio-collar-preview-dialog::backdrop {background:#17244766;backdrop-filter:blur(3px)}
-.studio-collar-preview-dialog header {display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font:14px system-ui,sans-serif}
-.studio-collar-preview-dialog button {display:grid;place-items:center;width:32px;height:32px;border:1px solid #e1e5f1;border-radius:8px;background:white;color:#344361;cursor:pointer}
-.studio-collar-preview-dialog canvas {display:block;width:100%;max-height:65dvh;aspect-ratio:2.05;background:#eef1f8;border-radius:10px;touch-action:none;cursor:grab}
-.studio-collar-preview-dialog p {margin:10px 0 0;color:#78829a;text-align:center;font:12px system-ui,sans-serif}
 
 @media (max-height:800px) {
  .idstudio.studio-redesign:not(.studio-touch) .studio-panel fieldset.studio-collar-controls {margin-top:4px;padding-top:9px}

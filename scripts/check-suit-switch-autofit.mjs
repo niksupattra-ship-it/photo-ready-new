@@ -34,7 +34,7 @@ function fixture({processed=true,callback=true,fitError=false,fitCode=null,fitMe
  const originalLayers=processed?[background,head,hair,suit,accessory]:[background,raw,suit,accessory];
  const fit=[],native=[],api=[],hydrations=[],messages=[],selection=[],selected=[];
  const measured=async()=>[{x:.5,y:.5}];
- const env={ready:true,assetBusy:false,processActive:false,comparing:false,
+ const env={ready:true,assetBusy:false,processActive:false,comparing:false,touch:false,
   suitPolicy:{limited:true,limit:5,choices:[suit.templatePath]},canUseAllSuits:true,freeTemplatePaths:[],
   layerKind:l=>l.kind,ASSET_NAMES:{suit:'ชุด',background:'พื้นหลัง',collar:'เข็มปกคอ',chest:'เข็มติดอก',ribbon:'แพรแถบ'},
   STUDIO_ACCESSORY_PLACEMENT,STUDIO_SUIT_FIT_VERSION,W:900,H:1200,state:{current:originalLayers},assets:{current:new Map([[head.id,{original,warped:warped?warp:null,mask}]])},
