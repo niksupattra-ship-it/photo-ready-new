@@ -44,6 +44,9 @@ export function validateSavedProject(project){
  for(const l of project.layers){
   if(typeof l.name!=='string'||!imageURL.test(l.source)||![l.x,l.y,l.scale,l.rotation,l.opacity].every(Number.isFinite)||l.scale<.1||l.scale>5||l.opacity<0||l.opacity>1)throw Error('ข้อมูลเลเยอร์ไม่ถูกต้อง');
   if(['squeezeX','squeezeY'].some(k=>l[k]!==undefined&&(!Number.isFinite(l[k])||l[k]<.1||l[k]>3)))throw Error('สัดส่วนเลเยอร์ไม่ถูกต้อง');
+  if(['collarLeftScale','collarRightScale'].some(k=>l[k]!==undefined&&(!Number.isFinite(l[k])||l[k]<.1||l[k]>3)))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง');
+  if(['collarLeftRotation','collarRightRotation'].some(k=>l[k]!==undefined&&(!Number.isFinite(l[k])||Math.abs(l[k])>180)))throw Error('มุมเข็มปกคอไม่ถูกต้อง');
+  if(['collarLeftX','collarLeftY','collarRightX','collarRightY'].some(k=>l[k]!==undefined&&!Number.isFinite(l[k])))throw Error('ตำแหน่งเข็มปกคอไม่ถูกต้อง');
   if(l.sourceFrame&&(!['x','y','w','h'].every(k=>Number.isFinite(l.sourceFrame[k]))||l.sourceFrame.w<=0||l.sourceFrame.h<=0))throw Error('ตำแหน่งภาพต้นทางไม่ถูกต้อง');
   if(l.femaleFinishProfile!==undefined&&!isFemaleFinishProfile(l.femaleFinishProfile))throw Error('ข้อมูลโทนผิวที่บันทึกไม่ถูกต้อง');
   if(l.femaleFinishReference!==undefined&&!isFemaleFinishReference(l.femaleFinishReference))throw Error('ภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง');

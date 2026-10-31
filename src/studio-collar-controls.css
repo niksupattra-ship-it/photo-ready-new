@@ -1,0 +1,57 @@
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls {
+  --collar-line: #e1e5f1;
+  color: #243452;
+  font-size: 12px;
+}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls legend {display:flex;align-items:center;gap:6px;font-size:15px}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls h3 {margin:0 0 8px;font-size:12px;line-height:1.4;font-weight:650;color:#243452}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls button {display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:4px;border:1px solid var(--collar-line);border-radius:7px;background:#fff;color:#344361;font:inherit;line-height:1.2;margin:0;box-shadow:none}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls button:hover:not(:disabled) {border-color:#bba4f4;background:#faf8ff;color:#6333dc}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls button[aria-pressed="true"] {border-color:#8b63ef;background:#f0eaff;color:#6333dc}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-side-tabs {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:3px}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-side-tabs button {border-radius:0;min-height:32px}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-side-tabs button:first-child {border-radius:8px 0 0 8px}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-side-tabs button:last-child {border-radius:0 8px 8px 0}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls p {font-size:10px;line-height:1.5}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-side-hint {margin:5px 0 9px;color:#78829a}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-active-name {margin:5px 0 12px;text-align:center;color:#78829a}
+.collar-preview-wrap {position:relative;overflow:hidden;border:1px solid #e1e5f1;border-radius:9px;background:#eef1f8}
+.collar-preview-wrap canvas {display:block;width:100%;aspect-ratio:2.05;touch-action:none;cursor:grab}
+.collar-preview-wrap canvas:active {cursor:grabbing}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-preview-zoom {position:absolute;top:6px;right:6px;width:28px;min-height:28px;padding:4px;border-radius:50%;background:#fffffff0;color:#7044ed}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-position-section {padding-top:12px;border-top:1px solid var(--collar-line)}
+.collar-position-grid {display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:center}
+.collar-direction-pad {display:grid;grid-template-columns:repeat(3,28px);grid-template-rows:repeat(3,28px);gap:4px}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-direction-pad button {min-height:28px;padding:3px}
+.collar-direction-up {grid-area:1/2}.collar-direction-left {grid-area:2/1}.collar-direction-center {grid-area:2/2}.collar-direction-right {grid-area:2/3}.collar-direction-down {grid-area:3/2}
+.collar-axis-fields {display:grid;gap:9px;min-width:0}
+.collar-axis-fields > div {display:grid;grid-template-columns:10px minmax(0,1fr);align-items:center;gap:5px}
+.collar-number-stepper {display:grid;grid-template-columns:23px minmax(0,1fr) 23px;min-width:0;align-items:stretch;border:1px solid #dbe0ed;border-radius:7px;overflow:hidden;background:#fff}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-number-stepper > button {border:0;border-radius:0;min-width:0;height:30px;min-height:30px;padding:2px;font-size:16px;line-height:1}
+.collar-number-stepper > span {display:flex;align-items:center;justify-content:center;gap:2px;min-width:0;border-inline:1px solid #e5e8f1}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-number-stepper input {width:100%;min-width:0;max-width:58px;margin:0;padding:5px 1px;border:0;background:transparent;box-shadow:none;color:#344361;text-align:center;font:inherit;font-size:11px;font-variant-numeric:tabular-nums;appearance:textfield;-moz-appearance:textfield}
+.collar-number-stepper input::-webkit-inner-spin-button,.collar-number-stepper input::-webkit-outer-spin-button {-webkit-appearance:none;margin:0}
+.collar-number-unit {flex:none;padding-right:3px;color:#7b859b;font-size:9px}
+.collar-step-choice {display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:9px 0 12px;font-size:10px;color:#78829a}
+.collar-step-choice > div {display:flex;gap:4px}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-step-choice button {min-height:26px;min-width:41px;padding:3px 6px;font-size:10px}
+.collar-size-rotation {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:12px 0;border-top:1px solid #e1e5f1}
+.collar-spacing-row {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:12px;padding:12px 0;border-top:1px solid #e1e5f1}
+.collar-spacing-row > span {display:flex;align-items:center;gap:4px;font-size:11px;white-space:nowrap}
+.collar-spacing-row > span svg {width:14px;height:14px;color:#7044ed}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-spacing-row > fieldset {min-width:0;margin:0;padding:0;border:0}
+.idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-reset {width:100%;margin-top:1px;min-height:34px;border-color:#d8c9fb;background:#faf7ff;color:#6333dc;font-size:11px}
+.studio-collar-preview-dialog {width:min(760px,calc(100vw - 40px));max-height:90dvh;margin:auto;padding:18px;border:1px solid #dfe3ef;border-radius:16px;background:white;color:#243452;box-shadow:0 20px 70px #17244733}
+.studio-collar-preview-dialog::backdrop {background:#17244766;backdrop-filter:blur(3px)}
+.studio-collar-preview-dialog header {display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font:14px system-ui,sans-serif}
+.studio-collar-preview-dialog button {display:grid;place-items:center;width:32px;height:32px;border:1px solid #e1e5f1;border-radius:8px;background:white;color:#344361;cursor:pointer}
+.studio-collar-preview-dialog canvas {display:block;width:100%;max-height:65dvh;aspect-ratio:2.05;background:#eef1f8;border-radius:10px;touch-action:none;cursor:grab}
+.studio-collar-preview-dialog p {margin:10px 0 0;color:#78829a;text-align:center;font:12px system-ui,sans-serif}
+
+@media (max-height:800px) {
+ .idstudio.studio-redesign:not(.studio-touch) .studio-panel fieldset.studio-collar-controls {margin-top:4px;padding-top:9px}
+ .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-active-name {margin-bottom:8px}
+ .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-position-section {padding-top:8px}
+ .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-size-rotation {padding:9px 0}
+ .idstudio.studio-redesign:not(.studio-touch) .studio-collar-controls .collar-spacing-row {padding:8px 0}
+}
