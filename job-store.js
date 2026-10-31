@@ -27,6 +27,22 @@ export async function createAiJob({walletId,usageId,fields,image,mask}){
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
 
+export async function createSourceDownloadJob({walletId,key,image}){
+ await ready();
+ const id='job_'+crypto.createHash('sha256').update(JSON.stringify([walletId,key])).digest('hex').slice(0,36);
+ const hash=crypto.createHash('sha256').update(image.buffer).digest('hex'),c=await pool.connect();
+ try{
+  await c.query('BEGIN');await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',[id]);
+  const existing=await c.query('SELECT wallet_id,fields FROM ai_jobs WHERE id=$1',[id]);
+  if(existing.rowCount){
+   if(existing.rows[0].wallet_id!==walletId||existing.rows[0].fields?.source_hash!==hash)throw Object.assign(Error('รูปเปลี่ยนแล้ว กรุณาเพิ่มรูปใหม่ก่อนดาวน์โหลด'),{status:409});
+  }else{
+   await c.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,result) VALUES($1,$2,$3,'completed',$4,'\\x'::bytea,$5,$6,$7)`,[id,walletId,'free_source_'+id,{source_only:true,source_hash:hash,delivery_confirmed:true},image.originalname||'portrait.png',image.mimetype,image.buffer]);
+  }
+  await c.query('COMMIT');return id;
+ }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
+}
+
 export async function claimAiJob(id){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='processing',updated_at=now() WHERE id=$1 AND status='queued' RETURNING *`,[id]);return rows[0]||null}
 export async function touchAiJob(id,stage=null){await ready();await pool.query(`UPDATE ai_jobs SET updated_at=now(),fields=CASE WHEN $2::text IS NULL THEN fields ELSE fields||jsonb_build_object('processing_stage',$2::text) END WHERE id=$1 AND status='processing'`,[id,stage])}
 export async function completeAiJob(id,result){await ready();await pool.query(`UPDATE ai_jobs SET status='completed',result=$2,error=NULL,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference',updated_at=now() WHERE id=$1 AND status='processing'`,[id,result])}

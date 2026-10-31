@@ -54,7 +54,7 @@ export async function getSavedWorkRetentionPolicy(){
 export function validateProject(p){
  validateSavedProject(p);
  if(p?.format!=='idprom-studio'||p.version!==1||p.width!==900||p.height!==1200||!Array.isArray(p.layers)||!p.layers.length||p.layers.length>20)throw Error('invalid_project');
- const heads=p.layers.filter(l=>l.kind==='head'||l.name==='หัว · คอ · ผม');if(!heads.length||heads.some(l=>typeof l.jobId!=='string'||!l.jobId))throw Error('paid_image_required');
+ const heads=p.layers.filter(l=>l.kind==='head'||l.name==='หัว · คอ · ผม'||l.kind==='source-photo');if(!heads.length||heads.some(l=>typeof l.jobId!=='string'||!l.jobId))throw Error('paid_image_required');
  for(const l of p.layers){if(typeof l.name!=='string'||!/^data:image\/(png|jpeg|webp);base64,/.test(l.source)||![l.x,l.y,l.scale,l.rotation,l.opacity].every(Number.isFinite)||l.scale<.1||l.scale>5||l.opacity<0||l.opacity>1)throw Error('invalid_layer');for(const field of ['mask','warpSource','warpBaseMask'])if(l[field]&&!/^data:image\/(png|jpeg|webp);base64,/.test(l[field]))throw Error('invalid_layer')}
  if(p.compareSource&&!/^data:image\/(png|jpeg|webp);base64,/.test(p.compareSource))throw Error('invalid_original');
  if(p.placement&&(!['W','H','uX','uY','uW','uH'].every(k=>Number.isFinite(p.placement[k]))||p.placement.W<=0||p.placement.H<=0))throw Error('invalid_placement');

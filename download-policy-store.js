@@ -103,6 +103,19 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   },
   async isLegacySaved(wallet,id){await ready();const q=await pool.query('SELECT 1 FROM download_legacy_works WHERE wallet_id=$1 AND work_id=$2',[wallet,id]);return q.rowCount>0},
   async summary(wallet){await ready();const r=await pool.query('SELECT 1 FROM download_legacy_wallets WHERE wallet_id=$1',[wallet]);return {downloadPolicy:'download-v1',freeGeneration:true,canSave:r.rowCount>0}},
+  async registerSource(wallet,job,image,imageType){
+   await ready();const c=await pool.connect();
+   try{
+    await c.query('BEGIN');await c.query('SELECT pg_advisory_xact_lock(hashtext($1))',['source:'+job]);
+    await ownedJob(wallet,job,c);
+    const existing=await c.query('SELECT work_id FROM download_work_jobs WHERE job_id=$1 AND wallet_id=$2',[job,wallet]);
+    if(existing.rowCount){await c.query('COMMIT');return existing.rows[0].work_id}
+    const id='dwork_'+crypto.randomBytes(18).toString('hex'),hash=crypto.createHash('sha256').update(image).digest('hex');
+    await c.query('INSERT INTO download_works(id,wallet_id,source_hash,original_source_hash,canonical_image,canonical_type) VALUES($1,$2,$3,$3,$4,$5)',[id,wallet,hash,image,imageType]);
+    await c.query('INSERT INTO download_work_jobs(job_id,work_id,wallet_id) VALUES($1,$2,$3)',[job,id,wallet]);
+    await c.query('COMMIT');return id;
+   }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
+  },
   async beginWork(wallet,image,requested='',savedWorkId='',originalSource=null,{imageType='image/png',originalType='image/png'}={}){
    await ready();const hash=crypto.createHash('sha256').update(image).digest('hex');
    const originalHash=originalSource?.length?crypto.createHash('sha256').update(originalSource).digest('hex'):null;

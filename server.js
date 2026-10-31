@@ -12,6 +12,7 @@ import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY} from './hairstyle-fit-
 import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject} from './saved-work-store.js';
 import {registerSavedWorkApi} from './saved-work-api.js';
+import {registerSourceDownloadApi} from './source-download-api.js';
 import {startSavedWorkRetentionCleanup} from './saved-work-retention-worker.js';
 import express from "express";
 import multer from "multer";
@@ -21,7 +22,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
+import {createAiJob,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -219,6 +220,7 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
+registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sharp(buffer).metadata(),createSourceDownloadJob,downloadPolicy});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.

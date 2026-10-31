@@ -20,7 +20,7 @@ const png='data:image/png;base64,QUFBQQ==';
 const head={id:'head-A',kind:'head',name:'หัว · คอ · ผม',jobId:'job-A',source:png,processedOriginalSource:png,x:7,y:8,scale:1.1,rotation:0,opacity:1,visible:true};
 const granted={checked:true,unlocked:true,fullEdit:true},denied={checked:true,unlocked:false,fullEdit:false};
 function accessFixture(reply=granted){
- const events=[],e={accountScope:'account-A',outputScopeRef:{current:'account-A'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),warningProofForJob:()=>'fixture',layerKind:l=>l.kind,
+ const events=[],e={accountScope:'account-A',outputScopeRef:{current:'account-A'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'||l.kind==='source-photo'),warningProofForJob:()=>'fixture',layerKind:l=>l.kind,
   onVerifyOutput:async id=>{events.push(['verify',id]);return typeof reply==='function'?reply(id):reply},outputAccessResult,unavailableOutputRights,mergeOutputRights,
   setVerifiedJobs:fn=>{e.verified=fn(e.verified||{})},sessionUnlockedJobs:{current:new Set()},onSelectSuit:async()=>({limited:false,choices:[]}),setSuitPolicy:no,
   setStatus:message=>events.push(['message',message]),setSavePopup:popup=>events.push(['popup',popup]),setDownloadCrop:no,onRequestUnlock:()=>events.push(['purchase'])};
@@ -44,6 +44,30 @@ await check('every generated head must be owned and unlocked',async()=>{
 await check('unprocessed sources are blocked even when restored beside a paid head',async()=>{
  for(const layers of [[],[{kind:'head',jobId:''}],[head,{id:'restored-source',kind:'source-photo',source:png}]]){
   const f=accessFixture();f.e.state.current=layers;assert.equal(await f.allow(),false);assert(!f.events.some(e=>e[0]==='verify'||e[0]==='purchase'));
+ }
+});
+await check('registered raw sources use the same verified paid, unpaid and unavailable rights gates',async()=>{
+ for(const reply of [granted,denied,unavailableOutputRights()]){
+  const f=accessFixture(reply);f.e.state.current=[{id:'source-A',kind:'source-photo',jobId:'source-job',source:png}];
+  assert.equal(await f.allow(),reply===granted);assert.deepEqual(f.events.filter(e=>e[0]==='verify'),[['verify','source-job']]);
+  assert.equal(f.events.some(e=>e[0]==='purchase'),reply===denied);
+ }
+});
+function sourceDownloadFixture(){
+ const source={id:'raw-A',kind:'source-photo',source:png},calls=[];
+ const e={state:{current:[source]},outputScopeRef:{current:'A'},sourcePhoto:new File(['fixture'],'portrait.png',{type:'image/png'}),setLayers:layers=>calls.push(layers),onPrepareSourceDownload:async()=>({jobId:'raw-job'})};
+ return {e,calls,source,prepare:extract(' const prepareSourceDownload=async','\n const exportImage=','prepareSourceDownload',e)};
+}
+await check('source registration preserves its layer and retries reuse the registered work',async()=>{
+ const f=sourceDownloadFixture();let requests=0;f.e.onPrepareSourceDownload=async(file,{isCurrent})=>{requests++;assert(isCurrent());return {jobId:'raw-job'}};
+ await f.prepare();await f.prepare();assert.equal(requests,1);assert.equal(f.calls.length,1);
+ assert.deepEqual(f.e.state.current,[{...f.source,jobId:'raw-job',downloadOnly:true}]);
+});
+await check('late source registration cannot attach a paid identity after a photo or account change',async()=>{
+ for(const change of ['photo','account']){
+  const f=sourceDownloadFixture(),gate=deferred();f.e.onPrepareSourceDownload=()=>gate.promise;
+  const pending=f.prepare();if(change==='photo')f.e.state.current=[{...f.source,id:'raw-B'}];else f.e.outputScopeRef.current='B';
+  gate.resolve({jobId:'raw-job'});await assert.rejects(pending,/เปลี่ยนแล้ว/);assert.equal(f.calls.length,0);assert(!f.e.state.current[0].jobId);
  }
 });
 await check('the pending crop cannot use the rights of a different image or account',async()=>{
@@ -102,8 +126,9 @@ await check('normal saves and stale background saves do not write across account
 });
 function exportFixture(){
  const events=[],e={exportingRef:{current:false},saveSequenceRef:{current:0},accountScope:'A',outputScopeRef:{current:'A'},setStatus:message=>events.push(['message',message]),setSavePopup:popup=>events.push(['popup',popup]),allowOutput:async()=>true,flushTransforms:no,
-  outputHeads:ls=>ls.filter(l=>l.kind==='head'),state:{current:[head]},nativeCanvas:()=>({width:2256,height:3072,getContext:()=>({}),toBlob:callback=>callback(new Blob(['rendered'],{type:'image/png'}))}),placementRef:{current:placement},paintScene:no,assets:{current:new Map()},onSaveWork:()=>{},trialUnlocked:false,W:900,H:1200,
+  outputHeads:ls=>ls.filter(l=>l.kind==='head'||l.kind==='source-photo'),state:{current:[head]},nativeCanvas:()=>({width:2256,height:3072,getContext:()=>({}),toBlob:callback=>callback(new Blob(['rendered'],{type:'image/png'}))}),placementRef:{current:placement},paintScene:no,assets:{current:new Map()},onSaveWork:()=>{},trialUnlocked:false,W:900,H:1200,
   compareSourceRef:{current:png},sourcePhoto:sourceA,historySnapshot:()=>[head],withDeadline:operation=>operation(),download:()=>events.push(['download']),setDownloadCrop:crop=>{e.crop=crop}};
+ e.prepareSourceDownload=extract(' const prepareSourceDownload=async','\n const exportImage=','prepareSourceDownload',e);
  return{e,events,run:extract(' const exportImage=async','\n const autoDownloadAttempted=','exportImage',e)};
 }
 await check('the actual export captures source identity together with its rendered image',async()=>{

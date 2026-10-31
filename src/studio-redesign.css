@@ -1080,11 +1080,13 @@
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom .studio-design-compare {
-  gap: 5px;
+  width: 38px;
+  min-width: 38px;
   margin-left: 5px;
-  padding-inline: 9px;
-  border-left: 1px solid var(--studio-line);
-  font-size: 11px;
+  padding: 6px;
+  border: 1px solid var(--studio-line);
+  border-radius: 9px;
+  color: #58627f;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-compare .studio-png-icon {
@@ -1095,6 +1097,40 @@
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom .studio-design-compare.active {
   background: var(--studio-lavender);
   color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-library .studio-photo-panel > .studio-hair-next-step {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 12px 10px;
+  border: 1px solid #cfbcfc;
+  border-radius: 10px;
+  background: #f4efff;
+  color: var(--studio-violet-dark);
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-hair-next-step > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--studio-violet);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-hair-next-step p {
+  margin: 0;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-tools {
