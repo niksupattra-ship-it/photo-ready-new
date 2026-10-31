@@ -1222,7 +1222,7 @@
  outline:3px solid #c9b9fa;outline-offset:3px;
 }
 
-/* Keep the square original photo complete inside the homepage's portrait frame. */
+/* The portrait original photo fills the homepage frame without stretching. */
 .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples .easy-landing-original-photo {
- object-fit:contain;background-color:#eff1f8;
+ object-fit:cover;background-color:#eff1f8;
 }

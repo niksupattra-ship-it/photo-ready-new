@@ -96,7 +96,7 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
      <div className="easy-landing-samples">
       <figure><img src="/assets/home-previews/easy-job-v20261030.webp" alt="ตัวอย่างรูปชุดสมัครงาน"/><figcaption>ชุดสมัครงาน</figcaption></figure>
       <figure><img src="/assets/home-previews/easy-government-v20261030.webp" alt="ตัวอย่างรูปชุดข้าราชการ"/><figcaption>ชุดข้าราชการ</figcaption></figure>
-      <figure><img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261030.webp" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/><figcaption>รูปต้นฉบับ</figcaption></figure>
+      <figure><img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261031.webp" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/><figcaption>รูปต้นฉบับ</figcaption></figure>
      </div>
     </div>
    </section>

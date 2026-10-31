@@ -54,11 +54,39 @@
   .studio-home-below-easy .studio-featured-item strong {font-size:12px}
 }
 @media(max-width:600px) {
-  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header {gap:8px;padding:8px 12px;min-height:58px}
-  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header-actions {max-width:none;gap:6px}
-  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header-actions .idprom-support-trigger {flex:none;width:36px;min-width:36px;height:36px;min-height:36px;padding:4px}
-  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header-actions .idprom-support-trigger>span {display:none}
-  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header:has(.idprom-member-popover) .idprom-member-menu>button:not(.idprom-package-code-open) {margin-left:0}
+  /* The logo and shortcuts stay on one row even while the member menu is open. */
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header,
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header:has(.idprom-member-popover) {
+    position:relative;z-index:20;height:58px;min-height:58px;
+    display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:8px 12px;overflow:visible;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .easy-brand {
+    flex:0 0 auto;min-width:0;padding:0;font-size:clamp(19px,5vw,23px)!important;line-height:1.2;white-space:nowrap;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .easy-header-actions {
+    display:flex!important;align-items:center;justify-content:flex-end;flex:0 0 auto;flex-wrap:nowrap;
+    width:auto;min-width:0;max-width:none;gap:6px;margin:0 0 0 auto;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .idprom-member-menu,
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header:has(.idprom-member-popover) .idprom-member-menu {
+    position:static!important;display:inline-flex!important;align-items:center;flex:none;min-width:0;gap:0;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .idprom-member-menu>button {
+    width:36px!important;height:36px!important;min-width:36px;min-height:36px;margin:0!important;padding:0;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .idprom-support-trigger {
+    flex:none;width:36px;min-width:36px;height:36px;min-height:36px;padding:4px;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .idprom-support-trigger>span {display:none}
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .easy-studio {
+    flex:none;min-width:0;min-height:36px;padding:7px 8px;font-size:12px!important;white-space:nowrap;
+  }
+  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header .idprom-member-popover {
+    position:absolute!important;inset:auto 12px auto auto!important;top:calc(100% + 6px)!important;
+    flex:none!important;width:min(320px,calc(100vw - 24px))!important;min-width:0!important;
+    max-width:calc(100vw - 24px)!important;margin:0!important;z-index:1000!important;
+    max-height:calc(100dvh - 88px);overflow-y:auto;overscroll-behavior:contain;
+  }
   .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-main {padding-top:22px!important;padding-bottom:24px!important}
   .studio-home-below-easy .home-catalog-heading {display:block;margin-bottom:16px}
   .studio-home-below-easy .home-catalog-heading p {margin-top:7px;font-size:12px}
@@ -77,7 +105,4 @@
   .studio-home-below-easy .studio-featured-filter button {flex:1;min-height:40px}
   .studio-home-below-easy .studio-featured-list {grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .studio-home-below-easy .studio-featured-item strong {font-size:11px}
-}
-@media(max-width:360px) {
-  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-header-actions {flex-basis:100%;justify-content:space-between;margin:4px 0 0;gap:8px}
 }
