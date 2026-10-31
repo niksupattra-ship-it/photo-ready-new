@@ -15,7 +15,7 @@ const denied={checked:true,unlocked:false,fullEdit:false,premiumHair:false,paidD
 const head={id:'head-a',kind:'head',name:'หัว · คอ · ผม',jobId:'job-a',source:'data:image/png;base64,fixture'};
 function fixture({balance=2,paid=false}={}){
  const events=[],unlocked=new Set(paid?['job-a']:[]);let remaining=balance;
- const e={accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,warningProofForJob:()=> 'fixture-proof',
+ const e={suitRequestRef:{current:null},prepareSourceDownload:async()=>{},accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,warningProofForJob:()=> 'fixture-proof',
   outputAccessResult,unavailableOutputRights,mergeOutputRights,sessionUnlockedJobs:{current:new Set()},
   onVerifyOutput:async id=>{events.push(['verify',id]);return unlocked.has(id)?granted:denied},
   onUseDownloadCredit:async id=>{events.push(['credit',id]);if(remaining===0)return {available:false,unlocked:false};remaining--;unlocked.add(id);return {available:true,unlocked:true}},
