@@ -304,6 +304,7 @@
 
 /* The desktop editor is one grid so the original canvas remains mounted once. */
 .idstudio.studio-redesign:not(.studio-touch) > .studio-design-header {
+  position: relative;
   flex: 0 0 70px;
   min-height: 70px;
   padding: 11px 24px;
@@ -394,11 +395,14 @@
   align-items: center;
   flex: none;
   gap: 0;
-  margin-left: auto;
+  margin: 0;
   border: 1px solid var(--studio-line);
   border-radius: 10px;
   overflow: hidden;
-  position: static;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: auto;
   max-width: none;
   box-shadow: none;
@@ -441,6 +445,7 @@
   flex: none;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-account-actions {
@@ -823,16 +828,20 @@
   position: relative;
   min-width: 0;
   min-height: 0;
-  padding: 0 0 110px;
+  padding: 0;
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 42%, #f4f6fc 0, #edf2f9 76%);
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-stage {
+  position: absolute;
+  inset: 0;
   flex: 1 1 0;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   min-width: 0;
-  padding: 20px 30px 16px;
+  padding: 20px 30px 0;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-stage canvas {
@@ -850,17 +859,20 @@
   flex-wrap: nowrap;
   gap: 0;
   min-height: 42px;
-  margin: 18px 12px 1px;
+  margin: 0;
   padding: 2px 6px;
   border: 1px solid #e9edf5;
   border-radius: 12px;
   background: #ffffffeb;
   color: var(--studio-ink);
   box-shadow: 0 5px 18px #26375b08;
-  position: relative;
-  inset: auto;
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  right: auto;
+  bottom: auto;
   width: auto;
-  transform: none;
+  transform: translateX(-50%);
   z-index: 5;
 }
 
@@ -1314,16 +1326,71 @@
   }
 
   .idstudio.studio-redesign:not(.studio-touch) .studio-design-zoom {
-    margin-top: 12px;
-  }
-
-  .idstudio.studio-redesign:not(.studio-touch) .studio-workspace {
-    padding-bottom: 102px;
+    top: 12px;
   }
 
   .idstudio.studio-redesign:not(.studio-touch) .studio-tools {
     margin-bottom: 15px;
   }
+}
+
+/* Panel controls stay in the workspace when either adjacent panel is collapsed. */
+.idstudio.studio-redesign:not(.studio-touch)[data-left-collapsed="true"] {
+  --studio-library-width: 0px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch)[data-right-collapsed="true"] {
+  --studio-inspector-width: 0px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch)[data-left-collapsed="true"] .studio-design-library,
+.idstudio.studio-redesign:not(.studio-touch)[data-right-collapsed="true"] .studio-adjustment {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-panel-toggle {
+  position: absolute;
+  top: 18px;
+  z-index: 7;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 42px;
+  min-width: 32px;
+  min-height: 42px;
+  padding: 4px;
+  border: 1px solid #e8e9f3;
+  background: #fffffff5;
+  color: var(--studio-ink);
+  box-shadow: 0 3px 12px #26375b08;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-panel-toggle-left {
+  left: 0;
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-panel-toggle-right {
+  right: 0;
+  border-right: 0;
+  border-radius: 10px 0 0 10px;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-panel-toggle svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-panel-toggle:hover:not(:disabled),
+.idstudio.studio-redesign:not(.studio-touch) .studio-design-panel-toggle[aria-expanded="false"] {
+  color: var(--studio-violet);
 }
 
 /* Touch layouts keep their existing positions, gestures and compact drawers. */
