@@ -2855,9 +2855,9 @@ const JOB_UNIFORMS=[
  {id:'female-white-shirt',title:'เชิ้ตหญิง',img:'/assets/job-uniforms/female-white-shirt-example.png',template:'/assets/job-uniforms/female-white-shirt.png',cat:'job',gender:'female'},
  {id:'female-white-shirt-02',title:'เชิ้ตหญิง แบบ 2',img:'/assets/job-uniforms/female-white-shirt-02-example.png',template:'/assets/job-uniforms/female-white-shirt-02.png',cat:'job',gender:'female'},
  {id:'male-white-shirt-v132',title:'เชิ้ตชาย',img:'/assets/job-uniforms/male-white-shirt-v132-example.png',template:'/assets/job-uniforms/male-open-collar-suit.png',cat:'job',gender:'male'},
- {id:'female-navy-suit-6',title:'สูทหญิง แบบ 6',img:'/assets/job-uniforms/previews/female-navy-suit-6.webp',template:'/assets/job-uniforms/female-navy-suit-6.png',cat:'job',gender:'female'},
- {id:'female-navy-suit-7',title:'สูทหญิง แบบ 7',img:'/assets/job-uniforms/previews/female-navy-suit-7.webp',template:'/assets/job-uniforms/female-navy-suit-7.png',cat:'job',gender:'female'},
- {id:'male-navy-suit-5',title:'สูทชาย แบบ 5',img:'/assets/job-uniforms/previews/male-navy-suit-5.webp',template:'/assets/job-uniforms/male-navy-suit-5.png',cat:'job',gender:'male'},
+ {id:'female-navy-suit-6',title:'สูทชาย แบบ 6',img:'/assets/job-uniforms/previews/female-navy-suit-6.webp',template:'/assets/job-uniforms/female-navy-suit-6.png',cat:'job',gender:'male'},
+ {id:'female-navy-suit-7',title:'สูทชาย แบบ 7',img:'/assets/job-uniforms/previews/female-navy-suit-7.webp',template:'/assets/job-uniforms/female-navy-suit-7.png',cat:'job',gender:'male'},
+ {id:'male-navy-suit-5',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/previews/male-navy-suit-5.webp',template:'/assets/job-uniforms/male-navy-suit-5.png',cat:'job',gender:'female'},
 ];
 
 const STUDENT_UNIFORMS=[

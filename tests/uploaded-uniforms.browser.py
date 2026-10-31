@@ -8,7 +8,7 @@ BASE=os.environ.get('COLLAR_CONTROLS_BASE','http://127.0.0.1:5173')
 OUT=pathlib.Path('/tmp/uploaded-uniforms-browser');OUT.mkdir(exist_ok=True)
 source=(ROOT/'src/main.jsx').read_text()
 arrays='\n'.join(re.search(r'const '+name+r'=\[[\s\S]*?\n\];',source).group(0)for name in ['JOB_UNIFORMS','STUDENT_UNIFORMS'])
-expected={'female-navy-suit-6':'สูทหญิง แบบ 6','female-navy-suit-7':'สูทหญิง แบบ 7','male-navy-suit-5':'สูทชาย แบบ 5','student-female-rajamangala':'ราชมงคล','student-female-msu':'มมส','student-female-rajabhat':'ราชภัฏ'}
+expected={'female-navy-suit-6':'สูทชาย แบบ 6','female-navy-suit-7':'สูทชาย แบบ 7','male-navy-suit-5':'สูทหญิง แบบ 5','student-female-rajamangala':'ราชมงคล','student-female-msu':'มมส','student-female-rajabhat':'ราชภัฏ'}
 seed=arrays+'\nconst uploadedUniforms=[...JOB_UNIFORMS,...STUDENT_UNIFORMS].filter(t=>'+json.dumps(list(expected))+".includes(t.id)).map(t=>({...t,name:t.title,preview:t.img,group:t.cat==='job'?'สมัครงาน':'นักศึกษา'}));\n"
 contrast='''([fg,bg])=>{const rgb=s=>s.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});const lum=s=>rgb(s).reduce((n,v,i)=>n+v*[.2126,.7152,.0722][i],0);const a=lum(fg),b=lum(bg);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)}'''
 with sync_playwright()as pw:
