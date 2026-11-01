@@ -1848,7 +1848,8 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
 }
 
 /* Shared line icons and legible touch adjustments in the Studio palette. */
-.idstudio.studio-redesign .studio-history-icon {
+.idstudio.studio-redesign .studio-history-icon,
+.idstudio.studio-redesign .studio-compare-icon {
   display:block;width:23px;height:23px;flex:none;pointer-events:none;
 }
 .idstudio.studio-redesign.studio-touch .studio-touch-history {
