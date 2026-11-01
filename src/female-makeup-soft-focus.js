@@ -46,8 +46,8 @@ function confidence(mask,n){
 
 // Female MAKEUP output only. Selective microcontrast reduction supplies the
 // requested soft-focus skin without changing exposure, cosmetics or geometry.
-export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair,studioRetouch=false}={}){
- const report={version:studioRetouch?'female-local-studio-retouch-v2':'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
+export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair}={}){
+ const report={version:'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
  const unchanged=()=>({pixels,changed:false,report});
  if(!Number.isSafeInteger(W)||!Number.isSafeInteger(H)||W<1||H<1||W*H>8388608||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==W*H*4)return unchanged();
  const skinAt=confidence(skin,W*H),hairAt=confidence(hair,W*H);
@@ -57,17 +57,14 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
  const full=id=>({x:face[id].x*W,y:face[id].y*H});
  const a=full(234),b=full(454),faceWidth=Math.hypot(a.x-b.x,a.y-b.y);
  if(faceWidth<48||faceWidth>Math.hypot(W,H))return unchanged();
- const radius=clamp(Math.round(faceWidth*.0045),1,6),guard=clamp(Math.round(faceWidth*(studioRetouch ? .02 : .009)),2,16);
+ const radius=clamp(Math.round(faceWidth*.0045),1,6),guard=clamp(Math.round(faceWidth*.009),2,12);
  const oval=LOCAL_MAKEUP_CONTOURS.face.map(full),padding=radius+guard+2;
- const x0=studioRetouch?0:clamp(Math.floor(Math.min(...oval.map(p=>p.x)))-padding,0,W),x1=studioRetouch?W:clamp(Math.ceil(Math.max(...oval.map(p=>p.x)))+padding,0,W);
- const y0=studioRetouch?0:clamp(Math.floor(Math.min(...oval.map(p=>p.y)))-padding,0,H),y1=studioRetouch?H:clamp(Math.ceil(Math.max(...oval.map(p=>p.y)))+padding,0,H);
+ const x0=clamp(Math.floor(Math.min(...oval.map(p=>p.x)))-padding,0,W),x1=clamp(Math.ceil(Math.max(...oval.map(p=>p.x)))+padding,0,W);
+ const y0=clamp(Math.floor(Math.min(...oval.map(p=>p.y)))-padding,0,H),y1=clamp(Math.ceil(Math.max(...oval.map(p=>p.y)))+padding,0,H);
  const w=x1-x0,h=y1-y0,n=w*h;if(w<12||h<12)return unchanged();
  const point=id=>{const p=full(id);return {x:p.x-x0,y:p.y-y0}};
  let faceMask=new Float32Array(n),details=new Float32Array(n);
  polygon(faceMask,LOCAL_MAKEUP_CONTOURS.face.map(point),w,h);
- // Use actual segmented skin for the studio finish, including ears and neck,
- // rather than cutting the colour correction off at an artificial face oval.
- if(studioRetouch)faceMask.fill(1);
  for(const ids of features)polygon(details,ids.map(point),w,h);
  // Nostril openings stay sharp; nose skin itself can receive pore diffusion.
  for(const id of [98,327]){
@@ -85,19 +82,12 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
   if(coverage[i]>.5)evidence++;
  }
  if(evidence<64)return unchanged();
- if(studioRetouch){
-  const feather=mean(coverage,w,h,guard);
-  for(let i=0;i<n;i++)coverage[i]*=smooth(.1,.9,feather[i]);
- }
  const referenceLight=skinLight/skinWeight;
  faceMask=null;details=null;faceSoft=null;detailSoft=null;
  const weight=mean(coverage,w,h,radius),channels=[],square=new Float32Array(n);
- const broadRadius=clamp(Math.round(faceWidth*.035),4,32);
- const broadWeight=studioRetouch?mean(coverage,w,h,broadRadius):null,broadChannels=[];
  for(let c=0;c<3;c++){
   const input=new Float32Array(n);
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;input[i]=pixels[((y+y0)*W+x+x0)*4+c]*coverage[i]}
-  if(studioRetouch)broadChannels.push(mean(input,w,h,broadRadius));
   channels.push(mean(input,w,h,radius,true));
  }
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x,k=((y+y0)*W+x+x0)*4,Y=luma(pixels[k],pixels[k+1],pixels[k+2]);square[i]=Y*Y*coverage[i]}
@@ -113,23 +103,10 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
   // Leave already soft skin and its fine grain alone. Even rougher skin keeps
   // most native microtexture, with a small correction instead of full diffusion.
   const activity=smooth(1.5,4,Math.sqrt(variance));
-  const strength=(studioRetouch ? .62 : .28)*activity*coverage[i]*(160/(160+variance))*(1-smooth(12,26,Math.abs(residual)));
+  const strength=.28*activity*coverage[i]*(160/(160+variance))*(1-smooth(12,26,Math.abs(residual)));
   const dr=(r-pixels[k])*strength,dg=(g-pixels[k+1])*strength,db=(b-pixels[k+2])*strength;
-  const largest=Math.max(Math.abs(dr),Math.abs(dg),Math.abs(db)),detailLimit=studioRetouch?6:3,limit=largest>detailLimit?detailLimit/largest:1;
-  const retouch=[0,0,0];
-  if(studioRetouch&&broadWeight[i]>.2){
-   const broad=broadChannels.map(channel=>channel[i]/broadWeight[i]),base=luma(...broad),patch=average-base;
-   // Change low-frequency tonal differences, not face pixels borrowed from
-   // another region. Fine texture remains in the original samples. Large
-   // anatomical shadows and isolated dark marks are excluded.
-   const repair=smooth(3,10,Math.abs(patch))*(1-smooth(18,30,Math.abs(patch)))*.42;
-   const matte=smooth(6,18,patch)*(1-smooth(24,38,patch))*.18;
-   const light=11*(1-smooth(165,240,base));
-   const pink=3*(1-smooth(35,65,broad[0]-broad[1]));
-   const headroom=(1-smooth(225,245,Y))*coverage[i];
-   for(let c=0;c<3;c++)retouch[c]=clamp((broad[c]-[r,g,b][c])*repair-patch*matte+light+[pink,-pink*.45,pink*.2][c],-8,16)*headroom;
-  }
-  const nr=clamp(Math.round(pixels[k]+dr*limit+retouch[0]),0,255),ng=clamp(Math.round(pixels[k+1]+dg*limit+retouch[1]),0,255),nb=clamp(Math.round(pixels[k+2]+db*limit+retouch[2]),0,255);
+  const largest=Math.max(Math.abs(dr),Math.abs(dg),Math.abs(db)),limit=largest>3?3/largest:1;
+  const nr=clamp(Math.round(pixels[k]+dr*limit),0,255),ng=clamp(Math.round(pixels[k+1]+dg*limit),0,255),nb=clamp(Math.round(pixels[k+2]+db*limit),0,255);
   if(nr===pixels[k]&&ng===pixels[k+1]&&nb===pixels[k+2])continue;
   if(!out)out=new Uint8ClampedArray(pixels);
   out[k]=nr;out[k+1]=ng;out[k+2]=nb;
