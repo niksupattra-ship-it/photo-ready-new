@@ -12,10 +12,11 @@ OUT=pathlib.Path('/tmp/purchase-delivery-browser');OUT.mkdir(exist_ok=True)
 SEED=re.search(r'SEED="""(.*?)"""',(ROOT/'tests/account-flow-dialog.browser.py').read_text(),re.S).group(1)
 png=io.BytesIO();Image.new('RGB',(60,80),'#cbe7ff').save(png,format='PNG');PNG=png.getvalue()
 class Case:
- def __init__(self,browser,width,pkg,guest):
-  self.name=f'{width}-{pkg}-'+('guest'if guest else'member');self.width=width;self.pkg=pkg;self.guest=guest;self.paid=False;self.started=False;self.items=[];self.files={};self.archives=[];self.defer_next_archive=False;self.deferred_archive=None;self.calls=[];self.errors=[];self.storage_error=False
+ def __init__(self,browser,width,pkg,guest,block_auto=False):
+  self.name=f'{width}-{pkg}-'+('guest'if guest else'member')+('-blocked-auto'if block_auto else'');self.block_auto=block_auto;self.downloads=[];self.width=width;self.pkg=pkg;self.guest=guest;self.paid=False;self.started=False;self.items=[];self.files={};self.archives=[];self.defer_next_archive=False;self.deferred_archive=None;self.calls=[];self.errors=[];self.storage_error=False
   self.ctx=browser.new_context(viewport={'width':width,'height':1000 if width>1000 else 844},has_touch=width<1000,accept_downloads=True,permissions=['clipboard-read','clipboard-write']);self.p=self.ctx.new_page();self.p.set_default_timeout(15000)
-  self.p.on('pageerror',lambda e:self.errors.append(str(e)))
+  self.p.on('pageerror',lambda e:self.errors.append(str(e)));self.p.on('download',lambda d:self.downloads.append(d))
+  if block_auto:self.ctx.add_init_script("document.addEventListener('click',e=>{if(e.target.closest?.('.idprom-automatic-photo-download')){e.preventDefault();window.__blockedAutoDownloads=(window.__blockedAutoDownloads||0)+1}},true)")
   self.p.route('**/*',lambda r:r.continue_()if r.request.url.startswith((BASE+'/','blob:','data:'))else r.abort())
   self.p.route('**/api/**',self.api)
  def wallet(self):return {'walletId':'wallet_fixture','processRemaining':0,'trialRemaining':0,'canSave':False,'unlockedJobIds':['job_fixture']if self.paid else[],'editableJobIds':['job_fixture']if self.paid else[]}
@@ -63,8 +64,23 @@ class Case:
   qr.get_by_role('button',name='บันทึก QR',exact=True).click();p.wait_for_timeout(100)
   if p.get_by_role('link',name='บันทึกรูป',exact=True).count():p.get_by_role('button',name='ปิด',exact=True).click()
   p.screenshot(path=str(OUT/(self.name+'-qr.png')))
+  assert not[d for d in self.downloads if d.suggested_filename.startswith('IDPROM-Studio')],'An unpaid photo downloaded automatically'
   self.storage_error=self.pkg=='159'and self.guest;self.paid=True;p.evaluate("window.dispatchEvent(new Event('focus'))")
   receipt=p.get_by_role('dialog',name='รับรูป',exact=True);receipt.wait_for();receipt.get_by_text('ชำระเงินสำเร็จ',exact=False).wait_for();
+  # The full original is requested once after verified payment, before any tap on Download.
+  if self.block_auto:
+   p.wait_for_function('window.__blockedAutoDownloads===1');assert not[d for d in self.downloads if d.suggested_filename.startswith('IDPROM-Studio')]
+  else:
+   for _ in range(100):
+    automatic=[d for d in self.downloads if d.suggested_filename.startswith('IDPROM-Studio')]
+    if automatic:break
+    p.wait_for_timeout(50)
+   assert len(automatic)==1,'Payment did not request exactly one original image automatically';automatic[0].save_as(str(OUT/(self.name+'-automatic.png')))
+   with Image.open(OUT/(self.name+'-automatic.png'))as img:
+    assert img.size==(2256,3072),'Automatic delivery used the preview or a cropped file'
+    assert img.convert('RGB').crop((40,40,120,120)).getcolors(2)==[(80*80,(203,231,255))],'Automatic file has an unexpected watermark'
+  photo_count=len([d for d in self.downloads if d.suggested_filename.startswith('IDPROM-Studio')]);p.evaluate("window.dispatchEvent(new Event('focus'));window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'))");p.wait_for_timeout(250)
+  assert len([d for d in self.downloads if d.suggested_filename.startswith('IDPROM-Studio')])==photo_count,'Repeated payment checks duplicated the download'
   if self.storage_error:
    receipt.get_by_role('button',name='ลองเก็บลิงก์อีกครั้ง',exact=True).wait_for();assert receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).is_disabled();assert receipt.get_by_role('link',name='ดาวน์โหลดรูป',exact=True).is_visible();self.storage_error=False;receipt.get_by_role('button',name='ลองเก็บลิงก์อีกครั้ง',exact=True).click()
   receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).wait_for(state='visible');p.wait_for_function("!!document.querySelector('.purchase-receipt .purchase-receive-link')")
@@ -88,11 +104,14 @@ class Case:
    assert selected.read_bytes()==self.files[self.items[0]['imageUrl']],'Copied link contains different pixels from the selected file'
    assert p.evaluate("async()=>{const img=new Image();img.src=document.querySelector('.purchase-secondary[href]').href;await img.decode();return [img.naturalWidth,img.naturalHeight]}")==list(dimensions),'Open-image action used the previous size'
   p.screenshot(path=str(OUT/(self.name+'-combined-size.png')))
+  delivered_before_reopen=len(self.downloads)
   receipt.get_by_role('button',name='กลับไปแต่งรูป',exact=True).click();p.get_by_role('button',name='ดาวน์โหลดรูป',exact=True).filter(visible=True).first.click();receipt.wait_for();assert p.locator('.paired-offers').count()==0
   receipt.get_by_role('button',name='ดูรูปที่ซื้อแล้ว · เก็บไฟล์รับรูป 7 วัน',exact=True).click();history=p.get_by_role('dialog',name='รูปที่ซื้อแล้ว',exact=True);history.wait_for();history.get_by_role('button',name='รับรูป',exact=True).click();receipt.wait_for();assert receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).is_enabled()
   receipt.get_by_role('button',name='ปิดหน้ารับรูป',exact=True).click();p.screenshot(path=str(OUT/(self.name+'-history.png')))
   # Closing and reloading must retain access through the actual account menu.
   p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='บัญชีสมาชิก',exact=True).filter(visible=True).first.click();p.get_by_role('button',name='รูปที่ซื้อแล้ว',exact=True).click();history=p.get_by_role('dialog',name='รูปที่ซื้อแล้ว',exact=True);history.wait_for();history.get_by_role('button',name='รับรูป',exact=True).click();receipt.wait_for()
+  assert len(self.downloads)==delivered_before_reopen,'Reopening or history requested another automatic image'
+  if self.block_auto:assert p.evaluate('window.__blockedAutoDownloads||0')==0,'Reload unexpectedly requested another automatic file'
   assert len([c for c in self.calls if c==('POST','/api/payments/promptpay')])==1;assert not self.errors,self.errors
  def check_position_and_late_link(self):
   p=self.p;receipt=p.get_by_role('dialog',name='รับรูป',exact=True);sizes=receipt.get_by_role('group',name='เลือกขนาดรูป',exact=True)
@@ -117,11 +136,11 @@ class Case:
 results=[]
 with sync_playwright()as pw:
  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
- for width,pkg,guest in [(390,'89',True),(390,'159',True),(1440,'89',False),(820,'159',False)]:
-  case=Case(browser,width,pkg,guest)
+ for width,pkg,guest,block_auto in [(390,'89',True,False),(390,'159',True,False),(1440,'89',False,False),(820,'159',False,False),(390,'89',True,True)]:
+  case=Case(browser,width,pkg,guest,block_auto)
   try:
    case.run()
-   if width==390 and pkg=='89':case.check_position_and_late_link()
+   if width==390 and pkg=='89'and not block_auto:case.check_position_and_late_link()
    result={'case':case.name,'passed':True}
   except Exception as e:
    case.p.screenshot(path=str(OUT/(case.name+'-error.png')));result={'case':case.name,'passed':False,'error':str(e),'traceback':traceback.format_exc(),'pageErrors':case.errors}

@@ -53,6 +53,7 @@ import {ProcessingCloseButton} from './processing-close-button.jsx';
 import {prepareNeckInput} from './neck-input.js';
 import {SavedWorks} from './saved-works.jsx';
 import {deliverImage} from './image-download.js';
+import {createPaidPhotoAutoDownload,paidPhotoDownloadKey} from './paid-photo-auto-download.js';
 import {configureDownloadAudit,beginDownloadAudit,refreshDownloadAuditSession} from './download-audit.js';
 import {appStorage} from './browser-storage.js';
 import {preparePhotoInput} from './photo-input.js';
@@ -3050,6 +3051,7 @@ function App(){
  const [checkoutPreview,setCheckoutPreview]=useState(null);
  const [receivePhoto,setReceivePhoto]=useState(null),[purchasedPhotosOpen,setPurchasedPhotosOpen]=useState(false);
  const receiveSequence=useRef(0),receivePhotoRef=useRef(null),archiveBusyRef=useRef(null);
+ const paidPhotoDownloadRef=useRef(null);if(!paidPhotoDownloadRef.current)paidPhotoDownloadRef.current=createPaidPhotoAutoDownload();
  const closeReceivePhoto=()=>{receiveSequence.current++;receivePhotoRef.current=null;setReceivePhoto(null)};
  const openPurchasedPhotos=()=>{if(!authToken()){setPendingPackage('purchased-photos');setAuthMode('login');setAuthMsg('');setAuthOpen(true);return}setPurchasedPhotosOpen(true)};
  const archiveReceivedPhoto=async entry=>{
@@ -3066,9 +3068,15 @@ function App(){
  };
  const receivePurchasedImage=async(blob,context={})=>{
   const scope=walletScope(authToken(),currentWalletId()),id=++receiveSequence.current;
-  const entry={...context,id,receiptKey:id,scope,blob,sourceBlob:context.sourceBlob||blob,sourceName:context.name||'IDPROM-photo.png',crop:context.crop||{...DEFAULT_PHOTO_CROP},pixelScale:context.pixelScale||2,jobIds:context.jobIds||[currentOutputJobRef.current],paid:Boolean(context.automatic&&/^pi_/.test(downloadUnlockSignal?.id||'')),archiving:!context.archive,error:''};
+  const jobIds=context.jobIds||[currentOutputJobRef.current],autoDownloadKey=paidPhotoDownloadKey(downloadUnlockSignal,{automatic:context.automatic,walletId:currentWalletId(),jobIds});
+  const entry={...context,id,receiptKey:id,scope,blob,sourceBlob:context.sourceBlob||blob,sourceName:context.name||'IDPROM-photo.png',crop:context.crop||{...DEFAULT_PHOTO_CROP},pixelScale:context.pixelScale||2,jobIds,paid:Boolean(autoDownloadKey),autoDownloadKey,autoDownloadBlob:autoDownloadKey?(context.sourceBlob||blob):null,autoDownloadName:context.name||'IDPROM-full-resolution.png',archiving:!context.archive,error:''};
   receivePhotoRef.current=entry;setReceivePhoto(entry);if(!context.archive)void archiveReceivedPhoto(entry);
  };
+ const requestPaidPhotoDownload=(entry,container)=>paidPhotoDownloadRef.current({
+  key:entry.autoDownloadKey,blob:entry.autoDownloadBlob,name:entry.autoDownloadName,container,
+  isCurrent:()=>Boolean(container?.isConnected&&receivePhotoRef.current?.receiptKey===entry.receiptKey&&entry.scope===walletScope(authToken(),currentWalletId())),
+  onEvent:(type,details)=>entry.audit?.delivery?.(type,details)
+ });
  // Resize the frozen, already-authorized image. Clear its displayed old link
  // until ready, and prevent stale encoding/uploads from replacing the current file.
  const prepareReceivedPhoto=async crop=>{
@@ -3471,7 +3479,7 @@ function App(){
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;
  const DownloadNoticeUI=()=>downloadNotice&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role={downloadNotice.state==='error'?'alertdialog':'dialog'} aria-modal="true" aria-labelledby="preview-download-title" aria-busy={downloadNotice.state==='working'}><h2 id="preview-download-title">{downloadNotice.title}</h2><p role={downloadNotice.state==='working'?'status':undefined} aria-live="polite">{downloadNotice.message}</p>{downloadNotice.state==='error'&&<button autoFocus style={{marginTop:20}} onClick={()=>setDownloadNotice(null)}>ตกลง</button>}</section></div>;
- const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
+ const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onAutomaticDownload={requestPaidPhotoDownload} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
  const SavedWorkUI=()=> <>{PurchaseDeliveryUI()}{PackageCodeUI()}<TrialChoiceUI/><DownloadNoticeUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} initialData={knownWalletData} accountScope={walletScope(authToken(),currentWalletId())} unlimited={privateTrialActive} onRights={data=>acceptWalletRights(data)} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}} onCode={openPackageCode}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{
   // New basic purchases use the current price; frozen QR/Checkout receipts
