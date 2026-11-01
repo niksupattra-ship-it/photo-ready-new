@@ -5,7 +5,7 @@ import {LOCAL_MAKEUP_CONTOURS as C} from '../src/local-makeup.js';
 import {productionPortraitPrompt} from '../production-portrait-pipeline.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 
-function fixture({width=384,tone=[193,154,137],pores=8,rgba=false}={}){
+function fixture({width=384,tone=[193,154,137],pores=8,rgba=false,patches=[]}={}){
  const height=Math.round(width*4/3),n=width*height,face=Array.from({length:478},()=>({x:.5,y:.5}));
  const oval=(ids,cx,cy,rx,ry,top=false)=>ids.forEach((id,j)=>{const a=j/ids.length*Math.PI*2;face[id]={x:cx+rx*(top?Math.sin(a):Math.cos(a)),y:cy+ry*(top?-Math.cos(a):Math.sin(a))}});
  oval(C.face,.5,.48,.33,.40,true);
@@ -17,6 +17,7 @@ function fixture({width=384,tone=[193,154,137],pores=8,rgba=false}={}){
   const i=y*width+x,k=i*4,px=(x+.5)/width,py=(y+.5)/height;
   const shading=11*(px-.5)+8*Math.sin(py*4),grain=pores*Math.sin(x*1.7)*Math.cos(y*1.4);
   let color=tone.map(v=>v+shading+grain),alpha=255;
+  for(const patch of patches){const d=((px-patch.x)/patch.rx)**2+((py-patch.y)/patch.ry)**2,weight=Math.exp(-d*2);for(let c=0;c<3;c++)color[c]+=patch.delta[c]*weight}
   skin[i]=ellipse(px,py,.5,.48,.33,.40)?1:0;
   if(!skin[i]){color=[80,155,215];labels[i]=1}
   for(let side=0;side<2;side++){
@@ -65,6 +66,38 @@ await test('subtle natural skin grain survives without another smoothing pass',(
   for(let i=0;i<input.labels.length;i++)if(input.labels[i]===9)assert.deepEqual(out.pixels.subarray(i*4,i*4+4),input.pixels.subarray(i*4,i*4+4),'fine native skin grain was erased');
  }
 });
+for(const [name,patches]of [
+ ['red acne',[{x:.34,y:.54,rx:.025,ry:.018,delta:[26,-10,-8]}]],
+ ['brown post-acne marks',[{x:.35,y:.55,rx:.025,ry:.020,delta:[-24,-29,-30]}]],
+ ['diffuse brown patches',[{x:.34,y:.55,rx:.080,ry:.085,delta:[-25,-32,-34]}]],
+ ['clustered freckles',Array.from({length:8},(_,i)=>({x:.29+(i%4)*.028,y:.51+Math.floor(i/4)*.033,rx:.009,ry:.007,delta:[-24,-29,-31]}))],
+])await test(`${name}: targeted tone coverage improves spots while facial detail stays protected`,()=>{
+ for(const tone of [[215,178,157],[175,132,111],[115,80,65]]){
+  const input=fixture({tone,patches}),clean=fixture({tone}),out=finishFemaleMakeupSoftFocus(input);let before=0,after=0,count=0,oldTexture=0,newTexture=0;
+  for(let i=0;i<input.labels.length;i++){
+   const k=i*4,label=input.labels[i];assert.equal(out.pixels[k+3],input.pixels[k+3]);
+   if(label>0&&label<9)assert.deepEqual(out.pixels.subarray(k,k+4),input.pixels.subarray(k,k+4),'face features/identifying mole changed');
+   const defect=Math.max(...[0,1,2].map(c=>Math.abs(input.pixels[k+c]-clean.pixels[k+c])));
+   if((label===0||label===9)&&defect>12){
+    for(let c=0;c<3;c++){before+=(input.pixels[k+c]-clean.pixels[k+c])**2;after+=(out.pixels[k+c]-clean.pixels[k+c])**2}
+    const next=input.labels[i+1],previous=input.labels[i-1];
+    if(i%input.width>0&&i%input.width<input.width-1&&(next===0||next===9)&&(previous===0||previous===9)){
+     oldTexture+=(input.pixels[k+5]-2*input.pixels[k+1]+input.pixels[k-3])**2;newTexture+=(out.pixels[k+5]-2*out.pixels[k+1]+out.pixels[k-3])**2;
+    }count++;
+   }
+  }
+  const remaining=Math.sqrt(after/before);assert(count>10);assert(remaining<.78,`${name}/${tone[0]}: insufficient correction ${remaining}`);
+  assert(Math.sqrt(newTexture/oldTexture)>.55,`${name}/${tone[0]}: spot coverage erased fine texture (${Math.sqrt(newTexture/oldTexture)})`);
+  reports.push({name,tone:tone[0],remainingDefect:+remaining.toFixed(3)});
+ }
+});
+await test('broad natural shadows are retained instead of being mistaken for pigmentation',()=>{
+ const input=fixture();
+ for(let y=0;y<input.height;y++)for(let x=0;x<input.width;x++){const i=y*input.width+x;if(input.labels[i]!==0&&input.labels[i]!==9)continue;const shade=.64+.36*x/input.width;for(let c=0;c<3;c++)input.pixels[i*4+c]*=shade}
+ const out=finishFemaleMakeupSoftFocus(input);let difference=0,count=0;
+ for(let i=0;i<input.labels.length;i++)if(input.labels[i]===0){difference+=Math.abs(out.pixels[i*4+1]-input.pixels[i*4+1]);count++}
+ assert(difference/count<1,'natural facial shading was flattened');
+});
 await test('missing or invalid evidence leaves the original image usable',()=>{
  const f=fixture();
  for(const change of [{face:null},{skin:null},{hair:null},{skin:new Float32Array(1)},{width:0},{height:1},{face:f.face.map(()=>({x:NaN,y:0}))},{skin:new Float32Array(f.skin.length).fill(.3)},{hair:new Float32Array(f.hair.length).fill(1)}]){
@@ -93,7 +126,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v30'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-local-tone-coverage-v31'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
