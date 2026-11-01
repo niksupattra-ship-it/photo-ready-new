@@ -3,6 +3,7 @@ No production coupon, account, email, image provider or payment is used. Test
 codes below are fixture strings only; no actual issued-code list is read.
 """
 import hashlib,json,os,pathlib,re,traceback
+from studio_navigation import enter_easy_mode
 from playwright.sync_api import sync_playwright
 from PIL import Image
 ROOT=pathlib.Path(__file__).resolve().parent.parent
@@ -56,8 +57,8 @@ class Case:
   p.screenshot(path=str(OUT/(self.name+'-code-form.png')))
   return observed
  def ensure_mode(self):
-  p=self.p;p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for()
-  if self.mode=='easy':p.get_by_role('button',name='โหมดง่าย',exact=True).click();p.locator('.easy-mode').wait_for()
+  p=self.p;p.locator('.idstudio.studio-redesign').wait_for()
+  if self.mode=='easy':enter_easy_mode(p);p.locator('.easy-mode').wait_for()
  def verify_hair(self):
   p=self.p
   if self.mode=='easy':p.locator('.easy-tabs').get_by_role('button',name='ทรงผม',exact=True).click();button=p.locator('.easy-rail button').filter(has=p.locator('img[src$="/previews/7.webp"]')).first

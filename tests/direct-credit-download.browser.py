@@ -4,6 +4,7 @@ production rights, redemption, crop and delivery handlers remain unchanged.
 No customer account, AI provider, real charge or email is contacted.
 """
 import hashlib,json,os,pathlib,re,traceback
+from studio_navigation import enter_easy_mode
 from playwright.sync_api import sync_playwright
 from PIL import Image
 ROOT=pathlib.Path(__file__).resolve().parent.parent
@@ -48,8 +49,8 @@ class Case:
  def setup(self):
   p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');self.ensure_mode();assert self.remaining==2
  def ensure_mode(self):
-  p=self.p;p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for()
-  if self.mode=='easy':p.get_by_role('button',name='โหมดง่าย',exact=True).click();p.locator('.easy-mode').wait_for()
+  p=self.p;p.locator('.idstudio.studio-redesign').wait_for()
+  if self.mode=='easy':enter_easy_mode(p);p.locator('.easy-mode').wait_for()
   p.locator('.studio-stage>canvas').wait_for(state='attached');p.wait_for_timeout(100)
  def switch_job(self,id):
   self.p.evaluate('(id)=>window.__directCreditFixture.setJob(id)',id);self.ensure_mode()

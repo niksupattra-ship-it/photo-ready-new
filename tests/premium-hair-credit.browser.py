@@ -3,6 +3,7 @@ All HTTP APIs are local fixtures; the two expensive AI callbacks stop at a
 recorded fixture boundary, so no AI/provider, payment, customer, or email is used.
 """
 import base64, hashlib, json, os, pathlib, re, traceback
+from studio_navigation import enter_easy_mode
 from playwright.sync_api import sync_playwright
 BASE=os.environ.get('PREMIUM_HAIR_BASE','http://127.0.0.1:5196')
 OUT=pathlib.Path(os.environ.get('PREMIUM_HAIR_OUTPUT','/tmp/premium-hair-browser'));OUT.mkdir(parents=True,exist_ok=True)
@@ -42,8 +43,8 @@ class Case:
   fixture="""window.__hairStudio={allowed:premiumHairAllowed,clear:()=>{setAppearanceError(null);setPortraitProcessError(null)},raw:()=>{const h=state.current.find(l=>l.kind==='head');const l={...h,id:'raw_fixture',name:'รูปต้นฉบับ',kind:'source-photo',jobId:undefined};sourceLayerRef.current=l.id;setLayers([l]);setProcessHairPending(true);setPortraitMode('female');setHairGender('female');setEasyPhotoTypeSelected(true);if(sourcePhoto)sourcePhoto.idpromFemaleEyeStyle='natural';setSelectedHair('');setPortraitProcessError(null);setAppearanceError(null)}};\n"""
   s=s.replace(needle,fixture+needle,1);r.fulfill(response=response,body=s)
  def setup(self):
-  p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for();p.wait_for_function('window.__hairStudio?.allowed===true&&window.__hairApp?.creditAvailable===true')
-  if self.mode=='easy':p.get_by_role('button',name='โหมดง่าย',exact=True).click();p.locator('.easy-mode').wait_for()
+  p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.locator('.idstudio.studio-redesign').wait_for();p.wait_for_function('window.__hairStudio?.allowed===true&&window.__hairApp?.creditAvailable===true')
+  if self.mode=='easy':enter_easy_mode(p);p.locator('.easy-mode').wait_for()
  def hair(self):
   p=self.p
   if self.mode=='easy':
@@ -81,7 +82,7 @@ class Case:
   p.screenshot(path=str(OUT/(self.name+'-hair-available.png')))
   # Actual account-menu signout must immediately remove residual account balance.
   self.guest=True
-  if self.mode=='studio':p.get_by_role('button',name='โหมดง่าย',exact=True).click()
+  if self.mode=='studio':enter_easy_mode(p)
   collapse=p.get_by_role('button',name='ย่อรายการเลือก',exact=True)
   if collapse.count()and collapse.is_visible():collapse.click()
   p.get_by_role('button',name='บัญชีสมาชิก',exact=True).filter(visible=True).first.click();p.get_by_role('button',name='ลงชื่อออก',exact=True).click();p.wait_for_function('window.__hairApp.creditAvailable===false&&window.__hairStudio.allowed===false')

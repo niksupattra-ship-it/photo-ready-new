@@ -3,6 +3,7 @@ Run Vite on PAID_WARNING_BASE (default localhost:5195); optionally set WEBKIT_EX
 No customer authentication, provider call, email, charge, or production write occurs.
 """
 import hashlib, json, os, pathlib, re, traceback
+from studio_navigation import enter_easy_mode
 from playwright.sync_api import sync_playwright
 BASE=os.environ.get('PAID_WARNING_BASE','http://127.0.0.1:5195')
 OUT=pathlib.Path(os.environ.get('PAID_WARNING_OUTPUT','/tmp/paid-work-warning-browser'));OUT.mkdir(parents=True,exist_ok=True)
@@ -54,7 +55,7 @@ class Case:
   pause="if(window.__warningPausePrepare&&file?.name==='replacement-fixture.png'){window.__warningPrepareEntered=true;return new Promise(resolve=>{window.__warningReleasePrepare=()=>{window.__warningPausePrepare=false;resolve(preparePhotoInput(file))}})}"
   body=re.sub(pattern,lambda match:match.group(1)+pause,body,count=1);r.fulfill(response=response,body=body)
  def setup(self):
-  p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for();p.wait_for_function('!!window.__paidStudioFixture')
+  p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.locator('.idstudio.studio-redesign').wait_for();p.wait_for_function('!!window.__paidStudioFixture')
   # The actual current-job request is authoritative; wait until its effect ran.
   p.wait_for_timeout(250)
  def unload(self):return self.p.evaluate("(()=>{const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented})()")
@@ -64,8 +65,8 @@ class Case:
   assert 'ขอเงินคืน' in dialog.inner_text();return dialog
  def upload(self):
   return self.p.get_by_role('button',name='เปลี่ยนรูปต้นฉบับ' if self.width>1100 else 'เปลี่ยนรูป',exact=True)
- def easy(self):self.p.get_by_role('button',name='โหมดง่าย',exact=True).click();self.p.locator('.easy-mode').wait_for();assert self.p.locator('.paid-work-warning').count()==0
- def studio(self):self.p.locator('.easy-studio').click();self.p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for();assert self.p.locator('.paid-work-warning').count()==0
+ def easy(self):enter_easy_mode(self.p);self.p.locator('.easy-mode').wait_for();assert self.p.locator('.paid-work-warning').count()==0
+ def studio(self):self.p.locator('.easy-studio').click();self.p.locator('.idstudio.studio-redesign').wait_for();assert self.p.locator('.paid-work-warning').count()==0
  def file(self):
   # Actual valid PNG file, generated in the local browser without an asset dependency.
   import base64

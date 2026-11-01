@@ -5,6 +5,7 @@ AI service, or production database is contacted. Downloaded PNG bytes and user
 interface behavior are real; payment/entitlement fixtures are not live charges.
 """
 import hashlib,json,os,pathlib,re,time,traceback
+from studio_navigation import enter_easy_mode
 from playwright.sync_api import sync_playwright
 from PIL import Image
 ROOT=pathlib.Path(__file__).resolve().parent.parent
@@ -84,8 +85,8 @@ class Case:
   else:
    p.keyboard.press('Escape')
    if self.source=='payment':self.unlocked.add('job_fixture');p.evaluate('window.__downloadAuditFixture.refresh()')
-  p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for()
-  if self.mode=='easy':p.get_by_role('button',name='โหมดง่าย',exact=True).click();p.locator('.easy-mode').wait_for()
+  p.locator('.idstudio.studio-redesign').wait_for()
+  if self.mode=='easy':enter_easy_mode(p);p.locator('.easy-mode').wait_for()
   p.locator('.studio-stage>canvas').wait_for(state='attached');p.wait_for_timeout(200)
   assert len(self.downloads)==0,'Opening an entitlement fixture must not automatically export'
  def sent_events(self):return [e for body in self.posts for e in body.get('events',[])]

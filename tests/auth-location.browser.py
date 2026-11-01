@@ -3,6 +3,7 @@ No production account, email, AI provider or payment is contacted. Studio's
 actual sign-in opener is its package checkout, which creates one inert QR.
 """
 import hashlib,json,os,pathlib,re,time,traceback
+from studio_navigation import enter_easy_mode
 from playwright.sync_api import sync_playwright
 ROOT=pathlib.Path(__file__).resolve().parent.parent
 BASE=os.environ.get('AUTH_LOCATION_BASE','http://127.0.0.1:5198')
@@ -47,7 +48,7 @@ class Case:
   if self.mode=='home'and not self.retained:p.locator('.easy-home-shell').wait_for();return
   # Explicit local work recovery preserves a nonempty processed canvas. Fixture
   # storage is seeded through the unchanged production draft codec, not App hooks.
-  p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for();p.get_by_role('button',name='โหมดง่าย',exact=True).click();p.locator('.easy-mode').wait_for()
+  p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.locator('.idstudio.studio-redesign').wait_for();enter_easy_mode(p);p.locator('.easy-mode').wait_for()
   if self.retained:self.after_logout=True
   p.get_by_role('button',name='บัญชีสมาชิก',exact=True).filter(visible=True).first.click();p.get_by_role('button',name='ลงชื่อออก',exact=True).click();p.get_by_role('button',name='เมนูสมาชิก',exact=True).filter(visible=True).first.wait_for()
   if self.retained:

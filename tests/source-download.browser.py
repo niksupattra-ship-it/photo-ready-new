@@ -48,7 +48,7 @@ with sync_playwright() as pw:
   p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded')
   p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click()
   p.locator('.paired-offers').wait_for();p.keyboard.press('Escape')
-  p.get_by_role('button',name='โหมดง่าย',exact=True).wait_for()
+  p.locator('.idstudio.studio-redesign').wait_for()
   upload=lambda:p.get_by_role('button',name='เปลี่ยนรูปต้นฉบับ' if width>1100 else 'เปลี่ยนรูป',exact=True)
   def file(color):
    value=p.evaluate('''color=>{const c=document.createElement('canvas');c.width=120;c.height=160;const x=c.getContext('2d');x.fillStyle=color;x.fillRect(0,0,120,160);return c.toDataURL().split(',')[1]}''',color)

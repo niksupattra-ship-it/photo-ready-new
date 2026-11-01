@@ -1889,3 +1889,78 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
 .idstudio.studio-redesign.studio-touch .studio-touch-sheet-heading {color:var(--studio-violet-dark)}
 .idstudio.studio-redesign.studio-touch .studio-touch-adjust::before {background:#b9a5ef}
 .idstudio.studio-redesign.studio-touch .studio-touch-adjust p {color:#5e6c8a}
+
+/* Touch: an edge-to-edge header and three consistent groups above the photo. */
+.idstudio.studio-redesign.studio-touch {
+  inset:0;margin:0;max-width:none;border:0;border-radius:0;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header {
+  display:flex;flex-wrap:nowrap;align-items:center;gap:4px;
+  width:100%;height:auto;min-height:60px;max-height:none;margin:0;
+  padding:calc(8px + env(safe-area-inset-top, 0px)) max(8px, env(safe-area-inset-right, 0px)) 8px max(8px, env(safe-area-inset-left, 0px));
+  border:0;border-bottom:1px solid var(--studio-line);border-radius:0;box-shadow:none;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header > button:first-child {
+  flex:none;width:44px;min-width:44px;height:44px;min-height:44px;
+  padding:6px;border:0;border-radius:10px;background:transparent;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong {
+  flex:1;min-width:54px;overflow:visible;font-size:14px;line-height:1.2;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong em {
+  display:block;margin-top:2px;font-size:11px;font-style:normal;font-weight:600;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong em::after {content:none}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header .studio-touch-header-actions {
+  display:flex;align-items:center;flex:none;gap:4px;margin-left:auto;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header .studio-touch-header-actions > .studio-header-upload {
+  width:auto;min-width:0;height:44px;min-height:44px;max-height:44px;
+  gap:5px;padding:7px 9px;border-radius:10px;font-size:12px;box-shadow:none;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header .idprom-account-actions {
+  gap:0;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header .idprom-account-actions > button {
+  width:44px;min-width:44px;height:44px;min-height:44px;padding:11px;border:0;
+}
+.idstudio.studio-redesign.studio-touch > header.studio-touch-header .idprom-account-actions > .idprom-menu-download {
+  color:var(--studio-violet-dark) !important;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions {
+  position:relative;top:auto;left:auto;right:auto;transform:none;flex:none;
+  display:flex;align-items:center;gap:8px;width:100%;min-height:60px;
+  margin:0;padding:7px max(8px, env(safe-area-inset-right, 0px)) 7px max(8px, env(safe-area-inset-left, 0px));
+  box-sizing:border-box;border-bottom:1px solid var(--studio-line);background:var(--studio-surface);
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-action-group,
+.idstudio.studio-redesign.studio-touch .studio-touch-history {
+  display:flex;align-items:center;flex:none;gap:0;overflow:hidden;
+  border:1px solid var(--studio-line);border-radius:10px;
+  background:var(--studio-surface);box-shadow:none;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-view-actions {margin-left:auto}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-floating-history,
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-touch-history > button.studio-floating-history {
+  flex:none;width:44px;min-width:44px;height:44px;min-height:44px;
+  display:grid;place-items:center;margin:0;padding:10px;border:0;border-radius:0;
+  background:var(--studio-surface);color:var(--studio-ink);box-shadow:none;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-floating-history + .studio-floating-history {
+  border-left:1px solid var(--studio-line);
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-floating-history.active,
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-floating-history[aria-expanded="true"] {
+  background:var(--studio-lavender);color:var(--studio-violet-dark);box-shadow:none;
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-floating-history:hover:not(:disabled) {
+  background:var(--studio-lavender);color:var(--studio-violet-dark);
+}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions button:focus-visible {outline-offset:-3px}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-png-icon {width:23px;height:23px}
+.idstudio.studio-redesign.studio-touch .studio-touch-floating-actions .studio-pan-icon {width:32px;height:32px}
+@media (min-width:600px) {
+  .idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong {font-size:16px}
+  .idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong em {display:inline;margin-left:4px;font-size:14px}
+  .idstudio.studio-redesign.studio-touch .studio-touch-floating-actions {gap:12px}
+}
