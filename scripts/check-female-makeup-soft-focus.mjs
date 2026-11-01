@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {finishFemaleMakeupSoftFocus} from '../src/female-makeup-soft-focus.js';
 import {LOCAL_MAKEUP_CONTOURS as C} from '../src/local-makeup.js';
+import {productionPortraitPrompt} from '../production-portrait-pipeline.js';
+import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 
 function fixture({width=384,tone=[193,154,137],pores=8,rgba=false}={}){
  const height=Math.round(width*4/3),n=width*height,face=Array.from({length:478},()=>({x:.5,y:.5}));
@@ -46,7 +48,8 @@ for(const [name,tone]of [['light',[222,192,176]],['medium',[175,133,113]],['deep
   if(label>0&&label<9)assert.deepEqual(out.pixels.subarray(k,k+4),before.subarray(k,k+4),`protected region ${label} changed`);
   if(label===9){for(let c=0;c<3;c++){oldNoise+=(before[k+c]-input.baseline[i*3+c])**2;newNoise+=(out.pixels[k+c]-input.baseline[i*3+c])**2}oldMean+=before[k];newMean+=out.pixels[k];count++}
  }
- const remaining=Math.sqrt(newNoise/oldNoise);assert(remaining<.45,`pore contrast remains too high: ${remaining}`);
+ const remaining=Math.sqrt(newNoise/oldNoise);assert(remaining>.68&&remaining<.92,`skin needs gentle softening with fine texture retained: ${remaining}`);
+ for(let i=0;i<before.length;i++)assert(Math.abs(out.pixels[i]-before[i])<=3,'local correction exceeded the natural-skin limit');
  assert(Math.abs(oldMean-newMean)/count<.75,'skin colour/exposure drifted');
  reports.push({name,poreContrastRemaining:+remaining.toFixed(3),changedPixels:out.report.changedPixels,elapsedMs:Math.round(performance.now()-start)});
 });
@@ -55,6 +58,12 @@ await test('already smooth skin receives no second colour or lighting grade',()=
  const input=fixture({pores:0}),out=finishFemaleMakeupSoftFocus(input);let largest=0;
  for(let i=0;i<input.labels.length;i++)if(input.labels[i]===9)for(let c=0;c<3;c++)largest=Math.max(largest,Math.abs(input.pixels[i*4+c]-out.pixels[i*4+c]));
  assert(largest<=1,'already-smooth skin was polished again');
+});
+await test('subtle natural skin grain survives without another smoothing pass',()=>{
+ for(const pores of [1,2]){
+  const input=fixture({pores}),out=finishFemaleMakeupSoftFocus(input);
+  for(let i=0;i<input.labels.length;i++)if(input.labels[i]===9)assert.deepEqual(out.pixels.subarray(i*4,i*4+4),input.pixels.subarray(i*4,i*4+4),'fine native skin grain was erased');
+ }
 });
 await test('missing or invalid evidence leaves the original image usable',()=>{
  const f=fixture();
@@ -84,7 +93,14 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-soft-focus-skin-v28'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-natural-soft-focus-v29'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
+});
+await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
+ for(const hair of PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female')){
+  const prompt=productionPortraitPrompt(hair,'makeup');
+  assert(prompt.includes('Retain fine original pores'));assert(prompt.includes('Already smooth skin receives no additional smoothing'));
+  assert(!/pore-free|Remove visible facial pores|do not retain visible pores/.test(prompt));
+ }
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));
