@@ -48,7 +48,7 @@ try{
   assert.equal(body.prompt,productionPortraitPrompt(productionHair(fields.hairId),fields.femaleEyeStyle));
   assert(!body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY'));assert(body.prompt.includes('previously generated makeup or skin finish'));
   assert(body.prompt.includes('FINAL FEMALE MAKEUP TEXTURE PRIORITY'));assert(body.prompt.includes('restrained translucent rosy glow'));
-  assert(body.prompt.includes('neutral lower-eye skin'));assert(body.prompt.includes('Keep distinct dark moles'));
+  assert(body.prompt.includes('neutral lower-eye skin'));assert(body.prompt.includes('Keep stable moles, freckles'));
   assert(body.prompt.includes('Image 1 supplies the person'));assert(body.prompt.includes('Image 2 supplies the selected hairstyle only'));
   assert.deepEqual((await sharp(out).raw().toBuffer()).subarray((40*64+32)*4,(40*64+32)*4+4),Buffer.from([180,140,110,255]),'no original or reference face pixels are pasted over the generated output');
  });

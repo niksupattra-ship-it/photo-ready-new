@@ -44,62 +44,10 @@ function confidence(mask,n){
  return null;
 }
 
-// Estimate nearby healthy colour separately from pore diffusion. Analysis is
-// bounded; additive colour corrections are applied to the native skin pixels.
-function toneEyeWeight(x,y,zones){
- let weight=1;
- for(const zone of zones){const d=((x-zone.x)/zone.rx)**2+((y-zone.y)/zone.ry)**2;weight*=smooth(1,1.6,d)}
- return weight;
-}
-function toneReference(pixels,W,x0,y0,w,h,coverage,faceWidth,referenceLight,eyeZones){
- const scale=Math.min(1,480/Math.max(w,h)),aw=Math.max(1,Math.round(w*scale)),ah=Math.max(1,Math.round(h*scale)),n=aw*ah;
- const colors=Array.from({length:3},()=>new Float32Array(n)),weights=new Float32Array(n),counts=new Uint32Array(n);
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const a=Math.min(ah-1,Math.floor(y*ah/h))*aw+Math.min(aw-1,Math.floor(x*aw/w)),i=y*w+x,k=((y+y0)*W+x+x0)*4,c=coverage[i]*toneEyeWeight(x,y,eyeZones);counts[a]++;
-  if(c<.05||luma(pixels[k],pixels[k+1],pixels[k+2])<referenceLight*.5)continue;
-  weights[a]+=c;for(let channel=0;channel<3;channel++)colors[channel][a]+=pixels[k+channel]*c;
- }
- const localLight=new Float32Array(n);
- for(let i=0;i<n;i++){
-  if(weights[i])for(const color of colors)color[i]/=weights[i];
-  localLight[i]=luma(colors[0][i],colors[1][i],colors[2][i]);
-  weights[i]/=Math.max(1,counts[i]);
- }
- const radius=clamp(Math.round(faceWidth*scale*.20),8,96);
- const reference=(weight,r=radius)=>{
-  const normal=mean(weight,aw,ah,r),channels=[];
-  for(const color of colors){const input=new Float32Array(n);for(let i=0;i<n;i++)input[i]=color[i]*weight[i];const channel=mean(input,aw,ah,r,true);for(let i=0;i<n;i++)channel[i]=normal[i]>.02?channel[i]/normal[i]:color[i];channels.push(channel)}
-  return channels;
- };
- const first=reference(weights),healthy=new Float32Array(weights);
- // Downweight visible red/brown patches when finding the nearby reference;
- // do not average the blemish back into the target complexion.
- for(let i=0;i<n;i++){
-  const Y=localLight[i],refY=luma(first[0][i],first[1][i],first[2][i]);if(Y<1||refY<1)continue;
-  const ratio=Y/refY,red=(colors[0][i]-colors[1][i])-(first[0][i]-first[1][i])*ratio,warm=(colors[0][i]-colors[2][i])-(first[0][i]-first[2][i])*ratio;
-  const redSpot=smooth(6,18,red),brown=smooth(4,12,warm)*smooth(4,16,refY-Y);
-  healthy[i]*=1-.94*Math.max(redSpot,brown);
- }
- const final=reference(healthy);
- const nearby=reference(healthy,clamp(Math.round(faceWidth*scale*.055),3,24));
- for(let i=0;i<n;i++){
-  const nearY=luma(nearby[0][i],nearby[1][i],nearby[2][i]),broadY=luma(final[0][i],final[1][i],final[2][i]),blend=smooth(0,6,nearY-broadY);
-  for(let c=0;c<3;c++)final[c][i]+=(nearby[c][i]-final[c][i])*blend;
- }
- const lightRadius=clamp(Math.round(faceWidth*scale*.012),1,6),lightWeight=mean(weights,aw,ah,lightRadius),lowLight=new Float32Array(n);
- for(let i=0;i<n;i++)lowLight[i]=localLight[i]*weights[i];
- mean(lowLight,aw,ah,lightRadius,true).forEach((value,i)=>{lowLight[i]=lightWeight[i]>.05?value/lightWeight[i]:localLight[i]});
- const sample=(field,x,y)=>{
-  const px=clamp((x+.5)*aw/w-.5,0,aw-1),py=clamp((y+.5)*ah/h-.5,0,ah-1),ax=Math.floor(px),ay=Math.floor(py),bx=Math.min(aw-1,ax+1),by=Math.min(ah-1,ay+1),tx=px-ax,ty=py-ay;
-  return (field[ay*aw+ax]*(1-tx)+field[ay*aw+bx]*tx)*(1-ty)+(field[by*aw+ax]*(1-tx)+field[by*aw+bx]*tx)*ty;
- };
- return {colors:final,localLight:lowLight,sample};
-}
-
-// Female MAKEUP output only. Correct localized skin colour independently of
-// gentle pore diffusion; retain facial geometry, eye detail and native alpha.
+// Female MAKEUP output only. Selective microcontrast reduction supplies the
+// requested soft-focus skin without changing exposure, cosmetics or geometry.
 export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair}={}){
- const report={version:'female-makeup-soft-focus-v3',status:'unavailable',changedPixels:0,toneChangedPixels:0};
+ const report={version:'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
  const unchanged=()=>({pixels,changed:false,report});
  if(!Number.isSafeInteger(W)||!Number.isSafeInteger(H)||W<1||H<1||W*H>8388608||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==W*H*4)return unchanged();
  const skinAt=confidence(skin,W*H),hairAt=confidence(hair,W*H);
@@ -136,8 +84,6 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
  if(evidence<64)return unchanged();
  const referenceLight=skinLight/skinWeight;
  faceMask=null;details=null;faceSoft=null;detailSoft=null;
- const eyeZones=[[33,133],[362,263]].map(([left,right])=>{const a=point(left),b=point(right),width=Math.hypot(b.x-a.x,b.y-a.y);return {x:(a.x+b.x)/2,y:(a.y+b.y)/2,rx:width*.78,ry:width*.45}});
- const tone=toneReference(pixels,W,x0,y0,w,h,coverage,faceWidth,referenceLight,eyeZones);
  const weight=mean(coverage,w,h,radius),channels=[],square=new Float32Array(n);
  for(let c=0;c<3;c++){
   const input=new Float32Array(n);
@@ -158,22 +104,9 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
   // most native microtexture, with a small correction instead of full diffusion.
   const activity=smooth(1.5,4,Math.sqrt(variance));
   const strength=.28*activity*coverage[i]*(160/(160+variance))*(1-smooth(12,26,Math.abs(residual)));
-  let dr=(r-pixels[k])*strength,dg=(g-pixels[k+1])*strength,db=(b-pixels[k+2])*strength;
+  const dr=(r-pixels[k])*strength,dg=(g-pixels[k+1])*strength,db=(b-pixels[k+2])*strength;
   const largest=Math.max(Math.abs(dr),Math.abs(dg),Math.abs(db)),limit=largest>3?3/largest:1;
-  dr*=limit;dg*=limit;db*=limit;
-  const tr=tone.sample(tone.colors[0],x,y),tg=tone.sample(tone.colors[1],x,y),tb=tone.sample(tone.colors[2],x,y),refY=luma(tr,tg,tb);
-  if(refY>20){
-   const localY=tone.sample(tone.localLight,x,y),ratio=localY/refY,red=(pixels[k]-pixels[k+1])-(tr-tg)*ratio,warm=(pixels[k]-pixels[k+2])-(tr-tb)*ratio;
-   const redSpot=smooth(6,18,red),brown=smooth(4,12,warm)*smooth(4,16,Math.max(refY-localY,warm*1.5)),amount=Math.max(redSpot*.78,brown*.85)*coverage[i]*toneEyeWeight(x,y,eyeZones);
-   if(amount>.01){
-    // Adjust low-frequency tone while retaining the pixel's own fine shading.
-    const detail=Y-localY;
-    const lift=clamp(refY-localY,-12,28)*.9+clamp(detail,-6,6)-detail,targetRatio=(Y+lift)/refY;
-    dr+=clamp((tr*targetRatio-pixels[k])*amount,-24,24);dg+=clamp((tg*targetRatio-pixels[k+1])*amount,-24,24);db+=clamp((tb*targetRatio-pixels[k+2])*amount,-24,24);
-    report.toneChangedPixels++;
-   }
-  }
-  const nr=clamp(Math.round(pixels[k]+dr),0,255),ng=clamp(Math.round(pixels[k+1]+dg),0,255),nb=clamp(Math.round(pixels[k+2]+db),0,255);
+  const nr=clamp(Math.round(pixels[k]+dr*limit),0,255),ng=clamp(Math.round(pixels[k+1]+dg*limit),0,255),nb=clamp(Math.round(pixels[k+2]+db*limit),0,255);
   if(nr===pixels[k]&&ng===pixels[k+1]&&nb===pixels[k+2])continue;
   if(!out)out=new Uint8ClampedArray(pixels);
   out[k]=nr;out[k+1]=ng;out[k+2]=nb;
