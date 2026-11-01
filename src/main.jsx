@@ -1351,6 +1351,31 @@ async function finishFemaleMakeupEyeToneBlob(blob){
  }catch{return blob}
 }
 
+// A native-resolution, skin-only finish for the selected female makeup output.
+// Reuse existing landmark/segmentation evidence; no extra generation or credit.
+async function finishFemaleMakeupSoftFocusBlob(blob){
+ try{
+  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
+  if(!W||!H||W*H>8388608)return blob;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0],masks=await getV192MasterMasks(blob,image);
+  if(!masks.skinMask||!masks.hairMask)return blob;
+  const read=mask=>{
+   const rgba=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data,alpha=new Uint8Array(W*H);
+   for(let i=0;i<alpha.length;i++)alpha[i]=rgba[i*4+3];
+   return alpha;
+  };
+  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+  const frame=ctx.getImageData(0,0,W,H);
+  const result=await runFemaleFinishWorker({kind:'makeup-soft-focus',pixels:frame.data,width:W,height:H,face,skin:read(masks.skinMask),hair:read(masks.hairMask)},null);
+  if(!result.changed)return blob;
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(result.pixels),W,H),0,0);
+  const finished=await canvasPng(canvas);
+  for(const key of Object.getOwnPropertyNames(blob))if(key.startsWith('idprom'))Object.defineProperty(finished,key,Object.getOwnPropertyDescriptor(blob,key));
+  const cachedMasks=v192MasterMaskCache.get(blob);if(cachedMasks)v192MasterMaskCache.set(finished,cachedMasks);
+  return finished;
+ }catch{return blob}
+}
+
 // Persist measurements + a bounded first-finish guide, never a second full face.
 function femaleFinishMetadata(master,head={}){
  const profile=head.femaleFinishProfile||master?.idpromFemaleFinishProfile;
@@ -2457,7 +2482,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-fine-clear-blemish-diffusion-v27-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-soft-focus-skin-v28-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -2467,8 +2492,9 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const cleaned=await cleanPortraitClothing(result);
   assertCurrentOperation();
   let finished=cleaned;
-  // Makeup, skin and lighting are decided by AI from this request's upload.
-  // No old-profile matching or local cosmetic repaint after generation.
+  // AI supplies cosmetics and lighting from this request's upload. Only female
+  // makeup receives the final selective pore diffusion; no old-profile match.
+  if(gender==='female'&&options.femaleEyeStyle==='makeup')finished=await finishFemaleMakeupSoftFocusBlob(finished);
   assertCurrentOperation();
   return finished;
  });
@@ -4245,7 +4271,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const source=firstUploadedPhotoRef.current,mode=hairResultMode(id,portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
   const makeupKey=mode==='female'&&finishStyle==='makeup'?'upload-adaptive-korean-v1':'';
-  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-fine-clear-blemish-diffusion-v27':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference']);
+  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-soft-focus-skin-v28':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference']);
  };
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle)=>{

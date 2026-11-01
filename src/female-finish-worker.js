@@ -1,4 +1,5 @@
 import {createFemaleFinishProfile,isFemaleFinishProfile,matchFemaleFinishProfile} from './female-finish-profile.js';
+import {finishFemaleMakeupSoftFocus} from './female-makeup-soft-focus.js';
 
 // One request per short-lived worker. No model, image cache, persistent state,
 // DOM access, or network work; large native-pixel loops stay off the UI thread.
@@ -6,7 +7,10 @@ self.addEventListener('message',event=>{
  const input=event.data||{},pixels=input.pixels;
  let response;
  try{
-  if(input.profile!=null){
+  if(input.kind==='makeup-soft-focus'){
+   const result=finishFemaleMakeupSoftFocus(input);
+   response={pixels:result.pixels,changed:result.changed,profile:null,report:result.report};
+  }else if(input.profile!=null){
    if(isFemaleFinishProfile(input.profile)){
     const result=matchFemaleFinishProfile(input);
     response={pixels:result.pixels,changed:result.changed,profile:input.profile,report:result.report};
