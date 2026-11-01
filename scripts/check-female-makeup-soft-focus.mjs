@@ -93,7 +93,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v33-studio-retouch'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v34-legacy-natural-studio'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
@@ -103,18 +103,24 @@ await test('all female makeup prompts protect fine texture and avoid a pore-eras
   assert(!/pore-free|Remove visible facial pores|do not retain visible pores/.test(prompt));
  }
 });
-await test('studio relighting is limited to female makeup and preserves identity over polish',()=>{
+await test('legacy female cosmetics are used verbatim only for makeup, with current identity protection',async()=>{
+ const legacy=(await readFile(new URL('./fixtures/legacy-female-studio-finish.txt',import.meta.url),'utf8')).trim();
  for(const hair of PRODUCTION_HAIR_CATALOG){
   for(const style of ['natural','makeup']){
    const prompt=productionPortraitPrompt(hair,style);
    const applies=hair.gender==='female'&&style==='makeup';
-   assert.equal(prompt.includes('PHOTOGRAPHIC STUDIO RETOUCH, SURFACE AND LIGHT ONLY'),applies);
+   assert.equal(prompt.includes(legacy),applies);
    if(!applies)continue;
-   assert(prompt.includes('broad diffused frontal key and gentle balanced fill'));
-   assert(prompt.includes('do not fill tear troughs, sculpt cheekbones'));
-   assert(prompt.includes('preserve identity and texture'));
-   assert(prompt.includes('lower-eye skin stays neutral'));
-   assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('PHOTOGRAPHIC STUDIO RETOUCH'));
+   assert(prompt.includes('Reduce dark under-eye discoloration by approximately 70%'));
+   assert(prompt.includes('Preserve the exact original eyebrow shape, position, width and arch'));
+   assert(prompt.includes('no glossy/heavy lipstick'));
+   assert(prompt.includes('source eyelid colour'));
+   assert(!prompt.includes('without visible pores'));
+   assert(!prompt.includes('ให้ผิวขาวสว่างฟุ้ง'));
+   assert(prompt.includes('ไม่ฟอกผิว'));
+   assert(!prompt.includes('intentional diffuse midtone lift'));
+   assert(!prompt.includes('ADAPTIVE SOFT CLEAR KOREAN STUDIO STYLE'));
+   assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf(legacy));
   }
  }
 });
