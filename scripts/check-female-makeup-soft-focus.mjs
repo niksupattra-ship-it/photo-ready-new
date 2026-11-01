@@ -94,7 +94,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v40-natural-base-additions'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v41-flash-spot-concealer'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
@@ -112,6 +112,18 @@ await test('makeup uses the exact natural base and adds only the selected surfac
   const prompt=productionPortraitPrompt(hair,style);
   assert.equal(prompt.includes('NATURAL BASE WITH LASHES, BROWS, LIPS AND BRIGHT ROSY SKIN'),hair.gender==='female'&&style==='makeup');
   if(hair.gender==='female'&&style==='makeup')assert(!prompt.includes('without visible pores'));
+ }
+});
+await test('flash shadow correction and spot concealer are scoped to female makeup with identity preserved',()=>{
+ for(const hair of PRODUCTION_HAIR_CATALOG)for(const style of ['natural','makeup']){
+  const prompt=productionPortraitPrompt(hair,style),applies=hair.gender==='female'&&style==='makeup';
+  assert.equal(prompt.includes('SOFT FRONTAL STUDIO FLASH — SKIN LIGHT ONLY'),applies);
+  assert.equal(prompt.includes('LOCAL DARK-SPOT CONCEALER — SAME EXISTING GENERATION'),applies);
+  if(!applies)continue;
+  assert(prompt.includes('preserve the natural nose bridge, cheek volume, jaw/chin shading'));
+  assert(prompt.includes('genuinely uncertain dark marks rather than guessing'));
+  assert(prompt.includes('no additional generation or change to facial features'));
+  assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('SOFT FRONTAL STUDIO FLASH'));
  }
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));
