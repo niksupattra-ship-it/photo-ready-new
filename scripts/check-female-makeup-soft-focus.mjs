@@ -93,7 +93,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v35-bright-soft-fill'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v36-korean-brow-matte'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
@@ -121,6 +121,18 @@ await test('studio relighting is limited to female makeup and preserves identity
    assert(!prompt.includes('without visible pores'));
    assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('PHOTOGRAPHIC STUDIO RETOUCH'));
   }
+ }
+});
+await test('Korean brow definition and matte skin apply only to female makeup without changing anatomy',()=>{
+ for(const hair of PRODUCTION_HAIR_CATALOG)for(const style of ['natural','makeup']){
+  const prompt=productionPortraitPrompt(hair,style),applies=hair.gender==='female'&&style==='makeup';
+  assert.equal(prompt.includes('DEFINED KOREAN BROWS AND SOFT MATTE STUDIO SKIN'),applies);
+  if(!applies)continue;
+  assert(prompt.includes('Keep the original brow head/tail positions, spacing, width, arch'));
+  assert(prompt.includes('Reduce excess oily/specular shine on forehead, nose and cheeks locally'));
+  assert(prompt.includes('does not change the established lip tint/gloss or eye makeup'));
+  assert(prompt.includes('the facial features remain sharp'));
+  assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('DEFINED KOREAN BROWS'));
  }
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));

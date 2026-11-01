@@ -35,9 +35,16 @@ BRIGHT SOFT STUDIO FILL — FEMALE MAKEUP SKIN ONLY: Make the skin visibly more 
 FINAL STUDIO CHECK IN THIS SAME REQUEST: Examine forehead, both cheeks, nose, chin, ears and face-to-neck transitions for patchy colour, hard retouch boundaries, clipped highlights and excessive shadow contrast. Correct only deficient areas. Verify that the original eye shape/expression, nose, mouth, face width, jaw, chin and individual asymmetry remain unchanged. If stronger cosmetic polish conflicts with identity or authentic texture, preserve identity and texture. No contouring, facial reshaping, skin whitening, new eye detail or extra image generation.
 `;
 
+const FEMALE_KOREAN_BROW_MATTE=`
+FEMALE MAKEUP PRIORITY — DEFINED KOREAN BROWS AND SOFT MATTE STUDIO SKIN:
+BROWS: Give BOTH brows a clearly defined Korean hair-stroke finish at normal portrait viewing size. Use fine individually resolved strokes, following the original hair direction, with a softly feathered inner head, a tidy continuous body and a precise gradually tapered tail. Fill sparse gaps and clarify existing strands with natural muted brown or taupe matched to the person's hair and complexion. Keep the original brow head/tail positions, spacing, width, arch and individual asymmetry; achieve the Korean style through grooming, strand definition and pigment, not by imposing straight brows or moving the arch. Keep the lower edge tidy but softly photographic; no black block, stamped powder, tattoo outline, squared head, doubled brow, glossy lamination or crunchy sharpening. This stronger visible strand definition replaces earlier minimal-brow-grooming wording only. Never move the forehead, brow bone, eyelids or eyes to suit the brows.
+MATTE SKIN: Aim for a polished beauty-app-like SOFT MATTE complexion on this same woman, with bright diffused studio illumination. Reduce excess oily/specular shine on forehead, nose and cheeks locally into broad subdued satin-matte highlights, retaining fine pores, natural skin grain, normal folds, stable marks and subtle dimensional shading. A matte surface must not look dark, grey, chalky, powder-caked, waxy or uniformly blurred. Maintain the brighter soft frontal fill and protected midtone lift; match face, ears and retained neck continuously without whitening the underlying complexion. Keep a restrained translucent rosy tone. This matte-skin target overrides earlier skin sheen or luminous-gloss wording, but does not change the established lip tint/gloss or eye makeup. Never spread skin mattifying over brow hairs, lashes, irises, lips, hair or garment detail.
+SOFT LIGHT, SHARP FEATURES: The light is soft; the facial features remain sharp. Keep a broad softbox-like fill with smooth highlight rolloff and no bright clipping, haze, bloom, white halo or whole-image blur. Preserve the original eye shape, iris, pupil, gaze, eye reflections, nose, mouth, jaw, chin, facial proportions, age and expression. Do not enlarge eyes, slim the face, lift brows, reshape the nose or use another person's beauty template. Inspect both brows and the T-zone within this SAME existing generation. No additional AI request, pasted face or geometry change.
+`;
+
 export function femaleFinishFor(style="natural"){
  if(style!=="makeup")return REVIEW_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
- return ADAPTIVE_KOREAN_MAKEUP+FEMALE_STUDIO_RETOUCH+FEMALE_EYE_IDENTITY_PRIORITY;
+ return ADAPTIVE_KOREAN_MAKEUP+FEMALE_STUDIO_RETOUCH+FEMALE_KOREAN_BROW_MATTE+FEMALE_EYE_IDENTITY_PRIORITY;
 }
 
 export const FEMALE_MAKEUP_SOURCE_LOCK=`
