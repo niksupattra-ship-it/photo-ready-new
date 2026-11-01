@@ -73,6 +73,7 @@ import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
+import {portraitProtectedFeatures,comparePortraitProtectedFeatures} from './portrait-feature-check.js';
 import {PackageOffers} from './package-offers.jsx';
 import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
@@ -2360,16 +2361,25 @@ async function portraitFaceMetrics(blob){
  if(faceMetricsCache.has(blob))return faceMetricsCache.get(blob);
  const pending=(async()=>{const url=URL.createObjectURL(blob);try{
   const image=await loadImage(url),model=await getLandmarker();
-  return faceProportions(model.detect(image).faceLandmarks?.[0],image.naturalWidth,image.naturalHeight);
+  const face=model.detect(image).faceLandmarks?.[0],proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
+  return proportions?{...proportions,protectedFeatures:portraitProtectedFeatures(face,image.naturalWidth,image.naturalHeight)}:null;
  }finally{URL.revokeObjectURL(url)}})();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
-async function checkPortraitProportions(source,result){
+async function checkPortraitProportions(source,result,{protectFeatures=false}={}){
  const original=await portraitFaceMetrics(source),generated=await portraitFaceMetrics(result);
  const comparison=compareFaceProportions(original,generated);
  if(!comparison.ok){
   const error=Error(comparison.reason==='unmeasurable'?'ตรวจสัดส่วนใบหน้าไม่ได้ · เก็บงานเดิมไว้':'สัดส่วนใบหน้าจาก AI ต่างจากต้นฉบับ · เก็บงานเดิมไว้');
   error.code='face_proportion_changed';throw error;
+ }
+ if(protectFeatures){
+  const protectedComparison=comparePortraitProtectedFeatures(original.protectedFeatures,generated.protectedFeatures);
+  const limits={faceWidth:.08,jawWidth:.08,eyeToChin:.07,eyeToNose:.08,eyeToMouth:.08};
+  if(!protectedComparison.ok||Object.entries(limits).some(([key,limit])=>comparison.changes[key]>limit)){
+   const error=Error(protectedComparison.reason==='unmeasurable'?'ตรวจรูปตาและสัดส่วนใบหน้าไม่ครบ · เก็บงานเดิมไว้ กรุณาใช้รูปหน้าตรงที่เห็นตาชัด':'รูปตา แววตา หรือสัดส่วนใบหน้าจาก AI คลาดเคลื่อนจากต้นฉบับ · เก็บงานเดิมไว้');
+   error.code='portrait_features_changed';throw error;
+  }
  }
 }
 // Check the returned AI cutout before hydration and delivery confirmation.
@@ -2482,7 +2492,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-natural-soft-focus-v29-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v30-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -2498,7 +2508,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   return finished;
  });
- try{await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
+ try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&options.femaleEyeStyle==='makeup'});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
@@ -2537,11 +2547,12 @@ async function measuredHairRootTarget(blob){
   return calculateHairRootTarget({brow,foreheadTop});
  }finally{URL.revokeObjectURL(url)}
 }
-async function replacementFaceIdentityBox(blob){
+async function replacementFaceIdentityBox(blob,{protectFeatures=false}={}){
  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
  const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
  if(!face||ids.some(id=>!Number.isFinite(face[id]?.x)||!Number.isFinite(face[id]?.y)))throw Error('ตรวจใบหน้าในรูปใหม่ไม่สำเร็จ กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
+ if(protectFeatures&&!portraitProtectedFeatures(face,W,H))throw Error('ตรวจรูปตาในต้นฉบับไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นตาชัด');
  const xs=ids.map(id=>face[id].x),ys=ids.map(id=>face[id].y);
  const box=[Math.max(0,Math.min(...xs)),Math.max(0,Math.min(...ys)),Math.min(1,Math.max(...xs)),Math.min(1,Math.max(...ys))];
  if((box[2]-box[0])*W<16||(box[3]-box[1])*H<16)throw Error('ใบหน้าในรูปใหม่เล็กเกินไป กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
@@ -2560,10 +2571,11 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(originalFile.idpromDownloadWorkId)fd.append('downloadWorkId',originalFile.idpromDownloadWorkId);
  fd.append('femaleEyeStyle',options.femaleEyeStyle==='makeup'?'makeup':'natural');
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
- if(originalFile.idpromStudioSourceReplacement===true&&selected){
-  fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation);
+ const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female';
+ if((originalFile.idpromStudioSourceReplacement===true&&selected)||(portraitMode==='female'&&options.femaleEyeStyle==='makeup')){
+  fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput,{protectFeatures:portraitMode==='female'&&options.femaleEyeStyle==='makeup'})));assertProcessActive(operation);
  }
- fd.append('portraitMode',selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female');
+ fd.append('portraitMode',portraitMode);
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  await saveAiJobFile(originalFile);assertProcessActive(operation);
@@ -4271,7 +4283,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const source=firstUploadedPhotoRef.current,mode=hairResultMode(id,portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
   const makeupKey=mode==='female'&&finishStyle==='makeup'?'upload-adaptive-korean-v1':'';
-  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-natural-soft-focus-v29':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference']);
+  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-source-eye-lock-v30':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference']);
  };
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle)=>{

@@ -93,7 +93,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-natural-soft-focus-v29'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v30'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
