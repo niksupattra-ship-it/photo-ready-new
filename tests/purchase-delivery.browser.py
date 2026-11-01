@@ -2,7 +2,7 @@
 All API calls are intercepted, including auth/payment/storage. No real charges.
 Run PURCHASE_DELIVERY_BASE=http://127.0.0.1:5173 python3 tests/purchase-delivery.browser.py
 """
-import base64, email, io, json, os, pathlib, re, traceback
+import base64, email, hashlib, io, json, os, pathlib, re, traceback
 from datetime import datetime, timedelta, timezone
 from PIL import Image
 from playwright.sync_api import sync_playwright
@@ -13,7 +13,7 @@ SEED=re.search(r'SEED="""(.*?)"""',(ROOT/'tests/account-flow-dialog.browser.py')
 png=io.BytesIO();Image.new('RGB',(60,80),'#cbe7ff').save(png,format='PNG');PNG=png.getvalue()
 class Case:
  def __init__(self,browser,width,pkg,guest):
-  self.name=f'{width}-{pkg}-'+('guest'if guest else'member');self.width=width;self.pkg=pkg;self.guest=guest;self.paid=False;self.started=False;self.items=[];self.files={};self.calls=[];self.errors=[];self.storage_error=False
+  self.name=f'{width}-{pkg}-'+('guest'if guest else'member');self.width=width;self.pkg=pkg;self.guest=guest;self.paid=False;self.started=False;self.items=[];self.files={};self.archives=[];self.defer_next_archive=False;self.deferred_archive=None;self.calls=[];self.errors=[];self.storage_error=False
   self.ctx=browser.new_context(viewport={'width':width,'height':1000 if width>1000 else 844},has_touch=width<1000,accept_downloads=True,permissions=['clipboard-read','clipboard-write']);self.p=self.ctx.new_page();self.p.set_default_timeout(15000)
   self.p.on('pageerror',lambda e:self.errors.append(str(e)))
   self.p.route('**/*',lambda r:r.continue_()if r.request.url.startswith((BASE+'/','blob:','data:'))else r.abort())
@@ -39,12 +39,13 @@ class Case:
    mime=email.message_from_bytes(('Content-Type: '+r.request.headers['content-type']+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+r.request.post_data_buffer)
    fields={part.get_param('name',header='content-disposition'):part.get_payload(decode=True)for part in mime.walk()if part.get_content_disposition()=='form-data'}
    assert json.loads(fields['jobIds'])==['job_fixture'];data=fields['image'];assert data.startswith(b'\x89PNG')
-   now=datetime.now(timezone.utc);item={'id':'photo_fixture','jobIds':['job_fixture'],'packageId':self.pkg,'receiveUrl':'/receive/'+'a'*64,'imageUrl':'/api/purchased-photos/photo_fixture/image','previewUrl':'/api/purchased-photos/photo_fixture/preview','purchasedAt':now.isoformat(),'createdAt':now.isoformat(),'expiresAt':(now+timedelta(days=7)).isoformat(),'serverNow':now.isoformat()};self.items=[item];self.files[item['imageUrl']]=data;self.files[item['previewUrl']]=PNG;d=item
+   now=datetime.now(timezone.utc);token=hashlib.sha256(data).hexdigest();photo_id='photo_'+token[:12];item={'id':photo_id,'jobIds':['job_fixture'],'packageId':self.pkg,'receiveUrl':'/receive/'+token,'imageUrl':'/api/purchased-photos/'+photo_id+'/image','previewUrl':'/api/purchased-photos/'+photo_id+'/preview','purchasedAt':now.isoformat(),'createdAt':now.isoformat(),'expiresAt':(now+timedelta(days=7)).isoformat(),'serverNow':now.isoformat()};self.items=[item];self.files[item['imageUrl']]=data;self.files[item['previewUrl']]=PNG;self.archives.append({'item':item,'data':data});d=item
   elif path=='/api/purchased-photos':d={'items':self.items,'serverNow':datetime.now(timezone.utc).isoformat(),'days':7}
   elif path in self.files:r.fulfill(content_type='image/png',body=self.files[path]);return
   elif path.endswith('/suits'):d={'limited':False,'choices':[]}
   elif path.startswith(('/api/ai-','/api/hairstyle/')):raise AssertionError('Download must not generate another AI image')
   else:d={'ok':True}
+  if path=='/api/purchased-photos'and method=='POST'and self.defer_next_archive:self.defer_next_archive=False;self.deferred_archive=(r,d);return
   r.fulfill(status=status,content_type='application/json',body=json.dumps(d))
  def run(self):
   p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape')
@@ -66,24 +67,62 @@ class Case:
   receipt=p.get_by_role('dialog',name='รับรูป',exact=True);receipt.wait_for();receipt.get_by_text('ชำระเงินสำเร็จ',exact=False).wait_for();
   if self.storage_error:
    receipt.get_by_role('button',name='ลองเก็บลิงก์อีกครั้ง',exact=True).wait_for();assert receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).is_disabled();assert receipt.get_by_role('link',name='ดาวน์โหลดรูป',exact=True).is_visible();self.storage_error=False;receipt.get_by_role('button',name='ลองเก็บลิงก์อีกครั้ง',exact=True).click()
-  receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).wait_for(state='visible');p.wait_for_function("!!document.querySelector('.purchase-receive-link')")
-  receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).click();assert p.evaluate('navigator.clipboard.readText()')==BASE+'/receive/'+'a'*64
+  receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).wait_for(state='visible');p.wait_for_function("!!document.querySelector('.purchase-receipt .purchase-receive-link')")
+  receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).click();assert p.evaluate('navigator.clipboard.readText()')==BASE+self.items[0]['receiveUrl']
   assert receipt.get_by_role('link',name='เปิดรูปเพื่อบันทึก',exact=True).get_attribute('target')=='_blank'
   p.screenshot(path=str(OUT/(self.name+'-receipt.png')))
   with p.expect_download()as event:receipt.get_by_role('link',name='ดาวน์โหลดรูป',exact=True).click()
   path=OUT/(self.name+'.png');event.value.save_as(str(path));assert Image.open(path).size==(2256,3072)
+  # Size, position and all delivery actions share one native dialog and file.
+  assert receipt.get_by_role('group',name='เลือกขนาดรูป',exact=True).is_visible();assert p.get_by_role('dialog',name='ขนาดรูป',exact=True).count()==0
+  original_link=self.items[0]['receiveUrl'];receipt_node=receipt.locator('.purchase-page').element_handle()
+  for size_label,dimensions in [('2 นิ้ว',(944,1252)),('1.5 นิ้ว',(708,944)),('ขนาดเดิม',(2256,3072))]:
+   receipt.get_by_role('group',name='เลือกขนาดรูป',exact=True).get_by_role('button',name=re.compile('^'+re.escape(size_label))).click()
+   p.wait_for_function("document.querySelector('.purchase-receipt .purchase-primary')?.getAttribute('aria-disabled')==='false'&&!!document.querySelector('.purchase-receipt .purchase-receive-link')")
+   assert receipt_node.evaluate('el=>el===document.querySelector(".purchase-page")'),'Resizing replaced the receipt with another page'
+   assert p.locator('.photo-size-overlay').count()==0
+   receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).click();assert p.evaluate('navigator.clipboard.readText()')==BASE+self.items[0]['receiveUrl']
+   if size_label!='ขนาดเดิม':assert self.items[0]['receiveUrl']!=original_link
+   with p.expect_download()as event:receipt.get_by_role('link',name='ดาวน์โหลดรูป',exact=True).click()
+   selected=OUT/(self.name+'-'+str(dimensions[0])+'.png');event.value.save_as(str(selected));assert Image.open(selected).size==dimensions
+   assert selected.read_bytes()==self.files[self.items[0]['imageUrl']],'Copied link contains different pixels from the selected file'
+   assert p.evaluate("async()=>{const img=new Image();img.src=document.querySelector('.purchase-secondary[href]').href;await img.decode();return [img.naturalWidth,img.naturalHeight]}")==list(dimensions),'Open-image action used the previous size'
+  p.screenshot(path=str(OUT/(self.name+'-combined-size.png')))
   receipt.get_by_role('button',name='กลับไปแต่งรูป',exact=True).click();p.get_by_role('button',name='ดาวน์โหลดรูป',exact=True).filter(visible=True).first.click();receipt.wait_for();assert p.locator('.paired-offers').count()==0
   receipt.get_by_role('button',name='ดูรูปที่ซื้อแล้ว · เก็บไฟล์รับรูป 7 วัน',exact=True).click();history=p.get_by_role('dialog',name='รูปที่ซื้อแล้ว',exact=True);history.wait_for();history.get_by_role('button',name='รับรูป',exact=True).click();receipt.wait_for();assert receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).is_enabled()
   receipt.get_by_role('button',name='ปิดหน้ารับรูป',exact=True).click();p.screenshot(path=str(OUT/(self.name+'-history.png')))
   # Closing and reloading must retain access through the actual account menu.
   p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='บัญชีสมาชิก',exact=True).filter(visible=True).first.click();p.get_by_role('button',name='รูปที่ซื้อแล้ว',exact=True).click();history=p.get_by_role('dialog',name='รูปที่ซื้อแล้ว',exact=True);history.wait_for();history.get_by_role('button',name='รับรูป',exact=True).click();receipt.wait_for()
   assert len([c for c in self.calls if c==('POST','/api/payments/promptpay')])==1;assert not self.errors,self.errors
+ def check_position_and_late_link(self):
+  p=self.p;receipt=p.get_by_role('dialog',name='รับรูป',exact=True);sizes=receipt.get_by_role('group',name='เลือกขนาดรูป',exact=True)
+  self.defer_next_archive=True;sizes.get_by_role('button',name=re.compile('^2 นิ้ว')).click()
+  for _ in range(100):
+   if self.deferred_archive:break
+   p.wait_for_timeout(50)
+  assert self.deferred_archive,'Resize upload never started';assert receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).is_disabled()
+  sizes.get_by_role('button',name=re.compile(r'^1\.5 นิ้ว')).click();p.wait_for_function("document.querySelector('.purchase-receipt .purchase-primary')?.getAttribute('aria-disabled')==='false'&&!!document.querySelector('.purchase-receipt .purchase-receive-link')")
+  current_link=self.items[0]['receiveUrl'];late,data=self.deferred_archive;late.fulfill(content_type='application/json',body=json.dumps(data));self.deferred_archive=None;p.wait_for_timeout(100)
+  receipt.get_by_role('button',name='คัดลอกลิงก์รับรูป',exact=True).click();assert p.evaluate('navigator.clipboard.readText()')==BASE+current_link,'Late upload restored an older-size link'
+  initial_pixels=self.files[self.items[0]['imageUrl']];receipt.get_by_role('slider',name='ซูมครอป',exact=True).press('End')
+  p.wait_for_function("document.querySelector('.purchase-receipt .purchase-primary')?.getAttribute('aria-disabled')==='false'&&!!document.querySelector('.purchase-receipt .purchase-receive-link')")
+  assert self.files[self.items[0]['imageUrl']]!=initial_pixels,'Zoom did not affect the delivered image'
+  zoomed=self.files[self.items[0]['imageUrl']];box=receipt.locator('.photo-size-canvas-wrap').bounding_box();x=box['x']+box['width']/2;y=box['y']+box['height']/2;p.mouse.move(x,y);p.mouse.down();p.mouse.move(x,y+25,steps=5);p.mouse.up()
+  p.wait_for_function("document.querySelector('.purchase-receipt .purchase-primary')?.getAttribute('aria-disabled')==='false'&&!!document.querySelector('.purchase-receipt .purchase-receive-link')")
+  assert self.files[self.items[0]['imageUrl']]!=zoomed,'Position changes did not affect the delivered image'
+  with p.expect_popup()as opened:receipt.get_by_role('link',name='เปิดรูปเพื่อบันทึก',exact=True).click()
+  popup=opened.value;popup.locator('img').wait_for();assert popup.locator('img').evaluate('async el=>{await el.decode();return [el.naturalWidth,el.naturalHeight]}')==[708,944];popup.close()
+  assert p.get_by_role('dialog',name='ขนาดรูป',exact=True).count()==0;assert len([c for c in self.calls if c==('POST','/api/payments/promptpay')])==1
+  p.screenshot(path=str(OUT/(self.name+'-position-and-late-link.png')))
 results=[]
 with sync_playwright()as pw:
  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  for width,pkg,guest in [(390,'89',True),(390,'159',True),(1440,'89',False),(820,'159',False)]:
   case=Case(browser,width,pkg,guest)
-  try:case.run();result={'case':case.name,'passed':True}
+  try:
+   case.run()
+   if width==390 and pkg=='89':case.check_position_and_late_link()
+   result={'case':case.name,'passed':True}
   except Exception as e:
    case.p.screenshot(path=str(OUT/(case.name+'-error.png')));result={'case':case.name,'passed':False,'error':str(e),'traceback':traceback.format_exc(),'pageErrors':case.errors}
   results.append(result);print(json.dumps(result,ensure_ascii=False),flush=True);case.ctx.close()

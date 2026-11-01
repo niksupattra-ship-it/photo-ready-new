@@ -43,13 +43,14 @@ export async function cropPhotoForDownload(blob,crop,{pixelScale=1,type='image/p
  return type==='image/png'?withPrintResolution(out,300*pixelScale):out;
 }
 
-export function PhotoSizeEditor({blob,value,trial,onApply,onClose,sizes=PHOTO_SIZES,pixelScale=1,applyLabel='ใช้ขนาดนี้',busy=false}){
+export function PhotoSizeEditor({blob,value,trial,onApply,onClose,sizes=PHOTO_SIZES,pixelScale=1,applyLabel='ใช้ขนาดนี้',busy=false,embedded=false,onChange,actions}){
  const [crop,setCrop]=useState({...value}),[img,setImg]=useState(null),[error,setError]=useState('');
- const canvasRef=useRef(null),dialogRef=useRef(null),dragRef=useRef(null);
+ const canvasRef=useRef(null),dialogRef=useRef(null),dragRef=useRef(null),changeRef=useRef(onChange);changeRef.current=onChange;
+ useEffect(()=>{changeRef.current?.(crop)},[crop]);
  const size=sizes.find(s=>s.id===crop.sizeId)||sizes[0];
  const outputWidth=size.width?Math.round(size.width/25.4*300)*pixelScale:img?.naturalWidth,outputHeight=size.height?Math.round(size.height/25.4*300)*pixelScale:img?.naturalHeight;
  useEffect(()=>{let active=true;loadPhoto(blob).then(image=>{if(active)setImg(image)}).catch(e=>{if(active)setError(e.message)});return()=>{active=false}},[blob]);
- useEffect(()=>{const before=document.activeElement,overflow=document.body.style.overflow;document.body.style.overflow='hidden';dialogRef.current?.focus();return()=>{document.body.style.overflow=overflow;before?.focus?.()}},[]);
+ useEffect(()=>{if(embedded)return;const before=document.activeElement,overflow=document.body.style.overflow;document.body.style.overflow='hidden';dialogRef.current?.focus();return()=>{document.body.style.overflow=overflow;before?.focus?.()}},[embedded]);
  useEffect(()=>{
   if(!img||!canvasRef.current)return;const canvas=canvasRef.current;
   const rect=size.width?photoCropRect(img.naturalWidth,img.naturalHeight,size,crop):{x:0,y:0,width:img.naturalWidth,height:img.naturalHeight};
@@ -65,17 +66,17 @@ export function PhotoSizeEditor({blob,value,trial,onApply,onClose,sizes=PHOTO_SI
  };
  const zoom=n=>setCrop(c=>({...c,zoom:Math.max(1,Math.min(3,n))}));
  const keyDown=e=>{if(e.key==='Escape'){e.stopPropagation();if(!busy)onClose()}if(e.key==='Tab'){const nodes=[...dialogRef.current.querySelectorAll('button:not(:disabled),input:not(:disabled)')];const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialogRef.current)){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}};
- return <div className="photo-size-overlay" onPointerDown={e=>{e.stopPropagation();if(e.target===e.currentTarget&&!busy)onClose()}}>
-  <section ref={dialogRef} className="photo-size-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-size-title" tabIndex={-1} onKeyDown={keyDown}>
-   <header><div><h2 id="photo-size-title">ขนาดรูป</h2><p>ตัวอย่างก่อนดาวน์โหลด</p></div><button type="button" className="photo-size-close" aria-label="ปิดเลือกขนาดรูป" disabled={busy} onClick={onClose}>×</button></header>
+ const content=<section ref={dialogRef} className={"photo-size-dialog"+(embedded?" photo-size-embedded":"")} role={embedded?undefined:"dialog"} aria-modal={embedded?undefined:true} aria-labelledby={embedded?undefined:"photo-size-title"} tabIndex={embedded?undefined:-1} onKeyDown={embedded?undefined:keyDown}>
+   <header><div><h2 id={embedded?undefined:"photo-size-title"}>{embedded?"ปรับขนาดรูป":"ขนาดรูป"}</h2><p>{embedded?"เลือกขนาดและจัดตำแหน่งก่อนบันทึก":"ตัวอย่างก่อนดาวน์โหลด"}</p></div>{!embedded&&<button type="button" className="photo-size-close" aria-label="ปิดเลือกขนาดรูป" disabled={busy} onClick={onClose}>×</button>}</header>
    <div className="photo-size-body"><div className="photo-size-preview">
     {error?<p role="alert">{error}</p>:!img?<p role="status">กำลังเตรียมภาพ…</p>:<div className={'photo-size-canvas-wrap '+(size.width?'croppable':'')} style={{'--photo-crop-ratio':size.width?size.width/size.height:img.naturalWidth/img.naturalHeight,aspectRatio:size.width?`${size.width}/${size.height}`:`${img.naturalWidth}/${img.naturalHeight}`}} onPointerDown={e=>{if(!size.width||e.button!==0)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);const box=e.currentTarget.getBoundingClientRect();dragRef.current={id:e.pointerId,x:e.clientX,y:e.clientY,width:box.width,height:box.height,crop:{...crop}}}} onPointerMove={move} onPointerUp={()=>{dragRef.current=null}} onPointerCancel={()=>{dragRef.current=null}} onLostPointerCapture={()=>{dragRef.current=null}}>
      <canvas ref={canvasRef} aria-label="ตัวอย่างรูปตามขนาดที่เลือก"/>{size.width&&<div className="photo-size-guides" aria-hidden="true"/>}{trial&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}
     </div>}
    </div><div className="photo-size-controls">{pixelScale!==1&&outputWidth&&<p aria-live="polite">ไฟล์ดาวน์โหลด {outputWidth} × {outputHeight} px</p>}<div className="photo-size-options" role="group" aria-label="เลือกขนาดรูป">{sizes.map(s=><button type="button" key={s.id} className={crop.sizeId===s.id?'selected':''} aria-pressed={crop.sizeId===s.id} onClick={()=>setCrop({...DEFAULT_PHOTO_CROP,sizeId:s.id})}><strong>{s.label}</strong>{s.width&&<small>{s.width} × {s.height} มม.</small>}</button>)}</div>
     <div className="photo-size-adjustments">{size.width?<><p className="photo-size-hint">ลากรูปเพื่อจัดตำแหน่งในกรอบ</p><div className="photo-size-zoom"><button type="button" aria-label="ลดซูมครอป" disabled={crop.zoom<=1} onClick={()=>zoom(crop.zoom-.1)}>−</button><input aria-label="ซูมครอป" type="range" min="1" max="3" step=".01" value={crop.zoom} onChange={e=>zoom(Number(e.target.value))}/><button type="button" aria-label="เพิ่มซูมครอป" disabled={crop.zoom>=3} onClick={()=>zoom(crop.zoom+.1)}>+</button><output>{Math.round(crop.zoom*100)}%</output></div><button type="button" className="photo-size-reset" onClick={()=>setCrop({...DEFAULT_PHOTO_CROP,sizeId:size.id})}>จัดตำแหน่งใหม่</button></>:<p className="photo-size-hint">ใช้รูปขนาดเดิมโดยไม่ครอป</p>}</div>
-   </div></div><footer><button type="button" disabled={busy} onClick={onClose}>ยกเลิก</button><button type="button" className="photo-size-apply" disabled={busy||!img||!!error} onClick={()=>onApply(crop)}>{busy?'กำลังเตรียมไฟล์…':applyLabel}</button></footer>
-  </section>
- </div>;
+    {actions&&<div className="photo-size-delivery-actions">{actions({crop,ready:Boolean(img)&&!error})}</div>}
+   </div></div>{!embedded&&<footer><button type="button" disabled={busy} onClick={onClose}>ยกเลิก</button><button type="button" className="photo-size-apply" disabled={busy||!img||!!error} onClick={()=>onApply(crop)}>{busy?'กำลังเตรียมไฟล์…':applyLabel}</button></footer>}
+  </section>;
+ return embedded?content:<div className="photo-size-overlay" onPointerDown={e=>{e.stopPropagation();if(e.target===e.currentTarget&&!busy)onClose()}}>{content}</div>;
 }
 

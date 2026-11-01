@@ -671,9 +671,8 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const blob=await withDeadline(()=>new Promise((resolve,reject)=>c.toBlob(blob=>blob?resolve(blob):reject(Error('ดาวน์โหลดไม่สำเร็จ กรุณาลองใหม่')),onReceiveImage&&type==='image/jpeg'?'image/jpeg':'image/png',.97)),{timeoutMs:30000,message:'เตรียมไฟล์ภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'STUDIO_EXPORT_TIMEOUT'});
    stage='account';if(outputScopeRef.current!==accountScope||renderedOutputKey!==outputHeads(state.current).map(l=>l.jobId||(l.kind==='source-photo'?l.id:'missing')).join('|'))throw Object.assign(Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาดาวน์โหลดอีกครั้ง'),{auditCode:outputScopeRef.current!==accountScope?'account_changed':'output_changed'});
    if(onReceiveImage){
-    const receiptCrop={blob,type,project,workId,workScope,saveSequence,backupError,renderedOutputKey,accountScope,audit};
     setSavePopup(null);observe('file_prepared',{sizeId:'original',fileType:blob.type,byteSize:blob.size});
-    await onReceiveImage(blob,{name:'IDPROM-Studio-original'+(blob.type==='image/jpeg'?'.jpg':'.png'),jobIds:outputHeads(state.current).map(l=>l.jobId),automatic,audit,onChooseSize:()=>setDownloadCrop(receiptCrop)});
+    await onReceiveImage(blob,{name:'IDPROM-Studio-original'+(blob.type==='image/jpeg'?'.jpg':'.png'),jobIds:outputHeads(state.current).map(l=>l.jobId),automatic,audit,sizes:STUDIO_DOWNLOAD_SIZES,pixelScale:2});
     if(project&&saveSequence===saveSequenceRef.current)setTimeout(()=>{downloadSaveQueueRef.current=downloadSaveQueueRef.current.then(()=>save({showPopup:false,outputVerified:true,background:true,project,workId,workScope,saveSequence})).catch(()=>setStatus('รูปพร้อมรับแล้ว แต่ยังสำรองงานแก้ไขไม่ได้'))},0);
     return;
    }

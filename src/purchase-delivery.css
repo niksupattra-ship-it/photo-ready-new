@@ -7,3 +7,47 @@
 @media(max-width:600px){.purchase-surface{padding:0;background:white}.purchase-page{width:100%;min-height:100dvh;border-radius:0;padding:max(8px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));box-shadow:none}.purchased-photo-row{gap:8px;grid-template-columns:56px minmax(0,1fr) auto}.purchased-photo-row>img,.purchased-photo-placeholder{width:56px;height:74px}}
 .package-pro-modal .purchase-summary{margin-top:8px}.package-pro-modal .checkout-flow-steps{font-size:11px;gap:6px}
 .checkout-flow-auth .idprom-auth-form>button:not(.credit-modal-close):not([aria-label]){color:#7044ed!important}.checkout-flow-auth .idprom-auth-form>button:nth-last-child(2){background:#7044ed!important;color:white!important}.checkout-flow-auth .idprom-auth-form>div:first-of-type{color:#7044ed!important}
+
+/* One receipt surface contains both crop controls and the three saving actions. */
+.purchase-page.purchase-receipt-size{width:min(840px,100%)}
+.purchase-receipt-size .photo-size-dialog{width:100%;height:auto;max-height:none;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;text-align:left}
+.purchase-receipt-size .photo-size-dialog>header{min-height:0;display:block;padding:0 0 12px;border:0;background:none}
+.purchase-receipt-size .photo-size-dialog>header:before{display:none}
+.purchase-receipt-size .photo-size-dialog h2{margin:0;font-size:16px;color:#17244b}
+.purchase-receipt-size .photo-size-dialog>header p{font-size:12px;margin:4px 0 0}
+.purchase-receipt-size .photo-size-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,.85fr);align-items:start;gap:18px;padding:0;overflow:visible}
+.purchase-receipt-size .photo-size-preview{grid-column:1;grid-row:auto;display:grid;place-items:center;align-self:start;min-height:0;padding:12px;border-radius:8px;background:#f3f5fa;overflow:hidden}
+.purchase-receipt-size .photo-size-canvas-wrap{width:min(100%,340px,calc(48dvh * var(--photo-crop-ratio)));height:auto;max-height:none;border:0;border-radius:4px;box-shadow:none}
+.purchase-receipt-size .photo-size-controls{display:block;padding:0;border:0;overflow:visible;min-width:0}
+.purchase-receipt-size .photo-size-controls>p{margin:0 0 8px!important;font-size:11px;text-align:left}
+.purchase-receipt-size .photo-size-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.purchase-receipt-size .photo-size-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:42px;gap:1px;padding:6px 4px;border-radius:6px;background:white;color:#17244b;box-shadow:none}
+.purchase-receipt-size .photo-size-options button:after{display:none}
+.purchase-receipt-size .photo-size-options button.selected{border-color:#7044ed;background:#f4efff;box-shadow:inset 0 0 0 1px #7044ed;color:#6540ce}
+.purchase-receipt-size .photo-size-options strong{font-size:12px}
+.purchase-receipt-size .photo-size-options small{font-size:10px;color:#7c8397}
+.purchase-receipt-size .photo-size-adjustments{padding:6px 0 0}
+.purchase-receipt-size .photo-size-dialog .photo-size-hint{font-size:11px;margin:4px 0 7px}
+.purchase-receipt-size .photo-size-zoom{grid-template-columns:32px minmax(0,1fr) 32px 38px;gap:7px}
+.purchase-receipt-size .photo-size-zoom button{width:32px;height:32px;border-radius:6px;font-size:20px;color:#7044ed}
+.purchase-receipt-size .photo-size-zoom input{accent-color:#7044ed}
+.purchase-receipt-size .photo-size-zoom output{grid-column:auto;font-size:11px}
+.purchase-receipt-size .photo-size-reset{display:block;margin:4px auto 0;min-height:28px;color:#7044ed}
+.purchase-receipt-size .photo-size-delivery-actions{margin-top:10px;text-align:center}
+.purchase-receipt-size .photo-size-delivery-actions>.purchase-primary,.purchase-receipt-size .photo-size-delivery-actions>.purchase-secondary{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;min-height:40px;padding:9px}
+.purchase-receipt-size .purchase-secondary:disabled,.purchase-receipt-size a[aria-disabled=true]{opacity:.45;cursor:default}
+.purchase-receipt-size a[aria-disabled=true]{pointer-events:none}
+.purchase-receipt-size .photo-size-delivery-actions>p{font-size:11px;line-height:1.6}
+.purchase-receipt-size .photo-size-delivery-actions>.purchase-hint{font-size:11px;margin:10px 0 0;padding:8px}
+.purchase-receipt-footer{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;border-top:1px solid #edf0f6;margin-top:14px;padding-top:3px}
+.purchase-receipt-footer .purchase-link{margin:5px 0 0}
+@media(max-width:600px){
+ .purchase-receipt-size .photo-size-body{grid-template-columns:minmax(0,1fr);gap:12px}
+ .purchase-receipt-size .photo-size-preview{grid-column:auto;grid-row:auto;padding:8px}
+ .purchase-receipt-size .photo-size-canvas-wrap{width:auto;height:clamp(150px,25dvh,230px);max-width:100%;max-height:none}
+ .purchase-receipt-size .photo-size-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .purchase-receipt-size .photo-size-controls>p{text-align:center}
+ .purchase-receipt-size h1{margin-bottom:12px;font-size:20px}
+ .purchase-receipt-size .photo-size-dialog>header{padding-bottom:8px;text-align:center}
+ .purchase-receipt-footer{gap:6px 18px}
+}

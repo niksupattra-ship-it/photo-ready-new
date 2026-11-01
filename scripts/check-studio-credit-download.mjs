@@ -32,15 +32,14 @@ function fixture({balance=2,paid=false}={}){
  const finishDownloadCrop=handler(' const finishDownloadCrop=async','\n const duplicate=','finishDownloadCrop',e);
  return {e,events,unlocked,exportImage,finishDownloadCrop,get balance(){return remaining},count:name=>events.filter(event=>event[0]===name).length};
 }
-await test('paid receipt preserves PNG/JPG choice and optional crop without another debit or automatic device download',async()=>{
+await test('paid receipt supplies PNG/JPG and size options without another debit or automatic device download',async()=>{
  for(const type of ['image/png','image/jpeg']){
   const f=fixture({balance:0,paid:true}),received=[];
   f.e.nativeCanvas=()=>({width:900,height:1200,getContext:()=>({fillRect(){},drawImage(){}}),toBlob:(callback,encoding)=>callback(new Blob(['fixture-render'],{type:encoding}))});
   f.e.onReceiveImage=async(blob,context)=>received.push({blob,context});
   await f.exportImage(type);assert.equal(received.length,1);assert.equal(received[0].blob.type,type);assert(received[0].context.name.endsWith(type==='image/jpeg'?'.jpg':'.png'));
   assert.equal(f.count('credit'),0);assert.equal(f.count('purchase'),0);assert.equal(f.count('download'),0);
-  received[0].context.onChooseSize();assert(f.e.downloadCrop);await f.finishDownloadCrop({sizeId:'2inch'});
-  assert.equal(received.length,2);assert.equal(received[1].blob.type,type);assert.equal(f.count('credit'),0);assert.equal(f.count('download'),0);
+  assert.deepEqual(received[0].context.sizes,f.e.STUDIO_DOWNLOAD_SIZES);assert.equal(received[0].context.pixelScale,2);assert.equal(received[0].context.onChooseSize,undefined);assert.equal(f.e.downloadCrop,undefined);
  }
 });
 await test('normal Studio/Easy download redeems one premium credit at balances two and one before the size picker',async()=>{

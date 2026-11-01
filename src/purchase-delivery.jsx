@@ -1,13 +1,37 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {AccountFlowDialog} from './account-flow-dialog.jsx';
+import {PhotoSizeEditor,DEFAULT_PHOTO_CROP} from './photo-size.jsx';
 import './purchase-delivery.css';
 export function PurchaseSummary({preview,price}){return <div className="purchase-summary">{preview&&<img src={preview} alt="รูปที่เลือกซื้อ"/>}<div><strong>{price==='159'?'รับรูปนี้ + ทรงผม':'รับรูปนี้'}{price&&<> · {price} บาท</>}</strong><small>สำหรับรูปที่แสดงนี้</small></div></div>}
-export function PurchaseReceipt({receipt,onClose,onRetry,onChooseSize,onHistory}){
- const [url,setUrl]=useState(''),[message,setMessage]=useState('');
- useEffect(()=>{const next=URL.createObjectURL(receipt.blob);setUrl(next);return()=>URL.revokeObjectURL(next)},[receipt.blob]);
- const copy=async()=>{try{await navigator.clipboard.writeText(new URL(receipt.archive.receiveUrl,location.origin).href);setMessage('คัดลอกลิงก์แล้ว เปิดลิงก์นี้ใน Chrome หรือ Safari เพื่อรับรูปได้')}catch{setMessage('คัดลอกไม่ได้ กรุณาเปิดหน้ารับรูปแล้วคัดลอกที่อยู่จากเบราว์เซอร์')}};
- const event=type=>{try{receipt.audit?.delivery?.(type,{method:'save_link'})}catch{}};
- return <AccountFlowDialog label="รับรูป" onClose={onClose}><div className="purchase-surface"><section className="purchase-page purchase-receipt"><header><strong>IDพร้อม <em>Studio</em></strong><button onClick={onClose} aria-label="ปิดหน้ารับรูป">×</button></header><div className="purchase-step">5 · รับรูป</div><h1><span aria-hidden="true">✓</span> {receipt.paid?'ชำระเงินสำเร็จ':'รูปพร้อมดาวน์โหลด'}</h1><img className="purchase-receipt-photo" src={url} alt="รูปพร้อมดาวน์โหลด"/><a className="purchase-primary" href={url} download={receipt.name||'IDPROM-photo.png'} onClick={e=>{if(!url){e.preventDefault();return}event('download_requested');setMessage('ส่งคำขอดาวน์โหลดแล้ว กรุณาตรวจไฟล์ในเครื่อง')}}>ดาวน์โหลดรูป</a><a className="purchase-secondary" href={url} target="_blank" rel="noopener" onClick={()=>event('save_clicked')}>เปิดรูปเพื่อบันทึก</a><button className="purchase-secondary" disabled={!receipt.archive} onClick={copy}>คัดลอกลิงก์รับรูป</button>{receipt.archive&&<a className="purchase-receive-link" href={receipt.archive.receiveUrl} target="_blank" rel="noopener">เปิดหน้ารับรูปที่เก็บไว้</a>}{receipt.archiving&&<p role="status">กำลังเก็บลิงก์รับรูป…</p>}{receipt.error&&<div className="purchase-error" role="status">{receipt.error}<button onClick={onRetry}>ลองเก็บลิงก์อีกครั้ง</button></div>}{message&&<p role="status">{message}</p>}<p className="purchase-hint">โหลดไม่ได้? เปิดลิงก์รับรูปใน Chrome หรือ Safari</p>{onChooseSize&&<button className="purchase-link" onClick={onChooseSize}>เลือกขนาดรูปก่อนบันทึก</button>}<button className="purchase-link" onClick={onHistory}>ดูรูปที่ซื้อแล้ว · เก็บไฟล์รับรูป 7 วัน</button><button className="purchase-link" onClick={onClose}>กลับไปแต่งรูป</button></section></div></AccountFlowDialog>;
+const cropKey=crop=>JSON.stringify([crop?.sizeId||'original',crop?.x??.5,crop?.y??.5,crop?.zoom??1]);
+function DeliveryIcon({kind}){return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{kind==='download'?<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>:kind==='open'?<><path d="M14 3h7v7M21 3l-11 11"/><path d="M10 3H3v18h18v-7"/></>:<><path d="m10 13 4-4m-6 7-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 1 1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 0)"/></>}</svg>}
+export function PurchaseReceipt({receipt,onClose,onRetry,onPrepareSize,onHistory}){
+ const [file,setFile]=useState(null),[message,setMessage]=useState(''),[selectedCrop,setSelectedCrop]=useState(()=>receipt.crop||{...DEFAULT_PHOTO_CROP});
+ const latest=useRef({receipt,onPrepareSize});latest.current={receipt,onPrepareSize};
+ const selectedKey=cropKey(selectedCrop),preparedKey=cropKey(receipt.crop),targetKey=cropKey(receipt.targetCrop);
+ useEffect(()=>{const url=URL.createObjectURL(receipt.blob);setFile({url,blob:receipt.blob});return()=>URL.revokeObjectURL(url)},[receipt.blob]);
+ useEffect(()=>{
+  const current=latest.current.receipt;
+  if(selectedKey===cropKey(current.crop)&&!current.preparing&&!current.prepareError)return;
+  if(cropKey(current.targetCrop)===selectedKey&&(current.preparing||current.prepareError))return;
+  const timer=setTimeout(()=>{void latest.current.onPrepareSize({...selectedCrop})},250);return()=>clearTimeout(timer);
+ },[selectedKey,preparedKey,targetKey,receipt.preparing,receipt.prepareError]);
+ useEffect(()=>setMessage(''),[selectedKey]);
+ const copy=async()=>{try{await navigator.clipboard.writeText(new URL(receipt.archive.receiveUrl,location.origin).href);setMessage('คัดลอกลิงก์รูปตามขนาดที่เลือกแล้ว')}catch{setMessage('คัดลอกไม่ได้ กรุณาเปิดหน้ารับรูปแล้วคัดลอกที่อยู่จากเบราว์เซอร์')}};
+ const event=(type,crop)=>{try{receipt.audit?.delivery?.(type,{method:'save_link',sizeId:crop.sizeId})}catch{}};
+ const actions=({crop,ready:previewReady})=>{
+  const waiting=receipt.preparing||cropKey(crop)!==preparedKey,ready=previewReady&&!waiting&&file?.blob===receipt.blob;
+  return <><a className="purchase-primary" href={file?.url} download={receipt.name||'IDPROM-photo.png'} aria-disabled={!ready} onClick={e=>{if(!ready){e.preventDefault();return}event('download_requested',crop);setMessage('ส่งคำขอดาวน์โหลดแล้ว กรุณาตรวจไฟล์ในเครื่อง')}}><DeliveryIcon kind="download"/>ดาวน์โหลดรูป</a><a className="purchase-secondary" href={file?.url} target="_blank" rel="noopener" aria-disabled={!ready} onClick={e=>{if(!ready){e.preventDefault();return}event('save_clicked',crop)}}><DeliveryIcon kind="open"/>เปิดรูปเพื่อบันทึก</a><button className="purchase-secondary" disabled={!ready||!receipt.archive} onClick={copy}><DeliveryIcon kind="copy"/>คัดลอกลิงก์รับรูป</button>
+   {waiting&&!receipt.prepareError&&<p role="status">กำลังเตรียมไฟล์ตามขนาดที่เลือก…</p>}
+   {receipt.prepareError&&<div className="purchase-error" role="status">{receipt.prepareError}<button onClick={()=>onPrepareSize(crop)}>ลองเตรียมรูปอีกครั้ง</button></div>}
+   {ready&&receipt.archive&&<a className="purchase-receive-link" href={receipt.archive.receiveUrl} target="_blank" rel="noopener">เปิดหน้ารับรูปที่เก็บไว้</a>}
+   {ready&&receipt.archiving&&<p role="status">กำลังเก็บลิงก์รูปตามขนาดที่เลือก…</p>}
+   {ready&&receipt.error&&<div className="purchase-error" role="status">{receipt.error}<button onClick={onRetry}>ลองเก็บลิงก์อีกครั้ง</button></div>}
+   {message&&<p role="status">{message}</p>}
+   <p className="purchase-hint">โหลดไม่ได้? เปิดลิงก์รับรูปใน Chrome หรือ Safari</p>
+  </>;
+ };
+ return <AccountFlowDialog label="รับรูป" onClose={onClose}><div className="purchase-surface"><section className="purchase-page purchase-receipt purchase-receipt-size"><header><strong>IDพร้อม <em>Studio</em></strong><button onClick={onClose} aria-label="ปิดหน้ารับรูป">×</button></header><div className="purchase-step">5 · รับรูป</div><h1><span aria-hidden="true">✓</span> {receipt.paid?'ชำระเงินสำเร็จ':'รูปพร้อมดาวน์โหลด'}</h1><PhotoSizeEditor embedded blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} sizes={receipt.sizes} pixelScale={receipt.pixelScale||2} onChange={setSelectedCrop} actions={actions}/><footer className="purchase-receipt-footer"><button className="purchase-link" onClick={onHistory}>ดูรูปที่ซื้อแล้ว · เก็บไฟล์รับรูป 7 วัน</button><button className="purchase-link" onClick={onClose}>กลับไปแต่งรูป</button></footer></section></div></AccountFlowDialog>;
 }
 export function PurchasedPhotos({request,headers,onClose,onOpen}){
  const active=useRef(false),opening=useRef(null);

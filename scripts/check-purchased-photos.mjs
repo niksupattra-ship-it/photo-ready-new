@@ -55,6 +55,12 @@ try{
   const items=(await(await get('/api/purchased-photos','a')).json()).items;assert.equal(items.length,2);assert(items.some(i=>i.packageId==='159'));
   assert.equal((await get(receipt.receiveUrl)).status,200);
  });
+ await check('returning to an earlier size makes it the current history file without extending its link or expiry',async()=>{
+  const restored=await(await upload('a')).json();assert.equal(restored.id,receipt.id);assert.equal(restored.expiresAt,receipt.expiresAt);
+  const items=(await(await get('/api/purchased-photos','a')).json()).items;assert.equal(items.find(item=>item.jobIds.includes('job_a')).id,receipt.id);
+  await db.query('ALTER TABLE purchased_photo_files DROP COLUMN updated_at');await createPurchasedPhotoStore(db).ready();
+  const row=await store.byToken(receipt.receiveUrl.split('/').pop());assert.equal(new Date(row.expires_at).toISOString(),receipt.expiresAt);assert(row.image);assert(row.updated_at);
+ });
  await check('refund/revocation blocks existing links immediately',async()=>{
   allowed.delete('a:job_a');assert.equal((await get(receipt.receiveUrl)).status,403);assert.equal((await get(receipt.imageUrl,'a')).status,403);allowed.add('a:job_a');
  });

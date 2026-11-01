@@ -3066,8 +3066,25 @@ function App(){
  };
  const receivePurchasedImage=async(blob,context={})=>{
   const scope=walletScope(authToken(),currentWalletId()),id=++receiveSequence.current;
-  const entry={...context,id,scope,blob,jobIds:context.jobIds||[currentOutputJobRef.current],paid:Boolean(context.automatic&&/^pi_/.test(downloadUnlockSignal?.id||'')),archiving:!context.archive,error:''};
+  const entry={...context,id,receiptKey:id,scope,blob,sourceBlob:context.sourceBlob||blob,sourceName:context.name||'IDPROM-photo.png',crop:context.crop||{...DEFAULT_PHOTO_CROP},pixelScale:context.pixelScale||2,jobIds:context.jobIds||[currentOutputJobRef.current],paid:Boolean(context.automatic&&/^pi_/.test(downloadUnlockSignal?.id||'')),archiving:!context.archive,error:''};
   receivePhotoRef.current=entry;setReceivePhoto(entry);if(!context.archive)void archiveReceivedPhoto(entry);
+ };
+ // Resize the frozen, already-authorized image. Clear its displayed old link
+ // until ready, and prevent stale encoding/uploads from replacing the current file.
+ const prepareReceivedPhoto=async crop=>{
+  const current=receivePhotoRef.current;if(!current||current.scope!==walletScope(authToken(),currentWalletId()))return;
+  const entry={...current,id:++receiveSequence.current,preparing:true,targetCrop:{...crop},prepareError:'',archive:null,archiving:false,error:''};
+  receivePhotoRef.current=entry;setReceivePhoto(entry);
+  const active=()=>receiveSequence.current===entry.id&&entry.scope===walletScope(authToken(),currentWalletId());
+  try{
+   const type=entry.sourceBlob.type==='image/jpeg'?'image/jpeg':'image/png';
+   const blob=await withDeadline(()=>cropPhotoForDownload(entry.sourceBlob,crop,{pixelScale:entry.pixelScale,type}),{timeoutMs:30000,message:'เตรียมขนาดรูปไม่สำเร็จ กรุณาลองอีกครั้ง',code:'RECEIPT_CROP_TIMEOUT'});
+   if(!active())return;
+   const name=crop.sizeId==='original'?entry.sourceName:'IDPROM-'+crop.sizeId+(type==='image/jpeg'?'.jpg':'.png');
+   const next={...entry,blob,name,crop:{...crop},preparing:false,archiving:true};
+   try{entry.audit?.emit('file_prepared',{sizeId:crop.sizeId,fileType:blob.type,byteSize:blob.size})}catch{}
+   receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next);
+  }catch(e){if(active()){const next={...entry,preparing:false,prepareError:e.message||'เตรียมขนาดรูปไม่สำเร็จ กรุณาลองอีกครั้ง'};receivePhotoRef.current=next;setReceivePhoto(next)}}
  };
  const [packageCodeOpen,setPackageCodeOpen]=useState(false),[packageCodeInput,setPackageCodeInput]=useState(''),[packageCodeBusy,setPackageCodeBusy]=useState(false),[packageCodeMessage,setPackageCodeMessage]=useState(''),[packageCodeResult,setPackageCodeResult]=useState(null),[packageCodeSourcePending,setPackageCodeSourcePending]=useState(false);
  const packageCodeBusyRef=useRef(false),packageCodeContextRef=useRef(null);
@@ -3454,7 +3471,7 @@ function App(){
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;
  const DownloadNoticeUI=()=>downloadNotice&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role={downloadNotice.state==='error'?'alertdialog':'dialog'} aria-modal="true" aria-labelledby="preview-download-title" aria-busy={downloadNotice.state==='working'}><h2 id="preview-download-title">{downloadNotice.title}</h2><p role={downloadNotice.state==='working'?'status':undefined} aria-live="polite">{downloadNotice.message}</p>{downloadNotice.state==='error'&&<button autoFocus style={{marginTop:20}} onClick={()=>setDownloadNotice(null)}>ตกลง</button>}</section></div>;
- const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt receipt={receivePhoto} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onChooseSize={receivePhoto.onChooseSize?()=>{const choose=receivePhoto.onChooseSize;closeReceivePhoto();choose()}:undefined} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
+ const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
  const SavedWorkUI=()=> <>{PurchaseDeliveryUI()}{PackageCodeUI()}<TrialChoiceUI/><DownloadNoticeUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} initialData={knownWalletData} accountScope={walletScope(authToken(),currentWalletId())} unlimited={privateTrialActive} onRights={data=>acceptWalletRights(data)} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}} onCode={openPackageCode}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const startCheckout=async(packageId,authenticated=false)=>{
   // New basic purchases use the current price; frozen QR/Checkout receipts
@@ -4666,7 +4683,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    ensureCurrent();
    beautyBaseRef.current=base;beautyPreviewBaseRef.current=null;showBlob(out);
    observe('file_prepared',{sizeId:crop.sizeId,fileType:downloadBlob.type,byteSize:downloadBlob.size});stage='delivery';
-   await receivePurchasedImage(downloadBlob,{jobIds:[jobId],name:crop.sizeId==='original'?'photo-ready.png':`photo-ready-${crop.sizeId}.png`,automatic,audit});const delivery='receipt';analyticsEvent('idprom_download_requested',{size_id:crop.sizeId,delivery});
+   await receivePurchasedImage(downloadBlob,{jobIds:[jobId],name:crop.sizeId==='original'?'photo-ready.png':`photo-ready-${crop.sizeId}.png`,sourceBlob:out,crop,pixelScale:1,automatic,audit});const delivery='receipt';analyticsEvent('idprom_download_requested',{size_id:crop.sizeId,delivery});
    setDownloadNotice(null);
   }catch(e){observe('download_failed',{errorStage:e?.auditCode?'account':stage,errorCode:e?.auditCode||(/TIMEOUT/.test(e?.code||'')?'timeout':stage==='rights'?'rights_unavailable':stage==='delivery'?'delivery_failed':stage==='crop'?'crop_failed':'render_failed')});const message=e?.message||'ดาวน์โหลดภาพไม่สำเร็จ กรุณาลองอีกครั้ง';analyticsEvent('idprom_download_error',{error_stage:'download'});setMsg(message);setDownloadNotice({state:'error',title:'ดาวน์โหลดไม่สำเร็จ',message})}finally{downloadBusyRef.current=false;setDownloadBusy(false)}
  };
