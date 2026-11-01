@@ -44,10 +44,10 @@ function confidence(mask,n){
  return null;
 }
 
-// Female MAKEUP output only. Selective microcontrast reduction supplies the
-// requested soft-focus skin without changing exposure, cosmetics or geometry.
-export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair}={}){
- const report={version:'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
+// Female MAKEUP output only. The default preserves colour/exposure; opt-in
+// brightRosy adds bounded skin light and colour without resampling geometry.
+export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair,brightRosy=false}={}){
+ const report={version:brightRosy?'female-makeup-bright-rosy-v1':'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
  const unchanged=()=>({pixels,changed:false,report});
  if(!Number.isSafeInteger(W)||!Number.isSafeInteger(H)||W<1||H<1||W*H>8388608||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==W*H*4)return unchanged();
  const skinAt=confidence(skin,W*H),hairAt=confidence(hair,W*H);
@@ -59,12 +59,23 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
  if(faceWidth<48||faceWidth>Math.hypot(W,H))return unchanged();
  const radius=clamp(Math.round(faceWidth*.0045),1,6),guard=clamp(Math.round(faceWidth*.009),2,12);
  const oval=LOCAL_MAKEUP_CONTOURS.face.map(full),padding=radius+guard+2;
- const x0=clamp(Math.floor(Math.min(...oval.map(p=>p.x)))-padding,0,W),x1=clamp(Math.ceil(Math.max(...oval.map(p=>p.x)))+padding,0,W);
- const y0=clamp(Math.floor(Math.min(...oval.map(p=>p.y)))-padding,0,H),y1=clamp(Math.ceil(Math.max(...oval.map(p=>p.y)))+padding,0,H);
+ const x0=brightRosy?0:clamp(Math.floor(Math.min(...oval.map(p=>p.x)))-padding,0,W),x1=brightRosy?W:clamp(Math.ceil(Math.max(...oval.map(p=>p.x)))+padding,0,W);
+ const y0=brightRosy?0:clamp(Math.floor(Math.min(...oval.map(p=>p.y)))-padding,0,H),y1=brightRosy?H:clamp(Math.ceil(Math.max(...oval.map(p=>p.y)))+padding,0,H);
  const w=x1-x0,h=y1-y0,n=w*h;if(w<12||h<12)return unchanged();
  const point=id=>{const p=full(id);return {x:p.x-x0,y:p.y-y0}};
+ const lowerEyes=brightRosy?[[33,133,145],[362,263,374]].map(([a,b,lower])=>{
+  const left=full(a),right=full(b),lid=full(lower),width=Math.abs(right.x-left.x);
+  return {x0:Math.min(left.x,right.x)-width*.1,x1:Math.max(left.x,right.x)+width*.1,y0:lid.y,y1:lid.y+width*.65};
+ }):[];
  let faceMask=new Float32Array(n),details=new Float32Array(n);
  polygon(faceMask,LOCAL_MAKEUP_CONTOURS.face.map(point),w,h);
+ // Include confidently segmented neck/clavicle skin below the chin so the
+ // brighter face does not sit above an untreated neck. Hair/alpha/skin gates
+ // still reject garment and background pixels; never invent missing anatomy.
+ if(brightRosy){
+  const chin=Math.ceil(point(152).y);
+  for(let y=Math.max(0,chin);y<h;y++)for(let x=0;x<w;x++)faceMask[y*w+x]=1;
+ }
  for(const ids of features)polygon(details,ids.map(point),w,h);
  // Nostril openings stay sharp; nose skin itself can receive pore diffusion.
  for(const id of [98,327]){
@@ -106,7 +117,13 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
   const strength=.28*activity*coverage[i]*(160/(160+variance))*(1-smooth(12,26,Math.abs(residual)));
   const dr=(r-pixels[k])*strength,dg=(g-pixels[k+1])*strength,db=(b-pixels[k+2])*strength;
   const largest=Math.max(Math.abs(dr),Math.abs(dg),Math.abs(db)),limit=largest>3?3/largest:1;
-  const nr=clamp(Math.round(pixels[k]+dr*limit),0,255),ng=clamp(Math.round(pixels[k+1]+dg*limit),0,255),nb=clamp(Math.round(pixels[k+2]+db*limit),0,255);
+  // Low-frequency additive fill preserves native detail instead of replacing
+  // skin colour with a sampled patch. Fade smoothly near highlights and mask
+  // edges; already rosy skin receives less additional pink.
+  const fill=brightRosy?coverage[i]*(1-smooth(165,240,average))*(1-smooth(230,246,Y)):0;
+  const neutralLowerEye=lowerEyes.some(box=>x+x0>=box.x0&&x+x0<=box.x1&&y+y0>=box.y0&&y+y0<=box.y1);
+  const lift=18*fill,rose=neutralLowerEye?0:3*fill*(1-smooth(38,68,r-g));
+  const nr=clamp(Math.round(pixels[k]+dr*limit+lift+rose),0,255),ng=clamp(Math.round(pixels[k+1]+dg*limit+lift-rose*.6),0,255),nb=clamp(Math.round(pixels[k+2]+db*limit+lift+rose*.3),0,255);
   if(nr===pixels[k]&&ng===pixels[k+1]&&nb===pixels[k+2])continue;
   if(!out)out=new Uint8ClampedArray(pixels);
   out[k]=nr;out[k+1]=ng;out[k+2]=nb;
