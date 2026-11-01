@@ -93,7 +93,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v36-korean-brow-matte'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v38-local-studio-retouch'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
@@ -134,5 +134,37 @@ await test('Korean brow definition and matte skin apply only to female makeup wi
   assert(prompt.includes('the facial features remain sharp'));
   assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('DEFINED KOREAN BROWS'));
  }
+});
+await test('local studio retouch reduces a tonal patch without replacing facial features or alpha',()=>{
+ const f=fixture({pores:2}),cx=Math.round(f.width*.355),cy=Math.round(f.height*.53);
+ for(let y=cy-10;y<=cy+10;y++)for(let x=cx-10;x<=cx+10;x++){
+  const k=(y*f.width+x)*4,delta=18*Math.exp(-((x-cx)**2+(y-cy)**2)/18);
+  for(let c=0;c<3;c++)f.pixels[k+c]-=delta;
+ }
+ const before=f.pixels.slice(),out=finishFemaleMakeupSoftFocus({...f,studioRetouch:true}),center=(cy*f.width+cx)*4;
+ assert(out.changed);assert.deepEqual(f.pixels,before);
+ assert(out.pixels[center+1]>before[center+1]+3,'dark patch did not receive local concealing');
+ for(let i=0;i<f.labels.length;i++){
+  const k=i*4;assert.equal(out.pixels[k+3],before[k+3]);
+  if(f.labels[i]>0&&f.labels[i]<9)assert.deepEqual(out.pixels.subarray(k,k+4),before.subarray(k,k+4));
+  for(let c=0;c<3;c++)assert(Math.abs(out.pixels[k+c]-before[k+c])<=11,'correction exceeded bound');
+ }
+ assert(main.includes("kind:'makeup-soft-focus',studioRetouch:true"));
+ reports.push({name:'local concealed patch',greenLift:out.pixels[center+1]-before[center+1]});
+});
+await test('local studio finish leaves missing evidence and clipped highlights intact',()=>{
+ const f=fixture({tone:[250,250,250],pores:0}),out=finishFemaleMakeupSoftFocus({...f,studioRetouch:true});
+ for(let i=0;i<f.labels.length;i++)if(f.labels[i]===9)assert.deepEqual(out.pixels.subarray(i*4,i*4+4),f.pixels.subarray(i*4,i*4+4));
+ assert.equal(finishFemaleMakeupSoftFocus({...f,skin:null,studioRetouch:true}).changed,false);
+});
+await test('local matte finish reduces a small shine patch relative to surrounding skin',()=>{
+ const f=fixture({pores:0}),cx=Math.round(f.width*.355),cy=Math.round(f.height*.53);
+ for(let y=cy-12;y<=cy+12;y++)for(let x=cx-12;x<=cx+12;x++){
+  const k=(y*f.width+x)*4,delta=18*Math.exp(-((x-cx)**2+(y-cy)**2)/18);
+  for(let c=0;c<3;c++)f.pixels[k+c]+=delta;
+ }
+ const out=finishFemaleMakeupSoftFocus({...f,studioRetouch:true}),k=(cy*f.width+cx)*4,near=(cy*f.width+cx+16)*4;
+ const before=f.pixels[k+1]-f.pixels[near+1],after=out.pixels[k+1]-out.pixels[near+1];
+ assert(after<before-2,`shine contrast not reduced: ${before} -> ${after}`);
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));
