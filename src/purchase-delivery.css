@@ -10,8 +10,13 @@
 
 /* One receipt surface contains both crop controls and the three saving actions. */
 .purchase-page.purchase-receipt-size{width:min(840px,100%)}
+.purchase-receipt-size>.purchase-receipt-header{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px}
+.purchase-receipt-size>.purchase-receipt-header>strong{justify-self:start;text-align:left;white-space:nowrap}
+.purchase-receipt-size>.purchase-receipt-header>h1{display:flex;align-items:center;justify-content:center;gap:8px;margin:0;font-size:22px;line-height:1.35;white-space:nowrap}
+.purchase-receipt-size>.purchase-receipt-header>h1>span{flex:0 0 30px}
+.purchase-receipt-size>.purchase-receipt-header>button{justify-self:end}
 .purchase-receipt-size .photo-size-dialog{width:100%;height:auto;max-height:none;border:0;border-radius:0;background:none;box-shadow:none;overflow:visible;text-align:left}
-.purchase-receipt-size .photo-size-dialog>header{min-height:0;display:block;padding:0 0 12px;border:0;background:none}
+.purchase-receipt-size .photo-size-dialog>header{min-height:0;display:block;padding:12px 0;border:0;background:none}
 .purchase-receipt-size .photo-size-dialog>header:before{display:none}
 .purchase-receipt-size .photo-size-dialog h2{margin:0;font-size:16px;color:#17244b}
 .purchase-receipt-size .photo-size-dialog>header p{font-size:12px;margin:4px 0 0}
@@ -42,12 +47,23 @@
 .purchase-receipt-footer{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;border-top:1px solid #edf0f6;margin-top:14px;padding-top:3px}
 .purchase-receipt-footer .purchase-link{margin:5px 0 0}
 @media(max-width:600px){
+ .purchase-receipt-size>.purchase-receipt-header{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px}
+ .purchase-receipt-size>.purchase-receipt-header>strong{font-size:16px;line-height:1.25}
+ .purchase-receipt-size>.purchase-receipt-header>strong em{display:block}
+ .purchase-receipt-size>.purchase-receipt-header>h1{font-size:18px;gap:6px}
+ .purchase-receipt-size>.purchase-receipt-header>h1>span{width:25px;height:25px;flex-basis:25px}
+ .purchase-receipt-size>.purchase-receipt-header>button{width:36px;height:36px}
  .purchase-receipt-size .photo-size-body{grid-template-columns:minmax(0,1fr);gap:12px}
  .purchase-receipt-size .photo-size-preview{grid-column:auto;grid-row:auto;padding:8px}
  .purchase-receipt-size .photo-size-canvas-wrap{width:auto;height:clamp(150px,25dvh,230px);max-width:100%;max-height:none}
  .purchase-receipt-size .photo-size-options{grid-template-columns:repeat(3,minmax(0,1fr))}
  .purchase-receipt-size .photo-size-controls>p{text-align:center}
  .purchase-receipt-size h1{margin-bottom:12px;font-size:20px}
- .purchase-receipt-size .photo-size-dialog>header{padding-bottom:8px;text-align:center}
+ .purchase-receipt-size .photo-size-dialog>header{padding:10px 0;text-align:left}
  .purchase-receipt-footer{gap:6px 18px}
+}
+@media(max-width:420px){
+ .purchase-receipt-size>.purchase-receipt-header>strong{font-size:14px;line-height:1.25}
+ .purchase-receipt-size>.purchase-receipt-header>strong em{display:block}
+ .purchase-receipt-size>.purchase-receipt-header>h1{font-size:15px}
 }
