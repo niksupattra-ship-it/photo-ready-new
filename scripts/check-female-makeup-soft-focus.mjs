@@ -93,7 +93,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v37-visible-rosy-fill'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v36-korean-brow-matte'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
@@ -133,50 +133,6 @@ await test('Korean brow definition and matte skin apply only to female makeup wi
   assert(prompt.includes('does not change the established lip tint/gloss or eye makeup'));
   assert(prompt.includes('the facial features remain sharp'));
   assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('DEFINED KOREAN BROWS'));
- }
-});
-await test('bright rosy fill measurably lifts skin across complexions while protecting features and alpha',()=>{
- for(const tone of [[222,192,176],[175,133,113],[104,72,59]]){
-  const f=fixture({tone}),before=f.pixels.slice(),out=finishFemaleMakeupSoftFocus({...f,brightRosy:true});
-  let lift=0,pink=0,count=0;
-  assert.deepEqual(f.pixels,before);
-  for(let i=0;i<f.labels.length;i++){
-   const k=i*4;assert.equal(out.pixels[k+3],before[k+3]);
-   if(f.labels[i]>0&&f.labels[i]<9)assert.deepEqual(out.pixels.subarray(k,k+4),before.subarray(k,k+4));
-   if(f.labels[i]===9){
-    lift+=out.pixels[k+1]-before[k+1];
-    pink+=(out.pixels[k]-out.pixels[k+1])-(before[k]-before[k+1]);count++;
-   }
-  }
-  assert(lift/count>5,`skin lift too weak: ${lift/count}`);
-  assert(pink/count>1,`rosy balance missing: ${pink/count}`);
-  reports.push({name:'bright-rosy '+tone.join(','),greenLift:+(lift/count).toFixed(2),redGreenShift:+(pink/count).toFixed(2)});
- }
-});
-await test('bright fill protects near-white highlights and needs valid masks',()=>{
- const f=fixture({tone:[250,250,250],pores:0}),out=finishFemaleMakeupSoftFocus({...f,brightRosy:true});
- for(let i=0;i<f.labels.length;i++)if(f.labels[i]===9)assert.deepEqual(out.pixels.subarray(i*4,i*4+4),f.pixels.subarray(i*4,i*4+4));
- assert.equal(finishFemaleMakeupSoftFocus({...fixture(),skin:null,brightRosy:true}).changed,false);
- assert(main.includes("kind:'makeup-soft-focus',brightRosy:true"));
-});
-await test('the same bright fill reaches segmented neck skin without tinting its background',()=>{
- const f=fixture();
- for(let y=Math.floor(f.height*.91);y<Math.floor(f.height*.98);y++)for(let x=Math.floor(f.width*.44);x<Math.floor(f.width*.56);x++){
-  const i=y*f.width+x;f.skin[i]=1;f.hair[i]=0;f.pixels.set([175,133,113,255],i*4);
- }
- const out=finishFemaleMakeupSoftFocus({...f,brightRosy:true});
- const k=(Math.floor(f.height*.95)*f.width+Math.floor(f.width*.5))*4;
- assert(out.pixels[k+1]>f.pixels[k+1]+10);
- const bg=(Math.floor(f.height*.95)*f.width+5)*4;
- assert.deepEqual(out.pixels.subarray(bg,bg+4),f.pixels.subarray(bg,bg+4));
-});
-await test('under-eye fill lifts light without adding pink pigment',()=>{
- const f=fixture({pores:0}),out=finishFemaleMakeupSoftFocus({...f,brightRosy:true});
- for(const x of [.36,.64]){
-  const k=(Math.floor(f.height*.445)*f.width+Math.floor(f.width*x))*4;
-  assert(out.pixels[k+1]>f.pixels[k+1]);
-  const chroma=(out.pixels[k]-out.pixels[k+1])-(f.pixels[k]-f.pixels[k+1]);
-  assert(Math.abs(chroma)<=1,'lower-eye skin received pink pigment');
  }
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));

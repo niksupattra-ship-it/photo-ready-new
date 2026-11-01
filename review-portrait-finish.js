@@ -42,14 +42,9 @@ MATTE SKIN: Aim for a polished beauty-app-like SOFT MATTE complexion on this sam
 SOFT LIGHT, SHARP FEATURES: The light is soft; the facial features remain sharp. Keep a broad softbox-like fill with smooth highlight rolloff and no bright clipping, haze, bloom, white halo or whole-image blur. Preserve the original eye shape, iris, pupil, gaze, eye reflections, nose, mouth, jaw, chin, facial proportions, age and expression. Do not enlarge eyes, slim the face, lift brows, reshape the nose or use another person's beauty template. Inspect both brows and the T-zone within this SAME existing generation. No additional AI request, pasted face or geometry change.
 `;
 
-const FEMALE_VISIBLE_ROSY_FILL=`
-FINAL FEMALE MAKEUP COMPLEXION TARGET — VISIBLY BRIGHT SOFT MATTE ROSY SKIN:
-The requested cosmetic result is clearly brighter, softly diffused and fair-rosy (ผิวสว่างฟุ้ง ขาวอมชมพู), not merely a barely perceptible correction of the source. Establish a visible soft frontal fill and gentle luminous skin midtones across face, ears and retained neck while retaining natural undertone relationships and dimensional shading. Use a translucent pink cosmetic balance rather than leaving yellow/grey dullness; do not turn the skin red, orange, grey or opaque white. This visible cosmetic tone target overrides earlier barely-there warmth, minimal lift and instructions to leave well-exposed skin entirely unadjusted. Protect bright highlights, fine original pores, stable marks and all original anatomy. Keep lower-eye skin neutral, with no pink eyeshadow below the eyes. Keep the Korean brow definition, existing lip makeup and matte T-zone. Do not alter eye shape, gaze, jaw, nose, mouth, face width, age or expression. No global blur, painted contours, whitening mask, clipped highlights or extra AI generation. The application adds one bounded skin-only bright-rosy fill to a fresh result, so do not add a second exaggerated tone pass or erase texture to demonstrate brightness.
-`;
-
 export function femaleFinishFor(style="natural"){
  if(style!=="makeup")return REVIEW_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
- return ADAPTIVE_KOREAN_MAKEUP+FEMALE_STUDIO_RETOUCH+FEMALE_KOREAN_BROW_MATTE+FEMALE_VISIBLE_ROSY_FILL+FEMALE_EYE_IDENTITY_PRIORITY;
+ return ADAPTIVE_KOREAN_MAKEUP+FEMALE_STUDIO_RETOUCH+FEMALE_KOREAN_BROW_MATTE+FEMALE_EYE_IDENTITY_PRIORITY;
 }
 
 export const FEMALE_MAKEUP_SOURCE_LOCK=`
