@@ -142,7 +142,8 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   async claim(source,target,job){
    await ready();const ids=await jobIds(source,job),c=await pool.connect();try{
     await c.query('BEGIN');
-    await c.query('UPDATE ai_jobs SET wallet_id=$3 WHERE wallet_id=$1 AND id=ANY($2::text[]) AND usage_id LIKE \'free_%\'',[source,ids,target]);
+    // Match claimTrialImage for every eligible sibling, including legacy previews.
+    await c.query("UPDATE ai_jobs SET wallet_id=$3 WHERE wallet_id=$1 AND id=ANY($2::text[]) AND (usage_id LIKE 'free_%' OR usage_id LIKE 'trial_%')",[source,ids,target]);
     await c.query('UPDATE download_works SET wallet_id=$3 WHERE wallet_id=$1 AND id IN (SELECT work_id FROM download_work_jobs WHERE job_id=$2)',[source,job,target]);
     await c.query('UPDATE download_work_jobs SET wallet_id=$3 WHERE wallet_id=$1 AND job_id=ANY($2::text[])',[source,ids,target]);await c.query('COMMIT');
    }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}

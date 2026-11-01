@@ -14,7 +14,8 @@ function fixture({premium=2,legacy=0}={}){
  const events=[],unlocked=new Map(),storage={token:'fixture-token',wallet:'fixture-wallet'};
  let balance={premium,legacy};
  const summary=()=>({walletId:storage.wallet,processRemaining:balance.legacy,premiumDownloadRemaining:balance.premium});
- const e={walletScope,hasWalletBalance,checkoutReturnRef:{current:null},checkoutBusyRef:{current:false},currentOutputJobRef:{current:'job-a'},savedWorkOpenRequestRef:{current:1},
+ // Existing cases exercise an accepted, idle output; pending variants are covered separately.
+ const e={outputChangePending:()=>false,walletScope,hasWalletBalance,checkoutReturnRef:{current:null},checkoutBusyRef:{current:false},currentOutputJobRef:{current:'job-a'},savedWorkOpenRequestRef:{current:1},
   authToken:()=>storage.token,currentWalletId:()=>storage.wallet,walletHeaders:()=>({Authorization:'Bearer '+storage.token,'X-Wallet-Id':storage.wallet}),
   refreshWallet:async options=>{events.push(['refresh',options]);return summary()},
   claimAccountOutput:async()=>events.push(['claim']),
