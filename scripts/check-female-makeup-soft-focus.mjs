@@ -4,7 +4,6 @@ import {finishFemaleMakeupSoftFocus} from '../src/female-makeup-soft-focus.js';
 import {LOCAL_MAKEUP_CONTOURS as C} from '../src/local-makeup.js';
 import {productionPortraitPrompt} from '../production-portrait-pipeline.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
-import {femaleFinishFor} from '../review-portrait-finish.js';
 
 function fixture({width=384,tone=[193,154,137],pores=8,rgba=false}={}){
  const height=Math.round(width*4/3),n=width*height,face=Array.from({length:478},()=>({x:.5,y:.5}));
@@ -94,7 +93,7 @@ await test('only female makeup gets the finish, once per new generation and neve
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
- const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v41-flash-spot-concealer'));
+ const block=section('async function aiFinishPortrait(','\nlet acceptedPaidTrial=');assert(block.includes('makeup-source-eye-lock-v32-no-local-tone'));
  assert(block.includes('combined-seedream-server4-catalog34-male-shave-v19-measured-roll'));assert(block.includes('combined-seedream-server4-catalog34-eye-choice-v19-measured-roll'));
 });
 await test('all female makeup prompts protect fine texture and avoid a pore-erasing target',()=>{
@@ -102,28 +101,6 @@ await test('all female makeup prompts protect fine texture and avoid a pore-eras
   const prompt=productionPortraitPrompt(hair,'makeup');
   assert(prompt.includes('Retain fine original pores'));assert(prompt.includes('Already smooth skin receives no additional smoothing'));
   assert(!/pore-free|Remove visible facial pores|do not retain visible pores/.test(prompt));
- }
-});
-await test('makeup uses the exact natural base and adds only the selected surface refinements',()=>{
- const natural=femaleFinishFor('natural'),makeup=femaleFinishFor('makeup');
- assert(makeup.startsWith(natural));
- for(const text of ['BROWS:','LASHES:','LIPS:','SKIN AND LIGHT:','No added eyeshadow','no extra AI call'])assert(makeup.includes(text));
- for(const hair of PRODUCTION_HAIR_CATALOG)for(const style of ['natural','makeup']){
-  const prompt=productionPortraitPrompt(hair,style);
-  assert.equal(prompt.includes('NATURAL BASE WITH LASHES, BROWS, LIPS AND BRIGHT ROSY SKIN'),hair.gender==='female'&&style==='makeup');
-  if(hair.gender==='female'&&style==='makeup')assert(!prompt.includes('without visible pores'));
- }
-});
-await test('flash shadow correction and spot concealer are scoped to female makeup with identity preserved',()=>{
- for(const hair of PRODUCTION_HAIR_CATALOG)for(const style of ['natural','makeup']){
-  const prompt=productionPortraitPrompt(hair,style),applies=hair.gender==='female'&&style==='makeup';
-  assert.equal(prompt.includes('SOFT FRONTAL STUDIO FLASH — SKIN LIGHT ONLY'),applies);
-  assert.equal(prompt.includes('LOCAL DARK-SPOT CONCEALER — SAME EXISTING GENERATION'),applies);
-  if(!applies)continue;
-  assert(prompt.includes('preserve the natural nose bridge, cheek volume, jaw/chin shading'));
-  assert(prompt.includes('genuinely uncertain dark marks rather than guessing'));
-  assert(prompt.includes('no additional generation or change to facial features'));
-  assert(prompt.indexOf('FINAL FEMALE MAKEUP SOURCE-FACE LOCK')>prompt.indexOf('SOFT FRONTAL STUDIO FLASH'));
  }
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));
