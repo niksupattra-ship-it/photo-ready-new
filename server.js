@@ -12,6 +12,8 @@ import {HAIRSTYLE_FIT_POLICY,HAIRSTYLE_PROPORTION_POLICY} from './hairstyle-fit-
 import {selectedHairstyleRule} from './hairstyle-rules.js';
 import {validateProject} from './saved-work-store.js';
 import {registerSavedWorkApi} from './saved-work-api.js';
+import {createPurchasedPhotoStore} from './purchased-photo-store.js';
+import {registerPurchasedPhotoApi} from './purchased-photo-api.js';
 import {registerSourceDownloadApi} from './source-download-api.js';
 import {startSavedWorkRetentionCleanup} from './saved-work-retention-worker.js';
 import express from "express";
@@ -500,6 +502,13 @@ async function savedWorkRights(wid,project,workId='',policy=downloadPolicy){
 }
 
 registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,policyForRequest:accountPolicy});
+const purchasedPhotoPool=new pg.Pool({max:2,connectionTimeoutMillis:5000,statement_timeout:15000,connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'||/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL||'')?false:{rejectUnauthorized:false}});
+purchasedPhotoPool.on('error',()=>console.warn('Purchased photo storage unavailable'));
+const purchasedPhotoStore=createPurchasedPhotoStore(purchasedPhotoPool);
+registerPurchasedPhotoApi(app,{store:purchasedPhotoStore,policy:downloadPolicy});
+const purgePurchasedPhotos=()=>purchasedPhotoStore.purge().catch(()=>console.warn('Purchased photo cleanup will retry'));
+setTimeout(purgePurchasedPhotos,10000).unref();
+setInterval(purgePurchasedPhotos,60*60*1000).unref();
 
 // V31: return a useful response for multipart failures instead of a generic Railway upstream error.
 app.use((err,req,res,next)=>{

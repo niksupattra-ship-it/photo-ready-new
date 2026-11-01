@@ -15,7 +15,7 @@ const denied={checked:true,unlocked:false,fullEdit:false,premiumHair:false,paidD
 const head={id:'head-a',kind:'head',name:'หัว · คอ · ผม',jobId:'job-a',source:'data:image/png;base64,fixture'};
 function fixture({balance=2,paid=false}={}){
  const events=[],unlocked=new Set(paid?['job-a']:[]);let remaining=balance;
- const e={suitRequestRef:{current:null},prepareSourceDownload:async()=>{},accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,warningProofForJob:()=> 'fixture-proof',
+ const e={onCheckoutPreview:null,onReceiveImage:null,suitRequestRef:{current:null},prepareSourceDownload:async()=>{},accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,warningProofForJob:()=> 'fixture-proof',
   outputAccessResult,unavailableOutputRights,mergeOutputRights,sessionUnlockedJobs:{current:new Set()},
   onVerifyOutput:async id=>{events.push(['verify',id]);return unlocked.has(id)?granted:denied},
   onUseDownloadCredit:async id=>{events.push(['credit',id]);if(remaining===0)return {available:false,unlocked:false};remaining--;unlocked.add(id);return {available:true,unlocked:true}},
@@ -32,6 +32,17 @@ function fixture({balance=2,paid=false}={}){
  const finishDownloadCrop=handler(' const finishDownloadCrop=async','\n const duplicate=','finishDownloadCrop',e);
  return {e,events,unlocked,exportImage,finishDownloadCrop,get balance(){return remaining},count:name=>events.filter(event=>event[0]===name).length};
 }
+await test('paid receipt preserves PNG/JPG choice and optional crop without another debit or automatic device download',async()=>{
+ for(const type of ['image/png','image/jpeg']){
+  const f=fixture({balance:0,paid:true}),received=[];
+  f.e.nativeCanvas=()=>({width:900,height:1200,getContext:()=>({fillRect(){},drawImage(){}}),toBlob:(callback,encoding)=>callback(new Blob(['fixture-render'],{type:encoding}))});
+  f.e.onReceiveImage=async(blob,context)=>received.push({blob,context});
+  await f.exportImage(type);assert.equal(received.length,1);assert.equal(received[0].blob.type,type);assert(received[0].context.name.endsWith(type==='image/jpeg'?'.jpg':'.png'));
+  assert.equal(f.count('credit'),0);assert.equal(f.count('purchase'),0);assert.equal(f.count('download'),0);
+  received[0].context.onChooseSize();assert(f.e.downloadCrop);await f.finishDownloadCrop({sizeId:'2inch'});
+  assert.equal(received.length,2);assert.equal(received[1].blob.type,type);assert.equal(f.count('credit'),0);assert.equal(f.count('download'),0);
+ }
+});
 await test('normal Studio/Easy download redeems one premium credit at balances two and one before the size picker',async()=>{
  for(const balance of [2,1]){const f=fixture({balance});await f.exportImage('image/png');assert.equal(f.balance,balance-1);assert.equal(f.count('credit'),1);assert.equal(f.count('verify'),2);assert.equal(f.count('purchase'),0);assert.equal(f.count('download'),0);assert.equal(f.e.downloadCrop.type,'image/png');assert.equal(f.e.downloadCrop.renderedOutputKey,'job-a');assert(f.e.sessionUnlockedJobs.current.has('job-a'));assert(f.events.findIndex(e=>e[0]==='credit')<f.events.findIndex(e=>e[0]==='canvas'));}
 });

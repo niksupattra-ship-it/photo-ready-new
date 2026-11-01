@@ -62,3 +62,12 @@
 }
 
 @media(max-height:360px) and (min-width:520px){.credit-modal.package-pro-modal.idprom-qr-modal{padding-top:6px;padding-bottom:6px}.idprom-qr-panel:has(.idprom-qr-image){row-gap:2px}}
+
+/* Keep the saved-QR instructions alongside the code on a phone. */
+.idprom-qr-panel:has(.idprom-qr-image){display:grid;grid-template-columns:minmax(130px,1fr) minmax(0,1fr);gap:8px 12px;align-items:center}
+.idprom-qr-panel:has(.idprom-qr-image)>h2,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-amount,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-status,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-actions,.idprom-qr-panel:has(.idprom-qr-image)>small,.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-stay-notice{grid-column:1/-1}
+.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-image{grid-column:1;grid-row:3;justify-self:center;width:100%;height:auto;aspect-ratio:1}
+.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-help{grid-column:2;grid-row:3/5;text-align:left}
+.idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-save{grid-column:1;grid-row:4}
+.idprom-qr-panel .idprom-qr-help{font-size:12px;line-height:1.6;background:#f3f2f9;color:#5e6680;padding:10px;border-radius:8px}
+.idprom-qr-help ol{margin:8px 0 0;padding-left:18px}.idprom-qr-help li{margin:5px 0}.idprom-qr-panel .idprom-qr-save{background:#7044ed!important}.idprom-qr-panel .idprom-qr-amount{color:#7044ed}.idprom-qr-panel .idprom-qr-status{width:100%;background:#fff4d3;border-radius:6px;padding:8px;color:#a26418}.idprom-qr-panel .idprom-qr-check{color:#7044ed!important;background:#f5f1ff!important;border-color:#e2d9ff!important}

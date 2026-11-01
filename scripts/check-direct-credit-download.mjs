@@ -110,7 +110,7 @@ function legacyFixture({paid=false,credit={available:true,unlocked:true}}={}){
   unlockOutputWithCredit:async job=>{events.push(['direct-credit',job]);if(credit.unlocked)outputPaid=true;return credit},
   beautyTimerRef:{current:null},beautyRenderRef:{current:0},renderTimer:{current:null},renderSeqRef:{current:0},liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveNeckAdjustRef:{current:{}},backgroundRef:{current:null},ribbonRef:{current:null},ribbonAdjustRef:{current:{}},collarPinRef:{current:null},collarPinAdjustRef:{current:{left:{},right:{}}},liveCollarHeightRef:{current:0},chestPinRef:{current:null},chestPinAdjustRef:{current:{}},beautyRef:{current:{}},
   renderAdjustedFinal:async()=>{events.push(['render']);return new Blob(['base'])},applyLocalBeauty:async blob=>blob,
-  cropPhotoForDownload:async(blob,crop)=>{events.push(['crop',{...crop}]);return new Blob(['selected-size'])},beautyBaseRef:{current:null},beautyPreviewBaseRef:{current:null},showBlob:()=>{},deliverImage:(blob,name)=>{events.push(['delivery',blob,name]);return 'download'},
+  cropPhotoForDownload:async(blob,crop)=>{events.push(['crop',{...crop}]);return new Blob(['selected-size'])},beautyBaseRef:{current:null},beautyPreviewBaseRef:{current:null},showBlob:()=>{},receivePurchasedImage:async(blob,{name})=>{events.push(['delivery',blob,name]);return 'receipt'},
  });
  return {...f,download:compile('downloadCurrentFinal',f.e)};
 }
