@@ -2572,6 +2572,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  fd.append('originalSource',originalFile,originalFile.name||'original-portrait.png');
  fd.append('hairId',hairId||'original');
  if(originalFile.idpromDownloadWorkId)fd.append('downloadWorkId',originalFile.idpromDownloadWorkId);
+ if(options.sourceJobId)fd.append('sourceJobId',options.sourceJobId);
  fd.append('femaleEyeStyle',options.femaleEyeStyle==='makeup'?'makeup':'natural');
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female';
@@ -4359,7 +4360,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const rememberRestoredHairResult=head=>{
   const source=firstUploadedPhotoRef.current;let master=editCache.current?.master;
   if(!source||!head)return;
-  const localHair=head.freeHairBaseOriginal===true,id=localHair?'':head.hairId;
+  const localHair=head.freeHairBaseOriginal===true||isFreeFemaleHair(head.hairId),id=localHair?'':head.hairId;
   const mode=hairResultMode(id,head.portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle):'natural';
   source.idpromPortraitMode=mode;source.idpromFemaleEyeStyle=finishStyle;
@@ -4396,7 +4397,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const oldFace=detector.detect(oldImage).faceLandmarks?.[0],newFace=detector.detect(newImage).faceLandmarks?.[0];
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
- const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle}={})=>{
+ const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle,sourceJobId}={})=>{
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current,requestScope=hairResultScope();
@@ -4416,7 +4417,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate,onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,templatePath:editCache.current?.lock?.templatePath||activeUniformTemplate,onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
      generatedResult=aiHeadNeck;
      if(!studioOnly&&aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
@@ -4469,7 +4470,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
    if(hairResultMode(id,portraitMode)==='female')firstUploadedPhoto.idpromFemaleEyeStyle=finishStyle;
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
-  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้')}
+  }catch(e){setMsg(e.message||'เปลี่ยนทรงผมไม่สำเร็จ — คงภาพเดิมไว้');if(studioOnly)throw e}
   finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await finishProgress(true);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
   return completed?{reused:Boolean(cached)}:false;
  };
@@ -4789,8 +4790,8 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(source&&draft.downloadWorkId)source.idpromDownloadWorkId=draft.downloadWorkId;if(source&&draft.canonicalInput instanceof Blob)source.idpromCanonicalInput=draft.canonicalInput;firstUploadedPhotoRef.current=source;setF(source);setA(source?URL.createObjectURL(source):undefined);
   editCache.current=draft.classicMaster&&draft.classicLock?{master:draft.classicMaster,lock:draft.classicLock}:null;initialProcessedMasterRef.current=editCache.current?.master||null;
   const restoredHead=snapshot.layers.find(l=>l.kind==='head'||l.name==='หัว · คอ · ผม');
-  if(source&&restoredHead?.portraitMode==='female'&&portraitFinishChoice(restoredHead.initialFemaleEyeStyle,restoredHead.femaleEyeStyle)==='makeup'){source.idpromPortraitMode='female';source.idpromFemaleEyeStyle='makeup'}
-  initialFemaleMakeupRef.current=source&&editCache.current?.master&&restoredHead?.portraitMode==='female'&&portraitFinishChoice(restoredHead.initialFemaleEyeStyle,restoredHead.femaleEyeStyle)==='makeup'?femaleFinishAnchor(source,editCache.current.master,restoredHead):null;
+  if(source&&restoredHead?.portraitMode==='female'&&portraitFinishChoice(restoredHead.femaleEyeStyle,restoredHead.initialFemaleEyeStyle)==='makeup'){source.idpromPortraitMode='female';source.idpromFemaleEyeStyle='makeup'}
+  initialFemaleMakeupRef.current=source&&editCache.current?.master&&restoredHead?.portraitMode==='female'&&portraitFinishChoice(restoredHead.femaleEyeStyle,restoredHead.initialFemaleEyeStyle)==='makeup'?femaleFinishAnchor(source,editCache.current.master,restoredHead):null;
   hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
   currentOutputJobRef.current=snapshot.jobId;currentOutputTrialRef.current=Boolean(draft.isTrial);studioTrialRef.current=Boolean(draft.isTrial);
   rememberRestoredHairResult(restoredHead);
@@ -4874,7 +4875,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    setOutputJobId(previous.jobId);setTrialPreview(previous.studioTrial);
   };
   try{
-   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true,femaleEyeStyle});
+   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true,femaleEyeStyle,sourceJobId:previous.jobId});
    if(!staged?.master||staged.hairId!==(id||''))throw Error('ผลลัพธ์ไม่ตรงกับทรงที่เลือก กรุณาลองใหม่');
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(staged.master,staged.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);

@@ -1,10 +1,11 @@
+import {recoverPortraitWork} from '../portrait-work-recovery.js';
 // Execute real policy SQL in disposable PostgreSQL WASM, never DATABASE_URL.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const db=new PGlite();
-const query=async(sql,args)=>{const r=await db.query(sql,args);return {...r,rowCount:r.rowCount??r.affectedRows??r.rows.length}};
+const query=async(sql,args)=>{const r=await db.query(sql,args);return {...r,rowCount:r.rowCount??(r.rows.length||r.affectedRows||0)}};
 const pool={query,async connect(){return {query,release(){}}}};
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const data=b=>'data:image/jpeg;base64,'+b.toString('base64');
@@ -69,13 +70,26 @@ try{
   const work=await policy.beginWork('account',chrome,'','',original),server=await readFile(new URL('../server.js',import.meta.url),'utf8');
   const start=server.indexOf("app.post('/api/ai-jobs',upload.fields("),end=server.indexOf("\napp.post('/api/ai-jobs/:id/:action'",start);assert(start>=0&&end>start);
   let handler,received;
-  const env={app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait:()=>{},requireCredit:async()=>({usageId:'free_local'}),downloadPolicy:policy,walletId:()=> 'account',createAiJob:async args=>{received=args;await query('INSERT INTO ai_jobs(id,wallet_id,status,usage_id) VALUES($1,$2,$3,$4)',['local-job','account','queued','free_local']);return 'local-job'},refundCredit:async()=>{},failAiJob:async()=>{},setImmediate:()=>{},runAiJob:()=>{throw Error('No generation in source contract test')},console:{info(){},error(){}}};
+  const env={recoverPortraitWork,app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait:()=>{},requireCredit:async()=>({usageId:'free_local'}),downloadPolicy:policy,walletId:()=> 'account',createAiJob:async args=>{received=args;await query('INSERT INTO ai_jobs(id,wallet_id,status,usage_id) VALUES($1,$2,$3,$4)',['local-job','account','queued','free_local']);return 'local-job'},refundCredit:async()=>{},failAiJob:async()=>{},setImmediate:()=>{},runAiJob:()=>{throw Error('No generation in source contract test')},console:{info(){},error(){}}};
   new Function('env','with(env){'+server.slice(start,end)+'}')(env);
   const req={files:{image:[{buffer:other,mimetype:'image/png'}],originalSource:[{buffer:original,mimetype:'image/jpeg'}]},body:{hairId:'original',portraitMode:'male',downloadWorkId:work,faceIdentityBox:'[0,0,1,1]'},get:()=>''};
   const res={headersSent:false,statusCode:200,status(n){this.statusCode=n;return this},json(body){this.body=body;this.headersSent=true;return this}};
   await handler(req,res);assert.equal(res.statusCode,202);assert.equal(res.body.downloadWorkId,work);
   assert.deepEqual(received.image.buffer,chrome);assert.notDeepEqual(received.image.buffer,other);assert.equal(received.fields.faceIdentityBox,undefined);
   assert.deepEqual((await policy.inputForWork('account',work)).buffer,chrome);
+ });
+ await test('a paid original work can be recovered from its owned prior job without accepting another image or wallet',async()=>{
+  const work=await policy.beginWork('account',chrome,'','',original);
+  await query("INSERT INTO ai_jobs(id,wallet_id,status,usage_id) VALUES('paid-source','account','completed','free_local')");
+  await policy.attach('account',work,'paid-source');
+  await db.exec('CREATE TABLE IF NOT EXISTS premium_hair_unlocks(wallet_id text,job_id text)');
+  await query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2)',['account','paid-source']);
+  const recovered=await recoverPortraitWork(policy,'account',{sourceJobId:'paid-source'});
+  assert.equal(recovered,work);assert.equal(await policy.premiumWork('account',recovered),true);
+  assert.equal(await policy.beginWork('account',webkit,recovered,'',original),work);
+  await assert.rejects(recoverPortraitWork(policy,'foreign',{sourceJobId:'paid-source'}));
+  await assert.rejects(policy.beginWork('account',other,recovered,'',other),e=>e.status===409);
+  assert.equal(await recoverPortraitWork(policy,'account',{downloadWorkId:work,sourceJobId:'ignored'}),work);
  });
  console.log(`PASS ${passed} real SQL source-binding/migration scenarios; isolated PGlite only.`);
 }finally{await db.close()}

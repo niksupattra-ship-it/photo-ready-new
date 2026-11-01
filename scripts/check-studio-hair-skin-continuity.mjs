@@ -1,3 +1,4 @@
+import {preserveLocalSkinLook} from '../src/preserve-local-skin-look.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {replaceHairstyleLayer} from '../src/replace-hairstyle-layer.js';
@@ -45,7 +46,7 @@ function fixture(options={}){
  const head={id:'head',kind:'head',name:'หัว · คอ · ผม',source:oldVisible,processedOriginalSource:oldBase,hairId:'seedream-19',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode:'female',initialFemaleEyeStyle:'makeup',femaleEyeStyle:'makeup',femaleFinishProfile:profile,femaleFinishReference:reference,makeupBaseSource:oldBase,makeupStyles:{look:recipe},makeupIntensity:37,makeupRenderVersion:'skin-current-layer-v2',mask:'old erased face mask',warpSource:'old warped face',warpBaseMask:'old warp mask',eraseRestoreSource:'old erase pixels',warpRestoreBase:'old warp pixels',x:18,y:-12,scale:1.2,squeezeX:1.2,squeezeY:.9,rotation:4,visible:true,locked:false,opacity:.85,jobId:'old-paid',restrictedTrial:false,outputUnlocked:true,...options.head};
  const unrelated=[{id:'suit',kind:'suit',source:'protected outfit',locked:true,mask:'suit mask'},{id:'background',kind:'background',source:'protected background'},{id:'collar',kind:'collar',source:'protected collar'},{id:'other-head',kind:'head',source:'protected other portrait'},{id:'other-hair',kind:'hair-preview',hairHeadId:'other-head',source:'protected other hair'}];
  const previous=[unrelated[1],{id:'old-rear',kind:'hair-back',hairHeadId:'head',source:'old long rear hair'},head,{id:'old-front',kind:'hair-preview',hairHeadId:'head',source:'old fringe'},{id:'old-descendant',kind:'hair-preview',hairHeadId:'old-rear',source:'old linked edge'},unrelated[0],...unrelated.slice(2)];
- const env={processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,state:{current:previous},mounted:{current:true},hairGender:options.hairGender||'female',portraitMode:head.portraitMode,sourcePhoto:{idpromFemaleEyeStyle:options.sourceFinish||'makeup'},HAIR_DESIGN_VERSION,portraitFinishChoice,replaceHairstyleLayer,makeupLook,layerKind:l=>l.kind,
+ const env={processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,state:{current:previous},mounted:{current:true},hairGender:options.hairGender||'female',portraitMode:head.portraitMode,sourcePhoto:{idpromFemaleEyeStyle:options.sourceFinish||'makeup'},HAIR_DESIGN_VERSION,portraitFinishChoice,replaceHairstyleLayer,preserveLocalSkinLook,makeupLook,layerKind:l=>l.kind,
   surfaceURL:src=>src instanceof Surface?src.toDataURL():src,
   headPose:l=>({x:l.x,y:l.y,scale:l.scale,rotation:l.rotation}),flushTransforms:noop,historySnapshot:()=>env.state.current,
   canRestoreHair:id=>cache.has(id),onBeforeProcess:noop,checkProcessCredits:async()=>{events.push('credits');return options.creditAllowed!==false},
@@ -62,7 +63,7 @@ function fixture(options={}){
   undo:{current:[]},redo:{current:[]},touch:false,reportProcessedResult:noop,
   makeupRequestRef:{current:false},makeupOperationRef:{current:null},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},cancelMakeupPreview:noop,startMakeupProgress:noop,stopMakeupProgress:noop,finishMakeupProgress:async()=>{},assets:{current:new Map()},image:async src=>imageOf(src),drawNow:noop
  };
- for(const key of ['setAppearanceError','setAssetBusy','setStatus','resetBrushSession','setSelected','setSelectedHair','setHairConfirmed','setHairNotice','setRevision','setTool','setComparing','trackHairSelection','setMakeupCancelled','setMakeupBusy','setMakeupIntensity'])env[key]=noop;
+ for(const key of ['setAppearanceError','setAssetBusy','setStatus','resetBrushSession','setSelected','setSelectedHair','setHairConfirmed','setHairNotice','setRevision','setTool','setComparing','trackHairSelection','setMakeupCancelled','setMakeupBusy','setMakeupIntensity','setHistoryNotice'])env[key]=noop;
  const requestEnv={makeupLook,
   prepareStudioMakeup:async base=>{analyses.push(base);return {original:imageOf(base),face:{newSource:base},hairMask:{newSource:base},skinMask:{newSource:base}}},
   renderLocalSkin:async({original,face,hairMask,skinMask,lookId})=>{
@@ -75,6 +76,8 @@ function fixture(options={}){
  };
  const localRequest=extract(main,'async function requestStudioMakeupUncached(','\nfunction opaqueBounds(','requestStudioMakeupUncached',requestEnv);
  env.onMakeup=(base,styles)=>localRequest(base,styles);
+ env.historyAssets={current:new WeakMap()};
+ env.resetPhotoHistory=extract(editor,' const resetPhotoHistory=','\n const remember=','resetPhotoHistory',env);
  env.commitMakeupSource=extract(editor,' const commitMakeupSource=','\n const applyMakeup=','commitMakeupSource',env);
  const apply=extract(editor,' const applyHair=async','\n const commitMakeupSource=','applyHair',env);
  const intensity=extract(editor,' const applyMakeupIntensity=','\n const restoreMakeup=','applyMakeupIntensity',env);
@@ -88,11 +91,11 @@ await test('a new female makeup hairstyle reapplies the current local recipe onc
  assert.equal(f.local[0].base,stage.layer.source);assert.notEqual(f.local[0].base,f.head.source);assert.notEqual(f.local[0].base,f.head.makeupBaseSource);assert.deepEqual(f.analyses,[stage.layer.source]);
  assert.equal(head.makeupBaseSource,stage.layer.source);assert.equal(head.processedOriginalSource,stage.layer.source);assert.equal(head.makeupCleanBaseSource,stage.layer.source);assert.deepEqual(head.makeupStyles,{look:recipe});assert.equal(head.makeupIntensity,37);assert.equal(head.makeupRenderVersion,'skin-current-layer-v2');assert(head.makeupFullSource instanceof Surface);
  assert.deepEqual(pixelsOf(head.source),[195,124,104,255,22,19,18,255,0,0,0,0]);assert.deepEqual(pixelsOf(stage.layer.source),[191,120,100,255,22,19,18,255,0,0,0,0]);
- assert.equal(head.femaleFinishProfile,profile);assert.equal(head.femaleFinishReference,reference);assert.equal(head.x,18);assert.equal(head.y,-12);assert.equal(head.scale,1.2);assert.equal(head.rotation,4);assert.equal(head.opacity,.85);assert.equal(head.squeezeX,1);assert.equal(head.squeezeY,1);assert.deepEqual(head.sourceFrame,stage.layer.sourceFrame);
+ assert.equal(head.femaleFinishProfile,undefined);assert.equal(head.femaleFinishReference,undefined);assert.equal(head.x,18);assert.equal(head.y,-12);assert.equal(head.scale,1.2);assert.equal(head.rotation,4);assert.equal(head.opacity,.85);assert.equal(head.squeezeX,1);assert.equal(head.squeezeY,1);assert.deepEqual(head.sourceFrame,stage.layer.sourceFrame);
  for(const key of ['mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'])assert.equal(head[key],null);
  assert(!f.env.state.current.some(l=>['old-front','old-rear','old-descendant'].includes(l.id)));
  for(const layer of f.unrelated){assert.equal(f.env.state.current.find(l=>l.id===layer.id),layer);assert(f.env.unchanged.has(layer.id))}
- assert.deepEqual(f.settled,[true]);assert(f.events.indexOf('hydrate')<f.events.indexOf('settle true'));assert(f.events.indexOf('settle true')<f.events.indexOf('commit'));assert.equal(f.env.undo.current[0],f.previous);
+ assert.deepEqual(f.settled,[true]);assert(f.events.indexOf('hydrate')<f.events.indexOf('settle true'));assert(f.events.indexOf('settle true')<f.events.indexOf('commit'));assert.equal(f.env.undo.current.length,0);
 });
 await test('cached hairstyle masters stay clean and reuse reapplies the current recipe without AI or credits',async()=>{
  const f=fixture();await f.apply('seedream-20');await f.apply('seedream-22');
@@ -104,21 +107,21 @@ await test('cached hairstyle masters stay clean and reuse reapplies the current 
 });
 await test('intensity changes and reset use the new clean base without rendering or accumulating another skin pass',async()=>{
  const f=fixture();await f.apply('seedream-20');const base=f.current().makeupBaseSource;
- for(const value of [0,100,45]){await f.intensity(value);assert.equal(f.current().makeupBaseSource,base);assert.equal(f.current().makeupIntensity,value);assert.deepEqual(pixelsOf(f.current().source),[Math.round(191+10*value/100),Math.round(120+10*value/100),Math.round(100+10*value/100),255,22,19,18,255,0,0,0,0]);assert.equal(f.current().femaleFinishProfile,profile)}
- assert.equal(f.local.length,1);await f.restore();assert.equal(f.current().source,base);assert.equal(f.current().makeupBaseSource,null);assert.deepEqual(f.current().makeupStyles,{});assert.equal(f.current().femaleFinishReference,reference);assert.equal(f.current().processedOriginalSource,base);
+ for(const value of [0,100,45]){await f.intensity(value);assert.equal(f.current().makeupBaseSource,base);assert.equal(f.current().makeupIntensity,value);assert.deepEqual(pixelsOf(f.current().source),[Math.round(191+10*value/100),Math.round(120+10*value/100),Math.round(100+10*value/100),255,22,19,18,255,0,0,0,0]);assert.equal(f.current().femaleFinishProfile,undefined)}
+ assert.equal(f.local.length,1);await f.restore();assert.equal(f.current().source,base);assert.equal(f.current().makeupBaseSource,null);assert.deepEqual(f.current().makeupStyles,{});assert.equal(f.current().femaleFinishReference,undefined);assert.equal(f.current().processedOriginalSource,base);
  await f.apply('seedream-22');assert.equal(f.local.length,1);assert.equal(f.current().makeupStyles,undefined);
 });
 await test('zero and full saved intensities keep a reversible recipe and one local render',async()=>{
- for(const value of [0,100]){const f=fixture({head:{makeupIntensity:value}});await f.apply('seedream-20');assert.equal(f.current().makeupIntensity,value);assert.equal(f.local.length,1);assert.equal(f.current().makeupBaseSource,f.stages[0].layer.source);assert.equal(f.current().makeupFullSource===null,value===100);assert.deepEqual(pixelsOf(f.current().source),value===0?pixelsOf(f.current().makeupBaseSource):pixelsOf(f.local.length&&f.blends[0].full))}
+ for(const value of [0,100]){const f=fixture({head:{makeupIntensity:value}});await f.apply('seedream-20');assert.equal(f.current().makeupIntensity,value);assert.equal(f.local.length,1);assert.equal(f.current().makeupBaseSource,f.stages[0].layer.source);assert.equal(f.current().makeupFullSource===null,value===100);assert.deepEqual(pixelsOf(f.current().source),value===0?pixelsOf(f.current().makeupBaseSource):[201,130,110,255,22,19,18,255,0,0,0,0])}
 });
 await test('new head profile metadata takes precedence while local adjustments never overwrite the first finish',async()=>{
  const replacementProfile=Object.freeze({version:1,fixture:'validated restored source finish'}),replacementReference=reference+'AA';
  const f=fixture({resultMetadata:{femaleFinishProfile:replacementProfile,femaleFinishReference:replacementReference}});await f.apply('seedream-20');assert.equal(f.current().femaleFinishProfile,replacementProfile);assert.equal(f.current().femaleFinishReference,replacementReference);
  await f.intensity(72);await f.restore();assert.equal(f.current().femaleFinishProfile,replacementProfile);assert.equal(f.current().femaleFinishReference,replacementReference);assert.equal(f.stages[0].layer.femaleFinishProfile,replacementProfile);
 });
-await test('natural, male and recipe-free portraits keep the previous hair replacement behavior',async()=>{
- for(const options of [{head:{initialFemaleEyeStyle:'natural'},sourceFinish:'makeup'},{head:{portraitMode:'male'},hairGender:'female'},{hairGender:'male'},{head:{makeupStyles:{}}}]){
-  const f=fixture(options);await f.apply('seedream-20');assert.equal(f.errors.length,0);assert.equal(f.local.length,0);assert.equal(f.blends.length,0);assert.equal(f.current().source,f.stages[0].layer.source);assert.equal(f.current().makeupBaseSource,undefined);assert.deepEqual(f.settled,[true]);
+await test('gender changes and recipe-free portraits keep the previous hair replacement behavior',async()=>{
+ for(const options of [{head:{portraitMode:'male'},hairGender:'female'},{hairGender:'male'},{head:{makeupStyles:{}}}]){
+  const f=fixture(options);await f.apply('seedream-20');assert.equal(f.errors.length,0,JSON.stringify({options,errors:f.errors}));assert.equal(f.local.length,0);assert.equal(f.blends.length,0);assert.equal(f.current().source,f.stages[0].layer.source);assert.equal(f.current().makeupBaseSource,undefined);assert.deepEqual(f.settled,[true]);
  }
 });
 await test('locked heads and credit rejection never request new hair or render skin',async()=>{

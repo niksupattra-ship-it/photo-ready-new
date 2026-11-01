@@ -1,4 +1,5 @@
 import {uniformMatchesSearch} from './uniform-search.js';
+import {preserveLocalSkinLook} from './preserve-local-skin-look.js';
 import {PaidWorkWarning} from './paid-work-warning.jsx';
 import {hasPaidDownloadForJobs,attachPaidBeforeUnload} from './paid-work-guard.js';
 import {EasyMode,EasyAdjustmentTabs,EasyUIIcon} from './easy-mode.jsx';
@@ -372,6 +373,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const chooseHair=id=>{
   if(processRequestRef.current||processActive||assetBusy){appearanceFailure('hair','กรุณารอการทำงานก่อนหน้าให้เสร็จก่อน');return}
   if(!ready)return;
+  if(isFreeFemaleHair(id)){trackHairSelection(id,'select','free');void applyFreeHair(id);return}
   if(isPremiumHair(id)&&!premiumHairAllowed){onRequestUnlock?.();return}
   const localHead=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   if(!id&&hairGender==='female'&&localHead?.freeHairBaseOriginal===true){trackHairSelection(id,'select','original');void applyFreeHair(id);return}
@@ -857,6 +859,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const newSourcePending=state.current.some(l=>l.id===sourceLayerRef.current);
   const requested=Object.prototype.hasOwnProperty.call(options,'hairId')?options:pendingHairProcessRef.current;
   const chosenHair=requested?.hairId||'';
+  if(isFreeFemaleHair(chosenHair)){showFreeHairNotice();return}
   const chosenPortraitMode=options.portraitMode||requested?.portraitMode||portraitMode;
   if(!['female','male'].includes(chosenPortraitMode)){setPortraitChoiceOpen(true);return}
   if(chosenPortraitMode==='female'&&!['natural','makeup'].includes(sourcePhoto.idpromFemaleEyeStyle)){setFemaleFinishChoiceOpen(true);return}
@@ -967,9 +970,10 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||'')||portraitFinishChoice(result.layer.femaleEyeStyle,result.layer.initialFemaleEyeStyle)!==finish)throw Error('ผลลัพธ์ไม่ตรงกับเมคอัพหรือทรงผมที่เลือก');
    const replacement={...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
-   // Use this hairstyle's own returned/cached master. Do not carry the
-   // previous hairstyle's skin profile or local makeup recipe into it.
-   let next=replaceHairstyleLayer(previous,head.id,replacement);
+   const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
+   if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+   let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
+   if(finishedReplacement.makeupStyles?.look)next=next.map(l=>l.id===head.id?{...l,processedOriginalSource:result.layer.source}:l);
    // Free hairstyles remain local PNG overlays when the underlying finish changes.
    // Fit them to the new native head before committing either set of pixels.
    if(freeHair){

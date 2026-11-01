@@ -1,3 +1,4 @@
+import {isFreeFemaleHair} from '../src/free-female-hair.js';
 import assert from 'node:assert/strict';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
@@ -14,7 +15,7 @@ const context=(balance,overrides={})=>({authToken:()=> 'verified-session',knownW
 const hairContext=(premiumHairCreditAvailable=false,verifiedJobs={},layers=[{kind:'head',jobId:'current'}])=>({premiumHairCreditAvailable,outputHeads:heads,layers,verifiedJobs});
 function fixture(allowed,{raw=false}={}){
  const calls=[],layers=raw?[]:[{kind:'head',jobId:'current'}];
- const env={processRequestRef:{current:null},processActive:false,assetBusy:false,appearanceFailure:(...args)=>calls.push(['error',...args]),ready:true,isPremiumHair:id=>id==='diamond',premiumHairAllowed:allowed,onRequestUnlock:()=>calls.push(['unlock']),state:{current:layers},layerKind:l=>l.kind,hairGender:'female',trackHairSelection:(...args)=>calls.push(['track',...args]),applyFreeHair:()=>calls.push(['free']),canRestoreHair:()=>true,paidHairAccess:true,trialHairRemaining:0,isTrialHairAllowed:()=>false,processHairPending:false,sourceLayerRef:{current:'source'},sourcePhoto:{name:'original'},portraitMode:'female',pendingHairProcessRef:{current:null},processPhoto:options=>calls.push(['process',options]),applyHair:id=>calls.push(['hair',id]),setPortraitChoiceOpen:()=>calls.push(['photo-type']),easyPhotoTypeSelected:true,templates:[],currentSuit:'',setStatus:message=>calls.push(['status',message])};
+ const env={isFreeFemaleHair,processRequestRef:{current:null},processActive:false,assetBusy:false,appearanceFailure:(...args)=>calls.push(['error',...args]),ready:true,isPremiumHair:id=>id==='diamond',premiumHairAllowed:allowed,onRequestUnlock:()=>calls.push(['unlock']),state:{current:layers},layerKind:l=>l.kind,hairGender:'female',trackHairSelection:(...args)=>calls.push(['track',...args]),applyFreeHair:()=>calls.push(['free']),canRestoreHair:()=>true,paidHairAccess:true,trialHairRemaining:0,isTrialHairAllowed:()=>false,processHairPending:false,sourceLayerRef:{current:'source'},sourcePhoto:{name:'original'},portraitMode:'female',pendingHairProcessRef:{current:null},processPhoto:options=>calls.push(['process',options]),applyHair:id=>calls.push(['hair',id]),setPortraitChoiceOpen:()=>calls.push(['photo-type']),easyPhotoTypeSelected:true,templates:[],currentSuit:'',setStatus:message=>calls.push(['status',message])};
  return {calls,env,choose:action('chooseHair',env)};
 }
 await test('current authenticated wallet makes diamond hair available at two and one remaining credits',()=>{

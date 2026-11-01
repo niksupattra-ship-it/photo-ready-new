@@ -9,7 +9,7 @@ function extract(start,end,name,env){const a=main.indexOf(start),b=main.indexOf(
 function fixture(){
  const file=Object.assign(new Blob(['immutable uploaded photo']),{idpromPortraitMode:'female',idpromFemaleEyeStyle:'makeup'}),calls=[],rights=[],messages=[];
  let wallet='wallet-A',privateTrial=false;
- const env={PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,portraitFinishChoice,isFreeFemaleHair,firstUploadedPhotoRef:{current:file},editCache:{current:{master:new Blob(['accepted first makeup']),lock:{templatePath:'female.png'}}},hairResultCacheRef:{current:new Map()},hairRequestRef:{current:false},hairBusy:false,busy:false,activeProcessOperation:{jobId:'job-first',cancelled:false,settled:true},currentOutputJobRef:{current:'job-first'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},activeUniformTemplate:'female.png',liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},backgroundRef:{current:'background'},currentResultCacheScope:()=>wallet,privateTrialRequested:()=>privateTrial,
+ const env={studioPhotoTransactionRef:{current:false},window:{dispatchEvent(){}},CustomEvent:class{},PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,portraitFinishChoice,isFreeFemaleHair,firstUploadedPhotoRef:{current:file},editCache:{current:{master:new Blob(['accepted first makeup']),lock:{templatePath:'female.png'}}},hairResultCacheRef:{current:new Map()},hairRequestRef:{current:false},hairBusy:false,busy:false,activeProcessOperation:{jobId:'job-first',cancelled:false,settled:true},currentOutputJobRef:{current:'job-first'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},activeUniformTemplate:'female.png',liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},backgroundRef:{current:'background'},currentResultCacheScope:()=>wallet,privateTrialRequested:()=>privateTrial,
   setHairGenerating:noop,setHairBusy:v=>{env.hairBusy=v},setMsg:v=>messages.push(v),setProgressStage:noop,setOutputJobId:noop,setTrialPreview:noop,setHairId:noop,beginOptionRender:noop,
   beginProgress:()=>{env.activeProcessOperation={jobId:null,cancelled:false,settled:false}},assertProcessActive:(operation=env.activeProcessOperation)=>{if(operation?.cancelled)throw Error('cancelled')},
   async aiFinishPortrait(source,id,options){calls.push({source,id,options});if(env.failGeneration)throw Error('generation failed');const value=Object.assign(new Blob([`result-${id}-${options.femaleEyeStyle}-${calls.length}`]),{idpromJobId:'job-'+calls.length,idpromTrial:true});env.activeProcessOperation.jobId=value.idpromJobId;env.currentOutputJobRef.current=value.idpromJobId;return value},
@@ -22,7 +22,7 @@ function fixture(){
  // The change handler also resolves gender, so provide the real sibling helper.
  env.hairResultMode=extract(' const hairResultMode=','\n const hairResultKey=','hairResultMode',env);
  env.changeHairForStudio=extract(' const changeHairForStudio=async (','\n const downloadHairDonor=','changeHairForStudio',env);
- const change=extract(' const changeStudioHair=async(id,portraitMode,femaleEyeStyle)=>{',"\n if(screen==='home')",'changeStudioHair',env);
+ const change=extract(' const changeStudioHair=async(id,portraitMode,femaleEyeStyle)=>{','\n const LegacyPaidWarningUI=','changeStudioHair',env);
  memory.rememberHairResult('seedream-19',env.editCache.current.master,'female','makeup').confirmed=true;
  return {file,calls,rights,messages,env,memory,change,setWallet:v=>{wallet=v},setPrivateTrial:v=>{privateTrial=v}};
 }
@@ -76,5 +76,11 @@ await test('invalid, missing or oversized stored freehair bases never seed the c
 });
 await test('male key ignores female-only appearance and does not reuse female variants',async()=>{
  const f=fixture();assert.equal(f.memory.hairResultKey('seedream-35','male','makeup'),f.memory.hairResultKey('seedream-35','male','natural'));assert.notEqual(f.memory.hairResultKey('','male','natural'),f.memory.hairResultKey('','female','natural'));const result=await f.change('seedream-35','male','makeup');assert.equal(f.calls[0].options.femaleEyeStyle,'natural');result.commit();assert.equal(f.file.idpromFemaleEyeStyle,'makeup');
+});
+await test('provider/validation failure reaches Studio unchanged instead of a false hair mismatch',async()=>{
+ const f=fixture(),cause=Object.assign(Error('ตรวจรูปตาในต้นฉบับไม่ครบ'),{code:'portrait_features_changed'});
+ f.env.aiFinishPortrait=async()=>{throw cause};
+ await assert.rejects(f.change('seedream-20','female','makeup'),error=>error===cause);
+ assert.equal(f.env.currentOutputJobRef.current,'job-first');
 });
 console.log(`PASS: ${passed} actual App makeup/cache scenarios; AI, rendering and payment API mocked; no external requests.`);

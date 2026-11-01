@@ -1,3 +1,4 @@
+import {preserveLocalSkinLook} from '../src/preserve-local-skin-look.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {FREE_FEMALE_HAIR_OPTIONS,isFreeFemaleHair,FREE_FEMALE_HAIR_MESSAGE} from '../src/free-female-hair.js';
@@ -27,9 +28,9 @@ function fixture(options={}){
  let serial=0,pending;
  const assetFor=layer=>({original:{source:layer.source,width:900,height:1200},buffer:{},mask:null,dirty:false});
  const env={
-  state:{current:clone(layers)},assets:{current:new Map(layers.map(l=>[l.id,assetFor(l)]))},sourcePhoto,portraitMode:'female',hairGender:'female',ready:true,assetBusy:false,processActive:false,processHairPending:false,
+  onMakeup:undefined,mixMakeupLookSources:undefined,state:{current:clone(layers)},assets:{current:new Map(layers.map(l=>[l.id,assetFor(l)]))},sourcePhoto,portraitMode:'female',hairGender:'female',ready:true,assetBusy:false,processActive:false,processHairPending:false,
   sourceLayerRef:{current:null},processRequestRef:{current:false},mounted:{current:true},loading:{current:0},selectedRef:{current:head.id},brushSession:{current:null},
-  FREE_FEMALE_HAIR_MESSAGE,isFreeFemaleHair,HAIR_DESIGN_VERSION,headPose,replaceHairstyleLayer,portraitFinishChoice,
+  FREE_FEMALE_HAIR_MESSAGE,isFreeFemaleHair,HAIR_DESIGN_VERSION,headPose,replaceHairstyleLayer,preserveLocalSkinLook,portraitFinishChoice,
   layerKind:l=>l.kind,freeHairRequestRef:{current:0},
   paidHairAccess:false,premiumHairAllowed:false,trialHairRemaining:0,canRestoreHair:()=>false,canReuseHair:()=>false,isTrialHairAllowed:id=>!id||id==='original'||PRODUCTION_HAIR_CATALOG.some(h=>h.id===id),
   femaleHair:[...FREE_FEMALE_HAIR_OPTIONS,...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female')],maleHair:PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'),
@@ -88,7 +89,7 @@ await test('processed female original-hair output accepts free PNGs with zero re
   assert.equal(f.getHairs().length,1);const front=f.getHairs()[0];assert.equal(front.hairId,id);assert.equal(front.hairHeadId,head.id);assert.equal(front.source,'front-'+id);
   for(const key of ['x','y','scale','squeezeX','squeezeY','rotation'])assert.equal(front[key],f.head[key],key);
   assert.deepEqual(f.env.state.current.filter(l=>['background','suit','pin'].includes(l.id)),[f.background,f.suit,f.pin]);
-  assert.equal(f.calls.popups.length,1);assert.equal(f.calls.popups[0].state,'info');assert.equal(f.calls.popups[0].message,FREE_FEMALE_HAIR_MESSAGE);assert.equal(f.env.undo.current.length,1);assert.equal(f.env.processRequestRef.current,false);assert.equal(f.env.assetBusy,false);noBilling(f.calls);
+  assert.equal(f.calls.popups.length,0,'successful fitting must not show an unavailable-style notice');assert.equal(f.env.undo.current.length,1);assert.equal(f.env.processRequestRef.current,false);assert.equal(f.env.assetBusy,false);noBilling(f.calls);
  }
 });
 await test('switching three free styles always fits the same original processed base without accumulating overlays',async()=>{

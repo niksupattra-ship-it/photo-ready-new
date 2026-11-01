@@ -1,4 +1,5 @@
 import {downloadPolicy} from './download-policy-store.js';
+import {recoverPortraitWork} from './portrait-work-recovery.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
@@ -431,6 +432,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   try{validateProductionPortrait(image,req.body);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
+  req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);
   logStage('reserve_credit',{kind:creditKind});
   creditUse=await requireCredit(req,res,creditKind);
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}

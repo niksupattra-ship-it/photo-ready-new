@@ -1,3 +1,4 @@
+import {recoverPortraitWork} from '../portrait-work-recovery.js';
 // Actual generation routes + entitlement stores against disposable SQL.
 // Providers, token verification and job execution are local inert fixtures.
 import assert from 'node:assert/strict';
@@ -13,7 +14,7 @@ import {hasPrivateTrial,isPrivateOwner} from '../private-trial.js';
 
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const db=new PGlite(),cases=[],providerCalls=[],commits=[];
-const query=async(sql,args)=>{const r=await db.query(sql,args);return {...r,rowCount:r.rowCount??r.affectedRows??r.rows.length}};
+const query=async(sql,args)=>{const r=await db.query(sql,args);return {...r,rowCount:r.rowCount??(r.rows.length||r.affectedRows||0)}};
 const pool={query,async connect(){return {query,release(){}}}};
 const accounts=Object.fromEntries(['member','other','basic'].map(name=>[name,{id:'user-'+name,email:name+'@example.test',wallet_id:'wallet-'+name}]));
 const member=accounts.member,walletId=req=>req.accountUser?.wallet_id||String(req.get('X-Wallet-Id')||'').trim();
@@ -55,9 +56,9 @@ try{
  const gateEnv={walletId,accountPolicy:policyFor,hasPrivateTrial,isPrivateOwner,crypto,getWallet,PRODUCTION_HAIR_CATALOG,downloadHairAllowed};
  const requireCredit=new Function('env',`with(env){${capture('async function requireCredit(','\nconst upload=')};return requireCredit}`)(gateEnv);
  const app=express();app.use(express.json());
- app.use(async(req,res,next)=>{try{req.accountUser=accounts[req.get('X-Test-Session')]||null;let buffer=Buffer.from('input-png-local');if(req.body?.downloadWorkId){try{buffer=(await policy.inputForWork(walletId(req),req.body.downloadWorkId)).buffer}catch{}}const image={buffer,mimetype:'image/png',originalname:'fixture.png'};req.file=image;req.files={image:[image]};next()}catch(error){next(error)}});
+ app.use(async(req,res,next)=>{try{req.accountUser=accounts[req.get('X-Test-Session')]||null;let buffer=Buffer.from('input-png-local'),work=req.body?.downloadWorkId;if(!work&&req.body?.sourceJobId){try{work=await policy.scopeForJob(walletId(req),req.body.sourceJobId)}catch{}}if(work){try{buffer=(await policy.inputForWork(walletId(req),work)).buffer}catch{}}if(req.body?.wrongSource)buffer=Buffer.from('different-person');const image={buffer,mimetype:'image/png',originalname:'fixture.png'};req.file=image;req.files={image:[image]};next()}catch(error){next(error)}});
  const noopUpload=(req,res,next)=>next(),upload={single:()=>noopUpload,fields:()=>noopUpload};
- const env={...gateEnv,app,upload,requireCredit,dir:'/unused-local-fixture',downloadPolicy:policy,
+ const env={recoverPortraitWork,...gateEnv,app,upload,requireCredit,dir:'/unused-local-fixture',downloadPolicy:policy,
   process:{env:{ARK_API_KEY:'fixture-provider-never-sent'}},validateProductionPortrait(){},getModnetSession:async()=>{},
   editHairstyle:async args=>{providerCalls.push(['hairstyle',args.hairId]);return {provider:'fixture',png:Buffer.from('fixture-png')}},
   processProductionPortrait:async args=>{providerCalls.push(['portrait',args.fields.hairId]);return Buffer.from('fixture-png')},
@@ -113,6 +114,15 @@ try{
   assert.equal(await policy.premiumHair(member.wallet_id,'a1-later'),true);assert.equal(await policy.allowed(member.wallet_id,'a1-later'),true);
   assert.equal((await policy.suits(member.wallet_id,'a1-later',['/suit-a.png'])).limit,5);
   assert.equal(await balance(),0);assert.equal((await one('SELECT count(*)::int AS n FROM premium_download_redemptions')).n,2);
+ });
+ await check('159 redeemed work recovers premium generation from its prior job after losing the client work ID',async()=>{
+  const out=await request('/api/ai-jobs',{body:{hairId:'seedream-07',sourceJobId:'a1',femaleEyeStyle:'makeup'}});
+  assert.equal(out.status,202);assert.equal(out.data.downloadWorkId,scopeA);
+  await query("UPDATE ai_jobs SET status='completed' WHERE id=$1",[out.data.jobId]);
+  assert.equal(await policy.premiumHair(member.wallet_id,out.data.jobId),true);assert.equal(await policy.allowed(member.wallet_id,out.data.jobId),true);
+  assert.equal(await balance(),0);
+  assert.equal((await request('/api/ai-jobs',{body:{hairId:'seedream-07',sourceJobId:'a1',wrongSource:true}})).status,409);
+  assert.equal((await request('/api/ai-jobs',{session:'other',body:{hairId:'seedream-07',sourceJobId:'a1'}})).status,404);
  });
  await check('zero balance never silently renews and does not unlock a third work or leak a foreign paid-work entitlement',async()=>{
   const count=providerCalls.length;

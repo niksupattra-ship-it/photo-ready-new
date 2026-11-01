@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {preserveLocalSkinLook} from '../src/preserve-local-skin-look.js';
+import {prepareSavedProject} from '../src/saved-project.js';
+const old={portraitMode:'female',femaleEyeStyle:'makeup',initialFemaleEyeStyle:'natural',makeupStyles:{look:'skin-smooth-v1'},makeupIntensity:37,source:'OLD-FACE'};
+const next={portraitMode:'female',femaleEyeStyle:'makeup',source:'NEW-HAIR-AND-FACE',jobId:'new-paid-job',outputUnlocked:true};
+let renders=0;
+const deps={toSource:x=>x,render:async(base,styles)=>{assert.equal(base,next.source);assert.equal(styles.look,'skin-smooth-v1');renders++;return 'NEW-LOCAL-FINISH'},mix:async(base,full,intensity)=>{assert.equal(base,next.source);assert.equal(full,'NEW-LOCAL-FINISH');assert.equal(intensity,37);return 'NEW-FINISH-AT-37'}};
+const out=await preserveLocalSkinLook(old,next,deps);
+assert.equal(out.source,'NEW-FINISH-AT-37');assert.equal(out.processedOriginalSource,next.source);assert.equal(out.makeupBaseSource,next.source);assert.equal(out.makeupIntensity,37);assert.equal(out.jobId,next.jobId);assert(out.outputUnlocked);assert.equal(renders,1);
+assert.equal(await preserveLocalSkinLook({...old,makeupStyles:{}},next,deps),next);
+assert.equal(await preserveLocalSkinLook(old,{...next,femaleEyeStyle:'natural'},deps).then(x=>x.source),next.source);
+await assert.rejects(preserveLocalSkinLook(old,next,{...deps,render:async()=>{throw Error('local failed')}}),/local failed/);
+assert.equal(old.source,'OLD-FACE');
+const png='data:image/png;base64,AAAA',project={format:'idprom-studio',version:1,width:900,height:1200,compareSource:png,layers:[{id:'head',name:'หัว · คอ · ผม',kind:'head',source:png,portraitMode:'female',initialFemaleEyeStyle:'natural',femaleEyeStyle:'makeup',jobId:'paid-job',x:0,y:0,scale:1,rotation:0,visible:true,opacity:1}]};
+const restored=await prepareSavedProject(project,{decode:async()=>({width:900,height:1200}),fetchImage:async()=>({blob:async()=>new Blob(['original'],{type:'image/png'})}),makeFile:b=>b});
+assert.equal(restored.source.idpromFemaleEyeStyle,'makeup');
+console.log('PASS local makeup/intensity reapplied to new hair only, rights unchanged, failures preserved, saved current makeup overrides initial natural');
