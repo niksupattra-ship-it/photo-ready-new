@@ -33,6 +33,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
   {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
   {onOpenCode&&<button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button>}
+  <p className="offer-terms-reminder">กรุณาอ่านเงื่อนไขการให้บริการก่อนชำระเงิน</p>
   <ServiceTermsLink/>
  </div>;
 }
