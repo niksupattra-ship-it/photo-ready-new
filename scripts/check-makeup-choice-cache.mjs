@@ -22,7 +22,7 @@ function fixture(){
  // The change handler also resolves gender, so provide the real sibling helper.
  env.hairResultMode=extract(' const hairResultMode=','\n const hairResultKey=','hairResultMode',env);
  env.changeHairForStudio=extract(' const changeHairForStudio=async (','\n const downloadHairDonor=','changeHairForStudio',env);
- const change=extract(' const changeStudioHair=async(id,portraitMode,femaleEyeStyle)=>{','\n const LegacyPaidWarningUI=','changeStudioHair',env);
+ const change=extract(' const changeStudioHair=async(id,portraitMode,femaleEyeStyle,outfitReferencePath)=>{','\n const LegacyPaidWarningUI=','changeStudioHair',env);
  memory.rememberHairResult('seedream-19',env.editCache.current.master,'female','makeup').confirmed=true;
  return {file,calls,rights,messages,env,memory,change,setWallet:v=>{wallet=v},setPrivateTrial:v=>{privateTrial=v}};
 }
@@ -82,5 +82,14 @@ await test('provider/validation failure reaches Studio unchanged instead of a fa
  f.env.aiFinishPortrait=async()=>{throw cause};
  await assert.rejects(f.change('seedream-20','female','makeup'),error=>error===cause);
  assert.equal(f.env.currentOutputJobRef.current,'job-first');
+});
+await test('Korean rosy uses an independent cache and switching back reuses legacy makeup',async()=>{
+ const f=fixture(),original=f.env.editCache.current.master;
+ assert.notEqual(f.memory.hairResultKey('seedream-19','female','korean-rosy-v1'),f.memory.hairResultKey('seedream-19','female','makeup'));
+ const result=await f.change('seedream-19','female','korean-rosy-v1');result.commit();
+ assert.equal(f.calls[0].source,f.file);assert.equal(f.calls[0].options.femaleEyeStyle,'korean-rosy-v1');
+ const back=await f.change('seedream-19','female','makeup');assert(back.reused);back.commit();assert.equal(f.env.editCache.current.master,original);
+ const again=await f.change('seedream-19','female','korean-rosy-v1');assert(again.reused);again.commit();assert.equal(f.calls.length,1);
+ f.env.editCache.current.lock.templatePath='another-outfit.png';assert.equal(f.memory.canReuseHair('seedream-19','female','korean-rosy-v1'),false);
 });
 console.log(`PASS: ${passed} actual App makeup/cache scenarios; AI, rendering and payment API mocked; no external requests.`);

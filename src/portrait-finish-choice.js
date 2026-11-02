@@ -1,4 +1,4 @@
 // Preserve explicit natural/makeup choices; missing values never override them.
 export function portraitFinishChoice(...choices){
- return choices.find(choice=>choice==='makeup'||choice==='natural')||'natural';
+ return choices.find(choice=>choice==='makeup'||choice==='natural'||choice==='korean-rosy-v1')||'natural';
 }

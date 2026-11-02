@@ -967,7 +967,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
   setAssetBusy(true);setStatus(reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish==='makeup'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   const result=stagedResult=await onChangeHair(id,mode,finish);
+   const result=stagedResult=await onChangeHair(id,mode,finish,...(finish==='korean-rosy-v1'?[state.current.find(l=>layerKind(l)==='suit')?.templatePath||'']:[]));
    reused=result?.reused===true;
    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
@@ -1005,7 +1005,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  };
  const selectPortraitFinish=style=>{
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
-  if(!['makeup','natural'].includes(style)||!head?.jobId||(head.portraitMode||portraitMode)!=='female'||!sourcePhoto||processHairPending||state.current.some(l=>l.id===sourceLayerRef.current))return;
+  if(!['makeup','natural','korean-rosy-v1'].includes(style)||!head?.jobId||(head.portraitMode||portraitMode)!=='female'||!sourcePhoto||processHairPending||state.current.some(l=>l.id===sourceLayerRef.current))return;
   void applyHair(head.freeHairBaseOriginal?'':head.hairId||'',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
