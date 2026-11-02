@@ -20,7 +20,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
   <div className="offer-brand" aria-label="IDพร้อม">ID<span>พร้อม</span></div>
   <header className="ready-heading"><h2>รับรูปไม่มีลายน้ำ</h2></header>
   <div className="offer-choice-layout">
-   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{preview&&<figcaption className="offer-preview-caption"><span className="offer-preview-arrow" aria-hidden="true">↑</span><strong>คุณจะได้รับรูปนี้หลังชำระเงิน</strong></figcaption>}</figure>
+   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}</figure>
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
     {OFFERS.map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
      <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
@@ -33,7 +33,6 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
   {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
   {onOpenCode&&<button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button>}
-  <p className="offer-terms-reminder">กรุณาอ่านเงื่อนไขการให้บริการก่อนชำระเงิน</p>
   <ServiceTermsLink/>
  </div>;
 }
