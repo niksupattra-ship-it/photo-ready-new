@@ -56,8 +56,7 @@
  color:white;font:inherit;font-size:16px;font-weight:700;cursor:pointer;
 }
 .package-choice-modal .ready-pay:disabled,.package-choice-modal .ready-credit button:disabled{opacity:.5;cursor:default}
-.package-choice-modal .offer-image-scope{margin:12px 0 0;padding:8px;text-align:center;background:#f0f3f7;color:#65718b;border-radius:5px;font-size:13px;line-height:1.4}
-.package-choice-modal .offer-image-scope>span{margin-right:5px;font-size:16px}
+.package-choice-modal .offer-image-scope{display:flex;align-items:center;justify-content:center;gap:12px;margin:12px 0 0;padding:10px 8px;text-align:center;background:#fff0d6;color:#8a3900;border:1px solid #f59a23;border-radius:8px;font-size:13px;line-height:1.5;font-weight:700}.package-choice-modal .offer-scope-label{flex-shrink:0}.package-choice-modal .offer-scope-guidance{font-size:12px}.package-choice-modal .offer-scope-label>span{margin-right:5px;font-size:16px}
 .package-choice-modal .ready-credit{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:13px;color:#64708b}
 .package-choice-modal .ready-credit button{min-height:40px;border:1px solid #d9c9ff;border-radius:5px;padding:7px 9px;background:#f8f5ff;color:#7028f3;font:inherit;cursor:pointer}
 .package-choice-modal .ready-message{margin:10px 0 0;font-size:13px;text-align:center;line-height:1.5;color:#9a4b39}
@@ -87,3 +86,5 @@
 }
 
 .paired-offers .offer-code-entry{display:block;margin:12px auto 0;min-height:44px;padding:10px 24px;border:1px solid #9566e8;border-radius:10px;background:#fff;color:#7138c5;font:inherit;font-weight:700;cursor:pointer}.paired-offers .offer-code-entry:disabled{opacity:.5;cursor:default}
+
+.paired-offers .offer-payment-method{display:flex;justify-content:center;margin:12px 0 0}.paired-offers .offer-payment-method img{display:block;width:108px;height:auto;object-fit:contain}

@@ -20,7 +20,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
   <div className="offer-brand" aria-label="IDพร้อม">ID<span>พร้อม</span></div>
   <header className="ready-heading"><h2>รับรูปไม่มีลายน้ำ</h2></header>
   <div className="offer-choice-layout">
-   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}</figure>
+   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
     {OFFERS.map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
      <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
@@ -28,11 +28,10 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
     </section>)}
    </div>
   </div>
-  <p className="offer-image-scope"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</p>
+  <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</span>}</div>
   {isAuthenticated&&credits>0&&<div className="ready-credit"><span>สิทธิ์คงเหลือ {credits} งาน</span><button type="button" disabled={disabled} onClick={()=>onUseCredit({premium:usePremium})}>ใช้ 1 สิทธิ์{usePremium?'โปร 159':''}รับรูปนี้</button></div>}
-  {!hasTrial&&<p className="ready-message">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</p>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
-  {onOpenCode&&<button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button>}
   <ServiceTermsLink/>
+  <div className="offer-payment-method"><img src="/assets/payment/promptpay-logo.png" alt="ชำระเงินผ่านพร้อมเพย์"/></div>
  </div>;
 }
