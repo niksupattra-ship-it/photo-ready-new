@@ -89,3 +89,5 @@
 .paired-offers .offer-code-entry{display:block;margin:12px auto 0;min-height:44px;padding:10px 24px;border:1px solid #9566e8;border-radius:10px;background:#fff;color:#7138c5;font:inherit;font-weight:700;cursor:pointer}.paired-offers .offer-code-entry:disabled{opacity:.5;cursor:default}
 
 .paired-offers .offer-terms-reminder{margin:16px 0 0;text-align:center;color:#8a3900;font-size:14px;line-height:1.6;font-weight:600}
+
+.package-choice-modal .offer-preview-caption{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:8px;padding:8px 6px 12px;border:2px solid #f59a23;border-radius:10px;background:#fff0d6;color:#8a3900;text-align:center;font-size:15px;line-height:1.6;overflow-wrap:anywhere}.package-choice-modal .offer-preview-arrow{font-size:36px;font-weight:900;line-height:1}.package-choice-modal .offer-preview-caption strong{font-weight:800}
