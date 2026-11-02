@@ -28,7 +28,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
     </section>)}
    </div>
   </div>
-  <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาสร้างรูปให้สำเร็จก่อนรับรูป</span>}</div>
+  <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาสร้างรูปให้สำเร็จก่อนชำระเงิน</span>}</div>
   {isAuthenticated&&credits>0&&<div className="ready-credit"><span>สิทธิ์คงเหลือ {credits} งาน</span><button type="button" disabled={disabled} onClick={()=>onUseCredit({premium:usePremium})}>ใช้ 1 สิทธิ์{usePremium?'โปร 159':''}รับรูปนี้</button></div>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
   <ServiceTermsLink/>
