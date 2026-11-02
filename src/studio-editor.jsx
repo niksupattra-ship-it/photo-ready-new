@@ -1,4 +1,5 @@
 import {uniformMatchesSearch} from './uniform-search.js';
+import {assertPortraitExportReady} from './portrait-export-guard.js';
 import {preserveLocalSkinLook} from './preserve-local-skin-look.js';
 import {PaidWorkWarning} from './paid-work-warning.jsx';
 import {hasPaidDownloadForJobs,attachPaidBeforeUnload} from './paid-work-guard.js';
@@ -650,6 +651,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
  };
  const exportImage=async (type,{automatic=false}={})=>{
+  if(!ready||processActive||assetBusy||hydratingRef.current){setStatus('กำลังเตรียมภาพให้ครบ กรุณารอสักครู่ก่อนดาวน์โหลด');return}
   if(suitRequestRef.current){setStatus('กำลังเตรียมชุดความละเอียดเต็ม กรุณารอสักครู่');return}
   if(exportingRef.current){setStatus('กำลังเตรียมไฟล์ภาพ กรุณารอสักครู่');return}
   exportingRef.current=true;
@@ -665,7 +667,8 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     try{paintScene(ctx,state.current,assets.current);ctx.setTransform(1,0,0,1,0,0);ctx.save();ctx.translate(thumb.width/2,thumb.height/2);ctx.rotate(-.45);ctx.fillStyle='rgba(255,255,255,.55)';ctx.font='bold '+Math.round(thumb.width*.12)+'px sans-serif';ctx.textAlign='center';ctx.fillText('IDพร้อม',0,0);ctx.restore();onCheckoutPreview({jobId:outputHeads(state.current)[0]?.jobId,preview:thumb.toDataURL('image/jpeg',.84)})}finally{thumb.width=1;thumb.height=1}
    }
    try{const heads=outputHeads(state.current);if(heads.length&&heads.every(l=>l.jobId))audit=beginDownloadAudit({jobIds:heads.map(l=>l.jobId),mode:easyMode?'easy':'studio',initiator:automatic?'automatic_after_unlock':'user'});if(!automatic)observe('download_clicked')}catch{}
-   if(!(await allowOutput({errorTitle:'ดาวน์โหลดไม่สำเร็จ',consumeDownloadCredit:!automatic,onAuditBlock:observe})))return;stage='render';flushTransforms();const renderedOutputKey=outputHeads(state.current).map(l=>l.jobId||(l.kind==='source-photo'?l.id:'missing')).join('|');c=nativeCanvas(placementRef.current);if(type==='image/jpeg'){b=nativeCanvas(placementRef.current);paintScene(b.getContext('2d'),state.current,assets.current);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0);b.width=1;b.height=1}else paintScene(c.getContext('2d'),state.current,assets.current);
+   stage='render';flushTransforms();assertPortraitExportReady(state.current,assets.current,paintLayers);stage='rights';
+   if(!(await allowOutput({errorTitle:'ดาวน์โหลดไม่สำเร็จ',consumeDownloadCredit:!automatic,onAuditBlock:observe})))return;stage='render';flushTransforms();assertPortraitExportReady(state.current,assets.current,paintLayers);const renderedOutputKey=outputHeads(state.current).map(l=>l.jobId||(l.kind==='source-photo'?l.id:'missing')).join('|');c=nativeCanvas(placementRef.current);if(type==='image/jpeg'){b=nativeCanvas(placementRef.current);paintScene(b.getContext('2d'),state.current,assets.current);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0);b.width=1;b.height=1}else paintScene(c.getContext('2d'),state.current,assets.current);
    const workId=onSaveWork?.currentWorkId?.(),workScope=onSaveWork?.currentScope?.();let project=null,backupError=null;
    // Capture the original file with these pixels: its work ID carries the
    // existing paid unlock across saved-work reopen and hairstyle changes.
@@ -685,10 +688,10 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  };
  const autoDownloadAttempted=useRef(new Set());
  useEffect(()=>{
-  const signal=downloadUnlockSignal;if(!signal||autoDownloadAttempted.current.has(signal.id)||!ready||suitRequestRef.current)return;
+  const signal=downloadUnlockSignal;if(!signal||autoDownloadAttempted.current.has(signal.id)||!ready||assetBusy||processActive||hydratingRef.current||suitRequestRef.current)return;
   if(!outputHeads(state.current).some(l=>l.jobId===signal.jobId))return;
   autoDownloadAttempted.current.add(signal.id);void exportImage('image/png',{automatic:true});
- },[downloadUnlockSignal,ready,outputKey,assetBusy]);
+ },[downloadUnlockSignal,ready,outputKey,assetBusy,processActive]);
  const finishDownloadCrop=async crop=>{
   if(exportingRef.current||!downloadCrop)return;
   exportingRef.current=true;setDownloadCropBusy(true);

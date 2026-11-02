@@ -30,7 +30,7 @@ function auditBoundary(env,{throws=''}={}){
 }
 function studioFixture({paid=false,balance=2,throws='',easyMode=false}={}){
  const events=[],unlocked=new Set(paid?['job-a']:[]);let remaining=balance;
- const e={easyMode,accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},
+ const e={ready:true,processActive:false,assetBusy:false,hydratingRef:{current:false},suitRequestRef:{current:false},prepareSourceDownload:async()=>{},onCheckoutPreview:null,onReceiveImage:null,paintLayers:()=>{},assertPortraitExportReady:()=>true,easyMode,accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},
   outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,warningProofForJob:()=> 'fixture-proof',
   outputAccessResult,unavailableOutputRights,mergeOutputRights,sessionUnlockedJobs:{current:new Set()},
   onVerifyOutput:async id=>{events.push(['verify',id]);return unlocked.has(id)?granted:denied},
@@ -68,7 +68,7 @@ function classicFixture({paid=false,balance=2,throws=''}={}){
  };
  for(const setter of ['setDownloadBusy','setMsg','setDownloadNotice','setPayMsg','setTrialPreview','setBuyOpen'])e[setter]=value=>events.push([setter,value]);
  const observation=auditBoundary(e,{throws});
- e.deliverImage=(blob,name,options)=>{events.push(['download',blob,name]);observation.observeDelivery(options);return 'requested'};
+ e.receivePurchasedImage=async(blob,context)=>{events.push(['download',blob,context.name]);observation.observeDelivery({onEvent:context.audit?.delivery});return 'receipt'};
  const download=handler(main,' const downloadCurrentFinal=async','\n const classicAutoDownloadRef=','downloadCurrentFinal',e);
  return {e,events,identity,...observation,download,get balance(){return remaining},count:type=>events.filter(row=>row[0]===type).length};
 }
