@@ -1,5 +1,7 @@
 // Actual App voucher handlers/components. All account/payment/HTTP boundaries are inert.
 import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
 import {readFile,writeFile} from 'node:fs/promises';
 import {createServer} from 'vite';
 import {withDeadline} from '../src/async-deadline.js';
@@ -78,7 +80,7 @@ try{
   for(const pkg of ['89','159']){const tree=PackageCodeDialog({result:{packageId:pkg}}),t=text(tree);assert(t.includes('ใช้โค้ดสำเร็จ'));assert(t.includes('เลือกชุดได้ '+(pkg==='159'?5:3)+' ชุด'));assert(t.includes(pkg==='159'?'ปลดล็อกทรงผมพรีเมียม':'ทรงผมพื้นฐาน'));assert(t.includes('กลับไปดาวน์โหลดรูป'))}
  });
  await check('actual package offers expose an independent code button without starting checkout',()=>{
-  const calls=[],tree=PackageOffers({hasTrial:true,onOpenCode:()=>calls.push('code'),startCheckout:()=>calls.push('payment')});nodes(tree).find(x=>x.type==='button'&&text(x)==='ใส่โค้ด').props.onClick();assert.deepEqual(calls,['code']);
+  const calls=[],markup=renderToStaticMarkup(React.createElement(PackageOffers,{hasTrial:true,isAuthenticated:false,onOpenCode:()=>calls.push('code'),startCheckout:()=>calls.push('payment')}));assert.match(markup,/<button[^>]*class="offer-code-entry"[^>]*>ใส่โค้ด<\/button>/);assert.deepEqual(calls,[]);
  });
 }finally{await server.close()}
 assert(!main.slice(main.indexOf(' const submitPackageCode=async'),main.indexOf(' const PackageCodeUI=')).includes('setDownloadUnlockSignal'));

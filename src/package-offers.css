@@ -85,3 +85,5 @@
  .package-choice-modal .offer-choice-label{gap:6px}
  .package-choice-modal .offer-name{font-size:15px}
 }
+
+.paired-offers .offer-code-entry{display:block;margin:12px auto 0;min-height:44px;padding:10px 24px;border:1px solid #9566e8;border-radius:10px;background:#fff;color:#7138c5;font:inherit;font-weight:700;cursor:pointer}.paired-offers .offer-code-entry:disabled{opacity:.5;cursor:default}
