@@ -11,8 +11,8 @@ export function FemaleFaceCompare({value='natural',onSelect,disabled=false}){
    <img className="idprom-face-compare__image idprom-face-compare__image--makeup" src="/assets/face-finish/makeup.webp" alt="" decoding="async"/>
    <img className="idprom-face-compare__image idprom-face-compare__image--natural" src="/assets/face-finish/natural.webp" alt="" decoding="async"/>
    <div className="idprom-face-compare__divider" aria-hidden="true"/>
-   <button type="button" className={'idprom-face-compare__option idprom-face-compare__option--makeup'+(value==='makeup'?' is-selected':'')} disabled={disabled} aria-pressed={value==='makeup'} onClick={()=>onSelect?.('makeup')}>
-    <span className="idprom-face-compare__pill">แต่งหน้า{value==='makeup'&&<span className="idprom-face-compare__check" aria-hidden="true"> ✓</span>}</span>
+   <button type="button" className={'idprom-face-compare__option idprom-face-compare__option--makeup'+(value==='korean-rosy-v1'?' is-selected':'')} disabled={disabled} aria-pressed={value==='korean-rosy-v1'} onClick={()=>onSelect?.('korean-rosy-v1')}>
+    <span className="idprom-face-compare__pill">แต่งหน้า{value==='korean-rosy-v1'&&<span className="idprom-face-compare__check" aria-hidden="true"> ✓</span>}</span>
    </button>
    <button type="button" className={'idprom-face-compare__option idprom-face-compare__option--natural'+(value==='natural'?' is-selected':'')} disabled={disabled} aria-pressed={value==='natural'} onClick={()=>onSelect?.('natural')}>
     <span className="idprom-face-compare__pill">ไม่แต่งหน้า{value==='natural'&&<span className="idprom-face-compare__check" aria-hidden="true"> ✓</span>}</span>
