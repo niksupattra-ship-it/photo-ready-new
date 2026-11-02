@@ -1,8 +1,7 @@
 import React from 'react';
 import {MAKEUP_LOOKS} from '../makeup-presets.js';
 const PORTRAIT_FINISHES=[
- {id:'makeup',name:'แต่งหน้า',preview:'/assets/face-finish/makeup.webp'},
- {id:'korean-rosy-v1',name:'แต่งหน้าเกาหลี · ผิวใสอมชมพู',preview:'/assets/face-finish/makeup.webp'},
+ {id:'korean-rosy-v1',name:'แต่งหน้า',preview:'/assets/face-finish/makeup.webp'},
  {id:'natural',name:'ไม่แต่งหน้า',preview:'/assets/face-finish/natural.webp'}
 ];
 const choiceStyle={flex:'0 0 104px',width:104,minWidth:0,padding:6,textAlign:'center'};
