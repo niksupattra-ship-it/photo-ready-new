@@ -126,6 +126,7 @@ export const ENGLISH_COPY = {
  'ชำระเงินสำเร็จ':'Payment successful','ดาวน์โหลดสำเร็จ':'Download complete',
  'รูปที่ประมวลผลแล้ว':'Processed photo','ขั้นตอนและตัวเลือกที่เลือก':'Steps and your selections',
  'เลือกข้างเข็มปกคอ':'Choose collar pin side','เข็มปกคอซ้าย':'Left collar pin','เข็มปกคอขวา':'Right collar pin',
+ 'ปรับตำแหน่งหัว คอเสื้อ ทรงผม พื้นหลัง แพรแถบ เข็ม':'Adjust your head, collar, hairstyle and background.',
  'ปรับตำแหน่ง':'Position','ขนาด':'Size','ขนาดหัว':'Head size','ขนาดศีรษะ':'Head size',
  'ขนาดทั้งคู่':'Pair size','ซ้าย–ขวา':'Left–right','ขึ้น–ลง':'Up–down','หมุน':'Rotate',
  'ความสูงคอเสื้อ':'Collar height','บีบ–ขยายคอเสื้อ':'Collar width','ความทึบ':'Opacity',
@@ -148,6 +149,9 @@ const THAI=/[\u0E00-\u0E7F]/;
 const fragments=Object.entries(ENGLISH_COPY).filter(([thai])=>!['พร้อม','รูป'].includes(thai)).sort((a,b)=>b[0].length-a[0].length);
 export function englishPreviewEnabled(location=globalThis.location){
  return new URLSearchParams(location?.search||'').get('lang')==='en';
+}
+export function insigniaForLanguage(location=globalThis.location){
+ return !englishPreviewEnabled(location);
 }
 export function outfitsForLanguage(items,location=globalThis.location){
  return englishPreviewEnabled(location)?items.filter(item=>(item.cat||item.id)==='job'):items;
