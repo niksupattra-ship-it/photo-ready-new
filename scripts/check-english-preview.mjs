@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {englishPreviewEnabled,languageLink,translateEnglish,ENGLISH_COPY,startEnglishPreview} from '../src/english-preview.js';
+assert.equal(englishPreviewEnabled({search:''}),false);
+assert.equal(englishPreviewEnabled({search:'?lang=th'}),false);
+assert.equal(englishPreviewEnabled({search:'?lang=en'}),true);
+assert.equal(languageLink({href:'https://idpromth.com/?work=123#photo'},true),'/?work=123&lang=en#photo');
+assert.equal(languageLink({href:'https://idpromth.com/?work=123&lang=en#photo'},false),'/?work=123#photo');
+assert.equal(translateEnglish('89 บาท'),'89 THB');
+assert.equal(translateEnglish('customer@example.com'),'customer@example.com');
+assert.equal(translateEnglish('  อัปโหลดรูป  '),'  Upload photo  ');
+assert.equal(translateEnglish('สำหรับงานนี้เท่านั้น'),'For this project only');
+for(const value of Object.values(ENGLISH_COPY))assert.equal(translateEnglish(value),value,'translations are stable');
+// The Thai page returns before reading or editing DOM content.
+let changed=false;
+startEnglishPreview({defaultView:{location:{search:''}},get documentElement(){changed=true;throw Error('Thai page was mutated')}})();
+assert.equal(changed,false);
+globalThis.window={matchMedia:()=>({matches:false})};
+const server=await createServer({server:{middlewareMode:true,hmr:false,ws:false}});
+try{
+ const {EasyMode}=await server.ssrLoadModule('/src/easy-mode.jsx');
+ const common={canvasRef:{current:null},templates:[],hairs:[],backgrounds:[],hasResult:false,sourcePreview:null,ready:true,memberMenu:null};
+ const home=renderToStaticMarkup(React.createElement(EasyMode,common));
+ assert(home.includes('อัปโหลดรูป'),'Thai landing remains Thai');
+ const english=translateEnglish(home);
+ assert(english.includes('Upload photo'));assert(english.includes('Create your ID photo'));
+ assert(!/[\u0E00-\u0E7F]/.test(english),'all English landing copy is covered');
+ for(const hasResult of [false,true]){
+  const editor=renderToStaticMarkup(React.createElement(EasyMode,{...common,templates:[{template:'/assets/test.png',title:'สูทหญิง',gender:'female'}],sourcePreview:'data:image/png;base64,AAAA',gender:'female',photoTypeSelected:true,hasResult}));
+  const labels=[...editor.matchAll(/>([^<>]+)</g),...editor.matchAll(/(?:aria-label|title|placeholder|alt)="([^"]*)"/g)].map(m=>m[1]);
+  for(const label of labels)assert(!/[\u0E00-\u0E7F]/.test(translateEnglish(label)),label);
+ }
+ const old=globalThis.location;globalThis.location=new URL('https://idpromth.com/?lang=en');
+ const {LanguageSwitch}=await server.ssrLoadModule('/src/language-switch.jsx');
+ const switchHtml=renderToStaticMarkup(React.createElement(LanguageSwitch));
+ assert(switchHtml.includes('English preview'));assert(switchHtml.includes('href="/"'));assert(switchHtml.includes('ภาษาไทย'));
+ globalThis.location=old;
+}finally{await server.close();delete globalThis.window}
+console.log('PASS opt-in English URL, Thai return link, Thai-page isolation, prices, landing, editor controls and language switch. No AI, payments or external requests.');

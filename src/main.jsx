@@ -1,3 +1,5 @@
+import {LanguageSwitch} from './language-switch.jsx';
+import {startEnglishPreview} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
 import {PurchaseReceipt,PurchasedPhotos,PurchaseSummary} from './purchase-delivery.jsx';
 import {EasyMode} from './easy-mode.jsx';
@@ -5019,7 +5021,8 @@ optionTool==='pins'?<><div className="tool-choice-tabs ribbon-panel-tabs desktop
 
  </section></main>
 }
-createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/></>);
+startEnglishPreview();
+createRoot(document.getElementById('root')).render(<><App/><PasswordReset/><ServiceTermsLink footer/><LanguageSwitch/></>);
 
 
 

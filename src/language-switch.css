@@ -1,0 +1,5 @@
+.language-switch{position:fixed;bottom:10px;right:14px;z-index:120;display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid #e3e8ee;border-radius:20px;background:#fffffff2;box-shadow:0 2px 8px #152c4510;font:12px/1.5 system-ui,sans-serif}
+.language-switch a{color:#315f7e;text-decoration:underline;text-underline-offset:3px}.language-switch a:focus-visible{outline:2px solid #315f7e;outline-offset:3px}.language-switch-preview{color:#66788a;font-size:11px}
+.english-preview .idprom-seo{display:none}.english-preview .easy-intro h1{letter-spacing:-.03em}.english-preview .easy-tab,.english-preview .studio-bottom-choices button{white-space:normal}.english-preview .easy-primary{white-space:normal}
+@media(max-width:600px){.language-switch{bottom:calc(6px + env(safe-area-inset-bottom));right:8px;font-size:11px;padding:3px 8px}.english-preview .easy-intro h1{font-size:clamp(27px,7vw,40px)}}
+@media print{.language-switch{display:none}}
