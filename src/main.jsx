@@ -1,3 +1,4 @@
+import './app-styles.js';
 import {LanguageSwitch} from './language-switch.jsx';
 import {startEnglishPreview,outfitsForLanguage} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
@@ -68,7 +69,7 @@ import {loadVisionRuntime} from './vision-runtime.js';
 import'./style.css';
 import './home-layout.css';
 import './trial-choice.css';
-import {StudioEditor} from './studio-editor.jsx';
+import {StudioEditor} from './deferred-studio-editor.jsx';
 import {renderLocalSkin} from './local-skin.js';
 import {makeupLook} from '../makeup-presets.js';
 import {blendHairlineSeam} from './hairline-seam.js';
