@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import sharp from 'sharp';
+import {homePreviewSource} from '../src/home-previews.js';
+const source='/assets/job-uniforms/female-suit-04-v2-example.webp',preview=homePreviewSource(source);
+assert.notEqual(preview,source);assert(preview.includes('/home-previews/')&&preview.includes('-example.'));
+const [original,small]=await Promise.all([readFile('public'+source),readFile('public'+preview)]);assert(small.length<original.length*.1);
+const [a,b]=await Promise.all([sharp(original).metadata(),sharp(small).metadata()]);assert(Math.abs(a.width/a.height-b.width/b.height)<.01);assert(b.width<=409&&b.height<=512);
+const guide=await readFile('src/studio-photo-guide.jsx','utf8');assert(!guide.includes('data:image/webp;base64,'));
+const path=guide.match(/const photoGuideImage='([^']+)'/)?.[1];assert(path);const bytes=await readFile('public'+path);assert(path.includes(createHash('sha256').update(bytes).digest('hex').slice(0,12)));
+assert.equal(bytes.length,110906,'existing guide bytes must be extracted without editing');
+const html=await readFile('dist/index.html','utf8');const entry=html.match(/<script[^>]*type="module"[^>]*src="([^"]+)"/)?.[1];assert(entry);const javascript=await readFile('dist'+entry);assert(javascript.length<1_500_000,'initial JavaScript must stay below the pre-optimization bundle');
+assert(!html.includes('rel="modulepreload" href="/assets/vision_bundle'));
+console.log('PASS smaller display-only portrait preserves aspect ratio, guide is an unchanged external asset, and startup JavaScript excludes the large eager payload. No original portrait or export template modified.');

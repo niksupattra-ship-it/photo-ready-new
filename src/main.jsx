@@ -64,7 +64,7 @@ import {requestPromptpay} from './promptpay-request.js';
 import {deadlineFetch} from './deadline-fetch.js';
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import{FilesetResolver,FaceLandmarker,ImageSegmenter}from'@mediapipe/tasks-vision';
+import {loadVisionRuntime} from './vision-runtime.js';
 import'./style.css';
 import './home-layout.css';
 import './trial-choice.css';
@@ -151,6 +151,7 @@ async function getPersonSegmenter(){
  if(!segmenterPromise){
   let expired;
   const pending=withDeadline(async()=>{
+  const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
   if(expired)throw expired;
   return ImageSegmenter.createFromOptions(vision,{
@@ -205,6 +206,7 @@ async function getLandmarker(){
  if(!landmarkerPromise){
   let expired;
   const pending=withDeadline(async()=>{
+  const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
   if(expired)throw expired;
   return FaceLandmarker.createFromOptions(vision,{
@@ -1815,6 +1817,7 @@ async function prepareStudioHairOverlay(headSource,hairId){
 let youcamHairSegmenterPromise;
 async function getYoucamHairSegmenter(){
  if(!youcamHairSegmenterPromise)youcamHairSegmenterPromise=(async()=>{
+  const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
   const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
   return ImageSegmenter.createFromOptions(vision,{
    baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},

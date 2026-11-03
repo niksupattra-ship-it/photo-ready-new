@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {parseAst} from 'rolldown/parseAst';
+import {createVisionRuntimeLoader} from '../src/vision-runtime.js';
+let imports=0,release;const module={FilesetResolver:{},FaceLandmarker:{},ImageSegmenter:{}};
+const load=createVisionRuntimeLoader(()=>{imports++;return new Promise(resolve=>{release=()=>resolve(module)})});
+assert.equal(imports,0);const first=load(),second=load();assert.equal(first,second);await Promise.resolve();assert.equal(imports,1);release();assert.equal(await first,module);assert.equal(await load(),module);assert.equal(imports,1);
+let tries=0;const cause=Error('temporary chunk failure');const retry=createVisionRuntimeLoader(()=>{if(++tries===1)throw cause;return module});await assert.rejects(retry(),error=>error===cause);assert.equal(await retry(),module);assert.equal(tries,2);
+const source=await readFile('src/main.jsx','utf8');const ast=parseAst(source,{lang:'jsx'},'src/main.jsx');
+const names=['getPersonSegmenter','getLandmarker','getYoucamHairSegmenter'];const functions=names.map(name=>{const node=ast.body.find(n=>n.type==='FunctionDeclaration'&&n.id.name===name);assert(node);return source.slice(node.start,node.end)}).join('\n');
+const calls=[];const vision={id:'vision'};const fake={FilesetResolver:{forVisionTasks:async url=>{assert(url.endsWith('@mediapipe/tasks-vision@1.0.1/wasm'));return vision}},FaceLandmarker:{createFromOptions:async(runtime,options)=>{assert.equal(runtime,vision);calls.push({type:'face',options});return {type:'face'}}},ImageSegmenter:{createFromOptions:async(runtime,options)=>{assert.equal(runtime,vision);calls.push({type:'segment',options});return {type:'segment',options}}}};
+const models=Function('loadVisionRuntime','withDeadline',`let landmarkerPromise,segmenterPromise,youcamHairSegmenterPromise;${functions};return {${names.join(',')}}`)(createVisionRuntimeLoader(()=>fake),fn=>fn());
+const [faceA,faceB,person,confidence]=await Promise.all([models.getLandmarker(),models.getLandmarker(),models.getPersonSegmenter(),models.getYoucamHairSegmenter()]);assert.equal(faceA,faceB);assert.equal(calls.length,3);
+assert.equal(person.options.outputCategoryMask,true);assert.equal(person.options.outputConfidenceMasks,false);assert.equal(confidence.options.outputCategoryMask,false);assert.equal(confidence.options.outputConfidenceMasks,true);
+assert(calls.find(c=>c.type==='face').options.baseOptions.modelAssetPath.includes('face_landmarker'));assert.equal(person.options.baseOptions.modelAssetPath,confidence.options.baseOptions.modelAssetPath);
+assert(!/^import.*from\s*['"]@mediapipe\/tasks-vision/m.test(source));
+console.log('PASS deferred runtime is idle on creation, shares concurrent imports, retries failed imports, retains cached models, and preserves separate segmentation options. Models and imports mocked; no AI/network calls.');

@@ -1,3 +1,4 @@
+import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
@@ -526,8 +527,8 @@ app.use((err,req,res,next)=>{
 });
 
 app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",configured:true,removeBgCreditRequired:false}));
-app.use(express.static(path.join(dir,"dist")));
-app.use((req,res)=>res.sendFile(path.join(dir,"dist","index.html")));
+app.use(express.static(path.join(dir,"dist"),{setHeaders:publicAssetHeaders}));
+app.use((req,res)=>res.set("Cache-Control","no-cache").sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
 startSavedWorkRetentionCleanup();
 

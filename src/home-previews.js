@@ -1,5 +1,6 @@
 // Display-only home previews. Production patterns and AI references stay full resolution.
 const HOME_PREVIEWS={
+  "/assets/job-uniforms/female-suit-04-v2-example.webp": "/assets/home-previews/job-uniforms--female-suit-04-v2-example.12cae3db5992.webp",
   "/assets/government-uniforms/female-academic-example.jpg": "/assets/home-previews/government-uniforms--female-academic-example.webp",
   "/assets/government-uniforms/female-government-employee-example.jpg": "/assets/home-previews/government-uniforms--female-government-employee-example.webp",
   "/assets/government-uniforms/female-operational-example.jpg": "/assets/home-previews/government-uniforms--female-operational-example.webp",
