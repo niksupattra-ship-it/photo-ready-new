@@ -3,3 +3,6 @@
 .english-preview .idprom-seo{display:none}.english-preview .easy-intro h1{letter-spacing:-.03em}.english-preview .easy-tab,.english-preview .studio-bottom-choices button{white-space:normal}.english-preview .easy-primary{white-space:normal}
 @media(max-width:600px){.language-switch{bottom:calc(6px + env(safe-area-inset-bottom));right:8px;font-size:11px;padding:3px 8px}.english-preview .easy-intro h1{font-size:clamp(27px,7vw,40px)}}
 @media print{.language-switch{display:none}}
+
+.english-preview .studio-category-card>img,.english-preview .studio-featured-item img,.english-preview .government-level-grid img,.english-preview .uniform-switch-grid img,.english-preview .easy-suit-category-grid img,.english-preview .easy-suit-grid img{object-fit:contain!important;object-position:center!important;padding:8px;box-sizing:border-box;background:#f3f5f9;border-radius:10px}
+.english-preview .studio-catalog-grid img[src*="uniform-quick-previews/job-uniforms"],.english-preview .easy-step-preview img[src*="uniform-quick-previews/job-uniforms"]{object-fit:contain!important;object-position:center!important;background:#f3f5f9}
