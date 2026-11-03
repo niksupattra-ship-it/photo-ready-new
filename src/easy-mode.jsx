@@ -1,3 +1,4 @@
+import {englishPreviewEnabled} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
 import React,{useEffect,useRef,useState} from 'react';
 import './easy-mode.css';
@@ -96,7 +97,7 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
      <p className="easy-landing-example-heading">จากรูปต้นฉบับ สู่รูปพร้อมใช้งาน</p>
      <div className="easy-landing-samples">
       <figure><img src="/assets/home-previews/easy-job-v20261030.webp" alt="ตัวอย่างรูปชุดสมัครงาน"/><figcaption>ชุดสมัครงาน</figcaption></figure>
-      <figure><img src="/assets/home-previews/easy-government-v20261030.webp" alt="ตัวอย่างรูปชุดข้าราชการ"/><figcaption>ชุดข้าราชการ</figcaption></figure>
+      <figure><img src={englishPreviewEnabled()?'/assets/job-uniforms/male-suit-03-example.png':'/assets/home-previews/easy-government-v20261030.webp'} alt={englishPreviewEnabled()?'Men’s job application portrait example':'ตัวอย่างรูปชุดข้าราชการ'}/><figcaption>{englishPreviewEnabled()?'Men’s job application outfit':'ชุดข้าราชการ'}</figcaption></figure>
       <figure><img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261031.webp" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/><figcaption>รูปต้นฉบับ</figcaption></figure>
      </div>
     </div>

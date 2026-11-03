@@ -1,5 +1,5 @@
 import {LanguageSwitch} from './language-switch.jsx';
-import {startEnglishPreview} from './english-preview.js';
+import {startEnglishPreview,outfitsForLanguage} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
 import {PurchaseReceipt,PurchasedPhotos,PurchaseSummary} from './purchase-delivery.jsx';
 import {EasyMode} from './easy-mode.jsx';
@@ -2938,13 +2938,13 @@ const FEMALE_GOVERNMENT_UNIFORMS=[
  {id:'female-senior',name:'ชำนาญการ / อาวุโส',level:'senior',img:'/assets/government-uniforms/female-senior.png',preview:'/assets/government-uniforms/female-senior-example.jpg'},
  {id:'female-government-employee',name:'พนักงานราชการ',level:'government-employee',img:'/assets/government-uniforms/female-government-employee.png',preview:'/assets/government-uniforms/female-government-employee-example.jpg'},
 ];
-const UNIFORM_GROUPS=[
+const UNIFORM_GROUPS=outfitsForLanguage([
  {id:'job',name:'สมัครงาน',items:JOB_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
  {id:'government-female',name:'ข้าราชการหญิง',items:FEMALE_GOVERNMENT_UNIFORMS.map(item=>({...item,title:item.name,template:item.img,cat:'government',gender:'female'}))},
  {id:'government-male',name:'ข้าราชการชาย',items:INTERIOR_UNIFORMS.map(item=>({...item,title:item.name,preview:item.preview,template:item.img,cat:'government',gender:'male'}))},
  {id:'gown',name:'ชุดครุย',items:GOWN_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img}))},
  {id:'student',name:'นักศึกษา',items:STUDENT_UNIFORMS.map(item=>({...item,name:item.title,preview:item.img,template:item.template}))},
-];
+]);
 const FREE_TEMPLATE_PATHS=UNIFORM_GROUPS.flatMap(group=>{const seen=new Set();return group.items.filter(item=>{const key=(item.cat||group.id)+'/'+item.gender;if(seen.has(key))return false;seen.add(key);return true}).map(item=>item.template)});
 function analyticsUniformSelection(template,surface='process'){try{const option=UNIFORM_GROUPS.flatMap(group=>group.items).find(item=>item.template===template);if(option)analyticsSelection({kind:'uniform',id:option.id,name:option.title||option.name,gender:option.gender,category:option.cat,provider:'uniform',stage:'select',mode:'new',surface})}catch{}}
 function normalizedRights(data){return {freeGeneration:data.freeGeneration===true,canSave:data.canSave===true,ownerAccess:data.ownerAccess===true,unlimitedDownloads:data.ownerAccess===true&&data.unlimitedDownloads===true,allFeatures:data.ownerAccess===true&&data.allFeatures===true,downloadRemaining:Math.max(0,Math.floor(Number(data.processRemaining??data.generationRemaining??data.downloadRemaining)||0))+Math.max(0,Math.floor(Number(data.premiumDownloadRemaining)||0)),premiumDownloadRemaining:Math.max(0,Math.floor(Number(data.premiumDownloadRemaining)||0)),...(Number.isFinite(Number(data.trialRemaining))?{trialRemaining:Number(data.trialRemaining)}:{}),...(typeof data.hasPurchased==='boolean'?{hasPurchased:data.hasPurchased}:{}),...(typeof data.trialAvailable==='boolean'?{trialAvailable:data.trialAvailable}:{}),generationRemaining:Number(data.processRemaining??data.generationRemaining??0),hairRemaining:Number(data.processRemaining??data.hairRemaining??0),...(Array.isArray(data.unlockedJobIds)?{unlockedJobIds:data.unlockedJobIds}:{}),...(Array.isArray(data.editableJobIds)?{editableJobIds:data.editableJobIds}:{})}}
@@ -4921,15 +4921,15 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const femaleJobUniforms=JOB_UNIFORMS.filter(item=>item.gender==='female');
   const photoSizeSample=JOB_UNIFORMS.find(item=>item.id==='female-suit-03');
   const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio')};
-  const homeCategories=[
+  const homeCategories=outfitsForLanguage([
    {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
    {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดราชการชายและหญิง\nเลือกเข็มและแพรแถบได้',image:'/assets/home-cutouts/government.png'},
    {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชายและหญิง\nแบบผูกไทและไม่ผูกไท',image:'/assets/home-cutouts/student.png'},
    {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'เลือกชุดครุยตามสถาบัน\nรวมทุกแบบในหมวดเดียว',image:GOWN_UNIFORMS[0].img}
-  ];
-  const featured=[...['female-suit-03','female-suit-04','male-suit-03','female-formal-suit','female-lapel-suit'].map(id=>JOB_UNIFORMS.find(item=>item.id===id)),
+  ]);
+  const featured=outfitsForLanguage([...['female-suit-03','female-suit-04','male-suit-03','female-formal-suit','female-lapel-suit'].map(id=>JOB_UNIFORMS.find(item=>item.id===id)),
    {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},
-   {...FEMALE_GOVERNMENT_UNIFORMS[0],title:'ข้าราชการหญิง',cat:'government',gender:'female',img:FEMALE_GOVERNMENT_UNIFORMS[0].preview}].filter(item=>item&&item.img);
+   {...FEMALE_GOVERNMENT_UNIFORMS[0],title:'ข้าราชการหญิง',cat:'government',gender:'female',img:FEMALE_GOVERNMENT_UNIFORMS[0].preview}].filter(item=>item&&item.img));
   const openFeatured=item=>{
    if(item.cat==='job'){chooseJobUniform(item);return}
    if(item.cat==='government'){

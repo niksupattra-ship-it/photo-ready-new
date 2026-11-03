@@ -6,7 +6,7 @@ export const ENGLISH_COPY = {
  'IDพร้อม':'ID Phrom','พร้อม':'Phrom',
  'สร้างรูปติดบัตร':'Create your ID photo',
  'ได้ง่าย ๆ ด้วยตัวเอง':'in a few simple steps',
- 'เลือกสไตล์ที่เหมาะกับคุณ สำหรับสมัครงาน ข้าราชการ นักศึกษา และชุดครุย':'Choose a look for job applications, work, school or graduation.',
+ 'เลือกสไตล์ที่เหมาะกับคุณ สำหรับสมัครงาน ข้าราชการ นักศึกษา และชุดครุย':'Choose a professional suit or shirt for your job application photo.',
  'อัปโหลดรูป เลือกทรงผม เลือกชุด และดาวน์โหลด':'Upload a photo, choose your hair and outfit, then download.',
  'เริ่มสร้างรูปติดบัตร':'Create your photo',
  'ใช้รูปหน้าตรง แสงสว่างชัดเจน และไม่มีสิ่งบดบังใบหน้า':'Use a well-lit, front-facing photo with your face clearly visible.',
@@ -19,6 +19,12 @@ export const ENGLISH_COPY = {
  'รูปต้นฉบับก่อนเปลี่ยนชุด':'Original photo before changing the outfit',
  'เริ่มสร้างรูปและดูตัวอย่าง':'Create a photo and see examples',
  'เลือกสไตล์ที่เหมาะกับคุณ':'Choose your look',
+ 'ชุดสมัครงานชาย':'Men’s job application outfits','ชุดสมัครงานหญิง':'Women’s job application outfits',
+ 'แบบรูปสำหรับการใช้งานของคุณ':'Professional photo styles','เลือกประเภทที่ต้องการ':'Choose your job application outfit',
+ 'ดูแบบชุดและตัวอย่างก่อนเริ่มสร้างรูป':'Explore suits and shirts before creating your photo.',
+ 'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป':'Suits and white shirts\nfor job applications',
+ 'ตัวอย่างยอดนิยม':'Popular examples','ตัวอย่างรูปที่ลูกค้าเลือกใช้มากที่สุด':'Popular job application photo styles',
+ 'ผู้ชาย':'Men','ผู้หญิง':'Women','เชิ้ตชาย':'Men’s shirt',
  'รูปผู้หญิง':'Women’s photo','รูปผู้ชาย':'Men’s photo',
  'เลือกรูปแบบใบหน้า แต่งหน้าหรือไม่แต่งหน้า':'Choose makeup or a natural finish',
  'แตะที่ภาพด้านซ้ายหรือด้านขวาเพื่อเลือก':'Tap either side of the photo to choose.',
@@ -142,6 +148,9 @@ const THAI=/[\u0E00-\u0E7F]/;
 const fragments=Object.entries(ENGLISH_COPY).filter(([thai])=>!['พร้อม','รูป'].includes(thai)).sort((a,b)=>b[0].length-a[0].length);
 export function englishPreviewEnabled(location=globalThis.location){
  return new URLSearchParams(location?.search||'').get('lang')==='en';
+}
+export function outfitsForLanguage(items,location=globalThis.location){
+ return englishPreviewEnabled(location)?items.filter(item=>(item.cat||item.id)==='job'):items;
 }
 export function languageLink(location=globalThis.location,english=true){
  const url=new URL(location.href);
