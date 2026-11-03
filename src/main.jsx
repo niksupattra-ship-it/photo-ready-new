@@ -4925,10 +4925,10 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const photoSizeSample=JOB_UNIFORMS.find(item=>item.id==='female-suit-03');
   const chooseJobUniform=item=>{setUniformCategory('job');setSelectedJobTemplate(item.template);setGender(item.gender);setSelectedStyle(item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio')};
   const homeCategories=outfitsForLanguage([
-   {id:'job',icon:'/assets/category-icons/job.png',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
-   {id:'government',icon:'/assets/category-icons/government.png',title:'ข้าราชการ',desc:'ชุดราชการชายและหญิง\nเลือกเข็มและแพรแถบได้',image:'/assets/home-cutouts/government.png'},
-   {id:'student',icon:'/assets/category-icons/student.png',title:'นักศึกษา',desc:'ชุดนักศึกษาชายและหญิง\nแบบผูกไทและไม่ผูกไท',image:'/assets/home-cutouts/student.png'},
-   {id:'gown',icon:'/assets/category-icons/gown.png',title:'ชุดครุย',desc:'เลือกชุดครุยตามสถาบัน\nรวมทุกแบบในหมวดเดียว',image:GOWN_UNIFORMS[0].img}
+   {id:'job',icon:'/assets/category-icons/job.e56d8966ae99.webp',title:'สมัครงาน',desc:'ชุดสูท / เชิ้ตขาว\nสำหรับสมัครงานทั่วไป',image:'/assets/home-cutouts/job.png'},
+   {id:'government',icon:'/assets/category-icons/government.e1dcfb7d9f69.webp',title:'ข้าราชการ',desc:'ชุดราชการชายและหญิง\nเลือกเข็มและแพรแถบได้',image:'/assets/home-cutouts/government.png'},
+   {id:'student',icon:'/assets/category-icons/student.e942c60df20a.webp',title:'นักศึกษา',desc:'ชุดนักศึกษาชายและหญิง\nแบบผูกไทและไม่ผูกไท',image:'/assets/home-cutouts/student.png'},
+   {id:'gown',icon:'/assets/category-icons/gown.629887b3a784.webp',title:'ชุดครุย',desc:'เลือกชุดครุยตามสถาบัน\nรวมทุกแบบในหมวดเดียว',image:GOWN_UNIFORMS[0].img}
   ]);
   const featured=outfitsForLanguage([...['female-suit-03','female-suit-04','male-suit-03','female-formal-suit','female-lapel-suit'].map(id=>JOB_UNIFORMS.find(item=>item.id===id)),
    {...INTERIOR_UNIFORMS[0],title:'ข้าราชการชาย',cat:'government',gender:'male',img:INTERIOR_UNIFORMS[0].preview},

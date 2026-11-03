@@ -2,7 +2,7 @@
 Run Vite first; SOURCE_DOWNLOAD_BASE defaults to http://127.0.0.1:5173.
 No AI, payment provider, customer or production API is contacted.
 """
-import base64,json,os,pathlib,re
+import base64,json,os,pathlib,re,time
 from playwright.sync_api import sync_playwright,expect
 from PIL import Image
 
@@ -60,29 +60,26 @@ with sync_playwright() as pw:
    p.wait_for_function("!!document.querySelector('.studio-source-preview')?.getAttribute('src')")
    p.locator('.studio-portrait-choice-overlay').wait_for()
    p.get_by_role('button',name='รูปผู้ชาย',exact=True).click()
-  replace('#36a688')
+  upload_started=time.monotonic();replace('#36a688');upload_ms=round((time.monotonic()-upload_started)*1000,1)
   if width>1100:
    expect(p.get_by_text('กรุณาเลือกทรงผมเพื่อปรับภาพหน้าตรงอัตโนมัติ',exact=True)).to_be_visible()
    compare=p.get_by_role('button',name='ก่อน/หลัง',exact=True)
    assert compare.inner_text()=='';assert compare.locator('svg').count()==1
   download=lambda:p.get_by_role('button',name='ดาวน์โหลดรูป',exact=True)
   def deliver():
-   if width<1100:
-    p.locator('.photo-size-apply').click()
-    p.get_by_role('link',name='บันทึกรูป',exact=True).wait_for()
-    with p.expect_download() as event:p.get_by_role('link',name='บันทึกรูป',exact=True).click()
-    p.get_by_role('button',name='ปิด',exact=True).click()
-   else:
-    with p.expect_download() as event:p.locator('.photo-size-apply').click()
+   link=p.locator('.purchase-receipt a.purchase-primary')
+   expect(link).to_have_attribute('aria-disabled','false')
+   with p.expect_download() as event:link.click()
+   p.get_by_role('button',name='ปิดหน้ารับรูป',exact=True).click()
    return event.value
-  download().click();p.get_by_role('dialog',name='ขนาดรูป',exact=True).wait_for()
-  downloaded=deliver()
+  export_started=time.monotonic();download().click();p.get_by_role('dialog',name='รับรูป',exact=True).wait_for()
+  downloaded=deliver();export_ms=round((time.monotonic()-export_started)*1000,1)
   target=OUT/('raw-'+str(width)+'.png');downloaded.save_as(target)
   image=Image.open(target);assert image.format=='PNG';assert image.width>0 and image.height>0
   assert state['registered']==['job_source_1'];assert state['debits']==['job_source_1'];assert state['remaining']==0
   p.wait_for_timeout(150)
   # Repeated delivery uses the same work and never spends a second credit.
-  download().click();p.get_by_role('dialog',name='ขนาดรูป',exact=True).wait_for()
+  download().click();p.get_by_role('dialog',name='รับรูป',exact=True).wait_for()
   deliver()
   assert state['registered']==['job_source_1'];assert state['debits']==['job_source_1']
   # Raw paid work retains the existing replacement warning and new-work boundary.
@@ -91,7 +88,7 @@ with sync_playwright() as pw:
   assert state['registered']==['job_source_1','job_source_2'];assert state['debits']==['job_source_1'];assert 'job_source_2' not in state['unlocked']
   p.keyboard.press('Escape');p.screenshot(path=str(OUT/('studio-'+str(width)+'.png')))
   assert not errors,errors
-  results.append({'width':width,'rawPNG':list(image.size),'oneCreditPerWork':True,'repeatFree':True,'replacementWarning':True,'replacementUnpaid':True,'aiCalls':0})
+  results.append({'width':width,'rawPNG':list(image.size),'oneCreditPerWork':True,'repeatFree':True,'replacementWarning':True,'replacementUnpaid':True,'aiCalls':0,'localUploadAndTypeSelectionMs':upload_ms,'localExportAndDownloadMs':export_ms})
   ctx.close()
  browser.close()
 print(json.dumps({'passed':results},ensure_ascii=False))

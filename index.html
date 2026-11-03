@@ -39,6 +39,9 @@
   </script>
 
   <style>
+    /* Reserve the app viewport while React starts; keep static guidance below it. */
+    #root:empty{min-height:100vh;min-height:100svh}
+
     :root{--home-content-width:1280px;--home-gutter:clamp(16px,3vw,32px);--home-section-gap:32px}
     .idprom-seo{box-sizing:border-box;width:min(var(--home-content-width),calc(100% - 2 * var(--home-gutter)));max-width:none;margin:0 auto;padding:0 0 40px;color:#334155;font:15px/1.75 Arial,'Noto Sans Thai',sans-serif}
     .idprom-howto{padding:28px;border:1px solid #e2e5f4;border-radius:22px;background:#fff;box-shadow:0 8px 26px #1f364c05}
@@ -60,6 +63,8 @@
     @media(max-width:1100px){.idprom-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.idprom-howto-head{align-items:flex-start;flex-direction:column;gap:12px}}
     @media(max-width:600px){:root{--home-section-gap:24px}.idprom-howto{padding:20px 16px;border-radius:18px}.idprom-howto-head{margin-bottom:18px}.idprom-howto-head p{font-size:13px}.idprom-howto-link{font-size:12px}.idprom-steps{grid-template-columns:1fr;gap:10px}.idprom-step{position:relative;min-height:90px;padding:16px 16px 16px 60px}.idprom-step-num{position:absolute;left:16px;top:17px;margin:0}.idprom-step strong{font-size:14px}.idprom-seo-note{font-size:11px}}
   </style>
+
+  <noscript><style>#root:empty{min-height:0}</style></noscript>
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-ESX5CQR407"></script>
