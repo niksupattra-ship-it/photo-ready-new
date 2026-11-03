@@ -1,4 +1,3 @@
-import './app-styles.js';
 import {outfitChoicePreview} from './outfit-choice-preview.js';
 import {insigniaForLanguage} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
