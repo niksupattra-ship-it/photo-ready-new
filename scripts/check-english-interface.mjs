@@ -50,5 +50,17 @@ try{
  await evaluate(`document.querySelector('.studio-photo-guide-trigger')?.click()`);await pause(100);report.photoGuide=await scan();assert(await evaluate(`Boolean(document.querySelector('.english-photo-guide'))`),'English photo guide did not open');await evaluate(`document.querySelector('.studio-photo-guide-close')?.click()`);
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true},sessionId);await pause(250);report.mobile=await scan();
  const mobile=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('work/english-interface-mobile.png',Buffer.from(mobile.data,'base64'));
- for(const [screen,copy]of Object.entries(report))assert.equal(copy.length,0,screen+': '+JSON.stringify(copy));assert.equal(errors.length,0,JSON.stringify(errors));report.runtimeErrors=errors;report.blockedWrites=blocked;await writeFile('work/english-interface-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+ for(const [screen,copy]of Object.entries(report))assert.equal(copy.length,0,screen+': '+JSON.stringify(copy));assert.equal(errors.length,0,JSON.stringify(errors));await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false},sessionId);
+ await call('Page.navigate',{url:origin+'/'},sessionId);await pause(1200);
+ const patternOnly=src=>!src.includes('example')&&!src.includes('/home-previews/')&&/^\/assets\/(?:uniform-quick-previews|(?:job|government|student|gown)-uniforms)\//.test(src);
+ const thaiCategories=await evaluate(`Array.from(document.querySelectorAll('.studio-category-card>img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiCategories.length,4);assert(thaiCategories.every(patternOnly),'Thai category cards must show garment patterns');
+ await evaluate(`document.querySelector('.studio-category-government')?.click()`);await pause(100);
+ const thaiGovernment=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGovernment.length>0);assert(thaiGovernment.every(patternOnly),'Thai government options must show garment patterns');
+ await evaluate(`document.querySelector('.studio-category-gown')?.click()`);await pause(100);
+ const thaiGowns=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGowns.length>0);assert(thaiGowns.every(patternOnly),'Thai gown options must show garment patterns');
+ await evaluate(`document.querySelector('.easy-studio')?.click()`);await pause(1400);await evaluate(`Array.from(document.querySelectorAll('.studio-bottom-choices button')).find(button=>button.textContent.trim()==='ชุด')?.click()`);await pause(150);
+ const thaiStudio=await evaluate(`Array.from(document.querySelectorAll('.studio-catalog-grid button:not(.studio-none-choice) img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiStudio.length,36);assert(thaiStudio.every(patternOnly),'All Thai Studio options must show garment patterns');
+ const thaiScreenshot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('work/thai-outfit-patterns.png',Buffer.from(thaiScreenshot.data,'base64'));
+ report.thaiOutfitPatterns='PASS: 4 categories, government and gown selectors, and all 36 Studio outfits';
+ report.runtimeErrors=errors;report.blockedWrites=blocked;await writeFile('work/english-interface-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{for(const p of pending.values())clearTimeout(p.timer);browser.kill('SIGTERM');await new Promise(r=>browser.once('exit',r));await rm(profile,{recursive:true,force:true}).catch(()=>{})}

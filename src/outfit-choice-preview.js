@@ -1,8 +1,8 @@
 import previews from './uniform-quick-previews.json' with {type:'json'};
-import {englishPreviewEnabled} from './english-preview.js';
-// Selection thumbnails only. The garment template, AI reference, editor layer
-// and sample output photos remain the original full-resolution assets.
-export function outfitChoicePreview(option,original,location=globalThis.location){
- if(!englishPreviewEnabled(location)||!option?.template?.startsWith('/assets/job-uniforms/'))return original;
- return previews[option.template]||option.template;
+// Selection thumbnails only, in every language. Templates, AI references,
+// editor layers and sample output photos retain their full-resolution assets.
+export function outfitChoicePreview(option,original){
+ const template=option?.template||option?.img;
+ if(typeof template!=='string'||!/^\/assets\/(?:job|government|student|gown)-uniforms\/[^/]+\.(?:png|webp)$/.test(template)||template.includes('-example'))return original;
+ return previews[template]||template;
 }
