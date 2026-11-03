@@ -4,5 +4,5 @@
 @media(max-width:600px){.language-switch{bottom:calc(6px + env(safe-area-inset-bottom));right:8px;font-size:11px;padding:3px 8px}.english-preview .easy-intro h1{font-size:clamp(27px,7vw,40px)}}
 @media print{.language-switch{display:none}}
 
-.studio-category-card>img,.studio-featured-item img,.government-level-grid img,.uniform-switch-grid img,.easy-suit-category-grid img,.easy-suit-grid img{object-fit:contain!important;object-position:center!important;padding:8px;box-sizing:border-box;background:#f3f5f9;border-radius:10px}
+.easy-suit-category-grid img,.easy-suit-grid img{object-fit:contain!important;object-position:center!important;padding:8px;box-sizing:border-box;background:#f3f5f9;border-radius:10px}
 .studio-catalog-grid img[src*="uniform-quick-previews/"],.easy-step-preview img[src*="uniform-quick-previews/"]{object-fit:contain!important;object-position:center!important;background:#f3f5f9}

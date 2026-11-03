@@ -39,7 +39,7 @@ try{
  await call('Page.navigate',{url:origin+'/?lang=en'},sessionId);await pause(2000);
  const report={home:await scan()};
  const choiceImages=await evaluate(`Array.from(document.querySelectorAll('.studio-category-card>img,.studio-featured-item img')).map(img=>img.getAttribute('src'))`);
- assert(choiceImages.length>0);assert(choiceImages.every(src=>src.includes('/uniform-quick-previews/job-uniforms--')),'Home outfit choices must show patterns only');
+ assert(choiceImages.length>0);assert(choiceImages.every(src=>!src.includes('/uniform-quick-previews/')&&/example|home-cutouts/.test(src)),'Home cards must keep portrait examples');
  await evaluate(`document.querySelector('.idprom-support-trigger')?.click()`);await pause(150);assert(await evaluate(`Boolean(document.querySelector('.idprom-support-dialog[open]'))`),'Help dialog did not open');report.help=await scan();await evaluate(`document.querySelector('.idprom-support-dialog header button')?.click()`);
  await evaluate(`document.querySelector('.idprom-terms-link')?.click()`);await pause(150);assert(await evaluate(`Boolean(document.querySelector('.idprom-terms-dialog[open]'))`),'Terms dialog did not open');report.terms=await scan();await evaluate(`document.querySelector('.idprom-terms-dialog header button')?.click()`);
  await evaluate(`document.querySelector('.idprom-member-menu > button')?.click()`);await pause(150);report.account=await scan();
@@ -53,14 +53,16 @@ try{
  for(const [screen,copy]of Object.entries(report))assert.equal(copy.length,0,screen+': '+JSON.stringify(copy));assert.equal(errors.length,0,JSON.stringify(errors));await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false},sessionId);
  await call('Page.navigate',{url:origin+'/'},sessionId);await pause(1200);
  const patternOnly=src=>!src.includes('example')&&!src.includes('/home-previews/')&&/^\/assets\/(?:uniform-quick-previews|(?:job|government|student|gown)-uniforms)\//.test(src);
- const thaiCategories=await evaluate(`Array.from(document.querySelectorAll('.studio-category-card>img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiCategories.length,4);assert(thaiCategories.every(patternOnly),'Thai category cards must show garment patterns');
+ const thaiCategories=await evaluate(`Array.from(document.querySelectorAll('.studio-category-card>img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiCategories.length,4);assert(thaiCategories.every(src=>!patternOnly(src)),'Thai home categories must keep portrait examples');
+ const thaiFeatured=await evaluate(`Array.from(document.querySelectorAll('.studio-featured-item img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiFeatured.length,7);assert(thaiFeatured.every(src=>!patternOnly(src)),'Thai popular examples must show people');
+ await evaluate(`document.querySelector('.studio-home-below-easy').scrollIntoView()`);await pause(150);const homeScreenshot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('work/restored-thai-home-portraits.png',Buffer.from(homeScreenshot.data,'base64'));
  await evaluate(`document.querySelector('.studio-category-government')?.click()`);await pause(100);
- const thaiGovernment=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGovernment.length>0);assert(thaiGovernment.every(patternOnly),'Thai government options must show garment patterns');
+ const thaiGovernment=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGovernment.length>0);assert(thaiGovernment.every(src=>!patternOnly(src)),'Thai government homepage must keep portrait examples');
  await evaluate(`document.querySelector('.studio-category-gown')?.click()`);await pause(100);
- const thaiGowns=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGowns.length>0);assert(thaiGowns.every(patternOnly),'Thai gown options must show garment patterns');
+ const thaiGowns=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGowns.length>0);assert(thaiGowns.every(src=>!patternOnly(src)||src.includes('/previews/')),'Thai graduation homepage must keep portrait examples');
  await evaluate(`document.querySelector('.easy-studio')?.click()`);await pause(1400);await evaluate(`Array.from(document.querySelectorAll('.studio-bottom-choices button')).find(button=>button.textContent.trim()==='ชุด')?.click()`);await pause(150);
  const thaiStudio=await evaluate(`Array.from(document.querySelectorAll('.studio-catalog-grid button:not(.studio-none-choice) img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiStudio.length,36);assert(thaiStudio.every(patternOnly),'All Thai Studio options must show garment patterns');
  const thaiScreenshot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('work/thai-outfit-patterns.png',Buffer.from(thaiScreenshot.data,'base64'));
- report.thaiOutfitPatterns='PASS: 4 categories, government and gown selectors, and all 36 Studio outfits';
+ report.thaiOutfitPatterns='PASS: homepage portrait examples restored; all 36 Studio selectors retain garment patterns';
  report.runtimeErrors=errors;report.blockedWrites=blocked;await writeFile('work/english-interface-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{for(const p of pending.values())clearTimeout(p.timer);browser.kill('SIGTERM');await new Promise(r=>browser.once('exit',r));await rm(profile,{recursive:true,force:true}).catch(()=>{})}

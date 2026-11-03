@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile,access} from 'node:fs/promises';
 import {outfitChoicePreview} from '../src/outfit-choice-preview.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+assert(!main.includes('outfitChoicePreview('),'Home and information pages must keep portrait examples.');
 let total=0;
 for(const name of ['JOB_UNIFORMS','STUDENT_UNIFORMS','GOWN_UNIFORMS','INTERIOR_UNIFORMS','FEMALE_GOVERNMENT_UNIFORMS']){
  const block=main.match(new RegExp('const '+name+'=\\[[\\s\\S]*?\\n\\];'))?.[0];assert(block,name);
