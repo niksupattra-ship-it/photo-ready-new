@@ -1,3 +1,4 @@
+import {ENGLISH_ADDITIONAL_COPY} from './english-copy-additions.js';
 // Opt-in presentation layer for the English trial. It never changes API data,
 // form values, uploaded files, canvas pixels, account data or saved projects.
 export const ENGLISH_COPY = {
@@ -5,7 +6,7 @@ export const ENGLISH_COPY = {
  'รูปที่อัปโหลด':'Uploaded photo','รูปตัวอย่าง':'Photo preview','รูป':'Photo',
  'IDพร้อม':'ID Phrom','พร้อม':'Phrom',
  'สร้างรูปติดบัตร':'Create your ID photo',
- 'ได้ง่าย ๆ ด้วยตัวเอง':'in a few simple steps',
+ 'ได้ง่าย ๆ ด้วยตัวเอง':' in a few simple steps',
  'เลือกสไตล์ที่เหมาะกับคุณ สำหรับสมัครงาน ข้าราชการ นักศึกษา และชุดครุย':'Choose a professional suit or shirt for your job application photo.',
  'อัปโหลดรูป เลือกทรงผม เลือกชุด และดาวน์โหลด':'Upload a photo, choose your hair and outfit, then download.',
  'เริ่มสร้างรูปติดบัตร':'Create your photo',
@@ -92,7 +93,7 @@ export const ENGLISH_COPY = {
  'หญิง':'Women','ชาย':'Men','ขาว':'White','ฟ้า':'Blue','น้ำเงิน':'Blue','เทา':'Gray',
  'แดง':'Red','ดำ':'Black','ชมพู':'Pink','เลือกสีเอง':'Custom color','เลือกสีพื้นหลังเอง':'Custom background color',
  'บัญชีสมาชิก':'Your account','เมนูสมาชิก':'Account menu','เมนูสมาชิก / เข้าสู่ระบบ':'Account / sign in',
- 'เข้าสู่ระบบ':'Sign in','สมัครสมาชิก':'Create account','ออกจากระบบ':'Sign out',
+ 'เข้าสู่ระบบ':'Sign in','สมัครสมาชิก':'Create an account','ออกจากระบบ':'Sign out',
  'อีเมล':'Email','รหัสผ่าน':'Password','ยืนยันรหัสผ่าน':'Confirm password',
  'ลืมรหัสผ่าน':'Forgot password','ลืมรหัสผ่าน?':'Forgot password?',
  'ชื่อ':'Name','จำฉันไว้':'Remember me','บัญชีของฉัน':'My account',
@@ -142,11 +143,16 @@ export const ENGLISH_COPY = {
  'เชิ้ตหญิง':'Women’s shirt','สูทหญิง':'Women’s suit','สูทชาย':'Men’s suit',
  'สร้างรูป':'Create photo','รูปติดบัตร':'ID photo','เลือก':'Choose',
  'กำลังโหลด':'Loading','กำลังสร้าง':'Creating','กำลังเตรียม':'Preparing',
- 'ไม่สำเร็จ':'unsuccessful','กรุณา':'Please',
+ ...ENGLISH_ADDITIONAL_COPY,
+ 'เงื่อนไขการใช้บริการและความรับผิดชอบ':'Terms of service and responsibilities',
+ 'ไม่แต่งหน้า':'No makeup',
+ 'บันทึกรูปของคุณ':'Save your photo','กดบันทึกรูป หรือแชร์ไปยังแอปที่ต้องการ':'Select Save photo, or share it using your preferred app.',
+ 'รูปพร้อมบันทึกเต็มความละเอียด':'Full-resolution photo ready to save','แชร์รูป':'Share photo',
+ 'หากบันทึกไม่ได้ ให้กดค้างที่รูปแล้วเลือกบันทึกภาพ หากแอปยังไม่รองรับ ให้เปิดเว็บใน Chrome หรือ Safari ผ่านเมนูของแอป':'If saving is unavailable, touch and hold the photo and select Save image. If the in-app browser is unsupported, open the website in Chrome or Safari using the app menu.',
 };
 
 const THAI=/[\u0E00-\u0E7F]/;
-const fragments=Object.entries(ENGLISH_COPY).filter(([thai])=>!['พร้อม','รูป'].includes(thai)).sort((a,b)=>b[0].length-a[0].length);
+const fragments=Object.entries(ENGLISH_COPY).filter(([thai])=>thai.length>1&&!['พร้อม','รูป'].includes(thai)).sort((a,b)=>b[0].length-a[0].length);
 export function englishPreviewEnabled(location=globalThis.location){
  return new URLSearchParams(location?.search||'').get('lang')==='en';
 }
@@ -165,36 +171,64 @@ export function translateEnglish(value){
  if(!value||!THAI.test(value))return value;
  const trimmed=value.trim(),exact=ENGLISH_COPY[trimmed];
  if(exact)return value.replace(trimmed,exact);
- let result=value;
+ let result=value.replace(/(\d+(?:\.\d+)?)\s*นิ้ว/g,'$1 in');
  // Only dictionary terms are translated. Unknown proper names and the original
  // legal terms remain intact rather than inventing a translation.
- for(const [thai,english]of fragments)if(result.includes(thai))result=result.split(thai).join(english);
+ for(const [thai,english]of fragments)if(result.includes(thai)){
+  const source=result;let cursor=0,next='';
+  for(let at=source.indexOf(thai);at!==-1;at=source.indexOf(thai,cursor)){
+   next+=source.slice(cursor,at);
+   const before=source[at-1]||'',after=source[at+thai.length]||'';
+   next+=THAI.test(before)||THAI.test(after)?thai:english;cursor=at+thai.length;
+  }
+  result=next+source.slice(cursor);
+ }
  return result;
 }
-const ATTRS=['aria-label','title','placeholder','alt'];
-const SKIP='script,style,code,pre,[contenteditable],[data-no-translate],.idprom-terms-content';
+const ATTRS=['aria-label','aria-description','aria-valuetext','title','placeholder','alt'];
+const SKIP='script,style,code,pre,[contenteditable],[data-no-translate]';
+export function interfaceText(value,location=globalThis.location){return englishPreviewEnabled(location)?translateEnglish(value):value}
+export function localizedLink(value,location=globalThis.location){
+ if(!englishPreviewEnabled(location))return value;
+ const url=new URL(value,location.href);if(url.origin!==new URL(location.href).origin)return value;
+ url.searchParams.set('lang','en');return url.pathname+url.search+url.hash;
+}
+export function interfaceLocale(location=globalThis.location){return englishPreviewEnabled(location)?'en-GB':'th-TH'}
 export function startEnglishPreview(doc=globalThis.document){
  if(!doc||!englishPreviewEnabled(doc.defaultView?.location))return()=>{};
+ const win=doc.defaultView;
  doc.documentElement.lang='en';doc.documentElement.classList.add('english-preview');
- doc.title='ID Phrom | Create your ID photo — English preview';
- const description=doc.querySelector('meta[name="description"]');if(description)description.content='Create and edit an ID or job application photo. Choose hair, outfits and backgrounds. English preview; prices in Thai baht.';
+ doc.title='ID Phrom | Professional ID and job application photos';
+ const description=doc.querySelector('meta[name="description"]');if(description)description.content='Create and edit professional ID and job application photos. Choose your hairstyle, outfit and background. Prices are in Thai baht (THB).';
  const robots=doc.querySelector('meta[name="robots"]');if(robots)robots.content='noindex,follow';
- function translateNode(node){
-  if(node.nodeType===3){if(node.parentElement?.closest(SKIP+',textarea,input'))return;const text=translateEnglish(node.nodeValue);if(text!==node.nodeValue)node.nodeValue=text;return}
-  if(node.nodeType!==1||node.closest(SKIP))return;
-  for(const attr of ATTRS){const value=node.getAttribute(attr);const text=translateEnglish(value);if(text!==value)node.setAttribute(attr,text)}
-  for(const child of node.childNodes)translateNode(child);
- }
- translateNode(doc.body);
- const observer=new doc.defaultView.MutationObserver(records=>{
+ const observed=new WeakSet();
+ const observer=new win.MutationObserver(records=>{
   for(const record of records){
    if(record.type==='childList')for(const node of record.addedNodes)translateNode(node);
-   else if(record.type==='attributes'){
-    const node=record.target;if(node.closest('[data-no-translate]'))continue;
-    const value=node.getAttribute(record.attributeName),text=translateEnglish(value);if(value!==text)node.setAttribute(record.attributeName,text);
-   }else translateNode(record.target);
+   else if(record.type==='attributes')translateAttributes(record.target);
+   else translateNode(record.target);
   }
  });
- observer.observe(doc.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTRS});
- return()=>observer.disconnect();
+ function observeRoot(root){if(observed.has(root))return;observed.add(root);observer.observe(root,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:ATTRS})}
+ function translateAttributes(node){
+  if(node.closest(SKIP))return;
+  for(const attr of ATTRS){const value=node.getAttribute(attr),text=translateEnglish(value);if(text!==value)node.setAttribute(attr,text)}
+ }
+ function translateNode(node){
+  if(node.nodeType===3){if(node.parentElement?.closest(SKIP+',textarea,input'))return;const text=translateEnglish(node.nodeValue);if(text!==node.nodeValue)node.nodeValue=text;return}
+  if(node.nodeType===11){for(const child of node.childNodes)translateNode(child);return}
+  if(node.nodeType!==1||node.closest(SKIP))return;
+  translateAttributes(node);
+  // Mobile save/share panels use an open shadow root. Observe these separately
+  // so newly displayed controls and asynchronous delivery messages are covered.
+  if(node.shadowRoot){observeRoot(node.shadowRoot);translateNode(node.shadowRoot)}
+  for(const child of node.childNodes)translateNode(child);
+ }
+ observeRoot(doc.body);translateNode(doc.body);
+ const nativeDialogs={};
+ for(const name of ['alert','confirm','prompt'])if(typeof win[name]==='function'){
+  nativeDialogs[name]=win[name];const original=win[name];
+  win[name]=function(message,...args){return original.call(this,translateEnglish(String(message)),...args)};
+ }
+ return()=>{observer.disconnect();for(const [name,original]of Object.entries(nativeDialogs))win[name]=original};
 }

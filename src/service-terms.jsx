@@ -1,3 +1,4 @@
+import {englishPreviewEnabled,translateEnglish} from './english-preview.js';
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import './service-terms.css';
@@ -55,6 +56,7 @@ function TermsInline({text}){
  return text.split(/(\*\*.*?\*\*)/g).map((part,i)=>part.startsWith('**')&&part.endsWith('**')?<strong key={i}>{part.slice(2,-2)}</strong>:part);
 }
 function TermsBody({text}){
+ if(englishPreviewEnabled())text=translateEnglish(text);
  return text.split(/\n\s*\n/).map((paragraph,i)=>{
   const lines=paragraph.split('\n');
   return lines.every(line=>/^\d+\. /.test(line))?<ol key={i}>{lines.map((line,j)=><li key={j}><TermsInline text={line.replace(/^\d+\. /,'')}/></li>)}</ol>:<p key={i}><TermsInline text={paragraph}/></p>;

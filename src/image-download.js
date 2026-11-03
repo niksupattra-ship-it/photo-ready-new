@@ -1,3 +1,5 @@
+import {englishPreviewEnabled,translateEnglish} from './english-preview.js';
+const deliveryText=value=>englishPreviewEnabled()?translateEnglish(value):value;
 // Image delivery only: callers must verify purchase/session rights before calling.
 const fileSavePanels=new Set();
 export function dismissFileSavePanel(){
@@ -46,7 +48,7 @@ export function deliverImage(blob,name,options={}){
   const failed=e=>{const cancelled=e?.name==='AbortError';message.textContent=cancelled?'ยกเลิกการแชร์แล้ว':isImage?'แชร์รูปไม่ได้ ให้กดบันทึกรูปหรือกดค้างที่รูป หากแอปไม่รองรับ ให้เปิดใน Chrome / Safari':'แชร์ไฟล์ไม่ได้ ให้กดบันทึกไฟล์ หากแอปไม่รองรับ ให้เปิดใน Chrome / Safari';notify(cancelled?'share_cancelled':'download_failed',{method:'web_share',errorStage:'share',errorCode:cancelled?'share_cancelled':'share_failed'})};
   const finished=()=>{sharing=false;share.disabled=false;share.removeAttribute('aria-busy')};
   // Invoke share directly from this click; the file is already prepared.
-  try{Promise.resolve(navigator.share({files:[file],title:isImage?'รูป IDพร้อม':'โปรเจกต์ IDพร้อม'})).then(()=>{message.textContent=isImage?'ส่งรูปไปยังช่องทางที่เลือกแล้ว':'ส่งไฟล์ไปยังช่องทางที่เลือกแล้ว';notify('share_handoff',{method:'web_share'})}).catch(failed).finally(finished)}catch(e){failed(e);finished()}
+  try{Promise.resolve(navigator.share({files:[file],title:deliveryText(isImage?'รูป IDพร้อม':'โปรเจกต์ IDพร้อม')})).then(()=>{message.textContent=isImage?'ส่งรูปไปยังช่องทางที่เลือกแล้ว':'ส่งไฟล์ไปยังช่องทางที่เลือกแล้ว';notify('share_handoff',{method:'web_share'})}).catch(failed).finally(finished)}catch(e){failed(e);finished()}
  });
  let closed=false;
  const close=()=>{if(closed)return;closed=true;fileSavePanels.delete(close);modal.close();modal.remove();previousFocus?.focus?.();setTimeout(()=>URL.revokeObjectURL(url),60000);notify('panel_closed',{method:'mobile_panel'})};

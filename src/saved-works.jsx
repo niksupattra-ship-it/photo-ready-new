@@ -1,3 +1,4 @@
+import {interfaceLocale} from './english-preview.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {deadlineFetch} from './deadline-fetch.js';
 import {withDeadline} from './async-deadline.js';
@@ -6,7 +7,7 @@ import {TRANSFER_HEADER,TRANSFER_VERSION,unpackSavedProjectTransfer} from './sav
 const savedWorkAccountScope=headers=>{const values=new Headers(headers);return JSON.stringify([values.get('Authorization')||'',values.get('X-Wallet-Id')||''])};
 const savedWorkData=async response=>{try{return await response.json()}catch(error){if(response.ok||error.name==='TimeoutError'||error.name==='AbortError')throw error;return null}};
 const savedWorkTimestamp=value=>typeof value==='string'&&value?Date.parse(value):NaN;
-const savedWorkDate=value=>{const time=savedWorkTimestamp(value);return Number.isFinite(time)?new Date(time).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}):null};
+const savedWorkDate=value=>{const time=savedWorkTimestamp(value);return Number.isFinite(time)?new Date(time).toLocaleString(interfaceLocale(),{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}):null};
 function WorkExpiry({expiresAt,serverNow}){
  const expires=savedWorkTimestamp(expiresAt),date=savedWorkDate(expiresAt);
  if(!date)return <p className="idprom-saved-expiry"><span>วันหมดอายุ</span>ยังไม่พร้อม กรุณาโหลดรายการอีกครั้ง</p>;

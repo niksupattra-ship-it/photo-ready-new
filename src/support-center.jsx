@@ -1,3 +1,4 @@
+import {interfaceText} from './english-preview.js';
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {SUPPORT_EMAIL,SUPPORT_TOPICS} from './help-topics.js';
@@ -18,7 +19,7 @@ export function SupportDialog({onClose}){
   try{await navigator.clipboard.writeText(SUPPORT_EMAIL);if(panel.current?.open)setCopyStatus('คัดลอกอีเมลแล้ว')}
   catch{if(panel.current?.open)setCopyStatus('กดค้างหรือเลือกข้อความอีเมลเพื่อคัดลอกได้')}
  };
- const subject='แจ้งปัญหาการใช้งาน IDพร้อม';
+ const subject=interfaceText('แจ้งปัญหาการใช้งาน IDพร้อม');
  const emailUrl='mailto:'+SUPPORT_EMAIL+'?subject='+encodeURIComponent(subject);
  const gmailUrl='https://mail.google.com/mail/?'+new URLSearchParams({view:'cm',fs:'1',to:SUPPORT_EMAIL,su:subject});
  const outlookUrl='https://outlook.live.com/mail/0/deeplink/compose?'+new URLSearchParams({to:SUPPORT_EMAIL,subject});
