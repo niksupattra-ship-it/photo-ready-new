@@ -11,7 +11,7 @@ for(const name of ['JOB_UNIFORMS','STUDENT_UNIFORMS','GOWN_UNIFORMS','INTERIOR_U
  const start=catalog.indexOf('const '+name+'=['),end=catalog.indexOf('\n];',start);assert(start>=0&&end>start,'catalog missing '+name);
  paths.push(...[...catalog.slice(start,end).matchAll(name.includes('GOVERNMENT')||name==='INTERIOR_UNIFORMS'?/img:'([^']+)'/g:/template:'([^']+)'/g)].map(match=>match[1].replace(/^\/assets\//,'')));
 }
-assert.equal(paths.length,25,'exercise every current catalog garment');
+assert.equal(paths.length,36,'exercise every current catalog garment');
 const head={id:'head',jobId:'same-paid-job',kind:'head',source:'unchanged native source',sourceFrame:{x:45,y:50,w:810,h:1080},x:0,y:0,scale:1,rotation:0,femaleEyeStyle:'makeup',mask:'unchanged mask',warpSource:'unchanged warp'};
 const face={width:900,height:1200,cx:450,chin:{x:450,y:615},forehead:{x:450,y:155},left:{x:294,y:390},right:{x:606,y:390},leftEye:{x:365,y:365},rightEye:{x:535,y:365},faceWidth:312,faceHeight:460,eyeWidth:170,opaqueTop:80};
 const neckProfile={rows:[{y:650,left:390,right:510},{y:700,left:380,right:520},{y:760,left:370,right:530}]};
@@ -86,4 +86,4 @@ const alphaGrid=(width,height,alpha)=>{const pixels=new Uint8ClampedArray(width*
  assert.deepEqual(covered.pixels,beforePortrait);assert.deepEqual(previewPixels,beforeCloth);
 }
 assert.throws(()=>planStudioSuitGeometry({uniform:{},opening:[],face,head,suit:{}}));
-console.log(`PASS ${count} fixed-garment geometry plans across all25catalogue PNGs: unchanged body frame/pose, proportional head scaling, first-pass eye normalization, shoulder/torso bounds, neck-cut independence and repeat stability. Plus9 actual V-coverage guard cases. Geometry coverage does not claim every short-neck/deep-V photo is fully fitted without manual adjustment.`);
+console.log(`PASS ${count} fixed-garment geometry plans across all${paths.length}catalogue PNGs: unchanged body frame/pose, proportional head scaling, first-pass eye normalization, shoulder/torso bounds, neck-cut independence and repeat stability. Plus9 actual V-coverage guard cases. Geometry coverage does not claim every short-neck/deep-V photo is fully fitted without manual adjustment.`);

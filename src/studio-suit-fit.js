@@ -1,10 +1,9 @@
 import {decodedStudioImage} from './studio-image-cache.js';
 import {measureUniformAnchors} from './portrait-uniform-fit.js';
-import {warpStudioCollar} from './studio-collar.js';
 import {layerToScene,sceneToLayer} from './studio-transform.js';
-import {measureCollarOpeningProfile,measureSkinNeckProfile,solveAutoCollarWidth} from './studio-auto-collar-fit.js';
+import {measureCollarOpeningProfile} from './studio-auto-collar-fit.js';
 
-export const STUDIO_SUIT_FIT_VERSION='proportional-fixed-suit-v3';
+export const STUDIO_SUIT_FIT_VERSION='head-only-fixed-pattern-v4';
 const W=900,H=1200;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)];
@@ -130,26 +129,11 @@ export async function fitStudioSuit({layers,previousSuit,nextSuit,headSource,hea
  if(!nextSuit||typeof measureFace!=='function')throw Error('ระบบจัดชุดอัตโนมัติยังไม่พร้อม');
  const [garment,portrait]=await Promise.all([garmentMeasurement(nextSuit.source),sampleSurface(headSource||head.source,headMask)]);
  const detected=await measureFace(portrait.canvas),face=Array.isArray(detected)?detected:detected?.faceLandmarks?.[0],landmarks=faceMeasurement(face,portrait.width,portrait.height,portrait.pixels);
- let neck=measureSkinNeckProfile({pixels:portrait.pixels,width:portrait.width,height:portrait.height,face});
- if(neck.rows.length<3){
-  const rows=[],cx=Math.round(landmarks.chin.x),half=landmarks.faceWidth*.32;
-  for(let y=Math.round(landmarks.chin.y+landmarks.faceHeight*.06);y<Math.min(portrait.height,landmarks.chin.y+landmarks.faceHeight*.6);y+=Math.max(1,Math.round(landmarks.faceHeight*.025))){
-   const alpha=x=>portrait.pixels[(y*portrait.width+x)*4+3]>128;if(!alpha(cx)){if(rows.length)break;continue}let l=cx,r=cx;while(l>cx-half&&alpha(l-1))l--;while(r<cx+half&&alpha(r+1))r++;rows.push({y,left:l,right:r});
-  }
-  neck={...neck,rows,chin:landmarks.chin,faceHeight:landmarks.faceHeight};
- }
- if(neck.rows.length<2)throw Object.assign(Error('ยังไม่พบช่วงคอที่ชัดเจน กรุณาเลือกชุดแล้วปรับตำแหน่งหัวเพิ่มเติม'),{code:'SUIT_FIT_UNCLEAR'});
  const plan=preservePlacement?null:planStudioSuitGeometry({uniform:garment.uniform,face:landmarks,head,suit:nextSuit});
  const fittedHead=preservePlacement?head:{...head,...plan.headPose};
- const sf=frame(nextSuit),cf=nextSuit.collarFrame||sf,warpFrame={x:(cf.x-sf.x)*garment.width/sf.w,y:(cf.y-sf.y)*garment.height/sf.h,w:cf.w*garment.width/sf.w,h:cf.h*garment.height/sf.h};
- const upperRows=neck.rows.filter(row=>row.y<=neck.chin.y+neck.faceHeight*.22),profile={...neck,rows:upperRows.length>=3?upperRows:neck.rows};
- const collar=solveAutoCollarWidth({pixels:garment.pixels,width:garment.width,height:garment.height,neckProfile:profile,headToUniform:pixelTransform(fittedHead,portrait,nextSuit,garment),frame:warpFrame,smoothTop:(nextSuit.templatePath||'').includes('/job-uniforms/')});
- const width=collar.confidence>=.25?clamp(collar.neckWidth,-60,60):0;
- const nativeFrame={x:warpFrame.x*garment.originalWidth/garment.width,y:warpFrame.y*garment.originalHeight/garment.height,w:warpFrame.w*garment.originalWidth/garment.width,h:warpFrame.h*garment.originalHeight/garment.height};
- let preview=warpStudioCollar(garment.image,width/100,(nextSuit.neckHeight||0)/100,nativeFrame,{smoothTop:(nextSuit.templatePath||'').includes('/job-uniforms/')});
- if(!preview.getContext){const c=Object.assign(document.createElement('canvas'),{width:garment.originalWidth,height:garment.originalHeight});c.getContext('2d').drawImage(preview,0,0);preview=c}
- const gap=hasStudioCollarGap({garment,portrait,headToUniform:pixelTransform(fittedHead,portrait,nextSuit,garment),previewPixels:preview.getContext('2d',{willReadFrequently:true}).getImageData(0,0,garment.originalWidth,garment.originalHeight).data,frameHeight:sf.h});
- const fittedSuit={...nextSuit,neckWidth:width,autoSuitFitVersion:STUDIO_SUIT_FIT_VERSION,autoCollarFitWidth:width,autoCollarFitConfidence:Number((collar.confidence||0).toFixed(3)),autoCollarFitApplied:collar.confidence>=.25,autoSuitFitWarning:gap?'ช่วงคอรูปนี้ไม่พอกับช่องคอชุด กรุณาปรับคอเสื้อเพิ่มเติม':''};
+ // Keep the original garment pattern intact. Only the head pose is fitted;
+ // stale automatic collar parameters must not warp a newly selected template.
+ const fittedSuit={...nextSuit,neckWidth:0,neckHeight:0,autoSuitFitVersion:STUDIO_SUIT_FIT_VERSION,autoCollarFitWidth:0,autoCollarFitConfidence:0,autoCollarFitApplied:false,autoSuitFitWarning:''};
  const result=layers.filter(layer=>!(layer.kind==='neck-fit'&&layer.hairHeadId===head.id)).map(layer=>layer.id===head.id?fittedHead:layer.id===previousSuit?.id||layer.id===nextSuit.id?fittedSuit:layer);
  if(!result.some(layer=>layer.id===fittedSuit.id))result.push(fittedSuit);
  return result;
