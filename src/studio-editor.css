@@ -589,3 +589,9 @@
 
 
 
+
+/* Keep feedback outside the workspace size calculation for message changes.
+   Long messages scroll inside the reserved row instead of resizing the photo. */
+.idstudio > .studio-feedback{box-sizing:border-box;flex:0 0 50px;height:50px;min-height:50px;max-height:50px;line-height:18px;overflow:auto}
+.idstudio > .studio-feedback[data-idle=true]{visibility:hidden}
+.idstudio.studio-touch > .studio-feedback{flex-basis:36px;height:36px;min-height:36px;max-height:36px;line-height:13px;padding:4px 8px}

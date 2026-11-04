@@ -1226,3 +1226,23 @@
 .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples .easy-landing-original-photo {
  object-fit:cover;background-color:#eff1f8;
 }
+
+/* In a finished touch workspace, choices float above the resting controls.
+   Opening a choice must not take height away from the existing photo. */
+@media(max-width:1100px), (pointer:coarse) and (max-width:1366px){
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-layout{grid-template-rows:minmax(0,1fr) auto}
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-options:not(.easy-wizard){position:relative;overflow:visible}
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-options:not(.easy-wizard) .easy-panel:not([hidden]){
+  position:absolute;z-index:5;left:0;right:0;bottom:calc(100% + 8px);flex:none;
+  box-sizing:border-box;max-height:min(35dvh,320px);padding:12px;
+  background:#fff;border:1px solid #e1daf4;border-radius:16px;box-shadow:0 -6px 24px #24124f20;
+  overflow:auto;overscroll-behavior:contain;
+ }
+}
+@media(max-width:1100px), (pointer:coarse) and (max-width:1366px){
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-preview-card,
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-options:not(.easy-wizard){min-width:0;max-width:100%}
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-preview{min-width:0;max-width:100%}
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-ready-actions{box-sizing:border-box;height:53px;min-height:53px;max-height:53px;padding:8px 0 0}
+ .idstudio .easy-mode:has(.easy-ready-actions):not(.easy-adjust-open):not(.easy-is-processing) .easy-ready-actions .easy-primary{height:44px;min-height:44px}
+}
