@@ -262,9 +262,9 @@ function originalSkinProfile(sourceBlob){
  return pending;
 }
 function warmPortraitResources(sourceBlob,templatePath){
- // Downloads and source-only measurements overlap the unchanged AI request.
+ // Warm only resources used by the active portrait path during the AI request.
  // Never segment/retouch the AI result early or reuse masks across changed pixels.
- void Promise.allSettled([getLandmarker(),getPersonSegmenter(),originalSkinProfile(sourceBlob),loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
+ void Promise.allSettled([getLandmarker(),getPersonSegmenter(),loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
 }
 function interp(points,x){
  for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(x>=a.x&&x<=b.x){const t=(x-a.x)/Math.max(1,b.x-a.x);return a.y+(b.y-a.y)*t}}
@@ -373,7 +373,7 @@ async function alphaBounds(img){
  return r>=l?{l,t,r,b,w:r-l+1,h:b-t+1}:{l:0,t:0,r:c.width-1,b:c.height-1,w:c.width,h:c.height};
 }
 
-async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png'){
+async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png',{placementOnly=false}={}){
  const [bg,uniformImg]=await Promise.all([loadImage('/assets/background.jpg'),loadImage(templatePath)]);
  try{
   const head=await decodedPortraitImage(headBlob), uniform=uniformImg;
@@ -382,9 +382,8 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   if(!face) throw Error('ตรวจจับสัดส่วนใบหน้าหลังตัดศีรษะไม่สำเร็จ');
 
   const W=bg.naturalWidth,H=bg.naturalHeight;
-  const c=document.createElement('canvas');c.width=W;c.height=H;
-  const ctx=c.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  ctx.drawImage(bg,0,0,W,H);
+  const c=placementOnly?null:document.createElement('canvas');if(c){c.width=W;c.height=H}
+  const ctx=c?.getContext('2d',{alpha:false});if(ctx){ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(bg,0,0,W,H)}
 
   // V158 PROPORTIONAL EDGE-FIT BODY MASTER:
   // Fit the REAL opaque width to the frame with one uniform X/Y scale. The collar
@@ -463,10 +462,9 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const hW=head.naturalWidth*scale,hH=head.naturalHeight*scale;
 
   // background -> normalized head only -> original uniform template
-  ctx.drawImage(head,hX,hY,hW,hH);
-  ctx.drawImage(uniform,uX,uY,uW,uH);
+  if(ctx){ctx.drawImage(head,hX,hY,hW,hH);ctx.drawImage(uniform,uX,uY,uW,uH)}
 
-  const blob=await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
+  const blob=placementOnly?null:await new Promise((ok,bad)=>c.toBlob(v=>v?ok(v):bad(Error('สร้างภาพประกอบไม่สำเร็จ')),'image/png'));
   return {blob,lock:{W,H,hX,hY,scale,faceCX,chinY,headW:head.naturalWidth,headH:head.naturalHeight,opaqueHeadW:hb.w*scale,opaqueHeadTop:hb.t,placedFaceW:sourceFaceW*scale,shoulderSpan,uX,uY,uW,uH,collarSocketY,templatePath}};
  }finally{}
 }
@@ -4832,7 +4830,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    const femaleEyeStyle=portraitFinishChoice(file.idpromFemaleEyeStyle);
    const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,femaleEyeStyle,templatePath:template});
    const master=await finishFirstPortraitMaster(aiHead);
-   const composed=await composePortrait(master,{scale:1,x:0,y:0},template);
+   const composed=await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    assertProcessActive();
