@@ -4,7 +4,7 @@ import {productionPortraitPrompt,processProductionPortrait} from '../production-
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 
 function check(prompt){
- for(const phrase of ['BOTH complete clavicles','deep and wide enough','small hidden overlap','UPPER-CHEST BASE BELOW the clavicles','shoulder contour lines','detached sloping strokes','keep its pattern, collar dimensions and placement unchanged'])assert(prompt.includes(phrase),phrase);
+ for(const phrase of ['BOTH complete clavicles','deep and wide enough','small hidden overlap','UPPER-CHEST BASE BELOW the clavicles','shoulder contour lines','detached sloping strokes','WIDE ROUND-NECK GUIDE','ONE broad rounded U','curve must stop ABOVE any breast fullness or cleavage groove','Remove the guide top completely','keep its pattern, collar dimensions and placement unchanged'])assert(prompt.includes(phrase),phrase);
  assert(!/one eighth|SHALLOW ROUND U|SHALLOW U|shallow rounded|shallow coverage limit|shallow round clavicle-base|immediately below the clavicles/i.test(prompt),'Conflicting shallow cutout restriction');
  assert(prompt.includes('no cleavage, breast contours or lower torso'));
 }
