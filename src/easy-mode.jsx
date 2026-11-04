@@ -53,7 +53,7 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
  const outsidePanel=e=>{if(e.target.closest?.('.easy-options,.easy-adjust-sheet,.easy-header,.easy-upload,.easy-change'))return;dismissPanels()};
  const choices=hairs;
  const suitCategory=t=>{const g=t.group||'';if(/สมัคร|เชิ้ต|เชิ้ด|สูท/.test(g))return 'สมัครงาน';if(/นักเรียน|นักศึกษา/.test(g))return 'นักเรียน / นักศึกษา';if(/ข้าราชการ|ราชการ/.test(g))return 'ข้าราชการ';if(/ครุย/.test(g))return 'ชุดครุย';return g||'ชุดอื่น ๆ'};
- const eligibleTemplates=templates.filter(t=>suitCategory(t)==='ชุดครุย'||!t.gender||t.gender===gender);
+ const eligibleTemplates=templates.filter(t=>['ข้าราชการ','ชุดครุย'].includes(suitCategory(t))||!t.gender||t.gender===gender);
  const preferredCategories=['สมัครงาน','นักเรียน / นักศึกษา','ข้าราชการ','ชุดครุย'];
  const availableCategories=[...new Set(eligibleTemplates.map(suitCategory))];
  const groups=[...preferredCategories.filter(g=>availableCategories.includes(g)),...availableCategories.filter(g=>!preferredCategories.includes(g))];
