@@ -4,6 +4,10 @@ import {decodedStudioImage} from './studio-image-cache.js';
 const ready=new Map(),pending=new Map(),LIMIT=12;
 export const suitPreviewSource=template=>sources[template]||null;
 export const readSuitPreview=template=>ready.get(template)||null;
+export function rememberSuitPreview(template,image){
+ const source=suitPreviewSource(template);if(!source||!image?.naturalWidth||image.src!==new URL(source,document.baseURI).href)return;
+ ready.delete(template);ready.set(template,image);while(ready.size>LIMIT)ready.delete(ready.keys().next().value);
+}
 export function warmSuitPreview(template){
  const source=suitPreviewSource(template);if(!source)return Promise.resolve(null);
  if(ready.has(template)){const image=ready.get(template);ready.delete(template);ready.set(template,image);return Promise.resolve(image)}
