@@ -5,12 +5,12 @@ import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 const editor=await readFile('src/studio-editor.jsx','utf8');
 const a=editor.indexOf(' const selectPortraitFinish=style=>'),b=editor.indexOf('\n const commitMakeupSource=',a);
 const build=Function('env',`with(env){${editor.slice(a,b)};return selectPortraitFinish}`);
-for(const finish of ['natural','korean-rosy-v1'])for(const look of ['soft-rosy-ai-v1','skin-smooth-v1',undefined]){
+for(const finish of ['natural','korean-rosy-v1'])for(const look of ['soft-rosy-ai-v1','soft-rosy-makeup-v1','skin-smooth-v1',undefined]){
  const head={kind:'head',jobId:'original-job',portraitMode:'female',hairId:'same-hair',femaleEyeStyle:finish,makeupBaseSource:'before-additional-look',makeupStyles:{look}};
  const applied=[],restored=[];const handler=build({state:{current:[head]},layerKind:l=>l.kind,portraitMode:'female',sourcePhoto:{},processHairPending:false,sourceLayerRef:{current:null},portraitFinishChoice,makeupLook,restoreMakeup:()=>restored.push(true),applyHair:(...args)=>applied.push(args)});
  handler(finish);
- assert.equal(restored.length,look==='soft-rosy-ai-v1'?1:0);
- assert.equal(applied.length,look==='soft-rosy-ai-v1'?0:1,'Original choices must retain their handler unless restoring the extra AI look');
+ assert.equal(restored.length,['soft-rosy-ai-v1','soft-rosy-makeup-v1'].includes(look)?1:0);
+ assert.equal(applied.length,['soft-rosy-ai-v1','soft-rosy-makeup-v1'].includes(look)?0:1,'Original choices must retain their handler unless restoring the extra AI look');
  const other=finish==='natural'?'korean-rosy-v1':'natural';handler(other);
  assert.equal(applied.at(-1)[1].femaleEyeStyle,other);assert.equal(applied.at(-1)[0],'same-hair');
 }

@@ -1042,7 +1042,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   if(!['makeup','natural','korean-rosy-v1'].includes(style)||!head?.jobId||(head.portraitMode||portraitMode)!=='female'||!sourcePhoto||processHairPending||state.current.some(l=>l.id===sourceLayerRef.current))return;
   const current=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
-  if(makeupLook(head.makeupStyles?.look)?.ai&&head.makeupBaseSource&&style===current){void restoreMakeup();return}
+  if((makeupLook(head.makeupStyles?.look)?.ai||head.makeupStyles?.look==='soft-rosy-makeup-v1')&&head.makeupBaseSource&&style===current){void restoreMakeup();return}
   void applyHair(head.freeHairBaseOriginal?'':head.hairId||'',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{

@@ -9,7 +9,7 @@ const base=color('#c39a87').toDataURL(),ai=color('#e8b7b0').toDataURL();
 const source=new File([await(await fetch(base)).blob()],'source.png',{type:'image/png'});source.idpromFemaleEyeStyle='korean-rosy-v1';
 window.separateMakeup={current:null};window.separateMakeupCalls={ai:0,hair:[]};window.separateMakeupBase=base;
 createRoot(document.getElementById('root')).render(<StudioEditor initialSourcePhoto={source} purchaseSnapshotRef={window.separateMakeup}
- initialLayers={[{name:'พื้นหลัง',kind:'background',source:color('#427bd4').toDataURL()},{name:'หัว · คอ · ผม',kind:'head',source:ai,jobId:'fixture',portraitMode:'female',femaleEyeStyle:'korean-rosy-v1',initialFemaleEyeStyle:'korean-rosy-v1',hairId:'',hairPolicyVersion:HAIR_DESIGN_VERSION,makeupStyles:{look:'soft-rosy-ai-v1'},makeupBaseSource:base,makeupIntensity:100,makeupRenderVersion:'skin-current-layer-v2'}]}
+ initialLayers={[{name:'พื้นหลัง',kind:'background',source:color('#427bd4').toDataURL()},{name:'หัว · คอ · ผม',kind:'head',source:ai,jobId:'fixture',portraitMode:'female',femaleEyeStyle:'korean-rosy-v1',initialFemaleEyeStyle:'korean-rosy-v1',hairId:'',hairPolicyVersion:HAIR_DESIGN_VERSION,makeupStyles:{look:new URLSearchParams(location.search).has('legacy')?'soft-rosy-makeup-v1':'soft-rosy-ai-v1'},makeupBaseSource:base,makeupIntensity:100,makeupRenderVersion:'skin-current-layer-v2'}]}
  paidOutputIds={['fixture']} editableOutputIds={['fixture']} onVerifyOutput={async()=>({unlocked:true,fullEdit:true,paidDownload:true,premiumHair:true})}
  placement={{W:900,H:1200}} templates={[]} backgrounds={[]} maleHair={[]} femaleHair={[]} paidHairAccess canReuseHair={()=>true}
  onMakeup={async()=>{window.separateMakeupCalls.ai++;return color('#f0bcb4')}}

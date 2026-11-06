@@ -12,15 +12,16 @@ with sync_playwright()as pw:
     if '/api/'in r.request.url:services.append(r.request.url);r.abort();return
     if not r.request.url.startswith('http://127.0.0.1:5192/'):r.abort();return
     r.continue_()
-   p.route('**/*',route);p.goto('http://127.0.0.1:5192/scripts/fixtures/separate-ai-makeup.html?lang='+lang)
+   legacy=lang=='th'and width==390
+   p.route('**/*',route);p.goto('http://127.0.0.1:5192/scripts/fixtures/separate-ai-makeup.html?lang='+lang+('&legacy=1'if legacy else''))
    p.wait_for_function('!!window.separateMakeup?.current');p.wait_for_function("!document.querySelector('.studio-bottom-choices button')?.disabled")
    p.locator('.studio-bottom-choices').get_by_role('button',name='Makeup'if lang=='en'else'เมคอัพ',exact=True).click()
    originals=p.locator('.studio-original-makeup-choices');extra=p.locator('.studio-additional-ai-makeup');expect(originals).to_be_visible();expect(extra).to_be_visible();assert originals.get_by_role('button').count()==2;assert extra.get_by_role('button').count()==1
    original=originals.get_by_role('button').nth(0);natural=originals.get_by_role('button').nth(1);new=extra.get_by_role('button')
    for button in [original,natural,new]:
     expect(button).to_be_enabled();box=button.bounding_box();drawer=p.locator('.studio-picker-drawer').bounding_box();assert box['y']>=drawer['y']and box['y']+box['height']<=drawer['y']+drawer['height']+1,'Original/new choice clipped'
-   assert original.get_attribute('aria-pressed')=='false';assert new.get_attribute('aria-pressed')=='true'
-   original.click();p.wait_for_function("separateMakeup.current().layers.find(l=>l.kind==='head').makeupStyles?.look!=='soft-rosy-ai-v1'")
+   assert original.get_attribute('aria-pressed')=='false';assert new.get_attribute('aria-pressed')==('false'if legacy else'true')
+   original.click();p.wait_for_function("!separateMakeup.current().layers.find(l=>l.kind==='head').makeupStyles?.look")
    assert p.evaluate("separateMakeup.current().layers.find(l=>l.kind==='head').source===separateMakeupBase");assert p.evaluate('separateMakeupCalls.ai===0&&separateMakeupCalls.hair.length===0');assert original.get_attribute('aria-pressed')=='true'
    new.click();p.wait_for_function("separateMakeup.current().layers.find(l=>l.kind==='head').makeupStyles?.look==='soft-rosy-ai-v1'");p.wait_for_function("!document.querySelector('.studio-bottom-choices button')?.disabled")
    assert p.evaluate('separateMakeupCalls.ai===1&&separateMakeupCalls.hair.length===0');assert original.get_attribute('aria-pressed')=='false'
@@ -29,6 +30,6 @@ with sync_playwright()as pw:
    p.wait_for_function("!document.querySelector('.studio-bottom-choices button')?.disabled")
    p.locator('.studio-bottom-choices').get_by_role('button',name='Makeup'if lang=='en'else'เมคอัพ',exact=True).click();expect(p.locator('.studio-original-makeup-choices button').nth(1)).to_have_attribute('aria-pressed','true')
    assert not errors,errors;assert not services,services
-   results.append({'language':lang,'width':width,'originalButtonsVisibleAndEnabled':True,'aiSeparate':True,'restoreOriginalWithoutAi':True,'newAiOnlyWhenChosen':True,'originalNoMakeupWorks':True});p.close()
+   results.append({'language':lang,'width':width,'legacyDraft':legacy,'originalButtonsVisibleAndEnabled':True,'aiSeparate':True,'restoreOriginalWithoutAi':True,'newAiOnlyWhenChosen':True,'originalNoMakeupWorks':True});p.close()
  b.close()
 print(json.dumps(results,indent=2))

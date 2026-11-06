@@ -7,9 +7,10 @@ const PORTRAIT_FINISHES=[
 const choiceStyle={flex:'0 0 104px',width:104,minWidth:0,padding:6,textAlign:'center'};
 const previewStyle={display:'block',width:'100%',height:112,objectFit:'cover',borderRadius:8};
 export function MakeupPanel({lookId,onSelect,onRestore,canRestore,disabled,hasHead,portraitFinish=null,onPortraitFinishSelect,canSelectPortraitFinish=false}){
+ const additionalSelected=lookId==='soft-rosy-makeup-v1'||MAKEUP_LOOKS.some(look=>look.ai&&look.id===lookId);
  return <section className="studio-makeup-panel" aria-label="เมคอัพ">
   {canSelectPortraitFinish&&typeof onPortraitFinishSelect==='function'&&<div className="studio-makeup-choices studio-original-makeup-choices" aria-label="เมคอัพเดิม">
-   {PORTRAIT_FINISHES.map(finish=><button key={finish.id} type="button" disabled={disabled||!hasHead} aria-label={finish.name} aria-pressed={portraitFinish===finish.id&&!MAKEUP_LOOKS.some(look=>look.ai&&look.id===lookId)} className={'studio-portrait-finish-choice'+(portraitFinish===finish.id&&!MAKEUP_LOOKS.some(look=>look.ai&&look.id===lookId)?' active':'')} onClick={()=>onPortraitFinishSelect(finish.id)} style={choiceStyle}>
+   {PORTRAIT_FINISHES.map(finish=><button key={finish.id} type="button" disabled={disabled||!hasHead} aria-label={finish.name} aria-pressed={portraitFinish===finish.id&&!additionalSelected} className={'studio-portrait-finish-choice'+(portraitFinish===finish.id&&!additionalSelected?' active':'')} onClick={()=>onPortraitFinishSelect(finish.id)} style={choiceStyle}>
     <span className="studio-makeup-face-preview"><img src={finish.preview} width="92" height="112" alt={finish.name} decoding="async" style={previewStyle}/></span>
     <small style={{display:'block',marginTop:6}}>{finish.name}</small>
    </button>)}
