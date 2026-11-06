@@ -15,5 +15,5 @@ for(const old of finishes){assert.notEqual(femaleFinishFor(old),SOFT_ROSY_PORTRA
 assert.equal(portraitFinishChoice('soft-rosy-v1'),'soft-rosy-v1');
 console.log('PASS all legacy portrait prompt bytes unchanged; new soft rosy prompt and finish ID independent.');
 
-for(const h of PRODUCTION_HAIR_CATALOG){const prompt=productionPortraitPrompt(h,'soft-rosy-v1');if(h.gender==='female'){assert(prompt.endsWith(SOFT_ROSY_TEXTURE_PRIORITY));assert(prompt.includes('SKIN SOFTNESS REVISION 2'));assert(prompt.includes('CLEARLY VISIBLE'))}else assert(!prompt.includes('FINAL SOFT ROSY SKIN PRIORITY'))}
+for(const h of PRODUCTION_HAIR_CATALOG){const prompt=productionPortraitPrompt(h,'soft-rosy-v1');if(h.gender==='female'){assert(prompt.endsWith(SOFT_ROSY_TEXTURE_PRIORITY));assert(prompt.includes('SOFT MUTED LIGHT REVISION 4'));assert(prompt.includes('LIGHTING, NOT A SKIN MASK'))}else assert(!prompt.includes('FINAL SOFT ROSY SKIN PRIORITY'))}
 console.log('PASS softness priority is last for the new female finish only; male and original finish prompts unchanged.');
