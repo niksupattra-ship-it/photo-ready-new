@@ -12,7 +12,7 @@ import {ProcessResultNotice,processResultKind} from './process-result-notice.jsx
 import {StudioBackgroundColor} from './studio-background-color.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {createPortal} from 'react-dom';
-import {PHOTO_SIZES,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
+import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
 import {makeSavedProject} from './saved-project.js';
 import {replaceHairstyleLayer} from './replace-hairstyle-layer.js';
@@ -69,7 +69,7 @@ function CatalogPreview({src,eager=false,maleHair=false,suitTemplate=null,assetK
  const closeMalePreview=maleHair&&/\/seedream-hairstyles\/previews\/(?:36|37)\.webp(?:\?|$)/.test(src);
  return <img ref={element} src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={suitTemplate?{objectFit:'contain',objectPosition:'center'}:maleHair?{objectFit:'cover',objectPosition:closeMalePreview?'50% 57.5%':'50% 12%',transform:closeMalePreview?'scale(1.01)':'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>;
 }
-const STUDIO_DOWNLOAD_SIZES=PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id));
+const STUDIO_DOWNLOAD_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id)));
 const W=900,H=1200;
 const FRAME_SOURCE_FIELDS=['processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource'];
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});

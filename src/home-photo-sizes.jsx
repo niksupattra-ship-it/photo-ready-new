@@ -1,9 +1,9 @@
 import React,{useState} from 'react';
-import {PHOTO_SIZES} from './photo-size.jsx';
+import {PHOTO_SIZES,photoSizesForLanguage} from './photo-size.jsx';
 import {homePreviewSource} from './home-previews.js';
 import './home-photo-sizes.css';
 
-const DEMO_SIZES=PHOTO_SIZES.filter(size=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(size.id));
+const DEMO_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(size=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(size.id)));
 const ORIGINAL_OUTPUT={width:2256,height:3072};
 const outputSize=size=>size.width?{width:Math.round(size.width/25.4*300)*2,height:Math.round(size.height/25.4*300)*2}:ORIGINAL_OUTPUT;
 
@@ -12,7 +12,7 @@ export function HomePhotoSizes({sample,onStart}){
  const size=DEMO_SIZES.find(item=>item.id===sizeId)||DEMO_SIZES[0];
  const output=outputSize(size),original=!size.width;
  const ratio=original?ORIGINAL_OUTPUT.width/ORIGINAL_OUTPUT.height:size.width/size.height;
- const previewWidth=original?280:size.width/48*260;
+ const previewWidth=original?280:Math.min(280,size.width/48*260);
  if(!sample)return null;
  return <section className="home-photo-sizes" aria-labelledby="home-photo-sizes-title">
   <header className="home-photo-sizes-heading"><div><span className="home-photo-sizes-eyebrow">พร้อมใช้ในขนาดที่ต้องการ</span><h2 id="home-photo-sizes-title">ตัวอย่างขนาดรูป</h2><p>รูปสมัครงานและรูปติดบัตร เลือกดูขนาดก่อนสร้างรูปของคุณ</p></div><span className="home-photo-sizes-tag">เลือกขนาดได้ก่อนดาวน์โหลด</span></header>

@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
+import {englishPreviewEnabled} from './english-preview.js';
 
 export const PHOTO_SIZES=[
  {id:'original',label:'ขนาดเดิม'},
@@ -11,6 +12,16 @@ export const PHOTO_SIZES=[
  {id:'33x48',label:'33 × 48 มม.',width:33,height:48},
  {id:'35x45',label:'35 × 45 มม.',width:35,height:45}
 ];
+// International presets use explicit physical dimensions, not Thai inch names.
+export const ENGLISH_PHOTO_SIZES=[
+ PHOTO_SIZES[0],
+ {id:'35x45',label:'35 × 45 mm',width:35,height:45},
+ {id:'intl-2x2-inch',label:'2 × 2 in',width:50.8,height:50.8},
+ {id:'33x48',label:'33 × 48 mm',width:33,height:48},
+ {id:'50x70',label:'50 × 70 mm',width:50,height:70}
+];
+export const photoSizesForLanguage=(thaiSizes=PHOTO_SIZES)=>englishPreviewEnabled()?ENGLISH_PHOTO_SIZES:thaiSizes;
+const ALL_PHOTO_SIZES=[...PHOTO_SIZES,...ENGLISH_PHOTO_SIZES.filter(size=>!PHOTO_SIZES.some(thai=>thai.id===size.id))];
 export const DEFAULT_PHOTO_CROP={sizeId:'original',x:.5,y:.5,zoom:1};
 export function photoCropRect(width,height,size,crop){
  const ratio=size.width/size.height;
@@ -33,7 +44,7 @@ export async function withPrintResolution(blob,dpi=300){
  return new Blob([bytes.subarray(0,33),chunk,bytes.subarray(33)],{type:'image/png'});
 }
 export async function cropPhotoForDownload(blob,crop,{pixelScale=1,type='image/png'}={}){
- const size=PHOTO_SIZES.find(s=>s.id===crop.sizeId);
+ const size=ALL_PHOTO_SIZES.find(s=>s.id===crop.sizeId);
  if(!size?.width)return blob; // Preserve the existing default output byte for byte.
  const img=await loadPhoto(blob),rect=photoCropRect(img.naturalWidth,img.naturalHeight,size,crop),canvas=document.createElement('canvas');
  canvas.width=Math.round(size.width/25.4*300)*pixelScale;canvas.height=Math.round(size.height/25.4*300)*pixelScale;
@@ -44,7 +55,8 @@ export async function cropPhotoForDownload(blob,crop,{pixelScale=1,type='image/p
 }
 
 export function PhotoSizeEditor({blob,value,trial,onApply,onClose,sizes=PHOTO_SIZES,pixelScale=1,applyLabel='ใช้ขนาดนี้',busy=false,embedded=false,onChange,actions}){
- const [crop,setCrop]=useState({...value}),[img,setImg]=useState(null),[error,setError]=useState('');
+ sizes=photoSizesForLanguage(sizes);
+ const [crop,setCrop]=useState({...value,...(englishPreviewEnabled()&&!sizes.some(size=>size.id===value?.sizeId)?{sizeId:'original'}:{})}),[img,setImg]=useState(null),[error,setError]=useState('');
  const canvasRef=useRef(null),dialogRef=useRef(null),dragRef=useRef(null),changeRef=useRef(onChange);changeRef.current=onChange;
  useEffect(()=>{changeRef.current?.(crop)},[crop]);
  const size=sizes.find(s=>s.id===crop.sizeId)||sizes[0];

@@ -77,7 +77,7 @@ export const ENGLISH_ADDITIONAL_COPY={
  "ภาพและการปรับแต่งอาจสูญหายเมื่อปิดหน้า รีเฟรช ออกจากระบบ หรือเริ่มงานใหม่ กรุณาดาวน์โหลดลงอุปกรณ์และตรวจสอบว่าเปิดไฟล์ได้ก่อนออกจากหน้าการใช้งาน": "Your photo and edits may be lost if you close or refresh the page, sign out, or start a new project. Download the file to your device and confirm that it opens correctly before leaving the editor.",
  "พร้อมใช้ในขนาดที่ต้องการ": "Ready in the size you need",
  "ตัวอย่างขนาดรูป": "Photo size examples",
- "รูปสมัครงานและรูปติดบัตร เลือกดูขนาดก่อนสร้างรูปของคุณ": "Explore ID and job application photo sizes before creating your own.",
+ "รูปสมัครงานและรูปติดบัตร เลือกดูขนาดก่อนสร้างรูปของคุณ": "Choose the photo dimensions required by your employer or organisation.",
  "เลือกขนาดได้ก่อนดาวน์โหลด": "Choose your size before downloading",
  "ภาพแสดงสัดส่วน ขนาดบนหน้าจอไม่ใช่ขนาดพิมพ์จริง": "This preview shows proportions. Its on-screen size is not the actual print size.",
  "ดูขนาดภาพและไฟล์ที่จะได้จาก Studio": "Preview your image dimensions and the file available from Studio.",
