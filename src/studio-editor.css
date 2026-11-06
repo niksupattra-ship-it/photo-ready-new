@@ -595,3 +595,6 @@
 .idstudio > .studio-feedback{box-sizing:border-box;flex:0 0 50px;height:50px;min-height:50px;max-height:50px;line-height:18px;overflow:auto}
 .idstudio > .studio-feedback[data-idle=true]{visibility:hidden}
 .idstudio.studio-touch > .studio-feedback{flex-basis:36px;height:36px;min-height:36px;max-height:36px;line-height:13px;padding:4px 8px}
+
+/* Keep original makeup and the separate AI choice discoverable together. */
+.idstudio .studio-picker-drawer:has(.studio-additional-ai-makeup){max-height:min(56dvh,460px)}

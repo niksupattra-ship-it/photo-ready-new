@@ -1,5 +1,7 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "เมคอัพเดิม": "Original makeup",
+ "เมคอัพ AI เพิ่มเติม": "Additional AI makeup",
  "ดาวน์โหลดผลลัพธ์ไม่สำเร็จ": "The result could not be downloaded.",
  "ใช้สิทธิ์ AI ตามแพ็กเกจ": "Uses your plan’s AI credits",
  "AI ยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง": "AI is currently unavailable. Please try again later.",
