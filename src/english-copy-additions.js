@@ -1,5 +1,10 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "ดาวน์โหลดผลลัพธ์ไม่สำเร็จ": "The result could not be downloaded.",
+ "ใช้สิทธิ์ AI ตามแพ็กเกจ": "Uses your plan’s AI credits",
+ "AI ยังไม่พร้อมใช้งาน กรุณาลองใหม่ภายหลัง": "AI is currently unavailable. Please try again later.",
+ "ข้อมูลภาพเมคอัพไม่ตรงกัน": "The makeup image data is invalid.",
+ "ปรับAI · เมคอัพชมพูละมุน · ผิวสว่างนุ่ม": "Apply AI soft rosy makeup · Luminous skin",
  "เมคอัพชมพูละมุน · ผิวสว่างนุ่ม": "Soft rosy makeup · Luminous skin",
  "ปรับเมคอัพชมพูละมุน · ผิวสว่างนุ่ม": "Apply soft rosy makeup · Luminous skin",
  "กำลังเตรียมภาพความละเอียดเต็ม กรุณารอสักครู่": "Preparing the full-resolution image. Please wait.",

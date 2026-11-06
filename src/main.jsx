@@ -1,3 +1,5 @@
+import {requestAiRosyMakeup,ROSY_AI_LOOK} from './ai-rosy-makeup.js';
+import {composeAiRosyMakeup} from './ai-rosy-compose.js';
 import {LanguageSwitch} from './language-switch.jsx';
 import {startEnglishPreview,outfitsForLanguage} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
@@ -1606,7 +1608,7 @@ function currentResultCacheScope(){
 }
 async function requestStudioMakeup(source,styles,options={}){
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(source);
- const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b)),'local-skin-v1']);
+ const key=JSON.stringify([scope,digest,Object.entries(styles).sort(([a],[b])=>a.localeCompare(b)),styles.look===ROSY_AI_LOOK?'seedream-soft-rosy-v1:'+String(options.sourceJobId||''):'local-skin-v1']);
  const result=await makeupResultCache.get(key,()=>requestStudioMakeupUncached(source,styles,options));
  if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{name:'AbortError'});
  return result.value;
@@ -1614,6 +1616,14 @@ async function requestStudioMakeup(source,styles,options={}){
 async function requestStudioMakeupUncached(source,styles,options={}){
  const abort=()=>{if(options.signal?.aborted)throw Object.assign(Error('ยกเลิกการแต่งเมคอัพแล้ว'),{name:'AbortError'})};abort();
  if(!makeupLook(styles.look))throw Error('กรุณาเลือกโทนปรับผิว');
+ if(styles.look===ROSY_AI_LOOK){
+  const scope=currentResultCacheScope();
+  return requestAiRosyMakeup(source,{...options,headers:walletHeaders(),fetcher:(url,init)=>portraitFetch(url,init,90000),isCurrent:()=>scope===currentResultCacheScope(),compose:async generated=>{
+   const prepared=await prepareStudioMakeup(source),image=await decodedPortraitImage(generated),generatedFace=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+   return composeAiRosyMakeup({...prepared,generated:image,generatedFace,signal:options.signal});
+  }});
+ }
+
  options.onProgress?.(8);
  const {original,face,hairMask,skinMask}=await prepareStudioMakeup(source);abort();
  options.onProgress?.(32);

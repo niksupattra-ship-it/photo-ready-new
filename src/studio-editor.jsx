@@ -1076,7 +1076,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{
    flushTransforms();paintScene(canvasRef.current.getContext('2d'),state.current,assets.current);
    const previous=historySnapshot();
-   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupRenderVersion==='skin-current-layer-v2'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{signal:operation.signal,onProgress:value=>{if(mounted.current&&!operation.signal.aborted)setMakeupProgress(v=>Math.max(v,Math.min(98,value)))}}));
+   const full=cachedFull||await makeupLookCacheRef.current.get(head.id,base,lookId,()=>head.makeupRenderVersion==='skin-current-layer-v2'&&head.makeupStyles?.look===lookId&&head.makeupBaseSource===base&&head.makeupFullSource?head.makeupFullSource:onMakeup(base,{look:lookId},{sourceJobId:head.jobId,signal:operation.signal,onProgress:value=>{if(mounted.current&&!operation.signal.aborted)setMakeupProgress(v=>Math.max(v,Math.min(98,value)))}}));
    if(!reused)setMakeupProgress(v=>Math.max(v,95));
    const source=await mixMakeupLookSources(base,full,100);
    if(!reused)setMakeupProgress(v=>Math.max(v,98));

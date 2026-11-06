@@ -4,6 +4,7 @@ import {recoverPortraitWork} from './portrait-work-recovery.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
+import {registerRosyMakeupApi} from './rosy-makeup-api.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
 import {hairRootTargetInstruction} from './hair-root-target.js';
@@ -224,6 +225,7 @@ const upload=multer({
   limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
 });
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
+registerRosyMakeupApi(app,{upload,walletId,getWallet,getAiJobResult,hasPrivateTrial});
 registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sharp(buffer).metadata(),createSourceDownloadJob,downloadPolicy});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.

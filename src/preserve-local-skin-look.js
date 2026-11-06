@@ -4,7 +4,7 @@ import {portraitFinishChoice} from './portrait-finish-choice.js';
 // Never reuse the previous hair's face pixels, mask, or skin-colour profile.
 export async function preserveLocalSkinLook(previous,replacement,{render,mix,toSource}){
  const look=previous.makeupStyles?.look;
- if(!makeupLook(look)||previous.portraitMode!==replacement.portraitMode||portraitFinishChoice(previous.femaleEyeStyle,previous.initialFemaleEyeStyle)!==portraitFinishChoice(replacement.femaleEyeStyle,replacement.initialFemaleEyeStyle))return replacement;
+ if(makeupLook(look)?.ai||!makeupLook(look)||previous.portraitMode!==replacement.portraitMode||portraitFinishChoice(previous.femaleEyeStyle,previous.initialFemaleEyeStyle)!==portraitFinishChoice(replacement.femaleEyeStyle,replacement.initialFemaleEyeStyle))return replacement;
  if(typeof render!=='function')throw Error('ยังคืนค่าปรับผิวเดิมไม่ได้ · เก็บภาพเดิมไว้');
  const value=Number(previous.makeupIntensity??100),intensity=Number.isFinite(value)?Math.max(0,Math.min(100,value)):100;
  const base=toSource(replacement.source),full=await render(base,{look});
