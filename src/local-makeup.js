@@ -179,23 +179,28 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
  if(!Number.isInteger(W)||!Number.isInteger(H)||W<1||H<1)throw Error('ขนาดรูปเมคอัพไม่ถูกต้อง');
  if(!hairMask||!skinMask)throw Error('ตรวจพื้นที่ผิวและขอบผมไม่สำเร็จ เก็บรูปเดิมไว้');
  const progress=n=>{abortIfNeeded(signal);onProgress?.(n)};
+ const softRosy=lookId==='soft-rosy-makeup-v1';
  const glow=lookId==='local-pink-glow-v1',korean=lookId==='local-korean-pink-eye-v1';
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
  const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks),eyeDetail=korean?koreanEyeDetails(g,masks):null;progress(30);await pause(signal);
+ const browPaint=softRosy?maskTools(g).make():null;
+ if(browPaint){for(const ids of LOCAL_MAKEUP_CONTOURS.brows)maskTools(g).polygon(browPaint.ctx,ids)}
+ const browPixels=browPaint?browPaint.ctx.getImageData(0,0,g.w,g.h).data:null;
  const luminance=new Float32Array(g.w*g.h);let sum=0,weight=0;
  for(let i=0;i<luminance.length;i++){
   const j=i*4,Y=luma(source[j],source[j+1],source[j+2]);luminance[i]=Y;
   const a=masks.skin[i]*(source[j+3]/255);if(Y>45&&Y<240){sum+=Y*a;weight+=a}
  }
- const softened=await guidedMakeupLuminance(luminance,g.w,g.h,Math.max(2,g.d*.018),signal);
+ const softened=softRosy?luminance:await guidedMakeupLuminance(luminance,g.w,g.h,Math.max(2,g.d*.018),signal);
  // Only the new glow preset reads local colour means for small red blemishes.
  let localColor=null;
  if(glow){localColor=[];for(let c=0;c<3;c++){const channel=new Float32Array(luminance.length);for(let i=0;i<channel.length;i++)channel[i]=source[i*4+c];localColor.push(await boxMean(channel,g.w,g.h,Math.max(2,Math.min(12,Math.round(g.d*.025))),signal))}}
  const mean=weight?sum/weight:190,lift=glow?clamp(9+(215-mean)*.12,7,18):clamp(7+(210-mean)*.12,6,16);
  const cheekCenters=[g.point(50),g.point(280)],glowCenters=[g.point(117),g.point(346),g.point(151),g.point(4)];
  const field=(px,py,points,rx,ry)=>Math.max(...points.map(p=>{const dx=px-p.x,dy=py-p.y,u=(dx*g.ux+dy*g.uy)/(g.d*rx),v=(dx*g.vx+dy*g.vy)/(g.d*ry);return Math.exp(-2*(u*u+v*v))}));
+ const underEyeCenters=softRosy?[145,374].map(id=>{const p=g.point(id);return {x:p.x+g.vx*g.d*.06,y:p.y+g.vy*g.d*.06}}):null;
  const left=g.point(61),right=g.point(291),lipWidth=Math.hypot(right.x-left.x,right.y-left.y),lx=(right.x-left.x)/lipWidth,ly=(right.y-left.y)/lipWidth;
  const lower=g.point(17),inner=g.point(14),gloss={x:inner.x*.55+lower.x*.45,y:inner.y*.55+lower.y*.45};
  progress(68);await pause(signal);
@@ -203,7 +208,7 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
   for(let x=0;x<g.w;x++){
    const i=y*g.w+x,j=i*4;if(source[j+3]<240)continue;
    const Y=luminance[i],skin=masks.skin[i],tone=masks.tone[i];
-   if(skin>.0001||tone>.0001){
+   if(!softRosy&&(skin>.0001||tone>.0001)){
     const detail=softened[i]-Y,edge=1-smooth(7,19,Math.abs(detail));
     const polish=clamp(detail,-8,8)*(glow?.62:.40)*edge*skin;
     const light=lift*clamp((248-Y)/95),rose=1;
@@ -224,13 +229,13 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
    const lip=masks.lips[i];
    if(lip>.0001){
     // Shift chroma gently toward rose while keeping each original texture sample.
-    const tint=korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(korean?.30:glow?.30:.22)*lip;
+    const tint=softRosy?[225,121,151]:korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(softRosy?.40:korean?.30:glow?.30:.22)*lip;
     for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+strength*((tint[c]-targetY)-(source[j+c]-Y));
     const dx=g.x+x-gloss.x,dy=g.y+y-gloss.y,u=(dx*lx+dy*ly)/Math.max(1,lipWidth*.28),v=(-dx*ly+dy*lx)/Math.max(.8,g.d*.008);
-    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(glow?.17:.11);
+    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(softRosy?.15:glow?.17:.11);
     for(let c=0;c<3;c++)pixels[j+c]+=Math.min(10,(255-pixels[j+c])*satin);
    }
-   const blush=effects.blushMask[i]*(korean?.43:.16);
+   const blush=effects.blushMask[i]*(softRosy?.24:korean?.43:.16);
    if(blush>.0001){const tint=korean?[226,113,165]:[200,135,153],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=blush*((tint[c]-target)-(pixels[j+c]-current))}
    if(korean){
     for(const [mask,color]of [[eyeDetail.liner,[34,26,28]]]){const a=mask[i];if(a>.0001)for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-a)+color[c]*a}
@@ -240,6 +245,17 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
      const along=Math.exp(-2*Math.pow((v-noseY*.45)/Math.max(.025,Math.abs(noseY)*.65),2)),highlight=Math.exp(-2*Math.pow(u/.019,2))*along,shade=(Math.exp(-2*Math.pow((u-.044)/.018,2))+Math.exp(-2*Math.pow((u+.044)/.018,2)))*along;
      const delta=(highlight*3.2-shade*2.4)*tone;for(let c=0;c<3;c++)pixels[j+c]+=delta;
     }
+   }
+   if(softRosy){
+    // Colour and light only. No contour, nose sculpting or geometry transform.
+    const px=g.x+x,py=g.y+y;
+    const cheek=field(px,py,cheekCenters,.23,.14)*skin*.18;
+    const tint=[224,137,164],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);
+    for(let c=0;c<3;c++)pixels[j+c]+=cheek*((tint[c]-target)-(pixels[j+c]-current));
+    const under=field(px,py,underEyeCenters,.10,.045)*skin;
+    for(let c=0;c<3;c++)pixels[j+c]+=Math.min(4,Math.max(0,(246-Y)*.035))*under;
+    const brow=browPixels[j+3]/255*masks.support[i]*(1-masks.eyes[i])*(1-smooth(90,155,Y))*.10;
+    for(let c=0;c<3;c++)pixels[j+c]*=1-brow;
    }
    const lash=effects.lashMask[i];if(lash>.0001){const brown=[49,34,31];for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-lash)+brown[c]*lash}
   }

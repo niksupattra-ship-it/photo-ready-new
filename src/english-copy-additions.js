@@ -1,5 +1,7 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "เมคอัพชมพูละมุน · ผิวสว่างนุ่ม": "Soft rosy makeup · Luminous skin",
+ "ปรับเมคอัพชมพูละมุน · ผิวสว่างนุ่ม": "Apply soft rosy makeup · Luminous skin",
  "กำลังเตรียมภาพความละเอียดเต็ม กรุณารอสักครู่": "Preparing the full-resolution image. Please wait.",
  "ประมวลผลไม่สำเร็จ": "Processing was unsuccessful.",
  "บันทึกงานไม่สำเร็จ": "The project could not be saved.",
