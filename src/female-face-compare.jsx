@@ -1,4 +1,5 @@
 import React from 'react';
+import {SOFT_ROSY_PORTRAIT_FINISH} from './portrait-finish-choice.js';
 import './female-face-compare.css';
 
 /**
@@ -6,7 +7,7 @@ import './female-face-compare.css';
  * Uses the site's existing finish previews and existing onSelect callback.
  */
 export function FemaleFaceCompare({value='natural',onSelect,disabled=false}){
- return <div className="idprom-face-compare" role="group" aria-label="เลือกรูปแบบใบหน้า แต่งหน้าหรือไม่แต่งหน้า">
+ return <div className="idprom-face-compare" role="group" aria-label="เลือกรูปแบบใบหน้า">
   <div className="idprom-face-compare__photo">
    <img className="idprom-face-compare__image idprom-face-compare__image--makeup" src="/assets/face-finish/makeup.webp" alt="" decoding="async"/>
    <img className="idprom-face-compare__image idprom-face-compare__image--natural" src="/assets/face-finish/natural.webp" alt="" decoding="async"/>
@@ -18,6 +19,7 @@ export function FemaleFaceCompare({value='natural',onSelect,disabled=false}){
     <span className="idprom-face-compare__pill">ไม่แต่งหน้า{value==='natural'&&<span className="idprom-face-compare__check" aria-hidden="true"> ✓</span>}</span>
    </button>
   </div>
+  <button type="button" className={'idprom-face-compare__additional'+(value===SOFT_ROSY_PORTRAIT_FINISH.id?' is-selected':'')} disabled={disabled} aria-pressed={value===SOFT_ROSY_PORTRAIT_FINISH.id} onClick={()=>onSelect?.(SOFT_ROSY_PORTRAIT_FINISH.id)}>{SOFT_ROSY_PORTRAIT_FINISH.name}{value===SOFT_ROSY_PORTRAIT_FINISH.id&&<span aria-hidden="true"> ✓</span>}</button>
   <p className="idprom-face-compare__hint">แตะที่ภาพด้านซ้ายหรือด้านขวาเพื่อเลือก</p>
  </div>;
 }

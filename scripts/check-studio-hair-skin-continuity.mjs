@@ -1,4 +1,3 @@
-import {ROSY_AI_LOOK} from '../src/ai-rosy-makeup.js';
 import {preserveLocalSkinLook} from '../src/preserve-local-skin-look.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -65,7 +64,7 @@ function fixture(options={}){
   makeupRequestRef:{current:false},makeupOperationRef:{current:null},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},cancelMakeupPreview:noop,startMakeupProgress:noop,stopMakeupProgress:noop,finishMakeupProgress:async()=>{},assets:{current:new Map()},image:async src=>imageOf(src),drawNow:noop
  };
  for(const key of ['setAppearanceError','setAssetBusy','setStatus','resetBrushSession','setSelected','setSelectedHair','setHairConfirmed','setHairNotice','setRevision','setTool','setComparing','trackHairSelection','setMakeupCancelled','setMakeupBusy','setMakeupIntensity','setHistoryNotice'])env[key]=noop;
- const requestEnv={makeupLook,ROSY_AI_LOOK,
+ const requestEnv={makeupLook,
   prepareStudioMakeup:async base=>{analyses.push(base);return {original:imageOf(base),face:{newSource:base},hairMask:{newSource:base},skinMask:{newSource:base}}},
   renderLocalSkin:async({original,face,hairMask,skinMask,lookId})=>{
    assert.equal(face.newSource,hairMask.newSource);assert.equal(face.newSource,skinMask.newSource);assert.equal(original,imageOf(face.newSource));

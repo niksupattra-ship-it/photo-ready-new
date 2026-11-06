@@ -30,3 +30,7 @@
 .idprom-face-compare__photo{max-width:320px}
 @media(max-width:600px){.idprom-face-compare{max-width:260px}.idprom-face-compare__photo{max-width:260px}}
 
+
+.idprom-face-compare .idprom-face-compare__additional{display:block;width:100%;min-height:48px;margin:10px 0;padding:10px 12px;border:1px solid #d6cbfa;border-radius:10px;background:#fff;color:#5133a5;font:inherit;font-size:13px;line-height:1.5;text-align:center}
+.idprom-face-compare .idprom-face-compare__additional.is-selected{background:#f0eaff;border-color:#7044ed}
+.idprom-face-compare .idprom-face-compare__additional:disabled{opacity:.5;cursor:not-allowed}

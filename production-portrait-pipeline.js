@@ -59,7 +59,7 @@ export function validateProductionPortrait(input,fields={}){
  const id=fields.hairId||'original',selected=productionHair(id);
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
- if(fields.femaleEyeStyle==='korean-rosy-v1'&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
+ if(['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
  parsePortraitIdentityBox(fields.faceIdentityBox);
  parseFemaleMakeupReference(fields,selected);
  return selected;
@@ -122,10 +122,10 @@ Remove the person's original hairstyle where it conflicts with Image 2. Do not i
 FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, show only the smooth, compact side-parted scalp hair in Image 2. Both sides end cleanly above or behind the ear; the entire sides of both ears and the background beside and below them are clear. Remove every detached strand beside the cheek or ear, every hanging tip behind the jaw, and any ponytail, bun, tail or dark patch on either side behind the neck. Replace removed hair with the same plain blue background, not a skin-coloured or dark blob. No source hairstyle may remain outside the selected silhouette. Keep the existing ears, face, jaw, neck and head scale exactly as specified. Retain fine natural roots and an unbroken soft hairline without a wig-like edge. This instruction takes priority over any lower reference tip or source hair in Image 1.
 `;
  let outfit=null;
- if(selected.gender==='female'&&fields.femaleEyeStyle==='korean-rosy-v1'&&fields.outfitReferencePath){
+ if(selected.gender==='female'&&['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath){
   const file=checkedOutfitReferencePath(fields.outfitReferencePath);
   outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
-  prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Apply KOREAN ROSY V1 cosmetics in this same generation.\n`;
+  prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Apply ${fields.femaleEyeStyle==='soft-rosy-v1'?'SOFT ROSY V1':'KOREAN ROSY V1'} cosmetics in this same generation.\n`;
  }
  await onStage('generation');
  const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair,identity,...(outfit?{outfit}:{})});

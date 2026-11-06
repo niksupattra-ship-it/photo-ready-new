@@ -92,4 +92,13 @@ await test('Korean rosy uses an independent cache and switching back reuses lega
  const again=await f.change('seedream-19','female','korean-rosy-v1');assert(again.reused);again.commit();assert.equal(f.calls.length,1);
  f.env.editCache.current.lock.templatePath='another-outfit.png';assert.equal(f.memory.canReuseHair('seedream-19','female','korean-rosy-v1'),false);
 });
+await test('new soft rosy finish uses original source and selected hair/outfit with an independent reusable cache',async()=>{
+ const f=fixture(),original=f.env.editCache.current.master;
+ for(const old of ['makeup','natural','korean-rosy-v1'])assert.notEqual(f.memory.hairResultKey('seedream-19','female','soft-rosy-v1'),f.memory.hairResultKey('seedream-19','female',old));
+ const result=await f.change('seedream-19','female','soft-rosy-v1');assert.equal(f.calls.length,1);assert.equal(f.calls[0].source,f.file);assert.equal(f.calls[0].id,'seedream-19');assert.equal(f.calls[0].options.femaleEyeStyle,'soft-rosy-v1');assert.equal(f.calls[0].options.templatePath,'female.png');result.commit();
+ const rosy=f.env.editCache.current.master;assert.equal(f.file.idpromFemaleEyeStyle,'soft-rosy-v1');
+ const back=await f.change('seedream-19','female','makeup');assert(back.reused);back.commit();assert.equal(f.env.editCache.current.master,original);
+ const again=await f.change('seedream-19','female','soft-rosy-v1');assert(again.reused);again.commit();assert.equal(f.calls.length,1);assert.equal(f.env.editCache.current.master,rosy);
+ f.env.editCache.current.lock.templatePath='another-outfit.png';assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),false);
+});
 console.log(`PASS: ${passed} actual App makeup/cache scenarios; AI, rendering and payment API mocked; no external requests.`);
