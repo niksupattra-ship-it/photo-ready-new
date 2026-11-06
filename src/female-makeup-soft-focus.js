@@ -44,10 +44,11 @@ function confidence(mask,n){
  return null;
 }
 
-// Female MAKEUP output only. Selective microcontrast reduction supplies the
-// requested soft-focus skin without changing exposure, cosmetics or geometry.
-export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair}={}){
- const report={version:'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
+// Legacy makeup keeps its original subtle diffusion and exposure unchanged.
+// The separate softRosy mode adds stronger skin diffusion and a restrained
+// luminous veil, with the same anatomical feature and alpha guards.
+export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,hair,softRosy=false}={}){
+ const report={version:softRosy?'soft-rosy-diffusion-v3':'female-makeup-soft-focus-v2',status:'unavailable',changedPixels:0};
  const unchanged=()=>({pixels,changed:false,report});
  if(!Number.isSafeInteger(W)||!Number.isSafeInteger(H)||W<1||H<1||W*H>8388608||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==W*H*4)return unchanged();
  const skinAt=confidence(skin,W*H),hairAt=confidence(hair,W*H);
@@ -57,7 +58,7 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
  const full=id=>({x:face[id].x*W,y:face[id].y*H});
  const a=full(234),b=full(454),faceWidth=Math.hypot(a.x-b.x,a.y-b.y);
  if(faceWidth<48||faceWidth>Math.hypot(W,H))return unchanged();
- const radius=clamp(Math.round(faceWidth*.0045),1,6),guard=clamp(Math.round(faceWidth*.009),2,12);
+ const radius=clamp(Math.round(faceWidth*(softRosy?.008:.0045)),1,softRosy?12:6),guard=clamp(Math.round(faceWidth*.009),2,12);
  const oval=LOCAL_MAKEUP_CONTOURS.face.map(full),padding=radius+guard+2;
  const x0=clamp(Math.floor(Math.min(...oval.map(p=>p.x)))-padding,0,W),x1=clamp(Math.ceil(Math.max(...oval.map(p=>p.x)))+padding,0,W);
  const y0=clamp(Math.floor(Math.min(...oval.map(p=>p.y)))-padding,0,H),y1=clamp(Math.ceil(Math.max(...oval.map(p=>p.y)))+padding,0,H);
@@ -103,9 +104,12 @@ export function finishFemaleMakeupSoftFocus({pixels,width:W,height:H,face,skin,h
   // Leave already soft skin and its fine grain alone. Even rougher skin keeps
   // most native microtexture, with a small correction instead of full diffusion.
   const activity=smooth(1.5,4,Math.sqrt(variance));
-  const strength=.28*activity*coverage[i]*(160/(160+variance))*(1-smooth(12,26,Math.abs(residual)));
-  const dr=(r-pixels[k])*strength,dg=(g-pixels[k+1])*strength,db=(b-pixels[k+2])*strength;
-  const largest=Math.max(Math.abs(dr),Math.abs(dg),Math.abs(db)),limit=largest>3?3/largest:1;
+  const strength=(softRosy?.66:.28)*activity*coverage[i]*(160/(160+variance))*(1-smooth(12,26,Math.abs(residual)));
+  // A restrained skin-only luminous veil; feature/alpha/mark guards above
+  // remain exact. The legacy branch has zero glow and its original arithmetic.
+  const glow=softRosy?4*coverage[i]*smooth(referenceLight*.72,referenceLight*1.12,average)*(1-smooth(220,246,Y)):0;
+  const dr=(r-pixels[k])*strength+glow,dg=(g-pixels[k+1])*strength+glow,db=(b-pixels[k+2])*strength+glow;
+  const largest=Math.max(Math.abs(dr),Math.abs(dg),Math.abs(db)),limit=largest>(softRosy?9:3)?(softRosy?9:3)/largest:1;
   const nr=clamp(Math.round(pixels[k]+dr*limit),0,255),ng=clamp(Math.round(pixels[k+1]+dg*limit),0,255),nb=clamp(Math.round(pixels[k+2]+db*limit),0,255);
   if(nr===pixels[k]&&ng===pixels[k+1]&&nb===pixels[k+2])continue;
   if(!out)out=new Uint8ClampedArray(pixels);

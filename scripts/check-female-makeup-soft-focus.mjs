@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {readFile} from 'node:fs/promises';
 import {finishFemaleMakeupSoftFocus} from '../src/female-makeup-soft-focus.js';
 import {LOCAL_MAKEUP_CONTOURS as C} from '../src/local-makeup.js';
@@ -82,14 +83,14 @@ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const section=(start,end)=>{const a=main.indexOf(start),b=main.indexOf(end,a);assert(a>=0&&b>a);return main.slice(a,b)};
 const extract=(start,end,name,env)=>new Function('env',`with(env){${section(start,end)};return ${name}}`)(env);
 await test('only female makeup gets the finish, once per new generation and never on reuse',async()=>{
- for(const mode of ['male','female'])for(const style of ['natural','makeup']){
+ for(const mode of ['male','female'])for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){
   let generations=0,finishes=0,cached=null;const generated=new Blob(['native AI output']);generated.idpromJobId='job';
-  const env={activeProcessOperation:{},assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],currentResultCacheScope:()=>'',resultSourceDigest:async()=>'',uploadGenerationScope:()=>'',HAIR_DESIGN_VERSION:'fixture',portraitResultCache:{delete(){},async get(key,generate){if(cached)return {value:cached,reused:true};cached=await generate();return {value:cached,reused:false}}},aiFinishPortraitUncached:async()=>{generations++;return generated},cleanPortraitClothing:async b=>b,finishFemaleMakeupSoftFocusBlob:async b=>{assert.equal(b,generated);finishes++;return b},checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({unlocked:true}),femaleFinishMetadata:()=>({}),saveAiJobFile:async()=>{},writeActiveAiJob(){},window:{dispatchEvent(){}},CustomEvent:class{}};
+  const env={portraitFinishChoice,activeProcessOperation:{},assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],currentResultCacheScope:()=>'',resultSourceDigest:async()=>'',uploadGenerationScope:()=>'',HAIR_DESIGN_VERSION:'fixture',portraitResultCache:{delete(){},async get(key,generate){if(cached)return {value:cached,reused:true};cached=await generate();return {value:cached,reused:false}}},aiFinishPortraitUncached:async()=>{generations++;return generated},cleanPortraitClothing:async b=>b,finishFemaleMakeupSoftFocusBlob:async(b,options)=>{assert.equal(b,generated);assert.equal(options?.softRosy===true,style==='soft-rosy-v1');finishes++;return b},checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({unlocked:true}),femaleFinishMetadata:()=>({}),saveAiJobFile:async()=>{},writeActiveAiJob(){},window:{dispatchEvent(){}},CustomEvent:class{}};
   const run=extract('async function aiFinishPortrait(','\nlet acceptedPaidTrial=','aiFinishPortrait',env);
   const source={idpromPortraitMode:mode,idpromFemaleEyeStyle:style};
   const result=await run(source,'',{portraitMode:mode,femaleEyeStyle:style});assert.equal(result,generated);
   const repeat=await run(source,'',{portraitMode:mode,femaleEyeStyle:style});assert.equal(repeat.idpromReused,true);
-  assert.equal(generations,1);assert.equal(finishes,mode==='female'&&style==='makeup'?1:0);
+  assert.equal(generations,1);assert.equal(finishes,mode==='female'&&['makeup','soft-rosy-v1'].includes(style)?1:0);
  }
 });
 await test('female makeup cache identity changes while male and natural cache keys stay stable',()=>{
@@ -101,6 +102,22 @@ await test('all female makeup prompts protect fine texture and avoid a pore-eras
   const prompt=productionPortraitPrompt(hair,'makeup');
   assert(prompt.includes('Retain fine original pores'));assert(prompt.includes('Already smooth skin receives no additional smoothing'));
   assert(!/pore-free|Remove visible facial pores|do not retain visible pores/.test(prompt));
+ }
+});
+await test('new rosy diffusion visibly reduces skin contrast with a luminous finish while keeping protected pixels exact',()=>{
+ for(const tone of [[222,192,176],[175,133,113],[104,72,59]]){
+  const input=fixture({tone}),before=input.pixels.slice(),legacy=finishFemaleMakeupSoftFocus(input),out=finishFemaleMakeupSoftFocus({...input,softRosy:true});assert(out.changed);assert.deepEqual(input.pixels,before);
+  let oldHigh=0,newHigh=0,lift=0,count=0;
+  for(let i=0;i<input.labels.length;i++){
+   const k=i*4,label=input.labels[i];assert.equal(out.pixels[k+3],before[k+3]);
+   if(label>0&&label<9)assert.deepEqual(out.pixels.subarray(k,k+4),before.subarray(k,k+4),'protected feature changed');
+   if(label===9){oldHigh+=(legacy.pixels[k]-input.baseline[i*3])**2;lift+=out.pixels[k]-before[k];count++}
+  }
+  const meanLift=lift/count;
+  for(let i=0;i<input.labels.length;i++)if(input.labels[i]===9){const k=i*4;newHigh+=(out.pixels[k]-input.baseline[i*3]-meanLift)**2}
+  assert(meanLift>1&&meanLift<5,'skin-only light diffusion must be visible and restrained');assert(newHigh<oldHigh*.8,'new finish must soften skin more than legacy');
+  assert.deepEqual(finishFemaleMakeupSoftFocus(input).pixels,legacy.pixels,'legacy output changed');
+  reports.push({name:'rosy diffusion '+tone[0],meanSkinLift:+meanLift.toFixed(2),contrastVsLegacy:+Math.sqrt(newHigh/oldHigh).toFixed(3)});
  }
 });
 console.log(JSON.stringify({passed,reports,noPaidAIRequests:true}));
