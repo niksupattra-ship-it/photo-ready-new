@@ -1,4 +1,4 @@
-import {SOFT_ROSY_TEXTURE_PRIORITY} from './soft-rosy-portrait-finish.js';
+import {SOFT_ROSY_TEXTURE_PRIORITY,SOFT_ROSY_COMPLETION_CHECK} from './soft-rosy-portrait-finish.js';
 import {prepareFreePngReference} from './free-png-reference.js';
 import {MALE_SHAVE_POLICY} from './male-shave-policy.js';
 import sharp from 'sharp';
@@ -128,6 +128,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Apply ${fields.femaleEyeStyle==='soft-rosy-v1'?'SOFT ROSY V1':'KOREAN ROSY V1'} cosmetics in this same generation.\n`;
  }
+ if(selected.gender==='female'&&fields.femaleEyeStyle==='soft-rosy-v1')prompt+=SOFT_ROSY_COMPLETION_CHECK;
  await onStage('generation');
  const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair,identity,...(outfit?{outfit}:{})});
  await onStage('matting');

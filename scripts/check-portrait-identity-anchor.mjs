@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {SOFT_ROSY_COMPLETION_CHECK} from '../soft-rosy-portrait-finish.js';
 import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -85,7 +86,7 @@ try{
   await processProductionPortrait({input:inputB,fields:{hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'soft-rosy-v1',faceIdentityBox:encoded,outfitReferencePath:'/assets/job-uniforms/fixture.png'},root,key:'mock-only',onStage:async stage=>stages.push(stage),removeBackground:async image=>image});
   const body=requests.at(-1);assert.equal(requests.length,before+1);assert.equal(body.image.length,4);assert.equal(body.size,'2K');
   assert.deepEqual(decodeData(body.image[0]),b);assert.deepEqual(decodeData(body.image[1]),reference);assert.deepEqual(decodeData(body.image[2]),await portraitIdentityCrop(inputB,box));assert.deepEqual(decodeData(body.image[3]),b);
-  assert(body.prompt.includes('SOFT ROSY V1 — SOFT VELVETY SKIN AND PROFESSIONAL MAKEUP'));assert(body.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 4'));assert(body.prompt.includes('Apply SOFT ROSY V1 cosmetics in this same generation'));assert(!body.prompt.includes('KOREAN ROSY V1'));assert.deepEqual(stages,['generation','matting','edges']);
+  assert(body.prompt.includes('SOFT ROSY V1 — SOFT VELVETY SKIN AND PROFESSIONAL MAKEUP'));assert(body.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 4'));assert(body.prompt.includes('Apply SOFT ROSY V1 cosmetics in this same generation'));assert(body.prompt.endsWith(SOFT_ROSY_COMPLETION_CHECK));assert(body.prompt.includes('BOTH eyebrows are fully filled'));assert(!body.prompt.includes('KOREAN ROSY V1'));assert.deepEqual(stages,['generation','matting','edges']);
  });
  await test('clients without the new field retain the exact previous two-image prompt and pipeline',async()=>{
   const before=requests.length;
