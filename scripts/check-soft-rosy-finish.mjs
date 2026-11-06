@@ -15,7 +15,7 @@ for(const old of finishes){assert.notEqual(femaleFinishFor(old),SOFT_ROSY_PORTRA
 assert.equal(portraitFinishChoice('soft-rosy-v1'),'soft-rosy-v1');
 console.log('PASS all legacy portrait prompt bytes unchanged; new soft rosy prompt and finish ID independent.');
 
-for(const h of PRODUCTION_HAIR_CATALOG){const prompt=productionPortraitPrompt(h,'soft-rosy-v1');if(h.gender==='female'){assert(prompt.endsWith(SOFT_ROSY_TEXTURE_PRIORITY));assert(prompt.includes('SOFT SKIN RADIANCE REVISION 6'));assert(prompt.includes('SKIN REFINEMENT REQUIRED'))}else assert(!prompt.includes('FINAL SOFT ROSY SKIN PRIORITY'))}
+for(const h of PRODUCTION_HAIR_CATALOG){const prompt=productionPortraitPrompt(h,'soft-rosy-v1');if(h.gender==='female'){assert(prompt.endsWith(SOFT_ROSY_TEXTURE_PRIORITY));assert(prompt.includes('SOFT SKIN RADIANCE AND KOREAN HAIR-STROKE BROWS REVISION 7'));assert(prompt.includes('SKIN REFINEMENT REQUIRED'))}else assert(!prompt.includes('FINAL SOFT ROSY SKIN PRIORITY'))}
 console.log('PASS softness priority is last for the new female finish only; male and original finish prompts unchanged.');
 
 assert(SOFT_ROSY_TEXTURE_PRIORITY.includes('not lighting alone'));
@@ -29,3 +29,8 @@ assert(SOFT_ROSY_PORTRAIT_MAKEUP.includes('old sparse footprint is NOT a mandato
 assert(SOFT_ROSY_PORTRAIT_MAKEUP.includes('broad, low-intensity luminous highlights'));
 assert(!SOFT_ROSY_PORTRAIT_MAKEUP.includes('fill only sparse gaps'));
 console.log('PASS skin-light radiance and complete cosmetic brow shaping are explicit, without moving facial anatomy.');
+
+assert(SOFT_ROSY_PORTRAIT_MAKEUP.includes('KOREAN HAIR-STROKE MAKEUP BROWS'));
+assert(SOFT_ROSY_PORTRAIT_MAKEUP.includes('dense, fine, individually resolved'));
+assert(SOFT_ROSY_PORTRAIT_MAKEUP.includes('medium-to-strong but still photographic'));
+console.log('PASS new finish requests stronger soft skin light and full Korean hair-stroke brows, without opaque fill.');
