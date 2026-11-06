@@ -101,4 +101,9 @@ await test('new soft rosy finish uses original source and selected hair/outfit w
  const again=await f.change('seedream-19','female','soft-rosy-v1');assert(again.reused);again.commit();assert.equal(f.calls.length,1);assert.equal(f.env.editCache.current.master,rosy);
  f.env.editCache.current.lock.templatePath='another-outfit.png';assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),false);
 });
+await test('old saved soft rosy result cannot seed the revised skin finish cache',async()=>{
+ const f=fixture();f.env.hairResultCacheRef.current.clear();const head={jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'soft-rosy-v1'};
+ f.memory.rememberRestoredHairResult(head);assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),false);
+ f.memory.rememberRestoredHairResult({...head,softRosyFinishVersion:'skin-softness-v2'});assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),true);
+});
 console.log(`PASS: ${passed} actual App makeup/cache scenarios; AI, rendering and payment API mocked; no external requests.`);
