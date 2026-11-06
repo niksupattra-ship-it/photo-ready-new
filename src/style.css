@@ -4082,3 +4082,11 @@
 .uniform-search-field{display:flex;flex-direction:column;gap:5px;width:100%;min-width:0;box-sizing:border-box;font-size:13px;font-weight:600;padding:8px 0;color:inherit}
 .uniform-search-field input{width:100%;min-width:0;box-sizing:border-box;min-height:42px;padding:9px 12px;border:1px solid #b7b4c8;border-radius:10px;background:#fff;color:#252139;font:inherit}
 .uniform-search-field input:focus-visible{outline:2px solid #7150b8;outline-offset:2px}
+
+/* English-only labels for compact credit counters. */
+@media(max-width:600px){
+.english-preview .studio-home-topbar .credit-wallet-pill span:nth-child(1)::before,
+.english-preview .process-mobile-topbar .credit-wallet-pill span:nth-child(1)::before{content:"Photos"}
+.english-preview .studio-home-topbar .credit-wallet-pill span:nth-child(3)::before,
+.english-preview .process-mobile-topbar .credit-wallet-pill span:nth-child(3)::before{content:"Hair"}
+}

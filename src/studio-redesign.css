@@ -1968,3 +1968,8 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
   .idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong {font-size:16px}
   .idstudio.studio-redesign.studio-touch > header.studio-touch-header > strong em {display:inline;margin-left:4px;font-size:14px}
 }
+
+/* Generated labels are outside the DOM text translator. */
+.english-preview .idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-menu-download::after {
+  content: "Download";
+}
