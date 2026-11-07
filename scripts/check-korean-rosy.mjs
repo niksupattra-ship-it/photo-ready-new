@@ -30,11 +30,11 @@ try{
  assert(calls[0].payload.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 2'));
  assert(calls[0].payload.prompt.includes(KOREAN_ROSY_FINISH));
  assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));
- assert(KOREAN_ROSY_SKIN_PRIORITY.includes('LIGHTING ONLY ADDENDUM V8'));
- assert(KOREAN_ROSY_SKIN_PRIORITY.includes('makeup specification unchanged'));assert(KOREAN_ROSY_SKIN_PRIORITY.includes('STRONGER broad soft frontal fill'));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('LIGHTING AND SKIN MICROCONTRAST ADDENDUM V9'));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('makeup specification unchanged'));assert(KOREAN_ROSY_SKIN_PRIORITY.includes('moderate reduction in skin microcontrast'));assert(KOREAN_ROSY_SKIN_PRIORITY.includes('exact original facial width-to-height ratio'));assert(KOREAN_ROSY_SKIN_PRIORITY.includes('STRONGER broad soft frontal fill'));
  assert(KOREAN_ROSY_SKIN_PRIORITY.includes('flatter, brighter and evenly distributed'));
  assert(!calls[0].payload.prompt.includes('FINAL MAKEUP PRIORITY'));
  assert(!calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION'));
 
 }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true})}
-console.log('PASS exact pre-relighting makeup restored byte-for-byte with a separate light-only addendum; one mocked request with original source/outfit, no paid AI.');
+console.log('PASS exact pre-relighting makeup restored byte-for-byte with a separate lighting/skin-microcontrast addendum; one mocked request with original source/outfit, no paid AI.');
