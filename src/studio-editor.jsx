@@ -10,7 +10,7 @@ import {FemaleFaceCompare} from './female-face-compare.jsx';
 import {replaceStudioSourceLayers} from './replace-studio-source.js';
 import {ProcessResultNotice,processResultKind} from './process-result-notice.jsx';
 import {StudioBackgroundColor} from './studio-background-color.jsx';
-import {portraitFinishChoice,portraitFinishIsCurrent} from './portrait-finish-choice.js';
+import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {createPortal} from 'react-dom';
 import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
@@ -988,7 +988,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,currentFinish):'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&portraitFinishIsCurrent(head,finish,mode)){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
+  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;

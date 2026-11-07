@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import {NATURAL_SOFT_LIGHT_PRIORITY} from '../natural-soft-light-finish.js';
 import {SOFT_ROSY_COMPLETION_CHECK} from '../soft-rosy-portrait-finish.js';
 import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -87,12 +86,12 @@ try{
   await processProductionPortrait({input:inputB,fields:{hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'soft-rosy-v1',faceIdentityBox:encoded,outfitReferencePath:'/assets/job-uniforms/fixture.png'},root,key:'mock-only',onStage:async stage=>stages.push(stage),removeBackground:async image=>image});
   const body=requests.at(-1);assert.equal(requests.length,before+1);assert.equal(body.image.length,4);assert.equal(body.size,'2K');
   assert.deepEqual(decodeData(body.image[0]),b);assert.deepEqual(decodeData(body.image[1]),reference);assert.deepEqual(decodeData(body.image[2]),await portraitIdentityCrop(inputB,box));assert.deepEqual(decodeData(body.image[3]),b);
-  assert(body.prompt.includes('SOFT ROSY V1 — SOFT VELVETY SKIN AND PROFESSIONAL MAKEUP'));assert(body.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 4'));assert(body.prompt.includes('Apply SOFT ROSY V1 cosmetics in this same generation'));assert(body.prompt.endsWith(SOFT_ROSY_COMPLETION_CHECK));assert(body.prompt.includes('ORIGINAL korean-rosy-v1 makeup instructions exactly'));assert(body.prompt.includes('CONCEALER — LOCAL AND SEAMLESS'));assert(!body.prompt.includes('KOREAN ROSY V1'));assert.deepEqual(stages,['generation','matting','edges']);
+  assert(body.prompt.includes('SOFT ROSY V1 — SOFT VELVETY SKIN AND PROFESSIONAL MAKEUP'));assert(body.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 4'));assert(body.prompt.includes('Apply SOFT ROSY V1 cosmetics in this same generation'));assert(body.prompt.endsWith(SOFT_ROSY_COMPLETION_CHECK));assert(body.prompt.includes('BOTH eyebrows are fully filled'));assert(!body.prompt.includes('KOREAN ROSY V1'));assert.deepEqual(stages,['generation','matting','edges']);
  });
- await test('natural clients retain the exact two-image order and pipeline with the requested no-makeup light policy',async()=>{
+ await test('clients without the new field retain the exact previous two-image prompt and pipeline',async()=>{
   const before=requests.length;
   await processProductionPortrait({input:inputB,fields:{hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural'},root,key:'test-only-placeholder',removeBackground:async image=>image});
-  const body=requests.at(-1);assert.equal(requests.length,before+1);assert.equal(body.image.length,2);assert.equal(body.prompt,productionPortraitPrompt(productionHair('seedream-19'),'natural')+NATURAL_SOFT_LIGHT_PRIORITY);assert(!body.prompt.includes('BROWS — REPLACE OLD BROW APPEARANCE'));
+  const body=requests.at(-1);assert.equal(requests.length,before+1);assert.equal(body.image.length,2);assert.equal(body.prompt,productionPortraitPrompt(productionHair('seedream-19'),'natural'));
  });
  await test('an optional crop without a hairstyle reference has the correct second-image role',async()=>{
   const before=requests.length;

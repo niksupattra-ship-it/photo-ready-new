@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {portraitFinishChoice,portraitFinishIsCurrent,SOFT_ROSY_FINISH_VERSION,KOREAN_ROSY_FINISH_VERSION,NATURAL_FINISH_VERSION} from '../src/portrait-finish-choice.js';
+import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {readFile} from 'node:fs/promises';
 import {finishFemaleMakeupSoftFocus} from '../src/female-makeup-soft-focus.js';
 import {LOCAL_MAKEUP_CONTOURS as C} from '../src/local-makeup.js';
@@ -85,7 +85,7 @@ const extract=(start,end,name,env)=>new Function('env',`with(env){${section(star
 await test('only legacy female makeup gets local diffusion; soft rosy and natural keep AI output without a face overlay',async()=>{
  for(const mode of ['male','female'])for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){
   let generations=0,finishes=0,cached=null;const generated=new Blob(['native AI output']);generated.idpromJobId='job';
-  const env={portraitFinishChoice,SOFT_ROSY_FINISH_VERSION,KOREAN_ROSY_FINISH_VERSION,NATURAL_FINISH_VERSION,activeProcessOperation:{},assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],currentResultCacheScope:()=>'',resultSourceDigest:async()=>'',uploadGenerationScope:()=>'',HAIR_DESIGN_VERSION:'fixture',portraitResultCache:{delete(){},async get(key,generate){if(cached)return {value:cached,reused:true};cached=await generate();return {value:cached,reused:false}}},aiFinishPortraitUncached:async()=>{generations++;return generated},cleanPortraitClothing:async b=>b,finishFemaleMakeupSoftFocusBlob:async b=>{assert.equal(b,generated);finishes++;return b},checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({unlocked:true}),femaleFinishMetadata:()=>({}),saveAiJobFile:async()=>{},writeActiveAiJob(){},window:{dispatchEvent(){}},CustomEvent:class{}};
+  const env={portraitFinishChoice,activeProcessOperation:{},assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],currentResultCacheScope:()=>'',resultSourceDigest:async()=>'',uploadGenerationScope:()=>'',HAIR_DESIGN_VERSION:'fixture',portraitResultCache:{delete(){},async get(key,generate){if(cached)return {value:cached,reused:true};cached=await generate();return {value:cached,reused:false}}},aiFinishPortraitUncached:async()=>{generations++;return generated},cleanPortraitClothing:async b=>b,finishFemaleMakeupSoftFocusBlob:async b=>{assert.equal(b,generated);finishes++;return b},checkPortraitProportions:async()=>{},checkPortraitCompletion:async()=>{},verifyOutputRights:async()=>({unlocked:true}),femaleFinishMetadata:()=>({}),saveAiJobFile:async()=>{},writeActiveAiJob(){},window:{dispatchEvent(){}},CustomEvent:class{}};
   const run=extract('async function aiFinishPortrait(','\nlet acceptedPaidTrial=','aiFinishPortrait',env);
   const source={idpromPortraitMode:mode,idpromFemaleEyeStyle:style};
   const result=await run(source,'',{portraitMode:mode,femaleEyeStyle:style});assert.equal(result,generated);

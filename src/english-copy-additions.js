@@ -1,9 +1,5 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
- "ละมุน": "Soft makeup",
- "ผิวสว่าง": "Bright skin",
- "ผิววาว": "Skin glow",
-
  "ใช้รูปต้นฉบับและทรงผมที่เลือก": "Uses your original photo and selected hairstyle",
  "เมคอัพเดิม": "Original makeup",
  "เมคอัพ AI เพิ่มเติม": "Additional AI makeup",

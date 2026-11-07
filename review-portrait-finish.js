@@ -1,4 +1,3 @@
-import {NATURAL_SOFT_LIGHT_FINISH} from './natural-soft-light-finish.js';
 import {SOFT_ROSY_PORTRAIT_MAKEUP} from './soft-rosy-portrait-finish.js';
 import {KOREAN_ROSY_FINISH} from './korean-rosy-finish.js';
 // Single source of female cosmetics; natural and makeup finishes are separately scoped.
@@ -30,7 +29,6 @@ LIPS AND CHEEKS: Choose a soft translucent rose-pink or peach-rose lip tint that
 IDENTITY AND SCOPE: Preserve the original eyes, nose, mouth, jaw, chin, both ears, head scale and facial proportions. Never slim, stretch, mirror or reshape the face or borrow anatomy from the hair reference. Keep the specified hairstyle, pose/neck construction, garment removal and transparent cutout rules. Apply all makeup, skin and lighting decisions together in the SAME existing AI generation, with no additional image request, pasted face or later pixel-painted makeup.
 `;
 export function femaleFinishFor(style="natural"){
- if(style==='natural')return NATURAL_SOFT_LIGHT_FINISH;
  if(style==='soft-rosy-v1')return SOFT_ROSY_PORTRAIT_MAKEUP;
  if(style==='korean-rosy-v1')return KOREAN_ROSY_FINISH;
  if(style!=="makeup")return REVIEW_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;

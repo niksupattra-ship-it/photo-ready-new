@@ -2,7 +2,7 @@ import {preserveLocalSkinLook} from '../src/preserve-local-skin-look.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {replaceHairstyleLayer} from '../src/replace-hairstyle-layer.js';
-import {portraitFinishChoice,portraitFinishIsCurrent,SOFT_ROSY_FINISH_VERSION,KOREAN_ROSY_FINISH_VERSION,NATURAL_FINISH_VERSION} from '../src/portrait-finish-choice.js';
+import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {mixMakeupLookSources} from '../src/makeup-look-tools.js';
 import {makeupLook} from '../makeup-presets.js';
 import {HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
@@ -46,7 +46,7 @@ function fixture(options={}){
  const head={id:'head',kind:'head',name:'หัว · คอ · ผม',source:oldVisible,processedOriginalSource:oldBase,hairId:'seedream-19',hairPolicyVersion:HAIR_DESIGN_VERSION,portraitMode:'female',initialFemaleEyeStyle:'makeup',femaleEyeStyle:'makeup',femaleFinishProfile:profile,femaleFinishReference:reference,makeupBaseSource:oldBase,makeupStyles:{look:recipe},makeupIntensity:37,makeupRenderVersion:'skin-current-layer-v2',mask:'old erased face mask',warpSource:'old warped face',warpBaseMask:'old warp mask',eraseRestoreSource:'old erase pixels',warpRestoreBase:'old warp pixels',x:18,y:-12,scale:1.2,squeezeX:1.2,squeezeY:.9,rotation:4,visible:true,locked:false,opacity:.85,jobId:'old-paid',restrictedTrial:false,outputUnlocked:true,...options.head};
  const unrelated=[{id:'suit',kind:'suit',source:'protected outfit',locked:true,mask:'suit mask'},{id:'background',kind:'background',source:'protected background'},{id:'collar',kind:'collar',source:'protected collar'},{id:'other-head',kind:'head',source:'protected other portrait'},{id:'other-hair',kind:'hair-preview',hairHeadId:'other-head',source:'protected other hair'}];
  const previous=[unrelated[1],{id:'old-rear',kind:'hair-back',hairHeadId:'head',source:'old long rear hair'},head,{id:'old-front',kind:'hair-preview',hairHeadId:'head',source:'old fringe'},{id:'old-descendant',kind:'hair-preview',hairHeadId:'old-rear',source:'old linked edge'},unrelated[0],...unrelated.slice(2)];
- const env={isFreeFemaleHair,isPremiumHair:id=>id==='seedream-20',premiumHairAllowed:true,processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,state:{current:previous},mounted:{current:true},hairGender:options.hairGender||'female',portraitMode:head.portraitMode,sourcePhoto:{idpromFemaleEyeStyle:options.sourceFinish||'makeup'},HAIR_DESIGN_VERSION,portraitFinishChoice,portraitFinishIsCurrent,SOFT_ROSY_FINISH_VERSION,KOREAN_ROSY_FINISH_VERSION,NATURAL_FINISH_VERSION,replaceHairstyleLayer,preserveLocalSkinLook,makeupLook,layerKind:l=>l.kind,
+ const env={isPremiumHair:id=>id==='seedream-20',premiumHairAllowed:true,processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,state:{current:previous},mounted:{current:true},hairGender:options.hairGender||'female',portraitMode:head.portraitMode,sourcePhoto:{idpromFemaleEyeStyle:options.sourceFinish||'makeup'},HAIR_DESIGN_VERSION,portraitFinishChoice,replaceHairstyleLayer,preserveLocalSkinLook,makeupLook,layerKind:l=>l.kind,
   surfaceURL:src=>src instanceof Surface?src.toDataURL():src,
   headPose:l=>({x:l.x,y:l.y,scale:l.scale,rotation:l.rotation}),flushTransforms:noop,historySnapshot:()=>env.state.current,
   canRestoreHair:id=>cache.has(id),onBeforeProcess:noop,checkProcessCredits:async()=>{events.push('credits');return options.creditAllowed!==false},
@@ -139,31 +139,5 @@ await test('free female PNG choices still route only to the existing free hair p
  const f=fixture(),free=[];
  Object.assign(f.env,{isFreeFemaleHair,hasFreeHair:()=>false,applyFreeHair:id=>free.push(id),paidHairAccess:false,trialHairRemaining:0,isTrialHairAllowed:()=>false,onRequestUnlock:()=>{throw Error('free hair must not unlock')},sourceLayerRef:{current:null},processHairPending:false,applyHair:()=>{throw Error('free hair must not generate')}});
  const choose=extract(editor,' const chooseHair=id=>','\n\n useEffect(', 'chooseHair',f.env);choose('hair-21');assert.deepEqual(free,['hair-21']);assert.equal(f.jobs.length,0);assert.equal(f.local.length,0);assert.equal(f.env.state.current,f.previous);
-});
-await test('selecting the same soft finish upgrades a stale or unversioned head instead of silently returning the old picture',async()=>{
- for(const revision of [undefined,'soft-radiance-korean-brows-v7']){
-  const f=fixture({head:{femaleEyeStyle:'soft-rosy-v1',initialFemaleEyeStyle:'soft-rosy-v1',softRosyFinishVersion:revision,makeupStyles:undefined},sourceFinish:'soft-rosy-v1',resultMetadata:{softRosyFinishVersion:SOFT_ROSY_FINISH_VERSION,KOREAN_ROSY_FINISH_VERSION,NATURAL_FINISH_VERSION}});
-  await f.apply('seedream-19',{femaleEyeStyle:'soft-rosy-v1',portraitMode:'female',appearanceKind:'makeup'});
-  assert.equal(f.jobs.length,1,'stale soft finish must reach the generation/reuse handler');assert.equal(f.errors.length,0);assert.equal(f.stages[0].committed,true);assert.notEqual(f.current().source,f.head.source);assert.equal(f.current().softRosyFinishVersion,SOFT_ROSY_FINISH_VERSION);
- }
-});
-await test('selecting an already current soft finish or either original finish keeps the same picture without another job',async()=>{
- for(const style of ['soft-rosy-v1','korean-rosy-v1','natural']){
-  const f=fixture({head:{femaleEyeStyle:style,initialFemaleEyeStyle:style,softRosyFinishVersion:SOFT_ROSY_FINISH_VERSION,koreanRosyFinishVersion:KOREAN_ROSY_FINISH_VERSION,naturalFinishVersion:NATURAL_FINISH_VERSION,makeupStyles:undefined},sourceFinish:style});
-  await f.apply('seedream-19',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});assert.equal(f.jobs.length,0);assert.equal(f.current(),f.head);
- }
-});
-await test('original makeup with an old or missing skin revision refreshes when selected again',async()=>{
- for(const revision of [undefined,'old-korean-skin-v1']){
-  const f=fixture({head:{femaleEyeStyle:'korean-rosy-v1',initialFemaleEyeStyle:'korean-rosy-v1',koreanRosyFinishVersion:revision,makeupStyles:undefined},sourceFinish:'korean-rosy-v1',resultMetadata:{koreanRosyFinishVersion:KOREAN_ROSY_FINISH_VERSION}});
-  await f.apply('seedream-19',{femaleEyeStyle:'korean-rosy-v1',portraitMode:'female',appearanceKind:'makeup'});
-  assert.equal(f.jobs.length,1);assert.equal(f.errors.length,0);assert(f.stages[0].committed);assert.notEqual(f.current().source,f.head.source);assert.equal(f.current().koreanRosyFinishVersion,KOREAN_ROSY_FINISH_VERSION);
- }
-});
-await test('female no-makeup with old light settings refreshes while male natural remains a no-op',async()=>{
- const f=fixture({head:{femaleEyeStyle:'natural',initialFemaleEyeStyle:'natural',makeupStyles:undefined},sourceFinish:'natural',resultMetadata:{naturalFinishVersion:NATURAL_FINISH_VERSION}});
- await f.apply('seedream-19',{femaleEyeStyle:'natural',portraitMode:'female',appearanceKind:'makeup'});assert.equal(f.jobs.length,1);assert.equal(f.errors.length,0);assert(f.stages[0].committed);assert.equal(f.current().naturalFinishVersion,NATURAL_FINISH_VERSION);
- const male=fixture({hairGender:'male',head:{portraitMode:'male',femaleEyeStyle:'natural',initialFemaleEyeStyle:'natural',makeupStyles:undefined},sourceFinish:'natural'});
- await male.apply('seedream-19',{femaleEyeStyle:'natural',portraitMode:'male'});assert.equal(male.jobs.length,0);
 });
 console.log(`PASS: ${passed} Studio hairstyle/skin continuity scenarios; actual editor handlers and native intensity mixer; no live AI jobs, network calls or financial writes.`);
