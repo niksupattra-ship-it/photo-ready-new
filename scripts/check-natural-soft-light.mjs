@@ -7,7 +7,7 @@ import {portraitFinishIsCurrent,NATURAL_FINISH_VERSION} from '../src/portrait-fi
 assert.equal(femaleFinishFor('natural'),NATURAL_SOFT_LIGHT_FINISH);
 assert(!femaleFinishFor('natural').includes('BROWS — REPLACE OLD BROW APPEARANCE'));
 assert(portraitFinishIsCurrent({portraitMode:'female',naturalFinishVersion:NATURAL_FINISH_VERSION},'natural'));
-assert(!portraitFinishIsCurrent({portraitMode:'female'},'natural'));
+assert(!portraitFinishIsCurrent({portraitMode:'female'},'natural'));assert(!portraitFinishIsCurrent({portraitMode:'female',naturalFinishVersion:'natural-soft-light-v2'},'natural'));
 assert(portraitFinishIsCurrent({portraitMode:'male'},'natural'));
 const png=await sharp({create:{width:64,height:96,channels:4,background:'#ae8877'}}).png().toBuffer();
 const cutout=await sharp(png).extend({top:2,bottom:2,left:2,right:2,background:{r:0,g:0,b:0,alpha:0}}).png().toBuffer();
@@ -19,8 +19,8 @@ try{
   assert(out.length>8);assert.deepEqual(stages,['generation','matting','edges']);const body=calls.at(-1);
   assert.equal(body.image,'data:image/png;base64,'+png.toString('base64'));
   if(portraitMode==='female'){
-   assert(body.prompt.includes('NO ADDED MAKEUP'));assert(body.prompt.includes('REMOVE SKIN HOTSPOTS'));assert(body.prompt.includes('Do not remove eye catchlights'));assert(body.prompt.endsWith(NATURAL_SOFT_LIGHT_PRIORITY));assert(!body.prompt.includes('BROWS — REPLACE OLD BROW APPEARANCE'));
-  }else{assert(!body.prompt.includes('NATURAL SOFT LIGHT V2'));assert(body.prompt.startsWith(productionPortraitPrompt({gender:'male'},'natural').split('MALE DEFAULT HAIRSTYLE')[0].slice(0,200)))}
+   assert(body.prompt.includes('NO ADDED MAKEUP'));assert(body.prompt.includes('CURVES AND SHADOWS/HIGHLIGHTS EQUIVALENT'));assert(body.prompt.includes('SKIN-LIGHT DIFFUSION'));assert(body.prompt.includes('LOCAL COLOUR BALANCE'));assert(body.prompt.includes('no uniform face brightening'));assert(body.prompt.includes('REMOVE SKIN HOTSPOTS'));assert(body.prompt.includes('Do not remove eye catchlights'));assert(body.prompt.endsWith(NATURAL_SOFT_LIGHT_PRIORITY));assert(!body.prompt.includes('BROWS — REPLACE OLD BROW APPEARANCE'));
+  }else{assert(!body.prompt.includes('NATURAL SOFT LIGHT'));assert(body.prompt.startsWith(productionPortraitPrompt({gender:'male'},'natural').split('MALE DEFAULT HAIRSTYLE')[0].slice(0,200)))}
  }
  assert.equal(calls.length,2);console.log('PASS no-makeup sends softer light and skin-glare removal in one request, no makeup instructions; male policy and source pixels preserved; all providers mocked.');
 }finally{globalThis.fetch=previous}
