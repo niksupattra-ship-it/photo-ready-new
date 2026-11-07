@@ -2907,6 +2907,12 @@ const JOB_UNIFORMS=[
  {id:'female-navy-suit-6',title:'สูทชาย แบบ 6',img:'/assets/job-uniforms/previews/female-navy-suit-6.webp',template:'/assets/job-uniforms/female-navy-suit-6.png',cat:'job',gender:'male'},
  {id:'female-navy-suit-7',title:'สูทชาย แบบ 7',img:'/assets/job-uniforms/previews/female-navy-suit-7.webp',template:'/assets/job-uniforms/female-navy-suit-7.png',cat:'job',gender:'male'},
  {id:'male-navy-suit-5',title:'สูทหญิง แบบ 5',img:'/assets/job-uniforms/previews/male-navy-suit-5.webp',template:'/assets/job-uniforms/male-navy-suit-5.png',cat:'job',gender:'female'},
+ {id:'female-job-navy-collared',title:'ชุดสมัครงานหญิงกรมท่าคอเชิ้ต',img:'/assets/uniform-quick-previews/job-uniforms--female-job-navy-collared.webp',template:'/assets/job-uniforms/female-job-navy-collared.png',cat:'job',gender:'female'},
+ {id:'female-job-navy-white-collar',title:'ชุดสมัครงานหญิงกรมท่าปกขาว',img:'/assets/uniform-quick-previews/job-uniforms--female-job-navy-white-collar.webp',template:'/assets/job-uniforms/female-job-navy-white-collar.png',cat:'job',gender:'female'},
+ {id:'female-job-black-round-collar',title:'ชุดสมัครงานหญิงดำคอมน',img:'/assets/uniform-quick-previews/job-uniforms--female-job-black-round-collar.webp',template:'/assets/job-uniforms/female-job-black-round-collar.png',cat:'job',gender:'female'},
+ {id:'female-job-tan-round-collar',title:'ชุดสมัครงานหญิงน้ำตาลคอมน',img:'/assets/uniform-quick-previews/job-uniforms--female-job-tan-round-collar.webp',template:'/assets/job-uniforms/female-job-tan-round-collar.png',cat:'job',gender:'female'},
+ {id:'female-job-burgundy-patterned-blouse',title:'ชุดสมัครงานหญิงแดงไวน์เชิ้ตลาย',img:'/assets/uniform-quick-previews/job-uniforms--female-job-burgundy-patterned-blouse.webp',template:'/assets/job-uniforms/female-job-burgundy-patterned-blouse.png',cat:'job',gender:'female'},
+ {id:'female-job-black-cream-blouse',title:'ชุดสมัครงานหญิงดำเสื้อในครีม',img:'/assets/uniform-quick-previews/job-uniforms--female-job-black-cream-blouse.webp',template:'/assets/job-uniforms/female-job-black-cream-blouse.png',cat:'job',gender:'female'},
 ];
 
 const STUDENT_UNIFORMS=[

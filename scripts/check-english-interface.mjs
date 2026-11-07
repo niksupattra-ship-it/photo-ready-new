@@ -6,6 +6,8 @@ import {readFile,mkdtemp,rm,writeFile,mkdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 
+const catalogSource=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+const catalogCount=['JOB_UNIFORMS','STUDENT_UNIFORMS','GOWN_UNIFORMS','INTERIOR_UNIFORMS','FEMALE_GOVERNMENT_UNIFORMS'].reduce((count,name)=>{const block=catalogSource.match(new RegExp('const '+name+'=\\[[\\s\\S]*?\\n\\];'))?.[0];assert(block,name);return count+Function(block+';return '+name)().length},0);
 await mkdir('work',{recursive:true});
 const profile=await mkdtemp(path.join(tmpdir(),'idprom-english-dom-'));
 const browser=spawn(process.env.CHROMIUM_PATH||'/usr/bin/chromium',['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--disable-background-networking','--disable-extensions','--no-first-run','--no-default-browser-check','--remote-debugging-pipe','--user-data-dir='+profile],{stdio:['ignore','ignore','pipe','pipe','pipe']});
@@ -66,10 +68,10 @@ try{
  await evaluate(`document.querySelector('.studio-category-gown')?.click()`);await pause(100);
  const thaiGowns=await evaluate(`Array.from(document.querySelectorAll('.studio-home-results .government-level-grid img')).map(img=>img.getAttribute('src'))`);assert(thaiGowns.length>0);assert(thaiGowns.every(src=>!patternOnly(src)||src.includes('/previews/')),'Thai graduation homepage must keep portrait examples');
  await evaluate(`document.querySelector('.easy-studio')?.click()`);await pause(1400);await evaluate(`Array.from(document.querySelectorAll('.studio-bottom-choices button')).find(button=>button.textContent.trim()==='ชุด')?.click()`);await pause(150);
- const thaiStudio=await evaluate(`Array.from(document.querySelectorAll('.studio-catalog-grid button:not(.studio-none-choice) img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiStudio.length,36);assert(thaiStudio.every(patternOnly),'All Thai Studio options must show garment patterns');
+ const thaiStudio=await evaluate(`Array.from(document.querySelectorAll('.studio-catalog-grid button:not(.studio-none-choice) img')).map(img=>img.getAttribute('src'))`);assert.equal(thaiStudio.length,catalogCount);assert(thaiStudio.every(patternOnly),'All Thai Studio options must show garment patterns');
  await evaluate(`Array.from(document.querySelectorAll('.studio-bottom-choices button')).find(button=>button.textContent.trim()==='เมคอัพ')?.click()`);await pause(180);await evaluate(`Array.from(document.querySelectorAll('.studio-bottom-choices button')).find(button=>button.textContent.trim()==='ชุด')?.click()`);await pause(100);
  const thaiScreenshot=await call('Page.captureScreenshot',{format:'png'},sessionId);await writeFile('work/thai-outfit-patterns.png',Buffer.from(thaiScreenshot.data,'base64'));
  assert.equal(await evaluate(`getComputedStyle(document.querySelector('.studio-design-file-actions .idprom-menu-download'),'::after').content`),'"ดาวน์โหลด"');
- report.thaiOutfitPatterns='PASS: homepage portrait examples restored; all 36 Studio selectors retain garment patterns';
+ report.thaiOutfitPatterns=`PASS: homepage portrait examples restored; all ${catalogCount} Studio selectors retain garment patterns`;
  report.runtimeErrors=errors;report.blockedWrites=blocked;await writeFile('work/english-interface-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 }finally{for(const p of pending.values())clearTimeout(p.timer);browser.kill('SIGTERM');await new Promise(r=>browser.once('exit',r));await rm(profile,{recursive:true,force:true}).catch(()=>{})}
