@@ -1,0 +1,24 @@
+name: Validate natural studio skin
+on:
+  push:
+    branches:
+      - codex/natural-studio-skin-20261107
+permissions:
+  contents: read
+jobs:
+  natural-mode-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/check-natural-studio-skin.mjs
+      - run: node scripts/check-skin-blemish-retouch.mjs
+      - run: node scripts/check-makeup-choice-cache.mjs
+      - run: npm run build
