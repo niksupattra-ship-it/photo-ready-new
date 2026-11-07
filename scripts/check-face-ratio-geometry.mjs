@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {faceProportions,compareFaceProportions} from '../src/face-proportion-check.js';
 const W=1000,H=1200,face=[];
-for(const [id,x,y]of [[33,.35,.35],[263,.65,.35],[152,.5,.78],[234,.22,.46],[454,.78,.46],[172,.28,.68],[397,.72,.68],[1,.5,.5],[13,.5,.64]])face[id]={x,y};
+for(const [id,x,y]of [[10,.5,.15],[33,.35,.35],[263,.65,.35],[152,.5,.78],[234,.22,.46],[454,.78,.46],[172,.28,.68],[397,.72,.68],[1,.5,.5],[13,.5,.64]])face[id]={x,y};
 const base=faceProportions(face,W,H);assert(base);
 let cases=0;
 for(const scale of [.8,1,1.1])for(const degrees of [-20,0,20]){
@@ -14,3 +14,9 @@ for(const [sx,sy]of [[1,1.2],[.8,1],[1.25,1],[1,.8]]){
 }
 assert(compareFaceProportions(base,faceProportions(face,W*2,H*2)).ok);
 console.log(`PASS ${cases+1} face-ratio checks: uniform scale, rotation and native resolution preserve ratios; substantial axial elongation/compression is rejected. Synthetic landmarks, not proof of any individual AI image.`);
+
+const foreheadDrift=face.map(p=>({...p}));foreheadDrift[10].y=.10;
+assert(!compareFaceProportions(base,faceProportions(foreheadDrift,W,H)).ok);
+const missingForehead=face.map(p=>({...p}));delete missingForehead[10];
+assert(!compareFaceProportions(base,faceProportions(missingForehead,W,H)).ok);
+console.log('PASS upper-face height drift and missing generated forehead are rejected without warping pixels.');

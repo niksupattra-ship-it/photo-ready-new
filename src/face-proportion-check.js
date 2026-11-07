@@ -1,5 +1,5 @@
-// Geometry check, not an identity recognizer. Excludes hairline/forehead landmarks
-// because selected hairstyles legitimately expose different forehead areas.
+// Geometry check, not an identity recognizer. Landmark 10 measures anatomical
+// upper-face height, not actual hair roots or the hairstyle crown silhouette.
 export function faceProportions(face,w,h){
  if(!face||![w,h].every(v=>Number.isFinite(v)&&v>0))return null;
  const point=id=>{const p=face[id];return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?{x:p.x*w,y:p.y*h}:null};
@@ -11,11 +11,16 @@ export function faceProportions(face,w,h){
  if(![chin,left,right,jl,jr,nose,mouth].every(Boolean))return null;
  const metrics={faceWidth:Math.abs(right.x-left.x),jawWidth:Math.abs(jr.x-jl.x),eyeToChin:chin.y,eyeToNose:nose.y,eyeToMouth:mouth.y};
  if(Object.values(metrics).some(v=>!Number.isFinite(v)||v<=.05))return null;
+ const forehead=local(10);
+ if(forehead&&-forehead.y>.05)metrics.eyeToForehead=-forehead.y;
  return metrics;
 }
 export function compareFaceProportions(original,generated){
  if(!original||!generated)return {ok:false,reason:'unmeasurable'};
  const limits={faceWidth:.12,jawWidth:.12,eyeToChin:.10,eyeToNose:.12,eyeToMouth:.10};
+ // Older synthetic/saved metric records without forehead remain compatible.
+ // Real detected faces include landmark 10; a missing generated point must fail.
+ if(original.eyeToForehead!==undefined)limits.eyeToForehead=.10;
  const changes={};
  for(const key of Object.keys(limits)){
   changes[key]=Math.abs(generated[key]/original[key]-1);
