@@ -6,14 +6,14 @@ import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 import {SOFT_ROSY_PORTRAIT_MAKEUP,SOFT_ROSY_TEXTURE_PRIORITY,ORIGINAL_PORTRAIT_COSMETICS} from '../soft-rosy-portrait-finish.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const finishes=['natural','makeup','soft-rosy-v1'];
+const finishes=['makeup','korean-rosy-v1','soft-rosy-v1'];
 // Baselines captured from the previously published finish implementation.
-assert.equal(hash(finishes.map(s=>femaleFinishFor(s))),'690db9d6c4b920fdd5c43919d95dc6b77eda3b6bf1d095491e70103ee0545f7d');
-assert.equal(hash(PRODUCTION_HAIR_CATALOG.flatMap(h=>finishes.map(f=>productionPortraitPrompt(h,f)))),'78b619a724de45e5ff8673ff681377c54aa030cb49c7974f0532e3531a966850');
+assert.equal(hash(finishes.map(s=>femaleFinishFor(s))),'59f117ed6d76bd8689c560578864ac15bf6f6fbc71716e2aa1045f8128c17e94');
+assert.equal(hash(PRODUCTION_HAIR_CATALOG.flatMap(h=>finishes.map(f=>productionPortraitPrompt(h,f)))),'c6aa53a217ff8f7dc20b35c6c7f393f37ea562386c73a32c3dc57d4c5e6cc1f6');
 assert.equal(femaleFinishFor('soft-rosy-v1'),SOFT_ROSY_PORTRAIT_MAKEUP);
 for(const old of ['natural','makeup','korean-rosy-v1']){assert.notEqual(femaleFinishFor(old),SOFT_ROSY_PORTRAIT_MAKEUP);assert.equal(portraitFinishChoice(old),old)}
 assert.equal(portraitFinishChoice('soft-rosy-v1'),'soft-rosy-v1');
-console.log('PASS natural, legacy makeup and soft rosy portrait prompt bytes unchanged; only the requested original Korean skin finish changes.');
+console.log('PASS all three makeup policies unchanged; only the requested no-makeup light policy changes.');
 
 for(const h of PRODUCTION_HAIR_CATALOG){
  const prompt=productionPortraitPrompt(h,'soft-rosy-v1');
@@ -33,3 +33,6 @@ console.log('PASS exact original brows/eyes/lashes/lips reused; only the indepen
 
 assert.equal(hash(ORIGINAL_PORTRAIT_COSMETICS),'153fa2c5d65093abc459b0b7c148354f8e86325a5f1727c0e974ea0d7a2b484f');
 console.log('PASS original eyebrow/eye/lash/lip instruction bytes are unchanged.');
+
+assert.equal(hash(PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male').map(h=>productionPortraitPrompt(h,'natural'))),'fd09f51f44dfb507978e468d581f5a9598277d867cc9f21b075cb866f56ffac0');
+console.log('PASS male natural portrait prompt bytes unchanged.');

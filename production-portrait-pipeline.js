@@ -1,3 +1,4 @@
+import {NATURAL_SOFT_LIGHT_PRIORITY} from './natural-soft-light-finish.js';
 import {KOREAN_ROSY_SKIN_PRIORITY} from './korean-rosy-finish.js';
 import {SOFT_ROSY_TEXTURE_PRIORITY,SOFT_ROSY_COMPLETION_CHECK} from './soft-rosy-portrait-finish.js';
 import {prepareFreePngReference} from './free-png-reference.js';
@@ -131,6 +132,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  if(selected.gender==='female'&&fields.femaleEyeStyle==='soft-rosy-v1')prompt+=SOFT_ROSY_COMPLETION_CHECK;
  if(selected.gender==='female'&&fields.femaleEyeStyle==='korean-rosy-v1')prompt+=KOREAN_ROSY_SKIN_PRIORITY;
+ if(selected.gender==='female'&&(fields.femaleEyeStyle||'natural')==='natural')prompt+=NATURAL_SOFT_LIGHT_PRIORITY;
  await onStage('generation');
  const result=await requestReviewSeedream({key,prompt,size:'2K',portrait:input.buffer,portraitMime:input.mimetype,hair,identity,...(outfit?{outfit}:{})});
  await onStage('matting');

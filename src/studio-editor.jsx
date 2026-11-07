@@ -988,7 +988,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,currentFinish):'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&portraitFinishIsCurrent(head,finish)){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
+  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&portraitFinishIsCurrent(head,finish,mode)){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;
