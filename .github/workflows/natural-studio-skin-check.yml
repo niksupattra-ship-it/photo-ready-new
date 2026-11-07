@@ -22,3 +22,38 @@ jobs:
       - run: node scripts/check-skin-blemish-retouch.mjs
       - run: node scripts/check-makeup-choice-cache.mjs
       - run: npm run build
+      - name: Verify published assets and application health
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFile} from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
+          const release='77599615b569ebdacec3dd4200dc0ed633c80e3f';
+          const html=await readFile('dist/index.html','utf8');
+          const paths=[...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css))"/g)].map(m=>m[1]);
+          if(paths.length<2)throw Error('Missing production asset manifest');
+          const assets=await Promise.all([...new Set(paths)].map(async path=>({path,sha256:createHash('sha256').update(await readFile('dist'+path)).digest('hex')})));
+          console.log('EXPECTED_RELEASE_ASSETS '+JSON.stringify({release,assets}));
+          let verified=false;
+          for(let attempt=0;attempt<36;attempt++){
+           try{
+            const page=await fetch('https://idpromth.com/?natural-skin-release='+release+'&attempt='+attempt,{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+            if(!page.ok)throw Error('Homepage HTTP '+page.status);
+            const current=await page.text();
+            if(assets.every(a=>current.includes(a.path))){
+             for(const a of assets){
+              const response=await fetch('https://idpromth.com'+a.path,{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+              if(!response.ok)throw Error('Asset HTTP '+response.status);
+              const digest=createHash('sha256').update(Buffer.from(await response.arrayBuffer())).digest('hex');
+              if(digest!==a.sha256)throw Error('Live asset differs from validated build: '+a.path);
+             }
+             const health=await fetch('https://idpromth.com/api/health',{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(15000)});
+             if(!health.ok||(await health.json()).ok!==true)throw Error('Application health check failed');
+             console.log('LIVE_RELEASE_VERIFIED '+JSON.stringify({release,assets,health:200}));
+             verified=true;break;
+            }
+            if(attempt%3===0)console.log('WAITING_FOR_RELEASE '+JSON.stringify({attempt,release}));
+           }catch(error){console.log('RELEASE_READ_RETRY '+JSON.stringify({attempt,message:error.message}));}
+           await new Promise(resolve=>setTimeout(resolve,10000));
+          }
+          if(!verified)throw Error('Timed out waiting for exact validated release assets');
+          NODE
