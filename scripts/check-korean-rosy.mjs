@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {KOREAN_ROSY_SKIN_PRIORITY} from '../korean-rosy-finish.js';
 import sharp from 'sharp';
 import {mkdtemp,mkdir,writeFile,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -24,6 +25,6 @@ try{
  assert.equal(calls.length,1);assert.equal(calls[0].payload.image.length,2);
  assert.equal(calls[0].payload.image[0],'data:image/png;base64,'+image.toString('base64'));
  assert(calls[0].payload.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 2'));
- assert(calls[0].payload.prompt.includes('KOREAN ROSY V1'));
+ assert(calls[0].payload.prompt.includes('KOREAN ROSY V1'));assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));assert(calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION 2'));assert(calls[0].payload.prompt.includes('broad, softly luminous highlights'));
 }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true})}
 console.log('PASS independent Korean policy, original photo, outfit image, one mocked generation and path validation; no network or paid AI.');
