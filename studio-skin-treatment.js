@@ -1,6 +1,8 @@
 // Native skin RGB is retained. Only a smooth, bounded lighting/colour field is
 // added; analysis samples never replace the uploaded image or its texture.
-export const STUDIO_SKIN_WORKFLOW_VERSION='studio-skin-stages-v1';
+export const STUDIO_SKIN_WORKFLOW_VERSION='studio-skin-stages-v2';
+export const STUDIO_SKIN_PREVIOUS_VERSION='studio-skin-stages-v1';
+export const isStudioSkinWorkflowVersion=value=>value===STUDIO_SKIN_WORKFLOW_VERSION||value===STUDIO_SKIN_PREVIOUS_VERSION;
 const MAX_PIXELS=33554432,MAX_EVIDENCE=300*1024;
 const OVAL=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
 const FEATURES=[
@@ -19,14 +21,14 @@ export function parseStudioSkinEvidence(value){
   if(!raw.length||raw.length>MAX_EVIDENCE)throw invalid();
   try{raw=JSON.parse(raw)}catch{throw invalid()}
  }
- if(!raw||typeof raw!=='object'||raw.version!==STUDIO_SKIN_WORKFLOW_VERSION)throw invalid();
+ if(!raw||typeof raw!=='object'||!isStudioSkinWorkflowVersion(raw.version))throw invalid();
  const {width,height,maskWidth,maskHeight,face,labels}=raw;
  if(![width,height,maskWidth,maskHeight].every(n=>Number.isSafeInteger(n)&&n>0)||width*height>MAX_PIXELS||maskWidth>256||maskHeight>256||!Array.isArray(face)||![468,478].includes(face.length)||!((Array.isArray(labels)||labels instanceof Uint8Array)&&labels.length===maskWidth*maskHeight))throw invalid();
  const points=Array.from(face,p=>{if(!Array.isArray(p)||p.length!==2||p.some(v=>typeof v!=='number'||!Number.isFinite(v)||v<-.25||v>1.25))throw invalid();return [p[0],p[1]]});
  if(Array.from(labels).some(n=>!Number.isInteger(n)||n<0||n>5))throw invalid();
  const fw=Math.hypot((points[454][0]-points[234][0])*width,(points[454][1]-points[234][1])*height);
  if(fw<32||fw>Math.hypot(width,height)||points[152][1]<=points[10][1])throw invalid();
- return {version:STUDIO_SKIN_WORKFLOW_VERSION,width,height,maskWidth,maskHeight,face:points,labels:new Uint8Array(labels)};
+ return {version:raw.version,width,height,maskWidth,maskHeight,face:points,labels:new Uint8Array(labels)};
 }
 function polygon(plane,points,w,h,value=1){
  const top=clamp(Math.floor(Math.min(...points.map(p=>p[1]))),0,h),bottom=clamp(Math.ceil(Math.max(...points.map(p=>p[1]))),0,h);
@@ -59,7 +61,7 @@ function sample(plane,w,h,x,y){
 export function applyStudioSkinBase({pixels,width:W,height:H,evidence}={}){
  const e=parseStudioSkinEvidence(evidence);
  if(W!==e.width||H!==e.height||!(pixels instanceof Uint8Array||pixels instanceof Uint8ClampedArray)||pixels.length!==W*H*4)throw invalid();
- const report={version:STUDIO_SKIN_WORKFLOW_VERSION,status:'unchanged',changedPixels:0,neutralReference:false,analysisWidth:0,analysisHeight:0,maxChannelDelta:0};
+ const report={version:e.version,status:'unchanged',changedPixels:0,neutralReference:false,analysisWidth:0,analysisHeight:0,maxChannelDelta:0};
  const scale=Math.min(1,512/Math.max(W,H)),w=Math.max(1,Math.round(W*scale)),h=Math.max(1,Math.round(H*scale)),n=w*h;
  report.analysisWidth=w;report.analysisHeight=h;
  const point=id=>[e.face[id][0]*w,e.face[id][1]*h],fw=Math.hypot(...point(454).map((v,i)=>v-point(234)[i])),chin=point(152),left=point(234),right=point(454),cx=(left[0]+right[0])/2;
