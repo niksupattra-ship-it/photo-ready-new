@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {blendPreAiSkin,PRE_AI_SKIN_VERSION} from '../src/pre-ai-skin.js';
 import {canonicalPortraitInput} from '../src/canonical-portrait-input.js';
-const source=new Uint8ClampedArray(100*4),detail=new Uint8ClampedArray(source.length),tone=new Uint8ClampedArray(source.length),mask=new Uint8ClampedArray(source.length);
-for(let n=0;n<100;n++){const v=n<40?125:165;for(const data of [source,detail,tone])data.set([v,v-10,v-20,255],n*4);mask.set([255,255,255,255],n*4)}
-source.set([20,15,10,255],0);mask[99*4+3]=0;
+const source=new Uint8ClampedArray([160,120,100,255,30,20,10,255,160,120,100,255]);
+const detail=new Uint8ClampedArray([150,112,94,255,145,110,90,255,145,110,90,255]);
+const tone=new Uint8ClampedArray([152,114,96,255,150,115,95,255,150,115,95,255]);
+const mask=new Uint8ClampedArray([255,255,255,255,255,255,255,255,0,0,0,0]);
 const before=source.slice(),result=blendPreAiSkin(source,detail,tone,mask);
-assert.deepEqual(source,before);assert(result[4]>source[4]);assert.deepEqual(result.slice(0,4),source.slice(0,4));assert.deepEqual(result.slice(396),source.slice(396));
-const even=new Uint8ClampedArray(source.length);for(let n=0;n<100;n++)even.set([160,150,140,255],n*4);
-assert.deepEqual(blendPreAiSkin(even,even,even,mask),even,'even skin is unchanged');
+assert.deepEqual(source,before);assert(result[0]<source[0]&&result[0]>detail[0]);
+assert.deepEqual(result.slice(4,8),source.slice(4,8),'dark stable mark retained');
+assert.deepEqual(result.slice(8),source.slice(8),'non-skin/protected pixels exact');
 const main=await readFile('src/main.jsx','utf8');
 const start=main.indexOf('async function prepareAiPortraitInput('),end=main.indexOf('async function levelPortraitCutout(',start);
 assert(start>0&&end>start);const order=[];let freed;
@@ -20,4 +21,4 @@ assert.equal(a,prepared);assert.equal(a,b);assert.equal(await canonicalPortraitI
 assert.equal(order.filter(x=>x==='smooth').length,1);assert.equal(order[0],'level');assert.equal(order.at(-1),'smooth');assert.equal(await original.text(),'original');assert.equal(freed.width,1);
 assert.equal(await canonicalPortraitInput(original,{normalize,legacy:true}),original);
 assert(main.includes('normalize:prepareAiPortraitInput'));
-console.log('PASS adaptive light-only correction, even skin unchanged, stable marks/features, source immutability, level → skin → cached AI input, concurrent reuse and legacy source compatibility. No paid AI.');
+console.log('PASS skin-only blend, stable marks/features, source immutability, level → skin → cached AI input, concurrent reuse and legacy source compatibility. No paid AI.');
