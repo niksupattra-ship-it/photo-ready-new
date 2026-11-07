@@ -12,3 +12,6 @@ Keep face, ears, jaw and neck continuously matched in exposure and white balance
 export const NATURAL_SOFT_LIGHT_PRIORITY=`
 FINAL NO-MAKEUP LIGHT CHECK — NATURAL SOFT LIGHT V3: Keep original brows, eyes, lashes and lips without newly added cosmetics. Light on forehead, both cheeks, nose, chin, ears and neck is softly diffused and even. Distracting oily/bright skin highlights are removed and blended into adjacent natural skin, with no new bright specular spots, pale repair patches or white/gray overlay. Gently compress harsh highlights and lift only excessively dark skin shadows, like restrained Curves and Shadows/Highlights corrections, with smooth feathered tonal transitions and natural facial depth. Diffuse skin illumination while keeping eyes, brows, lips and hair crisp; match unwanted local colour casts to surrounding skin without makeup or global desaturation. Retain original complexion, fine texture, stable marks, natural 3D shading and eye catchlights. Preserve identity, geometry, selected hairstyle, framing and neck/cutout requirements in the SAME generation.
 `;
+
+// Share only the tonal/light instructions, never the no-makeup cosmetic rules.
+export const SOFT_SKIN_TONAL_LIGHT=NATURAL_SOFT_LIGHT_FINISH.slice(NATURAL_SOFT_LIGHT_FINISH.indexOf('TONAL BALANCE —'),NATURAL_SOFT_LIGHT_FINISH.indexOf('\nLOCAL COLOUR BALANCE:'));

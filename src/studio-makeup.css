@@ -1,0 +1,17 @@
+/* All makeup options share one card design and one scrollable mobile row. */
+.idstudio .studio-makeup-options .studio-original-makeup-choices,
+.idstudio .studio-makeup-options .studio-additional-ai-makeup{display:contents}
+.idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice{min-width:0;min-height:122px;padding:6px;text-align:center;border-radius:8px}
+.idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-face-preview{height:96px}
+.idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice img{display:block;width:76px;height:96px;max-width:100%;margin:0 auto;object-fit:cover;border-radius:6px}
+.idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice small{display:block;margin:5px 0 0;min-height:0;font-size:11px;line-height:16px;white-space:nowrap}
+.idstudio.studio-touch .studio-makeup-panel .studio-makeup-options{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;min-width:0;max-width:100%;padding:4px 2px 8px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.idstudio.studio-touch .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice{flex:0 0 82px;width:82px;min-height:108px;padding:5px;scroll-snap-align:start}
+.idstudio.studio-touch .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice img{width:64px;height:80px}
+.idstudio.studio-touch .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-face-preview{height:80px}
+@media(max-width:760px){
+ .idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;min-width:0;max-width:100%;padding:4px 2px 8px;scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+ .idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice{flex:0 0 82px;width:82px;min-height:108px;padding:5px;scroll-snap-align:start}
+ .idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-choice img{width:64px;height:80px}
+ .idstudio .studio-picker-drawer .studio-makeup-panel .studio-makeup-options .studio-makeup-face-preview{height:80px}
+}

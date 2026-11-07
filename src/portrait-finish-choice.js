@@ -3,11 +3,11 @@ export function portraitFinishChoice(...choices){
  return choices.find(choice=>choice==='makeup'||choice==='natural'||choice==='korean-rosy-v1'||choice==='soft-rosy-v1')||'natural';
 }
 
-export const SOFT_ROSY_PORTRAIT_FINISH={id:'soft-rosy-v1',name:'เมคอัพชมพูละมุน · ผิวสว่างนุ่ม',preview:'/assets/face-finish/makeup.webp'};
+export const SOFT_ROSY_PORTRAIT_FINISH={id:'soft-rosy-v1',name:'ละมุน',preview:'/assets/face-finish/makeup.webp'};
 
 // Shared revision for same-choice selection, generation caches and saved heads.
 export const NATURAL_FINISH_VERSION='natural-tonal-diffusion-v3';
-export const KOREAN_ROSY_FINISH_VERSION='soft-even-skin-v2';
+export const KOREAN_ROSY_FINISH_VERSION='tonal-diffusion-v3';
 export const SOFT_ROSY_FINISH_VERSION='foundation-original-cosmetics-v8';
 export function portraitFinishIsCurrent(head,finish,mode=head?.portraitMode){
  if(mode==='female'&&finish==='natural')return head?.naturalFinishVersion===NATURAL_FINISH_VERSION;
