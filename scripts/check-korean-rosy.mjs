@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {SOFT_SKIN_TONAL_LIGHT} from '../natural-soft-light-finish.js';
-import {KOREAN_ROSY_SKIN_PRIORITY} from '../korean-rosy-finish.js';
+import {KOREAN_ROSY_SKIN_PRIORITY,KOREAN_ROSY_LIGHT_ONLY,KOREAN_ROSY_COSMETICS} from '../korean-rosy-finish.js';
 import sharp from 'sharp';
 import {mkdtemp,mkdir,writeFile,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -26,6 +26,6 @@ try{
  assert.equal(calls.length,1);assert.equal(calls[0].payload.image.length,2);
  assert.equal(calls[0].payload.image[0],'data:image/png;base64,'+image.toString('base64'));
  assert(calls[0].payload.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 2'));
- assert(calls[0].payload.prompt.includes('KOREAN ROSY V1'));assert(calls[0].payload.prompt.includes(SOFT_SKIN_TONAL_LIGHT));assert(calls[0].payload.prompt.includes('LOCAL CURVES AND DODGE & BURN'));assert(calls[0].payload.prompt.includes('then skin-light diffusion AFTER exposure is even'));assert(calls[0].payload.prompt.includes('VISIBLY BRIGHTER EVEN SKIN'));assert(calls[0].payload.prompt.includes('visibly brighter together'));assert(!calls[0].payload.prompt.includes('NO ADDED MAKEUP'));assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));assert(calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION 5'));assert(calls[0].payload.prompt.includes('broad, softly luminous highlights'));
+ assert(calls[0].payload.prompt.includes('KOREAN ROSY V1'));assert(calls[0].payload.prompt.includes(KOREAN_ROSY_LIGHT_ONLY));assert.equal(KOREAN_ROSY_LIGHT_ONLY,SOFT_SKIN_TONAL_LIGHT.replace('erasing texture or adding cosmetics','erasing texture or changing the specified makeup'));assert(!calls[0].payload.prompt.includes('erasing texture or adding cosmetics'));assert(calls[0].payload.prompt.lastIndexOf(KOREAN_ROSY_COSMETICS)>calls[0].payload.prompt.lastIndexOf('FINAL MAKEUP PRIORITY'));assert(calls[0].payload.prompt.includes('LOCAL CURVES AND DODGE & BURN'));assert(calls[0].payload.prompt.includes('then skin-light diffusion AFTER exposure is even'));assert(calls[0].payload.prompt.includes('VISIBLY BRIGHTER EVEN SKIN'));assert(calls[0].payload.prompt.includes('visibly brighter together'));assert(!calls[0].payload.prompt.includes('NO ADDED MAKEUP'));assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));assert(calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION 6'));assert(calls[0].payload.prompt.includes('broad, softly luminous highlights'));
 }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true})}
 console.log('PASS independent Korean policy, original photo, outfit image, one mocked generation and path validation; no network or paid AI.');
