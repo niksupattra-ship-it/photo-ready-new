@@ -41,7 +41,7 @@ try{
  for(const text of [KOREAN_ROSY_SHARED_SKIN_FINISH,KOREAN_ROSY_SKIN_PRIORITY]){
   assert(!text.includes('Do not add or redesign eyebrows'));assert(!text.includes('Keep original brows, eyes and lashes without newly added cosmetics'));assert(!text.includes('LIPS ARE THE ONLY COSMETIC EXCEPTION'));
  }
- for(const target of ['WIDER SOFT SKIN-LIGHT DIFFUSION','SOFTER SKIN AND WRINKLE RETOUCH','Reduce skin-only clarity','Do not re-sharpen skin'])assert((KOREAN_ROSY_SHARED_SKIN_FINISH+KOREAN_ROSY_SKIN_PRIORITY).includes(target));
+ for(const target of ['Retain real subtle pores','No plastic, waxy, airbrushed','Keep brows exceptionally crisp','retaining subtle facial depth'])assert((KOREAN_ROSY_SHARED_SKIN_FINISH+KOREAN_ROSY_SKIN_PRIORITY).includes(target));
  assert(!calls[0].payload.prompt.includes('FINAL MAKEUP PRIORITY'));
  assert(!calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION'));
 

@@ -1,0 +1,12 @@
+// Skin-only wording taken from the accepted chat-generated example. This is a
+// reviewable candidate for Seedream, not evidence of visual model equivalence.
+export const REFERENCE_SKIN_FINISH=`
+ACCEPTED PORTRAIT SKIN TARGET — PHOTOGRAPHIC RETOUCH:
+Facial skin and visible neck should have even, natural colour and softly distributed illumination. Remove visible fine wrinkles and superficial crease lines and small temporary blemishes, gently correct patchy skin colour, and suppress the concentrated shiny/oily highlights on forehead, nose and cheeks. Balance these highlights and shaded patches into adjacent skin with broad seamless tonal transitions while retaining subtle facial depth.
+Retain real subtle pores, fine skin grain and believable photographic texture. No plastic, waxy, airbrushed, porcelain or featureless skin. No visible smoothing mask, pale patches, gray veil, halos, exposure rectangles or global Gaussian blur.
+Keep brows exceptionally crisp and naturally hair-defined: retain their existing shape, position and colour and resolve individual eyebrow hairs, without dark solid painted blocks or enlarging the brows. Keep eyes, iris detail, catchlights, eyeliner, separated lashes, nostrils, lips and individual hair strands sharp. Apply targeted skin retouching and low-frequency colour/light balancing only, with original fine facial-feature details retained.
+Do not slim, beautify by reshaping, enlarge eyes, raise forehead, lengthen face, change hair volume, brighten the complexion into another skin tone or overexpose skin. Preserve identity, age, natural asymmetry, stable identifying marks, the selected cosmetic finish, selected hairstyle, head proportions and the existing neck/cutout requirements.
+`;
+export const REFERENCE_SKIN_PRIORITY=`
+FINAL PHOTOGRAPHIC SKIN CHECK: Use the accepted photographic retouch target above. Even natural skin colour, soft distributed light, reduced oily hotspots and superficial wrinkles, visible subtle pores and skin grain, crisp individual brow hairs and facial features. Preserve dimensional facial shading. Do not replace fine skin texture with a smooth surface or use stronger negative clarity, stronger pore suppression, flatter lighting or a white/gray veil as substitutes for this target. Apply the selected cosmetic finish without changing this skin target, identity, facial geometry, selected hairstyle or neck/cutout requirements, in the SAME single generation.
+`;
