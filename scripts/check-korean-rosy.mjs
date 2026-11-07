@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {KOREAN_ROSY_FINISH,KOREAN_ROSY_SKIN_PRIORITY,KOREAN_ROSY_SHARED_SKIN_FINISH,KOREAN_ROSY_ORIGINAL_COSMETICS} from '../korean-rosy-finish.js';
+import {KOREAN_ROSY_FINISH,KOREAN_ROSY_SKIN_PRIORITY,KOREAN_ROSY_SHARED_SKIN_FINISH,KOREAN_ROSY_ORIGINAL_COSMETICS,KOREAN_ROSY_CURRENT_COSMETICS} from '../korean-rosy-finish.js';
 import sharp from 'sharp';
 import {SHARED_PORTRAIT_SKIN_FINISH,SHARED_PORTRAIT_SKIN_PRIORITY} from '../natural-soft-light-finish.js';
 import {mkdtemp,mkdir,writeFile,rm,readFile} from 'node:fs/promises';
@@ -34,8 +34,10 @@ try{
  assert.equal(femaleFinishFor('korean-rosy-v1'),KOREAN_ROSY_SHARED_SKIN_FINISH);
  assert(KOREAN_ROSY_SHARED_SKIN_FINISH.includes(SHARED_PORTRAIT_SKIN_FINISH));
  assert(KOREAN_ROSY_SKIN_PRIORITY.includes(SHARED_PORTRAIT_SKIN_PRIORITY));
- assert(KOREAN_ROSY_SHARED_SKIN_FINISH.endsWith(KOREAN_ROSY_ORIGINAL_COSMETICS));
+ assert(KOREAN_ROSY_SHARED_SKIN_FINISH.endsWith(KOREAN_ROSY_CURRENT_COSMETICS));
  assert.equal(KOREAN_ROSY_ORIGINAL_COSMETICS,KOREAN_ROSY_FINISH.slice(KOREAN_ROSY_FINISH.indexOf('Create restrained Korean makeup:')));
+ for(const phrase of ['slightly longer and fuller lifted Korean lashes','eyeliner tightly along the upper lash line','richer, clearly visible rosy-red pink lip tint']){assert(calls[0].payload.prompt.includes(phrase));assert(!femaleFinishFor('natural').includes(phrase));}
+ assert(!KOREAN_ROSY_CURRENT_COSMETICS.includes('apply fresh translucent pink'));
  for(const text of [KOREAN_ROSY_SHARED_SKIN_FINISH,KOREAN_ROSY_SKIN_PRIORITY]){
   assert(!text.includes('Do not add or redesign eyebrows'));assert(!text.includes('Keep original brows, eyes and lashes without newly added cosmetics'));assert(!text.includes('LIPS ARE THE ONLY COSMETIC EXCEPTION'));
  }
@@ -44,4 +46,4 @@ try{
  assert(!calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION'));
 
 }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true})}
-console.log('PASS shared natural skin/light plus byte-identical original brow/eye/lash/lip recipe; one mocked request with original source/outfit, no paid AI.');
+console.log('PASS shared natural skin/light with enhanced separated lashes, thin liner and rosy-red lips; original archived cosmetics retained; one mocked request with original source/outfit, no paid AI.');

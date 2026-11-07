@@ -9,10 +9,14 @@ Keep the exact original lip shape and size; apply fresh translucent pink adapted
 // Keep the original cosmetic wording above as the stable source for old work.
 // The current visible makeup choice uses the SAME skin/light recipe as natural.
 export const KOREAN_ROSY_ORIGINAL_COSMETICS=KOREAN_ROSY_FINISH.slice(KOREAN_ROSY_FINISH.indexOf('Create restrained Korean makeup:'));
+// Current visible makeup only; historical/hidden styles retain their recipe.
+export const KOREAN_ROSY_CURRENT_COSMETICS=KOREAN_ROSY_ORIGINAL_COSMETICS
+ .replace('moderately lifted fine separated Korean lashes, proportionate to the original eyes.','more visibly defined, slightly longer and fuller lifted Korean lashes, individually separated and proportionate to the original eyes. Add a fine dark-brown/soft-black eyeliner tightly along the upper lash line to define the eyes visibly, following the existing eye contour without enlarging the eyes or changing eyelid folds.')
+ .replace('apply fresh translucent pink adapted to the natural lip colour with a small soft moist gloss','apply a richer, clearly visible rosy-red pink lip tint, redder and more saturated than the previous sheer pink while adapted to the natural lip colour, with a small soft moist gloss');
 export const KOREAN_ROSY_SHARED_SKIN_FINISH=[
- 'KOREAN ROSY V1 — SHARED NATURAL SKIN WITH ORIGINAL KOREAN MAKEUP:',
+ 'KOREAN ROSY V1 — SHARED NATURAL SKIN WITH DEFINED KOREAN MAKEUP:',
  KOREAN_ROSY_FINISH.split('\n')[1],
  SHARED_PORTRAIT_SKIN_FINISH,
- KOREAN_ROSY_ORIGINAL_COSMETICS
+ KOREAN_ROSY_CURRENT_COSMETICS
 ].join('\n');
-export const KOREAN_ROSY_SKIN_PRIORITY=SHARED_PORTRAIT_SKIN_PRIORITY+'\nORIGINAL MAKEUP CHECK: Apply the original eyebrow, upper-eyelid, lash and lip instructions above unchanged, on top of the shared skin/light finish. Do not retain unmade-up brows/eyes/lashes under a no-makeup rule. Do not change skin softness, wrinkle retouch, diffuse lighting, original facial proportions, selected hairstyle, neck coverage or cutout. Complete in the SAME single generation.\n';
+export const KOREAN_ROSY_SKIN_PRIORITY=SHARED_PORTRAIT_SKIN_PRIORITY+'\nMAKEUP CHECK: Keep the original brow and upper-eyelid tone recipe; apply the requested more defined separated Korean lashes, thin upper-lash-line eyeliner and richer rosy-red pink lips specified above, on top of the shared skin/light finish. Do not retain unmade-up brows/eyes/lashes under a no-makeup rule. Do not change skin softness, wrinkle retouch, diffuse lighting, original facial proportions, selected hairstyle, neck coverage or cutout. Complete in the SAME single generation.\n';

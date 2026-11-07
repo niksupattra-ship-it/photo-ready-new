@@ -7,7 +7,7 @@ export const SOFT_ROSY_PORTRAIT_FINISH={id:'soft-rosy-v1',name:'ละมุน'
 
 // Shared revision for same-choice selection, generation caches and saved heads.
 export const NATURAL_FINISH_VERSION='natural-stronger-skin-diffusion-v11';
-export const KOREAN_ROSY_FINISH_VERSION='original-makeup-shared-natural-skin-v11';
+export const KOREAN_ROSY_FINISH_VERSION='makeup-lashes-liner-rosy-red-v12';
 export const SOFT_ROSY_FINISH_VERSION='foundation-shared-head-inputs-v9';
 export function portraitFinishIsCurrent(head,finish,mode=head?.portraitMode){
  if(mode==='female'&&finish==='natural')return head?.naturalFinishVersion===NATURAL_FINISH_VERSION;
