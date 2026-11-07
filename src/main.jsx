@@ -84,6 +84,7 @@ import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
+import {preparePreAiSkin,PRE_AI_SKIN_VERSION} from './pre-ai-skin.js';
 import {submitPortraitJob,cancelPortraitJob} from './portrait-operation.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
@@ -1467,6 +1468,16 @@ async function cleanLowerPortraitOutline(blob){
  }catch{return blob}
 }
 
+async function prepareAiPortraitInput(blob){
+ const upright=await levelPortraitCutout(blob),image=await decodedPortraitImage(upright);
+ const W=image.naturalWidth,H=image.naturalHeight;
+ const [model,skin]=await Promise.all([getLandmarker(),semanticClassMask(image,W,H,[2,3])]);
+ const face=model.detect(image).faceLandmarks?.[0];
+ const prepared=preparePreAiSkin(image,skin,face);
+ try{const result=await canvasPng(prepared);result.idpromPreAiSkinVersion=PRE_AI_SKIN_VERSION;return result}
+ finally{prepared.width=1;prepared.height=1}
+}
+
 async function levelPortraitCutout(blob){
  try{
   const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
@@ -2570,7 +2581,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const info=await submitPortraitJob(operation,async()=>{
  const fd=new FormData();
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const aiInput=await canonicalPortraitInput(originalFile,{normalize:levelPortraitCutout,legacy:Boolean(activeSavedDownloadWork)});assertProcessActive(operation);
+ const aiInput=await canonicalPortraitInput(originalFile,{normalize:prepareAiPortraitInput,legacy:Boolean(activeSavedDownloadWork)});assertProcessActive(operation);
  fd.append('image',aiInput,aiInput===originalFile?(originalFile.name||'portrait.png'):'portrait-upright.png');
  fd.append('originalSource',originalFile,originalFile.name||'original-portrait.png');
  fd.append('hairId',hairId||'original');
