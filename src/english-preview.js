@@ -2,6 +2,7 @@ import {ENGLISH_ADDITIONAL_COPY} from './english-copy-additions.js';
 // Opt-in presentation layer for the English trial. It never changes API data,
 // form values, uploaded files, canvas pixels, account data or saved projects.
 export const ENGLISH_COPY = {
+ "ภาพต้นฉบับมีรายละเอียดใบหน้าไม่พอ กรุณาใช้รูปที่คมชัดและเห็นใบหน้าสว่างพอดี":"The original photo does not contain enough facial detail. Use a sharp photo with the face clearly visible and properly exposed.",
  "ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่":"The skin treatment is updating. Refresh the page and try again.",
  "ไม่พบรูปแบบเมคอัพที่เลือก":"The selected makeup style is unavailable.",
  "ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ":"The prepared skin and lighting image is not ready for makeup.",

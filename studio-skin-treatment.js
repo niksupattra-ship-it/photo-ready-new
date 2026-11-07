@@ -1,9 +1,10 @@
 // Native skin RGB is retained. Only a smooth, bounded lighting/colour field is
 // added; analysis samples never replace the uploaded image or its texture.
-export const STUDIO_SKIN_WORKFLOW_VERSION='studio-skin-stages-v3';
+export const STUDIO_SKIN_WORKFLOW_VERSION='studio-skin-stages-v4';
+export const STUDIO_SKIN_RETOUCH_VERSION='studio-skin-stages-v3';
 export const STUDIO_SKIN_SOFT_VERSION='studio-skin-stages-v2';
 export const STUDIO_SKIN_PREVIOUS_VERSION='studio-skin-stages-v1';
-export const isStudioSkinWorkflowVersion=value=>value===STUDIO_SKIN_WORKFLOW_VERSION||value===STUDIO_SKIN_SOFT_VERSION||value===STUDIO_SKIN_PREVIOUS_VERSION;
+export const isStudioSkinWorkflowVersion=value=>value===STUDIO_SKIN_WORKFLOW_VERSION||value===STUDIO_SKIN_RETOUCH_VERSION||value===STUDIO_SKIN_SOFT_VERSION||value===STUDIO_SKIN_PREVIOUS_VERSION;
 const MAX_PIXELS=33554432,MAX_EVIDENCE=300*1024;
 const OVAL=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
 const FEATURES=[

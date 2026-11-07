@@ -1,7 +1,8 @@
 import sharp from 'sharp';
-import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion,parseStudioSkinEvidence,applyStudioSkinBase} from './studio-skin-treatment.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion,parseStudioSkinEvidence,applyStudioSkinBase} from './studio-skin-treatment.js';
 import {applyStudioSkinSoftFocus} from './studio-skin-soft-focus.js';
 import {applyStudioSkinRetouch} from './studio-skin-retouch.js';
+import {assertStudioReferenceInputQuality} from './studio-reference-quality.js';
 
 const styles=new Set(['natural','makeup','korean-rosy-v1','soft-rosy-v1']);
 const invalid=(message,code='studio_skin_evidence_invalid')=>Object.assign(Error(message),{status:400,code});
@@ -29,15 +30,17 @@ export async function prepareStudioSkinInput(input,fields={},gender=fields.portr
  if((metadata.pages||1)!==1)throw invalid('กรุณาใช้รูปภาพนิ่งสำหรับปรับแสงผิว');
  const {data,info}=await decode.rotate().toColourspace('srgb').ensureAlpha().raw().toBuffer({resolveWithObject:true});
  if(info.channels!==4||info.width!==evidence.width||info.height!==evidence.height)throw invalid('ขนาดภาพกับพื้นที่ผิวไม่ตรงกัน กรุณาเปิดรูปเดิมแล้วลองใหม่','studio_skin_source_mismatch');
+ const referenceQuality=evidence.version===STUDIO_SKIN_WORKFLOW_VERSION?assertStudioReferenceInputQuality({pixels:data,width:info.width,height:info.height,evidence}):null;
  let result=applyStudioSkinBase({pixels:data,width:info.width,height:info.height,evidence});
  if(!result?.pixels||result.pixels.length!==data.length||result.report?.reason==='insufficient_skin_evidence')throw invalid('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');
  // Preserve the released v1 base and v2 soft-focus paths for pending jobs.
- // Only v3 repairs acne/creases, refines skin texture and reduces highlights.
- let softened=[STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)?applyStudioSkinSoftFocus({pixels:result.pixels,width:info.width,height:info.height,evidence}):null;
- let retouched=evidence.version===STUDIO_SKIN_WORKFLOW_VERSION?applyStudioSkinRetouch({pixels:softened.pixels,width:info.width,height:info.height,evidence}):null;
- if(evidence.version===STUDIO_SKIN_WORKFLOW_VERSION&&(!retouched?.pixels||retouched.pixels.length!==data.length))throw invalid('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');
+ // V3 repair stays exact. V4 adds a conservative source-quality gate and a
+ // separate visual lighting guide in the existing portrait request.
+ let softened=[STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)?applyStudioSkinSoftFocus({pixels:result.pixels,width:info.width,height:info.height,evidence}):null;
+ let retouched=[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)?applyStudioSkinRetouch({pixels:softened.pixels,width:info.width,height:info.height,evidence}):null;
+ if([STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)&&(!retouched?.pixels||retouched.pixels.length!==data.length))throw invalid('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');
  const preparedPixels=retouched?.pixels||softened?.pixels||result.pixels;
- const report={...result.report,version:evidence.version,...(softened?{softFocus:softened.report}:{}),...(retouched?{retouch:retouched.report}:{})};
+ const report={...result.report,version:evidence.version,...(softened?{softFocus:softened.report}:{}),...(retouched?{retouch:retouched.report}:{}),...(referenceQuality?{referenceQuality}:{})};
  // Reports outlive encoding, but intermediate full-resolution copies need not.
  // Keep only the final v3 surface while Sharp encodes the PNG asynchronously.
  if(retouched){result=null;softened=null;retouched=null}

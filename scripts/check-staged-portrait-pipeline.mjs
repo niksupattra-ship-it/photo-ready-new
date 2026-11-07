@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
+import {readFile,mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
+import path from 'node:path';
+import {tmpdir} from 'node:os';
+import {seedreamReviewPayload,REVIEW_SEEDREAM_MODEL} from '../seedream-review-transport.js';
+import {loadStudioSkinLightReference,STUDIO_SKIN_LIGHT_REFERENCE_PATH} from '../studio-skin-light-reference.js';
 import sharp from 'sharp';
-import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_PREVIOUS_VERSION,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_PREVIOUS_VERSION,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from '../studio-skin-input.js';
 import {validateProductionPortrait,productionPortraitPrompt,processProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
 import {PRODUCTION_HAIR_CATALOG,FREE_PNG_HAIR_CATALOG} from '../hairstyle-catalog.js';
@@ -60,8 +65,12 @@ await test('pending v2 prompts retain their complete released soft-focus bytes',
  const baseline='3ea94586eae58e63a39f06a7a56e15f8ba4efacacb0707fd42358a2f8479f35a';
  for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1'])assert.equal(createHash('sha256').update(JSON.stringify(selected.map(s=>productionPortraitPrompt(s,style,{studioSkinVersion:STUDIO_SKIN_SOFT_VERSION})))).digest('hex'),baseline,style);
 });
+await test('pending v3 prompts retain their complete released repair and matte bytes',()=>{
+ const selected=[{gender:'female'},{gender:'male'},...PRODUCTION_HAIR_CATALOG,...FREE_PNG_HAIR_CATALOG];
+ for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1'])assert.equal(createHash('sha256').update(JSON.stringify(selected.map(s=>productionPortraitPrompt(s,style,{studioSkinVersion:STUDIO_SKIN_RETOUCH_VERSION})))).digest('hex'),'80f617d1544ad105632133ed5e6259925ca310dfb928f9b949a14871afff5122');
+});
 await test('v3 explicitly removes acne and wrinkles, refines pores and reduces highlights before optional cosmetics',()=>{
- const prompts=['natural','makeup','korean-rosy-v1','soft-rosy-v1'].map(style=>productionPortraitPrompt({gender:'female'},style,{studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION}));
+ const prompts=['natural','makeup','korean-rosy-v1','soft-rosy-v1'].map(style=>productionPortraitPrompt({gender:'female'},style,{studioSkinVersion:STUDIO_SKIN_RETOUCH_VERSION}));
  for(const p of prompts){
   assert(p.includes('PREPARED PHOTO-STUDIO SKIN BASE'));
   assert(p.includes('PREPARED FACE / NECK LIGHT'));
@@ -91,20 +100,20 @@ await test('declared evidence fails validation before the provider and legacy in
  await assert.rejects(processProductionPortrait({input,fields:{...fields,studioSkinEvidence:'{'},root:new URL('..',import.meta.url).pathname,removeBackground:async v=>v,requestPortrait:async()=>{called++;throw Error('must not call')}}));
  assert.equal(called,0);
 });
-await test('wire versions remain explicit and evidence cannot cross between v1, v2 and v3',()=>{
+await test('wire versions remain explicit and evidence cannot cross between v1, v2, v3 and v4',()=>{
  const f=fixture(),fields=fieldsFor(f);
- for(const version of [STUDIO_SKIN_PREVIOUS_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_WORKFLOW_VERSION]){
+ for(const version of [STUDIO_SKIN_PREVIOUS_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_WORKFLOW_VERSION]){
   const evidence={...f.evidence,version};
   assert.equal(parseStudioSkinEvidence(evidence).version,version);
   assert.equal(parseStudioSkinRequest({...fields,studioSkinVersion:version,studioSkinEvidence:JSON.stringify(evidence)},'female').version,version);
-  for(const mismatch of [STUDIO_SKIN_PREVIOUS_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].filter(v=>v!==version))assert.throws(()=>parseStudioSkinRequest({...fields,studioSkinVersion:mismatch,studioSkinEvidence:JSON.stringify(evidence)},'female'),{code:'studio_skin_evidence_invalid'});
+  for(const mismatch of [STUDIO_SKIN_PREVIOUS_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].filter(v=>v!==version))assert.throws(()=>parseStudioSkinRequest({...fields,studioSkinVersion:mismatch,studioSkinEvidence:JSON.stringify(evidence)},'female'),{code:'studio_skin_evidence_invalid'});
  }
- assert.throws(()=>parseStudioSkinEvidence({...f.evidence,version:'studio-skin-stages-v4'}));
+ assert.throws(()=>parseStudioSkinEvidence({...f.evidence,version:'studio-skin-stages-v5'}));
 });
-await test('v1 and v2 retain released PNG pixels while only v3 adds acne/wrinkle/matte repair',async()=>{
+await test('v1, v2 and v3 retain released PNG pixels while v4 assesses the same repaired surface',async()=>{
  const f=fixture({shadow:true,red:true,pores:true}),input=await inputFor(f),before=Buffer.from(input.buffer);
  const prepare=version=>prepareStudioSkinInput(input,{...fieldsFor(f),studioSkinVersion:version,studioSkinEvidence:JSON.stringify({...f.evidence,version})},'female');
- const old=await prepare(STUDIO_SKIN_PREVIOUS_VERSION),soft=await prepare(STUDIO_SKIN_SOFT_VERSION),latest=await prepare(STUDIO_SKIN_WORKFLOW_VERSION);
+ const old=await prepare(STUDIO_SKIN_PREVIOUS_VERSION),soft=await prepare(STUDIO_SKIN_SOFT_VERSION),repair=await prepare(STUDIO_SKIN_RETOUCH_VERSION),latest=await prepare(STUDIO_SKIN_WORKFLOW_VERSION);
  assert.equal(old.version,STUDIO_SKIN_PREVIOUS_VERSION);assert.equal(old.report.version,STUDIO_SKIN_PREVIOUS_VERSION);assert.equal(old.report.softFocus,undefined);assert.equal(old.report.retouch,undefined);
  assert.equal(createHash('sha256').update(old.input.buffer).digest('hex'),'71f0dda865c6bf643f0022450b35e0cc500a7292cbfbd0cc412e2818b4817b98');
  const oldRaw=await raw(old.input.buffer),softRaw=await raw(soft.input.buffer),latestRaw=await raw(latest.input.buffer);
@@ -112,6 +121,9 @@ await test('v1 and v2 retain released PNG pixels while only v3 adds acne/wrinkle
  assert.equal(soft.version,STUDIO_SKIN_SOFT_VERSION);assert(soft.report.softFocus);assert.equal(soft.report.retouch,undefined);
  assert.equal(createHash('sha256').update(soft.input.buffer).digest('hex'),'b06d8bc1fb4a39f10ab529bb2fa91ca550bc8611cc3889f35d3878d414d3c0f7');
  assert.equal(createHash('sha256').update(softRaw.data).digest('hex'),'26f7f1e1b44ba69e2e7f43dc806967826832f5cbdde5f834dad8dbe8e8474799');
+ assert.equal(createHash('sha256').update(repair.input.buffer).digest('hex'),'c6d68a95d0ef9bd2fb85158b9a0fbaf5cd4b4ddc984dfe807e60eb7161827915');
+ assert.equal(createHash('sha256').update((await raw(repair.input.buffer)).data).digest('hex'),'184cc0048d6def716efb97a6c4dbabdbb883fa2bd664fbb09d2387681c0ec30e');
+ assert.equal(repair.report.referenceQuality,undefined);assert(latest.report.referenceQuality);assert.deepEqual(latest.input.buffer,repair.input.buffer);
  assert(latest.report.softFocus);assert(latest.report.retouch,'The acne/wrinkle/matte repair must run before encoding');assert.notDeepEqual(latestRaw.data,softRaw.data);
  assert.deepEqual([latestRaw.info.width,latestRaw.info.height,latestRaw.info.channels],[f.width,f.height,4]);
  for(let i=3;i<latestRaw.data.length;i+=4)assert.equal(latestRaw.data[i],oldRaw.data[i]);assert.deepEqual(input.buffer,before);
@@ -155,8 +167,49 @@ await test('actual production handler sends the treated PNG and matching identit
   return sharp(r.data,{raw:{width:r.info.width,height:r.info.height,channels:4}}).png().toBuffer();
  }});
  assert.equal(calls,1);assert.equal(captured.portraitMime,'image/png');assert.deepEqual(captured.portrait,expected.input.buffer);assert.notDeepEqual(captured.portrait,input.buffer);assert.deepEqual(captured.identity,expectedCrop);
- assert.equal(captured.outfit,undefined);assert(!captured.prompt.includes('OUTFIT LIGHTING REFERENCE'));assert(!captured.prompt.includes('Apply KOREAN ROSY V1 cosmetics'));assert(captured.prompt.includes('completing any remaining acne/wrinkle removal, fine uniform pores and reduced skin highlights'));assert(!captured.prompt.includes('retaining the already prepared skin, lip colour and lighting unchanged'));assert(expected.report.retouch);assert(expected.report.softFocus);
+ assert.equal(captured.outfit,undefined);assert(!captured.prompt.includes('OUTFIT LIGHTING REFERENCE'));assert(!captured.prompt.includes('Apply KOREAN ROSY V1 cosmetics'));assert(captured.prompt.includes('adapting the full face/ear/neck exposure, colour casts and shadows to the target soft frontal guide'));assert.deepEqual(captured.skinReference,await loadStudioSkinLightReference(new URL('..',import.meta.url).pathname));assert(captured.prompt.includes('IMAGE 3, THE LAST IMAGE'));assert(!captured.prompt.includes('retaining the already prepared skin, lip colour and lighting unchanged'));assert(expected.report.retouch);assert(expected.report.softFocus);
  assert.deepEqual(trace,['skin-base','generation','provider','matting','remove-background','edges']);
  const decoded=await raw(output);assert.deepEqual([decoded.info.width,decoded.info.height],[f.width,f.height]);assert.equal(decoded.data[3],0);assert.equal(decoded.data[pixel(f,.5,.5)+3],255);
+});
+await test('v4 targets adaptive whole-face and neck relighting rather than retaining source light',()=>{
+ const selected=[{gender:'female'},...PRODUCTION_HAIR_CATALOG.filter(s=>s.gender==='female'),...FREE_PNG_HAIR_CATALOG.filter(s=>s.gender==='female')];
+ for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1'])for(const option of selected){
+  const prompt=productionPortraitPrompt(option,style,{studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION});
+  for(const required of ['ADAPTIVE RELIGHTING','Re-establish one broad softly diffused frontal key','The source and identity crop are NOT authorities for retaining unwanted lighting','authentic depth of complexion','REMOVE visible active acne','fine, evenly distributed photographic pores','selected cosmetics are applied locally AFTER','FINAL REFERENCE LIGHTING PRIORITY'])assert(prompt.includes(required),required);
+  for(const conflict of ["Keep Image 1's prepared white balance",'Keep the fill-light and white balance already present','Preserve the already prepared exposure','retaining the already prepared skin, lip colour and lighting unchanged','additional whole-face exposure change','while keeping the prepared complexion and anatomical shading'])assert(!prompt.includes(conflict),conflict);
+  assert(prompt.includes('DEEP WIDE ROUND U'));assert(prompt.includes('LOWER FACE AND EAR ANATOMY PRIORITY'));assert(prompt.includes('Do not transfer hairstyle-reference skin or head shape'));assert(!prompt.includes('Do not transfer reference skin or head shape'));
+ }
+});
+await test('the fixed JPEG guide is bounded, cached safely and missing or corrupt assets fail closed',async()=>{
+ const folder=await mkdtemp(path.join(tmpdir(),'skin-reference-loader-'));
+ try{
+  const file=path.join(folder,STUDIO_SKIN_LIGHT_REFERENCE_PATH);await mkdir(path.dirname(file),{recursive:true});
+  await assert.rejects(loadStudioSkinLightReference(folder),{code:'studio_skin_reference_unavailable'});
+  const valid=await readFile(new URL('../public/assets/skin-light-reference/studio-soft-frontal-v1.jpg',import.meta.url));await writeFile(file,valid);
+  const first=await loadStudioSkinLightReference(folder);assert.deepEqual(first,valid);first[0]=0;assert.deepEqual(await loadStudioSkinLightReference(folder),valid,'Caller mutation cannot alter the cached guide');
+  for(const [name,bytes]of [['corrupt',Buffer.alloc(1500)],['oversized',Buffer.alloc(300*1024+1)],['png',await sharp(valid).png().toBuffer()],['wide',await sharp(valid).resize(1025,64).jpeg({quality:90}).toBuffer()]]){
+   const dir=path.join(folder,name),destination=path.join(dir,STUDIO_SKIN_LIGHT_REFERENCE_PATH);await mkdir(path.dirname(destination),{recursive:true});await writeFile(destination,bytes);await assert.rejects(loadStudioSkinLightReference(dir),{code:'studio_skin_reference_unavailable'});
+  }
+ }finally{await rm(folder,{recursive:true,force:true})}
+});
+await test('guide delivery is last and correctly indexed for default and selected hair with optional identity crops',async()=>{
+ const f=fixture({shadow:true,retouch:true}),input=await inputFor(f),root=new URL('..',import.meta.url).pathname,guide=await loadStudioSkinLightReference(root),hair=PRODUCTION_HAIR_CATALOG.find(s=>s.gender==='female');
+ for(const selectedHair of ['',hair.id])for(const identity of [false,true]){
+  let captured,calls=0;await processProductionPortrait({input,root,fields:{...fieldsFor(f),hairId:selectedHair||'original',skinReference:'/tmp/untrusted-client-reference.jpg',...(identity?{faceIdentityBox:'[0.2,0.12,0.8,0.82]'}:{})},requestPortrait:async options=>{captured=options;calls++;return{png:options.portrait}},removeBackground:async image=>{
+   const result=await raw(image);result.data[3]=0;return sharp(result.data,{raw:{width:f.width,height:f.height,channels:4}}).png().toBuffer();
+  }});
+  assert.equal(calls,1);assert.deepEqual(captured.skinReference,guide);const expected=2+Number(Boolean(captured.hair))+Number(Boolean(captured.identity))+Number(Boolean(captured.outfit));assert(captured.prompt.includes('IMAGE '+expected+', THE LAST IMAGE'));
+  assert(captured.prompt.includes('top row is MAGNIFIED'));assert(captured.prompt.includes('never a skin board, collage or grid'));
+  const payload=seedreamReviewPayload(captured),images=Array.isArray(payload.image)?payload.image:[payload.image];assert.equal(images.length,expected);assert.equal(images.at(-1),'data:image/jpeg;base64,'+guide.toString('base64'));assert.equal(images[0],'data:image/png;base64,'+captured.portrait.toString('base64'));
+ }
+});
+await test('a missing v4 guide prevents provider generation, while legacy requests never need that asset',async()=>{
+ const folder=await mkdtemp(path.join(tmpdir(),'skin-reference-missing-')),f=fixture(),input=await inputFor(f);let calls=0;
+ try{await assert.rejects(processProductionPortrait({input,root:folder,fields:fieldsFor(f),requestPortrait:async()=>{calls++;throw Error('No provider may run without its guide')},removeBackground:async image=>image}),{code:'studio_skin_reference_unavailable'});assert.equal(calls,0)}finally{await rm(folder,{recursive:true,force:true})}
+});
+await test('transport retains all historical image positions and appends a reference only when supplied',()=>{
+ const [portrait,hair,identity,makeup,outfit,skinReference]=['p','h','i','m','o','s'].map(value=>Buffer.from(value));
+ const base=seedreamReviewPayload({prompt:'test',portrait});assert.deepEqual(base,{model:REVIEW_SEEDREAM_MODEL,prompt:'test',image:'data:image/png;base64,cA==',size:'2K',output_format:'png',response_format:'b64_json',watermark:false});
+ const options={prompt:'test',portrait,hair,identity,makeup,outfit},old=seedreamReviewPayload(options),next=seedreamReviewPayload({...options,skinReference});assert.deepEqual(old.image,['data:image/png;base64,cA==','data:image/png;base64,aA==','data:image/png;base64,aQ==','data:image/jpeg;base64,bQ==','data:image/png;base64,bw==']);assert.deepEqual(next.image,[...old.image,'data:image/jpeg;base64,cw==']);
 });
 console.log(JSON.stringify({passed,failed:0,scope:'Actual preprocessing, validation and production handler with inert provider/matting. One request receives corrected native PNG plus its own corrected identity crop; historical prompt fingerprints unchanged. No provider, account or payment requests.'}));
