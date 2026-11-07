@@ -84,9 +84,6 @@ import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
-import {createImmutablePortraitMemo} from './immutable-portrait-memo.js';
-import {preparePreAiSkin,PRE_AI_SKIN_VERSION} from './pre-ai-skin.js';
-import {finishAiPortraitSkin} from './post-ai-skin.js';
 import {submitPortraitJob,cancelPortraitJob} from './portrait-operation.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
@@ -253,15 +250,6 @@ function decodedPortraitImage(blob){
  }
  return pending;
 }
-// Share landmarks only for the exact immutable image, never across cleaned,
-// rotated, skin-retouched or regenerated Blobs.
-const portraitFaceMemo=createImmutablePortraitMemo();
-function portraitFaceFor(blob,image){
- return portraitFaceMemo(blob,async()=>{
-  const decoded=image||await decodedPortraitImage(blob);
-  return (await getLandmarker()).detect(decoded).faceLandmarks?.[0]||null;
- });
-}
 const originalSkinProfileCache=new WeakMap();
 function originalSkinProfile(sourceBlob){
  if(!sourceBlob)return Promise.resolve(null);
@@ -390,7 +378,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
  try{
   const head=await decodedPortraitImage(headBlob), uniform=uniformImg;
   const hb=await alphaBounds(head);
-  const face=await portraitFaceFor(headBlob,head);
+  const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
   if(!face) throw Error('ตรวจจับสัดส่วนใบหน้าหลังตัดศีรษะไม่สำเร็จ');
 
   const W=bg.naturalWidth,H=bg.naturalHeight;
@@ -1331,7 +1319,7 @@ async function removeFirstPortraitBackground(blob){
 // Use native pixels and the existing segmentation classes; no AI retry or resize.
 async function cleanPortraitClothing(blob){
  const im=await decodedPortraitImage(blob),W=im.naturalWidth,H=im.naturalHeight;
- const face=await portraitFaceFor(blob,im);
+ const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
  if(!face?.[152])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');
  const masks=await getV192MasterMasks(blob,im);
  if(!masks.clothingMask||!masks.skinMask||!masks.hairMask)throw Error('ตรวจแยกเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองอีกครั้ง');
@@ -1479,19 +1467,10 @@ async function cleanLowerPortraitOutline(blob){
  }catch{return blob}
 }
 
-async function prepareAiPortraitInput(blob){
- const upright=await levelPortraitCutout(blob),image=await decodedPortraitImage(upright);
- const W=image.naturalWidth,H=image.naturalHeight;
- const [face,skin]=await Promise.all([portraitFaceFor(upright,image),semanticClassMask(image,W,H,[2,3])]);
- const prepared=await preparePreAiSkin(image,skin,face);
- try{const result=await canvasPng(prepared);result.idpromPreAiSkinVersion=PRE_AI_SKIN_VERSION;return result}
- finally{prepared.width=1;prepared.height=1}
-}
-
 async function levelPortraitCutout(blob){
  try{
   const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
-  const face=await portraitFaceFor(blob,image);
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
   const transform=portraitLevelTransform(face,W,H);if(!transform)return blob;
   // Expand the transparent canvas to avoid cutting off hair or neck corners.
   const canvas=canvasFor(transform.width,transform.height),ctx=canvas.getContext('2d');
@@ -2386,11 +2365,11 @@ async function templateNecklineProfile(templatePath){
 const faceMetricsCache=new WeakMap();
 async function portraitFaceMetrics(blob){
  if(faceMetricsCache.has(blob))return faceMetricsCache.get(blob);
- const pending=(async()=>{
-  const image=await decodedPortraitImage(blob),face=await portraitFaceFor(blob,image);
-  const proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
+ const pending=(async()=>{const url=URL.createObjectURL(blob);try{
+  const image=await loadImage(url),model=await getLandmarker();
+  const face=model.detect(image).faceLandmarks?.[0],proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
   return proportions?{...proportions,protectedFeatures:portraitProtectedFeatures(face,image.naturalWidth,image.naturalHeight)}:null;
- })();
+ }finally{URL.revokeObjectURL(url)}})();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
 async function checkPortraitProportions(source,result,{protectFeatures=false}={}){
@@ -2411,13 +2390,9 @@ async function checkPortraitProportions(source,result,{protectFeatures=false}={}
 }
 // Check the returned AI cutout before hydration and delivery confirmation.
 // Evidence canvases are small; the output master is never resampled or edited.
-const portraitCompletionMemo=createImmutablePortraitMemo();
-function portraitCompletionEvidence(blob,includeGarments=false){
- return portraitCompletionMemo(blob,()=>buildPortraitCompletionEvidence(blob,includeGarments),Boolean(includeGarments));
-}
-async function buildPortraitCompletionEvidence(blob,includeGarments=false){
+async function portraitCompletionEvidence(blob,includeGarments=false){
  const im=await decodedPortraitImage(blob),W=im.naturalWidth,H=im.naturalHeight;
- const face=await portraitFaceFor(blob,im);
+ const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
  const masks=await getV192MasterMasks(blob,im);
  if(!face?.[33]||!face?.[263]||!face?.[152]||!face?.[234]||!face?.[454]||!masks.hairMask||(includeGarments&&!masks.clothingMask))throw Object.assign(Error('ตรวจความครบถ้วนของภาพไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  const lx=face[33].x*W,ly=face[33].y*H,rx=face[263].x*W,ry=face[263].y*H,d=Math.hypot(rx-lx,ry-ly);
@@ -2523,7 +2498,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_FINISH_VERSION]:[]),...(options.femaleEyeStyle==='korean-rosy-v1'?[KOREAN_ROSY_FINISH_VERSION]:[]),...(options.femaleEyeStyle==='soft-rosy-v1'?[SOFT_ROSY_FINISH_VERSION]:[]),...(['natural','korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[])]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_FINISH_VERSION]:[]),...(options.femaleEyeStyle==='korean-rosy-v1'?[KOREAN_ROSY_FINISH_VERSION]:[]),...(options.femaleEyeStyle==='soft-rosy-v1'?[SOFT_ROSY_FINISH_VERSION]:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[])]);
  if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -2533,12 +2508,9 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const cleaned=await cleanPortraitClothing(result);
   assertCurrentOperation();
   let finished=cleaned;
-  // Legacy makeup keeps its existing finish. Visible natural/rosy options
-  // receive one cached local skin pass on the AI result, without a new AI call.
+  // Legacy makeup retains its existing selective finish. The new rosy look
+  // uses AI skin refinement and soft light, without a separate face overlay.
   if(gender==='female'&&options.femaleEyeStyle==='makeup')finished=await finishFemaleMakeupSoftFocusBlob(finished);
-  if(gender==='female'&&['natural','korean-rosy-v1'].includes(options.femaleEyeStyle)){
-   finished=await finishAiPortraitSkin(finished,{decode:decodedPortraitImage,faceFor:portraitFaceFor,masksFor:getV192MasterMasks,toBlob:canvasPng});
-  }
   assertCurrentOperation();
   return finished;
  });
@@ -2598,14 +2570,14 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const info=await submitPortraitJob(operation,async()=>{
  const fd=new FormData();
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const aiInput=await canonicalPortraitInput(originalFile,{normalize:prepareAiPortraitInput,legacy:Boolean(activeSavedDownloadWork)});assertProcessActive(operation);
+ const aiInput=await canonicalPortraitInput(originalFile,{normalize:levelPortraitCutout,legacy:Boolean(activeSavedDownloadWork)});assertProcessActive(operation);
  fd.append('image',aiInput,aiInput===originalFile?(originalFile.name||'portrait.png'):'portrait-upright.png');
  fd.append('originalSource',originalFile,originalFile.name||'original-portrait.png');
  fd.append('hairId',hairId||'original');
  if(originalFile.idpromDownloadWorkId)fd.append('downloadWorkId',originalFile.idpromDownloadWorkId);
  if(options.sourceJobId)fd.append('sourceJobId',options.sourceJobId);
  fd.append('femaleEyeStyle',portraitFinishChoice(options.femaleEyeStyle));
- if(['natural','korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)&&options.templatePath)fd.append('outfitReferencePath',options.templatePath);
+ if(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)&&options.templatePath)fd.append('outfitReferencePath',options.templatePath);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female';
  if((originalFile.idpromStudioSourceReplacement===true&&selected)||(portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle))){
@@ -4381,7 +4353,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const source=firstUploadedPhotoRef.current,mode=hairResultMode(id,portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
   const makeupKey=mode==='female'&&finishStyle==='makeup'?'upload-adaptive-korean-v1':'';
-  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-source-eye-lock-v32-no-local-tone':finishStyle==='soft-rosy-v1'?'soft-rosy-v1-'+SOFT_ROSY_FINISH_VERSION:finishStyle==='korean-rosy-v1'?'korean-rosy-v1-'+KOREAN_ROSY_FINISH_VERSION:mode==='female'&&finishStyle==='natural'?'natural-'+NATURAL_FINISH_VERSION:finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference',...(['natural','korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?[outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate??'']:[])]);
+  return JSON.stringify([HAIR_DESIGN_VERSION,mode,id||'original',finishStyle==='makeup'?'makeup-source-eye-lock-v32-no-local-tone':finishStyle==='soft-rosy-v1'?'soft-rosy-v1-'+SOFT_ROSY_FINISH_VERSION:finishStyle==='korean-rosy-v1'?'korean-rosy-v1-'+KOREAN_ROSY_FINISH_VERSION:mode==='female'&&finishStyle==='natural'?'natural-'+NATURAL_FINISH_VERSION:finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference',...(['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?[outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate??'']:[])]);
  };
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
@@ -4429,7 +4401,8 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const changeHair=async id=>changeHairForStudio(id);
  const fitChangedHairMaster=async(master,previous)=>{
   const [oldImage,newImage]=await Promise.all([decodedPortraitImage(previous.master),decodedPortraitImage(master)]);
-  const [oldFace,newFace]=await Promise.all([portraitFaceFor(previous.master,oldImage),portraitFaceFor(master,newImage)]);
+  const detector=await getLandmarker();
+  const oldFace=detector.detect(oldImage).faceLandmarks?.[0],newFace=detector.detect(newImage).faceLandmarks?.[0];
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle,sourceJobId,outfitReferencePath}={})=>{
@@ -4452,7 +4425,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;}else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,templatePath:['natural','korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?(outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate):(editCache.current?.lock?.templatePath||activeUniformTemplate),onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,templatePath:['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?(outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate):(editCache.current?.lock?.templatePath||activeUniformTemplate),onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
      generatedResult=aiHeadNeck;
      if(!studioOnly&&aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
@@ -4910,7 +4883,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    setOutputJobId(previous.jobId);setTrialPreview(previous.studioTrial);
   };
   try{
-   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true,femaleEyeStyle,sourceJobId:previous.jobId,...(['natural','korean-rosy-v1','soft-rosy-v1'].includes(femaleEyeStyle)?{outfitReferencePath}:{})});
+   staged=await changeHairForStudio(id,portraitMode,{studioOnly:true,femaleEyeStyle,sourceJobId:previous.jobId,...(['korean-rosy-v1','soft-rosy-v1'].includes(femaleEyeStyle)?{outfitReferencePath}:{})});
    if(!staged?.master||staged.hairId!==(id||''))throw Error('ผลลัพธ์ไม่ตรงกับทรงที่เลือก กรุณาลองใหม่');
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(staged.master,staged.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);

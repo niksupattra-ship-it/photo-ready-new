@@ -1002,7 +1002,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
   setAssetBusy(true);setStatus(reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   const result=stagedResult=await onChangeHair(id,mode,finish,...(['natural','korean-rosy-v1','soft-rosy-v1'].includes(finish)?[state.current.find(l=>layerKind(l)==='suit')?.templatePath||'']:[]));
+   const result=stagedResult=await onChangeHair(id,mode,finish,...(['korean-rosy-v1','soft-rosy-v1'].includes(finish)?[state.current.find(l=>layerKind(l)==='suit')?.templatePath||'']:[]));
    reused=result?.reused===true;
    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');

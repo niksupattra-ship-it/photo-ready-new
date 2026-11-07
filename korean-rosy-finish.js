@@ -1,4 +1,3 @@
-import {SHARED_PORTRAIT_SKIN_FINISH,SHARED_PORTRAIT_SKIN_PRIORITY} from './natural-soft-light-finish.js';
 // Independent opt-in policy. Never append the legacy makeup policy to this look.
 export const KOREAN_ROSY_FINISH=`KOREAN ROSY V1 — CLEAR TRANSLUCENT PINK STUDIO MAKEUP:
 Use Image 1, the original uploaded photo, as the sole identity and base-complexion source. Fit the selected hairstyle from its reference without borrowing that model's face, head shape or complexion. Preserve the person's recognisable identity, age, facial width/height, jaw, chin, cheek volume, eyes, nose, mouth, expression, stable marks and natural asymmetry. No slimming, stretching, eye enlargement, symmetry filter or facial reshaping.
@@ -6,17 +5,8 @@ Brighten and even facial AND neck skin together with a delicate translucent heal
 Create restrained Korean makeup: softly groomed natural brows in their original positions, sheer skin-like upper eyelid tone and moderately lifted fine separated Korean lashes, proportionate to the original eyes. No heavy false-lash strip, dense clusters, dramatic extensions, eyeliner wing, glitter or altered eyelid folds. Keep lower-eye skin naturally neutral with gentle anatomical shading.
 Keep the exact original lip shape and size; apply fresh translucent pink adapted to the natural lip colour with a small soft moist gloss, not opaque lipstick or exaggerated shine. Preserve fine lip texture. Complete skin, neck, lashes, lips and lighting in this single generation, without extra AI passes or inheriting a previous generated makeup image. Preserve all hairstyle, anatomical neck, framing, garment-removal and transparent-cutout requirements.`;
 
-// Keep the original cosmetic wording above as the stable source for old work.
-// The current visible makeup choice uses the SAME skin/light recipe as natural.
-export const KOREAN_ROSY_ORIGINAL_COSMETICS=KOREAN_ROSY_FINISH.slice(KOREAN_ROSY_FINISH.indexOf('Create restrained Korean makeup:'));
-// Current visible makeup only; historical/hidden styles retain their recipe.
-export const KOREAN_ROSY_CURRENT_COSMETICS=KOREAN_ROSY_ORIGINAL_COSMETICS
- .replace('moderately lifted fine separated Korean lashes, proportionate to the original eyes.','more visibly defined, slightly longer and fuller lifted Korean lashes, individually separated and proportionate to the original eyes. Add a fine dark-brown/soft-black eyeliner tightly along the upper lash line to define the eyes visibly, following the existing eye contour without enlarging the eyes or changing eyelid folds.')
- .replace('apply fresh translucent pink adapted to the natural lip colour with a small soft moist gloss','apply a richer, clearly visible rosy-red pink lip tint, redder and more saturated than the previous sheer pink while adapted to the natural lip colour, with a small soft moist gloss');
-export const KOREAN_ROSY_SHARED_SKIN_FINISH=[
- 'KOREAN ROSY V1 — SHARED NATURAL SKIN WITH DEFINED KOREAN MAKEUP:',
- KOREAN_ROSY_FINISH.split('\n')[1],
- SHARED_PORTRAIT_SKIN_FINISH,
- KOREAN_ROSY_CURRENT_COSMETICS
-].join('\n');
-export const KOREAN_ROSY_SKIN_PRIORITY=SHARED_PORTRAIT_SKIN_PRIORITY+'\nMAKEUP CHECK: Keep the original brow and upper-eyelid tone recipe; apply the requested more defined separated Korean lashes, thin upper-lash-line eyeliner and richer rosy-red pink lips specified above, on top of the shared skin/light finish. Do not retain unmade-up brows/eyes/lashes under a no-makeup rule. Do not change skin softness, wrinkle retouch, diffuse lighting, original facial proportions, selected hairstyle, neck coverage or cutout. Complete in the SAME single generation.\n';
+// The original pre-relighting makeup specification above is unchanged.
+// This separate addendum changes illumination only.
+export const KOREAN_ROSY_SKIN_PRIORITY=`
+ORIGINAL MAKEUP — LIGHTING ONLY ADDENDUM V8: Apply the preceding ORIGINAL makeup specification unchanged. Change ONLY the illumination on face, ears and neck: use STRONGER broad soft frontal fill to make skin light visibly more diffuse, flatter, brighter and evenly distributed. Increase the strength and spread of soft skin illumination beyond a conservative natural correction; lower the residual light-to-shadow contrast across the whole face, ears and neck, with wide seamless tonal falloff rather than hard highlight borders. Lift residual dim cheek/nose-side/mouth/chin/neck regions more assertively toward the surrounding skin exposure and reduce harsh skin hotspots, with broad seamless tonal transitions. Keep only faint natural nose/jaw/chin shadows needed to retain the same facial shape. Preserve original complexion, fine skin texture, existing marks and all original eyebrow, eye, lash and lip cosmetic choices. Do not introduce any new brow/eye/lip recipe, foundation/concealer requirement, skin-surface retouching style, contouring or white/gray overlay. No new skin glare, clipped highlights, opaque face mask or change of facial anatomy. This addendum overrides only conflicting light/shadow strength, never the original makeup instructions. Keep selected hairstyle, camera framing, neck/clavicle coverage and transparent cutout unchanged, in the SAME single generation.
+`;

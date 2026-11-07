@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import {REFERENCE_SKIN_FINISH,REFERENCE_SKIN_PRIORITY} from '../reference-skin-finish.js';
-import {KOREAN_ROSY_FINISH} from '../korean-rosy-finish.js';
 import {femaleFinishFor} from '../review-portrait-finish.js';
 import {productionPortraitPrompt,processProductionPortrait} from '../production-portrait-pipeline.js';
 import {NATURAL_SOFT_LIGHT_FINISH,NATURAL_SOFT_LIGHT_PRIORITY} from '../natural-soft-light-finish.js';
@@ -21,12 +19,8 @@ try{
   assert(out.length>8);assert.deepEqual(stages,['generation','matting','edges']);const body=calls.at(-1);
   assert.equal(body.image,'data:image/png;base64,'+png.toString('base64'));
   if(portraitMode==='female'){
-   assert(body.prompt.includes(REFERENCE_SKIN_FINISH));assert(body.prompt.includes(REFERENCE_SKIN_PRIORITY));
-   const lip=KOREAN_ROSY_FINISH.match(/Keep the exact original lip shape and size;.*?Preserve fine lip texture\./)[0];assert(NATURAL_SOFT_LIGHT_FINISH.includes(lip));
-   assert(body.prompt.includes('Do not add or redesign eyebrows'));assert(!body.prompt.includes('eyeliner tightly along the upper lash line'));
-   assert(body.prompt.endsWith(NATURAL_SOFT_LIGHT_PRIORITY));assert(!body.prompt.includes('Reduce skin-only clarity and texture strongly'));assert(!body.prompt.includes('BROWS — REPLACE OLD BROW APPEARANCE'));
-
+   assert(body.prompt.includes('NO ADDED MAKEUP'));assert(body.prompt.includes('SUPPRESS OILY SKIN SHEEN MORE STRONGLY'));assert(body.prompt.includes('STRONGER diffuse frontal fill'));assert(body.prompt.includes('NO-MAKEUP ONLY — BRIGHTER, FLATTER FRONTAL FILL'));assert(body.prompt.includes('NOTICEABLY BRIGHTER, FLATTER, LOW-CONTRAST'));assert(body.prompt.includes('Keep only faint soft anatomical shading'));assert(body.prompt.includes('CURVES AND SHADOWS/HIGHLIGHTS EQUIVALENT'));assert(body.prompt.includes('SKIN-LIGHT DIFFUSION'));assert(body.prompt.includes('LOCAL CURVES AND DODGE & BURN'));assert(body.prompt.includes('Only AFTER the skin exposure is even'));assert(body.prompt.includes('Do not flatten all skin lightness differences'));assert(body.prompt.includes('LOCAL COLOUR BALANCE'));assert(body.prompt.includes('VISIBLY BRIGHTER EVEN SKIN'));assert(body.prompt.includes('WHOLE forehead, BOTH cheeks'));assert(body.prompt.includes('no flat white overlay'));assert(!body.prompt.includes('no uniform face brightening'));assert(body.prompt.includes('REMOVE SKIN HOTSPOTS'));assert(body.prompt.includes('Do not remove eye catchlights'));assert(body.prompt.endsWith(NATURAL_SOFT_LIGHT_PRIORITY));assert(!body.prompt.includes('BROWS — REPLACE OLD BROW APPEARANCE'));
   }else{assert(!body.prompt.includes('NATURAL SOFT LIGHT'));assert(body.prompt.startsWith(productionPortraitPrompt({gender:'male'},'natural').split('MALE DEFAULT HAIRSTYLE')[0].slice(0,200)))}
  }
- assert.equal(calls.length,2);console.log('PASS no-makeup sends softer light and skin-glare removal in one request, matching pink lips without added eye/brow makeup; male policy and source pixels preserved; all providers mocked.');
+ assert.equal(calls.length,2);console.log('PASS no-makeup sends softer light and skin-glare removal in one request, no makeup instructions; male policy and source pixels preserved; all providers mocked.');
 }finally{globalThis.fetch=previous}

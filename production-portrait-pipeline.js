@@ -62,7 +62,7 @@ export function validateProductionPortrait(input,fields={}){
  const id=fields.hairId||'original',selected=productionHair(id);
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
- if(['natural','korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle||'natural')&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
+ if(['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
  parsePortraitIdentityBox(fields.faceIdentityBox);
  parseFemaleMakeupReference(fields,selected);
  return selected;
@@ -125,12 +125,11 @@ Remove the person's original hairstyle where it conflicts with Image 2. Do not i
 FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, show only the smooth, compact side-parted scalp hair in Image 2. Both sides end cleanly above or behind the ear; the entire sides of both ears and the background beside and below them are clear. Remove every detached strand beside the cheek or ear, every hanging tip behind the jaw, and any ponytail, bun, tail or dark patch on either side behind the neck. Replace removed hair with the same plain blue background, not a skin-coloured or dark blob. No source hairstyle may remain outside the selected silhouette. Keep the existing ears, face, jaw, neck and head scale exactly as specified. Retain fine natural roots and an unbroken soft hairline without a wig-like edge. This instruction takes priority over any lower reference tip or source hair in Image 1.
 `;
  let outfit=null;
- if(selected.gender==='female'&&['natural','korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle||'natural')&&fields.outfitReferencePath){
+ if(selected.gender==='female'&&['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath){
   const file=checkedOutfitReferencePath(fields.outfitReferencePath);
   outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
-  prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Keep the requested cosmetic or no-added-makeup finish unchanged; this outfit reference changes lighting only.\n`;
+  prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Apply ${fields.femaleEyeStyle==='soft-rosy-v1'?'SOFT ROSY V1':'KOREAN ROSY V1'} cosmetics in this same generation.\n`;
  }
- if(selected.gender==='female')prompt+='\nSHARED HEAD GEOMETRY — ALL FEMALE FINISHES: Image 1 anchors the anatomical forehead height, natural hairline roots, temple positions, skull size, face length and head-to-face proportions. Cosmetics and skin lighting must never raise the hairline, lengthen the forehead, enlarge the skull or increase crown height. When Image 2 is present, copy its selected hair design only and fit its parting, braid and crown compactly to this same original skull; do not copy the reference model forehead or head proportions. Preserve the same geometry for makeup and no-added-makeup. Inspect and correct any elevated hairline, inflated braid/crown or stretched forehead within this generation, without changing the requested hairstyle, cosmetics, neck base or framing.\n';
  if(selected.gender==='female'&&fields.femaleEyeStyle==='soft-rosy-v1')prompt+=SOFT_ROSY_COMPLETION_CHECK;
  if(selected.gender==='female'&&fields.femaleEyeStyle==='korean-rosy-v1')prompt+=KOREAN_ROSY_SKIN_PRIORITY;
  if(selected.gender==='female'&&(fields.femaleEyeStyle||'natural')==='natural')prompt+=NATURAL_SOFT_LIGHT_PRIORITY;
