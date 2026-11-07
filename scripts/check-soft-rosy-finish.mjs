@@ -6,14 +6,14 @@ import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 import {SOFT_ROSY_PORTRAIT_MAKEUP,SOFT_ROSY_TEXTURE_PRIORITY,ORIGINAL_PORTRAIT_COSMETICS} from '../soft-rosy-portrait-finish.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const finishes=['makeup','soft-rosy-v1'];
+const finishes=['makeup','korean-rosy-v1','soft-rosy-v1'];
 // Baselines captured from the previously published finish implementation.
-assert.equal(hash(finishes.map(s=>femaleFinishFor(s))),'1c819aa054f0953f23101a9a802149d919cbe5a60df224242a57ab5dfab8b06d');
-assert.equal(hash(PRODUCTION_HAIR_CATALOG.flatMap(h=>finishes.map(f=>productionPortraitPrompt(h,f)))),'5e7d4bd82a0901ab8ab9a008b81d3b265bced1bdd90dde9da0c52069de9d3c0c');
+assert.equal(hash(finishes.map(s=>femaleFinishFor(s))),'01d081d528121e9d2c7721ecf801c258714685fb8a264644a142326a8a8f0899');
+assert.equal(hash(PRODUCTION_HAIR_CATALOG.flatMap(h=>finishes.map(f=>productionPortraitPrompt(h,f)))),'a0b71ca2f5d3e0f94c161f1f650afef298c48ea983d85aec6b669b75d55e86b0');
 assert.equal(femaleFinishFor('soft-rosy-v1'),SOFT_ROSY_PORTRAIT_MAKEUP);
 for(const old of ['natural','makeup','korean-rosy-v1']){assert.notEqual(femaleFinishFor(old),SOFT_ROSY_PORTRAIT_MAKEUP);assert.equal(portraitFinishChoice(old),old)}
 assert.equal(portraitFinishChoice('soft-rosy-v1'),'soft-rosy-v1');
-console.log('PASS legacy and soft makeup policies unchanged; natural and original makeup receive requested brighter, even light.');
+console.log('PASS all makeup policies unchanged; only no-makeup receives stronger flat frontal fill and brighter skin.');
 
 for(const h of PRODUCTION_HAIR_CATALOG){
  const prompt=productionPortraitPrompt(h,'soft-rosy-v1');
