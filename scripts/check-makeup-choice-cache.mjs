@@ -16,7 +16,7 @@ function fixture(){
   async aiFinishPortrait(source,id,options){calls.push({source,id,options});if(env.failGeneration)throw Error('generation failed');const value=Object.assign(new Blob([`result-${id}-${options.femaleEyeStyle}-${calls.length}`]),{idpromJobId:'job-'+calls.length,idpromTrial:true,...(options.portraitMode==='female'&&options.femaleEyeStyle==='natural'?{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{})});env.activeProcessOperation.jobId=value.idpromJobId;env.currentOutputJobRef.current=value.idpromJobId;return value},
   finishFirstPortraitMaster:async value=>value,fitChangedHairMaster:async(_master,current)=>current.lock,
   async verifyOutputRights(jobId){rights.push(jobId);if(env.failRights)return {checked:false,message:'rights unavailable'};return {checked:true,unlocked:env.paid===true}},
-  async renderAdjustedFinal(...args){if(env.failRender)throw Error('render failed');args.at(-1).push({name:'หัว · คอ · ผม',source:args[0]})},femaleFinishMetadata:()=>({}),finishProgress:async success=>{if(!success)env.activeProcessOperation.cancelled=true}
+  async renderAdjustedFinal(...args){if(env.failRender)throw Error('render failed');args.at(-1).push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(args[0]),source:args[0]})},femaleFinishMetadata:()=>({}),finishProgress:async success=>{if(!success)env.activeProcessOperation.cancelled=true}
  };
  const a=main.indexOf(' const hairResultMode='),b=main.indexOf(' const changeHair=async',a);assert(a>=0&&b>a);
  const memory=new Function('env',`with(env){${main.slice(a,b)};return {rememberHairResult,rememberRestoredHairResult,cachedHairResult,canReuseHair,hairResultKey,hairResultScope}}`)(env);Object.assign(env,memory);
