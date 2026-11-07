@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 import sharp from 'sharp';
 import {femaleFinishFor} from '../review-portrait-finish.js';
 import {productionPortraitPrompt,processProductionPortrait} from '../production-portrait-pipeline.js';
@@ -19,8 +21,15 @@ try{
   assert(out.length>8);assert.deepEqual(stages,['generation','matting','edges']);const body=calls.at(-1);
   assert.equal(body.image,'data:image/png;base64,'+png.toString('base64'));
   if(portraitMode==='female'){
-   assert(body.prompt.includes('NO ADDED MAKEUP'));assert(body.prompt.includes('NATURAL SKIN RETOUCH — EVEN TONE, FINE LINES AND DISCOLOURATION'));assert(body.prompt.includes('small acne/post-acne dark spots'));assert(body.prompt.includes('pore-rim contrast and gritty grain visibly further'));assert(body.prompt.includes('permanent identifying moles'));assert(body.prompt.includes('FINAL SKIN RETOUCH'));assert(body.prompt.includes('FLAT EVEN SKIN LIGHT'));assert(body.prompt.includes('fine wrinkle pattern is no longer conspicuous'));assert(body.prompt.includes('Flatten surface wrinkle microrelief and patchy light, not facial anatomy'));assert(!body.prompt.includes('lip gloss, foundation or concealer. The lip finish'));assert(body.prompt.includes('SUPPRESS OILY SKIN SHEEN MORE STRONGLY'));assert(body.prompt.includes('STRONGER diffuse frontal fill'));assert(body.prompt.includes('NO-MAKEUP ONLY — BRIGHTER, FLATTER FRONTAL FILL'));assert(body.prompt.includes('NOTICEABLY BRIGHTER, FLATTER, LOW-CONTRAST'));assert(body.prompt.includes('Keep only faint soft anatomical shading'));assert(body.prompt.includes('CURVES AND SHADOWS/HIGHLIGHTS EQUIVALENT'));assert(body.prompt.includes('SKIN-LIGHT DIFFUSION'));assert(body.prompt.includes('LOCAL CURVES AND DODGE & BURN'));assert(body.prompt.includes('Only AFTER the skin exposure is even'));assert(body.prompt.includes('Do not flatten all skin lightness differences'));assert(body.prompt.includes('LOCAL COLOUR BALANCE'));assert(body.prompt.includes('VISIBLY BRIGHTER EVEN SKIN'));assert(body.prompt.includes('WHOLE forehead, BOTH cheeks'));assert(body.prompt.includes('no flat white overlay'));assert(!body.prompt.includes('no uniform face brightening'));assert(body.prompt.includes('REMOVE SKIN HOTSPOTS'));assert(body.prompt.includes('Do not remove eye catchlights'));assert(body.prompt.endsWith(NATURAL_SOFT_LIGHT_PRIORITY));assert(!body.prompt.includes('BROWS — REPLACE OLD BROW APPEARANCE'));
+   assert(body.prompt.includes(NATURAL_SOFT_LIGHT_FINISH));assert(body.prompt.endsWith(NATURAL_SOFT_LIGHT_PRIORITY));
+   for(const phrase of ['SURFACE RETOUCH','ordinary freckles','age/sun spots','FLAT DIFFUSE LIGHT','fair-luminous','Retain clearly identifiable moles only','COSMETICS: Keep the original brow design','NATURAL RETOUCHED SKIN'])assert(body.prompt.includes(phrase));
+   for(const phrase of ['ไม่ฟอกผิว','skin whitening or feature replacement','not whitening the complexion','permanent identifying marks','8–10%','5–7%','Do not flatten all skin lightness differences','LIGHTING ONLY ADDENDUM','BROWS — REPLACE OLD BROW APPEARANCE'])assert(!body.prompt.includes(phrase),phrase);
+
   }else{assert(!body.prompt.includes('NATURAL SOFT LIGHT'));assert(body.prompt.startsWith(productionPortraitPrompt({gender:'male'},'natural').split('MALE DEFAULT HAIRSTYLE')[0].slice(0,200)))}
  }
  assert.equal(calls.length,2);console.log('PASS no-makeup sends softer light and skin-glare removal in one request, no makeup instructions; male policy and source pixels preserved; all providers mocked.');
 }finally{globalThis.fetch=previous}
+
+const otherPrompts=PRODUCTION_HAIR_CATALOG.flatMap(h=>(h.gender==='female'?['makeup','korean-rosy-v1','soft-rosy-v1']:['natural']).map(style=>({id:h.id,style,prompt:productionPortraitPrompt(h,style)})));
+assert.equal(createHash('sha256').update(JSON.stringify(otherPrompts)).digest('hex'),'0189ceaf9d1e41824bebbe431bd6df06523c8ff0b2a63f14787c12643e025ea5','other finish prompts must remain unchanged');
+console.log('PASS '+otherPrompts.length+' makeup/hidden/male prompts unchanged byte-for-byte.');
