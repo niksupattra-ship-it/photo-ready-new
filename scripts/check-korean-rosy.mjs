@@ -30,8 +30,8 @@ try{
  assert(calls[0].payload.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 2'));
  assert(calls[0].payload.prompt.includes(KOREAN_ROSY_FINISH));
  assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));
- assert(KOREAN_ROSY_SKIN_PRIORITY.includes('LIGHTING ONLY ADDENDUM V7'));
- assert(KOREAN_ROSY_SKIN_PRIORITY.includes('makeup specification unchanged'));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('LIGHTING ONLY ADDENDUM V8'));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('makeup specification unchanged'));assert(KOREAN_ROSY_SKIN_PRIORITY.includes('STRONGER broad soft frontal fill'));
  assert(KOREAN_ROSY_SKIN_PRIORITY.includes('flatter, brighter and evenly distributed'));
  assert(!calls[0].payload.prompt.includes('FINAL MAKEUP PRIORITY'));
  assert(!calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION'));
