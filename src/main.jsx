@@ -1482,7 +1482,7 @@ async function prepareAiPortraitInput(blob){
  const upright=await levelPortraitCutout(blob),image=await decodedPortraitImage(upright);
  const W=image.naturalWidth,H=image.naturalHeight;
  const [face,skin]=await Promise.all([portraitFaceFor(upright,image),semanticClassMask(image,W,H,[2,3])]);
- const prepared=preparePreAiSkin(image,skin,face);
+ const prepared=await preparePreAiSkin(image,skin,face);
  try{const result=await canvasPng(prepared);result.idpromPreAiSkinVersion=PRE_AI_SKIN_VERSION;return result}
  finally{prepared.width=1;prepared.height=1}
 }

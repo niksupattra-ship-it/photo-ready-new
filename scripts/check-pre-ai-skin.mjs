@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {blendPreAiSkin,PRE_AI_SKIN_VERSION} from '../src/pre-ai-skin.js';
+import {buildPreAiSkinField,PRE_AI_SKIN_VERSION} from '../src/pre-ai-skin.js';
 import {canonicalPortraitInput} from '../src/canonical-portrait-input.js';
-const source=new Uint8ClampedArray([160,120,100,255,30,20,10,255,160,120,100,255]);
-const detail=new Uint8ClampedArray([150,112,94,255,145,110,90,255,145,110,90,255]);
-const tone=new Uint8ClampedArray([152,114,96,255,150,115,95,255,150,115,95,255]);
-const mask=new Uint8ClampedArray([255,255,255,255,255,255,255,255,0,0,0,0]);
-const before=source.slice(),result=blendPreAiSkin(source,detail,tone,mask);
-assert.deepEqual(source,before);assert(result[0]<source[0]&&result[0]>detail[0]);
-assert.deepEqual(result.slice(4,8),source.slice(4,8),'dark stable mark retained');
-assert.deepEqual(result.slice(8),source.slice(8),'non-skin/protected pixels exact');
+const w=64,h=64,source=new Uint8ClampedArray(w*h*4),coverage=new Float32Array(w*h).fill(1);
+for(let i=0;i<w*h;i++)source.set([160,140,120,255],i*4);
+const even=await buildPreAiSkinField(source,w,h,coverage);assert(even.deltas.every(v=>Math.abs(v)<.1));
+for(let y=0;y<h;y++)for(let x=0;x<25;x++){const i=(y*w+x)*4;source[i]-=35;source[i+1]-=35;source[i+2]-=35}
+const before=source.slice(),field=await buildPreAiSkinField(source,w,h,coverage);
+assert.deepEqual(source,before);assert(field.stats.uneven);assert(field.deltas.some(v=>v>1));
+source.set([25,20,15,255],(32*w+32)*4);const marked=await buildPreAiSkinField(source,w,h,coverage);
+assert(marked.protectedPixels[32*w+32]);assert.deepEqual(Array.from(marked.deltas.slice((32*w+32)*3,(32*w+32)*3+3)),[0,0,0]);
+coverage.fill(0);assert((await buildPreAiSkinField(source,w,h,coverage)).deltas.every(v=>v===0));
 const main=await readFile('src/main.jsx','utf8');
 const start=main.indexOf('async function prepareAiPortraitInput('),end=main.indexOf('async function levelPortraitCutout(',start);
 assert(start>0&&end>start);const order=[];let freed;
@@ -21,4 +22,4 @@ assert.equal(a,prepared);assert.equal(a,b);assert.equal(await canonicalPortraitI
 assert.equal(order.filter(x=>x==='smooth').length,1);assert.equal(order[0],'level');assert.equal(order.at(-1),'smooth');assert.equal(await original.text(),'original');assert.equal(freed.width,1);
 assert.equal(await canonicalPortraitInput(original,{normalize,legacy:true}),original);
 assert(main.includes('normalize:prepareAiPortraitInput'));
-console.log('PASS skin-only blend, stable marks/features, source immutability, level → skin → cached AI input, concurrent reuse and legacy source compatibility. No paid AI.');
+console.log('PASS source-adaptive colour/light, unchanged even skin, stable marks/features, source immutability, level → skin → cached AI input, concurrent reuse and legacy source compatibility. No paid AI.');
