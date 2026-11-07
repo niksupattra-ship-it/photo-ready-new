@@ -84,6 +84,7 @@ import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
+import {createImmutablePortraitMemo} from './immutable-portrait-memo.js';
 import {preparePreAiSkin,PRE_AI_SKIN_VERSION} from './pre-ai-skin.js';
 import {submitPortraitJob,cancelPortraitJob} from './portrait-operation.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
@@ -251,6 +252,15 @@ function decodedPortraitImage(blob){
  }
  return pending;
 }
+// Share landmarks only for the exact immutable image, never across cleaned,
+// rotated, skin-retouched or regenerated Blobs.
+const portraitFaceMemo=createImmutablePortraitMemo();
+function portraitFaceFor(blob,image){
+ return portraitFaceMemo(blob,async()=>{
+  const decoded=image||await decodedPortraitImage(blob);
+  return (await getLandmarker()).detect(decoded).faceLandmarks?.[0]||null;
+ });
+}
 const originalSkinProfileCache=new WeakMap();
 function originalSkinProfile(sourceBlob){
  if(!sourceBlob)return Promise.resolve(null);
@@ -379,7 +389,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
  try{
   const head=await decodedPortraitImage(headBlob), uniform=uniformImg;
   const hb=await alphaBounds(head);
-  const face=(await getLandmarker()).detect(head).faceLandmarks?.[0];
+  const face=await portraitFaceFor(headBlob,head);
   if(!face) throw Error('ตรวจจับสัดส่วนใบหน้าหลังตัดศีรษะไม่สำเร็จ');
 
   const W=bg.naturalWidth,H=bg.naturalHeight;
@@ -1320,7 +1330,7 @@ async function removeFirstPortraitBackground(blob){
 // Use native pixels and the existing segmentation classes; no AI retry or resize.
 async function cleanPortraitClothing(blob){
  const im=await decodedPortraitImage(blob),W=im.naturalWidth,H=im.naturalHeight;
- const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+ const face=await portraitFaceFor(blob,im);
  if(!face?.[152])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');
  const masks=await getV192MasterMasks(blob,im);
  if(!masks.clothingMask||!masks.skinMask||!masks.hairMask)throw Error('ตรวจแยกเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองอีกครั้ง');
@@ -1471,8 +1481,7 @@ async function cleanLowerPortraitOutline(blob){
 async function prepareAiPortraitInput(blob){
  const upright=await levelPortraitCutout(blob),image=await decodedPortraitImage(upright);
  const W=image.naturalWidth,H=image.naturalHeight;
- const [model,skin]=await Promise.all([getLandmarker(),semanticClassMask(image,W,H,[2,3])]);
- const face=model.detect(image).faceLandmarks?.[0];
+ const [face,skin]=await Promise.all([portraitFaceFor(upright,image),semanticClassMask(image,W,H,[2,3])]);
  const prepared=preparePreAiSkin(image,skin,face);
  try{const result=await canvasPng(prepared);result.idpromPreAiSkinVersion=PRE_AI_SKIN_VERSION;return result}
  finally{prepared.width=1;prepared.height=1}
@@ -1481,7 +1490,7 @@ async function prepareAiPortraitInput(blob){
 async function levelPortraitCutout(blob){
  try{
   const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
-  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  const face=await portraitFaceFor(blob,image);
   const transform=portraitLevelTransform(face,W,H);if(!transform)return blob;
   // Expand the transparent canvas to avoid cutting off hair or neck corners.
   const canvas=canvasFor(transform.width,transform.height),ctx=canvas.getContext('2d');
@@ -2376,11 +2385,11 @@ async function templateNecklineProfile(templatePath){
 const faceMetricsCache=new WeakMap();
 async function portraitFaceMetrics(blob){
  if(faceMetricsCache.has(blob))return faceMetricsCache.get(blob);
- const pending=(async()=>{const url=URL.createObjectURL(blob);try{
-  const image=await loadImage(url),model=await getLandmarker();
-  const face=model.detect(image).faceLandmarks?.[0],proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
+ const pending=(async()=>{
+  const image=await decodedPortraitImage(blob),face=await portraitFaceFor(blob,image);
+  const proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
   return proportions?{...proportions,protectedFeatures:portraitProtectedFeatures(face,image.naturalWidth,image.naturalHeight)}:null;
- }finally{URL.revokeObjectURL(url)}})();
+ })();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
 async function checkPortraitProportions(source,result,{protectFeatures=false}={}){
@@ -2401,9 +2410,13 @@ async function checkPortraitProportions(source,result,{protectFeatures=false}={}
 }
 // Check the returned AI cutout before hydration and delivery confirmation.
 // Evidence canvases are small; the output master is never resampled or edited.
-async function portraitCompletionEvidence(blob,includeGarments=false){
+const portraitCompletionMemo=createImmutablePortraitMemo();
+function portraitCompletionEvidence(blob,includeGarments=false){
+ return portraitCompletionMemo(blob,()=>buildPortraitCompletionEvidence(blob,includeGarments),Boolean(includeGarments));
+}
+async function buildPortraitCompletionEvidence(blob,includeGarments=false){
  const im=await decodedPortraitImage(blob),W=im.naturalWidth,H=im.naturalHeight;
- const face=(await getLandmarker()).detect(im).faceLandmarks?.[0];
+ const face=await portraitFaceFor(blob,im);
  const masks=await getV192MasterMasks(blob,im);
  if(!face?.[33]||!face?.[263]||!face?.[152]||!face?.[234]||!face?.[454]||!masks.hairMask||(includeGarments&&!masks.clothingMask))throw Object.assign(Error('ตรวจความครบถ้วนของภาพไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  const lx=face[33].x*W,ly=face[33].y*H,rx=face[263].x*W,ry=face[263].y*H,d=Math.hypot(rx-lx,ry-ly);
@@ -4412,8 +4425,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const changeHair=async id=>changeHairForStudio(id);
  const fitChangedHairMaster=async(master,previous)=>{
   const [oldImage,newImage]=await Promise.all([decodedPortraitImage(previous.master),decodedPortraitImage(master)]);
-  const detector=await getLandmarker();
-  const oldFace=detector.detect(oldImage).faceLandmarks?.[0],newFace=detector.detect(newImage).faceLandmarks?.[0];
+  const [oldFace,newFace]=await Promise.all([portraitFaceFor(previous.master,oldImage),portraitFaceFor(master,newImage)]);
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle,sourceJobId,outfitReferencePath}={})=>{
