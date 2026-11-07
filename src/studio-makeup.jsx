@@ -1,6 +1,5 @@
 import React from 'react';
 import {MAKEUP_LOOKS} from '../makeup-presets.js';
-import {SOFT_ROSY_PORTRAIT_FINISH} from './portrait-finish-choice.js';
 import './studio-makeup.css';
 const PORTRAIT_FINISHES=[
  {id:'korean-rosy-v1',name:'แต่งหน้า',preview:'/assets/face-finish/makeup.webp'},
@@ -20,7 +19,6 @@ export function MakeupPanel({lookId,onSelect,onRestore,canRestore,disabled,hasHe
   <div className="studio-makeup-choices studio-makeup-options">
    {canSelectPortraitFinish&&typeof onPortraitFinishSelect==='function'&&<>
     <div className="studio-original-makeup-choices">{PORTRAIT_FINISHES.map(finishButton)}</div>
-    <div className="studio-additional-ai-makeup">{finishButton(SOFT_ROSY_PORTRAIT_FINISH)}</div>
    </>}
    {MAKEUP_LOOKS.filter(look=>!look.ai).map(look=>{
     const name=LOCAL_LABELS[look.id]||look.name;
