@@ -6,7 +6,7 @@ export function portraitFinishChoice(...choices){
 export const SOFT_ROSY_PORTRAIT_FINISH={id:'soft-rosy-v1',name:'ละมุน',preview:'/assets/face-finish/makeup.webp'};
 
 // Shared revision for same-choice selection, generation caches and saved heads.
-export const NATURAL_FINISH_VERSION='natural-soft-skin-pink-lips-v10';
+export const NATURAL_FINISH_VERSION='natural-stronger-skin-diffusion-v11';
 export const KOREAN_ROSY_FINISH_VERSION='original-makeup-shared-head-inputs-v10';
 export const SOFT_ROSY_FINISH_VERSION='foundation-shared-head-inputs-v9';
 export function portraitFinishIsCurrent(head,finish,mode=head?.portraitMode){
