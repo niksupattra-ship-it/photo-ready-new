@@ -1,5 +1,5 @@
 // Deterministic skin-only input preparation. No geometry changes or remote API.
-export const PRE_AI_SKIN_VERSION='skin-even-full-face-v2';
+export const PRE_AI_SKIN_VERSION='skin-even-full-face-light-v3';
 const canvas=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
 export function blendPreAiSkin(source,detail,tone,mask){
  const out=new Uint8ClampedArray(source);
@@ -7,7 +7,7 @@ export function blendPreAiSkin(source,detail,tone,mask){
   if(!mask[i+3]||!source[i+3])continue;
   const difference=Math.max(Math.abs(source[i]-detail[i]),Math.abs(source[i+1]-detail[i+1]),Math.abs(source[i+2]-detail[i+2]));
   // Protect moles, dark identifying marks and strong edges from smoothing.
-  const edge=Math.exp(-Math.pow(difference/22,4)),weight=Math.max(0,(mask[i+3]-128)/127)*.72*edge;
+  const edge=Math.exp(-Math.pow(difference/22,4)),weight=Math.max(0,(mask[i+3]-128)/127)*.40*edge;
   for(let k=0;k<3;k++){
    const tonal=Math.max(-8,Math.min(8,(tone[i+k]-detail[i+k])*.24));
    out[i+k]=source[i+k]+weight*(detail[i+k]+tonal-source[i+k]);
