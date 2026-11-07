@@ -1,0 +1,6 @@
+/* One row for portrait choices and local skin tools; scroll on narrow panels. */
+.idstudio .studio-makeup-panel .studio-makeup-row{display:flex;flex-wrap:nowrap;align-items:stretch;gap:6px;width:100%;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:3px 1px 8px;touch-action:pan-x;scroll-snap-type:x proximity}
+.idstudio .studio-makeup-panel .studio-makeup-row .studio-makeup-choices>button.studio-makeup-choice{box-sizing:border-box;flex:0 0 clamp(62px,calc((100% - 24px) / 5),104px);width:auto;min-width:0;max-width:none;min-height:0;margin:0;padding:4px;text-align:center;scroll-snap-align:start}
+.idstudio .studio-makeup-panel .studio-makeup-row .studio-makeup-choice .studio-makeup-face-preview{display:block;width:100%;overflow:hidden;border-radius:7px}
+.idstudio .studio-makeup-panel .studio-makeup-row .studio-makeup-choice img{display:block;width:100%;height:auto;aspect-ratio:92/112;object-fit:cover;margin:0;border-radius:7px}
+.idstudio .studio-makeup-panel .studio-makeup-row .studio-makeup-choice small{display:block;min-height:0;margin:6px 0 0;font-size:10px;line-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
