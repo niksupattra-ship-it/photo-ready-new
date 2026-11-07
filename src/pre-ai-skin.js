@@ -1,5 +1,5 @@
 // Deterministic skin-only input preparation. No geometry changes or remote API.
-export const PRE_AI_SKIN_VERSION='skin-even-v1';
+export const PRE_AI_SKIN_VERSION='skin-even-full-face-v2';
 const canvas=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
 export function blendPreAiSkin(source,detail,tone,mask){
  const out=new Uint8ClampedArray(source);
@@ -17,7 +17,7 @@ export function blendPreAiSkin(source,detail,tone,mask){
 }
 export function preparePreAiSkin(image,skinMask,face){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
- const required=[33,263,10,152,234,454,70,107,336,300,61,291,13,14,98,327];
+ const required=[33,263,10,152];
  if(!skinMask||required.some(id=>!Number.isFinite(face?.[id]?.x)||!Number.isFinite(face?.[id]?.y)))throw Error('ตรวจบริเวณผิวก่อนประมวลผลไม่สำเร็จ กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
  const eyes=Math.hypot((face[33].x-face[263].x)*W,(face[33].y-face[263].y)*H);
  if(eyes<20)throw Error('ใบหน้าเล็กเกินไปสำหรับปรับผิวก่อนประมวลผล');
@@ -38,11 +38,9 @@ export function preparePreAiSkin(image,skinMask,face){
  const extent=canvas(W,H),ec=extent.getContext('2d');ec.fillStyle='white';
  const cx=(face[33].x+face[263].x)*W/2,top=face[10].y*H,bottom=Math.min(H,face[152].y*H+eyes*1.5);
  ec.fillRect(cx-eyes*1.05,top,eyes*2.1,Math.max(0,bottom-top));mc.drawImage(extent,0,0);
- mc.globalCompositeOperation='destination-out';mc.fillStyle='white';
- const protect=(ids,pad)=>{const ps=ids.map(id=>face[id]),xs=ps.map(p=>p.x*W),ys=ps.map(p=>p.y*H);mc.fillRect(Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)-Math.min(...xs)+pad*2,Math.max(...ys)-Math.min(...ys)+pad*2)};
- protect([33,263],eyes*.15); // Eye band, including lashes; intentionally generous.
- protect([70,107],eyes*.09);protect([336,300],eyes*.09);
- protect([61,291,13,14],eyes*.08);protect([98,327],eyes*.055);
+ // Smooth continuously across all labelled facial skin, including eyelids,
+ // under-eyes, between/around brows and nose. No rectangular feature holes.
+ // Pixel-level edge weights preserve dark feature edges and identifying marks.
  // Feather inward only: the original eroded mask bounds every changed pixel.
  const feather=canvas(W,H),fc=feather.getContext('2d');fc.filter=`blur(${Math.max(1,eyes*.02)}px)`;fc.drawImage(safe,0,0);mc.globalCompositeOperation='destination-in';mc.drawImage(feather,0,0);
  const pixels=ctx.getImageData(0,0,W,H);pixels.data.set(blendPreAiSkin(pixels.data,detail,tone,mc.getImageData(0,0,W,H).data));ctx.putImageData(pixels,0,0);
