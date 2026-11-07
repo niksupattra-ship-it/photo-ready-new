@@ -26,6 +26,17 @@ await test('invalid normalization is not cached and legacy originals retain thei
  assert.equal(source.idpromCanonicalInput,undefined);assert.equal(await canonicalPortraitInput(source,{normalize:async()=>source}),source);
  source.idpromCanonicalInput=new Blob(['new-png'],{type:'image/png'});assert.equal(await canonicalPortraitInput(source,{legacy:true}),source);
 });
+await test('legacy owned work reuses the exact server-frozen canonical input while retaining raw proof bytes',async()=>{
+ const source=photo('unchanged raw proof'),canonical=new Blob(['server frozen canonical'],{type:'image/png'});source.idpromDownloadWorkId='owned-work-id';source.idpromCanonicalInput=canonical;
+ assert.equal(await canonicalPortraitInput(source,{legacy:true,normalize:()=>{throw Error('owned canonical must not be re-encoded')}}),canonical);
+ assert.equal(await source.text(),'unchanged raw proof');assert.equal(source.idpromDownloadWorkId,'owned-work-id');
+});
+await test('legacy raw proof without a nonempty owned work ID does not substitute a stored normalized image',async()=>{
+ for(const workId of [undefined,'',false,123]){
+  const source=photo('historical raw original');source.idpromDownloadWorkId=workId;source.idpromCanonicalInput=new Blob(['unbound normalized bytes'],{type:'image/png'});
+  assert.equal(await canonicalPortraitInput(source,{legacy:true,normalize:()=>{throw Error('legacy proof must remain raw')}}),source);assert.equal(await source.text(),'historical raw original');
+ }
+});
 await test('cancel waits through preparation and a delayed response, then settles the late job only once',async()=>{
  const operation={cancelled:true,settled:false},gate=deferred();let settled=0,done=false;
  const submission=submitPortraitJob(operation,()=>gate.promise);

@@ -3,20 +3,25 @@ import {readFile} from 'node:fs/promises';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {isFreeFemaleHair} from '../src/free-female-hair.js';
 import {NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata} from '../natural-studio-skin.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
+import {hasCurrentStudioSkin,studioSkinWorkflowMetadata} from '../studio-skin-metadata.js';
 import {PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const noop=()=>{};
+function currentHeadMetadata(style){return {studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,...(style==='natural'?{naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{studioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':'+style})}}
+function processedMaster(style,bytes){return Object.assign(new Blob([bytes]),{idpromStudioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,...(style==='natural'?{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{idpromStudioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':'+style})})}
+
 function extract(start,end,name,env){const a=main.indexOf(start),b=main.indexOf(end,a);assert(a>=0&&b>a,`missing ${name}`);return new Function('env',`with(env){${main.slice(a,b)};return ${name}}`)(env)}
 function fixture(){
  const file=Object.assign(new Blob(['immutable uploaded photo']),{idpromPortraitMode:'female',idpromFemaleEyeStyle:'makeup'}),calls=[],rights=[],messages=[];
  let wallet='wallet-A',privateTrial=false;
- const env={studioPhotoTransactionRef:{current:false},window:{dispatchEvent(){}},CustomEvent:class{},PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata,portraitFinishChoice,isFreeFemaleHair,firstUploadedPhotoRef:{current:file},editCache:{current:{master:new Blob(['accepted first makeup']),lock:{templatePath:'female.png'}}},hairResultCacheRef:{current:new Map()},hairRequestRef:{current:false},hairBusy:false,busy:false,activeProcessOperation:{jobId:'job-first',cancelled:false,settled:true},currentOutputJobRef:{current:'job-first'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},activeUniformTemplate:'female.png',liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},backgroundRef:{current:'background'},currentResultCacheScope:()=>wallet,privateTrialRequested:()=>privateTrial,
+ const env={studioPhotoTransactionRef:{current:false},window:{dispatchEvent(){}},CustomEvent:class{},PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata,STUDIO_SKIN_WORKFLOW_VERSION,hasCurrentStudioSkin,studioSkinWorkflowMetadata,portraitFinishChoice,isFreeFemaleHair,firstUploadedPhotoRef:{current:file},editCache:{current:{master:processedMaster('makeup','accepted first makeup'),lock:{templatePath:'female.png'}}},hairResultCacheRef:{current:new Map()},hairRequestRef:{current:false},hairBusy:false,busy:false,activeProcessOperation:{jobId:'job-first',cancelled:false,settled:true},currentOutputJobRef:{current:'job-first'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},activeUniformTemplate:'female.png',liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},backgroundRef:{current:'background'},currentResultCacheScope:()=>wallet,privateTrialRequested:()=>privateTrial,
   setHairGenerating:noop,setHairBusy:v=>{env.hairBusy=v},setMsg:v=>messages.push(v),setProgressStage:noop,setOutputJobId:noop,setTrialPreview:noop,setHairId:noop,beginOptionRender:noop,
   beginProgress:()=>{env.activeProcessOperation={jobId:null,cancelled:false,settled:false}},assertProcessActive:(operation=env.activeProcessOperation)=>{if(operation?.cancelled)throw Error('cancelled')},
-  async aiFinishPortrait(source,id,options){calls.push({source,id,options});if(env.failGeneration)throw Error('generation failed');const value=Object.assign(new Blob([`result-${id}-${options.femaleEyeStyle}-${calls.length}`]),{idpromJobId:'job-'+calls.length,idpromTrial:true,...(options.portraitMode==='female'&&options.femaleEyeStyle==='natural'?{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{})});env.activeProcessOperation.jobId=value.idpromJobId;env.currentOutputJobRef.current=value.idpromJobId;return value},
+  async aiFinishPortrait(source,id,options){calls.push({source,id,options});if(env.failGeneration)throw Error('generation failed');const value=Object.assign(options.portraitMode==='female'?processedMaster(options.femaleEyeStyle,`result-${id}-${options.femaleEyeStyle}-${calls.length}`):new Blob([`male-result-${id}-${calls.length}`]),{idpromJobId:'job-'+calls.length,idpromTrial:true});env.activeProcessOperation.jobId=value.idpromJobId;env.currentOutputJobRef.current=value.idpromJobId;return value},
   finishFirstPortraitMaster:async value=>value,fitChangedHairMaster:async(_master,current)=>current.lock,
   async verifyOutputRights(jobId){rights.push(jobId);if(env.failRights)return {checked:false,message:'rights unavailable'};return {checked:true,unlocked:env.paid===true}},
-  async renderAdjustedFinal(...args){if(env.failRender)throw Error('render failed');args.at(-1).push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(args[0]),source:args[0]})},femaleFinishMetadata:()=>({}),finishProgress:async success=>{if(!success)env.activeProcessOperation.cancelled=true}
+  async renderAdjustedFinal(...args){if(env.failRender)throw Error('render failed');args.at(-1).push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(args[0]),...studioSkinWorkflowMetadata(args[0]),source:args[0]})},femaleFinishMetadata:()=>({}),finishProgress:async success=>{if(!success)env.activeProcessOperation.cancelled=true}
  };
  const a=main.indexOf(' const hairResultMode='),b=main.indexOf(' const changeHair=async',a);assert(a>=0&&b>a);
  const memory=new Function('env',`with(env){${main.slice(a,b)};return {rememberHairResult,rememberRestoredHairResult,cachedHairResult,canReuseHair,hairResultKey,hairResultScope}}`)(env);Object.assign(env,memory);
@@ -60,14 +65,14 @@ await test('another source, account or private-trial scope cannot reuse prior re
  for(const kind of ['source','account','trial']){const f=fixture();if(kind==='source')f.env.firstUploadedPhotoRef.current=new Blob(['another photo']);else if(kind==='account')f.setWallet('wallet-B');else f.setPrivateTrial(true);assert.equal(f.memory.canReuseHair('seedream-19','female','makeup'),false)}
 });
 await test('restored current variant seeds active finish and is reusable without generation',async()=>{
- const f=fixture();f.env.hairResultCacheRef.current.clear();f.file.idpromFemaleEyeStyle='makeup';const initial=f.env.editCache.current.master;f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',initialFemaleEyeStyle:'makeup',naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION});assert.equal(f.file.idpromFemaleEyeStyle,'natural');assert.equal(f.memory.canReuseHair('seedream-19','female','natural'),true);assert.equal(f.memory.canReuseHair('seedream-19','female','makeup'),false);const makeup=await f.change('seedream-19','female','makeup');makeup.commit();const natural=await f.change('seedream-19','female','natural');assert.equal(natural.reused,true);natural.commit();assert.equal(f.env.editCache.current.master,initial);assert.equal(f.calls.length,1);
+ const f=fixture();f.env.hairResultCacheRef.current.clear();f.file.idpromFemaleEyeStyle='makeup';f.env.editCache.current.master=processedMaster('natural','accepted restored natural');const initial=f.env.editCache.current.master;f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',initialFemaleEyeStyle:'makeup',...currentHeadMetadata('natural')});assert.equal(f.file.idpromFemaleEyeStyle,'natural');assert.equal(f.memory.canReuseHair('seedream-19','female','natural'),true);assert.equal(f.memory.canReuseHair('seedream-19','female','makeup'),false);const makeup=await f.change('seedream-19','female','makeup');makeup.commit();const natural=await f.change('seedream-19','female','natural');assert.equal(natural.reused,true);natural.commit();assert.equal(f.env.editCache.current.master,initial);assert.equal(f.calls.length,1);
 });
 await test('restored incomplete head cannot seed an unrelated job or no master',async()=>{
- const f=fixture();f.env.hairResultCacheRef.current.clear();f.memory.rememberRestoredHairResult({jobId:'other-job',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION});assert.equal(f.env.hairResultCacheRef.current.size,0);f.env.editCache.current=null;f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION});assert.equal(f.env.hairResultCacheRef.current.size,0);
+ const f=fixture();f.env.hairResultCacheRef.current.clear();f.memory.rememberRestoredHairResult({jobId:'other-job',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',...currentHeadMetadata('natural')});assert.equal(f.env.hairResultCacheRef.current.size,0);f.env.editCache.current=null;f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',...currentHeadMetadata('natural')});assert.equal(f.env.hairResultCacheRef.current.size,0);
 });
 await test('restored free hairstyles remember their untouched AI base under the underlying no-hair key',async()=>{
  for(const metadata of [{hairId:'hair-21',freeHairBaseOriginal:true},{hairId:'hair-21'},{hairId:'',freeHairBaseOriginal:true}]){
-  const f=fixture();f.env.hairResultCacheRef.current.clear();const bytes=Buffer.from('untouched AI base including native ears and inner hair');const head={...metadata,jobId:'job-first',portraitMode:'female',femaleEyeStyle:'makeup',hairOriginalSource:'data:image/png;base64,'+bytes.toString('base64')};f.memory.rememberRestoredHairResult(head);const cached=f.memory.cachedHairResult('','female','makeup');assert(cached?.confirmed);assert.equal(await cached.master.text(),bytes.toString());assert.equal(cached.master.type,'image/png');assert.notEqual(cached.master,f.env.editCache.current.master);assert.equal(f.memory.canReuseHair('hair-21','female','makeup'),false);
+  const f=fixture();f.env.hairResultCacheRef.current.clear();const bytes=Buffer.from('untouched AI base including native ears and inner hair');const head={...metadata,jobId:'job-first',portraitMode:'female',femaleEyeStyle:'makeup',...currentHeadMetadata('makeup'),hairOriginalSource:'data:image/png;base64,'+bytes.toString('base64')};f.memory.rememberRestoredHairResult(head);const cached=f.memory.cachedHairResult('','female','makeup');assert(cached?.confirmed);assert.equal(await cached.master.text(),bytes.toString());assert.equal(cached.master.type,'image/png');assert.notEqual(cached.master,f.env.editCache.current.master);assert.equal(f.memory.canReuseHair('hair-21','female','makeup'),false);
   const natural=await f.change('','female','natural');natural.commit();const makeup=await f.change('','female','makeup');assert.equal(makeup.reused,true);makeup.commit();assert.equal(await f.env.editCache.current.master.text(),bytes.toString());assert.equal(f.calls.length,1);
  }
 });
@@ -105,11 +110,12 @@ await test('new soft rosy finish uses original source and selected hair/outfit w
 await test('old saved soft rosy result cannot seed the revised skin finish cache',async()=>{
  const f=fixture();f.env.hairResultCacheRef.current.clear();const head={jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'soft-rosy-v1'};
  f.memory.rememberRestoredHairResult(head);assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),false);
- f.memory.rememberRestoredHairResult({...head,softRosyFinishVersion:'soft-radiance-korean-brows-v7'});assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),true);
+ f.memory.rememberRestoredHairResult({...head,softRosyFinishVersion:'soft-radiance-korean-brows-v7'});assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),false);
+ f.memory.rememberRestoredHairResult({...head,softRosyFinishVersion:'soft-radiance-korean-brows-v7',...currentHeadMetadata('soft-rosy-v1')});assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),true);
 });
 
 await test('old natural work stays visible without seeding the revised skin cache',async()=>{
- const f=fixture(),master=f.env.editCache.current.master;
+ const f=fixture();f.env.editCache.current.master=new Blob(['old visible natural']);const master=f.env.editCache.current.master;
  f.env.hairResultCacheRef.current.clear();
  const head={jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural'};
  for(const metadata of [{},{naturalStudioSkinVersion:'older-revision'}]){
@@ -120,20 +126,42 @@ await test('old natural work stays visible without seeding the revised skin cach
   assert.equal(f.env.currentOutputJobRef.current,'job-first');
   assert.equal(f.calls.length,0);
  }
- f.memory.rememberRestoredHairResult({...head,naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION});
+ f.memory.rememberRestoredHairResult({...head,...currentHeadMetadata('natural')});
  assert.equal(f.memory.canReuseHair('seedream-19','female','natural'),true);
  assert.equal(f.memory.cachedHairResult('seedream-19','female','natural').master.idpromNaturalStudioSkinVersion,NATURAL_STUDIO_SKIN_VERSION);
  assert.equal(f.calls.length,0);
 });
 await test('restoring a current natural head never stamps the immutable uploaded source',async()=>{
  const f=fixture();f.env.hairResultCacheRef.current.clear();f.env.editCache.current.master=f.file;
- f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION});
+ f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:'natural',...currentHeadMetadata('natural')});
  const cached=f.memory.cachedHairResult('seedream-19','female','natural');
  assert(cached?.confirmed);assert.notEqual(cached.master,f.file);
  assert.equal(cached.master.idpromNaturalStudioSkinVersion,NATURAL_STUDIO_SKIN_VERSION);
  assert.equal(f.file.idpromNaturalStudioSkinVersion,undefined);
  assert.equal(await f.file.text(),'immutable uploaded photo');
  assert.equal(f.calls.length,0);
+});
+
+
+await test('all saved female styles require the exact skin and optional cosmetic completion revision',async()=>{
+ for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){
+  const f=fixture();f.env.hairResultCacheRef.current.clear();f.env.editCache.current.master=new Blob(['visible saved '+style]);
+  const head={jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:style,...(style==='natural'?{naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{}),...(style==='soft-rosy-v1'?{softRosyFinishVersion:'soft-radiance-korean-brows-v7'}:{})};
+  const invalid=[{},{studioSkinVersion:'older-skin-stage'},{studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,studioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':wrong-style'}];
+  if(style!=='natural')invalid.push({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION});
+  for(const metadata of invalid){f.memory.rememberRestoredHairResult({...head,...metadata});assert.equal(f.memory.canReuseHair('seedream-19','female',style),false);assert.equal(f.calls.length,0)}
+  f.memory.rememberRestoredHairResult({...head,...currentHeadMetadata(style)});
+  const cached=f.memory.cachedHairResult('seedream-19','female',style);assert(cached?.confirmed);assert(hasCurrentStudioSkin(cached.master,style));assert.equal(f.file.idpromStudioSkinVersion,undefined);assert.equal(f.file.idpromStudioCosmeticsVersion,undefined);
+ }
+});
+await test('a staged revision isolates female cached variants while leaving male keys unchanged',async()=>{
+ const f=fixture(),female=f.memory.hairResultKey('seedream-19','female','korean-rosy-v1'),male=f.memory.hairResultKey('seedream-35','male','natural');
+ f.env.STUDIO_SKIN_WORKFLOW_VERSION='different-studio-skin-revision';
+ assert.notEqual(f.memory.hairResultKey('seedream-19','female','korean-rosy-v1'),female);assert.equal(f.memory.hairResultKey('seedream-35','male','natural'),male);
+});
+await test('legacy male saved heads restore without female skin or cosmetic markers',async()=>{
+ const f=fixture();f.env.hairResultCacheRef.current.clear();f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-35',portraitMode:'male',femaleEyeStyle:'natural'});
+ assert(f.memory.cachedHairResult('seedream-35','male','natural')?.confirmed);assert.equal(f.file.idpromStudioSkinVersion,undefined);assert.equal(f.calls.length,0);
 });
 
 console.log(`PASS: ${passed} actual App makeup/cache scenarios; AI, rendering and payment API mocked; no external requests.`);

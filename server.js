@@ -221,7 +221,7 @@ async function requireCredit(req,res,kind){
 
 const upload=multer({
   storage:multer.memoryStorage(),
-  limits:{fileSize:20*1024*1024,files:2,fields:10,parts:12}
+  limits:{fileSize:20*1024*1024,files:2,fields:12,parts:16}
 });
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
 registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sharp(buffer).metadata(),createSourceDownloadJob,downloadPolicy});
@@ -442,7 +442,16 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   const pinned=await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,delivery_pending:true,delivery_confirmed:false};
   // Only the immutable, owned work input reaches generation. A raw-upload proof
   // does not authorize substituting unrelated pixels beside that proof.
-  if(!pinned.buffer.equals(image.buffer))delete fields.faceIdentityBox;
+   if(!pinned.buffer.equals(image.buffer)){
+    if(fields.studioSkinVersion){
+     // Ownership and the untouched-source proof have already been checked.
+     // Return that exact frozen input so the browser can measure it once more;
+     // never apply a mask from a different encoder/orientation to these pixels.
+     await refundCredit(creditUse.usageId);creditUse=null;
+     return res.status(409).set({'X-IDPROM-Canonical-Input':'1','Content-Type':pinned.mimetype,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}).send(pinned.buffer);
+    }
+    delete fields.faceIdentityBox;
+   }
   const jobImage={...image,buffer:pinned.buffer,mimetype:pinned.mimetype,originalname:'portrait-input'+(pinned.mimetype==='image/jpeg'?'.jpg':pinned.mimetype==='image/webp'?'.webp':'.png')};
   const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields,image:jobImage,mask});
   createdJobId=id;await downloadPolicy.attach(walletId(req),downloadWorkId,id);

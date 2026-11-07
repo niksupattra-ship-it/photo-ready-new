@@ -5,7 +5,10 @@ const supported=new Set(['image/png','image/jpeg','image/webp']);
 function usable(blob){return blob instanceof Blob&&blob.size>0&&supported.has(blob.type)}
 export function canonicalPortraitInput(source,{normalize,legacy=false}={}){
  if(!usable(source))return Promise.reject(Error('อ่านรูปต้นฉบับไม่สำเร็จ กรุณาเพิ่มรูปใหม่'));
- // Historical saved-work proof is bound to the stored original bytes.
+ // An owned work may already carry the server's exact frozen input. Its raw
+ // upload is still sent separately as originalSource for the ownership proof.
+ if(legacy&&typeof source.idpromDownloadWorkId==='string'&&source.idpromDownloadWorkId&&usable(source.idpromCanonicalInput))return Promise.resolve(source.idpromCanonicalInput);
+ // Historical saved-work proof without a frozen work input uses the raw bytes.
  if(legacy)return Promise.resolve(source);
  if(usable(source.idpromCanonicalInput))return Promise.resolve(source.idpromCanonicalInput);
  if(pendingInputs.has(source))return pendingInputs.get(source);
