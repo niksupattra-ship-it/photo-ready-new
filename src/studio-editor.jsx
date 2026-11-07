@@ -11,6 +11,7 @@ import {replaceStudioSourceLayers} from './replace-studio-source.js';
 import {ProcessResultNotice,processResultKind} from './process-result-notice.jsx';
 import {StudioBackgroundColor} from './studio-background-color.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
+import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {createPortal} from 'react-dom';
 import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
@@ -988,7 +989,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,currentFinish):'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
+  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;
@@ -1042,7 +1043,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   if(!['makeup','natural','korean-rosy-v1','soft-rosy-v1'].includes(style)||!head?.jobId||(head.portraitMode||portraitMode)!=='female'||!sourcePhoto||processHairPending||state.current.some(l=>l.id===sourceLayerRef.current))return;
   const current=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
-  if((['soft-rosy-ai-v1','soft-rosy-makeup-v1'].includes(head.makeupStyles?.look))&&head.makeupBaseSource&&style===current){void restoreMakeup();return}
+  if((['soft-rosy-ai-v1','soft-rosy-makeup-v1'].includes(head.makeupStyles?.look))&&head.makeupBaseSource&&style===current&&(style!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)){void restoreMakeup();return}
   void applyHair(head.freeHairBaseOriginal?'':head.hairId||'',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
