@@ -30,7 +30,7 @@ function skinBase(pixels,w,h,coverage,radius){
 
 // Frequency-separated corrections: retain native high-frequency samples and
 // apply bounded colour/light deltas, with conservative spot-only retouching.
-export async function buildPreAiSkinField(pixels,w,h,coverage,{radius=Math.max(4,Math.round(w*.025))}={}){
+export async function buildPreAiSkinField(pixels,w,h,coverage,{radius=Math.max(4,Math.round(w*.025)),finish='prepare'}={}){
  if(pixels.length!==w*h*4||coverage.length!==w*h)throw Error('ข้อมูลเตรียมผิวไม่ครบ');
  const Y=new Float32Array(w*h);for(let i=0;i<Y.length;i++)Y[i]=luma(pixels[i*4],pixels[i*4+1],pixels[i*4+2]);
  const fine=await guidedMakeupLuminance(Y,w,h,Math.max(2,radius*.25));
@@ -47,14 +47,25 @@ export async function buildPreAiSkinField(pixels,w,h,coverage,{radius=Math.max(4
   // A clearly red, midtone spot can be colour-corrected; dark or ambiguous
   // marks retain the conservative mole protection from the existing tool.
   const clearRed=redExcess>14&&Y[i]>90&&Y[i]<220&&pixels[j]-pixels[j+2]>16;
-  if(spots.protectedPixels[i]&&!clearRed)continue;
-  if(clearRed)spots.protectedPixels[i]=0;
+  // The final pass may soften moderate brown/red surface marks. Truly dark
+  // marks remain protected. A contiguous patch is required so isolated pore
+  // samples are not treated as blemishes.
+  let neighbours=0;
+  if(finish==='post'&&Y[i]>85&&broad-Y[i]>5&&broad-Y[i]<30){
+   const x=i%w,y=Math.floor(i/w);
+   for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++)for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
+    const n=yy*w+xx;if(coverage[n]>.8&&Y[n]>85&&broad-Y[n]>5&&broad-Y[n]<30)neighbours++;
+   }
+  }
+  const moderateMark=neighbours>=4;
+  if(spots.protectedPixels[i]&&!clearRed&&!moderateMark)continue;
+  if(clearRed||moderateMark)spots.protectedPixels[i]=0;
   const edge=1-clamp((Math.abs(residual)-8)/14,0,1),skin=clamp((Y[i]-55)/45,0,1),weight=coverage[i]*edge*skin;
   if(weight<=0)continue;
   // Analyse the original light: soften local hard patches, compress broad
   // light contrast gently, retain the source's light direction and 3D shading.
-  const balance=uneven?clamp(dead(target-broad,7)*.24,-5,7):0;
-  const diffusion=clamp(dead(broad-fine[i],2)*.28,-5,5);
+  const balance=uneven?clamp(dead(target-broad,7)*(finish==='post'?.34:.24),-5,7):0;
+  const diffusion=clamp(dead(broad-fine[i],2)*(finish==='post'?.38:.28),-5,5);
   const light=clamp(balance+diffusion,-5,7);
   // Distinguish small red blemishes/shallow fine creases from pores and moles.
   const spot=redExcess>7&&pixels[j]-pixels[j+2]>12;
@@ -62,7 +73,7 @@ export async function buildPreAiSkinField(pixels,w,h,coverage,{radius=Math.max(4
   for(let channel=0;channel<3;channel++){
    const chroma=(base[k+channel]-broad)-(pixels[j+channel]-Y[i]);
    const colour=Math.abs(chroma)<16?clamp(dead(chroma,4)*.18,-2,2):0;
-   const repair=clearRed?clamp((base[k+channel]-pixels[j+channel])*.55,-10,10):spot?spots.deltas[k+channel]:0;
+   const repair=moderateMark?clamp((base[k+channel]-pixels[j+channel])*.35,-7,7):clearRed?clamp((base[k+channel]-pixels[j+channel])*.55,-10,10):spot?spots.deltas[k+channel]:0;
    const delta=clamp(light+colour+repair,-10,12)*weight;
    deltas[k+channel]=delta;if(Math.abs(delta)>=.5)corrected++;
   }
@@ -70,7 +81,7 @@ export async function buildPreAiSkinField(pixels,w,h,coverage,{radius=Math.max(4
  return {deltas,protectedPixels:spots.protectedPixels,stats:{uneven,lightSpread:high-low,correctedChannels:corrected}};
 }
 
-export async function preparePreAiSkin(image,skinMask,face){
+export async function preparePreAiSkin(image,skinMask,face,{finish='prepare'}={}){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const required=[33,263,10,152,...LOCAL_MAKEUP_CONTOURS.eyes.flat(),...LOCAL_MAKEUP_CONTOURS.brows.flat(),...LOCAL_MAKEUP_CONTOURS.lips];
  if(!skinMask||required.some(id=>!Number.isFinite(face?.[id]?.x)||!Number.isFinite(face?.[id]?.y)))throw Error('ตรวจบริเวณผิวก่อนประมวลผลไม่สำเร็จ กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
@@ -86,7 +97,7 @@ export async function preparePreAiSkin(image,skinMask,face){
  const alpha=await readBlurredMaskAlpha(mask,w,h,0),soft=await readBlurredMaskAlpha(mask,w,h,Math.max(1,eye*scale*.018)),protectedAlpha=await readBlurredMaskAlpha(features,w,h,0),featureSoft=await readBlurredMaskAlpha(features,w,h,1);
  const coverage=new Float32Array(w*h),cx=(face[33].x+face[263].x)*w/2,top=face[10].y*h-eye*scale*.05,bottom=face[152].y*h+eye*scale*1.5;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=y*w+x;coverage[i]=Math.abs(x-cx)<=eye*scale*1.1&&y>=top&&y<=bottom?alpha[i]/255*clamp((soft[i]-128)/127,0,1)*(1-protectedAlpha[i]/255)*(1-featureSoft[i]/255):0}
- const field=await buildPreAiSkinField(pixels,w,h,coverage,{radius:Math.max(4,Math.round(eye*scale*.12))});
+ const field=await buildPreAiSkinField(pixels,w,h,coverage,{radius:Math.max(4,Math.round(eye*scale*.12)),finish});
  const encoded=canvas(w,h),ex=encoded.getContext('2d'),data=ex.createImageData(w,h);
  for(let i=0;i<w*h;i++){for(let c=0;c<3;c++)data.data[i*4+c]=128+field.deltas[i*3+c]*4;data.data[i*4+3]=255}ex.putImageData(data,0,0);
  const full=canvas(W,H),fc=full.getContext('2d',{willReadFrequently:true});fc.drawImage(encoded,0,0,W,H);const correction=fc.getImageData(0,0,W,H).data;

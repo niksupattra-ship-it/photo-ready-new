@@ -86,6 +86,7 @@ import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
 import {createImmutablePortraitMemo} from './immutable-portrait-memo.js';
 import {preparePreAiSkin,PRE_AI_SKIN_VERSION} from './pre-ai-skin.js';
+import {finishAiPortraitSkin} from './post-ai-skin.js';
 import {submitPortraitJob,cancelPortraitJob} from './portrait-operation.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
@@ -2532,9 +2533,12 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const cleaned=await cleanPortraitClothing(result);
   assertCurrentOperation();
   let finished=cleaned;
-  // Legacy makeup retains its existing selective finish. The new rosy look
-  // uses AI skin refinement and soft light, without a separate face overlay.
+  // Legacy makeup keeps its existing finish. Visible natural/rosy options
+  // receive one cached local skin pass on the AI result, without a new AI call.
   if(gender==='female'&&options.femaleEyeStyle==='makeup')finished=await finishFemaleMakeupSoftFocusBlob(finished);
+  if(gender==='female'&&['natural','korean-rosy-v1'].includes(options.femaleEyeStyle)){
+   finished=await finishAiPortraitSkin(finished,{decode:decodedPortraitImage,faceFor:portraitFaceFor,masksFor:getV192MasterMasks,toBlob:canvasPng});
+  }
   assertCurrentOperation();
   return finished;
  });
