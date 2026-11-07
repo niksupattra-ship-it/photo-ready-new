@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import {SOFT_SKIN_TONAL_LIGHT} from '../natural-soft-light-finish.js';
-import {KOREAN_ROSY_SKIN_PRIORITY,KOREAN_ROSY_LIGHT_ONLY,KOREAN_ROSY_COSMETICS} from '../korean-rosy-finish.js';
+import {createHash} from 'node:crypto';
+import {KOREAN_ROSY_FINISH,KOREAN_ROSY_SKIN_PRIORITY} from '../korean-rosy-finish.js';
 import sharp from 'sharp';
 import {mkdtemp,mkdir,writeFile,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -8,6 +8,8 @@ import path from 'node:path';
 import {femaleFinishFor} from '../review-portrait-finish.js';
 import {productionPortraitPrompt,processProductionPortrait,checkedOutfitReferencePath} from '../production-portrait-pipeline.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
+// Exact original makeup before the lighting changes, from commit a413865.
+assert.equal(createHash('sha256').update(KOREAN_ROSY_FINISH).digest('hex'),'e87539033def737b0f9799f06bda76dcebdd337bf796ad0963531c2c3effd157');
 assert.equal(portraitFinishChoice('korean-rosy-v1','makeup'),'korean-rosy-v1');
 assert(!femaleFinishFor('makeup').includes('KOREAN ROSY V1'));
 assert(!femaleFinishFor('natural').includes('KOREAN ROSY V1'));
@@ -26,6 +28,13 @@ try{
  assert.equal(calls.length,1);assert.equal(calls[0].payload.image.length,2);
  assert.equal(calls[0].payload.image[0],'data:image/png;base64,'+image.toString('base64'));
  assert(calls[0].payload.prompt.includes('OUTFIT LIGHTING REFERENCE — IMAGE 2'));
- assert(calls[0].payload.prompt.includes('KOREAN ROSY V1'));assert(calls[0].payload.prompt.includes(KOREAN_ROSY_LIGHT_ONLY));assert.equal(KOREAN_ROSY_LIGHT_ONLY,SOFT_SKIN_TONAL_LIGHT.replace('erasing texture or adding cosmetics','erasing texture or changing the specified makeup'));assert(!calls[0].payload.prompt.includes('erasing texture or adding cosmetics'));assert(calls[0].payload.prompt.lastIndexOf(KOREAN_ROSY_COSMETICS)>calls[0].payload.prompt.lastIndexOf('FINAL MAKEUP PRIORITY'));assert(calls[0].payload.prompt.includes('LOCAL CURVES AND DODGE & BURN'));assert(calls[0].payload.prompt.includes('then skin-light diffusion AFTER exposure is even'));assert(calls[0].payload.prompt.includes('VISIBLY BRIGHTER EVEN SKIN'));assert(calls[0].payload.prompt.includes('visibly brighter together'));assert(!calls[0].payload.prompt.includes('NO ADDED MAKEUP'));assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));assert(calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION 6'));assert(calls[0].payload.prompt.includes('broad, softly luminous highlights'));
+ assert(calls[0].payload.prompt.includes(KOREAN_ROSY_FINISH));
+ assert(calls[0].payload.prompt.endsWith(KOREAN_ROSY_SKIN_PRIORITY));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('LIGHTING ONLY ADDENDUM V7'));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('makeup specification unchanged'));
+ assert(KOREAN_ROSY_SKIN_PRIORITY.includes('flatter, brighter and evenly distributed'));
+ assert(!calls[0].payload.prompt.includes('FINAL MAKEUP PRIORITY'));
+ assert(!calls[0].payload.prompt.includes('SOFT EVEN SKIN REVISION'));
+
 }finally{globalThis.fetch=originalFetch;await rm(root,{recursive:true,force:true})}
-console.log('PASS independent Korean policy, original photo, outfit image, one mocked generation and path validation; no network or paid AI.');
+console.log('PASS exact pre-relighting makeup restored byte-for-byte with a separate light-only addendum; one mocked request with original source/outfit, no paid AI.');
