@@ -21,3 +21,17 @@ FINAL NO-MAKEUP LIGHT CHECK — NATURAL SOFT LIGHT V10: Produce NOTICEABLY BRIGH
 
 // Share only the tonal/light instructions, never the no-makeup cosmetic rules.
 export const SOFT_SKIN_TONAL_LIGHT=NATURAL_SOFT_LIGHT_FINISH.slice(NATURAL_SOFT_LIGHT_FINISH.indexOf('TONAL BALANCE —'),NATURAL_SOFT_LIGHT_FINISH.indexOf('\nLOCAL COLOUR BALANCE:'));
+
+// Same skin/light recipe for both visible finishes. Remove only cosmetic-specific
+// restrictions; the natural choice above is intentionally unchanged.
+const sharedSkinRules=text=>text
+ .replaceAll('NO-MAKEUP ONLY — BRIGHTER, FLATTER FRONTAL FILL:','SHARED SKIN — BRIGHTER, FLATTER FRONTAL FILL:')
+ .replaceAll('no-makeup','shared skin')
+ .replaceAll('additional eye/brow/cheek makeup or facial reshaping','facial reshaping')
+ .replaceAll('it does not override identity or the restriction on cosmetics outside the specified lips.','it does not override identity or the separately selected cosmetic finish.')
+ .replaceAll('erasing all texture or adding cosmetics outside the specified lip finish','erasing all texture');
+export const SHARED_PORTRAIT_SKIN_FINISH=sharedSkinRules(NATURAL_SOFT_LIGHT_FINISH.split('\n').filter(line=>line&&!line.startsWith('NATURAL SOFT LIGHT')&&!line.startsWith('Image 1 is')&&!line.startsWith('LIP FINISH —')).join('\n'));
+export const SHARED_PORTRAIT_SKIN_PRIORITY=sharedSkinRules(NATURAL_SOFT_LIGHT_PRIORITY
+ .replace('FINAL NO-MAKEUP LIGHT CHECK — NATURAL SOFT LIGHT V10:','FINAL SHARED SKIN AND LIGHT CHECK:')
+ .replace('Keep original brows, eyes and lashes without newly added cosmetics. ','')
+ .replace(/LIPS ARE THE ONLY COSMETIC EXCEPTION: .*?Preserve fine lip texture\. /,''));
