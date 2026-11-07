@@ -1,20 +1,36 @@
 // Deterministic skin-only input preparation. No geometry changes or remote API.
-export const PRE_AI_SKIN_VERSION='skin-even-full-face-light-v3';
+export const PRE_AI_SKIN_VERSION='skin-adaptive-light-no-blur-v4';
 const canvas=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
 export function blendPreAiSkin(source,detail,tone,mask){
- const out=new Uint8ClampedArray(source);
+ const out=new Uint8ClampedArray(source),hist=new Uint32Array(256);
+ const luma=(data,i)=>.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+ let count=0;
+ for(let i=0;i<source.length;i+=4){
+  const y=luma(source,i),t=luma(tone,i);
+  if(mask[i+3]>220&&source[i+3]>240&&y>90&&y<235&&Math.abs(y-luma(detail,i))<18){hist[Math.round(t)]++;count++}
+ }
+ if(count<24)return out;
+ const quantile=f=>{let n=0;for(let i=0;i<256;i++){n+=hist[i];if(n>=count*f)return i}return 255};
+ const low=quantile(.15),high=quantile(.85),target=quantile(.65);
+ // Already-even illumination is a pixel-exact no-op. Grain/pores are not
+ // uneven lighting: judge the broad guide rather than individual skin pixels.
+ if(high-low<=14)return out;
  for(let i=0;i<source.length;i+=4){
   if(!mask[i+3]||!source[i+3])continue;
+  const y=luma(source,i),guide=luma(tone,i);
   const difference=Math.max(Math.abs(source[i]-detail[i]),Math.abs(source[i+1]-detail[i+1]),Math.abs(source[i+2]-detail[i+2]));
-  // Protect moles, dark identifying marks and strong edges from smoothing.
-  const edge=Math.exp(-Math.pow(difference/22,4)),weight=Math.max(0,(mask[i+3]-128)/127)*.40*edge;
-  for(let k=0;k<3;k++){
-   const tonal=Math.max(-8,Math.min(8,(tone[i+k]-detail[i+k])*.24));
-   out[i+k]=source[i+k]+weight*(detail[i+k]+tonal-source[i+k]);
-  }
+  const edge=Math.exp(-Math.pow(difference/22,4));
+  const coverage=Math.max(0,(mask[i+3]-128)/127)*edge;
+  const skin=Math.max(0,Math.min(1,(y-70)/45));
+  const shadow=Math.max(0,Math.min(1,(235-y)/145));
+  const delta=Math.min(10,Math.max(0,target-guide-6)*.5)*coverage*skin*shadow;
+  // Like local "skin bright": add light to native RGB. Never blend blurred
+ // RGB into the result, so brow/eye edges and skin texture are not blurred.
+  for(let k=0;k<3;k++)out[i+k]=source[i+k]+delta;
  }
  return out;
 }
+
 export function preparePreAiSkin(image,skinMask,face){
  const W=image.naturalWidth||image.width,H=image.naturalHeight||image.height;
  const required=[33,263,10,152];
@@ -38,7 +54,7 @@ export function preparePreAiSkin(image,skinMask,face){
  const extent=canvas(W,H),ec=extent.getContext('2d');ec.fillStyle='white';
  const cx=(face[33].x+face[263].x)*W/2,top=face[10].y*H,bottom=Math.min(H,face[152].y*H+eyes*1.5);
  ec.fillRect(cx-eyes*1.05,top,eyes*2.1,Math.max(0,bottom-top));mc.drawImage(extent,0,0);
- // Smooth continuously across all labelled facial skin, including eyelids,
+ // Apply light continuously across labelled facial skin, including eyelids,
  // under-eyes, between/around brows and nose. No rectangular feature holes.
  // Pixel-level edge weights preserve dark feature edges and identifying marks.
  // Feather inward only: the original eroded mask bounds every changed pixel.
