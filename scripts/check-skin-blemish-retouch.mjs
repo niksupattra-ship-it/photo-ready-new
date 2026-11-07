@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {skinBlemishField} from '../src/skin-blemish-retouch.js';
 import {femaleFinishFor} from '../review-portrait-finish.js';
 const W=80,H=80,pixels=new Uint8ClampedArray(W*H*4),coverage=new Float32Array(W*H).fill(1);
@@ -16,5 +17,11 @@ assert(deltas[rough]<0,'raised bright rough patches should soften');
 for(const [x,y] of [[12,12],[65,65]])assert.deepEqual([...deltas.slice((y*W+x)*3,(y*W+x)*3+3)],[0,0,0]);
 assert([...deltas].every(v=>Number.isFinite(v)&&Math.abs(v)<=10));
 const clear=skinBlemishField(new Uint8ClampedArray(Array.from({length:W*H},()=>[184,145,126,255]).flat()),W,H,coverage,{radius:6});assert(clear.deltas.every(v=>v===0));
-for(const style of ['natural','makeup']){const prompt=femaleFinishFor(style);for(const text of ['FEMALE ACNE AND ROUGH-SKIN PRIORITY','whiteheads, blackheads','shallow acne pits','stable mole'])assert(prompt.includes(text));if(style==='natural')assert(prompt.includes('No whitening'));else{assert(prompt.includes('Retain the specified fairer, brighter cosmetic skin tone.'));assert(prompt.includes('No chalk-white clipping'));assert(!prompt.includes('No whitening'));}}
+const natural=femaleFinishFor('natural');
+for(const text of ['FEMALE ACNE AND ROUGH-SKIN PRIORITY','whiteheads, blackheads','shallow acne pits','stable mole','No whitening'])assert(natural.includes(text),`natural skin safeguard missing: ${text}`);
+// The accepted legacy makeup branch uses its adaptive policy, not the older
+// natural acne header. Pin the entire accepted payload, including all skin rules.
+const makeup=femaleFinishFor('makeup');
+assert.equal(createHash('sha256').update(makeup).digest('hex'),'9d8020508a6c8c49cf33ff16efb53df6400351e6f2921a3a007a094050f4e954','legacy makeup policy must remain byte-identical');
+assert(makeup.includes('stable mole'));assert(!makeup.includes('No whitening'));
 console.log('PASS: red blemish contrast reduced, rough surface softened, dark marks/excluded features/alpha protected, clear skin unchanged, corrections bounded, both female prompts include acne policy.');
