@@ -1,5 +1,6 @@
 node_modules
 dist
+public/assets/vision/mediapipe-1.0.1/wasm/
 .env
 
 # Local payment data

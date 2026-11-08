@@ -71,6 +71,7 @@ import {deadlineFetch} from './deadline-fetch.js';
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
 import {loadVisionRuntime} from './vision-runtime.js';
+import {VISION_WASM_ROOT,FACE_LANDMARK_MODEL,PERSON_SEGMENTATION_MODEL} from './vision-assets.js';
 import'./style.css';
 import './home-layout.css';
 import './trial-choice.css';
@@ -164,10 +165,10 @@ async function getPersonSegmenter(){
   let expired;
   const pending=withDeadline(async()=>{
   const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
-  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  const vision=await FilesetResolver.forVisionTasks(VISION_WASM_ROOT);
   if(expired)throw expired;
   return ImageSegmenter.createFromOptions(vision,{
-   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},
+   baseOptions:{modelAssetPath:PERSON_SEGMENTATION_MODEL},
    runningMode:'IMAGE',outputCategoryMask:true,outputConfidenceMasks:false
   });
   },{timeoutMs:60000,message:'โหลดข้อมูลสำหรับปรับภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'PORTRAIT_MODEL_TIMEOUT',onTimeout:error=>{expired=error},onLateResolve:model=>model?.close?.()});
@@ -219,10 +220,10 @@ async function getLandmarker(){
   let expired;
   const pending=withDeadline(async()=>{
   const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
-  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  const vision=await FilesetResolver.forVisionTasks(VISION_WASM_ROOT);
   if(expired)throw expired;
   return FaceLandmarker.createFromOptions(vision,{
-   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'},
+   baseOptions:{modelAssetPath:FACE_LANDMARK_MODEL},
    runningMode:'IMAGE',numFaces:1,minFaceDetectionConfidence:.5,minFacePresenceConfidence:.5
   });
   },{timeoutMs:60000,message:'โหลดข้อมูลสำหรับปรับภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'PORTRAIT_MODEL_TIMEOUT',onTimeout:error=>{expired=error},onLateResolve:model=>model?.close?.()});
@@ -274,9 +275,14 @@ function originalSkinProfile(sourceBlob){
  return pending;
 }
 function warmPortraitResources(sourceBlob,templatePath){
- // Warm only resources used by the active portrait path during the AI request.
+ // Prepare only resources used by the active portrait path.
  // Never segment/retouch the AI result early or reuse masks across changed pixels.
- void Promise.allSettled([getLandmarker(),getPersonSegmenter(),loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
+ void Promise.allSettled([loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
+ // Both models are required to accept the generated portrait. Resolve them
+ // before submitting an AI job, including when a hairstyle was selected.
+ return Promise.all([getLandmarker(),getPersonSegmenter()]).catch(cause=>{
+  throw Object.assign(Error('เตรียมระบบประมวลผลรูปไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วกดสร้างรูปใหม่'),{code:'PORTRAIT_MODEL_UNAVAILABLE',cause});
+ });
 }
 function interp(points,x){
  for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1];if(x>=a.x&&x<=b.x){const t=(x-a.x)/Math.max(1,b.x-a.x);return a.y+(b.y-a.y)*t}}
@@ -1839,9 +1845,9 @@ let youcamHairSegmenterPromise;
 async function getYoucamHairSegmenter(){
  if(!youcamHairSegmenterPromise)youcamHairSegmenterPromise=(async()=>{
   const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
-  const vision=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+  const vision=await FilesetResolver.forVisionTasks(VISION_WASM_ROOT);
   return ImageSegmenter.createFromOptions(vision,{
-   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},
+   baseOptions:{modelAssetPath:PERSON_SEGMENTATION_MODEL},
    runningMode:'IMAGE',outputCategoryMask:false,outputConfidenceMasks:true
   });
  })().catch(error=>{youcamHairSegmenterPromise=null;throw error});
@@ -2598,6 +2604,8 @@ async function replacementFaceIdentityBox(blob,{protectFeatures=false}={}){
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
+ await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate);
+ assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female',originalAi=portraitMode==='female';
  const info=await submitPortraitJob(operation,async()=>{
@@ -2634,7 +2642,6 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  }
  });
  if(info.downloadWorkId)originalFile.idpromDownloadWorkId=info.downloadWorkId;
- if(!hairId||hairId==='original')warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate);
  if(operation){operation.jobId=info.jobId;if(operation.cancelled){await cancelPortraitJob(operation,()=>settleProcessOperation(operation,'cancel'));throw cancelledProcessError()}}
  writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
  // Keep the displayed balance until processing is confirmed; reservations prevent concurrent overspending.
