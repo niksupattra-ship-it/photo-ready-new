@@ -23,7 +23,7 @@ function completionFixture(fields={studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSIO
  const state={failPrepare:false,failEncode:false,cancelRender:false,failRights:false};
  const env={STUDIO_SKIN_WORKFLOW_VERSION,portraitFinishChoice,activeProcessOperation:operation,assertProcessActive:assertActive,walletHeaders:()=>({'x-wallet-id':'inert'}),analyticsTagError:error=>error,portraitJobError:value=>Error(value),
   async portraitFetch(url){calls.push(url);if(url.endsWith('/result'))return {ok:true,headers:{get:name=>name==='X-IDPROM-Trial'?'1':null},blob:async()=>raw};return {ok:true,json:async()=>({status:'completed',stage:'edges',...fields})}},
-  async levelPortraitCutout(blob){events.push('level');assert.equal(blob,raw);return blob},
+  async levelPortraitCutout(blob){events.push('level');assert.equal(blob,raw);if(state.cancelLevel)operation.cancelled=true;return blob},
   async verifyOutputRights(){events.push('rights');if(state.failRights)throw Error('rights unavailable');return {checked:true,unlocked:false,fullEdit:true}},
   URL:{createObjectURL(blob){assert.equal(blob,raw);urls.push('created');return 'blob:inert-completed-output'},revokeObjectURL(url){assert.equal(url,'blob:inert-completed-output');urls.push('revoked')}},
   async prepareStudioMakeup(url){assert.equal(url,'blob:inert-completed-output');events.push('prepare');if(state.failPrepare)throw Error('prepare failed');return {original:{native:true},face:[],hairMask:{},skinMask:{}}},
@@ -39,12 +39,12 @@ async function test(name,run){await run();passed++;console.log('PASS '+name)}
 await test('a completed staged natural job returns the leveled image without cosmetics or preparation',async()=>{
  const f=completionFixture(),blob=await f.wait('job-natural');assert.equal(blob,f.raw);assert(hasCurrentStudioSkin(blob,'natural'));assert.equal(blob.idpromStudioCosmeticsVersion,undefined);assert.equal(blob.idpromJobId,'job-natural');assert.equal(blob.idpromTrial,true);assert.equal(blob.idpromFullEdit,true);assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));assert.deepEqual(f.urls,[]);assert.equal(f.calls.length,2);
 });
-await test('visible and legacy makeup finish after leveling/rights and before completed pixels are returned',async()=>{
+await test('all staged finish choices return the same bare leveled base before clothing cleanup and local cosmetics',async()=>{
  for(const style of ['korean-rosy-v1','makeup','soft-rosy-v1']){
   const f=completionFixture({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:style}),blob=await f.wait('job-'+style);
-  assert.notEqual(blob,f.raw);assert(hasCurrentStudioSkin(blob,style));assert.equal(blob.idpromStudioCosmeticsVersion,STUDIO_SKIN_WORKFLOW_VERSION+':'+style);assert.equal(blob.idpromJobId,'job-'+style);
-  assert(f.events.indexOf('prepare')>f.events.indexOf('level'));assert(f.events.indexOf('prepare')>f.events.indexOf('rights'));assert(f.events.indexOf('encode')>f.events.indexOf('cosmetics'));assert.deepEqual(f.urls,['created','revoked']);
-  const before=f.events.length;assert.equal(await f.env.finishStudioPostCosmetics(blob,{style}),blob);assert.equal(f.events.length,before,'already completed makeup must not stack');
+  assert.equal(blob,f.raw);assert(hasCurrentStudioSkin(blob,'natural'));assert.equal(blob.idpromStudioCosmeticsVersion,undefined);assert.equal(blob.idpromJobId,'job-'+style);
+  assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));assert(!f.events.includes('encode'));assert.deepEqual(f.urls,[]);
+  assert.equal(blob.idpromTrial,true);assert.equal(blob.idpromFullEdit,true);assert.equal(f.calls.length,2);
  }
 });
 await test('legacy jobs and male jobs remain unchanged even beside unrelated staged metadata',async()=>{
@@ -52,14 +52,13 @@ await test('legacy jobs and male jobs remain unchanged even beside unrelated sta
   const f=completionFixture(fields),blob=await f.wait('legacy');assert.equal(blob,f.raw);assert.equal(blob.idpromStudioSkinVersion,undefined);assert.equal(blob.idpromStudioCosmeticsVersion,undefined);assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));
  }
 });
-await test('failed preparation, encoding or rights cannot return a partially finished portrait',async()=>{
- for(const flag of ['failPrepare','failEncode','failRights']){
-  const f=completionFixture({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'korean-rosy-v1'},{[flag]:true});
-  await assert.rejects(f.wait('failed'));assert.equal(f.raw.idpromJobId,undefined);assert.equal(f.raw.idpromStudioCosmeticsVersion,undefined);assert.equal(f.urls.filter(x=>x==='created').length,f.urls.filter(x=>x==='revoked').length);
- }
+await test('failed rights cannot return a partially accepted base',async()=>{
+ const f=completionFixture({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'korean-rosy-v1'},{failRights:true});
+ await assert.rejects(f.wait('failed'));assert.equal(f.raw.idpromJobId,undefined);assert.equal(f.raw.idpromStudioCosmeticsVersion,undefined);assert.equal(f.raw.idpromStudioSkinVersion,undefined);
+ assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));
 });
-await test('cancellation during the final cosmetic stage prevents encoding and acceptance',async()=>{
- const f=completionFixture({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'korean-rosy-v1'},{cancelRender:true});await assert.rejects(f.wait('cancelled'),{name:'AbortError'});assert(!f.events.includes('encode'));assert.equal(f.raw.idpromJobId,undefined);
+await test('cancellation while leveling the native base prevents acceptance before any cosmetic stage',async()=>{
+ const f=completionFixture({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'korean-rosy-v1'},{cancelLevel:true});await assert.rejects(f.wait('cancelled'),{name:'AbortError'});assert(!f.events.includes('encode'));assert.equal(f.raw.idpromJobId,undefined);assert.equal(f.raw.idpromStudioSkinVersion,undefined);
 });
 await test('skin metadata exposes only current processed markers and preserves style-specific cache eligibility',async()=>{
  const original=new Blob(['immutable original'],{type:'image/jpeg'});
@@ -85,7 +84,7 @@ function submissionFixture(mode='female',style='natural'){
   acceptedPaidTrial:false,walletHeaders:()=>({'x-wallet-id':'inert'}),analyticsTagError:error=>error,
   async portraitFetch(url,options){assert.equal(url,'/api/ai-jobs');assert.equal(options.method,'POST');calls.push(options.body);return {ok:true,json:async()=>({jobId:'submitted-job',downloadWorkId:'owned-work',trialPreview:true})}},
   warmPortraitResources:noop,writeActiveAiJob:noop,cancelledProcessError:cancelled,cancelPortraitJob:async()=>{throw Error('unexpected cancel')},settleProcessOperation:noop,
-  async waitForAiJob(){const blob=new Blob(['completed'],{type:'image/png'});if(mode==='female'&&!state.legacyResult){blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;if(style!=='natural')blob.idpromStudioCosmeticsVersion=STUDIO_SKIN_WORKFLOW_VERSION+':'+style}return blob}
+  async waitForAiJob(){const blob=new Blob(['completed'],{type:'image/png'});if(mode==='female'&&!state.legacyResult)blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;return blob}
  };
  const submit=extract(main,'async function aiFinishPortraitUncached(','\n// V206:','aiFinishPortraitUncached',env);
  return {original,canonical,operation,calls,saved,events,state,env,submit,options:{portraitMode:mode,femaleEyeStyle:style,sourceJobId:'owned-previous-job',templatePath:'/assets/job-uniforms/female-job-navy-collared.png'}};
@@ -94,7 +93,7 @@ await test('actual female multipart measures the canonical frame while preservin
  for(const style of ['natural','korean-rosy-v1','makeup','soft-rosy-v1']){
   const f=submissionFixture('female',style),result=await f.submit(f.original,'',f.options),body=f.calls[0];
   assert.equal(f.calls.length,1);assert.equal(await body.get('image').text(),await f.canonical.text());assert.equal(await body.get('originalSource').text(),await f.original.text());assert.equal(body.get('sourceJobId'),'owned-previous-job');assert.equal(body.get('studioSkinVersion'),STUDIO_SKIN_WORKFLOW_VERSION);
-  const evidence=JSON.parse(body.get('studioSkinEvidence'));assert(Array.isArray(evidence.labels));assert.doesNotThrow(()=>parseStudioSkinEvidence(evidence));assert.equal(evidence.width,900);assert.equal(evidence.height,1200);assert.deepEqual(f.events,['decode-canonical','close-mask']);assert(hasCurrentStudioSkin(result,style));assert.equal(f.saved[0],f.original);assert.equal(f.original.idpromStudioSkinVersion,undefined);assert.equal(f.canonical.idpromStudioSkinVersion,undefined);
+  const evidence=JSON.parse(body.get('studioSkinEvidence'));assert(Array.isArray(evidence.labels));assert.doesNotThrow(()=>parseStudioSkinEvidence(evidence));assert.equal(evidence.width,900);assert.equal(evidence.height,1200);assert.deepEqual(f.events,['decode-canonical','close-mask']);assert(hasCurrentStudioSkin(result,'natural'));assert.equal(result.idpromStudioCosmeticsVersion,undefined);assert.equal(f.saved[0],f.original);assert.equal(f.original.idpromStudioSkinVersion,undefined);assert.equal(f.canonical.idpromStudioSkinVersion,undefined);
  }
 });
 await test('actual male multipart keeps its existing protocol and never requests skin evidence',async()=>{
@@ -122,7 +121,7 @@ await test('canonical409 recovery remeasures the exact frozen input inside one s
   if(f.calls.length===1)return {ok:false,status:409,headers:{get:name=>name==='X-IDPROM-Canonical-Input'?'1':null},blob:async()=>frozen};
   assert.equal(f.calls.length,2);accepted++;return {ok:true,status:202,json:async()=>({jobId:'accepted-once',downloadWorkId:'owned-existing-work',trialPreview:true})};
  };
- const result=await f.submit(f.original,'',f.options);assert(hasCurrentStudioSkin(result,'makeup'));assert.equal(submissions,1);assert.equal(accepted,1);assert.equal(writes.length,1);assert.equal(writes[0].jobId,'accepted-once');assert.deepEqual(inputs,[f.canonical,frozen]);assert.deepEqual(faceInputs,[f.canonical,frozen]);
+ const result=await f.submit(f.original,'',f.options);assert(hasCurrentStudioSkin(result,'natural'));assert.equal(result.idpromStudioCosmeticsVersion,undefined);assert.equal(submissions,1);assert.equal(accepted,1);assert.equal(writes.length,1);assert.equal(writes[0].jobId,'accepted-once');assert.deepEqual(inputs,[f.canonical,frozen]);assert.deepEqual(faceInputs,[f.canonical,frozen]);
  assert.equal(f.original.idpromCanonicalInput,frozen);assert.equal(f.original.idpromDownloadWorkId,'owned-existing-work');assert.equal(f.operation.jobId,'accepted-once');assert.equal(await f.original.text(),'immutable upload bytes');
  for(let i=0;i<2;i++){
   const body=f.calls[i];assert.equal(body.get('downloadWorkId'),'owned-existing-work');assert.equal(body.get('sourceJobId'),'owned-previous-job');assert.equal(await body.get('originalSource').text(),'immutable upload bytes');
@@ -148,4 +147,4 @@ await test('canonical recovery rejects invalid content, cancellation and a secon
  }
 });
 
-console.log(JSON.stringify({passed,scope:'Actual App completion and multipart handlers, actual post-cosmetic wrapper with inert renderer, versioned restore metadata and bounded canonical-input recovery protocol. No providers, network, account or financial writes.'}));
+console.log(JSON.stringify({passed,scope:'Actual App bare-base completion and multipart handlers, versioned restore metadata and bounded canonical-input recovery protocol. No providers, network, account or financial writes.'}));

@@ -13,6 +13,7 @@ import {StudioBackgroundColor} from './studio-background-color.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {hasCurrentStudioSkin} from '../studio-skin-metadata.js';
+import {canReuseStudioSkinBase} from './shared-studio-skin.js';
 import {createPortal} from 'react-dom';
 import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
@@ -73,7 +74,7 @@ function CatalogPreview({src,eager=false,maleHair=false,suitTemplate=null,assetK
 }
 const STUDIO_DOWNLOAD_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id)));
 const W=900,H=1200;
-const FRAME_SOURCE_FIELDS=['processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource'];
+const FRAME_SOURCE_FIELDS=['processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource'];
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});
 const nativeCanvas=()=>{const w=2256,h=3072;return Object.assign(document.createElement('canvas'),{width:Math.round(Math.max(1,Math.min(8192,w))),height:Math.round(Math.max(1,Math.min(8192,h)))})};
 
@@ -81,6 +82,12 @@ function paintOriginal(ctx,im){ctx.setTransform(1,0,0,1,0,0);const w=ctx.canvas.
 // History retains lossless native surfaces; PNG encoding is reserved for file saves.
 const copySurface=src=>{if(!src)return null;const c=Object.assign(document.createElement('canvas'),{width:src.width,height:src.height});c.getContext('2d').drawImage(src,0,0);return c};
 const surfaceURL=src=>src instanceof HTMLCanvasElement?src.toDataURL():src;
+function identityStudioMask(mask){
+ if(!mask)return true;
+ const ctx=mask.getContext?.('2d',{willReadFrequently:true});if(!ctx)return false;
+ for(let y=0;y<mask.height;y+=32){const pixels=ctx.getImageData(0,y,mask.width,Math.min(32,mask.height-y)).data;for(let i=3;i<pixels.length;i+=4)if(pixels[i]!==255)return false}
+ return true;
+}
 function dirtyRegion(a,rect){a.dirty=true;if(!rect){a.dirtyRect=null;return}if(a.dirtyRect===null)return;const old=a.dirtyRect;if(!old)a.dirtyRect=rect;else{const x=Math.min(old.x,rect.x),y=Math.min(old.y,rect.y);a.dirtyRect={x,y,w:Math.max(old.x+old.w,rect.x+rect.w)-x,h:Math.max(old.y+old.h,rect.y+rect.h)-y}}}
 // Keep slider drag updates inside this small control, not the whole editor.
 function BrushSizeRange({value,min,max,onCommit,onPreview,ariaLabel}){
@@ -135,7 +142,7 @@ export function paintScene(ctx,layers,assets,activeId=null,damage=null){
  if(damage){ctx.beginPath();ctx.rect(damage.x,damage.y,damage.w,damage.h);ctx.clip()}
  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.drawImage(cache.under,0,0);ctx.drawImage(cache.active,0,0);ctx.drawImage(cache.over,0,0);ctx.restore();
 }
-export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initialLayers,initialEasy=false,accountScope='',downloadUnlockSignal=null,onSelectSuit,onMeasureSuitFace,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,premiumHairCreditAvailable=false,trialHairRemaining=0,onChangeHair,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onPrepareSourceDownload,onBeforeProcess,onReadProcessBalance,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],paidWarningOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,memberMenu=null,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onUseDownloadCredit,onOpenRights,onRequestUnlock,onClose}){
+export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initialLayers,initialEasy=false,accountScope='',downloadUnlockSignal=null,onSelectSuit,onMeasureSuitFace,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,premiumHairCreditAvailable=false,trialHairRemaining=0,onChangeHair,onLocalPortraitFinish,onRestorePortraitFinish,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onPrepareSourceDownload,onBeforeProcess,onReadProcessBalance,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],paidWarningOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,memberMenu=null,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onUseDownloadCredit,onOpenRights,onRequestUnlock,onClose}){
  const [easyMode,setEasyMode]=useState(initialEasy);
  const suitRequestRef=useRef(null),[suitSelecting,setSuitSelecting]=useState(false);
  const [layers,setLayers]=useState(()=>freshLinkedLayers(initialLayers)),[selected,setSelected]=useState(null),[tool,setToolState]=useState('move'),[brush,setBrush]=useState(40),[soft,setSoft]=useState(30),[eraseOpacity,setEraseOpacity]=useState(100),[paintColor,setPaintColor]=useState('#e7b2a0'),[paintOpacity,setPaintOpacity]=useState(100),[view,setView]=useState({zoom:1,x:0,y:0}),[ready,setReady]=useState(false),[status,setStatus]=useState('กำลังเตรียมเลเยอร์…'),[revision,setRevision]=useState(0),[comparing,setComparing]=useState(false),[picker,setPicker]=useState(false),[warpMode,setWarpMode]=useState('push'),[warpSize,setWarpSize]=useState(120),[warpStrength,setWarpStrength]=useState(40),[cursor,setCursor]=useState(null),[assetBusy,setAssetBusy]=useState(false),[assetGroup,setAssetGroup]=useState('all'),[suitSearch,setSuitSearch]=useState(''),[sourcePhoto,setSourcePhoto]=useState(initialSourcePhoto),[sourcePreview,setSourcePreview]=useState(null),[processingPhoto,setProcessingPhoto]=useState(false),[hairGender,setHairGender]=useState(()=>initialLayers.find(l=>layerKind(l)==='head')?.portraitMode||'female'),[selectedHair,setSelectedHair]=useState(()=>initialLayers.find(l=>layerKind(l)==='head')?.hairId||initialLayers.find(l=>l.kind==='hair-preview')?.hairId||'');
@@ -451,11 +458,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const encode=source=>source instanceof HTMLCanvasElement?encodeCanvas(source):source;
   return state.current.map(l=>{
    const a=assets.current.get(l.id);
-   return {...l,source:encode(l.source),processedOriginalSource:encode(l.processedOriginalSource),collarParts:l.collarParts?{left:encode(l.collarParts.left),right:encode(l.collarParts.right)}:l.collarParts,makeupBaseSource:encode(l.makeupBaseSource),makeupFullSource:encode(l.makeupFullSource),mask:a==null?l.mask:encodeCanvas(a.mask)||l.mask,warpSource:a?.warped==null?null:encodeCanvas(a.warped)||null,warpBaseMask:encode(a?.warpBaseMask)||null,eraseRestoreSource:encode(a?.eraseRestoreSource)||null,warpRestoreBase:encode(a?.warpRestoreBase)||null};
+   return {...l,source:encode(l.source),studioSkinBaseSource:encode(l.studioSkinBaseSource),processedOriginalSource:encode(l.processedOriginalSource),collarParts:l.collarParts?{left:encode(l.collarParts.left),right:encode(l.collarParts.right)}:l.collarParts,makeupBaseSource:encode(l.makeupBaseSource),makeupFullSource:encode(l.makeupFullSource),mask:a==null?l.mask:encodeCanvas(a.mask)||l.mask,warpSource:a?.warped==null?null:encodeCanvas(a.warped)||null,warpBaseMask:encode(a?.warpBaseMask)||null,eraseRestoreSource:encode(a?.eraseRestoreSource)||null,warpRestoreBase:encode(a?.warpRestoreBase)||null};
   });
  };
  if(purchaseSnapshotRef)purchaseSnapshotRef.current=()=>{flushTransforms();return {layers:snapshot(),placement:placementRef.current,sourcePhoto,originalPreview:compareSourceRef.current}};
  const historyAssets=useRef(new WeakMap());
+ const sourcePhotoRef=useRef(sourcePhoto);sourcePhotoRef.current=sourcePhoto;
  const hairStyleMemory=useRef(createHairStyleMemory());
  const youcamHairMemory=useRef(new Map());
  const historySnapshot=()=>{const map=new Map(),next=state.current.map(l=>{
@@ -533,7 +541,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const next=lastItem(from);
   // Warn once, before the final retained step, only when older history was lost.
   if(back&&from.length===1&&historyTruncatedRef.current&& !historyBoundaryNoticeRef.current){historyBoundaryNoticeRef.current=true;setHistoryNotice({kind:'boundary',pendingBack:true,message:'กรุณาบันทึกงาน หากกดย้อนกลับต่อ จะไม่สามารถเรียกคืนประวัติเก่าได้'});return}
-  flushTransforms();const saved=historySnapshot();if(restoreHistory(next)||await hydrate(next)){from.pop();to.push(saved);setRevision(v=>v+1);setStatus(back?'ย้อนกลับแล้ว':'ทำซ้ำแล้ว')}
+  flushTransforms();const saved=historySnapshot();if(restoreHistory(next)||await hydrate(next)){const restored=state.current.find(l=>layerKind(l)==='head'),asset=restored&&assets.current.get(restored.id);if(outputScopeRef.current===accountScope&&restored&&canReuseStudioSkinBase({...restored,mask:null})&&!asset?.warped&&!asset?.eraseRestoreSource&&identityStudioMask(asset?.mask)){onRestorePortraitFinish?.({...restored,source:surfaceURL(restored.source),hairOriginalSource:surfaceURL(restored.hairOriginalSource)});if(sourcePhoto)sourcePhoto.idpromFemaleEyeStyle=portraitFinishChoice(restored.femaleEyeStyle,restored.initialFemaleEyeStyle)}from.pop();to.push(saved);setRevision(v=>v+1);setStatus(back?'ย้อนกลับแล้ว':'ทำซ้ำแล้ว')}
  };
  const point=e=>{const r=canvasRef.current.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}};
  const outsideImage=e=>{const r=canvasRef.current.getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom};
@@ -643,7 +651,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(showPopup)setSavePopup({state:'saving',title:'บันทึกงานไว้แก้ไขต่อ',message:'กำลังบันทึกในบัญชีของคุณ กรุณารอผลยืนยันก่อนออกจากเว็บ · บันทึกได้สูงสุด 3 งาน'});
   try{
    if(!options.outputVerified&&!(await allowOutput({errorTitle:showPopup?'บันทึกงานไม่สำเร็จ':null}))){setHistoryNotice(null);return false}
-   flushTransforms();savedLayers=options.project?options.project.layers:state.current;const project=await makeSavedProject(options.project?{...options.project,layers:options.project.layers.map(l=>({...l,source:surfaceURL(l.source),processedOriginalSource:surfaceURL(l.processedOriginalSource),collarParts:l.collarParts?{left:surfaceURL(l.collarParts.left),right:surfaceURL(l.collarParts.right)}:l.collarParts,makeupBaseSource:surfaceURL(l.makeupBaseSource),makeupFullSource:surfaceURL(l.makeupFullSource),mask:surfaceURL(l.mask),warpSource:surfaceURL(l.warpSource),warpBaseMask:surfaceURL(l.warpBaseMask),eraseRestoreSource:surfaceURL(l.eraseRestoreSource),warpRestoreBase:surfaceURL(l.warpRestoreBase)}))}:{placement:placementRef.current,compareSource:compareSourceRef.current,sourcePhoto,layers:snapshot()});
+   flushTransforms();savedLayers=options.project?options.project.layers:state.current;const project=await makeSavedProject(options.project?{...options.project,layers:options.project.layers.map(l=>({...l,source:surfaceURL(l.source),studioSkinBaseSource:surfaceURL(l.studioSkinBaseSource),processedOriginalSource:surfaceURL(l.processedOriginalSource),collarParts:l.collarParts?{left:surfaceURL(l.collarParts.left),right:surfaceURL(l.collarParts.right)}:l.collarParts,makeupBaseSource:surfaceURL(l.makeupBaseSource),makeupFullSource:surfaceURL(l.makeupFullSource),mask:surfaceURL(l.mask),warpSource:surfaceURL(l.warpSource),warpBaseMask:surfaceURL(l.warpBaseMask),eraseRestoreSource:surfaceURL(l.eraseRestoreSource),warpRestoreBase:surfaceURL(l.warpRestoreBase)}))}:{placement:placementRef.current,compareSource:compareSourceRef.current,sourcePhoto,layers:snapshot()});
    if(outputScopeRef.current!==accountScope)throw Error('บัญชีเปลี่ยนแล้ว กรุณาบันทึกงานอีกครั้ง');
    if(staleBackground())return false;
    let message;if(onSaveWork&&!trialUnlocked){setStatus('กำลังบันทึกงานไว้ในบัญชี…');await onSaveWork(project,{auto:options.auto===true,workScope:options.workScope,createCopy:options.createCopy===true,...(options.workId!==undefined?{workId:options.workId}:{})});if(state.current===savedLayers)lastSavedLayersRef.current=savedLayers;message='บันทึกงานในบัญชีสำเร็จแล้ว · เปิดแก้ไขจากงานของฉันด้วยอีเมลเดิมได้ หากต้องการไฟล์รูปในเครื่อง ให้กดดาวน์โหลดรูปด้วย'}else{const delivery=download(new Blob([JSON.stringify(project)],{type:'application/json'}),'IDPROM-Studio.idstudio');message=delivery==='panel'?'ไฟล์โปรเจกต์พร้อมแล้ว · เลือกบันทึกหรือแชร์ไฟล์':'ส่งคำขอดาวน์โหลดไฟล์โปรเจกต์แล้ว'}
@@ -994,7 +1002,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;
-  let reused=canRestoreHair(id,mode,finish),stagedResult=null;
+  const asset=assets.current.get(head.id),cleanHead={...head,mask:null};
+  const localFinish=appearanceKind==='makeup'&&typeof onLocalPortraitFinish==='function'&&canReuseStudioSkinBase(cleanHead)&&!asset?.warped&&!asset?.eraseRestoreSource&&identityStudioMask(asset?.mask);
+  const requestSource=sourcePhoto,requestScope=accountScope,requestBase=head.studioSkinBaseSource;
+  const localCurrent=()=>mounted.current&&sourcePhotoRef.current===requestSource&&outputScopeRef.current===requestScope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId&&l.studioSkinBaseSource===requestBase);
+  const assertAppearanceCurrent=()=>{if(localFinish?!localCurrent():isProcessCancelled())throw Error(localFinish?'บัญชีหรือรูปเปลี่ยนแล้ว กรุณาเลือกเมคอัพอีกครั้ง':'ยกเลิกการประมวลผลแล้ว')};
+  let reused=localFinish||canRestoreHair(id,mode,finish),stagedResult=null;
   setAppearanceError(null);processRequestRef.current=true;
   // Cached styles do not start a generation or consume a daily trial.
   if(!reused&&typeof onBeforeProcess==='function'){
@@ -1004,14 +1017,14 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
   setAssetBusy(true);setStatus(reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   const result=stagedResult=await onChangeHair(id,mode,finish,...(['korean-rosy-v1','soft-rosy-v1'].includes(finish)?[state.current.find(l=>layerKind(l)==='suit')?.templatePath||'']:[]));
+   const result=stagedResult=localFinish?await onLocalPortraitFinish(cleanHead,finish,{isCurrent:localCurrent}):await onChangeHair(id,mode,finish,...(['korean-rosy-v1','soft-rosy-v1'].includes(finish)?[state.current.find(l=>layerKind(l)==='suit')?.templatePath||'']:[]));
    reused=result?.reused===true;
-   if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+   assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||'')||portraitFinishChoice(result.layer.femaleEyeStyle,result.layer.initialFemaleEyeStyle)!==finish)throw Error('ผลลัพธ์ไม่ตรงกับเมคอัพหรือทรงผมที่เลือก');
-   const replacement={...result.layer,...headPose(placedHead),squeezeX:1,squeezeY:1,id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
+   const replacement={...result.layer,...headPose(placedHead),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
-   if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+   assertAppearanceCurrent();
    let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
    if(finishedReplacement.makeupStyles?.look)next=next.map(l=>l.id===head.id?{...l,processedOriginalSource:result.layer.source}:l);
    // Free hairstyles remain local PNG overlays when the underlying finish changes.
@@ -1020,7 +1033,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(!onPrepareHairOverlay)throw Error('ระบบวางทรงผมยังไม่พร้อม · เก็บภาพเดิมไว้');
     const baseSource=surfaceURL(result.layer.source);
     const fitted=await onPrepareHairOverlay(baseSource,freeHair.hairId,{sourceJobId:result.layer.jobId});
-    if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');
+    assertAppearanceCurrent();
     if(!fitted?.cleanedHeadSource||!fitted.source||fitted.aiComposed)throw Error('ข้อมูลทรงผมไม่ครบ · เก็บภาพเดิมไว้');
     if(next.length+(fitted.backSource?2:1)>20)throw Error('พื้นที่เลเยอร์เต็ม · ลบเลเยอร์ที่ไม่ใช้ก่อน');
     next=next.map(l=>l.id===head.id?{...l,source:fitted.cleanedHeadSource,hairOriginalSource:baseSource,freeHairBaseOriginal:true,freeHairSourceJobId:result.layer.jobId,hairId:''}:l);
@@ -1030,15 +1043,16 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(fitted.backSource){const oldBack=previous.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&l.hairId===freeHair.hairId&&l.hairRole==='back');const back=fresh({...common,...keepPose(oldBack),name:'ทรงผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
    }
    if(next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
-   if(!await hydrate(next,new Set(previous.filter(l=>next.includes(l)).map(l=>l.id))))throw Error('แสดงภาพไม่สำเร็จ');
-   if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}
+   assertAppearanceCurrent();
+   if(!await hydrate(next,new Set(previous.filter(l=>next.includes(l)).map(l=>l.id)),localFinish?localCurrent:undefined))throw Error('แสดงภาพไม่สำเร็จ');
+   assertAppearanceCurrent();
    if(!reused)await onFinishProcess?.(true);
    result.commit?.();
    if(sourcePhoto)sourcePhoto.idpromFemaleEyeStyle=finish;
-   resetPhotoHistory();resetBrushSession();setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
+   if(localFinish){undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[]}else resetPhotoHistory();resetBrushSession();setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
    if(appearanceKind==='hair'){trackHairSelection(id,'apply',reused?'reuse':id?'new':'original');reportProcessedResult(result.layer,{reused})}else setStatus(reused?'แสดงภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'ที่เคยสร้างไว้แล้ว':'เปลี่ยนเป็น'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'แล้ว');
-  }catch(e){stagedResult?.rollback?.();await hydrate(previous).catch(()=>{});if(!reused)await onFinishProcess?.(false).catch(()=>{});appearanceFailure(appearanceKind,appearanceKind==='hair'&&!isProcessCancelled()&&isPremiumHair(id)&&premiumHairAllowed?'เปลี่ยนทรงผมไม่สำเร็จ กรุณากดเลือกทรงผมใหม่อีกครั้ง':e.message||'เปลี่ยนเมคอัพหรือทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
+  }catch(e){stagedResult?.rollback?.();if(!localFinish||localCurrent())await hydrate(previous).catch(()=>{});if(!reused)await onFinishProcess?.(false).catch(()=>{});appearanceFailure(appearanceKind,appearanceKind==='hair'&&!isProcessCancelled()&&isPremiumHair(id)&&premiumHairAllowed?'เปลี่ยนทรงผมไม่สำเร็จ กรุณากดเลือกทรงผมใหม่อีกครั้ง':e.message||'เปลี่ยนเมคอัพหรือทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
  };
  const selectPortraitFinish=style=>{
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');

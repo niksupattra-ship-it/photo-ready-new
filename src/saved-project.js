@@ -3,7 +3,7 @@ import {createProjectResourceGuard,encodedImageSize,PROJECT_IMAGE_MAX_PIXELS} fr
 import {isFemaleFinishProfile} from './female-finish-profile.js';
 import {isFemaleFinishReference,FEMALE_FINISH_REFERENCE_MAX_EDGE} from './female-finish-reference.js';
 const imageURL=/^data:image\/(png|jpeg|webp);base64,/;
-const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
+const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const isHead=l=>l.kind==='head'||l.name==='หัว · คอ · ผม';
 const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเลิกการเปิดงานแล้ว'),{name:'AbortError'})};
 export function assertSavedProjectResources(project){validateSavedProject(project);return createProjectResourceGuard(project)}
@@ -83,7 +83,7 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
  const blob=src=>bounded(async()=>{const response=await fetchImage(src,{signal});abort(signal);const data=await response.blob();abort(signal);return data});
  for(const l of project.layers){
   const original=await read(l.source,Boolean(l.collarParts));
-  for(const key of imageFields.slice(1))if(l[key]){const im=await read(l[key],Boolean(l.collarParts));if(['eraseRestoreSource','warpRestoreBase'].includes(key)&&((im.naturalWidth||im.width)!==(original.naturalWidth||original.width)||(im.naturalHeight||im.height)!==(original.naturalHeight||original.height)))throw Error('ขนาดภาพอ้างอิงคืนขอบไม่ตรงกับเลเยอร์')}
+  for(const key of imageFields.slice(1))if(l[key]){const im=await read(l[key],Boolean(l.collarParts));if(['eraseRestoreSource','warpRestoreBase','studioSkinBaseSource'].includes(key)&&((im.naturalWidth||im.width)!==(original.naturalWidth||original.width)||(im.naturalHeight||im.height)!==(original.naturalHeight||original.height)))throw Error(key==='studioSkinBaseSource'?'ขนาดภาพฐานผิวไม่ตรงกับเลเยอร์':'ขนาดภาพอ้างอิงคืนขอบไม่ตรงกับเลเยอร์')}
   if(l.femaleFinishReference){const im=await read(l.femaleFinishReference);if((im.naturalWidth||im.width)>FEMALE_FINISH_REFERENCE_MAX_EDGE||(im.naturalHeight||im.height)>FEMALE_FINISH_REFERENCE_MAX_EDGE)throw Error('ขนาดภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง')}
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }

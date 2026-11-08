@@ -6,6 +6,8 @@ export const ENGLISH_COPY = {
  "ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่":"The skin treatment is updating. Refresh the page and try again.",
  "ไม่พบรูปแบบเมคอัพที่เลือก":"The selected makeup style is unavailable.",
  "ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ":"The prepared skin and lighting image is not ready for makeup.",
+ "บัญชีหรือรูปเปลี่ยนแล้ว กรุณาเลือกเมคอัพอีกครั้ง":"The account or photo changed. Please select makeup again.",
+ "ขนาดภาพฐานผิวไม่ตรงกับเลเยอร์":"The skin base image dimensions do not match the layer.",
  "กรุณาใช้ภาพฐานก่อนแต่งหน้าเพื่อเปลี่ยนเมคอัพ":"Use the image before makeup to change the makeup style.",
  "ระบบแต่งเมคอัพยังไม่พร้อม กรุณาลองใหม่":"Makeup is not ready. Please try again.",
  "สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้":"Makeup could not be completed. Your existing work is retained.",

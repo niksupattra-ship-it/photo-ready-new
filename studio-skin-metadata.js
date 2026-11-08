@@ -1,4 +1,5 @@
 import {STUDIO_SKIN_WORKFLOW_VERSION} from './studio-skin-treatment.js';
+import {sharedStudioSkinSource} from './src/shared-studio-skin.js';
 
 const cosmeticStyles=new Set(['makeup','korean-rosy-v1','soft-rosy-v1']);
 // These describe processed pixels only. Never put them on the immutable upload.
@@ -12,5 +13,6 @@ export function studioSkinWorkflowMetadata(master,head={}){
  const version=master?.idpromStudioSkinVersion||head.studioSkinVersion;
  if(version!==STUDIO_SKIN_WORKFLOW_VERSION)return {};
  const cosmetics=master?.idpromStudioCosmeticsVersion||head.studioCosmeticsVersion;
- return {studioSkinVersion:version,...([...cosmeticStyles].some(style=>cosmetics===version+':'+style)?{studioCosmeticsVersion:cosmetics}:{})};
+ const base=sharedStudioSkinSource(master)||sharedStudioSkinSource(head);
+ return {studioSkinVersion:version,...([...cosmeticStyles].some(style=>cosmetics===version+':'+style)?{studioCosmeticsVersion:cosmetics}:{}),...(base?{studioSkinBaseSource:base}:{})};
 }
