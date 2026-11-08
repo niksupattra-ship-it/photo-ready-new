@@ -7,3 +7,5 @@ Current original-AI Makeup uses `shared-pink-nude-gloss-v4` (Soft Rosy uses `sha
 Both female choices retain the source eye-to-chin length and face aspect ratio. The existing source/output acceptance guard now rejects more than 6% change in eye-to-chin/face-width aspect and more than 7% eye-to-chin change; it does not resize or warp a generated face. Male checks are unchanged.
 
 Browser pixel tests at 384px and 900px verify increased skin brightness, lip gloss and lash definition, increased lip/eyelid/cheek colour compared with v3 on light and dark skin fixtures, exact native geometry/alpha and exact Natural restoration. Existing shared-base, cache, source-eye, anatomy and clear-gathered checks remain. No paid model generation is performed.
+
+Delivery checks use overall facial geometry, including the existing aspect and eye-to-chin limits. Eye opening, iris size and gaze micro-measurements no longer reject completed AI jobs: these estimates vary with source resolution and cosmetic contrast. The eye/face preservation prompts, garment checks, gathered-hair checks and native-geometry local cosmetics remain in place.
