@@ -2483,7 +2483,7 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  if(!output.garments?.measurable)throw Object.assign(Error('ตรวจเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(output.garments.retained)throw Object.assign(Error('AI ยังตัดเสื้อเดิมออกไม่ครบ ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(gathered){
-  const compact=inspectGatheredPortraitHair(output);
+  const compact=inspectGatheredPortraitHair(output,{strict:result.idpromStudioSkinVersion==='studio-original-ai-v5-clear-gathered-v1'});
   if(!compact.measurable||compact.retained)throw Object.assign(Error('AI ยังเก็บผมยาวข้างคอออกไม่ครบสำหรับทรงรวบ · เก็บภาพเดิมไว้ กรุณาลองสร้างใหม่'),{code:'selected_hairstyle_mismatch'});
  }
  if(requestedHair){

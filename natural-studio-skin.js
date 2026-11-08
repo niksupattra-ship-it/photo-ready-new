@@ -1,6 +1,6 @@
 export const NATURAL_STUDIO_SKIN_VERSION='natural-studio-skin-v5-ai-preparation-source-eyes';
 export const NATURAL_STUDIO_SKIN_SPOT_VERSION='natural-studio-skin-v4-spot-repair-source-eyes';
-export const needsNaturalAiPreparation=fields=>['studio-original-ai-v4','studio-original-ai-v5'].includes(fields?.studioSkinVersion)&&fields?.portraitMode==='female'&&(fields.femaleEyeStyle||'natural')==='natural'&&(fields.studioSkinVersion==='studio-original-ai-v5'||fields.naturalFinishVersion===NATURAL_STUDIO_SKIN_VERSION);
+export const needsNaturalAiPreparation=fields=>['studio-original-ai-v4','studio-original-ai-v5','studio-original-ai-v5-clear-gathered-v1'].includes(fields?.studioSkinVersion)&&fields?.portraitMode==='female'&&(fields.femaleEyeStyle||'natural')==='natural'&&(['studio-original-ai-v5','studio-original-ai-v5-clear-gathered-v1'].includes(fields.studioSkinVersion)||fields.naturalFinishVersion===NATURAL_STUDIO_SKIN_VERSION);
 export const NATURAL_STUDIO_SKIN_PREVIOUS_VERSION='natural-studio-skin-v3-clear-skin-source-eyes';
 
 export const NATURAL_STUDIO_SKIN_POLICY=`NATURAL PHOTO-STUDIO SKIN — SELECTIVE RETOUCH, ORIGINAL COMPLEXION:
