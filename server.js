@@ -1,3 +1,4 @@
+import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js';
 import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
@@ -231,31 +232,13 @@ registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sha
 // Uses onnxruntime-web instead of the native onnxruntime-node package so container builds do not need native NuGet binaries.
 // The model only predicts an alpha matte. RGB pixels from the exact AI PNG are retained;
 // no beauty/skin/sharpen/denoise/color pass is applied here.
-const MODNET_URL="https://github.com/yakhyo/modnet/releases/download/weights/modnet_photographic.onnx";
-const MODNET_PATH=path.join(dir,".cache","modnet_photographic.onnx");
-let modnetSessionPromise=null;
-
+let modnetSessionPromise=null,modnetReady=false;
 async function getModnetSession(){
-  if(modnetSessionPromise) return modnetSessionPromise;
-  modnetSessionPromise=(async()=>{
-    const fs=await import("fs");
-    const fsp=fs.promises;
-    await fsp.mkdir(path.dirname(MODNET_PATH),{recursive:true});
-    if(!fs.existsSync(MODNET_PATH) || fs.statSync(MODNET_PATH).size<20*1024*1024){
-      const r=await fetch(MODNET_URL,{redirect:"follow",signal:AbortSignal.timeout(90000)});
-      if(!r.ok) throw new Error(`ดาวน์โหลด MODNet ไม่สำเร็จ (${r.status})`);
-      const tmp=MODNET_PATH+".tmp";
-      await fsp.writeFile(tmp,Buffer.from(await r.arrayBuffer()));
-      await fsp.rename(tmp,MODNET_PATH);
-    }
-    const ort=await import("onnxruntime-web/wasm");
-    ort.env.wasm.numThreads=1;
-    ort.env.wasm.proxy=false;
-    const modelBytes=new Uint8Array(await fsp.readFile(MODNET_PATH));
-    return ort.InferenceSession.create(modelBytes,{executionProviders:["wasm"]});
-  })().catch(e=>{modnetSessionPromise=null;throw e});
-  return modnetSessionPromise;
+ if(modnetSessionPromise)return modnetSessionPromise;
+ modnetSessionPromise=createBundledModnetSession(dir).then(session=>{modnetReady=true;return session}).catch(error=>{modnetReady=false;modnetSessionPromise=null;throw error});
+ return modnetSessionPromise;
 }
+
 
 async function modnetRemoveBackground(input,{refine=true}={}){
   const sharp=(await import("sharp")).default;
@@ -366,8 +349,8 @@ const aiFinishHandler=async(req,res)=>{
   if(req.files?.mask?.length)return res.status(400).send('ขั้นตอนใหม่ไม่ใช้ mask กรุณารีเฟรชหน้าเว็บ');
   if(!process.env.ARK_API_KEY)return res.status(500).send('ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์');
   if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!creditUse)return;}
-  // Prepare the unchanged matting model while the external image generation runs.
-  void getModnetSession().catch(e=>console.warn("MODNet warmup:",e.message));
+  // Matting must be available before spending on external image generation.
+  await getModnetSession();
   const data=await processProductionPortrait({input,fields:req.body,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,key:process.env.ARK_API_KEY});
   if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
   res.set('Cache-Control','no-store');res.set('X-Credits-Remaining',String(creditUse.credits));
@@ -539,7 +522,7 @@ app.use((err,req,res,next)=>{
   next(err);
 });
 
-app.get("/api/health",(req,res)=>res.json({ok:true,provider:"MODNet-local",configured:true,removeBgCreditRequired:false}));
+app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
 app.use(express.static(path.join(dir,"dist"),{setHeaders:publicAssetHeaders}));
 app.use((req,res)=>res.set("Cache-Control","no-cache").sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));

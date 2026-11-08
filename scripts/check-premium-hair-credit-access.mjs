@@ -10,6 +10,7 @@ import express from 'express';
 import {requestDownloadPolicy} from '../account-feature-policy.js';
 import {createPremiumDownloadCredits,recipientHashForEmail} from '../premium-download-credits.js';
 import {PRODUCTION_HAIR_CATALOG,downloadHairAllowed} from '../hairstyle-catalog.js';
+import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from '../original-portrait-ai.js';
 import {hasPrivateTrial,isPrivateOwner} from '../private-trial.js';
 
 const {PGlite}=await import(process.env.PGLITE_MODULE||'@electric-sql/pglite');
@@ -58,7 +59,7 @@ try{
  const app=express();app.use(express.json());
  app.use(async(req,res,next)=>{try{req.accountUser=accounts[req.get('X-Test-Session')]||null;let buffer=Buffer.from('input-png-local'),work=req.body?.downloadWorkId;if(!work&&req.body?.sourceJobId){try{work=await policy.scopeForJob(walletId(req),req.body.sourceJobId)}catch{}}if(work){try{buffer=(await policy.inputForWork(walletId(req),work)).buffer}catch{}}if(req.body?.wrongSource)buffer=Buffer.from('different-person');const image={buffer,mimetype:'image/png',originalname:'fixture.png'};req.file=image;req.files={image:[image]};next()}catch(error){next(error)}});
  const noopUpload=(req,res,next)=>next(),upload={single:()=>noopUpload,fields:()=>noopUpload};
- const env={recoverPortraitWork,...gateEnv,app,upload,requireCredit,dir:'/unused-local-fixture',downloadPolicy:policy,
+ const env={recoverPortraitWork,isOriginalPortraitAiRequest,validateOriginalPortraitUpload,...gateEnv,app,upload,requireCredit,dir:'/unused-local-fixture',downloadPolicy:policy,
   process:{env:{ARK_API_KEY:'fixture-provider-never-sent'}},validateProductionPortrait(){},getModnetSession:async()=>{},
   editHairstyle:async args=>{providerCalls.push(['hairstyle',args.hairId]);return {provider:'fixture',png:Buffer.from('fixture-png')}},
   processProductionPortrait:async args=>{providerCalls.push(['portrait',args.fields.hairId]);return Buffer.from('fixture-png')},

@@ -1,0 +1,36 @@
+{
+  "name": "modnet_photographic.onnx",
+  "bytes": 25969398,
+  "sha256": "5069a5e306b9f5e9f4f2b0360264c9f8ea13b257c7c39943c7cf6a2ec3a102ae",
+  "source": "https://github.com/yakhyo/modnet/releases/download/weights/modnet_photographic.onnx",
+  "releaseAssetId": 394107395,
+  "license": "Apache-2.0",
+  "upstream": "https://github.com/yakhyo/modnet",
+  "parts": [
+    {
+      "file": "part-00.bin",
+      "bytes": 6291456,
+      "sha256": "c28e4fc9f0e0c71d692c391299c18e91a0c0e47a7cfd7bf9a0a411a1128bfe3f"
+    },
+    {
+      "file": "part-01.bin",
+      "bytes": 6291456,
+      "sha256": "45be92b0fe5dfe05f755fcc6cf3568813d787df51c6a9f5432b1197b2dc6149a"
+    },
+    {
+      "file": "part-02.bin",
+      "bytes": 6291456,
+      "sha256": "7d668f1037da79a5c1cd7b6f585e56d3ddfa0e04b0c1a5403fd027d3d7bf2a63"
+    },
+    {
+      "file": "part-03.bin",
+      "bytes": 6291456,
+      "sha256": "656ad0f0bf42bf94593dabd2cd5c42b3a69f6df9d8223f01d52d8e6864687086"
+    },
+    {
+      "file": "part-04.bin",
+      "bytes": 803574,
+      "sha256": "184ec62082e4bd921af4d6c990a841faf3ebcd999a78090eaf897cf2ee8aa136"
+    }
+  ]
+}
