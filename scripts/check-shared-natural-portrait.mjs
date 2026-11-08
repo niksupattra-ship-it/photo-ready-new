@@ -45,6 +45,22 @@ await test('all female finishes use the same Natural AI base, with one job for a
  }
  assert.equal(f.requests.length,1);assert.equal(f.requests[0].options.femaleEyeStyle,'natural');assert.equal(f.events.filter(x=>x==='clean').length,1);assert.equal(f.events.filter(x=>x==='cosmetics').length,3);assert.equal(f.events.filter(x=>x==='rights').length,4);assert.equal(f.upload.idpromStudioSkinVersion,undefined);assert.equal(f.upload.idpromStudioSkinBaseSource,undefined);
 });
+await test('female Natural and Makeup deliver and reuse the completed base even when landmark ratios would reject it',async()=>{
+ for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1'])for(const code of ['face_proportion_changed','portrait_features_changed']){
+  const f=fixture();let comparisons=0;
+  f.env.checkPortraitProportions=async()=>{comparisons++;throw Object.assign(Error('landmark comparison rejected'),{code})};
+  const first=await f.run(f.upload,'original',{portraitMode:'female',femaleEyeStyle:style});
+  const repeated=await f.run(f.upload,'original',{portraitMode:'female',femaleEyeStyle:style});
+  assert(hasOriginalPortraitAiFinish(first,style));assert(hasOriginalPortraitAiFinish(repeated,style));assert.equal(comparisons,0);assert.equal(f.requests.length,1);assert.equal(f.events.filter(e=>e==='completion').length,2);assert(f.events.includes('rights'));assert(f.events.includes('event'));
+ }
+});
+await test('male validation and female completion failures still prevent delivery',async()=>{
+ const male=fixture();let comparisons=0;
+ male.env.checkPortraitProportions=async()=>{comparisons++;throw Object.assign(Error('male proportions rejected'),{code:'face_proportion_changed'})};
+ await assert.rejects(male.run(male.upload,'seedream-36',{portraitMode:'male'}),e=>e.code==='face_proportion_changed');assert.equal(comparisons,1);assert(!male.events.includes('event'));
+ const f=fixture();f.env.checkPortraitCompletion=async()=>{throw Object.assign(Error('retained clothing'),{code:'portrait_finish_incomplete'})};
+ await assert.rejects(f.run(f.upload,'original',{portraitMode:'female'}),e=>e.code==='portrait_finish_incomplete');assert(!f.events.includes('event'));
+});
 await test('different hair and wallet scopes each generate a new base; returning hair reuses its own pixels',async()=>{
  const f=fixture();for(const hair of ['seedream-41','seedream-42','seedream-41'])await f.run(f.upload,hair,{portraitMode:'female',femaleEyeStyle:'makeup',creditKind:'hairstyle'});assert.equal(f.requests.length,2);
  f.state.scope='wallet-B';await f.run(f.upload,'seedream-41',{portraitMode:'female',femaleEyeStyle:'natural'});assert.equal(f.requests.length,3);

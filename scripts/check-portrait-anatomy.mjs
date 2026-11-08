@@ -32,7 +32,7 @@ await check('neck boundary retains a broad deep continuous backing while removin
  const original=new Uint8ClampedArray(p),face=[];face[33]={x:44/W,y:40/H};face[263]={x:76/W,y:40/H};face[152]={x:60/W,y:72/H};assert(boundPortraitNeckAlpha(p,hair,W,H,face));
  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=(y*W+x)*4;assert.deepEqual(p.subarray(i,i+3),original.subarray(i,i+3));if(y<=74||x>=3&&x<8)assert.equal(p[i+3],255);else if(y>=125)assert.equal(p[i+3],0)}assert(p[(112*W+60)*4+3]>0);assert.equal(p[(83*W+119)*4+3],0);
 });
-await check('actual App rejects combined face elongation that individually passed width/height limits, same for all finishes',async()=>{
+await check('legacy geometry helper rejects elongation; female delivery no longer uses that gate',async()=>{
  const main=await readFile(root+'src/main.jsx','utf8'),a=main.indexOf('async function checkPortraitProportions('),b=main.indexOf('// Check the returned AI cutout',a);assert(a>=0&&b>a);
  const source={faceWidth:1.4,jawWidth:1,eyeToChin:1,eyeToNose:.4,eyeToMouth:.7,protectedFeatures:{}},generated={...source,faceWidth:1.32,eyeToChin:1.06};assert(compareFaceProportions(source,generated).ok);
  const run=Function('env','with(env){'+main.slice(a,b)+';return checkPortraitProportions}')({portraitFaceMetrics:async value=>value,compareFaceProportions,comparePortraitProtectedFeatures:()=>({ok:true})});await assert.rejects(run(source,generated,{protectFeatures:true}),e=>e.code==='face_proportion_changed');await run(source,{...source},{protectFeatures:true});await assert.rejects(run(source,{...source,eyeToChin:1.075},{protectFeatures:true}),e=>e.code==='face_proportion_changed');
@@ -42,6 +42,6 @@ await check('actual App rejects combined face elongation that individually passe
  await run(liveSource,liveResult,{protectFeatures:true});
  const rejectFeatures=Function('env','with(env){'+main.slice(a,b)+';return checkPortraitProportions}')({portraitFaceMetrics:async value=>value,compareFaceProportions,comparePortraitProtectedFeatures:()=>({ok:false,reason:'features'})});
  await rejectFeatures(source,{...source},{protectFeatures:true});
- assert.match(main,/\['natural','makeup','korean-rosy-v1','soft-rosy-v1'\]\.includes\(options.femaleEyeStyle\)/);
+ assert.match(main,/if\(gender!=='female'\)await checkPortraitProportions\(originalFile,cached.value\)/);
 });
 console.log(JSON.stringify({passed,scope:'Actual V5 provider orchestration with inert calls, 25 real hair reference pixels/masks, deterministic alpha-only neck clipping and actual App elongation guard. No provider/payment/customer requests.'}));

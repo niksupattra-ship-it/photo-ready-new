@@ -2581,7 +2581,10 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   return finished;
  });
- try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&['natural','makeup','korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
+ // Female AI finishes preserve geometry through the original-upload prompts.
+ // Source/output landmark ratios are estimates, not a delivery gate: changes
+ // in pose, crop and cosmetic contrast must not discard a completed image.
+ try{if(gender!=='female')await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  const finishRequested=async base=>{
