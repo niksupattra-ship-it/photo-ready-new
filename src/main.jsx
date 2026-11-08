@@ -1,3 +1,4 @@
+import {boundPortraitNeckAlpha} from './portrait-neck-boundary.js';
 import {LanguageSwitch} from './language-switch.jsx';
 import {startEnglishPreview,outfitsForLanguage} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
@@ -1345,7 +1346,9 @@ async function cleanPortraitClothing(blob){
  if(!masks.clothingMask||!masks.skinMask||!masks.hairMask)throw Error('ตรวจแยกเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองอีกครั้ง');
  const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
  const frame=ctx.getImageData(0,0,W,H),read=m=>m.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
- if(!removePortraitClothingAlpha(frame.data,read(masks.clothingMask),read(masks.skinMask),read(masks.hairMask),W,H,face[152].y*H))return blob;
+ const garmentChanged=removePortraitClothingAlpha(frame.data,read(masks.clothingMask),read(masks.skinMask),read(masks.hairMask),W,H,face[152].y*H);
+ const neckChanged=blob.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&boundPortraitNeckAlpha(frame.data,read(masks.hairMask),W,H,face);
+ if(!garmentChanged&&!neckChanged)return blob;
  ctx.putImageData(frame,0,0);const cleaned=await canvasPng(c);
  for(const key of Object.getOwnPropertyNames(blob))if(key.startsWith('idprom'))Object.defineProperty(cleaned,key,Object.getOwnPropertyDescriptor(blob,key));
  // Reuse the same semantic labels for validation; only clothing alpha changed.
@@ -2402,7 +2405,9 @@ async function checkPortraitProportions(source,result,{protectFeatures=false}={}
  if(protectFeatures){
   const protectedComparison=comparePortraitProtectedFeatures(original.protectedFeatures,generated.protectedFeatures);
   const limits={faceWidth:.08,jawWidth:.08,eyeToChin:.07,eyeToNose:.08,eyeToMouth:.08};
-  if(!protectedComparison.ok||Object.entries(limits).some(([key,limit])=>comparison.changes[key]>limit)){
+  const sourceAspect=original.eyeToChin/original.faceWidth,outputAspect=generated.eyeToChin/generated.faceWidth;
+  const aspectChanged=!Number.isFinite(sourceAspect)||!Number.isFinite(outputAspect)||Math.abs(outputAspect/sourceAspect-1)>.06;
+  if(!protectedComparison.ok||aspectChanged||Object.entries(limits).some(([key,limit])=>comparison.changes[key]>limit)){
    const error=Error(protectedComparison.reason==='unmeasurable'?'ตรวจรูปตาและสัดส่วนใบหน้าไม่ครบ · เก็บงานเดิมไว้ กรุณาใช้รูปหน้าตรงที่เห็นตาชัด':'รูปตา แววตา หรือสัดส่วนใบหน้าจาก AI คลาดเคลื่อนจากต้นฉบับ · เก็บงานเดิมไว้');
    error.code='portrait_features_changed';throw error;
   }
@@ -2457,7 +2462,7 @@ async function checkPortraitCompletion(originalFile,result,hairId){
    if(reference&&inspectSelectedPortraitHair(reference,output).mismatch)throw Object.assign(Error('ทรงผมที่ได้ยังไม่ตรงกับแบบที่เลือก · เก็บรูปและเลเยอร์เดิมไว้ กรุณาลองอีกครั้ง'),{code:'selected_hairstyle_mismatch'});
   }
   const source=await portraitCompletionEvidence(originalFile),hair=inspectUnchangedPortraitHair(source,output);
-  if(hair.unchanged)throw Object.assign(Error('AI ยังคืนทรงผมเดิมโดยแทบไม่เปลี่ยนแปลง ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+  if(hair.unchanged&&result.idpromStudioSkinVersion!==ORIGINAL_PORTRAIT_AI_VERSION)throw Object.assign(Error('AI ยังคืนทรงผมเดิมโดยแทบไม่เปลี่ยนแปลง ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  }
 }
 
@@ -2537,7 +2542,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   return finished;
  });
- try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&['natural','makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
+ try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&['natural','makeup','korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  if(cached.reused){
@@ -4806,7 +4811,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair,portraitMode);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed','portrait_finish_incomplete'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(['face_proportion_changed','portrait_features_changed','AI_OUTPUT_REJECTED','AI_INPUT_REJECTED','skin_finish_failed','portrait_quality_failed','portrait_finish_incomplete'].includes(e.code)?e.message:'ประมวลผลไม่สำเร็จ กรุณาลองกดอีกครั้ง หรือเปลี่ยนรูปหน้าตรงใหม่');const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{

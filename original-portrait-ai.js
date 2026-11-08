@@ -2,15 +2,16 @@ import {NATURAL_STUDIO_SKIN_VERSION,NATURAL_STUDIO_SKIN_PREVIOUS_VERSION,NATURAL
 
 // Versioned AI editing of the untouched uploaded photograph.
 // Legacy staged requests keep their released preprocessing and local cosmetics.
-export const ORIGINAL_PORTRAIT_AI_VERSION='studio-original-ai-v4';
+export const ORIGINAL_PORTRAIT_AI_VERSION='studio-original-ai-v5';
+export const ORIGINAL_PORTRAIT_AI_PREPARED_VERSION='studio-original-ai-v4';
 export const ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION='studio-original-ai-v3';
 export const ORIGINAL_PORTRAIT_AI_GUIDED_VERSION='studio-original-ai-v2';
 export const ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION='studio-original-ai-v1';
-export const isOriginalPortraitAiVersion=version=>version===ORIGINAL_PORTRAIT_AI_VERSION||version===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION||version===ORIGINAL_PORTRAIT_AI_GUIDED_VERSION||version===ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION;
+export const isOriginalPortraitAiVersion=version=>version===ORIGINAL_PORTRAIT_AI_VERSION||version===ORIGINAL_PORTRAIT_AI_PREPARED_VERSION||version===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION||version===ORIGINAL_PORTRAIT_AI_GUIDED_VERSION||version===ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION;
 const styles=new Set(['natural','makeup','korean-rosy-v1','soft-rosy-v1']);
 const makeupStyles=new Set(['makeup','korean-rosy-v1','soft-rosy-v1']);
-export const needsOriginalAiSkinPolish=fields=>[ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields?.studioSkinVersion)&&fields?.portraitMode==='female'&&makeupStyles.has(fields?.femaleEyeStyle)||needsNaturalAiPreparation(fields);
-export const needsOriginalAiSkinPreparation=fields=>fields?.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&needsOriginalAiSkinPolish(fields);
+export const needsOriginalAiSkinPolish=fields=>[ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields?.studioSkinVersion)&&fields?.portraitMode==='female'&&makeupStyles.has(fields?.femaleEyeStyle)||needsNaturalAiPreparation(fields);
+export const needsOriginalAiSkinPreparation=fields=>[ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields?.studioSkinVersion)&&needsOriginalAiSkinPolish(fields);
 export const isOriginalPortraitAiRequest=fields=>isOriginalPortraitAiVersion(fields?.studioSkinVersion);
 export function validateOriginalPortraitAiFields(fields,gender){
  if(gender!=='female'||!styles.has(fields.femaleEyeStyle||'natural')||fields.studioSkinEvidence!==undefined&&fields.studioSkinEvidence!==null&&fields.studioSkinEvidence!==''||fields.naturalFinishVersion!==undefined&&!needsNaturalClearSkin(fields))throw Object.assign(Error('ตัวเลือกประมวลผลจากต้นฉบับไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ'),{status:400,code:'original_portrait_ai_invalid'});
@@ -93,7 +94,7 @@ export function originalAiPreparedSkinGuideInstruction(index,style='makeup'){
 }
 export const ORIGINAL_AI_PREPARED_SKIN_PRIORITY='FINAL AI-PREPARED MAKEUP PORTRAIT PRIORITY: Retain Image 1’s completed smoother skin, repaired forehead/glabellar/under-eye/crow’s-feet/mouth skin lines, removed temporary acne marks, fine photographic texture, fresher diffuse midtones and controlled frontal studio light. Never reintroduce the original identity image’s wrinkles, coarse roughness, red/brown patches, colour casts, side shadows or oily highlights. The original upload constrains the same person’s identity, intrinsic anatomy, eye/lip shapes, expression and stable identifying marks only. Match reconstructed ear/neck skin continuously to the prepared face. Keep true eyelid borders/folds, brow hairs, nostrils and lip boundaries sharp and unchanged. Preserve broad natural volume and authentic complexion depth without new whitening, another exposure lift, artificial grain, glossy hotspots, global fog or plastic masking. Apply the chosen rosy cosmetics once, preserving real eye and mouth geometry. The selected hair, unchanged head scale, posture, neck anatomy, garment removal and established cutout limits still apply. Return one coherent finished portrait; no local skin blend or later cosmetic filter follows.';
 
-export const needsNaturalClearSkin=fields=>fields?.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&(fields?.femaleEyeStyle||'natural')==='natural'&&[NATURAL_STUDIO_SKIN_VERSION,NATURAL_STUDIO_SKIN_PREVIOUS_VERSION,NATURAL_STUDIO_SKIN_SPOT_VERSION].includes(fields?.naturalFinishVersion);
+export const needsNaturalClearSkin=fields=>[ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields?.studioSkinVersion)&&(fields?.femaleEyeStyle||'natural')==='natural'&&[NATURAL_STUDIO_SKIN_VERSION,NATURAL_STUDIO_SKIN_PREVIOUS_VERSION,NATURAL_STUDIO_SKIN_SPOT_VERSION].includes(fields?.naturalFinishVersion);
 export function naturalSpotRepairPrompt(prompt,fields){
  if(!needsNaturalClearSkin(fields)||fields.naturalFinishVersion!==NATURAL_STUDIO_SKIN_SPOT_VERSION)return prompt;
  // Scattered pigment defects must not be reclassified as protected freckles.

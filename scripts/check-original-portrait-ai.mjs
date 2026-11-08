@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
-import {ORIGINAL_PORTRAIT_AI_VERSION as V,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION as V3,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION as V2,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION as V1,needsOriginalAiSkinPolish,needsOriginalAiSkinPreparation,originalAiClothedSkinPreparationPrompt,originalAiMakeupSkinPolishPrompt,ORIGINAL_AI_PREPARED_SKIN_PRIORITY,isOriginalPortraitAiVersion,isOriginalPortraitAiRequest,originalAiSkinFinish,hasOriginalPortraitAiFinish,markOriginalPortraitAiFinish,originalPortraitAiMetadata,ORIGINAL_AI_TARGET_PRIORITY} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION as V,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION as V4,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION as V3,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION as V2,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION as V1,needsOriginalAiSkinPolish,needsOriginalAiSkinPreparation,originalAiClothedSkinPreparationPrompt,originalAiMakeupSkinPolishPrompt,ORIGINAL_AI_PREPARED_SKIN_PRIORITY,isOriginalPortraitAiVersion,isOriginalPortraitAiRequest,originalAiSkinFinish,hasOriginalPortraitAiFinish,markOriginalPortraitAiFinish,originalPortraitAiMetadata,ORIGINAL_AI_TARGET_PRIORITY} from '../original-portrait-ai.js';
 import {prepareStudioSkinInput,parseStudioSkinRequest} from '../studio-skin-input.js';
 import {processProductionPortrait,productionPortraitPrompt,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {studioSkinWorkflowMetadata} from '../studio-skin-metadata.js';
@@ -15,6 +15,7 @@ let passed=0;const reports=[];
 async function check(name,run){await run();passed++;reports.push(name);console.log('PASS '+name)}
 const raw=await sharp({create:{width:160,height:200,channels:3,background:'#b69583'}}).jpeg({quality:92}).withMetadata({orientation:6}).toBuffer();
 const input={buffer:raw,mimetype:'image/jpeg',originalname:'unmodified-camera.jpg'},fields=style=>({portraitMode:'female',hairId:'original',femaleEyeStyle:style,studioSkinVersion:V});
+const v4fields=style=>({...fields(style),studioSkinVersion:V4});
 const hash=value=>createHash('sha256').update(value).digest('hex');
 await check('original JPEG including EXIF remains byte-exact through the production preparation boundary',async()=>{
  for(const version of [V1,V2,V3,V])for(const style of styles){const f={...fields(style),studioSkinVersion:version};assert.equal(parseStudioSkinRequest(f,'female'),null);const prepared=await prepareStudioSkinInput(input,f,'female');assert.equal(prepared.input,input);assert.equal(prepared.input.buffer,raw);assert.equal(prepared.staged,false);assert.equal((await sharp(raw).metadata()).orientation,6)}
@@ -43,8 +44,8 @@ await check('frozen v1/v2/v3 requests and v4 clothed-original preparation keep c
  const v3Second={makeup:'294d48c140dea5217fafa7bd7d10749788c2886de97aa915a7b47f9b9b2da14c','korean-rosy-v1':'294d48c140dea5217fafa7bd7d10749788c2886de97aa915a7b47f9b9b2da14c','soft-rosy-v1':'a44a21a49665b0b6063a5c3897671239098502acf269b52bb99bfa89568d97d3'};
  const digest=request=>hash(JSON.stringify({prompt:request.prompt,size:request.size,portrait:hash(request.portrait),portraitMime:request.portraitMime,hair:request.hair?hash(request.hair):null,identity:request.identity?hash(request.identity):null,skinReference:request.skinReference?hash(request.skinReference):null,outfit:request.outfit?hash(request.outfit):null}));
  const hairOptions=['original','seedream-19','hair-21'];
- for(const version of [V1,V2,V3,V])for(const style of styles)for(const hair of hairOptions){
-  const requestFields={...fields(style),studioSkinVersion:version,hairId:hair},twoCall=needsOriginalAiSkinPolish(requestFields),preparation=needsOriginalAiSkinPreparation(requestFields),calls=[],events=[];let matting=0;
+ for(const version of [V1,V2,V3,V4])for(const style of styles)for(const hair of hairOptions){
+  const requestFields={...v4fields(style),studioSkinVersion:version,hairId:hair},twoCall=needsOriginalAiSkinPolish(requestFields),preparation=needsOriginalAiSkinPreparation(requestFields),calls=[],events=[];let matting=0;
   await processProductionPortrait({input,fields:requestFields,root,onStage:async stage=>events.push('stage:'+stage),requestPortrait:async options=>{calls.push(options);events.push('AI:'+calls.length);return {png:calls.length===1?(preparation?preparedFull:cutout):finished}},removeBackground:async image=>{matting++;events.push('matting');assert.deepEqual(image,twoCall?finished:cutout);return image}});
   const first=calls[0],portraitCall=preparation?calls[1]:first;
   assert.equal(calls.length,twoCall?2:1);assert.equal(matting,1);assert.equal(first.portrait,raw);assert.equal(first.portraitMime,'image/jpeg');assert.equal(first.outfit,undefined);assert(!events.includes('stage:skin-base'));
@@ -71,23 +72,23 @@ await check('frozen v1/v2/v3 requests and v4 clothed-original preparation keep c
 await check('v2/v3 base prompts and v4 Natural source-eye policy remain exactly frozen',async()=>{
  const selected=[{gender:'female'},...PRODUCTION_HAIR_CATALOG.filter(s=>s.gender==='female')],expected={natural:'3bf2ce7a363670f2875def48db6edd1c15ddd9a0c1b702868750f0b9f8d7f66c',makeup:'c5e61c1c3e110c438d55d35faf1a8c6ce342ebacfcb6d6db078f2c069bcbdd55','korean-rosy-v1':'c5e61c1c3e110c438d55d35faf1a8c6ce342ebacfcb6d6db078f2c069bcbdd55','soft-rosy-v1':'2a9c16fc50edfa02a5c112b68a0ee9ad1ad6ca53da03662d3e44be49537ece37'};
  for(const version of [V2,V3])for(const style of styles)assert.equal(hash(JSON.stringify(selected.map(s=>productionPortraitPrompt(s,style,{studioSkinVersion:version})))),expected[style]);
- assert.equal(hash(JSON.stringify(selected.map(s=>productionPortraitPrompt(s,'natural',{studioSkinVersion:V})))),expected.natural);
- for(const style of styles.filter(s=>s!=='natural'))assert.match(productionPortraitPrompt({gender:'female'},style,fields(style)),/Image 1 is the full clothed source photo after a dedicated AI skin repair and lighting edit/);
+ assert.equal(hash(JSON.stringify(selected.map(s=>productionPortraitPrompt(s,'natural',{studioSkinVersion:V4})))),expected.natural);
+ for(const style of styles.filter(s=>s!=='natural'))assert.match(productionPortraitPrompt({gender:'female'},style,v4fields(style)),/Image 1 is the full clothed source photo after a dedicated AI skin repair and lighting edit/);
 });
 await check('v4 final portrait identity comes only from bounded original pixels, not the prepared AI image',async()=>{
  const large=await sharp({create:{width:2400,height:1600,channels:3,background:'#a17b68'}}).jpeg().withMetadata({orientation:6}).toBuffer(),expected=await sharp(large).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer(),prepared=await sharp({create:{width:200,height:160,channels:4,background:'#cbab99'}}).png().toBuffer();let calls=0;
- await assert.rejects(processProductionPortrait({input:{buffer:large,mimetype:'image/jpeg'},fields:fields('makeup'),root,requestPortrait:async request=>{calls++;if(calls===1){assert.equal(request.portrait,large);assert.equal(request.identity,undefined);return {png:prepared}}assert.equal(request.portrait,prepared);assert.deepEqual(request.identity,expected);const metadata=await sharp(request.identity).metadata();assert.equal(metadata.format,'png');assert.equal(metadata.width,683);assert.equal(metadata.height,1024);throw Error('original identity inspected')},removeBackground:async()=>{throw Error('must not matte a failed final generation')}}),/original identity inspected/);assert.equal(calls,2);
+ await assert.rejects(processProductionPortrait({input:{buffer:large,mimetype:'image/jpeg'},fields:v4fields('makeup'),root,requestPortrait:async request=>{calls++;if(calls===1){assert.equal(request.portrait,large);assert.equal(request.identity,undefined);return {png:prepared}}assert.equal(request.portrait,prepared);assert.deepEqual(request.identity,expected);const metadata=await sharp(request.identity).metadata();assert.equal(metadata.format,'png');assert.equal(metadata.width,683);assert.equal(metadata.height,1024);throw Error('original identity inspected')},removeBackground:async()=>{throw Error('must not matte a failed final generation')}}),/original identity inspected/);assert.equal(calls,2);
 });
 await check('v4 preparation/final-generation failures remain atomic without retries, matting or intermediate delivery',async()=>{
  const prepared=await sharp({create:{width:200,height:160,channels:4,background:'#cbab99'}}).png().toBuffer();
  for(const phase of [1,2])for(const fail of ['throw','missing','empty']){
   let calls=0,matting=0;const error=Error('provider refused or failed phase '+phase);
-  await assert.rejects(processProductionPortrait({input,fields:fields('makeup'),root,requestPortrait:async()=>{calls++;if(calls!==phase)return {png:prepared};if(fail==='throw')throw error;return fail==='missing'?{}:{png:Buffer.alloc(0)}},removeBackground:async()=>{matting++;return prepared}}),fail==='throw'?e=>e===error:e=>e.code===(phase===1?'original_makeup_prepare_invalid':'original_makeup_finish_invalid'));
+  await assert.rejects(processProductionPortrait({input,fields:v4fields('makeup'),root,requestPortrait:async()=>{calls++;if(calls!==phase)return {png:prepared};if(fail==='throw')throw error;return fail==='missing'?{}:{png:Buffer.alloc(0)}},removeBackground:async()=>{matting++;return prepared}}),fail==='throw'?e=>e===error:e=>e.code===(phase===1?'original_makeup_prepare_invalid':'original_makeup_finish_invalid'));
   assert.equal(calls,phase);assert.equal(matting,0);
  }
- for(const version of [V1,V2])for(const style of styles)assert.equal(needsOriginalAiSkinPolish({...fields(style),studioSkinVersion:version}),false);
- for(const version of [V3,V]){assert.equal(needsOriginalAiSkinPolish({...fields('makeup'),studioSkinVersion:version}),true);assert.equal(needsOriginalAiSkinPolish({...fields('natural'),studioSkinVersion:version}),false)}
- assert.equal(needsOriginalAiSkinPolish({...fields('makeup'),portraitMode:'male'}),false);assert.equal(needsOriginalAiSkinPreparation({...fields('makeup'),studioSkinVersion:V3}),false);
+ for(const version of [V1,V2])for(const style of styles)assert.equal(needsOriginalAiSkinPolish({...v4fields(style),studioSkinVersion:version}),false);
+ for(const version of [V3,V4]){assert.equal(needsOriginalAiSkinPolish({...v4fields('makeup'),studioSkinVersion:version}),true);assert.equal(needsOriginalAiSkinPolish({...v4fields('natural'),studioSkinVersion:version}),false)}
+ assert.equal(needsOriginalAiSkinPolish({...v4fields('makeup'),portraitMode:'male'}),false);assert.equal(needsOriginalAiSkinPreparation({...v4fields('makeup'),studioSkinVersion:V3}),false);
 });
 await check('every released v1 female base prompt keeps its exact fingerprint',async()=>{
  const selected=[{gender:'female'},...PRODUCTION_HAIR_CATALOG.filter(s=>s.gender==='female')],expected={natural:'826944d7c700f655c0de7e05140a7da9919ee7719f006d592939c1153efbc3a2',makeup:'040a5a2d1f0ce429681f89e9195d2cd380a1ddb909056f3c5fb54cefc87b718c','korean-rosy-v1':'040a5a2d1f0ce429681f89e9195d2cd380a1ddb909056f3c5fb54cefc87b718c','soft-rosy-v1':'f876460621cc16f147f73a165f650cda195d651447a7ad808879a798e381177f'};
@@ -99,7 +100,7 @@ await check('Natural and Makeup have explicit different AI cosmetic instructions
  assert(!hasOriginalPortraitAiFinish({studioSkinVersion:'studio-skin-stages-v5'},'natural'));
 });
 await check('v1/v2/v3 metadata preserves actual versions without becoming current v4 cache entries',async()=>{
- for(const version of [V1,V2,V3])for(const style of styles){
+ for(const version of [V1,V2,V3,V4])for(const style of styles){
   const blob=markOriginalPortraitAiFinish(new Blob(['released older output']),style,version);assert.equal(blob.idpromStudioSkinVersion,version);assert(!hasOriginalPortraitAiFinish(blob,style));
   const expected={studioSkinVersion:version,...(style==='natural'?{}:{studioCosmeticsVersion:version+':'+style})};assert.deepEqual(originalPortraitAiMetadata(blob),expected);assert.deepEqual(studioSkinWorkflowMetadata(blob),expected);assert.equal(blob.idpromStudioSkinBaseSource,undefined);
  }

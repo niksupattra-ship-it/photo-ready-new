@@ -94,7 +94,7 @@ await test('pending original-AI v1 completion keeps its actual version without s
  }
 });
 await test('only current makeup jobs receive the bounded ten-minute polling budget for the second AI stage',async()=>{
- for(const [version,style,extended,naturalFinishVersion]of [[ORIGINAL_PORTRAIT_AI_VERSION,'makeup',true],[ORIGINAL_PORTRAIT_AI_VERSION,'natural',false],['studio-original-ai-v2','makeup',false],[ORIGINAL_PORTRAIT_AI_VERSION,'natural',true,NATURAL_STUDIO_SKIN_VERSION]]){
+ for(const [version,style,extended,naturalFinishVersion]of [[ORIGINAL_PORTRAIT_AI_VERSION,'makeup',true],['studio-original-ai-v4','natural',false],['studio-original-ai-v2','makeup',false],[ORIGINAL_PORTRAIT_AI_VERSION,'natural',true,NATURAL_STUDIO_SKIN_VERSION]]){
   const f=completionFixture({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style,naturalFinishVersion});let clock=0,polls=0;
   f.env.Date={now:()=>clock};f.env.setTimeout=fn=>{clock=7*60*1000;fn();return 1};
   const original=f.env.portraitFetch;f.env.portraitFetch=async url=>{if(url.endsWith('/result'))return original(url);polls++;return {ok:true,json:async()=>({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style,naturalFinishVersion,status:polls===1?'processing':'completed',stage:polls===1?'skin-polish':'edges'})}};

@@ -1,7 +1,7 @@
 // Transport for the isolated review server; no production route or key fallback.
 export const REVIEW_SEEDREAM_MODEL='dola-seedream-5-0-flash-260915';
 export const REVIEW_SEEDREAM_ENDPOINT='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
-export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,identity,makeup,outfit,skinReference,size='2K'}){
+export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,identity,makeup,outfit,skinReference,neckReference,size='2K'}){
  if(!portrait?.length)throw Error('ไม่มีภาพคนสำหรับ Seedream');
  const image=[`data:${portraitMime};base64,${Buffer.from(portrait).toString('base64')}`];
  if(hair?.length)image.push(`data:image/png;base64,${Buffer.from(hair).toString('base64')}`);
@@ -9,6 +9,7 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(makeup?.length)image.push(`data:image/jpeg;base64,${Buffer.from(makeup).toString('base64')}`);
  if(outfit?.length)image.push(`data:image/png;base64,${Buffer.from(outfit).toString('base64')}`);
  if(skinReference?.length)image.push(`data:image/jpeg;base64,${Buffer.from(skinReference).toString('base64')}`);
+ if(neckReference?.length)image.push(`data:image/png;base64,${Buffer.from(neckReference).toString('base64')}`);
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image:image.length===1?image[0]:image,size,output_format:'png',response_format:'b64_json',watermark:false};
 }
 export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
