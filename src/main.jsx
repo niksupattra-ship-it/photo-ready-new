@@ -1,3 +1,5 @@
+import {measurePortraitAspect,portraitAspectRepair} from './portrait-aspect-repair.js';
+import {expandPortraitHairProtection} from './portrait-hair-protection.js';
 import {boundPortraitNeckAlpha} from './portrait-neck-boundary.js';
 import {LanguageSwitch} from './language-switch.jsx';
 import {startEnglishPreview,outfitsForLanguage} from './english-preview.js';
@@ -1347,6 +1349,26 @@ async function removeFirstPortraitBackground(blob){
  // complete: even one repaired pixel can change a later segmentation result.
  return blob;
 }
+async function restoreFemalePortraitAspect(original,result){
+ const source=await decodedPortraitImage(original),image=await decodedPortraitImage(result),model=await getLandmarker();
+ const sourceFace=await portraitFaceLandmarks(original,source),face=await portraitFaceLandmarks(result,image);
+ const before=measurePortraitAspect(source,model,sourceFace),after=measurePortraitAspect(image,model,face);
+ const transform=portraitAspectRepair(before,after,face,image.naturalWidth,image.naturalHeight);
+ if(!transform)return result;
+ const c=canvasFor(transform.width,transform.height),x=c.getContext('2d');x.setTransform(...transform.matrix);x.drawImage(image,0,0);
+ const repaired=await canvasPng(c);copyStudioSkinBlobMetadata(result,repaired);return repaired;
+}
+async function protectNativePortraitHair(image,masks){
+ if(masks.hairEdgesProtected)return masks.hairMask;
+ const W=image.naturalWidth,H=image.naturalHeight,k=Math.min(1,512/Math.max(W,H)),w=Math.max(1,Math.round(W*k)),h=Math.max(1,Math.round(H*k));
+ const sample=src=>{const c=canvasFor(w,h),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(src,0,0,w,h);return x.getImageData(0,0,w,h).data};
+ const grown=expandPortraitHairProtection(sample(image),sample(masks.hairMask),sample(masks.skinMask),w,h);
+ const small=canvasFor(w,h),x=small.getContext('2d'),frame=x.createImageData(w,h);for(let i=0;i<grown.length;i++)frame.data[i*4+3]=grown[i];x.putImageData(frame,0,0);
+ // Reuse generated-result masks instead of allocating two more native-size
+ // surfaces on phones. Uploaded-photo masks are never changed here.
+ const hair=masks.hairMask,hx=hair.getContext('2d');hx.imageSmoothingEnabled=false;hx.drawImage(small,0,0,W,H);masks.hairEdgesProtected=true;
+ return hair;
+}
 // Remove source clothing before the completion check for every AI portrait.
 // Use native pixels and the existing segmentation classes; no AI retry or resize.
 async function cleanPortraitClothing(blob){
@@ -1357,14 +1379,19 @@ async function cleanPortraitClothing(blob){
  if(!masks.clothingMask||!masks.skinMask||!masks.hairMask)throw Error('ตรวจแยกเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองอีกครั้ง');
  const c=canvasFor(W,H),ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
  const frame=ctx.getImageData(0,0,W,H),read=m=>m.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
- const hair=read(masks.hairMask);
- const garmentChanged=removePortraitClothingAlpha(frame.data,read(masks.clothingMask),read(masks.skinMask),hair,W,H,face[152].y*H);
- const neckChanged=blob.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&boundPortraitNeckAlpha(frame.data,hair,W,H,face);
- if(!garmentChanged&&!neckChanged)return blob;
+ const female=blob.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION;
+ const protectedHair=female?await protectNativePortraitHair(im,masks):masks.hairMask;
+ const hair=read(protectedHair),skin=read(masks.skinMask);
+ const clothing=masks.clothingMask;
+ if(female){const x=clothing.getContext('2d');x.globalCompositeOperation='destination-out';x.drawImage(protectedHair,0,0);x.globalCompositeOperation='source-over';}
+ const completionMasks=female?{...masks,hairMask:protectedHair,clothingMask:clothing}:masks;
+ const garmentChanged=removePortraitClothingAlpha(frame.data,read(clothing),skin,hair,W,H,face[152].y*H);
+ const neckChanged=female&&boundPortraitNeckAlpha(frame.data,hair,W,H,face,{skin});
+ if(!garmentChanged&&!neckChanged){v192MasterMaskCache.set(blob,Promise.resolve(completionMasks));return blob;}
  ctx.putImageData(frame,0,0);const cleaned=await canvasPng(c);
  for(const key of Object.getOwnPropertyNames(blob))if(key.startsWith('idprom'))Object.defineProperty(cleaned,key,Object.getOwnPropertyDescriptor(blob,key));
- // Reuse the same semantic labels for validation; only clothing alpha changed.
- v192MasterMaskCache.set(cleaned,Promise.resolve(masks));
+ // Completion uses the same conservative hair protection as alpha cleanup.
+ v192MasterMaskCache.set(cleaned,Promise.resolve(completionMasks));
  return cleaned;
 }
 
@@ -2559,14 +2586,16 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION]:[])]);
+ const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
  if(options.creditKind==='hairstyle'&&gender!=='female')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
   assertCurrentOperation();
   const result=await aiFinishPortraitUncached(originalFile,hairId,options,neckline);
   assertCurrentOperation();
-  const cleaned=await cleanPortraitClothing(result);
+  const shaped=gender==='female'?await restoreFemalePortraitAspect(originalFile,result):result;
+  assertCurrentOperation();
+  const cleaned=await cleanPortraitClothing(shaped);
   assertCurrentOperation();
   let finished=cleaned;
   if(gender==='female'&&[STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(finished.idpromStudioSkinVersion)){
