@@ -121,14 +121,15 @@ try:
      assert(equal(new Uint8Array(await restored.arrayBuffer()),new Uint8Array(await input.arrayBuffer())),'Natural did not restore exact unpainted bytes');
      const result=await decode(makeup),after=read(result),legacy=read(await renderLocalMakeup({...f,lookId:'shared-rose-pink-v1',cosmeticsOnly:true}));
      assert(result.width===f.original.width&&result.height===f.original.height,'makeup resized/warped the image');
-     const strong=read(await renderLocalMakeup({...f,lookId:'shared-rose-pink-gloss-v2',cosmeticsOnly:true}));
-     let skinLift=0,skinCount=0,glossGain=0,lashGain=0,lipNude=0,lipStrong=0,lipCount=0,eyeNude=0,eyeStrong=0,eyeCount=0;
+     const strong=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v3',cosmeticsOnly:true}));
+     let skinLift=0,skinCount=0,glossGain=0,lashGain=0,lipNude=0,lipStrong=0,lipCount=0,eyeNude=0,eyeStrong=0,eyeCount=0,cheekGain=0,cheekCount=0;
      for(let y=0;y<result.height;y++)for(let x=0;x<result.width;x++){
       const i=(y*result.width+x)*4,px=(x+.5)/result.width,py=(y+.5)/result.height;
       assert(after[i+3]===before[i+3],'alpha changed');
       const inFace=((px-.5)/.33)**2+((py-.48)/.40)**2<1;
       if(!inFace)for(let c=0;c<4;c++)assert(after[i+c]===before[i+c],'hair/background/silhouette changed');
       if(px>.36&&px<.64&&py>.50&&py<.60){skinLift+=(after[i]+after[i+1]+after[i+2]-before[i]-before[i+1]-before[i+2])/3;skinCount++}
+      if((Math.abs(px-.33)<.04||Math.abs(px-.67)<.04)&&py>.52&&py<.58){cheekGain+=after[i]-after[i+1]-strong[i]+strong[i+1];cheekCount++}
       if(px>.43&&px<.57&&py>.687&&py<.701){lipNude+=after[i]-after[i+1];lipStrong+=strong[i]-strong[i+1];lipCount++}
       if((Math.abs(px-.36)<.04||Math.abs(px-.64)<.04)&&py>.365&&py<.39){eyeNude+=after[i]-after[i+1];eyeStrong+=strong[i]-strong[i+1];eyeCount++}
       if(px>.40&&px<.60&&py>.68&&py<.71)glossGain=Math.max(glossGain,(after[i]+after[i+1]+after[i+2]-legacy[i]-legacy[i+1]-legacy[i+2])/3);
@@ -136,8 +137,8 @@ try:
       if((Math.abs(px-.36)<.02||Math.abs(px-.64)<.02)&&Math.abs(py-.41)<.006)for(let c=0;c<3;c++)assert(after[i+c]===before[i+c],'eye interior changed');
      }
      assert(skinCount>0&&skinLift/skinCount>2,'skin was not visibly brighter');assert(glossGain>4,'lip gloss did not increase');assert(lashGain>3,'Korean lash definition did not increase');
-     assert((lipStrong-lipNude)/lipCount>2,'lip colour is not softer nude rose than the previous saturated pink');assert((eyeStrong-eyeNude)/eyeCount>.5,'eyelid tint is not naturally muted');
-     samples.push({width,skinLift:skinLift/skinCount,glossGain,lashPixels:lashGain,nudeLipChromaReduction:(lipStrong-lipNude)/lipCount,nudeEyeChromaReduction:(eyeStrong-eyeNude)/eyeCount});
+     assert((lipNude-lipStrong)/lipCount>2,'lip colour is still indistinguishable from the previous subtle nude');assert((eyeNude-eyeStrong)/eyeCount>.5,'eyelid tint did not gain definition');assert(cheekGain/cheekCount>1,'cheek colour did not become visible');
+     samples.push({width,skinLift:skinLift/skinCount,glossGain,lashPixels:lashGain,lipChromaGain:(lipNude-lipStrong)/lipCount,eyeChromaGain:(eyeNude-eyeStrong)/eyeCount,cheekChromaGain:cheekGain/cheekCount});
     }
     return {samples,nativeGeometryAndAlphaExact:true,naturalRestorationExact:true};
    });
