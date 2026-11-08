@@ -12,10 +12,9 @@ import {ServiceTermsLink} from './service-terms.jsx';
 import {SupportCenter} from './support-center.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata} from '../natural-studio-skin.js';
-import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION} from '../studio-skin-treatment.js';
-import {studioSkinWorkflowMetadata,hasCurrentStudioSkin,hasCompletedStudioSkin} from '../studio-skin-metadata.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
+import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {captureStudioSkinEvidence} from './studio-skin-evidence.js';
-import {finishStudioSkinSurface,STUDIO_SKIN_SURFACE_VERSION} from '../studio-skin-surface.js';
 import {finishSharedStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,canReuseStudioSkinBase,isStudioSkinGeometry,studioSkinMasterFrame} from './shared-studio-skin.js';
 import {finishFemaleMakeupEyeTone} from './female-makeup-eye-tone.js';
 import {isFemaleFinishProfile} from './female-finish-profile.js';
@@ -1590,9 +1589,9 @@ function alignFaceCanvas(source,from,to,W,H){
 }
 // Reuse detection only for the exact same portrait. Makeup stays on this device.
 let studioMakeupPreparation=null;
-async function prepareStudioMakeup(source,{semanticOnly=false}={}){
- if(studioMakeupPreparation?.source===source&&studioMakeupPreparation.semanticOnly===semanticOnly)return studioMakeupPreparation.promise;
- const entry={source,semanticOnly,promise:null};studioMakeupPreparation=entry;
+async function prepareStudioMakeup(source){
+ if(studioMakeupPreparation?.source===source)return studioMakeupPreparation.promise;
+ const entry={source,promise:null};studioMakeupPreparation=entry;
  entry.promise=(async()=>{
   const original=await loadImage(source),W=original.naturalWidth,H=original.naturalHeight;
   const detection=canvasFor(W,H),dx=detection.getContext('2d');dx.fillStyle='#fff';dx.fillRect(0,0,W,H);dx.drawImage(original,0,0);
@@ -1602,29 +1601,19 @@ async function prepareStudioMakeup(source,{semanticOnly=false}={}){
   const result=await new Promise((ok,bad)=>{try{segmenter.segment(detection,value=>ok(value))}catch(error){bad(error)}});
   const labels=result?.categoryMask;
   if(!labels)throw Error('ตรวจขอบผิวและผมไม่สำเร็จ กรุณาลองอีกครั้ง');
-  let hairMask,skinMask,semantic;
+  let hairMask,skinMask;
   try{
-   const mw=labels.width,mh=labels.height,values=labels.getAsUint8Array();semantic={width:mw,height:mh,values:new Uint8Array(values)};
+   const mw=labels.width,mh=labels.height,values=labels.getAsUint8Array();
    const mask=category=>{
     const small=canvasFor(mw,mh),sx=small.getContext('2d'),pixels=sx.createImageData(mw,mh);
     for(let i=0;i<values.length;i++){const j=i*4;pixels.data[j]=pixels.data[j+1]=pixels.data[j+2]=255;pixels.data[j+3]=(Array.isArray(category)?category.includes(values[i]):values[i]===category)?255:0}
     sx.putImageData(pixels,0,0);const full=canvasFor(W,H),fx=full.getContext('2d');fx.imageSmoothingEnabled=false;fx.drawImage(small,0,0,W,H);return full;
    };
-   if(!semanticOnly){hairMask=mask(1);skinMask=mask([2,3]);}
+   hairMask=mask(1);skinMask=mask([2,3]);
   }finally{labels.close?.()}
-  return {original,W,H,face,hairMask,skinMask,semantic};
+  return {original,W,H,face,hairMask,skinMask};
  })().catch(error=>{if(studioMakeupPreparation===entry)studioMakeupPreparation=null;throw error});
  return entry.promise;
-}
-async function finishStudioSurfaceBlob(blob){
- if(blob.idpromStudioSkinSurfaceVersion===STUDIO_SKIN_SURFACE_VERSION)return blob;
- const url=URL.createObjectURL(blob);
- try{
-  const {original,face,semantic}=await prepareStudioMakeup(url,{semanticOnly:true}),W=original.naturalWidth||original.width,H=original.naturalHeight||original.height;
-  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0);const frame=ctx.getImageData(0,0,W,H);
-  const result=finishStudioSkinSurface({pixels:frame.data,width:W,height:H,face,semantic});if(result.report.reason)throw Error('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');frame.data.set(result.pixels);ctx.putImageData(frame,0,0);
-  const finished=copyStudioSkinBlobMetadata(blob,await canvasPng(canvas));finished.idpromStudioSkinSurfaceVersion=STUDIO_SKIN_SURFACE_VERSION;canvas.width=1;canvas.height=1;return finished;
- }finally{URL.revokeObjectURL(url)}
 }
 const portraitResultCache=createAiResultCache();
 const makeupResultCache=createAiResultCache({maxEntries:4});
@@ -2539,7 +2528,6 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   let finished=cleaned;
   if(gender==='female'&&finished.idpromStudioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION){
-   finished=await finishStudioSurfaceBlob(finished);assertCurrentOperation();
    finished=await finishSharedStudioSkin(finished,{style:options.femaleEyeStyle,encodeBase:async blob=>{const image=await decodedPortraitImage(blob),native=canvasFor(image.naturalWidth||image.width,image.naturalHeight||image.height);native.getContext('2d').drawImage(image,0,0);try{return native.toDataURL('image/png')}finally{native.width=1;native.height=1}},prepare:async source=>{const url=URL.createObjectURL(source);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return Boolean(operation?.cancelled||activeProcessOperation!==operation)}}});
   }
   // Legacy makeup retains its existing selective finish. The new rosy look
@@ -2561,7 +2549,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   if(verified.checked===false||typeof verified.unlocked!=='boolean')throw Error(verified.message||'ยังตรวจสอบเครดิตรูปเดิมไม่ได้ กรุณาลองอีกครั้ง ไม่จำเป็นต้องชำระเงินซ้ำ');
   const result=cached.value.slice(0,cached.value.size,cached.value.type);
   result.idpromJobId=jobId;result.idpromTrial=!verified.unlocked;result.idpromReused=true;
-  if(hasCurrentStudioSkin(cached.value,options.femaleEyeStyle)){result.idpromStudioSkinVersion=cached.value.idpromStudioSkinVersion;if(cached.value.idpromStudioCosmeticsVersion)result.idpromStudioCosmeticsVersion=cached.value.idpromStudioCosmeticsVersion;if(sharedStudioSkinSource(cached.value))result.idpromStudioSkinBaseSource=cached.value.idpromStudioSkinBaseSource;}if(cached.value.idpromStudioSkinSurfaceVersion)result.idpromStudioSkinSurfaceVersion=cached.value.idpromStudioSkinSurfaceVersion;
+  if(hasCurrentStudioSkin(cached.value,options.femaleEyeStyle)){result.idpromStudioSkinVersion=cached.value.idpromStudioSkinVersion;if(cached.value.idpromStudioCosmeticsVersion)result.idpromStudioCosmeticsVersion=cached.value.idpromStudioCosmeticsVersion;if(sharedStudioSkinSource(cached.value))result.idpromStudioSkinBaseSource=cached.value.idpromStudioSkinBaseSource;}
   if(gender==='female'&&options.femaleEyeStyle==='natural'&&cached.value.idpromNaturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)result.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
   const finishMeta=femaleFinishMetadata(cached.value);if(finishMeta.femaleFinishProfile)result.idpromFemaleFinishProfile=finishMeta.femaleFinishProfile;if(finishMeta.femaleFinishReference)result.idpromFemaleFinishReference=finishMeta.femaleFinishReference;
   if(firstPortrait)result.idpromPortraitCacheKey=key;
@@ -4442,7 +4430,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   // Only the recorded current natural finish can carry its marker into a restored
   // processed master. Never attach processed-finish metadata to the original upload.
   if(mode==='female'&&finishStyle==='natural'&&head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION){if(master===source)master=master.slice(0,master.size,master.type);master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;}
-  if(mode==='female'&&hasCurrentStudioSkin(head,finishStyle)){if(master===source)master=master.slice(0,master.size,master.type);master.idpromStudioSkinVersion=head.studioSkinVersion;if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(sharedStudioSkinSource(head))master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;if(head.studioSkinSurfaceVersion)master.idpromStudioSkinSurfaceVersion=head.studioSkinSurfaceVersion;}
+  if(mode==='female'&&hasCurrentStudioSkin(head,finishStyle)){if(master===source)master=master.slice(0,master.size,master.type);master.idpromStudioSkinVersion=head.studioSkinVersion;if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(sharedStudioSkinSource(head))master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;}
   // Reopened work already has an accepted visible result. Remember that exact
   // current variant so switching back to it does not submit the upload again.
   const entry=rememberHairResult(id,master,mode,finishStyle);entry.confirmed=true;
@@ -4933,13 +4921,12 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const syncStudioPortraitFinish=(head,preparedMaster)=>{
   if(!editCache.current||!firstUploadedPhotoRef.current||head?.jobId!==currentOutputJobRef.current||!sharedStudioSkinSource(head))return false;
   const finish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle);
-  if(!hasCompletedStudioSkin(head,finish))return false;
+  if(!hasCurrentStudioSkin(head,finish))return false;
   const geometry=isStudioSkinGeometry(head.studioSkinGeometry)?head.studioSkinGeometry:studioSkinGeometryRef.current?.source===head.studioSkinBaseSource?studioSkinGeometryRef.current.geometry:null;
   const lock=studioSkinMasterFrame(head,editCache.current.lock,geometry);if(!lock)return false;
   const master=preparedMaster||studioSkinBlobFromSource(head.freeHairBaseOriginal?head.hairOriginalSource:head.source);
   copyStudioSkinBlobMetadata(editCache.current.master,master,{bare:true});
-  master.idpromStudioSkinVersion=head.studioSkinVersion;
-  if(head.studioSkinSurfaceVersion)master.idpromStudioSkinSurfaceVersion=head.studioSkinSurfaceVersion;else delete master.idpromStudioSkinSurfaceVersion;
+  master.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
   master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;
   master.idpromFemaleEyeStyle=finish;
   delete master.idpromStudioCosmeticsVersion;delete master.idpromNaturalStudioSkinVersion;
@@ -4951,7 +4938,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   initialHeadAdjustRef.current={...liveAdjustRef.current};
   lockedPlacementRef.current=null;lockedMasterRef.current=null;setPlacementLocked(false);
   firstUploadedPhotoRef.current.idpromFemaleEyeStyle=finish;
-  if(hasCurrentStudioSkin(head,finish)){const entry=rememberHairResult(head.freeHairBaseOriginal?'':head.hairId||'',master,'female',finish);entry.confirmed=true;}
+  const entry=rememberHairResult(head.freeHairBaseOriginal?'':head.hairId||'',master,'female',finish);entry.confirmed=true;
   return true;
  };
  const changeStudioPortraitFinish=async(head,finish,{isCurrent=()=>true}={})=>{
@@ -4964,10 +4951,8 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const rollback=()=>{if(committed||rolledBack)return;rolledBack=true;studioPhotoTransactionRef.current=false};
   studioPhotoTransactionRef.current=true;
   try{
-   let base=copyStudioSkinBlobMetadata(previous.master,studioSkinBlobFromSource(head.studioSkinBaseSource),{bare:true});
-   base.idpromStudioSkinVersion=head.studioSkinVersion;base.idpromStudioSkinBaseSource=head.studioSkinBaseSource;
-   if(head.studioSkinSurfaceVersion)base.idpromStudioSkinSurfaceVersion=head.studioSkinSurfaceVersion;else delete base.idpromStudioSkinSurfaceVersion;
-   if(head.studioSkinVersion===STUDIO_SKIN_CONTINUOUS_VERSION&&head.studioSkinSurfaceVersion!==STUDIO_SKIN_SURFACE_VERSION){base=await finishStudioSurfaceBlob(base);assertCurrent();base.idpromStudioSkinBaseSource=await blobDataURL(base);assertCurrent();}
+   const base=copyStudioSkinBlobMetadata(previous.master,studioSkinBlobFromSource(head.studioSkinBaseSource),{bare:true});
+   base.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;base.idpromStudioSkinBaseSource=head.studioSkinBaseSource;
    let geometry=isStudioSkinGeometry(head.studioSkinGeometry)?head.studioSkinGeometry:studioSkinGeometryRef.current?.source===head.studioSkinBaseSource?studioSkinGeometryRef.current.geometry:null;
    if(!geometry){const image=await decodedPortraitImage(base),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,face=(await getLandmarker()).detect(image).faceLandmarks?.[0];assertCurrent();if(!face?.[152]||!face?.[234]||!face?.[454])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');geometry={width,height,chinY:face[152].y*height,faceCX:(face[234].x+face[454].x)/2*width,faceWidth:Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height)};if(!isStudioSkinGeometry(geometry))throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง')}
    const master=await finishSharedStudioSkin(base,{style:finish,prepare:async blob=>{assertCurrent();const url=URL.createObjectURL(blob);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return !current()}}});

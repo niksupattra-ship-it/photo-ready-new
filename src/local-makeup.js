@@ -180,7 +180,7 @@ function koreanEyeDetails(g,masks){
  return result;
 }
 
-export async function renderLocalMakeup({original,face,hairMask=null,skinMask=null,lookId='local-natural-pink-v1',signal,onProgress,cosmeticsOnly=false,studioFinish=false}){
+export async function renderLocalMakeup({original,face,hairMask=null,skinMask=null,lookId='local-natural-pink-v1',signal,onProgress,cosmeticsOnly=false}){
  abortIfNeeded(signal);
  const W=original?.naturalWidth||original?.width,H=original?.naturalHeight||original?.height;
  if(!Number.isInteger(W)||!Number.isInteger(H)||W<1||H<1)throw Error('ขนาดรูปเมคอัพไม่ถูกต้อง');
@@ -190,7 +190,7 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
- const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks,{upperOnly:cosmeticsOnly}),eyeDetail=korean&&(!cosmeticsOnly||studioFinish)?koreanEyeDetails(g,masks):null;progress(30);await pause(signal);
+ const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks,{upperOnly:cosmeticsOnly}),eyeDetail=korean&&!cosmeticsOnly?koreanEyeDetails(g,masks):null;progress(30);await pause(signal);
  const luminance=new Float32Array(g.w*g.h);let sum=0,weight=0;
  for(let i=0;i<luminance.length;i++){
   const j=i*4,Y=luma(source[j],source[j+1],source[j+2]);luminance[i]=Y;
@@ -231,18 +231,18 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
    const lip=masks.lips[i];
    if(lip>.0001){
     // Shift chroma gently toward rose while keeping each original texture sample.
-    const tint=korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(korean?(studioFinish?.44:.30):glow?.30:.22)*lip;
+    const tint=korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(korean?.30:glow?.30:.22)*lip;
     for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+strength*((tint[c]-targetY)-(source[j+c]-Y));
     const dx=g.x+x-gloss.x,dy=g.y+y-gloss.y,u=(dx*lx+dy*ly)/Math.max(1,lipWidth*.28),v=(-dx*ly+dy*lx)/Math.max(.8,g.d*.008);
     const satin=Math.exp(-2.8*(u*u+v*v))*lip*(glow?.17:.11);
     for(let c=0;c<3;c++)pixels[j+c]+=Math.min(10,(255-pixels[j+c])*satin);
    }
-   const blush=effects.blushMask[i]*(cosmeticsOnly?(studioFinish&&korean?.43:.14):korean?.43:.16);
+   const blush=effects.blushMask[i]*(cosmeticsOnly?.14:korean?.43:.16);
    if(blush>.0001){const tint=korean?[226,113,165]:[200,135,153],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=blush*((tint[c]-target)-(pixels[j+c]-current))}
-   if(korean&&(!cosmeticsOnly||studioFinish)){
+   if(korean&&!cosmeticsOnly){
     for(const [mask,color]of [[eyeDetail.liner,[34,26,28]]]){const a=mask[i];if(a>.0001)for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-a)+color[c]*a}
-    const bright=cosmeticsOnly?0:eyeDetail.under[i];for(let c=0;c<3;c++)pixels[j+c]+=Math.min(7,(249-pixels[j+c])*.09)*bright;
-    if(!cosmeticsOnly&&tone>.0001){const px=g.x+x,py=g.y+y,bridge=g.point(168),tip=g.point(4),dx=px-bridge.x,dy=py-bridge.y,u=(dx*g.ux+dy*g.uy)/g.d,v=(dx*g.vx+dy*g.vy)/g.d;
+    const bright=eyeDetail.under[i];for(let c=0;c<3;c++)pixels[j+c]+=Math.min(7,(249-pixels[j+c])*.09)*bright;
+    if(tone>.0001){const px=g.x+x,py=g.y+y,bridge=g.point(168),tip=g.point(4),dx=px-bridge.x,dy=py-bridge.y,u=(dx*g.ux+dy*g.uy)/g.d,v=(dx*g.vx+dy*g.vy)/g.d;
      const noseY=((tip.x-bridge.x)*g.vx+(tip.y-bridge.y)*g.vy)/g.d;
      const along=Math.exp(-2*Math.pow((v-noseY*.45)/Math.max(.025,Math.abs(noseY)*.65),2)),highlight=Math.exp(-2*Math.pow(u/.019,2))*along,shade=(Math.exp(-2*Math.pow((u-.044)/.018,2))+Math.exp(-2*Math.pow((u+.044)/.018,2)))*along;
      const delta=(highlight*3.2-shade*2.4)*tone;for(let c=0;c<3;c++)pixels[j+c]+=delta;

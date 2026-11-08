@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {seedreamReviewPayload,REVIEW_SEEDREAM_MODEL} from '../seedream-review-transport.js';
 import {loadStudioSkinLightReference,STUDIO_SKIN_LIGHT_REFERENCE_PATH} from '../studio-skin-light-reference.js';
 import sharp from 'sharp';
-import {STUDIO_SKIN_CONTINUOUS_VERSION as STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_PREVIOUS_VERSION,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_PREVIOUS_VERSION,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from '../studio-skin-input.js';
 import {applyStudioSkinBase} from '../studio-skin-treatment.js';
 import {applyStudioSkinSoftFocus} from '../studio-skin-soft-focus.js';
@@ -117,7 +117,7 @@ await test('wire versions remain explicit and evidence cannot cross between v1 t
   assert.equal(parseStudioSkinRequest({...fields,studioSkinVersion:version,studioSkinEvidence:JSON.stringify(evidence)},'female').version,version);
   for(const mismatch of [STUDIO_SKIN_PREVIOUS_VERSION,STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].filter(v=>v!==version))assert.throws(()=>parseStudioSkinRequest({...fields,studioSkinVersion:mismatch,studioSkinEvidence:JSON.stringify(evidence)},'female'),{code:'studio_skin_evidence_invalid'});
  }
- assert.throws(()=>parseStudioSkinEvidence({...f.evidence,version:'studio-skin-stages-v999'}));
+ assert.throws(()=>parseStudioSkinEvidence({...f.evidence,version:'studio-skin-stages-v6'}));
 });
 await test('v1 through v4 retain released PNG pixels while v5 adds ordered illumination and continuity',async()=>{
  const f=fixture({shadow:true,red:true,pores:true}),input=await inputFor(f),before=Buffer.from(input.buffer);

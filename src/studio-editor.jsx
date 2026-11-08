@@ -1005,8 +1005,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const asset=assets.current.get(head.id),cleanHead={...head,mask:null};
   const localFinish=appearanceKind==='makeup'&&typeof onLocalPortraitFinish==='function'&&canReuseStudioSkinBase(cleanHead)&&!asset?.warped&&!asset?.eraseRestoreSource&&identityStudioMask(asset?.mask);
   const requestSource=sourcePhoto,requestScope=accountScope,requestBase=head.studioSkinBaseSource;
-  let stagedBase=requestBase;
-  const localCurrent=()=>mounted.current&&sourcePhotoRef.current===requestSource&&outputScopeRef.current===requestScope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId&&(l.studioSkinBaseSource===requestBase||l.studioSkinBaseSource===stagedBase));
+  const localCurrent=()=>mounted.current&&sourcePhotoRef.current===requestSource&&outputScopeRef.current===requestScope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId&&l.studioSkinBaseSource===requestBase);
   const assertAppearanceCurrent=()=>{if(localFinish?!localCurrent():isProcessCancelled())throw Error(localFinish?'บัญชีหรือรูปเปลี่ยนแล้ว กรุณาเลือกเมคอัพอีกครั้ง':'ยกเลิกการประมวลผลแล้ว')};
   let reused=localFinish||canRestoreHair(id,mode,finish),stagedResult=null;
   setAppearanceError(null);processRequestRef.current=true;
@@ -1016,14 +1015,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    catch(e){processRequestRef.current=false;appearanceFailure(appearanceKind,e.message||'ตรวจสอบเครดิตไม่สำเร็จ กรุณาลองใหม่');return}
    if(!mounted.current){processRequestRef.current=false;return}
   }
-  setAssetBusy(true);setStatus(localFinish?(finish==='natural'?'กำลังคืนฐานผิวเดิม…':'กำลังแต่งหน้าโทนเดิม…'):reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
+  setAssetBusy(true);setStatus(reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
    const result=stagedResult=localFinish?await onLocalPortraitFinish(cleanHead,finish,{isCurrent:localCurrent}):await onChangeHair(id,mode,finish,...(['korean-rosy-v1','soft-rosy-v1'].includes(finish)?[state.current.find(l=>layerKind(l)==='suit')?.templatePath||'']:[]));
    reused=result?.reused===true;
    assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||'')||portraitFinishChoice(result.layer.femaleEyeStyle,result.layer.initialFemaleEyeStyle)!==finish)throw Error('ผลลัพธ์ไม่ตรงกับเมคอัพหรือทรงผมที่เลือก');
-   if(localFinish){stagedBase=result.layer.studioSkinBaseSource;if(stagedBase!==requestBase&&result.layer.studioSkinGeometry){const old=previous.find(l=>l.id===head.id);if(old)old.studioSkinGeometry={...result.layer.studioSkinGeometry};}}
    const replacement={...result.layer,...headPose(placedHead),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
    assertAppearanceCurrent();
@@ -1053,7 +1051,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(sourcePhoto)sourcePhoto.idpromFemaleEyeStyle=finish;
    if(localFinish){undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}redo.current=[]}else resetPhotoHistory();resetBrushSession();setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setHairConfirmed(true);setHairNotice(false);setRevision(v=>v+1);setTool('move');setComparing(false);
    if(touch){setPicker(false);setTouchMore(false);setTouchOpen(false);setToolRailOpen(true)}
-   if(appearanceKind==='hair'){trackHairSelection(id,'apply',reused?'reuse':id?'new':'original');reportProcessedResult(result.layer,{reused})}else setStatus(localFinish?(finish==='natural'?'กลับเป็นผิวเดิมโดยไม่แต่งหน้าแล้ว':'แต่งหน้าโทนเดิมบนฐานผิวเดิมแล้ว'):reused?'แสดงภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'ที่เคยสร้างไว้แล้ว':'เปลี่ยนเป็น'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'แล้ว');
+   if(appearanceKind==='hair'){trackHairSelection(id,'apply',reused?'reuse':id?'new':'original');reportProcessedResult(result.layer,{reused})}else setStatus(reused?'แสดงภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'ที่เคยสร้างไว้แล้ว':'เปลี่ยนเป็น'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'แล้ว');
   }catch(e){stagedResult?.rollback?.();if(!localFinish||localCurrent())await hydrate(previous).catch(()=>{});if(!reused)await onFinishProcess?.(false).catch(()=>{});appearanceFailure(appearanceKind,appearanceKind==='hair'&&!isProcessCancelled()&&isPremiumHair(id)&&premiumHairAllowed?'เปลี่ยนทรงผมไม่สำเร็จ กรุณากดเลือกทรงผมใหม่อีกครั้ง':e.message||'เปลี่ยนเมคอัพหรือทรงผมไม่สำเร็จ · เก็บภาพเดิมไว้')}finally{processRequestRef.current=false;if(mounted.current)setAssetBusy(false)}
  };
  const selectPortraitFinish=style=>{

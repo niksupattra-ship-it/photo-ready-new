@@ -1,4 +1,4 @@
-import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion} from './studio-skin-treatment.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion} from './studio-skin-treatment.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from './studio-skin-input.js';
 import {loadStudioSkinLightReference,skinLightReferenceInstruction} from './studio-skin-light-reference.js';
 import {NATURAL_STUDIO_LIGHT_POLICY} from './natural-studio-skin.js';
@@ -95,9 +95,9 @@ const CONTINUOUS_REFERENCE_LIGHT=`CONTINUOUS FRONTAL STUDIO LIGHT — CAST CORRE
 export function productionPortraitPrompt(selected,femaleEyeStyle="natural",fields={}){
   const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
   const softSkin=staged&&fields.studioSkinVersion===STUDIO_SKIN_SOFT_VERSION;
-  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
-  const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
-  const continuousSkin=staged&&[STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
+  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
+  const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
+  const continuousSkin=staged&&fields.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION;
   const femaleMakeup=!staged&&selected.gender==='female'&&femaleEyeStyle==='makeup';
   const cosmetics=staged?(continuousSkin?CONTINUOUS_REFERENCE_SKIN_FINISH:referenceSkin?REFERENCE_SKIN_FINISH:retouchedSkin?RETOUCHED_SKIN_PRESERVATION:softSkin?SOFT_SKIN_PRESERVATION:STAGED_SKIN_PRESERVATION):selected.gender==='female'?femaleFinishFor(femaleEyeStyle):`${MALE_SHAVE_POLICY}\nMALE NATURAL STUDIO FINISH — TONAL/TEXTURE EDIT ONLY: Keep all facial geometry and identifying details unchanged. Apply balanced frontal studio-flash illumination that gently lifts broad facial shadows while preserving natural 3D contours around the nose, cheeks, jaw and chin. Make facial and neck skin slightly brighter and more even while retaining the person's original base complexion, pores, small marks, fine lines and realistic texture. Reduce dull or uneven shadowing naturally; no whitening, blur, beauty filter, foundation mask or porcelain skin. Preserve the exact original eyebrows, eyes, nose, cheeks, jaw and chin. Preserve the exact original lip contour and size; add only a very slight healthy natural pink tone to the lips, not lipstick and not glossy. Keep the result clean, natural and masculine with real photographic skin detail. Hair should remain naturally detailed with separated strands and realistic restrained highlights; never plastic or painted.`;
   const task=selected.gender==='male'
@@ -121,7 +121,6 @@ FINAL PRIORITY: Selected hairstyle from Image 2 replaces Image 1's old hair. Pre
   if(referenceSkin)completed=completed.replace('Do not transfer reference skin or head shape','Do not transfer hairstyle-reference skin or head shape');
   if(referenceSkin)completed+='\nFINAL REFERENCE LIGHTING PRIORITY: The uploaded person and identity crop lock identity and anatomy, never their unwanted exposure, colour casts, side shadows or highlights. Adapt all face/ear/neck skin to the identity-free guide’s soft frontal photographic finish while preserving this person’s complexion depth, sharp features and the accepted cutout. Do not restore source lighting after this correction.';
   if(continuousSkin)completed+='\nFINAL CONTINUITY AND SHARED-BASE PRIORITY: Inspect brow heads and between-brow skin, nose sides, under-eye skin, lip surroundings and mouth corners at portrait scale. Remove pale/grey/yellow islands, makeup-like borders or differently exposed skin; blend their illumination and colour continuously into neighboring finished skin without painting over real brow hairs, lashes, eye openings, nostrils or lip contours. Retain the same bare-skin exposure and finish for Natural and makeup selections; local cosmetics happen only after this generation.';
-  if(fields.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION)completed=completed.replace('source illumination normalized and native defect repair completed','source illumination normalized, without any regional skin stencil or prior regional defect repair')+'\nGLOBAL SKIN AND MATTE COMPLETION: Perform complete acne/wrinkle repair in this generation across ALL skin, not only brow heads or mouth corners. Produce continuous, even natural skin chroma on forehead, temples, cheeks, nose, chin, ears and neck; no pale/yellow/grey islands, concealer patches, hard face-oval edges or retouch halos anywhere. Use broad diffuse frontal illumination. Strongly reduce forehead, nose and cheek specular shine to a soft matte finish, with fine photographic texture and no plastic blur. Retain true complexion depth and facial volume. Natural and makeup selections receive the same bare base; the existing local cosmetic palette is added afterward.';
   return completed;
 }
 export function studioReferenceIdentityBox(evidence){
@@ -133,9 +132,9 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const chosen=validateProductionPortrait(input,fields);
  const selected=chosen||{gender:fields.portraitMode};
  const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
- const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
- const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
- const continuousSkin=staged&&[STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
+ const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
+ const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
+ const continuousSkin=staged&&fields.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION;
  if(staged)await onStage('skin-base');
  const prepared=await prepareStudioSkinInput(input,fields,selected.gender),portrait=prepared.input;
  let prompt=productionPortraitPrompt(selected,fields.femaleEyeStyle,fields);

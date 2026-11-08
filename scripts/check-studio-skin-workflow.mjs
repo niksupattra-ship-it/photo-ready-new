@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {STUDIO_SKIN_WORKFLOW_VERSION,isSharedStudioSkinVersion,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {captureStudioSkinEvidence} from '../src/studio-skin-evidence.js';
@@ -16,7 +16,7 @@ function finishWrapper(render){
  // Evaluate the actual wrapper with an inert pixel renderer. Pixel-mask and
  // native-texture invariants are exercised by the separate cosmetics browser test.
  const source=cosmeticSource.replace(/^import .*;\n/gm,'').replace('export async function finishStudioPostCosmetics','async function finishStudioPostCosmetics');
- return Function('env',`with(env){${source};return finishStudioPostCosmetics}`)({STUDIO_SKIN_WORKFLOW_VERSION,isSharedStudioSkinVersion,renderLocalMakeup:render});
+ return Function('env',`with(env){${source};return finishStudioPostCosmetics}`)({STUDIO_SKIN_WORKFLOW_VERSION,renderLocalMakeup:render});
 }
 function completionFixture(fields={studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'natural'},options={}){
  const raw=new Blob(['inert native AI output'],{type:'image/png'}),operation={cancelled:false},events=[],calls=[],urls=[];
