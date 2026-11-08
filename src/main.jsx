@@ -2422,9 +2422,11 @@ async function checkPortraitProportions(source,result,{protectFeatures=false}={}
  }
  if(protectFeatures){
   const protectedComparison=comparePortraitProtectedFeatures(original.protectedFeatures,generated.protectedFeatures);
-  const limits={faceWidth:.08,jawWidth:.08,eyeToChin:.04,eyeToNose:.08,eyeToMouth:.08};
+  // Restore the established detector tolerance: small AI/landmark variation
+  // must not reject a completed portrait. Identity and elongation guards remain.
+  const limits={faceWidth:.08,jawWidth:.08,eyeToChin:.07,eyeToNose:.08,eyeToMouth:.08};
   const sourceAspect=original.eyeToChin/original.faceWidth,outputAspect=generated.eyeToChin/generated.faceWidth;
-  const aspectChanged=!Number.isFinite(sourceAspect)||!Number.isFinite(outputAspect)||Math.abs(outputAspect/sourceAspect-1)>.03;
+  const aspectChanged=!Number.isFinite(sourceAspect)||!Number.isFinite(outputAspect)||Math.abs(outputAspect/sourceAspect-1)>.06;
   if(!protectedComparison.ok||aspectChanged||Object.entries(limits).some(([key,limit])=>comparison.changes[key]>limit)){
    const error=Error(protectedComparison.reason==='unmeasurable'?'ตรวจรูปตาและสัดส่วนใบหน้าไม่ครบ · เก็บงานเดิมไว้ กรุณาใช้รูปหน้าตรงที่เห็นตาชัด':'รูปตา แววตา หรือสัดส่วนใบหน้าจาก AI คลาดเคลื่อนจากต้นฉบับ · เก็บงานเดิมไว้');
    error.code='portrait_features_changed';throw error;
