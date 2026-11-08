@@ -46,11 +46,11 @@ await test('new references retain the exact uploaded hair pixels and have distin
 
 await test('the existing male picker and persistent-job submission discover new catalogue IDs without new routing',async()=>{
  const main=await bytes('src/main.jsx'),server=await bytes('server.js');
- assert(main.toString().includes("const MALE_HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35')"));
- const shown=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35');
+ const source=main.toString(),start=source.indexOf('const BASIC_MALE_HAIR_IDS='),end=source.indexOf('\nconst HAIR_OPTIONS=',start);assert(start>=0&&end>start);
+ const shown=Function('PRODUCTION_HAIR_CATALOG',source.slice(start,end)+';return MALE_HAIR_OPTIONS')(PRODUCTION_HAIR_CATALOG);
  for(const added of additions)assert(shown.some(h=>h.id===added.id));
  assert(!shown.some(h=>h.id==='seedream-35'),'old first male choice remains hidden');
- assert(main.toString().includes("fd.append('portraitMode',selected?.gender||options.portraitMode"));
+ assert(main.toString().includes("fd.append('portraitMode',portraitMode)"));
  assert(main.toString().includes("portraitFetch('/api/ai-jobs'"));
  assert(server.toString().includes('validateProductionPortrait'));
 });
@@ -76,7 +76,7 @@ try{
    const body=requests.at(-1);assert.equal(body.model,REVIEW_SEEDREAM_MODEL);assert.equal(body.size,'2K');assert.equal(body.output_format,'png');assert.equal(body.response_format,'b64_json');
    assert.equal(body.image.length,withIdentity?3:2);assert.deepEqual(imageBytes(body.image[0]),portrait.buffer);assert.deepEqual(imageBytes(body.image[1]),references.get(added.id));assert.notDeepEqual(imageBytes(body.image[1]),previews.get(added.id));
    assert(body.prompt.includes('MALE PORTRAIT:'));assert(body.prompt.includes(MALE_SHAVE_POLICY));assert(body.prompt.includes('MALE NATURAL STUDIO FINISH'));assert(body.prompt.includes(selectedHairInstruction(selected)));
-   assert(body.prompt.includes('LOWER FACE AND EAR ANATOMY PRIORITY'));assert(body.prompt.includes('WIDE ROUND NECKLINE'));assert(!body.prompt.includes('FEMALE INITIAL PORTRAIT'));assert(!body.prompt.includes('FINAL FEMALE DEFAULT'));assert(!body.prompt.includes('MALE DEFAULT HAIRSTYLE'));assert(!body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY'));
+   assert(body.prompt.includes('LOWER FACE AND EAR ANATOMY PRIORITY'));assert.match(body.prompt,/WIDE ROUND neckline/i);assert(!body.prompt.includes('FEMALE INITIAL PORTRAIT'));assert(!body.prompt.includes('FINAL FEMALE DEFAULT'));assert(!body.prompt.includes('MALE DEFAULT HAIRSTYLE'));assert(!body.prompt.includes('ACCEPTED FEMALE MAKEUP CONTINUITY'));
    if(withIdentity){assert.deepEqual(imageBytes(body.image[2]),await portraitIdentityCrop(portrait,[.25,.2,.75,.8]));assert(body.prompt.includes('UPLOADED-PERSON IDENTITY DETAIL — IMAGE 3'))}
    const decoded=await sharp(output).ensureAlpha().raw().toBuffer();assert.deepEqual(decoded.subarray((40*64+32)*4,(40*64+32)*4+4),Buffer.from([180,140,110,255]));
   });

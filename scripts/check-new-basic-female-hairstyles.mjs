@@ -120,7 +120,7 @@ try{
    assert.equal(body.image.length,identity?3:2);assert.deepEqual(imageBytes(body.image[0]),portrait.buffer);
    assert.deepEqual(imageBytes(body.image[1]),references.get(added.id));assert.notDeepEqual(imageBytes(body.image[1]),previews.get(added.id));
    assert(body.prompt.includes(selectedHairInstruction(selected)));assert(body.prompt.includes(femaleFinishFor(finish)));
-   assert(body.prompt.includes('LOWER FACE AND EAR ANATOMY PRIORITY'));assert(body.prompt.includes('WIDE ROUND NECKLINE'));
+   assert(body.prompt.includes('LOWER FACE AND EAR ANATOMY PRIORITY'));assert.match(body.prompt,/WIDE ROUND neckline/i);
    assert(!body.prompt.includes('MALE PORTRAIT:'));assert(!body.prompt.includes('FINAL FEMALE DEFAULT'));
    if(identity){assert.deepEqual(imageBytes(body.image[2]),await portraitIdentityCrop(portrait,[.25,.2,.75,.8]));assert(body.prompt.includes('UPLOADED-PERSON IDENTITY DETAIL — IMAGE 3'))}
    const decoded=await sharp(output).ensureAlpha().raw().toBuffer();assert.deepEqual(decoded.subarray((40*64+32)*4,(40*64+32)*4+4),Buffer.from([180,140,110,255]));
