@@ -237,13 +237,11 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('matting');
  const matted=await removeBackground(result.png);
  await onStage('edges');
- const transparent=await cleanTrialCutoutEdges(matted);
- const stats=await sharp(transparent).ensureAlpha().stats();
- const alpha=stats.channels[3];
+ const {png:transparent,alpha}=await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
  return transparent;
 }
-function cleanTrialAlphaPixels(pixels,width,height){
+function cleanTrialAlphaPixels(pixels,width,height,alpha){
  const count=width*height;
  if(pixels.length!==count*4)throw Error('Invalid cutout pixels');
  const seen=new Uint8Array(count),queue=new Int32Array(count);let tail=0;
@@ -259,14 +257,20 @@ function cleanTrialAlphaPixels(pixels,width,height){
  }
  for(let n=0;n<count;n++){
   const i=n*4+3,a=pixels[i];
-  pixels[i]=a<=30?0:a>=225?255:Math.round((a-30)*255/195);
+  const value=a<=30?0:a>=225?255:Math.round((a-30)*255/195);
+  pixels[i]=value;
+  alpha.min=Math.min(alpha.min,value);alpha.max=Math.max(alpha.max,value);
  }
  return pixels;
 }
 async function cleanTrialCutoutEdges(input){
  const {data,info}=await sharp(input).ensureAlpha().raw().toBuffer({resolveWithObject:true});
- cleanTrialAlphaPixels(data,info.width,info.height);
- return sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
+ const alpha={min:255,max:0};
+ cleanTrialAlphaPixels(data,info.width,info.height,alpha);
+ // The raw alpha is already available above. Avoid decoding the just-encoded
+ // full-size PNG again to compute unused RGB statistics.
+ const png=await sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
+ return {png,alpha};
 }
 
 
