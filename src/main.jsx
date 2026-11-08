@@ -14,7 +14,7 @@ import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata} from '../natural-studio-skin.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
-import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,needsOriginalAiSkinPolish} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
 import {finishSharedStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,canReuseStudioSkinBase,isStudioSkinGeometry,studioSkinMasterFrame} from './shared-studio-skin.js';
 import {finishFemaleMakeupEyeTone} from './female-makeup-eye-tone.js';
 import {isFemaleFinishProfile} from './female-finish-profile.js';
@@ -148,7 +148,7 @@ async function settleProcessOperation(operation,action){
  if(!response.ok)throw Error(action==='cancel'?'ยกเลิกงานไม่สำเร็จ กรุณากดปิดอีกครั้ง':'ยืนยันภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
  operation.settled=true;writeActiveAiJob(null);await clearAiJobFile();
 }
-async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const started=Date.now();let deadline=started+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();if(needsOriginalAiSkinPolish(j))deadline=Math.max(deadline,started+10*60*1000);assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});let [blob,verified]=await Promise.all([out.blob().then(levelPortraitCutout),verifyOutputRights(jobId)]);assertProcessActive(operation);if(isOriginalPortraitAiRequest(j)&&j.portraitMode==='female')markOriginalPortraitAiFinish(blob,portraitFinishChoice(j.femaleEyeStyle),j.studioSkinVersion);if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female'){
+async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const deadline=Date.now()+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});let [blob,verified]=await Promise.all([out.blob().then(levelPortraitCutout),verifyOutputRights(jobId)]);assertProcessActive(operation);if(isOriginalPortraitAiRequest(j)&&j.portraitMode==='female')markOriginalPortraitAiFinish(blob,portraitFinishChoice(j.femaleEyeStyle),j.studioSkinVersion);if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female'){
  blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
  // v5 returns one bare base. Clothing cleanup precedes the shared-base capture
  // and the local cosmetic pass in aiFinishPortrait.
@@ -4884,7 +4884,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
   try{
    const femaleEyeStyle=portraitFinishChoice(file.idpromFemaleEyeStyle);
-   const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(status==='processing'&&stage==='skin-finish')setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
+   const aiHead=await aiFinishPortrait(file,selectedHair||'',{portraitMode,femaleEyeStyle,templatePath:template});
    const master=await finishFirstPortraitMaster(aiHead);
    const composed=await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
    const layers=[];layers.headOnly=true;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {STUDIO_SKIN_WORKFLOW_VERSION,parseStudioSkinEvidence} from '../studio-skin-treatment.js';
-import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,needsOriginalAiSkinPolish} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {captureStudioSkinEvidence} from '../src/studio-skin-evidence.js';
@@ -22,7 +22,7 @@ function finishWrapper(render){
 function completionFixture(fields={studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'natural'},options={}){
  const raw=new Blob(['inert native AI output'],{type:'image/png'}),operation={cancelled:false},events=[],calls=[],urls=[];
  const state={failPrepare:false,failEncode:false,cancelRender:false,failRights:false};
- const env={STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,needsOriginalAiSkinPolish,portraitFinishChoice,activeProcessOperation:operation,assertProcessActive:assertActive,walletHeaders:()=>({'x-wallet-id':'inert'}),analyticsTagError:error=>error,portraitJobError:value=>Error(value),
+ const env={STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,portraitFinishChoice,activeProcessOperation:operation,assertProcessActive:assertActive,walletHeaders:()=>({'x-wallet-id':'inert'}),analyticsTagError:error=>error,portraitJobError:value=>Error(value),
   async portraitFetch(url){calls.push(url);if(url.endsWith('/result'))return {ok:true,headers:{get:name=>name==='X-IDPROM-Trial'?'1':null},blob:async()=>raw};return {ok:true,json:async()=>({status:'completed',stage:'edges',...fields})}},
   async levelPortraitCutout(blob){events.push('level');assert.equal(blob,raw);if(state.cancelLevel)operation.cancelled=true;return blob},
   async verifyOutputRights(){events.push('rights');if(state.failRights)throw Error('rights unavailable');return {checked:true,unlocked:false,fullEdit:true}},
@@ -81,14 +81,6 @@ await test('pending original-AI v1 completion keeps its actual version without s
  for(const style of ['natural','makeup']){
   const version='studio-original-ai-v1',f=completionFixture({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style}),blob=await f.wait('pending-v1');
   assert.equal(blob.idpromStudioSkinVersion,version);assert.equal(blob.idpromStudioCosmeticsVersion,style==='natural'?undefined:version+':'+style);assert(!hasOriginalPortraitAiFinish(blob,style));assert.equal(studioSkinWorkflowMetadata(blob).studioSkinVersion,version);assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));
- }
-});
-await test('only current makeup jobs receive the bounded ten-minute polling budget for the second AI stage',async()=>{
- for(const [version,style,extended]of [[ORIGINAL_PORTRAIT_AI_VERSION,'makeup',true],[ORIGINAL_PORTRAIT_AI_VERSION,'natural',false],['studio-original-ai-v2','makeup',false]]){
-  const f=completionFixture({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style});let clock=0,polls=0;
-  f.env.Date={now:()=>clock};f.env.setTimeout=fn=>{clock=7*60*1000;fn();return 1};
-  const original=f.env.portraitFetch;f.env.portraitFetch=async url=>{if(url.endsWith('/result'))return original(url);polls++;return {ok:true,json:async()=>({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style,status:polls===1?'processing':'completed',stage:polls===1?'skin-polish':'edges'})}};
-  const pending=f.wait('slow-polish');if(extended){const result=await pending;assert.equal(result.idpromStudioSkinVersion,version);assert.equal(polls,2)}else{await assert.rejects(pending,/ประมวลผลเกินเวลา/);assert.equal(polls,1)}
  }
 });
 function submissionFixture(mode='female',style='natural'){
