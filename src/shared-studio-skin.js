@@ -53,7 +53,7 @@ export function copyStudioSkinBlobMetadata(source,target,{bare=false}={}){
 // Switching finish cannot feed makeup pixels back into skin processing.
 export async function finishSharedStudioSkin(blob,{style='natural',encodeBase,prepare,toBlob,signal,onProgress}={}){
  abort(signal);
- const version=blob?.idpromStudioSkinVersion,original=version===ORIGINAL_PORTRAIT_AI_VERSION;
+ const version=blob?.idpromStudioSkinVersion,original=version===ORIGINAL_PORTRAIT_AI_VERSION||version==='studio-original-ai-v5';
  if(!supported.has(style)||!original&&version!==STUDIO_SKIN_WORKFLOW_VERSION)throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  let source=sharedStudioSkinSource(blob);
  if(!source){
