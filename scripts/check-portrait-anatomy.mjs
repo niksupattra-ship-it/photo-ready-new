@@ -35,7 +35,13 @@ await check('neck boundary retains a broad deep continuous backing while removin
 await check('actual App rejects combined face elongation that individually passed width/height limits, same for all finishes',async()=>{
  const main=await readFile(root+'src/main.jsx','utf8'),a=main.indexOf('async function checkPortraitProportions('),b=main.indexOf('// Check the returned AI cutout',a);assert(a>=0&&b>a);
  const source={faceWidth:1.4,jawWidth:1,eyeToChin:1,eyeToNose:.4,eyeToMouth:.7,protectedFeatures:{}},generated={...source,faceWidth:1.32,eyeToChin:1.06};assert(compareFaceProportions(source,generated).ok);
- const run=Function('env','with(env){'+main.slice(a,b)+';return checkPortraitProportions}')({portraitFaceMetrics:async value=>value,compareFaceProportions,comparePortraitProtectedFeatures:()=>({ok:true})});await assert.rejects(run(source,generated,{protectFeatures:true}),e=>e.code==='portrait_features_changed');await run(source,{...source},{protectFeatures:true});await assert.rejects(run(source,{...source,eyeToChin:1.035},{protectFeatures:true}),e=>e.code==='portrait_features_changed');
+ const run=Function('env','with(env){'+main.slice(a,b)+';return checkPortraitProportions}')({portraitFaceMetrics:async value=>value,compareFaceProportions,comparePortraitProtectedFeatures:()=>({ok:true})});await assert.rejects(run(source,generated,{protectFeatures:true}),e=>e.code==='portrait_features_changed');await run(source,{...source},{protectFeatures:true});await assert.rejects(run(source,{...source,eyeToChin:1.075},{protectFeatures:true}),e=>e.code==='portrait_features_changed');
+ // Regression: the live completed female job was rejected by the recent 3%/4% thresholds.
+ const liveSource={faceWidth:1.515826140732443,jawWidth:1.1294713141614625,eyeToChin:1.2118686794859468,eyeToNose:.4734763478795738,eyeToMouth:.7717093591529787,protectedFeatures:{}};
+ const liveResult={faceWidth:1.5257004273310968,jawWidth:1.149516925253715,eyeToChin:1.2673593153356153,eyeToNose:.4935650294814921,eyeToMouth:.8041456850614314,protectedFeatures:{}};
+ await run(liveSource,liveResult,{protectFeatures:true});
+ const rejectFeatures=Function('env','with(env){'+main.slice(a,b)+';return checkPortraitProportions}')({portraitFaceMetrics:async value=>value,compareFaceProportions,comparePortraitProtectedFeatures:()=>({ok:false,reason:'features'})});
+ await assert.rejects(rejectFeatures(source,{...source},{protectFeatures:true}),e=>e.code==='portrait_features_changed');
  assert.match(main,/\['natural','makeup','korean-rosy-v1','soft-rosy-v1'\]\.includes\(options.femaleEyeStyle\)/);
 });
 console.log(JSON.stringify({passed,scope:'Actual V5 provider orchestration with inert calls, 25 real hair reference pixels/masks, deterministic alpha-only neck clipping and actual App elongation guard. No provider/payment/customer requests.'}));
