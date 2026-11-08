@@ -123,7 +123,7 @@ function buildMasks(g,hairMask,skinMask,W,H,source){
  return {skin,tone,support,lips,eyes,protectedDetails,skinPixels:sp};
 }
 
-function eyeEffects(g,masks,{upperOnly=false}={}){
+function eyeEffects(g,masks,{upperOnly=false,koreanLashes=false}={}){
  const t=maskTools(g),blush=t.make(),lashes=t.make(),upperSkin=upperOnly?t.make():null;
  for(let side=0;side<2;side++){
   const ids=LOCAL_MAKEUP_CONTOURS.upperLids[side],points=ids.map(g.point);
@@ -142,14 +142,14 @@ function eyeEffects(g,masks,{upperOnly=false}={}){
   // Sparse individually tapered strokes follow the actual, possibly tilted lid.
   const lengths=[0];for(let i=1;i<points.length;i++)lengths.push(lengths[i-1]+Math.hypot(points[i].x-points[i-1].x,points[i].y-points[i-1].y));
   const total=lengths[lengths.length-1];
-  for(let n=0;n<9;n++){
-   const f=.12+n*.09,distance=total*f;let segment=1;while(segment<lengths.length-1&&lengths[segment]<distance)segment++;
+  for(let n=0;n<(koreanLashes?15:9);n++){
+   const f=koreanLashes?(.16+Math.floor(n/3)*.17+(n%3-1)*.014):(.12+n*.09),distance=total*f;let segment=1;while(segment<lengths.length-1&&lengths[segment]<distance)segment++;
    const a=points[segment-1],b=points[segment],part=(distance-lengths[segment-1])/Math.max(.01,lengths[segment]-lengths[segment-1]);
-   const root={x:a.x+(b.x-a.x)*part,y:a.y+(b.y-a.y)*part},envelope=Math.sin(Math.PI*f),length=g.d*(.008+.006*envelope),outward=side===0?-1:1;
+   const root={x:a.x+(b.x-a.x)*part,y:a.y+(b.y-a.y)*part},envelope=Math.sin(Math.PI*f),length=g.d*(koreanLashes?(.016+.010*envelope)*(n%3===1?1:.72):(.008+.006*envelope)),outward=side===0?-1:1;
    const tip={x:root.x+nx*length+g.ux*outward*length*.25,y:root.y+ny*length+g.uy*outward*length*.25};
    for(let piece=0;piece<4;piece++){
     const s=piece/4,e=(piece+1)/4,curve=v=>({x:root.x+(tip.x-root.x)*v+g.ux*outward*length*.12*v*(1-v),y:root.y+(tip.y-root.y)*v+g.uy*outward*length*.12*v*(1-v)}),p=curve(s),q=curve(e);
-    lashes.ctx.globalAlpha=.32*envelope*(1-s*.65);lashes.ctx.lineWidth=Math.max(.32,g.d*.003)*(1-s*.68);lashes.ctx.lineCap='round';lashes.ctx.beginPath();lashes.ctx.moveTo(p.x-g.x,p.y-g.y);lashes.ctx.lineTo(q.x-g.x,q.y-g.y);lashes.ctx.stroke();
+    lashes.ctx.globalAlpha=(koreanLashes?.58:.32)*envelope*(1-s*.65);lashes.ctx.lineWidth=Math.max(.32,g.d*(koreanLashes?.0028:.003))*(1-s*.68);lashes.ctx.lineCap='round';lashes.ctx.beginPath();lashes.ctx.moveTo(p.x-g.x,p.y-g.y);lashes.ctx.lineTo(q.x-g.x,q.y-g.y);lashes.ctx.stroke();
    }
   }
  }
@@ -186,12 +186,13 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
  if(!Number.isInteger(W)||!Number.isInteger(H)||W<1||H<1)throw Error('ขนาดรูปเมคอัพไม่ถูกต้อง');
  if(!hairMask||!skinMask)throw Error('ตรวจพื้นที่ผิวและขอบผมไม่สำเร็จ เก็บรูปเดิมไว้');
  const progress=n=>{abortIfNeeded(signal);onProgress?.(n)};
- const portraitRose=lookId==='shared-rose-pink-v1',portraitPeach=lookId==='shared-peach-rose-v1';
+ const polished=lookId==='shared-rose-pink-gloss-v2'||lookId==='shared-peach-rose-gloss-v2';
+ const portraitRose=lookId==='shared-rose-pink-v1'||lookId==='shared-rose-pink-gloss-v2',portraitPeach=lookId==='shared-peach-rose-v1'||lookId==='shared-peach-rose-gloss-v2';
  const glow=lookId==='local-pink-glow-v1',korean=lookId==='local-korean-pink-eye-v1'||portraitRose;
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
- const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks,{upperOnly:cosmeticsOnly}),eyeDetail=korean&&!cosmeticsOnly?koreanEyeDetails(g,masks):null;progress(30);await pause(signal);
+ const masks=buildMasks(g,hairMask,skinMask,W,H,source),effects=eyeEffects(g,masks,{upperOnly:cosmeticsOnly,koreanLashes:polished}),eyeDetail=korean&&!cosmeticsOnly?koreanEyeDetails(g,masks):null;progress(30);await pause(signal);
  const luminance=new Float32Array(g.w*g.h);let sum=0,weight=0;
  for(let i=0;i<luminance.length;i++){
   const j=i*4,Y=luma(source[j],source[j+1],source[j+2]);luminance[i]=Y;
@@ -211,6 +212,12 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
   for(let x=0;x<g.w;x++){
    const i=y*g.w+x,j=i*4;if(source[j+3]<240)continue;
    const Y=luminance[i],skin=masks.skin[i],tone=masks.tone[i];
+   if(polished&&cosmeticsOnly&&tone>.0001){
+    // RGB-only translucent brightness; protect highlights and retain every
+    // native texture sample, feature boundary and the original complexion.
+    const bright=clamp(6+(205-mean)*.06,4,10)*clamp((246-Y)/85)*tone;
+    for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+bright;
+   }
    if(!cosmeticsOnly&&(skin>.0001||tone>.0001)){
     const detail=softened[i]-Y,edge=1-smooth(7,19,Math.abs(detail));
     const polish=clamp(detail,-8,8)*(glow?.62:.40)*edge*skin;
@@ -239,8 +246,8 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
     const tint=portraitRose?[220,119,153]:portraitPeach?[227,143,140]:korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(portraitRose||portraitPeach?.42:korean?.30:glow?.30:.22)*lip;
     for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+strength*((tint[c]-targetY)-(source[j+c]-Y));
     const dx=g.x+x-gloss.x,dy=g.y+y-gloss.y,u=(dx*lx+dy*ly)/Math.max(1,lipWidth*.28),v=(-dx*ly+dy*lx)/Math.max(.8,g.d*.008);
-    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(glow?.17:.11);
-    for(let c=0;c<3;c++)pixels[j+c]+=Math.min(10,(255-pixels[j+c])*satin);
+    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(polished?.30:glow?.17:.11);
+    for(let c=0;c<3;c++)pixels[j+c]+=Math.min(polished?22:10,(255-pixels[j+c])*satin);
    }
    const blush=effects.blushMask[i]*(portraitRose||portraitPeach?.43:cosmeticsOnly?.14:korean?.43:.16);
    if(blush>.0001){const tint=korean?[226,113,165]:[200,135,153],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=blush*((tint[c]-target)-(pixels[j+c]-current))}
