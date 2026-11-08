@@ -77,6 +77,12 @@ await test('original-AI completion returns already finished natural and makeup p
   assert.equal(blob.idpromJobId,'original-ai-'+style);assert.equal(blob.idpromTrial,true);
  }
 });
+await test('pending original-AI v1 completion keeps its actual version without seeding the current guided cache',async()=>{
+ for(const style of ['natural','makeup']){
+  const version='studio-original-ai-v1',f=completionFixture({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style}),blob=await f.wait('pending-v1');
+  assert.equal(blob.idpromStudioSkinVersion,version);assert.equal(blob.idpromStudioCosmeticsVersion,style==='natural'?undefined:version+':'+style);assert(!hasOriginalPortraitAiFinish(blob,style));assert.equal(studioSkinWorkflowMetadata(blob).studioSkinVersion,version);assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));
+ }
+});
 function submissionFixture(mode='female',style='natural'){
  const original=new File(['immutable upload bytes'],'original.jpg',{type:'image/jpeg'}),canonical=new File(['old canonical derivative'],'canonical.png',{type:'image/png'}),operation={cancelled:false},calls=[],saved=[],events=[],state={legacyResult:false};
  original.idpromPortraitMode=mode;original.idpromCanonicalInput=canonical;

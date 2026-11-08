@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
-import {ORIGINAL_PORTRAIT_AI_VERSION,originalAiSkinFinish,markOriginalPortraitAiFinish} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION,isOriginalPortraitAiRequest,originalAiSkinFinish,markOriginalPortraitAiFinish} from '../original-portrait-ai.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
+import {loadStudioSkinLightReference} from '../studio-skin-light-reference.js';
 
 let passed=0;
 async function check(name,run){await run();passed++;console.log('PASS '+name)}
@@ -22,11 +23,12 @@ await check('natural eye expression and clear-skin policy reaches the actual sin
  const pixels=new Uint8Array(32*40*4);
  for(let y=4;y<36;y++)for(let x=4;x<28;x++)pixels.set([185,154,135,255],(y*32+x)*4);
  const cutout=await sharp(pixels,{raw:{width:32,height:40,channels:4}}).png().toBuffer();
- for(const hairId of ['original','seedream-19']){
+ for(const version of [ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION,ORIGINAL_PORTRAIT_AI_VERSION])for(const hairId of ['original','seedream-19']){
   let calls=0;
-  await processProductionPortrait({input:{buffer:raw,mimetype:'image/jpeg'},fields:{portraitMode:'female',femaleEyeStyle:'natural',hairId,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION},root:new URL('..',import.meta.url).pathname,
+  await processProductionPortrait({input:{buffer:raw,mimetype:'image/jpeg'},fields:{portraitMode:'female',femaleEyeStyle:'natural',hairId,studioSkinVersion:version},root:new URL('..',import.meta.url).pathname,
    requestPortrait:async actual=>{
-    calls++;assert.equal(actual.portrait,raw);assert.equal(actual.identity,null);assert.equal(actual.skinReference,undefined);assert.equal(actual.outfit,undefined);
+    calls++;assert.equal(actual.portrait,raw);assert.equal(actual.identity,null);assert.equal(actual.outfit,undefined);
+    if(version===ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION)assert.equal(actual.skinReference,undefined);else{assert.deepEqual(actual.skinReference,await loadStudioSkinLightReference(new URL('..',import.meta.url).pathname));assert.match(actual.prompt,/FINAL ORIGINAL-AI V2 SKIN \/ LIGHT AUTHORITY/)}
     assert.match(actual.prompt,/SOURCE EYES AND EXPRESSION/);
     assert.match(actual.prompt,/source iris colour, diameter and texture, pupil size and position, gaze direction, corneal catchlights/);
     assert.match(actual.prompt,/Remove visible active acne, acne-related red\/brown marks, temporary blemishes and fine surface wrinkle lines/);
@@ -48,7 +50,7 @@ await check('actual App wrapper rejects natural eye drift, evicts rejected outpu
    let generations=0,deletions=0,completionChecks=0,featureChecks=0;
    const eyeError=Object.assign(Error('source eye geometry changed'),{code:'portrait_features_changed'});
    const forbidden=()=>{throw Error('local skin or cosmetics must not execute')};
-   const env={window:{dispatchEvent(){}},CustomEvent:class{},activeProcessOperation:operation,assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],portraitFinishChoice:(v,f)=>v||f||'natural',currentResultCacheScope:()=> 'account',resultSourceDigest:async()=> 'upload-sha',uploadGenerationScope:()=> 'upload',HAIR_DESIGN_VERSION:'hair',NATURAL_STUDIO_SKIN_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,STUDIO_SKIN_WORKFLOW_VERSION:'studio-skin-stages-v5',
+   const env={isOriginalPortraitAiRequest,window:{dispatchEvent(){}},CustomEvent:class{},activeProcessOperation:operation,assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],portraitFinishChoice:(v,f)=>v||f||'natural',currentResultCacheScope:()=> 'account',resultSourceDigest:async()=> 'upload-sha',uploadGenerationScope:()=> 'upload',HAIR_DESIGN_VERSION:'hair',NATURAL_STUDIO_SKIN_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,STUDIO_SKIN_WORKFLOW_VERSION:'studio-skin-stages-v5',
     portraitResultCache:{async get(key,create){if(gender==='female'&&style==='natural')assert(key.includes(NATURAL_STUDIO_SKIN_VERSION));return {value:await create(),reused:false}},delete(){deletions++}},
     aiFinishPortraitUncached:async source=>{assert.equal(source,upload);generations++;return finished},cleanPortraitClothing:async image=>image,finishSharedStudioSkin:forbidden,finishFemaleMakeupSoftFocusBlob:forbidden,
     checkPortraitProportions:async(source,image,options)=>{featureChecks++;assert.equal(source,upload);assert.equal(options.protectFeatures,protectedEyes);if(drift&&options.protectFeatures)throw eyeError},checkPortraitCompletion:async()=>{completionChecks++}};

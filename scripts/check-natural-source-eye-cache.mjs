@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
-import {ORIGINAL_PORTRAIT_AI_VERSION,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
 
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
@@ -75,5 +75,8 @@ await test('same-hair/same-natural selection refreshes old revisions once but re
 });
 await test('same-hair makeup and hidden soft accepted-result selections retain their existing fast path',async()=>{
  for(const style of ['makeup','korean-rosy-v1','soft-rosy-v1']){const f=await sameChoice(head(style,priorVersion),style);assert.deepEqual(f.needsGeneration,[]);assert.deepEqual(f.chosen,['head'])}
+});
+await test('previous original-AI v1 results cannot satisfy current v2 source-eye or makeup selections',async()=>{
+ for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){const current={...head(style,NATURAL_STUDIO_SKIN_VERSION),studioSkinVersion:ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION,...(style==='natural'?{}:{studioCosmeticsVersion:ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION+':'+style})};const f=await sameChoice(current,style);assert.deepEqual(f.needsGeneration,[style]);assert.deepEqual(f.chosen,[])}
 });
 console.log(JSON.stringify({passed,scope:'Actual App keys and Studio stale/current choice guards. No image generation, services, accounts or payments.'}));

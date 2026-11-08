@@ -1,5 +1,5 @@
 import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion} from './studio-skin-treatment.js';
-import {isOriginalPortraitAiRequest,ORIGINAL_AI_TASK,ORIGINAL_AI_LIGHT,originalAiSkinFinish} from './original-portrait-ai.js';
+import {isOriginalPortraitAiRequest,ORIGINAL_PORTRAIT_AI_VERSION,ORIGINAL_AI_TASK,ORIGINAL_AI_LIGHT,originalAiSkinFinish,originalAiTargetLightWording,originalAiSkinGuideInstruction,ORIGINAL_AI_TARGET_PRIORITY} from './original-portrait-ai.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from './studio-skin-input.js';
 import {loadStudioSkinLightReference,skinLightReferenceInstruction} from './studio-skin-light-reference.js';
 import {NATURAL_STUDIO_LIGHT_POLICY} from './natural-studio-skin.js';
@@ -123,7 +123,7 @@ FINAL PRIORITY: Selected hairstyle from Image 2 replaces Image 1's old hair. Pre
   if(referenceSkin)completed=completed.replace('Do not transfer reference skin or head shape','Do not transfer hairstyle-reference skin or head shape');
   if(referenceSkin)completed+='\nFINAL REFERENCE LIGHTING PRIORITY: The uploaded person and identity crop lock identity and anatomy, never their unwanted exposure, colour casts, side shadows or highlights. Adapt all face/ear/neck skin to the identity-free guide’s soft frontal photographic finish while preserving this person’s complexion depth, sharp features and the accepted cutout. Do not restore source lighting after this correction.';
   if(continuousSkin)completed+='\nFINAL CONTINUITY AND SHARED-BASE PRIORITY: Inspect brow heads and between-brow skin, nose sides, under-eye skin, lip surroundings and mouth corners at portrait scale. Remove pale/grey/yellow islands, makeup-like borders or differently exposed skin; blend their illumination and colour continuously into neighboring finished skin without painting over real brow hairs, lashes, eye openings, nostrils or lip contours. Retain the same bare-skin exposure and finish for Natural and makeup selections; local cosmetics happen only after this generation.';
-  return completed;
+  return originalAi&&fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION?originalAiTargetLightWording(completed):completed;
 }
 export function studioReferenceIdentityBox(evidence){
  const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
@@ -134,6 +134,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const chosen=validateProductionPortrait(input,fields);
  const selected=chosen||{gender:fields.portraitMode};
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
+ const originalAiV2=originalAi&&fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION;
  const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
  const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
@@ -191,6 +192,14 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   prompt+=skinLightReferenceInstruction(2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit)));
  }
  if(originalAi)prompt=prompt.replaceAll('lighting consistent with the original portrait','lighting consistent with the soft frontal studio light specified above');
+ if(originalAiV2){
+  skinReference=await loadStudioSkinLightReference(root);
+  prompt=originalAiTargetLightWording(prompt);
+  prompt+=originalAiSkinGuideInstruction(2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit)),fields.femaleEyeStyle||'natural');
+  // Last authority, after all hair/default/identity scaffolding. This changes
+  // lighting authority without authorizing face, hair or cutout reshaping.
+  prompt+='\n'+ORIGINAL_AI_TARGET_PRIORITY;
+ }
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:'2K',portrait:portrait.buffer,portraitMime:portrait.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{})});
  await onStage('matting');
