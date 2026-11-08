@@ -148,7 +148,7 @@ await test('all saved female styles require the exact skin and optional cosmetic
  for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){
   const f=fixture();f.env.hairResultCacheRef.current.clear();f.env.editCache.current.master=new Blob(['visible saved '+style]);
   const head={jobId:'job-first',hairId:'seedream-19',portraitMode:'female',femaleEyeStyle:style,...(style==='natural'?{naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{}),...(style==='soft-rosy-v1'?{softRosyFinishVersion:'soft-radiance-korean-brows-v7'}:{})};
-  const invalid=[{},{studioSkinVersion:'older-skin-stage'},{studioSkinVersion:'studio-original-ai-v1',studioCosmeticsVersion:style==='natural'?undefined:'studio-original-ai-v1:'+style},{studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,studioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':wrong-style'}];
+  const invalid=[{},{studioSkinVersion:'older-skin-stage'},{studioSkinVersion:'studio-original-ai-v1',studioCosmeticsVersion:style==='natural'?undefined:'studio-original-ai-v1:'+style},{studioSkinVersion:'studio-original-ai-v2',studioCosmeticsVersion:style==='natural'?undefined:'studio-original-ai-v2:'+style},{studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,studioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':wrong-style'}];
   if(style!=='natural')invalid.push({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION});
   for(const metadata of invalid){f.memory.rememberRestoredHairResult({...head,...metadata});assert.equal(f.memory.canReuseHair('seedream-19','female',style),false);assert.equal(f.calls.length,0)}
   f.memory.rememberRestoredHairResult({...head,...currentHeadMetadata(style)});

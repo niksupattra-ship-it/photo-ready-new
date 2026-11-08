@@ -143,4 +143,7 @@ await check('original-AI retains owned-work source validation and refunds a refu
  f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,409);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert.deepEqual(f.refunds,['fixture-reservation']);assert(!f.events.includes('pinned'));
 });
 
+await check('withdrawn V3 new submissions require refresh before any work recovery or reservation',async()=>{
+ const f=submitFixture({staged:false,body:{studioSkinVersion:'studio-original-ai-v3'}});f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,400);assert.match(f.response.body.message,/กรุณารีเฟรช/);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert(!f.events.includes('reserve'));assert(!f.events.includes('begin'));
+});
 console.log(JSON.stringify({passed,failed:0,scope:'Production submit callback, disposable PostgreSQL job-store SQL, and real localhost multipart middleware. No provider, production database, real account or payment requests.',checks:results}));

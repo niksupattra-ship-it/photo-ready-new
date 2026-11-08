@@ -431,7 +431,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
  try{
   const image=req.files?.image?.[0],mask=req.files?.mask?.[0],originalSource=req.files?.originalSource?.[0];
   if(!image)return res.status(400).json({error:'image_required'});
-  try{validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
+  try{if(req.body?.studioSkinVersion==='studio-original-ai-v3')throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนปรับแสงผิวล่าสุด');validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);

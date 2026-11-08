@@ -2,6 +2,7 @@ import {ENGLISH_ADDITIONAL_COPY} from './english-copy-additions.js';
 // Opt-in presentation layer for the English trial. It never changes API data,
 // form values, uploaded files, canvas pixels, account data or saved projects.
 export const ENGLISH_COPY = {
+ "กำลังเก็บผิวและปรับแสง…":"Refining skin and balancing light…",
  "ตัวเลือกประมวลผลจากต้นฉบับไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ":"The original-photo processing option is invalid. Refresh the page.",
  "กรุณาใช้รูปต้นฉบับเดียวกันในการประมวลผล":"Use the same original photo for processing.",
  "ภาพต้นฉบับมีรายละเอียดใบหน้าไม่พอ กรุณาใช้รูปที่คมชัดและเห็นใบหน้าสว่างพอดี":"The original photo does not contain enough facial detail. Use a sharp photo with the face clearly visible and properly exposed.",
