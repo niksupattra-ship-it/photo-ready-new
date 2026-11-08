@@ -1,7 +1,8 @@
 import sharp from 'sharp';
-import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion,parseStudioSkinEvidence,applyStudioSkinBase} from './studio-skin-treatment.js';
+import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion,parseStudioSkinEvidence,applyStudioSkinBase} from './studio-skin-treatment.js';
 import {applyStudioSkinSoftFocus} from './studio-skin-soft-focus.js';
 import {applyStudioSkinRetouch} from './studio-skin-retouch.js';
+import {normalizeStudioReferenceFill} from './studio-reference-fill.js';
 import {assertStudioReferenceInputQuality} from './studio-reference-quality.js';
 import {normalizeStudioReferenceIllumination} from './studio-reference-illumination.js';
 import {repairStudioSkinContinuity} from './studio-skin-continuity.js';
@@ -32,10 +33,16 @@ export async function prepareStudioSkinInput(input,fields={},gender=fields.portr
  if((metadata.pages||1)!==1)throw invalid('กรุณาใช้รูปภาพนิ่งสำหรับปรับแสงผิว');
  let {data,info}=await decode.rotate().toColourspace('srgb').ensureAlpha().raw().toBuffer({resolveWithObject:true});
  if(info.channels!==4||info.width!==evidence.width||info.height!==evidence.height)throw invalid('ขนาดภาพกับพื้นที่ผิวไม่ตรงกัน กรุณาเปิดรูปเดิมแล้วลองใหม่','studio_skin_source_mismatch');
- const nativeLength=data.length,isCurrent=evidence.version===STUDIO_SKIN_WORKFLOW_VERSION;
+ if(evidence.version===STUDIO_SKIN_WORKFLOW_VERSION){
+  const quality=assertStudioReferenceInputQuality({pixels:data,width:info.width,height:info.height,evidence});
+  const normalized=normalizeStudioReferenceFill({pixels:data,width:info.width,height:info.height,evidence});
+  const buffer=await sharp(normalized.pixels,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
+  return {input:{...input,buffer,mimetype:'image/png',originalname:'prepared-studio-light.png'},staged:true,version:evidence.version,report:{version:evidence.version,referenceQuality:quality,illumination:normalized.report,regionalRetouch:false}};
+ }
+ const nativeLength=data.length,isCurrent=evidence.version===STUDIO_SKIN_CONTINUOUS_VERSION;
  const surface=value=>(value instanceof Uint8Array||value instanceof Uint8ClampedArray)&&value.length===nativeLength;
  const validStage=value=>surface(value?.pixels)&&['applied','unchanged'].includes(value?.report?.status);
- const referenceQuality=[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)?assertStudioReferenceInputQuality({pixels:data,width:info.width,height:info.height,evidence}):null;
+ const referenceQuality=[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION].includes(evidence.version)?assertStudioReferenceInputQuality({pixels:data,width:info.width,height:info.height,evidence}):null;
  let illumination=isCurrent?normalizeStudioReferenceIllumination({pixels:data,width:info.width,height:info.height,evidence}):null;
  if(isCurrent&&!validStage(illumination))throw invalid('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');
  let skinInput=illumination?.pixels||data;
@@ -45,9 +52,9 @@ export async function prepareStudioSkinInput(input,fields={},gender=fields.portr
  // V3 repair stays exact. V4 adds a conservative source-quality gate and a
  // separate visual lighting guide in the existing portrait request. V5 first
  // normalizes source light and later bridges feature-adjacent skin corrections.
- let softened=[STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)?applyStudioSkinSoftFocus({pixels:result.pixels,width:info.width,height:info.height,evidence}):null;
- let retouched=[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)?applyStudioSkinRetouch({pixels:softened.pixels,width:info.width,height:info.height,evidence}):null;
- if([STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(evidence.version)&&(!retouched?.pixels||retouched.pixels.length!==data.length))throw invalid('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');
+ let softened=[STUDIO_SKIN_SOFT_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION].includes(evidence.version)?applyStudioSkinSoftFocus({pixels:result.pixels,width:info.width,height:info.height,evidence}):null;
+ let retouched=[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION].includes(evidence.version)?applyStudioSkinRetouch({pixels:softened.pixels,width:info.width,height:info.height,evidence}):null;
+ if([STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_CONTINUOUS_VERSION].includes(evidence.version)&&(!retouched?.pixels||retouched.pixels.length!==data.length))throw invalid('ตรวจพื้นที่ผิวไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน');
  let repairedPixels=retouched?.pixels||softened?.pixels||result.pixels;
  const report={...result.report,version:evidence.version,...(softened?{softFocus:softened.report}:{}),...(retouched?{retouch:retouched.report}:{}),...(referenceQuality?{referenceQuality}:{}),...(illumination?{illumination:illumination.report}:{})};
  // V5 continuity needs only its normalized source and the final retouched
