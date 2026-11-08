@@ -28,7 +28,8 @@ import {packSavedProjectTransfer,getSavedWorkRequestSize} from './saved-work-tra
 import {encodeSavedWorkRequest} from './saved-work-request.js';
 import {decodedStudioImage} from './studio-image-cache.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
-import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION,selectedHairDesign} from '../hairstyle-catalog.js';
+import {inspectGatheredPortraitHair} from './compact-hair-check.js';
 import {FREE_FEMALE_HAIR_OPTIONS,isFreeFemaleHair} from './free-female-hair.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
@@ -2468,9 +2469,15 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  const requestedHair=Boolean(hairId&&hairId!=='original');
  const compareSelected=requestedHair&&originalFile.idpromStudioSourceReplacement===true;
  const compareUnchanged=requestedHair&&result.idpromStudioSkinVersion!==ORIGINAL_PORTRAIT_AI_VERSION;
- const output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged});
+ const selected=PRODUCTION_HAIR_CATALOG.find(item=>item.id===hairId);
+ const gathered=result.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&(!requestedHair||selectedHairDesign(selected)?.kind==='gathered');
+ const output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged||gathered});
  if(!output.garments?.measurable)throw Object.assign(Error('ตรวจเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(output.garments.retained)throw Object.assign(Error('AI ยังตัดเสื้อเดิมออกไม่ครบ ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+ if(gathered){
+  const compact=inspectGatheredPortraitHair(output);
+  if(!compact.measurable||compact.retained)throw Object.assign(Error('AI ยังเก็บผมยาวข้างคอออกไม่ครบสำหรับทรงรวบ · เก็บภาพเดิมไว้ กรุณาลองสร้างใหม่'),{code:'selected_hairstyle_mismatch'});
+ }
  if(requestedHair){
   if(compareSelected){
    const reference=await selectedHairEvidence(hairId);
@@ -4440,6 +4447,9 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const mode=hairResultMode(id,head.portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle):'natural';
   source.idpromPortraitMode=mode;source.idpromFemaleEyeStyle=finishStyle;
+  // Keep older work visible, but do not label old hair/neck pixels as a newly
+  // repaired cached result when the user selects that hairstyle again.
+  if(mode==='female'&&head.hairPolicyVersion!==HAIR_DESIGN_VERSION)return;
   // Older saved soft-rosy heads remain visible, but are not the revised finish.
   if(finishStyle==='soft-rosy-v1'&&head.softRosyFinishVersion!=='soft-radiance-korean-brows-v7')return;
   // Keep older natural work visible without treating it as the revised skin finish.

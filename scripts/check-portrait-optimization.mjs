@@ -6,6 +6,7 @@ import {createPortraitFaceCache} from '../src/portrait-analysis-cache.js';
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
+import {PRODUCTION_HAIR_CATALOG,selectedHairDesign} from '../hairstyle-catalog.js';
 
 let passed=0;
 const test=async(name,run)=>{await run();passed++;console.info('PASS '+name)};
@@ -35,13 +36,13 @@ const a=main.indexOf('async function checkPortraitCompletion('),b=main.indexOf('
 const completion=env=>Function('env',`with(env){${main.slice(a,b)};return checkPortraitCompletion}`)(env);
 function completionFixture({version=ORIGINAL_PORTRAIT_AI_VERSION,replacement=false,retained=false,mismatch=false}={}){
  const source=new Blob(['original']),result=new Blob(['AI output']),events=[];source.idpromStudioSourceReplacement=replacement;result.idpromStudioSkinVersion=version;
- const env={ORIGINAL_PORTRAIT_AI_VERSION,async portraitCompletionEvidence(blob,garments,options){events.push({kind:blob===result?'result':'source',options});return {garments:{measurable:true,retained}}},async selectedHairEvidence(){events.push({kind:'reference'});return {}},inspectSelectedPortraitHair(){return {mismatch}},inspectUnchangedPortraitHair(){events.push({kind:'unchanged'});return {unchanged:true}}};
+ const env={ORIGINAL_PORTRAIT_AI_VERSION,PRODUCTION_HAIR_CATALOG,selectedHairDesign,inspectGatheredPortraitHair:()=>({measurable:true,retained:false}),async portraitCompletionEvidence(blob,garments,options){events.push({kind:blob===result?'result':'source',options});return {garments:{measurable:true,retained}}},async selectedHairEvidence(){events.push({kind:'reference'});return {}},inspectSelectedPortraitHair(){return {mismatch}},inspectUnchangedPortraitHair(){events.push({kind:'unchanged'});return {unchanged:true}}};
  return {source,result,events,run:completion(env)};
 }
 await test('both current finishes skip source hair analysis whose result is unused',async()=>{
  for(const style of ['natural','makeup'])for(const hair of ['original','seedream-41']){
   const f=completionFixture();f.source.idpromFemaleEyeStyle=style;await f.run(f.source,f.result,hair);
-  assert.deepEqual(f.events,[{kind:'result',options:{includeHair:false}}]);
+  assert.deepEqual(f.events,[{kind:'result',options:{includeHair:true}}]);
  }
 });
 await test('older portraits still reject unchanged selected hair',async()=>{
@@ -53,7 +54,8 @@ await test('replacement hairstyle matching and garment rejection remain enforced
  const garment=completionFixture({retained:true});await assert.rejects(garment.run(garment.source,garment.result,'seedream-41'),e=>e.code==='portrait_finish_incomplete');
 });
 
-// Frozen against 24b9d33 before this optimization. Inert provider responses
+// Provider fingerprints include the v10 compact-hair repair. Pixel fingerprints
+// retain the 24b9d33 alpha-cleanup baseline. Inert provider responses
 // isolate pipeline changes from the image provider's nondeterministic output.
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const summarize=value=>Buffer.isBuffer(value)?{sha256:hash(value),bytes:value.length}:Array.isArray(value)?value.map(summarize):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,summarize(value[key])])):value;
@@ -61,12 +63,12 @@ const data=Buffer.alloc(64*80*4);
 for(let y=0;y<80;y++)for(let x=0;x<64;x++){const i=(y*64+x)*4;data[i]=130+x;data[i+1]=90+y;data[i+2]=80;data[i+3]=(x<5||x>58||y<4||y>75)?0:50+(x*3+y)%206;}
 const input=await sharp(data,{raw:{width:64,height:80,channels:4}}).jpeg().toBuffer(),png=await sharp(data,{raw:{width:64,height:80,channels:4}}).png().toBuffer();
 const expected={
- 'natural|original':'561d2d0370d8efef3adb0244c9baa73e0b3d3446678873cdd795d31be1f1d31c',
- 'natural|seedream-41':'9ced2e73824d7b7fd6473c256ecbb22ced38d0b5108febb128868a20b0359a4b',
- 'makeup|original':'7c814783db4c0741b3a11f73bccadaa68dbf74c288d4edb7976ba784073a0135',
- 'makeup|seedream-41':'3343b0819776c5872f0698f7b734406f60e632b0e0d4f21a1a5afe006ca17cd5'
+ 'natural|original':'1f4def437bb798f0abcc8722df2c00cefbbdd5967ad3559c0dfcdd33634db099',
+ 'natural|seedream-41':'ba72c38cf1b57039a7dae8e43251d00c89a206f64754506480e5b979f622a003',
+ 'makeup|original':'6fb039801b231a674db91811a5664931091324f468ef3f856dcee8667305e164',
+ 'makeup|seedream-41':'7a85779c84f2307611784ccdd7ca1c765d7f93de07e90610f3921053f29ce882'
 };
-for(const style of ['natural','makeup'])for(const hairId of ['original','seedream-41'])await test(`${style}/${hairId}: exact provider payloads, two AI stages and PNG bytes stay unchanged`,async()=>{
+for(const style of ['natural','makeup'])for(const hairId of ['original','seedream-41'])await test(`${style}/${hairId}: versioned hair instructions retain two AI stages and identical server PNG cleanup`,async()=>{
  const requests=[],stages=[];
  const result=await processProductionPortrait({input:{buffer:input,mimetype:'image/jpeg'},fields:{portraitMode:'female',femaleEyeStyle:style,hairId,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,...(style==='natural'?{naturalFinishVersion:NATURAL_STUDIO_SKIN_VERSION}:{})},root:new URL('..',import.meta.url).pathname,onStage:async stage=>stages.push(stage),requestPortrait:async request=>{requests.push(summarize(request));return {png}},removeBackground:async image=>image});
  assert.equal(requests.length,2);assert.equal(hash(JSON.stringify(requests)),expected[style+'|'+hairId]);
