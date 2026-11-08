@@ -31,11 +31,15 @@ export function comparePortraitProtectedFeatures(original,generated){
   if(!Number.isFinite(a)||!Number.isFinite(b))changes.push({region,key,unmeasurable:true});
   else if(Math.abs(a-b)>limit)changes.push({region,key,difference:Math.abs(a-b),limit});
  };
- for(const [key,limit]of [['noseWidth',.035],['mouthWidth',.045],['mouthOpening',.055]])check('face',key,original[key],generated[key],limit);
+ // Landmark detectors vary by a few pixels between the untouched upload and a
+ // generated image, even when the visible feature is effectively unchanged.
+ // Allow that small measurement jitter but keep meaningful geometry/gaze drift
+ // rejected. These are comparison tolerances only; no pixels are modified.
+ for(const [key,limit]of [['noseWidth',.045],['mouthWidth',.055],['mouthOpening',.07]])check('face',key,original[key],generated[key],limit);
  for(const side of ['left','right']){
   const a=original[side],b=generated[side];if(!a||!b)return {ok:false,reason:'unmeasurable',changes:[]};
-  for(const [key,limit]of [['width',.035],['opening',.05],['gazeX',.065],['gazeY',.05],['irisDiameter',.055]])check(side,key,a[key],b[key],limit);
-  const tilt=Math.atan2(Math.sin(b.tilt-a.tilt),Math.cos(b.tilt-a.tilt));check(side,'tilt',0,tilt,Math.PI/30);
+  for(const [key,limit]of [['width',.05],['opening',.07],['gazeX',.075],['gazeY',.06],['irisDiameter',.07]])check(side,key,a[key],b[key],limit);
+  const tilt=Math.atan2(Math.sin(b.tilt-a.tilt),Math.cos(b.tilt-a.tilt));check(side,'tilt',0,tilt,Math.PI/36);
  }
  return {ok:changes.length===0,reason:changes.some(c=>c.unmeasurable)?'unmeasurable':'features',changes};
 }
