@@ -1,5 +1,11 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "สูทชายกรมท่าเชิ้ตแดงไวน์": "Men’s navy suit with burgundy shirt",
+ "สูทชายกรมท่าเนกไทสีพื้น": "Men’s navy suit with solid tie",
+ "สูทชายกรมท่าเนกไทลายเฉียง": "Men’s navy suit with striped tie",
+ "สูทชายเทาเข้มเนกไทลาย": "Men’s charcoal suit with patterned tie",
+ "สูทชายดำเนกไทสีพื้น": "Men’s black suit with solid tie",
+
  "ใช้รูปต้นฉบับและทรงผมที่เลือก": "Uses your original photo and selected hairstyle",
  "เมคอัพเดิม": "Original makeup",
  "เมคอัพ AI เพิ่มเติม": "Additional AI makeup",

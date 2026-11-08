@@ -6,3 +6,9 @@ export function outfitChoicePreview(option,original){
  if(typeof template!=='string'||!/^\/assets\/(?:job|government|student|gown)-uniforms\/[^/]+\.(?:png|webp)$/.test(template)||template.includes('-example'))return original;
  return previews[template]||template;
 }
+
+// Job choices are image-only; retain their names for search and accessible labels.
+export function isJobOutfit(option){
+ const template=option?.template||option?.img;
+ return option?.cat==='job'||typeof template==='string'&&template.startsWith('/assets/job-uniforms/');
+}
