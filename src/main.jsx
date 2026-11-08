@@ -84,6 +84,7 @@ import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
 import {portraitProtectedFeatures,comparePortraitProtectedFeatures} from './portrait-feature-check.js';
+import {measurePortraitProtectedFeatures} from './portrait-feature-canvas.js';
 import {PackageOffers} from './package-offers.jsx';
 import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
@@ -2387,7 +2388,7 @@ async function portraitFaceMetrics(blob){
  const pending=(async()=>{const url=URL.createObjectURL(blob);try{
   const image=await loadImage(url),model=await getLandmarker();
   const face=model.detect(image).faceLandmarks?.[0],proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
-  return proportions?{...proportions,protectedFeatures:portraitProtectedFeatures(face,image.naturalWidth,image.naturalHeight)}:null;
+  return proportions?{...proportions,protectedFeatures:measurePortraitProtectedFeatures(image,model,face)}:null;
  }finally{URL.revokeObjectURL(url)}})();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
