@@ -3,6 +3,7 @@ import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
+import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
 import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
 import {refineBackgroundAlpha} from './background-edge-refine.js';
@@ -430,7 +431,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
  try{
   const image=req.files?.image?.[0],mask=req.files?.mask?.[0],originalSource=req.files?.originalSource?.[0];
   if(!image)return res.status(400).json({error:'image_required'});
-  try{validateProductionPortrait(image,req.body);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
+  try{validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);
@@ -439,7 +440,10 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}
   logStage('persist_job');
   const downloadWorkId=await downloadPolicy.beginWork(walletId(req),image.buffer,String(req.body?.downloadWorkId||''),req.get('X-IDPROM-Saved-Work')||'',originalSource?.buffer||null,{imageType:image.mimetype,originalType:originalSource?.mimetype||image.mimetype});
-  const pinned=await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,delivery_pending:true,delivery_confirmed:false};
+  // beginWork verifies the immutable raw-source hash and wallet ownership first.
+  // Original-AI jobs then use those proven original bytes, even for an older
+  // work whose separate canonical input was previously levelled or encoded.
+  const pinned=isOriginalPortraitAiRequest(req.body)?{buffer:originalSource.buffer,mimetype:originalSource.mimetype}:await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,delivery_pending:true,delivery_confirmed:false};
   // Only the immutable, owned work input reaches generation. A raw-upload proof
   // does not authorize substituting unrelated pixels beside that proof.
    if(!pinned.buffer.equals(image.buffer)){

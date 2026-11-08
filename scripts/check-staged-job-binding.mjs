@@ -8,6 +8,7 @@ import sharp from 'sharp';
 import {validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {recoverPortraitWork} from '../portrait-work-recovery.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from '../original-portrait-ai.js';
 
 const serverSource=await readFile(new URL('../server.js',import.meta.url),'utf8');
 const jobSource=await readFile(new URL('../job-store.js',import.meta.url),'utf8');
@@ -31,7 +32,7 @@ function submitFixture({staged=true,pinned=portrait,pinnedType='image/png',mode=
  const response={statusCode:200,headersSent:false,headers:{},status(n){this.statusCode=n;return this},set(values){Object.assign(this.headers,values);return this},json(value){this.body=value;this.headersSent=true;events.push('response');return this},send(value){this.body=value;this.headersSent=true;events.push('send');return this}};
  const policy={async scopeForJob(wallet,id){events.push('recover');assert.equal(wallet,owner);assert.equal(id,'job-previous');if(scopeError)throw scopeError;return work},async beginWork(...args){events.push('begin');begins.push(args);if(beginError)throw beginError;return work},async inputForWork(wallet,id){events.push('pinned');assert.equal(wallet,owner);assert.equal(id,work);return {buffer:pinned,mimetype:pinnedType}},async attach(...args){events.push('attach');attachments.push(args);if(attachError)throw attachError}};
  let handler;
- const env={app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait,recoverPortraitWork,downloadPolicy:policy,walletId:()=>owner,
+ const env={app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait,isOriginalPortraitAiRequest,validateOriginalPortraitUpload,recoverPortraitWork,downloadPolicy:policy,walletId:()=>owner,
   requireCredit:async(req,res,kind)=>{events.push('reserve');assert.equal(req,request);assert.equal(kind,request.body.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!credit){res.status(402).json({error:'fixture-no-credit'});return null}return {usageId:'fixture-reservation',generationRemaining:2,hairRemaining:1,trialPreview:false}},
   createAiJob:async input=>{events.push('create');queued.push(input);return 'job-staged-fixture'},refundCredit:async id=>{events.push('refund');refunds.push(id)},failAiJob:async(...args)=>{events.push('fail');failed.push(args)},
   setImmediate:fn=>{events.push('schedule');scheduled.push(fn)},runAiJob:id=>{events.push('worker:'+id)},console:{info(){},error(){}}};
@@ -121,4 +122,25 @@ await check('actual bounded multer accepts two files plus eleven fields and reje
   const accepted=await post(11);assert.equal(accepted.http,200);assert.equal(accepted.fields,11);assert.equal(accepted.files,2);assert.equal(accepted.evidence,largeEvidence);assert.equal((await post(13)).error,'LIMIT_FIELD_COUNT');assert.equal((await post(11,true)).error,'LIMIT_FILE_COUNT');
  }finally{await new Promise(resolve=>server.close(resolve))}
 });
+
+await check('original-AI submissions use the proven raw upload even beside an older canonical derivative',async()=>{
+ for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){
+  const raw=await sharp(portrait).jpeg().toBuffer(),f=submitFixture({staged:false,pinned:portrait,body:{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleEyeStyle:style}});
+  f.request.files.image=[{buffer:raw,mimetype:'image/jpeg',originalname:'original.jpg'}];f.request.files.originalSource=[{buffer:raw,mimetype:'image/jpeg',originalname:'original.jpg'}];
+  await f.run();assert.equal(f.response.statusCode,202);assert.equal(f.queued.length,1);assert.equal(f.queued[0].image.buffer,raw);assert.equal(f.queued[0].image.mimetype,'image/jpeg');assert.equal(f.queued[0].fields.studioSkinVersion,ORIGINAL_PORTRAIT_AI_VERSION);assert.equal(f.queued[0].fields.studioSkinEvidence,undefined);assert(!f.events.includes('pinned'));assert.equal(f.begins[0][4],raw);assert.equal(f.scheduled.length,1);
+ }
+});
+await check('original-AI rejects substituted pixels, missing original and mismatched MIME before reservation',async()=>{
+ for(const kind of ['different','missing','mime']){
+  const f=submitFixture({staged:false,body:{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION}});
+  if(kind==='missing')delete f.request.files.originalSource;
+  if(kind==='mime')f.request.files.originalSource=[{buffer:portrait,mimetype:'image/jpeg'}];
+  await f.run();assert.equal(f.response.statusCode,400);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert(!f.events.includes('reserve'));assert(!f.events.includes('begin'));
+ }
+});
+await check('original-AI retains owned-work source validation and refunds a refused binding without generation',async()=>{
+ const f=submitFixture({staged:false,body:{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION},beginError:Object.assign(Error('wrong original or wallet'),{status:409})});
+ f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,409);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert.deepEqual(f.refunds,['fixture-reservation']);assert(!f.events.includes('pinned'));
+});
+
 console.log(JSON.stringify({passed,failed:0,scope:'Production submit callback, disposable PostgreSQL job-store SQL, and real localhost multipart middleware. No provider, production database, real account or payment requests.',checks:results}));

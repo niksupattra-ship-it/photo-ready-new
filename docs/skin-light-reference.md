@@ -1,5 +1,7 @@
 # Skin and light target
 
+Current new female portraits use the original-upload AI route described in [original-portrait-ai.md](original-portrait-ai.md). The staged workflow below is retained for older pending requests only.
+
 `public/assets/skin-light-reference/studio-soft-frontal-v1.jpg` is an identity-free photographic style guide derived with image generation from the user's visible portrait example (woman in a tan government uniform against blue). It is a generated guide, not an exact crop or a copy of the original uploaded file.
 
 The six swatches show fine skin texture and broad soft-light gradients at several complexion depths. The guide contains no face, eyes, nose, mouth, hair, garment or makeup. Use only its restrained microtexture, smooth tonal transitions and soft satin highlight roll-off. The uploaded person remains the sole source of identity, anatomy, expression and underlying complexion; the swatch RGB values are not a whitening target. Ignore the grid and gutters, and do not enlarge the magnified texture into coarse pores.

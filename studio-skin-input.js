@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import {isOriginalPortraitAiRequest,validateOriginalPortraitAiFields} from './original-portrait-ai.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion,parseStudioSkinEvidence,applyStudioSkinBase} from './studio-skin-treatment.js';
 import {applyStudioSkinSoftFocus} from './studio-skin-soft-focus.js';
 import {applyStudioSkinRetouch} from './studio-skin-retouch.js';
@@ -12,6 +13,7 @@ const invalid=(message,code='studio_skin_evidence_invalid')=>Object.assign(Error
 // No field keeps historical requests on their existing route. A declared stage
 // must carry valid evidence; it never silently falls back to the original input.
 export function parseStudioSkinRequest(fields={},gender=fields.portraitMode){
+ if(isOriginalPortraitAiRequest(fields)){validateOriginalPortraitAiFields(fields,gender);return null}
  const version=fields.studioSkinVersion,evidence=fields.studioSkinEvidence;
  if(version===undefined||version===null||version===''){
   if(evidence!==undefined&&evidence!==null&&evidence!=='')throw invalid('ข้อมูลปรับแสงผิวไม่มีเวอร์ชัน กรุณารีเฟรชหน้าเว็บ');

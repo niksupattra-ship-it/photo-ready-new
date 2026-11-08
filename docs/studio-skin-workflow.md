@@ -1,5 +1,7 @@
 # Prepared studio skin
 
+Current new female portraits use the original-upload AI route described in [original-portrait-ai.md](original-portrait-ai.md). The staged workflow below is retained for older pending requests only.
+
 New female portraits use `studio-skin-stages-v5`, for both Natural and the supported makeup choices. This revision calibrates usable source illumination before skin treatment and repairs discontinuities around protected facial features. Natural and Makeup share a completed skin/light base; the previous local cosmetic palette is added afterward. The identity-free visual guide, acne/wrinkle repair, fine texture and restrained highlights remain. Male and unversioned requests retain their previous pipeline; queued v1–v4 requests retain their original pixels, prompts and provider image lists.
 
 1. Measure face landmarks and semantic skin/hair labels from the exact canonical input. Pack labels to at most 256 pixels on the long edge; MediaPipe can return native-size category masks.

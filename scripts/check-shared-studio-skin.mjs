@@ -5,6 +5,7 @@ import {makeSavedProject,prepareSavedProject,validateSavedProject,assertSavedPro
 import {packSavedProjectTransfer,unpackSavedProjectTransfer,getSavedWorkRequestSize,SAVED_WORK_TRANSFER_MAX_BYTES} from '../src/saved-work-transfer.js';
 import {compactSavedWorkPreview} from '../saved-work-thumbnail.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
+import {hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {hasCurrentStudioSkin,studioSkinWorkflowMetadata} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
@@ -174,7 +175,7 @@ function editorFixture(){
  const mask={width:4,height:4,getContext(){return {getImageData(){return {data:new Uint8ClampedArray(4*4*4).fill(255)}}}}};
  const visible={...parent.naturalHead,hairPolicyVersion:HAIR_DESIGN_VERSION,squeezeX:.93,squeezeY:1.17,mask:null};
  const counters={before:0,settle:0,AI:0,resets:0,local:0,restored:0,failures:[],hydrate:0};
- const noop=()=>{},env={HAIR_DESIGN_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasCurrentStudioSkin,canReuseStudioSkinBase,sharedStudioSkinSource,portraitFinishChoice,isFreeFemaleHair,identityStudioMask,headPose,preserveLocalSkinLook,replaceHairstyleLayer,
+ const noop=()=>{},env={HAIR_DESIGN_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasCurrentStudioSkin,hasOriginalPortraitAiFinish,canReuseStudioSkinBase,sharedStudioSkinSource,portraitFinishChoice,isFreeFemaleHair,identityStudioMask,headPose,preserveLocalSkinLook,replaceHairstyleLayer,
   state:{current:[visible]},assets:{current:new Map([[visible.id,{mask,warped:null,eraseRestoreSource:null}]])},processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,mounted:{current:true},hairGender:'female',portraitMode:'female',sourcePhoto:parent.upload,sourcePhotoRef:{current:parent.upload},accountScope:'same-account',outputScopeRef:{current:'same-account'},sourceLayerRef:{current:null},undo:{current:[]},redo:{current:[]},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},hydratingRef:{current:false},touch:false,
   layerKind:layer=>layer.kind,canRestoreHair:()=>false,isProcessCancelled:()=>false,isPremiumHair:()=>false,premiumHairAllowed:false,
   flushTransforms:noop,historySnapshot:()=>env.state.current.map(layer=>({...layer,mask:layer.id===visible.id?mask:layer.mask})),resetPhotoHistory:()=>{counters.resets++;env.undo.current=[];env.redo.current=[]},resetBrushSession:noop,
@@ -210,7 +211,7 @@ await test('Natural → Makeup → Natural → undo → redo → Natural retains
  await choose('makeup');await choose('natural');assert.equal(f.counters.local,2);assert.equal(f.env.state.current[0].source,base);
  await f.history(true);assert.equal(f.env.state.current[0].source,madeUp);assert.equal(f.parent.upload.idpromFemaleEyeStyle,'makeup');
  await f.history(false);assert.equal(f.env.state.current[0].source,base);assert.equal(f.parent.upload.idpromFemaleEyeStyle,'natural');
- const before=f.parent.env.editCache.current.master;await choose('natural');assert.equal(f.counters.local,2,'selecting accepted Natural must not rerender');assert.equal(f.parent.env.editCache.current.master,before);assert.equal(f.env.state.current[0].studioSkinBaseSource,base);
+ const before=f.parent.env.editCache.current.master;await choose('natural');assert.equal(f.counters.local,3,'legacy v5 is no longer the current original-AI finish');assert.deepEqual(Buffer.from(await f.parent.env.editCache.current.master.arrayBuffer()),Buffer.from(await before.arrayBuffer()));assert.equal(f.env.state.current[0].studioSkinBaseSource,base);
  assert.equal(f.counters.AI,0);assert.equal(f.counters.before,0);assert.equal(f.counters.settle,0);assert.deepEqual(f.counters.failures,[]);assert(hasCurrentStudioSkin(before,'natural'));
 });
 await test('local finish refits an existing free hairstyle and keeps its untrimmed base through history',async()=>{

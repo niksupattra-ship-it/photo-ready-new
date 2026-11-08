@@ -1,8 +1,10 @@
 import {makeupLook} from '../makeup-presets.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 // Reapply only the explicit local skin recipe to the NEW native portrait.
 // Never reuse the previous hair's face pixels, mask, or skin-colour profile.
 export async function preserveLocalSkinLook(previous,replacement,{render,mix,toSource}){
+ if(replacement.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION)return replacement;
  const look=previous.makeupStyles?.look;
  if(!makeupLook(look)||previous.portraitMode!==replacement.portraitMode||portraitFinishChoice(previous.femaleEyeStyle,previous.initialFemaleEyeStyle)!==portraitFinishChoice(replacement.femaleEyeStyle,replacement.initialFemaleEyeStyle))return replacement;
  if(typeof render!=='function')throw Error('ยังคืนค่าปรับผิวเดิมไม่ได้ · เก็บภาพเดิมไว้');

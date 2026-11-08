@@ -1,3 +1,4 @@
+import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from '../original-portrait-ai.js';
 import {recoverPortraitWork} from '../portrait-work-recovery.js';
 // Execute real policy SQL in disposable PostgreSQL WASM, never DATABASE_URL.
 import assert from 'node:assert/strict';
@@ -70,13 +71,24 @@ try{
   const work=await policy.beginWork('account',chrome,'','',original),server=await readFile(new URL('../server.js',import.meta.url),'utf8');
   const start=server.indexOf("app.post('/api/ai-jobs',upload.fields("),end=server.indexOf("\napp.post('/api/ai-jobs/:id/:action'",start);assert(start>=0&&end>start);
   let handler,received;
-  const env={recoverPortraitWork,app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait:()=>{},requireCredit:async()=>({usageId:'free_local'}),downloadPolicy:policy,walletId:()=> 'account',createAiJob:async args=>{received=args;await query('INSERT INTO ai_jobs(id,wallet_id,status,usage_id) VALUES($1,$2,$3,$4)',['local-job','account','queued','free_local']);return 'local-job'},refundCredit:async()=>{},failAiJob:async()=>{},setImmediate:()=>{},runAiJob:()=>{throw Error('No generation in source contract test')},console:{info(){},error(){}}};
+  const env={isOriginalPortraitAiRequest,validateOriginalPortraitUpload,recoverPortraitWork,app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait:()=>{},requireCredit:async()=>({usageId:'free_local'}),downloadPolicy:policy,walletId:()=> 'account',createAiJob:async args=>{received=args;await query('INSERT INTO ai_jobs(id,wallet_id,status,usage_id) VALUES($1,$2,$3,$4)',['local-job','account','queued','free_local']);return 'local-job'},refundCredit:async()=>{},failAiJob:async()=>{},setImmediate:()=>{},runAiJob:()=>{throw Error('No generation in source contract test')},console:{info(){},error(){}}};
   new Function('env','with(env){'+server.slice(start,end)+'}')(env);
   const req={files:{image:[{buffer:other,mimetype:'image/png'}],originalSource:[{buffer:original,mimetype:'image/jpeg'}]},body:{hairId:'original',portraitMode:'male',downloadWorkId:work,faceIdentityBox:'[0,0,1,1]'},get:()=>''};
   const res={headersSent:false,statusCode:200,status(n){this.statusCode=n;return this},json(body){this.body=body;this.headersSent=true;return this}};
   await handler(req,res);assert.equal(res.statusCode,202);assert.equal(res.body.downloadWorkId,work);
   assert.deepEqual(received.image.buffer,chrome);assert.notDeepEqual(received.image.buffer,other);assert.equal(received.fields.faceIdentityBox,undefined);
   assert.deepEqual((await policy.inputForWork('account',work)).buffer,chrome);
+ });
+
+ await test('actual original-AI submit uses the owned raw original while leaving its older canonical image frozen',async()=>{
+  const work=await policy.beginWork('account',chrome,'','',original),server=await readFile(new URL('../server.js',import.meta.url),'utf8');
+  const start=server.indexOf("app.post('/api/ai-jobs',upload.fields("),end=server.indexOf("\napp.post('/api/ai-jobs/:id/:action'",start);let handler,received,reserves=0;
+  const env={isOriginalPortraitAiRequest,validateOriginalPortraitUpload,recoverPortraitWork,app:{post:(...args)=>{handler=args.at(-1)}},upload:{fields:()=>null},validateProductionPortrait:()=>{},requireCredit:async()=>{reserves++;return {usageId:'free_raw_local'}},downloadPolicy:policy,walletId:()=> 'account',createAiJob:async args=>{received=args;await query('INSERT INTO ai_jobs(id,wallet_id,status,usage_id) VALUES($1,$2,$3,$4)',['raw-local-job','account','queued','free_raw_local']);return 'raw-local-job'},refundCredit:async()=>{},failAiJob:async()=>{},setImmediate:()=>{},runAiJob:()=>{throw Error('No generation in source contract test')},console:{info(){},error(){}}};
+  new Function('env','with(env){'+server.slice(start,end)+'}')(env);
+  const req={files:{image:[{buffer:original,mimetype:'image/jpeg'}],originalSource:[{buffer:original,mimetype:'image/jpeg'}]},body:{hairId:'original',portraitMode:'female',femaleEyeStyle:'makeup',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,downloadWorkId:work},get:()=>''};
+  const response=()=>({headersSent:false,statusCode:200,status(n){this.statusCode=n;return this},json(body){this.body=body;this.headersSent=true;return this}}),res=response();
+  await handler(req,res);assert.equal(res.statusCode,202);assert.deepEqual(received.image.buffer,original);assert.notDeepEqual(received.image.buffer,chrome);assert.equal(received.image.mimetype,'image/jpeg');assert.equal(received.fields.studioSkinVersion,ORIGINAL_PORTRAIT_AI_VERSION);assert.deepEqual((await policy.inputForWork('account',work)).buffer,chrome);
+  received=null;req.files.image=[{buffer:other,mimetype:'image/jpeg'}];const bad=response();await handler(req,bad);assert.equal(bad.statusCode,400);assert.equal(received,null);assert.equal(reserves,1);
  });
  await test('a paid original work can be recovered from its owned prior job without accepting another image or wallet',async()=>{
   const work=await policy.beginWork('account',chrome,'','',original);
