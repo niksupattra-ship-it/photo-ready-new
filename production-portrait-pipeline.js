@@ -1,10 +1,9 @@
-import {isFemaleHairFirstRequest,femaleHairFirstPrompt,processFemaleHairFirstPortrait} from './female-hair-first-portrait.js';
 import {isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,loadNeckBackingGuide,neckBackingGuideInstruction} from './portrait-anatomy.js';
 import {needsNaturalAiPreparation} from './natural-studio-skin.js';
 import {NATURAL_PREPARED_TASK,naturalAiPreparationPrompt,naturalAiPreparedFinish,naturalAiPreparedGuide,NATURAL_PREPARED_PRIORITY} from './natural-ai-preparation.js';
 import {needsNaturalClearSkin,NATURAL_CLEAR_SKIN_PRIORITY,naturalSpotRepairPrompt} from './original-portrait-ai.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion} from './studio-skin-treatment.js';
-import {isOriginalPortraitAiRequest,ORIGINAL_PORTRAIT_AI_BOUNDED_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_AI_TASK,ORIGINAL_AI_LIGHT,originalAiSkinFinish,originalAiTargetLightWording,originalAiSkinGuideInstruction,ORIGINAL_AI_TARGET_PRIORITY,needsOriginalAiSkinPolish,originalAiMakeupSkinPolishPrompt,needsOriginalAiSkinPreparation,ORIGINAL_AI_PREPARED_TASK,originalAiClothedSkinPreparationPrompt,originalAiPreparedMakeupFinish,originalAiPreparedSkinGuideInstruction,ORIGINAL_AI_PREPARED_SKIN_PRIORITY} from './original-portrait-ai.js';
+import {isOriginalPortraitAiRequest,ORIGINAL_PORTRAIT_AI_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_AI_TASK,ORIGINAL_AI_LIGHT,originalAiSkinFinish,originalAiTargetLightWording,originalAiSkinGuideInstruction,ORIGINAL_AI_TARGET_PRIORITY,needsOriginalAiSkinPolish,originalAiMakeupSkinPolishPrompt,needsOriginalAiSkinPreparation,ORIGINAL_AI_PREPARED_TASK,originalAiClothedSkinPreparationPrompt,originalAiPreparedMakeupFinish,originalAiPreparedSkinGuideInstruction,ORIGINAL_AI_PREPARED_SKIN_PRIORITY} from './original-portrait-ai.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from './studio-skin-input.js';
 import {loadStudioSkinLightReference,skinLightReferenceInstruction} from './studio-skin-light-reference.js';
 import {NATURAL_STUDIO_LIGHT_POLICY} from './natural-studio-skin.js';
@@ -99,7 +98,6 @@ REMOVE remaining active pimples, whiteheads, temporary acne marks and facial ski
 This AI request produces the SAME BARE-SKIN BASE for Natural and every makeup selection. Do not add blush, foundation, eyeshadow, eyeliner, mascara, cosmetic lashes, lip tint, lipstick or gloss. Selected cosmetics are separate local colour edits after this shared base. Do not borrow face shape, eyes, lips, complexion RGB or anatomy from any reference. Preserve all selected hairstyle, posture, camera framing and existing head/hair/neck cutout requirements.`;
 const CONTINUOUS_REFERENCE_LIGHT=`CONTINUOUS FRONTAL STUDIO LIGHT — CAST CORRECTION THROUGH THE WHOLE FACE: Use one broad diffused frontal key plus balanced fill over the entire face, ears and neck. Correct residual source colour casts and underexposure consistently through all exposed skin, including brow-head surroundings, between-brow skin, nose edges and mouth corners. Keep natural complexion depth and subtle nose/cheek/jaw volume while rolling off highlights to a restrained soft-matte or very soft satin finish. Actual eyebrow strands, lashes, eye openings, nostrils and lip boundaries stay sharply resolved, but they must not create protected pale/grey/yellow islands or bright outlines in adjacent skin. The source and identity detail constrain the same person's anatomy and underlying pigment, not the unwanted ambient light. No extra makeup or cosmetic palette in this shared skin/light generation.`;
 export function productionPortraitPrompt(selected,femaleEyeStyle="natural",fields={}){
-  if(isFemaleHairFirstRequest({...fields,portraitMode:selected.gender}))return femaleHairFirstPrompt(selected);
   if(isBoundedPortrait({...fields,portraitMode:selected.gender}))return boundedPortraitPrompt(selected,femaleEyeStyle);
   const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
   const preparedMakeup=needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender,femaleEyeStyle});
@@ -132,7 +130,7 @@ FINAL PRIORITY: Selected hairstyle from Image 2 replaces Image 1's old hair. Pre
   if(referenceSkin)completed=completed.replace('Do not transfer reference skin or head shape','Do not transfer hairstyle-reference skin or head shape');
   if(referenceSkin)completed+='\nFINAL REFERENCE LIGHTING PRIORITY: The uploaded person and identity crop lock identity and anatomy, never their unwanted exposure, colour casts, side shadows or highlights. Adapt all face/ear/neck skin to the identity-free guide’s soft frontal photographic finish while preserving this person’s complexion depth, sharp features and the accepted cutout. Do not restore source lighting after this correction.';
   if(continuousSkin)completed+='\nFINAL CONTINUITY AND SHARED-BASE PRIORITY: Inspect brow heads and between-brow skin, nose sides, under-eye skin, lip surroundings and mouth corners at portrait scale. Remove pale/grey/yellow islands, makeup-like borders or differently exposed skin; blend their illumination and colour continuously into neighboring finished skin without painting over real brow hairs, lashes, eye openings, nostrils or lip contours. Retain the same bare-skin exposure and finish for Natural and makeup selections; local cosmetics happen only after this generation.';
-  return originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_BOUNDED_VERSION].includes(fields.studioSkinVersion)?originalAiTargetLightWording(completed):completed;
+  return originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields.studioSkinVersion)?originalAiTargetLightWording(completed):completed;
 }
 export function studioReferenceIdentityBox(evidence){
  const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
@@ -142,9 +140,8 @@ export function studioReferenceIdentityBox(evidence){
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},requestPortrait=requestReviewSeedream}){
  const chosen=validateProductionPortrait(input,fields);
  const selected=chosen||{gender:fields.portraitMode};
- if(isFemaleHairFirstRequest({...fields,portraitMode:selected.gender}))return processFemaleHairFirstPortrait({input,fields,selected,root,key,onStage,requestPortrait,removeBackground,cleanCutout:cleanTrialCutoutEdges});
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
- const originalAiV2=originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_BOUNDED_VERSION].includes(fields.studioSkinVersion);
+ const originalAiV2=originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields.studioSkinVersion);
  const preparedMakeup=needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
  const preparedNatural=needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
  const bounded=isBoundedPortrait({...fields,portraitMode:selected.gender});

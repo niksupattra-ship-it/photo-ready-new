@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
-import {ORIGINAL_PORTRAIT_AI_BOUNDED_VERSION as V,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION as V4,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION as V3,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION as V2,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION as V1,needsOriginalAiSkinPolish,needsOriginalAiSkinPreparation,originalAiClothedSkinPreparationPrompt,originalAiMakeupSkinPolishPrompt,ORIGINAL_AI_PREPARED_SKIN_PRIORITY,isOriginalPortraitAiVersion,isOriginalPortraitAiRequest,originalAiSkinFinish,hasOriginalPortraitAiFinish,markOriginalPortraitAiFinish,originalPortraitAiMetadata,ORIGINAL_AI_TARGET_PRIORITY} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION as V,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION as V4,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION as V3,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION as V2,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION as V1,needsOriginalAiSkinPolish,needsOriginalAiSkinPreparation,originalAiClothedSkinPreparationPrompt,originalAiMakeupSkinPolishPrompt,ORIGINAL_AI_PREPARED_SKIN_PRIORITY,isOriginalPortraitAiVersion,isOriginalPortraitAiRequest,originalAiSkinFinish,hasOriginalPortraitAiFinish,markOriginalPortraitAiFinish,originalPortraitAiMetadata,ORIGINAL_AI_TARGET_PRIORITY} from '../original-portrait-ai.js';
 import {prepareStudioSkinInput,parseStudioSkinRequest} from '../studio-skin-input.js';
 import {processProductionPortrait,productionPortraitPrompt,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {studioSkinWorkflowMetadata} from '../studio-skin-metadata.js';
