@@ -7,6 +7,7 @@ import multer from 'multer';
 import sharp from 'sharp';
 import {validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {recoverPortraitWork} from '../portrait-work-recovery.js';
+import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from '../original-portrait-ai.js';
 
@@ -99,6 +100,9 @@ try{
   await seed('job-claim');const status=await getAiJob('job-claim',owner);assert.equal(status.studioSkinVersion,version);assert.equal(status.femaleEyeStyle,'korean-rosy-v1');assert.equal(status.portraitMode,'female');assert(!Object.hasOwn(status,'studioSkinEvidence'));assert.equal(await getAiJob('job-claim','other-wallet'),null);assert.equal(await getAiJobResult('job-claim','other-wallet'),null);
   const claimed=await claimAiJob('job-claim');assert.equal(claimed.fields.studioSkinEvidence,evidence);assert.equal(claimed.fields.studioSkinVersion,version);assert.deepEqual(Buffer.from(claimed.image),portrait);assert.equal(await claimAiJob('job-claim'),null);
  });
+ await check('Natural revision survives actual completion and wallet-scoped status SQL',async()=>{
+  await seed('job-natural');await query("UPDATE ai_jobs SET fields=$2 WHERE id=$1",['job-natural',{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,portraitMode:'female',femaleEyeStyle:'natural',naturalFinishVersion:NATURAL_STUDIO_SKIN_VERSION}]);await completeAiJob('job-natural',Buffer.from('finished Natural'));assert.equal((await getAiJob('job-natural',owner)).naturalFinishVersion,NATURAL_STUDIO_SKIN_VERSION);assert.equal(await getAiJob('job-natural','other-wallet'),null);
+ });
  await check('actual completion drops sensitive evidence and raw input while retaining only client finish metadata',async()=>{
   await completeAiJob('job-claim',Buffer.from('bare completed master'));const r=await row('job-claim');assert.equal(r.status,'completed');assert.equal(r.image.length,0);assert.equal(r.mask,null);assert.equal(r.fields.studioSkinEvidence,undefined);assert.equal(r.fields.femaleMakeupReference,undefined);assert.equal(r.fields.studioSkinVersion,version);assert.equal(r.fields.femaleEyeStyle,'korean-rosy-v1');assert.equal(r.fields.portraitMode,'female');assert.equal((await getAiJob('job-claim',owner)).has_result,true);
   assert.equal((await settleAiJobDelivery('job-claim',owner,'confirm')).status,200);assert.equal((await settleAiJobDelivery('job-claim',owner,'confirm')).status,200);assert.equal((await row('job-claim')).fields.delivery_confirmed,true);
@@ -143,7 +147,12 @@ await check('original-AI retains owned-work source validation and refunds a refu
  f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,409);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert.deepEqual(f.refunds,['fixture-reservation']);assert(!f.events.includes('pinned'));
 });
 
-await check('withdrawn V3 new submissions require refresh before any work recovery or reservation',async()=>{
- const f=submitFixture({staged:false,body:{studioSkinVersion:'studio-original-ai-v3'}});f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,400);assert.match(f.response.body.message,/กรุณารีเฟรช/);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert(!f.events.includes('reserve'));assert(!f.events.includes('begin'));
+await check('withdrawn V3 Makeup requires refresh before any work recovery or reservation',async()=>{
+ for(const femaleEyeStyle of ['makeup','korean-rosy-v1','soft-rosy-v1']){
+ const f=submitFixture({staged:false,body:{studioSkinVersion:'studio-original-ai-v3',femaleEyeStyle}});f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,400);assert.match(f.response.body.message,/กรุณารีเฟรช/);assert.equal(f.queued.length,0);assert.equal(f.scheduled.length,0);assert(!f.events.includes('reserve'));assert(!f.events.includes('begin'));
+ }
+});
+await check('V3 Natural stays usable in an already-open page and queues its safe single-call workflow',async()=>{
+ const f=submitFixture({staged:false,body:{studioSkinVersion:'studio-original-ai-v3',femaleEyeStyle:'natural'}});f.request.files.originalSource=[{buffer:portrait,mimetype:'image/png'}];await f.run();assert.equal(f.response.statusCode,202);assert.equal(f.queued.length,1);assert.equal(f.scheduled.length,1);assert.equal(f.queued[0].fields.femaleEyeStyle,'natural');assert(f.events.includes('reserve'));assert(f.events.includes('begin'));
 });
 console.log(JSON.stringify({passed,failed:0,scope:'Production submit callback, disposable PostgreSQL job-store SQL, and real localhost multipart middleware. No provider, production database, real account or payment requests.',checks:results}));

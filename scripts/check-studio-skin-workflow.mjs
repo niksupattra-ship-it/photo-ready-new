@@ -6,6 +6,7 @@ import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-me
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {captureStudioSkinEvidence} from '../src/studio-skin-evidence.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
+import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const cosmeticSource=await readFile(new URL('../src/studio-post-cosmetics.js',import.meta.url),'utf8');
 const noop=()=>{};
@@ -58,6 +59,9 @@ await test('failed rights cannot return a partially accepted base',async()=>{
  await assert.rejects(f.wait('failed'));assert.equal(f.raw.idpromJobId,undefined);assert.equal(f.raw.idpromStudioCosmeticsVersion,undefined);assert.equal(f.raw.idpromStudioSkinVersion,undefined);
  assert(!f.events.includes('prepare'));assert(!f.events.includes('cosmetics'));
 });
+await test('an older Natural response cannot silently satisfy the current clear-skin request',async()=>{
+ const f=submissionFixture();f.state.oldNatural=true;await assert.rejects(f.submit(f.original,'',f.options),/ระบบปรับผิวกำลังอัปเดต/);
+});
 await test('cancellation while leveling the native base prevents acceptance before any cosmetic stage',async()=>{
  const f=completionFixture({studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,portraitMode:'female',femaleEyeStyle:'korean-rosy-v1'},{cancelLevel:true});await assert.rejects(f.wait('cancelled'),{name:'AbortError'});assert(!f.events.includes('encode'));assert.equal(f.raw.idpromJobId,undefined);assert.equal(f.raw.idpromStudioSkinVersion,undefined);
 });
@@ -77,6 +81,12 @@ await test('original-AI completion returns already finished natural and makeup p
   assert.equal(blob.idpromJobId,'original-ai-'+style);assert.equal(blob.idpromTrial,true);
  }
 });
+await test('completed Natural preserves only the server-reported clear-skin revision',async()=>{
+ for(const revision of [undefined,NATURAL_STUDIO_SKIN_VERSION,'natural-studio-skin-v2-source-eyes']){
+  const f=completionFixture({studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,portraitMode:'female',femaleEyeStyle:'natural',...(revision?{naturalFinishVersion:revision}:{})});
+  assert.equal((await f.wait('natural-version')).idpromNaturalStudioSkinVersion,revision);
+ }
+});
 await test('pending original-AI v1 completion keeps its actual version without seeding the current guided cache',async()=>{
  for(const style of ['natural','makeup']){
   const version='studio-original-ai-v1',f=completionFixture({studioSkinVersion:version,portraitMode:'female',femaleEyeStyle:style}),blob=await f.wait('pending-v1');
@@ -94,7 +104,7 @@ await test('only current makeup jobs receive the bounded ten-minute polling budg
 function submissionFixture(mode='female',style='natural'){
  const original=new File(['immutable upload bytes'],'original.jpg',{type:'image/jpeg'}),canonical=new File(['old canonical derivative'],'canonical.png',{type:'image/png'}),operation={cancelled:false},calls=[],saved=[],events=[],state={legacyResult:false};
  original.idpromPortraitMode=mode;original.idpromCanonicalInput=canonical;
- const env={activeProcessOperation:operation,activeSavedDownloadWork:'saved-work',STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,PRODUCTION_HAIR_CATALOG,portraitFinishChoice,hasOriginalPortraitAiFinish,assertProcessActive:assertActive,FormData,
+ const env={activeProcessOperation:operation,activeSavedDownloadWork:'saved-work',STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,PRODUCTION_HAIR_CATALOG,portraitFinishChoice,hasOriginalPortraitAiFinish,assertProcessActive:assertActive,FormData,
   submitPortraitJob:async(_operation,submit)=>submit(),levelPortraitCutout:noop,
   async canonicalPortraitInput(input,{normalize}){assert.equal(mode,'male','Female original-AI must bypass canonical image normalization');assert.equal(input,original);assert.equal(normalize,env.levelPortraitCutout);events.push('male-canonical');return canonical},
   async replacementFaceIdentityBox(){throw Error('Original-AI must not crop or inspect skin before generation')},
@@ -102,7 +112,7 @@ function submissionFixture(mode='female',style='natural'){
   acceptedPaidTrial:false,walletHeaders:()=>({'x-wallet-id':'inert'}),analyticsTagError:error=>error,
   async portraitFetch(url,options){assert.equal(url,'/api/ai-jobs');assert.equal(options.method,'POST');calls.push(options.body);return {ok:true,json:async()=>({jobId:'submitted-job',downloadWorkId:'owned-work',trialPreview:true})}},
   warmPortraitResources:noop,writeActiveAiJob:noop,cancelledProcessError:cancelled,cancelPortraitJob:async()=>{throw Error('unexpected cancel')},settleProcessOperation:noop,
-  async waitForAiJob(){const blob=new Blob(['completed'],{type:'image/png'});if(mode==='female'&&!state.legacyResult)markOriginalPortraitAiFinish(blob,style);return blob}
+  async waitForAiJob(){const blob=new Blob(['completed'],{type:'image/png'});if(mode==='female'&&!state.legacyResult){markOriginalPortraitAiFinish(blob,style);if(style==='natural'&&!state.oldNatural)blob.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;}return blob}
  };
  const submit=extract(main,'async function aiFinishPortraitUncached(','\n// V206:','aiFinishPortraitUncached',env);
  return {original,canonical,operation,calls,saved,events,state,env,submit,options:{portraitMode:mode,femaleEyeStyle:style,sourceJobId:'owned-previous-job',templatePath:'/assets/job-uniforms/female-job-navy-collared.png'}};
@@ -111,7 +121,7 @@ await test('actual new female multipart sends exact original bytes, no skin evid
  for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1'])for(const hair of ['', 'seedream-19']){
   const f=submissionFixture('female',style);f.original.idpromStudioSourceReplacement=true;f.original.idpromDownloadWorkId='owned-existing-work';
   const result=await f.submit(f.original,hair,f.options),body=f.calls[0];
-  assert.equal(await body.get('image').text(),await f.original.text());assert.equal(await body.get('originalSource').text(),await f.original.text());assert.equal(body.get('image').type,'image/jpeg');assert.equal(body.get('studioSkinVersion'),ORIGINAL_PORTRAIT_AI_VERSION);assert.equal(body.get('studioSkinEvidence'),null);assert.equal(body.get('faceIdentityBox'),null);assert.equal(body.get('femaleEyeStyle'),style);assert.equal(body.get('sourceJobId'),'owned-previous-job');assert.equal(body.get('downloadWorkId'),'owned-existing-work');assert.equal(body.get('hairId'),hair||'original');assert(hasOriginalPortraitAiFinish(result,style));assert.equal(f.original.idpromStudioSkinVersion,undefined);assert.equal(f.original.idpromCanonicalInput,f.canonical);assert.deepEqual(f.events,[]);
+  assert.equal(await body.get('image').text(),await f.original.text());assert.equal(await body.get('originalSource').text(),await f.original.text());assert.equal(body.get('image').type,'image/jpeg');assert.equal(body.get('studioSkinVersion'),ORIGINAL_PORTRAIT_AI_VERSION);assert.equal(body.get('studioSkinEvidence'),null);assert.equal(body.get('faceIdentityBox'),null);assert.equal(body.get('femaleEyeStyle'),style);assert.equal(body.get('naturalFinishVersion'),style==='natural'?NATURAL_STUDIO_SKIN_VERSION:null);assert.equal(body.get('sourceJobId'),'owned-previous-job');assert.equal(body.get('downloadWorkId'),'owned-existing-work');assert.equal(body.get('hairId'),hair||'original');assert(hasOriginalPortraitAiFinish(result,style));assert.equal(f.original.idpromStudioSkinVersion,undefined);assert.equal(f.original.idpromCanonicalInput,f.canonical);assert.deepEqual(f.events,[]);
  }
 });
 await test('actual male multipart retains its previous canonical protocol',async()=>{
