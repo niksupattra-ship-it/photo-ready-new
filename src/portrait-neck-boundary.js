@@ -1,6 +1,6 @@
 // Alpha-only wide/deep neck-backing silhouette enforcement. RGB inside the retained face/neck/hair
 // remains the AI output, with no skin retouch or face/head rescaling.
-export function boundPortraitNeckAlpha(pixels,hair,width,height,face){
+export function boundPortraitNeckAlpha(pixels,hair,width,height,face,{skin=null}={}){
  const a=face?.[33],b=face?.[263],chin=face?.[152];
  if(!a||!b||!chin||pixels.length!==width*height*4||hair.length!==pixels.length)throw Error('Invalid head/neck evidence');
  const dx=(b.x-a.x)*width,dy=(b.y-a.y)*height,d=Math.hypot(dx,dy);
@@ -13,7 +13,7 @@ export function boundPortraitNeckAlpha(pixels,hair,width,height,face){
  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
   const i=(y*width+x)*4;if(!pixels[i+3])continue;
   const px=(x-cx)*ex+(y-cy)*ey,py=-(x-cx)*ey+(y-cy)*ex;
-  if(py<=d*.08||hair[i+3]>=192)continue;
+  if(py<=d*.08||hair[i+3]>=192||skin&&skin[i+3]<192)continue;
   const t=py/d;
   // The old narrow .56-eye-span shaft began abruptly below the chin and cut
   // rectangular notches into valid neck pixels. Preserve the native neck and
