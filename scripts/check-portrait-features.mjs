@@ -3,6 +3,9 @@ import {readFile} from 'node:fs/promises';
 import {portraitProtectedFeatures,comparePortraitProtectedFeatures} from '../src/portrait-feature-check.js';
 import {faceProportions,compareFaceProportions} from '../src/face-proportion-check.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
+import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
+import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 const W=800,H=1000;
 function fixture(){
  const f=Array.from({length:478},()=>({x:.5,y:.5})),put=(id,x,y)=>f[id]={x,y};
@@ -48,18 +51,26 @@ await test('missing or invalid iris/eye evidence cannot approve a portrait',()=>
 
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const extract=(start,end,name,env)=>{const a=main.indexOf(start),b=main.indexOf(end,a);assert(a>=0&&b>a);return new Function('env',`with(env){${main.slice(a,b)};return ${name}}`)(env)};
-await test('female makeup rejects eye drift before acceptance while existing natural checks remain unchanged',async()=>{
+await test('eye comparison remains diagnostic and cannot reject a geometrically valid completed portrait',async()=>{
  const changed=copy(original);for(const id of [468,469,470,471,472])changed[id].x+=.015;
  const metrics=f=>({...faceProportions(f,W,H),protectedFeatures:measure(f)});
  const env={portraitFaceMetrics:async key=>metrics(key==='source'?original:changed),compareFaceProportions,comparePortraitProtectedFeatures};
  const check=extract('async function checkPortraitProportions(','\n// Check the returned AI cutout','checkPortraitProportions',env);
- await check('source','result');await assert.rejects(check('source','result',{protectFeatures:true}),e=>e.code==='portrait_features_changed');await check('source','source',{protectFeatures:true});
+ await check('source','result');assert(!comparePortraitProtectedFeatures(measure(original),measure(changed)).ok);await check('source','result',{protectFeatures:true});await check('source','source',{protectFeatures:true});
+});
+await test('native geometry remains usable without iris estimates or a second eye detector pass',async()=>{
+ const face=copy(original);delete face[468];let detects=0;
+ const env={faceMetricsCache:new WeakMap(),decodedPortraitImage:async()=>({naturalWidth:W,naturalHeight:H}),portraitFaceLandmarks:async()=>{detects++;return face},faceProportions,getLandmarker:async()=>{throw Error('redundant eye pass')}};
+ const metrics=extract('async function portraitFaceMetrics(','async function checkPortraitProportions(','portraitFaceMetrics',env),blob=new Blob();
+ assert.deepEqual(await metrics(blob),faceProportions(face,W,H));await metrics(blob);assert.equal(detects,1);
+ const run=extract('async function checkPortraitProportions(','\n// Check the returned AI cutout','checkPortraitProportions',{portraitFaceMetrics:metrics,compareFaceProportions});
+ await run(blob,blob,{protectFeatures:true});
 });
 await test('female makeup additionally rejects a changed overall facial width',async()=>{
  const changed=copy(original);changed[234].x-=.03;changed[454].x+=.03;
  const env={portraitFaceMetrics:async key=>({...faceProportions(key==='source'?original:changed,W,H),protectedFeatures:source}),compareFaceProportions,comparePortraitProtectedFeatures};
  const check=extract('async function checkPortraitProportions(','\n// Check the returned AI cutout','checkPortraitProportions',env);
- await check('source','result');await assert.rejects(check('source','result',{protectFeatures:true}),e=>e.code==='portrait_features_changed');
+ await check('source','result');await assert.rejects(check('source','result',{protectFeatures:true}),e=>e.code==='face_proportion_changed');
 });
 await test('unreadable source eyes stop before generation while legacy crop behavior stays compatible',async()=>{
  const f=copy(original),env={decodedPortraitImage:async()=>({naturalWidth:W,naturalHeight:H}),getLandmarker:async()=>({detect:()=>({faceLandmarks:[f]})}),portraitProtectedFeatures};
@@ -67,11 +78,11 @@ await test('unreadable source eyes stop before generation while legacy crop beha
  assert.equal((await crop(new Blob(),{protectFeatures:true})).length,4);
  delete f[468];await assert.rejects(crop(new Blob(),{protectFeatures:true}),/รูปตา/);assert.equal((await crop(new Blob())).length,4);
 });
-await test('source close-ups are attached for both original-hair and selected-hair female makeup, preserving other request shapes',async()=>{
- for(const [mode,style,hairId,replacement,expected]of [['female','makeup','',false,true],['female','makeup','seedream-19',false,true],['female','natural','seedream-19',false,false],['male','natural','seedream-35',false,false],['male','natural','seedream-35',true,true]]){
+await test('current female requests keep the full original upload while legacy male replacements retain close-ups',async()=>{
+ for(const [mode,style,hairId,replacement,expected]of [['female','makeup','',false,false],['female','makeup','seedream-19',false,false],['female','natural','seedream-19',false,false],['male','natural','seedream-35',false,false],['male','natural','seedream-35',true,true]]){
   const photo=new File(['this upload only'],'portrait.png',{type:'image/png'});photo.idpromPortraitMode=mode;photo.idpromStudioSourceReplacement=replacement;
-  let crops=0,body;const result=new Blob(['native result']);
-  const env={activeProcessOperation:{},assertProcessActive(){},submitPortraitJob:async(_,run)=>run(),FormData,canonicalPortraitInput:async p=>p,levelPortraitCutout(){},activeSavedDownloadWork:null,PRODUCTION_HAIR_CATALOG,replacementFaceIdentityBox:async p=>{assert.equal(p,photo);crops++;return [.2,.1,.8,.9]},saveAiJobFile:async()=>{},acceptedPaidTrial:false,portraitFetch:async(_,options)=>{body=options.body;return {ok:true,json:async()=>({jobId:'fixture'})}},walletHeaders:()=>({}),warmPortraitResources(){},writeActiveAiJob(){},waitForAiJob:async()=>result};
+  let crops=0,body;const result=new Blob(['native result']);Object.assign(result,{idpromStudioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,...(style!=='natural'?{idpromStudioCosmeticsVersion:ORIGINAL_PORTRAIT_AI_VERSION+':'+style}:{})});
+  const env={portraitFinishChoice,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasOriginalPortraitAiFinish,activeProcessOperation:{},assertProcessActive(){},submitPortraitJob:async(_,run)=>run(),FormData,canonicalPortraitInput:async p=>p,levelPortraitCutout(){},activeSavedDownloadWork:null,PRODUCTION_HAIR_CATALOG,replacementFaceIdentityBox:async p=>{assert.equal(p,photo);crops++;return [.2,.1,.8,.9]},saveAiJobFile:async()=>{},acceptedPaidTrial:false,portraitFetch:async(_,options)=>{body=options.body;return {ok:true,json:async()=>({jobId:'fixture'})}},walletHeaders:()=>({}),warmPortraitResources(){},writeActiveAiJob(){},waitForAiJob:async()=>result};
   const run=extract('async function aiFinishPortraitUncached(','\n// V206:','aiFinishPortraitUncached',env);assert.equal(await run(photo,hairId,{portraitMode:mode,femaleEyeStyle:style}),result);
   assert.equal(crops,expected?1:0);assert.equal(body.has('faceIdentityBox'),expected);assert.equal(body.get('portraitMode'),mode);assert.equal(await body.get('originalSource').text(),await photo.text());
  }

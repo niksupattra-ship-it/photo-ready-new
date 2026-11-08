@@ -87,8 +87,7 @@ import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
-import {portraitProtectedFeatures,comparePortraitProtectedFeatures} from './portrait-feature-check.js';
-import {measurePortraitProtectedFeatures} from './portrait-feature-canvas.js';
+import {portraitProtectedFeatures} from './portrait-feature-check.js';
 import {createPortraitFaceCache} from './portrait-analysis-cache.js';
 import {PackageOffers} from './package-offers.jsx';
 import {HomePhotoSizes} from './home-photo-sizes.jsx';
@@ -2407,9 +2406,9 @@ const faceMetricsCache=new WeakMap();
 async function portraitFaceMetrics(blob){
  if(faceMetricsCache.has(blob))return faceMetricsCache.get(blob);
  const pending=(async()=>{
-  const image=await decodedPortraitImage(blob),model=await getLandmarker();
-  const face=await portraitFaceLandmarks(blob,image),proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
-  return proportions?{...proportions,protectedFeatures:measurePortraitProtectedFeatures(image,model,face)}:null;
+  const image=await decodedPortraitImage(blob);
+  const face=await portraitFaceLandmarks(blob,image);
+  return faceProportions(face,image.naturalWidth,image.naturalHeight);
  })();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
@@ -2421,15 +2420,14 @@ async function checkPortraitProportions(source,result,{protectFeatures=false}={}
   error.code='face_proportion_changed';throw error;
  }
  if(protectFeatures){
-  const protectedComparison=comparePortraitProtectedFeatures(original.protectedFeatures,generated.protectedFeatures);
-  // Restore the established detector tolerance: small AI/landmark variation
-  // must not reject a completed portrait. Identity and elongation guards remain.
+  // Eye/iris micro-measurements are not a reliable delivery gate after AI
+  // retouching or on small phone uploads. Keep the face geometry guard only.
   const limits={faceWidth:.08,jawWidth:.08,eyeToChin:.07,eyeToNose:.08,eyeToMouth:.08};
   const sourceAspect=original.eyeToChin/original.faceWidth,outputAspect=generated.eyeToChin/generated.faceWidth;
   const aspectChanged=!Number.isFinite(sourceAspect)||!Number.isFinite(outputAspect)||Math.abs(outputAspect/sourceAspect-1)>.06;
-  if(!protectedComparison.ok||aspectChanged||Object.entries(limits).some(([key,limit])=>comparison.changes[key]>limit)){
-   const error=Error(protectedComparison.reason==='unmeasurable'?'ตรวจรูปตาและสัดส่วนใบหน้าไม่ครบ · เก็บงานเดิมไว้ กรุณาใช้รูปหน้าตรงที่เห็นตาชัด':'รูปตา แววตา หรือสัดส่วนใบหน้าจาก AI คลาดเคลื่อนจากต้นฉบับ · เก็บงานเดิมไว้');
-   error.code='portrait_features_changed';throw error;
+  if(aspectChanged||Object.entries(limits).some(([key,limit])=>comparison.changes[key]>limit)){
+   const error=Error('สัดส่วนใบหน้าจาก AI ต่างจากต้นฉบับ · เก็บงานเดิมไว้');
+   error.code='face_proportion_changed';throw error;
   }
  }
 }
