@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
-import {ORIGINAL_PORTRAIT_AI_VERSION as V,hasOriginalPortraitAiFinish,needsOriginalAiSkinPreparation} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_BOUNDED_VERSION as V,hasOriginalPortraitAiFinish,needsOriginalAiSkinPreparation} from '../original-portrait-ai.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {processProductionPortrait,productionPortraitPrompt} from '../production-portrait-pipeline.js';
 import {prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,boundedPortraitPreparationPrompt} from '../portrait-anatomy.js';
