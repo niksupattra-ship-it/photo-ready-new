@@ -2536,7 +2536,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   return finished;
  });
- try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
+ try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&['natural','makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  if(cached.reused){
