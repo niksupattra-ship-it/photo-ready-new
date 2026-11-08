@@ -20,6 +20,8 @@ function replaceSection(text,start,end,replacement){
 const FEMALE_ACNE_PRIORITY="\nFEMALE ACNE AND ROUGH-SKIN PRIORITY — NATURAL AND MAKEUP OPTIONS: On visibly acne-prone skin, remove active pimples, whiteheads, blackheads and temporary red blemishes. Reduce harsh rough-skin\ncontrast and uneven tone while keeping genuine pores, freckles and natural skin variation. Preserve the original face, age and identity.\n";
 const FEMALE_EYE_IDENTITY_PRIORITY="\nFEMALE EYE IDENTITY PRIORITY — NATURAL AND MAKEUP OPTIONS, INITIAL AND HAIRSTYLE-CHANGE PORTRAITS: Image 1 is the sole authority for BOTH eyes and the person's real intrinsic facial geometry.\nKeep the original eye shape, lid crease structure, eye size, spacing, asymmetry and iris colour; do not widen, lift, flatten or mirror the eyes. Preserve the original brow shape, brow density and face\nproportions.\n";
 const MAKEUP_ACNE_PRIORITY="\nFEMALE ACNE AND ROUGH-SKIN PRIORITY — MAKEUP OPTION ONLY: Identity preservation protects facial anatomy and genuine stable moles/freckles; it does not require preserving all rough texture or uneven skin.\nClear visible acne, temporary redness and dark post-acne marks thoroughly, then finish with balanced studio skin and a polished complexion. Keep real skin grain, but remove harsh texture that makes the\nportrait look dated or unretouched.\n";
+// Applied last to every female finish, including the separately maintained rosy looks.
+const FEMALE_IDENTITY_GEOMETRY_LOCK=`\nFINAL FEMALE IDENTITY / EYE / GEOMETRY LOCK — ALL NATURAL AND MAKEUP FINISHES:\nImage 1 is the immutable authority for the person's identity and facial geometry. Preserve the exact original gaze direction and eye expression, each eye's shape, opening, eyelid boundaries, crease,\ninner and outer corners, spacing, iris and pupil size/position, and natural left/right asymmetry. Do not retouch, redraw, enlarge, shrink, lift, lower, rotate, recolour or otherwise alter the eyes or gaze.\nPreserve the original face width, face height, aspect ratio, forehead, temples, cheeks, jaw angles, chin, nose, mouth and feature spacing. Do not stretch, elongate, compress, squeeze, widen, narrow,\nslim, reshape, symmetrize or change the apparent age of the face. No face morphing or beauty-geometry correction. Makeup, blemish repair, skin finish and lighting may change surface colour/texture only;\nthey must not move facial landmarks or change the face's proportions. Keep the original head scale and framing.\n`;
 // The makeup option is evaluated afresh from the uploaded person's skin.
 const ADAPTIVE_KOREAN_MAKEUP=`FEMALE MAKEUP — ADAPTIVE SOFT CLEAR KOREAN STUDIO STYLE:
 Image 1, the original uploaded photograph in THIS request, is the sole source for this woman's identity, natural complexion, undertone, skin condition and existing facial anatomy. Evaluate that underlying\nskin and create a fresh, polished studio portrait that looks professionally retouched in-camera. The goal is a clean premium beauty finish, not a heavily filtered or overly stylized effect.
@@ -31,11 +33,13 @@ IDENTITY AND SCOPE: Preserve the original eyes, nose, mouth, jaw, chin, both ear
 export const NATURAL_FEMALE_FINISH=withNaturalStudioSkin(REVIEW_FEMALE_FINISH);
 
 export function femaleFinishFor(style="natural"){
-  if(style==='natural')return NATURAL_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
-  if(style==='soft-rosy-v1')return SOFT_ROSY_PORTRAIT_MAKEUP;
-  if(style==='korean-rosy-v1')return KOREAN_ROSY_FINISH;
-  if(style!=="makeup")return REVIEW_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
-  return ADAPTIVE_KOREAN_MAKEUP+MAKEUP_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
+  let finish;
+  if(style==='natural')finish=NATURAL_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
+  else if(style==='soft-rosy-v1')finish=SOFT_ROSY_PORTRAIT_MAKEUP;
+  else if(style==='korean-rosy-v1')finish=KOREAN_ROSY_FINISH;
+  else if(style!=="makeup")finish=REVIEW_FEMALE_FINISH+FEMALE_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
+  else finish=ADAPTIVE_KOREAN_MAKEUP+MAKEUP_ACNE_PRIORITY+FEMALE_EYE_IDENTITY_PRIORITY;
+  return finish+FEMALE_IDENTITY_GEOMETRY_LOCK;
 }
 
 export const FEMALE_MAKEUP_SOURCE_LOCK=`
