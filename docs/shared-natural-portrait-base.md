@@ -1,0 +1,20 @@
+# Shared Natural hairstyle and edge authority
+
+The two finish choices used the same client function but sent different finish prompts to separate full-portrait AI jobs. Both jobs could redraw the crown, rear hair, ear boundaries and neck. Sharing prompt construction could not make those independent outputs identical.
+
+Female generation now requests the existing Natural pipeline for every finish: original-upload skin/light preparation, selected hairstyle generation, server matting, native clothing/neck alpha cleanup and existing feature/completion acceptance checks. The Natural prompts and cleanup pixels are unchanged. The accepted lossless native cutout becomes the shared base. Makeup applies a final deterministic rosy cosmetic colour pass to facial regions of that base. It performs no skin smoothing, exposure adjustment, geometry change, matting or hairstyle generation. Hair, ears, neck, semi-transparent edges and all alpha samples retain the Natural image. Rosy lips, upper lids, subtle lashes and cheek tint use existing facial landmarks and hair/skin masks.
+
+`natural-base-v1-locked-hair-edges` records the new shared-base policy. The source PNG and native geometry travel with the existing `studioSkinBaseSource` / `studioSkinGeometry` saved-project fields, including lossless deduplication and existing resource limits. V11 hairstyle cache entries cannot be seeded by older independently generated female outputs. Old work remains visible; generating a revised result creates a new shared base.
+
+Both initial processing and subsequent hairstyle selection use this flow. Canonical bases are scoped by the immutable upload, digest, wallet/account, hairstyle and current policy; finish choice and outfit do not cause another hair generation. Accepted per-hair caches can derive another finish from their own saved base. Rights are rechecked when cached jobs are reused. Cosmetic failure does not discard a valid base, while cancellation evicts an unaccepted cached base. Final result events publish after cosmetic completion. The original upload remains unchanged and the existing owned-source validation and job settlement remain in place.
+
+Studio finish switching preserves the exact source frame, pose, squeeze and suit. Automatic suit fitting measures the unpainted base, so cosmetic colours cannot shift fitting landmarks. Local finish/history commits retain the parent master, base and visible finish together, with stale account/source/work/job checks and rollback on failed hydration.
+
+Validation:
+
+- `check-shared-natural-portrait.mjs`: actual App orchestration and shared-base/cosmetic wrappers; one Natural job across all finishes; separate hair/wallet scopes; rights failure, cosmetic retry and cancellation.
+- `check-shared-studio-skin.mjs`: native base persistence, saved transfer/reopen, resource limits, actual App/editor commit and history, current original-AI metadata, rollback and stale transactions.
+- Existing original-AI prompt compatibility, source-eye guard, hair/neck, hairstyle continuity/cache, cancellation, vision readiness and staged-pipeline suites pass. Production build passes.
+- Native Chromium regression replays an actual current Natural server output from the public long-haired sample, selected `seedream-41`. Both starting choices and repeated finish switches issue one Natural job. At 2020 × 2288, cosmetic RGB changes are limited to 63,943 opaque facial pixels: changed hair pixels **0**, changed alpha samples **0**, changed semi-transparent edge pixels **0**, changed pixels below the chin **0**. Every source frame remains equal. Natural RGBA is byte-identical to the pre-change cleaned Natural sample. This validates client processing on retained model output; it does not imply deterministic AI generation for separate uploads or future new jobs.
+
+- Full mobile Studio UI regression uploads the public long-haired source, generates selected hairstyle 41, uses the real Makeup buttons and switches back to Natural. One Natural job is submitted, no page errors occur, the base/frame/pose/suit remain equal, and the final Natural PNG SHA matches the initial PNG SHA.

@@ -16,6 +16,7 @@ import {NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata} from '../natural-
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,needsOriginalAiSkinPolish} from '../original-portrait-ai.js';
+import {SHARED_PORTRAIT_BASE_VERSION} from '../shared-portrait-policy.js';
 import {finishSharedStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,canReuseStudioSkinBase,isStudioSkinGeometry,studioSkinMasterFrame} from './shared-studio-skin.js';
 import {finishFemaleMakeupEyeTone} from './female-makeup-eye-tone.js';
 import {isFemaleFinishProfile} from './female-finish-profile.js';
@@ -266,6 +267,7 @@ function decodedPortraitImage(blob){
  return pending;
 }
 const portraitFaceLandmarks=createPortraitFaceCache({decode:decodedPortraitImage,landmarker:getLandmarker});
+const portraitGeometryBases=new WeakMap();
 const originalSkinProfileCache=new WeakMap();
 function originalSkinProfile(sourceBlob){
  if(!sourceBlob)return Promise.resolve(null);
@@ -399,7 +401,8 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
  try{
   const head=await decodedPortraitImage(headBlob), uniform=uniformImg;
   const hb=await alphaBounds(head);
-  const face=await portraitFaceLandmarks(headBlob,head);
+  const geometryBase=portraitGeometryBases.get(headBlob)||headBlob;
+  const face=await portraitFaceLandmarks(geometryBase,geometryBase===headBlob?head:undefined);
   if(!face) throw Error('ตรวจจับสัดส่วนใบหน้าหลังตัดศีรษะไม่สำเร็จ');
 
   const W=bg.naturalWidth,H=bg.naturalHeight;
@@ -1629,6 +1632,11 @@ async function prepareStudioMakeup(source){
  })().catch(error=>{if(studioMakeupPreparation===entry)studioMakeupPreparation=null;throw error});
  return entry.promise;
 }
+async function prepareSharedPortraitMakeup(blob){
+ const original=await decodedPortraitImage(blob),face=await portraitFaceLandmarks(blob,original);
+ const {hairMask,skinMask}=await getV192MasterMasks(blob,original);
+ return {original,face,hairMask,skinMask};
+}
 const portraitResultCache=createAiResultCache();
 const makeupResultCache=createAiResultCache({maxEntries:4});
 let resultCacheScope=null;
@@ -2543,6 +2551,8 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const template=options.templatePath||options.jobContext?.uniformTemplate||'';
  const gender=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
  options={...options,portraitMode:gender,femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
+ const requestedFinish=options.femaleEyeStyle;
+ if(gender==='female')options={...options,femaleEyeStyle:'natural'};
  // Every new generation starts from the upload; never inherit a generated finish.
  options={...options,femaleMakeupReference:null,femaleFinishProfile:null};
  const scope=currentResultCacheScope(),digest=await resultSourceDigest(originalFile);
@@ -2550,7 +2560,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
  const key=JSON.stringify([HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION]:[])]);
- if(options.creditKind==='hairstyle')portraitResultCache.delete(key);
+ if(options.creditKind==='hairstyle'&&gender!=='female')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
   assertCurrentOperation();
@@ -2559,7 +2569,10 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const cleaned=await cleanPortraitClothing(result);
   assertCurrentOperation();
   let finished=cleaned;
-  if(gender==='female'&&finished.idpromStudioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION){
+  if(gender==='female'&&[STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(finished.idpromStudioSkinVersion)){
+   const image=await decodedPortraitImage(finished),face=await portraitFaceLandmarks(finished,image),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+   if(!face?.[152]||!face?.[234]||!face?.[454])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');
+   finished.idpromStudioSkinGeometry={width,height,chinY:face[152].y*height,faceCX:(face[234].x+face[454].x)/2*width,faceWidth:Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height)};
    finished=await finishSharedStudioSkin(finished,{style:options.femaleEyeStyle,encodeBase:async blob=>{const image=await decodedPortraitImage(blob),native=canvasFor(image.naturalWidth||image.width,image.naturalHeight||image.height);native.getContext('2d').drawImage(image,0,0);try{return native.toDataURL('image/png')}finally{native.width=1;native.height=1}},prepare:async source=>{const url=URL.createObjectURL(source);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return Boolean(operation?.cancelled||activeProcessOperation!==operation)}}});
   }
   // Legacy makeup retains its existing selective finish. The new rosy look
@@ -2571,6 +2584,15 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  try{await checkPortraitProportions(originalFile,cached.value,{protectFeatures:gender==='female'&&['natural','makeup','korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)});await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
+ const finishRequested=async base=>{
+  if(gender!=='female'||!sharedStudioSkinSource(base))return base;
+  try{
+   const finished=await finishSharedStudioSkin(base,{style:requestedFinish,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(operation?.cancelled||activeProcessOperation!==operation)}}});
+   assertCurrentOperation();
+   portraitGeometryBases.set(finished,base);
+   return finished;
+  }catch(error){if(operation?.cancelled||activeProcessOperation!==operation)portraitResultCache.delete(key);throw error}
+ };
  if(cached.reused){
   // Recheck current entitlement: a trial may have been purchased since caching.
   // Never reuse an old watermark decision or grant rights from memory alone.
@@ -2579,21 +2601,23 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const verified=await verifyOutputRights(jobId);
   assertCurrentOperation();
   if(verified.checked===false||typeof verified.unlocked!=='boolean')throw Error(verified.message||'ยังตรวจสอบเครดิตรูปเดิมไม่ได้ กรุณาลองอีกครั้ง ไม่จำเป็นต้องชำระเงินซ้ำ');
-  const result=cached.value.slice(0,cached.value.size,cached.value.type);
-  result.idpromJobId=jobId;result.idpromTrial=!verified.unlocked;result.idpromReused=true;
+  const result=copyStudioSkinBlobMetadata(cached.value,cached.value.slice(0,cached.value.size,cached.value.type));
+  result.idpromJobId=jobId;result.idpromTrial=!verified.unlocked;result.idpromReused=true;result.idpromFullEdit=verified.fullEdit;
   if(hasCurrentStudioSkin(cached.value,options.femaleEyeStyle)||hasOriginalPortraitAiFinish(cached.value,options.femaleEyeStyle)){result.idpromStudioSkinVersion=cached.value.idpromStudioSkinVersion;if(cached.value.idpromStudioCosmeticsVersion)result.idpromStudioCosmeticsVersion=cached.value.idpromStudioCosmeticsVersion;if(sharedStudioSkinSource(cached.value))result.idpromStudioSkinBaseSource=cached.value.idpromStudioSkinBaseSource;}
   if(gender==='female'&&options.femaleEyeStyle==='natural'&&cached.value.idpromNaturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)result.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
   const finishMeta=femaleFinishMetadata(cached.value);if(finishMeta.femaleFinishProfile)result.idpromFemaleFinishProfile=finishMeta.femaleFinishProfile;if(finishMeta.femaleFinishReference)result.idpromFemaleFinishReference=finishMeta.femaleFinishReference;
   if(firstPortrait)result.idpromPortraitCacheKey=key;
+  const finished=await finishRequested(result);
   await saveAiJobFile(originalFile);
   assertCurrentOperation();
   writeActiveAiJob({jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
   window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:result.idpromTrial,fullEdit:verified.fullEdit}}));
   options.onJobStatus?.('completed');
-  return result;
+  return finished;
  }
+ const finished=await finishRequested(cached.value);
  window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:cached.value.idpromJobId,isTrial:cached.value.idpromTrial,fullEdit:cached.value.idpromFullEdit}}));
- return cached.value;
+ return finished;
 }
 let acceptedPaidTrial=false;
 async function measuredHairRootTarget(blob){
@@ -4468,7 +4492,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   // Only the recorded current natural finish can carry its marker into a restored
   // processed master. Never attach processed-finish metadata to the original upload.
   if(mode==='female'&&finishStyle==='natural'&&head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION){if(master===source)master=master.slice(0,master.size,master.type);master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;}
-  if(mode==='female'&&(hasCurrentStudioSkin(head,finishStyle)||hasOriginalPortraitAiFinish(head,finishStyle))){if(master===source)master=master.slice(0,master.size,master.type);master.idpromStudioSkinVersion=head.studioSkinVersion;if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(sharedStudioSkinSource(head))master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;}
+  if(mode==='female'&&(hasCurrentStudioSkin(head,finishStyle)||hasOriginalPortraitAiFinish(head,finishStyle))){if(master===source)master=master.slice(0,master.size,master.type);master.idpromStudioSkinVersion=head.studioSkinVersion;if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(sharedStudioSkinSource(head)){master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;}}
   // Reopened work already has an accepted visible result. Remember that exact
   // current variant so switching back to it does not submit the upload again.
   const entry=rememberHairResult(id,master,mode,finishStyle);entry.confirmed=true;
@@ -4481,15 +4505,19 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   studioTrialRef.current=isTrial;setOutputJobId(cached.jobId);setTrialPreview(isTrial);
  };
  const cachedHairResult=(id,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
-  const entry=hairResultCacheRef.current.get(hairResultKey(id,portraitMode,femaleEyeStyle,outfitReferencePath));
-  return entry?.confirmed&&(hairResultMode(id,portraitMode)!=='female'||hasOriginalPortraitAiFinish(entry.master,portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle)))&&entry.sourcePhoto===firstUploadedPhotoRef.current&&entry.scope===hairResultScope()&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
+  let entry=hairResultCacheRef.current.get(hairResultKey(id,portraitMode,femaleEyeStyle,outfitReferencePath));
+  if(!entry&&hairResultMode(id,portraitMode)==='female'){
+   for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){const candidate=hairResultCacheRef.current.get(hairResultKey(id,portraitMode,style,outfitReferencePath));if(candidate?.confirmed&&sharedStudioSkinSource(candidate.master)){entry=candidate;break}}
+  }
+  return entry?.confirmed&&(hairResultMode(id,portraitMode)!=='female'||(sharedStudioSkinSource(entry.master)||hasOriginalPortraitAiFinish(entry.master,portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle))))&&entry.sourcePhoto===firstUploadedPhotoRef.current&&entry.scope===hairResultScope()&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
  };
  const canReuseHair=(id,portraitMode,femaleEyeStyle)=>Boolean(cachedHairResult(id,portraitMode,femaleEyeStyle));
  const changeHair=async id=>changeHairForStudio(id);
  const fitChangedHairMaster=async(master,previous)=>{
-  const [oldImage,newImage]=await Promise.all([decodedPortraitImage(previous.master),decodedPortraitImage(master)]);
-  const detector=await getLandmarker();
-  const oldFace=detector.detect(oldImage).faceLandmarks?.[0],newFace=detector.detect(newImage).faceLandmarks?.[0];
+  const base=sharedStudioSkinSource(master);if(base&&base===sharedStudioSkinSource(previous.master))return previous.lock;
+  const oldBase=portraitGeometryBases.get(previous.master)||previous.master,newBase=portraitGeometryBases.get(master)||master;
+  const [oldImage,newImage]=await Promise.all([decodedPortraitImage(oldBase),decodedPortraitImage(newBase)]);
+  const [oldFace,newFace]=await Promise.all([portraitFaceLandmarks(oldBase,oldImage),portraitFaceLandmarks(newBase,newImage)]);
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle,sourceJobId,outfitReferencePath}={})=>{
@@ -4510,7 +4538,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   let completed=false;
   try{
    let nextMaster,generatedResult=null;
-   if(cached){nextMaster=cached.master;}else{
+   if(cached){nextMaster=cached.master;if(sharedStudioSkinSource(nextMaster)&&!hasOriginalPortraitAiFinish(nextMaster,finishStyle)){const base=nextMaster;nextMaster=await finishSharedStudioSkin(base,{style:finishStyle,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(activeProcessOperation?.cancelled)}}});portraitGeometryBases.set(nextMaster,portraitGeometryBases.get(base)||base)}}else{
      // Only the untouched first upload is submitted for the new hairstyle.
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,templatePath:['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?(outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate):(editCache.current?.lock?.templatePath||activeUniformTemplate),onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
      generatedResult=aiHeadNeck;
@@ -4550,7 +4578,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
      committed=true;
     };
     completed=true;
-    return {reused:Boolean(cached),master:nextMaster,lock:nextLock,jobId,isTrial,fullEdit:cached?Boolean(cachedRights.fullEdit):Boolean(generatedResult.idpromFullEdit),hairId:id||'',commit};
+    return {reused:Boolean(cached||generatedResult?.idpromReused),master:nextMaster,lock:nextLock,jobId,isTrial,fullEdit:cached?Boolean(cachedRights.fullEdit):Boolean(generatedResult.idpromFullEdit),hairId:id||'',commit};
    }
    const out=studioOnly?null:await renderWithRibbon(nextMaster,nextLock,snap.adjust,snap.collarWarp,snap.neckAdjust,backgroundRef.current);
    if(!cached)assertProcessActive();
@@ -4959,13 +4987,15 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const syncStudioPortraitFinish=(head,preparedMaster)=>{
   if(!editCache.current||!firstUploadedPhotoRef.current||head?.jobId!==currentOutputJobRef.current||!sharedStudioSkinSource(head))return false;
   const finish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle);
-  if(!hasCurrentStudioSkin(head,finish))return false;
+  if(!hasCurrentStudioSkin(head,finish)&&!hasOriginalPortraitAiFinish(head,finish))return false;
   const geometry=isStudioSkinGeometry(head.studioSkinGeometry)?head.studioSkinGeometry:studioSkinGeometryRef.current?.source===head.studioSkinBaseSource?studioSkinGeometryRef.current.geometry:null;
   const lock=studioSkinMasterFrame(head,editCache.current.lock,geometry);if(!lock)return false;
   const master=preparedMaster||studioSkinBlobFromSource(head.freeHairBaseOriginal?head.hairOriginalSource:head.source);
   copyStudioSkinBlobMetadata(editCache.current.master,master,{bare:true});
-  master.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
+  master.idpromStudioSkinVersion=head.studioSkinVersion;
   master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;
+  if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;
+  if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;
   master.idpromFemaleEyeStyle=finish;
   delete master.idpromStudioCosmeticsVersion;delete master.idpromNaturalStudioSkinVersion;
   if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;
@@ -4990,10 +5020,11 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   studioPhotoTransactionRef.current=true;
   try{
    const base=copyStudioSkinBlobMetadata(previous.master,studioSkinBlobFromSource(head.studioSkinBaseSource),{bare:true});
-   base.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;base.idpromStudioSkinBaseSource=head.studioSkinBaseSource;
+   base.idpromStudioSkinVersion=head.studioSkinVersion;base.idpromStudioSkinBaseSource=head.studioSkinBaseSource;
+   if(head.sharedPortraitBaseVersion)base.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;
    let geometry=isStudioSkinGeometry(head.studioSkinGeometry)?head.studioSkinGeometry:studioSkinGeometryRef.current?.source===head.studioSkinBaseSource?studioSkinGeometryRef.current.geometry:null;
    if(!geometry){const image=await decodedPortraitImage(base),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,face=(await getLandmarker()).detect(image).faceLandmarks?.[0];assertCurrent();if(!face?.[152]||!face?.[234]||!face?.[454])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');geometry={width,height,chinY:face[152].y*height,faceCX:(face[234].x+face[454].x)/2*width,faceWidth:Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height)};if(!isStudioSkinGeometry(geometry))throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง')}
-   const master=await finishSharedStudioSkin(base,{style:finish,prepare:async blob=>{assertCurrent();const url=URL.createObjectURL(blob);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return !current()}}});
+   const master=await finishSharedStudioSkin(base,{style:finish,prepare:head.sharedPortraitBaseVersion===SHARED_PORTRAIT_BASE_VERSION?prepareSharedPortraitMakeup:async blob=>{assertCurrent();const url=URL.createObjectURL(blob);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return !current()}}});
    assertCurrent();
    const layer={...head,source:finish==='natural'?head.studioSkinBaseSource:await blobDataURL(master),...studioSkinWorkflowMetadata(master),studioSkinGeometry:geometry,femaleEyeStyle:finish,initialFemaleEyeStyle:finish,studioCosmeticsVersion:master.idpromStudioCosmeticsVersion,naturalStudioSkinVersion:finish==='natural'?NATURAL_STUDIO_SKIN_VERSION:undefined};
    assertCurrent();
@@ -5100,7 +5131,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const renderPreviewActions=(extraClass)=>( <div className={"preview-floating-actions "+extraClass}><button type="button" onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(false);setPreviewZoom(1);setPreviewPan({x:0,y:0});applyAdjust({...initialHeadAdjustRef.current});applyCollarWarp(0);applyCollarHeight(0)}} onPointerDown={e=>e.stopPropagation()} aria-label="รีเซ็ต"><span>↻</span><small>รีเซ็ต</small></button>
 <button type="button" className={comparePreview?'active':''} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();setComparePreview(v=>!v)}} aria-label="เปรียบเทียบ"><span>◐</span><small>เปรียบเทียบ</small></button><button type="button" disabled={!historyCounts.undo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('undo')}} aria-label="ย้อนกลับ" title="ย้อนกลับการปรับครั้งล่าสุด"><span>↶</span><small>ย้อนกลับ</small></button><button type="button" disabled={!historyCounts.redo||busy||hairBusy||uniformChanging||downloadBusy} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();restoreHistory('redo')}} aria-label="คืนค่าที่เพิ่งย้อนกลับ" title="คืนค่าที่เพิ่งย้อนกลับ"><span>↷</span><small>คืนค่า</small></button></div> );
  const renderProcessActions=(desktop=false)=>(<div className={"process-action-row "+(b?"processed-state":"")}><button className={"primary-action create-now process-first "+(b?"processed-hidden":"")} disabled={!f||busy||photoPreparing||privateTrialChecking} onClick={go}>{busy?'กำลังประมวลผล…':privateTrialActive?'ประมวลผลรูป':rights.generationRemaining>0?'ประมวลผลรูป':'ทดลองประมวลผลฟรี'}</button>{(a||b)&&<div className="preview-file-actions">{b&&<button type="button" className="photo-size-trigger" disabled={photoSizeBusy||downloadBusy||hairBusy||busy||uniformChanging} onClick={openPhotoSize} aria-label="เลือกขนาดรูป" aria-haspopup="dialog"><span>{photoSizeBusy?'กำลังเตรียม…':photoSizesForLanguage().find(s=>s.id===photoCrop.sizeId)?.label||'ขนาดเดิม'}</span><span aria-hidden="true">⌄</span></button>}{b&&<button type="button" className="inline-download-button" disabled={downloadBusy||hairBusy||busy||uniformChanging||photoSizeBusy} onClick={downloadCurrentFinal}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>{downloadBusy?'กำลังสร้าง…':'ดาวน์โหลด'}</span></button>}<label htmlFor="process-photo-input" className={(busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy)?'disabled':''} aria-disabled={busy||hairBusy||downloadBusy||uniformChanging||photoSizeBusy} onClick={requestLegacyPhotoUpload}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m5 17 4-4 3 3 3-3 4 4"/></svg><span>เปลี่ยนรูป</span></label>{desktop&&<button type="button" className="photo-guide-trigger desktop-photo-guide" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button>}</div>}</div>);
- if(studioData)return <>{SavedWorkUI()}<StudioEditor onCheckoutPreview={setCheckoutPreview} onReceiveImage={receivePurchasedImage} onPurchased={openPurchasedPhotos} initialEasy={Boolean((studioOriginRef.current?.easy??studioOriginRef.current?.starter)&&!savedWorkIdRef.current&&!restoredCheckoutRef.current)} accountScope={walletScope(authToken(),currentWalletId())} onMeasureSuitFace={measureStudioSuitFace} onSelectSuit={async(jobId,templates)=>{const r=await portraitFetch('/api/images/'+encodeURIComponent(jobId)+'/suits',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({templates})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบชุดไม่สำเร็จ');return data}} onLogout={({confirmed=false}={})=>{if(confirmed||window.confirm('ออกจากระบบ?')){logout();setStudioData(null);setScreen('home')}}} onOpenRights={()=>setRightsOpen(true)} memberMenu={AccountUI()} accountSaveNotice={accountSaveNotice} onOpenProject={project=>openAccountWork({project,unlocked:false})} key={savedWorkRevision} savedWorkUnlocked={savedWorkUnlocked} onSaveWork={rights.canSave?saveAccountWork:undefined} onOpenSavedWorks={()=>setSavedWorksOpen(true)} hasCredits={ownerAccess||(rights.downloadRemaining||0)>0} paidRemaining={rights.downloadRemaining||0} trialRemaining={rights.trialRemaining} processRemaining={'∞'} allOptionsAvailable={allOptionsAvailable} trialUnlocked={privateTrialActive&&!ownerAccess} paidOutputIds={rights.unlockedJobIds} paidWarningOutputIds={knownWalletData?rights.unlockedJobIds||[]:[]} editableOutputIds={purchaseEditing?rights.editableJobIds:[]} onVerifyOutput={verifyOutputRights} onUseDownloadCredit={unlockOutputWithCredit} downloadUnlockSignal={downloadUnlockSignal} onNewSource={()=>{setCheckoutPreview(null);closeReceivePhoto();if(packageCodeContextRef.current)packageCodeContextRef.current={...packageCodeContextRef.current,sourcePending:true};setPackageCodeSourcePending(true);setPackageCodeResult(null);activeSavedDownloadWork='';savedWorkIdRef.current='';setSavedWorkUnlocked(false);setDownloadUnlockSignal(null)}} editingPurchasedImage={purchaseEditing} fullCatalog={fullCatalog} freeTemplatePaths={FREE_TEMPLATE_PATHS} purchaseSnapshotRef={paymentStudioRef} initialSourcePhoto={restoredSourcePhoto} onRequestUnlock={requestDownloadUnlock} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={STUDIO_FEMALE_HAIR_OPTIONS} paidHairAccess={true} premiumHairCreditAvailable={premiumHairCreditAvailable} trialHairRemaining={rights.trialAvailable?Math.max(0,rights.trialRemaining||0):0} onChangeHair={changeStudioHair} onRestorePortraitFinish={syncStudioPortraitFinish} onHairAiAccess={getHairAiAccess} onPrepareHairOverlay={prepareSelectedStudioHair} canReuseHair={canReuseHair} onMakeup={applyStudioMakeup} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} onPrepareSourceDownload={prepareStudioSourceDownload} onBeforeProcess={beforeProcess} onReadProcessBalance={readProcessResultBalance} processing={busy||hairGenerating} processProgress={processProgress} onCancelProcess={cancelProgress} onFinishProcess={finishProgress} isProcessCancelled={()=>Boolean(activeProcessOperation?.cancelled)} onClose={layers=>{activeSavedDownloadWork='';studioDraftRef.current={...studioOriginRef.current,layers};setPurchaseEditing(false);setSessionEditJob('');setSavedWorkUnlocked(false);savedWorkOpenRequestRef.current++;savedWorkIdRef.current='';paymentStudioRef.current=null;restoredCheckoutRef.current=null;setAccountSaveNotice(null);setStudioData(null);setScreen('home')}}/>{(buyOpen||authOpen||qrPayment)&&<div className="studio-payment-dialog" style={buyOpen||authOpen?undefined:{display:'none'}}>{CreditUI()}{AuthUI()}</div>}</>;
+ if(studioData)return <>{SavedWorkUI()}<StudioEditor onCheckoutPreview={setCheckoutPreview} onReceiveImage={receivePurchasedImage} onPurchased={openPurchasedPhotos} initialEasy={Boolean((studioOriginRef.current?.easy??studioOriginRef.current?.starter)&&!savedWorkIdRef.current&&!restoredCheckoutRef.current)} accountScope={walletScope(authToken(),currentWalletId())} onMeasureSuitFace={measureStudioSuitFace} onSelectSuit={async(jobId,templates)=>{const r=await portraitFetch('/api/images/'+encodeURIComponent(jobId)+'/suits',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({templates})});const data=await r.json();if(!r.ok)throw Error(data.message||'ตรวจสอบชุดไม่สำเร็จ');return data}} onLogout={({confirmed=false}={})=>{if(confirmed||window.confirm('ออกจากระบบ?')){logout();setStudioData(null);setScreen('home')}}} onOpenRights={()=>setRightsOpen(true)} memberMenu={AccountUI()} accountSaveNotice={accountSaveNotice} onOpenProject={project=>openAccountWork({project,unlocked:false})} key={savedWorkRevision} savedWorkUnlocked={savedWorkUnlocked} onSaveWork={rights.canSave?saveAccountWork:undefined} onOpenSavedWorks={()=>setSavedWorksOpen(true)} hasCredits={ownerAccess||(rights.downloadRemaining||0)>0} paidRemaining={rights.downloadRemaining||0} trialRemaining={rights.trialRemaining} processRemaining={'∞'} allOptionsAvailable={allOptionsAvailable} trialUnlocked={privateTrialActive&&!ownerAccess} paidOutputIds={rights.unlockedJobIds} paidWarningOutputIds={knownWalletData?rights.unlockedJobIds||[]:[]} editableOutputIds={purchaseEditing?rights.editableJobIds:[]} onVerifyOutput={verifyOutputRights} onUseDownloadCredit={unlockOutputWithCredit} downloadUnlockSignal={downloadUnlockSignal} onNewSource={()=>{setCheckoutPreview(null);closeReceivePhoto();if(packageCodeContextRef.current)packageCodeContextRef.current={...packageCodeContextRef.current,sourcePending:true};setPackageCodeSourcePending(true);setPackageCodeResult(null);activeSavedDownloadWork='';savedWorkIdRef.current='';setSavedWorkUnlocked(false);setDownloadUnlockSignal(null)}} editingPurchasedImage={purchaseEditing} fullCatalog={fullCatalog} freeTemplatePaths={FREE_TEMPLATE_PATHS} purchaseSnapshotRef={paymentStudioRef} initialSourcePhoto={restoredSourcePhoto} onRequestUnlock={requestDownloadUnlock} initialLayers={studioData} templates={UNIFORM_GROUPS.flatMap(g=>g.items.map(t=>({...t,group:g.name})))} collarPins={COLLAR_PIN_OPTIONS} chestPins={CHEST_PIN_OPTIONS} ribbons={RIBBON_OPTIONS} backgrounds={BACKGROUND_OPTIONS} maleHair={MALE_HAIR_OPTIONS} femaleHair={STUDIO_FEMALE_HAIR_OPTIONS} paidHairAccess={true} premiumHairCreditAvailable={premiumHairCreditAvailable} trialHairRemaining={rights.trialAvailable?Math.max(0,rights.trialRemaining||0):0} onChangeHair={changeStudioHair} onLocalPortraitFinish={changeStudioPortraitFinish} onRestorePortraitFinish={syncStudioPortraitFinish} onHairAiAccess={getHairAiAccess} onPrepareHairOverlay={prepareSelectedStudioHair} canReuseHair={canReuseHair} onMakeup={applyStudioMakeup} placement={studioOriginRef.current?.starter?studioOriginRef.current.placement:editCache.current?.lock} onProcessPhoto={processStudioPhoto} onPrepareSourceDownload={prepareStudioSourceDownload} onBeforeProcess={beforeProcess} onReadProcessBalance={readProcessResultBalance} processing={busy||hairGenerating} processProgress={processProgress} onCancelProcess={cancelProgress} onFinishProcess={finishProgress} isProcessCancelled={()=>Boolean(activeProcessOperation?.cancelled)} onClose={layers=>{activeSavedDownloadWork='';studioDraftRef.current={...studioOriginRef.current,layers};setPurchaseEditing(false);setSessionEditJob('');setSavedWorkUnlocked(false);savedWorkOpenRequestRef.current++;savedWorkIdRef.current='';paymentStudioRef.current=null;restoredCheckoutRef.current=null;setAccountSaveNotice(null);setStudioData(null);setScreen('home')}}/>{(buyOpen||authOpen||qrPayment)&&<div className="studio-payment-dialog" style={buyOpen||authOpen?undefined:{display:'none'}}>{CreditUI()}{AuthUI()}</div>}</>;
  if(screen==='studio')return <>{PackageCodeUI()}{AuthUI()}<main className="idstudio studio-starting"><p>{studioBusy?(studioOriginRef.current?.easy===false?'กำลังเปิด Studio…':'กำลังเตรียมพื้นที่ทำงาน…'):msg}</p><button onClick={()=>setScreen('home')}>กลับหน้าหลัก</button></main></>;
  return <main className="app-shell modern-shell adaptive-editor" onPointerDownCapture={captureSliderPointer} onKeyDownCapture={e=>{if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('.head-adjust-row,.ribbon-option,.collar-pin-option,.background-swatch,.hair-card,.preview-floating-actions button,.placement-lock-btn'))rememberEdit()}} onContextMenu={e=>e.preventDefault()}>{PurchaseDeliveryUI()}{PackageCodeUI()}{LegacyPaidWarningUI()}<TrialChoiceUI/>{photoSizeBlob&&<PhotoSizeEditor blob={photoSizeBlob} value={photoCrop} trial={trialPreview} onClose={()=>setPhotoSizeBlob(null)} onApply={crop=>{setPhotoCrop(crop);setPhotoSizeBlob(null)}}/>}<header className="mobile-topbar process-mobile-topbar editor-context-header"><button type="button" className="detail-back" onClick={requestLegacyExit} aria-label="กลับหน้าก่อนหน้า">‹</button><div><div className="eyebrow">PHOTO READY</div><h1>{{government:'ข้าราชการ',job:'สมัครงาน',student:'นักศึกษา',gown:'ครุย'}[uniformCategory]||'สร้างรูป'}</h1></div><div className="editor-credit-actions">{AccountUI()}{CreditUI({showBalance:false})}{AuthUI()}<SupportCenter/></div></header><div className="editor-mobile-actions">{renderProcessActions()}</div><div className="editor-mobile-help"><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูป</button></div><section className="modern-flow">
   <section className={"style-detail-card "+((a||b)?"preview-gesture-area":"")} onPointerDown={previewAreaPointerDown} onPointerMove={previewAreaPointerMove} onPointerUp={previewAreaPointerUp} onPointerCancel={previewAreaPointerUp}><div className="detail-title process-page-title editor-preview-heading"><h2>เพิ่มรูป</h2><button type="button" className="photo-guide-trigger" onClick={()=>setPhotoGuideOpen(true)} aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="แนะนำรูปที่ถูกต้อง"><span aria-hidden="true">?</span> แนะนำรูปที่ถูกต้อง</button>{uniformCategory==='government'&&<span>{selectedStyle||'แบบที่เลือก'}</span>}</div><input id="process-photo-input" ref={fileInputRef} className="process-photo-input" type="file" accept="image/*" onClick={guardLegacyPhotoInputClick} onCancel={()=>{legacyUploadConsentRef.current=null;mobileLandingUploadRef.current=false}} onChange={pick} disabled={busy||hairBusy||photoPreparing}/>{b&&renderPreviewActions('preview-desktop-actions')}<div className="editor-workspace"><div ref={previewStageRef} className={"hero-preview preview-upload "+(b?"direct-edit-preview":"")+(trialPreview?" trial-preview-active":"")+((previewZoom!==1||previewPan.x||previewPan.y)?" preview-zoomed":"")} style={{'--preview-view-transform':`translate3d(${previewPan.x}px,${previewPan.y}px,0) scale(${previewZoom})`}} onPointerDown={previewPointerDown} onPointerMove={previewPointerMove} onPointerUp={previewPointerUp} onPointerCancel={previewPointerUp} onWheel={previewWheel} onClick={e=>{if(!a&&!b)requestLegacyPhotoUpload(e)}}>{b?<><img src={comparePreview&&a?a:b} className="editable-result-image final-render-preview" style={{visibility:liveCanvasVisible&&!comparePreview?'hidden':'visible'}}/><canvas ref={liveCanvasRef} className="live-editor-canvas" style={{display:liveCanvasVisible&&!comparePreview?'block':'none'}} aria-hidden="true"/>{trialPreview&&<div className="trial-watermark-grid" aria-hidden="true">{Array.from({length:64},(_,i)=><span key={i}>ตัวอย่าง IDพร้อม</span>)}</div>}{renderPreviewActions('preview-mobile-actions')}{!comparePreview&&<span className="preview-edit-hint">{optionTool==='ribbon'?'ลากแพรแถบเพื่อปรับ · ลากพื้นที่อื่นเพื่อเลื่อน · ใช้สองนิ้วซูม':optionTool==='head'?'แตะค้างที่หัวแล้วลากเพื่อย้าย · การซูมเหมือนเดิม':'ลากพื้นที่ว่างเพื่อเลื่อนมุมมอง · ใช้สองนิ้วซูม 20–200%'}</span>}</>:a?<><img src={a} className="source-preview"/></>:<div className="preview-empty"><span className="add-photo">+ เพิ่มรูป</span><small>JPG · PNG · WEBP</small></div>}{processProgress.active&&<div className="image-progress-overlay" role="status" aria-live="polite" onClick={e=>{e.preventDefault();e.stopPropagation()}}><div className={"image-progress-card "+(processProgress.value>=100?'is-complete':processProgress.value>=90?'is-waiting':'is-processing')} style={{position:'relative',paddingTop:52}}><ProcessingCloseButton disabled={processProgress.cancelling||processProgress.value>=100} onClose={cancelProgress}/><div className="image-progress-copy"><span>{processProgress.label}</span><strong>{`${Math.floor(processProgress.value)}%`}</strong></div><div className="image-progress-track" aria-hidden="true"><i style={{width:`${processProgress.value}%`}}/></div><p className="image-progress-hint">{processProgress.value>=100?'ภาพพร้อมแล้ว':processProgress.value>=99?'กำลังเก็บรายละเอียดขั้นสุดท้าย กรุณาเปิดหน้านี้ไว้':'กำลังสร้างภาพให้คุณ กรุณาเปิดหน้านี้ไว้จนเสร็จ'}</p></div></div>}</div>{b&&<div className="desktop-workspace-caption"><span>เลื่อนล้อเมาส์เพื่อซูม · ลากพื้นที่ว่างเพื่อเลื่อน</span><output>{Math.round(previewZoom*100)}%</output></div>}</div>

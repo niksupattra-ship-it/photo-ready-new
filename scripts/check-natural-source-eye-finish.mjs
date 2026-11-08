@@ -41,7 +41,7 @@ await check('natural eye expression and clear-skin policy reaches the actual sin
  }
 });
 
-await check('actual App wrapper rejects natural eye drift, evicts rejected output and keeps other modes unchanged',async()=>{
+await check('actual App wrapper rejects eye drift in the shared Natural base before delivering either finish',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const a=main.indexOf('async function aiFinishPortrait('),b=main.indexOf('\nasync function aiFinishPortraitUncached(',a);assert(a>=0&&b>a);
  for(const [gender,style,protectedEyes] of [['female','natural',true],['female','makeup',true],['female','korean-rosy-v1',true],['male','natural',false]]){
@@ -50,9 +50,9 @@ await check('actual App wrapper rejects natural eye drift, evicts rejected outpu
    let generations=0,deletions=0,completionChecks=0,featureChecks=0;
    const eyeError=Object.assign(Error('source eye geometry changed'),{code:'portrait_features_changed'});
    const forbidden=()=>{throw Error('local skin or cosmetics must not execute')};
-   const env={isOriginalPortraitAiRequest,window:{dispatchEvent(){}},CustomEvent:class{},activeProcessOperation:operation,assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],portraitFinishChoice:(v,f)=>v||f||'natural',currentResultCacheScope:()=> 'account',resultSourceDigest:async()=> 'upload-sha',uploadGenerationScope:()=> 'upload',HAIR_DESIGN_VERSION:'hair',NATURAL_STUDIO_SKIN_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,STUDIO_SKIN_WORKFLOW_VERSION:'studio-skin-stages-v5',
+   const env={sharedStudioSkinSource:()=>null,decodedPortraitImage:async()=>({naturalWidth:128,naturalHeight:192}),portraitFaceLandmarks:async()=>({152:{x:.5,y:.8},234:{x:.2,y:.5},454:{x:.8,y:.5}}),canvasPng:forbidden,isOriginalPortraitAiRequest,window:{dispatchEvent(){}},CustomEvent:class{},activeProcessOperation:operation,assertProcessActive(){},cancelledProcessError:()=>Error('cancelled'),PRODUCTION_HAIR_CATALOG:[],portraitFinishChoice:(v,f)=>v||f||'natural',currentResultCacheScope:()=> 'account',resultSourceDigest:async()=> 'upload-sha',uploadGenerationScope:()=> 'upload',HAIR_DESIGN_VERSION:'hair',NATURAL_STUDIO_SKIN_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,STUDIO_SKIN_WORKFLOW_VERSION:'studio-skin-stages-v5',
     portraitResultCache:{async get(key,create){if(gender==='female'&&style==='natural')assert(key.includes(NATURAL_STUDIO_SKIN_VERSION));return {value:await create(),reused:false}},delete(){deletions++}},
-    aiFinishPortraitUncached:async source=>{assert.equal(source,upload);generations++;return finished},cleanPortraitClothing:async image=>image,finishSharedStudioSkin:forbidden,finishFemaleMakeupSoftFocusBlob:forbidden,
+    aiFinishPortraitUncached:async source=>{assert.equal(source,upload);generations++;return finished},cleanPortraitClothing:async image=>image,finishSharedStudioSkin:async base=>base,finishFemaleMakeupSoftFocusBlob:forbidden,
     checkPortraitProportions:async(source,image,options)=>{featureChecks++;assert.equal(source,upload);assert.equal(options.protectFeatures,protectedEyes);if(drift&&options.protectFeatures)throw eyeError},checkPortraitCompletion:async()=>{completionChecks++}};
    const run=Function('env','with(env){'+main.slice(a,b)+';return aiFinishPortrait}')(env);
    if(drift&&protectedEyes){await assert.rejects(run(upload,'original',{portraitMode:gender,femaleEyeStyle:style}),e=>e===eyeError);assert.equal(deletions,1);assert.equal(completionChecks,0)}

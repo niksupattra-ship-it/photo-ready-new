@@ -1,5 +1,7 @@
 import {renderLocalMakeup} from './local-makeup.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
+import {sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
 
 const looks={
  'makeup':'local-korean-pink-eye-v1',
@@ -10,14 +12,14 @@ const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเล�
 
 // A deterministic final colour pass on the completed native AI image. This
 // stage never changes the established skin exposure, texture, alpha or geometry.
-// The async-job polling path calls this too, so resumed jobs get the same finish.
+// The shared-base completion and Studio finish switch use this same colour pass.
 export async function finishStudioPostCosmetics(blob,{style='natural',prepare,toBlob,signal,onProgress}={}){
  abort(signal);
  if(style==='natural')return blob;
- const lookId=looks[style];
+ const lookId=blob?.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&looks[style]?(style==='soft-rosy-v1'?'shared-peach-rose-v1':'shared-rose-pink-v1'):looks[style];
  if(!lookId)throw Error('ไม่พบรูปแบบเมคอัพที่เลือก');
- if(blob?.idpromStudioSkinVersion!==STUDIO_SKIN_WORKFLOW_VERSION)throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
- const version=STUDIO_SKIN_WORKFLOW_VERSION+':'+style;
+ if(blob?.idpromStudioSkinVersion!==STUDIO_SKIN_WORKFLOW_VERSION&&!(blob?.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&sharedOriginalPortraitSource(blob)))throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
+ const version=blob.idpromStudioSkinVersion+':'+style;
  if(blob.idpromStudioCosmeticsVersion===version)return blob;
  if(blob.idpromStudioCosmeticsVersion)throw Error('กรุณาใช้ภาพฐานก่อนแต่งหน้าเพื่อเปลี่ยนเมคอัพ');
  if(typeof prepare!=='function'||typeof toBlob!=='function')throw Error('ระบบแต่งเมคอัพยังไม่พร้อม กรุณาลองใหม่');

@@ -13,7 +13,7 @@ import {StudioBackgroundColor} from './studio-background-color.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
-import {canReuseStudioSkinBase} from './shared-studio-skin.js';
+import {canReuseStudioSkinBase,sharedStudioSkinSource} from './shared-studio-skin.js';
 import {createPortal} from 'react-dom';
 import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
@@ -756,7 +756,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!suit?.autoSuitFitVersion||!suit.templatePath||!head||typeof onMeasureSuitFace!=='function'||suit.warpSource||(suit.neckWidth||0)!==(Number.isFinite(suit.autoCollarFitWidth)?suit.autoCollarFitWidth:0)||suit.neckHeight||assets.current.get(suit.id)?.directPixelsReady)return next;
   const native=await nativeAsset('suit',{template:suit.templatePath},suit.sourceFrame||suit.collarFrame,null);
   const unbaked={...suit,source:native.source};
-  return fitStudioSuit({layers:next,previousSuit:suit,nextSuit:unbaked,headSource:head.warpSource||head.source,headMask:head.mask,measureFace:onMeasureSuitFace,preservePlacement:true});
+  return fitStudioSuit({layers:next,previousSuit:suit,nextSuit:unbaked,headSource:head.warpSource||sharedStudioSkinSource(head)||head.source,headMask:head.mask,measureFace:onMeasureSuitFace,preservePlacement:true});
  };
  const endSuitPreview=request=>{if(!request||suitRequestRef.current!==request)return;request.cancel();suitRequestRef.current=null;request.preview?.release();setSuitSelecting(false);drawNow()};
  const beginSuitPreview=(option,target)=>{
@@ -814,7 +814,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(['collar','chest','ribbon'].includes(kind))Object.assign(created,{x:suit?.x||0,y:suit?.y||0,scale:suit?.scale||1,rotation:suit?.rotation||0,opacity:1,collarLeftX:0,collarRightX:0,collarLeftY:0,collarRightY:0});
     if(kind==='collar')Object.assign(created,{collarLeftScale:1,collarRightScale:1,collarLeftRotation:0,collarRightRotation:0});
     next=target?previous.map(l=>l.id===target.id?created:l):kind==='background'?[created,...previous]:[...previous,created];
-    if(fitHead){try{const asset=assets.current.get(fitHead.id);if(!asset)throw Error('ยังเตรียมภาพหัวไม่สำเร็จ');setStatus('กำลังจัดหัวและคอให้พอดีกับชุด…');const fitting=fitStudioSuit({layers:next,previousSuit:target,nextSuit:created,headSource:asset.warped||asset.original,headMask:asset.mask,measureFace:onMeasureSuitFace});next=request?await request.wait(fitting):await fitting;fitWarning=next.find(l=>l.id===created.id)?.autoSuitFitWarning||''}catch(error){if(error.code==='SUIT_SELECTION_REPLACED')throw error;fitWarning='ยังจัดหัวอัตโนมัติไม่สำเร็จ สามารถปรับหัวและคอเสื้อเพิ่มเติมได้';next=next.map(l=>l.id===created.id?{...l,autoSuitFitVersion:null,autoCollarFitApplied:false,autoSuitFitWarning:fitWarning}:l)}}
+    if(fitHead){try{const asset=assets.current.get(fitHead.id);if(!asset)throw Error('ยังเตรียมภาพหัวไม่สำเร็จ');setStatus('กำลังจัดหัวและคอให้พอดีกับชุด…');const fitting=fitStudioSuit({layers:next,previousSuit:target,nextSuit:created,headSource:asset.warped||sharedStudioSkinSource(fitHead)||asset.original,headMask:asset.mask,measureFace:onMeasureSuitFace});next=request?await request.wait(fitting):await fitting;fitWarning=next.find(l=>l.id===created.id)?.autoSuitFitWarning||''}catch(error){if(error.code==='SUIT_SELECTION_REPLACED')throw error;fitWarning='ยังจัดหัวอัตโนมัติไม่สำเร็จ สามารถปรับหัวและคอเสื้อเพิ่มเติมได้';next=next.map(l=>l.id===created.id?{...l,autoSuitFitVersion:null,autoCollarFitApplied:false,autoSuitFitWarning:fitWarning}:l)}}
    }
    if(request){if(suitRequestRef.current!==request)return;request.phase='committing';setSuitSelecting(false)}
    if(await hydrate(next,new Set(previous.filter(l=>{const n=next.find(n=>n.id===l.id);return l.id!==target?.id&&n&&['sourceFrame','source','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'].every(key=>n[key]===l[key])}).map(l=>l.id)))){if(kind==='suit'&&option&&onSelectSuit){const head=outputHeads(state.current).find(l=>l.jobId);if(head)try{setSuitPolicy(await onSelectSuit(head.jobId,[target?.templatePath,option.template].filter(Boolean)))}catch(e){await hydrate(previous);setStatus(e.message);return}}undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];const chosen=next.find(l=>layerKind(l)===kind);if(chosen){if(touch&&['collar','chest','ribbon'].includes(kind)){resetBrushSession();choosePart(chosen.id);setTouchTab('position')}else setSelected(chosen.id)}setRevision(v=>v+1);setStatus(option?'เลือก '+(option.name||option.title||ASSET_NAMES[kind])+' แล้ว'+(fitWarning?' · '+fitWarning:''):'นำ '+ASSET_NAMES[kind]+' ออกแล้ว');if(kind==='suit'&&(option?!target||!((option.id&&target.assetId===option.id)||(option.template&&target.templatePath===option.template)):Boolean(target)))trackUniformSelection(option,'apply',option?'new':'remove')}else setStatus('ยังแสดง '+ASSET_NAMES[kind]+' ไม่สำเร็จ งานเดิมยังอยู่ กรุณาลองเลือกอีกครั้ง');
@@ -1042,7 +1042,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     const front=fresh({...common,...keepPose(placedFreeHair),name:freeHair.name||'ทรงผม '+freeHair.hairId.slice(5),hairRole:'front',source:fitted.source}),index=next.findIndex(l=>l.id===head.id);
     if(fitted.backSource){const oldBack=previous.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&l.hairId===freeHair.hairId&&l.hairRole==='back');const back=fresh({...common,...keepPose(oldBack),name:'ทรงผมด้านหลัง',hairRole:'back',source:fitted.backSource});next.splice(index,0,back);next.splice(index+2,0,front)}else next.splice(index+1,0,front);
    }
-   if(next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
+   if(!localFinish&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    assertAppearanceCurrent();
    if(!await hydrate(next,new Set(previous.filter(l=>next.includes(l)).map(l=>l.id)),localFinish?localCurrent:undefined))throw Error('แสดงภาพไม่สำเร็จ');
    assertAppearanceCurrent();

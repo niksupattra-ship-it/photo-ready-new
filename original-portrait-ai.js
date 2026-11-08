@@ -1,4 +1,5 @@
 import {NATURAL_STUDIO_SKIN_VERSION,NATURAL_STUDIO_SKIN_PREVIOUS_VERSION,NATURAL_STUDIO_SKIN_SPOT_VERSION,needsNaturalAiPreparation} from './natural-studio-skin.js';
+import {SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource} from './shared-portrait-policy.js';
 
 // Versioned AI editing of the untouched uploaded photograph.
 // Legacy staged requests keep their released preprocessing and local cosmetics.
@@ -40,7 +41,8 @@ export function originalPortraitAiMetadata(master,head={}){
  const version=subject?.idpromStudioSkinVersion||subject?.studioSkinVersion;
  if(!isOriginalPortraitAiVersion(version))return {};
  const cosmetic=subject.idpromStudioCosmeticsVersion||subject.studioCosmeticsVersion;
- return {studioSkinVersion:version,...([...styles].some(s=>s!=='natural'&&cosmetic===version+':'+s)?{studioCosmeticsVersion:cosmetic}:{})};
+ const base=sharedOriginalPortraitSource(subject),geometry=subject.idpromStudioSkinGeometry||subject.studioSkinGeometry;
+ return {studioSkinVersion:version,...([...styles].some(s=>s!=='natural'&&cosmetic===version+':'+s)?{studioCosmeticsVersion:cosmetic}:{}),...(base?{studioSkinBaseSource:base,sharedPortraitBaseVersion:SHARED_PORTRAIT_BASE_VERSION,...(geometry?{studioSkinGeometry:geometry}:{})}:{})};
 }
 export const ORIGINAL_AI_TASK='FEMALE ID PORTRAIT FROM THE ORIGINAL UPLOAD: Image 1 is the untouched original photograph, not a prepared or retouched skin base. Produce one coherent photographic studio portrait of this same woman. Perform all requested lighting, colour correction, skin repair, detail refinement and selected cosmetics inside this one image edit. The uploaded person alone supplies identity, age structure, intrinsic facial proportions, expression and natural complexion. Fit the selected hairstyle and retain the established pose, head scale, ear/jaw anatomy and head/neck cutout requirements.';
 export const ORIGINAL_AI_LIGHT='ORIGINAL-PHOTO STUDIO LIGHTING: Correct unwanted yellow, red or other ambient colour casts and deficient exposure according to this individual. Use a broad softly diffused frontal key and balanced fill to soften harsh source shadows continuously across the face, ears and neck. Preserve gentle anatomical gradients and natural complexion depth. Reduce excessive oily forehead, nose and cheek highlights to soft photographic satin. Keep healthy skin luminous without a flat matte-grey face, fixed whitening, opaque haze, erased facial volume or new glossy hot spots.';

@@ -2,6 +2,8 @@ import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {finishStudioPostCosmetics} from './studio-post-cosmetics.js';
 import {encodedImageSize} from './project-resource-guard.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
+import {SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
 
 const sourcePattern=/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
 const supported=new Set(['natural','makeup','korean-rosy-v1','soft-rosy-v1']);
@@ -9,6 +11,7 @@ const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเล�
 
 export function isStudioSkinBaseSource(value){return typeof value==='string'&&value.length<=32*1024*1024&&sourcePattern.test(value)}
 export function sharedStudioSkinSource(subject){
+ const original=sharedOriginalPortraitSource(subject);if(original)return original;
  if((subject?.idpromStudioSkinVersion||subject?.studioSkinVersion)!==STUDIO_SKIN_WORKFLOW_VERSION)return null;
  const value=subject?.idpromStudioSkinBaseSource||subject?.studioSkinBaseSource;
  return isStudioSkinBaseSource(value)?value:null;
@@ -50,7 +53,8 @@ export function copyStudioSkinBlobMetadata(source,target,{bare=false}={}){
 // Switching finish cannot feed makeup pixels back into skin processing.
 export async function finishSharedStudioSkin(blob,{style='natural',encodeBase,prepare,toBlob,signal,onProgress}={}){
  abort(signal);
- if(!supported.has(style)||blob?.idpromStudioSkinVersion!==STUDIO_SKIN_WORKFLOW_VERSION)throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
+ const version=blob?.idpromStudioSkinVersion,original=version===ORIGINAL_PORTRAIT_AI_VERSION;
+ if(!supported.has(style)||!original&&version!==STUDIO_SKIN_WORKFLOW_VERSION)throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  let source=sharedStudioSkinSource(blob);
  if(!source){
   if(blob.idpromStudioCosmeticsVersion||typeof encodeBase!=='function')throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
@@ -58,7 +62,8 @@ export async function finishSharedStudioSkin(blob,{style='natural',encodeBase,pr
   if(!isStudioSkinBaseSource(source))throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  }
  const base=copyStudioSkinBlobMetadata(blob,studioSkinBlobFromSource(source),{bare:true});
- base.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
+ base.idpromStudioSkinVersion=version;
+ if(original)base.idpromSharedPortraitBaseVersion=SHARED_PORTRAIT_BASE_VERSION;
  base.idpromStudioSkinBaseSource=source;
  base.idpromFemaleEyeStyle=style;
  const finished=await finishStudioPostCosmetics(base,{style,prepare,toBlob,signal,onProgress});abort(signal);

@@ -5,7 +5,8 @@ import {makeSavedProject,prepareSavedProject,validateSavedProject,assertSavedPro
 import {packSavedProjectTransfer,unpackSavedProjectTransfer,getSavedWorkRequestSize,SAVED_WORK_TRANSFER_MAX_BYTES} from '../src/saved-work-transfer.js';
 import {compactSavedWorkPreview} from '../saved-work-thumbnail.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
-import {hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
+import {SHARED_PORTRAIT_BASE_VERSION} from '../shared-portrait-policy.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {hasCurrentStudioSkin,studioSkinWorkflowMetadata} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
@@ -103,11 +104,11 @@ const callbackStart=app.indexOf(' const syncStudioPortraitFinish='),callbackEnd=
 assert(callbackStart>=0&&callbackEnd>callbackStart,'actual shared finish transaction callbacks missing');
 const callbacks=Function('env',`with(env){${app.slice(callbackStart,callbackEnd)};return {syncStudioPortraitFinish,changeStudioPortraitFinish}}`);
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}};
-function transactionFixture({sourceBase=base,sourceMakeup=madeUp,geometry=nativeGeometry,sourceFrame={x:21,y:4,w:700,h:1050},parentLock}={}){
+function transactionFixture({sourceBase=base,sourceMakeup=madeUp,geometry=nativeGeometry,sourceFrame={x:21,y:4,w:700,h:1050},parentLock,skinVersion=STUDIO_SKIN_WORKFLOW_VERSION}={}){
  const upload=new File(['immutable upload'],'upload.jpg',{type:'image/jpeg'});upload.idpromFemaleEyeStyle='natural';
- const master=studioSkinBlobFromSource(sourceBase);Object.assign(master,{idpromStudioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,idpromStudioSkinBaseSource:sourceBase,idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'unchanged-accepted-job',idpromTrial:true,idpromFullEdit:false});
+ const master=studioSkinBlobFromSource(sourceBase);Object.assign(master,{idpromStudioSkinVersion:skinVersion,...(skinVersion===ORIGINAL_PORTRAIT_AI_VERSION?{idpromSharedPortraitBaseVersion:SHARED_PORTRAIT_BASE_VERSION}:{}),idpromStudioSkinBaseSource:sourceBase,idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'unchanged-accepted-job',idpromTrial:true,idpromFullEdit:false});
  const originalCache={master,lock:parentLock||{templatePath:'unchanged-suit',W:900,H:1200,headW:128,headH:192,hX:100,hY:120,scale:2,chinY:150,faceCX:64,hairFitEyeSize:99,hairFitEyeCentreX:88,hairFitChinAnchorY:77}},remembered=[],events=[],gate=deferred(),started=deferred(),state={token:'account-A',wallet:'wallet-A',valid:true,fail:false};
- const env={STUDIO_SKIN_WORKFLOW_VERSION,NATURAL_STUDIO_SKIN_VERSION,canReuseStudioSkinBase,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,isStudioSkinGeometry,studioSkinMasterFrame,studioSkinWorkflowMetadata,hasCurrentStudioSkin,portraitFinishChoice,Blob,URL,
+ const env={ORIGINAL_PORTRAIT_AI_VERSION,SHARED_PORTRAIT_BASE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasOriginalPortraitAiFinish,canReuseStudioSkinBase,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,isStudioSkinGeometry,studioSkinMasterFrame,studioSkinWorkflowMetadata,hasCurrentStudioSkin,portraitFinishChoice,Blob,URL,
   studioSkinGeometryRef:{current:null},liveAdjustRef:{current:{scale:1.2,x:.1,y:.2,rotation:4}},liveNeckAdjustRef:{current:{width:8,length:9}},initialHeadAdjustRef:{current:null},lockedPlacementRef:{current:{old:true}},lockedMasterRef:{current:master},setHeadAdjust:()=>{},setNeckAdjust:()=>{},setPlacementLocked:()=>{},editCache:{current:originalCache},firstUploadedPhotoRef:{current:upload},studioPhotoTransactionRef:{current:false},currentOutputJobRef:{current:'unchanged-accepted-job'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},savedWorkOpenRequestRef:{current:1},busy:false,hairBusy:false,
   walletScope:(token,wallet)=>JSON.stringify([token,wallet]),authToken:()=>state.token,currentWalletId:()=>state.wallet,
   blobDataURL:async blob=>data(Buffer.from(await blob.arrayBuffer()),blob.type.split('/')[1]),
@@ -116,13 +117,13 @@ function transactionFixture({sourceBase=base,sourceMakeup=madeUp,geometry=native
    events.push('cosmetics-boundary');assert.equal(input.idpromStudioSkinBaseSource,sourceBase);assert.equal(input.idpromStudioCosmeticsVersion,undefined);assert.deepEqual(Buffer.from(await input.arrayBuffer()),bytes(sourceBase));started.resolve();await gate.promise;
    if(signal.aborted)throw Object.assign(Error('cancelled'),{name:'AbortError'});if(state.fail)throw Error('cosmetics failed');
    const result=copyStudioSkinBlobMetadata(input,studioSkinBlobFromSource(style==='natural'?sourceBase:sourceMakeup),{bare:true});result.idpromFemaleEyeStyle=style;
-   if(style==='natural')result.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;else result.idpromStudioCosmeticsVersion=STUDIO_SKIN_WORKFLOW_VERSION+':'+style;
+   if(style==='natural')result.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;else result.idpromStudioCosmeticsVersion=input.idpromStudioSkinVersion+':'+style;
    return result;
   },
-  prepareStudioMakeup:async()=>{throw Error('inert cosmetic boundary must not prepare')},canvasPng:async()=>{throw Error('inert cosmetic boundary must not encode')},
+  prepareSharedPortraitMakeup:async()=>{throw Error('inert cosmetic boundary must not prepare')},prepareStudioMakeup:async()=>{throw Error('inert cosmetic boundary must not prepare')},canvasPng:async()=>{throw Error('inert cosmetic boundary must not encode')},
   portraitFetch:async()=>{events.push('API');throw Error('local finish must not call API')},aiFinishPortrait:async()=>{events.push('AI');throw Error('local finish must not call AI')},verifyOutputRights:async()=>{events.push('rights');throw Error('local finish must not verify or change rights')}
  };
- const naturalHead=head({source:sourceBase,studioSkinBaseSource:sourceBase,studioSkinGeometry:geometry,sourceFrame,femaleEyeStyle:'natural',initialFemaleEyeStyle:'natural',studioCosmeticsVersion:undefined,naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,mask:null,hairId:'original'});
+ const naturalHead=head({studioSkinVersion:skinVersion,...(skinVersion===ORIGINAL_PORTRAIT_AI_VERSION?{sharedPortraitBaseVersion:SHARED_PORTRAIT_BASE_VERSION}:{}),source:sourceBase,studioSkinBaseSource:sourceBase,studioSkinGeometry:geometry,sourceFrame,femaleEyeStyle:'natural',initialFemaleEyeStyle:'natural',studioCosmeticsVersion:undefined,naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,mask:null,hairId:'original'});
  return {env,upload,originalCache,master,remembered,events,gate,started,state,naturalHead,...callbacks(env)};
 }
 function assertAcceptedUnchanged(f){assert.equal(f.env.editCache.current,f.originalCache);assert.equal(f.upload.idpromFemaleEyeStyle,'natural');assert.equal(f.env.currentOutputJobRef.current,'unchanged-accepted-job');assert.equal(f.env.currentOutputTrialRef.current,true);assert.equal(f.env.studioTrialRef.current,true);assert.equal(f.remembered.length,0)}
@@ -164,6 +165,15 @@ await test('history sync restores exact visible finish and cache metadata while 
 await test('history of a local PNG hairstyle caches its untrimmed accepted base and preserves the hairstyle identity',async()=>{
  const f=transactionFixture(),freeHairHead=head({freeHairBaseOriginal:true,hairOriginalSource:madeUp,hairId:''});
  assert(f.syncStudioPortraitFinish(freeHairHead));assert.equal(f.remembered.at(-1).id,'');assert.equal(f.remembered.at(-1).finish,'makeup');assert.deepEqual(Buffer.from(await f.env.editCache.current.master.arrayBuffer()),bytes(madeUp));assert.equal(f.env.editCache.current.master.idpromStudioSkinBaseSource,base);assert.deepEqual(f.events,[]);
+});
+
+
+await test('current original-AI Natural base survives cosmetics, saved metadata and history without another AI edit',async()=>{
+ const f=transactionFixture({skinVersion:ORIGINAL_PORTRAIT_AI_VERSION});
+ const pending=f.changeStudioPortraitFinish(f.naturalHead,'korean-rosy-v1');await f.started.promise;f.gate.resolve();const staged=await pending;
+ assert.equal(staged.layer.sharedPortraitBaseVersion,SHARED_PORTRAIT_BASE_VERSION);assert.equal(staged.layer.studioSkinBaseSource,base);assert.deepEqual(staged.layer.sourceFrame,f.naturalHead.sourceFrame);assert(hasOriginalPortraitAiFinish(staged.layer,'korean-rosy-v1'));
+ const saved=await makeSavedProject(project(staged.layer)),roundtrip=unpackSavedProjectTransfer(clone(packSavedProjectTransfer(saved)));assert.equal(roundtrip.layers[0].studioSkinBaseSource,base);assert.equal(roundtrip.layers[0].sharedPortraitBaseVersion,SHARED_PORTRAIT_BASE_VERSION);
+ staged.commit();assert(hasOriginalPortraitAiFinish(f.env.editCache.current.master,'korean-rosy-v1'));assert(f.syncStudioPortraitFinish(f.naturalHead));assert(hasOriginalPortraitAiFinish(f.env.editCache.current.master,'natural'));assert.equal(f.env.editCache.current.master.idpromStudioCosmeticsVersion,undefined);assert.deepEqual(Buffer.from(await f.env.editCache.current.master.arrayBuffer()),bytes(base));assert.deepEqual(f.events,['cosmetics-boundary']);
 });
 
 const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');

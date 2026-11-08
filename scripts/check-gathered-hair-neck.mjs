@@ -39,7 +39,7 @@ await check('all finishes receive the exact selected gathered design, while long
   const prompt=productionPortraitPrompt(gathered,style,fields);assert(prompt.includes(selectedHairInstruction(gathered)));assert(prompt.includes('COMPLETE COMPACT SILHOUETTE'));assert(!prompt.includes('Long hair stays behind'));
   const longPrompt=productionPortraitPrompt(long,style,fields);assert(longPrompt.includes(selectedHairInstruction(long)));assert(!longPrompt.includes('COMPLETE COMPACT SILHOUETTE'));
  }
- assert(HAIR_DESIGN_VERSION.includes('v10'));
+ assert(HAIR_DESIGN_VERSION.includes('v11'));
 });
 
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
