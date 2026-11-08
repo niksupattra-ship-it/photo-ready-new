@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {ORIGINAL_PORTRAIT_AI_VERSION,ORIGINAL_PORTRAIT_AI_PREVIOUS_VERSION,validateOriginalPortraitAiFields,isOriginalPortraitAiRequest,originalAiSkinFinish,markOriginalPortraitAiFinish} from '../original-portrait-ai.js';
-import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
+import {NATURAL_STUDIO_SKIN_VERSION,NATURAL_STUDIO_SKIN_PREVIOUS_VERSION} from '../natural-studio-skin.js';
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
 import {loadStudioSkinLightReference} from '../studio-skin-light-reference.js';
 
@@ -65,8 +65,9 @@ await check('current Natural clear-skin policy reaches final priority and keeps 
  const raw=await sharp({create:{width:120,height:160,channels:3,background:'#b99a87'}}).jpeg().toBuffer();
  const fields={portraitMode:'female',femaleEyeStyle:'natural',hairId:'original',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,naturalFinishVersion:NATURAL_STUDIO_SKIN_VERSION};let calls=0;
  const pixels=new Uint8Array(32*40*4);for(let y=4;y<36;y++)for(let x=4;x<28;x++)pixels.set([185,154,135,255],(y*32+x)*4);const cutout=await sharp(pixels,{raw:{width:32,height:40,channels:4}}).png().toBuffer();
- await processProductionPortrait({input:{buffer:raw,mimetype:'image/jpeg'},fields,root:new URL('..',import.meta.url).pathname,requestPortrait:async actual=>{calls++;assert.equal(actual.portrait,raw);assert.equal(actual.identity,null);assert(actual.prompt.endsWith('Complete all this in this one AI edit.'));assert.match(actual.prompt,/Remove visible dark post-acne spots/);assert.match(actual.prompt,/EYES ARE THE ORIGINAL PHOTOGRAPHED EYES/);assert.match(actual.prompt,/Never apply lipstick/);return {png:cutout}},removeBackground:async image=>image});
+ await processProductionPortrait({input:{buffer:raw,mimetype:'image/jpeg'},fields,root:new URL('..',import.meta.url).pathname,requestPortrait:async actual=>{calls++;assert.equal(actual.portrait,raw);assert.equal(actual.identity,null);assert(actual.prompt.endsWith('Finish in the same single AI request; no pixel skin filter follows.'));assert.doesNotMatch(actual.prompt,/stable identifying moles\/freckles/);assert.match(actual.prompt,/fine freckle-like speckles/);assert.match(actual.prompt,/quiet soft satin/);assert.match(actual.prompt,/Remove visible dark post-acne spots/);assert.match(actual.prompt,/EYES ARE THE ORIGINAL PHOTOGRAPHED EYES/);assert.match(actual.prompt,/Never apply lipstick/);return {png:cutout}},removeBackground:async image=>image});
  assert.equal(calls,1);validateOriginalPortraitAiFields(fields,'female');
+ const previous={...fields,naturalFinishVersion:NATURAL_STUDIO_SKIN_PREVIOUS_VERSION};validateOriginalPortraitAiFields(previous,'female');let previousCalls=0;await processProductionPortrait({input:{buffer:raw,mimetype:'image/jpeg'},fields:previous,root:new URL('..',import.meta.url).pathname,requestPortrait:async actual=>{previousCalls++;assert(actual.prompt.endsWith('Complete all this in this one AI edit.'));assert.match(actual.prompt,/stable identifying moles\/freckles/);assert.doesNotMatch(actual.prompt,/FINAL NATURAL SPOT-REPAIR AUTHORITY/);return {png:cutout}},removeBackground:async image=>image});assert.equal(previousCalls,1);
  for(const bad of [{...fields,naturalFinishVersion:'unknown'},{...fields,femaleEyeStyle:'makeup'},{...fields,studioSkinVersion:'studio-original-ai-v3'}])assert.throws(()=>validateOriginalPortraitAiFields(bad,'female'),e=>e.code==='original_portrait_ai_invalid');
 });
 console.log(JSON.stringify({passed,scope:'Actual production prompt and App acceptance, unchanged makeup fingerprints; inert AI provider only. No external requests or payments. Catchlight/iris colour retention is instructed, not pixel-verified.'}));

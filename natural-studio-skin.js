@@ -1,4 +1,5 @@
-export const NATURAL_STUDIO_SKIN_VERSION='natural-studio-skin-v3-clear-skin-source-eyes';
+export const NATURAL_STUDIO_SKIN_VERSION='natural-studio-skin-v4-spot-repair-source-eyes';
+export const NATURAL_STUDIO_SKIN_PREVIOUS_VERSION='natural-studio-skin-v3-clear-skin-source-eyes';
 
 export const NATURAL_STUDIO_SKIN_POLICY=`NATURAL PHOTO-STUDIO SKIN — SELECTIVE RETOUCH, ORIGINAL COMPLEXION:
 For skin colour, texture and illumination only, this selected natural-mode policy replaces broader rosy-skin or cosmetic-skin wording. Keep the separately specified eyebrows, eyes and lips unchanged.

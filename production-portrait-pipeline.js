@@ -1,4 +1,4 @@
-import {needsNaturalClearSkin,NATURAL_CLEAR_SKIN_PRIORITY} from './original-portrait-ai.js';
+import {needsNaturalClearSkin,NATURAL_CLEAR_SKIN_PRIORITY,naturalSpotRepairPrompt} from './original-portrait-ai.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion} from './studio-skin-treatment.js';
 import {isOriginalPortraitAiRequest,ORIGINAL_PORTRAIT_AI_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_AI_TASK,ORIGINAL_AI_LIGHT,originalAiSkinFinish,originalAiTargetLightWording,originalAiSkinGuideInstruction,ORIGINAL_AI_TARGET_PRIORITY,needsOriginalAiSkinPolish,originalAiMakeupSkinPolishPrompt,needsOriginalAiSkinPreparation,ORIGINAL_AI_PREPARED_TASK,originalAiClothedSkinPreparationPrompt,originalAiPreparedMakeupFinish,originalAiPreparedSkinGuideInstruction,ORIGINAL_AI_PREPARED_SKIN_PRIORITY} from './original-portrait-ai.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from './studio-skin-input.js';
@@ -205,7 +205,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   // lighting authority without authorizing face, hair or cutout reshaping.
   prompt+='\n'+(preparedMakeup?ORIGINAL_AI_PREPARED_SKIN_PRIORITY:ORIGINAL_AI_TARGET_PRIORITY);
  }
- if(needsNaturalClearSkin(fields))prompt+='\n'+NATURAL_CLEAR_SKIN_PRIORITY;
+ if(needsNaturalClearSkin(fields)){prompt+='\n'+NATURAL_CLEAR_SKIN_PRIORITY;prompt=naturalSpotRepairPrompt(prompt,fields);}
  let generationInput=portrait;
  if(preparedMakeup){
   await onStage('skin-prepare');
