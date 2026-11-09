@@ -4,7 +4,8 @@ The `?lang=en` client submits `interfaceLanguage=en` and
 `portraitComposition=en-outfit-body-v1`, with the selected outfit in
 `neckOutfitReferencePath`. Both fields are required to select this mode.
 English choices include job outfits and one trial civil-service outfit:
-`/assets/government-uniforms/female-operational.png`. Other government outfits
+`/assets/government-uniforms/female-operational.png`, plus one female student
+outfit: `/assets/student-uniforms/female-01.png`. Other government/student outfits
 remain hidden and are rejected by the English generation validator.
 Thai requests keep their existing head/neck generation and outfit composition.
 

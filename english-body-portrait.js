@@ -1,5 +1,6 @@
+export const ENGLISH_STUDENT_TRIAL_TEMPLATE='/assets/student-uniforms/female-01.png';
 export const ENGLISH_GOVERNMENT_TRIAL_TEMPLATE='/assets/government-uniforms/female-operational.png';
-export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.png$/.test(path)||path===ENGLISH_GOVERNMENT_TRIAL_TEMPLATE)}
+export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.png$/.test(path)||path===ENGLISH_GOVERNMENT_TRIAL_TEMPLATE||path===ENGLISH_STUDENT_TRIAL_TEMPLATE)}
 export const ENGLISH_BODY_PORTRAIT_VERSION='en-outfit-body-v1';
 export function isEnglishBodyPortrait(fields={}){
  return fields.interfaceLanguage==='en'&&fields.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;

@@ -45,5 +45,14 @@ with sync_playwright() as pw:
  assert p.evaluate('bodyCalls.filter(c=>c.template).at(-1).template')=='/assets/government-uniforms/female-operational.png'
  assert p.evaluate('bodySnapshot.current().layers.filter(l=>l.kind==="suit"&&l.visible!==false).length')==0
  print('PASS single female civil-service option selects the same English AI body flow')
+ p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
+ student=p.locator('.studio-catalog-grid button').filter(has=p.locator('img[src*="student-uniforms"][src*="female-01"]'))
+ assert student.count()==1
+ assert p.locator('.studio-catalog-grid img[src*="student-uniforms"][src*="female-02"]').count()==0
+ student.scroll_into_view_if_needed();student.click()
+ p.wait_for_function('bodyCalls.filter(c=>c.committed).length===3',timeout=20000)
+ assert p.evaluate('bodyCalls.filter(c=>c.template).at(-1).template')=='/assets/student-uniforms/female-01.png'
+ print('PASS single female student option selects the English AI body flow')
+
  assert not errors,errors
  print(json.dumps(result));b.close()

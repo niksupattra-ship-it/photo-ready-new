@@ -6,7 +6,7 @@ import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
 import source from '../../src/main.jsx?raw';
 import '../../src/style.css';
 const catalog=name=>Function(source.match(new RegExp('const '+name+'=\\[[\\s\\S]*?\\n\\];'))[0]+';return '+name)();
-const suits=outfitsForLanguage([{id:'job',items:catalog('JOB_UNIFORMS').map(t=>({...t,name:t.title,group:'สมัครงาน'}))},{id:'government-female',items:catalog('FEMALE_GOVERNMENT_UNIFORMS').map(t=>({...t,template:t.img,preview:t.preview,group:'ข้าราชการหญิง'}))}],{search:'?lang=en'}).flatMap(g=>g.items);
+const suits=outfitsForLanguage([{id:'job',items:catalog('JOB_UNIFORMS').map(t=>({...t,name:t.title,group:'สมัครงาน'}))},{id:'government-female',items:catalog('FEMALE_GOVERNMENT_UNIFORMS').map(t=>({...t,template:t.img,preview:t.preview,group:'ข้าราชการหญิง'}))},{id:'student',items:catalog('STUDENT_UNIFORMS').map(t=>({...t,name:t.title,preview:t.img,group:'นักศึกษา'}))}],{search:'?lang=en'}).flatMap(g=>g.items);
 const canvas=document.createElement('canvas');canvas.width=300;canvas.height=400;
 const ctx=canvas.getContext('2d');ctx.fillStyle='#d7a58a';ctx.fillRect(110,40,80,100);ctx.fillStyle='#333344';ctx.fillRect(40,140,220,260);
 const pixels=canvas.toDataURL();

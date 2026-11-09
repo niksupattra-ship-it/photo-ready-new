@@ -55,3 +55,17 @@ test('English exposes and accepts exactly one female civil-service trial outfit'
 
  assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{...request,neckOutfitReferencePath:choices[1].template}),/English outfit/);
 });
+test('English adds exactly one female student outfit and sends its real reference to AI',async()=>{
+ const {outfitsForLanguage}=await import('../src/english-preview.js');
+ const {ENGLISH_STUDENT_TRIAL_TEMPLATE}=await import('../english-body-portrait.js');
+ const items=[{id:'student-female-01',template:ENGLISH_STUDENT_TRIAL_TEMPLATE},{id:'student-female-02',template:'/assets/student-uniforms/female-02.png'},{id:'student-male-01',template:'/assets/student-uniforms/male-01.png'}];
+ const catalog=[{id:'job',items:[]},{id:'student',items}];
+ assert.deepEqual(outfitsForLanguage(catalog,{search:'?lang=en'})[1].items,[items[0]]);
+ assert.equal(outfitsForLanguage(catalog,{search:''}),catalog);
+ const png=await sharp({create:{width:32,height:48,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:24,height:40,channels:4,background:'#eeeeee'}}).png().toBuffer(),left:4,top:8}]).png().toBuffer();
+ const request={...fields,portraitMode:'female',neckOutfitReferencePath:ENGLISH_STUDENT_TRIAL_TEMPLATE};let sent;
+ await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:request,root,key:'fixture-not-sent',requestPortrait:async p=>{sent=p;return {png}},removeBackground:async()=>png});
+ const expected=await sharp(await readFile(root+'public'+ENGLISH_STUDENT_TRIAL_TEMPLATE)).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ assert.deepEqual(sent.outfit,expected);
+ assert.throws(()=>validateProductionPortrait({buffer:png,mimetype:'image/png'},{...request,neckOutfitReferencePath:items[1].template}),/English outfit/);
+});
