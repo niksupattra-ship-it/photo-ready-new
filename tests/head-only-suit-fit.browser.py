@@ -15,10 +15,11 @@ with sync_playwright()as pw:
  const portrait=document.createElement('canvas');portrait.width=900;portrait.height=1200;const x=portrait.getContext('2d');x.fillStyle='#d7a58a';x.beginPath();x.ellipse(450,390,162,220,0,0,Math.PI*2);x.fill();x.fillRect(380,580,140,180);
  const face=Array.from({length:470},()=>({x:.5,y:.34}));Object.assign(face,{10:{x:.5,y:.15},152:{x:.5,y:.52},234:{x:.32,y:.34},454:{x:.68,y:.34},33:{x:.4,y:.32},263:{x:.6,y:.32}});
  const head={id:'head',kind:'head',jobId:'fixture',source:portrait,x:21,y:11,scale:1.1,rotation:0,sourceFrame:{x:0,y:0,w:900,h:1200}},frame={x:0,y:350,w:900,h:900},results=[];
+ let detections=0;const measureFace=async()=>{detections++;return face};
  for(const option of picks){
   const template=option.template||option.img,native=await nativeAsset('suit',{template},frame,null),before=native.source.toDataURL();
   const suit={id:'suit',kind:'suit',source:native.source,sourceFrame:frame,collarFrame:frame,templatePath:template,x:0,y:0,scale:1,rotation:0,neckWidth:33,neckHeight:9,autoCollarFitApplied:true};
-  const layers=await fitStudioSuit({layers:[head,suit],previousSuit:suit,nextSuit:suit,headSource:portrait,measureFace:async()=>face});
+  const layers=await fitStudioSuit({layers:[head,suit],previousSuit:suit,nextSuit:suit,headSource:portrait,measureFace});
   const garment=layers.find(l=>l.id==='suit'),fitted=layers.find(l=>l.id==='head');
   if(garment.neckWidth!==0||garment.neckHeight!==0||garment.autoCollarFitApplied)throw Error('Automatic collar deformation remains');
   if(garment.source!==native.source||garment.source.toDataURL()!==before)throw Error('Pattern pixels changed');
@@ -27,6 +28,13 @@ with sync_playwright()as pw:
   if(fitted.source!==portrait||fitted.jobId!==head.jobId||!Number.isFinite(fitted.scale)||fitted.scale===head.scale)throw Error('Head-only placement failed');
   results.push({template,originalPatternPixels:true,originalGarmentPose:true,automaticCollar:false,headOnly:true});
  }
+ if(detections!==1)throw Error('Unchanged head was measured '+detections+' times');
+ const {nativeAsset:cachedNative}=await import('/src/studio-source.js');
+ const path=picks[0].template||picks[0].img;
+ const a=await cachedNative('suit',{template:path},frame,null),moved={...frame,x:19,w:850};
+ const c=await cachedNative('suit',{template:path},moved,{unrelated:true});
+ if(a.source!==c.source||c.sourceFrame.x!==19||c.sourceFrame.w!==850)throw Error('Suit pixel cache lost placement independence');
+ results.push({faceDetections:detections,suitPixelReuse:true});
  return results;
 }''')
  print(json.dumps(result));out=ROOT/'work/head-only-fit';out.mkdir(parents=True,exist_ok=True);(out/'browser-results.json').write_text(json.dumps(result,indent=2));b.close()

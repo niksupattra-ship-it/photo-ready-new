@@ -1,3 +1,4 @@
+import {createFaceMeasurementCache} from '../src/studio-face-measurement-cache.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {planStudioSuitGeometry,STUDIO_SUIT_FIT_VERSION} from '../src/studio-suit-fit.js';
@@ -6,7 +7,7 @@ const run=Function('env',`with(env){${source.slice(start).replace('export async 
 const frame={x:0,y:350,w:900,h:900},head={id:'head',kind:'head',jobId:'same-job',source:'original-head-pixels',mask:'original-mask',x:15,y:10,scale:1.2,rotation:0,sourceFrame:{x:0,y:0,w:900,h:1200}},suit={id:'suit',kind:'suit',source:'original-pattern-pixels',templatePath:'/assets/gown-uniforms/example.png',sourceFrame:frame,collarFrame:frame,x:0,y:0,scale:1,rotation:0,neckWidth:27,neckHeight:8,autoCollarFitApplied:true};
 const face={width:900,height:1200,cx:450,chin:{x:450,y:615},leftEye:{x:365,y:365},rightEye:{x:535,y:365},left:{x:294,y:390},right:{x:606,y:390},faceWidth:312,faceHeight:460,opaqueTop:80};
 const uniform={width:1000,height:1000,bounds:{l:0,r:999,t:0,b:999,w:1000,h:1000},centerX:500,shoulderWidth:820,torsoWidth:700,socketY:120};
-const env={kind:l=>l.kind,garmentMeasurement:async source=>{assert.equal(source,suit.source);return {uniform}},sampleSurface:async(source,mask)=>{assert.equal(source,head.source);assert.equal(mask,head.mask);return {canvas:{},width:900,height:1200,pixels:new Uint8ClampedArray(0)}},faceMeasurement:()=>face,planStudioSuitGeometry,STUDIO_SUIT_FIT_VERSION};
+const env={cachedFaceMeasurement:createFaceMeasurementCache(),kind:l=>l.kind,garmentMeasurement:async source=>{assert.equal(source,suit.source);return {uniform}},sampleSurface:async(source,mask)=>{assert.equal(source,head.source);assert.equal(mask,head.mask);return {canvas:{},width:900,height:1200,pixels:new Uint8ClampedArray(0)}},faceMeasurement:()=>face,planStudioSuitGeometry,STUDIO_SUIT_FIT_VERSION};
 const fit=run(env),decoration={id:'pin',kind:'chest',x:7,y:12,source:'pin-pixels'},legacyNeck={id:'old-neck',kind:'neck-fit',hairHeadId:head.id};
 const layers=[head,suit,decoration,legacyNeck],before=JSON.stringify(layers);
 for(const preservePlacement of [false,true]){

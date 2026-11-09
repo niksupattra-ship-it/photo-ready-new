@@ -1,3 +1,4 @@
+import {createFaceMeasurementCache} from './studio-face-measurement-cache.js';
 import {decodedStudioImage} from './studio-image-cache.js';
 import {measureUniformAnchors} from './portrait-uniform-fit.js';
 import {layerToScene,sceneToLayer} from './studio-transform.js';
@@ -12,6 +13,7 @@ const frame=layer=>layer.sourceFrame||{x:0,y:0,w:W,h:H};
 const pose=layer=>({x:layer.x||0,y:layer.y||0,scale:layer.scale||1,rotation:layer.rotation||0,squeezeX:layer.squeezeX??1,squeezeY:layer.squeezeY??1});
 const validFrame=f=>f&&['x','y','w','h'].every(key=>Number.isFinite(f[key]))&&f.w>0&&f.h>0;
 const templateMeasurements=new WeakMap();
+const cachedFaceMeasurement=createFaceMeasurementCache();
 
 async function sampleSurface(source,mask=null){
  const image=typeof source==='string'?await decodedStudioImage(source):source;
@@ -133,7 +135,7 @@ export async function fitStudioSuit({layers,previousSuit,nextSuit,headSource,hea
  if(head.locked||layers.some(layer=>layer.hairHeadId===head.id&&layer.kind!=='neck-fit'&&layer.locked))throw Error('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดชุดอัตโนมัติ');
  if(!nextSuit||typeof measureFace!=='function')throw Error('ระบบจัดชุดอัตโนมัติยังไม่พร้อม');
  const [garment,portrait]=await Promise.all([garmentMeasurement(nextSuit.source),sampleSurface(headSource||head.source,headMask)]);
- const detected=await measureFace(portrait.canvas),face=Array.isArray(detected)?detected:detected?.faceLandmarks?.[0],landmarks=faceMeasurement(face,portrait.width,portrait.height,portrait.pixels);
+ const detected=await cachedFaceMeasurement(portrait,measureFace),face=Array.isArray(detected)?detected:detected?.faceLandmarks?.[0],landmarks=faceMeasurement(face,portrait.width,portrait.height,portrait.pixels);
  const plan=preservePlacement?null:planStudioSuitGeometry({uniform:garment.uniform,face:landmarks,head,suit:nextSuit});
  const fittedHead=preservePlacement?head:{...head,...plan.headPose};
  // Keep the original garment pattern intact. Only the head pose is fitted;

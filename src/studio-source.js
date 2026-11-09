@@ -35,12 +35,13 @@ async function buildNativeAsset(kind,option,frame,preset,maxDensity=2){
 const preparedAssets=new Map(),MAX_PREPARED_BYTES=32*1024*1024;
 function trimPreparedAssets(){let bytes=0;for(const entry of preparedAssets.values())bytes+=entry.bytes;while(preparedAssets.size>6||bytes>MAX_PREPARED_BYTES){const key=preparedAssets.keys().next().value,entry=preparedAssets.get(key);bytes-=entry.bytes;preparedAssets.delete(key)}}
 export async function nativeAsset(kind,option,frame,preset){
- const key=JSON.stringify([kind,option.template,option.src,option.left,option.right,frame,preset]);
+ // Suit pixels do not depend on placement or accessory presets.
+ const key=JSON.stringify(kind==='suit'?[kind,option.template]:[kind,option.template,option.src,option.left,option.right,frame,preset]);
  let entry=preparedAssets.get(key);
  if(entry){preparedAssets.delete(key);preparedAssets.set(key,entry)}else{
   entry={bytes:0,promise:null};entry.promise=buildNativeAsset(kind,option,frame,preset).then(result=>{const bytes=source=>source instanceof HTMLCanvasElement?source.width*source.height*4:2*(source?.length||0);entry.bytes=bytes(result.source)+bytes(result.collarParts?.left)+bytes(result.collarParts?.right);trimPreparedAssets();return result}).catch(error=>{if(preparedAssets.get(key)===entry)preparedAssets.delete(key);throw error});preparedAssets.set(key,entry);trimPreparedAssets();
  }
- const result=await entry.promise;return {...result,sourceFrame:result.sourceFrame?{...result.sourceFrame}:null,collarParts:result.collarParts?{...result.collarParts}:null};
+ const result=await entry.promise;return {...result,sourceFrame:kind==='suit'?{...frame}:result.sourceFrame?{...result.sourceFrame}:null,collarParts:result.collarParts?{...result.collarParts}:null};
 }
 
 
