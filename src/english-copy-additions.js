@@ -1,5 +1,7 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "กำลังจัดองค์ประกอบภาพ": "Composing your photo",
+
  "กำลังตัดต่อรูป....กรุณารอ": "Editing your photo… Please wait.",
  "กำลังเตรียมรูป": "Preparing your photo",
  "กำลังตัดต่อรูป": "Editing your photo",
