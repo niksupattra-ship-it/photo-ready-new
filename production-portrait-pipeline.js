@@ -18,7 +18,7 @@ import {readFile} from 'node:fs/promises';
 import {requestReviewSeedream} from './seedream-review-transport.js';
 import {femaleFinishFor,FEMALE_MAKEUP_TEXTURE_PRIORITY,FEMALE_MAKEUP_SOURCE_LOCK} from './review-portrait-finish.js';
 import {productionHair,selectedHairDesign,selectedHairInstruction,selectedHairPlacement} from './hairstyle-catalog.js';
-import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY} from './catalogue-hair-policy.js';
+import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOFT_HAIR_TEXTURE_POLICY} from './catalogue-hair-policy.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 
 export function checkedOutfitReferencePath(value){
@@ -225,6 +225,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  if(pickerGuide)prompt+='\n'+(bounded?'':catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind))+'\n'+PICKER_HAIR_PRIORITY;
  let neckReference=null;
  if(bounded){prompt=prompt.replaceAll('and stable identifying marks','and expression').replaceAll('THE LAST IMAGE','THE SKIN/LIGHT BOARD');neckReference=await loadNeckBackingGuide(root);const index=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit))+Number(Boolean(skinReference));prompt+=neckBackingGuideInstruction(index)+'\n'+BOUNDED_PORTRAIT_PRIORITY;}
+ prompt+='\n'+SOFT_HAIR_TEXTURE_POLICY;
  let generationInput=portrait;
  if(preparedMakeup){
   await onStage('skin-prepare');
