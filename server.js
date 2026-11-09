@@ -1,3 +1,4 @@
+import {correctEnglishProportions,validateEnglishProportionMetrics} from './english-proportion-correction.js';
 import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js';
 import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
@@ -28,7 +29,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery} from "./job-store.js";
+import {createAiJob,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
 import {checkoutPackage} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -462,6 +463,18 @@ app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
  if(!['cancel','confirm'].includes(req.params.action))return next();
  try{const result=await settleAiJobDelivery(req.params.id,walletId(req),req.params.action);res.status(result.status).json(result)}
  catch(e){console.error('AI job settlement:',e);res.status(500).json({error:'job_settlement_failed'})}
+});
+app.post('/api/ai-jobs/:id/proportions',async(req,res)=>{
+ const wid=walletId(req);let claimed=false;
+ try{
+  const metrics=validateEnglishProportionMetrics(req.body);
+  const job=await claimEnglishProportionCorrection(req.params.id,wid);
+  if(!job)return res.status(409).json({error:'correction_unavailable'});
+  claimed=true;await getModnetSession();
+  const result=await correctEnglishProportions({portrait:job.result,fields:job.fields,metrics,root:dir,key:process.env.ARK_API_KEY,hasMakeup:Boolean(job.result_makeup),removeBackground:png=>modnetRemoveBackground(png,{refine:false})});
+  if(!await finishEnglishProportionCorrection(req.params.id,wid,result))return res.status(409).json({error:'job_no_longer_pending'});
+  res.set('Cache-Control','no-store').json({ok:true});
+ }catch(error){if(claimed)await failEnglishProportionCorrection(req.params.id,wid).catch(()=>{});console.error('English proportion correction:',req.params.id,error.message);res.status(error.status===400?400:502).json({error:'proportion_correction_failed'})}
 });
 app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.params.id,walletId(req));if(!j)return res.status(404).json({error:'job_not_found'});res.json(j)}catch(e){res.status(500).json({error:'job_status_failed'})}});
 app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{

@@ -39,9 +39,29 @@ Provider tests use inert responses and actual reference files. Browser checks
 verify torso preservation, aspect ratio, transparency and outfit selection.
 Real AI output quality and production deployment remain unverified here.
 
-English proportion guidance uses facial bone width relative to complete shoulder
-span (roughly 30–36%) rather than hair volume, selfie crop or reference-image
-size. Oversized heads are corrected coherently during AI generation while
-preserving intrinsic facial geometry and the outfit silhouette. This guidance
-is an approximate composition target, not a deterministic anatomy validator.
-The English cache revision prevents reusing earlier oversized-head results.
+English proportion checks now measure the returned transparent person using
+face landmarks and shoulder silhouette. Oversized results are corrected by AI
+once on the SAME undelivered job. The real correction input is the current
+person, not the original selfie crop. Both finishes are replaced atomically,
+with no new credit reservation. The corrected result is measured again before
+delivery; known unbalanced results fail rather than silently bypass the check.
+Cropped/unmeasurable shoulder evidence is not guessed, and hair height alone
+does not shrink a naturally proportionate face.
+
+Ownership, English mode, undelivered status and a one-attempt database claim
+protect `/api/ai-jobs/:id/proportions`. Confirmation waits for the correction;
+cancellation retains the normal single-refund behavior and late AI completion
+cannot resurrect cancelled work. Failed corrections retain the normal failure
+and cancellation flow. This adds processing time only to oversized results.
+
+Additional checks:
+
+- `node --test tests/english-proportions.test.js`
+- `TEST_DATABASE_URL=<development database> node scripts/check-english-proportion-delivery.mjs`
+- `SELECTION_BASE=http://127.0.0.1:5193 MATTE_BASE=http://127.0.0.1:3000 python3 tests/english-proportions.browser.py`
+
+The PostgreSQL/Express test uses a temporary isolated schema, removed on exit;
+it covers credit balance, pair replacement, concurrency, ownership, cancellation
+and failure without paid services. The real MediaPipe + MODNet browser test
+accepts three normally proportioned sample portraits without extra generation.
+Actual provider correction quality and deployment still require verification.

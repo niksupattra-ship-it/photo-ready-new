@@ -26,7 +26,7 @@ function fixture(){
   activeProcessOperation:{cancelled:false},assertProcessActive(op){if(op?.cancelled)throw Error('cancelled')},cancelledProcessError:()=>Error('cancelled'),currentResultCacheScope:()=>state.scope,resultSourceDigest:async file=>{assert.equal(file,upload);return 'same-source'},uploadGenerationScope:()=> 'same-upload',portraitResultCache:createAiResultCache(),portraitGeometryBases:new WeakMap(),
   window:{dispatchEvent:()=>events.push('event')},CustomEvent:class{},
   async aiFinishPortraitUncached(source,hair,options){assert.equal(source,upload);requests.push({hair,options});const out=markOriginalPortraitAiFinish(new Blob([png],{type:'image/png'}),'natural');if(state.aiPair)out.idpromAiMakeupSource=baseSource;Object.assign(out,{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'job-'+requests.length,idpromTrial:true});return out},
-  restoreFemalePortraitAspect:async(source,blob)=>{assert.equal(source,upload);events.push('aspect');return blob},cleanPortraitClothing:async blob=>{events.push('clean');return blob},decodedPortraitImage:async()=>({naturalWidth:128,naturalHeight:192}),portraitFaceLandmarks:async()=>face,
+  balanceEnglishPortrait:async blob=>{events.push('measure-body');return blob},restoreFemalePortraitAspect:async(source,blob)=>{assert.equal(source,upload);events.push('aspect');return blob},cleanPortraitClothing:async blob=>{events.push('clean');return blob},decodedPortraitImage:async()=>({naturalWidth:128,naturalHeight:192}),portraitFaceLandmarks:async()=>face,
   canvasFor:()=>({getContext:()=>({drawImage(){}}),toDataURL:()=>baseSource}),canvasPng:async()=>new Blob([png],{type:'image/png'}),prepareSharedPortraitMakeup:async()=>({original:{native:true}}),prepareStudioMakeup:async()=>{throw Error('legacy preprocessing must not run')},
   async checkPortraitProportions(source,result,options){assert.equal(source,upload);assert(options.protectFeatures);assert(hasOriginalPortraitAiFinish(result,'natural'));events.push('proportions')},async checkPortraitCompletion(){events.push('completion')},
   async verifyOutputRights(){events.push('rights');return state.rights?{checked:true,unlocked:true,fullEdit:true}:{checked:false,message:'rights unavailable'}},saveAiJobFile:async file=>assert.equal(file,upload),writeActiveAiJob(){},femaleFinishMetadata:()=>({})
@@ -105,7 +105,7 @@ await test('English AI clothed output bypasses local head and garment replacemen
  const f=fixture();f.state.aiPair=true;f.state.english=true;
  const options={portraitMode:'female',femaleEyeStyle:'natural',templatePath:'/assets/job-uniforms/female-formal-suit.png'};
  const body=await f.run(f.upload,'original',options);
- assert.equal(body.idpromPortraitComposition,ENGLISH_BODY_PORTRAIT_VERSION);assert.equal(f.requests[0].options.requiresSegmentation,false);
+ assert.equal(body.idpromPortraitComposition,ENGLISH_BODY_PORTRAIT_VERSION);assert(f.events.includes('measure-body'));assert.equal(f.requests[0].options.requiresSegmentation,false);
  assert(!f.events.includes('aspect'));assert(!f.events.includes('clean'));
  f.state.english=false;
  const thai=await f.run(f.upload,'original',options);

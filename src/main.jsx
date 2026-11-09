@@ -1,3 +1,4 @@
+import {measureEnglishProportions} from './english-proportion-check.js';
 import {EnglishExamplePhoto} from './english-example-photo.jsx';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION} from '../english-body-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
@@ -162,12 +163,12 @@ async function settleProcessOperation(operation,action){
  if(!response.ok)throw Error(action==='cancel'?'ยกเลิกงานไม่สำเร็จ กรุณากดปิดอีกครั้ง':'ยืนยันภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
  operation.settled=true;writeActiveAiJob(null);await clearAiJobFile();
 }
-async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const started=Date.now();let deadline=started+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();if(j.hasMakeupVariant||j.portraitMode==='female')deadline=Math.max(deadline,started+15*60*1000);if(needsOriginalAiSkinPolish(j))deadline=Math.max(deadline,started+10*60*1000);assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});let [blob,verified]=await Promise.all([out.blob().then(async natural=>{if(j.hasMakeupVariant){const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result?finish=makeup',{headers:walletHeaders(),cache:'no-store'});if(!response.ok)throw Error('โหลดภาพแต่งหน้าไม่สำเร็จ');natural.idpromAiMakeupBlob=await response.blob();}if(j.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){natural.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;return natural}return levelPortraitCutout(natural)}),verifyOutputRights(jobId)]);assertProcessActive(operation);if(isOriginalPortraitAiRequest(j)&&j.portraitMode==='female'){markOriginalPortraitAiFinish(blob,portraitFinishChoice(j.femaleEyeStyle),j.studioSkinVersion);if(j.femaleEyeStyle==='natural'&&j.naturalFinishVersion)blob.idpromNaturalStudioSkinVersion=j.naturalFinishVersion;}if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female'){
+async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const started=Date.now();let deadline=started+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();if(j.hasMakeupVariant||j.portraitMode==='female')deadline=Math.max(deadline,started+15*60*1000);if(needsOriginalAiSkinPolish(j))deadline=Math.max(deadline,started+10*60*1000);assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'&&j.proportionCorrection!=='processing'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});let [blob,verified]=await Promise.all([out.blob().then(async natural=>{if(j.hasMakeupVariant){const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result?finish=makeup',{headers:walletHeaders(),cache:'no-store'});if(!response.ok)throw Error('โหลดภาพแต่งหน้าไม่สำเร็จ');natural.idpromAiMakeupBlob=await response.blob();}if(j.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){natural.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;return natural}return levelPortraitCutout(natural)}),verifyOutputRights(jobId)]);assertProcessActive(operation);if(isOriginalPortraitAiRequest(j)&&j.portraitMode==='female'){markOriginalPortraitAiFinish(blob,portraitFinishChoice(j.femaleEyeStyle),j.studioSkinVersion);if(j.femaleEyeStyle==='natural'&&j.naturalFinishVersion)blob.idpromNaturalStudioSkinVersion=j.naturalFinishVersion;}if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female'){
  blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
  // v5 returns one bare base. Clothing cleanup precedes the shared-base capture
  // and the local cosmetic pass in aiFinishPortrait.
  assertProcessActive(operation);
- }blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;return blob}await new Promise(resolve=>setTimeout(resolve,900))}}
+ }blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;blob.idpromEnglishProportionCorrection=j.proportionCorrection;return blob}await new Promise(resolve=>setTimeout(resolve,900))}}
 
 let landmarkerPromise;
 let segmenterPromise;
@@ -2617,6 +2618,23 @@ function validateFemaleMakeupReference(reference){
 }
 const uploadGenerationScopes=new WeakMap();let uploadGenerationSequence=0;
 function uploadGenerationScope(file){if(!uploadGenerationScopes.has(file))uploadGenerationScopes.set(file,'upload-'+(++uploadGenerationSequence));return uploadGenerationScopes.get(file)}
+async function balanceEnglishPortrait(blob,onStatus){
+ const measure=async source=>{
+  const image=await decodedPortraitImage(source),face=await portraitFaceLandmarks(source,image);
+  const w=image.naturalWidth||image.width,h=image.naturalHeight||image.height,k=Math.min(1,768/w),canvas=canvasFor(Math.round(w*k),Math.round(h*k)),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,canvas.width,canvas.height);
+  const result=measureEnglishProportions(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,face);canvas.width=canvas.height=1;return result;
+ };
+ const before=await measure(blob);if(!before.measurable||!before.oversized)return blob;
+ if(blob.idpromEnglishProportionCorrection==='done')throw Object.assign(Error('AI head/body proportions are still unbalanced'),{code:'ENGLISH_PROPORTIONS_UNRESOLVED'});
+ if(!blob.idpromJobId)throw Error('Missing portrait job for proportion correction');
+ assertProcessActive();onStatus?.('processing','generation');
+ const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(blob.idpromJobId)+'/proportions',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({faceRatio:before.faceRatio,headRatio:before.headRatio,headScale:before.headScale})},10*60*1000);
+ if(!response.ok)throw analyticsTagError(Error('Unable to correct portrait proportions'),{error_stage:'proportion_correction',http_status:response.status});
+ const corrected=await waitForAiJob(blob.idpromJobId,onStatus);assertProcessActive();
+ const after=await measure(corrected);
+ if(!after.measurable||after.oversized)throw Object.assign(Error('AI head/body proportions are still unbalanced'),{code:'ENGLISH_PROPORTIONS_UNRESOLVED'});
+ return corrected;
+}
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const operation=activeProcessOperation;
  const assertCurrentOperation=()=>{assertProcessActive(operation);if(activeProcessOperation!==operation)throw cancelledProcessError()};
@@ -2636,10 +2654,10 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
   assertCurrentOperation();
-  const result=await aiFinishPortraitUncached(originalFile,hairId,options,neckline);
+  let result=await aiFinishPortraitUncached(originalFile,hairId,options,neckline);
   assertCurrentOperation();
   const bodyPortrait=englishPreviewEnabled();
-  if(bodyPortrait)result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;
+  if(bodyPortrait){result=await balanceEnglishPortrait(result,options.onJobStatus);assertCurrentOperation();result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;}
   const shaped=!bodyPortrait&&gender==='female'?await restoreFemalePortraitAspect(originalFile,result):result;
   assertCurrentOperation();
   const cleaned=bodyPortrait?shaped:await cleanPortraitClothing(shaped);
