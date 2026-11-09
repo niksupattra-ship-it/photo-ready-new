@@ -91,4 +91,11 @@ await test('independent old Makeup output and invalid base markers cannot masque
 await test('shared lossless base bytes participate in the existing cache memory limit',async()=>{
  const cache=createAiResultCache({maxBytes:20}),blob=new Blob(['x']);blob.idpromStudioSkinBaseSource='large lossless base';let calls=0;await cache.get('one',async()=>{calls++;return blob});await cache.get('one',async()=>{calls++;return blob});assert.equal(calls,2);
 });
+await test('a new collar reference has its own portrait cache entry',async()=>{
+ const f=fixture(),options={portraitMode:'female',femaleEyeStyle:'natural'};
+ const first=await f.run(f.upload,'original',{...options,templatePath:'/assets/gown-uniforms/kmitl-female.png'});
+ const next=await f.run(f.upload,'original',{...options,templatePath:'/assets/uniform.png'});
+ const reused=await f.run(f.upload,'original',{...options,templatePath:'/assets/gown-uniforms/kmitl-female.png'});
+ assert.equal(f.requests.length,2);assert.equal(first.idpromJobId,'job-1');assert.equal(next.idpromJobId,'job-2');assert.equal(reused.idpromJobId,'job-1');
+});
 console.log(JSON.stringify({passed,scope:'Actual App orchestration, versioned shared-base capture and cosmetic wrapper, immutable upload, source/hair/wallet cache, rights, failures and cancellation. Provider and canvas pixels inert; native pixel invariants covered by the browser regression.'}));

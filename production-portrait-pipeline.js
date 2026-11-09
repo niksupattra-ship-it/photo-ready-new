@@ -77,6 +77,7 @@ export function validateProductionPortrait(input,fields={}){
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
  if(['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
+ if(fields.neckOutfitReferencePath)checkedOutfitReferencePath(fields.neckOutfitReferencePath);
  parsePortraitIdentityBox(fields.faceIdentityBox);
  parseFemaleMakeupReference(fields,selected);
  parseStudioSkinRequest(fields,selected?.gender||fields.portraitMode);
@@ -202,6 +203,13 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   const file=checkedOutfitReferencePath(fields.outfitReferencePath);
   outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Apply ${fields.femaleEyeStyle==='soft-rosy-v1'?'SOFT ROSY V1':'KOREAN ROSY V1'} cosmetics in this same generation.\n`;
+ }
+ // The selected garment now informs the neck in Natural mode too; previously
+ // only a generic U-shaped skin backing reached this generation.
+ if(fields.neckOutfitReferencePath){
+  const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
+  outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+  prompt+=`\nSELECTED COLLAR ALIGNMENT — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This is the actual selected garment, a collar-geometry reference only. Locate the inner left and right collar edges, the collar opening and the central placket. Generate the neck centred on that placket, with its left and right visible outlines following clean, nearly straight continuous lines from the under-jaw attachments into the corresponding collar edges. No inward bow, hourglass waist, S-shaped neck side or deeply scooped curve beside the throat. Maintain sufficient skin width where the neck enters the collar; the collar must not expose a blue/transparent gap or make the head appear oversized. Keep the head level and the neck upright. Match the actual collar opening without changing the person's facial geometry or copying any donor head, skin or body. Do not generate this garment into the output; retain the full opaque wide/deep backing under it for separate composition. The reference aligns visible neck sides; it must not trim the backing into a collar-shaped notch.\n`;
  }
  if(!staged&&!originalAi&&selected.gender==='female'&&fields.femaleEyeStyle==='soft-rosy-v1')prompt+=SOFT_ROSY_COMPLETION_CHECK;
  let skinReference=null;
