@@ -56,3 +56,15 @@ test('English removes government/student categories and rejects their generation
  assert.deepEqual(defaultPortraitBackground({search:''}),{id:'default',src:'/assets/background.jpg'});
  const {data}=await sharp(root+'public'+defaultPortraitBackground({search:'?lang=en'}).src).resize(1,1).removeAlpha().raw().toBuffer({resolveWithObject:true});assert.deepEqual([...data],[255,255,255]);
 });
+test('every selectable English job outfit passes request validation, including actual WebP templates',async()=>{
+ const main=await readFile(root+'src/main.jsx','utf8');
+ const catalog=Function(main.match(/const JOB_UNIFORMS=\[[\s\S]*?\n\];/)[0]+';return JOB_UNIFORMS')();
+ const input={buffer:Buffer.from('fixture'),mimetype:'image/png'};
+ const webp=catalog.filter(item=>item.template.endsWith('.webp'));
+ assert(webp.length>=5,'cover real selectable WebP outfits');
+ for(const item of catalog)assert.doesNotThrow(()=>validateProductionPortrait(input,{...fields,portraitMode:item.gender,neckOutfitReferencePath:item.template}),item.id);
+ const selected=webp[0],png=await sharp({create:{width:32,height:48,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:24,height:40,channels:4,background:'#736050'}}).png().toBuffer(),left:4,top:8}]).png().toBuffer();let sent;
+ await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:{...fields,portraitMode:selected.gender,neckOutfitReferencePath:selected.template},root,key:'fixture-not-sent',requestPortrait:async p=>{sent=p;return {png}},removeBackground:async()=>png});
+ const expected=await sharp(root+'public'+selected.template).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();assert.deepEqual(sent.outfit,expected);
+ for(const path of ['/assets/job-uniforms/../server.webp','https://example.com/outfit.webp','/assets/student-uniforms/female-01.png'])assert.throws(()=>validateProductionPortrait(input,{...fields,portraitMode:'female',neckOutfitReferencePath:path}),/English outfit/);
+});

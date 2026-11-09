@@ -287,13 +287,13 @@ function originalSkinProfile(sourceBlob){
  }
  return pending;
 }
-function warmPortraitResources(sourceBlob,templatePath){
+function warmPortraitResources(sourceBlob,templatePath,{requiresSegmentation=true}={}){
  // Prepare only resources used by the active portrait path.
  // Never segment/retouch the AI result early or reuse masks across changed pixels.
  void Promise.allSettled([loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
- // Both models are required to accept the generated portrait. Resolve them
- // before submitting an AI job, including when a hairstyle was selected.
- return Promise.all([getLandmarker(),getPersonSegmenter()]).catch(cause=>{
+ // English female portraits retain the complete AI image and never segment
+ // its clothes. Do not block that path on an unused segmentation model.
+ return Promise.all([getLandmarker(),...(requiresSegmentation?[getPersonSegmenter()]:[])]).catch(cause=>{
   throw Object.assign(Error('เตรียมระบบประมวลผลรูปไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วกดสร้างรูปใหม่'),{code:'PORTRAIT_MODEL_UNAVAILABLE',cause});
  });
 }
@@ -2622,7 +2622,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const assertCurrentOperation=()=>{assertProcessActive(operation);if(activeProcessOperation!==operation)throw cancelledProcessError()};
  const template=options.templatePath||options.jobContext?.uniformTemplate||'';
  const gender=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
- options={...options,portraitMode:gender,femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
+ options={...options,portraitMode:gender,requiresSegmentation:!englishPreviewEnabled()||gender!=='female',femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
  const requestedFinish=options.femaleEyeStyle;
  if(gender==='female')options={...options,femaleEyeStyle:'natural'};
  // Every new generation starts from the upload; never inherit a generated finish.
@@ -2735,7 +2735,7 @@ async function replacementFaceIdentityBox(blob,{protectFeatures=false}={}){
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
- await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate);
+ await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation});
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female',originalAi=portraitMode==='female';
@@ -5039,11 +5039,12 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const processStudioPhoto=async(file,template,selectedHair='',portraitMode,requestedFinish,generationOptions={})=>{
   if(busy||hairBusy||studioPhotoTransactionRef.current)throw Error('กรุณารอการทำงานก่อนหน้าให้เสร็จ');
   studioPhotoTransactionRef.current=true;setBusy(true);beginProgress();
-  let delivered=false;
+  let delivered=false,failureStage='generation';const processingStarted=Date.now();
   const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
   try{
    const femaleEyeStyle=portraitFinishChoice(requestedFinish,file.idpromFemaleEyeStyle);
    const aiHead=await aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
+   failureStage='compose';
    const master=await finishFirstPortraitMaster(aiHead);
    const composed=await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
    const layers=[];layers.headOnly=true;
@@ -5072,7 +5073,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
-  }catch(error){rollback();throw error}finally{setBusy(false)}
+  }catch(error){if(error.code!=='USER_CANCELLED')analyticsProcessFailure(error,failureStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted});rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);

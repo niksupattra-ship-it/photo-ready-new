@@ -15,6 +15,13 @@ let passed=0;
  await assert.rejects(warm(new Blob()),e=>e.code==='PORTRAIT_MODEL_UNAVAILABLE'&&e.cause===cause&&!e.message.includes('Failed to fetch'));
  passed++;
 }
+{
+ const a=main.indexOf('function warmPortraitResources('),b=main.indexOf('\nfunction interp(',a);let segmented=0;
+ const env={getLandmarker:async()=>({}),getPersonSegmenter:async()=>{segmented++;throw Error('unused model offline')},loadImage:async()=>({})};
+ const warm=Function('env',`with(env){${main.slice(a,b)};return warmPortraitResources}`)(env);
+ await warm(new Blob(),null,{requiresSegmentation:false});assert.equal(segmented,0);
+ await assert.rejects(warm(new Blob()),e=>e.code==='PORTRAIT_MODEL_UNAVAILABLE');assert.equal(segmented,1);passed++;
+}
 for(const hair of ['original','seedream-41']){
  const error=Object.assign(Error('model unavailable'),{code:'PORTRAIT_MODEL_TIMEOUT'});
  let submissions=0;

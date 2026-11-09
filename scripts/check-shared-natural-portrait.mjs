@@ -105,9 +105,9 @@ await test('English AI clothed output bypasses local head and garment replacemen
  const f=fixture();f.state.aiPair=true;f.state.english=true;
  const options={portraitMode:'female',femaleEyeStyle:'natural',templatePath:'/assets/job-uniforms/female-formal-suit.png'};
  const body=await f.run(f.upload,'original',options);
- assert.equal(body.idpromPortraitComposition,ENGLISH_BODY_PORTRAIT_VERSION);
+ assert.equal(body.idpromPortraitComposition,ENGLISH_BODY_PORTRAIT_VERSION);assert.equal(f.requests[0].options.requiresSegmentation,false);
  assert(!f.events.includes('aspect'));assert(!f.events.includes('clean'));
  f.state.english=false;
  const thai=await f.run(f.upload,'original',options);
- assert.equal(thai.idpromPortraitComposition,undefined);assert(f.events.includes('clean'));assert.equal(f.requests.length,2);
+ assert.equal(thai.idpromPortraitComposition,undefined);assert.equal(f.requests[1].options.requiresSegmentation,true);assert(f.events.includes('clean'));assert.equal(f.requests.length,2);
 });
