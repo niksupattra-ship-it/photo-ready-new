@@ -1,4 +1,4 @@
-import {ENGLISH_ORIGINAL_OUTFIT_VERSION,planOriginalOutfit,paintOriginalOutfit} from './english-original-outfit.js';
+import {ENGLISH_ORIGINAL_OUTFIT_VERSION,planOriginalOutfit,paintOriginalOutfit,softenEnglishNeckEdges} from './english-original-outfit.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION} from '../english-body-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {useAiMakeupPixels} from './ai-makeup-pair.js';
@@ -1445,16 +1445,18 @@ async function restoreEnglishOriginalOutfit(blob,template){
  const distance=(a,b)=>Math.hypot((face[a].x-face[b].x)*w,(face[a].y-face[b].y)*h);
  const bounds=await alphaBounds(head);
  const plan=planOriginalOutfit({pixels:gx.getImageData(0,0,width,height).data,width,height,opaqueTop:bounds.t,face:{width:w,height:h,cx:(face[234].x+face[454].x)/2*w,chinY:face[152].y*h,faceWidth:distance(234,454),faceHeight:distance(10,152),eyeWidth:distance(33,263)}});
- const natural=paintOriginalOutfit({head,uniform,plan,canvasFor});
+ const softened=canvasFor(w,h),sx=softened.getContext('2d',{willReadFrequently:true});sx.drawImage(head,0,0);
+ const skin=sx.getImageData(0,0,w,h);softenEnglishNeckEdges(skin.data,w,h,{chinY:face[152].y*h,faceCX:(face[234].x+face[454].x)/2*w,eyeWidth:distance(33,263)});sx.putImageData(skin,0,0);
+ const natural=paintOriginalOutfit({head:softened,uniform,plan,canvasFor});
  const result=copyStudioSkinBlobMetadata(clean,await canvasPng(natural));
  result.idpromOriginalOutfitVersion=ENGLISH_ORIGINAL_OUTFIT_VERSION;
  if(clean.idpromAiMakeupBlob){
   const makeup=await decodedPortraitImage(clean.idpromAiMakeupBlob),cutout=canvasFor(w,h),ctx=cutout.getContext('2d');
-  ctx.drawImage(makeup,0,0,w,h);ctx.globalCompositeOperation='destination-in';ctx.drawImage(head,0,0,w,h);
+  ctx.drawImage(makeup,0,0,w,h);ctx.globalCompositeOperation='destination-in';ctx.drawImage(softened,0,0,w,h);
   const paired=paintOriginalOutfit({head:cutout,uniform,plan,canvasFor});
   result.idpromAiMakeupBlob=await canvasPng(paired);paired.width=paired.height=1;cutout.width=cutout.height=1;
  }
- natural.width=natural.height=1;garment.width=garment.height=1;
+ natural.width=natural.height=1;garment.width=garment.height=1;softened.width=softened.height=1;
  return result;
 }
 

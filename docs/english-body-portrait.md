@@ -16,7 +16,8 @@ receives the selected outfit as a lighting reference; it omits the independent
 
 Before delivery to the editor, the browser removes any generated clothing,
 measures the face and original garment collar/shoulders, and fits the head using
-one uniform scale and translation. It draws the ORIGINAL full-resolution
+one uniform scale and translation. The full opaque pattern is contained within
+the canvas with margins; it is never enlarged to cover and crop the edges. It draws the ORIGINAL full-resolution
 outfit last, with no filters, recolouring, relighting, sharpening or local
 warps. The makeup version uses exactly the same placement and original outfit.
 Opaque clothing pixels therefore come from a normal raster rendering of the
@@ -44,7 +45,7 @@ Validation:
 
 The original-outfit browser check executes the actual App restoration function,
 using synthetic head/landmarks with real suit, civil-service and Rajabhat PNGs.
-It verifies 4,743,076 opaque original garment pixels per finish (natural and
+It verifies 4,470,788 opaque original garment pixels per finish (natural and
 makeup), preserved aspect ratio, transparent background and job metadata.
 Provider payload tests use inert responses, not paid AI calls. Real AI face/neck
 quality and production deployment remain separate checks.
@@ -53,3 +54,8 @@ The older `check-female-finish-integration.mjs` has seven pre-existing failures,
 including missing injected dependencies and obsolete finish expectations. The
 same seven cases fail against pre-change `main.jsx` from `e1409c2`. The current
 shared-portrait suite above covers paired AI finishes.
+
+Neck edge refinement feathers existing alpha below the jaw only. It does not
+blur skin RGB, alter the face, invent skin outside the cutout or filter the
+garment. Both finishes share the refined neck alpha. Intrinsic AI skin shading
+is guided to remain continuous; real generation quality remains unverified.
