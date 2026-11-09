@@ -25,3 +25,16 @@ test('Natural female and male jobs send the actual selected collar without addin
 test('rejects external, traversal and unsupported collar paths before generation',()=>{
  for(const neckOutfitReferencePath of ['https://example.com/outfit.png','/assets/../server.js','/assets/gown-uniforms/a.svg'])assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{portraitMode:'female',femaleEyeStyle:'natural',neckOutfitReferencePath}),/อ้างอิง/);
 });
+test('the actual AI neck guide has a broad, centred, constant-width visible shaft',async()=>{
+ const {loadNeckBackingGuide}=await import('../portrait-anatomy.js');
+ const {data,info}=await sharp(await loadNeckBackingGuide(root)).removeAlpha().raw().toBuffer({resolveWithObject:true});
+ assert.equal(info.width,800);assert.equal(info.height,512);
+ let reference;
+ for(let y=60;y<=220;y+=10){
+  const skin=[];
+  for(let x=0;x<info.width;x++){const i=(y*info.width+x)*info.channels;if(data[i]>200&&data[i+1]>200&&data[i+2]>200)skin.push(x)}
+  assert(skin.length>=350,'visible shaft must be broad');
+  const edge=[skin[0],skin.at(-1)];if(!reference)reference=edge;else assert.deepEqual(edge,reference,'visible neck sides must be straight, not curved or tilted');
+  assert(Math.abs((edge[0]+edge[1])/2-info.width/2)<1);
+ }
+});
