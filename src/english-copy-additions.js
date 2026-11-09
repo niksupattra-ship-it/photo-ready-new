@@ -1,5 +1,19 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "ปรับตำแหน่งส่วนที่เลือก": "Move the selected item.",
+ "ปรับขนาดและหมุนส่วนที่เลือก": "Resize and rotate the selected item.",
+ "ปรับความกว้างและความสูงคอเสื้อ": "Adjust collar width and height.",
+ "ปรับรูปทรงเฉพาะบริเวณ": "Reshape part of the image.",
+ "ลบส่วนที่ไม่ต้องการ": "Erase unwanted areas.",
+ "ระบายสีบนส่วนที่เลือก": "Paint the selected area.",
+ "คืนส่วนที่ถูกลบ": "Restore erased areas.",
+ "ปรับมุมมองภาพ": "Adjust the image view.",
+ "ปรับตำแหน่งเข็มแยกข้างหรือพร้อมกัน": "Move each pin separately or both together.",
+ "จัดลำดับและแสดงหรือซ่อนส่วนของภาพ": "Reorder, show or hide image layers.",
+ "ปรับตำแหน่งแพรแถบ": "Adjust the ribbon bar position.",
+ "ปรับตำแหน่งและขนาดศีรษะ": "Adjust the head position and size.",
+ "จัดตำแหน่งและขนาดรูปในกรอบ": "Adjust the photo position and size within the frame.",
+
  "เลือกเลเยอร์ก่อนใช้แปรงระบายสี": "Select a layer before painting.",
  "เลือกเลเยอร์ก่อนใช้ยางลบ": "Select a layer before erasing.",
  "เลือกเลเยอร์ก่อนใช้เครื่องมือบิดรูป": "Select a layer before using Liquify.",
