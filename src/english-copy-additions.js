@@ -1,11 +1,5 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
- "ไม่พบใบหน้าชัดเจน กรุณาเลือกรูปใหม่": "No clear face found. Choose another photo.",
- "รูปใกล้เกินไป ใช้รูปที่เห็นถึงช่วงอก": "Too close. Use a chest-up photo.",
- "รูปไกลเกินไป ใช้รูปช่วงอกขึ้นไปที่เห็นหน้าชัด": "Too far away. Use a chest-up photo with a clear face.",
- "ใช้รูปที่เห็นศีรษะครบและมีพื้นที่ถึงช่วงอก": "Show your full head and leave room down to your chest.",
- "ยังตรวจระยะรูปไม่ได้ กรุณาลองอีกครั้ง": "Photo framing could not be checked. Try again.",
-
  "ประมวลไม่สำเร็จ": "Processing failed",
  "ประมวลไม่สำเร็จ เปลี่ยนรูปใหม่หรือเลือกทรงผม": "Processing failed. Try another photo or select a hairstyle.",
  "เปลี่ยนรูปใหม่หรือเลือกทรงผม": "Try another photo or select a hairstyle.",
