@@ -1,0 +1,15 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {StudioEditor} from '../../src/studio-editor.jsx';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
+import source from '../../src/main.jsx?raw';
+import '../../src/style.css';
+const catalog=name=>Function(source.match(new RegExp('const '+name+'=\\[[\\s\\S]*?\\n\\];'))[0]+';return '+name)();
+const suits=catalog('JOB_UNIFORMS').map(t=>({...t,name:t.title,group:'สมัครงาน'}));
+const canvas=document.createElement('canvas');canvas.width=300;canvas.height=400;
+const ctx=canvas.getContext('2d');ctx.fillStyle='#d7a58a';ctx.fillRect(110,40,80,100);ctx.fillStyle='#333344';ctx.fillRect(40,140,220,260);
+const pixels=canvas.toDataURL();
+const file=new File([await new Promise(r=>canvas.toBlob(r))],'original.png',{type:'image/png'});file.idpromPortraitMode='male';
+window.bodySnapshot={current:null};window.bodyCalls=[];
+const head={name:'หัว · คอ · ผม',kind:'head',source:pixels,portraitMode:'male',portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,generatedOutfitTemplate:suits[0].template,jobId:'fixture',outputUnlocked:true,sourceFrame:{x:0,y:0,w:900,h:1200}};
+createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={false} initialSourcePhoto={file} purchaseSnapshotRef={window.bodySnapshot} initialLayers={[head,{name:'ชุด',kind:'suit',source:pixels,visible:false,templatePath:suits[0].template,assetId:suits[0].id}]} templates={suits} freeTemplatePaths={suits.map(t=>t.template)} placement={{W:900,H:1200,uX:0,uY:0,uW:900,uH:1200,templatePath:suits[0].template}} onBeforeProcess={async()=>true} onFinishProcess={async()=>{}} onProcessPhoto={async(file,template,hair,mode)=>{window.bodyCalls.push({template,hair,mode});return {layer:{...head,generatedOutfitTemplate:template,jobId:'fixture-new'},placement:{W:900,H:1200,uX:0,uY:0,uW:900,uH:1200,templatePath:template},commit:()=>window.bodyCalls.push({committed:true})}}} onSelectSuit={async()=>({limited:false,choices:[]})} paidOutputIds={['fixture','fixture-new']} editableOutputIds={['fixture','fixture-new']} paidHairAccess onClose={()=>{}}/>);

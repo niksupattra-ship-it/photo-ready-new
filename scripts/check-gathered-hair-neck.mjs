@@ -60,7 +60,7 @@ await check('actual first-generation and hairstyle-change handlers share the ori
 await check('the actual completion handler rejects a retained lower curtain for both finishes',async()=>{
  for(const style of ['natural','korean-rosy-v1']){
   const source=new Blob(['upload']);source.idpromFemaleEyeStyle=style;const result=new Blob(['AI result']);result.idpromStudioSkinVersion='studio-original-ai-v5';
-  const env={PRODUCTION_HAIR_CATALOG,selectedHairDesign:(h)=>h?.id==='seedream-41'?{kind:'gathered'}:{kind:'long'},ORIGINAL_PORTRAIT_AI_VERSION:'studio-original-ai-v5',inspectGatheredPortraitHair,portraitCompletionEvidence:async()=>({...evidence({tail:true,semantic:false}),garments:{measurable:true,retained:false}})};
+  const env={ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',PRODUCTION_HAIR_CATALOG,selectedHairDesign:(h)=>h?.id==='seedream-41'?{kind:'gathered'}:{kind:'long'},ORIGINAL_PORTRAIT_AI_VERSION:'studio-original-ai-v5',inspectGatheredPortraitHair,portraitCompletionEvidence:async()=>({...evidence({tail:true,semantic:false}),garments:{measurable:true,retained:false}})};
   const run=extract('async function checkPortraitCompletion(','\nconst femaleMakeupGuideCache','checkPortraitCompletion',env);
   await assert.rejects(run(source,result,'seedream-41'),e=>e.code==='selected_hairstyle_mismatch');await run(source,result,'seedream-42');
  }

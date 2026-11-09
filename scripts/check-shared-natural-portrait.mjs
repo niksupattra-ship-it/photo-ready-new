@@ -1,3 +1,4 @@
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -21,7 +22,7 @@ const a=main.indexOf('async function aiFinishPortrait('),b=main.indexOf('\nlet a
 function fixture(){
  const events=[],requests=[],upload=new File(['immutable original'],'camera.jpg',{type:'image/jpeg'}),state={scope:'wallet-A',failCosmetics:false,cancelCosmetics:false,rights:true};
  const face=[];face[152]={x:.5,y:.8};face[234]={x:.2,y:.5};face[454]={x:.8,y:.5};
- const env={AI_MAKEUP_PAIR_VERSION,Blob,URL,atob,STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,sharedOriginalPortraitSource,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,hasOriginalPortraitAiFinish,isOriginalPortraitAiRequest,hasCurrentStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,portraitFinishChoice,
+ const env={ENGLISH_BODY_PORTRAIT_VERSION,englishPreviewEnabled:()=>Boolean(state.english),AI_MAKEUP_PAIR_VERSION,Blob,URL,atob,STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,sharedOriginalPortraitSource,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,hasOriginalPortraitAiFinish,isOriginalPortraitAiRequest,hasCurrentStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,portraitFinishChoice,
   activeProcessOperation:{cancelled:false},assertProcessActive(op){if(op?.cancelled)throw Error('cancelled')},cancelledProcessError:()=>Error('cancelled'),currentResultCacheScope:()=>state.scope,resultSourceDigest:async file=>{assert.equal(file,upload);return 'same-source'},uploadGenerationScope:()=> 'same-upload',portraitResultCache:createAiResultCache(),portraitGeometryBases:new WeakMap(),
   window:{dispatchEvent:()=>events.push('event')},CustomEvent:class{},
   async aiFinishPortraitUncached(source,hair,options){assert.equal(source,upload);requests.push({hair,options});const out=markOriginalPortraitAiFinish(new Blob([png],{type:'image/png'}),'natural');if(state.aiPair)out.idpromAiMakeupSource=baseSource;Object.assign(out,{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'job-'+requests.length,idpromTrial:true});return out},
@@ -99,3 +100,14 @@ await test('a new collar reference has its own portrait cache entry',async()=>{
  assert.equal(f.requests.length,2);assert.equal(first.idpromJobId,'job-1');assert.equal(next.idpromJobId,'job-2');assert.equal(reused.idpromJobId,'job-1');
 });
 console.log(JSON.stringify({passed,scope:'Actual App orchestration, versioned shared-base capture and cosmetic wrapper, immutable upload, source/hair/wallet cache, rights, failures and cancellation. Provider and canvas pixels inert; native pixel invariants covered by the browser regression.'}));
+
+await test('English body output bypasses head aspect/garment removal and never shares the Thai cache',async()=>{
+ const f=fixture();f.state.aiPair=true;f.state.english=true;
+ const options={portraitMode:'female',femaleEyeStyle:'natural',templatePath:'/assets/job-uniforms/female-formal-suit.png'};
+ const body=await f.run(f.upload,'original',options);
+ assert.equal(body.idpromPortraitComposition,ENGLISH_BODY_PORTRAIT_VERSION);
+ assert(!f.events.includes('aspect'));assert(!f.events.includes('clean'));
+ f.state.english=false;
+ const thai=await f.run(f.upload,'original',options);
+ assert.equal(thai.idpromPortraitComposition,undefined);assert(f.events.includes('clean'));assert.equal(f.requests.length,2);
+});

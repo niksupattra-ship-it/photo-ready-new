@@ -1,3 +1,4 @@
+import {isEnglishBodyPortrait,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {requireNewStraightNeck,isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,BALANCED_NECK_POLICY,loadNeckBackingGuide,neckBackingGuideInstruction,loadVisibleNeckGuide,visibleNeckGuideInstruction} from './portrait-anatomy.js';
@@ -77,6 +78,9 @@ export function validateProductionPortrait(input,fields={}){
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
  if(['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
+ if(fields.portraitComposition){
+  if(fields.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||!isEnglishBodyPortrait(fields)||!/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.png$/.test(fields.neckOutfitReferencePath||''))throw Error('Invalid English outfit portrait option');
+ }
  if(fields.neckOutfitReferencePath)checkedOutfitReferencePath(fields.neckOutfitReferencePath);
  parsePortraitIdentityBox(fields.faceIdentityBox);
  parseFemaleMakeupReference(fields,selected);
@@ -152,7 +156,8 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const originalAiV2=originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_V5_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields.studioSkinVersion);
  const preparedMakeup=needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
  const preparedNatural=needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
- const bounded=isBoundedPortrait({...fields,portraitMode:selected.gender});
+ const englishBody=isEnglishBodyPortrait(fields);
+ const bounded=!englishBody&&isBoundedPortrait({...fields,portraitMode:selected.gender});
  const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
  const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
@@ -235,6 +240,10 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  let neckReference=null,neckShapeReference=null;
  if(bounded){prompt=prompt.replaceAll('and stable identifying marks','and expression').replaceAll('THE LAST IMAGE','THE SKIN/LIGHT BOARD');neckReference=await loadNeckBackingGuide(root);neckShapeReference=await loadVisibleNeckGuide(root);const index=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit))+Number(Boolean(skinReference));prompt+=neckBackingGuideInstruction(index)+visibleNeckGuideInstruction(index+1)+'\n'+BOUNDED_PORTRAIT_PRIORITY;}
  if(bounded)prompt=requireNewStraightNeck(prompt);
+ if(englishBody){
+  if(!outfit)throw Error('Select an outfit before processing.');
+  prompt=englishBodyPortraitPrompt({gender:selected.gender,hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
+ }
  let generationInput=portrait;
  if(preparedMakeup){
   await onStage('skin-prepare');
@@ -257,15 +266,22 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('matting');
  const matted=await removeBackground(result.png);
  await onStage('edges');
- const {png:transparent,alpha}=await cleanTrialCutoutEdges(matted);
+ // The body includes real clothing colours; head-only blue-field cleanup
+ // could erase a blue shirt connected to the image border. Trust the matte.
+ const {png:transparent,alpha}=englishBody?await preserveClothedPortraitMatte(matted):await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
  if(isAiMakeupPairVersion(fields.femaleFinishPair)&&selected.gender==='female'){
   await onStage('makeup');
-  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait});
+  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody});
   if(typeof onMakeupVariant!=='function')throw Error('ระบบเก็บภาพแต่งหน้ายังไม่พร้อม');
   await onMakeupVariant(makeup);
  }
  return transparent;
+}
+async function preserveClothedPortraitMatte(input){
+ const png=await sharp(input).ensureAlpha().png().toBuffer();
+ const stats=await sharp(png).extractChannel(3).stats();
+ return {png,alpha:{min:stats.channels[0].min,max:stats.channels[0].max}};
 }
 function cleanTrialAlphaPixels(pixels,width,height,alpha){
  const count=width*height;
