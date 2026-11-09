@@ -19,7 +19,11 @@ test('Natural female and male jobs send the actual selected collar without addin
   assert(generation.prompt.includes(`SELECTED COLLAR ALIGNMENT — IMAGE ${index}`));
   assert.match(generation.prompt,/No inward bow, hourglass waist/);
   assert.match(generation.prompt,/Do not generate this garment into the output/);
-  if(portraitMode==='female')assert.equal(calls[0].outfit,undefined);
+  if(portraitMode==='female'){
+   assert.equal(calls[0].outfit,undefined);
+   assert.doesNotMatch(generation.prompt,/not the visible neck shaft dimensions|The guide defines hidden skin coverage only|the neck guide controls the WIDE, DEEP rounded U backing only/,'the delivered prompt must not deny the visible-neck guide authority');
+   assert.match(generation.prompt,/upper straight shaft controls the visible neck width and side alignment/);
+  }
  }
 });
 test('rejects external, traversal and unsupported collar paths before generation',()=>{
