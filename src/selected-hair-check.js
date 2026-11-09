@@ -38,13 +38,17 @@ export function profileSelectedPortraitHair(evidence){
  };
  const leftBottom=sideBottom(32,108),rightBottom=sideBottom(148,224);
  const chinY=Number.isFinite(evidence.chinY)&&evidence.chinY>=160&&evidence.chinY<=280?evidence.chinY:null;
+ const lowerStart=chinY===null?null:Math.ceil(chinY+24),lowerEnd=chinY===null?null:Math.min(height-1,Math.floor(chinY+56));
+ let lowerHairPixels=0;
+ if(lowerStart!==null)for(let y=lowerStart;y<=lowerEnd;y++)for(let x=32;x<224;x++)if((x<108||x>=148)&&present(x,y))lowerHairPixels++;
+ const lowerVisible=lowerStart!==null&&[[32,lowerStart],[223,lowerStart],[32,lowerEnd],[223,lowerEnd]].every(([x,y])=>inside({x,y},evidence.sourceBounds));
  // Transparent pixels alone cannot tell a natural hair end from an image crop.
  // Require twelve normalized pixels of source-image space beyond both ends.
  const lengthMeasurable=chinY!==null&&leftBottom!==null&&rightBottom!==null&&leftBottom<308&&rightBottom<308&&
   [[32,leftBottom+12],[107,leftBottom+12],[148,rightBottom+12],[223,rightBottom+12]].every(([x,y])=>inside({x,y},evidence.sourceBounds));
  return {measurable:true,hairPixels,fringe:fringePixels/fringeArea,fringeTop,fringeBottom,leftBottom,rightBottom,chinY,
   length:chinY!==null&&leftBottom!==null&&rightBottom!==null?(Math.min(leftBottom,rightBottom)-chinY)/64:null,
-  lengthMeasurable};
+  lengthMeasurable,lowerVisible,lowerHairPixels};
 }
 
 export function inspectSelectedPortraitHair(reference,output){
@@ -55,6 +59,7 @@ export function inspectSelectedPortraitHair(reference,output){
  let reason=null;
  if(expected.fringe<=.04&&actual.fringe>=.28)reason='unexpected_fringe';
  else if(expected.fringe>=.5&&actual.fringe<=.04)reason='missing_fringe';
+ if(!reason&&expected.chinY!==null&&expected.leftBottom>=expected.chinY+32&&expected.rightBottom>=expected.chinY+32&&actual.lowerVisible&&actual.lowerHairPixels<32)reason='missing_length';
  if(!reason&&expected.lengthMeasurable&&actual.lengthMeasurable&&Math.abs(expected.length-actual.length)>=1.1)reason='length';
  return {measurable:true,mismatch:reason!==null,reason,reference:expected,output:actual};
 }

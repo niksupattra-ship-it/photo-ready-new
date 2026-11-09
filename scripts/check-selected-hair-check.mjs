@@ -40,6 +40,13 @@ test('cropped or unavailable source bounds disable length-only judgment',()=>{
  assert.equal(inspectSelectedPortraitHair(fixture({bottom:220,sourceBounds:null}),fixture({bottom:300})).mismatch,false);
 });
 test('canvas-bottom hair is not treated as a measured endpoint',()=>assert.equal(profileSelectedPortraitHair(fixture({bottom:320})).lengthMeasurable,false));
+test('a clearly long picker cannot be delivered as gathered hair when the output lower frame is visible',()=>{
+ const reference=fixture({bottom:300}),output=fixture({bottom:218});
+ assert.equal(inspectSelectedPortraitHair(reference,output).reason,'missing_length');
+ const cropped=fixture({bottom:218,sourceBounds:[{x:0,y:0},{x:256,y:0},{x:256,y:225},{x:0,y:225}]});
+ assert.equal(inspectSelectedPortraitHair(reference,cropped).mismatch,false);
+ assert.equal(inspectSelectedPortraitHair(reference,fixture({bottom:296})).mismatch,false);
+});
 test('invalid dimensions, absent masks and weak hair evidence are unmeasurable',()=>{
  for(const evidence of [null,{...fixture(),width:128},{...fixture(),hair:new Uint8ClampedArray(4)},{...fixture(),hair:new Uint8ClampedArray(W*H*4)}])assert.equal(inspectSelectedPortraitHair(evidence,fixture()).measurable,false);
 });

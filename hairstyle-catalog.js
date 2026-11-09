@@ -256,7 +256,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-export const HAIR_DESIGN_VERSION='selected-silhouette-v11-shared-natural-hair-edges';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v12-picker-hair-authority';
 const compact={
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp and fully gathered at the low rear, with open forehead, clean visible ears and no hanging rear lengths'],
  'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],
@@ -301,7 +301,7 @@ export function selectedHairDesign(selected){
  if(!selected?.id)return null;
  const freeDesigns={'hair-21':['gathered','smooth side-parted hair gathered close to the head'],'hair-25':['short','short side-swept pixie with the same fringe and silhouette as the reference'],'hair-26':['gathered','centre-parted hair with a flat braid across the crown, gathered close to the head']};
  const pair=compact[selected.id]||freeDesigns[selected.id];
- return pair?{kind:pair[0],description:pair[1]}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
+ return pair?{kind:pair[0],description:pair[1],...(selected.id==='seedream-20'?{faceFraming:true}:{})}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
  const design=selectedHairDesign(selected);if(!design)return '';

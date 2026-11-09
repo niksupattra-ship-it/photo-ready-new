@@ -167,9 +167,12 @@ await test('a staged revision isolates female cached variants while leaving male
  f.env.ORIGINAL_PORTRAIT_AI_VERSION='different-original-ai-revision';
  assert.notEqual(f.memory.hairResultKey('seedream-19','female','korean-rosy-v1'),female);assert.equal(f.memory.hairResultKey('seedream-35','male','natural'),male);
 });
-await test('legacy male saved heads restore without female skin or cosmetic markers',async()=>{
- const f=fixture();f.env.hairResultCacheRef.current.clear();f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-35',portraitMode:'male',femaleEyeStyle:'natural'});
- assert(f.memory.cachedHairResult('seedream-35','male','natural')?.confirmed);assert.equal(f.file.idpromStudioSkinVersion,undefined);assert.equal(f.calls.length,0);
+await test('selected male picker caches require the new hair policy, while the unselected legacy base remains reusable',async()=>{
+ for(const version of [undefined,'selected-silhouette-v11-shared-natural-hair-edges',HAIR_DESIGN_VERSION]){
+  const f=fixture();f.env.hairResultCacheRef.current.clear();f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-35',portraitMode:'male',femaleEyeStyle:'natural',hairPolicyVersion:version});
+  assert.equal(Boolean(f.memory.cachedHairResult('seedream-35','male','natural')?.confirmed),version===HAIR_DESIGN_VERSION);assert.equal(f.file.idpromStudioSkinVersion,undefined);assert.equal(f.calls.length,0);
+ }
+ const f=fixture();f.env.hairResultCacheRef.current.clear();f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'',portraitMode:'male',femaleEyeStyle:'natural'});assert(f.memory.cachedHairResult('','male','natural')?.confirmed);
 });
 
 console.log(`PASS: ${passed} actual App makeup/cache scenarios; AI, rendering and payment API mocked; no external requests.`);

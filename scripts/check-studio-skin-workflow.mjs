@@ -5,6 +5,7 @@ import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPor
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {captureStudioSkinEvidence} from '../src/studio-skin-evidence.js';
+import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
@@ -104,10 +105,10 @@ await test('only current makeup jobs receive the bounded ten-minute polling budg
 function submissionFixture(mode='female',style='natural'){
  const original=new File(['immutable upload bytes'],'original.jpg',{type:'image/jpeg'}),canonical=new File(['old canonical derivative'],'canonical.png',{type:'image/png'}),operation={cancelled:false},calls=[],saved=[],events=[],state={legacyResult:false};
  original.idpromPortraitMode=mode;original.idpromCanonicalInput=canonical;
- const env={activeProcessOperation:operation,activeSavedDownloadWork:'saved-work',STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,PRODUCTION_HAIR_CATALOG,portraitFinishChoice,hasOriginalPortraitAiFinish,assertProcessActive:assertActive,FormData,
+ const env={HAIR_REFERENCE_VERSION,activeProcessOperation:operation,activeSavedDownloadWork:'saved-work',STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,PRODUCTION_HAIR_CATALOG,portraitFinishChoice,hasOriginalPortraitAiFinish,assertProcessActive:assertActive,FormData,
   submitPortraitJob:async(_operation,submit)=>submit(),levelPortraitCutout:noop,
   async canonicalPortraitInput(input,{normalize}){assert.equal(mode,'male','Female original-AI must bypass canonical image normalization');assert.equal(input,original);assert.equal(normalize,env.levelPortraitCutout);events.push('male-canonical');return canonical},
-  async replacementFaceIdentityBox(){throw Error('Original-AI must not crop or inspect skin before generation')},
+  async replacementFaceIdentityBox(input){assert.equal(input,mode==='female'?original:canonical);events.push('face-box');return [.2,.15,.8,.85]},
   async saveAiJobFile(input){assert.equal(input,original);saved.push(input)},
   acceptedPaidTrial:false,walletHeaders:()=>({'x-wallet-id':'inert'}),analyticsTagError:error=>error,
   async portraitFetch(url,options){assert.equal(url,'/api/ai-jobs');assert.equal(options.method,'POST');calls.push(options.body);return {ok:true,json:async()=>({jobId:'submitted-job',downloadWorkId:'owned-work',trialPreview:true})}},
@@ -117,15 +118,18 @@ function submissionFixture(mode='female',style='natural'){
  const submit=extract(main,'async function aiFinishPortraitUncached(','\n// V206:','aiFinishPortraitUncached',env);
  return {original,canonical,operation,calls,saved,events,state,env,submit,options:{portraitMode:mode,femaleEyeStyle:style,sourceJobId:'owned-previous-job',templatePath:'/assets/job-uniforms/female-job-navy-collared.png'}};
 }
-await test('actual new female multipart sends exact original bytes, no skin evidence and no pre-generation face crop',async()=>{
+await test('new female multipart keeps original bytes and sends a face-only conditioning box with the selected picker protocol',async()=>{
  for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1'])for(const hair of ['', 'seedream-19']){
   const f=submissionFixture('female',style);f.original.idpromStudioSourceReplacement=true;f.original.idpromDownloadWorkId='owned-existing-work';
   const result=await f.submit(f.original,hair,f.options),body=f.calls[0];
-  assert.equal(await body.get('image').text(),await f.original.text());assert.equal(await body.get('originalSource').text(),await f.original.text());assert.equal(body.get('image').type,'image/jpeg');assert.equal(body.get('studioSkinVersion'),ORIGINAL_PORTRAIT_AI_VERSION);assert.equal(body.get('studioSkinEvidence'),null);assert.equal(body.get('faceIdentityBox'),null);assert.equal(body.get('femaleEyeStyle'),style);assert.equal(body.get('naturalFinishVersion'),style==='natural'?NATURAL_STUDIO_SKIN_VERSION:null);assert.equal(body.get('sourceJobId'),'owned-previous-job');assert.equal(body.get('downloadWorkId'),'owned-existing-work');assert.equal(body.get('hairId'),hair||'original');assert(hasOriginalPortraitAiFinish(result,style));assert.equal(f.original.idpromStudioSkinVersion,undefined);assert.equal(f.original.idpromCanonicalInput,f.canonical);assert.deepEqual(f.events,[]);
+  assert.equal(await body.get('image').text(),await f.original.text());assert.equal(await body.get('originalSource').text(),await f.original.text());assert.equal(body.get('image').type,'image/jpeg');assert.equal(body.get('studioSkinVersion'),ORIGINAL_PORTRAIT_AI_VERSION);assert.equal(body.get('studioSkinEvidence'),null);assert.equal(body.get('faceIdentityBox'),hair?JSON.stringify([.2,.15,.8,.85]):null);assert.equal(body.get('hairReferenceVersion'),hair?HAIR_REFERENCE_VERSION:null);assert.equal(result.idpromHairReferenceVersion,hair?HAIR_REFERENCE_VERSION:undefined);assert.equal(body.get('femaleEyeStyle'),style);assert.equal(body.get('naturalFinishVersion'),style==='natural'?NATURAL_STUDIO_SKIN_VERSION:null);assert.equal(body.get('sourceJobId'),'owned-previous-job');assert.equal(body.get('downloadWorkId'),'owned-existing-work');assert.equal(body.get('hairId'),hair||'original');assert(hasOriginalPortraitAiFinish(result,style));assert.equal(f.original.idpromStudioSkinVersion,undefined);assert.equal(f.original.idpromCanonicalInput,f.canonical);assert.deepEqual(f.events,hair?['face-box']:[]);
  }
 });
 await test('actual male multipart retains its previous canonical protocol',async()=>{
  const f=submissionFixture('male');await f.submit(f.original,'',f.options);const body=f.calls[0];assert.equal(await body.get('image').text(),await f.canonical.text());assert.equal(body.get('studioSkinVersion'),null);assert.equal(body.get('studioSkinEvidence'),null);assert.deepEqual(f.events,['male-canonical']);
+});
+await test('selected male picker keeps canonical input and original proof while sending exactly one conditioning box',async()=>{
+ const f=submissionFixture('male'),result=await f.submit(f.original,'seedream-36',f.options),body=f.calls[0];assert.equal(await body.get('image').text(),await f.canonical.text());assert.equal(await body.get('originalSource').text(),await f.original.text());assert.equal(body.get('hairReferenceVersion'),HAIR_REFERENCE_VERSION);assert.equal(body.getAll('faceIdentityBox').length,1);assert.equal(result.idpromHairReferenceVersion,HAIR_REFERENCE_VERSION);assert.deepEqual(f.events,['male-canonical','face-box']);
 });
 await test('new female request rejects old or incomplete server completion without stamping the upload',async()=>{
  const f=submissionFixture('female','makeup');f.state.legacyResult=true;await assert.rejects(f.submit(f.original,'',f.options),/ระบบปรับผิวกำลังอัปเดต/);assert.equal(f.original.idpromStudioSkinVersion,undefined);

@@ -62,11 +62,12 @@ const summarize=value=>Buffer.isBuffer(value)?{sha256:hash(value),bytes:value.le
 const data=Buffer.alloc(64*80*4);
 for(let y=0;y<80;y++)for(let x=0;x<64;x++){const i=(y*64+x)*4;data[i]=130+x;data[i+1]=90+y;data[i+2]=80;data[i+3]=(x<5||x>58||y<4||y>75)?0:50+(x*3+y)%206;}
 const input=await sharp(data,{raw:{width:64,height:80,channels:4}}).jpeg().toBuffer(),png=await sharp(data,{raw:{width:64,height:80,channels:4}}).png().toBuffer();
+// No-picker compatibility snapshots from pre-change commit 101a810.
 const expected={
- 'natural|original':'1f4def437bb798f0abcc8722df2c00cefbbdd5967ad3559c0dfcdd33634db099',
- 'natural|seedream-41':'ba72c38cf1b57039a7dae8e43251d00c89a206f64754506480e5b979f622a003',
- 'makeup|original':'6fb039801b231a674db91811a5664931091324f468ef3f856dcee8667305e164',
- 'makeup|seedream-41':'7a85779c84f2307611784ccdd7ca1c765d7f93de07e90610f3921053f29ce882'
+ 'natural|original':'f226ac8a5c5e1ec903d9643565b0821cd81d725daeca5926c2d3f38ab26ffa06',
+ 'natural|seedream-41':'574034bb76c3e47cfbf9aae1706d23ff0e7cf08a2aaeb62052d7cb8da26fc26d',
+ 'makeup|original':'0fd1a2ae3898327b28e234deb421473687c2739077ce95dfa8acb16983d6741d',
+ 'makeup|seedream-41':'b9590342111a24d8d11af74a6f89a43f1e5a7a419809bc2b3152da559b4661d7'
 };
 for(const style of ['natural','makeup'])for(const hairId of ['original','seedream-41'])await test(`${style}/${hairId}: versioned hair instructions retain two AI stages and identical server PNG cleanup`,async()=>{
  const requests=[],stages=[];
