@@ -202,15 +202,17 @@ function editorFixture(options={}){
  return {parent,env,visible,mask,counters,apply,history};
 }
 await test('reselecting saved old makeup upgrades locally once, preserves history and clears the palette marker on Natural',async()=>{
+ for(const oldPalette of [undefined,'soft-peach-rose-v8-source-eyes']){
  const f=editorFixture({skinVersion:ORIGINAL_PORTRAIT_AI_VERSION}),choose=style=>f.apply('original',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});
- const old={...f.visible,source:madeUp,femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup',studioCosmeticsVersion:ORIGINAL_PORTRAIT_AI_VERSION+':makeup',naturalStudioSkinVersion:undefined};
+ const old={...f.visible,studioMakeupVersion:oldPalette,source:madeUp,femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup',studioCosmeticsVersion:ORIGINAL_PORTRAIT_AI_VERSION+':makeup',naturalStudioSkinVersion:undefined};
  f.env.state.current=[old];assert(portraitMakeupNeedsUpdate(old));assert(f.parent.syncStudioPortraitFinish(old));
  await choose('makeup');assert.deepEqual(f.counters.failures,[]);assert.equal(f.counters.local,1);assert.equal(f.counters.AI,0);assert.equal(f.counters.before,0);assert.equal(f.counters.settle,0);
  assert.equal(f.env.state.current[0].studioMakeupVersion,PORTRAIT_MAKEUP_VERSION);assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,PORTRAIT_MAKEUP_VERSION);assert(!portraitMakeupNeedsUpdate(f.env.state.current[0]));
  await choose('makeup');assert.equal(f.counters.local,1,'current palette should not repaint');
- await f.history(true);assert(portraitMakeupNeedsUpdate(f.env.state.current[0]));assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,undefined);
+ await f.history(true);assert(portraitMakeupNeedsUpdate(f.env.state.current[0]));assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,oldPalette);
  await f.history(false);assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,PORTRAIT_MAKEUP_VERSION);
  await choose('natural');assert.equal(f.env.state.current[0].source,base);assert.equal(f.env.state.current[0].studioMakeupVersion,undefined);assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,undefined);assert.equal(f.counters.local,2);assert.deepEqual(f.counters.failures,[]);
+ }
 });
 await test('actual editor local finish bypasses AI and settlement, keeps pose and squeeze, and supports undo/redo',async()=>{
  const f=editorFixture();await f.apply('original',{femaleEyeStyle:'makeup',portraitMode:'female',appearanceKind:'makeup'});

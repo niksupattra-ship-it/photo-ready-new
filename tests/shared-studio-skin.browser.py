@@ -274,6 +274,46 @@ try:
     }
     return {samples,providerCalls:0,eyeRGBAExact:true,geometryAlphaHairExact:true};
    });
+
+   await test('Makeup visibly defines native brows, rose lips and fresh skin instead of matching Natural or the subtle v8 finish',async()=>{
+    const {renderLocalMakeup}=await import('/src/local-makeup.js'),samples=[];
+    for(const [width,tone]of [[384,[184,141,123]],[900,[108,77,63]]]){
+     const f=source(width,tone),W=width,H=f.original.height,ctx=f.original.getContext('2d'),browArea=canvas(W,H),bctx=browArea.getContext('2d');
+     for(const side of [0,1]){
+      const path=context=>{context.beginPath();C.brows[side].forEach((id,k)=>{const p=f.face[id];k?context.lineTo(p.x*W,p.y*H):context.moveTo(p.x*W,p.y*H)});context.closePath()};
+      path(bctx);bctx.fill();ctx.save();path(ctx);ctx.clip();ctx.strokeStyle=width===900?'#3f3736':'#6e6260';ctx.lineWidth=Math.max(.7,W*.002);
+      const cx=side?.64:.36;
+      for(let n=0;n<29;n++){
+       const x=(cx-.071+n*.005)*W,y=(.32+.004*Math.cos(n*.65))*H;
+       ctx.globalAlpha=.55+.35*(n%3)/2;ctx.beginPath();ctx.moveTo(x,y+.011*H);ctx.quadraticCurveTo(x+.002*W,y,x+.007*W,y-.012*H);ctx.stroke();
+      }
+      ctx.restore();
+     }
+     // Already rosy lips are the reported failure case: they still need visible
+     // lipstick, rather than a near-identical source-preserving chroma shift.
+     const frame=ctx.getImageData(0,0,W,H);
+     for(let y=Math.round(H*.655);y<H*.708;y++)for(let x=Math.round(W*.405);x<W*.595;x++){
+      if(((x/W-.5)/.085)**2+((y/H-.68)/.026)**2>=1)continue;
+      const i=(y*W+x)*4,texture=3*Math.sin(x*1.7)*Math.cos(y*1.4),color=width===900?[125,75,86]:[210,129,142];for(let c=0;c<3;c++)frame.data[i+c]=color[c]+texture;
+     }
+     ctx.putImageData(frame,0,0);
+     const before=read(f.original).slice(),old=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v8',cosmeticsOnly:true})),next=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v9',cosmeticsOnly:true})),brows=read(browArea);
+     let browDarkening=0,browChanged=0,browCount=0,lipChroma=0,lipGain=0,lipCount=0,skinLift=0,skinGain=0,skinCount=0;
+     const Y=(p,i)=>p[i]*.2126+p[i+1]*.7152+p[i+2]*.0722;
+     for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const i=(y*W+x)*4,px=x/W,py=y/H;assert(next[i+3]===before[i+3],'v9 changed native alpha');
+      if(brows[i+3]>128){browDarkening+=Y(before,i)-Y(next,i);browCount++;if(Math.abs(next[i]-before[i])+Math.abs(next[i+1]-before[i+1])+Math.abs(next[i+2]-before[i+2])>=6)browChanged++;}
+      if(Math.abs(px-.5)<.053&&py>.685&&py<.699){lipChroma+=next[i]-next[i+1]-before[i]+before[i+1];lipGain+=next[i]-next[i+1]-old[i]+old[i+1];lipCount++;}
+      if(px>.43&&px<.57&&py>.18&&py<.26){skinLift+=Y(next,i)-Y(before,i);skinGain+=Y(next,i)-Y(old,i);skinCount++;}
+     }
+     const metrics={width,browDarkening:browDarkening/browCount,browChangedFraction:browChanged/browCount,lipChromaFromNatural:lipChroma/lipCount,lipChromaOverV8:lipGain/lipCount,skinLift:skinLift/skinCount,skinLiftOverV8:skinGain/skinCount};
+     assert(metrics.browDarkening>2&&metrics.browChangedFraction>.25,'brows remain indistinguishable from Natural '+JSON.stringify(metrics));
+     assert(metrics.lipChromaFromNatural>12&&metrics.lipChromaOverV8>9,'lipstick is still too close to Natural/v8 '+JSON.stringify(metrics));
+     assert(metrics.skinLift>7&&metrics.skinLiftOverV8>3,'fresh skin finish remains indistinguishable from Natural/v8 '+JSON.stringify(metrics));
+     samples.push(metrics);
+    }
+    return {samples,styles:'Visible source-aligned brow powder, rose lipstick and bounded satin foundation; no provider calls.'};
+   });
    return {passed:reports.length,reports,providerCalls:0};
   }''')
   assert not errors,errors;assert not network,network;browser.close()

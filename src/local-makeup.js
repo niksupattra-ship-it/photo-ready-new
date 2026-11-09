@@ -103,7 +103,7 @@ function nativeMaskPixels(mask,g,W,H,expand=0){
  return ctx.getImageData(0,0,g.w,g.h).data;
 }
 
-function buildMasks(g,hairMask,skinMask,W,H,source,{continuousSkin=false,softFinish=false,sourceEyes=false}={}){
+function buildMasks(g,hairMask,skinMask,W,H,source,{continuousSkin=false,softFinish=false,sourceEyes=false,browFinish=false}={}){
  const t=maskTools(g),hard=t.make(),inset=t.make(),details=t.make(),eyeHoles=t.make(),lip=t.make(),mouth=t.make();
  t.polygon(hard.ctx,LOCAL_MAKEUP_CONTOURS.face);
  t.polygon(inset.ctx,LOCAL_MAKEUP_CONTOURS.face,.965);
@@ -140,9 +140,43 @@ function buildMasks(g,hairMask,skinMask,W,H,source,{continuousSkin=false,softFin
   const skinCoverage=(softSkin[j+3]/255)*(1-near)+near*(1-hair);
   skin[i]=support[i]*(softPixels[j+3]/255)*skinCoverage*(1-protectedPixels[j+3]/255)*(1-protectedDetails[i]);
   tone[i]=support[i]*(softPixels[j+3]/255)*skinCoverage*(1-toneHard[j+3]/255)*(1-toneSoft[j+3]/255);
+  if(browFinish){skin[i]*=1-near;tone[i]*=1-near}
   lips[i]=support[i]*(lipHard[j+3]/255)*(lipSoft[j+3]/255)*(1-mouthPixels[j+3]/255);
  }
  return {skin,tone,support,lips,eyes,protectedDetails,skinPixels:sp};
+}
+
+// Powder stays within the photographed brow silhouette. Its head is sheer;
+// the arch/tail gain definition while the original individual hairs remain.
+function browPowder(g,masks,source){
+ const result=new Float32Array(g.w*g.h);
+ for(const ids of LOCAL_MAKEUP_CONTOURS.brows){
+  const points=ids.map(g.point),project=p=>p.x*g.ux+p.y*g.uy;
+  const values=points.map(project),low=Math.min(...values),high=Math.max(...values);
+  const innerAtHigh=Math.abs(high-project({x:g.cx,y:g.cy}))<Math.abs(low-project({x:g.cx,y:g.cy}));
+  const padding=Math.ceil(g.d*.035),x0=Math.max(0,Math.floor(Math.min(...points.map(p=>p.x))-g.x)-padding),x1=Math.min(g.w,Math.ceil(Math.max(...points.map(p=>p.x))-g.x)+padding);
+  const y0=Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))-g.y)-padding),y1=Math.min(g.h,Math.ceil(Math.max(...points.map(p=>p.y))-g.y)+padding),w=x1-x0,h=y1-y0;
+  if(w<1||h<1)continue;
+  // Brow buffers cover only these small patches, including their soft margins.
+  const t=maskTools({...g,x:g.x+x0,y:g.y+y0,w,h}),shape=t.make();t.polygon(shape.ctx,ids);
+  const hard=t.pixels(shape.canvas),soft=t.pixels(t.feather(shape.canvas,Math.max(.8,g.d*.012)));
+  const ink=t.make(),samples=ink.ctx.createImageData(w,h),radius=Math.max(2,Math.round(g.d*.035));
+  // Actual dark hairs supply density. The landmark polygon only locates them;
+  // it never becomes an opaque painted eyebrow or a new angular brow outline.
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const j=(y*w+x)*4,k=((y+y0)*g.w+x+x0)*4;if(!hard[j+3])continue;
+   const Y=luma(source[k],source[k+1],source[k+2]);let light=Y;
+   for(const sign of [-1,1]){const nx=clamp(Math.round(x+x0+g.vx*radius*sign),0,g.w-1),ny=clamp(Math.round(y+y0+g.vy*radius*sign),0,g.h-1),n=(ny*g.w+nx)*4;light=Math.max(light,luma(source[n],source[n+1],source[n+2]))}
+   samples.data[j]=samples.data[j+1]=samples.data[j+2]=255;samples.data[j+3]=smooth(5,30,light-Y)*hard[j+3];
+  }
+  ink.ctx.putImageData(samples,0,0);const density=t.pixels(t.feather(ink.canvas,Math.max(.7,g.d*.010)));
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=(y+y0)*g.w+x+x0,j=(y*w+x)*4;if(!density[j+3]||masks.eyes[i])continue;
+   const along=clamp((project({x:g.x+x+x0+.5,y:g.y+y+y0+.5})-low)/Math.max(1,high-low)),fromHead=innerAtHigh?1-along:along;
+   result[i]=Math.max(result[i],density[j+3]/255*soft[j+3]/255*masks.support[i]*(.15+.85*smooth(.02,.58,fromHead)));
+  }
+ }
+ return result;
 }
 
 function eyeEffects(g,masks,{upperOnly=false,koreanLashes=false,definedEyes=false,sweptEyes=false}={}){
@@ -232,26 +266,28 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
  if(!Number.isInteger(W)||!Number.isInteger(H)||W<1||H<1)throw Error('ขนาดรูปเมคอัพไม่ถูกต้อง');
  if(!hairMask||!skinMask)throw Error('ตรวจพื้นที่ผิวและขอบผมไม่สำเร็จ เก็บรูปเดิมไว้');
  const progress=n=>{abortIfNeeded(signal);onProgress?.(n)};
- const referenceRose=lookId==='shared-pink-nude-gloss-v8'||lookId==='shared-peach-nude-gloss-v8';
+ const fullRose=lookId==='shared-pink-nude-gloss-v9'||lookId==='shared-peach-nude-gloss-v9';
+ const referenceRose=fullRose||lookId==='shared-pink-nude-gloss-v8'||lookId==='shared-peach-nude-gloss-v8';
  const softRose=referenceRose||lookId==='shared-pink-nude-gloss-v7'||lookId==='shared-peach-nude-gloss-v7';
  const sweptNude=softRose||lookId==='shared-pink-nude-gloss-v6'||lookId==='shared-peach-nude-gloss-v6';
  const evenNude=sweptNude||lookId==='shared-pink-nude-gloss-v5'||lookId==='shared-peach-nude-gloss-v5';
  const definedNude=evenNude||lookId==='shared-pink-nude-gloss-v4'||lookId==='shared-peach-nude-gloss-v4';
- const nudeRose=lookId==='shared-pink-nude-gloss-v3'||lookId==='shared-pink-nude-gloss-v4'||lookId==='shared-pink-nude-gloss-v5'||lookId==='shared-pink-nude-gloss-v6'||lookId==='shared-pink-nude-gloss-v7'||lookId==='shared-pink-nude-gloss-v8',nudePeach=lookId==='shared-peach-nude-gloss-v3'||lookId==='shared-peach-nude-gloss-v4'||lookId==='shared-peach-nude-gloss-v5'||lookId==='shared-peach-nude-gloss-v6'||lookId==='shared-peach-nude-gloss-v7'||lookId==='shared-peach-nude-gloss-v8',nude=nudeRose||nudePeach;
+ const nudeRose=lookId==='shared-pink-nude-gloss-v3'||lookId==='shared-pink-nude-gloss-v4'||lookId==='shared-pink-nude-gloss-v5'||lookId==='shared-pink-nude-gloss-v6'||lookId==='shared-pink-nude-gloss-v7'||lookId==='shared-pink-nude-gloss-v8'||lookId==='shared-pink-nude-gloss-v9',nudePeach=lookId==='shared-peach-nude-gloss-v3'||lookId==='shared-peach-nude-gloss-v4'||lookId==='shared-peach-nude-gloss-v5'||lookId==='shared-peach-nude-gloss-v6'||lookId==='shared-peach-nude-gloss-v7'||lookId==='shared-peach-nude-gloss-v8'||lookId==='shared-peach-nude-gloss-v9',nude=nudeRose||nudePeach;
  const polished=nude||lookId==='shared-rose-pink-gloss-v2'||lookId==='shared-peach-rose-gloss-v2';
  const portraitRose=nudeRose||lookId==='shared-rose-pink-v1'||lookId==='shared-rose-pink-gloss-v2',portraitPeach=nudePeach||lookId==='shared-peach-rose-v1'||lookId==='shared-peach-rose-gloss-v2';
  const glow=lookId==='local-pink-glow-v1',korean=lookId==='local-korean-pink-eye-v1'||portraitRose||evenNude;
  const g=geometry(face,W,H);progress(12);await pause(signal);
  const out=surface(W,H),ctx=out.getContext('2d',{willReadFrequently:true});ctx.drawImage(original,0,0,W,H);
  const area=ctx.getImageData(g.x,g.y,g.w,g.h),source=new Uint8ClampedArray(area.data),pixels=area.data;
- const masks=buildMasks(g,hairMask,skinMask,W,H,source,{continuousSkin:evenNude,softFinish:softRose,sourceEyes:referenceRose}),effects=eyeEffects(g,masks,{upperOnly:cosmeticsOnly,koreanLashes:polished,definedEyes:evenNude,sweptEyes:sweptNude}),eyeDetail=korean&&(!cosmeticsOnly||definedNude)?koreanEyeDetails(g,masks,{definedEyes:evenNude}):null;
+ const masks=buildMasks(g,hairMask,skinMask,W,H,source,{continuousSkin:evenNude,softFinish:softRose,sourceEyes:referenceRose,browFinish:fullRose}),effects=eyeEffects(g,masks,{upperOnly:cosmeticsOnly,koreanLashes:polished,definedEyes:evenNude,sweptEyes:sweptNude}),eyeDetail=korean&&(!cosmeticsOnly||definedNude)?koreanEyeDetails(g,masks,{definedEyes:evenNude}):null;
  const roseEyes=softRose?await softRoseEyes(g,masks,face,W,H,signal,referenceRose):null;progress(30);await pause(signal);
+ const brows=fullRose?browPowder(g,masks,source):null;
  const luminance=new Float32Array(g.w*g.h);let sum=0,weight=0;
  for(let i=0;i<luminance.length;i++){
   const j=i*4,Y=luma(source[j],source[j+1],source[j+2]);luminance[i]=Y;
   const a=masks.skin[i]*(source[j+3]/255);if(Y>45&&Y<240){sum+=Y*a;weight+=a}
  }
- const softened=cosmeticsOnly?null:await guidedMakeupLuminance(luminance,g.w,g.h,Math.max(2,g.d*.018),signal);
+ const softened=cosmeticsOnly&&!fullRose?null:await guidedMakeupLuminance(luminance,g.w,g.h,Math.max(2,g.d*.018),signal);
  // Only the new glow preset reads local colour means for small red blemishes.
  let localColor=null;
  if(glow&&!cosmeticsOnly){localColor=[];for(let c=0;c<3;c++){const channel=new Float32Array(luminance.length);for(let i=0;i<channel.length;i++)channel[i]=source[i*4+c];localColor.push(await boxMean(channel,g.w,g.h,Math.max(2,Math.min(12,Math.round(g.d*.025))),signal))}}
@@ -270,10 +306,13 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
    if(referenceRose&&masks.eyes[i]>0)continue;
    const Y=luminance[i],skin=masks.skin[i],tone=masks.tone[i];
    if(polished&&cosmeticsOnly&&tone>.0001){
-    // RGB-only translucent brightness; protect highlights and retain every
-    // native texture sample, feature boundary and the original complexion.
-    const bright=(softRose?clamp(4.5+(205-mean)*.025,3,7):evenNude?clamp(5+(205-mean)*.03,3,8):definedNude?clamp(9+(205-mean)*.06,7,13):clamp(6+(205-mean)*.06,4,10))*clamp((246-Y)/85)*tone*(nude&&!definedNude?.85:1);
-    for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+bright+(lighting?lighting[i]*tone:0);
+    // Bound the skin lift to protect highlights and the original complexion.
+    // The defined finish also evens only fine, low-contrast texture; strong
+    // details and all protected feature boundaries reject that polish.
+    const bright=(fullRose?clamp(9+(195-mean)*.035,7,12):softRose?clamp(4.5+(205-mean)*.025,3,7):evenNude?clamp(5+(205-mean)*.03,3,8):definedNude?clamp(9+(205-mean)*.06,7,13):clamp(6+(205-mean)*.06,4,10))*clamp((246-Y)/85)*tone*(nude&&!definedNude?.85:1);
+    const detail=fullRose?softened[i]-Y:0,polish=fullRose?clamp(detail,-6,6)*.5*(1-smooth(5,16,Math.abs(detail)))*tone:0;
+    const satin=fullRose?field(g.x+x,g.y+y,glowCenters,.14,.10)*tone*clamp((244-Y)/90)*4:0;
+    for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+bright+(lighting?lighting[i]*tone:0)+polish+satin;
    }
    if(!cosmeticsOnly&&(skin>.0001||tone>.0001)){
     const detail=softened[i]-Y,edge=1-smooth(7,19,Math.abs(detail));
@@ -294,7 +333,7 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
     for(let c=0;c<3;c++)pixels[j+c]+=cheek*((tint[c]-target)-(pixels[j+c]-current));
    }
    if(cosmeticsOnly&&(portraitRose||portraitPeach)&&skin>.0001){
-    const cheek=field(g.x+x,g.y+y,cheekCenters,nude?.28:.22,nude?.17:.13)*skin*(referenceRose?.19:softRose?.13:definedNude?.22:nude?.085:.12),tint=referenceRose?(nudePeach?[228,151,139]:[225,143,145]):softRose?(nudePeach?[226,151,146]:[224,143,161]):definedNude?(nudePeach?[226,145,142]:[224,132,154]):nude?[215,156,153]:[224,137,164],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);
+    const cheek=field(g.x+x,g.y+y,cheekCenters,nude?.28:.22,nude?.17:.13)*skin*(fullRose?.30:referenceRose?.19:softRose?.13:definedNude?.22:nude?.085:.12),tint=fullRose?(nudePeach?[230,145,129]:[229,136,143]):referenceRose?(nudePeach?[228,151,139]:[225,143,145]):softRose?(nudePeach?[226,151,146]:[224,143,161]):definedNude?(nudePeach?[226,145,142]:[224,132,154]):nude?[215,156,153]:[224,137,164],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);
     for(let c=0;c<3;c++)pixels[j+c]+=cheek*((tint[c]-target)-(pixels[j+c]-current));
    }
    const lip=masks.lips[i];
@@ -302,19 +341,20 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
     // Shift chroma gently toward rose while keeping each original texture sample.
     // Soft centre-to-edge nude tint retains the native lip outline and texture.
     const lipPosition=((g.x+x-(left.x+right.x)*.5)*lx+(g.y+y-(left.y+right.y)*.5)*ly)/Math.max(1,lipWidth*.45);
-    const nudeStrength=referenceRose?.30+.17*Math.exp(-2*Math.pow(lipPosition,2)):softRose?.24+.16*Math.exp(-2*Math.pow(lipPosition,2)):definedNude?.34+.22*Math.exp(-2*Math.pow(lipPosition,2)):.20+.16*Math.exp(-2*Math.pow(lipPosition,2));
-    const tint=referenceRose?(nudeRose?[220,126,136]:[225,140,134]):definedNude?(nudeRose?[215,119,143]:[222,139,136]):nudeRose?[207,139,143]:nudePeach?[214,151,142]:portraitRose?[220,119,153]:portraitPeach?[227,143,140]:korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(nude?nudeStrength:portraitRose||portraitPeach?.42:korean?.30:glow?.30:.22)*lip;
-    for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+strength*((tint[c]-targetY)-(source[j+c]-Y));
+    const nudeStrength=fullRose?.56+.14*Math.exp(-2*Math.pow(lipPosition,2)):referenceRose?.30+.17*Math.exp(-2*Math.pow(lipPosition,2)):softRose?.24+.16*Math.exp(-2*Math.pow(lipPosition,2)):definedNude?.34+.22*Math.exp(-2*Math.pow(lipPosition,2)):.20+.16*Math.exp(-2*Math.pow(lipPosition,2));
+    const tint=fullRose?(nudeRose?[209,93,113]:[220,115,111]):referenceRose?(nudeRose?[220,126,136]:[225,140,134]):definedNude?(nudeRose?[215,119,143]:[222,139,136]):nudeRose?[207,139,143]:nudePeach?[214,151,142]:portraitRose?[220,119,153]:portraitPeach?[227,143,140]:korean?[227,143,140]:glow?[220,119,153]:[209,118,139],targetY=luma(...tint),strength=(nude?nudeStrength:portraitRose||portraitPeach?.42:korean?.30:glow?.30:.22)*lip;
+    const pigmentLight=fullRose?clamp(targetY-Y,-16,12)*.55:0;
+    for(let c=0;c<3;c++)pixels[j+c]=source[j+c]+strength*((tint[c]-targetY)-(source[j+c]-Y)+pigmentLight);
     const dx=g.x+x-gloss.x,dy=g.y+y-gloss.y,u=(dx*lx+dy*ly)/Math.max(1,lipWidth*.28),v=(-dx*ly+dy*lx)/Math.max(.8,g.d*(definedNude?.011:.008));
-    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(referenceRose?.28:softRose?.32:definedNude?.42:nude?.25:polished?.30:glow?.17:.11);
+    const satin=Math.exp(-2.8*(u*u+v*v))*lip*(fullRose?.33:referenceRose?.28:softRose?.32:definedNude?.42:nude?.25:polished?.30:glow?.17:.11);
     for(let c=0;c<3;c++)pixels[j+c]+=Math.min(definedNude?26:nude?18:polished?22:10,(255-pixels[j+c])*satin);
    }
-   if(referenceRose&&roseEyes.base[i]>.0001){const a=roseEyes.base[i]*.14,tint=[228,173,153],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=a*((tint[c]-target)-(pixels[j+c]-current))}
-   const blush=roseEyes?roseEyes.pigment[i]*(referenceRose?.43:.38):effects.blushMask[i]*(evenNude?.70:definedNude?.55:nude?.28:portraitRose||portraitPeach?.43:cosmeticsOnly?.14:korean?.43:.16);
+   if(referenceRose&&roseEyes.base[i]>.0001){const a=roseEyes.base[i]*(fullRose?.18:.14),tint=[228,173,153],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=a*((tint[c]-target)-(pixels[j+c]-current))}
+   const blush=roseEyes?roseEyes.pigment[i]*(fullRose?.53:referenceRose?.43:.38):effects.blushMask[i]*(evenNude?.70:definedNude?.55:nude?.28:portraitRose||portraitPeach?.43:cosmeticsOnly?.14:korean?.43:.16);
    if(blush>.0001){const tint=referenceRose?(nudePeach?[193,132,119]:[191,126,128]):softRose?(nudePeach?[210,148,146]:[205,139,158]):evenNude?[185,110,135]:definedNude?[190,126,145]:nude?[191,150,143]:korean?[226,113,165]:[200,135,153],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=blush*((tint[c]-target)-(pixels[j+c]-current)-(referenceRose?5*clamp(Y/100,.35,1):0))}
-   if(roseEyes?.pearl[i]>.0001){const pearl=roseEyes.pearl[i],light=pearl*(referenceRose?13.5:11.5)*clamp((250-Y)/75),tint=referenceRose?[247,230,210]:[245,229,232],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=light+pearl*(referenceRose?.13:.10)*((tint[c]-target)-(pixels[j+c]-current))}
+   if(roseEyes?.pearl[i]>.0001){const pearl=roseEyes.pearl[i],light=pearl*(fullRose?16.5:referenceRose?13.5:11.5)*clamp((250-Y)/75),tint=referenceRose?[247,230,210]:[245,229,232],target=luma(...tint),current=luma(pixels[j],pixels[j+1],pixels[j+2]);for(let c=0;c<3;c++)pixels[j+c]+=light+pearl*(referenceRose?.13:.10)*((tint[c]-target)-(pixels[j+c]-current))}
    if(korean&&(!cosmeticsOnly||definedNude)){
-    for(const [mask,color]of [[eyeDetail.liner,referenceRose?[57,37,31]:evenNude?[48,29,28]:[34,26,28]]]){const a=mask[i]*(softRose?.72:1);if(a>.0001)for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-a)+color[c]*a}
+    for(const [mask,color]of [[eyeDetail.liner,referenceRose?[57,37,31]:evenNude?[48,29,28]:[34,26,28]]]){const a=mask[i]*(fullRose?.82:softRose?.72:1);if(a>.0001)for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-a)+color[c]*a}
     const bright=eyeDetail.under[i];for(let c=0;c<3;c++)pixels[j+c]+=Math.min(7,(249-pixels[j+c])*.09)*bright;
     if(!cosmeticsOnly&&tone>.0001){const px=g.x+x,py=g.y+y,bridge=g.point(168),tip=g.point(4),dx=px-bridge.x,dy=py-bridge.y,u=(dx*g.ux+dy*g.uy)/g.d,v=(dx*g.vx+dy*g.vy)/g.d;
      const noseY=((tip.x-bridge.x)*g.vx+(tip.y-bridge.y)*g.vy)/g.d;
@@ -322,7 +362,11 @@ export async function renderLocalMakeup({original,face,hairMask=null,skinMask=nu
      const delta=(highlight*3.2-shade*2.4)*tone;for(let c=0;c<3;c++)pixels[j+c]+=delta;
     }
    }
-   const lash=effects.lashMask[i]*(softRose?.68:nude&&!definedNude?.82:1);if(lash>.0001){const brown=softRose?[65,45,40]:nude&&!definedNude?[65,45,40]:[49,34,31];for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-lash)+brown[c]*lash}
+   const lash=effects.lashMask[i]*(fullRose?.88:softRose?.68:nude&&!definedNude?.82:1);if(lash>.0001){const brown=softRose?[65,45,40]:nude&&!definedNude?[65,45,40]:[49,34,31];for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-lash)+brown[c]*lash}
+   if(fullRose&&brows[i]>.0001){
+    const tint=[91,68,58],target=luma(...tint),shade=Math.min(Y,clamp(mean*.42,25,target)),a=brows[i]*.54;
+    for(let c=0;c<3;c++)pixels[j+c]=pixels[j+c]*(1-a)+(tint[c]-target+shade)*a;
+   }
   }
   if(y&&y%32===0){progress(68+Math.round(y/g.h*25));await pause(signal)}
  }

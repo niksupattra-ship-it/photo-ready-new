@@ -11,13 +11,14 @@ const looks={
 const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเลิกการแต่งเมคอัพแล้ว'),{name:'AbortError'})};
 
 // A deterministic final colour pass on the completed native AI image. This
-// stage keeps native geometry/alpha; current Makeup adds a restrained skin lift.
+// stage keeps native geometry/alpha; current Makeup adds brow powder, rose
+// pigment and softly polished satin skin while shielding the original eyes.
 // The shared-base completion and Studio finish switch use this same colour pass.
 export async function finishStudioPostCosmetics(blob,{style='natural',prepare,toBlob,signal,onProgress}={}){
  abort(signal);
  if(style==='natural')return blob;
  const original=blob?.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION||blob?.idpromStudioSkinVersion==='studio-original-ai-v5';
- const lookId=original&&looks[style]?(style==='soft-rosy-v1'?'shared-peach-nude-gloss-v8':'shared-pink-nude-gloss-v8'):looks[style];
+ const lookId=original&&looks[style]?(style==='soft-rosy-v1'?'shared-peach-nude-gloss-v9':'shared-pink-nude-gloss-v9'):looks[style];
  if(!lookId)throw Error('ไม่พบรูปแบบเมคอัพที่เลือก');
  if(blob?.idpromStudioSkinVersion!==STUDIO_SKIN_WORKFLOW_VERSION&&!(original&&sharedOriginalPortraitSource(blob)))throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  const version=blob.idpromStudioSkinVersion+':'+style;
