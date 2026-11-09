@@ -36,5 +36,14 @@ with sync_playwright() as pw:
  return {nativeTorsoRetained:true,aspectPreserved:true,noGarmentCleanup:true};
  }""")
  print(json.dumps(checks))
+ p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
+ government=p.locator('.studio-catalog-grid button').filter(has=p.locator('img[src*="female-operational"]'))
+ assert government.count()==1
+ assert p.locator('.studio-catalog-grid img[src*="female-academic"]').count()==0
+ government.scroll_into_view_if_needed();government.click()
+ p.wait_for_function('bodyCalls.filter(c=>c.committed).length===2',timeout=20000)
+ assert p.evaluate('bodyCalls.filter(c=>c.template).at(-1).template')=='/assets/government-uniforms/female-operational.png'
+ assert p.evaluate('bodySnapshot.current().layers.filter(l=>l.kind==="suit"&&l.visible!==false).length')==0
+ print('PASS single female civil-service option selects the same English AI body flow')
  assert not errors,errors
  print(json.dumps(result));b.close()

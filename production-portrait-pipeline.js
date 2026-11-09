@@ -1,4 +1,4 @@
-import {isEnglishBodyPortrait,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
+import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {requireNewStraightNeck,isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,BALANCED_NECK_POLICY,loadNeckBackingGuide,neckBackingGuideInstruction,loadVisibleNeckGuide,visibleNeckGuideInstruction} from './portrait-anatomy.js';
@@ -79,7 +79,7 @@ export function validateProductionPortrait(input,fields={}){
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
  if(['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
  if(fields.portraitComposition){
-  if(fields.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||!isEnglishBodyPortrait(fields)||!/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.png$/.test(fields.neckOutfitReferencePath||''))throw Error('Invalid English outfit portrait option');
+  if(fields.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||!isEnglishBodyPortrait(fields)||!isEnglishBodyOutfitPath(fields.neckOutfitReferencePath))throw Error('Invalid English outfit portrait option');
  }
  if(fields.neckOutfitReferencePath)checkedOutfitReferencePath(fields.neckOutfitReferencePath);
  parsePortraitIdentityBox(fields.faceIdentityBox);

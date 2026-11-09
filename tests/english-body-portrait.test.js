@@ -37,3 +37,21 @@ test('English makeup keeps the complete outfit and natural alpha in the paired r
  assert.equal(calls.length,3);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
  const a=await sharp(natural).extractChannel(3).raw().toBuffer(),b=await sharp(makeup).extractChannel(3).raw().toBuffer();assert.deepEqual(a,b);
 });
+test('English exposes and accepts exactly one female civil-service trial outfit',async()=>{
+ const {outfitsForLanguage}=await import('../src/english-preview.js');
+ const {ENGLISH_GOVERNMENT_TRIAL_TEMPLATE}=await import('../english-body-portrait.js');
+ const choices=[{id:'female-operational',template:ENGLISH_GOVERNMENT_TRIAL_TEMPLATE},{id:'female-academic',template:'/assets/government-uniforms/female-academic.png'}];
+ const catalog=[{id:'job',items:[]},{id:'government-female',items:choices},{id:'government-male',items:choices}];
+ const en=outfitsForLanguage(catalog,{search:'?lang=en'});
+ assert.deepEqual(en.map(g=>g.id),['job','government-female']);assert.deepEqual(en[1].items,[choices[0]]);assert.equal(catalog[1].items.length,2);
+ assert.equal(outfitsForLanguage(catalog,{search:''}),catalog);
+ const request={...fields,portraitMode:'female',neckOutfitReferencePath:ENGLISH_GOVERNMENT_TRIAL_TEMPLATE};
+ assert.doesNotThrow(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},request));
+ const png=await sharp({create:{width:32,height:48,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:24,height:40,channels:4,background:'#af9363'}}).png().toBuffer(),left:4,top:8}]).png().toBuffer();
+ let sent;
+ await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:request,root,key:'fixture-not-sent',requestPortrait:async p=>{sent=p;return {png}},removeBackground:async()=>png});
+ const expected=await sharp(await readFile(root+'public'+ENGLISH_GOVERNMENT_TRIAL_TEMPLATE)).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ assert.deepEqual(sent.outfit,expected);assert.match(sent.prompt,/Generate this garment ON the person/);
+
+ assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{...request,neckOutfitReferencePath:choices[1].template}),/English outfit/);
+});

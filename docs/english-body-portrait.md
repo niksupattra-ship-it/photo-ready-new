@@ -1,8 +1,11 @@
 # English clothed portrait generation
 
 The `?lang=en` client submits `interfaceLanguage=en` and
-`portraitComposition=en-outfit-body-v1`, with the selected job outfit in
+`portraitComposition=en-outfit-body-v1`, with the selected outfit in
 `neckOutfitReferencePath`. Both fields are required to select this mode.
+English choices include job outfits and one trial civil-service outfit:
+`/assets/government-uniforms/female-operational.png`. Other government outfits
+remain hidden and are rejected by the English generation validator.
 Thai requests keep their existing head/neck generation and outfit composition.
 
 The generation request uses a dedicated prompt and the real selected outfit,
