@@ -23,7 +23,7 @@ await check('long rear panels fail even when segmentation misses dark hair on tr
  for(const semantic of [false,true]){const r=inspectGatheredPortraitHair(evidence({tail:true,semantic}));assert(r.measurable);assert(r.retained);assert(r.left>0&&r.right>0)}
  assert.equal(inspectGatheredPortraitHair({}).measurable,false);
 });
-await check('the upper neck stays intact through a smooth flare, with native RGB and deep backing preserved',()=>{
+await check('the upper neck stays intact through a straight shaft, with native RGB and deep backing preserved',()=>{
  const W=240,H=360,d=64,chin={x:120/W,y:145/H},face=[];face[33]={x:88/W,y:80/H};face[263]={x:152/W,y:80/H};face[152]=chin;face[234]={x:70/W,y:100/H};face[454]={x:170/W,y:100/H};
  const pixels=new Uint8ClampedArray(W*H*4),hair=new Uint8ClampedArray(pixels.length);for(let i=0;i<pixels.length;i+=4)pixels.set([180,140,120,255],i);
  const original=pixels.slice();boundPortraitNeckAlpha(pixels,hair,W,H,face);
@@ -39,7 +39,7 @@ await check('all finishes receive the exact selected gathered design, while long
   const prompt=productionPortraitPrompt(gathered,style,fields);assert(prompt.includes(selectedHairInstruction(gathered)));assert(prompt.includes('COMPLETE COMPACT SILHOUETTE'));assert(!prompt.includes('Long hair stays behind'));
   const longPrompt=productionPortraitPrompt(long,style,fields);assert(longPrompt.includes(selectedHairInstruction(long)));assert(!longPrompt.includes('COMPLETE COMPACT SILHOUETTE'));
  }
- assert(HAIR_DESIGN_VERSION.includes('v12'));
+ assert(HAIR_DESIGN_VERSION.includes('straight-neck-alpha'));
 });
 
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
