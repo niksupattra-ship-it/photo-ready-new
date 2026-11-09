@@ -1,55 +1,55 @@
-# English clothed portrait generation
+# English portraits with original outfit pixels
 
-The `?lang=en` client submits `interfaceLanguage=en` and
-`portraitComposition=en-outfit-body-v1`, with the selected outfit in
-`neckOutfitReferencePath`. Both fields are required to select this mode.
-English choices include job outfits and one trial civil-service outfit:
-`/assets/government-uniforms/female-operational.png`, plus one female student
-outfit: `/assets/student-uniforms/female-rajabhat.png`. Other government/student outfits
-remain hidden and are rejected by the English generation validator.
-Thai requests keep their existing head/neck generation and outfit composition.
+Only `?lang=en` submits `interfaceLanguage=en` and
+`portraitComposition=en-outfit-body-v1`. Thai requests keep their existing
+head/neck generation and composition. The English catalog allows job outfits,
+one female civil-service trial (`female-operational.png`) and one Rajabhat
+female student trial (`female-rajabhat.png`). Other government/student paths
+are rejected by the English request validator.
 
-The generation request uses a dedicated prompt and the real selected outfit,
-optional selected hair, original-person identity and skin references. It does
-not send the head-only neck diagrams or garment-exclusion instructions. The AI
-creates one chest-up clothed person. Background removal still runs, but the
-head-only blue-field cleanup is skipped so blue clothing remains intact.
-Natural and makeup variants retain the same matte and clothed silhouette.
+AI receives the selected outfit, optional hairstyle, original identity and skin
+references. It creates only the head and neck, fitted and lit for the real
+outfit. It must not redraw fabric, buttons, insignia, text or the torso.
+Background removal and paired AI makeup run as before. The makeup request also
+receives the selected outfit as a lighting reference; it omits the independent
++0.4–0.6 EV flash instruction.
 
-The browser preserves the AI's head/body proportions and complete garment:
-no face aspect restoration, clothing deletion or head-only completion check.
-The editor stores one transparent person layer with its composition version and
-outfit template. The separate suit layer is hidden selection metadata. Changing
-the outfit queues the existing processing/credit flow with the new selection;
-it requires AI processing rather than a local instant clothing overlay. Hair
-changes also regenerate the clothed portrait. Makeup switches reuse the paired
-results. Job status and saved layer metadata retain the composition version.
+Before delivery to the editor, the browser removes any generated clothing,
+measures the face and original garment collar/shoulders, and fits the head using
+one uniform scale and translation. It draws the ORIGINAL full-resolution
+outfit last, with no filters, recolouring, relighting, sharpening or local
+warps. The makeup version uses exactly the same placement and original outfit.
+Opaque clothing pixels therefore come from a normal raster rendering of the
+real template, rather than AI reconstruction. Placement/export may resample
+pixels; this is not a promise of matching the original file byte for byte.
 
-Validation uses inert AI responses, real outfit reference files, alpha fixtures
-(including blue clothing), actual App orchestration and Chromium editor flows.
-The browser test also runs the actual App placement/layer functions to verify
-that torso pixels survive without aspect distortion or a visible suit overlay.
-No paid provider calls were made; real AI output quality and production rollout
-still require verification.
+The result remains one transparent person layer. The separate suit layer is
+hidden selection metadata; changing the outfit queues the existing processing
+and credit flow. Makeup switches reuse the prepared pair. Saved layer metadata
+and job status retain the composition version. A new English rendering cache
+version prevents reuse of earlier AI-generated clothing; Thai cache keys stay
+unchanged.
 
-Commands:
+Validation:
 
 - `node --test tests/english-body-portrait.test.js tests/ai-makeup-pair.test.js tests/portrait-collar-reference.test.js`
 - `node scripts/check-shared-natural-portrait.mjs`
+- `node scripts/check-portrait-uniform-fit.mjs`
 - `node scripts/check-gathered-hair-neck.mjs`
 - `node scripts/check-portrait-anatomy.mjs`
+- `SELECTION_BASE=http://127.0.0.1:5193 python3 tests/english-original-outfit.browser.py`
 - `SELECTION_BASE=http://127.0.0.1:5193 python3 tests/english-body-response.browser.py`
 - `SELECTION_BASE=http://127.0.0.1:5193 python3 tests/head-only-suit-fit.browser.py`
 - `./node_modules/.bin/vite build`
 
-The older `check-female-finish-integration.mjs` has seven pre-existing failures,
-including missing injected test dependencies and obsolete finish expectations.
-The same seven cases fail against the pre-change `main.jsx` from `e1409c2`.
-The current shared-portrait orchestration suite above covers paired AI finishes.
+The original-outfit browser check executes the actual App restoration function,
+using synthetic head/landmarks with real suit, civil-service and Rajabhat PNGs.
+It verifies 4,743,076 opaque original garment pixels per finish (natural and
+makeup), preserved aspect ratio, transparent background and job metadata.
+Provider payload tests use inert responses, not paid AI calls. Real AI face/neck
+quality and production deployment remain separate checks.
 
-Lighting priority: the selected outfit fixes light direction, exposure, white
-balance, contrast, fabric colour and sharpness. Adapt face/ear/neck lighting to
-it. English makeup omits the independent +0.4–0.6 EV flash instruction and uses
-the same garment lighting priority. A separate client render-cache version
-invalidates earlier English lighting results without changing Thai requests.
-These are generation instructions, not a claim of pixel-identical AI clothing.
+The older `check-female-finish-integration.mjs` has seven pre-existing failures,
+including missing injected dependencies and obsolete finish expectations. The
+same seven cases fail against pre-change `main.jsx` from `e1409c2`. The current
+shared-portrait suite above covers paired AI finishes.

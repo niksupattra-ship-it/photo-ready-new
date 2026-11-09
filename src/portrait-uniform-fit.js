@@ -27,7 +27,7 @@ export function placeUniformForPortrait({W,H,uniform,collarX=W/2,collarY=H*.55,f
  if(uniform.bounds.w*scale>W*1.65)throw Error('ภาพชุดสั้นเกินไปสำหรับระยะนี้ กรุณาเลือกไฟล์ชุดเต็มช่วงตัว');
  return {x:collarX-uniform.centerX*scale,y:collarY-uniform.collarTopY*scale,w:uniform.width*scale,h:uniform.height*scale};
 }
-export function planPortraitUniformFit({W,H,uniform,face,opaqueTop=0,adjust={},frame=null}){
+export function planPortraitUniformFit({W,H,uniform,face,opaqueTop=0,adjust={},frame=null,faceShoulderRatio=.32}){
  const {width,height,cx,chinY,faceWidth,faceHeight,eyeWidth}=face;
  if(![W,H,width,height,faceWidth,faceHeight,eyeWidth].every(v=>Number.isFinite(v)&&v>0)||![cx,chinY,opaqueTop].every(Number.isFinite))throw Error('วัดจุดอ้างอิงหัวและชุดไม่สำเร็จ');
  // The garment is the fixed reference. Only the head receives a uniform scale and translation.
@@ -38,7 +38,7 @@ export function planPortraitUniformFit({W,H,uniform,face,opaqueTop=0,adjust={},f
  const collarCX=uniformFrame.x+uniform.centerX*garmentScale;
  const collarTopY=uniformFrame.y+(uniform.necklineY??uniform.collarTopY)*uniformFrame.h/uniform.height;
  const collarSocketY=uniformFrame.y+uniform.socketY*uniformFrame.h/uniform.height;
- let scale=shoulderSpan*.32/faceWidth*(adjust.scale||1);
+ let scale=shoulderSpan*faceShoulderRatio/faceWidth*(adjust.scale||1);
  const available=collarTopY-H*.045;
  const crownToCollar=chinY-opaqueTop+faceHeight*.16;
  if(crownToCollar>0&&available>0)scale=Math.min(scale,available/crownToCollar);

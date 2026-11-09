@@ -266,19 +266,19 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('matting');
  const matted=await removeBackground(result.png);
  await onStage('edges');
- // The body includes real clothing colours; head-only blue-field cleanup
- // could erase a blue shirt connected to the image border. Trust the matte.
- const {png:transparent,alpha}=englishBody?await preserveClothedPortraitMatte(matted):await cleanTrialCutoutEdges(matted);
+ // Keep the English model matte unchanged. Original garment pixels are
+ // composed in the browser; never flood-delete colours from that composition.
+ const {png:transparent,alpha}=englishBody?await preserveEnglishPortraitMatte(matted):await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
  if(isAiMakeupPairVersion(fields.femaleFinishPair)&&selected.gender==='female'){
   await onStage('makeup');
-  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody});
+  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody,outfitReference:englishBody?outfit:null});
   if(typeof onMakeupVariant!=='function')throw Error('ระบบเก็บภาพแต่งหน้ายังไม่พร้อม');
   await onMakeupVariant(makeup);
  }
  return transparent;
 }
-async function preserveClothedPortraitMatte(input){
+async function preserveEnglishPortraitMatte(input){
  const png=await sharp(input).ensureAlpha().png().toBuffer();
  const stats=await sharp(png).extractChannel(3).stats();
  return {png,alpha:{min:stats.channels[0].min,max:stats.channels[0].max}};

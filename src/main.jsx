@@ -1,3 +1,4 @@
+import {ENGLISH_ORIGINAL_OUTFIT_VERSION,planOriginalOutfit,paintOriginalOutfit} from './english-original-outfit.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION} from '../english-body-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {useAiMakeupPixels} from './ai-makeup-pair.js';
@@ -1023,7 +1024,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    canvas.width=canvas.height=1;
    return canvasPng(output);
   }
-  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,generatedOutfitTemplate:lock.templatePath,source:canvas.toDataURL('image/png'),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
+  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,originalOutfitVersion:headMasterBlob.idpromOriginalOutfitVersion,generatedOutfitTemplate:lock.templatePath,source:canvas.toDataURL('image/png'),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
   canvas.width=canvas.height=1;
   return studioLayers;
  }
@@ -1430,6 +1431,31 @@ async function cleanPortraitClothing(blob){
  // Completion uses the same conservative hair protection as alpha cleanup.
  v192MasterMaskCache.set(cleaned,Promise.resolve(completionMasks));
  return cleaned;
+}
+
+// The English result is delivered as one transparent person layer, but its
+// clothing always comes from the immutable native template, never AI pixels.
+async function restoreEnglishOriginalOutfit(blob,template){
+ const clean=await cleanPortraitClothing(blob);
+ const [head,uniform]=await Promise.all([decodedPortraitImage(clean),loadImage(template)]);
+ const width=uniform.naturalWidth||uniform.width,height=uniform.naturalHeight||uniform.height;
+ const garment=canvasFor(width,height),gx=garment.getContext('2d',{willReadFrequently:true});gx.drawImage(uniform,0,0);
+ const face=await portraitFaceLandmarks(clean,head),w=head.naturalWidth||head.width,h=head.naturalHeight||head.height;
+ if([10,33,152,234,263,454].some(id=>!face?.[id]))throw Error('Cannot align the portrait with the original outfit.');
+ const distance=(a,b)=>Math.hypot((face[a].x-face[b].x)*w,(face[a].y-face[b].y)*h);
+ const bounds=await alphaBounds(head);
+ const plan=planOriginalOutfit({pixels:gx.getImageData(0,0,width,height).data,width,height,opaqueTop:bounds.t,face:{width:w,height:h,cx:(face[234].x+face[454].x)/2*w,chinY:face[152].y*h,faceWidth:distance(234,454),faceHeight:distance(10,152),eyeWidth:distance(33,263)}});
+ const natural=paintOriginalOutfit({head,uniform,plan,canvasFor});
+ const result=copyStudioSkinBlobMetadata(clean,await canvasPng(natural));
+ result.idpromOriginalOutfitVersion=ENGLISH_ORIGINAL_OUTFIT_VERSION;
+ if(clean.idpromAiMakeupBlob){
+  const makeup=await decodedPortraitImage(clean.idpromAiMakeupBlob),cutout=canvasFor(w,h),ctx=cutout.getContext('2d');
+  ctx.drawImage(makeup,0,0,w,h);ctx.globalCompositeOperation='destination-in';ctx.drawImage(head,0,0,w,h);
+  const paired=paintOriginalOutfit({head:cutout,uniform,plan,canvasFor});
+  result.idpromAiMakeupBlob=await canvasPng(paired);paired.width=paired.height=1;cutout.width=cutout.height=1;
+ }
+ natural.width=natural.height=1;garment.width=garment.height=1;
+ return result;
 }
 
 // Only the female AI makeup result receives this bounded colour correction.
@@ -2641,7 +2667,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   if(bodyPortrait)result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;
   const shaped=!bodyPortrait&&gender==='female'?await restoreFemalePortraitAspect(originalFile,result):result;
   assertCurrentOperation();
-  const cleaned=bodyPortrait?shaped:await cleanPortraitClothing(shaped);
+  const cleaned=bodyPortrait?await restoreEnglishOriginalOutfit(shaped,template):await cleanPortraitClothing(shaped);
   assertCurrentOperation();
   let finished=cleaned;
   if(gender==='female'&&finished.idpromAiMakeupBlob){
