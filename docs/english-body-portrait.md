@@ -46,3 +46,10 @@ The older `check-female-finish-integration.mjs` has seven pre-existing failures,
 including missing injected test dependencies and obsolete finish expectations.
 The same seven cases fail against the pre-change `main.jsx` from `e1409c2`.
 The current shared-portrait orchestration suite above covers paired AI finishes.
+
+Lighting priority: the selected outfit fixes light direction, exposure, white
+balance, contrast, fabric colour and sharpness. Adapt face/ear/neck lighting to
+it. English makeup omits the independent +0.4–0.6 EV flash instruction and uses
+the same garment lighting priority. A separate client render-cache version
+invalidates earlier English lighting results without changing Thai requests.
+These are generation instructions, not a claim of pixel-identical AI clothing.

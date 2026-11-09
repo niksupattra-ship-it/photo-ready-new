@@ -24,6 +24,8 @@ test('English male and female generations use the selected outfit to generate a 
   assert.deepEqual(generated.outfit,outfit);assert(!generated.neckReference);assert(!generated.neckShapeReference);
   assert.match(generated.prompt,/head, new upright neck, level shoulders and clothed upper torso together/);
   assert.match(generated.prompt,/Generate this garment ON the person/);
+  assert.match(generated.prompt,/Adapt ONLY the face, ears and visible neck to the garment/);
+  assert.match(generated.prompt,/Do not recolour, brighten, darken, relight, smooth, blur, sharpen/);
   assert.doesNotMatch(generated.prompt,/Do not generate this garment|NECKLINE-CONTOUR CUTOUT|REBUILD THE VISIBLE NECK NOW/);
   const {data,info}=await sharp(result).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   assert.equal(data[((info.height-2)*info.width+32)*4+3],255,'clothed lower torso survives');assert.equal(data[3],0,'background remains transparent');
@@ -34,7 +36,7 @@ test('English makeup keeps the complete outfit and natural alpha in the paired r
  const natural=await sharp({create:{width:64,height:96,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:52,height:85,channels:4,background:'#3c8cff'}}).png().toBuffer(),left:6,top:11}]).png().toBuffer();
  const calls=[];let makeup;
  await processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{...fields,portraitMode:'female',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root,key:'fixture-not-sent',requestPortrait:async p=>{calls.push(p);return {png:natural}},removeBackground:async()=>natural,onMakeupVariant:async png=>{makeup=png}});
- assert.equal(calls.length,3);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
+ assert.equal(calls.length,3);assert.doesNotMatch(calls.at(-1).prompt,/\+0.4 to \+0.6 EV|HEALTHY SKIN AND FACE FLASH/);assert.match(calls.at(-1).prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
  const a=await sharp(natural).extractChannel(3).raw().toBuffer(),b=await sharp(makeup).extractChannel(3).raw().toBuffer();assert.deepEqual(a,b);
 });
 test('English exposes and accepts exactly one female civil-service trial outfit',async()=>{

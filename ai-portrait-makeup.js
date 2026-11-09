@@ -1,3 +1,4 @@
+import {ENGLISH_OUTFIT_LIGHTING_POLICY} from './english-body-portrait.js';
 import sharp from 'sharp';
 export {AI_MAKEUP_PAIR_VERSION} from './ai-makeup-pair-policy.js';
 export const AI_MAKEUP_PROMPT=`Apply professional peach-rose portrait makeup to Image 1, the finished natural portrait. Return one continuous photograph with naturally groomed brows with sparse gaps filled by fine individual hairs, subtle neutral peach eyeshadow, fine eyeliner along the existing eyelid margin, softly lifted blush swept along the cheekbones toward the temples and clearly defined rose-pink lips.
@@ -10,7 +11,7 @@ Keep the same person, facial anatomy, expression, eye openings, nose, mouth cont
 export async function createAiMakeupVariant(natural,{key,requestPortrait,preserveOutfit=false}){
  const {width,height}=await sharp(natural).metadata();
  const portrait=await sharp(natural).flatten({background:'#5a86b0'}).png().toBuffer();
- const result=await requestPortrait({key,prompt:AI_MAKEUP_PROMPT+(preserveOutfit?'\nPreserve the existing selected outfit, complete clothed torso, collar, buttons, shoulder silhouette and head-to-body proportions exactly. Do not remove, replace or redesign any clothing.':''),portrait,portraitMime:'image/png',size:`${width}x${height}`});
+ const result=await requestPortrait({key,prompt:(preserveOutfit?AI_MAKEUP_PROMPT.replace(/HEALTHY SKIN AND FACE FLASH:[\s\S]*?(?=Keep the same person, facial anatomy)/,'HEALTHY SKIN: Preserve natural hydrated skin texture and authentic complexion. Match face, ear and neck light to the existing clothing.\n').replace('Only cosmetics and the requested soft fill-flash lighting may change.','Only cosmetics and skin lighting matched to the existing garment may change.'):AI_MAKEUP_PROMPT)+(preserveOutfit?'\nPreserve the existing selected outfit, complete clothed torso, collar, buttons, shoulder silhouette and head-to-body proportions exactly. Do not remove, replace or redesign any clothing.\n'+ENGLISH_OUTFIT_LIGHTING_POLICY:''),portrait,portraitMime:'image/png',size:`${width}x${height}`});
  if(!result?.png?.length)throw Error('สร้างภาพแต่งหน้าไม่สำเร็จ กรุณาลองใหม่');
  const meta=await sharp(result.png).metadata();
  if(!meta.width||!meta.height||Math.abs(meta.width/meta.height-width/height)>.02)throw Error('ภาพแต่งหน้ามีสัดส่วนไม่ตรงกับภาพฐาน');
