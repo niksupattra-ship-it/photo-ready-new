@@ -45,7 +45,7 @@ export function studioSkinBlobFromSource(source){
  return new Blob([bytes],{type:'image/'+match[1]});
 }
 export function copyStudioSkinBlobMetadata(source,target,{bare=false}={}){
- for(const key of Object.getOwnPropertyNames(source||{}))if(key.startsWith('idprom')&&(!bare||!['idpromStudioCosmeticsVersion','idpromNaturalStudioSkinVersion'].includes(key)))Object.defineProperty(target,key,Object.getOwnPropertyDescriptor(source,key));
+ for(const key of Object.getOwnPropertyNames(source||{}))if(key.startsWith('idprom')&&(!bare||!['idpromStudioCosmeticsVersion','idpromStudioMakeupVersion','idpromNaturalStudioSkinVersion'].includes(key)))Object.defineProperty(target,key,Object.getOwnPropertyDescriptor(source,key));
  return target;
 }
 

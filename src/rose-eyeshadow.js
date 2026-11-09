@@ -38,3 +38,19 @@ export function sampleRoseEyeshadow(model,x,y){
  const pearl=corners*Math.exp(-2*(((u-.5)/.25)**2+((v-.30)/.30)**2))*smooth(-.04,.10,v);
  return {pigment,pearl};
 }
+
+// Warm peach underpainting, rose-brown depth at the outer lid/socket, and
+// champagne on the mobile lid. The renderer clips these fields to skin and
+// retains a hard shield over the photographed eye and its antialiased border.
+export function samplePeachRoseEyeshadow(model,x,y){
+ const {u,v}=roseEyeCoordinates(model,x,y);
+ if(u<=-.08||u>=1.08||v<=-.04||v>=1.12)return {base:0,pigment:0,pearl:0};
+ const corners=smooth(-.08,.13,u)*(1-smooth(.87,1.08,u));
+ const upward=smooth(-.04,.14,v)*(1-smooth(.46,1.12,v));
+ const center=Math.exp(-2*((u-.5)/.24)**2);
+ const outer=Math.exp(-2*((u-.18)/.30)**2),crease=Math.exp(-2*((v-.57)/.32)**2);
+ const base=corners*upward*(1-.50*center);
+ const pigment=corners*upward*((.76+.22*(1-clamp(u,0,1)))*(1-.84*center)+.25*outer*crease);
+ const pearl=corners*Math.exp(-2*(((u-.5)/.25)**2+((v-.28)/.28)**2))*smooth(-.04,.10,v);
+ return {base,pigment,pearl};
+}

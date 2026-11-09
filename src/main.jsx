@@ -19,7 +19,7 @@ import {NATURAL_STUDIO_SKIN_VERSION,naturalStudioSkinMetadata} from '../natural-
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,needsOriginalAiSkinPolish} from '../original-portrait-ai.js';
-import {SHARED_PORTRAIT_BASE_VERSION} from '../shared-portrait-policy.js';
+import {SHARED_PORTRAIT_BASE_VERSION,portraitMakeupNeedsUpdate} from '../shared-portrait-policy.js';
 import {finishSharedStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,canReuseStudioSkinBase,isStudioSkinGeometry,studioSkinMasterFrame} from './shared-studio-skin.js';
 import {finishFemaleMakeupEyeTone} from './female-makeup-eye-tone.js';
 import {isFemaleFinishProfile} from './female-finish-profile.js';
@@ -4534,7 +4534,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   // Only the recorded current natural finish can carry its marker into a restored
   // processed master. Never attach processed-finish metadata to the original upload.
   if(mode==='female'&&finishStyle==='natural'&&head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION){if(master===source)master=master.slice(0,master.size,master.type);master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;}
-  if(mode==='female'&&(hasCurrentStudioSkin(head,finishStyle)||hasOriginalPortraitAiFinish(head,finishStyle))){if(master===source)master=master.slice(0,master.size,master.type);master.idpromStudioSkinVersion=head.studioSkinVersion;if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(sharedStudioSkinSource(head)){master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;}}
+  if(mode==='female'&&(hasCurrentStudioSkin(head,finishStyle)||hasOriginalPortraitAiFinish(head,finishStyle))){if(master===source)master=master.slice(0,master.size,master.type);master.idpromStudioSkinVersion=head.studioSkinVersion;if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;delete master.idpromStudioMakeupVersion;if(head.studioMakeupVersion)master.idpromStudioMakeupVersion=head.studioMakeupVersion;if(sharedStudioSkinSource(head)){master.idpromStudioSkinBaseSource=head.studioSkinBaseSource;if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;}}
   // Reopened work already has an accepted visible result. Remember that exact
   // current variant so switching back to it does not submit the upload again.
   const entry=rememberHairResult(id,master,mode,finishStyle);entry.confirmed=true;
@@ -4581,7 +4581,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   let completed=false;
   try{
    let nextMaster,generatedResult=null;
-   if(cached){nextMaster=cached.master;if(sharedStudioSkinSource(nextMaster)&&!hasOriginalPortraitAiFinish(nextMaster,finishStyle)){const base=nextMaster;nextMaster=await finishSharedStudioSkin(base,{style:finishStyle,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(activeProcessOperation?.cancelled)}}});portraitGeometryBases.set(nextMaster,portraitGeometryBases.get(base)||base)}}else{
+   if(cached){nextMaster=cached.master;if(sharedStudioSkinSource(nextMaster)&&(!hasOriginalPortraitAiFinish(nextMaster,finishStyle)||portraitMakeupNeedsUpdate(nextMaster))){const base=nextMaster;nextMaster=await finishSharedStudioSkin(base,{style:finishStyle,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(activeProcessOperation?.cancelled)}}});portraitGeometryBases.set(nextMaster,portraitGeometryBases.get(base)||base)}}else{
      // Only the untouched first upload is submitted for the new hairstyle.
      const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,templatePath:['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?(outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate):(editCache.current?.lock?.templatePath||activeUniformTemplate),onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
      generatedResult=aiHeadNeck;
@@ -5040,8 +5040,8 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;
   if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;
   master.idpromFemaleEyeStyle=finish;
-  delete master.idpromStudioCosmeticsVersion;delete master.idpromNaturalStudioSkinVersion;
-  if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;
+  delete master.idpromStudioCosmeticsVersion;delete master.idpromStudioMakeupVersion;delete master.idpromNaturalStudioSkinVersion;
+  if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(head.studioMakeupVersion)master.idpromStudioMakeupVersion=head.studioMakeupVersion;
   if(finish==='natural')master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
   editCache.current={...editCache.current,master,lock};
   liveAdjustRef.current={scale:1,x:0,y:0,rotation:0};setHeadAdjust({...liveAdjustRef.current});
@@ -5069,7 +5069,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    if(!geometry){const image=await decodedPortraitImage(base),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height,face=(await getLandmarker()).detect(image).faceLandmarks?.[0];assertCurrent();if(!face?.[152]||!face?.[234]||!face?.[454])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');geometry={width,height,chinY:face[152].y*height,faceCX:(face[234].x+face[454].x)/2*width,faceWidth:Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height)};if(!isStudioSkinGeometry(geometry))throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง')}
    const master=await finishSharedStudioSkin(base,{style:finish,prepare:head.sharedPortraitBaseVersion===SHARED_PORTRAIT_BASE_VERSION?prepareSharedPortraitMakeup:async blob=>{assertCurrent();const url=URL.createObjectURL(blob);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return !current()}}});
    assertCurrent();
-   const layer={...head,source:finish==='natural'?head.studioSkinBaseSource:await blobDataURL(master),...studioSkinWorkflowMetadata(master),studioSkinGeometry:geometry,femaleEyeStyle:finish,initialFemaleEyeStyle:finish,studioCosmeticsVersion:master.idpromStudioCosmeticsVersion,naturalStudioSkinVersion:finish==='natural'?NATURAL_STUDIO_SKIN_VERSION:undefined};
+   const layer={...head,source:finish==='natural'?head.studioSkinBaseSource:await blobDataURL(master),...studioSkinWorkflowMetadata(master),studioSkinGeometry:geometry,femaleEyeStyle:finish,initialFemaleEyeStyle:finish,studioCosmeticsVersion:master.idpromStudioCosmeticsVersion,studioMakeupVersion:master.idpromStudioMakeupVersion,naturalStudioSkinVersion:finish==='natural'?NATURAL_STUDIO_SKIN_VERSION:undefined};
    assertCurrent();
    return {layer,reused:true,localFinish:true,commit:()=>{if(committed)return;if(rolledBack)throw Error('ยกเลิกการแต่งเมคอัพแล้ว');assertCurrent();if(!syncStudioPortraitFinish(layer,master))throw Error('บัญชีหรือรูปเปลี่ยนแล้ว กรุณาเลือกเมคอัพอีกครั้ง');studioSkinGeometryRef.current={source:head.studioSkinBaseSource,geometry};committed=true;studioPhotoTransactionRef.current=false},rollback};
   }catch(error){rollback();throw error}

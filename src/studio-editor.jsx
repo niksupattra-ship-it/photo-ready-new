@@ -13,6 +13,7 @@ import {StudioBackgroundColor} from './studio-background-color.jsx';
 import {portraitFinishChoice} from './portrait-finish-choice.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
+import {portraitMakeupNeedsUpdate} from '../shared-portrait-policy.js';
 import {canReuseStudioSkinBase,sharedStudioSkinSource} from './shared-studio-skin.js';
 import {createPortal} from 'react-dom';
 import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload} from './photo-size.jsx';
@@ -998,7 +999,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,currentFinish):'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if(head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
+  if(head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;

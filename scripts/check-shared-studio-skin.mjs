@@ -6,7 +6,7 @@ import {packSavedProjectTransfer,unpackSavedProjectTransfer,getSavedWorkRequestS
 import {compactSavedWorkPreview} from '../saved-work-thumbnail.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
-import {SHARED_PORTRAIT_BASE_VERSION} from '../shared-portrait-policy.js';
+import {SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,portraitMakeupNeedsUpdate} from '../shared-portrait-policy.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {hasCurrentStudioSkin,studioSkinWorkflowMetadata} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
@@ -108,7 +108,7 @@ function transactionFixture({sourceBase=base,sourceMakeup=madeUp,geometry=native
  const upload=new File(['immutable upload'],'upload.jpg',{type:'image/jpeg'});upload.idpromFemaleEyeStyle='natural';
  const master=studioSkinBlobFromSource(sourceBase);Object.assign(master,{idpromStudioSkinVersion:skinVersion,...(skinVersion===ORIGINAL_PORTRAIT_AI_VERSION?{idpromSharedPortraitBaseVersion:SHARED_PORTRAIT_BASE_VERSION}:{}),idpromStudioSkinBaseSource:sourceBase,idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'unchanged-accepted-job',idpromTrial:true,idpromFullEdit:false});
  const originalCache={master,lock:parentLock||{templatePath:'unchanged-suit',W:900,H:1200,headW:128,headH:192,hX:100,hY:120,scale:2,chinY:150,faceCX:64,hairFitEyeSize:99,hairFitEyeCentreX:88,hairFitChinAnchorY:77}},remembered=[],events=[],gate=deferred(),started=deferred(),state={token:'account-A',wallet:'wallet-A',valid:true,fail:false};
- const env={HAIR_DESIGN_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,SHARED_PORTRAIT_BASE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasOriginalPortraitAiFinish,canReuseStudioSkinBase,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,isStudioSkinGeometry,studioSkinMasterFrame,studioSkinWorkflowMetadata,hasCurrentStudioSkin,portraitFinishChoice,Blob,URL,
+ const env={portraitMakeupNeedsUpdate,HAIR_DESIGN_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,SHARED_PORTRAIT_BASE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasOriginalPortraitAiFinish,canReuseStudioSkinBase,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,isStudioSkinGeometry,studioSkinMasterFrame,studioSkinWorkflowMetadata,hasCurrentStudioSkin,portraitFinishChoice,Blob,URL,
   studioSkinGeometryRef:{current:null},liveAdjustRef:{current:{scale:1.2,x:.1,y:.2,rotation:4}},liveNeckAdjustRef:{current:{width:8,length:9}},initialHeadAdjustRef:{current:null},lockedPlacementRef:{current:{old:true}},lockedMasterRef:{current:master},setHeadAdjust:()=>{},setNeckAdjust:()=>{},setPlacementLocked:()=>{},editCache:{current:originalCache},firstUploadedPhotoRef:{current:upload},studioPhotoTransactionRef:{current:false},currentOutputJobRef:{current:'unchanged-accepted-job'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},savedWorkOpenRequestRef:{current:1},busy:false,hairBusy:false,
   walletScope:(token,wallet)=>JSON.stringify([token,wallet]),authToken:()=>state.token,currentWalletId:()=>state.wallet,
   blobDataURL:async blob=>data(Buffer.from(await blob.arrayBuffer()),blob.type.split('/')[1]),
@@ -117,7 +117,7 @@ function transactionFixture({sourceBase=base,sourceMakeup=madeUp,geometry=native
    events.push('cosmetics-boundary');assert.equal(input.idpromStudioSkinBaseSource,sourceBase);assert.equal(input.idpromStudioCosmeticsVersion,undefined);assert.deepEqual(Buffer.from(await input.arrayBuffer()),bytes(sourceBase));started.resolve();await gate.promise;
    if(signal.aborted)throw Object.assign(Error('cancelled'),{name:'AbortError'});if(state.fail)throw Error('cosmetics failed');
    const result=copyStudioSkinBlobMetadata(input,studioSkinBlobFromSource(style==='natural'?sourceBase:sourceMakeup),{bare:true});result.idpromFemaleEyeStyle=style;
-   if(style==='natural')result.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;else result.idpromStudioCosmeticsVersion=input.idpromStudioSkinVersion+':'+style;
+   if(style==='natural')result.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;else{result.idpromStudioCosmeticsVersion=input.idpromStudioSkinVersion+':'+style;if(skinVersion===ORIGINAL_PORTRAIT_AI_VERSION)result.idpromStudioMakeupVersion=PORTRAIT_MAKEUP_VERSION;}
    return result;
   },
   prepareSharedPortraitMakeup:async()=>{throw Error('inert cosmetic boundary must not prepare')},prepareStudioMakeup:async()=>{throw Error('inert cosmetic boundary must not prepare')},canvasPng:async()=>{throw Error('inert cosmetic boundary must not encode')},
@@ -171,8 +171,8 @@ await test('history of a local PNG hairstyle caches its untrimmed accepted base 
 await test('current original-AI Natural base survives cosmetics, saved metadata and history without another AI edit',async()=>{
  const f=transactionFixture({skinVersion:ORIGINAL_PORTRAIT_AI_VERSION});
  const pending=f.changeStudioPortraitFinish(f.naturalHead,'korean-rosy-v1');await f.started.promise;f.gate.resolve();const staged=await pending;
- assert.equal(staged.layer.sharedPortraitBaseVersion,SHARED_PORTRAIT_BASE_VERSION);assert.equal(staged.layer.studioSkinBaseSource,base);assert.deepEqual(staged.layer.sourceFrame,f.naturalHead.sourceFrame);assert(hasOriginalPortraitAiFinish(staged.layer,'korean-rosy-v1'));
- const saved=await makeSavedProject(project(staged.layer)),roundtrip=unpackSavedProjectTransfer(clone(packSavedProjectTransfer(saved)));assert.equal(roundtrip.layers[0].studioSkinBaseSource,base);assert.equal(roundtrip.layers[0].sharedPortraitBaseVersion,SHARED_PORTRAIT_BASE_VERSION);
+ assert.equal(staged.layer.studioMakeupVersion,PORTRAIT_MAKEUP_VERSION);assert.equal(staged.layer.sharedPortraitBaseVersion,SHARED_PORTRAIT_BASE_VERSION);assert.equal(staged.layer.studioSkinBaseSource,base);assert.deepEqual(staged.layer.sourceFrame,f.naturalHead.sourceFrame);assert(hasOriginalPortraitAiFinish(staged.layer,'korean-rosy-v1'));
+ const saved=await makeSavedProject(project(staged.layer)),roundtrip=unpackSavedProjectTransfer(clone(packSavedProjectTransfer(saved)));assert.equal(roundtrip.layers[0].studioMakeupVersion,PORTRAIT_MAKEUP_VERSION);assert.equal(roundtrip.layers[0].studioSkinBaseSource,base);assert.equal(roundtrip.layers[0].sharedPortraitBaseVersion,SHARED_PORTRAIT_BASE_VERSION);
  staged.commit();assert(hasOriginalPortraitAiFinish(f.env.editCache.current.master,'korean-rosy-v1'));assert(f.syncStudioPortraitFinish(f.naturalHead));assert(hasOriginalPortraitAiFinish(f.env.editCache.current.master,'natural'));assert.equal(f.env.editCache.current.master.idpromStudioCosmeticsVersion,undefined);assert.deepEqual(Buffer.from(await f.env.editCache.current.master.arrayBuffer()),bytes(base));assert.deepEqual(f.events,['cosmetics-boundary']);
 });
 
@@ -180,12 +180,12 @@ const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),
 function editorFunction(start,end,name,env){const a=editor.indexOf(start),b=editor.indexOf(end,a);assert(a>=0&&b>a,'missing actual '+name);return Function('env',`with(env){${editor.slice(a,b)};return ${name}}`)(env)}
 const maskStart=editor.indexOf('function identityStudioMask('),maskEnd=editor.indexOf('\nfunction dirtyRegion(',maskStart);
 const identityStudioMask=Function(editor.slice(maskStart,maskEnd)+';return identityStudioMask')();
-function editorFixture(){
- const parent=transactionFixture();parent.gate.resolve();
+function editorFixture(options={}){
+ const parent=transactionFixture(options);parent.gate.resolve();
  const mask={width:4,height:4,getContext(){return {getImageData(){return {data:new Uint8ClampedArray(4*4*4).fill(255)}}}}};
  const visible={...parent.naturalHead,hairPolicyVersion:HAIR_DESIGN_VERSION+'-female-reference-v1',squeezeX:.93,squeezeY:1.17,mask:null};
  const counters={before:0,settle:0,AI:0,resets:0,local:0,restored:0,failures:[],hydrate:0};
- const noop=()=>{},env={HAIR_DESIGN_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasCurrentStudioSkin,hasOriginalPortraitAiFinish,canReuseStudioSkinBase,sharedStudioSkinSource,portraitFinishChoice,isFreeFemaleHair,identityStudioMask,headPose,preserveLocalSkinLook,replaceHairstyleLayer,
+ const noop=()=>{},env={portraitMakeupNeedsUpdate,HAIR_DESIGN_VERSION,NATURAL_STUDIO_SKIN_VERSION,hasCurrentStudioSkin,hasOriginalPortraitAiFinish,canReuseStudioSkinBase,sharedStudioSkinSource,portraitFinishChoice,isFreeFemaleHair,identityStudioMask,headPose,preserveLocalSkinLook,replaceHairstyleLayer,
   state:{current:[visible]},assets:{current:new Map([[visible.id,{mask,warped:null,eraseRestoreSource:null}]])},processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,mounted:{current:true},hairGender:'female',portraitMode:'female',sourcePhoto:parent.upload,sourcePhotoRef:{current:parent.upload},accountScope:'same-account',outputScopeRef:{current:'same-account'},sourceLayerRef:{current:null},undo:{current:[]},redo:{current:[]},historyTruncatedRef:{current:false},historyBoundaryNoticeRef:{current:false},hydratingRef:{current:false},touch:false,
   layerKind:layer=>layer.kind,canRestoreHair:()=>false,isProcessCancelled:()=>false,isPremiumHair:()=>false,premiumHairAllowed:false,
   flushTransforms:noop,historySnapshot:()=>env.state.current.map(layer=>({...layer,mask:layer.id===visible.id?mask:layer.mask})),resetPhotoHistory:()=>{counters.resets++;env.undo.current=[];env.redo.current=[]},resetBrushSession:noop,
@@ -201,6 +201,17 @@ function editorFixture(){
  const apply=editorFunction(' const applyHair=async (','\n const selectPortraitFinish=','applyHair',env),history=editorFunction(' const history=async back=>','\n const point=','history',env);
  return {parent,env,visible,mask,counters,apply,history};
 }
+await test('reselecting saved old makeup upgrades locally once, preserves history and clears the palette marker on Natural',async()=>{
+ const f=editorFixture({skinVersion:ORIGINAL_PORTRAIT_AI_VERSION}),choose=style=>f.apply('original',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});
+ const old={...f.visible,source:madeUp,femaleEyeStyle:'makeup',initialFemaleEyeStyle:'makeup',studioCosmeticsVersion:ORIGINAL_PORTRAIT_AI_VERSION+':makeup',naturalStudioSkinVersion:undefined};
+ f.env.state.current=[old];assert(portraitMakeupNeedsUpdate(old));assert(f.parent.syncStudioPortraitFinish(old));
+ await choose('makeup');assert.deepEqual(f.counters.failures,[]);assert.equal(f.counters.local,1);assert.equal(f.counters.AI,0);assert.equal(f.counters.before,0);assert.equal(f.counters.settle,0);
+ assert.equal(f.env.state.current[0].studioMakeupVersion,PORTRAIT_MAKEUP_VERSION);assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,PORTRAIT_MAKEUP_VERSION);assert(!portraitMakeupNeedsUpdate(f.env.state.current[0]));
+ await choose('makeup');assert.equal(f.counters.local,1,'current palette should not repaint');
+ await f.history(true);assert(portraitMakeupNeedsUpdate(f.env.state.current[0]));assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,undefined);
+ await f.history(false);assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,PORTRAIT_MAKEUP_VERSION);
+ await choose('natural');assert.equal(f.env.state.current[0].source,base);assert.equal(f.env.state.current[0].studioMakeupVersion,undefined);assert.equal(f.parent.env.editCache.current.master.idpromStudioMakeupVersion,undefined);assert.equal(f.counters.local,2);assert.deepEqual(f.counters.failures,[]);
+});
 await test('actual editor local finish bypasses AI and settlement, keeps pose and squeeze, and supports undo/redo',async()=>{
  const f=editorFixture();await f.apply('original',{femaleEyeStyle:'makeup',portraitMode:'female',appearanceKind:'makeup'});
  assert.deepEqual(f.counters.failures,[]);assert.equal(f.counters.local,1);assert.equal(f.counters.AI,0);assert.equal(f.counters.before,0);assert.equal(f.counters.settle,0);assert.equal(f.counters.resets,0);assert.equal(f.env.undo.current.length,1);

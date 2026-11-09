@@ -7,7 +7,7 @@ import {ORIGINAL_PORTRAIT_AI_VERSION,markOriginalPortraitAiFinish,hasOriginalPor
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata} from '../src/shared-studio-skin.js';
-import {SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
+import {SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
 import {hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 
@@ -20,7 +20,7 @@ const a=main.indexOf('async function aiFinishPortrait('),b=main.indexOf('\nlet a
 function fixture(){
  const events=[],requests=[],upload=new File(['immutable original'],'camera.jpg',{type:'image/jpeg'}),state={scope:'wallet-A',failCosmetics:false,cancelCosmetics:false,rights:true};
  const face=[];face[152]={x:.5,y:.8};face[234]={x:.2,y:.5};face[454]={x:.8,y:.5};
- const env={Blob,URL,atob,STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,hasOriginalPortraitAiFinish,isOriginalPortraitAiRequest,hasCurrentStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,portraitFinishChoice,
+ const env={Blob,URL,atob,STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,sharedOriginalPortraitSource,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,hasOriginalPortraitAiFinish,isOriginalPortraitAiRequest,hasCurrentStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,portraitFinishChoice,
   activeProcessOperation:{cancelled:false},assertProcessActive(op){if(op?.cancelled)throw Error('cancelled')},cancelledProcessError:()=>Error('cancelled'),currentResultCacheScope:()=>state.scope,resultSourceDigest:async file=>{assert.equal(file,upload);return 'same-source'},uploadGenerationScope:()=> 'same-upload',portraitResultCache:createAiResultCache(),portraitGeometryBases:new WeakMap(),
   window:{dispatchEvent:()=>events.push('event')},CustomEvent:class{},
   async aiFinishPortraitUncached(source,hair,options){assert.equal(source,upload);requests.push({hair,options});const out=markOriginalPortraitAiFinish(new Blob([png],{type:'image/png'}),'natural');Object.assign(out,{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'job-'+requests.length,idpromTrial:true});return out},
@@ -29,7 +29,7 @@ function fixture(){
   async checkPortraitProportions(source,result,options){assert.equal(source,upload);assert(options.protectFeatures);assert(hasOriginalPortraitAiFinish(result,'natural'));events.push('proportions')},async checkPortraitCompletion(){events.push('completion')},
   async verifyOutputRights(){events.push('rights');return state.rights?{checked:true,unlocked:true,fullEdit:true}:{checked:false,message:'rights unavailable'}},saveAiJobFile:async file=>assert.equal(file,upload),writeActiveAiJob(){},femaleFinishMetadata:()=>({})
  };
- env.renderLocalMakeup=async evidence=>{events.push('cosmetics');assert.equal(evidence.cosmeticsOnly,true);assert(['shared-pink-nude-gloss-v7','shared-peach-nude-gloss-v7'].includes(evidence.lookId));if(state.failCosmetics)throw Error('cosmetics failed');if(state.cancelCosmetics)env.activeProcessOperation.cancelled=true;return {}};
+ env.renderLocalMakeup=async evidence=>{events.push('cosmetics');assert.equal(evidence.cosmeticsOnly,true);assert(['shared-pink-nude-gloss-v8','shared-peach-nude-gloss-v8'].includes(evidence.lookId));if(state.failCosmetics)throw Error('cosmetics failed');if(state.cancelCosmetics)env.activeProcessOperation.cancelled=true;return {}};
  env.finishStudioPostCosmetics=Function('env',`with(env){${strip(cosmetic)};return finishStudioPostCosmetics}`)(env);
  env.finishSharedStudioSkin=Function('env',`with(env){${strip(shared)};return finishSharedStudioSkin}`)(env);
  const run=Function('env',`with(env){${main.slice(a,b)};return aiFinishPortrait}`)(env);

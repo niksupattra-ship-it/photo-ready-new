@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {roseEyeModel,roseEyeCoordinates,sampleRoseEyeshadow} from '../src/rose-eyeshadow.js';
+import {roseEyeModel,roseEyeCoordinates,sampleRoseEyeshadow,samplePeachRoseEyeshadow} from '../src/rose-eyeshadow.js';
 const lids=[[33,246,161,160,159,158,157,173,133],[263,466,388,387,386,385,384,398,362]],brows=[[70,63,105,66,107,55,65,52,53,46],[336,296,334,293,300,276,283,282,295,285]];
 function face(){
  const out=Array.from({length:478},()=>({x:.5,y:.5}));
@@ -20,6 +20,22 @@ test('tilt, reflection and native resolution retain the same colour and light pl
   const rotate=p=>{const x=(p.x-.5)*W*(mirror?-1:1),y=(p.y-.5)*H;return {x:(x*Math.cos(angle)-y*Math.sin(angle))/W+.5,y:(x*Math.sin(angle)+y*Math.cos(angle))/H+.5}};
   const transformed=original.map(rotate),a=roseEyeModel(original,W,H,side),b=roseEyeModel(transformed,W,H,side);
   for(const u of [.2,.5,.8])for(const v of [.15,.3,.75]){const p=at(a,u,v),q=rotate({x:p.x/W,y:p.y/H}),one=sampleRoseEyeshadow(a,p.x,p.y),two=sampleRoseEyeshadow(b,q.x*W,q.y*H);assert(Math.abs(one.pigment-two.pigment)<1e-10);assert(Math.abs(one.pearl-two.pearl)<1e-10)}
+ }
+});
+test('reference peach rose has soft outer socket depth and a champagne centre without a central pigment spot',()=>{
+ for(const width of [192,900])for(const side of [0,1]){
+  const model=roseEyeModel(face(),width,width*4/3,side),sample=(u,v)=>{const p=at(model,u,v);return samplePeachRoseEyeshadow(model,p.x,p.y)};
+  const outer=sample(.22,.28),center=sample(.5,.28),inner=sample(.78,.28);
+  assert(center.pearl>.9);assert(center.pigment<Math.min(outer.pigment,inner.pigment)*.4);assert(outer.pigment>inner.pigment);assert(center.base<outer.base);
+  assert(sample(.2,.85).pigment<sample(.2,.4).pigment);for(const [u,v]of [[.5,-.05],[.5,1.15],[-.1,.3],[1.1,.3]])assert.deepEqual(sample(u,v),{base:0,pigment:0,pearl:0});
+ }
+});
+test('reference colour and pearl remain aligned to photographed eyes through tilt and reflection',()=>{
+ const original=face(),W=900,H=1200;
+ for(const angle of [-.24,.24])for(const mirror of [false,true])for(const side of [0,1]){
+  const rotate=p=>{const x=(p.x-.5)*W*(mirror?-1:1),y=(p.y-.5)*H;return {x:(x*Math.cos(angle)-y*Math.sin(angle))/W+.5,y:(x*Math.sin(angle)+y*Math.cos(angle))/H+.5}};
+  const a=roseEyeModel(original,W,H,side),b=roseEyeModel(original.map(rotate),W,H,side);
+  for(const u of [.2,.5,.8])for(const v of [.15,.3,.75]){const p=at(a,u,v),q=rotate({x:p.x/W,y:p.y/H}),one=samplePeachRoseEyeshadow(a,p.x,p.y),two=samplePeachRoseEyeshadow(b,q.x*W,q.y*H);for(const field of ['base','pigment','pearl'])assert(Math.abs(one[field]-two[field])<1e-10)}
  }
 });
 console.log(JSON.stringify({passed,scope:'Anatomical rose gradient, central pearl highlight, smooth upward fade and consistent tilted/mirrored geometry. No provider or pixel renderer.'}));

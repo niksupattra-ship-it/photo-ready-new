@@ -222,6 +222,58 @@ try:
     }
     return {samples,geometryAlphaAndEyeInteriorsExact:true};
    });
+
+   await test('reference peach rose keeps every eye pixel, catchlight, hair edge and Natural byte unchanged',async()=>{
+    const {renderLocalMakeup}=await import('/src/local-makeup.js');
+    const {ORIGINAL_PORTRAIT_AI_VERSION:CURRENT,originalPortraitAiMetadata}=await import('/original-portrait-ai.js');
+    const {PORTRAIT_MAKEUP_VERSION,portraitMakeupNeedsUpdate}=await import('/shared-portrait-policy.js');
+    const samples=[];
+    for(const [width,tone,iris]of [[384,[184,141,123],'#69412e'],[900,[108,77,63],'#6b8994']]){
+     const f=source(width,tone),W=width,H=f.original.height,ctx=f.original.getContext('2d'),shield=canvas(W,H),ex=shield.getContext('2d');
+     const d=Math.hypot((f.face[263].x-f.face[33].x)*W,(f.face[263].y-f.face[33].y)*H);
+     for(const side of [0,1]){
+      const path=context=>{context.beginPath();C.eyes[side].forEach((id,k)=>{const p=f.face[id];k?context.lineTo(p.x*W,p.y*H):context.moveTo(p.x*W,p.y*H)});context.closePath()};
+      path(ex);ex.fill();ex.lineWidth=Math.max(.8,d*.005);ex.stroke();
+      ctx.save();path(ctx);ctx.clip();ctx.fillStyle='#e4d6ce';ctx.fillRect(0,0,W,H);
+      const cx=(side?.64:.36)*W,cy=.41*H,r=H*.018;
+      ctx.fillStyle=iris;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#171119';ctx.beginPath();ctx.arc(cx,cy,r*.48,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff3de';ctx.beginPath();ctx.arc(cx-r*.31,cy-r*.3,Math.max(1,r*.18),0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#99b9c4';ctx.beginPath();ctx.arc(cx+r*.27,cy+r*.33,Math.max(.7,r*.09),0,Math.PI*2);ctx.fill();ctx.restore();
+     }
+     // An actual segmented hair patch must also reject the finishing pigment.
+     f.hairMask.getContext('2d').fillRect(Math.round(.23*W),Math.round(.24*H),Math.round(.08*W),Math.round(.14*H));
+     const hair=read(f.hairMask),protectedEyes=read(shield),before=read(f.original).slice(),input=await png(f.original);
+     input.idpromStudioSkinVersion=CURRENT;input.idpromJobId='same-reference-job';
+     const options={encodeBase:dataURL,prepare:async blob=>({...f,original:await decode(blob)}),toBlob:png};
+     const natural=await finishSharedStudioSkin(input,{...options,style:'natural'});
+     for(const style of ['makeup','soft-rosy-v1']){
+      const madeUp=await finishSharedStudioSkin(natural,{...options,style}),after=read(await decode(madeUp));let protectedCount=0,changes=0;
+      for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+       const i=(y*W+x)*4;assert(after[i+3]===before[i+3],'alpha changed');
+       const outside=(((x+.5)/W-.5)/.33)**2+(((y+.5)/H-.48)/.40)**2>=1;
+       if(protectedEyes[i+3]>0||hair[i+3]>0||outside){if(protectedEyes[i+3]>0)protectedCount++;for(let c=0;c<4;c++)assert(after[i+c]===before[i+c],'protected eye / hair / outside-face pixel changed')}
+       if(after[i]!==before[i]||after[i+1]!==before[i+1]||after[i+2]!==before[i+2])changes++;
+      }
+      assert(protectedCount>200&&changes>300,'fixture did not exercise the eyes and cosmetics');
+      assert(madeUp.idpromStudioMakeupVersion===PORTRAIT_MAKEUP_VERSION,'missing new palette marker');assert(!portraitMakeupNeedsUpdate(madeUp),'new makeup treated as stale');
+      const metadata=originalPortraitAiMetadata(madeUp);assert(metadata.studioMakeupVersion===PORTRAIT_MAKEUP_VERSION,'saved version lost');
+      const restored=await finishSharedStudioSkin(madeUp,{...options,style:'natural'});assert(!restored.idpromStudioMakeupVersion,'Natural retained palette marker');
+      assert(equal(new Uint8Array(await restored.arrayBuffer()),new Uint8Array(await input.arrayBuffer())),'Natural bytes changed');
+      const repeated=await finishSharedStudioSkin(madeUp,{...options,style});assert(equal(new Uint8Array(await madeUp.arrayBuffer()),new Uint8Array(await repeated.arrayBuffer())),'makeup stacked');
+      assert(await finishStudioPostCosmetics(madeUp,{style})===madeUp,'current direct finish not idempotent');
+      const old=new Blob([await madeUp.arrayBuffer()],{type:'image/png'});for(const key of Object.keys(madeUp))old[key]=madeUp[key];delete old.idpromStudioMakeupVersion;
+      assert(portraitMakeupNeedsUpdate(old),'old saved makeup cannot upgrade');
+      const upgraded=await finishSharedStudioSkin(old,{...options,style});assert(equal(new Uint8Array(await madeUp.arrayBuffer()),new Uint8Array(await upgraded.arrayBuffer())),'old makeup was painted over instead of rebuilt from Natural');
+      samples.push({width,iris,style,protectedEyePixels:protectedCount,cosmeticPixels:changes,exactNaturalRestore:true,exactRepeat:true});
+     }
+     const old=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v7',cosmeticsOnly:true})),next=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v8',cosmeticsOnly:true}));
+     let warmGain=0,count=0;
+     for(let y=Math.round(H*.685);y<H*.70;y++)for(let x=Math.round(W*.44);x<W*.56;x++){const i=(y*W+x)*4;warmGain+=next[i+1]-next[i+2]-old[i+1]+old[i+2];count++;}
+     assert(warmGain/count>1,'lip tone is still the old cool pink');
+    }
+    return {samples,providerCalls:0,eyeRGBAExact:true,geometryAlphaHairExact:true};
+   });
    return {passed:reports.length,reports,providerCalls:0};
   }''')
   assert not errors,errors;assert not network,network;browser.close()
