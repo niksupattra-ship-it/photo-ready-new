@@ -351,7 +351,7 @@ const aiFinishHandler=async(req,res)=>{
   if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!creditUse)return;}
   // Matting must be available before spending on external image generation.
   await getModnetSession();
-  const data=await processProductionPortrait({input,fields:req.body,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,key:process.env.ARK_API_KEY});
+  const data=await processProductionPortrait({input,fields:req.body,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:process.env.ARK_API_KEY});
   if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
   res.set('Cache-Control','no-store');res.set('X-Credits-Remaining',String(creditUse.credits));
   return res.type('image/png').send(data);
@@ -405,7 +405,7 @@ async function runAiJob(id){
   const req={body:job.fields||{},files:{image:[{buffer:job.image,originalname:job.image_name,mimetype:job.image_type}],mask:job.mask?[{buffer:job.mask,originalname:job.mask_name,mimetype:job.mask_type}]:[]},deferCreditCommit:Boolean(job.fields?.delivery_pending),preReservedCreditUse:{usageId:job.usage_id,credits:null},get(name){return String(name).toLowerCase()==='x-wallet-id'?job.wallet_id:''}};
   req.onPortraitStage=async stage=>{console.info('AI stage',id,stage,Date.now()-started+'ms');await touchAiJob(id,stage)};
   const cap=captureResponse();await aiFinishHandler(req,cap.res);await cap.done;const out=cap.get();
-  if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length)await completeAiJob(id,out.payload);else{await refundCredit(job.usage_id);await failAiJob(id,out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);}
+  if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length)await completeAiJob(id,out.payload,req.aiMakeupVariant);else{await refundCredit(job.usage_id);await failAiJob(id,out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);}
  }catch(e){console.error('AI job:',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job finished',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
 app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1},{name:'originalSource',maxCount:1}]),async(req,res)=>{
@@ -458,10 +458,12 @@ app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
 });
 app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.params.id,walletId(req));if(!j)return res.status(404).json({error:'job_not_found'});res.json(j)}catch(e){res.status(500).json({error:'job_status_failed'})}});
 app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{
- const wid=walletId(req),j=await getAiJobResult(req.params.id,wid);if(!j)return res.status(404).send('ไม่พบงาน');
+ const wid=walletId(req),j=await getAiJobResult(req.params.id,wid,req.query.finish==='makeup');if(!j)return res.status(404).send('ไม่พบงาน');
  if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');
+ if(req.query.finish&&!['natural','makeup'].includes(req.query.finish))return res.status(400).send('รูปแบบภาพไม่ถูกต้อง');
+ if(req.query.finish==='makeup'&&!j.result_makeup)return res.status(404).send('งานนี้ยังไม่มีภาพแต่งหน้า');
  const trial=!await accountPolicy(req).allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});
- res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(j.result);
+ res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(req.query.finish==='makeup'?j.result_makeup:j.result);
 }catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
 app.post('/api/images/:id/claim',async(req,res)=>{try{
  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required'});

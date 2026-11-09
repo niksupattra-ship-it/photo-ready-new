@@ -1,3 +1,4 @@
+import {AI_MAKEUP_PAIR_VERSION,createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,loadNeckBackingGuide,neckBackingGuideInstruction} from './portrait-anatomy.js';
 import {needsNaturalAiPreparation} from './natural-studio-skin.js';
 import {NATURAL_PREPARED_TASK,naturalAiPreparationPrompt,naturalAiPreparedFinish,naturalAiPreparedGuide,NATURAL_PREPARED_PRIORITY} from './natural-ai-preparation.js';
@@ -70,6 +71,7 @@ export function validateProductionPortrait(input,fields={}){
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
  if(fields.hairReferenceVersion&&fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION)throw Error('ข้อมูลทรงผมไม่ตรงกับชุดล่าสุด กรุณารีเฟรชหน้าเว็บ');
  const id=fields.hairId||'original',selected=productionHair(id);
+ if(fields.femaleFinishPair&&(fields.femaleFinishPair!==AI_MAKEUP_PAIR_VERSION||(selected?.gender||fields.portraitMode)!=='female'||fields.femaleEyeStyle!=='natural'||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกภาพแต่งหน้าคู่ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  if(fields.hairReferenceVersion&&!id.startsWith('seedream-'))throw Error('ภาพอ้างอิงนี้ใช้ได้เฉพาะทรงผมในแค็ตตาล็อก');
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
@@ -141,7 +143,7 @@ export function studioReferenceIdentityBox(evidence){
  const points=ids.map(id=>evidence.face[id]),fw=Math.hypot((evidence.face[454][0]-evidence.face[234][0])*evidence.width,(evidence.face[454][1]-evidence.face[234][1])*evidence.height),mx=fw*.08/evidence.width,my=fw*.08/evidence.height;
  return parsePortraitIdentityBox([Math.max(0,Math.min(...points.map(p=>p[0]))-mx),Math.max(0,Math.min(...points.map(p=>p[1]))-my),Math.min(1,Math.max(...points.map(p=>p[0]))+mx),Math.min(1,Math.max(...points.map(p=>p[1]))+my)]);
 }
-export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},requestPortrait=requestReviewSeedream}){
+export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,requestPortrait=requestReviewSeedream}){
  const chosen=validateProductionPortrait(input,fields);
  const selected=chosen||{gender:fields.portraitMode};
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
@@ -246,6 +248,12 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('edges');
  const {png:transparent,alpha}=await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
+ if(fields.femaleFinishPair===AI_MAKEUP_PAIR_VERSION&&selected.gender==='female'){
+  await onStage('makeup');
+  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait});
+  if(typeof onMakeupVariant!=='function')throw Error('ระบบเก็บภาพแต่งหน้ายังไม่พร้อม');
+  await onMakeupVariant(makeup);
+ }
  return transparent;
 }
 function cleanTrialAlphaPixels(pixels,width,height,alpha){

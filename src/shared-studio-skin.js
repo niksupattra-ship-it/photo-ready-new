@@ -3,7 +3,7 @@ import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {finishStudioPostCosmetics} from './studio-post-cosmetics.js';
 import {encodedImageSize} from './project-resource-guard.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
-import {SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
+import {PORTRAIT_MAKEUP_VERSION,SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
 
 const sourcePattern=/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
 const supported=new Set(['natural','makeup','korean-rosy-v1','soft-rosy-v1']);
@@ -66,6 +66,11 @@ export async function finishSharedStudioSkin(blob,{style='natural',encodeBase,pr
  if(original)base.idpromSharedPortraitBaseVersion=SHARED_PORTRAIT_BASE_VERSION;
  base.idpromStudioSkinBaseSource=source;
  base.idpromFemaleEyeStyle=style;
+ if(base.idpromAiMakeupSource&&style!=='natural'){
+  if(!isStudioSkinBaseSource(base.idpromAiMakeupSource))throw Error('ภาพแต่งหน้าที่เตรียมไว้ไม่ถูกต้อง');
+  const finished=copyStudioSkinBlobMetadata(base,studioSkinBlobFromSource(base.idpromAiMakeupSource));
+  finished.idpromStudioCosmeticsVersion=version+':'+style;finished.idpromStudioMakeupVersion=PORTRAIT_MAKEUP_VERSION;return finished;
+ }
  const finished=await finishStudioPostCosmetics(base,{style,prepare,toBlob,signal,onProgress});abort(signal);
  if(style==='natural')finished.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  return finished;

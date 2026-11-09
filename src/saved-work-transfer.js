@@ -2,9 +2,9 @@
 export const TRANSFER_HEADER='X-IDPROM-Project-Transfer';
 export const TRANSFER_VERSION='images-v1';
 export const SAVED_WORK_TRANSFER_MAX_BYTES=64*1024*1024;
-const FORMAT='idprom-project-transfer',MAX_IMAGES=263,MIN_SAVINGS=1024;
+const FORMAT='idprom-project-transfer',MAX_IMAGES=283,MIN_SAVINGS=1024;
 const imageURL=/^data:image\/(?:png|jpeg|webp);base64,/;
-const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
+const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const own=(value,key)=>Object.prototype.hasOwnProperty.call(value,key);
 const plain=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null);
 const invalid=()=>Object.assign(Error('ข้อมูลรับส่งงานไม่ถูกต้อง กรุณาลองอีกครั้ง'),{code:'invalid_saved_work_transfer'});

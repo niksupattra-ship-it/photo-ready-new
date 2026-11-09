@@ -12,7 +12,7 @@ export function createAiResultCache({maxBytes=128*1024*1024,maxEntries=96}={}){
    try{
     const value=await entry.promise;
     if(records.get(key)===entry){
-     entry.bytes=(value?.size??((value?.width||0)*(value?.height||0)*4))+(typeof value?.idpromStudioSkinBaseSource==='string'?value.idpromStudioSkinBaseSource.length*2:0);bytes+=entry.bytes;
+     entry.bytes=(value?.size??((value?.width||0)*(value?.height||0)*4))+(typeof value?.idpromStudioSkinBaseSource==='string'?value.idpromStudioSkinBaseSource.length*2:0)+(typeof value?.idpromAiMakeupSource==='string'?value.idpromAiMakeupSource.length*2:0)+(value?.idpromAiMakeupBlob?.size||0);bytes+=entry.bytes;
      for(const [oldKey,old] of records){if(bytes<=maxBytes&&records.size<=maxEntries)break;if(old.bytes)remove(oldKey)}
     }
     return {value,reused:false};

@@ -314,6 +314,19 @@ try:
     }
     return {samples,styles:'Visible source-aligned brow powder, rose lipstick and bounded satin foundation; no provider calls.'};
    });
+   await test('stored AI makeup switches losslessly in the browser without local cosmetics',async()=>{
+    const {ORIGINAL_PORTRAIT_AI_VERSION:CURRENT}=await import('/original-portrait-ai.js');
+    const {SHARED_PORTRAIT_BASE_VERSION:SHARED}=await import('/shared-portrait-policy.js');
+    const f=source(384),base=await png(f.original),made=canvas(384,512);made.getContext('2d').drawImage(f.original,0,0);made.getContext('2d').fillStyle='#bc6080';made.getContext('2d').fillRect(165,340,50,18);
+    const makeup=await png(made),expected=read(made),bare=read(f.original);
+    Object.assign(base,{idpromStudioSkinVersion:CURRENT,idpromSharedPortraitBaseVersion:SHARED,idpromStudioSkinBaseSource:await dataURL(base),idpromAiMakeupSource:await dataURL(makeup),idpromJobId:'same-paired-job',idpromTrial:true});
+    let current=base;
+    for(const style of ['makeup','natural','makeup','natural']){
+     current=await finishSharedStudioSkin(current,{style,prepare:()=>{throw Error('local cosmetics were called')}});
+     assert(equal(read(await decode(current)),style==='makeup'?expected:bare),'wrong stored AI finish selected');assert(current.idpromJobId==='same-paired-job'&&current.idpromTrial,'job rights changed');
+    }
+    return {switches:4,localCosmeticPasses:0,providerCalls:0};
+   });
    return {passed:reports.length,reports,providerCalls:0};
   }''')
   assert not errors,errors;assert not network,network;browser.close()
