@@ -1,5 +1,10 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "ประมวลไม่สำเร็จ": "Processing failed",
+ "ประมวลไม่สำเร็จ เปลี่ยนรูปใหม่หรือเลือกทรงผม": "Processing failed. Try another photo or select a hairstyle.",
+ "เปลี่ยนรูปใหม่หรือเลือกทรงผม": "Try another photo or select a hairstyle.",
+ "ลากเพื่อบิดรูป · ใช้ 2 นิ้วซูมหรือเลื่อน": "Drag to reshape. Use two fingers to zoom or pan.",
+
  "สูทชายกรมท่าเชิ้ตแดงไวน์": "Men’s navy suit with burgundy shirt",
  "สูทชายกรมท่าเนกไทสีพื้น": "Men’s navy suit with solid tie",
  "สูทชายกรมท่าเนกไทลายเฉียง": "Men’s navy suit with striped tie",
@@ -301,10 +306,8 @@ export const ENGLISH_ADDITIONAL_COPY={
  "ดูสิทธิ์คงเหลือและแพ็กเกจ": "View your balance and packages",
  "ช่วยเหลือและติดต่อ": "Help and contact",
  "เงื่อนไขการใช้บริการ": "Terms of service",
- "นโยบายความเป็นส่วนตัว": "Privacy policy",
  "เมนู": "Menu",
  "ปิดเมนู": "Close menu",
- "ยังไม่มีนโยบายความเป็นส่วนตัวฉบับเผยแพร่ในระบบ กรุณาติดต่อ contact@idpromth.com เพื่อสอบถามรายละเอียด": "A privacy policy has not yet been published in this system. Please contact contact@idpromth.com for details.",
  "ปิดเลือกสี": "Close color picker",
  "ความสดและความสว่างของสี": "Color saturation and brightness",
  "โทนสี": "Hue",
@@ -967,7 +970,6 @@ export const ENGLISH_ADDITIONAL_COPY={
  "ดัน": "Push",
  "หด": "Pinch",
  "คืนรูปก่อนบิด": "Restore before warping",
- "เลือกเลเยอร์แล้วลากบนภาพ · บิดเฉพาะบริเวณวงแปรง · 2 นิ้วซูมและเลื่อน": "Select a layer and drag over the image. Only the brush area is warped. Use two fingers to zoom and pan.",
  "หุบ–ขยายคอเสื้อ": "Collar width",
  "คัดลอก": "Duplicate",
  "สีแปรง": "Brush color",
@@ -1296,8 +1298,6 @@ export const ENGLISH_ADDITIONAL_COPY={
  "ผู้ใช้ต้องเป็นเจ้าของภาพหรือได้รับอนุญาตให้นำภาพมาใช้ หากเป็นภาพเด็กหรือผู้เยาว์ ต้องได้รับอนุญาตจากผู้มีอำนาจตามกฎหมาย\n\n**ห้ามใช้บริการเพื่อกระทำผิดกฎหมาย** เช่น ปลอมแปลงตัวตน แอบอ้างเป็นบุคคลอื่น แอบอ้างตำแหน่งหรือหน่วยงาน หลอกลวง ฉ้อโกง จัดทำเอกสารเท็จ หรือละเมิดสิทธิของผู้อื่น\n\nผู้ใช้ต้องรับผิดชอบต่อการนำภาพไปใช้โดยมิชอบของตนเอง IDพร้อมไม่รับผิดชอบต่อความเสียหายจากการกระทำดังกล่าว เว้นแต่เกิดจากความผิดพลาดของผู้ให้บริการเองหรือเป็นกรณีที่กฎหมายกำหนดให้ต้องรับผิดชอบ": "You must own the photo or have permission to use it. Photos of children or minors require permission from a person legally authorized to provide it.\n\n**Do not use the service for unlawful purposes**, including identity falsification, impersonation, falsely claiming a position or affiliation, deception, fraud, creating false documents or infringing another person’s rights.\n\nYou are responsible for your own misuse of images. ID Phrom is not responsible for resulting harm unless it is caused by the provider’s own error or liability is required by law.",
  "การระงับการใช้งานที่ฝ่าฝืนข้อกำหนด": "Suspension for violations",
  "หากพบหรือมีเหตุอันควรสงสัยว่ามีการกระทำผิดกฎหมาย ละเมิดสิทธิ หลอกลวง ใช้ระบบอัตโนมัติรบกวนบริการ หรือโจมตีระบบ IDพร้อมอาจระงับหรือจำกัดการใช้งานที่เกี่ยวข้องตามความจำเป็น\n\nผู้ให้บริการจะแจ้งเหตุผลตามความเหมาะสม โดยพิจารณาลักษณะและความรุนแรงของการกระทำ\n\n**สิทธิ์ดาวน์โหลดคงเหลือหรือเงินที่ชำระแล้วจะไม่ถูกริบโดยอัตโนมัติเพียงเพราะมีการระงับการใช้งาน** ผู้ให้บริการจะพิจารณาตามข้อเท็จจริงและสิทธิของผู้ใช้ตามกฎหมาย": "If unlawful activity, rights infringement, deception, automated interference with the service or an attack on the system is identified or reasonably suspected, ID Phrom may suspend or restrict the relevant use as necessary.\n\nThe provider will give reasons as appropriate, taking into account the nature and severity of the conduct.\n\n**Remaining download credits or amounts already paid are not automatically forfeited solely because access is suspended.** The provider will assess the facts and your statutory rights.",
- "ข้อมูลส่วนบุคคลและรูปถ่าย": "Personal data and photographs",
- "IDพร้อมใช้รูปถ่ายและข้อมูลที่ผู้ใช้อัปโหลดเพื่อให้บริการสร้างและปรับแต่งภาพ โดยอาจส่งรูปถ่ายไปยังผู้ให้บริการ AI ภายนอกที่เกี่ยวข้องเพื่อประมวลผลตามคำสั่งของผู้ใช้\n\nผู้ใช้ควรอัปโหลดเฉพาะข้อมูลที่จำเป็น และหลีกเลี่ยงข้อมูลส่วนบุคคลที่ไม่เกี่ยวข้องกับการใช้บริการ\n\n**IDพร้อมจะไม่นำรูปถ่ายของผู้ใช้ไปโฆษณา ประชาสัมพันธ์ หรือเผยแพร่เป็นตัวอย่างผลงานโดยไม่ได้รับอนุญาต**\n\nรายละเอียดเกี่ยวกับการเก็บรวบรวม การใช้ การเปิดเผย ระยะเวลาจัดเก็บ และสิทธิของเจ้าของข้อมูล ให้เป็นไปตาม **นโยบายความเป็นส่วนตัว (Privacy Policy)** บนเว็บไซต์ IDพร้อม": "ID Phrom uses uploaded photos and information to provide photo creation and editing services. Photos may be sent to relevant third-party AI providers for processing according to your instructions.\n\nUpload only information necessary for the service and avoid unrelated personal data.\n\n**ID Phrom will not use your photos for advertising, publicity or publicly displayed work examples without your permission.**\n\nThe collection, use, disclosure and retention of personal data, and data subjects’ rights, are governed by the **Privacy Policy** on the ID Phrom website.",
  "การเปลี่ยนแปลงข้อกำหนดและสิทธิตามกฎหมาย": "Changes to the terms and statutory rights",
  "IDพร้อมอาจแก้ไขหรือปรับปรุงข้อกำหนดตามความเหมาะสม **โดยไม่จำเป็นต้องแจ้งล่วงหน้าเป็นรายบุคคล** เว้นแต่กฎหมายกำหนดให้ต้องแจ้ง\n\nข้อกำหนดฉบับใหม่มีผลตั้งแต่วันที่เผยแพร่บนเว็บไซต์หรือวันที่ระบุไว้ และใช้กับการใช้บริการภายหลังจากนั้น โดยจะไม่กระทบต่อสิทธิ์ดาวน์โหลดที่ซื้อไว้หรือสิทธิที่ได้รับก่อนหน้าโดยไม่ชอบด้วยกฎหมาย\n\nผู้ใช้ควรตรวจสอบข้อกำหนดเป็นระยะ ข้อกำหนดทั้งหมดนี้ไม่ตัดสิทธิในการแจ้งปัญหา ร้องเรียน หรือใช้สิทธิตามกฎหมาย และไม่ยกเว้นความรับผิดที่กฎหมายห้ามยกเว้น": "ID Phrom may revise these terms as appropriate **without giving individual advance notice**, unless notice is required by law.\n\nRevised terms take effect on the date they are published on the website or on the specified effective date and apply to subsequent use. They will not unlawfully affect download credits already purchased or rights previously acquired.\n\nPlease review the terms periodically. These terms do not remove your right to report an issue, make a complaint or exercise statutory rights, and do not exclude liability that cannot lawfully be excluded.",
  "ไม่พบจุดป้องกันใบหน้าสำหรับเก็บขอบผมสั้น": "Face-protection landmarks were not found for short-hair edge refinement.",
