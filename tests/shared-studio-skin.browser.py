@@ -142,6 +142,37 @@ try:
     }
     return {samples,nativeGeometryAndAlphaExact:true,naturalRestorationExact:true};
    });
+
+   await test('v5 smooths forehead mask seams and reduces broad highlight imbalance while defining both eyes',async()=>{
+    const {renderLocalMakeup}=await import('/src/local-makeup.js'),samples=[];
+    for(const width of [384,900]){
+     const f=source(width),W=width,H=f.original.height,ctx=f.original.getContext('2d'),frame=ctx.getImageData(0,0,W,H);
+     for(let y=Math.round(H*.16);y<Math.round(H*.31);y++)for(let x=Math.round(W*.30);x<Math.round(W*.70);x++){
+      const j=(y*W+x)*4,patch=28*Math.exp(-2*(((x/W-.55)/.11)**2+((y/H-.225)/.055)**2));
+      for(let c=0;c<3;c++)frame.data[j+c]+=patch;
+     }
+     ctx.putImageData(frame,0,0);const sx=f.skinMask.getContext('2d');sx.clearRect(Math.round(W*.405),Math.round(H*.185),Math.round(W*.025),Math.round(H*.085));
+     const before=read(f.original),old=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v4',cosmeticsOnly:true})),after=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v5',cosmeticsOnly:true}));
+     let oldSeam=0,newSeam=0,highlightOld=0,highlightNew=0,backgroundOld=0,backgroundNew=0,hiCount=0,bgCount=0,linerGain=0,lashGain=0,eyeGain=0,eyeCount=0;
+     for(let y=0;y<H;y++)for(let x=1;x<W;x++){
+      const i=(y*W+x)*4,px=x/W,py=y/H,Y=p=>(p[i]+p[i+1]+p[i+2])/3;
+      assert(after[i+3]===before[i+3],'v5 altered alpha');
+      if(py>.20&&py<.25&&px>.39&&px<.45){const delta=p=>((p[i]+p[i+1]+p[i+2]-before[i]-before[i+1]-before[i+2])-(p[i-4]+p[i-3]+p[i-2]-before[i-4]-before[i-3]-before[i-2]))/3;oldSeam=Math.max(oldSeam,Math.abs(delta(old)));newSeam=Math.max(newSeam,Math.abs(delta(after)));}
+      if(Math.abs(px-.55)<.018&&Math.abs(py-.225)<.012){highlightOld+=Y(old);highlightNew+=Y(after);hiCount++;}
+      if(Math.abs(px-.35)<.018&&Math.abs(py-.225)<.012){backgroundOld+=Y(old);backgroundNew+=Y(after);bgCount++;}
+      if((Math.abs(px-.36)<.05||Math.abs(px-.64)<.05)&&py>.378&&py<.399&&Y(after)<Y(old)-3)linerGain++;
+      if((Math.abs(px-.36)<.07||Math.abs(px-.64)<.07)&&py>.35&&py<.378&&Y(after)<Y(old)-2)lashGain++;
+      if((Math.abs(px-.36)<.04||Math.abs(px-.64)<.04)&&py>.355&&py<.378){eyeGain+=after[i]-after[i+1]-old[i]+old[i+1];eyeCount++;}
+      if((Math.abs(px-.36)<.02||Math.abs(px-.64)<.02)&&Math.abs(py-.41)<.006)for(let c=0;c<3;c++)assert(after[i+c]===before[i+c],'v5 repainted the eye interior');
+     }
+     const oldGap=highlightOld/hiCount-backgroundOld/bgCount,newGap=highlightNew/hiCount-backgroundNew/bgCount;
+     assert(newSeam<oldSeam*.65,'forehead illumination still has a hard mask step '+JSON.stringify({oldSeam,newSeam}));
+     assert(newGap<oldGap-2,'forehead highlight variation did not improve '+JSON.stringify({oldGap,newGap}));
+     assert(linerGain>5&&lashGain>5&&eyeGain/eyeCount>.5,'eye definition did not visibly increase '+JSON.stringify({linerGain,lashGain,eyeGain:eyeGain/eyeCount}));
+     samples.push({width,oldSeam,newSeam,oldGap,newGap,linerPixels:linerGain,lashPixels:lashGain,eyeshadowChromaGain:eyeGain/eyeCount});
+    }
+    return {samples,eyeInteriorsExact:true,nativeGeometryAndAlphaExact:true};
+   });
    return {passed:reports.length,reports,providerCalls:0};
   }''')
   assert not errors,errors;assert not network,network;browser.close()
