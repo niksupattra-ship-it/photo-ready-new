@@ -15,8 +15,8 @@ export function measureUniformAnchors(pixels,w,h){
  const centerX=rows.length?median(rows.map(row=>row.cx)):cx;
  const firstRow=(half,fraction)=>{const x0=Math.max(l,Math.floor(centerX-bw*half)),x1=Math.min(r,Math.ceil(centerX+bw*half));for(let y=t;y<=b;y++){let n=0;for(let x=x0;x<=x1;x++)if(pixels[(y*w+x)*4+3]>96)n++;if(n>=Math.max(2,(x1-x0+1)*fraction))return y}return t};
  // Top of the collar, not the bottom of the V opening or the tie knot.
- const collarTopY=firstRow(.22,.025),socketY=firstRow(.04,.20);
- return {width:w,height:h,bounds:{l,r,t,b,w:bw,h:b-t+1},shoulderWidth,centerX,collarTopY,socketY};
+ const collarTopY=firstRow(.22,.025),socketY=firstRow(.04,.20),necklineY=firstRow(.09,.04);
+ return {width:w,height:h,bounds:{l,r,t,b,w:bw,h:b-t+1},shoulderWidth,centerX,collarTopY,socketY,necklineY};
 }
 export function placeUniformForPortrait({W,H,uniform,collarX=W/2,collarY=H*.55,faceWidth=W*.29}){
  if(![W,H,uniform.width,uniform.height,uniform.shoulderWidth,uniform.bounds.w,faceWidth].every(v=>Number.isFinite(v)&&v>0)||![collarX,collarY,uniform.collarTopY].every(Number.isFinite))throw Error('วัดจุดอ้างอิงชุดไม่สำเร็จ');
@@ -36,7 +36,7 @@ export function planPortraitUniformFit({W,H,uniform,face,opaqueTop=0,adjust={},f
  const garmentScale=uniformFrame.w/uniform.width;
  const shoulderSpan=uniform.shoulderWidth*garmentScale;
  const collarCX=uniformFrame.x+uniform.centerX*garmentScale;
- const collarTopY=uniformFrame.y+uniform.collarTopY*uniformFrame.h/uniform.height;
+ const collarTopY=uniformFrame.y+(uniform.necklineY??uniform.collarTopY)*uniformFrame.h/uniform.height;
  const collarSocketY=uniformFrame.y+uniform.socketY*uniformFrame.h/uniform.height;
  let scale=shoulderSpan*.32/faceWidth*(adjust.scale||1);
  const available=collarTopY-H*.045;

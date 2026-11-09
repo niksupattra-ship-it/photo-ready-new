@@ -29,7 +29,7 @@ function fixture(){
   async checkPortraitProportions(source,result,options){assert.equal(source,upload);assert(options.protectFeatures);assert(hasOriginalPortraitAiFinish(result,'natural'));events.push('proportions')},async checkPortraitCompletion(){events.push('completion')},
   async verifyOutputRights(){events.push('rights');return state.rights?{checked:true,unlocked:true,fullEdit:true}:{checked:false,message:'rights unavailable'}},saveAiJobFile:async file=>assert.equal(file,upload),writeActiveAiJob(){},femaleFinishMetadata:()=>({})
  };
- env.renderLocalMakeup=async evidence=>{events.push('cosmetics');assert.equal(evidence.cosmeticsOnly,true);assert(['shared-pink-nude-gloss-v5','shared-peach-nude-gloss-v5'].includes(evidence.lookId));if(state.failCosmetics)throw Error('cosmetics failed');if(state.cancelCosmetics)env.activeProcessOperation.cancelled=true;return {}};
+ env.renderLocalMakeup=async evidence=>{events.push('cosmetics');assert.equal(evidence.cosmeticsOnly,true);assert(['shared-pink-nude-gloss-v6','shared-peach-nude-gloss-v6'].includes(evidence.lookId));if(state.failCosmetics)throw Error('cosmetics failed');if(state.cancelCosmetics)env.activeProcessOperation.cancelled=true;return {}};
  env.finishStudioPostCosmetics=Function('env',`with(env){${strip(cosmetic)};return finishStudioPostCosmetics}`)(env);
  env.finishSharedStudioSkin=Function('env',`with(env){${strip(shared)};return finishSharedStudioSkin}`)(env);
  const run=Function('env',`with(env){${main.slice(a,b)};return aiFinishPortrait}`)(env);
