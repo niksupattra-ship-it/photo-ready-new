@@ -190,7 +190,7 @@ export function insigniaForLanguage(location=globalThis.location){
 }
 export function outfitsForLanguage(items,location=globalThis.location){
  if(!englishPreviewEnabled(location))return items;
- const trial=item=>item.id==='female-operational'||item.id==='student-female-01'||[ENGLISH_GOVERNMENT_TRIAL_TEMPLATE,ENGLISH_STUDENT_TRIAL_TEMPLATE].includes(item.template||item.img);
+ const trial=item=>item.id==='female-operational'||item.id==='student-female-rajabhat'||[ENGLISH_GOVERNMENT_TRIAL_TEMPLATE,ENGLISH_STUDENT_TRIAL_TEMPLATE].includes(item.template||item.img);
  return items.flatMap(item=>{
   if((item.cat||item.id)==='job')return [item];
   if(['government-female','student'].includes(item.id)&&Array.isArray(item.items)){

@@ -58,7 +58,7 @@ test('English exposes and accepts exactly one female civil-service trial outfit'
 test('English adds exactly one female student outfit and sends its real reference to AI',async()=>{
  const {outfitsForLanguage}=await import('../src/english-preview.js');
  const {ENGLISH_STUDENT_TRIAL_TEMPLATE}=await import('../english-body-portrait.js');
- const items=[{id:'student-female-01',template:ENGLISH_STUDENT_TRIAL_TEMPLATE},{id:'student-female-02',template:'/assets/student-uniforms/female-02.png'},{id:'student-male-01',template:'/assets/student-uniforms/male-01.png'}];
+ const items=[{id:'student-female-rajabhat',template:ENGLISH_STUDENT_TRIAL_TEMPLATE},{id:'student-female-02',template:'/assets/student-uniforms/female-02.png'},{id:'student-male-01',template:'/assets/student-uniforms/male-01.png'}];
  const catalog=[{id:'job',items:[]},{id:'student',items}];
  assert.deepEqual(outfitsForLanguage(catalog,{search:'?lang=en'})[1].items,[items[0]]);
  assert.equal(outfitsForLanguage(catalog,{search:''}),catalog);
