@@ -1,3 +1,4 @@
+import {assertPhotoFraming} from './photo-framing.js';
 import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,WARP_HELP} from './processing-copy.js';
 import {outfitChoicePreview,isJobOutfit} from './outfit-choice-preview.js';
 import {insigniaForLanguage} from './english-preview.js';
@@ -889,7 +890,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    return true;
   };
   setAssetBusy(true);let url;
-  try{file=await preparePhotoInput(file);if(!canCommitReplacement())return;url=URL.createObjectURL(file);const im=await image(url),ratio=Math.min(W/im.width,H/im.height),w=im.width*ratio,h=im.height*ratio,source=nativeSource(im);
+  try{file=await preparePhotoInput(file);await assertPhotoFraming(file);if(!canCommitReplacement())return;url=URL.createObjectURL(file);const im=await image(url),ratio=Math.min(W/im.width,H/im.height),w=im.width*ratio,h=im.height*ratio,source=nativeSource(im);
    const previous=historySnapshot(),photo=fresh({name:'รูปที่เพิ่ม',kind:'source-photo',source,sourceFrame:{x:(W-w)/2,y:(H-h)/2,w,h}});
    const next=replaceStudioSourceLayers(previous,photo);
    if(!canCommitReplacement())return;
