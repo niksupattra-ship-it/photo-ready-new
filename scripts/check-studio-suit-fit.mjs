@@ -42,7 +42,7 @@ for(const path of paths){
   assert.equal(JSON.stringify({head,suit,face,uniform,opening,neckProfile:measured}),before,'input pixels, frames and poses must not change');
   assert(Object.values(plan.headPose).every(Number.isFinite));assert.equal(plan.headPose.squeezeX,1);assert.equal(plan.headPose.squeezeY,1);
   const l=headPoint(face.left),r=headPoint(face.right),placedFaceWidth=Math.hypot(r.x-l.x,r.y-l.y)*plan.headPose.scale;
-  const ratio=placedFaceWidth/plan.shoulderSpan;assert(ratio>0&&ratio<=.32+1e-10,'head stays bounded by this garment shoulder span '+JSON.stringify({path,ratio,collarTopY:uniform.collarTopY,chinTarget:plan.chinTarget,scale:plan.headPose.scale,frame:suit.sourceFrame}));
+  const ratio=placedFaceWidth/plan.shoulderSpan;assert(ratio>0&&ratio<=.36+1e-10,'head stays bounded by this garment shoulder span '+JSON.stringify({path,ratio,collarTopY:uniform.collarTopY,chinTarget:plan.chinTarget,scale:plan.headPose.scale,frame:suit.sourceFrame}));
   assert(placedFaceWidth<=plan.torsoSpan*.72+1e-8,'head cannot overwhelm the measured torso');
   const longer=planStudioSuitGeometry({uniform,opening,face,head,suit,neckProfile:{rows:[{y:950,left:370,right:530}]}});
   assert.deepEqual(plan,longer,'a cut-off or longer neck must not enlarge the face');

@@ -21,3 +21,20 @@ for(const preservePlacement of [false,true]){
 assert.equal(JSON.stringify(layers),before);
 assert(!source.slice(start).includes('warpStudioCollar'));assert(!source.slice(start).includes('solveAutoCollarWidth'));assert(!source.slice(start).includes('measureSkinNeckProfile'));
 console.log('PASS actual automatic fitting changes only head pose, retains original garment pixels/frame/pose, clears old automatic collar width/height, leaves pins and original head pixels/job intact, and does not require neck coverage. No AI/service calls.');
+// A new collar relocates the chin; larger shoulders enlarge the same head.
+{
+ const baseUniform={...uniform,collarTopY:110,necklineY:130};
+ const female={...head,portraitMode:'female'};
+ const plan=u=>planStudioSuitGeometry({uniform:u,face,head:female,suit});
+ const small=plan({...baseUniform,shoulderWidth:650,torsoWidth:650});
+ const broad=plan({...baseUniform,shoulderWidth:850,torsoWidth:850});
+ assert(broad.headPose.scale>small.headPose.scale,'broader measured shoulders must support a larger head');
+ const low=plan({...baseUniform,necklineY:230});
+ const base=plan(baseUniform);
+ const collarOffset=p=>p.chinTarget.y+face.faceHeight*p.headPose.scale*.16;
+ assert(Math.abs(collarOffset(low)-collarOffset(base)-90)<1e-8,'chin plus proportional exposed neck follows actual collar height');
+ assert.deepEqual(base,planStudioSuitGeometry({uniform:baseUniform,face,head:{...female,portraitMode:'male'},suit}),'both portrait modes use the same anatomical fitting');
+ const tall=planStudioSuitGeometry({uniform:baseUniform,face:{...face,faceHeight:800},head:female,suit});
+ assert(tall.headPose.scale<base.headPose.scale,'longer faces respect a shoulder-relative height limit');
+}
+console.log('PASS new suit fitting follows shoulder breadth, actual collar height, face height and both portrait modes.');
