@@ -1,6 +1,6 @@
+import {EnglishExamplePhoto} from './english-example-photo.jsx';
 import {PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {rememberSuitPreview} from './studio-suit-preview.js';
-import {homePreviewSource} from './home-previews.js';
 import {outfitChoicePreview,isJobOutfit} from './outfit-choice-preview.js';
 import {englishPreviewEnabled,insigniaForLanguage} from './english-preview.js';
 import {uniformMatchesSearch} from './uniform-search.js';
@@ -100,9 +100,9 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
     <div className="easy-landing-examples">
      <p className="easy-landing-example-heading">จากรูปต้นฉบับ สู่รูปพร้อมใช้งาน</p>
      <div className="easy-landing-samples">
-      <figure><img src="/assets/home-previews/easy-job-v20261030.webp" width="483" height="640" decoding="async" fetchPriority="high" alt="ตัวอย่างรูปชุดสมัครงาน"/><figcaption>ชุดสมัครงาน</figcaption></figure>
-      <figure><img src={englishPreviewEnabled()?homePreviewSource('/assets/job-uniforms/male-suit-03-example.png'):'/assets/home-previews/easy-government-v20261030.webp'} width={englishPreviewEnabled()?384:483} height={englishPreviewEnabled()?512:640} decoding="async" alt={englishPreviewEnabled()?'Men’s job application portrait example':'ตัวอย่างรูปชุดข้าราชการ'}/><figcaption>{englishPreviewEnabled()?'Men’s job application outfit':'ชุดข้าราชการ'}</figcaption></figure>
-      <figure><img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261031.webp" width="480" height="640" decoding="async" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/><figcaption>รูปต้นฉบับ</figcaption></figure>
+      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="female-suit-03" alt="Women’s job application outfit example"/>:<img src="/assets/home-previews/easy-job-v20261030.webp" width="483" height="640" decoding="async" fetchPriority="high" alt="ตัวอย่างรูปชุดสมัครงาน"/>}<figcaption>ชุดสมัครงาน</figcaption></figure>
+      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="male-suit-03" alt="Men’s job application outfit example"/>:<img src="/assets/home-previews/easy-government-v20261030.webp" width="483" height="640" decoding="async" alt="ตัวอย่างรูปชุดข้าราชการ"/>}<figcaption>{englishPreviewEnabled()?'Men’s job application outfit':'ชุดข้าราชการ'}</figcaption></figure>
+      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="original" alt="Original photo example"/>:<img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261031.webp" width="480" height="640" decoding="async" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/>}<figcaption>รูปต้นฉบับ</figcaption></figure>
      </div>
     </div>
    </section>

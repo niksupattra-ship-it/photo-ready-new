@@ -42,7 +42,7 @@ try{
  const thaiEditor=renderToStaticMarkup(React.createElement(EasyMode,{...common,hasResult:true,templates:[{cat:'job',title:'สูทหญิง'}]}));
  assert(thaiEditor.includes('เครื่องหมาย'));
  globalThis.location=new URL('https://idpromth.com/?lang=en');
- assert(englishHome.includes('home-previews/job-uniforms--male-suit-03-example.webp'));
+ assert(englishHome.includes('professional-portraits-v1.webp'));assert(englishHome.includes('data-example="male-suit-03"'));assert(!home.includes('professional-portraits-v1.webp'));
  delete globalThis.location;
  const english=translateEnglish(home);
  assert(english.includes('Upload photo'));assert(english.includes('Create your ID photo'));
