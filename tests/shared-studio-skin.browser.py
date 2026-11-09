@@ -194,6 +194,34 @@ try:
     }
     return {samples};
    });
+
+   await test('v7 soft rose fades upward with luminous lid centres and smooth skin on light and dark complexions',async()=>{
+    const {renderLocalMakeup}=await import('/src/local-makeup.js'),samples=[];
+    for(const [width,tone]of [[384,[184,141,123]],[900,[108,77,63]]]){
+     const f=source(width,tone),W=width,H=f.original.height,before=read(f.original),old=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v6',cosmeticsOnly:true})),next=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v7',cosmeticsOnly:true}));
+     const d=Math.hypot((f.face[263].x-f.face[33].x)*W,(f.face[263].y-f.face[33].y)*H);
+     const point=(side,u,rise)=>{
+      const pts=C.upperLids[side].map(id=>({x:f.face[id].x*W,y:f.face[id].y*H})),index=u*(pts.length-1),k=Math.min(pts.length-2,Math.floor(index)),t=index-k;
+      return {x:pts[k].x*(1-t)+pts[k+1].x*t,y:pts[k].y*(1-t)+pts[k+1].y*t-rise*d};
+     };
+     const sample=(pixels,p)=>{let red=0,light=0,n=0;for(let y=Math.round(p.y)-1;y<=Math.round(p.y)+1;y++)for(let x=Math.round(p.x)-1;x<=Math.round(p.x)+1;x++){const i=(y*W+x)*4;red+=pixels[i]-pixels[i+1]-before[i]+before[i+1];light+=(pixels[i]+pixels[i+1]+pixels[i+2]-before[i]-before[i+1]-before[i+2])/3;n++}return {rose:red/n,light:light/n}};
+     for(const side of [0,1]){
+      const at=[.22,.5,.78].map(u=>sample(next,point(side,u,.035))),oldCenter=sample(old,point(side,.5,.035)),upper=sample(next,point(side,.22,.13));
+      assert(at[1].light>oldCenter.light+2,'centre of lid does not reflect soft light '+JSON.stringify({width,side,at,oldCenter}));
+      assert(at[1].rose<Math.min(at[0].rose,at[2].rose),'rose pigment still piles up at the centre '+JSON.stringify(at));
+      assert(Math.min(at[0].rose,at[2].rose)>1,'inner/outer soft rose missing '+JSON.stringify(at));
+      assert(upper.rose<at[0].rose*.6,'colour does not fade toward the socket '+JSON.stringify({at,upper}));
+      samples.push({width,side,lid:at,oldCenter,upper});
+     }
+     for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+      const i=(y*W+x)*4;assert(next[i+3]===before[i+3],'v7 alpha changed');
+      const inFace=(((x+.5)/W-.5)/.33)**2+(((y+.5)/H-.48)/.40)**2<1;
+      if(!inFace)for(let c=0;c<4;c++)assert(next[i+c]===before[i+c],'v7 hair/background/silhouette changed');
+      if((Math.abs(x/W-.36)<.02||Math.abs(x/W-.64)<.02)&&Math.abs(y/H-.41)<.006)for(let c=0;c<3;c++)assert(next[i+c]===before[i+c],'v7 eye interior changed');
+     }
+    }
+    return {samples,geometryAlphaAndEyeInteriorsExact:true};
+   });
    return {passed:reports.length,reports,providerCalls:0};
   }''')
   assert not errors,errors;assert not network,network;browser.close()
