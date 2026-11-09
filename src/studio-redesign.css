@@ -969,24 +969,29 @@
   font-weight: 500;
 }
 
-.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-choices {
+/* A desktop sidebar needs a grid, not full-width cards in a horizontal rail. */
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-panel .studio-makeup-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
   overflow: visible;
   padding: 2px 1px 10px;
+  scroll-snap-type: none;
+  touch-action: auto;
 }
 
-.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-choices > button {
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-panel .studio-makeup-choices > button {
   width: 100% !important;
   min-width: 0;
   flex: none !important;
 }
 
-.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-choices img,
-.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-none {
-  width: 100%;
-  max-width: 100%;
+.idstudio.studio-redesign:not(.studio-touch) .studio-makeup-panel .studio-makeup-choice small {
+  min-height: 28px;
+  line-height: 14px;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
 }
 
 .idstudio.studio-redesign:not(.studio-touch) .studio-makeup-actions button {
