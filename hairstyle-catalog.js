@@ -256,7 +256,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-export const HAIR_DESIGN_VERSION='selected-silhouette-v14-balanced-upright-neck';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v15-new-neck-50mm-portrait';
 const compact={
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp and fully gathered at the low rear, with open forehead, clean visible ears and no hanging rear lengths'],
  'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],
