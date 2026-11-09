@@ -11,3 +11,7 @@ export const TOOL_HELP={
  pan:'ปรับมุมมองภาพ'
 };
 export const WARP_HELP=TOOL_HELP.warp;
+
+export const PHOTO_EDITING_TITLE='กำลังตัดต่อรูป....กรุณารอ';
+// Display phases follow the existing estimated progress; 100% means ready.
+export const photoEditingStage=value=>Number(value)>=100?'ภาพพร้อมแล้ว':Number(value)>=86?'กำลังเก็บรายละเอียด':Number(value)>=31?'กำลังตัดต่อรูป':'กำลังเตรียมรูป';

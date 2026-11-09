@@ -1,5 +1,9 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "กำลังตัดต่อรูป....กรุณารอ": "Editing your photo… Please wait.",
+ "กำลังเตรียมรูป": "Preparing your photo",
+ "กำลังตัดต่อรูป": "Editing your photo",
+
  "ปรับตำแหน่งส่วนที่เลือก": "Move the selected item.",
  "ปรับขนาดและหมุนส่วนที่เลือก": "Resize and rotate the selected item.",
  "ปรับความกว้างและความสูงคอเสื้อ": "Adjust collar width and height.",
