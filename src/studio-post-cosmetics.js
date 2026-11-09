@@ -17,7 +17,7 @@ export async function finishStudioPostCosmetics(blob,{style='natural',prepare,to
  abort(signal);
  if(style==='natural')return blob;
  const original=blob?.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION||blob?.idpromStudioSkinVersion==='studio-original-ai-v5';
- const lookId=original&&looks[style]?(style==='soft-rosy-v1'?'shared-peach-nude-gloss-v4':'shared-pink-nude-gloss-v4'):looks[style];
+ const lookId=original&&looks[style]?(style==='soft-rosy-v1'?'shared-peach-nude-gloss-v5':'shared-pink-nude-gloss-v5'):looks[style];
  if(!lookId)throw Error('ไม่พบรูปแบบเมคอัพที่เลือก');
  if(blob?.idpromStudioSkinVersion!==STUDIO_SKIN_WORKFLOW_VERSION&&!(original&&sharedOriginalPortraitSource(blob)))throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  const version=blob.idpromStudioSkinVersion+':'+style;
