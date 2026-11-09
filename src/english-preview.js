@@ -1,4 +1,3 @@
-import {ENGLISH_GOVERNMENT_TRIAL_TEMPLATE,ENGLISH_STUDENT_TRIAL_TEMPLATE} from '../english-body-portrait.js';
 import {ENGLISH_ADDITIONAL_COPY} from './english-copy-additions.js';
 // Opt-in presentation layer for the English trial. It never changes API data,
 // form values, uploaded files, canvas pixels, account data or saved projects.
@@ -189,15 +188,10 @@ export function insigniaForLanguage(location=globalThis.location){
  return !englishPreviewEnabled(location);
 }
 export function outfitsForLanguage(items,location=globalThis.location){
- if(!englishPreviewEnabled(location))return items;
- const trial=item=>item.id==='female-operational'||item.id==='student-female-rajabhat'||[ENGLISH_GOVERNMENT_TRIAL_TEMPLATE,ENGLISH_STUDENT_TRIAL_TEMPLATE].includes(item.template||item.img);
- return items.flatMap(item=>{
-  if((item.cat||item.id)==='job')return [item];
-  if(['government-female','student'].includes(item.id)&&Array.isArray(item.items)){
-   const selected=item.items.filter(trial);return selected.length?[{...item,items:selected}]:[];
-  }
-  return trial(item)?[item]:[];
- });
+ return englishPreviewEnabled(location)?items.filter(item=>(item.cat||item.id)==='job'):items;
+}
+export function defaultPortraitBackground(location=globalThis.location){
+ return englishPreviewEnabled(location)?{id:'white',src:'/assets/background-options/white.jpg'}:{id:'default',src:'/assets/background.jpg'};
 }
 export function languageLink(location=globalThis.location,english=true){
  const url=new URL(location.href);

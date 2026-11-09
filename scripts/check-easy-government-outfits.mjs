@@ -20,6 +20,5 @@ for(const gender of ['female','male']){
  assert.equal(result.filter(t=>t.group==='ชุดครุย').length,2);
 }
 const english=outfitsForLanguage([{id:'job',items:[]},{id:'government-male',items:government.filter(t=>t.gender==='male')},{id:'government-female',items:government.filter(t=>t.gender==='female')}],{search:'?lang=en'});
-assert.deepEqual(english.map(g=>g.id),['job','government-female']);
-assert.deepEqual(english[1].items.map(t=>t.id),['female-operational']);
-console.log('PASS actual EasyMode filter retains all 4 male and 4 female government outfits for either portrait type; existing job/student gender rules, gowns and the English single-female-government trial are retained. No AI or service calls.');
+assert.deepEqual(english.map(g=>g.id),['job']);
+console.log('PASS actual EasyMode filter retains all 4 male and 4 female government outfits for either portrait type; existing job/student gender rules, gowns and the English job-only catalog are retained. No AI or service calls.');

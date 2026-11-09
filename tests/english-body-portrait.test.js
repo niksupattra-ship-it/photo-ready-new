@@ -42,35 +42,13 @@ test('English makeup references original garment light and retains natural cutou
  assert.equal(calls.length,3);assert.doesNotMatch(calls.at(-1).prompt,/\+0.4 to \+0.6 EV|HEALTHY SKIN AND FACE FLASH/);assert.match(calls.at(-1).prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
  const a=await sharp(natural).extractChannel(3).raw().toBuffer(),b=await sharp(makeup).extractChannel(3).raw().toBuffer();assert.deepEqual(a,b);
 });
-test('English exposes and accepts exactly one female civil-service trial outfit',async()=>{
- const {outfitsForLanguage}=await import('../src/english-preview.js');
- const {ENGLISH_GOVERNMENT_TRIAL_TEMPLATE}=await import('../english-body-portrait.js');
- const choices=[{id:'female-operational',template:ENGLISH_GOVERNMENT_TRIAL_TEMPLATE},{id:'female-academic',template:'/assets/government-uniforms/female-academic.png'}];
- const catalog=[{id:'job',items:[]},{id:'government-female',items:choices},{id:'government-male',items:choices}];
- const en=outfitsForLanguage(catalog,{search:'?lang=en'});
- assert.deepEqual(en.map(g=>g.id),['job','government-female']);assert.deepEqual(en[1].items,[choices[0]]);assert.equal(catalog[1].items.length,2);
+test('English removes government/student categories and rejects their generation paths',async()=>{
+ const {outfitsForLanguage,defaultPortraitBackground}=await import('../src/english-preview.js');
+ const catalog=[{id:'job',items:[]},{id:'government-female',items:[{id:'female-operational'}]},{id:'student',items:[{id:'student-female-rajabhat'}]}];
+ assert.deepEqual(outfitsForLanguage(catalog,{search:'?lang=en'}).map(g=>g.id),['job']);
  assert.equal(outfitsForLanguage(catalog,{search:''}),catalog);
- const request={...fields,portraitMode:'female',neckOutfitReferencePath:ENGLISH_GOVERNMENT_TRIAL_TEMPLATE};
- assert.doesNotThrow(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},request));
- const png=await sharp({create:{width:32,height:48,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:24,height:40,channels:4,background:'#af9363'}}).png().toBuffer(),left:4,top:8}]).png().toBuffer();
- let sent;
- await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:request,root,key:'fixture-not-sent',requestPortrait:async p=>{sent=p;return {png}},removeBackground:async()=>png});
- const expected=await sharp(await readFile(root+'public'+ENGLISH_GOVERNMENT_TRIAL_TEMPLATE)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
- assert.deepEqual(sent.outfit,expected);assert.match(sent.prompt,/Generate this garment ON the person/);
-
- assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{...request,neckOutfitReferencePath:choices[1].template}),/English outfit/);
-});
-test('English adds exactly one female student outfit and sends its real reference to AI',async()=>{
- const {outfitsForLanguage}=await import('../src/english-preview.js');
- const {ENGLISH_STUDENT_TRIAL_TEMPLATE}=await import('../english-body-portrait.js');
- const items=[{id:'student-female-rajabhat',template:ENGLISH_STUDENT_TRIAL_TEMPLATE},{id:'student-female-02',template:'/assets/student-uniforms/female-02.png'},{id:'student-male-01',template:'/assets/student-uniforms/male-01.png'}];
- const catalog=[{id:'job',items:[]},{id:'student',items}];
- assert.deepEqual(outfitsForLanguage(catalog,{search:'?lang=en'})[1].items,[items[0]]);
- assert.equal(outfitsForLanguage(catalog,{search:''}),catalog);
- const png=await sharp({create:{width:32,height:48,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:24,height:40,channels:4,background:'#eeeeee'}}).png().toBuffer(),left:4,top:8}]).png().toBuffer();
- const request={...fields,portraitMode:'female',neckOutfitReferencePath:ENGLISH_STUDENT_TRIAL_TEMPLATE};let sent;
- await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:request,root,key:'fixture-not-sent',requestPortrait:async p=>{sent=p;return {png}},removeBackground:async()=>png});
- const expected=await sharp(await readFile(root+'public'+ENGLISH_STUDENT_TRIAL_TEMPLATE)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
- assert.deepEqual(sent.outfit,expected);
- assert.throws(()=>validateProductionPortrait({buffer:png,mimetype:'image/png'},{...request,neckOutfitReferencePath:items[1].template}),/English outfit/);
+ for(const neckOutfitReferencePath of ['/assets/government-uniforms/female-operational.png','/assets/student-uniforms/female-rajabhat.png'])assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{...fields,portraitMode:'female',neckOutfitReferencePath}),/English outfit/);
+ assert.deepEqual(defaultPortraitBackground({search:'?lang=en'}),{id:'white',src:'/assets/background-options/white.jpg'});
+ assert.deepEqual(defaultPortraitBackground({search:''}),{id:'default',src:'/assets/background.jpg'});
+ const {data}=await sharp(root+'public'+defaultPortraitBackground({search:'?lang=en'}).src).resize(1,1).removeAlpha().raw().toBuffer({resolveWithObject:true});assert.deepEqual([...data],[255,255,255]);
 });

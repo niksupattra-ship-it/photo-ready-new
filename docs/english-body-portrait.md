@@ -2,9 +2,10 @@
 
 Only `?lang=en` submits `interfaceLanguage=en` and
 `portraitComposition=en-outfit-body-v1`. Thai processing remains unchanged.
-English choices include job outfits, one female civil-service trial
-(`female-operational.png`) and one Rajabhat female student trial
-(`female-rajabhat.png`).
+English choices include job outfits only. Government and student categories
+are hidden, and their paths are rejected for new English generation requests.
+New English portraits start with a white background; Thai defaults and saved
+projects' existing background choices are retained.
 
 AI creates the head, neck and clothed upper torso together as one continuous
 portrait. The selected real outfit is supplied at up to 2048 pixels (without

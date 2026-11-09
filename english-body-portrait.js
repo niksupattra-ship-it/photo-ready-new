@@ -1,8 +1,6 @@
 export const ENGLISH_OUTFIT_LIGHTING_VERSION='outfit-anchored-face-light-v4-ai-clothing-reference';
 export const ENGLISH_OUTFIT_LIGHTING_POLICY='OUTFIT LIGHTING IS THE FIXED AUTHORITY: Keep the selected garment’s original hue, saturation, exposure, white balance, contrast, highlight/shadow direction and softness, fabric texture, edge definition and sharpness. Do not recolour, brighten, darken, relight, smooth, blur, sharpen or globally grade the clothing. Adapt ONLY the face, ears and visible neck to the garment’s existing lighting: match key-light direction, softness, colour temperature, exposure and shadow depth, with continuous natural skin lighting across jaw and neck. Preserve authentic complexion and facial detail. Any skin/light guide supplies skin material only and must not override the garment lighting. A fill flash or face-brightening instruction applies only when compatible with this fixed garment light; do not add an independent brighter flash. No whole-image exposure, colour, contrast or sharpening adjustment. Judge the final face and outfit as one photograph while keeping the reference clothing appearance unchanged.';
-export const ENGLISH_STUDENT_TRIAL_TEMPLATE='/assets/student-uniforms/female-rajabhat.png';
-export const ENGLISH_GOVERNMENT_TRIAL_TEMPLATE='/assets/government-uniforms/female-operational.png';
-export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.png$/.test(path)||path===ENGLISH_GOVERNMENT_TRIAL_TEMPLATE||path===ENGLISH_STUDENT_TRIAL_TEMPLATE)}
+export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.png$/.test(path))}
 export const ENGLISH_BODY_PORTRAIT_VERSION='en-outfit-body-v1';
 export function isEnglishBodyPortrait(fields={}){
  return fields.interfaceLanguage==='en'&&fields.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
