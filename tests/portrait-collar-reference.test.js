@@ -15,7 +15,7 @@ test('Natural female and male jobs send the actual selected collar without addin
   const calls=[];
   const result=await processProductionPortrait({input:{buffer:input,mimetype:'image/png'},fields:{portraitMode,femaleEyeStyle:'natural',neckOutfitReferencePath:template,...(portraitMode==='female'?{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION}:{})},root,key:'fixture-not-sent',requestPortrait:async p=>{calls.push(p);return {png:input}},removeBackground:async()=>cutout});
   assert(result.length);assert.equal(calls.length,portraitMode==='female'?2:1);
-  const generation=calls.at(-1);assert.deepEqual(generation.outfit,expected);
+  const generation=calls.at(-1);assert.deepEqual(generation.outfit,expected);assert.doesNotMatch(generation.prompt,/FINAL HEAD\/BODY BALANCE — ENGLISH PORTRAIT/,'Thai requests retain their existing proportions policy');
   const index=2+Number(Boolean(generation.hair))+Number(Boolean(generation.identity));
   assert(generation.prompt.includes(`SELECTED COLLAR ALIGNMENT — IMAGE ${index}`));
   assert.match(generation.prompt,/No inward bow, hourglass waist/);

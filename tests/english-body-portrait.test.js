@@ -25,6 +25,10 @@ test('English male and female generations create complete clothed portraits with
   assert.match(generated.prompt,/head, new upright neck, level shoulders and clothed upper torso together/);
   assert.match(generated.prompt,/Generate this garment ON the person/);
   assert.match(generated.prompt,/STRICT GARMENT FIDELITY/);
+  assert.match(generated.prompt,/FINAL HEAD\/BODY BALANCE — ENGLISH PORTRAIT/);
+  assert.match(generated.prompt,/30–36% of shoulder-joint-to-shoulder-joint width/);
+  assert.match(generated.prompt,/reduce the entire head coherently/);
+  assert(generated.prompt.endsWith('without separate pasted head or body panels.'));
   assert.match(generated.prompt,/button count, spacing and material/);
   assert.match(generated.prompt,/do not substitute generic emblems/);
   assert.match(generated.prompt,/Adapt ONLY the face, ears and visible neck to the garment/);

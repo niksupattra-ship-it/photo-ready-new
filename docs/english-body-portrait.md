@@ -38,3 +38,10 @@ Validation:
 Provider tests use inert responses and actual reference files. Browser checks
 verify torso preservation, aspect ratio, transparency and outfit selection.
 Real AI output quality and production deployment remain unverified here.
+
+English proportion guidance uses facial bone width relative to complete shoulder
+span (roughly 30–36%) rather than hair volume, selfie crop or reference-image
+size. Oversized heads are corrected coherently during AI generation while
+preserving intrinsic facial geometry and the outfit silhouette. This guidance
+is an approximate composition target, not a deterministic anatomy validator.
+The English cache revision prevents reusing earlier oversized-head results.
