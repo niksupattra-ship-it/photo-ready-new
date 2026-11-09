@@ -157,7 +157,7 @@ export const ENGLISH_COPY = {
  'บน':'Top','ล่าง':'Bottom','เลเยอร์':'Layers','เครื่องมือ':'Tools','เลื่อน':'Move',
  'จัดตำแหน่ง':'Position','ย้าย':'Move','ลบ':'Delete','ทำซ้ำ':'Redo','เลิกทำ':'Undo',
  'ล็อก':'Lock','ปลดล็อก':'Unlock','แสดง':'Show','ซ่อน':'Hide','เลือกทั้งหมด':'Select all',
- 'ผิวสว่างฟุ้ง':'Soft bright skin','เพิ่มความวาว':'Add glow','ผิวเนียน':'Smooth skin',
+ 'ผิวสว่างฟุ้ง':'Brighten','เพิ่มความวาว':'Glow','ผิวเนียน':'Smooth',
  'เริ่มใหม่':'Start over','ออก':'Exit','หน้าหลัก':'Home','ดูตัวอย่าง':'Preview',
  'กลับมารับรูปภายหลัง':'Return to download later',
  '2 นิ้วซูม/เลื่อน · 1 นิ้วใช้เครื่องมือ':'Use two fingers to zoom or pan · One finger to use a tool',
@@ -176,7 +176,7 @@ export const ENGLISH_COPY = {
  'ไม่แต่งหน้า':'No makeup',
  'บันทึกรูปของคุณ':'Save your photo','กดบันทึกรูป หรือแชร์ไปยังแอปที่ต้องการ':'Select Save photo, or share it using your preferred app.',
  'รูปพร้อมบันทึกเต็มความละเอียด':'Full-resolution photo ready to save','แชร์รูป':'Share photo',
- 'หากบันทึกไม่ได้ ให้กดค้างที่รูปแล้วเลือกบันทึกภาพ หากแอปยังไม่รองรับ ให้เปิดเว็บใน Chrome หรือ Safari ผ่านเมนูของแอป':'If saving is unavailable, touch and hold the photo and select Save image. If the in-app browser is unsupported, open the website in Chrome or Safari using the app menu.',
+ 'หากบันทึกไม่ได้ ให้กดค้างที่รูปแล้วเลือกบันทึกภาพ หากแอปยังไม่รองรับ ให้เปิดเว็บใน Chrome หรือ Safari ผ่านเมนูของแอป':'To save, touch and hold the photo and choose Save image. If that fails, open this page in Chrome or Safari from the app menu.',
 };
 
 const THAI=/[\u0E00-\u0E7F]/;
