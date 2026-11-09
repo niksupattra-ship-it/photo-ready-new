@@ -173,6 +173,27 @@ try:
     }
     return {samples,eyeInteriorsExact:true,nativeGeometryAndAlphaExact:true};
    });
+
+   await test('v6 sweeps shadow across both upper lids instead of concentrating a spot in the centre',async()=>{
+    const {renderLocalMakeup}=await import('/src/local-makeup.js'),samples=[];
+    for(const width of [384,900]){
+     const f=source(width),W=width,H=f.original.height,before=read(f.original),v5=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v5',cosmeticsOnly:true})),v6=read(await renderLocalMakeup({...f,lookId:'shared-pink-nude-gloss-v6',cosmeticsOnly:true}));
+     const l=f.face[33],r=f.face[263],d=Math.hypot((r.x-l.x)*W,(r.y-l.y)*H),shade=(pixels,side,t)=>{
+      const pts=C.upperLids[side].map(i=>({x:f.face[i].x*W,y:f.face[i].y*H})),at=t*(pts.length-1),j=Math.min(pts.length-2,Math.floor(at)),q=at-j,p={x:pts[j].x*(1-q)+pts[j+1].x*q,y:pts[j].y*(1-q)+pts[j+1].y*q};
+      p.y-=d*(.004+.008+.052*Math.sin(Math.PI*t))/2;let sum=0,n=0;
+      for(let y=Math.round(p.y)-1;y<=Math.round(p.y)+1;y++)for(let x=Math.round(p.x)-1;x<=Math.round(p.x)+1;x++){const k=(y*W+x)*4;sum+=pixels[k]-pixels[k+1]-before[k]+before[k+1];n++;}return sum/n;
+     };
+     for(const side of [0,1]){
+      const old=[.2,.5,.8].map(t=>shade(v5,side,t)),next=[.2,.5,.8].map(t=>shade(v6,side,t));
+      const oldPeak=old[1]-(old[0]+old[2])/2,newPeak=next[1]-(next[0]+next[2])/2;
+      assert(newPeak<oldPeak*.7,'shadow still forms a central spot '+JSON.stringify({old,next,oldPeak,newPeak}));
+      assert(Math.min(next[0],next[2])>Math.min(old[0],old[2])+1,'inner/outer lid coverage did not improve '+JSON.stringify({old,next}));
+      samples.push({width,side,old,next});
+     }
+     for(let i=0;i<before.length;i+=4)assert(v6[i+3]===before[i+3],'v6 alpha changed');
+    }
+    return {samples};
+   });
    return {passed:reports.length,reports,providerCalls:0};
   }''')
   assert not errors,errors;assert not network,network;browser.close()

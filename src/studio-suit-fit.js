@@ -3,7 +3,7 @@ import {measureUniformAnchors} from './portrait-uniform-fit.js';
 import {layerToScene,sceneToLayer} from './studio-transform.js';
 import {measureCollarOpeningProfile} from './studio-auto-collar-fit.js';
 
-export const STUDIO_SUIT_FIT_VERSION='head-only-fixed-pattern-v4';
+export const STUDIO_SUIT_FIT_VERSION='head-only-fixed-pattern-v5-female-collar';
 const W=900,H=1200;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)];
@@ -70,13 +70,21 @@ export function planStudioSuitGeometry({uniform,face,head,suit}){
  const eyeAngle=Math.atan2(re.y-le.y,re.x-le.x),eyeWidth=Math.hypot(re.x-le.x,re.y-le.y),faceWidth=Math.hypot(right.x-left.x,right.y-left.y);
  const referenceScale=904/uniform.bounds.w,referenceFrame={x:-2-uniform.bounds.l*referenceScale,y:H*.425+uniform.socketY*(W*.94/uniform.width)-uniform.socketY*referenceScale,w:uniform.width*referenceScale,h:uniform.height*referenceScale};
  const localChin={x:garmentFrame.x+(W*.5-referenceFrame.x)/referenceFrame.w*garmentFrame.w,y:garmentFrame.y+(H*.5-referenceFrame.y)/referenceFrame.h*garmentFrame.h};
- const chinTarget=layerToScene(sp,localChin),shoulderSpan=uniform.shoulderWidth/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX),torsoSpan=(uniform.torsoWidth||uniform.shoulderWidth*.8)/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX);
+ let chinTarget=layerToScene(sp,localChin);const shoulderSpan=uniform.shoulderWidth/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX),torsoSpan=(uniform.torsoWidth||uniform.shoulderWidth*.8)/uniform.width*garmentFrame.w*sp.scale*Math.abs(sp.squeezeX);
  // Match composePortrait's actual eye normalization (160‰ ×1.28), mapped
  // through this garment's own initial frame. The neck cut edge never sizes a face.
  let scale=W*.160*1.28*(garmentFrame.w/referenceFrame.w)*sp.scale*Math.abs(sp.squeezeX)/eyeWidth;
  scale=Math.min(scale,shoulderSpan*.46/faceWidth,torsoSpan*.72/faceWidth);
  const crown=point({x:face.cx,y:face.opaqueTop}),span=Math.hypot(chin.x-crown.x,chin.y-crown.y);
  if(span>0&&chinTarget.y>H*.045)scale=Math.min(scale,(chinTarget.y-H*.045)/span);
+ if(head.portraitMode==='female'&&Number.isFinite(uniform.collarTopY)){
+  const collar=layerToScene(sp,{x:garmentFrame.x+uniform.centerX/uniform.width*garmentFrame.w,y:garmentFrame.y+(uniform.necklineY??uniform.collarTopY)/uniform.height*garmentFrame.h});
+  const faceHeight=face.faceHeight/face.height*hf.h,angle=sp.rotation*Math.PI/180;
+  scale=Math.min(shoulderSpan*.32/faceWidth,torsoSpan*.72/faceWidth);
+  if(span>0&&collar.y>H*.045)scale=Math.min(scale,(collar.y-H*.045)/(span+faceHeight*.16));
+  const gap=faceHeight*scale*.16;
+  chinTarget={x:collar.x+Math.sin(angle)*gap,y:collar.y-Math.cos(angle)*gap};
+ }
  if(!Number.isFinite(scale)||scale<.1||scale>5)throw Error('วัดขนาดหัวกับชุดไม่สำเร็จ');
  const rotation=sp.rotation-eyeAngle*180/Math.PI,r=rotation*Math.PI/180,u=(chin.x-W/2)*scale,v=(chin.y-H/2)*scale;
  const headPose={x:chinTarget.x-W/2-u*Math.cos(r)+v*Math.sin(r),y:chinTarget.y-H/2-u*Math.sin(r)-v*Math.cos(r),scale,rotation,squeezeX:1,squeezeY:1};

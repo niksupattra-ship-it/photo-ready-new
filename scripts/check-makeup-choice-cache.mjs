@@ -9,7 +9,7 @@ import {sharedStudioSkinSource} from '../src/shared-studio-skin.js';
 import {PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const noop=()=>{};
-function currentHeadMetadata(style){return {hairPolicyVersion:HAIR_DESIGN_VERSION,studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,...(style==='natural'?{naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{studioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':'+style})}}
+function currentHeadMetadata(style){return {hairPolicyVersion:HAIR_DESIGN_VERSION+'-female-reference-v1',studioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,...(style==='natural'?{naturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{studioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':'+style})}}
 function processedMaster(style,bytes){return Object.assign(new Blob([bytes]),{idpromStudioSkinVersion:STUDIO_SKIN_WORKFLOW_VERSION,...(style==='natural'?{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION}:{idpromStudioCosmeticsVersion:STUDIO_SKIN_WORKFLOW_VERSION+':'+style})})}
 
 function extract(start,end,name,env){const a=main.indexOf(start),b=main.indexOf(end,a);assert(a>=0&&b>a,`missing ${name}`);return new Function('env',`with(env){${main.slice(a,b)};return ${name}}`)(env)}
@@ -115,7 +115,7 @@ await test('old saved soft rosy result cannot seed the revised skin finish cache
  f.memory.rememberRestoredHairResult({...head,softRosyFinishVersion:'soft-radiance-korean-brows-v7',...currentHeadMetadata('soft-rosy-v1')});assert.equal(f.memory.canReuseHair('seedream-19','female','soft-rosy-v1'),true);
 });
 await test('older saved hair/neck pixels stay visible without seeding the repaired hairstyle cache',async()=>{
- for(const style of ['natural','makeup','korean-rosy-v1'])for(const version of [undefined,'selected-silhouette-v9-wide-round-neck-base']){
+ for(const style of ['natural','makeup','korean-rosy-v1'])for(const version of [undefined,HAIR_DESIGN_VERSION,'selected-silhouette-v9-wide-round-neck-base']){
   const f=fixture(),master=f.env.editCache.current.master;f.env.hairResultCacheRef.current.clear();
   f.memory.rememberRestoredHairResult({jobId:'job-first',hairId:'seedream-41',portraitMode:'female',femaleEyeStyle:style,...currentHeadMetadata(style),hairPolicyVersion:version});
   assert.equal(f.env.hairResultCacheRef.current.size,0);assert.equal(f.env.editCache.current.master,master);assert.equal(f.file.idpromFemaleEyeStyle,style);assert.equal(f.calls.length,0);

@@ -281,7 +281,7 @@ const longDesigns={
  "seedream-39": "sleek straight medium-long dark brown hair, slightly off-centre part, low compact crown, both ears visible with sides tucked behind them, clean shoulder-length angled ends and no fringe; match Image 2 exactly",
 
  "seedream-03": "straight medium-long hair, centre part, smooth side lengths with inward-curved ends",
- "seedream-07": "long sleek straight hair with a precise centre part and open forehead",
+ "seedream-07": "long straight dark-brown hair with a near-centre part, low natural crown, fine separated curtain wisps following BOTH forehead sides toward the outer brows, ears visible behind the side sections, and gently flared shoulder-side ends; preserve those reference forehead pieces instead of sweeping the entire forehead clean",
  "seedream-08": "long straight hair with a side part and diagonal upper sweep",
  "seedream-11": "long straight hair with a side part and smooth upper sweep",
  "seedream-14": "long straight hair with a centre part and smooth crown",

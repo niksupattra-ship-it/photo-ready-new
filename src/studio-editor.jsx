@@ -998,7 +998,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,currentFinish):'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if(head.hairPolicyVersion===HAIR_DESIGN_VERSION&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
+  if(head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setTool('move');return}
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;
@@ -1022,7 +1022,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||'')||portraitFinishChoice(result.layer.femaleEyeStyle,result.layer.initialFemaleEyeStyle)!==finish)throw Error('ผลลัพธ์ไม่ตรงกับเมคอัพหรือทรงผมที่เลือก');
-   const replacement={...result.layer,...headPose(placedHead),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
+   const replacement={...result.layer,...headPose(placedHead),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:localFinish?head.hairPolicyVersion:mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
    assertAppearanceCurrent();
    let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
