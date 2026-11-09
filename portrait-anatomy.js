@@ -55,3 +55,14 @@ export async function prepareCatalogueHairOnly(buffer,id,root){
  }
  return sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
 }
+
+// Applied only to the generation request, never to source skin preparation.
+export function requireNewStraightNeck(prompt){
+ const replacements=[
+  ['Keep the existing neck, original identity','Generate the neck anew; keep the original identity'],
+  ['Keep the existing ears, face, jaw, neck and head scale exactly as specified.','Keep the existing ears, face, jaw and head scale exactly as specified; generate the neck anew.'],
+  ['Preserve the established skin treatment, pores, complexion, neck anatomy/coverage, lighting, framing and transparency.','Preserve the established skin treatment, pores, complexion, hidden neck coverage, lighting, framing and transparency; generate the visible neck anew.'],
+ ];
+ for(const [before,after] of replacements)prompt=prompt.replaceAll(before,after);
+ return 'GENERATION TASK — REBUILD THE VISIBLE NECK NOW: Keep the person’s face and jaw unchanged. Discard the source neck geometry, including the neck in prepared Image 1. Synthesize a new broad upright neck with two straight, near-parallel lateral skin boundaries from directly beneath the left and right jaw attachments to the corresponding collar entries. Keep the same supporting width throughout the exposed neck: no inward concave waist, bent side, sideways lean or narrow throat. Render realistic skin and soft internal muscle shading INSIDE that straight silhouette; shading must not bend the outer edges. Continue each side into the collar, not sideways into an exposed shoulder shelf. The original rounded U backing remains only below the collar, hidden by the separate garment. This is new anatomy to generate in this image, not a later mask, crop or editor adjustment. Instructions below to preserve pose or framing apply to the face and head only, never to source neck geometry.\n'+prompt;
+}

@@ -1,6 +1,6 @@
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
-import {isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,BALANCED_NECK_POLICY,loadNeckBackingGuide,neckBackingGuideInstruction,loadVisibleNeckGuide,visibleNeckGuideInstruction} from './portrait-anatomy.js';
+import {requireNewStraightNeck,isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,BALANCED_NECK_POLICY,loadNeckBackingGuide,neckBackingGuideInstruction,loadVisibleNeckGuide,visibleNeckGuideInstruction} from './portrait-anatomy.js';
 import {needsNaturalAiPreparation} from './natural-studio-skin.js';
 import {NATURAL_PREPARED_TASK,naturalAiPreparationPrompt,naturalAiPreparedFinish,naturalAiPreparedGuide,NATURAL_PREPARED_PRIORITY} from './natural-ai-preparation.js';
 import {needsNaturalClearSkin,NATURAL_CLEAR_SKIN_PRIORITY,naturalSpotRepairPrompt} from './original-portrait-ai.js';
@@ -234,6 +234,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  prompt+='\n'+SOFT_HAIR_TEXTURE_POLICY+'\n'+BALANCED_NECK_POLICY;
  let neckReference=null,neckShapeReference=null;
  if(bounded){prompt=prompt.replaceAll('and stable identifying marks','and expression').replaceAll('THE LAST IMAGE','THE SKIN/LIGHT BOARD');neckReference=await loadNeckBackingGuide(root);neckShapeReference=await loadVisibleNeckGuide(root);const index=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit))+Number(Boolean(skinReference));prompt+=neckBackingGuideInstruction(index)+visibleNeckGuideInstruction(index+1)+'\n'+BOUNDED_PORTRAIT_PRIORITY;}
+ if(bounded)prompt=requireNewStraightNeck(prompt);
  let generationInput=portrait;
  if(preparedMakeup){
   await onStage('skin-prepare');

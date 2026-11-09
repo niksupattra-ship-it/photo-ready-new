@@ -22,6 +22,10 @@ test('Natural female and male jobs send the actual selected collar without addin
   assert.match(generation.prompt,/Do not generate this garment into the output/);
   if(portraitMode==='female'){
    assert.equal(calls[0].outfit,undefined);
+   assert(generation.prompt.startsWith('GENERATION TASK — REBUILD THE VISIBLE NECK NOW:'));
+   assert.match(generation.prompt,/Discard the source neck geometry, including the neck in prepared Image 1/);
+   assert.doesNotMatch(generation.prompt,/Keep the existing neck, original identity|Keep the existing ears, face, jaw, neck and head scale/);
+   assert(!calls[0].prompt.includes('GENERATION TASK — REBUILD THE VISIBLE NECK NOW:'),'skin preparation must keep its original scope');
    assert.deepEqual(generation.neckReference,await readFile(root+'public/assets/neck-backing-reference/wide-deep-u-v1.png'));
    assert.deepEqual(generation.neckShapeReference,await readFile(root+'public/assets/neck-backing-reference/visible-neck-straight-v1.png'));
    const payload=seedreamReviewPayload(generation);assert(Array.isArray(payload.image));
