@@ -46,6 +46,13 @@ import {createDownloadAuditAuth,registerDownloadAuditApi} from './download-audit
 
 const dir=path.dirname(fileURLToPath(import.meta.url));
 const app=express();
+// Read-only deployment identity: lets operators distinguish a queued release
+// from the version actually serving requests, without exposing environment data.
+app.get('/api/version',(_req,res)=>res.set('Cache-Control','no-store').json({
+ release:'original-upload-restored-v1',
+ commit:process.env.RAILWAY_GIT_COMMIT_SHA||null,
+ photoFramingRequired:false
+}));
 let paymentApi;
 app.set("trust proxy",1);
 
