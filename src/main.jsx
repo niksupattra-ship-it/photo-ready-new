@@ -1,4 +1,4 @@
-import {mergeAiMakeupPixels} from './ai-makeup-pair.js';
+import {useAiMakeupPixels} from './ai-makeup-pair.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
 import {measurePortraitAspect,portraitAspectRepair} from './portrait-aspect-repair.js';
@@ -2614,13 +2614,11 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   let finished=cleaned;
   if(gender==='female'&&finished.idpromAiMakeupBlob){
-   const evidence=await prepareSharedPortraitMakeup(finished),im=await decodedPortraitImage(finished.idpromAiMakeupBlob);
-   const W=evidence.original.naturalWidth||evidence.original.width,H=evidence.original.naturalHeight||evidence.original.height,canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});
-   const makeupFace=await portraitFaceLandmarks(finished.idpromAiMakeupBlob,im);if(!makeupFace?.[33]||!makeupFace?.[263])throw Error('ตรวจใบหน้าในภาพแต่งหน้าไม่สำเร็จ');
-   const aligned=alignFaceCanvas(im,makeupFace,evidence.face,W,H);ctx.drawImage(aligned,0,0);const makeup=ctx.getImageData(0,0,W,H).data;
-   ctx.clearRect(0,0,W,H);ctx.drawImage(evidence.original,0,0);const frame=ctx.getImageData(0,0,W,H);
-   const hair=evidence.hairMask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data;
-   frame.data.set(mergeAiMakeupPixels({natural:frame.data,makeup,width:W,height:H,face:evidence.face,hair}));ctx.putImageData(frame,0,0);
+   const natural=await decodedPortraitImage(finished),im=await decodedPortraitImage(finished.idpromAiMakeupBlob);
+   const W=natural.naturalWidth||natural.width,H=natural.naturalHeight||natural.height,canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});
+   ctx.drawImage(im,0,0,W,H);const makeup=ctx.getImageData(0,0,W,H).data;
+   ctx.clearRect(0,0,W,H);ctx.drawImage(natural,0,0);const frame=ctx.getImageData(0,0,W,H);
+   frame.data.set(useAiMakeupPixels({natural:frame.data,makeup,width:W,height:H}));ctx.putImageData(frame,0,0);
    finished.idpromAiMakeupSource=canvas.toDataURL('image/png');delete finished.idpromAiMakeupBlob;
   }
   if(gender==='female'&&[STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(finished.idpromStudioSkinVersion)){

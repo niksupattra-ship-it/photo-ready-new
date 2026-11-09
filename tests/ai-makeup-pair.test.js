@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {createAiMakeupVariant} from '../ai-portrait-makeup.js';
 import {finishSharedStudioSkin,copyStudioSkinBlobMetadata} from '../src/shared-studio-skin.js';
-import {mergeAiMakeupPixels} from '../src/ai-makeup-pair.js';
+import {useAiMakeupPixels} from '../src/ai-makeup-pair.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,originalPortraitAiMetadata} from '../original-portrait-ai.js';
 import {SHARED_PORTRAIT_BASE_VERSION} from '../shared-portrait-policy.js';
 import {packSavedProjectTransfer,unpackSavedProjectTransfer} from '../src/saved-work-transfer.js';
@@ -36,24 +36,21 @@ test('both finishes switch repeatedly using stored AI pixels without preparing o
  assert.equal((await finishSharedStudioSkin(reopened,{style:'natural'})).size,natural.length);
  await assert.rejects(finishSharedStudioSkin(base,{style:'makeup',signal:{aborted:true}}),/ยกเลิก/);
 });
-test('cosmetic merge leaves hair, eyes, neck, outside-face pixels and alpha unchanged',()=>{
- const width=100,height=100,n=width*height,natural=new Uint8ClampedArray(n*4).fill(80),makeup=new Uint8ClampedArray(n*4).fill(180),hair=new Uint8ClampedArray(n*4),face=Array.from({length:468},()=>({x:.5,y:.5}));
- const oval=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
- oval.forEach((id,j)=>{const a=j/oval.length*Math.PI*2;face[id]={x:.5+.35*Math.cos(a),y:.45+.35*Math.sin(a)}});
- for(const ids of [[33,160,158,133,153,144],[362,385,387,263,373,380]])ids.forEach((id,j)=>{const a=j/ids.length*Math.PI*2;face[id]={x:(ids[0]===33?.36:.64)+.06*Math.cos(a),y:.4+.03*Math.sin(a)}});
- hair[(30*width+50)*4+3]=255;
- const out=mergeAiMakeupPixels({natural,makeup,width,height,face,hair});
- for(let i=3;i<out.length;i+=4)assert.equal(out[i],natural[i]);
- for(const [x,y] of [[0,0],[50,90],[50,30],[36,40],[64,40]])assert.equal(out[(y*width+x)*4],80);
- assert.equal(out[(55*width+50)*4],180);assert.deepEqual(natural,new Uint8ClampedArray(n*4).fill(80));
+test('whole AI image keeps every RGB pixel including eye and jaw boundaries, with only natural cutout alpha',()=>{
+ const width=100,height=100,n=width*height,natural=new Uint8ClampedArray(n*4).fill(80),makeup=new Uint8ClampedArray(n*4);
+ for(let i=0;i<n;i++){makeup[i*4]=i%256;makeup[i*4+1]=(i*7)%256;makeup[i*4+2]=(i*13)%256;makeup[i*4+3]=255;natural[i*4+3]=i%256;}
+ const out=useAiMakeupPixels({natural,makeup,width,height});
+ for(let i=0;i<n;i++){for(let c=0;c<3;c++)assert.equal(out[i*4+c],makeup[i*4+c]);assert.equal(out[i*4+3],natural[i*4+3]);}
+ assert.notEqual(out,makeup);assert.notEqual(out,natural);
+ assert.throws(()=>useAiMakeupPixels({natural,makeup:makeup.slice(4),width,height}),/ขนาด/);
 });
 test('production pipeline finishes both images before delivery and fails the job if makeup generation fails',async()=>{
  const {processProductionPortrait}=await import('../production-portrait-pipeline.js');
  const {AI_MAKEUP_PAIR_VERSION}=await import('../ai-makeup-pair-policy.js');
  const natural=await sharp({create:{width:64,height:96,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await png('tan',40,80),left:12,top:8}]).png().toBuffer();
- for(const fail of [false,true]){
+ for(const [fail,pairVersion] of [[false,AI_MAKEUP_PAIR_VERSION],[false,'ai-makeup-pair-v1'],[true,AI_MAKEUP_PAIR_VERSION]]){
   let variant,makeupCalls=0;const stages=[];
-  const operation=()=>processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{portraitMode:'female',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root:new URL('..',import.meta.url).pathname,key:'fixture-not-sent',removeBackground:async()=>natural,onStage:async stage=>stages.push(stage),onMakeupVariant:async png=>{variant=png},requestPortrait:async options=>{
+  const operation=()=>processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{portraitMode:'female',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:pairVersion},root:new URL('..',import.meta.url).pathname,key:'fixture-not-sent',removeBackground:async()=>natural,onStage:async stage=>stages.push(stage),onMakeupVariant:async png=>{variant=png},requestPortrait:async options=>{
    if(options.prompt.includes('Apply professional peach-rose')){makeupCalls++;if(fail)throw Error('makeup failed');}return {png:natural};
   }});
   if(fail){await assert.rejects(operation(),/makeup failed/);assert.equal(variant,undefined)}else{const result=await operation();assert(result.length);assert(variant?.length);assert.equal(stages.at(-1),'makeup')}

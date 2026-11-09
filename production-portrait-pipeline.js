@@ -1,4 +1,5 @@
-import {AI_MAKEUP_PAIR_VERSION,createAiMakeupVariant} from './ai-portrait-makeup.js';
+import {createAiMakeupVariant} from './ai-portrait-makeup.js';
+import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,loadNeckBackingGuide,neckBackingGuideInstruction} from './portrait-anatomy.js';
 import {needsNaturalAiPreparation} from './natural-studio-skin.js';
 import {NATURAL_PREPARED_TASK,naturalAiPreparationPrompt,naturalAiPreparedFinish,naturalAiPreparedGuide,NATURAL_PREPARED_PRIORITY} from './natural-ai-preparation.js';
@@ -71,7 +72,7 @@ export function validateProductionPortrait(input,fields={}){
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
  if(fields.hairReferenceVersion&&fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION)throw Error('ข้อมูลทรงผมไม่ตรงกับชุดล่าสุด กรุณารีเฟรชหน้าเว็บ');
  const id=fields.hairId||'original',selected=productionHair(id);
- if(fields.femaleFinishPair&&(fields.femaleFinishPair!==AI_MAKEUP_PAIR_VERSION||(selected?.gender||fields.portraitMode)!=='female'||fields.femaleEyeStyle!=='natural'||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกภาพแต่งหน้าคู่ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
+ if(fields.femaleFinishPair&&(!isAiMakeupPairVersion(fields.femaleFinishPair)||(selected?.gender||fields.portraitMode)!=='female'||fields.femaleEyeStyle!=='natural'||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกภาพแต่งหน้าคู่ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  if(fields.hairReferenceVersion&&!id.startsWith('seedream-'))throw Error('ภาพอ้างอิงนี้ใช้ได้เฉพาะทรงผมในแค็ตตาล็อก');
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
@@ -248,7 +249,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('edges');
  const {png:transparent,alpha}=await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
- if(fields.femaleFinishPair===AI_MAKEUP_PAIR_VERSION&&selected.gender==='female'){
+ if(isAiMakeupPairVersion(fields.femaleFinishPair)&&selected.gender==='female'){
   await onStage('makeup');
   const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait});
   if(typeof onMakeupVariant!=='function')throw Error('ระบบเก็บภาพแต่งหน้ายังไม่พร้อม');
