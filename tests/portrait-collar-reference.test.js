@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
+import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 const root=new URL('..',import.meta.url).pathname;
 test('Natural female and male jobs send the actual selected collar without adding AI stages',async()=>{
@@ -21,6 +22,11 @@ test('Natural female and male jobs send the actual selected collar without addin
   assert.match(generation.prompt,/Do not generate this garment into the output/);
   if(portraitMode==='female'){
    assert.equal(calls[0].outfit,undefined);
+   assert.deepEqual(generation.neckReference,await readFile(root+'public/assets/neck-backing-reference/wide-deep-u-v1.png'));
+   assert.deepEqual(generation.neckShapeReference,await readFile(root+'public/assets/neck-backing-reference/visible-neck-straight-v1.png'));
+   const payload=seedreamReviewPayload(generation);assert(Array.isArray(payload.image));
+   assert.equal(payload.image.at(-2),'data:image/png;base64,'+generation.neckReference.toString('base64'));
+   assert.equal(payload.image.at(-1),'data:image/png;base64,'+generation.neckShapeReference.toString('base64'));
    assert.doesNotMatch(generation.prompt,/not the visible neck shaft dimensions|The guide defines hidden skin coverage only|the neck guide controls the WIDE, DEEP rounded U backing only/,'the delivered prompt must not deny the visible-neck guide authority');
    assert.match(generation.prompt,/upper straight shaft controls the visible neck width and side alignment/);
   }
@@ -30,8 +36,8 @@ test('rejects external, traversal and unsupported collar paths before generation
  for(const neckOutfitReferencePath of ['https://example.com/outfit.png','/assets/../server.js','/assets/gown-uniforms/a.svg'])assert.throws(()=>validateProductionPortrait({buffer:Buffer.from('fixture'),mimetype:'image/png'},{portraitMode:'female',femaleEyeStyle:'natural',neckOutfitReferencePath}),/อ้างอิง/);
 });
 test('the actual AI neck guide has a broad, centred, constant-width visible shaft',async()=>{
- const {loadNeckBackingGuide}=await import('../portrait-anatomy.js');
- const {data,info}=await sharp(await loadNeckBackingGuide(root)).removeAlpha().raw().toBuffer({resolveWithObject:true});
+ const {loadVisibleNeckGuide}=await import('../portrait-anatomy.js');
+ const {data,info}=await sharp(await loadVisibleNeckGuide(root)).removeAlpha().raw().toBuffer({resolveWithObject:true});
  assert.equal(info.width,800);assert.equal(info.height,512);
  let reference;
  for(let y=60;y<=220;y+=10){

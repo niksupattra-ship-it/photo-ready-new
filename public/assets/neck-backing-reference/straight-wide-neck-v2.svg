@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="512" viewBox="0 0 800 512">
-  <rect width="800" height="512" fill="#355fa1"/>
-  <!-- The upper shaft is deliberately wide, vertical and constant-width.
-       Only the lower hidden compositor backing flares into a rounded base. -->
-  <path fill="#eeeeee" d="M220 40H580V235L704 302C738 321 746 344 746 369C746 433 640 470 400 470C160 470 54 433 54 369C54 344 62 321 96 302L220 235Z"/>
-</svg>

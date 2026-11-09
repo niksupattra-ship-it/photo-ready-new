@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="512" viewBox="0 0 800 512">
+ <rect width="800" height="512" fill="#355fa1"/>
+ <!-- Lateral shape reference only. No shoulder or hidden collar-backing shape. -->
+ <path fill="#eeeeee" d="M220 40H580V370H220Z"/>
+</svg>

@@ -21,3 +21,17 @@ test('hair outside the neck mask survives, and cleanup never invents missing ski
  for(let y=73;y<height;y++)for(let x=3;x<8;x++){const i=(y*width+x)*4;pixels.set([30,25,20,255],i);hair[i+3]=255}
  const before=pixels.slice();boundPortraitNeckAlpha(pixels,hair,width,height,face,{skin});assert.deepEqual(pixels,before);
 });
+test('the original lower U backing is preserved independently of the visible neck guide',()=>{
+ const width=240,height=300,d=60,cx=120,cy=130,face=[];
+ face[33]={x:90/width,y:70/height};face[263]={x:150/width,y:70/height};face[152]={x:cx/width,y:cy/height};
+ const pixels=new Uint8ClampedArray(width*height*4),hair=new Uint8ClampedArray(pixels.length);
+ for(let i=0;i<pixels.length;i+=4)pixels.set([180,140,120,255],i);
+ boundPortraitNeckAlpha(pixels,hair,width,height,face);
+ const feather=Math.max(1,d*.008);
+ for(let y=cy+Math.ceil(d*.75);y<height;y++)for(let x=0;x<width;x++){
+  const py=y-cy,t=py/d;
+  const originalHalf=t<=1?1.44*d:1.44*d*Math.sqrt(Math.max(0,1-((t-1)/.62)**2));
+  const expected=Math.round(255*Math.max(0,Math.min(1,(originalHalf-Math.abs(x-cx))/feather,(d*1.62-py)/feather)));
+  assert.equal(pixels[(y*width+x)*4+3],expected,'original lower backing must remain unchanged');
+ }
+});
