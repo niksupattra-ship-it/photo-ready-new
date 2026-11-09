@@ -206,14 +206,14 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  let outfit=null;
  if(!staged&&!originalAi&&selected.gender==='female'&&['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath){
   const file=checkedOutfitReferencePath(fields.outfitReferencePath);
-  outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+  outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:englishBody?2048:1024,height:englishBody?2048:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   prompt+=`\nOUTFIT LIGHTING REFERENCE — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This last image is the selected outfit, used ONLY to harmonize face/neck exposure, white balance and soft studio lighting with its fabric colour and illumination. Never copy a reference person's face, body, skin or hair. Do not generate the garment; preserve the established head/neck cutout for separate outfit composition. Apply ${fields.femaleEyeStyle==='soft-rosy-v1'?'SOFT ROSY V1':'KOREAN ROSY V1'} cosmetics in this same generation.\n`;
  }
  // The selected garment now informs the neck in Natural mode too; previously
  // only a generic U-shaped skin backing reached this generation.
  if(fields.neckOutfitReferencePath){
   const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
-  outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+  outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:englishBody?2048:1024,height:englishBody?2048:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   prompt+=`\nSELECTED COLLAR ALIGNMENT — IMAGE ${2+Number(Boolean(hair))+Number(Boolean(identity))}: This is the actual selected garment, a collar-geometry reference only. Locate the inner left and right collar edges, the collar opening and the central placket. Generate the neck centred on that placket, with its left and right visible outlines following clean, nearly straight continuous lines from the under-jaw attachments into the corresponding collar edges. No inward bow, hourglass waist, S-shaped neck side or deeply scooped curve beside the throat. Maintain sufficient skin width where the neck enters the collar; the collar must not expose a blue/transparent gap or make the head appear oversized. Keep the head level and the neck upright. Match the actual collar opening without changing the person's facial geometry or copying any donor head, skin or body. Do not generate this garment into the output; retain the full opaque wide/deep backing under it for separate composition. The reference aligns visible neck sides; it must not trim the backing into a collar-shaped notch.\n`;
  }
  if(!staged&&!originalAi&&selected.gender==='female'&&fields.femaleEyeStyle==='soft-rosy-v1')prompt+=SOFT_ROSY_COMPLETION_CHECK;
@@ -266,13 +266,13 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('matting');
  const matted=await removeBackground(result.png);
  await onStage('edges');
- // Keep the English model matte unchanged. Original garment pixels are
- // composed in the browser; never flood-delete colours from that composition.
+ // Preserve the complete AI clothed portrait matte; blue fabric must not
+ // be flood-deleted as if it were the temporary background.
  const {png:transparent,alpha}=englishBody?await preserveEnglishPortraitMatte(matted):await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
  if(isAiMakeupPairVersion(fields.femaleFinishPair)&&selected.gender==='female'){
   await onStage('makeup');
-  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody,outfitReference:englishBody?outfit:null});
+  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody});
   if(typeof onMakeupVariant!=='function')throw Error('ระบบเก็บภาพแต่งหน้ายังไม่พร้อม');
   await onMakeupVariant(makeup);
  }

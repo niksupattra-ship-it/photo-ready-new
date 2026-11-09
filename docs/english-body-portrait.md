@@ -1,61 +1,39 @@
-# English portraits with original outfit pixels
+# English AI clothed portraits
 
 Only `?lang=en` submits `interfaceLanguage=en` and
-`portraitComposition=en-outfit-body-v1`. Thai requests keep their existing
-head/neck generation and composition. The English catalog allows job outfits,
-one female civil-service trial (`female-operational.png`) and one Rajabhat
-female student trial (`female-rajabhat.png`). Other government/student paths
-are rejected by the English request validator.
+`portraitComposition=en-outfit-body-v1`. Thai processing remains unchanged.
+English choices include job outfits, one female civil-service trial
+(`female-operational.png`) and one Rajabhat female student trial
+(`female-rajabhat.png`).
 
-AI receives the selected outfit, optional hairstyle, original identity and skin
-references. It creates only the head and neck, fitted and lit for the real
-outfit. It must not redraw fabric, buttons, insignia, text or the torso.
-Background removal and paired AI makeup run as before. The makeup request also
-receives the selected outfit as a lighting reference; it omits the independent
-+0.4–0.6 EV flash instruction.
+AI creates the head, neck and clothed upper torso together as one continuous
+portrait. The selected real outfit is supplied at up to 2048 pixels (without
+upscaling) to retain small fabric and insignia details. The prompt prioritises
+reference silhouette, collar/lapels, seams, pockets, fabric weave/pattern,
+buttons and every insignia's count, placement, orientation and internal motif.
+The reference outfit remains the authority for lighting, colour and sharpness;
+face/ear/neck lighting adapts to it. The result is still AI reconstruction, so
+pixel-identical clothing is not guaranteed.
 
-Before delivery to the editor, the browser removes any generated clothing,
-measures the face and original garment collar/shoulders, and fits the head using
-one uniform scale and translation. The full opaque pattern is contained within
-the canvas with margins; it is never enlarged to cover and crop the edges. It draws the ORIGINAL full-resolution
-outfit last, with no filters, recolouring, relighting, sharpening or local
-warps. The makeup version uses exactly the same placement and original outfit.
-Opaque clothing pixels therefore come from a normal raster rendering of the
-real template, rather than AI reconstruction. Placement/export may resample
-pixels; this is not a promise of matching the original file byte for byte.
-
-The result remains one transparent person layer. The separate suit layer is
-hidden selection metadata; changing the outfit queues the existing processing
-and credit flow. Makeup switches reuse the prepared pair. Saved layer metadata
-and job status retain the composition version. A new English rendering cache
-version prevents reuse of earlier AI-generated clothing; Thai cache keys stay
-unchanged.
+Background removal retains the complete person. The browser does not cut away
+AI clothing, replace it with a PNG, reshape the neck, or fit the head separately.
+The temporary original-template compositor and neck feather were removed.
+Both makeup options retain the same silhouette and garment appearance; English
+makeup omits the independent fill-flash exposure instruction. Existing outfit
+choices and hairstyle changes regenerate from the original person and selected
+outfit. A new English cache version avoids reuse of locally composited results.
+Saved metadata keeps the complete person as one transparent layer and the suit
+selection as hidden metadata.
 
 Validation:
 
 - `node --test tests/english-body-portrait.test.js tests/ai-makeup-pair.test.js tests/portrait-collar-reference.test.js`
 - `node scripts/check-shared-natural-portrait.mjs`
 - `node scripts/check-portrait-uniform-fit.mjs`
-- `node scripts/check-gathered-hair-neck.mjs`
-- `node scripts/check-portrait-anatomy.mjs`
-- `SELECTION_BASE=http://127.0.0.1:5193 python3 tests/english-original-outfit.browser.py`
 - `SELECTION_BASE=http://127.0.0.1:5193 python3 tests/english-body-response.browser.py`
 - `SELECTION_BASE=http://127.0.0.1:5193 python3 tests/head-only-suit-fit.browser.py`
 - `./node_modules/.bin/vite build`
 
-The original-outfit browser check executes the actual App restoration function,
-using synthetic head/landmarks with real suit, civil-service and Rajabhat PNGs.
-It verifies 4,470,788 opaque original garment pixels per finish (natural and
-makeup), preserved aspect ratio, transparent background and job metadata.
-Provider payload tests use inert responses, not paid AI calls. Real AI face/neck
-quality and production deployment remain separate checks.
-
-The older `check-female-finish-integration.mjs` has seven pre-existing failures,
-including missing injected dependencies and obsolete finish expectations. The
-same seven cases fail against pre-change `main.jsx` from `e1409c2`. The current
-shared-portrait suite above covers paired AI finishes.
-
-Neck edge refinement feathers existing alpha below the jaw only. It does not
-blur skin RGB, alter the face, invent skin outside the cutout or filter the
-garment. Both finishes share the refined neck alpha. Intrinsic AI skin shading
-is guided to remain continuous; real generation quality remains unverified.
+Provider tests use inert responses and actual reference files. Browser checks
+verify torso preservation, aspect ratio, transparency and outfit selection.
+Real AI output quality and production deployment remain unverified here.
