@@ -2,7 +2,7 @@
 export const ENGLISH_ADDITIONAL_COPY={
  "สูทหญิงเบจ เสื้อในครีม": "Women’s taupe blazer with cream blouse",
  "เชิ้ตหญิงฟ้าอ่อน": "Women’s light blue shirt",
- "แจ็กเก็ตหญิงทวีตไอวอรี กระดุมทอง": "Women’s ivory tweed jacket with gold buttons",
+ "แจ็กเก็ตหญิงทวีดไอวอรี กระดุมทอง": "Women’s ivory tweed jacket with gold buttons",
  "สูทหญิงกรมท่า เชิ้ตขาว": "Women’s navy suit with white shirt",
  "สูทหญิงกรมท่ากระดุมสองแถว เสื้อในครีม": "Women’s navy double-breasted suit with cream blouse",
  "สูทชายสีน้ำเงิน เนกไทกรมท่า": "Men’s blue suit with navy tie",
