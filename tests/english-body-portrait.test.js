@@ -38,6 +38,10 @@ test('English male and female generations create complete clothed portraits with
   assert.match(generated.prompt,/no thin stalk, pinched middle/);
   assert.match(generated.prompt,/head centre, chin, neck centre and garment centreline vertically/);
   assert.match(generated.prompt,/50 mm lens at eye level/);
+  assert.match(generated.prompt,/NECK LENGTH AND COLLAR ANCHOR/);
+  assert.match(generated.prompt,/After resizing, reposition the entire head naturally down onto the neck and collar/);
+  assert.match(generated.prompt,/open collar or deep V reveals upper chest, not extra neck/);
+  assert.match(generated.prompt,/never stretch it to fill unused vertical space/);
   assert.match(generated.prompt,/1.8–2.5 metres/);
   assert.match(generated.prompt,/button count, spacing and material/);
   assert.match(generated.prompt,/do not substitute generic emblems/);
