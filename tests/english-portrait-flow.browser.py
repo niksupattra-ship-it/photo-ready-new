@@ -47,6 +47,11 @@ with sync_playwright() as pw:
  assert p.locator('.english-flow-overlay').count()==0
  assert p.evaluate("!!bodySnapshot.current().layers.find(l=>l.kind==='head').manualOutfitMask")
  assert p.evaluate('bodyMaskCalls')==1
+ # Changing patterns reuses the prepared portrait mask instead of reloading models.
+ p.locator('.english-outfit-card').first.locator('button').first.click()
+ card.locator('button').first.click()
+ assert p.evaluate('bodyMaskCalls')==1
+ assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
  ai(p,card)
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
  assert p.locator('.studio-none-choice[aria-pressed=true]').count()==1

@@ -1401,7 +1401,7 @@ async function protectNativePortraitHair(image,masks){
 // Remove source clothing before the completion check for every AI portrait.
 // Use native pixels and the existing segmentation classes; no AI retry or resize.
 async function prepareEnglishManualPortraitMask(head){
- const original=studioSkinBlobFromSource(head.source);original.idpromStudioSkinVersion=head.studioSkinVersion;
+ const original=studioSkinBlobFromSource(head.source instanceof HTMLCanvasElement?head.source.toDataURL('image/png'):head.source);original.idpromStudioSkinVersion=head.studioSkinVersion;
  const cleaned=await cleanPortraitClothing(original);
  const before=await decodedPortraitImage(original),after=await decodedPortraitImage(cleaned),W=before.naturalWidth,H=before.naturalHeight;
  const c=canvasFor(W,H),x=c.getContext('2d',{willReadFrequently:true});
@@ -1409,7 +1409,7 @@ async function prepareEnglishManualPortraitMask(head){
   x.drawImage(before,0,0);const pixels=x.getImageData(0,0,W,H);
   x.clearRect(0,0,W,H);x.drawImage(after,0,0);const clean=x.getImageData(0,0,W,H);
   pixels.data.set(manualOutfitAlphaMask(pixels.data,clean.data));x.putImageData(pixels,0,0);
-  if(head.mask){const old=await loadImage(head.mask);x.globalCompositeOperation='destination-in';x.drawImage(old,0,0,W,H)}
+  if(head.mask){const old=await decodedStudioImage(head.mask);x.globalCompositeOperation='destination-in';x.drawImage(old,0,0,W,H)}
   return c.toDataURL('image/png');
  }finally{c.width=c.height=1}
 }

@@ -1,3 +1,4 @@
+import {decodedStudioImage} from './studio-image-cache.js';
 // Return a reusable layer mask, leaving the full AI portrait and both finishes
 // intact. Equal edge alpha must stay equal rather than being multiplied twice.
 export function manualOutfitAlphaMask(original,cleaned){
@@ -11,4 +12,12 @@ export function maskManualOutfitPortrait(layers,id,mask){
 }
 export function restoreManualOutfitPortrait(layers){
  return layers.map(l=>{if(!l.manualOutfitMask)return l;const next={...l,mask:l.manualOutfitPreviousMask||null};delete next.manualOutfitMask;delete next.manualOutfitPreviousMask;return next});
+}
+
+export async function composeManualOutfitMask(base,previous){
+ if(!previous)return base;
+ const image=await decodedStudioImage(base),mask=await decodedStudioImage(previous);
+ const c=Object.assign(document.createElement('canvas'),{width:image.naturalWidth||image.width,height:image.naturalHeight||image.height}),x=c.getContext('2d');
+ try{x.drawImage(image,0,0);x.globalCompositeOperation='destination-in';x.drawImage(mask,0,0,c.width,c.height);return c.toDataURL('image/png')}
+ finally{c.width=c.height=1}
 }

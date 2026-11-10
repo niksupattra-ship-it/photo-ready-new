@@ -105,3 +105,10 @@ unchanged. Finish switching retains this mask; removing the manual outfit or
 returning to the same complete AI portrait restores the previous mask. These
 mask sources participate in saved-project image validation and resource limits.
 No extra portrait-generation request is made for manual clothing removal.
+
+Manual mask preparation accepts both encoded images and the Canvas surfaces
+used by Studio history. Existing Canvas masks are composed directly rather
+than passed to a URL loader. The unedited portrait mask is prepared in the
+background once per natural source and reused for later outfit selections;
+current user masks are composed when applying it. History mask fields are
+encoded for both normal saves and pending download/save snapshots.
