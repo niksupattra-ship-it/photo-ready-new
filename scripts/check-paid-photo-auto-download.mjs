@@ -57,4 +57,27 @@ await check('the actual receipt handler reserves the full source for automatic d
  await receive(cropped,{automatic:false,sourceBlob:image,jobIds:['job-a']});assert.equal(e.receivePhotoRef.current.autoDownloadKey,null);
  e.downloadUnlockSignal={id:'pi_fixture',jobId:'other-job'};await receive(cropped,{automatic:true,jobIds:['job-a']});assert.equal(e.receivePhotoRef.current.autoDownloadKey,null);
 });
+await check('selected PDF delivery is opt-in and shares the original-file settlement lock',()=>{
+ const pdf=new Blob(['%PDF-selected-print-sheet'],{type:'application/pdf'});let stored=null;const requests=[];
+ const options={read:()=>stored,write:value=>stored=value,request:blob=>{requests.push(blob);return 'panel'}};
+ assert.equal(createPaidPhotoAutoDownload(options)({key,blob:pdf}),'skipped');
+ assert.equal(createPaidPhotoAutoDownload({...options,allowPdf:true})({key,blob:pdf}),'panel');
+ assert.equal(createPaidPhotoAutoDownload(options)({key,blob:image}),'skipped');assert.deepEqual(requests,[pdf]);
+});
+await check('the actual prepared-file handler delivers the chosen file quietly, without a second adjustment dialog',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),a=main.indexOf(' const receivePurchasedImage=async'),b=main.indexOf('\n };',a),delivered=[],archives=[],receipts=[];
+ let stored=null;const e={walletScope,paidPhotoDownloadKey,authToken:()=> 'token-a',currentWalletId:()=> 'wallet-a',currentOutputJobRef:{current:'job-a'},receiveSequence:{current:0},receivePhotoRef:{current:null},setReceivePhoto:value=>receipts.push(value),archiveReceivedPhoto:entry=>archives.push(entry),DEFAULT_PHOTO_CROP:{sizeId:'original',x:.5,y:.5,zoom:1},downloadUnlockSignal:{id:'pi_fixture',jobId:'job-a'},deliverImage:blob=>{delivered.push(blob);return 'panel'}};
+ e.preparedPhotoDownloadRef={current:createPaidPhotoAutoDownload({allowPdf:true,read:()=>stored,write:value=>stored=value,request:e.deliverImage})};
+ const receive=new Function('env',`with(env){${main.slice(a,b+4)};return receivePurchasedImage}`)(e),pdf=new Blob(['%PDF-selected'],{type:'application/pdf'}),options={automatic:true,preparedDownload:true,sourceBlob:image,jobIds:['job-a'],crop:{sizeId:'35x45',format:'pdf',copies:4}};
+ assert.equal((await receive(pdf,options)).delivery,'panel');await receive(pdf,options);assert.deepEqual(delivered,[pdf]);assert.equal(receipts.length,0);assert(archives.every(entry=>entry.silent));
+ await receive(image,{...options,automatic:false});assert.deepEqual(delivered,[pdf,image]);assert.equal(receipts.length,0);
+});
+await check('PDF photo archives use a clean cropped PNG and never reopen the preview on success or failure',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),a=main.indexOf(' const archiveReceivedPhoto=async'),b=main.indexOf('\n };',a),requests=[],updates=[];
+ const scope=walletScope('token-a','wallet-a'),e={walletScope,authToken:()=> 'token-a',currentWalletId:()=> 'wallet-a',walletHeaders:()=>({}),archiveBusyRef:{current:null},receiveSequence:{current:1},receivePhotoRef:{current:null},setReceivePhoto:value=>updates.push(value),cropPhotoForDownload:async(source,crop)=>{assert.equal(source,image);assert.equal(crop.sizeId,'35x45');return image},portraitFetch:async(url,options)=>{requests.push(options);return {ok:true,json:async()=>({id:'archive-fixture',receiveUrl:'/receive/'+'a'.repeat(64)})}}};
+ const archive=new Function('env',`with(env){${main.slice(a,b+4)};return archiveReceivedPhoto}`)(e),entry={id:1,receiptKey:1,scope,silent:true,blob:new Blob(['%PDF'],{type:'application/pdf'}),sourceBlob:image,crop:{sizeId:'35x45'},jobIds:['job-a']};
+ await archive(entry);assert.equal(requests[0].body.get('image').type,'image/png');assert.equal(updates.length,0);assert(e.receivePhotoRef.current.archive);
+ e.portraitFetch=async()=>{throw Error('offline')};await archive(entry);assert.equal(updates.length,0);assert.equal(e.receivePhotoRef.current.error,'offline');
+ e.cropPhotoForDownload=async()=>{e.receiveSequence.current++;return image};await archive(entry);assert.equal(requests.length,1);
+});
 console.log(`${passed} automatic photo-download checks passed; no account or payment provider contacted.`);

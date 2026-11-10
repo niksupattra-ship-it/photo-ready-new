@@ -105,7 +105,7 @@ await check('default explicit credit button retains auto-download while direct d
 function legacyFixture({paid=false,credit={available:true,unlocked:true}}={}){
  const f=fixture(),events=f.events,master={},lock={};let outputPaid=paid;
  Object.assign(f.e,{editCache:{current:{master,lock}},downloadBusyRef:{current:false},downloadBusy:false,hairBusy:false,busy:false,uniformChanging:false,photoSizeBusy:false,
-  setDownloadBusy:v=>events.push(['downloadBusy',v]),setMsg:v=>events.push(['message',v]),setDownloadNotice:v=>events.push(['notice',v]),trialPreview:!paid,
+  openStudio:async options=>events.push(['adjustment-preview',options]),setDownloadBusy:v=>events.push(['downloadBusy',v]),setMsg:v=>events.push(['message',v]),setDownloadNotice:v=>events.push(['notice',v]),trialPreview:!paid,
   DEFAULT_PHOTO_CROP:{sizeId:'original'},photoCrop:{sizeId:'2-inch',scale:1.22,x:11,y:-5},outputAccessResult,withDeadline:async fn=>fn(),analyticsEvent:()=>{},
   verifyOutputRights:async()=>({checked:true,unlocked:outputPaid,fullEdit:outputPaid,premiumHair:outputPaid}),
   unlockOutputWithCredit:async job=>{events.push(['direct-credit',job]);if(credit.unlocked)outputPaid=true;return credit},
@@ -115,20 +115,18 @@ function legacyFixture({paid=false,credit={available:true,unlocked:true}}={}){
  });
  return {...f,download:compile('downloadCurrentFinal',f.e)};
 }
-await check('legacy normal download redeems silently and delivers exactly its selected size without opening packages',async()=>{
- const f=legacyFixture();await f.download();assert.equal(f.events.filter(v=>v[0]==='direct-credit').length,1);assert.equal(f.events.filter(v=>v[0]==='delivery').length,1);assert.deepEqual(f.events.find(v=>v[0]==='crop')[1],{sizeId:'2-inch',scale:1.22,x:11,y:-5});assert.equal(f.events.find(v=>v[0]==='delivery')[2],'photo-ready-2-inch.png');assert.equal(f.buys().length,0);assert.equal(f.signals().length,0);
+await check('classic manual Download opens the common adjustment preview before authorization at any balance',async()=>{
+ for(const options of [{},{paid:true},{credit:{available:false,unlocked:false}},{credit:{available:true,unlocked:false}}]){
+  const f=legacyFixture(options);await f.download();assert.deepEqual(f.events,[['adjustment-preview',{downloadFirst:true}]]);assert.equal(f.requests().length,0);assert.equal(f.buys().length,0);
+ }
 });
-await check('legacy paid output skips credit consumption and keeps its existing file delivery',async()=>{
- const f=legacyFixture({paid:true});await f.download();assert.equal(f.events.filter(v=>v[0]==='direct-credit').length,0);assert.equal(f.events.filter(v=>v[0]==='delivery').length,1);assert.equal(f.buys().length,0);
+await check('classic verified automatic delivery retains its selected file and does not open another preview',async()=>{
+ const f=legacyFixture({paid:true});await f.download({automatic:true});assert.equal(f.events.filter(v=>v[0]==='direct-credit').length,0);assert.equal(f.events.filter(v=>v[0]==='delivery').length,1);assert.deepEqual(f.events.find(v=>v[0]==='crop')[1],{sizeId:'2-inch',scale:1.22,x:11,y:-5});assert.equal(f.buys().length,0);
 });
-await check('legacy zero credits opens the existing package flow while uncertain redemption stays retryable',async()=>{
- const empty=legacyFixture({credit:{available:false,unlocked:false}});await empty.download();assert.equal(empty.buys().length,1);assert.equal(empty.events.filter(v=>v[0]==='delivery').length,0);
- const uncertain=legacyFixture({credit:{available:true,unlocked:false,message:'fixture retry without repaying'}});await uncertain.download();assert.equal(uncertain.buys().length,0);assert.equal(uncertain.events.filter(v=>v[0]==='delivery').length,0);assert(uncertain.events.some(v=>v[0]==='notice'&&v[1]?.state==='error'));
-});
-await check('legacy credit success still requires a fresh paid right and unchanged captured scene',async()=>{
+await check('classic automatic export requires confirmed access and an unchanged scene',async()=>{
  for(const change of ['unconfirmed','scene']){
   const f=legacyFixture();f.e.unlockOutputWithCredit=async()=>{if(change==='scene')f.e.editCache.current={master:{},lock:{}};return {available:true,unlocked:true}};
-  await f.download();assert.equal(f.events.filter(v=>v[0]==='delivery').length,0);assert.equal(f.buys().length,0);assert(f.events.some(v=>v[0]==='notice'&&v[1]?.state==='error'));
+  await f.download({automatic:true});assert.equal(f.events.filter(v=>v[0]==='delivery').length,0);assert.equal(f.buys().length,0);assert(f.events.some(v=>v[0]==='notice'&&v[1]?.state==='error'));
  }
 });
 const result={passed:rows.length,failed:0,sourceSha256:createHash('sha256').update(main).digest('hex'),scope:'Actual App direct-credit, existing credit redemption/rights confirmation and retained legacy download handlers. Wallet/account/HTTP/render boundaries are local inert fixtures; no production customer account, payment or provider mutation.',results:rows};

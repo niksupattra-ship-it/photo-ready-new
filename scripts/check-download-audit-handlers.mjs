@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {createHash} from 'node:crypto';
+import {rememberDownloadChoice,downloadChoiceForJobs} from '../src/download-choice.js';
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from '../src/output-rights.js';
 
 const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
@@ -30,7 +31,7 @@ function auditBoundary(env,{throws=''}={}){
 }
 function studioFixture({paid=false,balance=2,throws='',easyMode=false}={}){
  const events=[],unlocked=new Set(paid?['job-a']:[]);let remaining=balance;
- const e={ready:true,processActive:false,assetBusy:false,hydratingRef:{current:false},suitRequestRef:{current:false},prepareSourceDownload:async()=>{},onCheckoutPreview:null,onReceiveImage:null,paintLayers:()=>{},assertPortraitExportReady:()=>true,easyMode,accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},
+ const e={rememberDownloadChoice,downloadChoiceForJobs,pendingDownloadChoiceRef:{current:null},DEFAULT_PHOTO_CROP:{sizeId:'original',x:.5,y:.5,zoom:1},downloadUnlockSignal:null,ready:true,processActive:false,assetBusy:false,hydratingRef:{current:false},suitRequestRef:{current:false},prepareSourceDownload:async()=>{},onCheckoutPreview:null,onReceiveImage:null,paintLayers:()=>{},assertPortraitExportReady:()=>true,easyMode,accountScope:'account-a',outputScopeRef:{current:'account-a'},state:{current:[{...head}]},
   outputHeads:ls=>ls.filter(l=>l.kind==='head'),layerKind:l=>l.kind,warningProofForJob:()=> 'fixture-proof',
   outputAccessResult,unavailableOutputRights,mergeOutputRights,sessionUnlockedJobs:{current:new Set()},
   onVerifyOutput:async id=>{events.push(['verify',id]);return unlocked.has(id)?granted:denied},
@@ -47,16 +48,18 @@ function studioFixture({paid=false,balance=2,throws='',easyMode=false}={}){
  const observation=auditBoundary(e,{throws});
  e.download=(blob,name,options)=>{events.push(['download',blob,name]);observation.observeDelivery(options);return 'requested'};
  e.allowOutput=handler(studio,' const allowOutput=async','\n const [suitPolicy','allowOutput',e);
- const exportImage=handler(studio,' const exportImage=async','\n const autoDownloadAttempted=','exportImage',e);
+ const exportImage=handler(studio,' const exportImage=async','\n const authorizeDownloadCrop=','exportImage',e);
  const finishDownloadCrop=handler(studio,' const finishDownloadCrop=async','\n const duplicate=','finishDownloadCrop',e);
- const block=studio.indexOf('{downloadCrop&&createPortal('),a=studio.indexOf('onClose={',block)+'onClose={'.length,b=studio.indexOf('/></div>,document.body)',a);
+ const authorizeDownloadCrop=handler(studio,' const authorizeDownloadCrop=async','\n const initialDownloadOpened=','authorizeDownloadCrop',e);
+ const block=studio.indexOf('{downloadCrop&&createPortal('),a=studio.indexOf('onClose={',block)+'onClose={'.length,b=studio.indexOf(' onDownload=',a);
  assert(block>0&&a>block&&b>a,'Production crop cancellation marker');
  const onClose=new Function('env',`with(env){return ${studio.slice(a,b).replace(/\}\s*$/,'')}}`)(e);
- return {e,events,...observation,exportImage,finishDownloadCrop,onClose,get balance(){return remaining},count:type=>events.filter(row=>row[0]===type).length};
+ const finalize=async crop=>{if(await authorizeDownloadCrop(crop))return finishDownloadCrop(crop)};
+ return {e,events,...observation,exportImage,authorizeDownloadCrop,finishDownloadCrop:finalize,onClose,get balance(){return remaining},count:type=>events.filter(row=>row[0]===type).length};
 }
 function classicFixture({paid=false,balance=2,throws=''}={}){
  const events=[],identity={token:'fixture-token',wallet:'fixture-wallet'};let remaining=balance,unlocked=paid;
- const e={editCache:{current:{master:{},lock:{}}},downloadBusyRef:{current:false},downloadBusy:false,hairBusy:false,busy:false,uniformChanging:false,photoSizeBusy:false,
+ const e={openStudio:async options=>events.push(['adjustment-preview',options]),editCache:{current:{master:{},lock:{}}},downloadBusyRef:{current:false},downloadBusy:false,hairBusy:false,busy:false,uniformChanging:false,photoSizeBusy:false,
   currentOutputJobRef:{current:'job-a'},savedWorkOpenRequestRef:{current:1},currentWalletId:()=>identity.wallet,authToken:()=>identity.token,
   DEFAULT_PHOTO_CROP:{sizeId:'original'},photoCrop:{sizeId:'2inch',x:0,y:0,scale:1},trialPreview:!paid,outputAccessResult,withDeadline:operation=>operation(),analyticsEvent(){},
   verifyOutputRights:async()=>unlocked?granted:denied,
@@ -78,24 +81,24 @@ const noImage=f=>{assert.equal(f.count('download'),0);assert(!has(f,'file_prepar
 
 await check('Studio and Easy distinguish a known unpaid image from unavailable rights without inventing a ready file',async()=>{
  for(const easyMode of [false,true]){
-  const unpaid=studioFixture({balance:0,easyMode});await unpaid.exportImage('image/png');
+  const unpaid=studioFixture({balance:0,easyMode});await unpaid.exportImage('image/png');await unpaid.authorizeDownloadCrop({sizeId:'2inch'});
   assert(has(unpaid,'rights_blocked','rights_required'));assert.equal(failures(unpaid).length,0);assert.equal(unpaid.count('purchase'),1);noImage(unpaid);
   assert.equal(unpaid.attempts[0].mode,easyMode?'easy':'studio');assert.deepEqual(unpaid.attempts[0].jobIds,['job-a']);
   for(const right of ['throw',unavailableOutputRights()]){
-   const f=studioFixture({easyMode});f.e.onVerifyOutput=async()=>{if(right==='throw')throw Error('private raw transport detail');return right};await f.exportImage('image/png');
+   const f=studioFixture({easyMode});f.e.onVerifyOutput=async()=>{if(right==='throw')throw Error('private raw transport detail');return right};await f.exportImage('image/png');await f.authorizeDownloadCrop({sizeId:'2inch'});
    assert(has(f,'download_failed','rights_unavailable'));assert(!has(f,'rights_blocked'));assert.equal(f.count('credit'),0);assert.equal(f.count('purchase'),0);assert.equal(f.balance,2);noImage(f);
    assert(!JSON.stringify(f.audit).includes('private raw transport detail'));
   }
  }
 });
 await check('a failed suit-policy read is reported separately from rights or image-render failure',async()=>{
- const f=studioFixture({paid:true});f.e.onSelectSuit=async()=>{throw Error('fixture suit storage unavailable')};await f.exportImage('image/png');
- assert(has(f,'download_failed','suit_unavailable'));assert.equal(failures(f)[0].errorStage,'suit');assert.equal(f.count('canvas'),0);assert.equal(f.count('credit'),0);noImage(f);
+ const f=studioFixture({paid:true});f.e.onSelectSuit=async()=>{throw Error('fixture suit storage unavailable')};await f.exportImage('image/png');await f.authorizeDownloadCrop({sizeId:'2inch'});
+ assert(has(f,'download_failed','suit_unavailable'));assert.equal(failures(f)[0].errorStage,'suit');assert.equal(f.count('canvas'),1);assert.equal(f.count('credit'),0);noImage(f);
 });
 await check('account and output changes during Studio rights reads are cancellations with distinct diagnostic codes',async()=>{
  for(const change of ['account','output']){
   const f=studioFixture({paid:true}),gate=deferred();f.e.onVerifyOutput=()=>gate.promise;
-  const pending=f.exportImage('image/png');await tick();if(change==='account')f.e.outputScopeRef.current='account-b';else f.e.state.current=[{...head,jobId:'replacement'}];gate.resolve(granted);await pending;
+  await f.exportImage('image/png');const pending=f.authorizeDownloadCrop({sizeId:'2inch'});await tick();if(change==='account')f.e.outputScopeRef.current='account-b';else f.e.state.current=[{...head,jobId:'replacement'}];gate.resolve(granted);await pending;
   assert(has(f,'download_failed',change+'_changed'));assert.equal(failures(f)[0].errorStage,'account');assert.equal(f.count('credit'),0);noImage(f);
  }
 });
@@ -107,7 +110,7 @@ await check('the final Studio render guard never labels a changed account or wor
 });
 await check('crop preparation, crop errors and closing the size chooser cannot claim a completed image delivery',async()=>{
  const cancelled=studioFixture({paid:true});await cancelled.exportImage('image/png');assert(cancelled.e.downloadCrop);assert(!has(cancelled,'file_prepared'));cancelled.onClose();
- assert(has(cancelled,'crop_cancelled'));assert.equal(cancelled.e.downloadCrop,null);noImage(cancelled);
+ assert(!has(cancelled,'file_prepared'));assert.equal(cancelled.e.downloadCrop,null);noImage(cancelled);
  for(const timeout of [false,true]){
   const f=studioFixture({paid:true});await f.exportImage('image/png');f.e.cropPhotoForDownload=async()=>{throw Object.assign(Error('private encoder detail'),timeout?{code:'STUDIO_CROP_TIMEOUT'}:{})};await f.finishDownloadCrop({sizeId:'2inch'});
   assert(has(f,'download_failed',timeout?'timeout':'crop_failed'));assert.equal(failures(f)[0].errorStage,'crop');noImage(f);assert.equal(f.e.exportingRef.current,false);
@@ -121,7 +124,7 @@ await check('the frozen crop attempt cannot deliver or retarget evidence after a
  }
 });
 await check('a selected Studio file records MIME, size and selected dimensions only after actual encoding, once',async()=>{
- const f=studioFixture();await f.exportImage('image/png');assert.equal(f.balance,1);assert(!has(f,'file_prepared'));await f.finishDownloadCrop({sizeId:'2inch'});
+ const f=studioFixture();await f.exportImage('image/png');assert.equal(f.balance,2);assert(!has(f,'file_prepared'));await f.finishDownloadCrop({sizeId:'2inch'});
  assert.equal(f.balance,1);assert.equal(f.count('credit'),1);assert.equal(f.count('download'),1);assert.equal(f.count('purchase'),0);
  assert.deepEqual(f.audit.map(row=>row.type),['download_clicked','file_prepared','download_requested']);
  const ready=f.audit.find(row=>row.type==='file_prepared');assert.equal(ready.sizeId,'2inch');assert.equal(ready.fileType,'image/png');assert(ready.byteSize>0);
@@ -136,21 +139,19 @@ await check('unconfigured or throwing audit observers cannot interrupt Studio fi
   assert.equal(f.count('credit'),1);assert.equal(f.balance,1);assert.equal(f.count('download'),1);assert.equal(f.count('purchase'),0);assert.equal(f.e.exportingRef.current,false);
  }
 });
-await check('classic export distinguishes an unpaid image, unavailable rights and a prepared image',async()=>{
- const unpaid=classicFixture({balance:0});await unpaid.download();assert(has(unpaid,'rights_blocked','rights_required'));noImage(unpaid);
- const unknown=classicFixture();unknown.e.verifyOutputRights=async()=>unavailableOutputRights();await unknown.download();assert(has(unknown,'download_failed','rights_unavailable'));assert.equal(unknown.count('credit'),0);noImage(unknown);
- const paid=classicFixture({paid:true});await paid.download();assert.deepEqual(paid.audit.map(row=>row.type),['download_clicked','file_prepared','download_requested']);assert.equal(paid.count('credit'),0);assert.equal(paid.audit.find(row=>row.type==='file_prepared').sizeId,'2inch');
+await check('classic manual export routes to the common preview without recording a prepared file or spending a credit',async()=>{
+ for(const options of [{balance:0},{paid:true},{}]){const f=classicFixture(options);await f.download();assert.deepEqual(f.events,[['adjustment-preview',{downloadFirst:true}]]);assert.equal(f.audit.length,0);noImage(f)}
 });
 await check('classic account/work changes during rendering remain context failures, not render failures',async()=>{
  for(const change of ['account','output']){
-  const f=classicFixture({paid:true});f.e.renderAdjustedFinal=async()=>{if(change==='account')f.identity.token='replacement-token';else f.e.currentOutputJobRef.current='replacement';return new Blob(['render'],{type:'image/png'})};await f.download();
+  const f=classicFixture({paid:true});f.e.renderAdjustedFinal=async()=>{if(change==='account')f.identity.token='replacement-token';else f.e.currentOutputJobRef.current='replacement';return new Blob(['render'],{type:'image/png'})};await f.download({automatic:true});
   assert(has(f,'download_failed',change+'_changed'));assert.equal(failures(f)[0].errorStage,'account');assert(!has(f,'download_failed','render_failed'));noImage(f);
  }
 });
 await check('classic automatic and failed-logger exports retain delivery and credit behavior without invented user clicks',async()=>{
  const automatic=classicFixture({paid:true});await automatic.download({original:true,automatic:true});assert(!has(automatic,'download_clicked'));assert.equal(automatic.attempts[0].initiator,'automatic_after_unlock');assert.equal(automatic.count('download'),1);assert.equal(automatic.count('credit'),0);
  for(const throws of ['begin','emit','missing']){
-  const f=classicFixture({throws});if(throws==='missing')delete f.e.beginDownloadAudit;await f.download();assert.equal(f.count('download'),1);assert.equal(f.count('credit'),1);assert.equal(f.balance,1);assert.equal(f.e.downloadBusyRef.current,false);
+  const f=classicFixture({throws});if(throws==='missing')delete f.e.beginDownloadAudit;await f.download({automatic:true});assert.equal(f.count('download'),1);assert.equal(f.count('credit'),1);assert.equal(f.balance,1);assert.equal(f.e.downloadBusyRef.current,false);
  }
 });
 

@@ -22,11 +22,11 @@ export function requestFullResolutionDownload(blob,name,{container,onEvent}={}){
 }
 
 export function createPaidPhotoAutoDownload({
- read=()=>sessionStorage.getItem(STORAGE_KEY),write=value=>sessionStorage.setItem(STORAGE_KEY,value),request=requestFullResolutionDownload
+ read=()=>sessionStorage.getItem(STORAGE_KEY),write=value=>sessionStorage.setItem(STORAGE_KEY,value),request=requestFullResolutionDownload,allowPdf=false
 }={}){
  const attempted=new Set();
  return ({key,blob,name,container,onEvent,isCurrent=()=>true})=>{
-  if(typeof key!=='string'||!key||key.length>600||!blob?.size||!blob.type?.startsWith('image/')||!isCurrent())return 'skipped';
+  if(typeof key!=='string'||!key||key.length>600||!blob?.size||!(blob.type?.startsWith('image/')||allowPdf&&blob.type==='application/pdf')||!isCurrent())return 'skipped';
   let remembered=[];
   try{const raw=read();if(raw&&raw.length<=40000){const rows=JSON.parse(raw);if(Array.isArray(rows)&&rows.length<=MAX_REMEMBERED&&rows.every(row=>typeof row==='string'&&row.length<=600))remembered=rows}}catch{}
   if(attempted.has(key)||remembered.includes(key)||!isCurrent())return 'skipped';

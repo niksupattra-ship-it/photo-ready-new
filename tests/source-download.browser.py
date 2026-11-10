@@ -66,25 +66,28 @@ with sync_playwright() as pw:
    compare=p.get_by_role('button',name='ก่อน/หลัง',exact=True)
    assert compare.inner_text()=='';assert compare.locator('svg').count()==1
   download=lambda:p.get_by_role('button',name='ดาวน์โหลดรูป',exact=True)
+  def preview():
+   before=len(state['debits']);download().click();p.locator('.en-download').wait_for();p.wait_for_function("!document.querySelector('.en-download-primary').disabled");assert len(state['debits'])==before;assert p.locator('.paired-offers').count()==0
   def deliver():
-   link=p.locator('.purchase-receipt a.purchase-primary')
-   expect(link).to_have_attribute('aria-disabled','false')
-   with p.expect_download() as event:link.click()
-   p.get_by_role('button',name='ปิดหน้ารับรูป',exact=True).click()
-   return event.value
-  export_started=time.monotonic();download().click();p.get_by_role('dialog',name='รับรูป',exact=True).wait_for()
+   if width<1100:
+    p.locator('.en-download-primary').click();p.locator('dialog[open] #save').wait_for()
+    with p.expect_download() as event:p.locator('dialog[open] #save').click()
+    p.locator('dialog[open] #close').click()
+   else:
+    with p.expect_download() as event:p.locator('.en-download-primary').click()
+   p.locator('.en-download').wait_for(state='detached');return event.value
+  export_started=time.monotonic();preview();assert state['remaining']==1 and state['debits']==[]
   downloaded=deliver();export_ms=round((time.monotonic()-export_started)*1000,1)
   target=OUT/('raw-'+str(width)+'.png');downloaded.save_as(target)
   image=Image.open(target);assert image.format=='PNG';assert image.width>0 and image.height>0
   assert state['registered']==['job_source_1'];assert state['debits']==['job_source_1'];assert state['remaining']==0
   p.wait_for_timeout(150)
   # Repeated delivery uses the same work and never spends a second credit.
-  download().click();p.get_by_role('dialog',name='รับรูป',exact=True).wait_for()
-  deliver()
+  preview();deliver()
   assert state['registered']==['job_source_1'];assert state['debits']==['job_source_1']
   # Raw paid work retains the existing replacement warning and new-work boundary.
   replace('#b68966')
-  download().click();p.locator('.paired-offers').wait_for()
+  preview();assert state['remaining']==0;p.locator('.en-download-primary').click();p.locator('.paired-offers').wait_for()
   assert state['registered']==['job_source_1','job_source_2'];assert state['debits']==['job_source_1'];assert 'job_source_2' not in state['unlocked']
   p.keyboard.press('Escape');p.screenshot(path=str(OUT/('studio-'+str(width)+'.png')))
   assert not errors,errors
