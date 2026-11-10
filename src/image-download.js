@@ -34,6 +34,9 @@ export function deliverImage(blob,name,options={}){
  const preview=root.querySelector('img');if(isImage)preview.src=url;else preview.hidden=true;
  const save=root.querySelector('#save');save.href=url;save.download=name;save.target='_blank';save.rel='noopener';
  if(!isImage){root.querySelector('#title').textContent='บันทึกไฟล์โปรเจกต์';root.querySelector('.panel>p').textContent='กดบันทึกไฟล์เพื่อเก็บงานไว้ในเครื่อง';save.textContent='บันทึกไฟล์';root.querySelector('.hint').textContent='เปิดไฟล์นี้ใน Studio เพื่อแก้ไขงานต่อได้'}
+ if(blob.type==='application/pdf'){
+  root.querySelector('#title').textContent='Save your PDF';root.querySelector('.panel>p').textContent='Your Letter print sheet is ready.';save.textContent='Save PDF';root.querySelector('.hint').textContent='Print on Letter paper at Actual size / 100%.';
+ }
  const message=root.querySelector('#message');save.addEventListener('click',()=>{message.textContent=isImage?'ส่งคำขอบันทึกแล้ว หากไม่มีไฟล์ ให้กดค้างที่รูปหรือใช้ปุ่มแชร์รูป':'ส่งคำขอบันทึกไฟล์แล้ว กรุณาตรวจในรายการดาวน์โหลด';notify('save_clicked',{method:'save_link'})});
  let file;try{file=new File([blob],name,{type:blob.type||'image/png'})}catch{}
  const share=root.querySelector('#share');if(!isImage)share.textContent='แชร์ไฟล์';
@@ -48,7 +51,7 @@ export function deliverImage(blob,name,options={}){
   const failed=e=>{const cancelled=e?.name==='AbortError';message.textContent=cancelled?'ยกเลิกการแชร์แล้ว':isImage?'แชร์รูปไม่ได้ ให้กดบันทึกรูปหรือกดค้างที่รูป หากแอปไม่รองรับ ให้เปิดใน Chrome / Safari':'แชร์ไฟล์ไม่ได้ ให้กดบันทึกไฟล์ หากแอปไม่รองรับ ให้เปิดใน Chrome / Safari';notify(cancelled?'share_cancelled':'download_failed',{method:'web_share',errorStage:'share',errorCode:cancelled?'share_cancelled':'share_failed'})};
   const finished=()=>{sharing=false;share.disabled=false;share.removeAttribute('aria-busy')};
   // Invoke share directly from this click; the file is already prepared.
-  try{Promise.resolve(navigator.share({files:[file],title:deliveryText(isImage?'รูป IDพร้อม':'โปรเจกต์ IDพร้อม')})).then(()=>{message.textContent=isImage?'ส่งรูปไปยังช่องทางที่เลือกแล้ว':'ส่งไฟล์ไปยังช่องทางที่เลือกแล้ว';notify('share_handoff',{method:'web_share'})}).catch(failed).finally(finished)}catch(e){failed(e);finished()}
+  try{Promise.resolve(navigator.share({files:[file],title:blob.type==='application/pdf'?'ID Phrom print sheet':deliveryText(isImage?'รูป IDพร้อม':'โปรเจกต์ IDพร้อม')})).then(()=>{message.textContent=isImage?'ส่งรูปไปยังช่องทางที่เลือกแล้ว':'ส่งไฟล์ไปยังช่องทางที่เลือกแล้ว';notify('share_handoff',{method:'web_share'})}).catch(failed).finally(finished)}catch(e){failed(e);finished()}
  });
  let closed=false;
  const close=()=>{if(closed)return;closed=true;fileSavePanels.delete(close);modal.close();modal.remove();previousFocus?.focus?.();setTimeout(()=>URL.revokeObjectURL(url),60000);notify('panel_closed',{method:'mobile_panel'})};

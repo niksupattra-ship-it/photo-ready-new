@@ -1,0 +1,38 @@
+import React,{useEffect,useRef,useState} from 'react';
+import {ENGLISH_PHOTO_SIZES,DEFAULT_PHOTO_CROP,photoCropRect,cropPhotoForDownload} from './photo-size.jsx';
+import {letterPhotoLayout,letterPhotoPdf} from './letter-photo-pdf.js';
+import './english-download.css';
+import {withDeadline} from './async-deadline.js';
+const decode=async blob=>{const url=URL.createObjectURL(blob),im=new Image();try{im.src=url;await im.decode();return im}finally{URL.revokeObjectURL(url)}};
+export async function prepareEnglishDownload(blob,choice,pixelScale=2){
+ const photo=await cropPhotoForDownload(blob,choice,{pixelScale,type:'image/png'});
+ if(choice.format!=='pdf'){if(photo.type==='image/png')return photo;const im=await decode(photo),c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;try{c.getContext('2d').drawImage(im,0,0);return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('Could not create PNG.')),'image/png'))}finally{c.width=c.height=1}}
+ const size=ENGLISH_PHOTO_SIZES.find(s=>s.id===choice.sizeId);if(!size?.width)throw Error('Choose a print size.');
+ const image=await decode(photo),canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
+ try{const x=canvas.getContext('2d');x.fillStyle='white';x.fillRect(0,0,canvas.width,canvas.height);x.drawImage(image,0,0);const jpeg=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Could not create PDF.')),'image/jpeg',.98));return letterPhotoPdf(new Uint8Array(await jpeg.arrayBuffer()),canvas.width,canvas.height,letterPhotoLayout(size.width,size.height,choice.copies))}finally{canvas.width=canvas.height=1}
+}
+export function EnglishDownload({blob,value,pixelScale=2,onDownload,onClose,surfaceRef}){
+ const [crop,setCrop]=useState({...DEFAULT_PHOTO_CROP,...value,sizeId:ENGLISH_PHOTO_SIZES.some(s=>s.id===value?.sizeId)?value.sizeId:'original'}),[format,setFormat]=useState('png'),[copies,setCopies]=useState(null),[adjust,setAdjust]=useState(false),[image,setImage]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const preview=useRef(null),dialog=useRef(null),drag=useRef(null);
+ const size=ENGLISH_PHOTO_SIZES.find(s=>s.id===crop.sizeId)||ENGLISH_PHOTO_SIZES[0];
+ const layout=format==='pdf'&&size.width?letterPhotoLayout(size.width,size.height,copies):null;
+ useEffect(()=>{let active=true;decode(blob).then(im=>{if(active)setImage(im)}).catch(()=>setError('Could not open this photo.'));return()=>{active=false}},[blob]);
+ useEffect(()=>{const old=document.activeElement;dialog.current?.focus();return()=>{if(old?.isConnected)old.focus()}},[]);
+ useEffect(()=>{
+  if(!image||!preview.current)return;const c=preview.current,x=c.getContext('2d'),rect=size.width?photoCropRect(image.naturalWidth,image.naturalHeight,size,crop):{x:0,y:0,width:image.naturalWidth,height:image.naturalHeight};
+  const sheet=layout&&!adjust;c.width=sheet?612:Math.round(Math.min(600,rect.width));c.height=sheet?792:Math.round(c.width*rect.height/rect.width);x.fillStyle='white';x.fillRect(0,0,c.width,c.height);
+  if(sheet)for(const p of layout.positions){x.drawImage(image,rect.x,rect.y,rect.width,rect.height,p.x,792-p.y-p.height,p.width,p.height);x.strokeStyle='#dce1ec';x.lineWidth=.4;x.strokeRect(p.x,792-p.y-p.height,p.width,p.height)}
+  else x.drawImage(image,rect.x,rect.y,rect.width,rect.height,0,0,c.width,c.height);
+ },[image,crop,format,copies,adjust]);
+ const chooseFormat=id=>{setFormat(id);setAdjust(false);if(id==='pdf'&&!size.width)setCrop({...DEFAULT_PHOTO_CROP,sizeId:'35x45'})};
+ const submit=async()=>{if(busy||!image)return;setBusy(true);setError('');try{const choice={...crop,format,copies:layout?.count};const file=await withDeadline(()=>prepareEnglishDownload(blob,choice,pixelScale),{timeoutMs:30000,message:'Preparing the file took too long. Please try again.',code:'DOWNLOAD_FILE_TIMEOUT'});await onDownload(file,choice)}catch(e){setError(e.message||'Could not prepare your download.')}finally{setBusy(false)}};
+ const key=e=>{if(e.key==='Escape'&&!busy){e.stopPropagation();onClose()}if(e.key==='Tab'){const items=[...dialog.current.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled)')];const first=items[0],last=items[items.length-1];if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialog.current)){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}};
+ return <div className="en-download-overlay"><section className="en-download" ref={el=>{dialog.current=el;if(surfaceRef)surfaceRef.current=el}} role="dialog" aria-modal="true" aria-labelledby="en-download-title" tabIndex={-1} onKeyDown={key} aria-busy={busy}>
+ <header><h1 id="en-download-title">Download your photo</h1><button aria-label="Close download" disabled={busy} onClick={onClose}>×</button></header>
+ <div className="en-download-body"><div className="en-download-preview"><canvas ref={preview} aria-label={layout&&!adjust?'Letter print sheet preview':'Photo preview'} onPointerDown={e=>{if(!adjust||!size.width||!image)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);drag.current={x:e.clientX,y:e.clientY,crop:{...crop},width:e.currentTarget.getBoundingClientRect().width}}} onPointerMove={e=>{const d=drag.current;if(!d||!image)return;const r=photoCropRect(image.naturalWidth,image.naturalHeight,size,d.crop);const next={...d.crop,x:d.crop.x-(e.clientX-d.x)*r.width/d.width/image.naturalWidth,y:d.crop.y-(e.clientY-d.y)*r.width/d.width/image.naturalHeight};const bound=photoCropRect(image.naturalWidth,image.naturalHeight,size,next);setCrop({...next,x:(bound.x+bound.width/2)/image.naturalWidth,y:(bound.y+bound.height/2)/image.naturalHeight})}} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null}/><small>{layout&&!adjust?`${layout.count} photos · Letter 8.5 × 11 in`:size.width?`${size.width} × ${size.height} mm`:'Original resolution'}</small></div>
+ <div className="en-download-settings"><fieldset disabled={busy}><legend>File format</legend><div className="en-download-formats"><button aria-pressed={format==='png'} onClick={()=>chooseFormat('png')}>Photo PNG</button><button aria-pressed={format==='pdf'} onClick={()=>chooseFormat('pdf')}>Print PDF</button></div></fieldset>
+ <label className={layout?"en-download-size":"en-download-size en-download-full"}>Photo size<select aria-label="Photo size" disabled={busy} value={crop.sizeId} onChange={e=>setCrop({...DEFAULT_PHOTO_CROP,sizeId:e.target.value})}>{ENGLISH_PHOTO_SIZES.filter(s=>format==='png'||s.width).map(s=><option key={s.id} value={s.id}>{s.id==='original'?'Original resolution':s.label}</option>)}</select></label>
+ {layout&&<><label className="en-download-copies">Copies<input disabled={busy} aria-label="Copies" type="number" min="1" max={layout.capacity} value={layout.count} onChange={e=>setCopies(Math.min(layout.capacity,Math.max(1,Number(e.target.value)||1)))}/></label><p>Print at Actual size / 100%.</p></>}
+ {size.width&&<><button className="en-download-adjust" disabled={busy} aria-expanded={adjust} onClick={()=>setAdjust(!adjust)}>{adjust?'Done adjusting':'Adjust photo'}</button>{adjust&&<label className="en-download-full">Zoom<input aria-label="Crop zoom" type="range" min="1" max="3" step=".01" value={crop.zoom} onChange={e=>setCrop(c=>({...c,zoom:Number(e.target.value)}))}/></label>}</>}
+ {error&&<p role="alert">{error}</p>}</div></div><footer><button className="en-download-primary" disabled={busy||!image} onClick={submit}>{busy?'Preparing…':format==='pdf'?'Download PDF':'Download photo'}</button></footer></section></div>;
+}
