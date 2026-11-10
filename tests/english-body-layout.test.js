@@ -1,0 +1,32 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import sharp from 'sharp';
+import {createEnglishBodyLayout} from '../english-body-layout.js';
+test('a deeper V changes chest coverage without lengthening the layout head or solid neck',async()=>{
+ const make=async depth=>{
+  const width=200,height=180,pixels=Buffer.alloc(width*height*4);
+  for(let y=50;y<height;y++)for(let x=0;x<width;x++)if(!(x>=75&&x<125&&y<depth))pixels.set([50,60,80,255],(y*width+x)*4);
+  return sharp(pixels,{raw:{width,height,channels:4}}).png().toBuffer();
+ };
+ const bounds=(pixels,width,colour)=>{
+  const n=pixels.length/4,seen=new Uint8Array(n),queue=new Int32Array(n);let largest=null;
+  const matches=i=>colour.every((v,c)=>pixels[i*4+c]===v);
+  for(let seed=0;seed<n;seed++)if(!seen[seed]&&matches(seed)){
+   let head=0,tail=1,left=width,right=-1,top=Infinity,bottom=-1;queue[0]=seed;seen[seed]=1;
+   while(head<tail){const i=queue[head++],x=i%width,y=Math.floor(i/width);left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
+    for(const j of [x>0?i-1:-1,x<width-1?i+1:-1,i-width,i+width])if(j>=0&&j<n&&!seen[j]&&matches(j)){seen[j]=1;queue[tail++]=j}
+   }
+   if(!largest||tail>largest.count)largest={left,right,top,bottom,count:tail};
+  }
+  return largest;
+ };
+ const samples=[];
+ for(const depth of [90,140]){
+  const {data,info}=await sharp(await createEnglishBodyLayout(await make(depth))).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  assert.equal(info.width,768);assert.equal(info.height,1024);
+  samples.push({head:bounds(data,info.width,[170,178,189]),neck:bounds(data,info.width,[146,155,168])});
+ }
+ assert(samples[0].head.count>1000);assert(samples[0].neck.count>100);
+ assert.deepEqual(samples[0].head,samples[1].head,'V point must not move the head');
+ for(const key of ['left','right','top','bottom'])assert(Math.abs(samples[0].neck[key]-samples[1].neck[key])<=2,'V point must not extend the reference neck');
+});

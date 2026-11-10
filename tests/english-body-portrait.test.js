@@ -20,7 +20,8 @@ test('English male and female generations create complete clothed portraits with
  for(const portraitMode of ['female','male']){
   const calls=[];let matted=0;
   const result=await processProductionPortrait({input:{buffer:input,mimetype:'image/png'},fields:{...fields,portraitMode,...(portraitMode==='female'?{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION}:{})},root,key:'fixture-not-sent',requestPortrait:async p=>{calls.push(p);return {png:input}},removeBackground:async png=>{assert.deepEqual(png,input);matted++;return matte}});
-  const generated=calls.at(-1);assert.equal(calls.length,portraitMode==='female'?2:1);assert.equal(matted,1);
+  const generated=calls.at(-1);assert.equal(calls.length,1);assert.equal(matted,1);
+  assert.deepEqual(generated.portrait,input,'English geometry generation uses the original upload, never an AI-prepared body');
   assert.deepEqual(generated.outfit,outfit);assert(!generated.neckReference);assert(!generated.neckShapeReference);assert.equal(generated.size,ENGLISH_BODY_OUTPUT_SIZE);
   assert(generated.compositionReference?.length);
   const guide=await sharp(generated.compositionReference).metadata();assert.equal(guide.width,768);assert.equal(guide.height,1024);
@@ -36,6 +37,8 @@ test('English male and female generations create complete clothed portraits with
   assert.match(generated.prompt,/head, new upright neck, level shoulders and clothed upper torso together/);
   assert.match(generated.prompt,/Generate this garment ON the person/);
   assert.match(generated.prompt,/STRICT GARMENT FIDELITY/);
+  assert.match(generated.prompt,/lighter region inside an open V is upper chest below the neck base/);
+  assert.match(generated.prompt,/During this same generation, repair temporary blemishes/);
   assert.match(generated.prompt,/FINAL HEAD\/BODY BALANCE — ENGLISH PORTRAIT/);
   assert.match(generated.prompt,/30–36% of shoulder-joint-to-shoulder-joint width/);
   assert.match(generated.prompt,/reduce the entire head coherently/);
@@ -64,7 +67,7 @@ test('English makeup brightens only skin while preserving garment exposure and n
  const natural=await sharp({create:{width:64,height:96,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:52,height:85,channels:4,background:'#3c8cff'}}).png().toBuffer(),left:6,top:11}]).png().toBuffer();
  const calls=[];let makeup;
  await processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{...fields,portraitMode:'female',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root,key:'fixture-not-sent',requestPortrait:async p=>{calls.push(p);return {png:natural}},removeBackground:async()=>natural,onMakeupVariant:async png=>{makeup=png}});
- assert.equal(calls.length,3);assert.match(calls.at(-1).prompt,/\+0.4 to \+0.6 EV/);assert.match(calls.at(-1).prompt,/MAKEUP EDIT SCOPE — FACE AND NECK ONLY/);assert.doesNotMatch(calls.at(-1).prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
+ assert.equal(calls.length,2);assert.match(calls.at(-1).prompt,/\+0.4 to \+0.6 EV/);assert.match(calls.at(-1).prompt,/MAKEUP EDIT SCOPE — FACE AND NECK ONLY/);assert.doesNotMatch(calls.at(-1).prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
  const a=await sharp(natural).extractChannel(3).raw().toBuffer(),b=await sharp(makeup).extractChannel(3).raw().toBuffer();assert.deepEqual(a,b);
 });
 test('English removes government/student categories and rejects their generation paths',async()=>{

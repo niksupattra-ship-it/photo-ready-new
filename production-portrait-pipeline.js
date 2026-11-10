@@ -157,9 +157,11 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const selected=chosen||{gender:fields.portraitMode};
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
  const originalAiV2=originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_V5_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields.studioSkinVersion);
- const preparedMakeup=needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
- const preparedNatural=needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
  const englishBody=isEnglishBodyPortrait(fields);
+ // English creates anatomy, outfit and natural retouch once from the upload.
+ // Feeding an earlier generated portrait back in can compound geometry drift.
+ const preparedMakeup=!englishBody&&needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
+ const preparedNatural=!englishBody&&needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
  const bounded=!englishBody&&isBoundedPortrait({...fields,portraitMode:selected.gender});
  const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
@@ -261,7 +263,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  await onStage('generation');
  let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
- if(fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION&&needsOriginalAiSkinPolish({...fields,portraitMode:selected.gender})){
+ if(!englishBody&&fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION&&needsOriginalAiSkinPolish({...fields,portraitMode:selected.gender})){
   await onStage('skin-finish');
   // Identity conditioning is an encoding/size conversion of the immutable
   // upload only. No source retouch, crop, skin blend or generated-face guide.

@@ -96,3 +96,13 @@ then positions its collar below the existing portrait's chin using one uniform
 scale. It never reuses a full-person AI placement as a garment frame. New
 outfit placement clears inherited squeeze/rotation/scale values and leaves the
 portrait untouched. Missing face evidence uses a proportional chest placement.
+
+English anatomy generation now uses the uploaded image directly. It performs
+natural skin retouch, hairstyle, neck and outfit synthesis in that one request,
+then makes the separate stored makeup variant when requested. The legacy Thai
+skin-preparation and post-polish passes are excluded from English generation to
+avoid feeding an already regenerated body back into anatomy synthesis. The
+faceless composition guide distinguishes the short neck above the collar base
+from upper-chest skin inside an open V. Neither guide nor delivered portrait is
+locally warped or pasted onto a face mask. Real-provider intermediate images are
+still needed to attribute a particular failed portrait to one AI pass.
