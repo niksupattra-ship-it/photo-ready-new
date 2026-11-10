@@ -28,17 +28,5 @@ test('AI correction reuses the current complete person and outfit; rebuilds both
  assert.equal(calls.length,2);assert.match(calls[0].prompt,/80% of its present linear size/);assert.match(calls[0].prompt,/Preserve every internal facial proportion/);assert(calls[0].outfit.length);assert.match(calls[1].prompt,/Preserve the existing selected outfit/);
  const a=await sharp(out.natural).extractChannel(3).raw().toBuffer(),b=await sharp(out.makeup).extractChannel(3).raw().toBuffer();assert.deepEqual(a,b);assert(a.includes(0)&&a.includes(255));
 });
-test('actual browser orchestration requests at most one correction on the same job and checks it before delivery',async()=>{
- const {readFile}=await import('node:fs/promises'),raw=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- const a=raw.indexOf('async function balanceEnglishPortrait('),z=raw.indexOf('\nasync function aiFinishPortrait(',a);
- async function run(first,second){
-  const input={idpromJobId:'job-same',fixture:first},output={idpromJobId:'job-same',fixture:second,idpromEnglishProportionCorrection:'done'},requests=[],polls=[];
-  const env={measureEnglishProportions,decodedPortraitImage:async b=>({naturalWidth:b.fixture.width,naturalHeight:b.fixture.height,fixture:b.fixture}),portraitFaceLandmarks:async(_,im)=>im.fixture.face,canvasFor:(width,height)=>{let f;return {width,height,getContext:()=>({drawImage:im=>{f=im.fixture},getImageData:()=>({data:f.pixels})})}},assertProcessActive(){},walletHeaders:()=>({}),analyticsTagError:e=>e,portraitFetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return {ok:true}},waitForAiJob:async id=>{polls.push(id);return output}};
-  const balance=Function('env',`with(env){${raw.slice(a,z)};return balanceEnglishPortrait}`)(env);
-  return {input,output,requests,polls,balance};
- }
- const normal=await run(fixture(),fixture());assert.equal(await normal.balance(normal.input),normal.input);assert.equal(normal.requests.length,0);
- const fixed=await run(fixture(140),fixture());assert.equal(await fixed.balance(fixed.input),fixed.output);assert.equal(fixed.requests.length,1);assert.deepEqual(fixed.polls,['job-same']);assert.equal(fixed.requests[0].url,'/api/ai-jobs/job-same/proportions');assert(fixed.requests[0].body.headScale<1);
- const bad=await run(fixture(140),fixture(140));await assert.rejects(bad.balance(bad.input),e=>e.code==='ENGLISH_PROPORTIONS_UNRESOLVED');assert.equal(bad.requests.length,1);
- bad.input.idpromEnglishProportionCorrection='done';await assert.rejects(bad.balance(bad.input),e=>e.code==='ENGLISH_PROPORTIONS_UNRESOLVED');assert.equal(bad.requests.length,1,'no recursive retries');
-});
+// Current delivery uses measured local pixels; actual App pair/credit/cancellation
+// coverage lives in english-head-balance.test.js and its browser regression.

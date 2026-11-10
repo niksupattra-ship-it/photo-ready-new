@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {ENGLISH_HEAD_BALANCE_VERSION} from '../src/english-head-balance.js';
 const raw=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const start=raw.indexOf('async function balanceEnglishPortrait('),end=raw.indexOf('\nasync function aiFinishPortrait(',start);
 test('a completed English pair is retained without another AI correction, even if ratios or local measurements fail',async()=>{
  const forbidden=()=>{throw Error('No second AI edit or ratio-based delivery gate')};
- const env={portraitFetch:forbidden,waitForAiJob:forbidden,measureEnglishProportions:forbidden,portraitFaceLandmarks:forbidden,decodedPortraitImage:forbidden};
+ const env={ENGLISH_HEAD_BALANCE_VERSION,assertProcessActive(){},portraitFetch:forbidden,waitForAiJob:forbidden,measureEnglishProportions:forbidden,portraitFaceLandmarks:forbidden,decodedPortraitImage:forbidden};
  const balance=Function('env','with(env){'+raw.slice(start,end)+';return balanceEnglishPortrait}')(env);
  for(const correction of [undefined,'done','failed']){
   const makeup=new Blob(['makeup']),natural=Object.assign(new Blob(['natural']),{idpromAiMakeupBlob:makeup,idpromEnglishProportionCorrection:correction});

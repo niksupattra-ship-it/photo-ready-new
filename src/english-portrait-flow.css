@@ -86,3 +86,4 @@
 .idstudio.studio-touch .studio-picker-drawer .english-outfit-card>button:first-child{flex:none;height:auto;min-height:0;width:100%;padding:4px;border-radius:9px}
 .idstudio.studio-touch .studio-picker-drawer .english-outfit-card>button:first-child>span{height:76px;width:100%;overflow:hidden}
 .idstudio.studio-touch .studio-picker-drawer:has(.english-outfit-card){max-height:min(46dvh,330px)}
+.english-head-balance{display:block;width:100%;margin:8px 0 14px;padding:11px 14px;border:1px solid #7545f4;border-radius:10px;background:#f3eeff;color:#5324ca;font-weight:650;cursor:pointer}.english-head-balance:disabled{opacity:.5;cursor:default}

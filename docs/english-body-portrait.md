@@ -16,8 +16,8 @@ The reference outfit remains the authority for lighting, colour and sharpness;
 face/ear/neck lighting adapts to it. The result is still AI reconstruction, so
 pixel-identical clothing is not guaranteed.
 
-Background removal retains the complete person. The browser does not cut away
-AI clothing, replace it with a PNG, reshape the neck, or fit the head separately.
+Background removal retains the complete person. Measured head correction keeps
+the AI clothing, original chin position, supporting neck and person canvas.
 The temporary original-template compositor and neck feather were removed.
 Both makeup options retain the same silhouette and garment appearance; English
 makeup omits the independent fill-flash exposure instruction. Existing outfit
@@ -37,11 +37,12 @@ Validation:
 
 Provider tests use inert responses and actual reference files. Browser checks
 verify torso preservation, aspect ratio, transparency and outfit selection.
-Real AI output quality and production deployment remain unverified here.
+Provider rendering is mocked in these regression checks.
 
-English head/body balance is requested during the original generation. The
-current browser does not submit a second automatic proportion-correction job or
-reject a completed Natural/Makeup pair based on shoulder-silhouette ratios.
+English head/body balance is requested during the original generation and
+enforced locally on completed oversized portraits. The browser does not submit
+a second automatic proportion-correction job or reject a completed
+Natural/Makeup pair based on shoulder-silhouette ratios.
 Clear-face, valid-image and completion checks still run before Studio delivery.
 The legacy `/api/ai-jobs/:id/proportions` endpoint remains available for older
 open clients; its ownership, credit and cancellation protections are unchanged.
@@ -103,8 +104,8 @@ then makes the separate stored makeup variant when requested. The legacy Thai
 skin-preparation and post-polish passes are excluded from English generation to
 avoid feeding an already regenerated body back into anatomy synthesis. The
 faceless composition guide distinguishes the short neck above the collar base
-from upper-chest skin inside an open V. Neither guide nor delivered portrait is
-locally warped or pasted onto a face mask. Real-provider intermediate images are
+from upper-chest skin inside an open V. No generated face is pasted onto the
+portrait. Real-provider intermediate images are
 still needed to attribute a particular failed portrait to one AI pass.
 
 The English pose instruction separates recognisable facial identity from source
@@ -120,3 +121,42 @@ The English composition target now reduces the whole head by 10% in both axes.
 The guide keeps its original camera frame, chin anchor, neck and garment scale;
 only the head and its pose markers become smaller. The prompt explicitly avoids
 applying that reduction twice or recalculating neck length from the smaller face.
+
+## Measured head correction
+
+The previous `balanceEnglishPortrait` returned the image without changing it;
+the 10% prompt alone could still deliver an oversized head. The v8 framing
+policy now measures native face landmarks against the transparent shoulder
+silhouette. It includes shoulders touching the frame edge and uses a fixed
+body-height window, so shrinking the head cannot alter the measurement window.
+Already balanced or unmeasurable results are retained.
+
+For oversized heads, `src/english-head-balance.js` applies one uniform scale to
+the skull, face and hair about the original chin, targeting a face/shoulder ratio
+of 0.30. The short join below the chin eases into the original neck width.
+Segmentation protects every clothing pixel, accessories and bare shoulders;
+the supporting neck alpha is retained. Pixels below the join are unchanged.
+Natural is the existing pair's geometry authority: exactly the same mapping and
+alpha are used for Makeup, retaining its cosmetics. Native canvas size, garment
+placement and layer transforms stay fixed. This adds no provider request, debit,
+regeneration or delivery gate. A local model/encoding failure retains the whole
+original pair; cancellation or account changes still abort the stale operation.
+
+Existing English full-person layers expose **Balance head size** in selected
+layer properties (on mobile, select the portrait and open Move). It adjusts both
+stored finishes together, supports Undo/Redo and records a version to prevent
+repeated shrinking. Pixel-edited layers must first undo those edits. Opening a
+saved project never automatically alters it or submits generation. Thai
+generation and head geometry are unchanged.
+
+Validation includes native pixel/geometry tests and actual App/Studio handlers
+on desktop and mobile, including paired finish switching, Undo/Redo, cancellation,
+measurement failure and no additional API requests. A separate photographic
+check uses the actual pinned MediaPipe models on three local public sample
+portraits with a controlled oversized head: remeasured face/shoulder ratios
+0.3674→0.3003, 0.3664→0.2993 and 0.3580→0.3004. All labelled clothing and
+lower-body pixels stayed identical. These are controlled local samples, not a
+new provider run on the user's attached screenshot.
+
+- `node --test tests/english-head-balance.test.js tests/english-proportions.test.js tests/english-completed-delivery.test.js`
+- `HEAD_BALANCE_BASE=http://127.0.0.1:5173 python tests/english-head-balance.browser.py`
