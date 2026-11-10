@@ -3,7 +3,7 @@ export const PROJECT_IMAGE_MAX_PIXELS=8_000_000;
 export const PROJECT_UNIQUE_MAX_PIXELS=40_000_000;
 export const PROJECT_RESIDENT_MAX_BYTES=320*1024*1024;
 const MAX_HEADER_BYTES=1024*1024;
-const fields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','manualOutfitMask','manualOutfitPreviousMask','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
+const fields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const unsafe=()=>Object.assign(Error('ไฟล์งานนี้มีภาพหรือเลเยอร์ใหญ่เกินขีดจำกัดที่เปิดได้อย่างปลอดภัย งานปัจจุบันยังอยู่ กรุณาเก็บไฟล์งานเดิมไว้และติดต่อผู้ดูแลเพื่อลดขนาดงาน'),{code:'PROJECT_RESOURCE_LIMIT'});
 const be16=(b,o)=>(b[o]<<8)|b[o+1];
 const be32=(b,o)=>b[o]*16777216+b[o+1]*65536+b[o+2]*256+b[o+3];

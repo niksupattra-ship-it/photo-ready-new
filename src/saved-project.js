@@ -3,7 +3,7 @@ import {createProjectResourceGuard,encodedImageSize,PROJECT_IMAGE_MAX_PIXELS} fr
 import {isFemaleFinishProfile} from './female-finish-profile.js';
 import {isFemaleFinishReference,FEMALE_FINISH_REFERENCE_MAX_EDGE} from './female-finish-reference.js';
 const imageURL=/^data:image\/(png|jpeg|webp);base64,/;
-const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','manualOutfitMask','manualOutfitPreviousMask','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
+const imageFields=['source','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'];
 const isHead=l=>l.kind==='head'||l.name==='หัว · คอ · ผม';
 const abort=signal=>{if(signal?.aborted)throw Object.assign(Error('ยกเลิกการเปิดงานแล้ว'),{name:'AbortError'})};
 export function assertSavedProjectResources(project){validateSavedProject(project);return createProjectResourceGuard(project)}

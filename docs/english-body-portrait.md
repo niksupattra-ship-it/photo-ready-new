@@ -91,24 +91,8 @@ choices. **Create portrait** submits them together; an unchanged selection with
 a matching existing portrait returns to that result without resubmitting.
 Replacing the uploaded photo clears the pending choices.
 
-Manual outfit placement uses the catalogue pattern's standard workspace frame:
-900 workspace pixels wide, native aspect ratio, and bottom aligned. This frame
-never depends on face size or head position. The existing local suit-fit planner
-scales and positions the generated head against the fixed garment, without
-changing garment pixels or dimensions and without another AI generation.
-Stale squeeze/rotation/scale values on the previous garment are cleared.
-
-When placing a manual PNG outfit over an English AI portrait, a reusable layer
-mask hides the previous AI clothing using the existing local segmentation and
-neck-alpha cleanup. Full portrait pixels and both generated finishes remain
-unchanged. Finish switching retains this mask; removing the manual outfit or
-returning to the same complete AI portrait restores the previous mask. These
-mask sources participate in saved-project image validation and resource limits.
-No extra portrait-generation request is made for manual clothing removal.
-
-Manual mask preparation accepts both encoded images and the Canvas surfaces
-used by Studio history. Existing Canvas masks are composed directly rather
-than passed to a URL loader. The unedited portrait mask is prepared in the
-background once per natural source and reused for later outfit selections;
-current user masks are composed when applying it. History mask fields are
-encoded for both normal saves and pending download/save snapshots.
+Manual outfit placement measures the new PNG's native alpha bounds and collar,
+then positions its collar below the existing portrait's chin using one uniform
+scale. It never reuses a full-person AI placement as a garment frame. New
+outfit placement clears inherited squeeze/rotation/scale values and leaves the
+portrait untouched. Missing face evidence uses a proportional chest placement.

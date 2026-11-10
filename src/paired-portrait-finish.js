@@ -7,7 +7,7 @@ export const hasPairedPortraitFinish=head=>isStudioSkinBaseSource(head?.studioSk
 export function pairedPortraitFinish(head,style){
  if(!hasPairedPortraitFinish(head))throw Error('ภาพแต่งหน้าและไม่แต่งหน้ายังไม่พร้อม');
  const finish=style==='natural'?'natural':'makeup';
- const next={...head,source:finish==='natural'?head.studioSkinBaseSource:head.aiMakeupSource,femaleEyeStyle:finish,initialFemaleEyeStyle:finish,mask:head.manualOutfitMask||null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupStyles:{},makeupBaseSource:null,makeupCleanBaseSource:null,makeupFullSource:null};
+ const next={...head,source:finish==='natural'?head.studioSkinBaseSource:head.aiMakeupSource,femaleEyeStyle:finish,initialFemaleEyeStyle:finish,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupStyles:{},makeupBaseSource:null,makeupCleanBaseSource:null,makeupFullSource:null};
  next.processedOriginalSource=next.source;
  if(finish==='natural'){delete next.studioCosmeticsVersion;delete next.studioMakeupVersion;next.naturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION}
  else{next.studioCosmeticsVersion=head.studioSkinVersion+':makeup';next.studioMakeupVersion=PORTRAIT_MAKEUP_VERSION;delete next.naturalStudioSkinVersion}
