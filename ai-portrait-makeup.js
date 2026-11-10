@@ -13,18 +13,7 @@ export async function createAiMakeupVariant(natural,{key,requestPortrait,preserv
  const {width,height}=await sharp(natural).metadata();
  const portrait=await sharp(natural).flatten({background:'#5a86b0'}).png().toBuffer();
  const prompt=AI_MAKEUP_PROMPT+(preserveOutfit?'\nPreserve the existing selected outfit, complete clothed torso, collar, buttons, shoulder silhouette and head-to-body proportions exactly. Do not remove, replace or redesign any clothing. Preserve fabric weave, pattern direction and scale, stitching, pocket placement, button count and spacing, collar geometry and every insignia’s position, orientation and fine motif. Do not simplify, blur or sharpen these details.':'')+'\n'+AI_MAKEUP_COMPLEXION_POLICY+'\n'+AI_MAKEUP_FACE_LIGHTING_POLICY;
- const request={key,prompt,portrait,portraitMime:'image/png',size:`${width}x${height}`};
- let result;
- for(let attempt=0;attempt<2;attempt++){
-  try{result=await requestPortrait(request);break}catch(error){
-   const status=Number(error?.status||error?.statusCode),transient=status===429||status>=500&&status<=599||['ECONNRESET','ETIMEDOUT','EAI_AGAIN'].includes(error?.cause?.code||error?.code);
-   // Thai recovery retries just the cosmetic edit on the same finished Natural
-   // image. Never rerun portrait/hair generation or silently fabricate a pair.
-   if(preserveOutfit||attempt||!transient)throw error;
-   console.warn('AI makeup transient retry',{status:status||null,code:error?.code||error?.cause?.code||'provider_unavailable'});
-   await new Promise(resolve=>setTimeout(resolve,1000));
-  }
- }
+ const result=await requestPortrait({key,prompt,portrait,portraitMime:'image/png',size:`${width}x${height}`});
  if(!result?.png?.length)throw Error('สร้างภาพแต่งหน้าไม่สำเร็จ กรุณาลองใหม่');
  const meta=await sharp(result.png).metadata();
  if(!meta.width||!meta.height||Math.abs(meta.width/meta.height-width/height)>.02)throw Error('ภาพแต่งหน้ามีสัดส่วนไม่ตรงกับภาพฐาน');
