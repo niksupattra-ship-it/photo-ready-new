@@ -3,6 +3,7 @@ import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,WARP_HELP,TOOL_HELP,PHOTO_E
 import {outfitChoicePreview,isJobOutfit} from './outfit-choice-preview.js';
 import {insigniaForLanguage,englishPreviewEnabled} from './english-preview.js';
 import {EnglishPortraitFlow} from './english-portrait-flow.jsx';
+import {fitEnglishManualOutfit,ENGLISH_MANUAL_OUTFIT_VERSION} from './english-manual-outfit.js';
 import {uniformMatchesSearch} from './uniform-search.js';
 import {assertPortraitExportReady} from './portrait-export-guard.js';
 import {preserveLocalSkinLook} from './preserve-local-skin-look.js';
@@ -803,13 +804,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const target=state.current.find(l=>layerKind(l)===kind);
   if(target?.locked){setStatus('ปลดล็อกเลเยอร์ '+ASSET_NAMES[kind]+' ก่อนเปลี่ยน');return}
   const bodyHead=outputHeads(state.current).find(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
-  const repairSuitFit=Boolean(bodyHead&&option&&bodyHead.generatedOutfitTemplate!==option.template)||Boolean(target?.autoSuitFitVersion&&target.autoSuitFitVersion!==STUDIO_SUIT_FIT_VERSION)||state.current.some(l=>l.kind==='neck-fit');
+  const repairSuitFit=Boolean(manualSuit&&target?.manualOutfitFitVersion!==ENGLISH_MANUAL_OUTFIT_VERSION)||Boolean(bodyHead&&option&&bodyHead.generatedOutfitTemplate!==option.template)||Boolean(target?.autoSuitFitVersion&&target.autoSuitFitVersion!==STUDIO_SUIT_FIT_VERSION)||state.current.some(l=>l.kind==='neck-fit');
   if(kind==='suit'&&option&&target?.templatePath===option.template&&!repairSuitFit&&!(manualSuit&&target.visible===false)){endSuitPreview(suitRequestRef.current);setAssetBusy(false);setSelected(target.id);return}
   const combinedBody=Boolean(bodyHead);
-  const fitHead=!combinedBody&&kind==='suit'&&option&&typeof onMeasureSuitFace==='function'?outputHeads(state.current).find(l=>l.jobId&&l.kind!=='source-photo'):null;
+  const fitHead=!manualSuit&&!combinedBody&&kind==='suit'&&option&&typeof onMeasureSuitFace==='function'?outputHeads(state.current).find(l=>l.jobId&&l.kind!=='source-photo'):null;
   if(fitHead&&(fitHead.locked||state.current.some(l=>l.hairHeadId===fitHead.id&&l.kind!=='neck-fit'&&l.locked))){setStatus('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดให้พอดีกับชุดใหม่');return}
   if(!target&&option&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}
-  let request=kind==='suit'&&option&&!combinedBody?beginSuitPreview(option,target):null;
+  let request=kind==='suit'&&option&&!combinedBody&&!manualSuit?beginSuitPreview(option,target):null;
   setAssetBusy(true);
   try{
    if(request)await request.wait(request.firstPaint);
@@ -826,6 +827,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(['collar','chest','ribbon'].includes(kind)){request=beginInsigniaPreview(kind,option,target,suit,frame,preset);await request.wait(request.firstPaint)}
     const loading=nativeAsset(kind,option,frame,preset),native=request?await request.wait(loading):await loading;collarParts=native.collarParts;
     const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),kind,source:native.source,sourceFrame:kind==='suit'?(target?.sourceFrame||native.sourceFrame):native.sourceFrame,collarFrame:kind==='suit'?(target?.collarFrame||frame):target?.collarFrame,neckWidth:kind==='suit'?0:target?.neckWidth,neckHeight:kind==='suit'?0:target?.neckHeight,collarParts,collarLeftX:target?.collarLeftX||0,collarRightX:target?.collarRightX||0,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,visible:true,assetId:option.id,templatePath:kind==='suit'?option.template:target?.templatePath};
+    if(manualSuit){
+     const portrait=previous.find(l=>layerKind(l)==='head'||l.kind==='source-photo');
+     const portraitAsset=portrait&&assets.current.get(portrait.id);
+     const fitted=await fitEnglishManualOutfit({source:native.source,head:portrait,headSource:portraitAsset?.warped||portraitAsset?.original,measureFace:onMeasureSuitFace});
+     Object.assign(created,{sourceFrame:fitted,collarFrame:{...fitted},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1,autoSuitFitVersion:null,manualOutfitFitVersion:ENGLISH_MANUAL_OUTFIT_VERSION});
+    }
     if(kind==='suit'&&combinedBody&&!manualSuit)created.visible=false;
     if(kind==='background')Object.assign(created,{x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1});
     if(['collar','chest','ribbon'].includes(kind))Object.assign(created,{x:suit?.x||0,y:suit?.y||0,scale:suit?.scale||1,rotation:suit?.rotation||0,opacity:1,collarLeftX:0,collarRightX:0,collarLeftY:0,collarRightY:0});

@@ -102,3 +102,9 @@ places the selected outfit without starting AI. Returning to AI restores the
 choices. **Create portrait** submits them together; an unchanged selection with
 a matching existing portrait returns to that result without resubmitting.
 Replacing the uploaded photo clears the pending choices.
+
+Manual outfit placement measures the new PNG's native alpha bounds and collar,
+then positions its collar below the existing portrait's chin using one uniform
+scale. It never reuses a full-person AI placement as a garment frame. New
+outfit placement clears inherited squeeze/rotation/scale values and leaves the
+portrait untouched. Missing face evidence uses a proportional chest placement.

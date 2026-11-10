@@ -10,7 +10,7 @@ with sync_playwright() as pw:
   p=b.new_page(viewport={'width':width,'height':1000},is_mobile=width<640,has_touch=width<640)
   p.on('pageerror',lambda e:errors.append(str(e)))
   p.route('**/*',lambda r:r.continue_() if r.request.url.startswith(base+'/') and '/api/' not in r.request.url else r.abort())
-  p.goto(base+'/scripts/fixtures/english-portrait-flow.html?lang=en&fresh',wait_until='domcontentloaded')
+  p.goto(base+'/scripts/fixtures/english-portrait-flow.html?lang=en&fresh&stretch',wait_until='domcontentloaded')
   p.get_by_role('heading',name='Choose how to edit',exact=True).wait_for()
   p.wait_for_function('!!window.bodySnapshot?.current')
   return p
@@ -32,6 +32,13 @@ with sync_playwright() as pw:
  card=p.locator('.english-outfit-card').filter(has=p.locator('img[src*="female-lapel-suit"]'))
  card.locator('button').first.click()
  p.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false&&l.templatePath.endsWith('female-lapel-suit.png'))")
+ dimensions=p.evaluate('''async()=>{const s=bodySnapshot.current().layers.find(l=>l.kind==='suit');const im=await (await import('/src/studio-image-cache.js')).decodedStudioImage(s.source);return {frame:s.sourceFrame,ratio:im.width/im.height,sx:s.squeezeX,sy:s.squeezeY,scale:s.scale,x:s.x,y:s.y,rotation:s.rotation,version:s.manualOutfitFitVersion}}''')
+ assert abs(dimensions['frame']['w']/dimensions['frame']['h']-dimensions['ratio'])<1e-9
+ assert dimensions['frame']['y']>=550
+ assert dimensions['sx']==1 and dimensions['sy']==1
+ assert dimensions['scale']==1 and dimensions['x']==0 and dimensions['y']==0 and dimensions['rotation']==0
+ p.screenshot(path='work/english-manual-outfit-fixed.png',full_page=True)
+
  assert p.locator('.english-flow-overlay').count()==0
  ai(p,card)
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
