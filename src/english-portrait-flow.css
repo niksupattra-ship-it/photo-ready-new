@@ -33,3 +33,4 @@
 .english-flow-hair-grid small{font-size:10px;line-height:1.3;padding:5px 0 0;text-align:center}
 .english-flow-hair-grid b{position:absolute;right:5px;top:5px;background:#7543ed;color:white;border:2px solid white;border-radius:50%;width:21px;height:21px;display:grid;place-items:center;font-size:12px;box-sizing:border-box}
 @media(max-width:640px){.english-flow-hair-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-height:270px;gap:8px}.english-flow-hair-grid img{height:100px}}
+.english-flow .english-flow-manual{display:block;width:100%;margin-top:10px;border-color:#bba8eb;color:#6635d9;background:#faf8ff}

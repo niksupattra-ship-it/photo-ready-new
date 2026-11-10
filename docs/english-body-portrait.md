@@ -86,3 +86,10 @@ regression: `python tests/english-portrait-flow.browser.py` with Vite on port 51
 The fixture mocks generation and checks submission timing, selection delivery,
 manual entry, outfit changes, mobile layout and Thai isolation; it does not
 validate external AI rendering.
+
+Studio keeps one pending outfit/hairstyle/look selection when switching between
+AI setup and manual editing. Setup has a direct **Edit manually** action that
+places the selected outfit without starting AI. Returning to AI restores the
+choices. **Create portrait** submits them together; an unchanged selection with
+a matching existing portrait returns to that result without resubmitting.
+Replacing the uploaded photo clears the pending choices.

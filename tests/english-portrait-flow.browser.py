@@ -34,14 +34,26 @@ with sync_playwright() as pw:
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
  assert p.evaluate('bodyCalls[0].finish')=='makeup'
  assert p.evaluate('bodyCalls[0].hair')=='seedream-40'
+ # Same choices reuse the displayed result before any AI submission.
+ p.locator('.english-workflow-bar').get_by_role('button',name='Create with AI').click()
+ p.get_by_role('button',name='Create portrait',exact=True).click()
+ p.locator('.english-flow-overlay').wait_for(state='hidden')
+ assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
+
  # Changing outfits after an AI result also waits for explicit confirmation.
  p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
  card=p.locator('.studio-catalog-grid button').filter(has=p.locator('img[src*="female-lapel-suit"]'))
  card.scroll_into_view_if_needed();card.click()
  p.get_by_role('heading',name='Choose outfit & look').wait_for()
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
- p.get_by_role('button',name='Change editing method').click()
- p.get_by_role('dialog').get_by_role('button',name='Edit manually').click()
+ # Choose a hairstyle, then return straight to manual without generating.
+ p.locator('.english-flow-hair-grid button').nth(2).click()
+ p.get_by_role('dialog').get_by_role('button',name='Edit manually',exact=True).click()
+ p.locator('.english-workflow-bar').get_by_role('button',name='Create with AI').click()
+ assert p.locator('.english-flow-hair-grid button').nth(2).get_attribute('aria-pressed')=='true'
+ assert p.locator('.english-flow-outfits button[aria-pressed=true]').count()==1
+ p.get_by_role('dialog').get_by_role('button',name='Edit manually',exact=True).click()
+
 
  p.get_by_role('heading',name='Choose outfit & look').wait_for(state='hidden')
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
