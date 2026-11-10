@@ -21,12 +21,19 @@ with sync_playwright() as pw:
  p.get_by_role('heading',name='Choose outfit & look').wait_for()
  outfits=p.locator('.english-flow-outfits button');outfits.nth(0).click()
  p.get_by_role('button',name='Makeup',exact=True).click()
+ hair=p.locator('.english-flow-hair-grid button').nth(1)
+ hair.click()
+ assert hair.get_attribute('aria-pressed')=='true'
+ assert p.locator('.english-flow-hair select').count()==0
+ p.locator('.english-flow-hair-grid img').nth(1).wait_for()
+ p.wait_for_function("document.querySelectorAll('.english-flow-hair-grid img')[1].naturalWidth>0")
  assert p.evaluate('bodyCalls.length')==0,'Selecting outfit or look must not generate'
  p.screenshot(path='work/english-flow-setup.png',full_page=True)
  p.get_by_role('button',name='Create portrait',exact=True).click()
  p.wait_for_function('bodyCalls.some(c=>c.committed)')
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
  assert p.evaluate('bodyCalls[0].finish')=='makeup'
+ assert p.evaluate('bodyCalls[0].hair')=='seedream-40'
  # Changing outfits after an AI result also waits for explicit confirmation.
  p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
  card=p.locator('.studio-catalog-grid button').filter(has=p.locator('img[src*="female-lapel-suit"]'))
