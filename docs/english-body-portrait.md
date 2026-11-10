@@ -65,3 +65,24 @@ it covers credit balance, pair replacement, concurrency, ownership, cancellation
 and failure without paid services. The real MediaPipe + MODNet browser test
 accepts three normally proportioned sample portraits without extra generation.
 Actual provider correction quality and deployment still require verification.
+
+
+## English editing flow
+
+After uploading, users explicitly choose **AI outfit** or **Edit manually**.
+AI outfit opens the outfit, Natural/Makeup and hairstyle choices. Selecting a
+choice never submits a portrait job: **Create portrait** is the single submission
+action. The selected outfit determines the portrait mode. Existing access and
+credit checks still run before generation.
+
+Edit manually opens Studio with the uploaded source (or the existing result),
+without requesting AI generation. The original remains available when switching
+back to AI. After generation, Review & edit offers manual editing and the existing
+download flow. Selecting another outfit on an AI result opens configuration for
+confirmation; in manual mode, it only places the local outfit layer.
+
+The flow applies only to `?lang=en`. Thai Easy Mode is unchanged. Browser
+regression: `python tests/english-portrait-flow.browser.py` with Vite on port 5193.
+The fixture mocks generation and checks submission timing, selection delivery,
+manual entry, outfit changes, mobile layout and Thai isolation; it does not
+validate external AI rendering.
