@@ -1,3 +1,4 @@
+import {ENGLISH_HEAD_TARGETS as targets} from '../english-body-portrait.js';
 // Measurements use native face landmarks and the transparent person silhouette.
 // No image pixels or facial features are transformed here.
 export function measureEnglishProportions(pixels,width,height,face){
@@ -14,7 +15,7 @@ export function measureEnglishProportions(pixels,width,height,face){
  spans.sort((a,b)=>a-b);const shoulders=spans[Math.floor((spans.length-1)*.85)];
  let crown=face[10].y*height;
  for(let y=0;y<crown;y++){let count=0;for(let x=Math.max(0,Math.floor(cx-fw*.75));x<Math.min(width,cx+fw*.75);x++)if(pixels[(y*width+x)*4+3]>=160)count++;if(count>fw*.08){crown=y;break}}
- const faceRatio=fw/shoulders,headRatio=(chin-crown)/shoulders,oversized=faceRatio>.37||(faceRatio>.35&&headRatio>.66);
- const headScale=Math.max(.76,Math.min(.94,.34/faceRatio,.60/headRatio));
+ const faceRatio=fw/shoulders,headRatio=(chin-crown)/shoulders,oversized=faceRatio>targets.faceMax||(faceRatio>targets.tallFaceMin&&headRatio>targets.headHeightMax);
+ const headScale=Math.max(targets.minCorrectionScale,Math.min(targets.maxCorrectionScale,targets.targetFace/faceRatio,targets.targetHeadHeight/headRatio));
  return {measurable:true,oversized,faceRatio,headRatio,headScale};
 }

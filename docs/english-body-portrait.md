@@ -63,5 +63,16 @@ Additional checks:
 The PostgreSQL/Express test uses a temporary isolated schema, removed on exit;
 it covers credit balance, pair replacement, concurrency, ownership, cancellation
 and failure without paid services. The real MediaPipe + MODNet browser test
-accepts three normally proportioned sample portraits without extra generation.
+checks three demonstration portraits against the current proportion targets.
 Actual provider correction quality and deployment still require verification.
+
+The current English preference makes the generated whole head 10% smaller
+relative to the same torso: target face/shoulder and head-height ratios are
+0.90 times the earlier targets. Correction scales include this preference once;
+the face is never stretched or locally resized by the browser. New cache keys
+avoid using results generated with the previous head size.
+
+Final placement fits the visible alpha bounds instead of the PNG dimensions.
+A uniform cover scale fills the background width and lower edge, with 3.5%
+headroom above the hair crown. Any crop needed for the portrait is on the torso,
+not the head. The same placement is used for the editor and image export.

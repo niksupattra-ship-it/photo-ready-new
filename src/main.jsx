@@ -1,3 +1,4 @@
+import {fitEnglishPortraitFrame} from './english-portrait-frame.js';
 import {measureEnglishProportions} from './english-proportion-check.js';
 import {EnglishExamplePhoto} from './english-example-photo.jsx';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION} from '../english-body-portrait.js';
@@ -408,8 +409,8 @@ async function alphaBounds(img){
 async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png',{placementOnly=false}={}){
  if(headBlob.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
   const image=await decodedPortraitImage(headBlob),w=image.naturalWidth||image.width,h=image.naturalHeight||image.height;
-  const scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
-  return {blob:placementOnly?null:headBlob,lock:{W:900,H:1200,hX,hY,scale,headW:w,headH:h,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
+  const frame=fitEnglishPortraitFrame({width:w,height:h,bounds:await alphaBounds(image)});
+  return {blob:placementOnly?null:headBlob,lock:{...frame,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
  }
  const [bg,uniformImg]=await Promise.all([loadImage('/assets/background.jpg'),loadImage(templatePath)]);
  try{

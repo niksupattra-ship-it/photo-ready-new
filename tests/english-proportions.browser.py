@@ -21,5 +21,7 @@ with sync_playwright() as pw:
  for(const sample of samples){const im=new Image();im.src=sample.url;await im.decode();const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');x.drawImage(im,0,0);const result=measureEnglishProportions(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,model.detect(im).faceLandmarks?.[0]);out.push({name:sample.name,...result})}model.close();return out;
 }''',samples)
  assert len(results)==3
- assert all(item['measurable'] and not item['oversized'] for item in results),results
+ assert all(item['measurable'] for item in results),results
+ assert results[1]['oversized'],'the former lapel example exceeds the new ten-percent-smaller target'
+ assert not results[0]['oversized'] and not results[2]['oversized'],results
  print(json.dumps(results));b.close()
