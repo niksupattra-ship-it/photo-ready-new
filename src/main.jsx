@@ -5,7 +5,6 @@ import {PROCESS_FAILURE_MESSAGE,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEdit
 import {useAiMakeupPixels} from './ai-makeup-pair.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
-import {measurePortraitAspect,portraitAspectRepair} from './portrait-aspect-repair.js';
 import {expandPortraitHairProtection} from './portrait-hair-protection.js';
 import {boundPortraitNeckAlpha} from './portrait-neck-boundary.js';
 import {LanguageSwitch} from './language-switch.jsx';
@@ -1388,15 +1387,6 @@ async function removeFirstPortraitBackground(blob){
  // complete: even one repaired pixel can change a later segmentation result.
  return blob;
 }
-async function restoreFemalePortraitAspect(original,result){
- const source=await decodedPortraitImage(original),image=await decodedPortraitImage(result),model=await getLandmarker();
- const sourceFace=await portraitFaceLandmarks(original,source),face=await portraitFaceLandmarks(result,image);
- const before=measurePortraitAspect(source,model,sourceFace),after=measurePortraitAspect(image,model,face);
- const transform=portraitAspectRepair(before,after,face,image.naturalWidth,image.naturalHeight);
- if(!transform)return result;
- const c=canvasFor(transform.width,transform.height),x=c.getContext('2d');x.setTransform(...transform.matrix);x.drawImage(image,0,0);
- const repaired=await canvasPng(c);copyStudioSkinBlobMetadata(result,repaired);if(result.idpromAiMakeupBlob){const pair=await decodedPortraitImage(result.idpromAiMakeupBlob);x.resetTransform();x.clearRect(0,0,c.width,c.height);x.setTransform(...transform.matrix);x.drawImage(pair,0,0);repaired.idpromAiMakeupBlob=await canvasPng(c)}return repaired;
-}
 async function protectNativePortraitHair(image,masks){
  if(masks.hairEdgesProtected)return masks.hairMask;
  const W=image.naturalWidth,H=image.naturalHeight,k=Math.min(1,512/Math.max(W,H)),w=Math.max(1,Math.round(W*k)),h=Math.max(1,Math.round(H*k));
@@ -2658,9 +2648,8 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   const bodyPortrait=englishPreviewEnabled();
   if(bodyPortrait){result=await balanceEnglishPortrait(result,options.onJobStatus);assertCurrentOperation();result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;}
-  const shaped=!bodyPortrait&&gender==='female'?await restoreFemalePortraitAspect(originalFile,result):result;
   assertCurrentOperation();
-  const cleaned=bodyPortrait?shaped:await cleanPortraitClothing(shaped);
+  const cleaned=bodyPortrait?result:await cleanPortraitClothing(result);
   assertCurrentOperation();
   let finished=cleaned;
   if(gender==='female'&&finished.idpromAiMakeupBlob){

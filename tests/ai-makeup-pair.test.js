@@ -60,11 +60,11 @@ test('production pipeline finishes both images before delivery and fails the job
 test('Thai and English AI makeup both request even fair rosy skin with a continuous neck match',async()=>{
  const {AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const {AI_MAKEUP_PAIR_VERSION,isAiMakeupPairVersion}=await import('../ai-makeup-pair-policy.js');
- assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v8-even-fair-rosy-skin');assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
+ assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v9-preserve-face-geometry');assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
  const natural=await png('tan');
  for(const preserveOutfit of [false,true]){
   let sent;await createAiMakeupVariant(natural,{key:'fixture-not-sent',preserveOutfit,requestPortrait:async p=>{sent=p;return {png:natural}}});
-  assert(sent.prompt.endsWith(AI_MAKEUP_COMPLEXION_POLICY));assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/ears, jawline and all visible neck\/upper-chest skin/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
+  assert(sent.prompt.endsWith(AI_MAKEUP_COMPLEXION_POLICY));assert.match(sent.prompt,/Preserve the input face width-to-height ratio/);assert.match(sent.prompt,/No face slimming, V-line reshaping/);assert.match(sent.prompt,/Retain dimensional cheek and jaw shading/);assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/ears, jawline and all visible neck\/upper-chest skin/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
   assert.doesNotMatch(sent.prompt,/Do not reshape, whiten|; no whitening,/);
   if(preserveOutfit)assert.match(sent.prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);
  }
