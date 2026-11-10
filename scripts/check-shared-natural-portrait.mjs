@@ -1,4 +1,4 @@
-import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -22,7 +22,7 @@ const a=main.indexOf('async function aiFinishPortrait('),b=main.indexOf('\nlet a
 function fixture(){
  const events=[],requests=[],upload=new File(['immutable original'],'camera.jpg',{type:'image/jpeg'}),state={scope:'wallet-A',failCosmetics:false,cancelCosmetics:false,rights:true};
  const face=[];face[152]={x:.5,y:.8};face[234]={x:.2,y:.5};face[454]={x:.8,y:.5};
- const env={ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION,englishPreviewEnabled:()=>Boolean(state.english),AI_MAKEUP_PAIR_VERSION,Blob,URL,atob,STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,sharedOriginalPortraitSource,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,hasOriginalPortraitAiFinish,isOriginalPortraitAiRequest,hasCurrentStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,portraitFinishChoice,
+ const env={ENGLISH_BODY_FRAMING_VERSION,ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION,englishPreviewEnabled:()=>Boolean(state.english),AI_MAKEUP_PAIR_VERSION,Blob,URL,atob,STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,SHARED_PORTRAIT_BASE_VERSION,PORTRAIT_MAKEUP_VERSION,sharedOriginalPortraitSource,PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,hasOriginalPortraitAiFinish,isOriginalPortraitAiRequest,hasCurrentStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,portraitFinishChoice,
   activeProcessOperation:{cancelled:false},assertProcessActive(op){if(op?.cancelled)throw Error('cancelled')},cancelledProcessError:()=>Error('cancelled'),currentResultCacheScope:()=>state.scope,resultSourceDigest:async file=>{assert.equal(file,upload);return 'same-source'},uploadGenerationScope:()=> 'same-upload',portraitResultCache:createAiResultCache(),portraitGeometryBases:new WeakMap(),
   window:{dispatchEvent:()=>events.push('event')},CustomEvent:class{},
   async aiFinishPortraitUncached(source,hair,options){assert.equal(source,upload);requests.push({hair,options});const out=markOriginalPortraitAiFinish(new Blob([png],{type:'image/png'}),'natural');if(state.aiPair)out.idpromAiMakeupSource=baseSource;Object.assign(out,{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION,idpromJobId:'job-'+requests.length,idpromTrial:true});return out},

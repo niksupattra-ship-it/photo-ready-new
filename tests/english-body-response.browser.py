@@ -25,6 +25,10 @@ with sync_playwright() as pw:
  const env={ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',decodedPortraitImage:async()=>native,portraitFaceLandmarks:async()=>({152:{x:.5,y:.4}}),canvasFor:(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h}),canvasPng:c=>new Promise(r=>c.toBlob(r,'image/png')),naturalStudioSkinMetadata:()=>({}),studioSkinWorkflowMetadata:()=>({})};
  const extract=name=>{const start=raw.indexOf('async function '+name+'('),end=raw.indexOf('\\n}',start)+2;return Function('env','with(env){'+raw.slice(start,end)+';return '+name+'}')(env)};
  const placement=await extract('composePortrait')(blob,{},'/assets/job-uniforms/female-lapel-suit.png',{placementOnly:true});
+ const framed={naturalWidth:1728,naturalHeight:2304};const oldDecode=env.decodedPortraitImage;env.decodedPortraitImage=async()=>framed;
+ const exact=await extract('composePortrait')(blob,{},'',{placementOnly:true});
+ if(Math.abs(exact.lock.hX)>1e-8||Math.abs(exact.lock.hY)>1e-8||Math.abs(exact.lock.headW*exact.lock.scale-900)>1e-8||Math.abs(exact.lock.headH*exact.lock.scale-1200)>1e-8)throw Error('3:4 generated image does not fill Studio frame');
+ env.decodedPortraitImage=oldDecode;
  const layers=[];await extract('renderAdjustedFinal')(blob,placement.lock,{},0,{},null,null,{},null,{},false,null,0,null,{},layers);
  await extract('checkPortraitCompletion')({},blob,'');
  const exported=await extract('renderAdjustedFinal')(blob,placement.lock,{scale:1},0,{},null);

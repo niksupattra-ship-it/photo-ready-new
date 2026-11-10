@@ -1,5 +1,5 @@
 import {validateCurrentHairRequest} from './english-current-hair.js';
-import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
+import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {requireNewStraightNeck,isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,BALANCED_NECK_POLICY,loadNeckBackingGuide,neckBackingGuideInstruction,loadVisibleNeckGuide,visibleNeckGuideInstruction} from './portrait-anatomy.js';
@@ -256,7 +256,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
  await onStage('generation');
- let result=await requestPortrait({key,prompt,size:'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{})});
+ let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
  if(fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION&&needsOriginalAiSkinPolish({...fields,portraitMode:selected.gender})){
   await onStage('skin-finish');
