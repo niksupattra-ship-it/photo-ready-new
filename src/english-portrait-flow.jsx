@@ -10,7 +10,7 @@ function EditingExample({manual=false}){
 }
 
 
-export function EnglishPortraitFlow({step,photo,templates,currentSuit,initialHair='',initialFinish='natural',hairs,busy,draft,onDraftChange,onBack,onManual,onCreate,onChangePhoto,onDismiss}){
+export function EnglishPortraitFlow({step,photo,templates,currentSuit,initialHair='',initialFinish='natural',hairs,busy,draft,onDraftChange,onBack,onManual,onCreate,onChangePhoto,onDismiss,focusHair=false}){
  const [outfit,setOutfit]=useState(()=>templates.find(t=>t.template===(draft?.outfitPath??currentSuit))||null);
  const [gender,setGender]=useState(draft?.gender||outfit?.gender||'female');
  const [hair,setHair]=useState(draft?.hair??initialHair),[finish,setFinish]=useState((draft?.finish||initialFinish)==='natural'?'natural':'makeup');
@@ -19,6 +19,7 @@ export function EnglishPortraitFlow({step,photo,templates,currentSuit,initialHai
  const draftChange=useRef(onDraftChange);draftChange.current=onDraftChange;
  useEffect(()=>{draftChange.current?.({outfitPath:outfit?.template||'',hair,finish,gender})},[outfit,hair,finish,gender]);
  useEffect(()=>{const before=document.activeElement;panel.current?.querySelector('button:not(:disabled)')?.focus();return()=>before?.isConnected&&before.focus()},[step]);
+ useEffect(()=>{if(step!=='setup'||!focusHair)return;const frame=requestAnimationFrame(()=>panel.current?.querySelector('.english-flow-hair')?.scrollIntoView({block:'center'}));return()=>cancelAnimationFrame(frame)},[step,focusHair]);
  const trap=e=>{if(e.key==='Escape'&&!locked){e.stopPropagation();onDismiss?.();return}if(e.key!=='Tab')return;const items=[...panel.current.querySelectorAll('button:not(:disabled),select:not(:disabled),input:not(:disabled)')];const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}};
  const submit=async()=>{if(locked||!outfit)return;setSubmitting(true);setError('');try{await onCreate({outfit,hair,finish:gender==='male'?'natural':finish,gender})}catch(e){setError(e.message||'Could not prepare your portrait. Please try again.')}finally{setSubmitting(false)}};
  return <div className="english-flow-overlay" onClick={e=>{if(e.target===e.currentTarget&&!locked)onDismiss?.()}}><section ref={panel} className="english-flow" role="dialog" aria-modal="true" aria-labelledby="english-flow-title" onKeyDown={trap} aria-busy={locked}>

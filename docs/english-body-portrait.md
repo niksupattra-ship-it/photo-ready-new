@@ -78,8 +78,11 @@ credit checks still run before generation.
 Edit manually opens Studio with the uploaded source (or the existing result),
 without requesting AI generation. The original remains available when switching
 back to AI. After generation, Review & edit offers manual editing and the existing
-download flow. Selecting another outfit on an AI result opens configuration for
-confirmation; in manual mode, it only places the local outfit layer.
+download flow. Clicking an outfit card places the local outfit layer for manual editing,
+including when the existing portrait came from AI. A separate **Edit with AI**
+action appears on hover or keyboard focus (always visible on touch devices);
+it opens the selected outfit in setup and scrolls to the hairstyle choices.
+The extra workflow toolbar above the Studio header is removed.
 
 The flow applies only to `?lang=en`. Thai Easy Mode is unchanged. Browser
 regression: `python tests/english-portrait-flow.browser.py` with Vite on port 5193.
