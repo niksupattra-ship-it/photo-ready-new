@@ -74,6 +74,24 @@ with sync_playwright() as pw:
  assert p.evaluate("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false)")
  assert p.locator('.english-flow-overlay').count()==0
  p.screenshot(path='work/english-flow-manual-mobile.png',full_page=True)
+ # Manual Studio exposes hair choices and every AI popup has a return path.
+ p.locator('.english-workflow-bar').get_by_role('button',name='Hairstyle',exact=True).click()
+ p.locator('.studio-catalog-grid button').filter(has=p.locator('img')).first.click()
+ p.get_by_role('heading',name='Choose outfit & look').wait_for()
+ chosen=p.locator('.english-flow-hair-grid button[aria-pressed=true]').get_attribute('aria-label')
+ p.get_by_role('button',name='Back to Studio').click()
+ p.locator('.english-flow-overlay').wait_for(state='hidden')
+ assert p.evaluate('bodyCalls.length')==0
+ assert p.evaluate("bodySnapshot.current().layers.some(l=>l.kind==='source-photo')")
+ p.locator('.english-workflow-bar').get_by_role('button',name='Create with AI').click()
+ assert p.locator('.english-flow-hair-grid button[aria-pressed=true]').get_attribute('aria-label')==chosen
+ p.keyboard.press('Escape')
+ p.locator('.english-flow-overlay').wait_for(state='hidden')
+ p.locator('.english-workflow-bar').get_by_role('button',name='Create with AI').click()
+ p.mouse.click(2,2)
+ p.locator('.english-flow-overlay').wait_for(state='hidden')
+ assert p.evaluate('bodyCalls.length')==0
+
  assert p.evaluate('document.documentElement.scrollWidth<=innerWidth'), 'Mobile page overflows'
  p.locator('.english-workflow-bar').get_by_role('button',name='Create with AI').click()
  p.get_by_role('button',name='Men',exact=True).click()

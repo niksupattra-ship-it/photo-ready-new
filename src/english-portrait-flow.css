@@ -34,3 +34,7 @@
 .english-flow-hair-grid b{position:absolute;right:5px;top:5px;background:#7543ed;color:white;border:2px solid white;border-radius:50%;width:21px;height:21px;display:grid;place-items:center;font-size:12px;box-sizing:border-box}
 @media(max-width:640px){.english-flow-hair-grid{grid-template-columns:repeat(3,minmax(0,1fr));max-height:270px;gap:8px}.english-flow-hair-grid img{height:100px}}
 .english-flow .english-flow-manual{display:block;width:100%;margin-top:10px;border-color:#bba8eb;color:#6635d9;background:#faf8ff}
+
+.english-flow-header-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.english-hair-picker-hint{font-size:12px;line-height:1.5;padding:8px 12px;margin:0;color:#737f97}
+@media(max-width:640px){.english-flow header{align-items:flex-start}.english-flow-header-actions{max-width:170px}.english-flow-header-actions button{font-size:12px;padding:8px 10px}}
