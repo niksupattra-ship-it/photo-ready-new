@@ -22,6 +22,13 @@ test('English male and female generations create complete clothed portraits with
   const result=await processProductionPortrait({input:{buffer:input,mimetype:'image/png'},fields:{...fields,portraitMode,...(portraitMode==='female'?{studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION}:{})},root,key:'fixture-not-sent',requestPortrait:async p=>{calls.push(p);return {png:input}},removeBackground:async png=>{assert.deepEqual(png,input);matted++;return matte}});
   const generated=calls.at(-1);assert.equal(calls.length,portraitMode==='female'?2:1);assert.equal(matted,1);
   assert.deepEqual(generated.outfit,outfit);assert(!generated.neckReference);assert(!generated.neckShapeReference);assert.equal(generated.size,ENGLISH_BODY_OUTPUT_SIZE);
+  assert(generated.compositionReference?.length);
+  const guide=await sharp(generated.compositionReference).metadata();assert.equal(guide.width,768);assert.equal(guide.height,1024);
+  const {seedreamReviewPayload}=await import('../seedream-review-transport.js');
+  const payload=seedreamReviewPayload(generated),images=Array.isArray(payload.image)?payload.image:[payload.image];
+  assert.equal(images.at(-1),'data:image/png;base64,'+generated.compositionReference.toString('base64'));
+  assert.match(generated.prompt,new RegExp('PROPORTION LAYOUT — IMAGE '+images.length+':'));
+  assert.match(generated.prompt,/Do not copy grey mannequin skin/);
   assert.match(generated.prompt,/uploaded person supplies facial identity only/);
   assert.match(generated.prompt,/entire garment length visible in the reference/);
   assert.match(generated.prompt,/clothed body must reach both lower side edges and the bottom image edge/);

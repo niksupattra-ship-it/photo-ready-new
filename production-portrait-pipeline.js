@@ -1,3 +1,4 @@
+import {createEnglishBodyLayout} from './english-body-layout.js';
 import {validateCurrentHairRequest} from './english-current-hair.js';
 import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
@@ -242,11 +243,13 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  let neckReference=null,neckShapeReference=null;
  if(bounded){prompt=prompt.replaceAll('and stable identifying marks','and expression').replaceAll('THE LAST IMAGE','THE SKIN/LIGHT BOARD');neckReference=await loadNeckBackingGuide(root);neckShapeReference=await loadVisibleNeckGuide(root);const index=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit))+Number(Boolean(skinReference));prompt+=neckBackingGuideInstruction(index)+visibleNeckGuideInstruction(index+1)+'\n'+BOUNDED_PORTRAIT_PRIORITY;}
  if(bounded)prompt=requireNewStraightNeck(prompt);
+ let compositionReference=null;
  if(englishBody){
   if(!outfit)throw Error('Select an outfit before processing.');
   if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
   if(fields.keepCurrentHair==='1'&&currentHair)hair=await sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
-  prompt=englishBodyPortraitPrompt({gender:selected.gender,keepCurrentHair:fields.keepCurrentHair==='1',hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
+  compositionReference=await createEnglishBodyLayout(outfit);
+  prompt=englishBodyPortraitPrompt({layoutIndex:3+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(skinReference)),gender:selected.gender,keepCurrentHair:fields.keepCurrentHair==='1',hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
  }
  let generationInput=portrait;
  if(preparedMakeup){
@@ -256,7 +259,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
  await onStage('generation');
- let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{})});
+ let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
  if(fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION&&needsOriginalAiSkinPolish({...fields,portraitMode:selected.gender})){
   await onStage('skin-finish');
