@@ -598,3 +598,5 @@
 
 /* Keep original makeup and the separate AI choice discoverable together. */
 .idstudio .studio-picker-drawer:has(.studio-additional-ai-makeup){max-height:min(56dvh,460px)}
+
+.idstudio .studio-portrait-choice-card .studio-return-button{display:block;margin:0 0 12px;padding:8px 12px;font-size:13px;background:transparent;color:inherit;border:1px solid #a99bc2;border-radius:9px}

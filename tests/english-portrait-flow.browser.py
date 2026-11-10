@@ -109,6 +109,20 @@ with sync_playwright() as pw:
  thai.goto(base+'/scripts/fixtures/english-portrait-flow.html?lang=th&fresh',wait_until='domcontentloaded')
  thai.wait_for_selector('.easy-mode')
  assert thai.locator('.english-flow-overlay,.english-workflow-bar').count()==0
+ # Thai Standard Studio's photo-type and finish dialogs can both return.
+ thai.goto(base+'/scripts/fixtures/english-portrait-flow.html?lang=th&fresh&standard',wait_until='domcontentloaded')
+ thai.wait_for_function('!!window.bodySnapshot?.current')
+ thai.locator('.studio-bottom-choices').get_by_role('button',name='ทรงผม',exact=True).click()
+ thai.locator('.studio-catalog-grid button').filter(has=thai.locator('img')).first.click()
+ thai.get_by_role('heading',name='กรุณาเลือกชนิดรูป').wait_for()
+ thai.get_by_role('button',name='กลับ Studio').click()
+ thai.get_by_role('heading',name='กรุณาเลือกชนิดรูป').wait_for(state='hidden')
+ thai.locator('.studio-catalog-grid button').filter(has=thai.locator('img')).first.click()
+ thai.get_by_role('button',name='รูปผู้หญิง').click()
+ thai.get_by_role('heading',name='เลือกรูปแบบใบหน้า').wait_for()
+ thai.get_by_role('button',name='กลับ Studio').click()
+ thai.get_by_role('heading',name='เลือกรูปแบบใบหน้า').wait_for(state='hidden')
+ assert thai.evaluate('bodyCalls.length')==0
  assert not errors,errors
  b.close()
  print(json.dumps({'passed':True,'checks':['AI explicit submit only','selected finish reaches processing','manual retains upload with zero AI','manual to AI','male defaults natural','mobile layout','no browser errors']}))
