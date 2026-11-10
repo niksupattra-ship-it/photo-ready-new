@@ -1,14 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
+import {readFile} from 'node:fs/promises';
 import {createEnglishBodyLayout} from '../english-body-layout.js';
-test('a deeper V changes chest coverage without lengthening the layout head or solid neck',async()=>{
- const make=async depth=>{
-  const width=200,height=180,pixels=Buffer.alloc(width*height*4);
-  for(let y=50;y<height;y++)for(let x=0;x<width;x++)if(!(x>=75&&x<125&&y<depth))pixels.set([50,60,80,255],(y*width+x)*4);
-  return sharp(pixels,{raw:{width,height,channels:4}}).png().toBuffer();
- };
- const bounds=(pixels,width,colour)=>{
+const bounds=(pixels,width,colour)=>{
   const n=pixels.length/4,seen=new Uint8Array(n),queue=new Int32Array(n);let largest=null;
   const matches=i=>colour.every((v,c)=>pixels[i*4+c]===v);
   for(let seed=0;seed<n;seed++)if(!seen[seed]&&matches(seed)){
@@ -20,6 +15,13 @@ test('a deeper V changes chest coverage without lengthening the layout head or s
   }
   return largest;
  };
+test('a deeper V changes chest coverage without lengthening the layout head or solid neck',async()=>{
+ const make=async depth=>{
+  const width=200,height=180,pixels=Buffer.alloc(width*height*4);
+  for(let y=50;y<height;y++)for(let x=0;x<width;x++)if(!(x>=75&&x<125&&y<depth))pixels.set([50,60,80,255],(y*width+x)*4);
+  return sharp(pixels,{raw:{width,height,channels:4}}).png().toBuffer();
+ };
+
  const samples=[];
  for(const depth of [90,140]){
   const {data,info}=await sharp(await createEnglishBodyLayout(await make(depth))).ensureAlpha().raw().toBuffer({resolveWithObject:true});
@@ -35,4 +37,17 @@ test('a deeper V changes chest coverage without lengthening the layout head or s
  assert(samples[0].head.count>1000);assert(samples[0].neck.count>100);
  assert.deepEqual(samples[0].head,samples[1].head,'V point must not move the head');
  for(const key of ['left','right','top','bottom'])assert(Math.abs(samples[0].neck[key]-samples[1].neck[key])<=2,'V point must not extend the reference neck');
+});
+
+test('smaller head guide keeps the same chin anchor, neck, garment pixels and canvas framing',async()=>{
+ const outfit=await readFile(new URL('../public/assets/job-uniforms/female-job-tan-round-collar.png',import.meta.url));
+ const decode=async image=>sharp(image).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const before=await decode(await createEnglishBodyLayout(outfit,{headScale:1})),after=await decode(await createEnglishBodyLayout(outfit));
+ assert.deepEqual(before.info,after.info);
+ const a=bounds(before.data,before.info.width,[170,178,189]),b=bounds(after.data,after.info.width,[170,178,189]);
+ assert(Math.abs((b.right-b.left)/(a.right-a.left)-.9)<.01,'whole head width reduced 10%');
+ assert(Math.abs((b.bottom-b.top)/(a.bottom-a.top)-.9)<.01,'whole head height reduced 10%');
+ assert(Math.abs(a.bottom-b.bottom)<=1,'chin stays anchored above the unchanged neck');
+ const start=(Math.max(a.bottom,b.bottom)+2)*before.info.width*4;
+ assert.deepEqual(after.data.subarray(start),before.data.subarray(start),'neck and entire garment below the jaw retain exact guide pixels');
 });

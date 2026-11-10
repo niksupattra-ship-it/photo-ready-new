@@ -115,3 +115,8 @@ English layers retain the anatomy/framing policy version. Selecting Create
 portrait explicitly regenerates a matching outfit made under an older policy;
 matching current-policy output is still reused. Opening a project never triggers
 AI generation automatically. Thai generation, prompts and cache stay unchanged.
+
+The English composition target now reduces the whole head by 10% in both axes.
+The guide keeps its original camera frame, chin anchor, neck and garment scale;
+only the head and its pose markers become smaller. The prompt explicitly avoids
+applying that reduction twice or recalculating neck length from the smaller face.
