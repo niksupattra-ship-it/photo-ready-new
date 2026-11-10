@@ -1,12 +1,12 @@
 import {EnglishDownload} from './english-download.jsx';
 import {deliverImage} from './image-download.js';
-import {interfaceLocale,localizedLink,englishPreviewEnabled} from './english-preview.js';
+import {interfaceLocale,localizedLink} from './english-preview.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {AccountFlowDialog} from './account-flow-dialog.jsx';
 import {PhotoSizeEditor,DEFAULT_PHOTO_CROP} from './photo-size.jsx';
 import './purchase-delivery.css';
 export function PurchaseSummary({preview,price}){return <div className="purchase-summary">{preview&&<img src={preview} alt="รูปที่เลือกซื้อ"/>}<div><strong>{price==='159'?'รับรูปนี้ + ทรงผม':'รับรูปนี้'}{price&&<> · {price} บาท</>}</strong><small>สำหรับรูปที่แสดงนี้</small></div></div>}
-const cropKey=crop=>JSON.stringify([crop?.sizeId||'original',crop?.x??.5,crop?.y??.5,crop?.zoom??1]);
+const cropKey=crop=>JSON.stringify([crop?.sizeId||'original',crop?.x??.5,crop?.y??.5,crop?.zoom??1,crop?.freePosition===true]);
 function DeliveryIcon({kind}){return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{kind==='download'?<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>:kind==='open'?<><path d="M14 3h7v7M21 3l-11 11"/><path d="M10 3H3v18h18v-7"/></>:<><path d="m10 13 4-4m-6 7-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 1 1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 0)"/></>}</svg>}
 function LegacyPurchaseReceipt({receipt,onClose,onRetry,onPrepareSize,onHistory,onAutomaticDownload}){
  const [file,setFile]=useState(null),[message,setMessage]=useState(''),[selectedCrop,setSelectedCrop]=useState(()=>receipt.crop||{...DEFAULT_PHOTO_CROP});
@@ -42,7 +42,7 @@ function LegacyPurchaseReceipt({receipt,onClose,onRetry,onPrepareSize,onHistory,
  };
  return <AccountFlowDialog label="รับรูป" onClose={onClose}><div className="purchase-surface"><section ref={surface} className="purchase-page purchase-receipt purchase-receipt-size"><header className="purchase-receipt-header"><strong>IDพร้อม <em>Studio</em></strong><h1><span aria-hidden="true">✓</span> {receipt.paid?'ชำระเงินสำเร็จ':'รูปพร้อมดาวน์โหลด'}</h1><button onClick={onClose} aria-label="ปิดหน้ารับรูป">×</button></header><PhotoSizeEditor embedded blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} sizes={receipt.sizes} pixelScale={receipt.pixelScale||2} onChange={setSelectedCrop} actions={actions}/><footer className="purchase-receipt-footer"><button className="purchase-link" onClick={onHistory}>ดูรูปที่ซื้อแล้ว · เก็บไฟล์รับรูป 7 วัน</button><button className="purchase-link" onClick={onClose}>กลับไปแต่งรูป</button></footer></section></div></AccountFlowDialog>;
 }
-export function PurchaseReceipt(props){return englishPreviewEnabled()?<EnglishPurchaseReceipt {...props}/>:<LegacyPurchaseReceipt {...props}/>}
+export function PurchaseReceipt(props){return <EnglishPurchaseReceipt {...props}/>}
 function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownload}){
  const surface=useRef(null);
  useEffect(()=>{if(receipt.autoDownloadKey)onAutomaticDownload?.(receipt,surface.current)},[receipt.receiptKey,receipt.autoDownloadKey]);
@@ -52,7 +52,7 @@ function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownlo
   const name='IDPROM-'+choice.sizeId+(extension==='pdf'?'-Letter':'')+'.'+extension;
   try{receipt.audit?.emit('file_prepared',{sizeId:choice.sizeId,fileType:file.type,byteSize:file.size})}catch{}
   deliverImage(file,name,{onEvent:receipt.audit?.delivery});
-  const crop={sizeId:choice.sizeId,x:choice.x,y:choice.y,zoom:choice.zoom};
+  const crop={sizeId:choice.sizeId,x:choice.x,y:choice.y,zoom:choice.zoom,freePosition:choice.freePosition===true};
   if(cropKey(crop)!==cropKey(receipt.crop))void onPrepareSize?.(crop);
  }}/>;
 }

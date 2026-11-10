@@ -3,3 +3,5 @@
 @media(max-width:600px){.en-download-overlay{padding:12px}.en-download{max-height:calc(100dvh - 24px);border-radius:16px}.en-download header{padding:14px 16px}.en-download h1{font-size:18px}.en-download-body{display:flex;flex-direction:column-reverse;gap:16px;padding:16px}.en-download-settings{gap:12px}.en-download-preview{padding:12px}.en-download-preview canvas{max-height:220px}.en-download footer{padding:12px 16px}.en-download-formats button{min-height:44px}}
 
 @media(max-width:600px){.en-download-settings{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:12px}.en-download-settings>fieldset,.en-download-settings>p,.en-download-settings>.en-download-adjust,.en-download-settings>.en-download-full{grid-column:1/-1}.en-download-size{grid-column:1}.en-download-copies{grid-column:2}.en-download-preview canvas{max-height:200px}}
+
+.en-download-crop-controls{display:flex;flex-direction:column;gap:10px}.en-download-crop-controls input{width:100%;accent-color:#7543ed;min-height:28px}.en-download-preview canvas{cursor:grab}.en-download-preview canvas:active{cursor:grabbing}

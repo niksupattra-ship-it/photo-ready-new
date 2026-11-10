@@ -1,3 +1,4 @@
+import {downloadPhotoRect,drawDownloadPhoto} from './download-photo-crop.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {englishPreviewEnabled} from './english-preview.js';
 
@@ -45,13 +46,13 @@ export async function withPrintResolution(blob,dpi=300){
 }
 export async function cropPhotoForDownload(blob,crop,{pixelScale=1,type='image/png'}={}){
  const size=ALL_PHOTO_SIZES.find(s=>s.id===crop.sizeId);
- if(!size?.width)return blob; // Preserve the existing default output byte for byte.
- const img=await loadPhoto(blob),rect=photoCropRect(img.naturalWidth,img.naturalHeight,size,crop),canvas=document.createElement('canvas');
- canvas.width=Math.round(size.width/25.4*300)*pixelScale;canvas.height=Math.round(size.height/25.4*300)*pixelScale;
+ if(!size?.width&&(!crop.freePosition||((crop.zoom||1)===1&&(crop.x??.5)===.5&&(crop.y??.5)===.5)))return blob; // Preserve an unadjusted original byte for byte.
+ const img=await loadPhoto(blob),target=size?.width?size:{width:img.naturalWidth,height:img.naturalHeight},rect=crop.freePosition?downloadPhotoRect(img.naturalWidth,img.naturalHeight,target,crop):photoCropRect(img.naturalWidth,img.naturalHeight,target,crop),canvas=document.createElement('canvas');
+ canvas.width=size?.width?Math.round(size.width/25.4*300)*pixelScale:img.naturalWidth;canvas.height=size?.height?Math.round(size.height/25.4*300)*pixelScale:img.naturalHeight;
  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
- ctx.drawImage(img,rect.x,rect.y,rect.width,rect.height,0,0,canvas.width,canvas.height);
+ if(crop.freePosition)drawDownloadPhoto(ctx,img,rect,{width:canvas.width,height:canvas.height});else ctx.drawImage(img,rect.x,rect.y,rect.width,rect.height,0,0,canvas.width,canvas.height);
  const out=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('สร้างภาพครอปไม่สำเร็จ')),type,.97));
- return type==='image/png'?withPrintResolution(out,300*pixelScale):out;
+ return type==='image/png'&&size?.width?withPrintResolution(out,300*pixelScale):out;
 }
 
 export function PhotoSizeEditor({blob,value,trial,onApply,onClose,sizes=PHOTO_SIZES,pixelScale=1,applyLabel='ใช้ขนาดนี้',busy=false,embedded=false,onChange,actions}){
@@ -67,7 +68,7 @@ export function PhotoSizeEditor({blob,value,trial,onApply,onClose,sizes=PHOTO_SI
   if(!img||!canvasRef.current)return;const canvas=canvasRef.current;
   const rect=size.width?photoCropRect(img.naturalWidth,img.naturalHeight,size,crop):{x:0,y:0,width:img.naturalWidth,height:img.naturalHeight};
   canvas.width=Math.round(Math.min(1000,rect.width));canvas.height=Math.round(canvas.width*rect.height/rect.width);
-  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,rect.x,rect.y,rect.width,rect.height,0,0,canvas.width,canvas.height);
+  const ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';if(crop.freePosition)drawDownloadPhoto(ctx,img,rect,{width:canvas.width,height:canvas.height});else ctx.drawImage(img,rect.x,rect.y,rect.width,rect.height,0,0,canvas.width,canvas.height);
  },[img,size,crop]);
  const move=e=>{
   const drag=dragRef.current;if(!drag||!img||!size.width)return;
