@@ -1,3 +1,4 @@
+import {loadCurrentHairReference} from './english-current-hair.js';
 import {correctEnglishProportions,validateEnglishProportionMetrics} from './english-proportion-correction.js';
 import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js';
 import {publicAssetHeaders} from './public-assets-cache.js';
@@ -359,7 +360,8 @@ const aiFinishHandler=async(req,res)=>{
   if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!creditUse)return;}
   // Matting must be available before spending on external image generation.
   await getModnetSession();
-  const data=await processProductionPortrait({input,fields:req.body,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:process.env.ARK_API_KEY});
+  const currentHair=await loadCurrentHairReference(req.body,walletId(req),getAiJobResult);
+  const data=await processProductionPortrait({input,fields:req.body,currentHair,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:process.env.ARK_API_KEY});
   if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
   res.set('Cache-Control','no-store');res.set('X-Credits-Remaining',String(creditUse.credits));
   return res.type('image/png').send(data);
@@ -426,6 +428,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);
+  await loadCurrentHairReference(req.body,walletId(req),getAiJobResult);
   logStage('reserve_credit',{kind:creditKind});
   creditUse=await requireCredit(req,res,creditKind);
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}

@@ -75,3 +75,8 @@
 
 
 .idstudio.studio-redesign .english-outfit-card>button:first-child.active{background:#f3efff;border-color:#7543ed;box-shadow:0 0 0 1px #7543ed}
+
+.english-inline-ai{padding:12px;background:#f4f0ff;border:1px solid #e3d9ff;border-radius:10px;margin:8px}
+.english-inline-ai strong{font-size:13px;color:#24304d}.english-inline-ai p{font-size:12px;line-height:1.5;margin:8px 0;color:#737f97}
+.idstudio .english-inline-ai button{font-size:12px;margin:4px 6px 0 0;padding:8px 12px}
+.idstudio .english-inline-ai button:first-of-type{background:#7543ed;color:white;border-color:#7543ed}

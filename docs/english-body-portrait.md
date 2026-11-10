@@ -81,7 +81,13 @@ back to AI. After generation, Review & edit offers manual editing and the existi
 download flow. Clicking an outfit card places the local outfit layer for manual editing,
 including when the existing portrait came from AI. A separate **Edit with AI**
 action appears on hover or keyboard focus (always visible on touch devices);
-it opens the selected outfit in setup and scrolls to the hairstyle choices.
+it opens the hairstyle panel directly inside Studio for that selected outfit.
+No setup dialog is opened. The panel offers **Create portrait** and **Cancel**,
+and starts with **Keep current hairstyle** selected. When the user keeps their
+current hair, the server loads their owned completed portrait as the hair-only
+reference, while the immutable upload continues to control facial identity.
+A newly selected catalogue hairstyle replaces that reference. Nothing is
+submitted until **Create portrait** is pressed.
 The extra workflow toolbar above the Studio header is removed.
 
 The flow applies only to `?lang=en`. Thai Easy Mode is unchanged. Browser

@@ -1,3 +1,4 @@
+import {validateCurrentHairRequest} from './english-current-hair.js';
 import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
@@ -69,6 +70,7 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
+ validateCurrentHairRequest(fields);
  if(!input?.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(input.mimetype))throw Error('กรุณาใช้ภาพ PNG, JPG หรือ WEBP');
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
  if(fields.hairReferenceVersion&&fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION)throw Error('ข้อมูลทรงผมไม่ตรงกับชุดล่าสุด กรุณารีเฟรชหน้าเว็บ');
@@ -149,7 +151,7 @@ export function studioReferenceIdentityBox(evidence){
  const points=ids.map(id=>evidence.face[id]),fw=Math.hypot((evidence.face[454][0]-evidence.face[234][0])*evidence.width,(evidence.face[454][1]-evidence.face[234][1])*evidence.height),mx=fw*.08/evidence.width,my=fw*.08/evidence.height;
  return parsePortraitIdentityBox([Math.max(0,Math.min(...points.map(p=>p[0]))-mx),Math.max(0,Math.min(...points.map(p=>p[1]))-my),Math.min(1,Math.max(...points.map(p=>p[0]))+mx),Math.min(1,Math.max(...points.map(p=>p[1]))+my)]);
 }
-export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,requestPortrait=requestReviewSeedream}){
+export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  const chosen=validateProductionPortrait(input,fields);
  const selected=chosen||{gender:fields.portraitMode};
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
@@ -176,7 +178,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  }
  const pickerGuide=Boolean(chosen?.id?.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION);
  const reference=chosen&&!pickerGuide?await readFile(chosen.referenceDirectory==='hair'?path.join(root,'public','assets','hair',chosen.file):path.join(root,'public','assets','seedream-hairstyles','references',chosen.file)):null;
- const hair=pickerGuide?await loadCatalogueHairGuide(chosen.id,root):reference&&chosen?.referenceDirectory==='hair'?await prepareFreePngReference(reference,chosen.id):reference&&bounded?await prepareCatalogueHairOnly(reference,chosen.id,root):reference;
+ let hair=pickerGuide?await loadCatalogueHairGuide(chosen.id,root):reference&&chosen?.referenceDirectory==='hair'?await prepareFreePngReference(reference,chosen.id):reference&&bounded?await prepareCatalogueHairOnly(reference,chosen.id,root):reference;
  const explicitIdentityBox=parsePortraitIdentityBox(fields.faceIdentityBox);
  const identityBox=explicitIdentityBox||(continuousSkin?studioReferenceIdentityBox(parseStudioSkinRequest(fields,selected.gender)):null);
  const identity=pickerGuide&&explicitIdentityBox?await portraitIdentityCrop(input,explicitIdentityBox):preparedMakeup?await sharp(input.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer():await portraitIdentityCrop(portrait,identityBox);
@@ -242,7 +244,9 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  if(bounded)prompt=requireNewStraightNeck(prompt);
  if(englishBody){
   if(!outfit)throw Error('Select an outfit before processing.');
-  prompt=englishBodyPortraitPrompt({gender:selected.gender,hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
+  if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
+  if(fields.keepCurrentHair==='1'&&currentHair)hair=await sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
+  prompt=englishBodyPortraitPrompt({gender:selected.gender,keepCurrentHair:fields.keepCurrentHair==='1',hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
  }
  let generationInput=portrait;
  if(preparedMakeup){
