@@ -46,6 +46,9 @@ with sync_playwright() as pw:
  p.close()
  # Manual entry inserts the original into Studio with no AI request.
  p=page(390)
+ assert p.locator('.english-route-preview').count()==2
+ assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ p.screenshot(path='work/english-flow-choose-mobile.png',full_page=True)
  p.get_by_role('dialog').get_by_role('button',name='Edit manually').click()
  p.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='source-photo')")
  assert p.evaluate('bodyCalls.length')==0
