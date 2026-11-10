@@ -415,8 +415,15 @@ async function runAiJob(id){
   const req={body:job.fields||{},files:{image:[{buffer:job.image,originalname:job.image_name,mimetype:job.image_type}],mask:job.mask?[{buffer:job.mask,originalname:job.mask_name,mimetype:job.mask_type}]:[]},deferCreditCommit:Boolean(job.fields?.delivery_pending),preReservedCreditUse:{usageId:job.usage_id,credits:null},get(name){return String(name).toLowerCase()==='x-wallet-id'?job.wallet_id:''}};
   req.onPortraitStage=async stage=>{console.info('AI stage',id,stage,Date.now()-started+'ms');await touchAiJob(id,stage)};
   const cap=captureResponse();await aiFinishHandler(req,cap.res);await cap.done;const out=cap.get();
-  if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length)await completeAiJob(id,out.payload,req.aiMakeupVariant);else{await refundCredit(job.usage_id);await failAiJob(id,out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);}
- }catch(e){console.error('AI job:',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job finished',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
+  if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length){
+   await completeAiJob(id,out.payload,req.aiMakeupVariant);
+   console.info('AI job completed',id,{hasMakeup:Boolean(req.aiMakeupVariant),elapsedMs:Date.now()-started});
+  }else{
+   const failure=out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`;
+   console.error('AI job failed',id,{httpStatus:out.statusCode,error:failure});
+   await refundCredit(job.usage_id);await failAiJob(id,failure);
+  }
+ }catch(e){console.error('AI job failed',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job worker stopped',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
 app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1},{name:'originalSource',maxCount:1}]),async(req,res)=>{
  let createdJobId=null,creditUse=null,stage='validate';const started=Date.now();

@@ -1,4 +1,3 @@
-import {measureEnglishProportions} from './english-proportion-check.js';
 import {EnglishExamplePhoto} from './english-example-photo.jsx';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_OUTFIT_LIGHTING_VERSION} from '../english-body-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
@@ -2608,23 +2607,13 @@ function validateFemaleMakeupReference(reference){
 }
 const uploadGenerationScopes=new WeakMap();let uploadGenerationSequence=0;
 function uploadGenerationScope(file){if(!uploadGenerationScopes.has(file))uploadGenerationScopes.set(file,'upload-'+(++uploadGenerationSequence));return uploadGenerationScopes.get(file)}
-async function balanceEnglishPortrait(blob,onStatus){
- const measure=async source=>{
-  const image=await decodedPortraitImage(source),face=await portraitFaceLandmarks(source,image);
-  const w=image.naturalWidth||image.width,h=image.naturalHeight||image.height,k=Math.min(1,768/w),canvas=canvasFor(Math.round(w*k),Math.round(h*k)),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,canvas.width,canvas.height);
-  const result=measureEnglishProportions(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,face);canvas.width=canvas.height=1;return result;
- };
- const before=await measure(blob);if(!before.measurable||!before.oversized)return blob;
- if(blob.idpromEnglishProportionCorrection==='done')throw Object.assign(Error('AI head/body proportions are still unbalanced'),{code:'ENGLISH_PROPORTIONS_UNRESOLVED'});
- if(!blob.idpromJobId)throw Error('Missing portrait job for proportion correction');
- assertProcessActive();onStatus?.('processing','generation');
- const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(blob.idpromJobId)+'/proportions',{method:'POST',headers:{...walletHeaders(),'Content-Type':'application/json'},body:JSON.stringify({faceRatio:before.faceRatio,headRatio:before.headRatio,headScale:before.headScale})},10*60*1000);
- if(!response.ok)throw analyticsTagError(Error('Unable to correct portrait proportions'),{error_stage:'proportion_correction',http_status:response.status});
- const corrected=await waitForAiJob(blob.idpromJobId,onStatus);assertProcessActive();
- const after=await measure(corrected);
- if(!after.measurable||after.oversized)throw Object.assign(Error('AI head/body proportions are still unbalanced'),{code:'ENGLISH_PROPORTIONS_UNRESOLVED'});
- return corrected;
+async function balanceEnglishPortrait(blob){
+ // Head/body balance is requested in the original English generation. A
+ // silhouette estimate must not start another paid edit or discard a completed
+ // Natural/Makeup pair. Clear-face and valid-image checks still run below.
+ return blob;
 }
+
 async function aiFinishPortrait(originalFile,hairId,options={}){
  const operation=activeProcessOperation;
  const assertCurrentOperation=()=>{assertProcessActive(operation);if(activeProcessOperation!==operation)throw cancelledProcessError()};
@@ -5080,7 +5069,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
-  }catch(error){if(error.code!=='USER_CANCELLED')analyticsProcessFailure(error,failureStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted});rollback();throw error}finally{setBusy(false)}
+  }catch(error){if(error.code!=='USER_CANCELLED'){console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:failureStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,failureStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);

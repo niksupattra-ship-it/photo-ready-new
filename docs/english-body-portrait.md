@@ -39,32 +39,20 @@ Provider tests use inert responses and actual reference files. Browser checks
 verify torso preservation, aspect ratio, transparency and outfit selection.
 Real AI output quality and production deployment remain unverified here.
 
-English proportion checks now measure the returned transparent person using
-face landmarks and shoulder silhouette. Oversized results are corrected by AI
-once on the SAME undelivered job. The real correction input is the current
-person, not the original selfie crop. Both finishes are replaced atomically,
-with no new credit reservation. The corrected result is measured again before
-delivery; known unbalanced results fail rather than silently bypass the check.
-Cropped/unmeasurable shoulder evidence is not guessed, and hair height alone
-does not shrink a naturally proportionate face.
+English head/body balance is requested during the original generation. The
+current browser does not submit a second automatic proportion-correction job or
+reject a completed Natural/Makeup pair based on shoulder-silhouette ratios.
+Clear-face, valid-image and completion checks still run before Studio delivery.
+The legacy `/api/ai-jobs/:id/proportions` endpoint remains available for older
+open clients; its ownership, credit and cancellation protections are unchanged.
 
-Ownership, English mode, undelivered status and a one-attempt database claim
-protect `/api/ai-jobs/:id/proportions`. Confirmation waits for the correction;
-cancellation retains the normal single-refund behavior and late AI completion
-cannot resurrect cancelled work. Failed corrections retain the normal failure
-and cancellation flow. This adds processing time only to oversized results.
-
-Additional checks:
-
-- `node --test tests/english-proportions.test.js`
-- `TEST_DATABASE_URL=<development database> node scripts/check-english-proportion-delivery.mjs`
-- `SELECTION_BASE=http://127.0.0.1:5193 MATTE_BASE=http://127.0.0.1:3000 python3 tests/english-proportions.browser.py`
-
-The PostgreSQL/Express test uses a temporary isolated schema, removed on exit;
-it covers credit balance, pair replacement, concurrency, ownership, cancellation
-and failure without paid services. The real MediaPipe + MODNet browser test
-accepts three normally proportioned sample portraits without extra generation.
-Actual provider correction quality and deployment still require verification.
+`node --test tests/english-completed-delivery.test.js` verifies that completed
+pairs are retained without additional AI requests or ratio-based rejection, and
+that worker logs distinguish a completed result from failed HTTP responses and
+worker exit. Browser console errors include the job ID and client failure stage
+without changing the short public failure message. These are local regressions;
+they do not determine the exact failure reason for a production job from a
+worker-exit log alone.
 
 
 ## English editing flow
