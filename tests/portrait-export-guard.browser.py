@@ -45,6 +45,9 @@ with sync_playwright() as pw:
    await handler('image/png',{automatic});
    if(events.some(e=>['credit','file','file_prepared'].includes(e[0])))throw Error('invalid portrait consumed credit or prepared a file');
    if(!events.some(e=>e[0]==='download_failed'&&e[1].errorCode==='portrait_incomplete'))throw Error('missing specific failure audit');
+   const popup=events.filter(e=>e[0]==='popup').at(-1)?.[1];
+   if(popup?.title!=='กรุณาเตรียมภาพให้พร้อมเพื่อดาวน์โหลด'||popup.message)throw Error('incomplete download must show just one concise sentence');
+   if(events.filter(e=>e[0]==='status').at(-1)?.[1]!=='')throw Error('duplicate footer message');
    if(env.exportingRef.current)throw Error('export lock not released');
    cases.push(automatic?'automatic incomplete export blocked':'manual incomplete export blocked before credit');
   }

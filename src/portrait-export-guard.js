@@ -1,4 +1,4 @@
-const incomplete=()=>Object.assign(Error('ยังส่งออกรูปไม่ได้ เพราะไม่พบหัวและใบหน้าในภาพที่จะบันทึก กรุณาตรวจเลเยอร์หัวหรือเปิดงานเดิมอีกครั้ง สิทธิ์ที่ชำระแล้วยังอยู่ ไม่ต้องชำระเงินซ้ำ'),{code:'PORTRAIT_EXPORT_INCOMPLETE',auditCode:'portrait_incomplete'});
+const incomplete=()=>Object.assign(Error('กรุณาเตรียมภาพให้พร้อมเพื่อดาวน์โหลด'),{code:'PORTRAIT_EXPORT_INCOMPLETE',auditCode:'portrait_incomplete'});
 const isHead=layer=>layer.kind==='head'||layer.kind==='source-photo'||layer.name==='หัว · คอ · ผม';
 
 // Inspect the actual renderer's pixel contribution, not just a paid job ID.

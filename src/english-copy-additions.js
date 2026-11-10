@@ -1183,7 +1183,7 @@ export const ENGLISH_ADDITIONAL_COPY={
  "เตรียมภาพใช้เวลานาน กรุณาลองเลือกภาพใหม่": "The image is taking too long to prepare. Please choose another image.",
  "กรุณาเลือกไฟล์ภาพ": "Please choose an image file.",
  "ขนาดภาพปรับแสงไม่ถูกต้อง": "Invalid lighting-adjustment image dimensions.",
- "ยังส่งออกรูปไม่ได้ เพราะไม่พบหัวและใบหน้าในภาพที่จะบันทึก กรุณาตรวจเลเยอร์หัวหรือเปิดงานเดิมอีกครั้ง สิทธิ์ที่ชำระแล้วยังอยู่ ไม่ต้องชำระเงินซ้ำ": "The photo cannot be exported because the head and face are missing from the output. Check the head layer or reopen the original project. Your paid access is retained; do not pay again.",
+ "กรุณาเตรียมภาพให้พร้อมเพื่อดาวน์โหลด": "Please prepare your photo for download.",
  "ตรวจรุ่นประมวลผลไม่สำเร็จ กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง": "The processing version could not be checked. Please reload the page and try again.",
  "รุ่นประมวลผลไม่ถูกต้อง กรุณาอัปเดตเซิร์ฟเวอร์และโหลดหน้าใหม่": "The processing version is invalid. Please update the server and reload the page.",
  "ข้อมูลภาพสำหรับรักษาสีตาและปากไม่ครบ": "Incomplete image data for preserving eye and lip color.",
