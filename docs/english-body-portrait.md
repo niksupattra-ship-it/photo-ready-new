@@ -96,3 +96,11 @@ then positions its collar below the existing portrait's chin using one uniform
 scale. It never reuses a full-person AI placement as a garment frame. New
 outfit placement clears inherited squeeze/rotation/scale values and leaves the
 portrait untouched. Missing face evidence uses a proportional chest placement.
+
+When placing a manual PNG outfit over an English AI portrait, a reusable layer
+mask hides the previous AI clothing using the existing local segmentation and
+neck-alpha cleanup. Full portrait pixels and both generated finishes remain
+unchanged. Finish switching retains this mask; removing the manual outfit or
+returning to the same complete AI portrait restores the previous mask. These
+mask sources participate in saved-project image validation and resource limits.
+No extra portrait-generation request is made for manual clothing removal.

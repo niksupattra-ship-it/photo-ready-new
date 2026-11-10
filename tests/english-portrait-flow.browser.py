@@ -40,6 +40,8 @@ with sync_playwright() as pw:
  p.screenshot(path='work/english-manual-outfit-fixed.png',full_page=True)
 
  assert p.locator('.english-flow-overlay').count()==0
+ assert p.evaluate("!!bodySnapshot.current().layers.find(l=>l.kind==='head').manualOutfitMask")
+ assert p.evaluate('bodyMaskCalls')==1
  ai(p,card)
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
  assert p.locator('.studio-none-choice[aria-pressed=true]').count()==1
