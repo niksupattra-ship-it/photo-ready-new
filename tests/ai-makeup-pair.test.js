@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {createAiMakeupVariant} from '../ai-portrait-makeup.js';
 import {finishSharedStudioSkin,copyStudioSkinBlobMetadata} from '../src/shared-studio-skin.js';
-import {useAiMakeupPixels} from '../src/ai-makeup-pair.js';
+import {MAKEUP_FACE_OVAL,useAiMakeupPixels} from '../src/ai-makeup-pair.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,originalPortraitAiMetadata} from '../original-portrait-ai.js';
 import {SHARED_PORTRAIT_BASE_VERSION} from '../shared-portrait-policy.js';
 import {packSavedProjectTransfer,unpackSavedProjectTransfer} from '../src/saved-work-transfer.js';
@@ -36,13 +36,22 @@ test('both finishes switch repeatedly using stored AI pixels without preparing o
  assert.equal((await finishSharedStudioSkin(reopened,{style:'natural'})).size,natural.length);
  await assert.rejects(finishSharedStudioSkin(base,{style:'makeup',signal:{aborted:true}}),/ยกเลิก/);
 });
-test('whole AI image keeps every RGB pixel including eye and jaw boundaries, with only natural cutout alpha',()=>{
- const width=100,height=100,n=width*height,natural=new Uint8ClampedArray(n*4).fill(80),makeup=new Uint8ClampedArray(n*4);
- for(let i=0;i<n;i++){makeup[i*4]=i%256;makeup[i*4+1]=(i*7)%256;makeup[i*4+2]=(i*13)%256;makeup[i*4+3]=255;natural[i*4+3]=i%256;}
- const out=useAiMakeupPixels({natural,makeup,width,height});
- for(let i=0;i<n;i++){for(let c=0;c<3;c++)assert.equal(out[i*4+c],makeup[i*4+c]);assert.equal(out[i*4+3],natural[i*4+3]);}
- assert.notEqual(out,makeup);assert.notEqual(out,natural);
- assert.throws(()=>useAiMakeupPixels({natural,makeup:makeup.slice(4),width,height}),/ขนาด/);
+test('makeup edits only the detected face with an inward feather and exact Natural body pixels',()=>{
+ const width=160,height=240,n=width*height,natural=new Uint8ClampedArray(n*4),makeup=new Uint8ClampedArray(n*4),face=[];
+ for(let i=0;i<n;i++){natural.set([120,100,80,i%256],i*4);makeup.set([40,30,20,255],i*4)}
+ // An AI response that darkens the ENTIRE image must not darken clothes/hair.
+ MAKEUP_FACE_OVAL.forEach((id,i)=>{const angle=i/MAKEUP_FACE_OVAL.length*Math.PI*2;face[id]={x:.5+.2*Math.cos(angle),y:.32+.2*Math.sin(angle)}});
+ const out=useAiMakeupPixels({natural,makeup,width,height,face});let changed=0,feathered=0;
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const i=(y*width+x)*4;assert.equal(out[i+3],natural[i+3]);
+  if(y>=height*.53||x<width*.3||x>width*.7||y<height*.12)assert.deepEqual(out.slice(i,i+4),natural.slice(i,i+4),'body, hair and exterior are byte-identical');
+  if(out[i]!==natural[i])changed++;
+  if(out[i]>40&&out[i]<120)feathered++;
+ }
+ assert(changed>500);assert(feathered>100);assert.equal(out[(77*width+80)*4],40,'interior uses AI makeup without reshaping');
+ assert.throws(()=>useAiMakeupPixels({natural,makeup,width,height}),/ขอบใบหน้า/);
+ assert.throws(()=>useAiMakeupPixels({natural,makeup:makeup.slice(4),width,height,face}),/ขนาด/);
+ const broken=[...face];broken[10]={x:NaN,y:.2};assert.throws(()=>useAiMakeupPixels({natural,makeup,width,height,face:broken}),/ขอบใบหน้า/);
 });
 test('production pipeline finishes both images before delivery and fails the job if makeup generation fails',async()=>{
  const {processProductionPortrait}=await import('../production-portrait-pipeline.js');
@@ -57,14 +66,14 @@ test('production pipeline finishes both images before delivery and fails the job
   assert.equal(makeupCalls,1);
  }
 });
-test('Thai and English AI makeup both request even fair rosy skin with a continuous neck match',async()=>{
+test('Thai and English AI makeup request brighter rosy facial skin without relighting the body',async()=>{
  const {AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const {AI_MAKEUP_PAIR_VERSION,isAiMakeupPairVersion}=await import('../ai-makeup-pair-policy.js');
- assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v10-face-only-brighter');assert(isAiMakeupPairVersion('ai-makeup-pair-v9-preserve-face-geometry'));assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
+ assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v11-face-pixels-only');assert(isAiMakeupPairVersion('ai-makeup-pair-v9-preserve-face-geometry'));assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
  const natural=await png('tan');
  for(const preserveOutfit of [false,true]){
   let sent;await createAiMakeupVariant(natural,{key:'fixture-not-sent',preserveOutfit,requestPortrait:async p=>{sent=p;return {png:natural}}});
-  assert(sent.prompt.endsWith(AI_MAKEUP_COMPLEXION_POLICY));assert.match(sent.prompt,/Preserve the input face width-to-height ratio/);assert.match(sent.prompt,/No face slimming, V-line reshaping/);assert.match(sent.prompt,/Retain dimensional cheek and jaw shading/);assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/ears, jawline and all visible neck\/upper-chest skin/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
+  assert(sent.prompt.endsWith(AI_MAKEUP_COMPLEXION_POLICY));assert.match(sent.prompt,/Preserve the input face width-to-height ratio/);assert.match(sent.prompt,/No face slimming, V-line reshaping/);assert.match(sent.prompt,/Retain dimensional cheek and jaw shading/);assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/Leave ears, neck and chest unchanged/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
   assert.doesNotMatch(sent.prompt,/Do not reshape, whiten|; no whitening,/);
   assert.match(sent.prompt,/HEALTHY SKIN AND FACE FLASH/);
   assert.match(sent.prompt,/\+0.4 to \+0.6 EV/);

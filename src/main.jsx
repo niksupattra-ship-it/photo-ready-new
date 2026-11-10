@@ -2646,7 +2646,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
    const W=natural.naturalWidth||natural.width,H=natural.naturalHeight||natural.height,canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});
    ctx.drawImage(im,0,0,W,H);const makeup=ctx.getImageData(0,0,W,H).data;
    ctx.clearRect(0,0,W,H);ctx.drawImage(natural,0,0);const frame=ctx.getImageData(0,0,W,H);
-   frame.data.set(useAiMakeupPixels({natural:frame.data,makeup,width:W,height:H}));ctx.putImageData(frame,0,0);
+   frame.data.set(useAiMakeupPixels({natural:frame.data,makeup,width:W,height:H,face:await portraitFaceLandmarks(finished,natural)}));ctx.putImageData(frame,0,0);
    finished.idpromAiMakeupSource=canvas.toDataURL('image/png');delete finished.idpromAiMakeupBlob;
   }
   if(gender==='female'&&[STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(finished.idpromStudioSkinVersion)){

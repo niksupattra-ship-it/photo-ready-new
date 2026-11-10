@@ -1,3 +1,4 @@
+import {restrictPairedPortraitMakeup} from './ai-makeup-pair.js';
 import {EnglishDownload} from './english-download.jsx';
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,WARP_HELP,TOOL_HELP,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
@@ -1142,7 +1143,10 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const current=()=>mounted.current&&outputScopeRef.current===scope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId);
   processRequestRef.current=true;setAssetBusy(true);setAppearanceError(null);
   try{
-   const nextHead=pairedPortraitFinish(previous.find(l=>l.id===head.id)||head,style);
+   const selected=previous.find(l=>l.id===head.id)||head;
+   const constrained=style==='natural'?selected:await restrictPairedPortraitMakeup(selected,{measureFace:onMeasureSuitFace});
+   if(!current())return;
+   const nextHead=pairedPortraitFinish(constrained,style);
    const next=previous.map(l=>l.id===head.id?nextHead:l);
    if(!await hydrate(next,new Set(previous.filter(l=>l.id!==head.id).map(l=>l.id)),current))throw Error('แสดงภาพไม่สำเร็จ');
    if(!current())return;

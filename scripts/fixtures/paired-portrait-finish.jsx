@@ -1,3 +1,4 @@
+import {MAKEUP_FACE_OVAL,restrictPairedPortraitMakeup} from '../../src/ai-makeup-pair.js';
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {StudioEditor} from '../../src/studio-editor.jsx';
@@ -7,6 +8,9 @@ import '../../src/style.css';
 const photo=colour=>{const c=Object.assign(document.createElement('canvas'),{width:90,height:120});const x=c.getContext('2d');x.fillStyle=colour;x.fillRect(10,5,70,115);return c.toDataURL()};
 window.pairedSources={natural:photo('#c39a87'),makeup:photo('#edb8bd')};window.pairedCalls={ai:0,sync:0};window.pairedSnapshot={current:null};
 const head={name:'หัว · คอ · ผม',kind:'head',source:pairedSources.natural,studioSkinBaseSource:pairedSources.natural,aiMakeupSource:pairedSources.makeup,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,jobId:'paired-fixture',portraitMode:'female',femaleEyeStyle:'natural',initialFemaleEyeStyle:'natural',hairId:'seedream-40',x:17,y:12,scale:.85,rotation:2,sourceFrame:{x:10,y:20,w:900,h:1200}};
+const face=[];MAKEUP_FACE_OVAL.forEach((id,i)=>{const a=i/MAKEUP_FACE_OVAL.length*Math.PI*2;face[id]={x:.5+.22*Math.cos(a),y:.32+.22*Math.sin(a)}});
+const measureFace=async()=>face;
+const repaired=await restrictPairedPortraitMakeup(head,{measureFace});window.pairedSources.makeup=repaired.aiMakeupSource;window.pairedRawMakeup=head.aiMakeupSource;
 const denied=()=>{pairedCalls.ai++;throw Error('Switching a completed pair must not invoke AI')};
-createRoot(document.getElementById('root')).render(<StudioEditor initialLayers={[{name:'พื้นหลัง',kind:'background',source:photo('white')},head]} purchaseSnapshotRef={pairedSnapshot} onProcessPhoto={denied} onChangeHair={denied} onLocalPortraitFinish={denied} onMakeup={denied} onRestorePortraitFinish={()=>{pairedCalls.sync++;return false}} onBeforeProcess={denied} paidOutputIds={['paired-fixture']} onVerifyOutput={async()=>({unlocked:true,fullEdit:true})} onClose={()=>{}}/>);
+createRoot(document.getElementById('root')).render(<StudioEditor onMeasureSuitFace={measureFace} initialLayers={[{name:'พื้นหลัง',kind:'background',source:photo('white')},head]} purchaseSnapshotRef={pairedSnapshot} onProcessPhoto={denied} onChangeHair={denied} onLocalPortraitFinish={denied} onMakeup={denied} onRestorePortraitFinish={()=>{pairedCalls.sync++;return false}} onBeforeProcess={denied} paidOutputIds={['paired-fixture']} onVerifyOutput={async()=>({unlocked:true,fullEdit:true})} onClose={()=>{}}/>);
 startEnglishPreview();
