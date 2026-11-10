@@ -19,7 +19,7 @@ with sync_playwright() as pw:
   p.locator('.english-inline-ai').wait_for()
   assert p.locator('.english-flow-overlay').count()==0
  p=page()
- p.get_by_role('button',name='AI outfit').click()
+ p.get_by_role('button',name='Create with AI').click()
  p.locator('.english-flow-outfits button').first.click()
  p.get_by_role('button',name='Makeup',exact=True).click()
  p.locator('.english-flow-hair-grid button').nth(1).click()

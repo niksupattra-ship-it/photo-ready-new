@@ -34,7 +34,7 @@ with sync_playwright() as pw:
     cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
     assert float(zoom.input_value())>2,'Pinch must zoom the photo'
    p.screenshot(path=f'work/download-png-{lang}-{width}.png',full_page=True)
-   p.get_by_role('button',name='Print PDF' if en else 'PDF สำหรับพิมพ์',exact=True).click()
+   p.get_by_role('button',name='Print sheet (PDF)' if en else 'PDF สำหรับพิมพ์',exact=True).click()
    p.get_by_label('Copies' if en else 'จำนวนรูป',exact=True).fill('4')
    assert p.evaluate('document.documentElement.scrollWidth<=innerWidth')
    p.screenshot(path=f'work/download-pdf-{lang}-{width}.png',full_page=True)
@@ -51,7 +51,7 @@ with sync_playwright() as pw:
    assert p.evaluate('downloadFixture.archives.length')>=1
    assert p.evaluate('downloadFixture.archives.at(-1).zoom')>1
    assert p.evaluate('downloadFixture.archives.at(-1).freePosition') is True
-   p.get_by_role('button',name='Photo PNG' if en else 'รูป PNG',exact=True).click()
+   p.get_by_role('button',name='Photo (PNG)' if en else 'รูป PNG',exact=True).click()
    size.select_option('original')
    assert p.get_by_label('Crop zoom' if en else 'ซูมรูป',exact=True).is_visible()
    assert p.evaluate('''async()=>{const {prepareEnglishDownload}=await import('/src/english-download.jsx');const source=downloadFixture.source;const output=await prepareEnglishDownload(source,{sizeId:'original',x:.4,y:.5,zoom:1,freePosition:true});const im=await createImageBitmap(output);const same=await crypto.subtle.digest('SHA-256',await source.arrayBuffer()),next=await crypto.subtle.digest('SHA-256',await output.arrayBuffer());const ok=im.width===900&&im.height===1200&&String(new Uint8Array(same))!==String(new Uint8Array(next));im.close();return ok}''')
