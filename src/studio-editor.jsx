@@ -1267,7 +1267,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const visiblePicker=touch||easyMode?picker:(picker||desktopLibraryPicker.current);
  if(!touch&&!easyMode&&picker)desktopLibraryPicker.current=picker;
  // Recommended order applies only to the combined suit tab; category order stays intact.
- const popularSuitIds=['female-formal-suit','male-formal-tie-suit','female-operational','interior-01','female-white-shirt','male-white-shirt-v132','female-suit-03','male-suit-03','female-academic','interior-02','kmitl-female','kmitl-male'];
+ const popularSuitIds=['female-job-navy-notch-white-shirt','male-job-blue-navy-tie','female-operational','interior-01','female-white-shirt','male-white-shirt-v132','female-job-taupe-cream-blouse','male-job-charcoal-burgundy-tie','female-academic','interior-02','kmitl-female','kmitl-male'];
  const popularSuits=visiblePicker==='suit'&&assetGroup==='all'?[...templates].sort((a,b)=>{const ai=popularSuitIds.indexOf(a.id),bi=popularSuitIds.indexOf(b.id);return (ai<0?popularSuitIds.length:ai)-(bi<0?popularSuitIds.length:bi)}):templates;
  const catalogOptions=visiblePicker==='suit'?popularSuits:visiblePicker==='collar'?collarPins:visiblePicker==='chest'?chestPins:visiblePicker==='ribbon'?ribbons:visiblePicker==='background'?backgrounds:[];
  const groups=[...new Set(templates.map(t=>t.group).filter(Boolean))];

@@ -6,6 +6,6 @@ import {englishPreviewEnabled,startEnglishPreview} from '../../src/english-previ
 import source from '../../src/main.jsx?raw';
 import '../../src/style.css';
 const catalog=Function(source.match(/const JOB_UNIFORMS=\[[\s\S]*?\n\];/)[0]+';return JOB_UNIFORMS')();
-const featured=['female-suit-03','female-suit-04','male-suit-03','female-formal-suit','female-lapel-suit'].map(id=>catalog.find(x=>x.id===id));
+const featured=['female-job-taupe-cream-blouse','female-job-ivory-tweed-gold-buttons','male-job-blue-navy-tie','female-job-navy-notch-white-shirt','male-job-charcoal-burgundy-tie'].map(id=>catalog.find(x=>x.id===id));
 startEnglishPreview();
-createRoot(document.getElementById('root')).render(<><div className="easy-home-shell"><div className="idstudio"><EasyMode canvasRef={{current:null}} templates={[]} hairs={[]} backgrounds={[]} hasResult={false} sourcePreview={null} ready/></div></div><main className="studio-home"><section className="studio-featured"><h2>Popular examples</h2><div className="studio-featured-list">{featured.map(c=><button key={c.id} className="studio-featured-item">{englishPreviewEnabled()?<EnglishExamplePhoto id={c.id} alt={c.title}/>:<img src={c.img} alt={c.title}/>}</button>)}</div></section></main></>);
+createRoot(document.getElementById('root')).render(<><div className="easy-home-shell"><div className="idstudio"><EasyMode canvasRef={{current:null}} templates={[]} hairs={[]} backgrounds={[]} hasResult={false} sourcePreview={null} ready/></div></div><main className="studio-home"><section className="studio-featured"><h2>Popular examples</h2><div className="studio-featured-list">{featured.map(c=><button key={c.id} className="studio-featured-item"><img src={c.img} alt={c.title}/></button>)}</div></section></main></>);

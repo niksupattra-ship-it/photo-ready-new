@@ -1,5 +1,14 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "สูทหญิงเบจ เสื้อในครีม": "Women’s taupe blazer with cream blouse",
+ "เชิ้ตหญิงฟ้าอ่อน": "Women’s light blue shirt",
+ "แจ็กเก็ตหญิงทวีตไอวอรี กระดุมทอง": "Women’s ivory tweed jacket with gold buttons",
+ "สูทหญิงกรมท่า เชิ้ตขาว": "Women’s navy suit with white shirt",
+ "สูทหญิงกรมท่ากระดุมสองแถว เสื้อในครีม": "Women’s navy double-breasted suit with cream blouse",
+ "สูทชายสีน้ำเงิน เนกไทกรมท่า": "Men’s blue suit with navy tie",
+ "สูทชายกรมท่ากระดุมสองแถว เนกไทดำ": "Men’s navy double-breasted suit with black tie",
+ "สูทชายเทาเข้ม เนกไทแดงไวน์": "Men’s charcoal suit with burgundy tie",
+
  "กำลังจัดองค์ประกอบภาพ": "Composing your photo",
 
  "กำลังตัดต่อรูป....กรุณารอ": "Editing your photo… Please wait.",

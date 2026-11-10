@@ -9,10 +9,11 @@ with sync_playwright() as pw:
   p.route('**/*',lambda r:r.continue_() if r.request.url.startswith(base+'/') else r.abort())
   for english in [True,False]:
    p.goto(base+'/scripts/fixtures/english-home-examples.html'+('?lang=en' if english else ''),wait_until='networkidle')
-   assert p.locator('.english-example-photo').count()==(8 if english else 0)
+   assert p.locator('.english-example-photo').count()==(3 if english else 0)
    if english:
     assert p.locator('.easy-landing-samples [data-example="original"]').count()==1
-    assert p.locator('.studio-featured-list .english-example-photo').count()==5
+    assert p.locator('.studio-featured-list .english-example-photo').count()==0
+    assert p.locator('.studio-featured-list img[src*="job-uniforms--"]').count()==5
     bounds=p.locator('.english-example-photo').evaluate_all('(items)=>items.map(x=>{const b=x.getBoundingClientRect();return {w:b.width,h:b.height,right:b.right}})')
     assert all(x['w']>20 and x['h']>20 and x['right']<=width+1 for x in bounds),bounds
     p.screenshot(path=str(out/f'english-{width}.png'),full_page=True)

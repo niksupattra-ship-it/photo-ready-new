@@ -29,12 +29,12 @@ with sync_playwright() as pw:
  assert p.evaluate('bodyCalls[0].hair')=='seedream-40'
  assert p.locator('.english-workflow-bar').count()==0
  p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
- card=p.locator('.english-outfit-card').filter(has=p.locator('img[src*="female-lapel-suit"]'))
+ card=p.locator('.english-outfit-card').filter(has=p.locator('img[src*="female-job-navy-notch-white-shirt"]'))
  card.locator('button').first.click()
- p.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false&&l.templatePath.endsWith('female-lapel-suit.png'))")
- dimensions=p.evaluate('''async()=>{const s=bodySnapshot.current().layers.find(l=>l.kind==='suit');const im=await (await import('/src/studio-image-cache.js')).decodedStudioImage(s.source);return {frame:s.sourceFrame,ratio:im.width/im.height,sx:s.squeezeX,sy:s.squeezeY,scale:s.scale,x:s.x,y:s.y,rotation:s.rotation,version:s.manualOutfitFitVersion}}''')
+ p.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false&&l.templatePath.endsWith('female-job-navy-notch-white-shirt.png'))")
+ dimensions=p.evaluate('''async()=>{const s=bodySnapshot.current().layers.find(l=>l.kind==='suit');const im=await (await import('/src/studio-image-cache.js')).decodedStudioImage(s.source);const c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height}),ctx=c.getContext('2d');ctx.drawImage(im,0,0);const {measureUniformAnchors}=await import('/src/portrait-uniform-fit.js'),anchor=measureUniformAnchors(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height);return {frame:s.sourceFrame,collarSceneY:s.sourceFrame.y+anchor.collarTopY*s.sourceFrame.h/im.height,ratio:im.width/im.height,sx:s.squeezeX,sy:s.squeezeY,scale:s.scale,x:s.x,y:s.y,rotation:s.rotation,version:s.manualOutfitFitVersion}}''')
  assert abs(dimensions['frame']['w']/dimensions['frame']['h']-dimensions['ratio'])<1e-9
- assert dimensions['frame']['y']>=550
+ assert abs(dimensions['collarSceneY']-600)<1,dimensions  # Transparent PNG padding is not the visible collar.
  assert dimensions['sx']==1 and dimensions['sy']==1
  assert dimensions['scale']==1 and dimensions['x']==0 and dimensions['y']==0 and dimensions['rotation']==0
  p.screenshot(path='work/english-manual-outfit-fixed.png',full_page=True)
@@ -47,7 +47,8 @@ with sync_playwright() as pw:
  assert p.locator('.english-inline-ai').count()==0
  # Identical outfit and current hairstyle reuse the completed result.
  p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
- original=p.locator('.english-outfit-card').first
+ original_id=Path(p.evaluate('bodyCalls.find(c=>c.template).template')).stem
+ original=p.locator('.english-outfit-card').filter(has=p.locator('img[src*="'+original_id+'"]'))
  ai(p,original)
  p.get_by_role('button',name='Create portrait',exact=True).click()
  p.locator('.english-inline-ai').wait_for(state='hidden')
@@ -59,7 +60,7 @@ with sync_playwright() as pw:
  p.get_by_role('button',name='Create portrait',exact=True).click()
  p.wait_for_function('bodyCalls.filter(c=>c.committed).length===2')
  call=p.evaluate('bodyCalls.filter(c=>c.template)[1]')
- assert call['template'].endswith('female-lapel-suit.png')
+ assert call['template'].endswith('female-job-navy-notch-white-shirt.png')
  assert call['hair']=='' and call['options']['keepCurrentHair'] is True
  assert call['options']['preserveHairJobId']=='fixture-new'
  # Selecting a new hairstyle does not open a modal or submit until confirmed.
