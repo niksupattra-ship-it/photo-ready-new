@@ -10,7 +10,7 @@ window.pairedSources={natural:photo('#c39a87'),makeup:photo('#edb8bd')};window.p
 const head={name:'หัว · คอ · ผม',kind:'head',source:pairedSources.natural,studioSkinBaseSource:pairedSources.natural,aiMakeupSource:pairedSources.makeup,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,jobId:'paired-fixture',portraitMode:'female',femaleEyeStyle:'natural',initialFemaleEyeStyle:'natural',hairId:'seedream-40',x:17,y:12,scale:.85,rotation:2,sourceFrame:{x:10,y:20,w:900,h:1200}};
 const face=[];MAKEUP_FACE_OVAL.forEach((id,i)=>{const a=i/MAKEUP_FACE_OVAL.length*Math.PI*2;face[id]={x:.5+.22*Math.cos(a),y:.32+.22*Math.sin(a)}});
 const measureFace=async()=>face;
-const repaired=await restrictPairedPortraitMakeup(head,{measureFace});window.pairedSources.makeup=repaired.aiMakeupSource;window.pairedRawMakeup=head.aiMakeupSource;
+const repaired=await restrictPairedPortraitMakeup(head,{measureFace,measureSkin:async()=>null});window.pairedSources.makeup=repaired.aiMakeupSource;window.pairedRawMakeup=head.aiMakeupSource;
 const denied=()=>{pairedCalls.ai++;throw Error('Switching a completed pair must not invoke AI')};
 createRoot(document.getElementById('root')).render(<StudioEditor onMeasureSuitFace={measureFace} initialLayers={[{name:'พื้นหลัง',kind:'background',source:photo('white')},head]} purchaseSnapshotRef={pairedSnapshot} onProcessPhoto={denied} onChangeHair={denied} onLocalPortraitFinish={denied} onMakeup={denied} onRestorePortraitFinish={()=>{pairedCalls.sync++;return false}} onBeforeProcess={denied} paidOutputIds={['paired-fixture']} onVerifyOutput={async()=>({unlocked:true,fullEdit:true})} onClose={()=>{}}/>);
 startEnglishPreview();

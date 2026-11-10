@@ -43,7 +43,7 @@ test('English makeup brightens only skin while preserving garment exposure and n
  const natural=await sharp({create:{width:64,height:96,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:52,height:85,channels:4,background:'#3c8cff'}}).png().toBuffer(),left:6,top:11}]).png().toBuffer();
  const calls=[];let makeup;
  await processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{...fields,portraitMode:'female',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root,key:'fixture-not-sent',requestPortrait:async p=>{calls.push(p);return {png:natural}},removeBackground:async()=>natural,onMakeupVariant:async png=>{makeup=png}});
- assert.equal(calls.length,3);assert.match(calls.at(-1).prompt,/\+0.4 to \+0.6 EV/);assert.match(calls.at(-1).prompt,/FACE-ONLY MAKEUP LIGHTING/);assert.doesNotMatch(calls.at(-1).prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
+ assert.equal(calls.length,3);assert.match(calls.at(-1).prompt,/\+0.4 to \+0.6 EV/);assert.match(calls.at(-1).prompt,/FACE AND NECK MAKEUP LIGHTING/);assert.doesNotMatch(calls.at(-1).prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY/);assert.match(calls.at(-1).prompt,/Preserve the existing selected outfit, complete clothed torso/);
  const a=await sharp(natural).extractChannel(3).raw().toBuffer(),b=await sharp(makeup).extractChannel(3).raw().toBuffer();assert.deepEqual(a,b);
 });
 test('English removes government/student categories and rejects their generation paths',async()=>{

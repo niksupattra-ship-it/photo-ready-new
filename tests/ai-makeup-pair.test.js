@@ -46,12 +46,22 @@ test('makeup edits only the detected face with an inward feather and exact Natur
   const i=(y*width+x)*4;assert.equal(out[i+3],natural[i+3]);
   if(y>=height*.53||x<width*.3||x>width*.7||y<height*.12)assert.deepEqual(out.slice(i,i+4),natural.slice(i,i+4),'body, hair and exterior are byte-identical');
   if(out[i]!==natural[i])changed++;
-  if(out[i]>40&&out[i]<120)feathered++;
+  if(out[i]!==120&&out[i]!==out[(77*width+80)*4])feathered++;
  }
- assert(changed>500);assert(feathered>100);assert.equal(out[(77*width+80)*4],40,'interior uses AI makeup without reshaping');
+ assert(changed>500);assert(feathered>100);const c=(77*width+80)*4;assert(out[c]*.2126+out[c+1]*.7152+out[c+2]*.0722>120*.2126+100*.7152+80*.0722,'dark AI face has brighter luminance than Natural');
  assert.throws(()=>useAiMakeupPixels({natural,makeup,width,height}),/ขอบใบหน้า/);
  assert.throws(()=>useAiMakeupPixels({natural,makeup:makeup.slice(4),width,height,face}),/ขนาด/);
  const broken=[...face];broken[10]={x:NaN,y:.2};assert.throws(()=>useAiMakeupPixels({natural,makeup,width,height,face:broken}),/ขอบใบหน้า/);
+});
+test('visible segmented neck receives the same lift while garment labels remain exactly unchanged',()=>{
+ const width=160,height=240,natural=new Uint8ClampedArray(width*height*4),makeup=new Uint8ClampedArray(natural.length),face=[];
+ for(let i=0;i<natural.length;i+=4){natural.set([140,120,110,255],i);makeup.set([80,65,60,255],i)}
+ MAKEUP_FACE_OVAL.forEach((id,i)=>{const a=i/MAKEUP_FACE_OVAL.length*Math.PI*2;face[id]={x:.5+.2*Math.cos(a),y:.3+.2*Math.sin(a)}});
+ const labels=new Uint8Array(width*height).fill(4);
+ for(let y=100;y<166;y++)for(let x=65;x<95;x++)labels[y*width+x]=2;
+ const out=useAiMakeupPixels({natural,makeup,width,height,face,neckSkin:{width,height,labels}});
+ const neck=(140*width+80)*4;assert(out[neck+1]>natural[neck+1],'neck brighter');
+ for(let y=121;y<height;y++)for(let x=0;x<width;x++)if(labels[y*width+x]===4){const i=(y*width+x)*4;assert.deepEqual(out.slice(i,i+4),natural.slice(i,i+4),'every garment pixel unchanged')}
 });
 test('production pipeline finishes both images before delivery and fails the job if makeup generation fails',async()=>{
  const {processProductionPortrait}=await import('../production-portrait-pipeline.js');
@@ -69,15 +79,15 @@ test('production pipeline finishes both images before delivery and fails the job
 test('Thai and English AI makeup request brighter rosy facial skin without relighting the body',async()=>{
  const {AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const {AI_MAKEUP_PAIR_VERSION,isAiMakeupPairVersion}=await import('../ai-makeup-pair-policy.js');
- assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v11-face-pixels-only');assert(isAiMakeupPairVersion('ai-makeup-pair-v9-preserve-face-geometry'));assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
+ assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v12-brighter-face-neck');assert(isAiMakeupPairVersion('ai-makeup-pair-v9-preserve-face-geometry'));assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
  const natural=await png('tan');
  for(const preserveOutfit of [false,true]){
   let sent;await createAiMakeupVariant(natural,{key:'fixture-not-sent',preserveOutfit,requestPortrait:async p=>{sent=p;return {png:natural}}});
-  assert(sent.prompt.endsWith(AI_MAKEUP_COMPLEXION_POLICY));assert.match(sent.prompt,/Preserve the input face width-to-height ratio/);assert.match(sent.prompt,/No face slimming, V-line reshaping/);assert.match(sent.prompt,/Retain dimensional cheek and jaw shading/);assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/Leave ears, neck and chest unchanged/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
+  assert(sent.prompt.endsWith(AI_MAKEUP_COMPLEXION_POLICY));assert.match(sent.prompt,/Preserve the input face width-to-height ratio/);assert.match(sent.prompt,/No face slimming, V-line reshaping/);assert.match(sent.prompt,/Retain dimensional cheek and jaw shading/);assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/Continue the same soft facial fill and rosy tone smoothly through visible neck skin/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
   assert.doesNotMatch(sent.prompt,/Do not reshape, whiten|; no whitening,/);
   assert.match(sent.prompt,/HEALTHY SKIN AND FACE FLASH/);
   assert.match(sent.prompt,/\+0.4 to \+0.6 EV/);
-  assert.match(sent.prompt,/FACE-ONLY MAKEUP LIGHTING/);
+  assert.match(sent.prompt,/FACE AND NECK MAKEUP LIGHTING/);
   assert.match(sent.prompt,/Preserve the input clothing, torso, hair and background exposure/);
   assert.match(sent.prompt,/must never cancel facial brightening or darken the face/);
   assert.doesNotMatch(sent.prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY|do not add an independent brighter flash/);
