@@ -48,7 +48,7 @@ export async function claimAiJob(id){await ready();const {rows}=await pool.query
 export async function touchAiJob(id,stage=null){await ready();await pool.query(`UPDATE ai_jobs SET updated_at=now(),fields=CASE WHEN $2::text IS NULL THEN fields ELSE fields||jsonb_build_object('processing_stage',$2::text) END WHERE id=$1 AND status='processing'`,[id,stage])}
 export async function completeAiJob(id,result,makeup=null){await ready();await pool.query(`UPDATE ai_jobs SET status='completed',result=$2,result_makeup=$3,error=NULL,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference'-'studioSkinEvidence',updated_at=now() WHERE id=$1 AND status='processing'`,[id,result,makeup])}
 export async function failAiJob(id,error){await ready();await pool.query(`UPDATE ai_jobs SET status='failed',error=$2,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference'-'studioSkinEvidence',updated_at=now() WHERE id=$1 AND status IN ('queued','processing')`,[id,String(error||'AI processing failed').slice(0,2000)])}
-export async function getAiJob(id,walletId){await ready();const {rows}=await pool.query(`SELECT id,status,error,created_at,updated_at,fields->>'processing_stage' AS stage,fields->>'studioSkinVersion' AS "studioSkinVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'portraitMode' AS "portraitMode",fields->>'portraitComposition' AS "portraitComposition",fields->>'proportion_correction' AS "proportionCorrection",fields->>'naturalFinishVersion' AS "naturalFinishVersion",(result_makeup IS NOT NULL) AS "hasMakeupVariant",(result IS NOT NULL) AS has_result FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
+export async function getAiJob(id,walletId){await ready();const {rows}=await pool.query(`SELECT id,status,error,created_at,updated_at,fields->>'processing_stage' AS stage,fields->>'studioSkinVersion' AS "studioSkinVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'portraitMode' AS "portraitMode",fields->>'portraitComposition' AS "portraitComposition",fields->>'naturalFinishVersion' AS "naturalFinishVersion",(result_makeup IS NOT NULL) AS "hasMakeupVariant",(result IS NOT NULL) AS has_result FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
 export async function getAiJobResult(id,walletId,includeMakeup=false){await ready();const {rows}=await pool.query(`SELECT status,result,${includeMakeup?'result_makeup':'NULL AS result_makeup'},error,usage_id FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
 export async function getAiJobsAccess(ids,walletId){if(!ids.length)return [];await ready();const {rows}=await pool.query('SELECT id,status,usage_id FROM ai_jobs WHERE wallet_id=$1 AND id=ANY($2::text[])',[walletId,ids]);return rows}
 export async function queuedAiJobs(){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='queued',updated_at=now() WHERE status='processing' AND updated_at < now()-interval '3 minutes' RETURNING id`);const q=await pool.query(`SELECT id FROM ai_jobs WHERE status='queued' ORDER BY created_at ASC LIMIT 20`);return q.rows.map(r=>r.id)}
@@ -70,7 +70,6 @@ export async function settleAiJobDelivery(id,walletId,action){
   const j=row.rows[0];if(!j){await c.query('ROLLBACK');return {status:404,error:'job_not_found'}}
   if(j.fields?.delivery_confirmed){await c.query('ROLLBACK');return action==='confirm'?{status:200,ok:true}:{status:409,error:'already_delivered'}}
   if(j.error==='USER_CANCELLED'){await c.query('ROLLBACK');return action==='cancel'?{status:200,ok:true,cancelled:true}:{status:409,error:'job_cancelled'}}
-  if(action==='confirm'&&j.fields?.proportion_correction==='processing'){await c.query('ROLLBACK');return {status:409,error:'correction_pending'}}
   if(action==='confirm'&&j.status!=='completed'){await c.query('ROLLBACK');return {status:409,error:'result_not_ready'}}
   const trial=String(j.usage_id).startsWith('trial_');
   const usage=await c.query(trial?'SELECT status FROM trial_previews WHERE id=$1 FOR UPDATE':'SELECT * FROM credit_usage WHERE id=$1 FOR UPDATE',[j.usage_id]);
@@ -92,14 +91,3 @@ export async function settleAiJobDelivery(id,walletId,action){
   await c.query('COMMIT');return {status:200,ok:true,cancelled:action==='cancel'};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
-
-
-// A single correction of an undelivered owned English job. No credit rows or
-// balances are touched; cancellation/delivery can still win while AI runs.
-export async function claimEnglishProportionCorrection(id,walletId){
- await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET fields=fields||'{"proportion_correction":"processing"}'::jsonb,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND result IS NOT NULL AND fields->>'interfaceLanguage'='en' AND fields->>'portraitComposition'='en-outfit-body-v1' AND NOT COALESCE((fields->>'delivery_confirmed')::boolean,false) AND fields->>'delivery_pending'='true' AND NOT(fields ? 'proportion_correction') RETURNING result,result_makeup,fields`,[id,walletId]);return rows[0]||null;
-}
-export async function finishEnglishProportionCorrection(id,walletId,result){
- await ready();const {rowCount}=await pool.query(`UPDATE ai_jobs SET result=$3,result_makeup=$4,fields=fields||'{"proportion_correction":"done"}'::jsonb,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'proportion_correction'='processing' AND NOT COALESCE((fields->>'delivery_confirmed')::boolean,false)`,[id,walletId,result.natural,result.makeup]);return rowCount>0;
-}
-export async function failEnglishProportionCorrection(id,walletId){await ready();await pool.query(`UPDATE ai_jobs SET fields=fields||'{"proportion_correction":"failed"}'::jsonb,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'proportion_correction'='processing'`,[id,walletId])}
