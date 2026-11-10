@@ -46,6 +46,7 @@ test('Thai paired processing completes with one complete guide and the existing 
   assert.deepEqual(calls[0].portrait,input,'skin preparation must still receive the untouched upload');
   const generation=calls[1],meta=await sharp(generation.portrait).metadata();assert(meta.height>280);assert.match(generation.size,/^\d+x\d+$/);const [outW,outH]=generation.size.split('x').map(Number);assert(Math.abs(outW/outH-meta.width/meta.height)<.015);
   assert.match(generation.prompt,/Build continuous opaque matching skin/);assert.match(generation.prompt,/through BOTH complete clavicles/);assert.match(generation.prompt,/Do not stop at the upper neck, neck root, collar edge/);
+  assert.match(generation.prompt,/full-frame 50 mm/);assert.match(generation.prompt,/10–15% fuller/);assert.match(generation.prompt,/not a longer visible neck/);
   assert.doesNotMatch(generation.prompt,/VISIBLE NECK SIDE|two separate guides|Follow the separate|separate visible-neck guide/);
   assert.deepEqual(generation.neckReference,await readFile(root+'public/assets/neck-backing-reference/wide-deep-u-v1.png'));assert(!generation.neckShapeReference);
   const images=seedreamReviewPayload(generation).image;assert(Array.isArray(images));assert(generation.prompt.includes(`COMPLETE NECK AND U-BACKING GUIDE — IMAGE ${images.length}`));
