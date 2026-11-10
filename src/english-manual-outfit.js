@@ -1,8 +1,9 @@
 import {decodedStudioImage} from './studio-image-cache.js';
 import {measureUniformAnchors,placeUniformForPortrait} from './portrait-uniform-fit.js';
 import {layerToScene} from './studio-transform.js';
+import {createFaceMeasurementCache} from './studio-face-measurement-cache.js';
 
-export const ENGLISH_MANUAL_OUTFIT_VERSION='native-aspect-below-chin-v1';
+export const ENGLISH_MANUAL_OUTFIT_VERSION='native-aspect-below-chin-v2-shared-face';
 
 // Full-person AI placement is not a garment frame. Place each new native PNG
 // independently, using one scale for both axes and keeping the portrait fixed.
@@ -18,12 +19,27 @@ export function planEnglishManualOutfit({uniform,head,face,W=900,H=1200}){
  }
  return placeUniformForPortrait({W,H,uniform,collarX,collarY,faceWidth});
 }
-export async function fitEnglishManualOutfit({source,head,headSource,measureFace}){
- const image=await decodedStudioImage(source),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+const cachedFaceMeasurement=createFaceMeasurementCache();
+export async function measureEnglishManualOutfitFace({head,headSource,measureFace}){
+ if(!head||!measureFace)return null;
+ let sample;
+ try{
+  const source=headSource||head.source,image=typeof source==='string'?await decodedStudioImage(source):source,width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
+  // Compare exact pixels so edits to a reused canvas cannot reuse an old face.
+  // Large originals retain the existing direct detector path, bounding memory.
+  if(width*height>4_000_000)return await measureFace(image);
+  sample=Object.assign(document.createElement('canvas'),{width,height});const ctx=sample.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);
+  return await cachedFaceMeasurement({canvas:sample,width,height,pixels:ctx.getImageData(0,0,width,height).data},measureFace);
+ }catch{return null}finally{if(sample)sample.width=sample.height=1}
+}
+export function planEnglishManualOutfitPreview({image,head,face=null}){
+ const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
  const sample=Object.assign(document.createElement('canvas'),{width,height}),ctx=sample.getContext('2d',{willReadFrequently:true});
  ctx.drawImage(image,0,0);
  let uniform;try{uniform=measureUniformAnchors(ctx.getImageData(0,0,width,height).data,width,height)}finally{sample.width=sample.height=1}
- let face=null;
- if(head&&measureFace)try{face=await measureFace(await decodedStudioImage(headSource||head.source))}catch{}
- return planEnglishManualOutfit({uniform,head,face});
+ try{return planEnglishManualOutfit({uniform,head,face})}catch(error){if(!face)throw error;return planEnglishManualOutfit({uniform,head})}
+}
+export async function fitEnglishManualOutfit({source,head,headSource,measureFace,facePromise}){
+ const image=await decodedStudioImage(source),face=await(facePromise||measureEnglishManualOutfitFace({head,headSource,measureFace}));
+ return planEnglishManualOutfitPreview({image,head,face});
 }

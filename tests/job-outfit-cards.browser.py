@@ -25,7 +25,7 @@ with sync_playwright() as pw:
       options=page.evaluate('outfitCardOptions')
       removed={'female-formal-suit','female-lapel-suit','female-suit-03','female-suit-04','male-suit-03','male-suit-04','male-formal-tie-suit','male-open-collar-suit'}
       assert not removed.intersection(o['id']for o in options),'Removed outfits reappeared'
-      new_ids={'female-job-taupe-cream-blouse','female-job-light-blue-shirt','female-job-ivory-tweed-gold-buttons','female-job-navy-notch-white-shirt','female-job-navy-double-breasted-cream-blouse','male-job-blue-navy-tie','male-job-navy-double-breasted-black-tie','male-job-charcoal-burgundy-tie'}
+      new_ids={'male-job-navy-three-piece-burgundy-tie', 'female-job-ivory-tweed-cream-trim-gold-buttons', 'female-job-ivory-bow-blouse', 'female-job-light-pink-tweed-pearl-trim', 'female-job-navy-suit-gathered-cream-blouse', 'female-job-dusty-rose-tweed-pearl-buttons', 'male-job-blue-two-button-navy-tie', 'male-job-navy-v-neck-knit-shirt'}
       assert new_ids.issubset(o['id']for o in options)
 
       if easy:

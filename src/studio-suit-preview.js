@@ -18,10 +18,13 @@ export function warmSuitPreview(template){
 export function createSuitDisplayPreview(target,option,image,placement){
  const frame=target?.sourceFrame||target?.collarFrame||(placement?{x:placement.uX/placement.W*900,y:placement.uY/placement.H*1200,w:placement.uW/placement.W*900,h:placement.uH/placement.H*1200}:{x:0,y:0,w:900,h:1200});
  const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
- const mask=Object.assign(document.createElement('canvas'),{width,height}),buffer=document.createElement('canvas');
+ // A catalog DOM image's .width can be its 96px layout width. The painter
+ // consumes native dimensions, so freeze the complete decoded thumbnail first.
+ const original=Object.assign(document.createElement('canvas'),{width,height});original.getContext('2d').drawImage(image,0,0,width,height);
+ const mask=Object.assign(document.createElement('canvas'),{width,height}),buffer=document.createElement('canvas'),surface=document.createElement('canvas');
  const ctx=mask.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
  const layer={x:0,y:0,scale:1,rotation:0,opacity:1,...target,id:target?.id||'temporary-suit-preview',kind:'suit',name:'ชุด',source:image,sourceFrame:frame,collarFrame:target?.collarFrame||frame,neckWidth:0,neckHeight:0,visible:true,assetId:option.id,templatePath:option.template};
- return {layer,asset:{original:image,sourceFrame:frame,mask,buffer,dirty:true},release(){mask.width=1;mask.height=1;buffer.width=1;buffer.height=1}};
+ return {layer,asset:{original,sourceFrame:frame,mask,buffer,dirty:true},surface,release(){for(const c of [original,mask,buffer,surface])c.width=c.height=1}};
 }
 export function createSuitPreviewRequest(){
  let cancel;const cancelled=Symbol('cancelled'),signal=new Promise(resolve=>{cancel=()=>resolve(cancelled)});

@@ -17,7 +17,7 @@ await check('a superseded load stops waiting immediately and cannot cancel the l
 const extract=(start,end,name,env)=>{const a=source.indexOf(start),b=source.indexOf(end,a);assert(a>=0&&b>a);return Function('env',`with(env){${source.slice(a,b)};return ${name}}`)(env)};
 await check('save and download cannot serialize or redeem while the displayed garment is provisional',async()=>{
  const messages=[],env={ready:true,processActive:false,assetBusy:false,hydratingRef:{current:false},suitRequestRef:{current:{}},setStatus:message=>messages.push(message)};
- const exportImage=extract(' const exportImage=async','\n const autoDownloadAttempted=','exportImage',env),save=extract(' const save=async','\n const ', 'save',env);
+ const exportImage=extract(' const exportImage=async','\n const authorizeDownloadCrop=','exportImage',env),save=extract(' const save=async','\n const ', 'save',env);
  await exportImage('image/png');await exportImage('image/png',{automatic:true});assert.equal(await save(),false);assert.equal(messages.length,3);assert(messages.every(message=>message.includes('ความละเอียดเต็ม')));
 });
 await check('automatic download waits for the committed full-resolution suit and runs only once',()=>{

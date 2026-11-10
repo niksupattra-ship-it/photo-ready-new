@@ -1,5 +1,14 @@
 // Reviewed English interface and server-response copy.
 export const ENGLISH_ADDITIONAL_COPY={
+ "เสื้อหญิงไอวอรีผูกโบ": "Women’s ivory bow-neck blouse",
+ "แจ็กเก็ตหญิงทวีดชมพูอ่อนขอบครีม กระดุมมุก": "Women’s light pink tweed jacket with cream trim and pearl buttons",
+ "สูทหญิงกรมท่า เสื้อในครีมคอจีบ": "Women’s navy suit with gathered cream blouse",
+ "แจ็กเก็ตหญิงทวีดชมพูกุหลาบ กระดุมมุก": "Women’s dusty rose tweed jacket with pearl buttons",
+ "แจ็กเก็ตหญิงทวีดไอวอรีขอบครีม กระดุมทอง": "Women’s ivory tweed jacket with cream trim and gold buttons",
+ "สูทชายกรมท่าสามชิ้น เสื้อกั๊ก เนกไทแดงไวน์": "Men’s navy three-piece suit with waistcoat and burgundy tie",
+ "เสื้อไหมพรมชายกรมท่าคอวี สวมทับเชิ้ต": "Men’s navy V-neck sweater over shirt",
+ "สูทชายสีน้ำเงินสองกระดุม เนกไทกรมท่า": "Men’s blue two-button suit with navy tie",
+
  "สูทหญิงเบจ เสื้อในครีม": "Women’s taupe blazer with cream blouse",
  "เชิ้ตหญิงฟ้าอ่อน": "Women’s light blue shirt",
  "แจ็กเก็ตหญิงทวีดไอวอรี กระดุมทอง": "Women’s ivory tweed jacket with gold buttons",
