@@ -106,3 +106,12 @@ faceless composition guide distinguishes the short neck above the collar base
 from upper-chest skin inside an open V. Neither guide nor delivered portrait is
 locally warped or pasted onto a face mask. Real-provider intermediate images are
 still needed to attribute a particular failed portrait to one AI pass.
+
+The English pose instruction separates recognisable facial identity from source
+head pose: roll/yaw/pitch are neutral, eye centres level and facial axis upright.
+The compact-neck guide includes level eye markers and a vertical nose axis;
+these are pose cues, never facial features to copy into the result. Delivered
+English layers retain the anatomy/framing policy version. Selecting Create
+portrait explicitly regenerates a matching outfit made under an older policy;
+matching current-policy output is still reused. Opening a project never triggers
+AI generation automatically. Thai generation, prompts and cache stay unchanged.

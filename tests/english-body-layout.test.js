@@ -24,7 +24,13 @@ test('a deeper V changes chest coverage without lengthening the layout head or s
  for(const depth of [90,140]){
   const {data,info}=await sharp(await createEnglishBodyLayout(await make(depth))).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   assert.equal(info.width,768);assert.equal(info.height,1024);
-  samples.push({head:bounds(data,info.width,[170,178,189]),neck:bounds(data,info.width,[146,155,168])});
+  const head= bounds(data,info.width,[170,178,189]),axis=(head.left+head.right)/2;
+  const eyes=[[],[]];
+  for(let i=0;i<data.length;i+=4)if(data[i]===105&&data[i+1]===117&&data[i+2]===133){const x=i/4%info.width,y=Math.floor(i/4/info.width);if(x<axis-20)eyes[0].push(y);else if(x>axis+20)eyes[1].push(y)}
+  assert(eyes.every(e=>e.length>10),'the guide has two visible eye-level pose markers');
+  const mean=e=>e.reduce((a,b)=>a+b,0)/e.length;
+  assert(Math.abs(mean(eyes[0])-mean(eyes[1]))<.1,'eye markers remain horizontal');
+  samples.push({head,neck:bounds(data,info.width,[146,155,168])});
  }
  assert(samples[0].head.count>1000);assert(samples[0].neck.count>100);
  assert.deepEqual(samples[0].head,samples[1].head,'V point must not move the head');

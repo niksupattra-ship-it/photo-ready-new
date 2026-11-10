@@ -1,5 +1,5 @@
 import {EnglishDownload} from './english-download.jsx';
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {outfitChoicePreview,isJobOutfit} from './outfit-choice-preview.js';
 import {insigniaForLanguage,englishPreviewEnabled} from './english-preview.js';
@@ -993,7 +993,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const createEnglishPortrait=async({outfit,hair,finish,gender,keepCurrentHair=false,preserveHairJobId=''})=>{
   if(processActive||assetBusy||!ready||processRequestRef.current)return;
   const existing=outputHeads(state.current).find(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
-  if(existing&&!state.current.some(l=>l.id===sourceLayerRef.current)&&existing.generatedOutfitTemplate===outfit.template&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish){
+  if(existing&&existing.portraitFramingVersion===ENGLISH_BODY_FRAMING_VERSION&&!state.current.some(l=>l.id===sourceLayerRef.current)&&existing.generatedOutfitTemplate===outfit.template&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish){
    if(!await hydrate(state.current.map(l=>layerKind(l)==='suit'?{...l,visible:false}:l)))throw Error('Could not show your portrait.');
    setEnglishStep(null);setEnglishRoute('review');setEnglishInlineAi(null);setStatus('Showing your existing portrait.');return;
   }

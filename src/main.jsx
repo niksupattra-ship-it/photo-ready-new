@@ -1023,7 +1023,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    canvas.width=canvas.height=1;
    return canvasPng(output);
   }
-  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,generatedOutfitTemplate:lock.templatePath,source:canvas.toDataURL('image/png'),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
+  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,generatedOutfitTemplate:lock.templatePath,source:canvas.toDataURL('image/png'),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
   canvas.width=canvas.height=1;
   return studioLayers;
  }
@@ -2636,7 +2636,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   let result=await aiFinishPortraitUncached(originalFile,hairId,options,neckline);
   assertCurrentOperation();
   const bodyPortrait=englishPreviewEnabled();
-  if(bodyPortrait){result=await balanceEnglishPortrait(result,options.onJobStatus);assertCurrentOperation();result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;}
+  if(bodyPortrait){result=await balanceEnglishPortrait(result,options.onJobStatus);assertCurrentOperation();result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;result.idpromEnglishFramingVersion=ENGLISH_BODY_FRAMING_VERSION;}
   assertCurrentOperation();
   const cleaned=bodyPortrait?result:await cleanPortraitClothing(result);
   assertCurrentOperation();

@@ -4,7 +4,7 @@ import {measureUniformAnchors} from './src/portrait-uniform-fit.js';
 export async function createEnglishBodyLayout(outfit){
  const {data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  const uniform=measureUniformAnchors(data,info.width,info.height),span=uniform.shoulderWidth;
- const headWidth=span*.40,headHeight=span*.54,neckLength=span*.07,neckWidth=span*.22;
+ const headWidth=span*.40,headHeight=span*.54,neckLength=span*.045,neckWidth=span*.22;
  const chinY=uniform.collarTopY-neckLength,headTop=chinY-headHeight;
  const left=Math.min(uniform.bounds.l,uniform.centerX-headWidth/2),right=Math.max(uniform.bounds.r+1,uniform.centerX+headWidth/2);
  const top=Math.min(headTop,uniform.bounds.t),bottom=uniform.bounds.b+1;
@@ -16,7 +16,7 @@ export async function createEnglishBodyLayout(outfit){
  const skinBottom=y+Math.max(uniform.socketY,uniform.collarTopY+span*.20)*scale;
  const neckBase=collar+span*.035*scale;
  const skinWidth=span*.40*scale,neck=neckWidth*scale;
- const shape=Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#929ba8"/><stop offset="1" stop-color="#bec5ce"/></linearGradient></defs><rect width="100%" height="100%" fill="#e5e8ed"/><path d="M ${cx-neck/2} ${neckBase} Q ${cx-neck/2} ${skinBottom-neck*.25} ${cx-skinWidth/2} ${skinBottom} L ${cx+skinWidth/2} ${skinBottom} Q ${cx+neck/2} ${skinBottom-neck*.25} ${cx+neck/2} ${neckBase} Z" fill="url(#skin)"/><rect x="${cx-neck/2}" y="${chin-neckLength*scale*.35}" width="${neck}" height="${neckBase-chin+neckLength*scale*.35}" fill="#929ba8"/><ellipse cx="${cx}" cy="${headY+headHeight*scale/2}" rx="${headWidth*scale/2}" ry="${headHeight*scale/2}" fill="#aab2bd"/></svg>`);
+ const shape=Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#929ba8"/><stop offset="1" stop-color="#bec5ce"/></linearGradient></defs><rect width="100%" height="100%" fill="#e5e8ed"/><path d="M ${cx-neck/2} ${neckBase} Q ${cx-neck/2} ${skinBottom-neck*.25} ${cx-skinWidth/2} ${skinBottom} L ${cx+skinWidth/2} ${skinBottom} Q ${cx+neck/2} ${skinBottom-neck*.25} ${cx+neck/2} ${neckBase} Z" fill="url(#skin)"/><rect x="${cx-neck/2}" y="${chin-neckLength*scale*.35}" width="${neck}" height="${neckBase-chin+neckLength*scale*.35}" fill="#929ba8"/><ellipse cx="${cx}" cy="${headY+headHeight*scale/2}" rx="${headWidth*scale/2}" ry="${headHeight*scale/2}" fill="#aab2bd"/><g fill="#697585" stroke="#697585" stroke-width="${headWidth*scale*.012}" stroke-linecap="round"><circle cx="${cx-headWidth*scale*.19}" cy="${headY+headHeight*scale*.45}" r="${headWidth*scale*.017}"/><circle cx="${cx+headWidth*scale*.19}" cy="${headY+headHeight*scale*.45}" r="${headWidth*scale*.017}"/><path d="M ${cx} ${headY+headHeight*scale*.52} L ${cx} ${headY+headHeight*scale*.64}" fill="none"/></g></svg>`);
  const garment=await sharp(outfit).resize({width:Math.max(1,Math.round(info.width*scale)),height:Math.max(1,Math.round(info.height*scale))}).png().toBuffer();
  // Clip only transparent template margins outside the guide board. The measured
  // opaque garment bounds and all buttons/pockets remain inside the frame.

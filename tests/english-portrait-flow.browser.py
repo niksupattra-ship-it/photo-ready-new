@@ -6,12 +6,12 @@ Path('work').mkdir(exist_ok=True)
 with sync_playwright() as pw:
  b=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  errors=[]
- def page(width=1440):
+ def page(width=1440,fresh=True):
   p=b.new_page(viewport={'width':width,'height':1000},is_mobile=width<640,has_touch=width<640)
   p.on('pageerror',lambda e:errors.append(str(e)))
   p.route('**/*',lambda r:r.continue_() if r.request.url.startswith(base+'/') and '/api/' not in r.request.url else r.abort())
-  p.goto(base+'/scripts/fixtures/english-portrait-flow.html?lang=en&fresh&stretch',wait_until='domcontentloaded')
-  p.get_by_role('heading',name='Choose how to edit',exact=True).wait_for()
+  p.goto(base+'/scripts/fixtures/english-portrait-flow.html?lang=en'+('&fresh&stretch' if fresh else '&standard&stale'),wait_until='domcontentloaded')
+  if fresh:p.get_by_role('heading',name='Choose how to edit',exact=True).wait_for()
   p.wait_for_function('!!window.bodySnapshot?.current')
   return p
  def ai(p,card):
@@ -73,6 +73,19 @@ with sync_playwright() as pw:
  assert p.evaluate('bodyCalls.filter(c=>c.template)[2].hair')
  assert p.evaluate('bodyCalls.filter(c=>c.template)[2].options.keepCurrentHair') is False
  p.close()
+ # An explicit create must regenerate a portrait made with an old prompt policy.
+ p=page(fresh=False)
+ p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
+ old=p.locator('.english-outfit-card').first
+ ai(p,old);p.get_by_role('button',name='Create portrait',exact=True).click()
+ p.wait_for_function('bodyCalls.some(c=>c.committed)')
+ assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
+ assert p.evaluate("bodySnapshot.current().layers.find(l=>l.kind==='head').portraitFramingVersion")!='old-layout'
+ p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
+ ai(p,p.locator('.english-outfit-card').first);p.get_by_role('button',name='Create portrait',exact=True).click()
+ p.locator('.english-inline-ai').wait_for(state='hidden')
+ assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1,'current policy should still reuse its matching output'
+ p.close()
  p=page(390)
  p.get_by_role('dialog').get_by_role('button',name='Edit manually').click()
  p.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='source-photo')")
@@ -99,4 +112,4 @@ with sync_playwright() as pw:
  assert thai.evaluate('bodyCalls.length')==0
  assert not errors,errors
  b.close()
- print(json.dumps({'passed':True,'checks':['local outfit placement','inline AI hair selector without popup','cancel without AI','keep processed hairstyle','explicit new hairstyle submit','same output reused','mobile layout','Thai isolation']}))
+ print(json.dumps({'passed':True,'checks':['local outfit placement','inline AI hair selector without popup','cancel without AI','keep processed hairstyle','explicit new hairstyle submit','same output reused','old prompt version regenerated only on explicit create','mobile layout','Thai isolation']}))

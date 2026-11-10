@@ -40,7 +40,7 @@ test('English male and female generations create complete clothed portraits with
   assert.match(generated.prompt,/lighter region inside an open V is upper chest below the neck base/);
   assert.match(generated.prompt,/During this same generation, repair temporary blemishes/);
   assert.match(generated.prompt,/FINAL HEAD\/BODY BALANCE — ENGLISH PORTRAIT/);
-  assert.match(generated.prompt,/30–36% of shoulder-joint-to-shoulder-joint width/);
+  assert.match(generated.prompt,/30–34% of the complete clothed shoulder span/);
   assert.match(generated.prompt,/reduce the entire head coherently/);
   assert(generated.prompt.endsWith(ENGLISH_ANATOMY_CAMERA_POLICY));
   assert.match(generated.prompt,/uniform scaling of the whole skull, face, ears and attached hair/);
@@ -49,6 +49,10 @@ test('English male and female generations create complete clothed portraits with
   assert.match(generated.prompt,/head centre, chin, neck centre and garment centreline vertically/);
   assert.match(generated.prompt,/50 mm lens at eye level/);
   assert.match(generated.prompt,/NECK LENGTH AND COLLAR ANCHOR/);
+  assert.match(generated.prompt,/IDENTITY IS NOT POSE/);
+  assert.match(generated.prompt,/Set head roll, yaw and pitch to neutral/);
+  assert.match(generated.prompt,/18–25% of the hairline-to-chin facial height/);
+  assert.equal(generated.prompt.split('FINAL ANATOMY AND CAMERA LOCK').length,2);
   assert.match(generated.prompt,/After resizing, reposition the entire head naturally down onto the neck and collar/);
   assert.match(generated.prompt,/open collar or deep V reveals upper chest, not extra neck/);
   assert.match(generated.prompt,/never stretch it to fill unused vertical space/);
