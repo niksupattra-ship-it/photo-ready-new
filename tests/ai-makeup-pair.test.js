@@ -74,3 +74,26 @@ test('Thai and English AI makeup both request even fair rosy skin with a continu
   assert.doesNotMatch(sent.prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY|do not add an independent brighter flash/);
  }
 });
+
+test('Thai transient makeup failures retry only the identical cosmetic request, while permanent and English errors propagate',async()=>{
+ const natural=await png('tan');
+ let calls=0,first;
+ const output=await createAiMakeupVariant(natural,{requestPortrait:async request=>{calls++;if(!first){first=request;throw Object.assign(Error('temporary provider failure'),{status:503})}assert.equal(request,first);return {png:natural}}});
+ assert.equal(calls,2);assert(output.length);
+ for(const [preserveOutfit,status,expected] of [[false,503,2],[false,429,2],[false,403,1],[true,503,1]]){
+  let attempts=0;
+  await assert.rejects(createAiMakeupVariant(natural,{preserveOutfit,requestPortrait:async()=>{attempts++;throw Object.assign(Error('provider failed'),{status})}}),/provider failed/);
+  assert.equal(attempts,expected);
+ }
+});
+
+test('Thai pipeline completes the AI pair after a transient cosmetic failure without regenerating the portrait',async()=>{
+ const {processProductionPortrait}=await import('../production-portrait-pipeline.js');
+ const {AI_MAKEUP_PAIR_VERSION}=await import('../ai-makeup-pair-policy.js');
+ const natural=await sharp({create:{width:64,height:96,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await png('tan',40,80),left:12,top:8}]).png().toBuffer();
+ let makeupCalls=0,mattingCalls=0,delivered;const stages=[],requests=[];
+ const output=await processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{portraitMode:'female',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root:new URL('..',import.meta.url).pathname,key:'fixture-not-sent',onStage:async s=>stages.push(s),removeBackground:async()=>{mattingCalls++;return natural},onMakeupVariant:async image=>{delivered=image},requestPortrait:async request=>{
+  requests.push(request);if(request.prompt.includes('Apply professional peach-rose')&&++makeupCalls===1)throw Object.assign(Error('temporarily unavailable'),{status:503});return {png:natural};
+ }});
+ assert(output.length);assert(delivered.length);assert.equal(makeupCalls,2);assert.equal(mattingCalls,1);assert.equal(stages.filter(s=>s==='generation').length,1);assert.equal(requests.at(-1),requests.at(-2));
+});

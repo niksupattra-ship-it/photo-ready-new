@@ -1569,7 +1569,12 @@ async function levelPortraitCutout(blob){
   const result=copyStudioSkinBlobMetadata(blob,await canvasPng(canvas));
   if(blob.idpromAiMakeupBlob){const pair=await decodedPortraitImage(blob.idpromAiMakeupBlob);ctx.resetTransform();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(transform.angle);ctx.drawImage(pair,-W/2,-H/2);result.idpromAiMakeupBlob=await canvasPng(canvas)}
   return result;
- }catch(error){if(blob.idpromAiMakeupBlob)throw error;return blob}
+ }catch(error){
+  // Auto-level is optional. If either paired canvas cannot be prepared, keep
+  // BOTH original AI images in their shared orientation for normal validation.
+  console.warn('Portrait auto-level skipped',{code:error?.code||error?.name||'level_unavailable'});
+  return blob;
+ }
 }
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
