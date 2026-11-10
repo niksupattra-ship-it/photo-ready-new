@@ -1,4 +1,6 @@
 import {createEnglishBodyLayout} from './english-body-layout.js';
+import {usesCompleteThaiNeckBacking,completeThaiNeckPrompt,completeThaiNeckGuideInstruction} from './thai-neck-backing-policy.js';
+import {prepareThaiNeckCanvas} from './thai-neck-canvas.js';
 import {validateCurrentHairRequest} from './english-current-hair.js';
 import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
@@ -163,6 +165,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const preparedMakeup=!englishBody&&needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
  const preparedNatural=!englishBody&&needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
  const bounded=!englishBody&&isBoundedPortrait({...fields,portraitMode:selected.gender});
+ const completeNeck=bounded&&usesCompleteThaiNeckBacking({...fields,portraitMode:selected.gender});
  const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
  const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
@@ -241,10 +244,11 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  if(!preparedNatural&&needsNaturalClearSkin(fields)){prompt+='\n'+NATURAL_CLEAR_SKIN_PRIORITY;prompt=naturalSpotRepairPrompt(prompt,fields);}
  if(pickerGuide)prompt+='\n'+(bounded?'':catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind))+'\n'+PICKER_HAIR_PRIORITY;
- prompt+='\n'+SOFT_HAIR_TEXTURE_POLICY+'\n'+BALANCED_NECK_POLICY;
+ if(completeNeck)prompt=completeThaiNeckPrompt(prompt);
+ prompt+='\n'+SOFT_HAIR_TEXTURE_POLICY+(completeNeck?'':'\n'+BALANCED_NECK_POLICY);
  let neckReference=null,neckShapeReference=null;
- if(bounded){prompt=prompt.replaceAll('and stable identifying marks','and expression').replaceAll('THE LAST IMAGE','THE SKIN/LIGHT BOARD');neckReference=await loadNeckBackingGuide(root);neckShapeReference=await loadVisibleNeckGuide(root);const index=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit))+Number(Boolean(skinReference));prompt+=neckBackingGuideInstruction(index)+visibleNeckGuideInstruction(index+1)+'\n'+BOUNDED_PORTRAIT_PRIORITY;}
- if(bounded)prompt=requireNewStraightNeck(prompt);
+ if(bounded){prompt=prompt.replaceAll('and stable identifying marks','and expression').replaceAll('THE LAST IMAGE','THE SKIN/LIGHT BOARD');neckReference=await loadNeckBackingGuide(root);const index=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit))+Number(Boolean(skinReference));if(completeNeck)prompt+=completeThaiNeckGuideInstruction(index);else{neckShapeReference=await loadVisibleNeckGuide(root);prompt+=neckBackingGuideInstruction(index)+visibleNeckGuideInstruction(index+1)+'\n'+BOUNDED_PORTRAIT_PRIORITY;}}
+ if(bounded&&!completeNeck)prompt=requireNewStraightNeck(prompt);
  let compositionReference=null;
  if(englishBody){
   if(!outfit)throw Error('Select an outfit before processing.');
@@ -260,8 +264,9 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   if(!preparedSkin?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_prepare_invalid'});
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
+ if(completeNeck)generationInput=await prepareThaiNeckCanvas(generationInput,explicitIdentityBox);
  await onStage('generation');
- let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
+ let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:completeNeck&&generationInput.neckCanvasSize||'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
  if(!englishBody&&fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION&&needsOriginalAiSkinPolish({...fields,portraitMode:selected.gender})){
   await onStage('skin-finish');
