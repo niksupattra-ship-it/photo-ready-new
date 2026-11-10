@@ -73,11 +73,18 @@ import {makeupLook} from '../makeup-presets.js';
 import {createMakeupLookCache,mixMakeupLookSources} from './makeup-look-tools.js';
 function CatalogPreview({src,eager=false,maleHair=false,suitTemplate=null,assetKind=null,assetOption=null}){
  src=outfitChoicePreview({template:suitTemplate},src);
- const element=useRef(null);
- useEffect(()=>{if(!suitTemplate||!suitPreviewSource(suitTemplate))return;const warm=()=>{void warmSuitPreview(suitTemplate).catch(()=>{})};if(typeof IntersectionObserver!=='function'){warm();return}const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))warm()},{rootMargin:'150px'});if(element.current)observer.observe(element.current);return()=>observer.disconnect()},[suitTemplate]);
- useEffect(()=>{if(!assetKind||!assetOption)return;const warm=()=>{void warmAssetPreview(assetKind,assetOption).catch(()=>{})};if(typeof IntersectionObserver!=='function'){warm();return}const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting))warm()},{rootMargin:'150px'});if(element.current)observer.observe(element.current);return()=>observer.disconnect()},[assetKind,assetOption]);
+ const element=useRef(null),[visibleSource,setVisibleSource]=useState(null);
+ const visible=eager||visibleSource===src;
+ useEffect(()=>{
+  let active=true;
+  const reveal=()=>{if(!active)return;setVisibleSource(src);if(suitTemplate&&suitPreviewSource(suitTemplate))void warmSuitPreview(suitTemplate).catch(()=>{});if(assetKind&&assetOption)void warmAssetPreview(assetKind,assetOption).catch(()=>{})};
+  if(eager||typeof IntersectionObserver!=='function'){reveal();return()=>{active=false}}
+  const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){reveal();observer.disconnect()}},{rootMargin:'120px'});
+  if(element.current)observer.observe(element.current);
+  return()=>{active=false;observer.disconnect()};
+ },[src,eager,suitTemplate,assetKind,assetOption]);
  const closeMalePreview=maleHair&&/\/seedream-hairstyles\/previews\/(?:36|37)\.webp(?:\?|$)/.test(src);
- return <img ref={element} src={thumbnailMap[src]||src} alt="" loading={eager?'eager':'lazy'} decoding="async" width="96" height="96" style={suitTemplate?{objectFit:'contain',objectPosition:'center'}:maleHair?{objectFit:'cover',objectPosition:closeMalePreview?'50% 57.5%':'50% 12%',transform:closeMalePreview?'scale(1.01)':'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>;
+ return <img ref={element} src={visible?(thumbnailMap[src]||src):undefined} alt="" loading="eager" fetchPriority={eager?'high':'low'} decoding="async" width="96" height="96" style={suitTemplate?{objectFit:'contain',objectPosition:'center'}:maleHair?{objectFit:'cover',objectPosition:closeMalePreview?'50% 57.5%':'50% 12%',transform:closeMalePreview?'scale(1.01)':'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>;
 }
 const STUDIO_DOWNLOAD_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id)));
 const W=900,H=1200;

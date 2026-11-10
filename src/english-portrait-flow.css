@@ -80,3 +80,9 @@
 .english-inline-ai strong{font-size:13px;color:#24304d}.english-inline-ai p{font-size:12px;line-height:1.5;margin:8px 0;color:#737f97}
 .idstudio .english-inline-ai button{font-size:12px;margin:4px 6px 0 0;padding:8px 12px}
 .idstudio .english-inline-ai button:first-of-type{background:#7543ed;color:white;border-color:#7543ed}
+
+/* Mobile uses a horizontal flex rail; wrapped outfit cards must not shrink. */
+.idstudio.studio-touch .studio-picker-drawer .studio-catalog-grid > .english-outfit-card{flex:0 0 94px;width:94px;scroll-snap-align:start}
+.idstudio.studio-touch .studio-picker-drawer .english-outfit-card>button:first-child{flex:none;height:auto;min-height:0;width:100%;padding:4px;border-radius:9px}
+.idstudio.studio-touch .studio-picker-drawer .english-outfit-card>button:first-child>span{height:76px;width:100%;overflow:hidden}
+.idstudio.studio-touch .studio-picker-drawer:has(.english-outfit-card){max-height:min(46dvh,330px)}

@@ -1,0 +1,12 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {StudioEditor} from '../../src/studio-editor.jsx';
+import previews from '../../src/uniform-quick-previews.json';
+import {PRODUCTION_HAIR_CATALOG} from '../../hairstyle-catalog.js';
+import {startEnglishPreview} from '../../src/english-preview.js';
+import '../../src/style.css';
+const empty=[];
+const templates=Object.keys(previews).filter(path=>path.startsWith('/assets/job-uniforms/')).map((template,i)=>({id:'job-'+i,template,preview:template,name:'Outfit '+i,group:'สมัครงาน'}));
+const c=document.createElement('canvas');c.width=90;c.height=120;c.getContext('2d').fillRect(0,0,90,120);const source=c.toDataURL();
+createRoot(document.getElementById('root')).render(<StudioEditor paidOutputIds={empty} editableOutputIds={empty} initialLayers={[{name:'พื้นหลัง',kind:'background',source},{name:'หัว · คอ · ผม',kind:'head',source,jobId:'catalog-fixture',portraitMode:'female'}]} templates={templates} freeTemplatePaths={templates.map(o=>o.template)} femaleHair={PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female')} maleHair={PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male')} backgrounds={[{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'}]} onVerifyOutput={async()=>({unlocked:true,fullEdit:true})} onClose={()=>{}}/>);
+startEnglishPreview();
