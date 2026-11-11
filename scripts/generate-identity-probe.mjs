@@ -18,3 +18,11 @@ let makeup;const natural=await processProductionPortrait({input:{buffer:original
 const a=await sharp(natural).ensureAlpha().extractChannel(3).raw().toBuffer(),b=await sharp(makeup).ensureAlpha().extractChannel(3).raw().toBuffer();if(!a.equals(b)||calls!==2)throw Error('Pair contract failed');
 await writeFile('/tmp/identity-natural.png',natural);await writeFile('/tmp/identity-makeup.png',makeup);
 const m=await sharp(natural).metadata(),report={width:m.width,height:m.height,providerCalls:calls,sameAlpha:true,naturalSha256:createHash('sha256').update(natural).digest('hex'),makeupSha256:createHash('sha256').update(makeup).digest('hex')};await writeFile('/tmp/identity-native-report.json',JSON.stringify(report));console.log('IDENTITY_NATIVE_PAIR '+JSON.stringify(report));
+
+for (const [name,png] of [['natural',natural],['makeup',makeup]]) {
+ const jpeg=await sharp(png).flatten({background:'#fff'}).resize({width:684}).jpeg({quality:84}).toBuffer();
+ if(jpeg.length>256*1024)throw Error('Private preview too large');
+ const preview=await fetch(QA+'/preview',{method:'POST',headers:{Authorization:'Bearer '+await auth(),'Content-Type':'image/jpeg'},body:jpeg});
+ if(!preview.ok)throw Error('Authenticated private preview failed '+preview.status);
+ console.log('IDENTITY_PRIVATE_PREVIEW_STORED '+name);
+}
