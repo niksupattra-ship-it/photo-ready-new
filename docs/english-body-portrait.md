@@ -1,6 +1,12 @@
 # English portraits
 
-## Current: complete AI Natural/Makeup pair, native delivery
+## Current: English outfit-locked face size (v6)
+
+New English-only requests use `en-fixed-face-scale-pair-v6` and `outfit-complete-frame-v14-fitted-face`. With a valid source face box, the untouched source face is scaled uniformly into the selected outfit's fixed native-sized composition guide before generation. The fitted width target is 0.70 × the reference head width, replacing the prior v5 target of 0.75. The face and selected outfit appear together in Image 1, so the model is not also given a competing close-up face that could override the size. Hair is an independent style reference, never a scale reference. The original garment stays fixed; AI completes the skull, a short continuous neck and collar in one native portrait with no automatic head/neck warp after delivery. The female Makeup variant edits the same Natural frame without resizing the face or clothing.
+
+If the browser lacks a usable source-face box, English retains the earlier neutral guide plus identity-reference path instead of inventing face geometry. Queued v3–v5 requests remain accepted, and Thai request fields, prompts, processing, generation, downloads and cache are unchanged. New version tags prevent older oversized English outputs from being silently reused for explicit new Create actions. Code tests cover guide dimensions, garment pixel preservation, identity reference order, female/male request counts and Thai isolation. This is a target and protocol change, not a guarantee that every third-party AI result will match an exact ratio; real generated samples still need visual QA.
+
+## Previous: complete native English portrait delivery
 
 New English requests use `portraitComposition=en-outfit-body-v1`,
 `englishStudioFinishVersion=en-complete-ai-pair-v4` and
