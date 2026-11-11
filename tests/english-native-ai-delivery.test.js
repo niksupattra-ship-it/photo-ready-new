@@ -51,7 +51,8 @@ test('Studio receives the native complete AI PNG as its source with one uniform 
 });
 
 test('new English completion is versioned separately; queued v3 and Thai keep their protocol boundaries',()=>{
- assert.equal(ENGLISH_TEMPLATE_BODY_FINISH_VERSION,'en-body-proportion-lock-v8');
+ assert.equal(ENGLISH_TEMPLATE_BODY_FINISH_VERSION,'en-natural-head-neck-v9');
+ assert(isEnglishTemplateBody({interfaceLanguage:'en',portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,englishStudioFinishVersion:'en-body-proportion-lock-v8'}));
  assert(isEnglishTemplateBody({interfaceLanguage:'en',portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,englishStudioFinishVersion:'en-outfit-proportional-head-v7'}));
  assert(isEnglishTemplateBody({interfaceLanguage:'en',portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,englishStudioFinishVersion:'en-complete-ai-pair-v4'}));
  assert(isEnglishTemplateBody({interfaceLanguage:'en',portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,englishStudioFinishVersion:'en-fixed-face-scale-pair-v6'}));

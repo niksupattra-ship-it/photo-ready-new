@@ -83,3 +83,24 @@ test('v8 identity guide grows relative to same garment while old reference is un
  }
  assert(checked>100000,'the complete garment is preserved');
 });
+
+test('v9 English head is larger and chin-to-collar neck shorter relative to unchanged outfit',async()=>{
+ const W=200,H=180,pixels=Buffer.alloc(W*H*4);
+ for(let y=50;y<H;y++)for(let x=0;x<W;x++)if(!(x>=75&&x<125&&y<90))pixels.set([50,60,80,255],(y*W+x)*4);
+ const outfit=await sharp(pixels,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
+ const identity=await sharp({create:{width:60,height:80,channels:4,background:'#d49379'}}).png().toBuffer();
+ const decode=async opts=>sharp(await createEnglishBodyLayout(outfit,{identity,canvasWidth:768,...opts})).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const v8=await decode({headScale:.84,profile:{identityHeadScale:.84,chinToCollar:.045,neckToShoulder:.24,chestToShoulder:.42}});
+ const v9=await decode({headScale:ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale,profile:ENGLISH_TEMPLATE_PROPORTION_PROFILE});
+ const measure=image=>{
+  const face=bounds(image.data,image.info.width,[212,147,121],2),garment=bounds(image.data,image.info.width,[50,60,80]);
+  assert(face&&garment);
+  const faceW=face.right-face.left+1,shoulderW=garment.right-garment.left+1;
+  return {ratio:faceW/shoulderW,gap:(garment.top-face.bottom)/shoulderW,garment};
+ };
+ const old=measure(v8),fresh=measure(v9);
+ assert(fresh.ratio>old.ratio*1.15,'v9 must visibly enlarge the head relative to the SAME fixed garment');
+ assert(fresh.gap<old.gap,'v9 must bring chin closer to the upper garment edge');
+ assert(fresh.ratio>.37&&fresh.ratio<.48,'v9 head-to-shoulder ratio remains bounded');
+ assert.equal(v9.info.width,768);assert.equal(v9.info.height,1024);
+});

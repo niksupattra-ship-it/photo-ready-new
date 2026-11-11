@@ -67,3 +67,17 @@ test('English v8 alone locks head/neck/shoulder proportion and reference hair ex
  const previous=englishTemplateBodyPrompt({...base,proportionLock:false,selectedHairKind:'short'});
  assert.doesNotMatch(previous,/ENGLISH BODY PROPORTION LOCK|ENGLISH CLEAN SHORT\/UPDO EDGE CHECK/);
 });
+
+test('v9 visibly expands the approved head and treats the lower blouse opening as upper chest, not neck',()=>{
+ const profile=ENGLISH_TEMPLATE_PROPORTION_PROFILE;
+ assert(profile.headWidthToShoulder*profile.identityHeadScale>.40);
+ assert(profile.chinToCollar<.02);
+ const base={gender:'female',identityIndex:1,outfitIndex:2,identityLayout:true,selectedHairKind:'gathered',proportionLock:true};
+ const v9=englishTemplateBodyPrompt({...base,naturalHeadNeck:true});
+ assert.match(v9,/40–42%/);
+ assert.match(v9,/ENGLISH V9 — VISIBLE NECK IS SHORT/);
+ assert.match(v9,/inner shirt's much LOWER neckline/);
+ assert.match(v9,/NEVER raise the chin or reduce the face size/);
+ const v8=englishTemplateBodyPrompt({...base,naturalHeadNeck:false});
+ assert.doesNotMatch(v8,/ENGLISH V9 — VISIBLE NECK IS SHORT|40–42%/);
+});

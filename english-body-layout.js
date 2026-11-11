@@ -1,9 +1,10 @@
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
 import sharp from 'sharp';
 import {measureUniformAnchors} from './src/portrait-uniform-fit.js';
-// New English v8 proportions are opt-in; queued legacy jobs keep their guide.
+// v9 is opt-in for English template portraits. Legacy generations retain their pixels.
 export const ENGLISH_TEMPLATE_PROPORTION_PROFILE=Object.freeze({
- identityHeadScale:.84,chinToCollar:.045,neckToShoulder:.24,chestToShoulder:.42
+ identityHeadScale:.95,headWidthToShoulder:.44,headHeightToShoulder:.66,
+ chinToCollar:.012,neckToShoulder:.26,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
 export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null}={}){
@@ -11,12 +12,20 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
  const {data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  const uniform=measureUniformAnchors(data,info.width,info.height),span=uniform.shoulderWidth;
- const referenceHeadWidth=span*.40,referenceHeadHeight=span*.54;
+ const referenceHeadWidth=span*(profile?.headWidthToShoulder??.40);
+ const referenceHeadHeight=span*(profile?.headHeightToShoulder??.54);
  const face=identity?await sharp(identity).metadata():null,faceAspect=face?.width&&face?.height?face.height/face.width:null;
- const headWidth=Math.min(referenceHeadWidth*headScale,faceAspect?referenceHeadHeight/(faceAspect+.12):Infinity),headHeight=faceAspect?headWidth*(faceAspect+.12):referenceHeadHeight*headScale,neckLength=span*(profile?.chinToCollar??.045),neckWidth=span*(profile?.neckToShoulder??.22);
+ // The previous min(..., referenceHeadHeight/faceAspect) silently capped the
+ // English face width, so raising headScale alone did not visibly enlarge it.
+ // v9 keeps the original crop aspect ratio and sizes the face by shoulder span.
+ const headWidth=profile?.headWidthToShoulder?referenceHeadWidth*headScale:Math.min(referenceHeadWidth*headScale,faceAspect?referenceHeadHeight/(faceAspect+.12):Infinity);
+ const headHeight=faceAspect?headWidth*(faceAspect+.12):referenceHeadHeight*headScale;
+ const neckLength=span*(profile?.chinToCollar??.045),neckWidth=span*(profile?.neckToShoulder??.22);
  const chinY=uniform.collarTopY-neckLength,headTop=chinY-headHeight;
  const left=Math.min(uniform.bounds.l,uniform.centerX-referenceHeadWidth/2),right=Math.max(uniform.bounds.r+1,uniform.centerX+referenceHeadWidth/2);
- const top=Math.min(chinY-referenceHeadHeight,uniform.bounds.t),bottom=uniform.bounds.b+1;
+ // Reserve headroom for the larger v9 skull and the selected hairstyle without
+ // stretching the garment; older English guides preserve their original frame.
+ const top=Math.min(chinY-(profile?.headWidthToShoulder?Math.max(referenceHeadHeight,headHeight+span*.055):referenceHeadHeight),uniform.bounds.t),bottom=uniform.bounds.b+1;
  const W=canvasWidth,H=canvasWidth*4/3,pad=canvasWidth/32,scale=Math.min((W-2*pad)/(right-left),(H-2*pad)/(bottom-top));
  const x=(W-(right-left)*scale)/2-left*scale,y=H-pad-bottom*scale;
  const cx=x+uniform.centerX*scale,headY=y+headTop*scale,chin=y+chinY*scale,collar=y+uniform.collarTopY*scale;
