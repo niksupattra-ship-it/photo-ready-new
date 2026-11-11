@@ -27,8 +27,7 @@ keeps native RGB/detail. It never applies the legacy head/neck pixel warp to
 this mode. `fitEnglishHeadTemplate` places the entire unmodified garment with
 one native aspect ratio and its complete lower edge, then fits the whole head
 with one isotropic transform toward face/shoulder ratio0.30. Tall crowns may
-reduce that target to preserve headroom. No separate face, jaw or neck warp. English native export is 2304×3072 to
-retain the scene’s exact 3:4 aspect; Thai retains its established export size.
+reduce that target to preserve headroom. No separate face, jaw or neck warp.
 
 `englishNeckClipMask` is an automatic alpha mask derived from the **actual
 native garment rows** and native semantic evidence. Above the real collar the
@@ -48,7 +47,7 @@ an older profile. Already resampled old images cannot acquire missing detail
 merely by refreshing the page.
 
 Validation includes actual head-only provider samples, native PNG pair/alpha,
-51 focused Node checks, and actual App desktop/mobile with pinned real models.
+50 focused Node checks, and actual App desktop/mobile with pinned real models.
 For the actual female sample, the retained native face width was about764px;
 the checked central facial RGB region was bit-identical to the provider output
 after cleanup. This is a region/pixel preservation check, not an image-quality
