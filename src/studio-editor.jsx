@@ -92,7 +92,7 @@ const STUDIO_DOWNLOAD_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(s=>['origin
 const W=900,H=1200;
 const FRAME_SOURCE_FIELDS=['processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','englishNeckClipMask'];
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});
-const nativeCanvas=()=>{const w=2256,h=3072;return Object.assign(document.createElement('canvas'),{width:Math.round(Math.max(1,Math.min(8192,w))),height:Math.round(Math.max(1,Math.min(8192,h)))})};
+const nativeCanvas=()=>{const w=englishPreviewEnabled()?2304:2256,h=3072;return Object.assign(document.createElement('canvas'),{width:Math.round(Math.max(1,Math.min(8192,w))),height:Math.round(Math.max(1,Math.min(8192,h)))})};
 
 function paintOriginal(ctx,im){ctx.setTransform(1,0,0,1,0,0);const w=ctx.canvas.width,h=ctx.canvas.height;ctx.clearRect(0,0,w,h);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';const scale=Math.min(w/im.width,h/im.height);ctx.drawImage(im,(w-im.width*scale)/2,(h-im.height*scale)/2,im.width*scale,im.height*scale)}
 // History retains lossless native surfaces; PNG encoding is reserved for file saves.
