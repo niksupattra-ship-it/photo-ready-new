@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
-import {createEnglishBodyLayout} from '../english-body-layout.js';
+import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE} from '../english-body-layout.js';
 const bounds=(pixels,width,colour,tolerance=0)=>{
   const n=pixels.length/4,seen=new Uint8Array(n),queue=new Int32Array(n);let largest=null;
   const matches=i=>colour.every((v,c)=>Math.abs(pixels[i*4+c]-v)<=tolerance);
@@ -62,4 +62,24 @@ test('the real-face guide reduces the face envelope and retains every opaque gar
  assert(garment>100000);
  const reference=bounds(before.data,before.info.width,[170,178,189]),face=bounds(after.data,after.info.width,[212,147,121],2);
  assert(face.count>1000);assert(face.right-face.left<(reference.right-reference.left)*.9);
+});
+
+test('v8 identity guide grows relative to same garment while old reference is unchanged',async()=>{
+ const W=200,H=180,pixels=Buffer.alloc(W*H*4);
+ for(let y=50;y<H;y++)for(let x=0;x<W;x++)if(!(x>=75&&x<125&&y<90))pixels.set([50,60,80,255],(y*W+x)*4);
+ const outfit=await sharp(pixels,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
+ const identity=await sharp({create:{width:60,height:80,channels:4,background:'#d49379'}}).png().toBuffer();
+ const read=async opts=>sharp(await createEnglishBodyLayout(outfit,opts)).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const legacy=await read({headScale:.75,identity});
+ const updated=await read({headScale:ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale,identity,profile:ENGLISH_TEMPLATE_PROPORTION_PROFILE});
+ const oldFace=bounds(legacy.data,legacy.info.width,[212,147,121],2);
+ const newFace=bounds(updated.data,updated.info.width,[212,147,121],2);
+ assert(oldFace&&newFace,'both identity envelopes are visible');
+ assert(newFace.right-newFace.left>oldFace.right-oldFace.left,'the v8 identity face guide is larger');
+ assert.deepEqual(updated.info,legacy.info);
+ let checked=0;
+ for(let i=0;i<legacy.data.length;i+=4)if(legacy.data[i]===50&&legacy.data[i+1]===60&&legacy.data[i+2]===80&&legacy.data[i+3]===255){
+  checked++;assert.deepEqual(updated.data.subarray(i,i+4),legacy.data.subarray(i,i+4),'outfit pixels stay fixed');
+ }
+ assert(checked>100000,'the complete garment is preserved');
 });

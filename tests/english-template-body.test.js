@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
-import {createEnglishBodyLayout} from '../english-body-layout.js';
+import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE} from '../english-body-layout.js';
+import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_SIZE} from '../english-template-body-policy.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
@@ -13,7 +14,7 @@ const fields={interfaceLanguage:'en',portraitComposition:'en-outfit-body-v1',eng
 const cutout=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:115,channels:4,background:'#bd9788'}}).png().toBuffer(),left:8,top:13}]).png().toBuffer();
 test('template, rather than original body, is the actual AI base; identity and exact selected hair remain separate',async()=>{
  const [nativeWidth,nativeHeight]=ENGLISH_TEMPLATE_BODY_SIZE.split('x').map(Number);assert.equal(nativeWidth/nativeHeight,.75);assert(nativeWidth*nativeHeight<=4624220,'Stay within the verified Flash output limit');assert.equal(nativeWidth%32,0);assert.equal(nativeHeight%32,0);
- const outfit=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer(),layout=await createEnglishBodyLayout(outfit);let previousBase;
+ const outfit=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer(),layout=await createEnglishBodyLayout(outfit,{profile:ENGLISH_TEMPLATE_PROPORTION_PROFILE});let previousBase;
  for(const [width,height]of [[64,160],[200,80]]){
   const original=await sharp({create:{width,height,channels:3,background:'#ba9788'}}).png().toBuffer(),calls=[];let pair;
   await processProductionPortrait({input:{buffer:original,mimetype:'image/png'},fields:{...fields,hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1'},root,key:'inert',removeBackground:async()=>cutout,onMakeupVariant:async p=>pair=p,requestPortrait:async p=>{calls.push(p);return{png:cutout}}});
@@ -35,7 +36,7 @@ test('male template generation is one request and the new English policy cannot 
 
 test('the new English guide contains the original face at fixed size before generation, with no extra AI pass',async()=>{
  const box=[.25,.125,.75,.625],input={buffer:cutout,mimetype:'image/png'},identity=await portraitIdentityCrop(input,box),outfit=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
- const expected=await createEnglishBodyLayout(outfit,{headScale:.75,identity,canvasWidth:1824});
+ const expected=await createEnglishBodyLayout(outfit,{headScale:ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_TEMPLATE_PROPORTION_PROFILE});
  for(const withHair of [false,true]){
   const calls=[];
   await processProductionPortrait({input,fields:{...fields,faceIdentityBox:JSON.stringify(box),...(withHair?{hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1'}:{})},root,key:'inert',removeBackground:async()=>cutout,onMakeupVariant:async()=>{},requestPortrait:async p=>{calls.push(p);return{png:cutout}}});
@@ -47,4 +48,22 @@ test('the new English guide contains the original face at fixed size before gene
   assert.equal(payload.image[0],'data:image/png;base64,'+expected.toString('base64'));
   if(withHair)assert.match(calls[0].prompt,/SELECTED HAIRSTYLE — IMAGE 2/);
  }
+});
+
+test('English v8 alone locks head/neck/shoulder proportion and reference hair extent',()=>{
+ const base={gender:'male',identityIndex:1,outfitIndex:2,identityLayout:true,proportionLock:true};
+ const short=englishTemplateBodyPrompt({...base,selectedHairKind:'short'});
+ assert.match(short,/ENGLISH BODY PROPORTION LOCK/);
+ assert.match(short,/head-to-shoulder scale/);
+ assert.match(short,/ENGLISH CLEAN SHORT\/UPDO EDGE CHECK/);
+ assert.match(short,/neck or shoulders/);
+ const bob=englishTemplateBodyPrompt({...base,selectedHairKind:'bob'});
+ assert.match(bob,/ENGLISH BOB EDGE CHECK/);
+ assert.match(bob,/Never shorten a legitimate bob edge/);
+ const gathered=englishTemplateBodyPrompt({...base,selectedHairKind:'gathered'});
+ assert.match(gathered,/ENGLISH CLEAN SHORT\/UPDO EDGE CHECK/);
+ const retained=englishTemplateBodyPrompt({...base,keepCurrentHair:true,selectedHairKind:'short'});
+ assert.doesNotMatch(retained,/ENGLISH CLEAN SHORT\/UPDO EDGE CHECK/);
+ const previous=englishTemplateBodyPrompt({...base,proportionLock:false,selectedHairKind:'short'});
+ assert.doesNotMatch(previous,/ENGLISH BODY PROPORTION LOCK|ENGLISH CLEAN SHORT\/UPDO EDGE CHECK/);
 });
