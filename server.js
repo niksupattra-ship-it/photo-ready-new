@@ -232,7 +232,7 @@ async function requireCredit(req,res,kind){
 
 const upload=multer({
   storage:multer.memoryStorage(),
-  limits:{fileSize:20*1024*1024,files:2,fields:12,parts:16}
+  limits:{fileSize:20*1024*1024,files:2,fields:20,parts:24}
 });
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
 registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sharp(buffer).metadata(),createSourceDownloadJob,downloadPolicy});
@@ -455,7 +455,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
      await refundCredit(creditUse.usageId);creditUse=null;
      return res.status(409).set({'X-IDPROM-Canonical-Input':'1','Content-Type':pinned.mimetype,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}).send(pinned.buffer);
     }
-    delete fields.faceIdentityBox;
+    delete fields.faceIdentityBox;delete fields.englishHairFit;
    }
   const jobImage={...image,buffer:pinned.buffer,mimetype:pinned.mimetype,originalname:'portrait-input'+(pinned.mimetype==='image/jpeg'?'.jpg':pinned.mimetype==='image/webp'?'.webp':'.png')};
   const id=await createAiJob({walletId:walletId(req),usageId:creditUse.usageId,fields,image:jobImage,mask});

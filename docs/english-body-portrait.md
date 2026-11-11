@@ -160,3 +160,79 @@ new provider run on the user's attached screenshot.
 
 - `node --test tests/english-head-balance.test.js tests/english-proportions.test.js tests/english-completed-delivery.test.js`
 - `HEAD_BALANCE_BASE=http://127.0.0.1:5173 python tests/english-head-balance.browser.py`
+
+## English soft studio finish (11 November 2026)
+
+New English requests explicitly send `englishStudioFinishVersion=en-reference-soft-matte-pair-v1`.
+They take a dedicated branch before Thai skin preparation, Thai prompt assembly,
+skin-board loading, neckline/cutout guide loading and discarded prompt rewriting.
+Queued older requests keep their released path. Thai request fields, skin/makeup
+policy, cache key and generation stages are unchanged.
+
+The shared skin/light section is derived from the user's supplied
+`review-portrait-finish.js` (SHA256
+`c604003378f80d5017e1a18e53f284521c2ea6928b3a89ab4d2c855ab7d6a583`).
+The full reference is separated into skin and cosmetics in
+`english-studio-finish.js`. Natural completes adaptive, authentic-complexion,
+soft-matte fine-textured skin with the hair/neck/outfit generation; it adds no
+brow reconstruction or cosmetic pigment/gloss. The accepted garment still
+controls clothing appearance and established lighting. Makeup uses that completed
+Natural image once, applies the reference feathered brows, sheer eyelid finish,
+neutral lower-eye skin and glossy lips, and locks the finished skin/light/hair/
+neck/garment. The experiment's final #DD9C8C at40% pigment opacity for upper lids
+and inner lips, #F0A2A8 outer lips, and neutral inner-corner sheen are retained.
+Its cosmetic shimmer cannot change iris colour, gaze or actual eye catchlights.
+The previous additional fairer-than-Natural foundation/0.4–0.6EV fill is omitted
+from this version only.
+
+English female jobs retain two provider requests and two stored PNGs; English
+male Natural needs one. Both female images complete before delivery. A failure
+cannot publish a partial pair or trigger extra automatic AI attempts. The same
+stored pair still supports immediate finish switching, history and saved work.
+New profile/version metadata survives job restoration and layer/history saves.
+Explicit Create refreshes an older matching policy; opening saved work does not
+regenerate it. Existing credit, ownership and download rules stay in place.
+
+For a newly selected hairstyle, optional cached source-face/segmentation evidence
+builds a neutral personal placement guide. The exact picker hair is aligned to
+the source eye axis using the guide manifest's donor landmarks. A predominantly
+bare connected upper head contributes its measured scalp outline; an existing
+large hair mass or clipped crown is not mislabelled as a skull measurement.
+Hair can cover the bald/receding scalp instead of stacking above it. The guide
+contains no face photograph, adds no provider request, and is never pasted into
+final pixels. Failure to obtain optional evidence/guide assets retains the
+ordinary generation path. Keep-current-hair bypasses this new-hair guide.
+The composition guide and measured English head correction remain authoritative
+for final framing/head-to-body size; personal guide relationships follow that
+same pose/scale. Guide fields are discarded from completed/failed job metadata.
+
+The frontend skips unused Thai background/template preloads and eager source
+segmentation for English. Actual hair-fit evidence and head balancing load
+segmentation only when used. Native paired PNGs are encoded directly instead
+of a redundant full-resolution alpha repaint and Natural canvas re-encode.
+Multipart bounds now allow the complete legitimate English selected-hair/owned
+work request (20 fields,24 parts, unchanged two-file/20MiB limits); the prior
+12-field bound rejected the expanded valid request. If a server-pinned input
+differs, the stale optional hair evidence is discarded with its identity crop.
+
+Regression coverage includes exact request counts/roles, no Thai-only assets,
+actual browser multipart submission through the real Multer limits, original
+upload preservation, bald/no-hairline evidence, optional failure, paired alpha,
+atomic failure, existing-hair reuse, head balance and mobile/desktop UI/downloads.
+These local regressions use inert provider responses; separate provider smoke
+artifacts document actual image generation rather than treating mocks as visual
+quality proof. A one-image prototype's latency is not promised for a two-image
+pair.
+
+The isolated live smoke used the same Seedream Flash model and the actual
+English helper/prompt/transport code, with public photographic samples: one
+female Natural/Makeup pair and one originally bald male with the selected buzz
+cut. All three provider requests completed; native outputs were 1728×2304,
+and the female pair had identical alpha. Source MediaPipe measurements identified
+the male's bare scalp with 21 outline points. Visual inspection confirmed hair
+attachment in that sample and visible brow/lid/lip changes over the shared
+skin finish. Individual provider requests took about 26–29 seconds in this run;
+these timings exclude frontend work/queueing and are not a latency guarantee.
+The one-shot QA function was made inert after the three-request run. It touched
+no customer job, payment or wallet. Mobile/desktop App and multipart tests use
+mocked APIs separately; they are not represented as live customer generations.

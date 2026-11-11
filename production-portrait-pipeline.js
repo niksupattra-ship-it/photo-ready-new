@@ -25,6 +25,9 @@ import {femaleFinishFor,FEMALE_MAKEUP_TEXTURE_PRIORITY,FEMALE_MAKEUP_SOURCE_LOCK
 import {productionHair,selectedHairDesign,selectedHairInstruction,selectedHairPlacement} from './hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOFT_HAIR_TEXTURE_POLICY} from './catalogue-hair-policy.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
+import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
+import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './english-studio-finish.js';
+import {parseEnglishHairFit,createEnglishHairFitGuide} from './english-hair-fit-guide.js';
 
 export function checkedOutfitReferencePath(value){
  if(typeof value!=='string'||!/^\/assets\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.(?:png|webp)$/.test(value))throw Error('ข้อมูลชุดอ้างอิงไม่ถูกต้อง');
@@ -73,6 +76,8 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
+ validateEnglishStudioFinish(fields);
+ if(fields.englishHairFit!==undefined){if(!usesEnglishStudioFinish(fields))throw Error('Invalid English hair placement option');parseEnglishHairFit(fields.englishHairFit)}
  validateCurrentHairRequest(fields);
  if(!input?.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(input.mimetype))throw Error('กรุณาใช้ภาพ PNG, JPG หรือ WEBP');
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
@@ -157,6 +162,10 @@ export function studioReferenceIdentityBox(evidence){
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  const chosen=validateProductionPortrait(input,fields);
  const selected=chosen||{gender:fields.portraitMode};
+ // Current English requests never enter the Thai preparation, head cutout,
+ // skin-board or discarded Thai prompt construction below. Old queued jobs
+ // retain their released route; Thai requests keep the same processing.
+ if(usesEnglishStudioFinish(fields))return processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected});
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
  const originalAiV2=originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_V5_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields.studioSkinVersion);
  const englishBody=isEnglishBodyPortrait(fields);
@@ -288,6 +297,35 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   await onStage('makeup');
   const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody});
   if(typeof onMakeupVariant!=='function')throw Error('ระบบเก็บภาพแต่งหน้ายังไม่พร้อม');
+  await onMakeupVariant(makeup);
+ }
+ return transparent;
+}
+async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected}){
+ const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
+ const outfit=await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ const keepCurrentHair=fields.keepCurrentHair==='1';
+ if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
+ let hair=null;
+ if(keepCurrentHair&&currentHair)hair=await sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
+ else if(chosen){
+  if(chosen.id.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION)hair=await loadCatalogueHairGuide(chosen.id,root);
+  else{const buffer=await readFile(chosen.referenceDirectory==='hair'?path.join(root,'public/assets/hair',chosen.file):path.join(root,'public/assets/seedream-hairstyles/references',chosen.file));hair=chosen.referenceDirectory==='hair'?await prepareFreePngReference(buffer,chosen.id):buffer}
+ }
+ const identity=await portraitIdentityCrop(input,parsePortraitIdentityBox(fields.faceIdentityBox));
+ const fit=!keepCurrentHair&&chosen?parseEnglishHairFit(fields.englishHairFit):null;
+ const hairPlacementReference=fit?await createEnglishHairFitGuide({fit,hair,selected:chosen,root}):null;
+ const compositionReference=await createEnglishBodyLayout(outfit),outfitIndex=2+Number(Boolean(hair))+Number(Boolean(identity)),hairFitIndex=hairPlacementReference?outfitIndex+1:null;
+ const prompt=englishBodyPortraitPrompt({gender:selected.gender,keepCurrentHair,hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex,hairFitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ await onStage('generation');
+ const result=await requestPortrait({key,prompt,size:ENGLISH_BODY_OUTPUT_SIZE,portrait:input.buffer,portraitMime:input.mimetype,hair,identity,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),compositionReference});
+ await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
+ const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
+ if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
+ if(selected.gender==='female'&&isAiMakeupPairVersion(fields.femaleFinishPair)){
+  await onStage('makeup');
+  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:true,englishReferenceFinish:true});
+  if(typeof onMakeupVariant!=='function')throw Error('Paired makeup storage is unavailable.');
   await onMakeupVariant(makeup);
  }
  return transparent;
