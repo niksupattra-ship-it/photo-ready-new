@@ -51,3 +51,15 @@ test('smaller head guide keeps the same chin anchor, neck, garment pixels and ca
  const start=(Math.max(a.bottom,b.bottom)+2)*before.info.width*4;
  assert.deepEqual(after.data.subarray(start),before.data.subarray(start),'neck and entire garment below the jaw retain exact guide pixels');
 });
+
+test('the real-face guide reduces the face envelope and retains every opaque garment pixel',async()=>{
+ const width=200,height=180,pixels=Buffer.alloc(width*height*4);
+ for(let y=50;y<height;y++)for(let x=0;x<width;x++)if(!(x>=75&&x<125&&y<90))pixels.set([50,60,80,255],(y*width+x)*4);
+ const outfit=await sharp(pixels,{raw:{width,height,channels:4}}).png().toBuffer(),identity=await sharp({create:{width:60,height:80,channels:4,background:'#d49379'}}).png().toBuffer();
+ const decode=async b=>sharp(b).ensureAlpha().raw().toBuffer({resolveWithObject:true}),before=await decode(await createEnglishBodyLayout(outfit)),after=await decode(await createEnglishBodyLayout(outfit,{headScale:.75,identity}));
+ assert.deepEqual(before.info,after.info);
+ let garment=0;for(let i=0;i<before.data.length;i+=4)if(before.data[i]===50&&before.data[i+1]===60&&before.data[i+2]===80&&before.data[i+3]===255){garment++;assert.deepEqual(after.data.subarray(i,i+4),before.data.subarray(i,i+4));}
+ assert(garment>100000);
+ const reference=bounds(before.data,before.info.width,[170,178,189]),face=bounds(after.data,after.info.width,[212,147,121]);
+ assert(face.count>1000);assert(face.right-face.left<(reference.right-reference.left)*.9);
+});

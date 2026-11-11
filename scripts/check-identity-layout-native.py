@@ -1,0 +1,53 @@
+"""Compare actual AI proportions, without modifying the delivered PNG."""
+from pathlib import Path
+import os,json,time,urllib.request,urllib.parse,hashlib
+from playwright.sync_api import sync_playwright
+ROOT=Path(__file__).resolve().parents[1]
+BASE='http://127.0.0.1:5173'
+QA='https://english-soft-studio-qa-20261111-production.up.railway.app'
+AUD='idpromth-identity-layout-qa'
+# An ephemeral GitHub OIDC token is used only in memory; no stored credentials.
+url=os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']+'&audience='+urllib.parse.quote(AUD)
+req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
+with urllib.request.urlopen(req,timeout=30)as r:token=json.load(r)['value']
+def get(path):
+ with urllib.request.urlopen(urllib.request.Request(QA+path,headers={'Authorization':'Bearer '+token}),timeout=60)as r:return r.read()
+deadline=time.monotonic()+150
+while True:
+ try:
+  report=json.loads(get('/report'))
+  if report['complete']:break
+ except Exception:
+  if time.monotonic()>deadline:raise
+ if time.monotonic()>deadline:raise RuntimeError('QA result not ready')
+ time.sleep(5)
+assert not report['errors'],report['errors']
+candidate=get('/female-natural.png');expected=report['cases'][0]['natural']['pngSha256']
+assert hashlib.sha256(candidate).hexdigest()==expected
+baseline=urllib.request.urlopen('https://idpromth.com/assets/job-uniforms/female-formal-suit-example.png',timeout=30).read()
+# Baseline is the public original subject; compare the candidate to the measured
+# actual V4 QA ratio, not to another independently generated portrait.
+with sync_playwright()as pw:
+ b=pw.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+ p=b.new_page()
+ def route(r):
+  if r.request.url==BASE+'/qa-native.png':r.fulfill(body=candidate,content_type='image/png')
+  elif r.request.url.startswith(BASE+'/')and'/api/'not in r.request.url:r.continue_()
+  else:r.abort()
+ p.route('**/*',route)
+ p.goto(BASE+'/scripts/fixtures/english-download.html?lang=en',wait_until='domcontentloaded')
+ result=p.evaluate("""async()=>{
+ const {loadVisionRuntime}=await import('/src/vision-runtime.js'),{FilesetResolver,FaceLandmarker}=await loadVisionRuntime(),{VISION_WASM_ROOT,FACE_LANDMARK_MODEL}=await import('/src/vision-assets.js'),{measureEnglishProportions}=await import('/src/english-proportion-check.js');
+ const vision=await FilesetResolver.forVisionTasks(VISION_WASM_ROOT),fm=await FaceLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:FACE_LANDMARK_MODEL},runningMode:'IMAGE',numFaces:1}),im=new Image();im.src='/qa-native.png';await im.decode();
+ const face=fm.detect(im).faceLandmarks?.[0],c=Object.assign(document.createElement('canvas'),{width:im.naturalWidth,height:im.naturalHeight}),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+ const metrics=measureEnglishProportions(x.getImageData(0,0,c.width,c.height).data,c.width,c.height,face,{allowCropped:true});
+ return {width:c.width,height:c.height,metrics};}""")
+ p.screenshot(path='/tmp/identity-layout-page.png')
+ b.close()
+result['providerCalls']=report['providerCalls'];result['nativeSha256']=expected
+result['previousActualV4FaceRatio']=0.3590504490372361
+print('IDENTITY_LAYOUT_MEASUREMENT '+json.dumps(result),flush=True)
+assert result['metrics']['measurable']
+assert .26<=result['metrics']['faceRatio']<=.325,'AI head is still outside the intended proportion range'
+assert result['metrics']['faceRatio']<result['previousActualV4FaceRatio']*.93,'Actual AI head did not materially shrink'
+assert result['metrics']['shoulderSpan']>=1550,'AI must not narrow the selected garment to fit the head'

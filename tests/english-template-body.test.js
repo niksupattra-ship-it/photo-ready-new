@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
-import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
+import {processProductionPortrait,validateProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
 import {createEnglishBodyLayout} from '../english-body-layout.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_SIZE} from '../english-template-body-policy.js';
@@ -31,4 +31,12 @@ test('template, rather than original body, is the actual AI base; identity and e
 test('male template generation is one request and the new English policy cannot activate on Thai',async()=>{
  let calls=0;await processProductionPortrait({input:{buffer:cutout,mimetype:'image/png'},fields:{...fields,portraitMode:'male',femaleFinishPair:undefined,studioSkinVersion:undefined,hairId:'seedream-37',hairReferenceVersion:'picker-hair-v1'},root,key:'inert',removeBackground:async()=>cutout,requestPortrait:async p=>{calls++;assert.match(p.prompt,/SELECTED PICKER HAIR seedream-37/);return{png:cutout}}});assert.equal(calls,1);
  assert.throws(()=>validateProductionPortrait({buffer:cutout,mimetype:'image/png'},{...fields,interfaceLanguage:'th'}),/English studio/);
+});
+
+test('the new English guide contains the original face at fixed size before generation, with no extra AI pass',async()=>{
+ const box=[.25,.125,.75,.625],input={buffer:cutout,mimetype:'image/png'},identity=await portraitIdentityCrop(input,box),outfit=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ const expected=await createEnglishBodyLayout(outfit,{headScale:.75,identity}),calls=[];
+ await processProductionPortrait({input,fields:{...fields,faceIdentityBox:JSON.stringify(box)},root,key:'inert',removeBackground:async()=>cutout,onMakeupVariant:async()=>{},requestPortrait:async p=>{calls.push(p);return{png:cutout}}});
+ assert.equal(calls.length,2);assert.deepEqual(calls[0].portrait,expected);assert.deepEqual(calls[0].identity,identity);
+ assert.match(calls[0].prompt,/already contains THIS real person/);assert.match(calls[0].prompt,/never a new face size, head scale or framing/);
 });
