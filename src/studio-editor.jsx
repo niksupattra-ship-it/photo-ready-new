@@ -835,7 +835,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const [bodyOutfitRequest,setBodyOutfitRequest]=useState(null);
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false}={})=>{
   const manualSuit=englishFlow&&kind==='suit'&&!aiSetup;
-  if(manualSuit&&!manualOverride&&option&&englishRoute!=='manual'&&outputHeads(state.current).some(l=>[ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(l.portraitComposition))){startOutfitAi(option);return;}
+  // Clicking an outfit thumbnail places its native PNG. AI is separately explicit.
   if(manualSuit)setEnglishInlineAi(null);
   if(!ready||processActive||comparing||(assetBusy&&!(kind==='suit'&&option&&suitRequestRef.current?.phase==='loading')))return;
   if(kind==='suit'&&option&&suitPolicy.limited&&suitPolicy.choices.length>=suitChoiceLimit&&!suitPolicy.choices.includes(option.template)){setStatus(`เลือกชุดครบ ${suitChoiceLimit} ชุดแล้ว กรุณาเลือกชุดที่เคยเลือกไว้`);return}
@@ -856,7 +856,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{
    if(request)await request.wait(request.firstPaint);
    flushTransforms();const previous=historySnapshot();let next,fitWarning='',englishHeadFrame=null,englishNeckClipMask=null;
-   if(!option){next=previous.filter(l=>l.id!==target?.id);}
+   if(!option){next=previous.filter(l=>l.id!==target?.id);if(manualSuit)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);}
    else{
     const suit=previous.find(l=>layerKind(l)==='suit');
     const p=placementRef.current;let collarParts=null;
@@ -873,6 +873,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
      const portraitAsset=portrait&&assets.current.get(portrait.id);
      const fitting=fitEnglishManualOutfit({source:native.source,head:portrait,headSource:portraitAsset?.warped||portraitAsset?.original,measureFace:onMeasureSuitFace,facePromise:request?.facePromise}),fitted=request?await request.wait(fitting):await fitting;
      const {englishHeadFrame:headFrame,...garmentFrame}=fitted;englishHeadFrame=headFrame;
+     if(!headFrame&&portrait?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)headFrame=portrait.sourceFrame||{x:0,y:0,w:W,h:H};
      if(headFrame&&onPrepareEnglishOutfitClip){const clipping=onPrepareEnglishOutfitClip(portrait,native.source,headFrame,garmentFrame);englishNeckClipMask=request?await request.wait(clipping):await clipping}
      Object.assign(created,{sourceFrame:garmentFrame,collarFrame:{...garmentFrame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1,autoSuitFitVersion:null,manualOutfitFitVersion:ENGLISH_MANUAL_OUTFIT_VERSION});
     }
@@ -882,6 +883,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(kind==='collar')Object.assign(created,{collarLeftScale:1,collarRightScale:1,collarLeftRotation:0,collarRightRotation:0});
     next=target?previous.map(l=>l.id===target.id?created:l):kind==='background'?[created,...previous]:[...previous,created];
     if(englishHeadFrame)next=next.map(l=>l.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION?{...l,sourceFrame:englishHeadFrame,...(englishNeckClipMask?{englishNeckClipMask}:{}),x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0}:l);
+    // Preserve the finished portrait's head/frame. Only mask baked clothing.
+    if(manualSuit&&combinedBody&&englishNeckClipMask)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask}:l);
+    if(kind==='suit'&&combinedBody&&!manualSuit)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);
     if(fitHead){try{const asset=assets.current.get(fitHead.id);if(!asset)throw Error('ยังเตรียมภาพหัวไม่สำเร็จ');setStatus('กำลังจัดหัวและคอให้พอดีกับชุด…');const fitting=fitStudioSuit({layers:next,previousSuit:target,nextSuit:created,headSource:asset.warped||sharedStudioSkinSource(fitHead)||asset.original,headMask:asset.mask,measureFace:onMeasureSuitFace});next=request?await request.wait(fitting):await fitting;fitWarning=next.find(l=>l.id===created.id)?.autoSuitFitWarning||''}catch(error){if(error.code==='SUIT_SELECTION_REPLACED')throw error;fitWarning='ยังจัดหัวอัตโนมัติไม่สำเร็จ สามารถปรับหัวและคอเสื้อเพิ่มเติมได้';next=next.map(l=>l.id===created.id?{...l,autoSuitFitVersion:null,autoCollarFitApplied:false,autoSuitFitWarning:fitWarning}:l)}}
    }
    if(request){if(suitRequestRef.current!==request)return;request.phase='committing';setSuitSelecting(false)}
@@ -1034,7 +1038,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(existing&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===ENGLISH_TEMPLATE_BODY_FINISH_VERSION&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&(portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish||hasPairedPortraitFinish(existing))){
    const fitted=state.current.find(l=>l.id===existing.id);
    if(portraitFinishChoice(fitted.femaleEyeStyle,fitted.initialFemaleEyeStyle)!==finish)await switchPairedPortraitFinish(fitted,finish);
-   if(!await hydrate(state.current.map(l=>layerKind(l)==='suit'?{...l,visible:false}:l)))throw Error('Could not show your portrait.');
+   if(!await hydrate(state.current.map(l=>layerKind(l)==='suit'?{...l,visible:false}:l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l)))throw Error('Could not show your portrait.');
    setEnglishStep(null);setEnglishRoute('review');setEnglishInlineAi(null);setStatus('Showing your existing portrait.');return;
   }
   const oldSuit=state.current.find(l=>layerKind(l)==='suit');

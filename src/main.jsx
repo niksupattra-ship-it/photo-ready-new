@@ -2635,7 +2635,21 @@ async function createEnglishNeckClipMask({source,face,uniform,uniformPixels,head
  const im=typeof source==='string'?await decodedStudioImage(source):await decodedPortraitImage(source),width=im.naturalWidth||im.width,height=im.naturalHeight||im.height,labels=await englishHeadLabels(im),mask=englishNeckClipAlpha({width,height,labels,chinY:face[152].y*height,uniform,uniformPixels,headFrame,garmentFrame}),c=canvasFor(width,height),x=c.getContext('2d'),frame=x.createImageData(width,height);
  try{for(let i=0;i<mask.length;i++){frame.data[i*4]=frame.data[i*4+1]=frame.data[i*4+2]=255;frame.data[i*4+3]=mask[i]}x.putImageData(frame,0,0);return c.toDataURL('image/png')}finally{c.width=c.height=1}
 }
+// A complete English AI portrait has its old outfit baked into the pixels.
+ // When a user selects a native PNG, retain just the actual face, neck and
+ // intended hair; otherwise the previous jacket would show through new lapels.
+async function prepareEnglishBodyOutfitClip(head){
+ const source=head.studioSkinBaseSource||head.source,im=await decodedStudioImage(source),width=im.naturalWidth||im.width,height=im.naturalHeight||im.height;
+ const face=await measureStudioSuitFace(im),labels=await englishHeadLabels(im),c=canvasFor(width,height),x=c.getContext('2d',{willReadFrequently:true});
+ try{
+  x.drawImage(im,0,0);
+  const pixels=x.getImageData(0,0,width,height).data,alpha=englishHeadCutoutAlpha(pixels,width,height,face,labels),mask=x.createImageData(width,height);
+  for(let i=0;i<alpha.length;i++){mask.data[i*4]=255;mask.data[i*4+1]=255;mask.data[i*4+2]=255;mask.data[i*4+3]=alpha[i]?255:0}
+  x.putImageData(mask,0,0);return c.toDataURL('image/png');
+ }finally{c.width=c.height=1}
+}
 async function prepareEnglishHeadOutfitClip(head,uniformSource,headFrame,garmentFrame){
+ if(head?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)return prepareEnglishBodyOutfitClip(head);
  const source=head.studioSkinBaseSource||head.source,[image,garment]=await Promise.all([decodedStudioImage(source),decodedStudioImage(uniformSource)]),face=await measureStudioSuitFace(image),c=canvasFor(garment.naturalWidth||garment.width,garment.naturalHeight||garment.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(garment,0,0);
  try{const pixels=x.getImageData(0,0,c.width,c.height).data,uniform=measureUniformAnchors(pixels,c.width,c.height);return createEnglishNeckClipMask({source,face,uniform,uniformPixels:pixels,headFrame,garmentFrame})}finally{c.width=c.height=1}
 }

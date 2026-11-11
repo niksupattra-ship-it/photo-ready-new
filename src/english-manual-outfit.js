@@ -3,12 +3,33 @@ import {measureUniformAnchors,placeUniformForPortrait} from './portrait-uniform-
 import {layerToScene} from './studio-transform.js';
 import {createFaceMeasurementCache} from './studio-face-measurement-cache.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 
-export const ENGLISH_MANUAL_OUTFIT_VERSION='native-aspect-below-chin-v2-shared-face';
+export const ENGLISH_MANUAL_OUTFIT_VERSION='native-fixed-pattern-overlay-v3';
+export const ENGLISH_FIXED_PATTERN_WIDTH=.90;
 
 // Full-person AI placement is not a garment frame. Place each new native PNG
 // independently, using one scale for both axes and keeping the portrait fixed.
+// English complete-AI portraits contain a finished head at the chosen scale.
+// A later outfit selection overlays the untouched source PNG: its native aspect
+// and displayed size depend ONLY on the selected pattern, never face width.
+export function planEnglishFixedPatternOutfit({uniform,head,face,W=900,H=1200}){
+ if(!uniform?.bounds?.w||!Number.isFinite(uniform.centerX)||!Number.isFinite(uniform.collarTopY))throw Error('Invalid English pattern geometry');
+ const scale=W*ENGLISH_FIXED_PATTERN_WIDTH/uniform.bounds.w;
+ if(!Number.isFinite(scale)||scale<=0)throw Error('Invalid English pattern scale');
+ let collarX=W/2,collarY=H*.55;
+ if(head&&[152,234,454].every(id=>Number.isFinite(face?.[id]?.x)&&Number.isFinite(face?.[id]?.y))){
+  const frame=head.sourceFrame||{x:0,y:0,w:W,h:H};
+  const pose={x:0,y:0,scale:1,rotation:0,...head};
+  const point=id=>layerToScene(pose,{x:frame.x+face[id].x*frame.w,y:frame.y+face[id].y*frame.h});
+  const left=point(234),right=point(454),chin=point(152);
+  collarX=(left.x+right.x)/2;
+  collarY=chin.y+W*.018; // Translation only: face width never changes garment scale.
+ }
+ return {x:collarX-uniform.centerX*scale,y:collarY-uniform.collarTopY*scale,w:uniform.width*scale,h:uniform.height*scale};
+}
 export function planEnglishManualOutfit({uniform,head,face,W=900,H=1200}){
+ if(head?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)return planEnglishFixedPatternOutfit({uniform,head,face,W,H});
  if(head?.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION&&head.sourcePixelSize&&[10,152,234,454].every(id=>Number.isFinite(face?.[id]?.x)&&Number.isFinite(face?.[id]?.y))){
   const {width,height}=head.sourcePixelSize,fit=fitEnglishHeadTemplate({uniform,face,width,height,crownY:head.nativeCrownY||0,W,H});
   return {...fit.garment,englishHeadFrame:fit.head};
