@@ -4,7 +4,7 @@
 
 New English requests use `portraitComposition=en-outfit-body-v1`,
 `englishStudioFinishVersion=en-template-locked-body-v3` and
-`portraitFramingVersion=outfit-complete-frame-v11-jaw-collar-join`.
+`portraitFramingVersion=outfit-complete-frame-v10-template-authority`.
 This restores AI generation of both the exact selected hairstyle and outfit.
 Thai generation and its existing three-call female pipeline are unchanged.
 
@@ -34,15 +34,9 @@ canvas retains1824×2432; existing English downloads remain2304×3072 with exact
 3:4 geometry. Export dimensions are not a claim of extra generated detail.
 
 Measured head adjustment is restored for complete AI portraits and available
-through **Balance head size**. AI instructions alone cannot guarantee the face/
-shoulder ratio: the actual output is measured and fitted toward0.30. One
-isotropic head transform preserves the scaled jaw contour. Below that measured
-jaw, neck skin joins smoothly to the first actual collar row identified in the
-same semantic mask. This keeps skin seated in high collars without a horizontal
-chin ledge or a transparent collar slot. Both finishes reuse the same mapping/
-alpha; labelled clothing and the lower body stay unchanged. A real1824×2432
-provider pair was reduced by16.4%; all1,676,071 labelled clothing pixels remained
-identical, and both output mattes stayed equal. Moving neck pixels never sample fixed
+through **Balance head size**. One isotropic head transform joins the neck
+smoothly, reuses the same mapping/alpha for both finishes, and leaves labelled
+clothing and the lower body unchanged. Moving neck pixels never sample fixed
 collar fabric; the old wider-alpha restoration at the chin has been removed
 because it produced a horizontal neck ledge. Missing optional measurements
 leave the valid original portrait available instead of failing the AI job.
@@ -54,7 +48,7 @@ hair and compatible finish can reuse only its own v3 pair. Explicit manual
 editing and older saved head/PNG projects retain their compatibility paths.
 Download previews, watermarks, payment and ownership checks remain in place.
 
-Validation:54 focused Node checks cover actual payload construction, identical
+Validation:53 focused Node checks cover actual payload construction, identical
 base geometry for different source body shapes, exact selected references,
 one/two-call budgets, pair alpha, head/clothing protection and Thai isolation.
 Desktop/mobile UI regressions cover hair retention across outfit changes,

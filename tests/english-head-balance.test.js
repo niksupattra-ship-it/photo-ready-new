@@ -31,13 +31,6 @@ test('one isotropic transform preserves facial anatomy and fixes the chin anchor
  for(const [a,b]of [[10,152],[234,454],[10,234]]){const distance=face=>Math.hypot((face[a].x-face[b].x)*f.width,(face[a].y-face[b].y)*f.height);assert(Math.abs(distance(after)/distance(f.face)-plan.scale)<1e-12)}
  const pixels=applyEnglishHeadBalance(f.pixels,f.width,f.height,plan,f.labels),metrics=measureEnglishProportions(pixels,f.width,f.height,after,{allowCropped:true});assert(Math.abs(metrics.faceRatio-.30)<.004);assert(!planEnglishHeadBalance(pixels,f.width,f.height,after).applied,'A balanced result must not shrink again');
 });
-test('a high collar keeps its native neck coverage below the scaled jaw',()=>{
- const f=fixture();
- for(let y=250;y<270;y++)for(let x=125;x<275;x++)if(x<165||x>=235){const i=(y*f.width+x)*4;f.pixels.set([40,50,70,255],i);f.labels.data[y*f.width+x]=4}
- const plan=planEnglishHeadBalance(f.pixels,f.width,f.height,f.face),out=applyEnglishHeadBalance(f.pixels,f.width,f.height,plan,f.labels);
- assert(plan.applied);
- for(let y=252;y<270;y++)for(let x=165;x<235;x++){const i=(y*f.width+x)*4;assert.deepEqual(out.subarray(i,i+4),f.pixels.subarray(i,i+4),'No transparent slot or resized skin inside the fixed collar');}
-});
 test('Natural and Makeup receive the same coordinates and alpha, without moving clothing in either finish',()=>{
  const f=fixture(),makeup=new Uint8ClampedArray(f.pixels);for(let i=0;i<makeup.length;i+=4)if(f.labels.data[i/4]===3)makeup[i]=230;
  const plan=planEnglishHeadBalance(f.pixels,f.width,f.height,f.face),a=applyEnglishHeadBalance(f.pixels,f.width,f.height,plan,f.labels),b=applyEnglishHeadBalance(makeup,f.width,f.height,plan,f.labels);
