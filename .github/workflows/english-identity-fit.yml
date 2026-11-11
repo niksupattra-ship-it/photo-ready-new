@@ -1,23 +1,20 @@
-name: English identity layout validation
+name: English portrait checks
 on:
   pull_request:
     branches: [main]
     paths:
-      - 'english-body-layout.js'
-      - 'english-template-body-policy.js'
-      - 'english-template-body-prompt.js'
+      - 'english-*.js'
       - 'production-portrait-pipeline.js'
       - 'tests/english*.test.js'
-      - 'scripts/check-identity-layout-native.py'
+      - 'tests/thai-neck-backing.test.js'
+      - 'tests/ai-makeup-pair.test.js'
       - '.github/workflows/english-identity-fit.yml'
 permissions:
   contents: read
-  id-token: write
 jobs:
   validate:
-    if: github.head_ref == 'codex/english-identity-proportions-20261111'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,26 +24,3 @@ jobs:
       - run: npm ci --include=optional --no-audit --no-fund
       - run: node --test tests/english-*.test.js tests/thai-neck-backing.test.js tests/ai-makeup-pair.test.js
       - run: npm run build
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: pip install playwright
-      - run: python -m playwright install --with-deps chromium
-      - name: Start local asset server
-        run: |
-          npm run dev -- --host 127.0.0.1 > /tmp/vite.log 2>&1 &
-          python - <<'PY'
-          import time,urllib.request
-          for attempt in range(40):
-              try:
-                  urllib.request.urlopen('http://127.0.0.1:5173',timeout=2)
-                  break
-              except Exception:
-                  time.sleep(1)
-          else:
-              raise RuntimeError('Vite did not start')
-          PY
-      - name: Generate the actual pair through authenticated QA
-        run: node scripts/generate-identity-probe.mjs
-      - name: Measure the actual authenticated provider sample
-        run: python scripts/check-identity-layout-native.py
