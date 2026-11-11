@@ -1,4 +1,63 @@
-# English AI clothed portraits
+# English portraits
+
+## Current: close-up head plus one native garment
+
+New English requests use `portraitComposition=en-head-template-v1` and
+`englishStudioFinishVersion=en-reference-head-detail-v2`. The full-person paths
+documented below remain compatibility paths for older queued/saved work. Thai
+generation, prompts, cache and anatomy are unchanged.
+
+The previous full-person generation devoted fewer native pixels to the face.
+Its later local head reduction resampled those pixels, and the protected-neck
+alpha rule could leave a horizontal neck ledge. Manual PNG selection also left
+the generated outfit in the underlying person image, producing two collars or
+shoulder outlines. Prompt-only retouch changes did not address those causes.
+
+AI now generates a large, detailed head/hair/neck master at 1728×2304, using the
+original upload, optional identity crop and the same exact picker hair/personal
+attachment guides. The selected garment is validated but never supplied to AI.
+Natural uses the reference adaptive soft studio skin. Makeup uses the actual
+review **Studio** palette (sheer pale pink eyelids, #FF747F inner/#F0A2A8 outer
+lips), rather than the separate combined-test route's peach pigment overrides.
+Both stored variants share alpha; female pairs still take two provider calls,
+male Natural one. No retry or partial-pair delivery was added.
+
+The frontend removes obsolete clothing below the chin through alpha only and
+keeps native RGB/detail. It never applies the legacy head/neck pixel warp to
+this mode. `fitEnglishHeadTemplate` places the entire unmodified garment with
+one native aspect ratio and its complete lower edge, then fits the whole head
+with one isotropic transform toward face/shoulder ratio0.30. Tall crowns may
+reduce that target to preserve headroom. No separate face, jaw or neck warp.
+
+`englishNeckClipMask` is an automatic alpha mask derived from the **actual
+native garment rows** and native semantic evidence. Above the real collar the
+neck contour is untouched; below it, exposed source shoulder skin ends behind
+the garment's outer silhouette. Hair is exempt so selected long styles retain
+their lengths. This avoids a rectangular neck crop or invented skin patch.
+The mask is applied identically in the editor, previews and export, retained
+when switching Natural/Makeup, and regenerated transactionally for a new PNG.
+It has explicit saved-project/transfer/resource validation and thumbnail support.
+
+Native head and garment sources remain separate layers. Changing a PNG, or
+using Create with the same current head/finish and a different garment, reuses
+the completed pair without another AI job. The immediate preview/full-quality
+download guard, history, ownership, debit and watermark flows remain in place.
+Opening older work does not silently regenerate it; explicit Create upgrades
+an older profile. Already resampled old images cannot acquire missing detail
+merely by refreshing the page.
+
+Validation includes actual head-only provider samples, native PNG pair/alpha,
+50 focused Node checks, and actual App desktop/mobile with pinned real models.
+For the actual female sample, the retained native face width was about764px;
+the checked central facial RGB region was bit-identical to the provider output
+after cleanup. This is a region/pixel preservation check, not an image-quality
+score or a claim that independent AI runs match exactly. App checks cover one
+visible native garment, bow and V-collar swaps, finish switching, automatic mask
+save/restore, Undo/Redo and zero extra AI jobs during reuse. Both-language
+preview/payment/download regressions also pass. Provider QA uses public samples
+in an isolated function; all App account/payment/job APIs are mocked in UI tests.
+
+## Legacy full-person generation
 
 Only `?lang=en` submits `interfaceLanguage=en` and
 `portraitComposition=en-outfit-body-v1`. Thai processing remains unchanged.

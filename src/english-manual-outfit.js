@@ -2,12 +2,17 @@ import {decodedStudioImage} from './studio-image-cache.js';
 import {measureUniformAnchors,placeUniformForPortrait} from './portrait-uniform-fit.js';
 import {layerToScene} from './studio-transform.js';
 import {createFaceMeasurementCache} from './studio-face-measurement-cache.js';
+import {ENGLISH_HEAD_PORTRAIT_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
 
 export const ENGLISH_MANUAL_OUTFIT_VERSION='native-aspect-below-chin-v2-shared-face';
 
 // Full-person AI placement is not a garment frame. Place each new native PNG
 // independently, using one scale for both axes and keeping the portrait fixed.
 export function planEnglishManualOutfit({uniform,head,face,W=900,H=1200}){
+ if(head?.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION&&head.sourcePixelSize&&[10,152,234,454].every(id=>Number.isFinite(face?.[id]?.x)&&Number.isFinite(face?.[id]?.y))){
+  const {width,height}=head.sourcePixelSize,fit=fitEnglishHeadTemplate({uniform,face,width,height,crownY:head.nativeCrownY||0,W,H});
+  return {...fit.garment,englishHeadFrame:fit.head};
+ }
  let collarX=W/2,collarY=H*.5,faceWidth=W*.29;
  if(head&&[152,234,454].every(id=>Number.isFinite(face?.[id]?.x)&&Number.isFinite(face?.[id]?.y))){
   const frame=head.sourceFrame||{x:0,y:0,w:W,h:H};

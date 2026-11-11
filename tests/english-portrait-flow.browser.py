@@ -53,26 +53,26 @@ with sync_playwright() as pw:
  p.get_by_role('button',name='Create portrait',exact=True).click()
  p.locator('.english-inline-ai').wait_for(state='hidden')
  assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
- # Changed outfit retains the hairstyle from the previous processed image.
+ # A new native outfit reuses the completed head/pair without another AI job.
  p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
  ai(p,card)
  p.screenshot(path='work/english-inline-hair-desktop.png',full_page=True)
  p.get_by_role('button',name='Create portrait',exact=True).click()
- p.wait_for_function('bodyCalls.filter(c=>c.committed).length===2')
- call=p.evaluate('bodyCalls.filter(c=>c.template)[1]')
- assert call['template'].endswith('female-job-navy-notch-white-shirt.png')
- assert call['hair']=='' and call['options']['keepCurrentHair'] is True
- assert call['options']['preserveHairJobId']=='fixture-new'
+ p.locator('.english-inline-ai').wait_for(state='hidden')
+ assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
+ assert p.evaluate("bodySnapshot.current().layers.find(l=>l.kind==='suit').templatePath").endswith('female-job-navy-notch-white-shirt.png')
+ assert p.evaluate("bodySnapshot.current().layers.find(l=>l.kind==='head').jobId")=='fixture-new'
+ assert p.evaluate("bodySnapshot.current().layers.find(l=>l.kind==='suit').visible") is True
  # Selecting a new hairstyle does not open a modal or submit until confirmed.
  p.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
  ai(p,original)
- p.get_by_role('button',name='เลือกทรงผมหญิง ทรงผมหญิง 1',exact=True).click()
+ p.get_by_role('button',name='เลือกทรงผมหญิง ทรงผมหญิง 2',exact=True).click()
  assert p.locator('.english-flow-overlay').count()==0
- assert p.evaluate('bodyCalls.filter(c=>c.template).length')==2
+ assert p.evaluate('bodyCalls.filter(c=>c.template).length')==1
  p.get_by_role('button',name='Create portrait',exact=True).click()
- p.wait_for_function('bodyCalls.filter(c=>c.committed).length===3')
- assert p.evaluate('bodyCalls.filter(c=>c.template)[2].hair')
- assert p.evaluate('bodyCalls.filter(c=>c.template)[2].options.keepCurrentHair') is False
+ p.wait_for_function('bodyCalls.filter(c=>c.committed).length===2')
+ assert p.evaluate('bodyCalls.filter(c=>c.template)[1].hair')
+ assert p.evaluate('bodyCalls.filter(c=>c.template)[1].options.keepCurrentHair') is False
  p.close()
  # An explicit create must regenerate a portrait made with an old prompt policy.
  p=page(fresh=False)

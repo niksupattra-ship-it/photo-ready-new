@@ -35,7 +35,7 @@ function assertPreviewScene(scene){
   if(!l||![l.x,l.y,l.scale,l.rotation,l.opacity].every(Number.isFinite)||l.scale<.1||l.scale>5||l.opacity<0||l.opacity>1||!validFrame(l.sourceFrame)||!validFrame(l.collarFrame))throw Error('ตำแหน่งรูปย่อไม่ถูกต้อง');
   const id=l.id||'preview_'+index;if(ids.has(id))throw Error('ข้อมูลเลเยอร์ในรูปย่อซ้ำกัน');ids.add(id);
   if(['squeezeX','squeezeY'].some(k=>l[k]!==undefined&&(!Number.isFinite(l[k])||l[k]<.1||l[k]>3)))throw Error('สัดส่วนรูปย่อไม่ถูกต้อง');
-  for(const src of [l.source,l.mask,l.warpSource,l.collarParts?.left,l.collarParts?.right])if(src){if(!sourceURL(src))throw Error('ข้อมูลรูปย่อไม่ถูกต้อง');if(!unique.has(src)){unique.add(src);chars+=src.length}}
+  for(const src of [l.source,l.mask,l.englishNeckClipMask,l.warpSource,l.collarParts?.left,l.collarParts?.right])if(src){if(!sourceURL(src))throw Error('ข้อมูลรูปย่อไม่ถูกต้อง');if(!unique.has(src)){unique.add(src);chars+=src.length}}
   if(!sourceURL(l.source)||chars>1_500_000)throw Error('รูปย่อมีขนาดเกินที่แสดงได้');
  }
 }
@@ -65,7 +65,7 @@ export async function paintSavedWorkPreview(target,scene,{signal}={}){
    assertActive(signal);const l={visible:true,...scene.layers[index],id:scene.layers[index].id||'preview_'+index};
    const original=await read(l.source),mask=l.mask?await read(l.mask):white,warped=l.warpSource?await read(l.warpSource):null;
    const parts=l.collarParts?{left:await read(l.collarParts.left),right:await read(l.collarParts.right)}:null;
-   const buffer=document.createElement('canvas'),a={original,mask,warped,parts,buffer,dirty:true,dirtyRect:null};
+   const buffer=document.createElement('canvas'),a={original,mask,warped,parts,frameSources:l.englishNeckClipMask?{englishNeckClipMask:await read(l.englishNeckClipMask)}:{},buffer,dirty:true,dirtyRect:null};
    assertCollarPreview(l,a);assets.set(l.id,a);layers.push(l);
   }
   assertActive(signal);target.width=PREVIEW_WIDTH;target.height=PREVIEW_HEIGHT;

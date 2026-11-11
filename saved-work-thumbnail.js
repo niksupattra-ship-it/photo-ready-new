@@ -71,6 +71,7 @@ export async function compactSavedWorkPreview(project,{signal}={}){
   try{
    for(let i=0;i<layers.length;i++){
     const input=layers[i],layer={...visuals[i]},source=await resize(input.source);layer.source=source.src;
+    if(input.englishNeckClipMask)layer.englishNeckClipMask=(await resize(input.englishNeckClipMask,true)).src;
     if(input.mask)layer.mask=(await resize(input.mask,true)).src;
     let drawn=source;if(input.warpSource){drawn=await resize(input.warpSource);layer.warpSource=drawn.src}
     if(input.collarParts)layer.collarParts={left:(await resize(input.collarParts.left)).src,right:(await resize(input.collarParts.right)).src};
