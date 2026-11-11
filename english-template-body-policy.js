@@ -1,5 +1,5 @@
 export const ENGLISH_TEMPLATE_BODY_FINISH_VERSION='en-template-locked-body-v3';
-export const ENGLISH_TEMPLATE_BODY_FRAMING_VERSION='outfit-complete-frame-v10-template-authority';
+export const ENGLISH_TEMPLATE_BODY_FRAMING_VERSION='outfit-complete-frame-v11-jaw-collar-join';
 // The current Flash model caps native output at 4,624,220 pixels. Keep an exact
 // 3:4 frame with 32-pixel dimensions below that cap; do not retry an invalid size.
 export const ENGLISH_TEMPLATE_BODY_SIZE='1824x2432';

@@ -1,5 +1,5 @@
 import {measureEnglishProportions} from './english-proportion-check.js';
-export const ENGLISH_HEAD_BALANCE_VERSION='measured-head-only-v2-smooth-neck';
+export const ENGLISH_HEAD_BALANCE_VERSION='measured-head-only-v3-jaw-collar';
 export const ENGLISH_FACE_SHOULDER_TARGET=.30;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t)};
@@ -9,7 +9,8 @@ export function planEnglishHeadBalance(pixels,width,height,face){
  const {faceRatio,headRatio,faceHeight,chinY,centerX}=metrics;
  if(faceRatio<=.325&&!(faceRatio>.31&&headRatio>.64))return {applied:false,reason:'balanced',metrics};
  const scale=clamp(Math.min(ENGLISH_FACE_SHOULDER_TARGET/faceRatio,.60/headRatio),.50,.98);
- return {applied:true,version:ENGLISH_HEAD_BALANCE_VERSION,metrics,scale,anchorX:centerX,anchorY:chinY,transitionEnd:Math.min(height,chinY+faceHeight*.25),faceRatioAfter:faceRatio*scale,headRatioAfter:headRatio*scale};
+ const jaw=[234,93,132,58,172,136,150,149,176,148,152,377,400,378,379,365,397,288,361,323,454].map(i=>face[i]).filter(Boolean).map(p=>({x:centerX+(p.x*width-centerX)*scale,y:chinY+(p.y*height-chinY)*scale}));
+ return {applied:true,version:ENGLISH_HEAD_BALANCE_VERSION,metrics,jaw,scale,anchorX:centerX,anchorY:chinY,transitionEnd:Math.min(height,chinY+faceHeight*.25),faceRatioAfter:faceRatio*scale,headRatioAfter:headRatio*scale};
 }
 
 function labelAt(labels,x,y,width,height){
@@ -25,6 +26,22 @@ export function applyEnglishHeadBalance(pixels,width,height,plan,labels=null){
  const {scale,anchorX:cx,anchorY:chin,transitionEnd:end}=plan;
  if(![scale,cx,chin,end].every(Number.isFinite)||scale<.5||scale>=1||end<=chin)throw Error('Invalid head-balance plan');
  const out=new Uint8ClampedArray(pixels),last=Math.min(height,Math.ceil(end));
+ const neckStart=chin-plan.metrics.faceHeight*.2;
+ let neckEnd=end;
+ if(labels?.data){
+  const left=Math.max(0,Math.floor((cx-plan.metrics.faceWidth*.6)*labels.width/width)),right=Math.min(labels.width-1,Math.ceil((cx+plan.metrics.faceWidth*.6)*labels.width/width));
+  for(let row=Math.max(0,Math.floor(neckStart*labels.height/height));row<Math.min(labels.height,Math.ceil(end*labels.height/height));row++){
+   let count=0;for(let col=left;col<=right;col++)if(labels.data[row*labels.width+col]===4)count++;
+   if(count>=2){neckEnd=Math.max(neckStart+plan.metrics.faceHeight*.08,row*height/labels.height);break}
+  }
+ }
+ // The scaled jaw is the exact lower face boundary. Neck skin can meet the
+ // fixed collar below it without moving any facial pixel or feature.
+ const jawY=new Float64Array(width).fill(-Infinity);
+ for(let n=1;n<(plan.jaw?.length||0);n++){
+  const a=plan.jaw[n-1],b=plan.jaw[n];if(Math.abs(b.x-a.x)<.001)continue;
+  for(let x=Math.max(0,Math.ceil(Math.min(a.x,b.x)));x<=Math.min(width-1,Math.floor(Math.max(a.x,b.x)));x++)jawY[x]=Math.max(jawY[x],a.y+(b.y-a.y)*(x-a.x)/(b.x-a.x));
+ }
  for(let y=0;y<last;y++){
   const below=y>=chin,t=below?smooth((y-chin)/(end-chin)):0,sx=scale+(1-scale)*t,sourceY=below?y:chin+(y-chin)/scale;
   for(let x=0;x<width;x++){
@@ -33,7 +50,9 @@ export function applyEnglishHeadBalance(pixels,width,height,plan,labels=null){
    // Continue attached hair through the neck join, without moving bare shoulders
    // or accessories. Clothing was protected above, including raised collars.
    if(below&&cat===5)continue;
-   const sourceX=cx+(x-cx)/sx,x0=Math.floor(sourceX),y0=Math.floor(sourceY),dx=sourceX-x0,dy=sourceY-y0;
+   const neck=y>=neckStart&&y>jawY[x]&&Math.abs(x-cx)<plan.metrics.faceWidth*.6&&cat!==1&&cat!==5;
+   const neckScale=neck?scale+(1-scale)*smooth((y-neckStart)/(neckEnd-neckStart)):sx;
+   const sampleY=neck?y:sourceY,sourceX=cx+(x-cx)/neckScale,x0=Math.floor(sourceX),y0=Math.floor(sampleY),dx=sourceX-x0,dy=sampleY-y0;
    let alpha=0,r=0,g=0,b=0;
    for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
     const px=x0+xx,py=y0+yy;if(px<0||px>=width||py<0||py>=height)continue;
