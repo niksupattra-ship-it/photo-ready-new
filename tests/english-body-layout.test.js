@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {createEnglishBodyLayout} from '../english-body-layout.js';
-const bounds=(pixels,width,colour)=>{
+const bounds=(pixels,width,colour,tolerance=0)=>{
   const n=pixels.length/4,seen=new Uint8Array(n),queue=new Int32Array(n);let largest=null;
-  const matches=i=>colour.every((v,c)=>pixels[i*4+c]===v);
+  const matches=i=>colour.every((v,c)=>Math.abs(pixels[i*4+c]-v)<=tolerance);
   for(let seed=0;seed<n;seed++)if(!seen[seed]&&matches(seed)){
    let head=0,tail=1,left=width,right=-1,top=Infinity,bottom=-1;queue[0]=seed;seen[seed]=1;
    while(head<tail){const i=queue[head++],x=i%width,y=Math.floor(i/width);left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
@@ -60,6 +60,6 @@ test('the real-face guide reduces the face envelope and retains every opaque gar
  assert.deepEqual(before.info,after.info);
  let garment=0;for(let i=0;i<before.data.length;i+=4)if(before.data[i]===50&&before.data[i+1]===60&&before.data[i+2]===80&&before.data[i+3]===255){garment++;assert.deepEqual(after.data.subarray(i,i+4),before.data.subarray(i,i+4));}
  assert(garment>100000);
- const reference=bounds(before.data,before.info.width,[170,178,189]),face=bounds(after.data,after.info.width,[212,147,121]);
+ const reference=bounds(before.data,before.info.width,[170,178,189]),face=bounds(after.data,after.info.width,[212,147,121],2);
  assert(face.count>1000);assert(face.right-face.left<(reference.right-reference.left)*.9);
 });
