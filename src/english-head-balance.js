@@ -1,5 +1,5 @@
 import {measureEnglishProportions} from './english-proportion-check.js';
-export const ENGLISH_HEAD_BALANCE_VERSION='measured-head-only-v1';
+export const ENGLISH_HEAD_BALANCE_VERSION='measured-head-only-v2-smooth-neck';
 export const ENGLISH_FACE_SHOULDER_TARGET=.30;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t)};
@@ -32,15 +32,18 @@ export function applyEnglishHeadBalance(pixels,width,height,plan,labels=null){
    if(cat===4)continue;
    // Continue attached hair through the neck join, without moving bare shoulders
    // or accessories. Clothing was protected above, including raised collars.
-   if(below&&(cat===5||Math.abs(x-cx)>plan.metrics.faceWidth*.48&&(cat===2||cat===3||cat===null)))continue;
+   if(below&&cat===5)continue;
    const sourceX=cx+(x-cx)/sx,x0=Math.floor(sourceX),y0=Math.floor(sourceY),dx=sourceX-x0,dy=sourceY-y0;
    let alpha=0,r=0,g=0,b=0;
    for(let yy=0;yy<2;yy++)for(let xx=0;xx<2;xx++){
     const px=x0+xx,py=y0+yy;if(px<0||px>=width||py<0||py>=height)continue;
+    // A raised collar is fixed. Never sample its fabric into the moving neck
+    // and create another collar beside the protected original one.
+    if(labelAt(labels,px,py,width,height)===4)continue;
     const j=(py*width+px)*4,w=(xx?dx:1-dx)*(yy?dy:1-dy)*pixels[j+3];alpha+=w;r+=pixels[j]*w;g+=pixels[j+1]*w;b+=pixels[j+2]*w;
    }
-   // Retain the existing supporting neck silhouette beside the smaller jaw.
-   if(below&&pixels[i+3]>alpha&&(cat===2||cat===3||cat===null))continue;
+   // Let the neck edge follow the same smooth join. Restoring the old wider
+   // alpha here creates a horizontal skin ledge exactly at the chin row.
    out[i]=alpha?r/alpha:0;out[i+1]=alpha?g/alpha:0;out[i+2]=alpha?b/alpha:0;out[i+3]=alpha;
   }
  }

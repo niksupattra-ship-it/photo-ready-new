@@ -1,10 +1,66 @@
 # English portraits
 
-## Current: close-up head plus one native garment
+## Current: AI portrait with fixed template geometry and measured head adjustment
 
-New English requests use `portraitComposition=en-head-template-v1` and
-`englishStudioFinishVersion=en-reference-head-detail-v2`. The full-person paths
-documented below remain compatibility paths for older queued/saved work. Thai
+New English requests use `portraitComposition=en-outfit-body-v1`,
+`englishStudioFinishVersion=en-template-locked-body-v3` and
+`portraitFramingVersion=outfit-complete-frame-v10-template-authority`.
+This restores AI generation of both the exact selected hairstyle and outfit.
+Thai generation and its existing three-call female pipeline are unchanged.
+
+The actual first AI image is now `createEnglishBodyLayout(selectedOutfit)`:
+a fixed garment canvas with a neutral head/neck placeholder. It replaces the
+customer's full-body photograph as the base image. This is the concrete change
+that removes source shoulder/torso size from the garment composition input.
+An original identity crop supplies the person's face separately. The exact
+catalogue hair, native garment detail (up to2048px) and optional measured scalp
+attachment diagram are individually labelled. The template controls shoulder
+span, collar, outfit width/height, lower edge and camera frame; the head fits
+the garment. Each native garment is positioned with one preserved aspect ratio.
+AI reconstruction can still vary fine garment pixels; it is not a pixel copy.
+
+Natural generation includes the reference soft studio skin and complete selected
+hair/outfit. Makeup edits that same completed portrait using the accepted Studio
+palette, preserving eyes, skin detail, hair and outfit/frame. Natural/Makeup
+share one alpha. Female pairs take two provider calls; male Natural takes one.
+No extra polish, skin-only generation, automatic AI retry, or Thai preparation
+reference is called by this path. A new cache/profile prevents reuse of previous
+head-only or original-body-conditioned results for an explicit new Create.
+
+Native generation is1824×2432 (3:4,4,435,968px), below the current model's verified
+4,624,220px limit. A real provider test rejected2304×3072, so that unsupported
+request size is never submitted by production. The English editor backing
+canvas retains1824×2432; existing English downloads remain2304×3072 with exact
+3:4 geometry. Export dimensions are not a claim of extra generated detail.
+
+Measured head adjustment is restored for complete AI portraits and available
+through **Balance head size**. One isotropic head transform joins the neck
+smoothly, reuses the same mapping/alpha for both finishes, and leaves labelled
+clothing and the lower body unchanged. Moving neck pixels never sample fixed
+collar fabric; the old wider-alpha restoration at the chin has been removed
+because it produced a horizontal neck ledge. Missing optional measurements
+leave the valid original portrait available instead of failing the AI job.
+
+Normal outfit selection on an AI portrait opens AI setup. Changing the outfit
+creates that selected AI garment; no PNG is placed over an existing AI outfit.
+The pending selected hair survives outfit changes. Repeating the same outfit,
+hair and compatible finish can reuse only its own v3 pair. Explicit manual
+editing and older saved head/PNG projects retain their compatibility paths.
+Download previews, watermarks, payment and ownership checks remain in place.
+
+Validation:53 focused Node checks cover actual payload construction, identical
+base geometry for different source body shapes, exact selected references,
+one/two-call budgets, pair alpha, head/clothing protection and Thai isolation.
+Desktop/mobile UI regressions cover hair retention across outfit changes,
+AI creation for changed outfits, identical-selection reuse, head adjustment,
+Undo/Redo, finish switching and both-language preview/payment/download flows.
+Real provider QA uses public samples in an isolated function; App account,
+wallet, payment and AI-job APIs are mocked during browser regression tests.
+
+## Compatibility: close-up head plus one native garment
+
+Previously deployed English requests use `portraitComposition=en-head-template-v1` and
+`englishStudioFinishVersion=en-reference-head-detail-v2`. Those saved head/PNG projects remain readable. Thai
 generation, prompts, cache and anatomy are unchanged.
 
 The previous full-person generation devoted fewer native pixels to the face.
