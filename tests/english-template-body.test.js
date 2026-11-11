@@ -22,6 +22,9 @@ test('template, rather than original body, is the actual AI base; identity and e
   assert.match(natural.prompt,/ZERO authority over shoulder width/);assert.match(natural.prompt,/Keep the garment at EXACTLY this template size/);assert.match(natural.prompt,/SELECTED PICKER HAIR seedream-41/);assert.match(natural.prompt,/IDENTITY — IMAGE 3/);assert.match(natural.prompt,/NATIVE GARMENT DETAIL — IMAGE 4/);
   const payload=seedreamReviewPayload(natural);assert.equal(payload.image.length,4);assert.equal(payload.image[0],'data:image/png;base64,'+layout.toString('base64'));
   assert.match(calls[1].prompt,/whole outfit at its identical width, height/);assert.doesNotMatch(calls[1].prompt,/EXPOSURE AND BARE-FACE HANDLING|40% pigment opacity/);
+  assert.deepEqual(calls[1].portrait,await sharp(cutout).flatten({background:'#5a86b0'}).png().toBuffer(),'Makeup must edit this completed Natural portrait, not start again from the source face');
+  assert.match(natural.prompt,/finish the real person's head, selected hairstyle, neck and selected outfit together/);
+  assert.doesNotMatch(natural.prompt,/27–31%|Scale the entire head uniformly/);
   assert.deepEqual(await sharp(cutout).extractChannel(3).raw().toBuffer(),await sharp(pair).extractChannel(3).raw().toBuffer());
  }
 });

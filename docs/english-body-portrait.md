@@ -1,6 +1,56 @@
 # English portraits
 
-## Current: AI portrait with fixed template geometry and measured head adjustment
+## Current: complete AI Natural/Makeup pair, native delivery
+
+New English requests use `portraitComposition=en-outfit-body-v1`,
+`englishStudioFinishVersion=en-complete-ai-pair-v4` and
+`portraitFramingVersion=outfit-complete-frame-v12-ai-native`.
+Thai generation, prompts, anatomy and its existing three-call female pipeline
+remain unchanged. Earlier queued v3 requests still validate and older saved
+projects remain readable.
+
+One user action generates a complete Natural photograph containing the original
+person's face, selected hairstyle, continuous neck and selected outfit. The
+actual base image is the fixed selected garment layout; the original face crop,
+exact picker hair, native garment detail and optional scalp attachment guide
+remain separate references. The source person's torso does not set garment
+width/height. The prompt asks AI to complete the whole anatomy and garment fit
+in this same photograph; it no longer asks for a27–31% face/shoulder ratio.
+The second request edits that completed Natural photograph with the accepted
+Studio cosmetics. It uses the same frame, hairstyle, outfit and shared alpha.
+Female pairs require exactly two provider requests; male Natural requires one.
+No extra AI polish or automatic retry was added.
+
+Completed English body portraits no longer call `balanceEnglishPortrait` during
+creation. There is no automatic head reduction, neck warp, chin-anchor resize
+or garment/body correction after AI. The generic source/output facial-ratio
+delivery gate is also skipped for these complete male portraits; the existing
+clear-face completion check remains. Optional input landmark/hair placement
+measurements do not alter the delivered photograph.
+
+Both native PNGs are retained. Studio's complete-body layer reads the original
+PNG data URL directly, rather than repainting it through another native-sized
+canvas. Placement fits the whole3:4 image uniformly into the3:4 scene, with no
+separate head/neck/outfit transform. Background selection, watermarks and the
+existing download/payment flow still work. The manually clicked **Balance head
+size** tool remains available; creation never invokes it automatically.
+
+V4/V12 cache and reuse checks prevent an earlier automatically warped result
+from being reused for an explicit new Create. Switching Natural/Makeup reuses
+the stored pair without another AI request. The selected hairstyle survives
+outfit changes, and a changed outfit creates its own complete AI portrait.
+AI garment details are reconstruction, not a promise of pixel-identical fabric.
+Native output remains1824×2432, within the verified Flash pixel cap; English
+export remains2304×3072 and Thai export remains unchanged.
+
+Focused regressions run the actual App completion and layer-building functions:
+Natural and Makeup PNG bytes must survive unchanged, and head/neck correction,
+canvas repainting, local cosmetics and additional AI calls are forbidden in
+that path. Backend tests assert Makeup receives the actual completed Natural
+portrait and shares its alpha. Thai isolation, exact selected references,
+call counts and desktop/mobile selection/download flows are checked separately.
+
+## Previous: AI portrait with measured head adjustment
 
 New English requests use `portraitComposition=en-outfit-body-v1`,
 `englishStudioFinishVersion=en-template-locked-body-v3` and
