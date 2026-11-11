@@ -1,10 +1,151 @@
 # English portraits
 
-## Current: close-up head plus one native garment
+## Current: fixed face-and-outfit input, native AI delivery
 
-New English requests use `portraitComposition=en-head-template-v1` and
-`englishStudioFinishVersion=en-reference-head-detail-v2`. The full-person paths
-documented below remain compatibility paths for older queued/saved work. Thai
+New English requests use `portraitComposition=en-outfit-body-v1`,
+`englishStudioFinishVersion=en-identity-layout-pair-v5` and
+`portraitFramingVersion=outfit-complete-frame-v13-identity-layout`.
+Thai generation, prompts, anatomy and its existing three-call female pipeline
+remain unchanged. Earlier queued v3/v4 requests still validate and older saved
+projects remain readable.
+
+One user action generates a complete Natural photograph containing the original
+person's face, selected hairstyle, continuous neck and selected outfit. The
+actual base image is a native-size1824×2432 fixed garment layout. When the
+browser supplies the original face bounds, that original face crop is embedded
+in the input guide at0.30 of the measured template shoulder span, preserving
+its aspect ratio and the original template framing. The guide's upper neck
+follows that face width and tapers to the existing collar opening. The whole
+garment retains the same uniform scale, position and lower boundary as before.
+This composition is conditioning input only; no guide pixels are pasted into
+the delivered photograph.
+
+The separate close-up identity reference is omitted for that guide: the
+original face already occupies its approved location in Image1. Supplying an
+additional close-up gave competing scale cues and the tested smaller guide
+alone did not sufficiently reduce the generated head. Exact picker hair,
+native garment detail and optional scalp attachment remain labelled references.
+The source person's torso does not set garment width/height. Clients without
+optional face bounds retain the established neutral-guide/identity-reference
+fallback; the missing optional evidence cannot fail an otherwise valid job.
+The v5 gate cannot activate for Thai or alter queued v3/v4 provider inputs.
+The second request edits that completed Natural photograph with the accepted
+Studio cosmetics. It uses the same frame, hairstyle, outfit and shared alpha.
+Female pairs require exactly two provider requests; male Natural requires one.
+No extra AI polish or automatic retry was added.
+
+Completed English body portraits no longer call `balanceEnglishPortrait` during
+creation. There is no automatic head reduction, neck warp, chin-anchor resize
+or garment/body correction after AI. The generic source/output facial-ratio
+delivery gate is also skipped for these complete male portraits; the existing
+clear-face completion check remains. Optional input landmark/hair placement
+measurements do not alter the delivered photograph.
+
+Both native PNGs are retained. Studio's complete-body layer reads the original
+PNG data URL directly, rather than repainting it through another native-sized
+canvas. Placement fits the whole3:4 image uniformly into the3:4 scene, with no
+separate head/neck/outfit transform. Background selection, watermarks and the
+existing download/payment flow still work. The manually clicked **Balance head
+size** tool remains available; creation never invokes it automatically.
+
+V5/V13 cache and reuse checks prevent an earlier automatically warped result
+from being reused for an explicit new Create. Switching Natural/Makeup reuses
+the stored pair without another AI request. The selected hairstyle survives
+outfit changes, and a changed outfit creates its own complete AI portrait.
+AI garment details are reconstruction, not a promise of pixel-identical fabric.
+Native output remains1824×2432, within the verified Flash pixel cap; English
+export remains2304×3072 and Thai export remains unchanged.
+
+Focused regressions run the actual App completion and layer-building functions:
+Natural and Makeup PNG bytes must survive unchanged, and head/neck correction,
+canvas repainting, local cosmetics and additional AI calls are forbidden in
+that path. Backend tests assert Makeup receives the actual completed Natural
+portrait and shares its alpha. Thai isolation, exact selected references,
+call counts and desktop/mobile selection/download flows are checked separately.
+
+
+Actual provider validation on a public female fixture with the selected braided
+hairstyle and ivory bow blouse completed both native1824×2432 PNGs in exactly
+two requests with identical alpha. The pinned MediaPipe measurement found
+face/shoulder ratio0.322728, compared with the previously measured v4
+sample's0.359050 (about10.1% smaller relative to shoulder span). Measured
+shoulder span remained1605px. The prior smaller768px guide plus separate face
+reference measured0.347586 and was rejected during QA; it was never published.
+This is evidence from those public-fixture generations, not a guarantee that
+every independently generated portrait has exactly the same ratio or garment
+pixels. No numerical proportion rejection was added to customer delivery.
+Visual inspection of both finishes checked the selected hair, one garment and
+the continuous neck/collar junction. Focused Node regressions and the production
+build also passed. QA used an isolated, authenticated two-call provider proxy;
+no customer job, wallet, payment or database was involved.
+
+## Previous: AI portrait with measured head adjustment
+
+New English requests use `portraitComposition=en-outfit-body-v1`,
+`englishStudioFinishVersion=en-template-locked-body-v3` and
+`portraitFramingVersion=outfit-complete-frame-v11-jaw-collar-join`.
+This restores AI generation of both the exact selected hairstyle and outfit.
+Thai generation and its existing three-call female pipeline are unchanged.
+
+The actual first AI image is now `createEnglishBodyLayout(selectedOutfit)`:
+a fixed garment canvas with a neutral head/neck placeholder. It replaces the
+customer's full-body photograph as the base image. This is the concrete change
+that removes source shoulder/torso size from the garment composition input.
+An original identity crop supplies the person's face separately. The exact
+catalogue hair, native garment detail (up to2048px) and optional measured scalp
+attachment diagram are individually labelled. The template controls shoulder
+span, collar, outfit width/height, lower edge and camera frame; the head fits
+the garment. Each native garment is positioned with one preserved aspect ratio.
+AI reconstruction can still vary fine garment pixels; it is not a pixel copy.
+
+Natural generation includes the reference soft studio skin and complete selected
+hair/outfit. Makeup edits that same completed portrait using the accepted Studio
+palette, preserving eyes, skin detail, hair and outfit/frame. Natural/Makeup
+share one alpha. Female pairs take two provider calls; male Natural takes one.
+No extra polish, skin-only generation, automatic AI retry, or Thai preparation
+reference is called by this path. A new cache/profile prevents reuse of previous
+head-only or original-body-conditioned results for an explicit new Create.
+
+Native generation is1824×2432 (3:4,4,435,968px), below the current model's verified
+4,624,220px limit. A real provider test rejected2304×3072, so that unsupported
+request size is never submitted by production. The English editor backing
+canvas retains1824×2432; existing English downloads remain2304×3072 with exact
+3:4 geometry. Export dimensions are not a claim of extra generated detail.
+
+Measured head adjustment is restored for complete AI portraits and available
+through **Balance head size**. AI instructions alone cannot guarantee the face/
+shoulder ratio: the actual output is measured and fitted toward0.30. One
+isotropic head transform preserves the scaled jaw contour. Below that measured
+jaw, neck skin joins smoothly to the first actual collar row identified in the
+same semantic mask. This keeps skin seated in high collars without a horizontal
+chin ledge or a transparent collar slot. Both finishes reuse the same mapping/
+alpha; labelled clothing and the lower body stay unchanged. A real1824×2432
+provider pair was reduced by16.4%; all1,676,071 labelled clothing pixels remained
+identical, and both output mattes stayed equal. Moving neck pixels never sample fixed
+collar fabric; the old wider-alpha restoration at the chin has been removed
+because it produced a horizontal neck ledge. Missing optional measurements
+leave the valid original portrait available instead of failing the AI job.
+
+Normal outfit selection on an AI portrait opens AI setup. Changing the outfit
+creates that selected AI garment; no PNG is placed over an existing AI outfit.
+The pending selected hair survives outfit changes. Repeating the same outfit,
+hair and compatible finish can reuse only its own v3 pair. Explicit manual
+editing and older saved head/PNG projects retain their compatibility paths.
+Download previews, watermarks, payment and ownership checks remain in place.
+
+Validation:54 focused Node checks cover actual payload construction, identical
+base geometry for different source body shapes, exact selected references,
+one/two-call budgets, pair alpha, head/clothing protection and Thai isolation.
+Desktop/mobile UI regressions cover hair retention across outfit changes,
+AI creation for changed outfits, identical-selection reuse, head adjustment,
+Undo/Redo, finish switching and both-language preview/payment/download flows.
+Real provider QA uses public samples in an isolated function; App account,
+wallet, payment and AI-job APIs are mocked during browser regression tests.
+
+## Compatibility: close-up head plus one native garment
+
+Previously deployed English requests use `portraitComposition=en-head-template-v1` and
+`englishStudioFinishVersion=en-reference-head-detail-v2`. Those saved head/PNG projects remain readable. Thai
 generation, prompts, cache and anatomy are unchanged.
 
 The previous full-person generation devoted fewer native pixels to the face.

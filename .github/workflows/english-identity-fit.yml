@@ -1,0 +1,26 @@
+name: English portrait checks
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'english-*.js'
+      - 'production-portrait-pipeline.js'
+      - 'tests/english*.test.js'
+      - 'tests/thai-neck-backing.test.js'
+      - 'tests/ai-makeup-pair.test.js'
+      - '.github/workflows/english-identity-fit.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --include=optional --no-audit --no-fund
+      - run: node --test tests/english-*.test.js tests/thai-neck-backing.test.js tests/ai-makeup-pair.test.js
+      - run: npm run build

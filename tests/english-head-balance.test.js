@@ -23,13 +23,20 @@ test('clothing, lower body, canvas size and the supporting neck alpha stay exact
  const f=fixture(),plan=planEnglishHeadBalance(f.pixels,f.width,f.height,f.face),out=applyEnglishHeadBalance(f.pixels,f.width,f.height,plan,f.labels);assert.equal(out.length,f.pixels.length);assert.notDeepEqual(out,f.pixels);
  for(let y=0;y<f.height;y++)for(let x=0;x<f.width;x++){
   const i=(y*f.width+x)*4,label=f.labels.data[y*f.width+x];if(label===4||y>=plan.transitionEnd)assert.deepEqual(out.subarray(i,i+4),f.pixels.subarray(i,i+4));
-  if(y>=plan.anchorY&&label===2)assert.equal(out[i+3],255);
+  if(y>=plan.anchorY&&label===2&&Math.abs(x-plan.anchorX)<20)assert.equal(out[i+3],255);
  }
 });
 test('one isotropic transform preserves facial anatomy and fixes the chin anchor',()=>{
  const f=fixture(),plan=planEnglishHeadBalance(f.pixels,f.width,f.height,f.face),after=balancedEnglishLandmarks(f.face,plan,f.width,f.height);assert.deepEqual(after[152],f.face[152]);
  for(const [a,b]of [[10,152],[234,454],[10,234]]){const distance=face=>Math.hypot((face[a].x-face[b].x)*f.width,(face[a].y-face[b].y)*f.height);assert(Math.abs(distance(after)/distance(f.face)-plan.scale)<1e-12)}
  const pixels=applyEnglishHeadBalance(f.pixels,f.width,f.height,plan,f.labels),metrics=measureEnglishProportions(pixels,f.width,f.height,after,{allowCropped:true});assert(Math.abs(metrics.faceRatio-.30)<.004);assert(!planEnglishHeadBalance(pixels,f.width,f.height,after).applied,'A balanced result must not shrink again');
+});
+test('a high collar keeps its native neck coverage below the scaled jaw',()=>{
+ const f=fixture();
+ for(let y=250;y<270;y++)for(let x=125;x<275;x++)if(x<165||x>=235){const i=(y*f.width+x)*4;f.pixels.set([40,50,70,255],i);f.labels.data[y*f.width+x]=4}
+ const plan=planEnglishHeadBalance(f.pixels,f.width,f.height,f.face),out=applyEnglishHeadBalance(f.pixels,f.width,f.height,plan,f.labels);
+ assert(plan.applied);
+ for(let y=252;y<270;y++)for(let x=165;x<235;x++){const i=(y*f.width+x)*4;assert.deepEqual(out.subarray(i,i+4),f.pixels.subarray(i,i+4),'No transparent slot or resized skin inside the fixed collar');}
 });
 test('Natural and Makeup receive the same coordinates and alpha, without moving clothing in either finish',()=>{
  const f=fixture(),makeup=new Uint8ClampedArray(f.pixels);for(let i=0;i<makeup.length;i+=4)if(f.labels.data[i/4]===3)makeup[i]=230;
@@ -48,6 +55,9 @@ test('actual App balance updates both finishes atomically, keeps job/credits met
  for(let i=3;i<f.pixels.length;i+=4)assert.equal(out.pixels[i],out.idpromAiMakeupBlob.pixels[i]);
  const before=decodes;assert.equal(await balance(out),out);assert.equal(decodes,before,'Do not shrink a tagged result twice');
  let guard=0;await assert.rejects(balance(source,null,()=>{if(++guard>=2)throw Error('changed account')}),/changed account/);
+ env.getPersonSegmenter=async()=>{throw Error('Optional segmenter unavailable')};
+ assert.equal(await balance(source),source,'Without clothing protection keep the valid pair instead of warping a collar');
+ assert.equal(source.idpromEnglishHeadBalanceCheck.reason,'unavailable');assert.equal(source.idpromAiMakeupBlob.pixels,makeup);
  const normal=fixture({faceWidth:100});source.pixels=normal.pixels;env.portraitFaceLandmarks=async()=>normal.face;assert.equal(await balance(source),source);
  env.portraitFaceLandmarks=async()=>{throw Error('Model unavailable')};assert.equal(await balance(source),source);assert.equal(source.idpromEnglishHeadBalanceCheck.reason,'unavailable');assert.equal(source.idpromAiMakeupBlob.pixels,makeup);
 });
