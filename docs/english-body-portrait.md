@@ -1,5 +1,12 @@
 # English portraits
 
+## Current: slightly larger English head fitted to selected outfit (v7)
+
+New English portraits use `en-outfit-proportional-head-v7` and `outfit-complete-frame-v15-balanced-face`. Based on the user's live English Studio screenshot, the previous v6 conditioned head scale of 0.70 made the head a little small relative to the chosen blouse. Increase the conditioning head scale to 0.75 (7.14% larger than v6), keeping the measured outfit shoulder width, native garment pixels, collar location, entire frame and short neck anchor unchanged. This restores a roughly 30% front-face/shoulder guide target without doing any post-generation face, neck or body warping. Keep the real source face inside the fixed garment guide and the separate hair selection, and reuse the Natural frame for Makeup.
+
+The new version prevents earlier v6 results from being reused when a new English Create is requested. In-progress v6 requests retain the prior 0.70 placement and compatibility; older v3–v5 requests remain valid. Thai generation, uploads, prompts, output sizes and cache keys are untouched. This is a measured guide adjustment, not a guarantee of a pixel-exact output from the external AI provider. Verify using a newly created English portrait after deployment.
+
+
 ## Current: English outfit-locked face size (v6)
 
 New English-only requests use `en-fixed-face-scale-pair-v6` and `outfit-complete-frame-v14-fitted-face`. With a valid source face box, the untouched source face is scaled uniformly into the selected outfit's fixed native-sized composition guide before generation. The fitted width target is 0.70 × the reference head width, replacing the prior v5 target of 0.75. The face and selected outfit appear together in Image 1, so the model is not also given a competing close-up face that could override the size. Hair is an independent style reference, never a scale reference. The original garment stays fixed; AI completes the skull, a short continuous neck and collar in one native portrait with no automatic head/neck warp after delivery. The female Makeup variant edits the same Natural frame without resizing the face or clothing.
