@@ -46,5 +46,7 @@ jobs:
           else:
               raise RuntimeError('Vite did not start')
           PY
+      - name: Generate the actual pair through authenticated QA
+        run: node scripts/generate-identity-probe.mjs
       - name: Measure the actual authenticated provider sample
         run: python scripts/check-identity-layout-native.py

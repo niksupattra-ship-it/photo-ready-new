@@ -2,7 +2,8 @@ import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
 import sharp from 'sharp';
 import {measureUniformAnchors} from './src/portrait-uniform-fit.js';
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768}={}){
+ if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
  const {data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  const uniform=measureUniformAnchors(data,info.width,info.height),span=uniform.shoulderWidth;
@@ -12,7 +13,7 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  const chinY=uniform.collarTopY-neckLength,headTop=chinY-headHeight;
  const left=Math.min(uniform.bounds.l,uniform.centerX-referenceHeadWidth/2),right=Math.max(uniform.bounds.r+1,uniform.centerX+referenceHeadWidth/2);
  const top=Math.min(chinY-referenceHeadHeight,uniform.bounds.t),bottom=uniform.bounds.b+1;
- const W=768,H=1024,pad=24,scale=Math.min((W-2*pad)/(right-left),(H-2*pad)/(bottom-top));
+ const W=canvasWidth,H=canvasWidth*4/3,pad=canvasWidth/32,scale=Math.min((W-2*pad)/(right-left),(H-2*pad)/(bottom-top));
  const x=(W-(right-left)*scale)/2-left*scale,y=H-pad-bottom*scale;
  const cx=x+uniform.centerX*scale,headY=y+headTop*scale,chin=y+chinY*scale,collar=y+uniform.collarTopY*scale;
  // The cervical reference ends at the collar/shoulder junction. A deep V

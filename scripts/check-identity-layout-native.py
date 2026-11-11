@@ -4,27 +4,10 @@ import os,json,time,urllib.request,urllib.parse,hashlib
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
 BASE='http://127.0.0.1:5173'
-QA='https://english-soft-studio-qa-20261111-production.up.railway.app'
-AUD='idpromth-identity-layout-qa'
-# An ephemeral GitHub OIDC token is used only in memory; no stored credentials.
-url=os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']+'&audience='+urllib.parse.quote(AUD)
-req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
-with urllib.request.urlopen(req,timeout=30)as r:token=json.load(r)['value']
-def get(path):
- with urllib.request.urlopen(urllib.request.Request(QA+path,headers={'Authorization':'Bearer '+token}),timeout=60)as r:return r.read()
-deadline=time.monotonic()+150
-while True:
- try:
-  report=json.loads(get('/report'))
-  if report['complete']:break
- except Exception:
-  if time.monotonic()>deadline:raise
- if time.monotonic()>deadline:raise RuntimeError('QA result not ready')
- time.sleep(5)
-assert not report['errors'],report['errors']
-candidate=get('/female-natural.png');expected=report['cases'][0]['natural']['pngSha256']
+candidate=Path('/tmp/identity-natural.png').read_bytes()
+report=json.loads(Path('/tmp/identity-native-report.json').read_text())
+expected=report['naturalSha256']
 assert hashlib.sha256(candidate).hexdigest()==expected
-baseline=urllib.request.urlopen('https://idpromth.com/assets/job-uniforms/female-formal-suit-example.png',timeout=30).read()
 # Baseline is the public original subject; compare the candidate to the measured
 # actual V4 QA ratio, not to another independently generated portrait.
 with sync_playwright()as pw:

@@ -268,7 +268,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
   if(fields.keepCurrentHair==='1'&&currentHair)hair=await sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
   compositionReference=await createEnglishBodyLayout(outfit);
-  prompt=englishBodyPortraitPrompt({layoutIndex:3+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(skinReference)),gender:selected.gender,keepCurrentHair:fields.keepCurrentHair==='1',hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
+  prompt=englishBodyPortraitPrompt({layoutIndex:3+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(skinReference)),gender:selected.gender,keepCurrentHair:fields.keepCurrentHair==='1',hairIndex:hair?2:null,identityIndex:identityLayout?1:identity?2+Number(Boolean(hair)):null,outfitIndex:2+Number(Boolean(hair))+Number(Boolean(identity)),skinIndex:skinReference?3+Number(Boolean(hair))+Number(Boolean(identity)):null});
  }
  let generationInput=portrait;
  if(preparedMakeup){
@@ -325,11 +325,12 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const fit=!keepCurrentHair&&chosen?parseEnglishHairFit(fields.englishHairFit):null;
  const hairPlacementReference=fit?await createEnglishHairFitGuide({fit,hair,selected:chosen,root}):null;
  const identityLayout=usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
- const compositionReference=headOnly?null:await createEnglishBodyLayout(outfit,identityLayout?{headScale:.75,identity}:undefined),outfitIndex=2+Number(Boolean(hair))+Number(Boolean(identity)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
+ const identityReference=identityLayout?null:identity;
+ const compositionReference=headOnly?null:await createEnglishBodyLayout(outfit,identityLayout?{headScale:.75,identity,canvasWidth:1824}:undefined),outfitIndex=2+Number(Boolean(hair))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,hairIndex:hair?2:null,identityIndex:identity?2+Number(Boolean(hair)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  const prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  await onStage('generation');
- const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair,identity,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
+ const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
