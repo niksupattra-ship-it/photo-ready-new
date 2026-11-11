@@ -63,3 +63,8 @@ test('automatic neck alpha survives saved transfer and compact previews, with in
  const packed=packSavedProjectTransfer(project);assert.equal(packed.format,'idprom-project-transfer');const restored=unpackSavedProjectTransfer(packed);assert.equal(restored.layers[0].englishNeckClipMask,mask);
  const preview=await compactSavedWorkPreview(project);assert(preview.layers[0].englishNeckClipMask?.startsWith('data:image/png;base64,'));assert.throws(()=>validateSavedProject({...project,layers:[{...project.layers[0],englishNeckClipMask:'https://invalid.example/mask.png'}]}));
 });
+
+test('English native export retains the 3:4 scene aspect; Thai keeps its established export size',async()=>{
+ const code=await readFile(root+'src/studio-editor.jsx','utf8'),line=code.split('\n').find(line=>line.startsWith('const nativeCanvas='));
+ for(const english of [true,false]){const make=Function('document','englishPreviewEnabled',line+';return nativeCanvas')({createElement:()=>({})},()=>english),canvas=make();assert.equal(canvas.height,3072);assert.equal(canvas.width,english?2304:2256);if(english)assert.equal(canvas.width/canvas.height,900/1200);}
+});
