@@ -78,12 +78,20 @@ export async function settleAiJobDelivery(id,walletId,action){
   if(action==='cancel'&&u?.status==='completed'){await c.query('ROLLBACK');return {status:409,error:'already_delivered'}}
   if(action==='confirm'&&!String(j.usage_id).startsWith('private_full_')&&!String(j.usage_id).startsWith('free_')&&(!u||u.status==='refunded')){await c.query('ROLLBACK');return {status:409,error:'credit_not_reserved'}}
   if(u?.status==='reserved'){
-   if(action==='confirm')await c.query(trial?"UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1":"UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1",[j.usage_id]);
+   if(action==='confirm'){
+    await c.query(trial?"UPDATE trial_previews SET status='completed',completed_at=now() WHERE id=$1":"UPDATE credit_usage SET status='completed',completed_at=now() WHERE id=$1",[j.usage_id]);
+    if(u.credit_column==='usd_premium_remaining'){
+     await c.query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit,created_at) VALUES($1,$2,true,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=true',[walletId,id,j.created_at]);
+     await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,id]);
+    }
+   }
    else if(trial)await c.query('DELETE FROM trial_previews WHERE id=$1',[j.usage_id]);
    else{
-    const col=u.credit_column==='hair_remaining'?'hair_remaining':u.credit_column==='generation_remaining'?'generation_remaining':u.kind==='hairstyle'?'hair_remaining':'generation_remaining';
-    await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.wallet_id]);
-    if(u.full_edit_output)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+1 WHERE id=$1',[u.wallet_id]);
+    const isUsd=u.credit_column==='usd_premium_remaining';
+    const col=isUsd?'usd_premium_remaining':u.credit_column==='hair_remaining'?'hair_remaining':u.credit_column==='generation_remaining'?'generation_remaining':u.kind==='hairstyle'?'hair_remaining':'generation_remaining';
+    if(isUsd)await c.query('UPDATE wallets SET usd_premium_remaining=usd_premium_remaining+1 WHERE id=$1 AND usd_premium_cycle=$2 AND usd_premium_expires_at>clock_timestamp()',[u.wallet_id,u.usd_premium_cycle]);
+    else await c.query(`UPDATE wallets SET ${col}=${col}+1 WHERE id=$1`,[u.wallet_id]);
+    if(u.full_edit_output&&!isUsd)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+1 WHERE id=$1',[u.wallet_id]);
     await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[j.usage_id]);
    }
   }
