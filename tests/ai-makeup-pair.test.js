@@ -79,7 +79,7 @@ test('English makeup fixes red speckles before sheer foundation without changing
  const {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK}=await import('../english-makeup-light-policy.js');
  const {AI_MAKEUP_FACE_LIGHTING_POLICY,AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const natural=await png({r:132,g:119,b:101,alpha:1},28,36);
- assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-refined-redness-v3');
+ assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-clean-silhouette-v4');
  for(const option of ['englishReferenceFinish','englishHeadFinish','englishTemplateFinish']){
   let prompt,requests=0;
   const made=await createAiMakeupVariant(natural,{
@@ -96,6 +96,8 @@ test('English makeup fixes red speckles before sheer foundation without changing
   assert.match(prompt,/soft matte-to-natural satin/);
   assert.match(prompt,/\+0\.08 to \+0\.15 EV/);
   assert.match(prompt,/ABSOLUTE NON-SKIN LOCK/);
+  assert.match(prompt,/NO OUTER SILHOUETTE HALO/);
+  assert.match(prompt,/Never paint a grey or black shadow/);
   assert.match(prompt,/Keep outfit colours, weave, shadows and brightness identical/);
   assert.match(prompt,/no cakey overlay, no plastic blur/);
   assert.doesNotMatch(prompt,/HEALTHY SKIN AND FACE FLASH: Give the skin/);

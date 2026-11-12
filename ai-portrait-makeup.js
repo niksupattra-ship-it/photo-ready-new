@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import {restoreEnglishMakeupSilhouette} from './english-makeup-edge-repair.js';
 import {englishReferenceMakeupPrompt} from './english-studio-finish.js';
 import {englishHeadMakeupPrompt} from './english-head-prompt.js';
 import {englishTemplateMakeupPrompt} from './english-template-body-prompt.js';
@@ -19,13 +20,17 @@ export async function createAiMakeupVariant(natural,{key,requestPortrait,preserv
  const outfitLock=preserveOutfit?'\nPreserve the existing selected outfit, complete clothed torso, collar, buttons, shoulder silhouette and head-to-body proportions exactly. Do not remove, replace or redesign any clothing. Preserve fabric weave, pattern direction and scale, stitching, pocket placement, button count and spacing, collar geometry and every insignia’s position, orientation and fine motif. Do not simplify, blur or sharpen these details.':'';
  const englishOnly=Boolean(englishTemplateFinish||englishHeadFinish||englishReferenceFinish);
  const englishPrompt=englishTemplateFinish?englishTemplateMakeupPrompt():englishHeadFinish?englishHeadMakeupPrompt():englishReferenceMakeupPrompt()+outfitLock;
- // Append this final priority to the English AI request. Do not locally mask,
- // recolour or composite any face area after the provider has generated it.
+ // English AI repairs its own complexion; a separate English-only clean-cutout
+ // finishing step later restores only the OUTER silhouette edge, not face skin.
  const prompt=englishOnly?[englishPrompt,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK].join(String.fromCharCode(10)):AI_MAKEUP_PROMPT+outfitLock+String.fromCharCode(10)+AI_MAKEUP_COMPLEXION_POLICY+String.fromCharCode(10)+AI_MAKEUP_FACE_LIGHTING_POLICY;
  const result=await requestPortrait({key,prompt,portrait,portraitMime:'image/png',size:`${width}x${height}`});
  if(!result?.png?.length)throw Error('สร้างภาพแต่งหน้าไม่สำเร็จ กรุณาลองใหม่');
  const meta=await sharp(result.png).metadata();
  if(!meta.width||!meta.height||Math.abs(meta.width/meta.height-width/height)>.02)throw Error('ภาพแต่งหน้ามีสัดส่วนไม่ตรงกับภาพฐาน');
+ // English: restore a narrow, smoothly feathered Natural cutout boundary to
+ // prevent a provider-generated grey/dark halo around hair, neck and outfit.
+ // Do not touch interior makeup pixels, reuse existing images, or alter Thai.
+ if(englishOnly)return restoreEnglishMakeupSilhouette(natural,result.png,width,height);
  const alpha=await sharp(natural).ensureAlpha().extractChannel(3).toBuffer();
  const rgb=await sharp(result.png).resize(width,height).removeAlpha().png().toBuffer();
  return sharp(rgb).joinChannel(alpha).png().toBuffer();

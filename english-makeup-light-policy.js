@@ -1,7 +1,7 @@
 // English-only AI cosmetic edit. Natural is the reference for identity,
 // geometry, hair, outfit, framing and ambient light; complexion coverage is
 // intentionally a visible improvement over Natural. No local masks/filters.
-export const ENGLISH_MAKEUP_LIGHT_LOCK_VERSION='en-makeup-refined-redness-v3';
+export const ENGLISH_MAKEUP_LIGHT_LOCK_VERSION='en-makeup-clean-silhouette-v4';
 export const ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK=`
 FINAL ENGLISH REFINED SKIN FINISH — HIGHEST PRIORITY, OVERRIDING ANY EARLIER "ONLY PIGMENT", "SKIN UNCHANGED", "NO FOUNDATION", OR "PRESERVE ALL SKIN TEXTURE" INSTRUCTION:
 IMAGE 1 is the completed NATURAL portrait. Edit THIS SAME PHOTOGRAPH, not a newly reconstructed person. Preserve the person's exact recognisable identity, age, head and face dimensions, genuine asymmetry, eyes, nose, mouth, jawline, ears, natural complexion depth, expression, hair, selected outfit, shoulders, framing and background.
@@ -15,6 +15,8 @@ CONTROLLED SKIN-ONLY FRESHNESS: Make face and visible neck subtly fresher than N
 COSMETIC COLOUR: Preserve the specified groomed brow hairs, soft upper-lid makeup and liner, subtle coherent blended blush and naturally rose-pink lips with a little lip gloss. Keep natural eye shapes, pupils/iris details, eyelid edges, lashes, lip contours and stable catchlights sharp. Do not add heavy glam makeup, overstated eye rings, additional pink patches or lipstick outside the original lips.
 
 ABSOLUTE NON-SKIN LOCK: Keep hairline, selected hairstyle, body geometry, head size, neck length, clothing, buttons, insignia, fabric texture, collar, shoulder edges, background and canvas dimensions unchanged. Keep outfit colours, weave, shadows and brightness identical to IMAGE 1. Keep the same studio environment and lighting. Do not add a second face, makeup mask, separate alpha layer, pasted face oval, or local post-generation skin filter. Deliver the AI-rendered complexion correction directly as ONE continuous photographic image.
+
+NO OUTER SILHOUETTE HALO: Preserve the Natural image's perfectly clean cutout against its flat background. Never paint a grey or black shadow, dark outline, rim glow, matte fringe, double edge, soft drop shadow or vignette outside/inside the hair contour, ears, jaw, neck, shoulders or any garment boundary. Natural controls the outside silhouette; the AI changes are limited to complexion and existing makeup details, never background or edge shadows.
 
 FINAL VISUAL CHECK: The Makeup image should look like the same Natural photograph after carefully neutralising small redness marks, blending light real foundation into the skin and dusting a very fine translucent powder. Fewer red spots, smoother more even skin, less oiliness; no cakey overlay, no plastic blur, and no changed identity, neck or clothing.
 `;
