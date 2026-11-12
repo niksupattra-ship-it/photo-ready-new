@@ -75,37 +75,31 @@ test('Thai and English AI makeup both request even fair rosy skin with a continu
  }
 });
 
-test('English makeup fixes red speckles before sheer foundation without changing Thai or identity/outfit',async()=>{
+test('English-only makeup uses pressed powder to refine skin without affecting Thai or hair edges',async()=>{
  const {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK}=await import('../english-makeup-light-policy.js');
  const {AI_MAKEUP_FACE_LIGHTING_POLICY,AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const natural=await png({r:132,g:119,b:101,alpha:1},28,36);
- assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-powder-soft-bright-v5');
+ assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-pressed-powder-v6');
  for(const option of ['englishReferenceFinish','englishHeadFinish','englishTemplateFinish']){
   let prompt,requests=0;
-  const made=await createAiMakeupVariant(natural,{
-   key:'english-v3-refined-skin-check',[option]:true,preserveOutfit:true,
-   requestPortrait:async request=>{prompt=request.prompt;requests++;return {png:natural}}
-  });
+  const result=await createAiMakeupVariant(natural,{key:'english-compact-powder-v6',[option]:true,preserveOutfit:true,requestPortrait:async p=>{prompt=p.prompt;requests++;return {png:natural}}});
   assert.equal(requests,1);
-  assert(made.length>0);
+  assert(result.length>0);
   assert(prompt.endsWith(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK));
-  assert.match(prompt,/FIRST CORRECT VISIBLE RED SPOTS AND UNEVEN COLOUR/);
-  assert.match(prompt,/Cover and visually neutralise temporary acne marks/);
-  assert.match(prompt,/light-to-medium concealer coverage/);
-  assert.match(prompt,/THEN APPLY A SOFT, EVEN FOUNDATION-AND-POWDER FINISH/);
-  assert.match(prompt,/bright soft-matte to delicate satin/);
-  assert.match(prompt,/\+0\.18 to \+0\.28 EV/);
+  assert.match(prompt,/MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/);
+  assert.match(prompt,/medium-coverage foundation, spot concealer and fine PRESSED COMPACT POWDER/);
+  assert.match(prompt,/Minimise rough granular skin noise/);
+  assert.match(prompt,/\+0\.20 to \+0\.30 EV/);
   assert.match(prompt,/ABSOLUTE NON-SKIN LOCK/);
+  assert.match(prompt,/ENGLISH CLEAN EARS AND NO JEWELLERY/);
   assert.match(prompt,/NO OUTER SILHOUETTE HALO/);
-  assert.match(prompt,/Never paint a grey or black shadow/);
   assert.match(prompt,/Keep outfit colours, weave, shadows and brightness identical/);
-  assert.match(prompt,/No heavy whitening, chalky makeup, greasy shine, plastic blur or edge shadows/);
-  assert.doesNotMatch(prompt,/HEALTHY SKIN AND FACE FLASH: Give the skin/);
+  assert.match(prompt,/No changes of any kind to non-skin elements/);
   assert(!prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
   assert(!prompt.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
  }
  let thai;
- await createAiMakeupVariant(natural,{key:'thai-unchanged',requestPortrait:async request=>{thai=request.prompt;return {png:natural}}});
+ await createAiMakeupVariant(natural,{key:'thai-prompt-regression',requestPortrait:async p=>{thai=p.prompt;return {png:natural}}});
  assert(thai.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY));
- assert.doesNotMatch(thai,/FINAL ENGLISH REFINED SKIN FINISH/);
+ assert.doesNotMatch(thai,/MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/);
 });
