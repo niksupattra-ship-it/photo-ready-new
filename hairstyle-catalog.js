@@ -245,6 +245,7 @@ export const PRODUCTION_HAIR_CATALOG=[
   "file": "39.png",
   "src": "/assets/seedream-hairstyles/previews/39.webp"
 }
+  ,{id:'female-default-reference',gender:'female',name:'Internal female first-photo reference',file:'first-female-default.png',src:'/assets/seedream-hairstyles/references/first-female-default.png',hidden:true}
 ];
 export const FREE_PNG_HAIR_CATALOG=[21,25,26].map(number=>({id:'hair-'+number,gender:'female',name:'ทรงผม '+number,file:'hair-'+number+'.png',referenceDirectory:'hair',src:'/assets/hairstyle-previews/hair-'+number+'.png'}));
 export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||FREE_PNG_HAIR_CATALOG.find(item=>item.id===id)||null}
@@ -259,11 +260,12 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // First-generation defaults. The female reference is an existing catalog PNG
 // (straight, centre-parted hair with visible ears and rear lengths).
 // Male uses the legacy no-selection/original-hair behavior.
-export const FIRST_GENERATION_FEMALE_HAIR='seedream-40';
+export const FIRST_GENERATION_FEMALE_HAIR='female-default-reference';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v23-generate-straight-neck-alpha';
 const compact={
+ 'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp and fully gathered at the low rear, with open forehead, clean visible ears and no hanging rear lengths'],
  'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],

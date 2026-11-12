@@ -2534,7 +2534,7 @@ async function portraitCompletionEvidence(blob,includeGarments=false,{includeHai
 const selectedHairEvidenceCache=new Map();
 async function selectedHairEvidence(hairId){
  const selected=PRODUCTION_HAIR_CATALOG.find(item=>item.id===hairId);
- if(!selected)return null;
+ if(!selected||selected.hidden)return null;
  const key=HAIR_DESIGN_VERSION+'|'+selected.src;
  if(!selectedHairEvidenceCache.has(key)){
   const pending=(async()=>{
@@ -2862,7 +2862,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  }
  if(portraitMode==='female')fd.append('femaleFinishPair',AI_MAKEUP_PAIR_VERSION);
  if(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)&&options.templatePath)fd.append('outfitReferencePath',options.templatePath);
- if(selected){fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}
+ if(selected){if(!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}
  else if(originalAi){try{fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}catch(error){assertProcessActive(operation)}}
  else if(!originalAi&&((originalFile.idpromStudioSourceReplacement===true&&selected)||(portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)))){
   fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput,{protectFeatures:portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)})));assertProcessActive(operation);
@@ -3203,7 +3203,7 @@ const COLLAR_PIN_OPTIONS=[
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
 const BASIC_MALE_HAIR_IDS=['seedream-36','seedream-28','seedream-33','seedream-34'];
 const MALE_HAIR_OPTIONS=[...BASIC_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)).filter(Boolean),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.id!=='seedream-35'&&!BASIC_MALE_HAIR_IDS.includes(h.id))];
-const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female');
+const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden);
 const BASIC_FEMALE_HAIR_IDS=['seedream-40','seedream-41'];
 const PRIORITY_PREMIUM_FEMALE_HAIR_IDS=['seedream-23','seedream-25'];
 const REMOVED_FEMALE_HAIR_IDS=new Set(['hair-21','hair-25','seedream-26','seedream-19','seedream-01','seedream-38','hair-26','seedream-27','seedream-25']);

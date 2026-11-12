@@ -4,7 +4,7 @@ import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js'
 import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
-import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed} from './hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
 import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
@@ -261,7 +261,7 @@ async function requireCredit(req,res,kind){
   if(kind==='ai-finish'||kind==='hairstyle'){
    if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
-   if(chosen&&((chosen.gender==='female'&&![40,41].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,33,34,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   if(chosen&&((chosen.gender==='female'&&chosen.id!==FIRST_GENERATION_FEMALE_HAIR&&![40,41].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,33,34,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
    // Purchased English Premium always uses the same 20-credit cycle for AI.
    // Before purchase the existing preview behavior stays unchanged.
    const premiumWallet=await getWallet(wid);
