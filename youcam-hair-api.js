@@ -14,8 +14,20 @@ export async function prepareYoucamPortraitInput(buffer,imageFactory=sharp){
  return imageFactory(buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).jpeg({quality:98}).toBuffer();
 }
 
-export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial=verifiedPrivateTrial,fetchImpl=(...a)=>fetch(...a),wait=ms=>new Promise(r=>setTimeout(r,ms)),now=()=>Date.now()}){
+export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial=verifiedPrivateTrial,fetchImpl=(...a)=>fetch(...a),wait=ms=>new Promise(r=>setTimeout(r,ms)),now=()=>Date.now(),reserveUsdPremiumCredit=null,commitCredit=null,refundCredit=null,getAiJobResult=null}){
  const jobs=new Map(),exact=new Map(),submitting=new Set();const TTL=20*60*1000,MAX_BYTES=64*1024*1024;
+ // USD Premium and the legacy Thai hairstyle package have separate ledgers.
+ const settle=async(j,success)=>{
+  if(!j.usdPremium)return settleHairAi(j.usageId,success);
+  const valid=success?await commitCredit(j.usageId):await refundCredit(j.usageId);
+  return success?'completed':valid?'released':'completed';
+ };
+ const premiumAccess=async(req,owner)=>{
+  const wallet=await getWallet(owner);
+  if(!wallet?.usdPremiumPurchased)return null;
+  if(req.accountUser?.wallet_id!==owner)return {error:'auth_required'};
+  return wallet;
+ };
  const prune=()=>{for(const [id,j]of jobs)if(j.status!=='running'&&now()-j.updated>TTL){jobs.delete(id);exact.delete(j.key)}let bytes=[...jobs.values()].reduce((s,j)=>s+(j.png?.length||0),0);for(const [id,j]of jobs){if(bytes<=MAX_BYTES&&jobs.size<=32)break;if(j.status!=='running'){bytes-=j.png?.length||0;jobs.delete(id);exact.delete(j.key)}}};
  const api=async(endpoint,token,body)=>{const r=await fetchImpl(BASE+endpoint,{method:body?'POST':'GET',headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(45000)});const data=await r.json();if(!r.ok||Number(data.status)>=400)throw Error(`YouCam: ${data.error_message||data.error_code||data.error||r.status}`);return data.data;};
  const uploadFile=async(buffer,name,token)=>{const data=await api('/s2s/v2.0/file',token,{files:[{content_type:'image/jpeg',file_name:name,file_size:buffer.length}]});const file=data?.files?.[0];if(!file?.file_id||!file.requests?.length)throw Error('YouCam ไม่ส่งข้อมูลอัปโหลดรูป');for(const request of file.requests){const u=new URL(request.url);if(u.protocol!=='https:')throw Error('URL อัปโหลดไม่ถูกต้อง');const r=await fetchImpl(u,{method:request.method||'PUT',headers:request.headers||{'Content-Type':'image/jpeg'},body:buffer,signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error(`อัปโหลดรูปไป YouCam ไม่สำเร็จ (${r.status})`);}return file.file_id;};
@@ -25,10 +37,12 @@ export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPriv
   for(let count=0;count<60;count++){await wait(10000);if(j.cancelled)return;const result=await api('/s2s/v2.1/task/hair-transfer/'+encodeURIComponent(created.task_id),token);j.updated=now();j.progress=Math.min(90,25+count*2);if(result?.task_status==='error')throw Error(`YouCam: ${result.error_message||result.error||'เปลี่ยนทรงผมไม่สำเร็จ'}`);if(result?.task_status!=='success')continue;
    const url=result.results?.url||result.url;if(!url||new URL(url).protocol!=='https:')throw Error('YouCam ไม่ส่งรูปผลลัพธ์');const r=await fetchImpl(url,{signal:AbortSignal.timeout(60000)});if(!r.ok)throw Error('ดาวน์โหลดผล YouCam ไม่สำเร็จ');const raw=Buffer.from(await r.arrayBuffer());if(raw.length>20*1024*1024)throw Error('รูปผลลัพธ์ใหญ่เกินกำหนด');const png=await sharp(raw,{limitInputPixels:33554432}).rotate().png().toBuffer();if(j.cancelled)return;j.png=png;j.status='completed';j.progress=100;j.updated=now();prune();return;
   }throw Error('YouCam ใช้เวลานานเกินกำหนด กรุณาลองใหม่ภายหลัง');
- }catch(e){await settleHairAi(j.usageId,false).catch(()=>{});j.status='failed';j.error=String(e.message||'YouCam ไม่พร้อมใช้งาน');j.updated=now();exact.delete(j.key);}};
- app.get('/api/youcam/hair/access',async(req,res)=>{try{const owner=walletId(req);if(!owner||!await getWallet(owner))return res.status(401).json({message:'กรุณาเข้าสู่ระบบใหม่'});const a=hasPrivateTrial(req,owner)?{remaining:null,unlimited:true}:await hairAiAccess(owner,String(req.query.sourceJobId||''));res.set('Cache-Control','no-store').json(a)}catch(e){res.status(400).json({message:e.message})}});
- app.post('/api/youcam/hair/jobs/:id/confirm',async(req,res)=>{try{const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req)||j.status!=='completed')return res.status(409).json({message:'รูปยังไม่พร้อม'});await settleHairAi(j.usageId,true);j.confirmed=true;res.json({ok:true})}catch(e){res.status(409).json({message:e.message})}});
- app.post('/api/youcam/hair/jobs/:id/cancel',async(req,res)=>{try{const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req))return res.status(404).json({message:'ไม่พบงาน'});if(!j.confirmed){const settled=await settleHairAi(j.usageId,false);if(settled==='completed'){j.confirmed=true}else{j.cancelled=true;j.status='failed';j.error='ยกเลิกแล้ว';exact.delete(j.key)}}res.json({ok:true})}catch(e){res.status(500).json({message:e.message})}});
+ }catch(e){await settle(j,false).catch(()=>{});j.status='failed';j.error=String(e.message||'YouCam ไม่พร้อมใช้งาน');j.updated=now();exact.delete(j.key);}};
+ app.get('/api/youcam/hair/access',async(req,res)=>{try{const owner=walletId(req);if(!owner||!await getWallet(owner))return res.status(401).json({message:'กรุณาเข้าสู่ระบบใหม่'});const usd=await premiumAccess(req,owner);
+  if(usd?.error)return res.status(401).json({error:'auth_required',message:'Sign in to use your Premium plan.'});
+  const a=hasPrivateTrial(req,owner)?{remaining:null,unlimited:true}:usd?{remaining:usd.usdPremiumRemaining,bucket:'premium',expiresAt:usd.usdPremiumUntil}:await hairAiAccess(owner,String(req.query.sourceJobId||''));res.set('Cache-Control','no-store').json(a)}catch(e){res.status(400).json({message:e.message})}});
+ app.post('/api/youcam/hair/jobs/:id/confirm',async(req,res)=>{try{const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req)||j.status!=='completed')return res.status(409).json({message:'รูปยังไม่พร้อม'});await settle(j,true);j.confirmed=true;res.json({ok:true})}catch(e){res.status(409).json({message:e.message})}});
+ app.post('/api/youcam/hair/jobs/:id/cancel',async(req,res)=>{try{const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req))return res.status(404).json({message:'ไม่พบงาน'});if(!j.confirmed){const settled=await settle(j,false);if(settled==='completed'){j.confirmed=true}else{j.cancelled=true;j.status='failed';j.error='ยกเลิกแล้ว';exact.delete(j.key)}}res.json({ok:true})}catch(e){res.status(500).json({message:e.message})}});
  app.post('/api/youcam/hair/jobs',upload.single('image'),async(req,res)=>{let submissionOwner=null,reservedUsage=null,started=false;try{
   prune();const owner=walletId(req);if(!owner||!await getWallet(owner))return res.status(401).json({message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});
   if(submitting.has(owner))return res.status(429).json({message:'กำลังเตรียมทรงผม กรุณารอสักครู่'});submitting.add(owner);submissionOwner=owner;
@@ -38,9 +52,20 @@ export function registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPriv
   const ref=await readFile(path.join(dir,'public/assets/youcam-hair',file));const key=createHash('sha256').update(owner).update(String(req.body.sourceJobId||'')).update(req.body.hairId).update(input).update(ref).digest('hex');const found=jobs.get(exact.get(key));if(found)return res.json({jobId:found.id,status:found.status,progress:found.progress});
   if([...jobs.values()].some(j=>j.owner===owner&&j.status==='running'))return res.status(429).json({message:'กรุณารอเปลี่ยนทรงผมครั้งก่อนให้เสร็จก่อน'});
   if([...jobs.values()].filter(j=>j.status==='running').length>=8)return res.status(429).json({message:'กำลังมีผู้ใช้งาน กรุณาลองใหม่สักครู่'});
-  const usageId=hasPrivateTrial(req,owner)?null:await reserveHairAi(owner,String(req.body.sourceJobId||''));if(!usageId&&!hasPrivateTrial(req,owner))return res.status(402).json({error:'hair_credit_required',message:'เครดิตเปลี่ยนทรงผม AI หมดแล้ว กรุณาเติมเครดิต · ทรงที่ไม่ใช้ AI ยังเลือกได้'});
-  reservedUsage=usageId;const j={usageId,id:randomUUID(),owner,key,status:'running',progress:5,updated:now()};jobs.set(j.id,j);exact.set(key,j.id);res.status(202).json({jobId:j.id,status:j.status,progress:j.progress});started=true;void work(j,input,ref,token);
- }catch(e){if(reservedUsage&&!started)await settleHairAi(reservedUsage,false).catch(()=>{});if(!res.headersSent)res.status(400).json({message:e.message||'เตรียมภาพไม่สำเร็จ'});}finally{if(submissionOwner)submitting.delete(submissionOwner)}});
+  const privateTrial=hasPrivateTrial(req,owner),usd=privateTrial?null:await premiumAccess(req,owner);
+  if(usd?.error)return res.status(401).json({error:'auth_required',message:'Sign in to use Premium AI generations.'});
+  let usageId=null,usdPremium=false;
+  if(usd){
+   if(!reserveUsdPremiumCredit||!commitCredit||!refundCredit||!getAiJobResult)throw Error('Premium AI is temporarily unavailable. Please try again.');
+   const source=await getAiJobResult(String(req.body.sourceJobId||''),owner);
+   if(!source||source.status!=='completed'||!source.result?.length)return res.status(403).json({error:'photo_required',message:'Open your existing photo before applying an AI hairstyle.'});
+   const credit=await reserveUsdPremiumCredit(owner,'hairstyle');
+   if(!credit.usageId)return res.status(402).json({error:'usd_premium_credits_exhausted',message:'Your Premium AI generations are exhausted or the 30-day access has ended.'});
+   usageId=credit.usageId;usdPremium=true;
+  }else if(!privateTrial)usageId=await reserveHairAi(owner,String(req.body.sourceJobId||''));
+  if(!usageId&&!privateTrial)return res.status(402).json({error:'hair_credit_required',message:'เครดิตเปลี่ยนทรงผม AI หมดแล้ว กรุณาเติมเครดิต · ทรงที่ไม่ใช้ AI ยังเลือกได้'});
+  reservedUsage=usageId;const j={usageId,usdPremium,id:randomUUID(),owner,key,status:'running',progress:5,updated:now()};jobs.set(j.id,j);exact.set(key,j.id);res.status(202).json({jobId:j.id,status:j.status,progress:j.progress});started=true;void work(j,input,ref,token);
+ }catch(e){if(reservedUsage&&!started)await (String(reservedUsage).startsWith('use_')&&refundCredit?refundCredit(reservedUsage):settleHairAi(reservedUsage,false)).catch(()=>{});if(!res.headersSent)res.status(400).json({message:e.message||'เตรียมภาพไม่สำเร็จ'});}finally{if(submissionOwner)submitting.delete(submissionOwner)}});
  app.get('/api/youcam/hair/jobs/:id',(req,res)=>{prune();const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req))return res.status(404).json({message:'ไม่พบงาน YouCam กรุณาเลือกทรงใหม่'});res.set('Cache-Control','no-store').json({jobId:j.id,status:j.status,progress:j.progress,...(j.error?{message:j.error}:{})});});
  app.get('/api/youcam/hair/jobs/:id/image',(req,res)=>{prune();const j=jobs.get(req.params.id);if(!j||j.owner!==walletId(req)||j.status!=='completed')return res.status(404).json({message:'รูปยังไม่พร้อม'});res.set('Cache-Control','no-store').type('png').send(j.png);});
 }
