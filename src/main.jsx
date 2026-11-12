@@ -4175,7 +4175,7 @@ function App(){
  const progressLabelFor=photoEditingStage;
  const beginProgress=()=>{
   clearInterval(progressTimerRef.current);
-  activeProcessOperation={jobId:null,cancelled:false,cancelling:false,settled:false,finishing:false};
+  activeProcessOperation={jobId:null,cancelled:false,cancelling:false,settled:false,finishing:false,finished:false};
   progressStartedAtRef.current=Date.now();progressValueRef.current=1;
   setProcessProgress({active:true,value:1,label:progressLabelFor(1),cancelling:false});
   progressTimerRef.current=setInterval(()=>setProcessProgress(current=>{
@@ -4192,6 +4192,8 @@ function App(){
  // Real pipeline stages must never make the visible percentage jump or change copy rapidly.
  // The timer owns the display progress; 100% is reserved for actual completion only.
  const setProgressStage=()=>{};
+ const cancellationStillUnwinding=()=>Boolean(activeProcessOperation?.cancelled&&!activeProcessOperation.finished);
+ const pendingCancelMessage=()=>englishPreviewEnabled()?'The previous AI job is still being cancelled. Please try again shortly.':'กำลังยกเลิกงาน AI ก่อนหน้า กรุณาลองอีกครั้งเมื่อยกเลิกเสร็จ';
  const finishProgress=async success=>{
   const operation=activeProcessOperation;
   try{
@@ -4226,21 +4228,32 @@ function App(){
   finally{
    // A failed delivery confirmation/cancellation must not leave the editor
    // disabled after its waiting overlay has closed. Keep settlement intact.
-   if(activeProcessOperation===operation){if(operation)operation.cancelling=false;clearInterval(progressTimerRef.current);progressTimerRef.current=null;setProcessProgress({active:false,value:0,label:'',cancelling:false})}
+   if(activeProcessOperation===operation){if(operation){operation.cancelling=false;operation.finished=true}clearInterval(progressTimerRef.current);progressTimerRef.current=null;setProcessProgress({active:false,value:0,label:'',cancelling:false})}
   }
  };
- const cancelProgress=async()=>{
-  const operation=activeProcessOperation;if(!operation||operation.finishing||operation.cancelling)return;
-  operation.cancelled=true;operation.cancelling=true;portraitResultCache.clear();clearInterval(progressTimerRef.current);setProcessProgress(current=>({...current,active:true,cancelling:true,label:'กำลังยกเลิกการประมวลผล…'}));
-  try{
-   await cancelPortraitJob(operation,()=>settleProcessOperation(operation,'cancel'));
-   for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);
-   // The server may be cancelled while an earlier poll, decoder or local
-   // composition is still unwinding. Keep feedback until finishProgress(false)
-   // runs from that pipeline's finally; do not reveal disabled controls alone.
-   clearInterval(progressTimerRef.current);setProcessProgress(current=>current.active?{...current,cancelling:true,label:'กำลังคืนงานเดิม…'}:current);
-   setMsg('ยืนยันการยกเลิกแล้ว กำลังคืนงานเดิม…');void refreshWallet();
-  }catch(e){operation.cancelled=false;setProcessProgress(current=>({...current,cancelling:false}));setMsg(e.message);throw e}finally{operation.cancelling=false}
+ const cancelProgress=()=>{
+  const operation=activeProcessOperation;
+  if(!operation||operation.finishing||operation.cancelling)return;
+  // Hide the blocking overlay as soon as the user requests cancellation.
+  // An upload can still be in flight with no job ID; keep its cancellation
+  // promise alive so the late server job is cancelled and credits are refunded.
+  operation.cancelled=true;operation.cancelling=true;
+  portraitResultCache.clear();
+  clearInterval(progressTimerRef.current);progressTimerRef.current=null;
+  setProcessProgress({active:false,value:0,label:'',cancelling:false});
+  setBusy(false);
+  setMsg(englishPreviewEnabled()?'Cancellation requested. Your previous photo is kept.':'รับคำขอยกเลิกแล้ว เก็บรูปเดิมไว้');
+  void cancelPortraitJob(operation,()=>settleProcessOperation(operation,'cancel'))
+   .then(()=>{
+    for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);
+    if(activeProcessOperation===operation){setMsg(englishPreviewEnabled()?'AI job cancelled. Your previous photo is unchanged.':'ยกเลิกงาน AI แล้ว รูปเดิมยังอยู่');void refreshWallet()}
+   })
+   .catch(error=>{
+    // Never mark the cancelled generation active again: a late result must
+    // not replace the original photo, even when server cancellation fails.
+    if(activeProcessOperation===operation)setMsg(error?.message||'Could not verify cancellation. Please check your credits before retrying.');
+   })
+   .finally(()=>{operation.cancelling=false});
  };
  useEffect(()=>()=>{clearInterval(progressTimerRef.current);clearTimeout(gestureRef.current?.holdTimer)},[]);
  const lockedPlacementRef=useRef(null);
@@ -4815,6 +4828,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle,sourceJobId,outfitReferencePath}={})=>{
+  if(cancellationStillUnwinding()){setMsg(pendingCancelMessage());return}
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current,requestScope=hairResultScope();
@@ -5001,6 +5015,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   setUniformCategory(option.cat);if(option.gender)setGender(option.gender);if(option.level)setLevel(option.level);setSelectedStyle(option.title||option.name);
  };
  const selectProcessedUniform=async option=>{
+  if(cancellationStillUnwinding()){setMsg(pendingCancelMessage());return}
   if(!allowTemplate(option.template))return;
   if(busy||hairBusy||downloadBusy||uniformChanging)return;
   if(!editCache.current){
@@ -5151,14 +5166,14 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const finished=await renderWithRibbon(headNeckTransparent,composed.lock,{scale:1,x:0,y:0},0,{width:0,length:0},backgroundRef.current);
   setProgressStage(97,'กำลังแสดงผล');showBlob(finished);
  };
- const go=async()=>{if(busy||hairBusy||photoPreparingRef.current)return;try{if(!await beforeProcess())return}catch(e){setMsg(e.message);return}let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress(PHOTO_EDITING_TITLE);setMsg('');let completed=false;try{
+ const go=async()=>{if(cancellationStillUnwinding()){setMsg(pendingCancelMessage());return}if(busy||hairBusy||photoPreparingRef.current)return;try{if(!await beforeProcess())return}catch(e){setMsg(e.message);return}let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress(PHOTO_EDITING_TITLE);setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:activeUniformTemplate,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(f,'',{jobContext,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';setHairId('');
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
  }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(PROCESS_FAILURE_MESSAGE);const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{try{await refreshWallet();await finishProgress(completed)}finally{setBusy(false)}}};
- const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(busy||hairBusy||photoPreparingRef.current)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress(PHOTO_EDITING_TITLE);setMsg('');let completed=false;try{
+ const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(cancellationStillUnwinding()){setMsg(pendingCancelMessage());return}if(busy||hairBusy||photoPreparingRef.current)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress(PHOTO_EDITING_TITLE);setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,portraitMode,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair,portraitMode);analyticsStage='cleanup';
@@ -5237,6 +5252,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const studioSkinGeometryRef=useRef(null);
  const outputChangePending=()=>Boolean(studioPhotoTransactionRef.current||hairRequestRef.current||busy||hairBusy||hairGenerating||processProgress.active);
  const processStudioPhoto=async(file,template,selectedHair='',portraitMode,requestedFinish,generationOptions={})=>{
+  if(cancellationStillUnwinding())throw Error(pendingCancelMessage());
   if(busy||hairBusy||studioPhotoTransactionRef.current)throw Error('กรุณารอการทำงานก่อนหน้าให้เสร็จ');
   studioPhotoTransactionRef.current=true;setBusy(true);beginProgress();
   let delivered=false,failureStage='generation';const processingStarted=Date.now();
