@@ -260,13 +260,13 @@ async function requireCredit(req,res,kind){
    if(chosen&&((chosen.gender==='female'&&![40,41,42,43,16,38,39].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,33,34,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
    // Purchased English Premium always uses the same 20-credit cycle for AI.
    // Before purchase the existing preview behavior stays unchanged.
-   if(req.accountUser?.wallet_id===wid){
+   const premiumWallet=await getWallet(wid);
+   if(premiumWallet?.usdPremiumPurchased){
+    if(req.accountUser?.wallet_id!==wid){res.status(401).json({error:'auth_required',message:'Sign in to access your Premium AI generations.'});return null}
     const credit=await reserveUsdPremiumCredit(wid,kind);
-    if(credit.purchased){
-     if(credit.usageId)return credit;
-     res.status(402).json({error:'usd_premium_credits_exhausted',message:'All 20 AI generations have been used, or your 30-day Premium access has ended. You can still download saved photos.'});
-     return null;
-    }
+    if(credit.usageId)return credit;
+    res.status(402).json({error:'usd_premium_credits_exhausted',message:'All 20 AI generations have been used, or your 30-day Premium access has ended. You can still download saved photos.'});
+    return null;
    }
    return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
@@ -277,7 +277,7 @@ const upload=multer({
   storage:multer.memoryStorage(),
   limits:{fileSize:20*1024*1024,files:2,fields:20,parts:24}
 });
-registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial});
+registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial,getAiJobResult,reserveUsdPremiumCredit,commitCredit,refundCredit});
 registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sharp(buffer).metadata(),createSourceDownloadJob,downloadPolicy});
 
 // V77: zero-per-image-cost portrait matting after AI using MODNet + ONNX Runtime WebAssembly.
@@ -433,7 +433,21 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
   let current=jobOutfitGenerationCache.get(cacheKey);
   if(!current){
    if(!process.env.ARK_API_KEY)return res.status(503).send('AI ใส่ชุดยังไม่พร้อม');
-   current=generateJobOutfit({root:dir,templatePath,image:req.files.image[0].buffer,head:req.files.head[0].buffer,placement:req.body?.placement,headFrame:req.body?.headFrame,key:process.env.ARK_API_KEY,removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
+   const plan=await getWallet(wid);
+   let paidUse=null;
+   if(plan?.usdPremiumPurchased){
+    if(req.accountUser?.wallet_id!==wid)return res.status(401).send('Sign in to use Premium AI generations.');
+    paidUse=await reserveUsdPremiumCredit(wid,'ai-finish');
+    if(!paidUse.usageId)return res.status(402).send('No Premium AI generations left. Manual outfit selection remains available.');
+   }
+   current=(async()=>{
+    try{
+     const result=await generateJobOutfit({root:dir,templatePath,image:req.files.image[0].buffer,head:req.files.head[0].buffer,placement:req.body?.placement,headFrame:req.body?.headFrame,key:process.env.ARK_API_KEY,removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
+     if(!result?.png?.length)throw Error('AI did not return a completed photo');
+     if(paidUse)await commitCredit(paidUse.usageId);
+     return result;
+    }catch(error){if(paidUse)await refundCredit(paidUse.usageId).catch(()=>{});throw error}
+   })();
    jobOutfitGenerationCache.set(cacheKey,current);
    current.catch(()=>{if(jobOutfitGenerationCache.get(cacheKey)===current)jobOutfitGenerationCache.delete(cacheKey)});
    setTimeout(()=>{if(jobOutfitGenerationCache.get(cacheKey)===current)jobOutfitGenerationCache.delete(cacheKey)},30*60*1000).unref?.();
