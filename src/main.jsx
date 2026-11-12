@@ -2881,7 +2881,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
   if(!frozen.size||frozen.size>20*1024*1024||!['image/png','image/jpeg','image/webp'].includes(frozen.type))throw Error('กรอบผิวไม่ตรงกับภาพต้นฉบับของงาน กรุณาเปิดงานเดิมใหม่แล้วลองอีกครั้ง');
   pinnedInput=frozen;continue;
  }
- if(!r.ok){const text=await r.text();if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(Error(text||'เครดิตสร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม'),{error_stage:'submit_job',http_status:r.status})}
+ if(!r.ok){const responseText=await r.text();let responseBody=null;try{responseBody=JSON.parse(responseText)}catch{}if(r.status===429){throw analyticsTagError(Object.assign(Error('มีงาน AI ก่อนหน้ากำลังประมวลผลอยู่ กรุณารอให้งานเดิมเสร็จหรือยกเลิกก่อน แล้วจึงประมวลผลรูปนี้อีกครั้ง'),{code:'ACTIVE_AI_JOB',status:429}),{error_stage:'submit_job',http_status:429})}if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(Object.assign(Error(responseBody?.message||responseText||'เครดิตสร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม'),{status:r.status,code:responseBody?.error||'AI_SUBMIT_FAILED'}),{error_stage:'submit_job',http_status:r.status})}
  const submitted=await r.json();if(pinnedInput)originalFile.idpromCanonicalInput=pinnedInput;return submitted;
  }
  });
