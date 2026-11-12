@@ -22,6 +22,12 @@ export function EnglishDownload({blob,value,pixelScale=2,onDownload,onClose,surf
  const preview=useRef(null),dialog=useRef(null),drag=useRef(null),pointers=useRef(new Map()),pinch=useRef(null),submitting=useRef(false);
  const size=sizes.find(s=>s.id===crop.sizeId)||sizes[0];
  const layout=format==='pdf'&&size.width?(en?letterPhotoLayout:a4PhotoLayout)(size.width,size.height,copies):null;
+ // Match cropPhotoForDownload: size presets use 300 DPI and the supplied pixelScale.
+ // The unchanged original keeps its decoded pixel dimensions for either format.
+ const photoPixels=image?(size.width?{
+  width:Math.round(size.width/25.4*300)*pixelScale,
+  height:Math.round(size.height/25.4*300)*pixelScale
+ }:{width:image.naturalWidth,height:image.naturalHeight}):null;
  const changeRef=useRef(onChange);changeRef.current=onChange;
  useEffect(()=>{changeRef.current?.({...crop,format,copies:layout?.count??null})},[crop,format,layout?.count]);
  useEffect(()=>{let active=true;decode(blob).then(im=>{if(active)setImage(im)}).catch(()=>setError(text('Could not open this photo.','เปิดรูปไม่สำเร็จ')));return()=>{active=false}},[blob]);
@@ -51,6 +57,7 @@ export function EnglishDownload({blob,value,pixelScale=2,onDownload,onClose,surf
  }} onPointerUp={e=>{pointers.current.delete(e.pointerId);drag.current=null;pinch.current=null}} onPointerCancel={e=>{pointers.current.delete(e.pointerId);drag.current=null;pinch.current=null}} onLostPointerCapture={e=>{pointers.current.delete(e.pointerId);drag.current=null;pinch.current=null}}/><small>{layout&&!adjust?text(`${layout.count} photos · Letter 8.5 × 11 in`,`${layout.count} รูป · A4 210 × 297 มม.`):size.width?text(`${size.width} × ${size.height} mm`,`${size.width} × ${size.height} มม.`):text('Original resolution','ขนาดเดิม')}</small></div>
  <div className="en-download-settings"><fieldset disabled={busy}><legend>{text('File format','รูปแบบไฟล์')}</legend><div className="en-download-formats"><button aria-pressed={format==='png'} onClick={()=>chooseFormat('png')}>{text('Photo (PNG)','รูป PNG')}</button><button aria-pressed={format==='pdf'} onClick={()=>chooseFormat('pdf')}>{text('Print sheet (PDF)','PDF สำหรับพิมพ์')}</button></div></fieldset>
  <label className={layout?"en-download-size":"en-download-size en-download-full"}>{text('Photo size','ขนาดรูป')}<select aria-label={text('Photo size','ขนาดรูป')} disabled={busy} value={crop.sizeId} onChange={e=>setCrop({...DEFAULT_PHOTO_CROP,sizeId:e.target.value,freePosition:true})}>{sizes.filter(s=>format==='png'||s.width).map(s=><option key={s.id} value={s.id}>{s.id==='original'?text('Original resolution','ขนาดเดิม'):s.label}</option>)}</select></label>
+ {photoPixels&&<div className="en-download-pixel-size" role="status" aria-live="polite"><span>{text('Photo dimensions','ขนาดภาพเป็นพิกเซล')}</span><strong>{photoPixels.width.toLocaleString()} × {photoPixels.height.toLocaleString()} px</strong>{format==='pdf'&&<small>{text('Per photo on the print sheet','ต่อรูปบนแผ่นพิมพ์')}</small>}</div>}
  {layout&&<><label className="en-download-copies">{text('Copies','จำนวนรูป')}<input disabled={busy} aria-label={text('Copies','จำนวนรูป')} type="number" min="1" max={layout.capacity} value={layout.count} onChange={e=>setCopies(Math.min(layout.capacity,Math.max(1,Number(e.target.value)||1)))}/></label><p>{text('Print at actual size (100%).','พิมพ์ที่ขนาดจริง / 100%')}</p></>}
  {format==='pdf'&&<button className="en-download-adjust" disabled={busy} aria-expanded={adjust} onClick={()=>setAdjust(!adjust)}>{adjust?text('Done adjusting','ปรับเสร็จแล้ว'):text('Adjust photo','ปรับรูป')}</button>}
  {(format==='png'||adjust)&&<div className="en-download-full en-download-crop-controls"><label>{text('Zoom','ซูม')}<input aria-label={text('Crop zoom','ซูมรูป')} type="range" min=".5" max="3" step=".01" value={crop.zoom} disabled={busy} onChange={e=>setCrop(c=>({...c,zoom:Number(e.target.value)}))}/></label><button disabled={busy} className="en-download-adjust" onClick={()=>setCrop(c=>({...DEFAULT_PHOTO_CROP,sizeId:c.sizeId,freePosition:true}))}>{text('Reset','รีเซ็ต')}</button></div>}
