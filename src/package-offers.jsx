@@ -14,7 +14,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
  const premiumRunning=Boolean(premiumState.usdPremiumActive&&Number(premiumState.usdPremiumRemaining)>0);
  const plans=[
   {id:'usd_single_490_v1',name:'Single Image',price:'$4.90',period:'One-time payment',button:'Download This Photo',
-   features:['Download 1 selected photo','PNG & PDF downloads','No watermark','Preview before payment']},
+   features:['Download 1 selected photo','PNG & PDF downloads','No watermark']},
   {id:'usd_premium_990_v1',name:'Premium',price:'$9.90',period:'30 days · One-time payment',button:'Choose Premium',
    features:['All outfits & hairstyles','20 AI generations','Unlimited manual editing','PNG & PDF downloads','Download all your creations','No watermarks']}
  ];
