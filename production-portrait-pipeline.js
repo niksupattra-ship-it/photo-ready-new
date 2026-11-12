@@ -198,7 +198,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  }
  const pickerGuide=Boolean(chosen?.id?.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION);
  const reference=chosen&&!pickerGuide?await readFile(chosen.referenceDirectory==='hair'?path.join(root,'public','assets','hair',chosen.file):path.join(root,'public','assets','seedream-hairstyles','references',chosen.file)):null;
- let hair=pickerGuide?await loadCatalogueHairGuide(chosen.id,root):reference&&chosen?.referenceDirectory==='hair'?await prepareFreePngReference(reference,chosen.id):reference&&bounded?await prepareCatalogueHairOnly(reference,chosen.id,root):reference;
+ let hair=pickerGuide?await loadCatalogueHairGuide(chosen.id,root):reference&&chosen?.referenceDirectory==='hair'?await prepareFreePngReference(reference,chosen.id):reference&&bounded&&!chosen.hidden?await prepareCatalogueHairOnly(reference,chosen.id,root):reference;
  const explicitIdentityBox=parsePortraitIdentityBox(fields.faceIdentityBox);
  const identityBox=explicitIdentityBox||(continuousSkin?studioReferenceIdentityBox(parseStudioSkinRequest(fields,selected.gender)):null);
  const identity=pickerGuide&&explicitIdentityBox?await portraitIdentityCrop(input,explicitIdentityBox):preparedMakeup?await sharp(input.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer():await portraitIdentityCrop(portrait,identityBox);
