@@ -75,39 +75,35 @@ test('Thai and English AI makeup both request even fair rosy skin with a continu
  }
 });
 
-test('English-only AI makeup applies soft matte foundation and slight skin brightening while locking identity and outfit',async()=>{
+test('English makeup fixes red speckles before sheer foundation without changing Thai or identity/outfit',async()=>{
  const {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK}=await import('../english-makeup-light-policy.js');
  const {AI_MAKEUP_FACE_LIGHTING_POLICY,AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const natural=await png({r:132,g:119,b:101,alpha:1},28,36);
- assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-soft-matte-foundation-v2');
+ assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-refined-redness-v3');
  for(const option of ['englishReferenceFinish','englishHeadFinish','englishTemplateFinish']){
   let prompt,requests=0;
   const made=await createAiMakeupVariant(natural,{
-   key:'english-soft-base-prompt-check',
-   [option]:true,
-   preserveOutfit:true,
+   key:'english-v3-refined-skin-check',[option]:true,preserveOutfit:true,
    requestPortrait:async request=>{prompt=request.prompt;requests++;return {png:natural}}
   });
   assert.equal(requests,1);
   assert(made.length>0);
-  assert(prompt.endsWith(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK),'English foundation finish must have final priority');
-  assert.match(prompt,/FINAL ENGLISH SOFT-BASE MAKEUP FINISH/);
-  assert.match(prompt,/SKIN FINISH — LIGHT FOUNDATION AND FACE POWDER/);
-  assert.match(prompt,/visibly smoother, softer and more polished than Natural/);
-  assert.match(prompt,/Reduce rough\/gritty or over-sharpened pore texture/);
-  assert.match(prompt,/soft matte to natural satin finish/);
-  assert.match(prompt,/BRIGHTER THAN NATURAL, WITHOUT WHITENING/);
-  assert.match(prompt,/\+0\.15 to \+0\.25 EV/);
-  assert.match(prompt,/exposed neck smoothly with no visible mask/);
-  assert.match(prompt,/ABSOLUTE HAIR \/ OUTFIT \/ FRAME LOCK/);
-  assert.match(prompt,/Keep clothing exposure and colour IDENTICAL/);
-  assert.match(prompt,/no.*separate masks\/alpha layers, or perform post-generation facial RGB colour correction/i);
+  assert(prompt.endsWith(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK));
+  assert.match(prompt,/FIRST CORRECT VISIBLE RED SPOTS AND UNEVEN COLOUR/);
+  assert.match(prompt,/small temporary red spots, acne-like pink\/red speckles/);
+  assert.match(prompt,/individual red dots no longer show through a pale powder layer/);
+  assert.match(prompt,/THEN BLEND SHEER FOUNDATION AND FINE SETTING POWDER/);
+  assert.match(prompt,/soft matte-to-natural satin/);
+  assert.match(prompt,/\+0\.08 to \+0\.15 EV/);
+  assert.match(prompt,/ABSOLUTE NON-SKIN LOCK/);
+  assert.match(prompt,/Keep outfit colours, weave, shadows and brightness identical/);
+  assert.match(prompt,/no cakey overlay, no plastic blur/);
   assert.doesNotMatch(prompt,/HEALTHY SKIN AND FACE FLASH: Give the skin/);
   assert(!prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
   assert(!prompt.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
  }
  let thai;
- await createAiMakeupVariant(natural,{key:'thai-prompt-unchanged',requestPortrait:async request=>{thai=request.prompt;return {png:natural}}});
- assert(thai.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY),'Thai makeup prompt remains unchanged');
- assert.doesNotMatch(thai,/FINAL ENGLISH SOFT-BASE MAKEUP FINISH/);
+ await createAiMakeupVariant(natural,{key:'thai-unchanged',requestPortrait:async request=>{thai=request.prompt;return {png:natural}}});
+ assert(thai.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY));
+ assert.doesNotMatch(thai,/FINAL ENGLISH REFINED SKIN FINISH/);
 });
