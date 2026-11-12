@@ -29,9 +29,9 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
-import {checkoutPackage} from './package-rules.js';
+import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
 import {hasPrivateTrial,isPrivateOwner,registerPrivateTrial} from "./private-trial.js";
@@ -72,7 +72,7 @@ const downloadAuditPool=new pg.Pool({max:1,connectionTimeoutMillis:1000,idleTime
 downloadAuditPool.on('error',()=>console.warn('Download audit storage temporarily unavailable'));
 const downloadAuditStore=createDownloadAuditStore(downloadAuditPool);
 setTimeout(()=>{if(downloadAuditEnabled())void downloadAuditStore.ready().then(()=>console.info('Download audit storage ready')).catch(()=>console.warn('Download audit storage unavailable; image delivery remains enabled'))},1000).unref();
-const accountPolicy=req=>requestDownloadPolicy(req,downloadPolicy,{getJobsAccess:getAiJobsAccess,premiumCredits:premiumDownloadCredits});
+const accountPolicy=req=>requestDownloadPolicy(req,downloadPolicy,{getJobsAccess:getAiJobsAccess,premiumCredits:premiumDownloadCredits,usdPremiumStatus:getWallet});
 async function activateSupportDownloadCredits(attempt=0){
  let retry=false;
  try{
@@ -176,6 +176,39 @@ app.post('/api/promo/redeem',async(req,res)=>{
  }catch(e){console.error('Promo redemption:',e);res.status(500).json({error:'promo_failed',message:'รับเครดิตไม่สำเร็จ กรุณาลองใหม่'})}
 });
 registerPackageUnlockCodeApi(app,{store:packageUnlockCodeStore,authUser});
+// The English card flow is USD-only and separate from the Thai PromptPay flow.
+// Prices and entitlements are always derived server-side, never from a client amount.
+app.post('/api/payments/english-checkout',async(req,res)=>{
+ try{
+  const user=req.accountUser;
+  if(!user)return res.status(401).json({error:'auth_required',message:'Sign in to continue to secure checkout.'});
+  const id=String(req.body?.packageId||'');
+  if(!['usd_single_490_v1','usd_premium_990_v1'].includes(id))return res.status(400).json({error:'invalid_package',message:'Choose a valid package.'});
+  const offer=packageFor(id),jobId=String(req.body?.jobId||'');
+  const job=await getAiJob(jobId,user.wallet_id);
+  if(!job||job.status!=='completed'||!job.has_result)return res.status(400).json({error:'photo_required',message:'Create and preview your photo before purchasing.'});
+  if(Date.now()-new Date(job.created_at).getTime()>=7*24*60*60*1000)return res.status(410).json({error:'photo_expired',message:'This photo is past its 7-day storage period. Please create a new photo before paying.'});
+  if(!offer.usdPremium&&await accountPolicy(req).allowed(user.wallet_id,jobId))return res.status(409).json({error:'already_unlocked',message:'This photo is already unlocked. Download it without paying again.'});
+  const attempt=String(req.get('X-Checkout-Attempt')||'');
+  if(!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_checkout_attempt'});
+  await ensureWallet(user.wallet_id);
+  const base=APP_URL||(`${req.protocol}://${req.get('host')}`);
+  const session=await stripePost('checkout/sessions',{
+   mode:'payment','line_items[0][price_data][currency]':'usd','line_items[0][price_data][unit_amount]':offer.priceCents,
+   'line_items[0][price_data][product_data][name]':'IDPROM — '+offer.name,'line_items[0][quantity]':1,
+   'payment_method_types[0]':'card','customer_email':user.email,
+   success_url:base+'/?lang=en&payment=success&session_id={CHECKOUT_SESSION_ID}',
+   cancel_url:base+'/?lang=en&payment=cancelled',
+   'metadata[wallet_id]':user.wallet_id,'metadata[package_id]':id,'metadata[job_id]':jobId
+  },'idprom-usd-v1-'+crypto.createHash('sha256').update([user.id,user.wallet_id,id,jobId,attempt].join(':')).digest('hex'));
+  const url=new URL(session.url||'');
+  if(session.currency!=='usd'||session.amount_total!==offer.priceCents||session.metadata?.wallet_id!==user.wallet_id||session.metadata?.job_id!==jobId||session.metadata?.package_id!==id||url.protocol!=='https:'||url.hostname!=='checkout.stripe.com')throw Error('checkout_response_mismatch');
+  res.set('Cache-Control','no-store').json({url:url.href,packageId:id,currency:'usd',amountCents:offer.priceCents});
+ }catch(e){
+  console.error('USD checkout:',String(e.code||e.message||'unavailable').slice(0,90));
+  res.status(503).json({error:'checkout_unavailable',message:'Secure checkout is temporarily unavailable. No payment was taken. Please try again.'});
+ }
+});
 app.post('/api/payments/checkout',(req,res)=>paymentApi.checkout(req,res));
 paymentApi=registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,recordDownloadRefund,pendingDownloadRefunds,appUrl:APP_URL,scopeForJob:(wid,id)=>downloadPolicy.scopeForJob(wid,id),walletRights:getWallet,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
 setInterval(()=>{void paymentApi.retryReconciliations().catch(error=>console.warn('IDPROM payment reconciliation:',error.code||'storage_unavailable'))},60000).unref();
@@ -225,6 +258,16 @@ async function requireCredit(req,res,kind){
    if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
    if(chosen&&((chosen.gender==='female'&&![40,41,42,43,16,38,39].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,33,34,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   // Purchased English Premium always uses the same 20-credit cycle for AI.
+   // Before purchase the existing preview behavior stays unchanged.
+   if(req.accountUser?.wallet_id===wid){
+    const credit=await reserveUsdPremiumCredit(wid,kind);
+    if(credit.purchased){
+     if(credit.usageId)return credit;
+     res.status(402).json({error:'usd_premium_credits_exhausted',message:'All 20 AI generations have been used, or your 30-day Premium access has ended. You can still download saved photos.'});
+     return null;
+    }
+   }
    return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
   res.status(403).json({error:'unsupported_generation'});return null;
