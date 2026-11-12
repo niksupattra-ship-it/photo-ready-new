@@ -12,10 +12,19 @@ with sync_playwright()as pw:
    ids=p.evaluate('sizeFixture.presets.map(s=>s.id)')
    assert ids==(['original','35x45','intl-2x2-inch','33x48','50x70']if lang=='en'else['original','1-inch','1.5-inch','2-inch','2.5-inch','3-inch','2x2-inch','33x48','35x45'])
    if lang=='en':assert p.locator('.photo-size-options button').first.get_attribute('aria-pressed')=='true','Old Thai crop must reset to the displayed original preset'
-   home=p.locator('.home-photo-sizes-options button');assert home.count()==5
+   home=p.locator('.home-photo-sizes-options button');assert home.count()==6
    for i in range(1,5):
     home.nth(i).click();p.wait_for_timeout(60)
     assert home.nth(i).get_attribute('aria-pressed')=='true'
+   pdf_option=home.nth(5);assert ('PDF (Letter)' if lang=='en' else 'PDF (A4)') in pdf_option.inner_text()
+   pdf_option.click();assert pdf_option.get_attribute('aria-pressed')=='true'
+   sheet=p.locator('.home-photo-sizes-pdf-sheet')
+   assert sheet.count()==1 and sheet.get_attribute('data-paper')==('Letter' if lang=='en' else 'A4')
+   assert sheet.locator('.home-photo-sizes-pdf-photo img').count()==int(sheet.get_attribute('data-layout-count'))
+   assert sheet.locator('img').count()>10
+   assert ('Letter' if lang=='en' else 'A4') in p.locator('.home-photo-sizes-result').inner_text()
+   assert p.evaluate('document.documentElement.scrollWidth<=innerWidth'),f'PDF overflow {lang} {width}'
+   home.nth(0).click();assert sheet.count()==0
    assert p.evaluate('document.documentElement.scrollWidth<=innerWidth'),f'Overflow {lang} {width}'
    for i in range(1,len(ids)):
     p.locator('.photo-size-options button').nth(i).click()
