@@ -2874,7 +2874,33 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(options.creditKind==='hairstyle')fd.append('creditKind','hairstyle');
  await saveAiJobFile(originalFile);assertProcessActive(operation);
  const acceptTrial=acceptedPaidTrial;acceptedPaidTrial=false;
- const r=await portraitFetch('/api/ai-jobs',{method:'POST',body:fd,headers:{...walletHeaders(),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})}},90000);
+ const submitHeaders={...walletHeaders(),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})};
+ let r=await portraitFetch('/api/ai-jobs',{method:'POST',body:fd,headers:submitHeaders},90000);
+ // A different tab can already be generating for this wallet. Wait for that
+ // wallet-owned job to leave the active queue, then submit THIS photo once.
+ // The conflict response has not created a job or spent a generation.
+ const conflictDeadline=Date.now()+8*60*1000;
+ let conflicts=0;
+ while(r.status===429&&conflicts<4){
+  const body=await r.json().catch(()=>null);
+  const activeJobId=typeof body?.activeJobId==='string'&&/^job_[a-f0-9]{36}$/.test(body.activeJobId)?body.activeJobId:null;
+  if(!activeJobId)throw analyticsTagError(Object.assign(Error('มีงาน AI ก่อนหน้ากำลังประมวลผลอยู่ กรุณาลองใหม่หลังงานนั้นเสร็จ'),{status:429,code:'ACTIVE_AI_JOB'}),{error_stage:'submit_job',http_status:429});
+  conflicts++;
+  options.onJobStatus?.('queued','waiting-other-job');
+  for(;;){
+   assertProcessActive(operation);
+   if(Date.now()>=conflictDeadline)throw analyticsTagError(Object.assign(Error('งาน AI ก่อนหน้ายังประมวลผลอยู่ กรุณาลองใหม่หลังงานนั้นเสร็จ'),{status:429,code:'ACTIVE_AI_JOB'}),{error_stage:'submit_job',http_status:429});
+   const statusResponse=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(activeJobId),{headers:walletHeaders(),cache:'no-store'},20000);
+   if(statusResponse.status===404)break;
+   if(!statusResponse.ok)throw Error('ตรวจสอบสถานะงาน AI ก่อนหน้าไม่ได้ กรุณาลองอีกครั้ง');
+   const existingJob=await statusResponse.json();
+   if(!['queued','processing'].includes(existingJob.status))break;
+   await new Promise(resolve=>setTimeout(resolve,3000));
+  }
+  assertProcessActive(operation);
+  r=await portraitFetch('/api/ai-jobs',{method:'POST',body:fd,headers:submitHeaders},90000);
+ }
+
  if(r.status===409&&r.headers.get('X-IDPROM-Canonical-Input')==='1'){
   if(originalAi||canonicalAttempt!==0)throw Error('กรอบผิวไม่ตรงกับภาพต้นฉบับของงาน กรุณาเปิดงานเดิมใหม่แล้วลองอีกครั้ง');
   const frozen=await r.blob();assertProcessActive(operation);
