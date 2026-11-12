@@ -527,7 +527,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   // Log the failed stage before refund/storage recovery can itself wait.
   console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
   if(createdJobId)try{await failAiJob(createdJobId,'work_binding_failed')}catch(cleanupError){console.error('AI binding cleanup:',cleanupError.code||'storage_error')}
-  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:'job_create_failed',message:e.message});
+  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:e.code==='active_ai_job'?'active_ai_job':'job_create_failed',message:e.message,...(e.code==='active_ai_job'&&e.activeJobId?{activeJobId:e.activeJobId}:{})});
  }
 });
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
