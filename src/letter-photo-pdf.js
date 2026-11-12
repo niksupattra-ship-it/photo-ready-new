@@ -6,7 +6,7 @@ function photoPageLayout(widthMm,heightMm,copies,page){
  if(![widthMm,heightMm].every(v=>Number.isFinite(v)&&v>0))throw Error('Choose a print size.');
  const width=widthMm*72/25.4,height=heightMm*72/25.4,margin=18,gap=9;
  const columns=Math.floor((page.width-2*margin+gap)/(width+gap)),rows=Math.floor((page.height-2*margin+gap)/(height+gap));
- if(columns<1||rows<1)throw Error('This photo size does not fit on the selected paper.');
+ if(columns<1||rows<1)throw Error(page===LETTER_PAGE?'This photo size does not fit on Letter paper.':'This photo size does not fit on A4 paper.');
  const capacity=columns*rows,count=copies==null?capacity:Math.min(capacity,Math.max(1,Math.floor(Number(copies)||1)));
  const positions=Array.from({length:count},(_,i)=>({x:margin+(i%columns)*(width+gap),y:page.height-margin-height-Math.floor(i/columns)*(height+gap),width,height}));
  return {width:page.width,height:page.height,capacity,count,positions};
