@@ -4,6 +4,7 @@ import {prepareThaiNeckCanvas} from './thai-neck-canvas.js';
 import {validateCurrentHairRequest} from './english-current-hair.js';
 import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
+import {decontaminateEnglishBlueEdgeRgba} from './english-blue-edge-clean.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {requireNewStraightNeck,isBoundedPortrait,boundedPortraitPrompt,boundedPortraitPreparationPrompt,prepareCatalogueHairOnly,BOUNDED_PORTRAIT_PRIORITY,BALANCED_NECK_POLICY,loadNeckBackingGuide,neckBackingGuideInstruction,loadVisibleNeckGuide,visibleNeckGuideInstruction} from './portrait-anatomy.js';
 import {needsNaturalAiPreparation} from './natural-studio-skin.js';
@@ -349,9 +350,13 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  return transparent;
 }
 async function preserveEnglishPortraitMatte(input){
- const png=await sharp(input).ensureAlpha().png().toBuffer();
- const stats=await sharp(png).extractChannel(3).stats();
- return {png,alpha:{min:stats.channels[0].min,max:stats.channels[0].max}};
+ // Only English RGB at blue-contaminated silhouette pixels is corrected.
+ // Keep the exact MODNet alpha and all interior portrait details.
+ const {data,info}=await sharp(input).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const corrected=decontaminateEnglishBlueEdgeRgba(data,info.width,info.height);
+ let min=255,max=0;
+ for(let j=3;j<corrected.length;j+=4){if(corrected[j]<min)min=corrected[j];if(corrected[j]>max)max=corrected[j]}
+ return {png:await sharp(corrected,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer(),alpha:{min,max}};
 }
 function cleanTrialAlphaPixels(pixels,width,height,alpha){
  const count=width*height;
