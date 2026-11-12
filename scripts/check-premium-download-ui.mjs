@@ -64,6 +64,16 @@ try{
  const {PackageOffers}=await server.ssrLoadModule('/src/package-offers.jsx');
  const nodes=value=>!value||typeof value!=='object'?[]:[value,...[value.props?.children].flat(Infinity).flatMap(nodes)];
  const text=value=>value==null||typeof value==='boolean'?'':typeof value==='string'||typeof value==='number'?String(value):Array.isArray(value)?value.map(text).join(''):text(value.props?.children);
+ await test('package choice has one header and preserves the close control and purchase actions',()=>{
+  const tree=PackageOffers({hasTrial:true,isAuthenticated:true,onUseCredit:()=>{},startCheckout:()=>{}});
+  const markup=text(tree),items=nodes(tree);
+  assert.equal((markup.match(/รับรูปไม่มีลายน้ำ/g)||[]).length,1);
+  assert(!items.some(n=>n.props?.className==='offer-brand'||n.props?.className==='ready-heading'));
+  assert.equal(items.filter(n=>n.props?.className==='offer-step').length,1);
+  assert(items.some(n=>n.props?.role==='radiogroup'));
+  assert.equal(items.filter(n=>n.props?.className==='ready-pay').length,2);
+  assert(main.includes('aria-label="ปิดแพ็กเกจ"'));
+ });
  await test('rendered159 offer uses available premium credit instead of starting checkout',()=>{
   const calls=[],tree=PackageOffers({hasTrial:true,isAuthenticated:true,premiumCreditBalance:2,creditBalance:0,onUseCredit:arg=>calls.push(['credit',arg]),startCheckout:p=>calls.push(['pay',p])});const items=nodes(tree),button=items.find(n=>n.type==='button'&&text(n)==='ใช้ 1 สิทธิ์โปร 159');assert(button);button.props.onClick();assert.deepEqual(calls,[['credit',{premium:true}]]);assert(text(tree).includes('โปร 159 จำนวน 2 งาน'));assert(text(tree).includes('เลือกชุดได้ 5 ชุด'));
  });

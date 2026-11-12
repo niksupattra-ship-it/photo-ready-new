@@ -6,7 +6,7 @@
 }
 .package-choice-modal>.checkout-flow-steps{display:none}
 .credit-modal.package-pro-modal.package-choice-modal>.credit-modal-close {
- position:absolute;top:48px;right:7px;width:44px;height:44px;
+ position:absolute;top:2px;right:7px;width:44px;height:44px;
  min-width:44px;min-height:44px;padding:0;border:0;
  background:transparent;color:#64728c;font-size:28px;line-height:1;
 }
@@ -21,15 +21,8 @@
  display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;
  border-radius:50%;background:#293143;color:white;font-size:26px;line-height:1;
 }
-.package-choice-modal .offer-brand {
- height:44px;display:flex;align-items:center;gap:0;margin:0 -18px;
- padding:0 52px 0 18px;border-bottom:1px solid #eef0f6;
- font-size:18px;font-weight:850;color:#17244b;
-}
-.package-choice-modal .offer-brand>span{color:#7028f3}
-.package-choice-modal .ready-heading{text-align:center;padding:12px 0 14px}
-.package-choice-modal .ready-heading h2{margin:0;font-size:22px;font-weight:800;line-height:1.3}
-.package-choice-modal .offer-choice-layout{display:grid;grid-template-columns:168px minmax(0,1fr);gap:16px;align-items:start}
+.package-choice-modal .offer-step h2{margin:0;font:inherit;line-height:1.3}
+.package-choice-modal .offer-choice-layout{display:grid;grid-template-columns:168px minmax(0,1fr);gap:16px;align-items:start;margin-top:14px}
 .package-choice-modal .offer-preview{margin:3px 0 0;min-width:0}
 .package-choice-modal .offer-preview img {
  display:block;width:100%;height:auto;max-height:245px;object-fit:contain;
@@ -63,8 +56,7 @@
 .package-choice-modal .paired-offers :focus-visible{outline:2px solid #a57aff;outline-offset:2px}
 @media(max-width:599px){
  .credit-modal.package-pro-modal.package-choice-modal{width:calc(100vw - 20px);padding:0 14px 14px}
- .package-choice-modal .offer-step,.package-choice-modal .offer-brand{margin-inline:-14px}
- .package-choice-modal .offer-brand{padding-left:14px}
+ .package-choice-modal .offer-step{margin-inline:-14px}
  .package-choice-modal .offer-choice-layout{grid-template-columns:clamp(120px,30vw,160px) minmax(0,1fr);gap:12px}
  .package-choice-modal .offer-preview img{max-height:230px}
  .package-choice-modal .offer-card{padding:10px}
@@ -78,7 +70,7 @@
 }
 @media(max-width:359px){
  .credit-modal.package-pro-modal.package-choice-modal{padding-inline:12px}
- .package-choice-modal .offer-step,.package-choice-modal .offer-brand{margin-inline:-12px}
+ .package-choice-modal .offer-step{margin-inline:-12px}
  .package-choice-modal .offer-choice-layout{grid-template-columns:88px minmax(0,1fr);gap:10px}
  .package-choice-modal .offer-card{padding:9px}
  .package-choice-modal .offer-choice-label{gap:6px}

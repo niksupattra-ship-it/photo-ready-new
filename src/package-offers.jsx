@@ -18,9 +18,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
  const showMessage=payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(p=>payMsg.startsWith(p));
  const choose=price=>{setSelected(price);if(price==='159'&&usePremium)onUseCredit({premium:true});else startCheckout(price)};
  return <div className="idprom-ready-offer paired-offers">
-  <div className="offer-step"><span aria-hidden="true">2</span>เลือกแพ็กเกจ</div>
-  <div className="offer-brand" aria-label="IDพร้อม">ID<span>พร้อม</span></div>
-  <header className="ready-heading"><h2>รับรูปไม่มีลายน้ำ</h2></header>
+  <header className="offer-step"><span aria-hidden="true">2</span><h2>รับรูปไม่มีลายน้ำ</h2></header>
   <div className="offer-choice-layout">
    <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
