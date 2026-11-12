@@ -317,7 +317,15 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(makeupBusy){
    makeupOperationRef.current?.abort();stopMakeupProgress();setMakeupCancelled(true);
    setStatus('ยกเลิกการประมวลผลแล้ว · เก็บภาพเดิมไว้');
-  }else await onCancelProcess?.();
+  }else{
+   // Cancelling a just-uploaded AI job may require waiting for the server to
+   // return its job ID. Release the blocking progress view immediately while
+   // the parent safely cancels that late job and reconciles its credit.
+   const pending=onCancelProcess?.();
+   setProcessingPhoto(false);
+   setStatus(englishFlow?'Cancellation requested. Previous photo kept.':'รับคำขอยกเลิกแล้ว รูปเดิมยังอยู่');
+   if(pending&&typeof pending.catch==='function')void pending.catch(error=>setStatus(error?.message||'Cancellation could not be confirmed.'));
+  }
  };
  useEffect(()=>()=>{makeupOperationRef.current?.abort();stopMakeupProgress()},[]);
  const processActive=processing||processingPhoto||makeupBusy||Boolean(processProgress.active);
@@ -1001,15 +1009,27 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!mounted.current){processRequestRef.current=false;return}
   setProcessHairPending(false);setPicker(false);setHairNotice(false);
   const previous=historySnapshot(),suit=previous.find(l=>layerKind(l)==='suit');if(touch){setPicker(false);setTouchMore(false);setTouchMenu(false);setTouchOpen(false)}setHairConfirmed(false);setProcessingPhoto(true);setStatus(PHOTO_EDITING_TITLE);
-  let stagedResult;
+  let stagedResult,startedHydratingResult=false;
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode,undefined,options.generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};const anchor=oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));
    if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
    if(head.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){const p=result.placement,frame={x:p.uX,y:p.uY,w:p.uW,h:p.uH};next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,visible:true}:l);}
    const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
    if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
+   startedHydratingResult=true;
    if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;resetPhotoHistory();resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;if(englishFlow){setEnglishStep(null);setEnglishRoute('review')}setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');reportProcessedResult(result.layer,{reused:result.reused===true})}else throw Error('แสดงภาพไม่สำเร็จ');
-  }catch(e){await hydrate(previous);stagedResult?.rollback?.();await onFinishProcess?.(false).catch(()=>{});setProcessHairPending(true);const message=PROCESS_FAILURE_MESSAGE;setStatus(message);if(e.code!=='USER_CANCELLED')setPortraitProcessError(message)}finally{processRequestRef.current=false;setProcessingPhoto(false)}
+  }catch(e){
+   const cancelled=isProcessCancelled()||e.code==='USER_CANCELLED';
+   // Before the result hydration begins, the previous photo is already
+   // untouched. Never repaint an old snapshot after the user dismissed
+   // cancellation and continued editing that photo.
+   if(!cancelled||startedHydratingResult)await hydrate(previous);
+   stagedResult?.rollback?.();
+   await onFinishProcess?.(false).catch(()=>{});
+   setProcessHairPending(true);
+   if(cancelled)setStatus(englishFlow?'AI job cancelled. Previous photo kept.':'ยกเลิกงาน AI แล้ว รูปเดิมยังอยู่');
+   else{const message=PROCESS_FAILURE_MESSAGE;setStatus(message);setPortraitProcessError(message)}
+  }finally{processRequestRef.current=false;setProcessingPhoto(false)}
  };
  const openEnglishManual=async(choice)=>{
   if(processActive||assetBusy||!ready)return;
