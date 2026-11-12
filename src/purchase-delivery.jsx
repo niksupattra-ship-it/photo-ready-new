@@ -49,7 +49,7 @@ function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownlo
  return <EnglishDownload blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} pixelScale={receipt.pixelScale||2} surfaceRef={surface} onClose={onClose} onDownload={async(file,choice)=>{
   if(!surface.current?.isConnected)throw Error('Reopen Download to save this photo.');
   const extension=file.type==='application/pdf'?'pdf':file.type==='image/jpeg'?'jpg':'png';
-  const name='IDPROM-'+choice.sizeId+(extension==='pdf'?'-Letter':'')+'.'+extension;
+  const name='IDPROM-'+choice.sizeId+(extension==='pdf'?(interfaceLocale()==='th-TH'?'-A4':'-Letter'):'')+'.'+extension;
   try{receipt.audit?.emit('file_prepared',{sizeId:choice.sizeId,fileType:file.type,byteSize:file.size})}catch{}
   deliverImage(file,name,{onEvent:receipt.audit?.delivery});
   const crop={sizeId:choice.sizeId,x:choice.x,y:choice.y,zoom:choice.zoom,freePosition:choice.freePosition===true};

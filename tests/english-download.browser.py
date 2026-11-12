@@ -40,8 +40,8 @@ with sync_playwright() as pw:
    p.screenshot(path=f'work/download-pdf-{lang}-{width}.png',full_page=True)
    if not mobile:
     with p.expect_download() as event:p.get_by_role('button',name='Download PDF' if en else 'ดาวน์โหลด PDF',exact=True).click()
-    file=event.value;assert file.suggested_filename.endswith('.pdf');file.save_as('work/letter-print-test.pdf')
-    info=subprocess.check_output(['pdfinfo','work/letter-print-test.pdf'],text=True);assert '612 x 792 pts' in info
+    file=event.value;assert file.suggested_filename.endswith('.pdf');file.save_as('work/print-sheet-test.pdf')
+    info=subprocess.check_output(['pdfinfo','work/print-sheet-test.pdf'],text=True);assert ('612 x 792 pts' if en else '595.276 x 841.89 pts') in info
    else:
     p.get_by_role('button',name='Download PDF' if en else 'ดาวน์โหลด PDF',exact=True).click()
     p.get_by_role('heading',name='Save your PDF' if en else 'บันทึก PDF',exact=True).wait_for()
