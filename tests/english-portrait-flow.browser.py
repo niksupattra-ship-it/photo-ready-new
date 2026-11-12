@@ -19,6 +19,7 @@ with sync_playwright() as pw:
    page.locator('.english-flow').wait_for()
    assert page.locator('.english-flow h1').is_hidden(),'Step titles must not repeat the navigation visually'
    assert page.locator('.english-flow-routes small,.english-flow-routes b').count()==0,'Route explanations must not repeat button labels'
+   assert page.locator('.english-route-caption').count()==0,'Visual route descriptions must not duplicate the action choice'
    assert page.locator('.english-flow-options').get_by_text('Create your portrait, your way.').count()==0
    page.get_by_role('button',name='Create with AI').click()
    assert page.locator('.english-flow-options h1').is_hidden()
