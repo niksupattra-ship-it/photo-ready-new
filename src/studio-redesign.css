@@ -1978,3 +1978,10 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
 .english-preview .idstudio.studio-redesign:not(.studio-touch) .studio-design-file-actions .idprom-menu-download::after {
   content: "Download";
 }
+
+/* Explain why an unprocessed manual outfit preview is not an AI-generated photo. */
+.idstudio.studio-redesign .english-unprocessed-hint{margin:12px 0 4px;padding:12px 13px;border:1px solid #b9a5ff;border-left:4px solid #7543ed;border-radius:10px;background:#f7f4ff;color:#263052;line-height:1.5;box-shadow:0 1px 5px #3922840d}
+.idstudio.studio-redesign .english-unprocessed-hint strong{display:block;font-size:13px;color:#5026bd;margin-bottom:5px}
+.idstudio.studio-redesign .english-unprocessed-hint p{font-size:12px;margin:0 0 6px;color:#283354}
+.idstudio.studio-redesign .english-unprocessed-hint b{color:#5d2cce}
+.idstudio.studio-redesign .english-unprocessed-hint span{font-size:11px;color:#6b6481}
