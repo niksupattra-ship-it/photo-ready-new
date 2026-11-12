@@ -38,7 +38,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumSta
    </section>)}
   </div>
   {!hasTrial&&<p className="en-plan-warning">Create and preview your photo before purchasing a plan.</p>}
-  {payMsg&&<p className="en-plan-message" role="status">{payMsg}</p>}
+  {payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(start=>payMsg.startsWith(start))&&<p className="en-plan-message" role="status">{payMsg}</p>}
   <p className="en-plan-retention">Photos are stored for up to 7 days from creation. Download before they expire.</p>
   <details className="en-plan-terms"><summary>AI Credits & Terms</summary><div>
    <p>Premium includes 20 AI generations shared across all AI features for 30 days from purchase. Trials before payment do not count toward these credits.</p>
