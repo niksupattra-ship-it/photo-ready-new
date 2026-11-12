@@ -9,7 +9,7 @@ const OFFERS=[
  {price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'},
  {price:'159',name:'รับรูปนี้ + ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผม'}
 ];
-function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumState={}}){
+function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={}}){
  const ready=Boolean(hasTrial)&&!payBusy;
  const premiumRunning=Boolean(premiumState.usdPremiumActive&&Number(premiumState.usdPremiumRemaining)>0);
  const plans=[
@@ -34,6 +34,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumSta
     {index===0&&preview&&<div className="en-plan-card-preview"><img src={preview} alt="Your selected photo preview"/><span>Selected photo preview</span></div>}
     <ul className="en-plan-features">{plan.features.map(item=><li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
     <button type="button" className="en-plan-action" disabled={!ready||(index===1&&premiumRunning)} onClick={()=>startCheckout(plan.id)}>{payBusy?'Preparing…':index===1&&premiumRunning?'Premium Active · '+premiumState.usdPremiumRemaining+' AI Left':plan.button}</button>
+    {index===0&&<button type="button" className="single-photo-back" disabled={!ready} onClick={()=>onBackToPhoto?.(plan.id)}>← Back to this photo</button>}
    </section>)}
   </div>
   {!hasTrial&&<p className="en-plan-warning">Create and preview your photo before purchasing a plan.</p>}
@@ -51,10 +52,10 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumSta
  </div>;
 }
 
-export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,isAuthenticated=true,premiumState={}}){
+export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,onBackToPhoto,isAuthenticated=true,premiumState={}}){
  const english=englishPreviewEnabled();
  const [selected,setSelected]=useState('89');
- if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} premiumState={premiumState}/>;
+ if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} onBackToPhoto={onBackToPhoto} premiumState={premiumState}/>;
  const disabled=payBusy||!hasTrial;
  const premiumCredits=Math.max(0,Math.floor(Number(premiumCreditBalance)||0)),credits=Math.max(0,Math.floor(Number(creditBalance)||0))+premiumCredits;
  const usePremium=isAuthenticated&&premiumCredits>0;
@@ -68,6 +69,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
     {OFFERS.map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
      <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{english?<><small>THB</small> {offer.price}</>:<>{offer.price} <small>บาท</small></>}{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
      <button type="button" className="ready-pay" disabled={disabled} onClick={()=>choose(offer.price)}>{payBusy?'กำลังเตรียม…':offer.price==='159'&&usePremium?'ใช้ 1 สิทธิ์โปร 159':english?'Choose the THB '+offer.price+' package':'เลือกโปร '+offer.price+' บาท'}</button>
+     {offer.price==='89'&&<button type="button" className="single-photo-back" disabled={disabled} onClick={()=>onBackToPhoto?.('89')}>← ย้อนกลับไปแก้ไขรูปนี้</button>}
     </section>)}
    </div>
   </div>
