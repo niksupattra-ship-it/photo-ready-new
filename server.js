@@ -185,6 +185,10 @@ app.post('/api/payments/english-checkout',async(req,res)=>{
   const id=String(req.body?.packageId||'');
   if(!['usd_single_490_v1','usd_premium_990_v1'].includes(id))return res.status(400).json({error:'invalid_package',message:'Choose a valid package.'});
   const offer=packageFor(id),jobId=String(req.body?.jobId||'');
+  if(offer.usdPremium){
+   const current=await getWallet(user.wallet_id);
+   if(current?.usdPremiumActive&&Number(current.usdPremiumRemaining)>0)return res.status(409).json({error:'premium_already_active',message:'Your Premium plan still has AI generations available. Use them before buying a new plan.'});
+  }
   const job=await getAiJob(jobId,user.wallet_id);
   if(!job||job.status!=='completed'||!job.has_result)return res.status(400).json({error:'photo_required',message:'Create and preview your photo before purchasing.'});
   if(Date.now()-new Date(job.created_at).getTime()>=7*24*60*60*1000)return res.status(410).json({error:'photo_expired',message:'This photo is past its 7-day storage period. Please create a new photo before paying.'});
