@@ -13,7 +13,7 @@ export function verifyStripeSignature(raw,header,secret,now=Date.now()){
 
 export function verifyPaymentAmount(payment,offer,{checkout=false}={}){
  const amount=checkout?payment.amount_total:payment.amount;
- if(payment.currency!=='thb'||!Number.isSafeInteger(amount)||amount!==offer.price*100||(!checkout&&(!Number.isSafeInteger(payment.amount_received)||payment.amount_received<amount)))throw Error('payment_amount_mismatch');
+ if(payment.currency!==(offer.currency||'thb')||!Number.isSafeInteger(amount)||amount!==(offer.priceCents??Math.round(offer.price*100))||(!checkout&&(!Number.isSafeInteger(payment.amount_received)||payment.amount_received<amount)))throw Error('payment_amount_mismatch');
 }
 
 export async function settleCheckout(session,creditPaid,expectedWalletId){
