@@ -80,3 +80,59 @@
 .paired-offers .offer-code-entry{display:block;margin:12px auto 0;min-height:44px;padding:10px 24px;border:1px solid #9566e8;border-radius:10px;background:#fff;color:#7138c5;font:inherit;font-weight:700;cursor:pointer}.paired-offers .offer-code-entry:disabled{opacity:.5;cursor:default}
 
 .paired-offers .offer-payment-method{display:flex;justify-content:center;margin:12px 0 0}.paired-offers .offer-payment-method img{display:block;width:108px;height:auto;object-fit:contain}
+
+/* English USD package selection — native, accessible, live checkout actions. */
+.credit-modal.package-pro-modal.package-choice-modal:has(.en-plans){
+ width:min(860px,calc(100vw - 28px));padding:18px 22px 22px;
+ border-radius:22px;box-shadow:0 24px 75px #1020492a;
+}
+.package-choice-modal:has(.en-plans)>.credit-modal-close{
+ top:10px;right:12px;z-index:2;
+}
+.en-plans{font:inherit;color:#202849}
+.en-plans *{box-sizing:border-box}
+.en-plans-heading{text-align:center;margin:3px 38px 18px}
+.en-plans-heading .en-plans-eyebrow{display:block;color:#77839d;font-size:11px;letter-spacing:.14em;font-weight:800;margin-bottom:8px}
+.en-plans-heading h2{font-size:26px;font-weight:850;line-height:1.2;margin:0 0 8px;color:#151c36}
+.en-plans-heading p{font-size:13px;color:#77839d;margin:0}
+.en-plans-selected{display:flex;align-items:center;justify-content:center;gap:10px;margin:-3px auto 13px;font-size:12px;color:#64708a}
+.en-plans-selected img{width:32px;height:42px;object-fit:cover;border-radius:4px;border:1px solid #e5e8f0}
+.en-plans-balance{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:8px 16px;padding:10px 14px;border:1px solid #e7ddfb;background:#f9f6ff;border-radius:11px;margin:0 0 15px;color:#5d468a;font-size:12px}
+.en-plans-balance strong{font-weight:800;font-size:13px}.en-plans-balance small{color:#776989;font-size:11px}
+.en-plans-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+.en-plan-card{display:flex;flex-direction:column;min-width:0;padding:22px;border:1px solid #dce2ee;border-radius:17px;background:#fff;box-shadow:0 4px 15px #131a3908}
+.en-plan-card.en-plan-premium{border:2px solid #7243ca;padding:21px;background:linear-gradient(180deg,#fcfaff 0%,#fff 42%)}
+.en-plan-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.en-plan-name{font-size:19px;font-weight:850;color:#1c2442}
+.en-plan-best{font-size:10px;font-weight:800;color:#6433b4;background:#eee5ff;border-radius:30px;padding:5px 9px;white-space:nowrap}
+.en-plan-price{font-size:39px;font-weight:850;line-height:1.1;color:#141b33;letter-spacing:-.05em;margin:16px 0 5px}
+.en-plan-period{font-size:12px;color:#6d7891;margin:0 0 14px}
+.en-plan-features{list-style:none;padding:17px 0;margin:0 0 12px;border-top:1px solid #edf0f4;display:flex;flex-direction:column;gap:12px;flex:1}
+.en-plan-features li{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.5;color:#333d58}
+.en-plan-features li span{display:grid;place-items:center;flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:#e5f7ed;color:#177744;font-weight:850;font-size:11px;margin-top:1px}
+.en-plan-action{display:block;width:100%;border:1px solid #bfc7d6;border-radius:11px;background:#f2f4f8;color:#1b2946;cursor:pointer;font:inherit;font-weight:800;font-size:14px;min-height:48px;padding:11px 14px;transition:background .15s}
+.en-plan-action:hover:not(:disabled){background:#e6ebf5}
+.en-plan-premium .en-plan-action{background:#6c35c6;color:#fff;border-color:#6c35c6}
+.en-plan-premium .en-plan-action:hover:not(:disabled){background:#5725ae}
+.en-plan-action:disabled{opacity:.53;cursor:not-allowed}
+.en-plan-warning,.en-plan-message{font-size:12px;text-align:center;padding:8px 10px;border-radius:8px;margin:12px 0 0}
+.en-plan-warning{background:#fff6e6;color:#915520}.en-plan-message{background:#fff1f0;color:#8b2a26}
+.en-plan-retention{font-size:12px;color:#6e7790;text-align:center;line-height:1.6;margin:16px 0 4px}
+.en-plan-terms{font-size:12px;line-height:1.6;text-align:center;margin:6px 0}
+.en-plan-terms summary{display:inline-block;color:#562c9d;cursor:pointer;text-decoration:underline;text-underline-offset:3px;font-weight:750;min-height:32px;padding:6px}
+.en-plan-terms[open] summary{display:list-item;list-style:inside;max-width:max-content;margin:auto}
+.en-plan-terms>div{text-align:left;padding:12px 17px;background:#f8f8fc;border-radius:10px;border:1px solid #e8e8f0;margin:8px 0}
+.en-plan-terms p{margin:0 0 9px}.en-plan-terms p:last-child{margin:0}
+.en-plans .idprom-terms-link-wrap{margin-top:3px}
+.en-plans button:focus-visible,.en-plans summary:focus-visible{outline:3px solid #a68ce6;outline-offset:2px}
+@media(max-width:620px){
+ .credit-modal.package-pro-modal.package-choice-modal:has(.en-plans){width:calc(100vw - 20px);padding:15px 14px;border-radius:18px}
+ .en-plans-heading{margin:4px 34px 16px}.en-plans-heading h2{font-size:22px}
+ .en-plans-grid{grid-template-columns:1fr;gap:12px}
+ .en-plan-card,.en-plan-card.en-plan-premium{padding:16px 18px}
+ .en-plan-price{font-size:36px;margin-top:10px}
+ .en-plan-features{padding:14px 0;gap:8px;margin-bottom:8px}
+ .en-plan-features li{font-size:12px}
+ .en-plan-action{min-height:46px}
+}
+@media(prefers-reduced-motion:reduce){.en-plan-action{transition:none}}
