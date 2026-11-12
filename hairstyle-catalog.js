@@ -259,7 +259,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // First-generation defaults. The female reference is an existing catalog PNG
 // (straight, centre-parted hair with visible ears and rear lengths).
 // Male uses the legacy no-selection/original-hair behavior.
-export const FIRST_GENERATION_FEMALE_HAIR='seedream-42';
+export const FIRST_GENERATION_FEMALE_HAIR='seedream-40';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v23-generate-straight-neck-alpha';
