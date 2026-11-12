@@ -98,7 +98,7 @@ test('English-only AI makeup applies soft matte foundation and slight skin brigh
   assert.match(prompt,/soft matte to natural satin finish/);
   assert.match(prompt,/BRIGHTER THAN NATURAL, WITHOUT WHITENING/);
   assert.match(prompt,/\+0\.15 to \+0\.25 EV/);
-  assert.match(prompt,/visible neck smoothly with no visible mask/);
+  assert.match(prompt,/exposed neck smoothly with no visible mask/);
   assert.match(prompt,/ABSOLUTE HAIR \/ OUTFIT \/ FRAME LOCK/);
   assert.match(prompt,/Keep clothing exposure and colour IDENTICAL/);
   assert.match(prompt,/no.*separate masks\/alpha layers, or perform post-generation facial RGB colour correction/i);
