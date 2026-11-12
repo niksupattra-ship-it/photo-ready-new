@@ -14,6 +14,7 @@ function fixture(){
 let count=0;async function test(name,run){await run();count++;console.log('PASS '+name)}
 await test('cancel during pending upload dismisses overlay without losing late-job settlement',async()=>{
  const f=fixture(),gate=deferred(),submission=submitPortraitJob(f.operation,()=>gate.promise);
+ await Promise.resolve(); // This request has already entered submit() before Cancel.
  f.e.cancel();await Promise.resolve();
  assert.equal(f.e.progress.active,false,'cancel must immediately hide the blocking overlay');
  assert.equal(f.busy(),false,'cancel must release the busy UI');
@@ -25,6 +26,16 @@ await test('cancel during pending upload dismisses overlay without losing late-j
  assert.equal(f.e.progress.active,false);
  assert.equal(f.operation.finished,true);
  assert.equal(f.settlements(),1);
+});
+await test('cancel before server submission prevents a late AI request entirely',async()=>{
+ const f=fixture(),calls={count:0};
+ f.e.cancel();
+ await f.operation.cancellation;
+ await assert.rejects(submitPortraitJob(f.operation,async()=>{calls.count++;return {jobId:'should-never-exist'}}),error=>error?.code==='USER_CANCELLED');
+ assert.equal(calls.count,0,'a cancelled operation must not launch a later AI request');
+ assert.equal(f.settlements(),0);
+ assert.equal(f.e.progress.active,false);
+ await f.e.finish(false);
 });
 for(const stage of ['poll','local composition'])await test('cancelled '+stage+' dismisses overlay while preventing a second settlement',async()=>{
  const f=fixture();f.operation.jobId='existing-job';f.operation.pendingSubmission=Promise.resolve({jobId:'existing-job'});
