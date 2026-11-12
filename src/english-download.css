@@ -5,3 +5,10 @@
 @media(max-width:600px){.en-download-settings{display:grid;grid-template-columns:minmax(0,1fr) 84px;gap:12px}.en-download-settings>fieldset,.en-download-settings>p,.en-download-settings>.en-download-adjust,.en-download-settings>.en-download-full{grid-column:1/-1}.en-download-size{grid-column:1}.en-download-copies{grid-column:2}.en-download-preview canvas{max-height:200px}}
 
 .en-download-crop-controls{display:flex;flex-direction:column;gap:10px}.en-download-crop-controls input{width:100%;accent-color:#7543ed;min-height:28px}.en-download-preview canvas{cursor:grab}.en-download-preview canvas:active{cursor:grabbing}
+
+/* Show the exact raster output below the size picker, in the spare settings space. */
+.en-download-pixel-size{display:flex;flex-direction:column;gap:5px;padding:13px 15px;border:1px solid #e4ddff;border-radius:12px;background:#f8f6ff;color:#25204b}
+.en-download-pixel-size span{font-size:12px;color:#655b81;font-weight:600}
+.en-download-pixel-size strong{font-size:17px;line-height:1.35;letter-spacing:.01em;color:#5f35d6;font-variant-numeric:tabular-nums}
+.en-download-pixel-size small{font-size:11px;text-align:left;color:#73678c}
+@media(max-width:600px){.en-download-pixel-size{grid-column:1/-1}}
