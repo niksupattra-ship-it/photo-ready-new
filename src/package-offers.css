@@ -136,3 +136,13 @@
  .en-plan-action{min-height:46px}
 }
 @media(prefers-reduced-motion:reduce){.en-plan-action{transition:none}}
+
+/* Single-image checkout: return to the same unpaid photo without changing jobs. */
+.en-plans .single-photo-back,.paired-offers .single-photo-back{
+ display:block;width:100%;margin:10px 0 0;padding:10px 12px;
+ border:1px solid #cbbdff;border-radius:11px;background:#f8f6ff;
+ color:#6035df;font:inherit;font-size:13px;font-weight:700;
+ cursor:pointer;text-align:center;
+}
+.en-plans .single-photo-back:disabled,.paired-offers .single-photo-back:disabled{opacity:.5;cursor:not-allowed}
+.en-plans .single-photo-back:focus-visible,.paired-offers .single-photo-back:focus-visible{outline:3px solid #a78bfa;outline-offset:2px}
