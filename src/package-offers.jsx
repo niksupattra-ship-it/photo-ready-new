@@ -9,9 +9,52 @@ const OFFERS=[
  {price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'},
  {price:'159',name:'รับรูปนี้ + ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผม'}
 ];
-export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,isAuthenticated=true}){
+function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumState={}}){
+ const ready=Boolean(hasTrial)&&!payBusy;
+ const plans=[
+  {id:'usd_single_490_v1',name:'Single Image',price:'$4.90',period:'One-time payment',button:'Download This Photo',
+   features:['Download 1 selected photo','PNG & PDF downloads','No watermark','Preview before payment']},
+  {id:'usd_premium_990_v1',name:'Premium',price:'$9.90',period:'30 days · One-time payment',button:'Choose Premium',
+   features:['All outfits & hairstyles','20 AI generations','Unlimited manual editing','PNG & PDF downloads','Download all your creations','No watermarks']}
+ ];
+ return <div className="en-plans" aria-label="English photo packages">
+  <header className="en-plans-heading">
+   <span className="en-plans-eyebrow">IDPROM STUDIO</span>
+   <h2>Choose Your Plan</h2>
+   <p>One-time payment · No subscription</p>
+  </header>
+  {preview&&<div className="en-plans-selected"><img src={preview} alt="Your selected photo preview"/><span>Selected photo preview</span></div>}
+  {premiumState.usdPremiumPurchased&&<div className="en-plans-balance" role="status"><span>{premiumState.usdPremiumActive?'Premium active':'Premium access ended'}</span><strong>{premiumState.usdPremiumRemaining||0} / 20 AI generations left</strong>{premiumState.usdPremiumUntil&&<small>Access until {new Date(premiumState.usdPremiumUntil).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</small>}</div>}
+  <div className="en-plans-grid">
+   {plans.map((plan,index)=><section className={'en-plan-card'+(index?' en-plan-premium':'')} key={plan.id} aria-label={plan.name+' '+plan.price}>
+    <div className="en-plan-card-top">
+     <div className="en-plan-title-row"><strong className="en-plan-name">{plan.name}</strong>{index===1&&<span className="en-plan-best">Best Value</span>}</div>
+     <p className="en-plan-price">{plan.price}</p>
+     <p className="en-plan-period">{plan.period}</p>
+    </div>
+    <ul className="en-plan-features">{plan.features.map(item=><li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
+    <button type="button" className="en-plan-action" disabled={!ready} onClick={()=>startCheckout(plan.id)}>{payBusy?'Preparing…':plan.button}</button>
+   </section>)}
+  </div>
+  {!hasTrial&&<p className="en-plan-warning">Create and preview your photo before purchasing a plan.</p>}
+  {payMsg&&<p className="en-plan-message" role="status">{payMsg}</p>}
+  <p className="en-plan-retention">Photos are stored for up to 7 days from creation. Download before they expire.</p>
+  <details className="en-plan-terms"><summary>AI Credits & Terms</summary><div>
+   <p>Premium includes 20 AI generations shared across all AI features for 30 days from purchase. Trials before payment do not count toward these credits.</p>
+   <p>Changing a photo, browsing outfits, selecting hairstyles, or reopening an existing result uses no AI credits. Creating a new AI result uses 1 credit.</p>
+   <p>If an AI generation fails without delivering a photo, its credit is returned. Reopening and downloading existing results does not spend AI credits.</p>
+   <p>When all 20 generations are used, new AI creation is unavailable. Manual edits and downloads of available photos can continue. Buying Premium again starts a new 30-day period with 20 new generations, without stacking old credits.</p>
+   <p>Single Image unlocks only the selected result. Paid photos are unlocked without creating a new AI image. Purchases do not extend the 7-day photo storage period.</p>
+   <p>All payments are one-time purchases. No subscription or automatic renewal.</p>
+  </div></details>
+  <ServiceTermsLink/>
+ </div>;
+}
+
+export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,isAuthenticated=true,premiumState={}}){
  const english=englishPreviewEnabled();
  const [selected,setSelected]=useState('89');
+ if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} premiumState={premiumState}/>;
  const disabled=payBusy||!hasTrial;
  const premiumCredits=Math.max(0,Math.floor(Number(premiumCreditBalance)||0)),credits=Math.max(0,Math.floor(Number(creditBalance)||0))+premiumCredits;
  const usePremium=isAuthenticated&&premiumCredits>0;
