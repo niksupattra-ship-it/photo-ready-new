@@ -22,9 +22,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumSta
   <header className="en-plans-heading">
    <span className="en-plans-eyebrow">IDPROM STUDIO</span>
    <h2>Choose Your Plan</h2>
-   <p>One-time payment · No subscription</p>
   </header>
-  {preview&&<div className="en-plans-selected"><img src={preview} alt="Your selected photo preview"/><span>Selected photo preview</span></div>}
   {premiumState.usdPremiumPurchased&&<div className="en-plans-balance" role="status"><span>{premiumState.usdPremiumActive?'Premium active':'Premium access ended'}</span><strong>{premiumState.usdPremiumRemaining||0} / 20 AI generations left</strong>{premiumState.usdPremiumUntil&&<small>Access until {new Date(premiumState.usdPremiumUntil).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</small>}</div>}
   <div className="en-plans-grid">
    {plans.map((plan,index)=><section className={'en-plan-card'+(index?' en-plan-premium':'')} key={plan.id} aria-label={plan.name+' '+plan.price}>
@@ -33,6 +31,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumSta
      <p className="en-plan-price">{plan.price}</p>
      <p className="en-plan-period">{plan.period}</p>
     </div>
+    {index===0&&preview&&<div className="en-plan-card-preview"><img src={preview} alt="Your selected photo preview"/><span>Selected photo preview</span></div>}
     <ul className="en-plan-features">{plan.features.map(item=><li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
     <button type="button" className="en-plan-action" disabled={!ready||(index===1&&premiumRunning)} onClick={()=>startCheckout(plan.id)}>{payBusy?'Preparing…':index===1&&premiumRunning?'Premium Active · '+premiumState.usdPremiumRemaining+' AI Left':plan.button}</button>
    </section>)}

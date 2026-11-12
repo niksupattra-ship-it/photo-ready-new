@@ -95,8 +95,8 @@
 .en-plans-heading .en-plans-eyebrow{display:block;color:#77839d;font-size:11px;letter-spacing:.14em;font-weight:800;margin-bottom:8px}
 .en-plans-heading h2{font-size:26px;font-weight:850;line-height:1.2;margin:0 0 8px;color:#151c36}
 .en-plans-heading p{font-size:13px;color:#77839d;margin:0}
-.en-plans-selected{display:flex;align-items:center;justify-content:center;gap:10px;margin:-3px auto 13px;font-size:12px;color:#64708a}
-.en-plans-selected img{width:32px;height:42px;object-fit:cover;border-radius:4px;border:1px solid #e5e8f0}
+.en-plan-card-preview{display:flex;align-items:center;justify-content:center;gap:14px;margin:1px 0 15px;padding:12px 10px;background:#f7f8fc;border:1px solid #e9ecf3;border-radius:11px;color:#67738b;font-size:12px;line-height:1.45}
+.en-plan-card-preview img{display:block;width:76px;height:98px;max-width:40%;object-fit:contain;background:#fff;border-radius:5px;border:1px solid #e1e5ed}
 .en-plans-balance{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:8px 16px;padding:10px 14px;border:1px solid #e7ddfb;background:#f9f6ff;border-radius:11px;margin:0 0 15px;color:#5d468a;font-size:12px}
 .en-plans-balance strong{font-weight:800;font-size:13px}.en-plans-balance small{color:#776989;font-size:11px}
 .en-plans-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
