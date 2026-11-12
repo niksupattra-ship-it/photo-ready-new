@@ -7,7 +7,7 @@ const section=(a,b)=>source.slice(source.indexOf(a),source.indexOf(b,source.inde
 function fixture(){
  const operation={jobId:null,cancelled:false,settled:false,cancelling:false,finished:false};let settlements=0,busy=true;
  const e={activeProcessOperation:operation,progress:{active:true,value:48,label:'processing'},progressTimerRef:{current:null},progressValueRef:{current:48},portraitResultCache:{clear(){}},hairResultCacheRef:{current:new Map()},cancelPortraitJob,clearInterval(){},setBusy(v){busy=v},englishPreviewEnabled:()=>true,setProcessProgress(value){e.progress=typeof value==='function'?value(e.progress):value},setMsg(message){e.message=message},refreshWallet:async()=>{},settleProcessOperation:async current=>{settlements++;current.settled=true},assertProcessActive(){if(operation.cancelled)throw Error('cancelled')},setTimeout};
- e.cancel=new Function('env','with(env){'+section(' const cancelProgress=async()=>{','\n useEffect(()=>()=>{clearInterval(progressTimerRef.current)')+';return cancelProgress}')(e);
+ e.cancel=new Function('env','with(env){'+section(' const cancelProgress=()=>{','\n useEffect(()=>()=>{clearInterval(progressTimerRef.current)')+';return cancelProgress}')(e);
  e.finish=new Function('env','with(env){'+section(' const finishProgress=async success=>{','\n const cancelProgress=')+';return finishProgress}')(e);
  return {e,operation,settlements:()=>settlements,busy:()=>busy};
 }
