@@ -26,8 +26,19 @@ with sync_playwright() as pw:
    assert page.evaluate("bodySnapshot.current().layers.find(l=>l.kind==='head').portraitComposition")=='en-outfit-body-v1'
    assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==0
    assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1
+   # English hair AI confirmation keeps exactly the two action buttons.
+   page.locator('.studio-bottom-choices').get_by_role('button',name='ทรงผม',exact=True).click()
+   page.get_by_role('button',name='เลือกทรงผมหญิง ทรงผมหญิง 3',exact=True).click()
+   prompt=page.locator('.english-inline-ai')
+   prompt.wait_for()
+   assert prompt.locator('strong,p').count()==0,'No title or helper sentence above the two action buttons'
+   assert prompt.locator('button').all_text_contents()==['Create portrait','Cancel']
+   prompt.get_by_role('button',name='Cancel').click()
    # Tapping the picture must place a visible, native-aspect PNG in Studio.
    page.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
+   assert page.locator('.studio-uniform-group-tabs').count()==0,'English has no Popular or Job application category tabs'
+   assert page.locator('.uniform-search-field').inner_text().strip()=='','English search has no visible label'
+   assert page.locator('.uniform-search-field input').get_attribute('placeholder')=='Search'
    card=page.locator('.english-outfit-card').filter(has=page.locator('img[src*="female-job-navy-notch-white-shirt"]'))
    card.locator('button').first.click()
    page.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false&&l.templatePath?.includes('female-job-navy-notch-white-shirt'))")
