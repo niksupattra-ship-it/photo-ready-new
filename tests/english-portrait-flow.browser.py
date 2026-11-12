@@ -46,15 +46,14 @@ with sync_playwright() as pw:
    assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1
    assert second['templatePath']!=first['templatePath'],'The selected pattern should change'
    assert page.evaluate("""async()=>{const suit=bodySnapshot.current().layers.find(l=>l.kind==='suit');const img=new Image();img.src=suit.templatePath;await img.decode();return Math.abs(suit.sourceFrame.w/suit.sourceFrame.h-img.naturalWidth/img.naturalHeight)<.00001}"""),'Pattern should keep native aspect ratio'
-   # Only the explicit AI button may regenerate the complete portrait.
-   next_card.get_by_role('button',name='Edit with AI').click()
-   page.locator('.english-inline-ai').wait_for()
-   page.get_by_role('button',name='Create portrait',exact=True).click()
-   page.wait_for_function('bodyCalls.filter(c=>c.committed).length===2')
-   assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==0
+   # Outfit selection is ALWAYS a direct placement, never an AI-choice prompt.
+   assert page.locator('.english-outfit-ai').count()==0,'No secondary AI button should cover outfit thumbnails'
+   assert page.locator('.english-inline-ai').count()==0,'No AI prompt should open after selecting an outfit'
+   assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1,'One original AI creation only'
+   assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==1,'Native outfit remains visible'
    assert not errors,errors
    page.screenshot(path=str(OUT/(str(width)+'.png')),full_page=True)
-   results.append({'width':width,'passed':True,'thumbnailPlacesNativeOverlay':True,'noImplicitAi':True,'sameHeadFrame':True,'explicitAiStillAvailable':True})
+   results.append({'width':width,'passed':True,'thumbnailPlacesNativeOverlay':True,'noImplicitAi':True,'sameHeadFrame':True,'noOverlaidAiButton':True})
    print(json.dumps(results[-1]),flush=True)
   finally:page.close()
  page=browser.new_page()
