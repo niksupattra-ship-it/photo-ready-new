@@ -16,8 +16,15 @@ with sync_playwright() as pw:
   page.route('**/*',lambda route:route.continue_() if route.request.url.startswith(BASE+'/')and'/api/' not in route.request.url else route.abort())
   try:
    page.goto(BASE+'/scripts/fixtures/english-portrait-flow.html?lang=en&fresh&stretch',wait_until='domcontentloaded')
-   page.get_by_role('heading',name='Choose how to edit',exact=True).wait_for()
+   page.locator('.english-flow').wait_for()
+   assert page.locator('.english-flow h1').is_hidden(),'Step titles must not repeat the navigation visually'
+   assert page.locator('.english-flow-routes small,.english-flow-routes b').count()==0,'Route explanations must not repeat button labels'
+   assert page.locator('.english-flow-options').get_by_text('Create your portrait, your way.').count()==0
    page.get_by_role('button',name='Create with AI').click()
+   assert page.locator('.english-flow-options h1').is_hidden()
+   assert page.locator('.english-flow-options legend').count()==3,'Keep accessible fieldset labels'
+   assert all(not item.is_visible() for item in page.locator('.english-flow-options legend').all()),'Section names should not repeat the step navigation'
+   assert page.locator('.english-flow-note').count()==0,'Remove helper copy above Create portrait'
    page.locator('.english-flow-outfits button').first.click()
    page.get_by_role('button',name='Makeup',exact=True).click()
    page.locator('.english-flow-hair-grid button').nth(2).click()

@@ -96,3 +96,9 @@
 .idstudio.studio-touch .studio-picker-drawer .english-outfit-card>button:first-child>span{height:76px;width:100%;overflow:hidden}
 .idstudio.studio-touch .studio-picker-drawer:has(.english-outfit-card){max-height:min(46dvh,330px)}
 .english-head-balance{display:block;width:100%;margin:8px 0 14px;padding:11px 14px;border:1px solid #7545f4;border-radius:10px;background:#f3eeff;color:#5324ca;font-weight:650;cursor:pointer}.english-head-balance:disabled{opacity:.5;cursor:default}
+
+/* English flow uses its step navigation and actionable controls instead of repeated visible headings/copy. */
+.english-flow .english-flow-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:0!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
+.english-flow .english-flow-routes{margin-top:12px}
+.english-flow .english-flow-routes button{gap:10px;min-height:205px}
+.english-flow .english-flow-options fieldset{margin:12px 0}
