@@ -75,32 +75,39 @@ test('Thai and English AI makeup both request even fair rosy skin with a continu
  }
 });
 
-test('English-only AI makeup preserves Natural lighting in the final provider prompt without a local face mask',async()=>{
+test('English-only AI makeup applies soft matte foundation and slight skin brightening while locking identity and outfit',async()=>{
  const {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK}=await import('../english-makeup-light-policy.js');
  const {AI_MAKEUP_FACE_LIGHTING_POLICY,AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
  const natural=await png({r:132,g:119,b:101,alpha:1},28,36);
- assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-keep-natural-light-v1');
+ assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-soft-matte-foundation-v2');
  for(const option of ['englishReferenceFinish','englishHeadFinish','englishTemplateFinish']){
   let prompt,requests=0;
   const made=await createAiMakeupVariant(natural,{
-   key:'english-prompt-check',
+   key:'english-soft-base-prompt-check',
    [option]:true,
    preserveOutfit:true,
    requestPortrait:async request=>{prompt=request.prompt;requests++;return {png:natural}}
   });
   assert.equal(requests,1);
   assert(made.length>0);
-  assert(prompt.endsWith(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK),'English light lock must have final priority');
-  assert.match(prompt,/THE LIGHT AND TONE MUST MATCH NATURAL/);
-  assert.match(prompt,/ONLY ALLOWED AI CHANGES/);
-  assert.match(prompt,/Keep all clothing fabric tones/);
-  assert.match(prompt,/no.*additional face masks, alpha layers or post-generation colour correction/i);
+  assert(prompt.endsWith(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK),'English foundation finish must have final priority');
+  assert.match(prompt,/FINAL ENGLISH SOFT-BASE MAKEUP FINISH/);
+  assert.match(prompt,/SKIN FINISH — LIGHT FOUNDATION AND FACE POWDER/);
+  assert.match(prompt,/visibly smoother, softer and more polished than Natural/);
+  assert.match(prompt,/Reduce rough\/gritty or over-sharpened pore texture/);
+  assert.match(prompt,/soft matte to natural satin finish/);
+  assert.match(prompt,/BRIGHTER THAN NATURAL, WITHOUT WHITENING/);
+  assert.match(prompt,/\+0\.15 to \+0\.25 EV/);
+  assert.match(prompt,/visible neck smoothly with no visible mask/);
+  assert.match(prompt,/ABSOLUTE HAIR \/ OUTFIT \/ FRAME LOCK/);
+  assert.match(prompt,/Keep clothing exposure and colour IDENTICAL/);
+  assert.match(prompt,/no.*separate masks\/alpha layers, or perform post-generation facial RGB colour correction/i);
   assert.doesNotMatch(prompt,/HEALTHY SKIN AND FACE FLASH: Give the skin/);
   assert(!prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
   assert(!prompt.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
  }
  let thai;
  await createAiMakeupVariant(natural,{key:'thai-prompt-unchanged',requestPortrait:async request=>{thai=request.prompt;return {png:natural}}});
- assert(thai.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY),'Thai existing makeup lighting remains unchanged');
- assert.doesNotMatch(thai,/FINAL ENGLISH MAKEUP-ONLY PHOTOGRAPHIC MATCH/);
+ assert(thai.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY),'Thai makeup prompt remains unchanged');
+ assert.doesNotMatch(thai,/FINAL ENGLISH SOFT-BASE MAKEUP FINISH/);
 });
