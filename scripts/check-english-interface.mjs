@@ -44,6 +44,8 @@ try{
  const report={home:await scan()};
  const choiceImages=await evaluate(`Array.from(document.querySelectorAll('.studio-category-card>img,.studio-featured-item img')).map(img=>img.getAttribute('src'))`);
  assert(choiceImages.length>0);assert(choiceImages.every(src=>!src.includes('/uniform-quick-previews/')&&/example|home-cutouts/.test(src)),'Home cards must keep portrait examples');
+ assert.equal(await evaluate(`document.querySelectorAll('.home-catalog-heading,.studio-category-grid,.studio-category-card').length`),0,'English home must not show the redundant job application category section');
+ assert((await evaluate(`document.querySelectorAll('.studio-featured-list .studio-featured-item').length`))>0,'English popular examples must remain');
  await evaluate(`document.querySelector('.idprom-support-trigger')?.click()`);await pause(150);assert(await evaluate(`Boolean(document.querySelector('.idprom-support-dialog[open]'))`),'Help dialog did not open');report.help=await scan();await evaluate(`document.querySelector('.idprom-support-dialog header button')?.click()`);
  await evaluate(`document.querySelector('.idprom-terms-link')?.click()`);await pause(150);assert(await evaluate(`Boolean(document.querySelector('.idprom-terms-dialog[open]'))`),'Terms dialog did not open');report.terms=await scan();await evaluate(`document.querySelector('.idprom-terms-dialog header button')?.click()`);
  await evaluate(`document.querySelector('.idprom-member-menu > button')?.click()`);await pause(150);report.account=await scan();
