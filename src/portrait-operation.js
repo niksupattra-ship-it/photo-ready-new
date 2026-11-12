@@ -1,7 +1,12 @@
 // The submit response identifies the server job. Keep cancellation visible until
 // that response settles, so a late job can be cancelled without losing its ID.
 export function submitPortraitJob(operation,submit){
- const pending=Promise.resolve().then(submit).then(info=>{
+ const pending=Promise.resolve().then(()=>{
+  // A user can cancel during local preparation before submission starts.
+  // Never launch that later server request after cancellation was accepted.
+  if(operation?.cancelled)throw Object.assign(Error('cancelled'),{code:'USER_CANCELLED'});
+  return submit();
+ }).then(info=>{
   if(operation&&info?.jobId)operation.jobId=info.jobId;
   return info;
  });
