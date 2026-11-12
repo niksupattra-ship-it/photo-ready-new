@@ -2,7 +2,8 @@
  * English-only RGB repair of blue spill from the temporary AI background.
  * MODNet's alpha is never changed. No retouching of the face or intact outfit.
  */
-const blue=(r,g,b)=>b>=82&&b-r>=23&&b-g>=11;
+// Exclude strongly saturated actual blue clothing; only mild blue spill is corrected.
+const blue=(r,g,b)=>b>=82&&b-r>=23&&b-g>=11&&b-r<=105&&b-g<=65;
 export function decontaminateEnglishBlueEdgeRgba(src,w,h){
  if(!Number.isInteger(w)||!Number.isInteger(h)||w<1||h<1||src?.length!==w*h*4)throw Error('Invalid English matte');
  const out=Buffer.from(src),offset=(x,y)=>(y*w+x)*4;
