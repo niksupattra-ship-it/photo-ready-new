@@ -3868,7 +3868,14 @@ function App(){
     template:activeUniformTemplate,hairId,classicMaster:editCache.current?.master||null,
     classicLock:editCache.current?.lock||null,classicFemaleFinish:femaleFinishMetadata(editCache.current?.master)});
    ensureSame();
-   const attemptId=globalThis.crypto?.randomUUID?.()||('idprom-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+   const pendingKey='idprom_usd_checkout_attempt_v1';
+   const attemptScope=JSON.stringify([currentWalletId(),packageId,jobId]);
+   let attemptId=globalThis.crypto?.randomUUID?.()||('idprom-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+   try{
+    const old=JSON.parse(appStorage.getItem(pendingKey)||'null');
+    if(old?.scope===attemptScope&&typeof old.id==='string'&&Date.now()-old.at<3600000)attemptId=old.id;
+    else appStorage.setItem(pendingKey,JSON.stringify({scope:attemptScope,id:attemptId,at:Date.now()}));
+   }catch{}
    const {response,data}=await requestPromptpay('/api/payments/english-checkout',{
     method:'POST',headers:{...walletHeaders(),...authHeaders(),'Content-Type':'application/json','X-Checkout-Attempt':attemptId},
     body:JSON.stringify({packageId,jobId})});
@@ -3990,7 +3997,9 @@ function App(){
   if(jobId&&!(await savePaidCheckout(sessionId,{jobId})))throw Error('ชำระเงินแล้ว กำลังตรวจสอบสิทธิ์ ไม่ต้องชำระซ้ำ');
   ensureCurrent();
   if(jobId&&jobId===currentOutputJobRef.current)setPurchaseEditing(true);
-  analyticsPurchase(sessionId);setPayMsg(jobId?'ปลดล็อกดาวน์โหลดงานที่ชำระแล้ว':'เพิ่มเครดิตในบัญชีแล้ว');setBuyOpen(false);
+  analyticsPurchase(sessionId);
+  try{appStorage.removeItem('idprom_usd_checkout_attempt_v1')}catch{}
+  setPayMsg(jobId?(englishPreviewEnabled()?'Your photo is unlocked and ready to download.':'ปลดล็อกดาวน์โหลดงานที่ชำระแล้ว'):'เพิ่มเครดิตในบัญชีแล้ว');setBuyOpen(false);
   history.replaceState({},'',location.pathname+(englishPreviewEnabled()?'?lang=en':''));return true;
  };
  useEffect(()=>{
@@ -4012,7 +4021,9 @@ function App(){
    setPayMsg('กำลังตรวจสอบรายการที่ชำระแล้ว ไม่ต้องชำระซ้ำ');setBuyOpen(true);void run();
    window.addEventListener('focus',resume);document.addEventListener('visibilitychange',resume);
   }else if(q.get('payment')==='cancelled'){
-   void restorePurchaseDraft().catch(error=>{if(!stopped)setPayMsg(error.message||'ยังเปิดงานเดิมไม่ได้ กรุณาลองอีกครั้ง')});analyticsEvent('idprom_checkout_cancel');setPayMsg(englishPreviewEnabled()?'Payment cancelled. No charge was made.':'ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname+(englishPreviewEnabled()?'?lang=en':''));
+   void restorePurchaseDraft().catch(error=>{if(!stopped)setPayMsg(error.message||'ยังเปิดงานเดิมไม่ได้ กรุณาลองอีกครั้ง')});analyticsEvent('idprom_checkout_cancel');
+   try{appStorage.removeItem('idprom_usd_checkout_attempt_v1')}catch{}
+   setPayMsg(englishPreviewEnabled()?'Payment cancelled. No charge was made.':'ยกเลิกการชำระเงินแล้ว');history.replaceState({},'',location.pathname+(englishPreviewEnabled()?'?lang=en':''));
   }
   return()=>{stopped=true;controller.abort();clearTimeout(timer);if(checkoutReturnRef.current===context)checkoutReturnRef.current=null;window.removeEventListener('idprom-rights',onRights);window.removeEventListener('idprom-buy',onBuy);window.removeEventListener('focus',resume);document.removeEventListener('visibilitychange',resume)};
  },[walletScope(authToken(),currentWalletId())]);
