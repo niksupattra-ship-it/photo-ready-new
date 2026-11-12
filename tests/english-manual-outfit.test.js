@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {planEnglishManualOutfit,planEnglishFixedPatternOutfit,ENGLISH_MANUAL_OUTFIT_VERSION,ENGLISH_FIXED_PATTERN_WIDTH} from '../src/english-manual-outfit.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
-import {englishHeadCutoutAlpha} from '../src/english-head-cutout.js';
 const uniform=(w,h)=>({width:w,height:h,bounds:{l:0,r:w-1,t:0,b:h-1,w,h},shoulderWidth:w*.9,centerX:w/2,collarTopY:0});
 const face={152:{x:.5,y:.43},234:{x:.36,y:.28},454:{x:.64,y:.28}};
 const head={sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0};
@@ -42,23 +41,33 @@ test('English AI outfit card overlays the exact native pattern without scaling i
 test('English AI overlay follows a moved head by translation only without stretching clothing',()=>{
  const body={...head,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION};
  const u=uniform(800,1100),before=planEnglishManualOutfit({uniform:u,head:body,face});
- const shifted=planEnglishManualOutfit({uniform:u,head:{...body,x:28,y:19},face});
+ const shifted=planEnglishManualOutfit({uniform:u,head:{...body,x:12,y:19},face});
  assert.equal(shifted.w,before.w);
  assert.equal(shifted.h,before.h);
- assert.equal(shifted.x-before.x,28);
+ assert.equal(shifted.x-before.x,12);
  assert.equal(shifted.y-before.y,19);
 });
 
-test('overlay preparation masks baked AI clothing but keeps original head, neck skin and long hair',()=>{
- const width=200,height=250,pixels=new Uint8ClampedArray(width*height*4),labelData=new Uint8Array(width*height).fill(3);
- for(let i=3;i<pixels.length;i+=4)pixels[i]=255;
- for(let y=148;y<height;y++)for(let x=0;x<width;x++)labelData[y*width+x]=4;
- for(let y=148;y<height;y++)for(let x=92;x<=108;x++)labelData[y*width+x]=3;
- for(let y=148;y<height;y++)for(let x=18;x<=27;x++)labelData[y*width+x]=1;
- const points=[];for(const [id,x,y]of [[10,100,65],[152,100,125],[234,68,105],[454,132,105]])points[id]={x:x/width,y:y/height};
- const alpha=englishHeadCutoutAlpha(pixels,width,height,points,{data:labelData,width,height}),at=(x,y)=>alpha[y*width+x];
- assert.equal(at(100,95),255,'original face is unchanged');
- assert.equal(at(100,140),255,'neck skin directly below the chin remains visible');
- assert.equal(at(80,200),0,'old AI garment is removed beneath the new PNG');
- assert.equal(at(22,180),255,'legitimate rear hair is preserved');
+
+test('English fixed pattern fills canvas on BOTH sides even when face is off-center',()=>{
+ const u=uniform(800,1100),body={...head,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION};
+ for(const dx of [-.075,0,.075]){
+  const movedFace={152:{x:.5+dx,y:.43},234:{x:.36+dx,y:.28},454:{x:.64+dx,y:.28}};
+  const result=planEnglishManualOutfit({uniform:u,head:body,face:movedFace});
+  const left=result.x+u.bounds.l*result.w/u.width;
+  const right=left+u.bounds.w*result.w/u.width;
+  assert(left<=1e-9,'pattern has no white gap on its left');
+  assert(right>=900-1e-9,'pattern has no white gap on its right');
+  assert(Math.abs(result.w/result.h-u.width/u.height)<1e-12,'native pattern proportions preserved');
+  assert(Math.abs((right-left)/900-ENGLISH_FIXED_PATTERN_WIDTH)<1e-12,'outfit scale is fixed from pattern bounds');
+ }
+});
+test('English full-bleed pattern scale stays unchanged when face width is doubled',()=>{
+ const u=uniform(800,1100),body={...head,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION};
+ const narrow=planEnglishManualOutfit({uniform:u,head:body,face});
+ const wide=planEnglishManualOutfit({uniform:u,head:body,face:{152:face[152],234:{x:.20,y:.28},454:{x:.80,y:.28}}});
+ assert.equal(narrow.w,wide.w);
+ assert.equal(narrow.h,wide.h);
+ assert(ENGLISH_FIXED_PATTERN_WIDTH>=1,'pattern opaque width must cover the whole canvas');
+ assert.match(ENGLISH_MANUAL_OUTFIT_VERSION,/full-bleed/);
 });

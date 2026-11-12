@@ -44,6 +44,15 @@
 .english-outfit-card:hover .english-outfit-ai,.english-outfit-card:focus-within .english-outfit-ai{opacity:1;pointer-events:auto}
 @media(hover:none),(pointer:coarse){.idstudio .english-outfit-card .english-outfit-ai{position:relative;inset:auto;margin:4px 0 0;opacity:1;pointer-events:auto}}
 
+/* English offers two separate actions per outfit: tap PNG to place it, or tap
+   the dedicated AI button beneath. Never overlay the AI click target on the PNG. */
+.idstudio .studio-catalog-grid .english-outfit-card>button:first-child{height:auto}
+.idstudio .english-outfit-card .english-outfit-ai{
+ position:relative;inset:auto;z-index:1;opacity:1;pointer-events:auto;
+ display:block;width:100%;margin:5px 0 0;padding:7px 4px;
+}
+
+
 .idstudio.studio-redesign:not(.studio-touch) .studio-picker-drawer .studio-catalog-grid .english-outfit-card > button:first-child {
   display: block;
   flex: none;

@@ -44,27 +44,37 @@ with sync_playwright() as pw:
    page.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false&&l.templatePath?.includes('female-job-navy-notch-white-shirt'))")
    assert page.locator('.english-inline-ai').count()==0,'Outfit thumbnail must not open AI flow'
    assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1,'A PNG selection must not regenerate the face'
-   first=page.evaluate("()=>{const ls=bodySnapshot.current().layers;const s=ls.find(l=>l.kind==='suit');const h=ls.find(l=>l.kind==='head');return {frame:s.sourceFrame,headFrame:h.sourceFrame,templatePath:s.templatePath,visible:s.visible,maskPresent:Boolean(h.englishNeckClipMask)}}")
+   first=page.evaluate("()=>{const ls=bodySnapshot.current().layers;const s=ls.find(l=>l.kind==='suit');const h=ls.find(l=>l.kind==='head');return {frame:s.sourceFrame,headFrame:h.sourceFrame,headSource:h.source,templatePath:s.templatePath,visible:s.visible,maskPresent:Boolean(h.englishNeckClipMask)}}")
    assert first['frame']['w']>0 and first['frame']['h']>0
+   assert not first['maskPresent'],'Original portrait clothing must never be erased'
    # Switching outfit changes the PNG, not the already completed head.
    search=page.locator('.uniform-search-field input')
    search.fill('ivory bow')
    next_card=page.locator('.english-outfit-card').filter(has=page.locator('img[src*="female-job-ivory-bow-blouse"]'))
    next_card.locator('button').first.click()
    page.wait_for_function("bodySnapshot.current().layers.some(l=>l.kind==='suit'&&l.visible!==false&&l.templatePath?.includes('female-job-ivory-bow-blouse'))")
-   second=page.evaluate("()=>{const ls=bodySnapshot.current().layers;const s=ls.find(l=>l.kind==='suit');const h=ls.find(l=>l.kind==='head');return {frame:s.sourceFrame,headFrame:h.sourceFrame,templatePath:s.templatePath,visible:s.visible,maskPresent:Boolean(h.englishNeckClipMask)}}")
+   second=page.evaluate("()=>{const ls=bodySnapshot.current().layers;const s=ls.find(l=>l.kind==='suit');const h=ls.find(l=>l.kind==='head');return {frame:s.sourceFrame,headFrame:h.sourceFrame,headSource:h.source,templatePath:s.templatePath,visible:s.visible,maskPresent:Boolean(h.englishNeckClipMask)}}")
    assert second['headFrame']==first['headFrame'],'Selecting a native garment must not resize or move the generated head'
+   assert second['headSource']==first['headSource'],'Original portrait pixels must remain intact'
+   assert not second['maskPresent'],'Original clothing remains beneath transparent template pixels'
    assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1
    assert second['templatePath']!=first['templatePath'],'The selected pattern should change'
    assert page.evaluate("""async()=>{const suit=bodySnapshot.current().layers.find(l=>l.kind==='suit');const img=new Image();img.src=suit.templatePath;await img.decode();return Math.abs(suit.sourceFrame.w/suit.sourceFrame.h-img.naturalWidth/img.naturalHeight)<.00001}"""),'Pattern should keep native aspect ratio'
-   # Outfit selection is ALWAYS a direct placement, never an AI-choice prompt.
-   assert page.locator('.english-outfit-ai').count()==0,'No secondary AI button should cover outfit thumbnails'
-   assert page.locator('.english-inline-ai').count()==0,'No AI prompt should open after selecting an outfit'
-   assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1,'One original AI creation only'
-   assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==1,'Native outfit remains visible'
+   # The separate image area is manual; the second button invokes AI by request.
+   assert next_card.locator('button').count()==2,'English outfits offer both options'
+   assert page.locator('.english-inline-ai').count()==0,'Tapping image must not enter AI flow'
+   assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1,'Native overlay cannot consume another AI call'
+   assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==1
+   next_card.get_by_role('button',name='Edit with AI').click()
+   prompt=page.locator('.english-inline-ai')
+   prompt.wait_for()
+   assert prompt.locator('button').all_text_contents()==['Create portrait','Cancel']
+   prompt.get_by_role('button',name='Create portrait').click()
+   page.wait_for_function('bodyCalls.filter(c=>c.committed).length===2')
+   assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==0
    assert not errors,errors
    page.screenshot(path=str(OUT/(str(width)+'.png')),full_page=True)
-   results.append({'width':width,'passed':True,'thumbnailPlacesNativeOverlay':True,'noImplicitAi':True,'sameHeadFrame':True,'noOverlaidAiButton':True})
+   results.append({'width':width,'passed':True,'twoIndependentWays':True,'fullBleedNativeOverlay':True,'unmodifiedOriginal':True,'explicitAiOption':True})
    print(json.dumps(results[-1]),flush=True)
   finally:page.close()
  page=browser.new_page()

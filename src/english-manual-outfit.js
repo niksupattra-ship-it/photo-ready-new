@@ -5,8 +5,10 @@ import {createFaceMeasurementCache} from './studio-face-measurement-cache.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 
-export const ENGLISH_MANUAL_OUTFIT_VERSION='native-fixed-pattern-overlay-v3';
-export const ENGLISH_FIXED_PATTERN_WIDTH=.90;
+export const ENGLISH_MANUAL_OUTFIT_VERSION='native-fixed-pattern-full-bleed-v4';
+// 6% overscan keeps both outer garment edges filled after centring on the face.
+// This is fixed to the selected PNG's opaque bounds, never the head dimensions.
+export const ENGLISH_FIXED_PATTERN_WIDTH=1.06;
 
 // Full-person AI placement is not a garment frame. Place each new native PNG
 // independently, using one scale for both axes and keeping the portrait fixed.
@@ -26,7 +28,12 @@ export function planEnglishFixedPatternOutfit({uniform,head,face,W=900,H=1200}){
   collarX=(left.x+right.x)/2;
   collarY=chin.y+W*.018; // Translation only: face width never changes garment scale.
  }
- return {x:collarX-uniform.centerX*scale,y:collarY-uniform.collarTopY*scale,w:uniform.width*scale,h:uniform.height*scale};
+ // Keep both opaque garment edges at or beyond the canvas edges. Clamp the
+ // HORIZONTAL translation only; never distort the native pattern aspect.
+ const opaqueWidth=uniform.bounds.w*scale;
+ const preferredLeft=collarX+(uniform.bounds.l-uniform.centerX)*scale;
+ const left=Math.max(W-opaqueWidth,Math.min(0,preferredLeft));
+ return {x:left-uniform.bounds.l*scale,y:collarY-uniform.collarTopY*scale,w:uniform.width*scale,h:uniform.height*scale};
 }
 export function planEnglishManualOutfit({uniform,head,face,W=900,H=1200}){
  if(head?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)return planEnglishFixedPatternOutfit({uniform,head,face,W,H});
