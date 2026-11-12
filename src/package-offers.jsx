@@ -11,6 +11,7 @@ const OFFERS=[
 ];
 function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumState={}}){
  const ready=Boolean(hasTrial)&&!payBusy;
+ const premiumRunning=Boolean(premiumState.usdPremiumActive&&Number(premiumState.usdPremiumRemaining)>0);
  const plans=[
   {id:'usd_single_490_v1',name:'Single Image',price:'$4.90',period:'One-time payment',button:'Download This Photo',
    features:['Download 1 selected photo','PNG & PDF downloads','No watermark','Preview before payment']},
@@ -33,7 +34,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,premiumSta
      <p className="en-plan-period">{plan.period}</p>
     </div>
     <ul className="en-plan-features">{plan.features.map(item=><li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
-    <button type="button" className="en-plan-action" disabled={!ready} onClick={()=>startCheckout(plan.id)}>{payBusy?'Preparing…':plan.button}</button>
+    <button type="button" className="en-plan-action" disabled={!ready||(index===1&&premiumRunning)} onClick={()=>startCheckout(plan.id)}>{payBusy?'Preparing…':index===1&&premiumRunning?'Premium Active · '+premiumState.usdPremiumRemaining+' AI Left':plan.button}</button>
    </section>)}
   </div>
   {!hasTrial&&<p className="en-plan-warning">Create and preview your photo before purchasing a plan.</p>}
