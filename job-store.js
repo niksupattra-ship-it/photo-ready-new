@@ -22,7 +22,7 @@ export async function createAiJob({walletId,usageId,fields,image,mask}){
  await ready();const id='job_'+crypto.randomBytes(18).toString('hex'),c=await pool.connect();
  try{await c.query('BEGIN');await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
   const active=await c.query("SELECT id FROM ai_jobs WHERE wallet_id=$1 AND status IN ('queued','processing') LIMIT 1",[walletId]);
-  if(active.rowCount)throw Object.assign(Error('กรุณารอภาพก่อนหน้าสร้างเสร็จก่อน ไม่จำกัดจำนวนครั้งต่อวัน'),{status:429});
+  if(active.rowCount)throw Object.assign(Error('กรุณารอภาพก่อนหน้าสร้างเสร็จก่อน ไม่จำกัดจำนวนครั้งต่อวัน'),{status:429,code:'active_ai_job',activeJobId:active.rows[0].id});
   await c.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,mask,mask_name,mask_type) VALUES($1,$2,$3,'queued',$4,$5,$6,$7,$8,$9,$10)`,[id,walletId,usageId,fields||{},image.buffer,image.originalname||'image.png',image.mimetype||'image/png',mask?.buffer||null,mask?.originalname||null,mask?.mimetype||null]);
   await c.query('COMMIT');return id;
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
