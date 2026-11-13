@@ -26,18 +26,18 @@ export const SUPPORT_TOPICS_EN=[
     "id": "how-to",
     "title": "How to use IDPROM and choose a plan",
     "steps": [
-      "Upload a clear, front-facing photo. Choose an outfit and hairstyle, create an AI result when needed, and review it before checkout.",
-      "Thai checkout: ฿89 unlocks one work with up to 3 outfits and basic hairstyles; ฿159 unlocks one work with up to 5 outfits and additional hairstyles.",
-      "English checkout: Single Image $4.90 unlocks one selected result; Premium $9.90 provides 20 shared AI generations for 30 days.",
-      "Unlock the photo, select a size, download the watermark-free PNG or PDF, and verify it saved correctly."
+      "Upload a clear, front-facing photo. Choose an outfit and hairstyle, generate an AI result when needed, and review it before checkout.",
+      "Single Image ($4.90) unlocks one selected photo result for watermark-free PNG and PDF downloads.",
+      "Premium ($9.90) provides 20 new AI generations shared across AI tools for 30 days, plus editing and download access under the plan.",
+      "Choose your photo size, download the file, and check that it is saved and opens correctly."
     ]
   },
   {
     "id": "premium-hair",
     "title": "Which hairstyles and outfits can I use?",
     "steps": [
-      "Basic options are available according to your access level. Styles with a diamond or lock require an eligible paid entitlement.",
-      "English Premium gives access to the hairstyle and outfit options in that plan. Single Image unlocks one selected result, while Thai packages unlock options only for the paid work."
+      "Premium includes access to the available outfit and hairstyle options. A diamond or lock indicates options that require an eligible plan.",
+      "Browsing outfits, selecting a hairstyle, changing your uploaded photo, or using manual tools does not use an AI credit. Creating a new AI result uses 1 of the 20 Premium credits."
     ]
   },
   {
@@ -73,9 +73,9 @@ export const SUPPORT_TOPICS_EN=[
     "id": "suit-limit",
     "title": "Can I switch outfits after paying?",
     "steps": [
-      "Thai ฿89 allows up to 3 outfit choices for one work; ฿159 allows up to 5. The current outfit counts as one choice when the work is unlocked.",
-      "You may return to an outfit already selected for that work without using an additional choice. Starting from a new source photo is a different work.",
-      "On English Premium, browsing outfits does not consume an AI credit. Creating a new AI result does."
+      "Single Image unlocks only the selected existing photo result; it does not include new AI generations.",
+      "With Premium, you can browse outfits and hairstyles without using AI credits. A new AI-generated result costs 1 shared credit; reopening an existing result does not.",
+      "Check that the result is eligible for download and save it before the photo storage period ends."
     ]
   },
   {
