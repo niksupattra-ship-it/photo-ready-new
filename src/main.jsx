@@ -8,7 +8,7 @@ import {englishHeadCutoutAlpha,englishNeckClipAlpha} from './english-head-cutout
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
 import {THAI_NECK_BACKING_VERSION} from '../thai-neck-backing-policy.js';
 import {rememberDownloadChoice} from './download-choice.js';
-import {PROCESS_FAILURE_MESSAGE,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
+import {processFailureMessage,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {useAiMakeupPixels} from './ai-makeup-pair.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION} from '../english-makeup-light-policy.js';
@@ -4946,7 +4946,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
    if(hairResultMode(id,portraitMode)==='female')firstUploadedPhoto.idpromFemaleEyeStyle=finishStyle;
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
-  }catch(e){setMsg(PROCESS_FAILURE_MESSAGE);if(studioOnly)throw e}
+  }catch(e){setMsg(processFailureMessage(e,englishPreviewEnabled()));if(studioOnly)throw e}
   finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await finishProgress(true);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
   return completed?{reused:Boolean(cached)}:false;
  };
@@ -5217,14 +5217,14 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,f,activeUniformTemplate);analyticsStage='cleanup';setHairId('');
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(PROCESS_FAILURE_MESSAGE);const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{try{await refreshWallet();await finishProgress(completed)}finally{setBusy(false)}}};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(processFailureMessage(e,englishPreviewEnabled()));const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}}finally{try{await refreshWallet();await finishProgress(completed)}finally{setBusy(false)}}};
  const goForStudio=async(sourceFile,template,selectedHair,portraitMode)=>{if(cancellationStillUnwinding()){setMsg(pendingCancelMessage());return}if(busy||hairBusy||photoPreparingRef.current)return;let analyticsStage='prepare_or_submit';const analyticsStart=Date.now(),analyticsMode=rights.generationRemaining>0?'paid':'trial';analyticsEvent('idprom_process_start',{usage_mode:analyticsMode});++renderSeqRef.current;clearTimeout(renderTimer.current);setBusy(true);beginProgress(PHOTO_EDITING_TITLE);setMsg('');let completed=false;try{
   const jobContext={uniformTemplate:template,uniformCategory,gender,level,selectedStyle,selectedJobTemplate,selectedStudentTemplate,selectedGownTemplate,selectedInteriorTemplate};
   const aiHeadNeck=await aiFinishPortrait(sourceFile,selectedHair||'',{jobContext,portraitMode,onJobStatus:status=>{analyticsStage='poll_job';if(status==='queued')setProgressStage(18,'กำลังรอประมวลผล');else if(status==='processing')setProgressStage(42,'กำลังปรับภาพและเก็บรายละเอียด…')}});
   analyticsStage='compose';await applyFinishedAiPortrait(aiHeadNeck,sourceFile,template,selectedHair,portraitMode);analyticsStage='cleanup';
   const isTrial=Boolean(aiHeadNeck?.idpromTrial);studioTrialRef.current=isTrial;privateTrialResultRef.current=isTrial&&privateTrialActive;setTrialPreview(isTrial);
   if(!isTrial){writeActiveAiJob(null);await clearAiJobFile()}await refreshWallet();completed=true;analyticsEvent('idprom_process_success',{usage_mode:isTrial?'trial':'paid',duration_ms:Date.now()-analyticsStart});
- }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(PROCESS_FAILURE_MESSAGE);const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
+ }catch(e){analyticsProcessFailure(e,analyticsStage,{usage_mode:analyticsMode,duration_ms:Date.now()-analyticsStart});setMsg(processFailureMessage(e,englishPreviewEnabled()));const pending=readActiveAiJob();if(pending){try{const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(pending.jobId),{headers:walletHeaders(),cache:'no-store'});if(r.ok){const j=await r.json();if(j.status==='failed'){writeActiveAiJob(null);await clearAiJobFile()}}}catch{}}throw e;}finally{try{await refreshWallet();if(!completed)await finishProgress(false)}finally{setBusy(false)}}return completed};
  // Do not auto-resume a previous browser AI job on a fresh page load.
  // A new visit must stay idle until the user explicitly adds a photo and presses Process.
  useEffect(()=>{
