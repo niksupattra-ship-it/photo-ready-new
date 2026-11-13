@@ -60,7 +60,6 @@ with sync_playwright()as pw:
       for r in held:r.continue_()
      expected_id={'suit':'female-lapel-suit','collar':'garuda-pair','chest':'pao','ribbon':'2504-2514'}[kind]
      p.wait_for_function("([kind,id])=>selectionSnapshot.current().layers.some(l=>l.kind===kind&&l.assetId===id)",arg=[kind,expected_id])
-     p.wait_for_function("kind=>document.querySelector('.studio-status')?.textContent.includes('เลือก')||kind==='suit'",arg=kind)
      current=p.evaluate("kind=>selectionSnapshot.current().layers.find(l=>l.kind===kind)",kind)
      assert current['source'].startswith('data:image/png;')
      assert current['assetId']=={'suit':'female-lapel-suit','collar':'garuda-pair','chest':'pao','ribbon':'2504-2514'}[kind],current['assetId']
@@ -73,18 +72,11 @@ with sync_playwright()as pw:
      assert max(x['h']for x in frames)-min(x['h']for x in frames)<1,frames
      assert abs(frames[-1]['x']-before_open['x'])<1,(before_open,frames[-1])
      assert abs(frames[-1]['y']-before_open['y'])<1,(before_open,frames[-1])
-     footer=p.locator('.studio-feedback');size_before=p.locator(canvas).bounding_box()
-     footer.evaluate("e=>{delete e.dataset.idle;e.querySelector('p').textContent='ข้อความสถานะยาวสำหรับตรวจการเลื่อนอ่านข้อความ '.repeat(50)}")
-     size_long=p.locator(canvas).bounding_box()
-     assert abs(size_before['width']-size_long['width'])<1 and abs(size_before['height']-size_long['height'])<1,(size_before,size_long)
-     assert footer.evaluate('e=>e.scrollHeight>e.clientHeight'),'Long feedback must remain scrollable'
+     # The user requested no status-message region beneath the tool rail.
+     assert p.locator('.studio-feedback,.studio-status').count()==0
      if not easy:
       p.locator('.studio-stage canvas').dispatch_event('wheel',{'deltaY':-100,'clientX':200,'clientY':150})
       p.wait_for_function("getComputedStyle(document.querySelector('.studio-stage canvas')).transform.startsWith('matrix(1.1,')")
-      zoomed=p.locator('.studio-stage canvas').bounding_box()
-      footer.evaluate("e=>{e.dataset.idle='true';e.querySelector('p').textContent=''}")
-      zoomed_idle=p.locator('.studio-stage canvas').bounding_box()
-      assert abs(zoomed['width']-zoomed_idle['width'])<1 and abs(zoomed['height']-zoomed_idle['height'])<1
      print(json.dumps({'zoomTrace':{'width':width,'easy':easy,'kind':kind,'beforeOpen':before_open,'afterOpen':after_open,'first':frames[0],'last':frames[-1],'minWidth':min(x['w']for x in frames),'maxWidth':max(x['w']for x in frames),'transforms':list(set(x['transform']for x in frames))}}),flush=True)
      assert not api,api;assert not errors,errors;assert not downloads
      results.append({'width':width,'easy':easy,'kind':kind,'previewBeforeFullImage':True,'firstPaintMs':round(first_paint,1),'noProvisionalCommit':True,'fullImageCommitted':True,'stableCanvas':True,'longFeedbackStable':True,'manualZoomPreserved':(True if not easy else None),'failedLoadRetry':('--failure'in sys.argv)})
