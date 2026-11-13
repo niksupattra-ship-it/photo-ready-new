@@ -1178,7 +1178,6 @@
  border:3px solid #fff;border-radius:13px;background-color:#fff;box-shadow:0 4px 14px #5343a012;
 }
 .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples figcaption {margin-top:9px;color:#4c397a;font-size:12px;line-height:1.5;font-weight:700}
-.easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-result-note {margin:12px 0 0;color:#6b6c86;font-size:12px;line-height:1.7;text-align:center}
 @media (min-width:701px) and (max-width:1199px) {
  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-hero {grid-template-columns:minmax(280px,1fr) minmax(0,1fr);gap:24px;padding:24px}
  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples {grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;max-width:350px;margin:auto}
@@ -1199,7 +1198,6 @@
  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-example-heading {font-size:12px;margin-bottom:10px}
  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples {grid-template-columns:repeat(3,minmax(0,1fr));gap:15px 12px;max-width:420px;margin:auto}
  .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples figcaption {margin-top:6px;font-size:11px}
- .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-result-note {font-size:11px;text-align:left}
 }
 
 /* The shared save/download dialog follows the Easy palette only while Easy Mode is active. */
