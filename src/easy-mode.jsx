@@ -107,7 +107,6 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
      </div>
     </div>
    </section>
-   <p className="easy-landing-result-note">ตัวอย่างเพื่อประกอบการเลือก ผลลัพธ์ขึ้นอยู่กับภาพต้นฉบับ แสง มุมถ่าย และการประมวลผล</p>
   </main>
  </div>;
 
