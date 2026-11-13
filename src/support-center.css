@@ -12,16 +12,20 @@
 .idprom-support-content{padding:22px 24px;line-height:1.8;font-size:14px;overflow-wrap:anywhere}
 .idprom-support-content h3{margin:0 0 7px;font-size:17px;line-height:1.5;color:#20364d}
 .idprom-support-content p{margin:0 0 12px;color:#526b7b}
-.idprom-support-contact{padding:18px;border:1px solid #d8e6f5;border-radius:16px;background:#f5f9ff}
+.idprom-support-contact{padding:20px;border:1px solid #e3dbf5;border-radius:16px;background:#faf8ff}
 .idprom-support-email-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:10px 0}
-.idprom-support-email-row a{color:#1768b6;font-size:19px;font-weight:700;text-decoration:none;user-select:text;-webkit-user-select:text}
-.idprom-support-email-row button{padding:7px 11px;border:1px solid #cbdfee;border-radius:9px;background:#fff;color:#295b83;font:inherit;font-size:12px;cursor:pointer;min-height:40px}
-.idprom-support-send{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border:0;border-radius:10px;background:#176fd2;color:#fff;text-decoration:none;font:inherit;font-weight:700;box-sizing:border-box;cursor:pointer}
-.idprom-support-email-options{margin-top:14px;padding-top:14px;border-top:1px solid #d8e6f5}
+.idprom-support-email-row a{color:#6330bc;font-size:18px;font-weight:750;text-decoration:none;user-select:text;-webkit-user-select:text}
+.idprom-support-email-row button{padding:7px 12px;border:1px solid #ded5ef;border-radius:9px;background:#fff;color:#5e4785;font:inherit;font-size:12px;cursor:pointer;min-height:38px}
+.idprom-support-send{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 18px;border:0;border-radius:10px;background:linear-gradient(110deg,#8b44e9,#6326c3);color:#fff!important;text-decoration:none;font:inherit;font-weight:700;box-sizing:border-box;cursor:pointer}
+.idprom-support-send svg{width:17px;height:17px;flex:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.idprom-support-send:hover{background:linear-gradient(110deg,#7a38d5,#5520ad)}
+.idprom-support-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.idprom-support-alternative{border:0;background:transparent;color:#6c36c1;font:inherit;font-size:12px;font-weight:650;padding:9px 4px;min-height:40px;cursor:pointer}
+.idprom-support-email-options{margin-top:12px;padding-top:14px;border-top:1px solid #e7def3}
 .idprom-support-email-options[hidden]{display:none}
 .idprom-support-email-options h4{margin:0 0 10px;font-size:14px;color:#20364d}
 .idprom-support-email-services{display:flex;flex-wrap:wrap;gap:8px}
-.idprom-support-email-services a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border:1px solid #cbdfee;border-radius:10px;background:#fff;color:#1768b6;text-decoration:none;font-weight:700;box-sizing:border-box}
+.idprom-support-email-services a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border:1px solid #dfd3f3;border-radius:10px;background:#fff;color:#642fc1;text-decoration:none;font-weight:700;box-sizing:border-box}
 .idprom-support-content .idprom-support-email-options p{margin:10px 0 0;font-size:12px}
 .idprom-support-content .idprom-support-copy-status{margin:7px 0 0;font-size:12px;color:#176858}
 .idprom-support-copy-status:empty{display:none}
@@ -40,6 +44,10 @@
 .idprom-support-evidence ul{padding-left:21px;margin:8px 0 12px;color:#526b7b}
 .idprom-support-content .idprom-support-evidence p{margin:0;font-size:12px;color:#667c8d}
 .idprom-support-footer{padding:16px 24px;border-top:1px solid #e5edf1}
-.idprom-support-footer button{width:100%;padding:12px 16px;min-height:46px;border:0;border-radius:11px;background:#117c70;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.idprom-support-footer button{width:100%;padding:12px 16px;min-height:46px;border:0;border-radius:11px;background:#6d31c8;color:#fff;font:inherit;font-weight:700;cursor:pointer}
 @media(max-width:720px){.studio-top-actions .idprom-support-trigger,.process-mobile-topbar .idprom-support-trigger{width:40px;min-width:40px;min-height:40px;padding:6px}.studio-top-actions .idprom-support-trigger>span,.process-mobile-topbar .idprom-support-trigger>span{display:none}}
 @media(max-width:600px){.idprom-support-header{padding:16px}.idprom-support-header h2{font-size:21px}.idprom-support-content{padding:16px}.idprom-support-contact{padding:15px}.idprom-support-email-row a{font-size:18px}.idprom-support-topics summary{padding:13px}.idprom-support-footer{padding:14px 16px}}
+
+.idprom-support-content .idprom-support-contact h3{color:#251e46}
+.idprom-support-content .idprom-support-contact>p:first-of-type{color:#5c5d73;line-height:1.65;max-width:620px}
+@media(max-width:420px){.idprom-support-email-row a{font-size:16px}.idprom-support-actions{align-items:stretch}.idprom-support-send{min-width:146px}}
