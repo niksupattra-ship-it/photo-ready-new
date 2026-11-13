@@ -22,7 +22,7 @@ export function HomePhotoSizes({sample,onStart}){
  const previewWidth=original?280:Math.min(280,size.width/48*260);
  if(!sample)return null;
  return <section className="home-photo-sizes" aria-labelledby="home-photo-sizes-title">
-  <header className="home-photo-sizes-heading"><div><span className="home-photo-sizes-eyebrow">พร้อมใช้ในขนาดที่ต้องการ</span><h2 id="home-photo-sizes-title">ตัวอย่างขนาดรูป</h2><p>รูปสมัครงานและรูปติดบัตร เลือกดูขนาดก่อนสร้างรูปของคุณ</p></div><span className="home-photo-sizes-tag">เลือกขนาดได้ก่อนดาวน์โหลด</span></header>
+  <header className="home-photo-sizes-heading"><h2 id="home-photo-sizes-title">ตัวอย่างขนาดรูป</h2></header>
   <div className="home-photo-sizes-body">
    <figure className="home-photo-sizes-preview">
     <span className="home-photo-sizes-photo-label">{pdfMode?(english?'PDF print sheet preview':'ตัวอย่างแผ่น PDF'):'ตัวอย่างรูปสมัครงานหญิง'}</span>
