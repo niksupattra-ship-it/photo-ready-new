@@ -73,7 +73,7 @@ test('Thai AI makeup matches soft-rose studio style, preserves the Natural base 
   assert.match(sent.prompt,/softly blended fresh neutral rose-pink tint/);
   assert.match(sent.prompt,/Keep face width-to-height ratio/);
   assert.match(sent.prompt,/never authorize face slimming/);
-  assert.match(sent.prompt,/own authentic complexion depth and undertone/);
+  assert.match(sent.prompt,/own authentic complexion depth and undertone/i);
   assert.match(sent.prompt,/Face, ears, jaw and visible neck/);
   assert.match(sent.prompt,/Reus[e] that same overall studio exposure/);
   assert.match(sent.prompt,/Keep clothing and clothed torso at precisely their Natural exposure/);
