@@ -925,7 +925,6 @@ export const ENGLISH_ADDITIONAL_COPY={
  "กำลังบันทึกในบัญชีของคุณ กรุณารอผลยืนยันก่อนออกจากเว็บ · บันทึกได้สูงสุด 3 งาน": "Saving to your account. Wait for confirmation before leaving. You can store up to 3 projects.",
  "บัญชีเปลี่ยนแล้ว กรุณาบันทึกงานอีกครั้ง": "The account has changed. Please save your project again.",
  "กำลังบันทึกงานไว้ในบัญชี…": "Saving the project to your account…",
- "บันทึกงานในบัญชีสำเร็จแล้ว · เปิดแก้ไขจากงานของฉันด้วยอีเมลเดิมได้ หากต้องการไฟล์รูปในเครื่อง ให้กดดาวน์โหลดรูปด้วย": "The project has been saved to your account. Reopen it from My projects using the same email address. To keep an image on your device, also select Download photo.",
  "ไฟล์โปรเจกต์พร้อมแล้ว · เลือกบันทึกหรือแชร์ไฟล์": "The project file is ready. Choose Save or Share.",
  "ส่งคำขอดาวน์โหลดไฟล์โปรเจกต์แล้ว": "The project file download request has been sent.",
  "สร้างรูปสำเร็จแล้ว แต่ยังบันทึกงานไม่ได้:": "Your photo is ready, but the project could not be saved:",
