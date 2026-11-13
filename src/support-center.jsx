@@ -1,7 +1,7 @@
-import {interfaceText} from './english-preview.js';
+import {interfaceText,englishPreviewEnabled} from './english-preview.js';
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {SUPPORT_EMAIL,SUPPORT_TOPICS} from './help-topics.js';
+import {SUPPORT_EMAIL,SUPPORT_TOPICS,SUPPORT_TOPICS_EN} from './help-topics.js';
 import './support-center.css';
 
 function HelpIcon(){
@@ -27,7 +27,7 @@ export function SupportDialog({onClose}){
   <header className="idprom-support-header"><div><small>IDพร้อม · ศูนย์ช่วยเหลือ</small><h2 id={title}>ช่วยเหลือและติดต่อ</h2></div><button type="button" autoFocus onClick={onClose} aria-label="ปิดความช่วยเหลือ">×</button></header>
   <div className="idprom-support-content">
    <section className="idprom-support-contact" aria-label="ติดต่อทางอีเมล"><h3>ติดต่อทีมงานทางอีเมล</h3><p>หากพบปัญหา กรุณาแจ้งรายละเอียดพร้อมภาพหน้าจอให้ทีมงานตรวจสอบ</p><div className="idprom-support-email-row"><a href={emailUrl} aria-expanded={emailOptionsOpen} aria-controls={emailOptionsId} onClick={e=>{e.preventDefault();setEmailOptionsOpen(true)}}>{SUPPORT_EMAIL}</a><button type="button" onClick={copyEmail}>คัดลอกอีเมล</button></div><button type="button" className="idprom-support-send" aria-expanded={emailOptionsOpen} aria-controls={emailOptionsId} onClick={()=>setEmailOptionsOpen(v=>!v)}>ส่งอีเมลถึงทีมงาน</button><div id={emailOptionsId} className="idprom-support-email-options" hidden={!emailOptionsOpen}><h4>เลือกบริการอีเมลที่คุณใช้</h4><div className="idprom-support-email-services"><a href={gmailUrl} target="_blank" rel="noopener noreferrer">เขียนอีเมลใน Gmail</a><a href={outlookUrl} target="_blank" rel="noopener noreferrer">เขียนอีเมลใน Outlook</a><a href={emailUrl} target="_blank" rel="noopener noreferrer">เปิดแอปอีเมลในเครื่อง</a></div><p>Gmail และ Outlook เปิดร่างอีเมลในแท็บใหม่ กรุณาตรวจข้อความแล้วกดส่งในบริการที่เลือก หากแอปอีเมลในเครื่องไม่เปิด ให้ใช้บริการบนเว็บหรือคัดลอกที่อยู่อีเมลไปส่งเอง</p></div><p className="idprom-support-copy-status" role="status">{copyStatus}</p></section>
-   <section className="idprom-support-troubleshooting" aria-label="วิธีแก้ปัญหาเบื้องต้น"><h3>ลองแก้ปัญหาเบื้องต้น</h3><p className="idprom-support-note">อย่ารีเฟรชหรือปิดหน้าระหว่างประมวลผลหรือดาวน์โหลด และตรวจสอบว่าไฟล์อยู่ในอุปกรณ์แล้วก่อนออกจากหน้าการใช้งาน</p><div className="idprom-support-topics">{SUPPORT_TOPICS.map(topic=><details key={topic.id}><summary>{topic.title}<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></summary>{topic.steps.map((step,i)=><p key={i} style={{margin:'0 18px 16px'}}>{step}</p>)}</details>)}</div></section>
+   <section className="idprom-support-troubleshooting" aria-label="วิธีแก้ปัญหาเบื้องต้น"><h3>ลองแก้ปัญหาเบื้องต้น</h3><p className="idprom-support-note">อย่ารีเฟรชหรือปิดหน้าระหว่างประมวลผลหรือดาวน์โหลด และตรวจสอบว่าไฟล์อยู่ในอุปกรณ์แล้วก่อนออกจากหน้าการใช้งาน</p><div className="idprom-support-topics">{(englishPreviewEnabled()?SUPPORT_TOPICS_EN:SUPPORT_TOPICS).map(topic=><details key={topic.id}><summary>{topic.title}<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></summary>{topic.steps.map((step,i)=><p key={i} style={{margin:'0 18px 16px'}}>{step}</p>)}</details>)}</div></section>
   </div>
   <footer className="idprom-support-footer"><button type="button" onClick={onClose}>กลับไปใช้งาน</button></footer>
  </dialog>,document.body);
