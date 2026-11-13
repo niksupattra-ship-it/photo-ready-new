@@ -1,4 +1,4 @@
-import {interfaceText,englishPreviewEnabled} from './english-preview.js';
+import {englishPreviewEnabled} from './english-preview.js';
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {SUPPORT_EMAIL,SUPPORT_TOPICS,SUPPORT_TOPICS_EN} from './help-topics.js';
@@ -7,34 +7,79 @@ import './support-center.css';
 function HelpIcon(){
  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 3.5M12 16h.01"/></svg>;
 }
+function MailIcon(){
+ return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4.5 7 7.5 6 7.5-6"/></svg>;
+}
 
 export function SupportDialog({onClose}){
- const panel=useRef(null),title=useId(),emailOptionsId=useId(),[copyStatus,setCopyStatus]=useState(''),[emailOptionsOpen,setEmailOptionsOpen]=useState(false);
+ const english=englishPreviewEnabled();
+ const panel=useRef(null),title=useId(),emailOptionsId=useId();
+ const [copyStatus,setCopyStatus]=useState(''),[emailOptionsOpen,setEmailOptionsOpen]=useState(false);
  useEffect(()=>{
   const previous=document.activeElement,dialog=panel.current;
   dialog.showModal();
   return()=>{dialog.close();if(previous?.isConnected)previous.focus?.()};
  },[]);
  const copyEmail=async()=>{
-  try{await navigator.clipboard.writeText(SUPPORT_EMAIL);if(panel.current?.open)setCopyStatus('คัดลอกอีเมลแล้ว')}
-  catch{if(panel.current?.open)setCopyStatus('กดค้างหรือเลือกข้อความอีเมลเพื่อคัดลอกได้')}
+  try{
+   await navigator.clipboard.writeText(SUPPORT_EMAIL);
+   if(panel.current?.open)setCopyStatus(english?'Email address copied.':'คัดลอกอีเมลแล้ว');
+  }catch{
+   if(panel.current?.open)setCopyStatus(english?'Select the email address to copy it.':'เลือกข้อความอีเมลเพื่อคัดลอกได้');
+  }
  };
- const subject=interfaceText('แจ้งปัญหาการใช้งาน IDพร้อม');
+ const subject=english?'IDPROM Support Request':'แจ้งปัญหาการใช้งาน IDพร้อม';
  const emailUrl='mailto:'+SUPPORT_EMAIL+'?subject='+encodeURIComponent(subject);
  const gmailUrl='https://mail.google.com/mail/?'+new URLSearchParams({view:'cm',fs:'1',to:SUPPORT_EMAIL,su:subject});
  const outlookUrl='https://outlook.live.com/mail/0/deeplink/compose?'+new URLSearchParams({to:SUPPORT_EMAIL,subject});
- return createPortal(<dialog ref={panel} className="idprom-support-dialog" aria-labelledby={title} onCancel={e=>{e.preventDefault();e.stopPropagation();onClose()}} onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
-  <header className="idprom-support-header"><div><small>IDพร้อม · ศูนย์ช่วยเหลือ</small><h2 id={title}>ช่วยเหลือและติดต่อ</h2></div><button type="button" autoFocus onClick={onClose} aria-label="ปิดความช่วยเหลือ">×</button></header>
-  <div className="idprom-support-content">
-   <section className="idprom-support-contact" aria-label="ติดต่อทางอีเมล"><h3>ติดต่อทีมงานทางอีเมล</h3><p>หากพบปัญหา กรุณาแจ้งรายละเอียดพร้อมภาพหน้าจอให้ทีมงานตรวจสอบ</p><div className="idprom-support-email-row"><a href={emailUrl} aria-expanded={emailOptionsOpen} aria-controls={emailOptionsId} onClick={e=>{e.preventDefault();setEmailOptionsOpen(true)}}>{SUPPORT_EMAIL}</a><button type="button" onClick={copyEmail}>คัดลอกอีเมล</button></div><button type="button" className="idprom-support-send" aria-expanded={emailOptionsOpen} aria-controls={emailOptionsId} onClick={()=>setEmailOptionsOpen(v=>!v)}>ส่งอีเมลถึงทีมงาน</button><div id={emailOptionsId} className="idprom-support-email-options" hidden={!emailOptionsOpen}><h4>เลือกบริการอีเมลที่คุณใช้</h4><div className="idprom-support-email-services"><a href={gmailUrl} target="_blank" rel="noopener noreferrer">เขียนอีเมลใน Gmail</a><a href={outlookUrl} target="_blank" rel="noopener noreferrer">เขียนอีเมลใน Outlook</a><a href={emailUrl} target="_blank" rel="noopener noreferrer">เปิดแอปอีเมลในเครื่อง</a></div><p>Gmail และ Outlook เปิดร่างอีเมลในแท็บใหม่ กรุณาตรวจข้อความแล้วกดส่งในบริการที่เลือก หากแอปอีเมลในเครื่องไม่เปิด ให้ใช้บริการบนเว็บหรือคัดลอกที่อยู่อีเมลไปส่งเอง</p></div><p className="idprom-support-copy-status" role="status">{copyStatus}</p></section>
-   <section className="idprom-support-troubleshooting" aria-label="วิธีแก้ปัญหาเบื้องต้น"><h3>ลองแก้ปัญหาเบื้องต้น</h3><p className="idprom-support-note">อย่ารีเฟรชหรือปิดหน้าระหว่างประมวลผลหรือดาวน์โหลด และตรวจสอบว่าไฟล์อยู่ในอุปกรณ์แล้วก่อนออกจากหน้าการใช้งาน</p><div className="idprom-support-topics">{(englishPreviewEnabled()?SUPPORT_TOPICS_EN:SUPPORT_TOPICS).map(topic=><details key={topic.id}><summary>{topic.title}<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></summary>{topic.steps.map((step,i)=><p key={i} style={{margin:'0 18px 16px'}}>{step}</p>)}</details>)}</div></section>
+ return createPortal(<dialog ref={panel} className="idprom-support-dialog" aria-labelledby={title}
+  onCancel={e=>{e.preventDefault();e.stopPropagation();onClose()}}
+  onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
+  <header className="idprom-support-header"><div>
+   <small>{english?'IDPROM · Help Center':'IDพร้อม · ศูนย์ช่วยเหลือ'}</small>
+   <h2 id={title}>{english?'Help & Support':'ช่วยเหลือและติดต่อ'}</h2>
+  </div><button type="button" autoFocus onClick={onClose} aria-label={english?'Close support':'ปิดความช่วยเหลือ'}>×</button></header>
+  <div className="idprom-support-content" lang={english?'en':'th'}>
+   <section className="idprom-support-contact" aria-label={english?'Contact support by email':'ติดต่อทางอีเมล'}>
+    <h3>{english?'Contact Support':'ติดต่อฝ่ายสนับสนุน'}</h3>
+    <p>{english?
+     'If you encounter an issue, please email us a description of the problem. Our support team will review your request and assist you.':
+     'หากพบปัญหาการใช้งาน กรุณาส่งรายละเอียดมาที่อีเมลด้านล่าง เพื่อให้ทีมงานตรวจสอบและช่วยเหลือ'}</p>
+    <div className="idprom-support-email-row">
+     <a href={emailUrl}>{SUPPORT_EMAIL}</a>
+     <button type="button" onClick={copyEmail}>{english?'Copy email':'คัดลอกอีเมล'}</button>
+    </div>
+    <div className="idprom-support-actions">
+     <a className="idprom-support-send" href={emailUrl}><MailIcon/>{english?'Send Email':'ส่งอีเมล'}</a>
+     <button type="button" className="idprom-support-alternative" aria-expanded={emailOptionsOpen} aria-controls={emailOptionsId} onClick={()=>setEmailOptionsOpen(v=>!v)}>
+      {english?'Use Gmail or Outlook':'ใช้ Gmail หรือ Outlook'}
+     </button>
+    </div>
+    <div id={emailOptionsId} className="idprom-support-email-options" hidden={!emailOptionsOpen}>
+     <div className="idprom-support-email-services">
+      <a href={gmailUrl} target="_blank" rel="noopener noreferrer">{english?'Open Gmail':'เปิด Gmail'}</a>
+      <a href={outlookUrl} target="_blank" rel="noopener noreferrer">{english?'Open Outlook':'เปิด Outlook'}</a>
+     </div>
+     <p>{english?
+      'Your email app or service will open a message draft. Review your message and select Send there.':
+      'ระบบจะเปิดหน้าร่างอีเมล กรุณาตรวจสอบรายละเอียดและกดส่งในแอปหรือบริการอีเมลที่เลือก'}</p>
+    </div>
+    <p className="idprom-support-copy-status" role="status">{copyStatus}</p>
+   </section>
+   <section className="idprom-support-troubleshooting" aria-label={english?'Troubleshooting':'วิธีแก้ปัญหาเบื้องต้น'}>
+    <h3>{english?'Troubleshooting':'ลองแก้ปัญหาเบื้องต้น'}</h3>
+    <p className="idprom-support-note">{english?
+     'Avoid refreshing or closing the page during processing or downloads. Check that your files are saved before leaving.':
+     'อย่ารีเฟรชหรือปิดหน้าระหว่างประมวลผลหรือดาวน์โหลด และตรวจสอบว่าไฟล์อยู่ในอุปกรณ์แล้วก่อนออกจากหน้าการใช้งาน'}</p>
+    <div className="idprom-support-topics">{(english?SUPPORT_TOPICS_EN:SUPPORT_TOPICS).map(topic=><details key={topic.id}><summary>{topic.title}<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg></summary>{topic.steps.map((step,i)=><p key={i} style={{margin:'0 18px 16px'}}>{step}</p>)}</details>)}</div>
+   </section>
   </div>
-  <footer className="idprom-support-footer"><button type="button" onClick={onClose}>กลับไปใช้งาน</button></footer>
+  <footer className="idprom-support-footer"><button type="button" onClick={onClose}>{english?'Return to editing':'กลับไปใช้งาน'}</button></footer>
  </dialog>,document.body);
 }
 
 export function SupportCenter({compact=false}){
- const[open,setOpen]=useState(false);
- return <><button type="button" className={'idprom-support-trigger'+(compact?' is-compact':'')} onClick={()=>setOpen(true)} aria-label="ช่วยเหลือและติดต่อ" title="ช่วยเหลือและติดต่อ"><HelpIcon/>{!compact&&<span>ช่วยเหลือ</span>}</button>{open&&<SupportDialog onClose={()=>setOpen(false)}/>}</>;
+ const [open,setOpen]=useState(false),english=englishPreviewEnabled();
+ const ariaLabel=english?'Help & Support':'ช่วยเหลือและติดต่อ';
+ return <><button type="button" className={'idprom-support-trigger'+(compact?' is-compact':'')} onClick={()=>setOpen(true)} aria-label={ariaLabel} title={ariaLabel}><HelpIcon/>{!compact&&<span>{english?'Help':'ช่วยเหลือ'}</span>}</button>{open&&<SupportDialog onClose={()=>setOpen(false)}/>}</>;
 }
-
