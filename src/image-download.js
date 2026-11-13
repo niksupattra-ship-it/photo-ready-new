@@ -35,7 +35,7 @@ export function deliverImage(blob,name,options={}){
  const save=root.querySelector('#save');save.href=url;save.download=name;save.target='_blank';save.rel='noopener';
  if(!isImage){root.querySelector('#title').textContent='บันทึกไฟล์โปรเจกต์';root.querySelector('.panel>p').textContent='กดบันทึกไฟล์เพื่อเก็บงานไว้ในเครื่อง';save.textContent='บันทึกไฟล์';root.querySelector('.hint').textContent='เปิดไฟล์นี้ใน Studio เพื่อแก้ไขงานต่อได้'}
  if(blob.type==='application/pdf'){
-  const en=englishPreviewEnabled();root.querySelector('#title').textContent=en?'Save your PDF':'บันทึก PDF';root.querySelector('.panel>p').textContent=en?'Your Letter print sheet is ready.':'แผ่นพิมพ์ Letter พร้อมแล้ว';save.textContent=en?'Save PDF':'บันทึก PDF';root.querySelector('.hint').textContent=en?'Print on Letter paper at Actual size / 100%.':'พิมพ์บนกระดาษ Letter ที่ขนาดจริง / 100%';
+  const en=englishPreviewEnabled();root.querySelector('#title').textContent=en?'Save your PDF':'บันทึก PDF';root.querySelector('.panel>p').textContent=en?'Your Letter print sheet is ready.':'แผ่นพิมพ์ A4 (210 × 297 มม.) พร้อมแล้ว';save.textContent=en?'Save PDF':'บันทึก PDF';root.querySelector('.hint').hidden=true;
  }
  const message=root.querySelector('#message');save.addEventListener('click',()=>{message.textContent=isImage?'ส่งคำขอบันทึกแล้ว หากไม่มีไฟล์ ให้กดค้างที่รูปหรือใช้ปุ่มแชร์รูป':'ส่งคำขอบันทึกไฟล์แล้ว กรุณาตรวจในรายการดาวน์โหลด';notify('save_clicked',{method:'save_link'})});
  let file;try{file=new File([blob],name,{type:blob.type||'image/png'})}catch{}
