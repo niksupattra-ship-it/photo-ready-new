@@ -230,7 +230,7 @@ export function startEnglishPreview(doc=globalThis.document){
  const win=doc.defaultView;
  doc.documentElement.lang='en';doc.documentElement.classList.add('english-preview');
  doc.title='ID Phrom | Professional ID and job application photos';
- const description=doc.querySelector('meta[name="description"]');if(description)description.content='Create and edit professional ID and job application photos. Choose your hairstyle, outfit and background. Prices are in Thai baht (THB).';
+ const description=doc.querySelector('meta[name="description"]');if(description)description.content='Create and edit professional ID and job application photos. Choose your hairstyle, outfit and background.';
  const robots=doc.querySelector('meta[name="robots"]');if(robots)robots.content='noindex,follow';
  const observed=new WeakSet();
  const observer=new win.MutationObserver(records=>{
