@@ -72,8 +72,8 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
    <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
     {OFFERS.map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
-     <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{english?<><small>THB</small> {offer.price}</>:<>{offer.price} <small>บาท</small></>}{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
-     <button type="button" className="ready-pay" disabled={disabled} onClick={()=>choose(offer.price)}>{payBusy?'กำลังเตรียม…':offer.price==='159'&&usePremium?'ใช้ 1 สิทธิ์โปร 159':english?'Choose the THB '+offer.price+' package':'เลือกโปร '+offer.price+' บาท'}</button>
+     <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
+     <button type="button" className="ready-pay" disabled={disabled} onClick={()=>choose(offer.price)}>{payBusy?'กำลังเตรียม…':offer.price==='159'&&usePremium?'ใช้ 1 สิทธิ์โปร 159':'เลือกโปร '+offer.price+' บาท'}</button>
      {offer.price==='89'&&<button type="button" className="single-photo-back" disabled={disabled} onClick={()=>onBackToPhoto?.('89')}>← ย้อนกลับไปแก้ไขรูปนี้</button>}
     </section>)}
    </div>
@@ -88,7 +88,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,p
     <li>เลือก 89 บาท เพื่อรับรูปนี้และเลือกชุดรวม 3 ชุดพร้อมทรงผมพื้นฐาน หรือ 159 บาท เพื่อรับรูปนี้และเลือกชุดรวม 5 ชุดพร้อมทรงผมเพิ่มเติม</li>
     <li>เข้าสู่ระบบและชำระเงินหรือใช้สิทธิ์ที่มี แล้วเลือกดาวน์โหลด PNG หรือ PDF ไม่มีลายน้ำ</li>
    </ol>
-   <p>แพ็กเกจไทยปลดล็อกสำหรับงานที่เลือกเท่านั้น ชุดที่ใช้อยู่ขณะปลดล็อกนับรวมในจำนวนชุด หลังเลือกครบยังสลับใช้ชุดเดิมได้ แต่รูปต้นฉบับใหม่เป็นคนละงาน</p>
+   <p>แพ็กเกจปลดล็อกสำหรับงานที่เลือกเท่านั้น ชุดที่ใช้อยู่ขณะปลดล็อกนับรวมในจำนวนชุด หลังเลือกครบยังสลับใช้ชุดเดิมได้ แต่รูปต้นฉบับใหม่เป็นคนละงาน</p>
    <p>ตรวจสอบว่าไฟล์ดาวน์โหลดและเปิดได้ก่อนออกจากหน้าเว็บ อ่านรายละเอียดสิทธิ์และข้อกำหนดเพิ่มเติมด้านล่าง</p>
   </div></details>
   <ServiceTermsLink/>
