@@ -34,22 +34,53 @@ export function analyticsCheckout(packageId,checkoutUrl){try{const session=Strin
 // Call ONLY after the existing /payments/confirm endpoint has returned ok:true.
 export function analyticsPurchase(sessionId){try{if(!sessionId||seenPurchases.has(sessionId))return;const pending=read(PENDING);if(pending?.internal)return;const sent=read('idprom_analytics_purchases_v1')||[];if(sent.includes(sessionId))return;seenPurchases.add(sessionId);write('idprom_analytics_purchases_v1',[...sent,sessionId].slice(-100));const valid=pending&&pending.checkout_session===sessionId&&Date.now()-pending.at<7*86400000&&['79','89','119','149','159','199'].includes(pending.package_id);const extra={transaction_id:sessionId,...(valid?pending:{uniform_category:'unknown',uniform_style:'unknown',uniform_gender:'unknown',uniform_level:'unknown'})};delete extra.internal;delete extra.at;delete extra.checkout_session;analyticsEvent('idprom_payment_confirmed',extra);if(valid)analyticsEvent('purchase',{...extra,currency:'THB',value:Number(pending.package_id),items:[item(pending.package_id)]})}catch{}}
 
-// Diagnostic annotations stay in memory; original Error objects/messages are unchanged.
+// Diagnostic annotations stay in memory; never send image bytes, original errors,
+// raw provider responses, job IDs or account identifiers to Analytics.
 const diagnosticErrors=new WeakMap();
 export function analyticsTagError(error,details){try{if(error&&typeof error==='object')diagnosticErrors.set(error,details)}catch{}return error}
-export function analyticsProcessFailure(error,stage,extra={}){try{
+export function classifyProcessFailure(error,stage){
  const details=error&&typeof error==='object'?diagnosticErrors.get(error)||{}:{};
  const errorStage=details.error_stage||stage||'unknown';
- let code='';try{code=JSON.parse(String(error?.message||'')).error||''}catch{}
- let reason='unknown',blocked=false;
- if(code==='credit_required'||details.http_status===402){reason='trial_or_credit_required';blocked=true}
- else if(code==='private_trial_inactive'){reason='private_trial_inactive';blocked=true}
- else if(error?.name==='AbortError')reason='request_aborted';
- else if(/failed to fetch|load failed|networkerror|fetch failed/i.test(String(error?.message||'')))reason='network_error';
- else if(errorStage==='ai_job')reason='ai_job_failed';
- else if(errorStage==='compose')reason='compose_failed';
- else if(errorStage==='cleanup')reason='local_cleanup_failed';
- else if(details.http_status>=500)reason='server_response_error';
- else if(details.http_status>=400)reason='request_rejected';
- analyticsEvent(blocked?'idprom_process_blocked':'idprom_process_error',{...extra,error_stage:errorStage,failure_reason:reason,...(details.http_status?{http_status:details.http_status}:{})});
+ const message=String(error?.message||'');
+ let rawCode=String(error?.code||'');
+ if(!rawCode)try{rawCode=String(JSON.parse(message).error||'')}catch{}
+ const code=/^[a-zA-Z_][a-zA-Z0-9_]{0,60}$/.test(rawCode)?rawCode:'unknown';
+ const status=Number(details.http_status||error?.status||0);
+ let reason='unknown',event='idprom_process_error';
+ if(code==='USER_CANCELLED'){
+  reason='user_cancelled';event='idprom_process_cancelled';
+ }else if(code==='ACTIVE_AI_JOB'||code==='active_ai_job'||status===429){
+  reason='already_processing';event='idprom_process_blocked';
+ }else if(code==='credit_required'||code==='usd_premium_credits_exhausted'||status===402){
+  reason='trial_or_credit_required';event='idprom_process_blocked';
+ }else if(code==='private_trial_inactive'){
+  reason='private_trial_inactive';event='idprom_process_blocked';
+ }else if(code==='AI_INPUT_REJECTED'||/input image may contain sensitive information/i.test(message)){
+  reason='ai_input_rejected';
+ }else if(code==='AI_OUTPUT_REJECTED'||/output image may contain sensitive information/i.test(message)){
+  reason='ai_output_rejected';
+ }else if(code==='AI_CONTENT_REJECTED'){
+  reason='ai_content_rejected';
+ }else if(error?.name==='AbortError'){
+  reason='request_aborted';
+ }else if(code==='REQUEST_TIMEOUT'||error?.name==='TimeoutError'){
+  reason='request_timeout';
+ }else if(/failed to fetch|load failed|networkerror|fetch failed/i.test(message)){
+  reason='network_error';
+ }else if(status>=500){
+  reason='server_response_error';
+ }else if(status>=400){
+  reason='request_rejected';
+ }else if(errorStage==='ai_job'){
+  reason='ai_job_failed';
+ }else if(errorStage==='compose'){
+  reason='compose_failed';
+ }else if(errorStage==='cleanup'){
+  reason='local_cleanup_failed';
+ }
+ return {event,error_stage:errorStage,failure_reason:reason,error_code:code,...(status>=400&&status<=599?{http_status:status}:{})};
+}
+export function analyticsProcessFailure(error,stage,extra={}){try{
+ const diagnostic=classifyProcessFailure(error,stage);
+ analyticsEvent(diagnostic.event,{...extra,error_stage:diagnostic.error_stage,failure_reason:diagnostic.failure_reason,error_code:diagnostic.error_code,...(diagnostic.http_status?{http_status:diagnostic.http_status}:{})});
  }catch{}}
