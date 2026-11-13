@@ -1,11 +1,10 @@
 import {englishPreviewEnabled} from './english-preview.js';
-import {EnglishPhotoGuide} from './english-photo-guide.jsx';
+import {EnglishPhotoGuide,ThaiPhotoGuide} from './english-photo-guide.jsx';
 import React,{useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
 import './studio-photo-guide.css';
-const photoGuideImage='/assets/photo-guide.06a6aca5f17a.webp';
 export function StudioPhotoGuide(){
  const [open,setOpen]=useState(false),trigger=useRef(null),close=useRef(null);
  useEffect(()=>{if(!open)return;const previous=document.activeElement;close.current?.focus();const key=e=>{if(e.key==='Escape'){e.preventDefault();setOpen(false)}if(e.key==='Tab'){e.preventDefault();close.current?.focus()}};document.addEventListener('keydown',key);return()=>{document.removeEventListener('keydown',key);previous?.focus()}},[open]);
- return <><button ref={trigger} type="button" className="studio-photo-guide-trigger" aria-label="ดูตัวอย่างรูปที่ถูกต้อง" title="ตัวอย่างรูปที่ถูกต้อง" onClick={()=>setOpen(true)}>?</button>{open&&createPortal(<div className="studio-photo-guide-backdrop" onPointerDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="studio-photo-guide-dialog" role="dialog" aria-modal="true" aria-label="ตัวอย่างรูปที่ถูกต้อง"><button ref={close} type="button" className="studio-photo-guide-close" aria-label="ปิดตัวอย่าง" onClick={()=>setOpen(false)}>×</button>{englishPreviewEnabled()?<EnglishPhotoGuide/>:<img src={photoGuideImage} alt="คู่มือรูปถ่าย แสดงตัวอย่างรูปที่ถูกต้องและรูปที่อาจประมวลผลไม่สมบูรณ์"/>}</section></div>,document.body)}</>;
+ return <><button ref={trigger} type="button" className="studio-photo-guide-trigger" aria-label={englishPreviewEnabled()?"Photo guide":"ดูตัวอย่างรูปที่ถูกต้อง"} title={englishPreviewEnabled()?"Photo guide":"ตัวอย่างรูปที่ถูกต้อง"} onClick={()=>setOpen(true)}>?</button>{open&&createPortal(<div className="studio-photo-guide-backdrop" onPointerDown={e=>{if(e.target===e.currentTarget)setOpen(false)}}><section className="studio-photo-guide-dialog" role="dialog" aria-modal="true" aria-label={englishPreviewEnabled()?"Photo guide":"ตัวอย่างรูปที่ถูกต้อง"}><button ref={close} type="button" className="studio-photo-guide-close" aria-label={englishPreviewEnabled()?"Close photo guide":"ปิดตัวอย่าง"} onClick={()=>setOpen(false)}>×</button>{englishPreviewEnabled()?<EnglishPhotoGuide/>:<ThaiPhotoGuide/>}</section></div>,document.body)}</>;
 }
