@@ -57,21 +57,29 @@ test('production pipeline finishes both images before delivery and fails the job
   assert.equal(makeupCalls,1);
  }
 });
-test('Thai and English AI makeup both request even fair rosy skin with a continuous neck match',async()=>{
+test('Thai AI makeup matches soft-rose studio style, preserves the Natural base and keeps old jobs valid',async()=>{
  const {AI_MAKEUP_COMPLEXION_POLICY,AI_MAKEUP_FACE_LIGHTING_POLICY}=await import('../ai-portrait-makeup.js');
  const {AI_MAKEUP_PAIR_VERSION,isAiMakeupPairVersion}=await import('../ai-makeup-pair-policy.js');
- assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v14-even-bright-fair-skin');assert(isAiMakeupPairVersion('ai-makeup-pair-v9-preserve-face-geometry'));assert(isAiMakeupPairVersion('ai-makeup-pair-v7-brow-gap-fill'),'queued older jobs remain valid');
+ assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v15-soft-rose-studio-natural-tone');
+ assert(isAiMakeupPairVersion('ai-makeup-pair-v14-even-bright-fair-skin'),'queued previous-version jobs remain valid');
+ assert(isAiMakeupPairVersion('ai-makeup-pair-v9-preserve-face-geometry'));
  const natural=await png('tan');
  for(const preserveOutfit of [false,true]){
   let sent;await createAiMakeupVariant(natural,{key:'fixture-not-sent',preserveOutfit,requestPortrait:async p=>{sent=p;return {png:natural}}});
-  assert.match(sent.prompt,/clearly fairer, bright, evenly toned skin across the entire face and visible neck/);assert.match(sent.prompt,/using brightening foundation and soft fill together/);assert(sent.prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));assert(sent.prompt.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY));assert.match(sent.prompt,/Preserve the input face width-to-height ratio/);assert.match(sent.prompt,/No face slimming, V-line reshaping/);assert.match(sent.prompt,/Retain dimensional cheek and jaw shading/);assert.match(sent.prompt,/forehead, temples, both cheeks, nose, mouth corners and chin/);assert.match(sent.prompt,/brighter fair-pink makeup finish/);assert.match(sent.prompt,/Continue the same soft facial fill and rosy tone smoothly through visible neck skin/);assert.match(sent.prompt,/garment colour, fabric texture, insignia, hair and background untouched/);
-  assert.doesNotMatch(sent.prompt,/Do not reshape, whiten|; no whitening,/);
-  assert.match(sent.prompt,/HEALTHY SKIN AND FACE FLASH/);
-  assert.match(sent.prompt,/\+0.4 to \+0.6 EV/);
-  assert.match(sent.prompt,/MAKEUP EDIT SCOPE — FACE AND NECK ONLY/);
-  assert.match(sent.prompt,/Leave the outfit and clothed torso at their original exposure/);
-  assert.match(sent.prompt,/Do not darken the face to match the jacket/);
-  assert.doesNotMatch(sent.prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY|do not add an independent brighter flash/);
+  assert(sent.prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
+  assert(sent.prompt.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY));
+  assert.match(sent.prompt,/delicate natural Korean-inspired studio portrait makeup/);
+  assert.match(sent.prompt,/muted dusty-rose blush/);
+  assert.match(sent.prompt,/softly blended fresh neutral rose-pink tint/);
+  assert.match(sent.prompt,/Keep face width-to-height ratio/);
+  assert.match(sent.prompt,/No face slimming/);
+  assert.match(sent.prompt,/own authentic complexion depth and undertone/);
+  assert.match(sent.prompt,/Face, ears, jaw and visible neck/);
+  assert.match(sent.prompt,/Reus[e] that same overall studio exposure/);
+  assert.match(sent.prompt,/Keep clothing and clothed torso at precisely their Natural exposure/);
+  assert.match(sent.prompt,/do not edit hair or background/i);
+  assert.doesNotMatch(sent.prompt,/visibly more even, brighter fair-pink makeup finish|clearly fairer, bright, evenly toned/);
+  assert.doesNotMatch(sent.prompt,/aim for approximately \+0\.4 to \+0\.6 EV/);
  }
 });
 
