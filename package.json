@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.js",
     "predev": "node scripts/prepare-vision-assets.mjs",
     "dev": "vite",
     "prebuild": "node scripts/prepare-vision-assets.mjs && node scripts/verify-catalogue-hair-guides.mjs",

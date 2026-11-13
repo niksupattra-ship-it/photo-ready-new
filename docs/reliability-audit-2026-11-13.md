@@ -35,7 +35,7 @@ prices, plan quantities, preview/payment order and UI layout are retained.
 
 ## Validation
 
-`npm test` passes105 current Node regressions, including real production
+`node --test tests/*.test.js` passes105 current Node regressions, including real production
 route bodies with inert gateways. Coverage includes two/one-call AI contracts,
 atomic paired failure, native delivery, Thai isolation, all20 imported garment
 alpha planes, fixed PNG aspect, signatures, USD prices, authentication,
