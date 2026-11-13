@@ -17,18 +17,17 @@ with sync_playwright() as pw:
   try:
    page.goto(BASE+'/scripts/fixtures/english-portrait-flow.html?lang=en&fresh&stretch',wait_until='domcontentloaded')
    page.locator('.english-flow').wait_for()
-   assert page.locator('.english-flow h1').is_hidden(),'Step titles must not repeat the navigation visually'
+   assert page.locator('.english-flow h1').bounding_box()['width']<=2,'Step titles must not repeat the navigation visually'
    assert page.locator('.english-flow-routes small,.english-flow-routes b').count()==0,'Route explanations must not repeat button labels'
    assert page.locator('.english-route-caption').count()==0,'Visual route descriptions must not duplicate the action choice'
    assert page.locator('.english-flow-options').get_by_text('Create your portrait, your way.').count()==0
    page.get_by_role('button',name='Create with AI').click()
-   assert page.locator('.english-flow-options h1').is_hidden()
-   assert page.locator('.english-flow-options legend').count()==3,'Keep accessible fieldset labels'
-   assert all(not item.is_visible() for item in page.locator('.english-flow-options legend').all()),'Section names should not repeat the step navigation'
+   assert page.locator('.english-flow-options h1').bounding_box()['width']<=2
+   assert page.locator('.english-flow-options legend').count()==2,'Keep accessible outfit and finish fieldset labels'
+   assert all(item.bounding_box()['width']<=2 for item in page.locator('.english-flow-options legend').all()),'Section names should not repeat the step navigation'
    assert page.locator('.english-flow-note').count()==0,'Remove helper copy above Create portrait'
    page.locator('.english-flow-outfits button').first.click()
    page.get_by_role('button',name='Makeup',exact=True).click()
-   page.locator('.english-flow-hair-grid button').nth(2).click()
    page.get_by_role('button',name='Create portrait',exact=True).click()
    page.wait_for_function('bodyCalls.some(c=>c.committed)')
    assert page.evaluate("bodySnapshot.current().layers.find(l=>l.kind==='head').portraitComposition")=='en-outfit-body-v1'

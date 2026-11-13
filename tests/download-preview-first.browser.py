@@ -45,10 +45,10 @@ class Case:
   fixture="""window.__downloadPreviewFixture={snapshot:()=>paymentStudioRef.current?.(),refresh:refreshWallet,restore:restorePurchaseDraft,resume:async()=>{setBuyOpen(false);return savePaidCheckout('pi_preview_fixture',{jobId:currentOutputJobRef.current})},persist:async()=>{const {savePurchaseDraft}=await import('/src/purchase-draft.js');return savePurchaseDraft({walletId:currentWalletId(),jobId:currentOutputJobRef.current,isTrial:true,studio:paymentStudioRef.current?.()})},setJob:id=>{currentOutputJobRef.current=id;currentOutputTrialRef.current=true;setOutputJobId(id);savedWorkOpenRequestRef.current++;setStudioData(prev=>prev?.map(layer=>layer.kind==='head'?{...layer,jobId:id,restrictedTrial:true,outputUnlocked:false,fullEditUnlocked:false}:layer));setSavedWorkRevision(v=>v+1);setSavedWorkUnlocked(false);setTrialPreview(true);setDownloadUnlockSignal(null)}};\n"""
   r.fulfill(response=response,body=body.replace(needle,fixture+needle,1))
  def setup(self):
-  p=self.p;p.goto(BASE+'/?lang='+self.lang,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='Open project and review payment'if self.en else'เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.paired-offers').wait_for();p.keyboard.press('Escape');p.locator('main.idstudio .studio-stage>canvas').wait_for(state='attached');p.wait_for_timeout(150)
+  p=self.p;p.goto(BASE+'/?lang='+self.lang,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='Open project and review payment'if self.en else'เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.locator('.en-plans'if self.en else'.paired-offers').wait_for();p.keyboard.press('Escape');p.locator('main.idstudio .studio-stage>canvas').wait_for(state='attached');p.wait_for_timeout(150)
  def open_preview(self):
   p=self.p;before=len(self.downloads);debits=self.debits();p.locator('main.idstudio').get_by_role('button',name='Download photo'if self.en else'ดาวน์โหลดรูป',exact=True).filter(visible=True).first.click();p.locator('.en-download').wait_for();p.wait_for_function("document.querySelector('.en-download canvas')?.width>1 && !document.querySelector('.en-download-primary').disabled")
-  assert p.locator('.paired-offers').count()==0,'Package appeared before adjustments';assert len(self.downloads)==before;assert self.debits()==debits,'Opening preview consumed a credit'
+  assert p.locator('.en-plans'if self.en else'.paired-offers').count()==0,'Package appeared before adjustments';assert len(self.downloads)==before;assert self.debits()==debits,'Opening preview consumed a credit'
  def debits(self):return len([c for c in self.calls if c['url'].endswith('/unlock')])
  def choice(self):return self.p.evaluate('window.__downloadPreviewFixture.snapshot().downloadChoice')
  def save_download(self,filename):
@@ -63,12 +63,12 @@ class Case:
  def run(self):
   p=self.p;self.setup();self.open_preview();assert p.locator('.en-download canvas').get_attribute('data-watermarked')=='true'
   size='intl-2x2-inch'if self.en else'2-inch';p.locator('.en-download-size select').select_option(size);zoom=p.locator('.en-download input[type=range]');zoom.fill('1.2');preview=p.locator('.en-download canvas');preview.scroll_into_view_if_needed();p.wait_for_timeout(100);before=preview.evaluate('c=>c.toDataURL()');box=preview.bounding_box();cx=box['x']+box['width']/2;cy=box['y']+box['height']/2;p.mouse.move(cx,cy);p.mouse.down();p.mouse.move(cx+25,cy+15,steps=5);p.mouse.up();p.wait_for_timeout(100);assert preview.evaluate('c=>c.toDataURL()')!=before
-  p.get_by_role('button',name='Print sheet (PDF)'if self.en else'PDF สำหรับพิมพ์',exact=True).click();p.locator('.en-download-copies input').fill('4');p.wait_for_timeout(100)
+  p.get_by_role('button',name='PDF',exact=True).click();p.locator('.en-download-copies input').fill('4');p.wait_for_timeout(100)
   remembered=self.choice();assert remembered['choice']['sizeId']==size and remembered['choice']['format']=='pdf'and remembered['choice']['copies']==4;assert not remembered['requested'];assert self.debits()==0
   p.screenshot(path=str(OUT/(self.name+'-marked-before-package.png')),full_page=True)
-  p.locator('.en-download-primary').click();p.locator('.paired-offers').wait_for();assert p.locator('.en-download').count()==0;assert self.choice()['requested'];assert not self.downloads and self.debits()==0
+  p.locator('.en-download-primary').click();p.locator('.en-plans'if self.en else'.paired-offers').wait_for();assert p.locator('.en-download').count()==0;assert self.choice()['requested'];assert not self.downloads and self.debits()==0
   p.keyboard.press('Escape');self.open_preview();assert p.locator('.en-download-size select').input_value()==size;assert p.locator('.en-download-copies input').input_value()=='4';assert self.choice()['choice']==remembered['choice']
-  p.locator('.en-download-primary').click();p.locator('.paired-offers').wait_for();assert p.evaluate('window.__downloadPreviewFixture.persist()');p.evaluate('window.__downloadPreviewFixture.restore()');p.locator('main.idstudio .studio-stage>canvas').wait_for(state='attached');p.wait_for_timeout(200);assert self.choice()['requested'];assert self.choice()['choice']==remembered['choice'],'Checkout draft lost adjustment choice'
+  p.locator('.en-download-primary').click();p.locator('.en-plans'if self.en else'.paired-offers').wait_for();assert p.evaluate('window.__downloadPreviewFixture.persist()');p.evaluate('window.__downloadPreviewFixture.restore()');p.locator('main.idstudio .studio-stage>canvas').wait_for(state='attached');p.wait_for_timeout(200);assert self.choice()['requested'];assert self.choice()['choice']==remembered['choice'],'Checkout draft lost adjustment choice'
   self.unlocked.add('job_fixture');p.evaluate('window.__downloadPreviewFixture.refresh()');
   if not self.mobile:
    with p.expect_download()as event:assert p.evaluate('window.__downloadPreviewFixture.resume()')is True
@@ -80,7 +80,7 @@ class Case:
    p.get_by_role('button',name='Close'if self.en else'ปิด',exact=True).click();event.value.save_as(str(OUT/(self.name+'-paid.pdf')))
   else:
    p.wait_for_function("document.querySelector('.en-download')===null");p.wait_for_timeout(150);assert len(self.downloads)==1;self.downloads[0].save_as(str(OUT/(self.name+'-paid.pdf')))
-  pdf=OUT/(self.name+'-paid.pdf');assert pdf.read_bytes().startswith(b'%PDF');assert '612 x 792 pts'in subprocess.check_output(['pdfinfo',str(pdf)],text=True);assert pdf.read_bytes().count(b'/Subtype /Image')==1;assert len(self.downloads)==1;assert self.debits()==0;assert p.locator('.en-download').count()==0
+  pdf=OUT/(self.name+'-paid.pdf');assert pdf.read_bytes().startswith(b'%PDF');assert ('612 x 792 pts'if self.en else'595.276 x 841.89 pts')in subprocess.check_output(['pdfinfo',str(pdf)],text=True);assert pdf.read_bytes().count(b'/Subtype /Image')==1;assert len(self.downloads)==1;assert self.debits()==0;assert p.locator('.en-download').count()==0
   # Repeated settlement does not generate a second automatic original or PDF.
   assert p.evaluate('window.__downloadPreviewFixture.resume()')is True;p.wait_for_timeout(200);assert len(self.downloads)==1
   # New work with a credit: first click must not redeem; final click redeems once.
@@ -90,7 +90,7 @@ class Case:
    assert im.size==((1200,1200)if self.en else(944,1252)),im.size
    assert im.convert('RGB').crop((35,35,130,130)).getcolors(2)==[(95*95,(203,231,255))],'Paid file contains watermark'
   self.open_preview();assert p.locator('.en-download canvas').get_attribute('data-watermarked')=='false';p.locator('.en-download-size select').select_option(size);self.save_download('paid-repeat.png');assert self.debits()==1 and self.remaining==0
-  p.wait_for_timeout(200);assert len(self.archives)==3,('PDF/PNG archive count',self.archives);assert p.locator('.paired-offers').count()==0;assert p.locator('.en-download').count()==0;assert p.evaluate('document.documentElement.scrollWidth<=innerWidth');assert not self.errors,self.errors
+  p.wait_for_timeout(200);assert len(self.archives)==3,('PDF/PNG archive count',self.archives);assert p.locator('.en-plans'if self.en else'.paired-offers').count()==0;assert p.locator('.en-download').count()==0;assert p.evaluate('document.documentElement.scrollWidth<=innerWidth');assert not self.errors,self.errors
   return {'name':self.name,'passed':True,'previewBeforePackage':True,'markedPreview':True,'retainedCropSizePdfCopiesAfterRestore':True,'paidAutomaticSelectedPdf':True,'noExtraOriginal':True,'creditOnlyAtFinalClick':True,'oneDebitRepeatedDownload':True,'cleanPng':True,'pdfArchivedAsPng':True,'actualDownloads':len(self.downloads),'pageErrors':self.errors}
 with sync_playwright()as pw:
  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])

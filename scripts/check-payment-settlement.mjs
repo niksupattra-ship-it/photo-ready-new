@@ -20,7 +20,7 @@ await check('altered bodies, stale, malformed and nonnumeric timestamps fail',()
  for(const [body,header] of [[Buffer.from('{}'),`t=${timestamp},v1=${sign(raw)}`],[raw,`t=${Number(timestamp)-301},v1=${sign(raw,String(Number(timestamp)-301))}`],[raw,`t=NaN,v1=${sign(raw,'NaN')}`],[raw,`t=${timestamp},v1=oops`]])assert.equal(verifyStripeSignature(body,header,secret,now),false);
  assert.equal(verifyStripeSignature(raw,`t=${timestamp},v1=${sign(raw)}`,'',now),false);
 });
-const checkout=(packageId='download_119_v1',overrides={})=>({id:'cs_test_fixture',mode:'payment',payment_status:'paid',currency:'thb',amount_total:PACKAGES[packageId].price*100,metadata:{wallet_id:'walletA',package_id:packageId,job_id:'jobA'},...overrides});
+const checkout=(packageId='download_119_v1',overrides={})=>({id:'cs_test_fixture',mode:'payment',payment_status:'paid',currency:PACKAGES[packageId].currency||'thb',amount_total:PACKAGES[packageId].priceCents??PACKAGES[packageId].price*100,metadata:{wallet_id:'walletA',package_id:packageId,job_id:'jobA'},...overrides});
 const intent=(packageId='download_119_v1',overrides={})=>({id:'pi_fixture',status:'succeeded',currency:'thb',amount:PACKAGES[packageId].price*100,amount_received:PACKAGES[packageId].price*100,metadata:{flow:'idprom_promptpay_v1',wallet_id:'walletA',package_id:packageId,job_id:'jobA'},...overrides});
 await check('every frozen Checkout package retains its original grant and image metadata',async()=>{
  for(const packageId of Object.keys(PACKAGES)){

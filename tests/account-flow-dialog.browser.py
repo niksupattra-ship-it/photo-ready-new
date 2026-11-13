@@ -44,19 +44,29 @@ class Case:
   result=p.locator('#idprom-auth-email').evaluate("el=>{const r=el.getBoundingClientRect();return {count:document.querySelectorAll('#idprom-auth-email').length,top:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===el,focus:document.activeElement===el,portal:el.closest('dialog')?.parentElement===document.body,modal:el.closest('dialog')?.matches(':modal'),fits:r.x>=0&&r.right<=innerWidth}}")
   assert result=={'count':1,'top':True,'focus':True,'portal':True,'modal':True,'fits':True},result
   return result
+ def open_auth(self,programmatic=False):
+  p=self.p;legacy=p.get_by_role('button',name='เข้าสู่ระบบหรือสมัครสมาชิก',exact=True)
+  if legacy.count():target=legacy
+  else:
+   trigger=p.get_by_role('button',name='เมนูสมาชิก',exact=True)
+   if programmatic:trigger.evaluate('el=>el.click()')
+   else:trigger.click()
+   target=p.get_by_role('button',name='เข้าสู่ระบบ / สมัครสมาชิก',exact=True)
+  if programmatic:target.evaluate('el=>el.click()')
+  else:target.click()
  def home(self):
-  p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.get_by_role('button',name='เข้าสู่ระบบหรือสมัครสมาชิก',exact=True).click();self.top()
+  p=self.p;p.goto(BASE+'/?lang=th',wait_until='domcontentloaded');self.open_auth();self.top()
   p.get_by_label('อีเมล',exact=True).fill('fixture@example.invalid');p.get_by_label('รหัสผ่าน',exact=True).fill('fixture-only-password')
   for _ in range(12):
    p.keyboard.press('Tab');assert p.evaluate("document.activeElement===document.body||!!document.activeElement.closest('dialog.idprom-account-flow-dialog:modal')")
   p.get_by_role('button',name='ยังไม่มีบัญชี? สมัครสมาชิก',exact=True).click();assert p.locator('#idprom-auth-email').input_value()=='fixture@example.invalid'
   p.screenshot(path=str(OUT/(self.name+'-home.png')))
-  p.get_by_role('button',name='ปิดเข้าสู่ระบบหรือสมัครสมาชิก',exact=True).click();assert p.get_by_role('button',name='เข้าสู่ระบบหรือสมัครสมาชิก',exact=True).evaluate('el=>el===document.activeElement')
+  p.get_by_role('button',name='ปิดเข้าสู่ระบบหรือสมัครสมาชิก',exact=True).click();assert p.get_by_role('button',name='เมนูสมาชิก',exact=True).evaluate('el=>el===document.activeElement')
   # Native existing dialog stays mounted beneath newly requested auth.
   p.get_by_role('button',name='ช่วยเหลือและติดต่อ',exact=True).click()
-  p.locator('[aria-label="เข้าสู่ระบบหรือสมัครสมาชิก"]').evaluate('(el)=>el.click()');self.top();assert p.locator('dialog:modal').count()==2
+  self.open_auth(programmatic=True);self.top();assert p.locator('dialog:modal').count()==2
   p.keyboard.press('Escape');assert p.locator('dialog.idprom-support-dialog:modal').count()==1;assert p.locator('#idprom-auth-email').count()==0
-  p.keyboard.press('Escape');p.get_by_role('button',name='เข้าสู่ระบบหรือสมัครสมาชิก',exact=True).click();self.top()
+  p.keyboard.press('Escape');self.open_auth();self.top()
   p.get_by_role('button',name='ลืมรหัสผ่าน?',exact=True).click();reset=p.get_by_role('dialog',name='ลืมรหัสผ่าน',exact=True);reset.wait_for();assert p.locator('dialog:modal').count()==2
   assert reset.evaluate('el=>el.contains(document.activeElement)')
   p.keyboard.press('Escape');assert p.locator('#idprom-auth-email').count()==1;assert p.get_by_role('button',name='ลืมรหัสผ่าน?',exact=True).evaluate('el=>el===document.activeElement')
@@ -64,14 +74,16 @@ class Case:
  def studio_easy_legacy(self):
   p=self.p;p.locator('.easy-studio').click();p.locator('.idstudio.studio-redesign').wait_for();p.get_by_role('button',name='เมนู',exact=True).click();p.locator('dialog.idprom-account-dialog:modal').wait_for();p.evaluate("window.__accountFlowFixture.startCheckout('89')");self.top();assert p.locator('dialog:modal').count()==2
   p.screenshot(path=str(OUT/(self.name+'-studio-embedded.png')));p.keyboard.press('Escape');assert p.locator('#idprom-auth-email').count()==0;assert p.locator('dialog.idprom-account-dialog:modal').count()==1;p.keyboard.press('Escape')
-  enter_easy_mode(p);p.locator('.easy-mode').wait_for();p.get_by_role('button',name='เข้าสู่ระบบหรือสมัครสมาชิก',exact=True).click();self.top();p.keyboard.press('Escape')
-  p.evaluate('window.__accountFlowFixture.legacy()');p.locator('.adaptive-editor').wait_for();p.get_by_role('button',name='เข้าสู่ระบบหรือสมัครสมาชิก',exact=True).click();self.top();p.screenshot(path=str(OUT/(self.name+'-legacy.png')));p.keyboard.press('Escape')
+  enter_easy_mode(p);p.locator('.easy-mode').wait_for();self.open_auth();self.top();p.keyboard.press('Escape')
+  p.evaluate('window.__accountFlowFixture.legacy()');p.locator('.adaptive-editor').wait_for();self.open_auth();self.top();p.screenshot(path=str(OUT/(self.name+'-legacy.png')));p.keyboard.press('Escape')
  def checkout(self,pkg):
-  p=self.p;p.goto(BASE,wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.get_by_role('button',name='เลือกโปร 89 บาท',exact=True).wait_for();p.evaluate("localStorage.removeItem('idprom_auth_token')")
+  p=self.p;p.goto(BASE+'/?lang=th',wait_until='domcontentloaded');p.evaluate(SEED);p.reload(wait_until='domcontentloaded');p.get_by_role('button',name='เปิดงานเดิมและตรวจสอบการชำระเงิน',exact=True).click();p.get_by_role('button',name='เลือกโปร 89 บาท',exact=True).wait_for();p.evaluate("localStorage.removeItem('idprom_auth_token')")
   if pkg=='119':p.evaluate("window.__accountFlowFixture.startCheckout('119')")
   else:p.get_by_role('button',name='เลือกโปร '+pkg+' บาท',exact=True).click()
   self.top();assert p.locator('.checkout-flow-auth').count()==1;assert p.locator('dialog:modal').count()==1
   # Submit a local fixture and verify busy Escape does not dismiss the auth step.
+  register=p.get_by_role('button',name='ยังไม่มีบัญชี? สมัครสมาชิก',exact=True)
+  if register.count():register.click()
   self.state['deferAuth']=True;p.get_by_label('อีเมล',exact=True).fill('fixture@example.invalid');p.get_by_label('รหัสผ่าน',exact=True).fill('fixture-only-password');p.get_by_role('button',name='สมัครสมาชิกและเปิด QR',exact=True).click()
   p.wait_for_function("document.querySelector('#idprom-auth-email')?.disabled");p.keyboard.press('Escape');assert p.locator('dialog:modal').count()==1;assert p.locator('#idprom-auth-email').count()==1
   p.wait_for_timeout(100);assert self.deferred is not None

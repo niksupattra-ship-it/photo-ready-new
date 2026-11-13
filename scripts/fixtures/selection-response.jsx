@@ -10,7 +10,7 @@ const bg=png('#9bd9f4'),head=png('#e8bc99');
 window.selectionSnapshot={current:null};window.selectionCalls=[];
 window.selectionCatalog={collar:catalog('COLLAR_PIN_OPTIONS'),chest:catalog('CHEST_PIN_OPTIONS'),ribbon:catalog('RIBBON_OPTIONS')};
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={location.search.includes('easy=1')} purchaseSnapshotRef={window.selectionSnapshot}
- initialLayers={[{name:'พื้นหลัง',kind:'background',source:bg},{name:'หัว · คอ · ผม',kind:'head',source:head,jobId:'fixture',restrictedTrial:false},{name:'ชุด',kind:'suit',source:png('#333366'),templatePath:suits[0].template,assetId:suits[0].id}]}
+ initialLayers={[{name:'พื้นหลัง',kind:'background',source:bg},{name:'หัว · คอ · ผม',kind:'head',portraitMode:'female',source:head,jobId:'fixture',restrictedTrial:false},{name:'ชุด',kind:'suit',source:png('#333366'),templatePath:suits[0].template,assetId:suits[0].id}]}
  placement={{W:900,H:1200,uX:0,uY:600,uW:900,uH:600,templatePath:suits[0].template}} templates={suits} freeTemplatePaths={suits.map(t=>t.template)}
  collarPins={catalog('COLLAR_PIN_OPTIONS')} chestPins={catalog('CHEST_PIN_OPTIONS')} ribbons={catalog('RIBBON_OPTIONS')} backgrounds={[]} maleHair={[]} femaleHair={[]}
  paidOutputIds={['fixture']} editableOutputIds={['fixture']} onVerifyOutput={async()=>({unlocked:true,fullEdit:true,paidDownload:true,premiumHair:true})}

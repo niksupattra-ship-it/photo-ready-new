@@ -433,32 +433,36 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
   const owned=await getAiJobResult(jobId,wid);
   if(!owned||owned.status!=='completed'||!owned.result?.length)return res.status(403).send('ต้องใช้รูปที่ประมวลผลสำเร็จจากบัญชีนี้');
   if(!req.files?.image?.[0]?.buffer||!req.files?.head?.[0]?.buffer||req.files.image[0].mimetype!=='image/png'||req.files.head[0].mimetype!=='image/png')return res.status(400).send('กรุณาส่งภาพ PNG หลังประมวลผล');
+  // Each caller must prove account access even when another request already
+  // generated a cached Premium result for this owned job.
+  const plan=await getWallet(wid);
+  if(plan?.usdPremiumPurchased&&req.accountUser?.wallet_id!==wid)return res.status(401).send('Sign in to use Premium AI generations.');
   const cacheKey=jobId+'|'+templatePath;
   let current=jobOutfitGenerationCache.get(cacheKey);
   if(!current){
-   if(!process.env.ARK_API_KEY)return res.status(503).send('AI ใส่ชุดยังไม่พร้อม');
-   const plan=await getWallet(wid);
-   let paidUse=null;
-   if(plan?.usdPremiumPurchased){
-    if(req.accountUser?.wallet_id!==wid)return res.status(401).send('Sign in to use Premium AI generations.');
-    paidUse=await reserveUsdPremiumCredit(wid,'ai-finish');
-    if(!paidUse.usageId)return res.status(402).send('No Premium AI generations left. Manual outfit selection remains available.');
-   }
-   current=(async()=>{
+   // Publish the pending promise before reserving credit or starting AI. Concurrent taps
+   // and HTTP retries must share the same reservation and provider request.
+   current=Promise.resolve().then(async()=>{
+    if(!process.env.ARK_API_KEY)throw Object.assign(Error('AI ใส่ชุดยังไม่พร้อม'),{status:503,publicMessage:'AI ใส่ชุดยังไม่พร้อม'});
+    let paidUse=null;
+    if(plan?.usdPremiumPurchased){
+     paidUse=await reserveUsdPremiumCredit(wid,'ai-finish');
+     if(!paidUse.usageId)throw Object.assign(Error('credits_exhausted'),{status:402,publicMessage:'No Premium AI generations left. Manual outfit selection remains available.'});
+    }
     try{
      const result=await generateJobOutfit({root:dir,templatePath,image:req.files.image[0].buffer,head:req.files.head[0].buffer,placement:req.body?.placement,headFrame:req.body?.headFrame,key:process.env.ARK_API_KEY,removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
      if(!result?.png?.length)throw Error('AI did not return a completed photo');
      if(paidUse)await commitCredit(paidUse.usageId);
      return result;
     }catch(error){if(paidUse)await refundCredit(paidUse.usageId).catch(()=>{});throw error}
-   })();
+   });
    jobOutfitGenerationCache.set(cacheKey,current);
    current.catch(()=>{if(jobOutfitGenerationCache.get(cacheKey)===current)jobOutfitGenerationCache.delete(cacheKey)});
    setTimeout(()=>{if(jobOutfitGenerationCache.get(cacheKey)===current)jobOutfitGenerationCache.delete(cacheKey)},30*60*1000).unref?.();
   }
   const result=await current;
   return res.type('png').set('Cache-Control','no-store').send(result.png);
- }catch(error){console.error('Job outfit AI:',error.code||error.message);return res.status(error.status>=400&&error.status<600?error.status:502).send('สร้างชุดสมัครงานด้วย AI ไม่สำเร็จ')}
+ }catch(error){console.error('Job outfit AI:',error.code||error.message);return res.status(error.status>=400&&error.status<600?error.status:502).send(error.publicMessage||'สร้างชุดสมัครงานด้วย AI ไม่สำเร็จ')}
 });
 
 const activeAiJobs=new Set();

@@ -65,9 +65,10 @@ test('all 20 imported garments remain full-resolution transparent original-aspec
   assert.equal(meta.width,1504,id);
   assert.equal(meta.height,1285,id);
   assert.equal(meta.hasAlpha,true,id);
-  const stats=await image.ensureAlpha().extractChannel(3).stats();
-  assert.equal(stats.channels[0].min,0,id);
-  assert.equal(stats.channels[0].max,255,id);
+  // stats() describes the input before extractChannel, so inspect decoded alpha.
+  const alpha=await image.ensureAlpha().extractChannel(3).raw().toBuffer();
+  let min=255,max=0;for(const value of alpha){min=Math.min(min,value);max=Math.max(max,value)}
+  assert.equal(min,0,id);assert.equal(max,255,id);
  }
 });
 

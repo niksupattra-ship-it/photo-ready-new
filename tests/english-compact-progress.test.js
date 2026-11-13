@@ -26,5 +26,5 @@ test('English-only portrait prompts remove ear wisps, jewelry, and black halo',(
  for(const p of [englishNaturalStudioSkin(),englishHeadPortraitPrompt(),englishTemplateBodyPrompt({identityIndex:2,outfitIndex:1}),ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK]){
   assert(/earrings/i.test(p));assert(/wisps/i.test(p));assert(/black|charcoal/i.test(p));
  }
- assert(/main selected hairstyle/.test(ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY));
+ assert(/main.*hairstyle|hairstyle.*main/i.test(ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY));
 });

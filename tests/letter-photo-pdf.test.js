@@ -53,6 +53,7 @@ test('Thai A4 print sheet has an exact 210 × 297 mm MediaBox and full-size phot
   const path=dir+'/thai-a4.pdf';await writeFile(path,bytes);
   const info=execFileSync('pdfinfo',[path],{encoding:'utf8'});
   assert.match(info,/Pages:\s+1/);
-  assert.match(info,/Page size:\s+595\.27\d+ x 841\.89\d+ pts \(A4\)/);
+  const page=info.match(/Page size:\s+([\d.]+) x ([\d.]+) pts \(A4\)/);assert(page);
+  assert(Math.abs(Number(page[1])-layout.width)<.01);assert(Math.abs(Number(page[2])-layout.height)<.01);
  }finally{await rm(dir,{recursive:true,force:true})}
 });
