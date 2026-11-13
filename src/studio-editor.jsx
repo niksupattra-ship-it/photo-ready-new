@@ -4,7 +4,7 @@ import {EnglishDownload} from './english-download.jsx';
 import {rememberDownloadChoice,downloadChoiceForJobs} from './download-choice.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION} from '../english-head-portrait.js';
-import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
+import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,processFailureMessage,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {outfitChoicePreview,isJobOutfit} from './outfit-choice-preview.js';
 import {insigniaForLanguage,englishPreviewEnabled} from './english-preview.js';
 import {EnglishPortraitFlow} from './english-portrait-flow.jsx';
@@ -1037,7 +1037,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    setProcessHairPending(true);
    if(cancelled)setStatus(englishFlow?'AI job cancelled. Previous photo kept.':'ยกเลิกงาน AI แล้ว รูปเดิมยังอยู่');
    else if(e.status===429||e.code==='ACTIVE_AI_JOB'){const message=englishFlow?'Another AI photo is still being processed. Wait for that job to finish or cancel it before trying this photo again.':'มีงาน AI ก่อนหน้ากำลังประมวลผลอยู่ กรุณารอให้งานเดิมเสร็จหรือยกเลิกก่อน แล้วลองประมวลผลรูปนี้อีกครั้ง';setStatus(message);setPortraitProcessError({code:'active_ai_job',title:englishFlow?'An AI job is already running':'มีงาน AI กำลังประมวลผลอยู่',message})}
-   else{const message=PROCESS_FAILURE_MESSAGE;setStatus(message);setPortraitProcessError(message)}
+   else{const message=processFailureMessage(e,englishFlow);setStatus(message);setPortraitProcessError(message)}
   }finally{processRequestRef.current=false;setProcessingPhoto(false)}
  };
  const openEnglishManual=async(choice)=>{
