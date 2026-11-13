@@ -13,8 +13,8 @@ function MailIcon(){
 
 export function SupportDialog({onClose}){
  const english=englishPreviewEnabled();
- const panel=useRef(null),title=useId(),emailOptionsId=useId();
- const [copyStatus,setCopyStatus]=useState(''),[emailOptionsOpen,setEmailOptionsOpen]=useState(false);
+ const panel=useRef(null),title=useId();
+ const [copied,setCopied]=useState(false);
  useEffect(()=>{
   const previous=document.activeElement,dialog=panel.current;
   dialog.showModal();
@@ -23,15 +23,13 @@ export function SupportDialog({onClose}){
  const copyEmail=async()=>{
   try{
    await navigator.clipboard.writeText(SUPPORT_EMAIL);
-   if(panel.current?.open)setCopyStatus(english?'Email address copied.':'คัดลอกอีเมลแล้ว');
+   if(panel.current?.open)setCopied(true);
   }catch{
-   if(panel.current?.open)setCopyStatus(english?'Select the email address to copy it.':'เลือกข้อความอีเมลเพื่อคัดลอกได้');
+   if(panel.current?.open)setCopied(false);
   }
  };
  const subject=english?'IDPROM Support Request':'แจ้งปัญหาการใช้งาน IDพร้อม';
  const emailUrl='mailto:'+SUPPORT_EMAIL+'?subject='+encodeURIComponent(subject);
- const gmailUrl='https://mail.google.com/mail/?'+new URLSearchParams({view:'cm',fs:'1',to:SUPPORT_EMAIL,su:subject});
- const outlookUrl='https://outlook.live.com/mail/0/deeplink/compose?'+new URLSearchParams({to:SUPPORT_EMAIL,subject});
  return createPortal(<dialog ref={panel} className="idprom-support-dialog" aria-labelledby={title}
   onCancel={e=>{e.preventDefault();e.stopPropagation();onClose()}}
   onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose()}}}>
@@ -47,24 +45,11 @@ export function SupportDialog({onClose}){
      'หากพบปัญหาการใช้งาน กรุณาส่งรายละเอียดมาที่อีเมลด้านล่าง เพื่อให้ทีมงานตรวจสอบและช่วยเหลือ'}</p>
     <div className="idprom-support-email-row">
      <a href={emailUrl}>{SUPPORT_EMAIL}</a>
-     <button type="button" onClick={copyEmail}>{english?'Copy email':'คัดลอกอีเมล'}</button>
+     <button type="button" onClick={copyEmail}>{copied?(english?'Copied':'คัดลอกแล้ว'):(english?'Copy email':'คัดลอกอีเมล')}</button>
     </div>
     <div className="idprom-support-actions">
      <a className="idprom-support-send" href={emailUrl}><MailIcon/>{english?'Send Email':'ส่งอีเมล'}</a>
-     <button type="button" className="idprom-support-alternative" aria-expanded={emailOptionsOpen} aria-controls={emailOptionsId} onClick={()=>setEmailOptionsOpen(v=>!v)}>
-      {english?'Use Gmail or Outlook':'ใช้ Gmail หรือ Outlook'}
-     </button>
     </div>
-    <div id={emailOptionsId} className="idprom-support-email-options" hidden={!emailOptionsOpen}>
-     <div className="idprom-support-email-services">
-      <a href={gmailUrl} target="_blank" rel="noopener noreferrer">{english?'Open Gmail':'เปิด Gmail'}</a>
-      <a href={outlookUrl} target="_blank" rel="noopener noreferrer">{english?'Open Outlook':'เปิด Outlook'}</a>
-     </div>
-     <p>{english?
-      'Your email app or service will open a message draft. Review your message and select Send there.':
-      'ระบบจะเปิดหน้าร่างอีเมล กรุณาตรวจสอบรายละเอียดและกดส่งในแอปหรือบริการอีเมลที่เลือก'}</p>
-    </div>
-    <p className="idprom-support-copy-status" role="status">{copyStatus}</p>
    </section>
    <section className="idprom-support-troubleshooting" aria-label={english?'Troubleshooting':'วิธีแก้ปัญหาเบื้องต้น'}>
     <h3>{english?'Troubleshooting':'ลองแก้ปัญหาเบื้องต้น'}</h3>
