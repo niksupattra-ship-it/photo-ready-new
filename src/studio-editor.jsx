@@ -432,7 +432,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  // Available pro159 credits permit hairstyle generation without spending a download.
  // A redeemed work keeps its own premium right after the balance reaches zero.
  const premiumHairAllowed=premiumHairCreditAvailable===true||outputHeads(layers).some(l=>verifiedJobs[l.jobId]?.premiumHair===true);
- const isPremiumHair=id=>(femaleHair.some(h=>h.id===id)&&!isFreeFemaleHair(id)&&!['seedream-40','seedream-41'].includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-33','seedream-34','seedream-36'].includes(id));
+ const isPremiumHair=id=>(femaleHair.some(h=>h.id===id)&&!isFreeFemaleHair(id)&&!['seedream-40','seedream-41'].includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-36'].includes(id));
  const chooseHair=id=>{
   // The women's No hairstyle choice restores the private initial reference.
   if(!id&&hairGender==='female')id=firstGenerationHairFor('female');
