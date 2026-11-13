@@ -19,8 +19,11 @@ export async function correctEnglishProportions({portrait,fields,metrics,root,ke
  if(!result?.png?.length)throw Error('No proportion correction returned');
  const meta=await sharp(result.png).metadata();if(!meta.width||!meta.height||Math.abs(meta.width/meta.height-width/height)>.02)throw Error('Correction changed portrait framing');
  const resized=await sharp(result.png).resize(width,height).png().toBuffer();
- const natural=await sharp(await removeBackground(resized)).ensureAlpha().png().toBuffer(),stats=await sharp(natural).extractChannel(3).stats();
- if(stats.channels[0].min>=250||stats.channels[0].max<=5)throw Error('Correction background removal failed');
+ const natural=await sharp(await removeBackground(resized)).ensureAlpha().png().toBuffer();
+ // stats() reads its original input, before extractChannel transformations.
+ // This PNG already has alpha: inspect that channel, not red-channel extrema.
+ const alpha=(await sharp(natural).stats()).channels[3];
+ if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Correction background removal failed');
  const makeup=hasMakeup?await createAiMakeupVariant(natural,{key,requestPortrait,preserveOutfit:true}):null;
  return {natural,makeup};
 }

@@ -13,13 +13,13 @@ const pool={query:async(sql,params=[])=>{queries.push(sql);const result=await db
 const pg={Pool:class{constructor(){return pool}}};
 const processFixture={env:{DATABASE_URL:'postgres://localhost/isolated-test',PGSSLMODE:'disable'}};
 function load(source,names){return new Function('crypto','pg','packageFor','remaining','process',source.replace(/^import .*;\n/gm,'').replace(/export /g,'')+'\nreturn {'+names.join(',')+'};')(crypto,pg,packageFor,remaining,processFixture)}
-const storeNames=['newWallet','getWallet','creditPaid','reserveCredit','commitCredit','refundCredit','imageEntitlements','currentPaymentSchema','ready'];
-const store=load(paymentSource,storeNames),jobs=load(jobSource,['createAiJob','claimAiJob','completeAiJob','settleAiJobDelivery']);
+const storeNames=['newWallet','getWallet','creditPaid','reserveCredit','commitCredit','refundCredit','imageEntitlements','currentPaymentSchema','ready','reserveUsdPremiumCredit'];
+const store=load(paymentSource,storeNames),jobs=load(jobSource,['createAiJob','claimAiJob','completeAiJob','settleAiJobDelivery','ready']);
 let passed=0;
 async function check(name,run){await run();passed++;console.log('PASS '+name)}
 const row=async(sql,params=[])=> (await db.query(sql,params)).rows[0];
 try{
- await check('fresh schema initializes all payment and premium tables',async()=>{await store.newWallet();assert.equal(await store.currentPaymentSchema(),true);assert(await row("SELECT 1 FROM pg_class WHERE relname='premium_hair_unlocks'"))});
+ await check('fresh schema initializes all payment and premium tables',async()=>{await store.newWallet();await jobs.ready();assert.equal(await store.currentPaymentSchema(),true);assert(await row("SELECT 1 FROM pg_class WHERE relname='premium_hair_unlocks'"))});
  await check('download payment persists its selected image without adding or rewriting credits',async()=>{
   const out=await store.creditPaid('walletA','pi_download','download_119_v1','jobA');assert.equal(out.duplicate,false);assert.equal(out.processRemaining,0);assert.deepEqual(out.unlockedJobIds,['jobA']);assert.deepEqual(out.editableJobIds,['jobA']);
   assert.deepEqual(await row('SELECT generation_remaining,hair_remaining,full_edit_remaining FROM wallets WHERE id=$1',['walletA']),{generation_remaining:0,hair_remaining:0,full_edit_remaining:0});
@@ -35,9 +35,14 @@ try{
  });
  await check('all historical package grants retain original generation/hair/full-edit quantities',async()=>{
   for(const [id,offer] of Object.entries(PACKAGES)){
-   const wallet='historical_'+id;await store.creditPaid(wallet,'cs_'+id,id,offer.requiresImage?'legacy_job':'');
+   const wallet='historical_'+id,job=offer.currency==='usd'?'historical_job_'+id:'legacy_job';
+   if(offer.currency==='usd'){
+    await db.query('INSERT INTO wallets(id) VALUES($1)',[wallet]);
+    await db.query("INSERT INTO ai_jobs(id,wallet_id,usage_id,status,image,result) VALUES($1,$2,'free_fixture','completed','input','output')",[job,wallet]);
+   }
+   await store.creditPaid(wallet,'cs_'+id,id,offer.requiresImage?job:'');
    assert.deepEqual(await row('SELECT generation_remaining,hair_remaining,full_edit_remaining FROM wallets WHERE id=$1',[wallet]),{generation_remaining:offer.g,hair_remaining:offer.h,full_edit_remaining:offer.fullEdit?offer.g+offer.h:0});
-   const before=await row('SELECT * FROM wallets WHERE id=$1',[wallet]);await store.creditPaid(wallet,'cs_'+id,id,offer.requiresImage?'legacy_job':'');assert.deepEqual(await row('SELECT * FROM wallets WHERE id=$1',[wallet]),before);
+   const before=await row('SELECT * FROM wallets WHERE id=$1',[wallet]);await store.creditPaid(wallet,'cs_'+id,id,offer.requiresImage?job:'');assert.deepEqual(await row('SELECT * FROM wallets WHERE id=$1',[wallet]),before);
   }
  });
  await check('failed grants roll back the payment ledger and wallet changes together',async()=>{
@@ -82,6 +87,25 @@ try{
  await check('legacy hair-column reservations return hair credit without changing generation credit',async()=>{
   await store.creditPaid('hair_wallet','cs_hairlegacy','149');const first=await store.reserveCredit('hair_wallet','portrait');await store.commitCredit(first.usageId);const hair=await store.reserveCredit('hair_wallet','hairstyle');await store.refundCredit(hair.usageId);
   assert.deepEqual(await row('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',['hair_wallet']),{generation_remaining:0,hair_remaining:2});
+ });
+ await check('USD Premium reserves at most20, refunds once, and retains its separate ledger',async()=>{
+  const wallet='historical_usd_premium_990_v1',uses=[];
+  for(let n=0;n<20;n++){const u=await store.reserveUsdPremiumCredit(wallet,'ai-finish');assert(u.usageId);uses.push(u.usageId)}
+  assert.equal((await store.reserveUsdPremiumCredit(wallet,'hairstyle')).usageId,undefined);
+  assert.equal((await row('SELECT usd_premium_remaining FROM wallets WHERE id=$1',[wallet])).usd_premium_remaining,0);
+  assert.equal(await store.refundCredit(uses[0]),true);assert.equal(await store.refundCredit(uses[0]),false);
+  assert.equal((await row('SELECT usd_premium_remaining FROM wallets WHERE id=$1',[wallet])).usd_premium_remaining,1);
+  const use=await store.reserveUsdPremiumCredit(wallet,'ai-finish'),id=await jobs.createAiJob({walletId:wallet,usageId:use.usageId,image:{buffer:Buffer.from('fixture')}});await jobs.claimAiJob(id);await jobs.completeAiJob(id,Buffer.from('output'));
+  assert.equal((await jobs.settleAiJobDelivery(id,wallet,'confirm')).status,200);assert.equal((await jobs.settleAiJobDelivery(id,wallet,'confirm')).status,200);
+  assert.equal((await jobs.settleAiJobDelivery(id,wallet,'cancel')).status,409);assert.equal(await store.refundCredit(use.usageId),false);
+  assert.equal((await row('SELECT count(*)::int AS n FROM paid_image_unlocks WHERE wallet_id=$1 AND job_id=$2',[wallet,id])).n,1);
+  await db.query("UPDATE wallets SET usd_premium_expires_at=now()-interval '1 second' WHERE id=$1",[wallet]);
+  assert.equal((await store.reserveUsdPremiumCredit(wallet,'ai-finish')).usageId,undefined);
+  assert.equal(await store.refundCredit(uses[1]),true);
+  assert.equal((await row('SELECT usd_premium_remaining FROM wallets WHERE id=$1',[wallet])).usd_premium_remaining,0,'expired credits must not be revived');
+  await store.creditPaid(wallet,'cs_new_usd_cycle','usd_premium_990_v1','historical_job_usd_premium_990_v1');
+  assert.equal(await store.refundCredit(uses[2]),true);
+  assert.equal((await row('SELECT usd_premium_remaining FROM wallets WHERE id=$1',[wallet])).usd_premium_remaining,20,'old-cycle refunds must not inflate a newly purchased plan');
  });
 }finally{await db.close()}
 console.log(JSON.stringify({passed,scope:'Actual payment/job SQL against isolated in-memory PostgreSQL; repeated delivery, rollback, all frozen packages, lifecycle, migration and lock ordering. No production connections or writes. Single-session engine does not reproduce real concurrent PostgreSQL scheduling.'}));

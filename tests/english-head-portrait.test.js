@@ -18,7 +18,7 @@ test('new English close-up pair has exactly two AI calls, no outfit/body referen
   const f={...fields,...(mode==='selected'?{hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1'}:{}),...(mode==='keep'?{keepCurrentHair:'1',preserveHairJobId:'owned'}:{})},calls=[];let pair;
   const natural=await processProductionPortrait({input:{buffer:image,mimetype:'image/png'},fields:f,root,key:'inert',currentHair:mode==='keep'?image:null,requestPortrait:async p=>{calls.push(p);return{png:matte}},removeBackground:async()=>matte,onMakeupVariant:async p=>pair=p});
   assert.equal(calls.length,2);assert.deepEqual(calls[0].portrait,image);assert(!calls[0].outfit&&!calls[0].compositionReference&&!calls[0].skinReference&&!calls[0].neckReference);assert.match(calls[0].prompt,/large sharply resolved face/);assert.match(calls[0].prompt,/Do not generate a final suit/);assert.doesNotMatch(calls[0].prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY|90%|27–31%/);
-  assert.match(calls[1].prompt,/#FF747F/);assert.match(calls[1].prompt,/real details/);assert.doesNotMatch(calls[1].prompt,/EYESHADOW COLOUR OVERRIDE|40% pigment opacity/);
+  assert.match(calls[1].prompt,/#FF747F/);assert.match(calls[1].prompt,/identity.*pose/);assert.match(calls[1].prompt,/eye|iris/i);assert.doesNotMatch(calls[1].prompt,/EYESHADOW COLOUR OVERRIDE|40% pigment opacity/);
   assert.deepEqual(await sharp(natural).extractChannel(3).raw().toBuffer(),await sharp(pair).extractChannel(3).raw().toBuffer());
   if(mode==='keep')assert.match(calls[0].prompt,/EXISTING HAIR — IMAGE 2/);
  }

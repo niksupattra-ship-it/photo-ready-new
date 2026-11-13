@@ -40,7 +40,7 @@ with sync_playwright() as pw:
     state:{current:f.layers},assets:{current:f.assets},outputHeads:layers=>layers.filter(l=>l.kind==='head').map(l=>({...l,jobId:'fixture-job'})),
     beginDownloadAudit:()=>({emit:(event,details)=>events.push([event,details])}),easyMode:false,flushTransforms:()=>{},assertPortraitExportReady,paintLayers:render,
     allowOutput:async()=>{events.push(['credit']);return true},nativeCanvas:()=>{events.push(['file']);throw Error('invalid image reached file generation')}};
-   const start=source.indexOf(' const exportImage=async'),end=source.indexOf(' const autoDownloadAttempted=',start);
+   const start=source.indexOf(' const exportImage=async'),end=source.indexOf(' const initialDownloadOpened=',start);
    const handler=new Function('env','with(env){'+source.slice(start,end)+';return exportImage}')(env);
    await handler('image/png',{automatic});
    if(events.some(e=>['credit','file','file_prepared'].includes(e[0])))throw Error('invalid portrait consumed credit or prepared a file');

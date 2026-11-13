@@ -1,13 +1,14 @@
 """Exercise actual home/crop components and native PNG export; local assets only."""
 from playwright.sync_api import sync_playwright
-import json
+import json,os
+BASE=os.environ.get('SELECTION_BASE','http://127.0.0.1:5192')
 with sync_playwright()as pw:
  b=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage']);out=[]
  for lang in ['th','en']:
   for width in [390,1440]:
    p=b.new_page(viewport={'width':width,'height':1000});errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
-   p.route('**/*',lambda r:r.continue_()if r.request.url.startswith('http://127.0.0.1:5192/')else r.abort())
-   p.goto('http://127.0.0.1:5192/scripts/fixtures/international-sizes.html?lang='+lang)
+   p.route('**/*',lambda r:r.continue_()if r.request.url.startswith(BASE+'/')else r.abort())
+   p.goto(BASE+'/scripts/fixtures/international-sizes.html?lang='+lang)
    p.wait_for_selector('.home-photo-sizes-options button');p.wait_for_selector('.photo-size-options button')
    ids=p.evaluate('sizeFixture.presets.map(s=>s.id)')
    assert ids==(['original','35x45','intl-2x2-inch','33x48','50x70']if lang=='en'else['original','1-inch','1.5-inch','2-inch','2.5-inch','3-inch','2x2-inch','33x48','35x45'])
