@@ -13,9 +13,9 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
  const ready=Boolean(hasTrial)&&!payBusy;
  const premiumRunning=Boolean(premiumState.usdPremiumActive&&Number(premiumState.usdPremiumRemaining)>0);
  const plans=[
-  {id:'usd_single_490_v1',name:'Single Image',price:'$4.90',period:'',button:'Download This Photo',
+  {id:'usd_single_690_v2',name:'Single Image',price:'$6.90',period:'',button:'Download This Photo',
    features:['Download 1 selected photo','PNG & PDF downloads','No watermark']},
-  {id:'usd_premium_990_v1',name:'Premium',price:'$9.90',period:'30-day access',button:'Choose Premium',
+  {id:'usd_premium_1490_v2',name:'Premium',price:'$14.90',period:'30-day access',button:'Choose Premium',
    features:['All outfits & hairstyles','20 AI generations','Unlimited manual editing','PNG & PDF downloads','Download all your creations','No watermarks']}
  ];
  return <div className="en-plans" aria-label="English photo packages">
@@ -44,7 +44,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
    <ol>
     <li>Upload a clear photo, then choose your outfit, hairstyle and other edits.</li>
     <li>Review the AI result and adjust the photo before paying.</li>
-    <li>Choose Single Image ($4.90) to unlock one selected result, or Premium ($9.90) for 30 days and 20 shared AI generations.</li>
+    <li>Choose Single Image ($6.90) to unlock one selected result, or Premium ($14.90) for 30 days and 20 shared AI generations.</li>
     <li>Choose your size and download a watermark-free PNG or PDF. Make sure the file is saved to your device.</li>
    </ol>
    <p><strong>What uses a Premium credit?</strong> Each newly created AI result uses 1 of the 20 credits, including generating on a different uploaded photo. All AI features share the same 20 credits.</p>
