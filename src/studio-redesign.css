@@ -2154,3 +2154,41 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
   outline-offset:0!important;
   border-radius:10px!important;
 }
+
+
+/* The Studio AI processing state mirrors the preview: restrained ring, clear percent. */
+.idstudio.studio-redesign .studio-processing-overlay.studio-wait-overlay{
+ background:#0b193b67;
+ backdrop-filter:blur(5px);
+ -webkit-backdrop-filter:blur(5px);
+}
+.idstudio.studio-redesign .studio-processing-card.studio-wait-card{
+ width:min(328px,calc(100vw - 32px));
+ padding:32px 24px 27px;
+ border:1px solid #dce5f7;
+ border-radius:22px;
+ background:#fff;
+ color:#172c50;
+ box-shadow:0 18px 65px #11264429;
+}
+.idstudio.studio-redesign .studio-wait-card .idprom-process-indicator{
+ width:108px;height:108px;margin:2px auto 18px;
+}
+.idstudio.studio-redesign .studio-wait-card .idprom-process-indicator output{
+ display:block;margin:0!important;color:#fff!important;
+ font-size:28px!important;line-height:1!important;
+}
+.idstudio.studio-redesign .studio-wait-card .idprom-process-indicator output small{
+ color:#fff!important;font-size:13px!important;
+}
+.idstudio.studio-redesign .studio-wait-card h2{
+ color:#122c56;font-size:17px;font-weight:730;margin:0 0 9px;
+}
+.idstudio.studio-redesign .studio-wait-card .idprom-processing-stage{
+ color:#60738e;font-size:12px;line-height:1.5;
+ margin:0!important;min-height:18px;
+}
+@media(max-width:480px){
+ .idstudio.studio-redesign .studio-processing-card.studio-wait-card{padding:25px 20px}
+ .idstudio.studio-redesign .studio-wait-card .idprom-process-indicator{width:94px;height:94px}
+}
