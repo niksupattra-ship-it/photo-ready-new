@@ -42,8 +42,8 @@ test('English male default and female selected hair do not receive an extra auto
  assert.equal(maleCalls.length,1);
  assert.equal(maleCalls[0].hair,null);
  assert.match(maleCalls[0].prompt,/CLASSIC SIDE PART TAPER/);
- assert.match(maleCalls[0].prompt,/NATIVE GARMENT DETAIL — IMAGE 2/);
- assert.equal(seedreamReviewPayload(maleCalls[0]).image.length,2);
+ assert.match(maleCalls[0].prompt,/NATIVE GARMENT DETAIL — IMAGE 3/);
+ assert.equal(seedreamReviewPayload(maleCalls[0]).image.length,3,'male route already sends a separate identity reference; do not add a new hair image');
  const chosenCalls=[];
  await processProductionPortrait({input:base,fields:{...fields,hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1',femaleFinishPair:undefined},root:rootPath,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{chosenCalls.push(p);return {png:cutout}}});
  assert.equal(chosenCalls.length,1);
