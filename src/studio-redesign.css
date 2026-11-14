@@ -1985,3 +1985,55 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
 .idstudio.studio-redesign .english-unprocessed-hint p{font-size:12px;margin:0 0 6px;color:#283354}
 .idstudio.studio-redesign .english-unprocessed-hint b{color:#5d2cce}
 .idstudio.studio-redesign .english-unprocessed-hint span{font-size:11px;color:#6b6481}
+
+
+/* Five liquify controls: outlined reference tiles, retained SVG/PNG image assets. */
+.idstudio.studio-redesign .studio-warp-modes{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px;
+  margin:7px 0 12px;
+}
+.idstudio.studio-redesign .studio-warp-modes button{
+  display:flex;
+  flex-direction:column;
+  flex:initial!important;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-width:0;
+  width:100%;
+  min-height:86px;
+  padding:10px 2px 8px;
+  border:1.5px solid #d7e2ff;
+  border-radius:15px;
+  background:#fff;
+  color:#103676;
+  box-shadow:0 4px 12px rgba(23,71,160,.07);
+  font-size:11px;
+  font-weight:750;
+  line-height:1.15;
+}
+.idstudio.studio-redesign .studio-warp-modes button b{display:flex;align-items:center;justify-content:center;width:100%}
+.idstudio.studio-redesign .studio-warp-modes .studio-png-icon{
+  display:block;
+  width:47px!important;
+  height:47px!important;
+  max-width:90%;
+  object-fit:contain;
+  filter:none!important;
+}
+.idstudio.studio-redesign .studio-warp-modes button:nth-child(n+4) .studio-png-icon{
+  filter:brightness(0) saturate(100%) invert(17%) sepia(71%) saturate(1682%) hue-rotate(201deg) brightness(94%) contrast(98%)!important;
+}
+.idstudio.studio-redesign .studio-warp-modes button.active{
+  background:#eff5ff;
+  color:#0b3983;
+  border-color:#0866f7;
+  box-shadow:0 0 0 1px rgba(8,102,247,.13);
+}
+.idstudio.studio-redesign .studio-warp-modes button span{display:block;text-align:center;white-space:normal;overflow-wrap:normal;font-size:inherit}
+.idstudio.studio-redesign.studio-touch .studio-warp-modes{gap:4px}
+.idstudio.studio-redesign.studio-touch .studio-warp-modes button{min-height:61px;padding:7px 1px 5px;border-radius:11px;gap:4px}
+.idstudio.studio-redesign.studio-touch .studio-warp-modes .studio-png-icon{width:29px!important;height:29px!important}
+.idstudio.studio-redesign.studio-touch .studio-warp-modes button span{font-size:9px}
