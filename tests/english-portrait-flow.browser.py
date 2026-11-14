@@ -40,7 +40,7 @@ with sync_playwright() as pw:
    prompt=page.locator('.english-inline-ai')
    prompt.wait_for()
    assert prompt.locator('strong,p').count()==0,'No title or helper sentence above the two action buttons'
-   assert prompt.locator('button').all_text_contents()==['Create portrait','Cancel']
+   assert prompt.locator('button').all_text_contents()==['Create','Cancel']
    prompt.get_by_role('button',name='Cancel').click()
    # Tapping the picture must place a visible, native-aspect PNG in Studio.
    page.locator('.studio-bottom-choices').get_by_role('button',name='ชุด',exact=True).click()
@@ -76,8 +76,8 @@ with sync_playwright() as pw:
    next_card.get_by_role('button',name='Edit with AI').click()
    prompt=page.locator('.english-inline-ai')
    prompt.wait_for()
-   assert prompt.locator('button').all_text_contents()==['Create portrait','Cancel']
-   prompt.get_by_role('button',name='Create portrait').click()
+   assert prompt.locator('button').all_text_contents()==['Create','Cancel']
+   prompt.get_by_role('button',name='Create',exact=True).click()
    page.wait_for_function('bodyCalls.filter(c=>c.committed).length===2')
    assert page.evaluate("bodySnapshot.current().layers.filter(l=>l.kind==='suit'&&l.visible!==false).length")==0
    assert not errors,errors
