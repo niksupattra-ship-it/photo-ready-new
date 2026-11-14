@@ -35,7 +35,7 @@ with sync_playwright() as pw:
    assert page.evaluate('bodyCalls.filter(c=>c.committed).length')==1
    # English hair AI confirmation keeps exactly the two action buttons.
    page.locator('.studio-bottom-choices').get_by_role('button',name='ทรงผม',exact=True).click()
-   assert page.locator('button[aria-label^="เลือกทรงผมหญิง "]').count()==10,'English lists only the ten uploaded styles'
+   assert page.locator('button[aria-label^="เลือกทรงผมหญิง "]').count()==20,'English lists all twenty uploaded styles'
    page.get_by_role('button',name='เลือกทรงผมหญิง Shoulder-length soft layers',exact=True).click()
    prompt=page.locator('.english-inline-ai')
    prompt.wait_for()
