@@ -19,8 +19,8 @@ const image=await sharp({create:{width:96,height:128,channels:4,background:'#b99
 const matte=await sharp(image).extend({top:2,bottom:2,left:2,right:2,background:{r:0,g:0,b:0,alpha:0}}).png().toBuffer();
 const fields={interfaceLanguage:'en',portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitMode:'female',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,hairReferenceVersion:HAIR_REFERENCE_VERSION,neckOutfitReferencePath:'/assets/job-uniforms/female-job-ivory-bow-blouse.png'};
 
-test('ten English styles retain their own IDs, exact source PNGs, picker bindings and hair-only guides',async()=>{
- assert.equal(ENGLISH_FEMALE_HAIR_CATALOG.length,10);
+test('twenty English styles retain their own IDs, exact source PNGs, picker bindings and hair-only guides',async()=>{
+ assert.equal(ENGLISH_FEMALE_HAIR_CATALOG.length,20);
  for(const [i,hair] of ENGLISH_FEMALE_HAIR_CATALOG.entries()){
   assert.equal(hair.id,'seedream-'+(44+i));assert.equal(productionHair(hair.id),hair);assert(downloadHairAllowed(hair.id));
   const entry=manifest.entries[hair.id],source=await readFile(root+'public/assets/seedream-hairstyles/references/'+hair.file),preview=await readFile(root+'public'+hair.src),guide=await loadCatalogueHairGuide(hair.id,root);
@@ -59,7 +59,7 @@ test('every selected English style reaches the existing AI path with its matchin
 });
 
 test('a newly selected hairstyle keeps the same two-call Natural and Makeup pair and silhouette',async()=>{
- const hair=ENGLISH_FEMALE_HAIR_CATALOG[9],calls=[];let makeup;
+ const hair=ENGLISH_FEMALE_HAIR_CATALOG[18],calls=[];let makeup;
  const natural=await processProductionPortrait({input:{buffer:image,mimetype:'image/png'},fields:{...fields,hairId:hair.id,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root,key:'inert-test',requestPortrait:async request=>{calls.push(request);return {png:matte}},removeBackground:async()=>matte,onMakeupVariant:async result=>{makeup=result}});
  assert.equal(calls.length,2);assert.deepEqual(calls[0].hair,await loadCatalogueHairGuide(hair.id,root));assert(!calls[1].hair);
  assert.deepEqual(await sharp(natural).extractChannel(3).raw().toBuffer(),await sharp(makeup).extractChannel(3).raw().toBuffer());

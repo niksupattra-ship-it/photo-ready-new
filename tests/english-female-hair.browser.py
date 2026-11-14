@@ -47,7 +47,7 @@ with sync_playwright() as pw:
    assert page.locator('button[aria-label^="เลือกทรงผมชาย "]').count()==4,'Male fixture choices remain intact'
    page.locator('.studio-hair-gender button').first.click()
    choices=page.locator('button[aria-label^="เลือกทรงผมหญิง "]')
-   assert choices.count()==(10 if lang=='en' else 4)
+   assert choices.count()==(20 if lang=='en' else 4)
    choice_count=choices.count()
    if lang=='en':
     previous=page.evaluate('JSON.stringify(bodySnapshot.current().layers)')
@@ -70,7 +70,7 @@ with sync_playwright() as pw:
     page.locator('.english-inline-ai').get_by_role('button',name='Cancel',exact=True).click()
     assert page.evaluate('JSON.stringify(bodySnapshot.current().layers)')==previous,'Cancel preserves the current portrait'
     assert page.locator('.english-photo-actions').count()==0
-    page.get_by_role('button',name=names[0],exact=True).click()
+    page.get_by_role('button',name=names[10],exact=True).click()
     actions=check_photo_actions(page)
     # Mouse wheel zoom must keep the controls on the visible photo.
     stage=page.locator('.studio-stage').bounding_box()
@@ -83,15 +83,15 @@ with sync_playwright() as pw:
     else:create.tap()
     page.wait_for_function('(count)=>bodyCalls.filter(c=>c.committed).length===count',arg=2)
     assert page.evaluate('bodyCalls.length')==submitted+2,'One Create starts one generation and one commit'
-    assert page.evaluate('bodyCalls.findLast(c=>!c.committed).hair')=='seedream-44'
+    assert page.evaluate('bodyCalls.findLast(c=>!c.committed).hair')=='seedream-54'
     assert page.locator('.english-photo-actions').count()==0
     if width>600:
      if not page.locator('.studio-hair-panel').is_visible():page.locator('.studio-bottom-choices').get_by_role('button',name='ทรงผม',exact=True).click()
-     page.get_by_role('button',name=names[1],exact=True).click()
+     page.get_by_role('button',name=names[11],exact=True).click()
      check_photo_actions(page).get_by_role('button',name='Create',exact=True).focus()
      page.keyboard.press('Enter')
      page.wait_for_function('bodyCalls.filter(c=>c.committed).length===3')
-     assert page.evaluate('bodyCalls.findLast(c=>!c.committed).hair')=='seedream-45'
+     assert page.evaluate('bodyCalls.findLast(c=>!c.committed).hair')=='seedream-55'
    else:
     assert page.locator('.studio-hair-face-preview img[src*="/previews/44.webp"]').count()==0
     assert choices.first.get_attribute('aria-label')=='เลือกทรงผมหญิง ทรงผมหญิง 1'
