@@ -183,7 +183,7 @@ app.post('/api/payments/english-checkout',async(req,res)=>{
   const user=req.accountUser;
   if(!user)return res.status(401).json({error:'auth_required',message:'Sign in to continue to secure checkout.'});
   const id=String(req.body?.packageId||'');
-  if(!['usd_single_490_v1','usd_premium_990_v1'].includes(id))return res.status(400).json({error:'invalid_package',message:'Choose a valid package.'});
+  if(!['usd_single_690_v2','usd_premium_1490_v2'].includes(id))return res.status(400).json({error:'invalid_package',message:'Choose a valid package.'});
   const offer=packageFor(id),jobId=String(req.body?.jobId||'');
   if(offer.usdPremium){
    const current=await getWallet(user.wallet_id);
