@@ -31,6 +31,9 @@ export function describePortraitFailure(error,english=false){
  if(/ตรวจใบหน้า|ไม่พบใบหน้า|รูปหน้าตรง|แนวผม|ตำแหน่งคาง|ใบหน้าในรูปใหม่เล็ก|face.*detect|invalid image/i.test(message)){
   return make('face_validation','Could not analyze this face','Use a clear, front-facing photo showing the face and hairline.','ตรวจสอบใบหน้าในรูปไม่ได้','ลองใช้รูปหน้าตรงที่เห็นใบหน้าและแนวผมชัดเจน');
  }
+ if(stage==='studio_hydrate'){
+  return make('studio_hydrate','Could not open the finished photo','The image generation may have succeeded, but Studio could not load it into the editor. Check the existing result before generating again.','ไม่สามารถเปิดภาพผลลัพธ์ใน Studio','AI อาจสร้างภาพสำเร็จแล้ว แต่ Studio โหลดภาพเข้าเครื่องมือไม่ได้ กรุณาตรวจสอบผลงานเดิมก่อนสร้างใหม่');
+ }
  if(stage==='compose'){
   return make('compose','Could not display the generated photo','The AI output may already be complete. Check the current job before starting another generation.','ประกอบภาพไม่สำเร็จ','งาน AI อาจสร้างเสร็จแล้ว กรุณาตรวจสอบงานเดิมก่อนสร้างใหม่');
  }
