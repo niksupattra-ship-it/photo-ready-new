@@ -34,6 +34,41 @@ test('male template generation is one request and the new English policy cannot 
  assert.throws(()=>validateProductionPortrait({buffer:cutout,mimetype:'image/png'},{...fields,interfaceLanguage:'th'}),/English studio/);
 });
 
+test('English male default and female selected hair do not receive an extra automatic full-photo hair reference',async()=>{
+ const base={buffer:cutout,mimetype:'image/png'};
+ const rootPath=new URL('..',import.meta.url).pathname;
+ const maleCalls=[];
+ await processProductionPortrait({input:base,fields:{...fields,portraitMode:'male',hairId:'',femaleFinishPair:undefined},root:rootPath,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{maleCalls.push(p);return {png:cutout}}});
+ assert.equal(maleCalls.length,1);
+ assert.equal(maleCalls[0].hair,null);
+ assert.match(maleCalls[0].prompt,/CLASSIC SIDE PART TAPER/);
+ assert.match(maleCalls[0].prompt,/NATIVE GARMENT DETAIL — IMAGE 3/);
+ assert.equal(seedreamReviewPayload(maleCalls[0]).image.length,3,'male route already sends a separate identity reference; do not add a new hair image');
+ const chosenCalls=[];
+ await processProductionPortrait({input:base,fields:{...fields,hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1',femaleFinishPair:undefined},root:rootPath,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{chosenCalls.push(p);return {png:cutout}}});
+ assert.equal(chosenCalls.length,1);
+ assert(chosenCalls[0].hair?.length);
+ assert.match(chosenCalls[0].prompt,/SELECTED PICKER HAIR seedream-41/);
+ assert.doesNotMatch(chosenCalls[0].prompt,/ORIGINAL HAIR REFERENCE/);
+});
+
+test('female AI Picks indexes original hair photo and cropped identity separately when there is no identity layout',async()=>{
+ const original=await sharp({create:{width:180,height:240,channels:4,background:'#987467'}}).png().toBuffer();
+ const photo={buffer:original,mimetype:'image/png'},calls=[];
+ await processProductionPortrait({input:photo,fields:{...fields,hairId:'',femaleFinishPair:undefined,faceIdentityBox:undefined},root:new URL('..',import.meta.url).pathname,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{calls.push(p);return {png:cutout}}});
+ assert.equal(calls.length,1,'extra hair reference must not add an AI generation');
+ const natural=calls[0],payload=seedreamReviewPayload(natural);
+ assert.equal(payload.image.length,4,'Image 1 composition, Image 2 original hair, Image 3 identity, Image 4 outfit');
+ assert(natural.hair?.length);
+ assert(natural.identity?.length);
+ assert.match(natural.prompt,/ORIGINAL HAIR REFERENCE — IMAGE 2/);
+ assert.match(natural.prompt,/IDENTITY — IMAGE 3/);
+ assert.match(natural.prompt,/NATIVE GARMENT DETAIL — IMAGE 4/);
+ assert.equal(payload.image[1],'data:image/png;base64,'+natural.hair.toString('base64'));
+ assert.equal(payload.image[2],'data:image/png;base64,'+natural.identity.toString('base64'));
+ assert.equal(payload.image[3],'data:image/png;base64,'+natural.outfit.toString('base64'));
+});
+
 test('the new English guide contains the original face at fixed size before generation, with no extra AI pass',async()=>{
  const box=[.25,.125,.75,.625],input={buffer:cutout,mimetype:'image/png'},identity=await portraitIdentityCrop(input,box),outfit=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  const expected=await createEnglishBodyLayout(outfit,{headScale:ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_TEMPLATE_PROPORTION_PROFILE});
@@ -43,10 +78,20 @@ test('the new English guide contains the original face at fixed size before gene
   assert.equal(calls.length,2);assert.deepEqual(calls[0].portrait,expected);assert.equal(calls[0].identity,null);
   assert.match(calls[0].prompt,/already contains THIS real person/);assert.match(calls[0].prompt,/no separate close-up/);
   assert.match(calls[0].prompt,/IDENTITY — IMAGE 1/);
-  assert(calls[0].prompt.includes('NATIVE GARMENT DETAIL — IMAGE '+(withHair?3:2)));
-  const payload=seedreamReviewPayload(calls[0]);assert.equal(payload.image.length,withHair?3:2);
+  assert(calls[0].prompt.includes('NATIVE GARMENT DETAIL — IMAGE 3'));
+  const payload=seedreamReviewPayload(calls[0]);assert.equal(payload.image.length,3);
   assert.equal(payload.image[0],'data:image/png;base64,'+expected.toString('base64'));
-  if(withHair)assert.match(calls[0].prompt,/SELECTED HAIRSTYLE — IMAGE 2/);
+  if(withHair){
+   assert.match(calls[0].prompt,/SELECTED HAIRSTYLE — IMAGE 2/);
+   assert.doesNotMatch(calls[0].prompt,/ENGLISH AI PICKS/);
+  }else{
+   const originalFullReference=await sharp(input.buffer).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+   assert.deepEqual(calls[0].hair,originalFullReference,'English female AI Picks supplies the uncropped original hair photo in Image 2');
+   assert.equal(payload.image[1],'data:image/png;base64,'+originalFullReference.toString('base64'));
+   assert.match(calls[0].prompt,/ORIGINAL HAIR REFERENCE — IMAGE 2/);
+   assert.match(calls[0].prompt,/Do not reduce below-shoulder hair to a bob/);
+   assert.doesNotMatch(calls[0].prompt,/SELECTED HAIRSTYLE — IMAGE 2/);
+  }
  }
 });
 
