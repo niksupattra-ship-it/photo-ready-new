@@ -4191,7 +4191,7 @@ function App(){
  const studioDraftRef=useRef(null),studioOriginRef=useRef(null),studioHairOriginRef=useRef(null),studioTrialRef=useRef(false);
  const[photoGuideOpen,setPhotoGuideOpen]=useState(false);
  const[safetyBlocked,setSafetyBlocked]=useState(false);
- const[selectedJobTemplate,setSelectedJobTemplate]=useState(JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
+ const[selectedJobTemplate,setSelectedJobTemplate]=useState(()=>JOB_UNIFORMS.find(item=>item.id==='female-job-navy-notch-white-shirt')?.template||JOB_UNIFORMS[0].template||JOB_UNIFORMS[0].img);
  const[selectedStudentTemplate,setSelectedStudentTemplate]=useState(STUDENT_UNIFORMS[0].template);
  const[selectedGownTemplate,setSelectedGownTemplate]=useState(GOWN_UNIFORMS[0].template);
  const[selectedInteriorTemplate,setSelectedInteriorTemplate]=useState(INTERIOR_UNIFORMS[0].img);
