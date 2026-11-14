@@ -67,7 +67,9 @@ test('Thai first-generation female reference stays unchanged; English UI does no
  assert.match(englishFlow,/onCreate\(\{outfit,hair,finish/);
  assert.doesNotMatch(studio,/if\(!existing\)hair=firstGenerationHairFor\(gender\)/);
  assert.match(studio,/if\(!id&&hairGender==='female'&&!englishFlow\)id=firstGenerationHairFor\('female'\)/);
+ assert.match(studio,/head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION/);
+ assert.match(studio,/existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION/);
  assert.match(studio,/const processEasyPhoto=\(\)=>\{const hairId=firstGenerationHairFor\(hairGender\)/);
  assert.match(pipeline,/selectedHairKind:keepCurrentHair\?null:chosen\?selectedHairDesign\(chosen\)\?\.kind:selected.gender==='male'\?'short':null/);
- assert.match(main,/ENGLISH_TEMPLATE_BODY_FINISH_VERSION\+':'\+ENGLISH_AUTO_HAIR_VERSION:gender==='female'/);
+ assert.match(main,/gender==='female'&&\(!hairId\|\|hairId==='original'\)&&!options.keepCurrentHair\?ENGLISH_AUTO_HAIR_VERSION/);
 });
