@@ -6,7 +6,10 @@ import {ENGLISH_HEAD_PORTRAIT_VERSION,fitEnglishHeadTemplate} from '../english-h
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 
 export const ENGLISH_MANUAL_OUTFIT_VERSION='native-fixed-pattern-full-bleed-v5-no-auto-placement';
-// Legacy calculation retained for older test fixtures only. The live English PNG outfit\n// path now calls the same native studio preview/placement as Thai without\n// measuring the face or changing sourceFrame, x/y or scale.\n// Legacy 6% overscan kept garment edges filled after centring on the face.
+// Legacy calculation retained for older test fixtures only. The live English PNG outfit
+// path now calls the same native studio preview/placement as Thai without
+// measuring the face or changing sourceFrame, x/y or scale.
+// Legacy 6% overscan kept garment edges filled after centring on the face.
 // This is fixed to the selected PNG's opaque bounds, never the head dimensions.
 export const ENGLISH_FIXED_PATTERN_WIDTH=1.06;
 
