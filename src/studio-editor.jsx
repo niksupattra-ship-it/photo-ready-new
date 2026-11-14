@@ -42,7 +42,7 @@ import {collarPinKeys,collarControlValues,collarControlPatch,collarNudgePatch,co
 import {isTrialHairAllowed} from '../hairstyle-catalog.js';
 import {isFreeFemaleHair,FREE_FEMALE_HAIR_MESSAGE} from './free-female-hair.js';
 import {stepHairRail,restoreHairRail,stopHairRail} from './studio-hair-rail.js';
-import {analyticsSelection} from './analytics.js';
+import {analyticsSelection,analyticsProcessFailure} from './analytics.js';
 import './studio-face-previews.css';
 import {studioMakeupBase} from './studio-makeup-base.js';
 import './studio-desktop-credits.css';
@@ -1022,6 +1022,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;resetPhotoHistory();resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;if(englishFlow){setEnglishStep(null);setEnglishRoute('review')}else if(easyMode){setEasyMode(false);setPicker(false)}setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');reportProcessedResult(result.layer,{reused:result.reused===true})}else {const hydrateError=lastHydrateErrorRef.current||Error('แสดงภาพไม่สำเร็จ');hydrateError.idpromProcessStage='studio_hydrate';throw hydrateError;}
   }catch(e){
    const cancelled=isProcessCancelled()||e.code==='USER_CANCELLED';
+   // Errors after a successful AI response are Studio-local: report them
+   // separately, so completed generations are not miscounted as AI failures.
+   if(!cancelled&&stagedResult)analyticsProcessFailure(e,e.idpromProcessStage||'studio_result',{usage_mode:'studio'});
    // Before the result hydration begins, the previous photo is already
    // untouched. Never repaint an old snapshot after the user dismissed
    // cancellation and continued editing that photo.
