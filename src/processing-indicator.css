@@ -1,0 +1,21 @@
+/* Shared minimal progress indicator for preview and Studio. */
+.idprom-process-indicator{
+ --idprom-progress:0%;
+ width:112px;height:112px;flex:none;position:relative;isolation:isolate;
+ display:grid;place-items:center;margin:0 auto 6px;border-radius:50%;
+ background:conic-gradient(from -90deg,#3887ff 0%,#76d4ff var(--idprom-progress),rgba(255,255,255,.22) var(--idprom-progress),rgba(255,255,255,.22) 100%);
+ box-shadow:0 8px 32px #001c3f24,0 0 0 1px #ffffff27;
+}
+.idprom-process-indicator::before{
+ content:"";position:absolute;inset:7px;background:#16263bea;border-radius:50%;
+ box-shadow:inset 0 1px 8px #0815252b;
+}
+.idprom-process-indicator::after{
+ content:"";position:absolute;inset:-5px;border:1px solid #b8dfff33;
+ border-radius:50%;animation:idprom-progress-breathe 2.4s ease-in-out infinite;
+ pointer-events:none;
+}
+.idprom-process-indicator output{position:relative;z-index:1;color:#fff!important;font-size:28px;font-weight:750;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.05em}
+.idprom-process-indicator output small{font-size:13px;letter-spacing:0;margin-left:2px}
+@keyframes idprom-progress-breathe{0%,100%{opacity:.4;transform:scale(.98)}50%{opacity:1;transform:scale(1.035)}}
+@media(prefers-reduced-motion:reduce){.idprom-process-indicator::after{animation:none}}
