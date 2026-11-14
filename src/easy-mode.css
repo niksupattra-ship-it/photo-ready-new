@@ -1249,3 +1249,36 @@
 .english-example-photo{display:block;position:relative;width:100%;height:100%;aspect-ratio:3/4;overflow:hidden;background:#fff}
 .english-example-photo>svg{display:block;position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
 .easy-home-shell .idstudio .easy-mode.easy-landing-page .easy-landing-samples .english-example-photo{height:auto;border:3px solid #fff;border-radius:13px;box-shadow:0 4px 14px #5343a012;box-sizing:border-box}
+
+
+/* Photo processing: compact modern treatment, no unrelated controls affected. */
+.idstudio .easy-mode .easy-processing-overlay{
+ gap:10px;
+ padding:20px 16px;
+ background:rgba(12,23,43,.68);
+ backdrop-filter:blur(5px);
+ -webkit-backdrop-filter:blur(5px);
+}
+.idstudio .easy-mode .easy-processing-overlay .idprom-process-indicator{
+ width:100px;height:100px;margin-bottom:8px;
+}
+.idstudio .easy-mode .easy-processing-overlay .idprom-process-indicator output{
+ color:#fff!important;font-size:28px!important;
+}
+.idstudio .easy-mode .easy-processing-overlay .idprom-process-indicator output small{
+ color:#fff!important;font-size:13px!important;
+}
+.idstudio .easy-mode .easy-processing-overlay > strong{
+ font-size:17px;line-height:1.35;font-weight:730;letter-spacing:0;
+ text-shadow:0 1px 9px #07162b65;
+}
+.idstudio .easy-mode .easy-processing-overlay .easy-processing-stage{
+ max-width:270px;font-size:12px;line-height:1.5;color:#d4e7ff;
+}
+.idstudio .easy-mode .easy-processing-overlay > button{
+ margin-top:8px;min-width:80px;border:1px solid #ffffff59;
+ background:#ffffff16;color:#fff;border-radius:9px;
+ padding:8px 16px;box-shadow:none;
+}
+.idstudio .easy-mode .easy-processing-overlay > button:hover:not(:disabled){background:#ffffff2d}
+@media(max-width:480px){.idstudio .easy-mode .easy-processing-overlay .idprom-process-indicator{width:88px;height:88px}}
