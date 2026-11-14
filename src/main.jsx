@@ -183,7 +183,7 @@ async function retryExistingAiJobRead(jobId,kind,read,operation=activeProcessOpe
    assertProcessActive(operation);
    const status=Number(error?.status||0);
    const transient=[202,408,425,429,500,502,503,504].includes(status)||
-    (!status&&(error?.name==='TypeError'||error?.name==='AbortError'||
+    (!status&&(error?.name==='TypeError'||error?.name==='AbortError'||error?.name==='SyntaxError'||
     /failed to fetch|network|load failed|fetch failed|timeout|timed out|ใช้เวลานาน|การเชื่อมต่อ/i.test(String(error?.message||''))));
    if(!transient||attempt===4){
     if(!error.idpromProcessStage)error.idpromProcessStage=kind;
@@ -197,7 +197,7 @@ async function retryExistingAiJobRead(jobId,kind,read,operation=activeProcessOpe
 async function readExistingAiJob(jobId,path,kind,format,operation=activeProcessOperation){
  return retryExistingAiJobRead(jobId,kind,async()=>{
   const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+path,{headers:walletHeaders(),cache:'no-store'});
-  if(!response.ok){
+  if(!response.ok||(format==='blob'&&response.status===202)){
    const message=await response.text().catch(()=>kind+' failed');
    throw Object.assign(Error(message||kind+' failed'),{status:response.status});
   }
