@@ -9,7 +9,7 @@ import {outfitChoicePreview,isJobOutfit} from './outfit-choice-preview.js';
 import {insigniaForLanguage,englishPreviewEnabled} from './english-preview.js';
 import {EnglishPortraitFlow} from './english-portrait-flow.jsx';
 import {hasPairedPortraitFinish,pairedPortraitFinish} from './paired-portrait-finish.js';
-import {fitEnglishManualOutfit,planEnglishManualOutfitPreview,measureEnglishManualOutfitFace,ENGLISH_MANUAL_OUTFIT_VERSION} from './english-manual-outfit.js';
+import {ENGLISH_MANUAL_OUTFIT_VERSION} from './english-manual-outfit.js';
 import {uniformMatchesSearch} from './uniform-search.js';
 import {assertPortraitExportReady} from './portrait-export-guard.js';
 import {preserveLocalSkinLook} from './preserve-local-skin-look.js';
@@ -816,19 +816,16 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   return fitStudioSuit({layers:next,previousSuit:suit,nextSuit:unbaked,headSource:head.warpSource||sharedStudioSkinSource(head)||head.source,headMask:head.mask,measureFace:onMeasureSuitFace,preservePlacement:true});
  };
  const endSuitPreview=request=>{if(!request||suitRequestRef.current!==request)return;request.cancel();suitRequestRef.current=null;request.preview?.release();setSuitSelecting(false);drawNow()};
- const beginSuitPreview=(option,target,{manual=false}={})=>{
+ const beginSuitPreview=(option,target)=>{
+  // Use the same native PNG preview path as Thai: do not compute a
+  // head-relative position, garment scale or translation for English.
   const previous=suitRequestRef.current;if(previous){previous.cancel();previous.preview?.release()}
   const request=createSuitPreviewRequest();request.kind='suit';request.template=option.template;suitRequestRef.current=request;setSuitSelecting(option.id||option.template);
-  const portrait=manual?state.current.find(l=>layerKind(l)==='head'||l.kind==='source-photo'):null;
-  // Manual placement is local PNG compositing only. Do not run face/AI analysis.
-  if(manual)request.facePromise=Promise.resolve(null);
-  const show=(image,face=null)=>{
+  const show=image=>{
    if(!image||!mounted.current||suitRequestRef.current!==request||request.phase!=='loading')return;
-   let previewTarget=target;
-   if(manual){const frame=planEnglishManualOutfitPreview({image,head:portrait,face});previewTarget={...target,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1}}
-   request.preview?.release();request.preview=createSuitDisplayPreview(previewTarget,option,image,placementRef.current);drawNow();
+   request.preview?.release();request.preview=createSuitDisplayPreview(target,option,image,placementRef.current);drawNow();
   };
-  const display=image=>{try{show(image)}catch{}if(manual&&image)void request.facePromise.then(face=>{if(face)try{show(image,face)}catch{}})};
+  const display=image=>{try{show(image)}catch{}};
   const image=readSuitPreview(option.template);
   if(image)display(image);else void warmSuitPreview(option.template).then(display).catch(()=>{});
   request.firstPaint=image?new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))):Promise.resolve();
@@ -858,7 +855,6 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(kind==='suit'&&option&&!canUseAllSuits&&!freeTemplatePaths.includes(option.template)){onRequestUnlock?.();setStatus('กรุณาตรวจสอบสิทธิ์ก่อนเลือกชุดนี้');return;}
   const target=state.current.find(l=>layerKind(l)===kind);
   if(target?.locked){setStatus('ปลดล็อกเลเยอร์ '+ASSET_NAMES[kind]+' ก่อนเปลี่ยน');return}
-  if(manualSuit&&outputHeads(state.current).some(l=>l.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION&&l.locked)){setStatus('ปลดล็อกเลเยอร์หัวก่อนจัดให้พอดีกับชุดใหม่');return}
   const bodyHead=outputHeads(state.current).find(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
   const repairSuitFit=Boolean(manualSuit&&target?.manualOutfitFitVersion!==ENGLISH_MANUAL_OUTFIT_VERSION)||Boolean(!manualSuit&&bodyHead&&option&&bodyHead.generatedOutfitTemplate!==option.template)||Boolean(target?.autoSuitFitVersion&&target.autoSuitFitVersion!==STUDIO_SUIT_FIT_VERSION)||state.current.some(l=>l.kind==='neck-fit');
   if(kind==='suit'&&option&&target?.templatePath===option.template&&!repairSuitFit&&!(manualSuit&&target.visible===false)){endSuitPreview(suitRequestRef.current);setAssetBusy(false);setSelected(target.id);return}
@@ -866,11 +862,11 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const fitHead=!manualSuit&&!combinedBody&&kind==='suit'&&option&&typeof onMeasureSuitFace==='function'?outputHeads(state.current).find(l=>l.jobId&&l.kind!=='source-photo'):null;
   if(fitHead&&(fitHead.locked||state.current.some(l=>l.hairHeadId===fitHead.id&&l.kind!=='neck-fit'&&l.locked))){setStatus('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดให้พอดีกับชุดใหม่');return}
   if(!target&&option&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}
-  let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target,{manual:manualSuit}):null;
+  let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target):null;
   setAssetBusy(true);
   try{
    if(request)await request.wait(request.firstPaint);
-   flushTransforms();const previous=historySnapshot();let next,fitWarning='',englishHeadFrame=null,englishNeckClipMask=null;
+   flushTransforms();const previous=historySnapshot();let next,fitWarning='';
    if(!option){next=previous.filter(l=>l.id!==target?.id);if(manualSuit)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);}
    else{
     const suit=previous.find(l=>layerKind(l)==='suit');
@@ -884,27 +880,18 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     const loading=nativeAsset(kind,option,frame,preset),native=request?await request.wait(loading):await loading;collarParts=native.collarParts;
     const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),kind,source:native.source,sourceFrame:kind==='suit'?(target?.sourceFrame||native.sourceFrame):native.sourceFrame,collarFrame:kind==='suit'?(target?.collarFrame||frame):target?.collarFrame,neckWidth:kind==='suit'?0:target?.neckWidth,neckHeight:kind==='suit'?0:target?.neckHeight,collarParts,collarLeftX:target?.collarLeftX||0,collarRightX:target?.collarRightX||0,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,visible:true,assetId:option.id,templatePath:kind==='suit'?option.template:target?.templatePath};
     if(manualSuit){
-     const portrait=previous.find(l=>layerKind(l)==='head'||l.kind==='source-photo');
-     const portraitAsset=portrait&&assets.current.get(portrait.id);
-     const fitting=fitEnglishManualOutfit({source:native.source,head:portrait,measureFace:null,facePromise:Promise.resolve(null)}),fitted=request?await request.wait(fitting):await fitting;
-     let {englishHeadFrame:headFrame,...garmentFrame}=fitted;englishHeadFrame=headFrame;
-     if(!headFrame&&portrait?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)headFrame=portrait.sourceFrame||{x:0,y:0,w:W,h:H};
-     if(!manualSuit&&headFrame&&onPrepareEnglishOutfitClip&&!combinedBody){
-       try{const clipping=onPrepareEnglishOutfitClip(portrait,native.source,headFrame,garmentFrame);englishNeckClipMask=request?await request.wait(clipping):await clipping}
-       catch(error){
-        if(error?.code==='SUIT_SELECTION_REPLACED')throw error;
-        if(portrait?.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)throw error;
-        fitWarning='Outfit placed, but the previous neckline could not be completely cleaned.';
-       }
-      }
-     Object.assign(created,{sourceFrame:garmentFrame,collarFrame:{...garmentFrame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1,autoSuitFitVersion:null,manualOutfitFitVersion:ENGLISH_MANUAL_OUTFIT_VERSION});
+     // English manual PNG overlay now follows the exact native Thai placement:
+     // sourceFrame/collarFrame and x/y/scale from the existing suit or shared
+     // studio default. Never fit, enlarge or move the garment based on a face.
+     // Keep existing user transform values unchanged when swapping PNG suits.
+     created.autoSuitFitVersion=null;
+     created.manualOutfitFitVersion=ENGLISH_MANUAL_OUTFIT_VERSION;
     }
     if(kind==='suit'&&combinedBody&&!manualSuit)created.visible=false;
     if(kind==='background')Object.assign(created,{x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1});
     if(['collar','chest','ribbon'].includes(kind))Object.assign(created,{x:suit?.x||0,y:suit?.y||0,scale:suit?.scale||1,rotation:suit?.rotation||0,opacity:1,collarLeftX:0,collarRightX:0,collarLeftY:0,collarRightY:0});
     if(kind==='collar')Object.assign(created,{collarLeftScale:1,collarRightScale:1,collarLeftRotation:0,collarRightRotation:0});
     next=target?previous.map(l=>l.id===target.id?created:l):kind==='background'?[created,...previous]:[...previous,created];
-    if(englishHeadFrame)next=next.map(l=>l.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION?{...l,sourceFrame:englishHeadFrame,...(englishNeckClipMask?{englishNeckClipMask}:{}),x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0}:l);
     // English PNG-overlay mode is NON-DESTRUCTIVE. Keep the complete original
     // AI photograph, including the clothes it already contains. Never clip it.
     // Clear any legacy English overlay mask saved by an older editor version.
