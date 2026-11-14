@@ -2089,3 +2089,68 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
   padding:0;
   border-radius:0;
 }
+
+
+/* Liquify PNG tiles: contain all five inside the existing sidebar, never overlap. */
+.idstudio.studio-redesign .studio-warp-panel{
+  box-sizing:border-box!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  min-inline-size:0!important;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons{
+  box-sizing:border-box!important;
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  min-inline-size:0!important;
+  gap:4px!important;
+  padding:2px!important;
+  margin:6px 0 11px!important;
+  overflow:visible;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons > button{
+  box-sizing:border-box!important;
+  display:block!important;
+  position:relative;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  min-inline-size:0!important;
+  height:auto!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  aspect-ratio:192 / 200;
+  border:0!important;
+  background:transparent!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+  line-height:0!important;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons > button > img{
+  display:block!important;
+  position:static!important;
+  box-sizing:border-box!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:100%!important;
+  max-height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  aspect-ratio:192 / 200;
+  object-fit:contain!important;
+  transform:none!important;
+  filter:none!important;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons > button.active,
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons > button:focus-visible{
+  outline:2px solid #0965ec!important;
+  outline-offset:0!important;
+  border-radius:10px!important;
+}
