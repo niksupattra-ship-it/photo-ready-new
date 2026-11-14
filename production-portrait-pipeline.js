@@ -88,6 +88,7 @@ export function validateProductionPortrait(input,fields={}){
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
  if(fields.hairReferenceVersion&&fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION)throw Error('ข้อมูลทรงผมไม่ตรงกับชุดล่าสุด กรุณารีเฟรชหน้าเว็บ');
  const id=fields.hairId||'original',selected=productionHair(id);
+ if(selected?.interfaceLanguage==='en'&&(!isEnglishBodyPortrait(fields)||!usesEnglishStudioFinish(fields)||fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION))throw Error('Please refresh the English Studio and choose a hairstyle again.');
  if(fields.femaleFinishPair&&(!isAiMakeupPairVersion(fields.femaleFinishPair)||(selected?.gender||fields.portraitMode)!=='female'||fields.femaleEyeStyle!=='natural'||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกภาพแต่งหน้าคู่ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  if(fields.hairReferenceVersion&&!id.startsWith('seedream-'))throw Error('ภาพอ้างอิงนี้ใช้ได้เฉพาะทรงผมในแค็ตตาล็อก');
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
