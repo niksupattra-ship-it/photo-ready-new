@@ -9,13 +9,10 @@ export function PackageCodeDialog({code='',onCode,onSubmit,onClose,onSignIn,isAu
    <span className="package-code-brand">IDพร้อม</span>
    <h2>{result?'ใช้โค้ดสำเร็จ':'ใส่โค้ด'}</h2>
    {result?<><p className="package-code-success" role="status">ปลดล็อกโปร {result.packageId} บาทสำหรับรูปนี้แล้ว</p><ul><li>ดาวน์โหลดภาพไม่มีลายน้ำ</li><li>เลือกชุดได้ {result.packageId==='159'?5:3} ชุด</li><li>{result.packageId==='159'?'ปลดล็อกทรงผมพรีเมียม':'ทรงผมพื้นฐาน'}</li></ul><button type="button" className="package-code-primary" id="idprom-package-code-done" onClick={onClose}>กลับไปดาวน์โหลดรูป</button></>:<form onSubmit={e=>{e.preventDefault();if(!busy&&isAuthenticated&&hasOutput&&code.trim())onSubmit?.()}}>
-    <p className="package-code-intro">ใช้โค้ดเพื่อปลดล็อกรูปปัจจุบันตามแพ็กเกจ<br/>โค้ดละ 1 งาน ใช้ได้ครั้งเดียว</p>
     <label htmlFor="idprom-package-code">โค้ด</label>
     <input id="idprom-package-code" name="package-code" value={code} onChange={e=>onCode?.(e.target.value)} disabled={busy} maxLength={120} autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="กรอกโค้ดของคุณ"/>
-    {!hasOutput&&<p className="package-code-note">กรุณาสร้างรูปให้สำเร็จก่อนใช้โค้ด</p>}
-    {!isAuthenticated&&<p className="package-code-note">เข้าสู่ระบบเพื่อใช้โค้ดกับรูปของคุณ</p>}
     {message&&<p className="package-code-error" role="alert">{message}</p>}
-    {isAuthenticated?<button type="submit" className="package-code-primary" disabled={busy||!hasOutput||!code.trim()}>{busy?'กำลังตรวจสอบโค้ด…':'ใช้โค้ด'}</button>:<button type="button" className="package-code-primary" disabled={busy} onClick={onSignIn}>เข้าสู่ระบบเพื่อใช้โค้ด</button>}
+    {isAuthenticated?<button type="submit" className="package-code-primary" disabled={busy||!hasOutput||!code.trim()}>{busy?'กำลังตรวจสอบโค้ด…':'ใช้โค้ด'}</button>:<button type="button" className="package-code-primary" disabled={busy} onClick={onSignIn}>เข้าสู่ระบบ</button>}
    </form>}
   </section></div>
  </AccountFlowDialog>;
