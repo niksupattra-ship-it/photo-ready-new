@@ -20,10 +20,17 @@
  content:'';position:absolute;top:4%;right:4%;width:20%;aspect-ratio:1;
  border-radius:50%;background:#e5f0ff;pointer-events:none;
 }
-.auto-hair-selection-check{
- position:absolute;top:4%;right:4%;width:20%;aspect-ratio:1;
- display:grid;place-items:center;border-radius:50%;background:#1265ed;
- pointer-events:none;
+.auto-hair-tile > .auto-hair-selection-check{
+ position:absolute!important;top:5%!important;right:5%!important;
+ box-sizing:border-box!important;display:grid!important;place-items:center!important;
+ width:22%!important;max-width:22px!important;height:auto!important;
+ min-height:0!important;aspect-ratio:1/1!important;
+ padding:0!important;margin:0!important;border:0!important;
+ border-radius:50%!important;background:#1265ed!important;
+ box-shadow:none!important;pointer-events:none;z-index:2;
 }
-.auto-hair-selection-check svg{width:70%;height:70%;display:block}
+.auto-hair-tile > .auto-hair-selection-check svg{
+ display:block!important;width:68%!important;height:68%!important;
+ max-width:100%;max-height:100%;
+}
 button:focus-visible .auto-hair-tile{outline:2px solid #1265ed;outline-offset:-2px}
