@@ -173,12 +173,78 @@ async function settleProcessOperation(operation,action){
  if(!response.ok)throw Error(action==='cancel'?'ยกเลิกงานไม่สำเร็จ กรุณากดปิดอีกครั้ง':'ยืนยันภาพไม่สำเร็จ กรุณาลองอีกครั้ง');
  operation.settled=true;writeActiveAiJob(null);await clearAiJobFile();
 }
-async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){const started=Date.now();let deadline=started+6*60*1000;for(;;){if(Date.now()>deadline)throw Error('ประมวลผลเกินเวลาที่กำหนด กรุณาลองใหม่');assertProcessActive(operation);const r=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId),{headers:walletHeaders(),cache:'no-store'});if(!r.ok)throw analyticsTagError(Error(await r.text()||'ตรวจสถานะงานไม่สำเร็จ'),{error_stage:'poll_job',http_status:r.status});const j=await r.json();if(j.hasMakeupVariant||j.portraitMode==='female')deadline=Math.max(deadline,started+15*60*1000);if(needsOriginalAiSkinPolish(j))deadline=Math.max(deadline,started+10*60*1000);assertProcessActive(operation);onStatus?.(j.status,j.stage);if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});if(j.status==='completed'&&j.proportionCorrection!=='processing'){const out=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result',{headers:walletHeaders(),cache:'no-store'});if(!out.ok)throw analyticsTagError(Error(await out.text()||'โหลดผลลัพธ์ไม่สำเร็จ'),{error_stage:'fetch_result',http_status:out.status});let [blob,verified]=await Promise.all([out.blob().then(async natural=>{if(j.hasMakeupVariant){const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+'/result?finish=makeup',{headers:walletHeaders(),cache:'no-store'});if(!response.ok)throw Error('โหลดภาพแต่งหน้าไม่สำเร็จ');natural.idpromAiMakeupBlob=await response.blob();}if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(j.portraitComposition)){natural.idpromPortraitComposition=j.portraitComposition;if(j.englishStudioFinishVersion)natural.idpromEnglishStudioFinishVersion=j.englishStudioFinishVersion;return natural}return levelPortraitCutout(natural)}),verifyOutputRights(jobId)]);assertProcessActive(operation);if(isOriginalPortraitAiRequest(j)&&j.portraitMode==='female'){markOriginalPortraitAiFinish(blob,portraitFinishChoice(j.femaleEyeStyle),j.studioSkinVersion);if(j.femaleEyeStyle==='natural'&&j.naturalFinishVersion)blob.idpromNaturalStudioSkinVersion=j.naturalFinishVersion;}if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female'){
- blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
- // v5 returns one bare base. Clothing cleanup precedes the shared-base capture
- // and the local cosmetic pass in aiFinishPortrait.
- assertProcessActive(operation);
- }blob.idpromTrial=out.headers.get('X-IDPROM-Trial')==='1';blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;blob.idpromEnglishProportionCorrection=j.proportionCorrection;return blob}await new Promise(resolve=>setTimeout(resolve,900))}}
+// Reads of an existing job are idempotent. Brief network/deployment interruptions
+// must not trigger a second POST /api/ai-jobs or another credit reservation.
+async function retryExistingAiJobRead(jobId,kind,read,operation=activeProcessOperation){
+ for(let attempt=0;attempt<5;attempt++){
+  assertProcessActive(operation);
+  try{return await read()}
+  catch(error){
+   assertProcessActive(operation);
+   const status=Number(error?.status||0);
+   const transient=[202,408,425,429,500,502,503,504].includes(status)||
+    (!status&&(error?.name==='TypeError'||error?.name==='AbortError'||
+    /failed to fetch|network|load failed|fetch failed|timeout|timed out|ใช้เวลานาน|การเชื่อมต่อ/i.test(String(error?.message||''))));
+   if(!transient||attempt===4){
+    if(!error.idpromProcessStage)error.idpromProcessStage=kind;
+    throw analyticsTagError(error,{error_stage:kind,...(status?{http_status:status}:{})});
+   }
+   console.warn('Retry existing AI job read',{kind,attempt:attempt+1,status});
+   await new Promise(resolve=>setTimeout(resolve,Math.min(5000,500*Math.pow(2,attempt))));
+  }
+ }
+}
+async function readExistingAiJob(jobId,path,kind,format,operation=activeProcessOperation){
+ return retryExistingAiJobRead(jobId,kind,async()=>{
+  const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+path,{headers:walletHeaders(),cache:'no-store'});
+  if(!response.ok){
+   const message=await response.text().catch(()=>kind+' failed');
+   throw Object.assign(Error(message||kind+' failed'),{status:response.status});
+  }
+  if(format==='json')return response.json();
+  if(format==='blob')return {blob:await response.blob(),trial:response.headers.get('X-IDPROM-Trial')==='1'};
+  return response;
+ },operation);
+}
+async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
+ const started=Date.now();let deadline=started+6*60*1000;
+ for(;;){
+  if(Date.now()>deadline)throw Object.assign(Error('งาน AI ใช้เวลานาน กรุณาตรวจสถานะงานเดิมก่อนสร้างใหม่'),{code:'AI_JOB_POLL_TIMEOUT',idpromProcessStage:'poll_job'});
+  assertProcessActive(operation);
+  const j=await readExistingAiJob(jobId,'','poll_job','json',operation);
+  if(j.hasMakeupVariant||j.portraitMode==='female')deadline=Math.max(deadline,started+15*60*1000);
+  if(needsOriginalAiSkinPolish(j))deadline=Math.max(deadline,started+10*60*1000);
+  assertProcessActive(operation);onStatus?.(j.status,j.stage);
+  if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});
+  if(j.status==='completed'&&j.proportionCorrection!=='processing'){
+   const [original,verified]=await Promise.all([
+    readExistingAiJob(jobId,'/result','fetch_result','blob',operation),
+    retryExistingAiJobRead(jobId,'verify_rights',()=>verifyOutputRights(jobId),operation)
+   ]);
+   let natural=original.blob;
+   if(j.hasMakeupVariant){
+    const makeup=await readExistingAiJob(jobId,'/result?finish=makeup','fetch_makeup','blob',operation);
+    natural.idpromAiMakeupBlob=makeup.blob;
+   }
+   let blob;
+   if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(j.portraitComposition)){
+    natural.idpromPortraitComposition=j.portraitComposition;
+    if(j.englishStudioFinishVersion)natural.idpromEnglishStudioFinishVersion=j.englishStudioFinishVersion;
+    blob=natural;
+   }else blob=await levelPortraitCutout(natural);
+   assertProcessActive(operation);
+   if(isOriginalPortraitAiRequest(j)&&j.portraitMode==='female'){
+    markOriginalPortraitAiFinish(blob,portraitFinishChoice(j.femaleEyeStyle),j.studioSkinVersion);
+    if(j.femaleEyeStyle==='natural'&&j.naturalFinishVersion)blob.idpromNaturalStudioSkinVersion=j.naturalFinishVersion;
+   }
+   if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female')blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
+   blob.idpromTrial=original.trial;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;
+   blob.idpromEnglishProportionCorrection=j.proportionCorrection;
+   return blob;
+  }
+  await new Promise(resolve=>setTimeout(resolve,900));
+ }
+}
 
 let landmarkerPromise;
 let segmenterPromise;
