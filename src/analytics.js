@@ -39,17 +39,41 @@ const diagnosticErrors=new WeakMap();
 export function analyticsTagError(error,details){try{if(error&&typeof error==='object')diagnosticErrors.set(error,details)}catch{}return error}
 export function analyticsProcessFailure(error,stage,extra={}){try{
  const details=error&&typeof error==='object'?diagnosticErrors.get(error)||{}:{};
- const errorStage=details.error_stage||stage||'unknown';
+ const status=Number(details.http_status||error?.status||0);
  let code='';try{code=JSON.parse(String(error?.message||'')).error||''}catch{}
- let reason='unknown',blocked=false;
- if(code==='credit_required'||details.http_status===402){reason='trial_or_credit_required';blocked=true}
- else if(code==='private_trial_inactive'){reason='private_trial_inactive';blocked=true}
+ code=safeText(error?.code||code);
+ const message=String(error?.message||'');
+ const network=/failed to fetch|load failed|networkerror|fetch failed|network request failed/i.test(message);
+ const timeout=/timeout|timed out|หมดเวลา|หมดเวลารอ/i.test(message)||code==='ETIMEDOUT';
+ const validation=/ไม่พบใบหน้า|ตรวจใบหน้า|ตำแหน่งคาง|ตรวจรูปตา|แนวผม|รูปหน้าตรง|face.?detect|invalid image|invalid file/i.test(message);
+ const busy=status===429||code==='ACTIVE_AI_JOB';
+ const blocked=status===402||code==='credit_required'||code==='private_trial_inactive';
+ let errorStage=details.error_stage||stage||'unknown';
+ // The Studio's default "generation" covers more than actual model inference.
+ // Reclassify only when the error itself supplies unambiguous evidence.
+ if(errorStage==='generation'){
+  if(busy||status===402||status===401||status===403)errorStage='submit_job';
+  else if(timeout)errorStage='request_timeout';
+  else if(network)errorStage='network';
+  else if(validation)errorStage='input_validation';
+ }
+ let reason='unknown';
+ if(status===402||code==='credit_required')reason='trial_or_credit_required';
+ else if(code==='private_trial_inactive')reason='private_trial_inactive';
+ else if(busy)reason='active_job_conflict';
+ else if(status===401||status===403)reason='authentication_required';
+ else if(timeout)reason='request_timeout';
  else if(error?.name==='AbortError')reason='request_aborted';
- else if(/failed to fetch|load failed|networkerror|fetch failed/i.test(String(error?.message||'')))reason='network_error';
+ else if(network)reason='network_error';
+ else if(validation)reason='input_validation_failed';
  else if(errorStage==='ai_job')reason='ai_job_failed';
  else if(errorStage==='compose')reason='compose_failed';
  else if(errorStage==='cleanup')reason='local_cleanup_failed';
- else if(details.http_status>=500)reason='server_response_error';
- else if(details.http_status>=400)reason='request_rejected';
- analyticsEvent(blocked?'idprom_process_blocked':'idprom_process_error',{...extra,error_stage:errorStage,failure_reason:reason,...(details.http_status?{http_status:details.http_status}:{})});
+ else if(status>=500)reason='server_response_error';
+ else if(status>=400)reason='request_rejected';
+ analyticsEvent(blocked?'idprom_process_blocked':'idprom_process_error',{
+  ...extra,error_stage:errorStage,failure_reason:reason,
+  ...(status?{http_status:status}:{}),
+  ...(code?{error_code:code}:{})
+ });
  }catch{}}
