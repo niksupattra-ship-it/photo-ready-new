@@ -303,8 +303,16 @@ function warmPortraitResources(sourceBlob,templatePath,{requiresSegmentation=tru
  if(!english)void Promise.allSettled([loadImage('/assets/background.jpg'),loadImage(templatePath||'/assets/uniform.png')]);
  // English female portraits retain the complete AI image and never segment
  // its clothes. Do not block that path on an unused segmentation model.
- return Promise.all([getLandmarker(),...(requiresSegmentation?[getPersonSegmenter()]:[])]).catch(cause=>{
-  throw Object.assign(Error('เตรียมระบบประมวลผลรูปไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วกดสร้างรูปใหม่'),{code:'PORTRAIT_MODEL_UNAVAILABLE',cause});
+ // A deployment or intermittent CDN load may interrupt the first model fetch.
+ // Retry initialization once before any paid AI job is submitted: no duplicate
+ // generation and no credits reserved during this preflight.
+ const initialize=()=>Promise.all([getLandmarker(),...(requiresSegmentation?[getPersonSegmenter()]:[])]);
+ return initialize().catch(async firstError=>{
+  try{return await initialize()}catch(cause){
+   throw Object.assign(Error('เตรียมระบบตรวจใบหน้าไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง'),{
+    code:'PORTRAIT_MODEL_UNAVAILABLE',stage:'prepare_model',cause,initialCause:firstError
+   });
+  }
  });
 }
 function interp(points,x){
@@ -5336,7 +5344,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
-  }catch(error){if(error.code!=='USER_CANCELLED'){console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:failureStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,failureStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
+  }catch(error){if(error.code!=='USER_CANCELLED'){error.idpromProcessStage=error.stage||failureStage;console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
