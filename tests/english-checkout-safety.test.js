@@ -24,6 +24,19 @@ test('English checkout requires an account, an owned completed photo, a current 
   const f=fixture({job});assert.equal((await f.request()).status,400);assert.equal(f.calls.length,0);
  }
 });
+test('previous USD offer IDs stay valid for historical receipts but cannot open a new checkout',async()=>{
+ assert.equal(packageFor('usd_single_490_v1').priceCents,490);
+ assert.equal(packageFor('usd_premium_990_v1').priceCents,990);
+ for(const oldId of ['usd_single_490_v1','usd_premium_990_v1']){
+  const f=fixture();
+  const r=await f.request({body:{packageId:oldId}});
+  assert.equal(r.status,400);
+  assert.equal(f.calls.length,0);
+ }
+ assert.equal(packageFor('usd_single_690_v2').priceCents,690);
+ assert.equal(packageFor('usd_premium_1490_v2').priceCents,1490);
+});
+
 test('expired or unlocked photos and an active Premium plan cannot start another charge',async()=>{
  const expired=fixture({job:{status:'completed',has_result:true,created_at:new Date(Date.now()-7*86400000-1000).toISOString()}});assert.equal((await expired.request()).status,410);assert.equal(expired.calls.length,0);
  const paid=fixture({unlocked:true});assert.equal((await paid.request()).status,409);assert.equal(paid.calls.length,0);
