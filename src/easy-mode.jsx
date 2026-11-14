@@ -102,9 +102,9 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
     <div className="easy-landing-examples">
      <p className="easy-landing-example-heading">จากรูปต้นฉบับ สู่รูปพร้อมใช้งาน</p>
      <div className="easy-landing-samples">
-      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="female-suit-03" alt="Women’s job application outfit example"/>:<img src="/assets/home-previews/easy-job-v20261030.webp" width="483" height="640" decoding="async" fetchPriority="high" alt="ตัวอย่างรูปชุดสมัครงาน"/>}<figcaption>ชุดสมัครงาน</figcaption></figure>
-      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="male-suit-03" alt="Men’s job application outfit example"/>:<img src="/assets/home-previews/easy-government-v20261030.webp" width="483" height="640" decoding="async" alt="ตัวอย่างรูปชุดข้าราชการ"/>}<figcaption>{englishPreviewEnabled()?'Men’s job application outfit':'ชุดข้าราชการ'}</figcaption></figure>
-      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="original" alt="Original photo example"/>:<img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261031.webp" width="480" height="640" decoding="async" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/>}<figcaption>รูปต้นฉบับ</figcaption></figure>
+      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="original-v2" alt="Original photo before editing"/>:<img src="/assets/home-previews/easy-job-v20261030.webp" width="483" height="640" decoding="async" fetchPriority="high" alt="ตัวอย่างรูปชุดสมัครงาน"/>}<figcaption>{englishPreviewEnabled()?"Original photo":"ชุดสมัครงาน"}</figcaption></figure>
+      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="natural-v2" alt="Natural studio photo without makeup"/>:<img src="/assets/home-previews/easy-government-v20261030.webp" width="483" height="640" decoding="async" alt="ตัวอย่างรูปชุดข้าราชการ"/>}<figcaption>{englishPreviewEnabled()?'Natural finish':'ชุดข้าราชการ'}</figcaption></figure>
+      <figure>{englishPreviewEnabled()?<EnglishExamplePhoto id="makeup-v2" alt="Studio photo with natural makeup"/>:<img className="easy-landing-original-photo" src="/assets/home-previews/easy-original-v20261031.webp" width="480" height="640" decoding="async" alt="รูปต้นฉบับก่อนเปลี่ยนชุด"/>}<figcaption>{englishPreviewEnabled()?"Makeup finish":"รูปต้นฉบับ"}</figcaption></figure>
      </div>
     </div>
    </section>

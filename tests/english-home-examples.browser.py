@@ -11,7 +11,7 @@ with sync_playwright() as pw:
    p.goto(base+'/scripts/fixtures/english-home-examples.html'+('?lang=en' if english else ''),wait_until='networkidle')
    assert p.locator('.english-example-photo').count()==(3 if english else 0)
    if english:
-    assert p.locator('.easy-landing-samples [data-example="original"]').count()==1
+    assert p.locator('.easy-landing-samples [data-example="original-v2"]').count()==1
     assert p.locator('.studio-featured-list .english-example-photo').count()==0
     assert p.locator('.studio-featured-list img[src*="job-uniforms--"]').count()==5
     bounds=p.locator('.english-example-photo').evaluate_all('(items)=>items.map(x=>{const b=x.getBoundingClientRect();return {w:b.width,h:b.height,right:b.right}})')

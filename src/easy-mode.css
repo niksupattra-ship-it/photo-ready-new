@@ -1282,3 +1282,6 @@
 }
 .idstudio .easy-mode .easy-processing-overlay > button:hover:not(:disabled){background:#ffffff2d}
 @media(max-width:480px){.idstudio .easy-mode .easy-processing-overlay .idprom-process-indicator{width:88px;height:88px}}
+
+/* User-supplied English original, natural and makeup examples; keep within 3:4 cards. */
+.english-example-photo>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center center}
