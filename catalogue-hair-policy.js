@@ -43,7 +43,9 @@ const details={
 export function catalogueHairDetail(id){return details[id]||null}
 export function catalogueHairInstruction(selected,kind){
  const description=details[selected?.id]||(selected?.interfaceLanguage==='en'?selected.description:null);if(!description)return '';
- const lengths=kind==='gathered'
+ const lengths=selected.interfaceLanguage==='en'&&selected.gender==='male'
+  ?'Retain the exact short top, forehead fringe, side taper, sideburns and nape endpoints shown. Preserve intentional curls and curtain pieces; never substitute a bob, long rear hair, beard or a generic business haircut.'
+  :kind==='gathered'
   ?`Retain the exact compact gathering and ${selected.id==='seedream-20'||selected.referenceWisps?'intentional cheek wisps':'clear neck silhouette'} shown. Remove all old rear curtains and long source lengths absent from this gathered reference.`
   :kind==='long'?'Retain ALL visible long lengths, waves, braids and ends from the picker, including its shoulder-side outline. A crop in the reference is not an instruction to shorten the hair.'
   :'Retain the exact bob, lob, shag or pixie endpoint in the reference relative to the jaw, neck and shoulders. Do not turn it into an updo or extend its ends.';
