@@ -44,7 +44,7 @@ with sync_playwright() as pw:
    hair=page.locator('.studio-bottom-choices').get_by_role('button',name='ทรงผม',exact=True)
    hair.click()
    page.locator('.studio-hair-gender button').nth(1).click()
-   assert page.locator('button[aria-label^="เลือกทรงผมชาย "]').count()==4,'Male fixture choices remain intact'
+   assert page.locator('button[aria-label^="เลือกทรงผมชาย "]').count()==(7 if lang=='en' else 4),'Male choices follow the language-specific catalogue'
    page.locator('.studio-hair-gender button').first.click()
    choices=page.locator('button[aria-label^="เลือกทรงผมหญิง "]')
    assert choices.count()==(20 if lang=='en' else 4)
