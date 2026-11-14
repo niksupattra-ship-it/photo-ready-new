@@ -110,8 +110,8 @@ export const SUPPORT_TOPICS_EN=[
     "title": "How to use IDPROM and choose a plan",
     "steps": [
       "Upload a clear, front-facing photo. Choose an outfit and hairstyle, generate an AI result when needed, and review it before checkout.",
-      "Single Image ($4.90) unlocks one selected photo result for watermark-free PNG and PDF downloads.",
-      "Premium ($9.90) provides 20 new AI generations shared across AI tools for 30 days, plus editing and download access under the plan.",
+      "Single Image ($6.90) unlocks one selected photo result for watermark-free PNG and PDF downloads.",
+      "Premium ($14.90) provides 20 new AI generations shared across AI tools for 30 days, plus editing and download access under the plan.",
       "Choose your photo size, download the file, and check that it is saved and opens correctly."
     ]
   },
