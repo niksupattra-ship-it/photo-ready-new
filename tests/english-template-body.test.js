@@ -34,6 +34,24 @@ test('male template generation is one request and the new English policy cannot 
  assert.throws(()=>validateProductionPortrait({buffer:cutout,mimetype:'image/png'},{...fields,interfaceLanguage:'th'}),/English studio/);
 });
 
+test('English male default and female selected hair do not receive an extra automatic full-photo hair reference',async()=>{
+ const base={buffer:cutout,mimetype:'image/png'};
+ const rootPath=new URL('..',import.meta.url).pathname;
+ const maleCalls=[];
+ await processProductionPortrait({input:base,fields:{...fields,portraitMode:'male',hairId:'',femaleFinishPair:undefined},root:rootPath,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{maleCalls.push(p);return {png:cutout}}});
+ assert.equal(maleCalls.length,1);
+ assert.equal(maleCalls[0].hair,null);
+ assert.match(maleCalls[0].prompt,/CLASSIC SIDE PART TAPER/);
+ assert.match(maleCalls[0].prompt,/NATIVE GARMENT DETAIL — IMAGE 2/);
+ assert.equal(seedreamReviewPayload(maleCalls[0]).image.length,2);
+ const chosenCalls=[];
+ await processProductionPortrait({input:base,fields:{...fields,hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1',femaleFinishPair:undefined},root:rootPath,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{chosenCalls.push(p);return {png:cutout}}});
+ assert.equal(chosenCalls.length,1);
+ assert(chosenCalls[0].hair?.length);
+ assert.match(chosenCalls[0].prompt,/SELECTED PICKER HAIR seedream-41/);
+ assert.doesNotMatch(chosenCalls[0].prompt,/ORIGINAL HAIR REFERENCE/);
+});
+
 test('the new English guide contains the original face at fixed size before generation, with no extra AI pass',async()=>{
  const box=[.25,.125,.75,.625],input={buffer:cutout,mimetype:'image/png'},identity=await portraitIdentityCrop(input,box),outfit=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  const expected=await createEnglishBodyLayout(outfit,{headScale:ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_TEMPLATE_PROPORTION_PROFILE});
