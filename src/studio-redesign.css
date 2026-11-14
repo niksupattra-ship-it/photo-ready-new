@@ -2024,7 +2024,7 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
   filter:none!important;
 }
 .idstudio.studio-redesign .studio-warp-modes button:nth-child(n+4) .studio-png-icon{
-  filter:brightness(0) saturate(100%) invert(17%) sepia(71%) saturate(1682%) hue-rotate(201deg) brightness(94%) contrast(98%)!important;
+  filter:none!important;
 }
 .idstudio.studio-redesign .studio-warp-modes button.active{
   background:#eff5ff;
