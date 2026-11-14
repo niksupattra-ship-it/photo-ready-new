@@ -117,3 +117,29 @@
 .idstudio .english-stage-progress-footer a{display:inline-flex;min-height:30px;align-items:center;color:#623cc6;font-size:12px;font-weight:650;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .idstudio .english-stage-progress-footer a:focus-visible{outline:2px solid #7544ec;outline-offset:3px}
 @media(max-width:600px){.idstudio .studio-stage>.english-stage-progress{padding:10px 12px;width:min(280px,calc(100% - 18px));gap:6px}}
+
+
+/* English Studio uses the same minimal percent ring as the main photo editor. */
+.idstudio .studio-stage>.english-stage-progress{
+ align-items:center;gap:12px;
+ padding:22px 18px 18px;
+ background:#fffffff5;
+ border-color:#dce6f7;
+ border-radius:20px;
+ box-shadow:0 15px 48px #0f2e5b29;
+ backdrop-filter:blur(5px);
+}
+.idstudio .english-stage-progress>.idprom-process-indicator{
+ width:100px;height:100px;margin:0 auto 3px;
+}
+.idstudio .english-stage-progress .idprom-process-indicator output{
+ color:#fff!important;font-size:27px!important;
+}
+.idstudio .english-stage-progress .idprom-process-indicator output small{
+ color:#fff!important;font-size:13px!important;
+}
+.idstudio .english-stage-progress-heading{justify-content:center;text-align:center}
+.idstudio .english-stage-progress-heading strong{font-size:16px;color:#15315d}
+.idstudio .english-stage-progress-footer{flex-direction:column;justify-content:center;gap:7px;text-align:center}
+.idstudio .english-stage-progress-footer span{color:#637590;font-size:12px}
+.idstudio .english-stage-progress-footer a{color:#1266d8;text-decoration:none;border:1px solid #c7d9f3;border-radius:8px;min-height:32px;padding:5px 18px}
