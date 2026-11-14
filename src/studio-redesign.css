@@ -2037,3 +2037,55 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
 .idstudio.studio-redesign.studio-touch .studio-warp-modes button{min-height:61px;padding:7px 1px 5px;border-radius:11px;gap:4px}
 .idstudio.studio-redesign.studio-touch .studio-warp-modes .studio-png-icon{width:29px!important;height:29px!important}
 .idstudio.studio-redesign.studio-touch .studio-warp-modes button span{font-size:9px}
+
+
+/* Original bilingual liquify PNG artwork, embedded losslessly in standalone SVG files. */
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons{
+  display:grid!important;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:6px;
+  margin:7px 0 12px;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons button{
+  display:block;
+  flex:none!important;
+  width:100%;
+  min-width:0;
+  min-height:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  line-height:0;
+  overflow:visible;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons button img{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:192 / 200;
+  object-fit:contain;
+  filter:none!important;
+  pointer-events:none;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons button.active{
+  outline:2px solid #0866f7;
+  outline-offset:1px;
+  border-radius:14px;
+  background:transparent;
+  box-shadow:none;
+}
+.idstudio.studio-redesign .studio-warp-modes.liquify-image-buttons button:focus-visible{
+  outline:2px solid #0866f7;
+  outline-offset:1px;
+  border-radius:14px;
+}
+.idstudio.studio-redesign.studio-touch .studio-warp-modes.liquify-image-buttons{
+  gap:3px;
+}
+.idstudio.studio-redesign.studio-touch .studio-warp-modes.liquify-image-buttons button{
+  min-height:0;
+  padding:0;
+  border-radius:0;
+}
