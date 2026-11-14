@@ -1,34 +1,29 @@
-/* Clean purple line-art previews for "AI chooses" on both gender rails.
-   Presentation only: editing, credits, and selection remain with the parent. */
+/* AI Picks / AI เลือกให้: keep the original parent button behavior and size.
+   Only the thumbnail art is replaced with the supplied female/male designs. */
 .auto-hair-tile{
- width:100%;height:100%;min-height:95px;box-sizing:border-box;overflow:hidden;
- display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;
- padding:5px 4px 5px;border:1.5px solid #9763e9;border-radius:10px;background:#fff;
+ position:relative;display:block;box-sizing:border-box;
+ width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;
+ border:0;border-radius:12px;background:#fff;
+ box-shadow:none;padding:0;margin:0;
 }
-.auto-hair-avatar{
- display:block;flex:1 1 auto;min-height:0;width:100%;max-width:106px;max-height:82px;
- object-fit:contain;overflow:visible;
+.auto-hair-modern-image{
+ display:block!important;position:static!important;
+ box-sizing:border-box!important;width:100%!important;
+ height:100%!important;max-width:100%!important;max-height:100%!important;
+ object-fit:contain!important;object-position:center center!important;
+ margin:0!important;padding:0!important;border:0!important;
+ aspect-ratio:1/1;filter:none!important;transform:none!important;
+ pointer-events:none;
 }
-.auto-hair-label{
- display:flex;align-items:center;justify-content:center;gap:3px;
- flex:0 0 auto;width:100%;max-width:116px;min-height:21px;box-sizing:border-box;
- padding:3px 4px;border-radius:20px;
- background:linear-gradient(105deg,#9949f2 0%,#6e2bda 58%,#5520bc 100%);
- color:#fff!important;font-size:10px;font-weight:750;line-height:1.2;letter-spacing:0;
- white-space:nowrap;
+.auto-hair-tile.is-selected{background:#eaf3ff}
+.auto-hair-tile--female:not(.is-selected)::after{
+ content:'';position:absolute;top:4%;right:4%;width:20%;aspect-ratio:1;
+ border-radius:50%;background:#e5f0ff;pointer-events:none;
 }
-.auto-hair-label span{
- height:auto!important;min-height:0!important;width:auto!important;
- display:inline!important;flex:none!important;margin:0!important;padding:0!important;
- background:transparent!important;border:0!important;color:inherit!important;
- font:inherit!important;white-space:nowrap!important;
+.auto-hair-selection-check{
+ position:absolute;top:4%;right:4%;width:20%;aspect-ratio:1;
+ display:grid;place-items:center;border-radius:50%;background:#1265ed;
+ pointer-events:none;
 }
-.auto-hair-wand{width:12px;height:12px;flex:none;color:#fff}
-.auto-hair-tile.is-selected{border-color:#6832d2;background:#fbf9ff;box-shadow:inset 0 0 0 1px #b793f5}
-button:focus-visible .auto-hair-tile{outline:2px solid #7543ed;outline-offset:1px}
-@media(max-width:650px){
- .auto-hair-tile{min-height:88px;padding:4px 2px}
- .auto-hair-avatar{max-height:71px}
- .auto-hair-label{font-size:9px;min-height:20px;gap:2px}
- .auto-hair-wand{width:11px;height:11px}
-}
+.auto-hair-selection-check svg{width:70%;height:70%;display:block}
+button:focus-visible .auto-hair-tile{outline:2px solid #1265ed;outline-offset:-2px}
