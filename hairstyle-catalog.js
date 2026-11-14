@@ -1,3 +1,4 @@
+import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './english-female-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
   {
@@ -246,6 +247,7 @@ export const PRODUCTION_HAIR_CATALOG=[
   "src": "/assets/seedream-hairstyles/previews/39.webp"
 }
   ,{id:'female-default-reference',gender:'female',name:'Internal female first-photo reference',file:'first-female-default.png',src:'/assets/seedream-hairstyles/references/first-female-default.png',hidden:true}
+  ,...ENGLISH_FEMALE_HAIR_CATALOG
 ];
 export const FREE_PNG_HAIR_CATALOG=[21,25,26].map(number=>({id:'hair-'+number,gender:'female',name:'ทรงผม '+number,file:'hair-'+number+'.png',referenceDirectory:'hair',src:'/assets/hairstyle-previews/hair-'+number+'.png'}));
 export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||FREE_PNG_HAIR_CATALOG.find(item=>item.id===id)||null}
@@ -307,11 +309,13 @@ const longDesigns={
 };
 export function selectedHairDesign(selected){
  if(!selected?.id)return null;
+ if(selected.interfaceLanguage==='en')return {kind:selected.kind,description:selected.description};
  const freeDesigns={'hair-21':['gathered','smooth side-parted hair gathered close to the head'],'hair-25':['short','short side-swept pixie with the same fringe and silhouette as the reference'],'hair-26':['gathered','centre-parted hair with a flat braid across the crown, gathered close to the head']};
  const pair=compact[selected.id]||freeDesigns[selected.id];
  return pair?{kind:pair[0],description:pair[1],...(selected.id==='seedream-20'?{faceFraming:true}:{})}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
+ if(selected?.interfaceLanguage==='en')return englishFemaleHairInstruction(selected);
  const design=selectedHairDesign(selected);if(!design)return '';
  const extent=design.kind==='gathered'
   ?'Keep the compact reference hair close to the scalp. Any gathering stays discreetly at the low rear, not above the crown. Keep the neck silhouette clear. NO loose long hair, straight hanging panels, ponytail extensions or curtains behind either ear, jaw, neck or shoulder. Do not interpret a transparent cutout as missing long hair to complete.'
