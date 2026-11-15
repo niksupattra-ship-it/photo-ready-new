@@ -959,7 +959,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!committed)return true;
    undo.current.push(previous);
    if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}
-   redo.current=[];setSelected(created.id);setTool('move');setRevision(v=>v+1);setStatus('เลือกชุดแล้ว · ปรับตำแหน่งและขนาดได้ทันที');
+   redo.current=[];selectedRef.current=created.id;setSelected(created.id);setTool('move');setRevision(v=>v+1);setStatus('เลือกชุดแล้ว · ปรับตำแหน่งและขนาดได้ทันที');
    trackUniformSelection(option,'apply','new');
    endSuitPreview(request);
    // Re-check the server policy without holding the entire editor hostage.
@@ -982,7 +982,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
      const safe=()=>state.current===stable&&!pendingTransforms.current.size&&!gesture.current;
      const changedIds=new Set(fitted.filter(l=>{
       const prior=stable.find(p=>p.id===l.id);
-      return prior&&['source','mask','warpSource','x','y','scale','rotation','squeezeX','squeezeY','neckWidth','neckHeight'].every(key=>l[key]===prior[key]);
+      return prior&&['source','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase','collarParts'].every(key=>l[key]===prior[key]);
      }).map(l=>l.id));
      if(await hydrate(fitted,changedIds,safe)){setRevision(v=>v+1)}
     }).catch(error=>console.warn('Optional suit fit skipped',error?.message));
