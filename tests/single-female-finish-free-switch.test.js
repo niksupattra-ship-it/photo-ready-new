@@ -82,11 +82,15 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const saved=await readFile(new URL('../src/saved-project.js',import.meta.url),'utf8');
  assert.match(store,/SELECT \* FROM ai_jobs WHERE id=\$1 AND wallet_id=\$2 FOR UPDATE/,'Wallet and job are locked for entitlement');
  assert.match(store,/f\.delivery_confirmed!==true/,'Only delivered jobs may request the free opposite');
  assert.match(store,/String\(f\.hairId\|\|'original'\)!==expectedHair/,'An alternative hair ID cannot bypass credits');
  assert.match(store,/String\(f\.neckOutfitReferencePath\|\|''\)!==expectedOutfit/,'An alternative wardrobe cannot bypass credits');
  assert.match(store,/result_makeup=\$4/,'The existing first output is not overwritten');
+ assert.match(store,/CASE WHEN fields->>'femaleFinishSingleVersion'='female-single-finish-v1'/,'Store English hair placement for later same-look cosmetic finish');
+ assert.match(saved,/if\(head\.femaleFinishSingleVersion==='female-single-finish-v1'\)master\.idpromFemaleFinishSingleVersion/,'Purchased photos restore free cosmetic right after reopen');
+ assert.match(studio,/setThaiPendingHair\(null\);setSelectedHair\(''\);setAppearanceError\(null\)/,'New source image cancels pending Thai hair selection');
  assert.match(server,/downloadPolicy\.inputForWork\(wid,fields\.downloadWorkId\)/,'Only pinned owned original inputs are processed');
  assert.match(server,/const nextFields=\{\.\.\.fields,femaleEyeStyle:finish\}/,'Cosmetics are the sole allowed change');
  assert.match(server,/queueFemaleAlternateFinish\(req\.params\.id,walletId\(req\),finish,hair,outfit\)/);
