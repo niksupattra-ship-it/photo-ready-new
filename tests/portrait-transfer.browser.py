@@ -17,6 +17,7 @@ with sync_playwright() as pw:
  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  for lang in ['en','th']:
   page=browser.new_page()
+  page.add_init_script('''window.legacyJobWrites=0;const open=indexedDB.open.bind(indexedDB);indexedDB.open=(name,...args)=>{if(name==='idprom-ai-jobs-v1'){window.legacyJobWrites++;throw Error('Legacy storage unavailable')}return open(name,...args)}''')
   page.set_default_timeout(90000)
   errors=[];posts=[];counts={}
   page.on('pageerror',lambda e:errors.append(str(e)))
@@ -60,7 +61,7 @@ with sync_playwright() as pw:
   assert posts[1]['contentType']=='application/json' and posts[1]['bytes']<10000,'Hairstyle changes reuse the stored original'
   assert all(r['hash']==result['naturalHash'] and r['makeupHash']==result['naturalHash'] for r in result['results']),'Both received image files retain their bytes'
   assert not errors,errors
-  reports.append({'language':lang,'passed':True,'posts':posts,'jobStatusAndResultsRecovered':True,'bothFinishFilesExact':True})
+  reports.append({'language':lang,'passed':True,'posts':posts,'jobStatusAndResultsRecovered':True,'bothFinishFilesExact':True,'legacyStorageUnavailable':True})
   print(json.dumps(reports[-1]),flush=True)
   page.close()
  browser.close()

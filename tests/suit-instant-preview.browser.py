@@ -43,7 +43,10 @@ with sync_playwright()as pw:
    held.pop(PATHS[1]).continue_();p.wait_for_function('id=>suitFixture.snapshot.current().layers.find(l=>l.kind===\'suit\').assetId===id',arg=IDS[1]);expect(download).to_be_enabled()
    assert p.evaluate("async()=>{const s=suitFixture.snapshot.current().layers.find(l=>l.kind==='suit'),im=await createImageBitmap(await(await fetch(s.source)).blob());const ok=im.width===1504&&im.height===1285;im.close();return ok}")
    if lang=='en':
-    assert p.evaluate("suitFixture.snapshot.current().layers.find(l=>l.kind==='head'||l.kind==='source-photo')")==initial_head,'Manual PNG selection changed portrait pixels/geometry';assert p.evaluate('suitFixture.faceCalls')==1,'Face calls: '+str(p.evaluate('suitFixture.faceCalls'))
+    selected_head=p.evaluate("suitFixture.snapshot.current().layers.find(l=>l.kind==='head'||l.kind==='source-photo')")
+    assert selected_head.get('englishNeckClipMask') is None,'Legacy neck clipping must be removed'
+    assert {k:v for k,v in selected_head.items()if k!='englishNeckClipMask'}=={k:v for k,v in initial_head.items()if k!='englishNeckClipMask'},'Manual PNG selection changed portrait pixels/geometry'
+    assert p.evaluate('suitFixture.faceCalls')==0,'Native PNG selection must not wait for unused face measurements'
    held.pop(PATHS[0]).continue_();p.wait_for_timeout(150);assert selection()['id']==IDS[1],'Late old original overwrote latest choice'
    # Undo/redo contain only the full-quality committed choice.
    if not easy:

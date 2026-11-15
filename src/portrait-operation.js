@@ -1,3 +1,21 @@
+export function createPortraitOperation({scope,headers={},settled=false}={}){
+ return {jobId:null,cancelled:false,cancelling:false,settled,finishing:false,finished:false,scope,headers:{...headers},readController:new AbortController()};
+}
+const cancelled=()=>Object.assign(Error('ยกเลิกการประมวลผลแล้ว'),{code:'USER_CANCELLED'});
+export function assertPortraitOperationActive(operation,scope){
+ if(operation?.scope!==undefined&&operation.scope!==scope){operation.cancelled=true;operation.readController?.abort()}
+ if(operation?.cancelled)throw cancelled();
+}
+export function waitForPortraitOperation(ms,operation){
+ const signal=operation?.readController?.signal;
+ if(operation?.cancelled||signal?.aborted)return Promise.reject(cancelled());
+ return new Promise((resolve,reject)=>{
+  const cleanup=()=>{clearTimeout(timer);signal?.removeEventListener('abort',abort)};
+  const abort=()=>{cleanup();reject(cancelled())};
+  const timer=setTimeout(()=>{cleanup();resolve()},ms);
+  signal?.addEventListener('abort',abort,{once:true});
+ });
+}
 // The submit response identifies the server job. Keep cancellation visible until
 // that response settles, so a late job can be cancelled without losing its ID.
 export function submitPortraitJob(operation,submit){
@@ -15,6 +33,9 @@ export function submitPortraitJob(operation,submit){
 }
 export function cancelPortraitJob(operation,settle){
  if(!operation)return Promise.resolve();
+ // Abort only status/result reads. Keep a pending POST alive so its actual
+ // job ID can still be received and cancelled with the original owner's rights.
+ operation.readController?.abort();
  if(operation.cancellation)return operation.cancellation;
  const pending=(async()=>{
   try{await operation.pendingSubmission}catch{
