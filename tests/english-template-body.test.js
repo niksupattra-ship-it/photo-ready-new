@@ -132,8 +132,8 @@ test('English male AI generation uses a smaller proportional head without alteri
  const male=ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,female=ENGLISH_TEMPLATE_PROPORTION_PROFILE;
  const maleRatio=male.headWidthToShoulder*male.identityHeadScale;
  const femaleRatio=female.headWidthToShoulder*female.identityHeadScale;
- assert(maleRatio>.34&&maleRatio<.38,'Male head guide must remain natural, not tiny');
- assert(maleRatio<femaleRatio*.9,'Men should no longer inherit the enlarged female v9 head target');
+ assert(maleRatio>.30&&maleRatio<.33,'Male head guide should be about 31% of fixed garment shoulders');
+ assert(maleRatio<femaleRatio*.8,'Men should no longer inherit the enlarged female v9 head target');
  assert.equal(female.headWidthToShoulder,.44,'Keep the female head target unchanged');
  const maleFields={...fields,portraitMode:'male',femaleFinishPair:undefined,faceIdentityBox:JSON.stringify([.22,.1,.78,.72])};
  const input={buffer:cutout,mimetype:'image/png'};
@@ -145,9 +145,12 @@ test('English male AI generation uses a smaller proportional head without alteri
  assert.equal(calls.length,1,'Do not consume a second AI generation to change proportions');
  assert.deepEqual(calls[0].portrait,expected,'The actual first AI reference uses male guide proportions');
  assert.match(calls[0].prompt,/MALE BODY BALANCE/);
- assert.match(calls[0].prompt,/35–37%/);
+ assert.match(calls[0].prompt,/30–32%/);
  assert.doesNotMatch(calls[0].prompt,/40–42%|NEVER raise the chin or reduce the face size/);
  assert.match(calls[0].prompt,/Keep the garment at EXACTLY this template size/);
+ assert.match(calls[0].prompt,/FINAL ENGLISH MALE SHORT-HAIR \/ NAPE PRIORITY/);
+ assert.match(calls[0].prompt,/no mullet, rear hair curtain/i);
+ assert.match(calls[0].prompt,/without adding a beard or extra rear lengths|no back curtain/i);
  const femalePrompt=englishTemplateBodyPrompt({gender:'female',identityIndex:1,outfitIndex:2,identityLayout:true,proportionLock:true,naturalHeadNeck:true});
  assert.match(femalePrompt,/40–42%/);
  assert.doesNotMatch(femalePrompt,/MALE BODY BALANCE/);
