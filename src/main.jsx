@@ -2655,10 +2655,13 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  let output;
  try{output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged||gathered})}
  catch(error){
-  // The generated image may be valid even when the browser's local segmentation
-  // model cannot classify hair/clothes. Require a real face before treating the
-  // quality test as inconclusive; never accept a blank or faceless result.
-  if(error?.code!=='portrait_finish_incomplete'||!String(error.message).includes('ตรวจความครบถ้วน'))throw error;
+  // Failure to load the segmentation model is not proof of a bad AI photo.
+  // Only an independently detected face can allow an inconclusive quality
+  // review; definite garment/hairstyle mismatches remain rejected.
+  const modelUnavailable=/model|segment|mediapipe|wasm|timeout|timed out|โหลดเครื่องมือ|เครื่องมือ.*ไม่พร้อม/i.test(String(error?.message||''))||
+   ['PORTRAIT_MODEL_TIMEOUT','PORTRAIT_MODEL_UNAVAILABLE'].includes(error?.code);
+  const missingEvidence=error?.code==='portrait_finish_incomplete'&&String(error.message).includes('ตรวจความครบถ้วน');
+  if(!modelUnavailable&&!missingEvidence)throw error;
   const im=await decodedPortraitImage(result);
   const face=await portraitFaceLandmarks(result,im);
   if(!face?.[33]||!face?.[263]||!face?.[152])throw error;
@@ -5748,11 +5751,10 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    let aiHead;
    try{aiHead=await generate()}
    catch(error){
-    const transient=operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled&&(
-     ['fetch_result','fetch_makeup','verify_rights','poll_job'].includes(error?.idpromProcessStage)||
-     [408,429,500,502,503,504].includes(Number(error?.status||0))||
-     /network|fetch failed|failed to fetch|timeout|timed out|ใช้เวลานาน|การเชื่อมต่อ/i.test(String(error?.message||''))
-    );
+    // Once AI has finished, retry one LOCAL postprocessing or network error
+    // using its exact existing server job. Quality rejection/cancellation is
+    // never retried as a successful image.
+    const transient=Boolean(operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled);
     if(!transient)throw error;
     console.warn('AI output was already generated; automatically recovering the same job',operation.jobId);
     portraitResultCache.clear();
@@ -5789,7 +5791,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
   }catch(error){if(error.code!=='USER_CANCELLED'){
-   error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;
+   error.idpromProcessStage=error.idpromProcessStage||error.stage||(operation?.serverCompleted&&failureStage==='generation'?'local_finish':failureStage);
    if(operation?.serverCompleted&&!operation.settled&&!operation.qualityRejected)error.idpromRecoverableJob=true;
    console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
