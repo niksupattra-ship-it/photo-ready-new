@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
-import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE} from '../english-body-layout.js';
+import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE} from '../english-body-layout.js';
 import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_SIZE} from '../english-template-body-policy.js';
@@ -125,4 +125,30 @@ test('v9 visibly expands the approved head and treats the lower blouse opening a
  assert.match(v9,/NEVER raise the chin or reduce the face size/);
  const v8=englishTemplateBodyPrompt({...base,naturalHeadNeck:false});
  assert.doesNotMatch(v8,/ENGLISH V9 — VISIBLE NECK IS SHORT|40–42%/);
+});
+
+
+test('English male AI generation uses a smaller proportional head without altering female v9 or outfit pixels',async()=>{
+ const male=ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,female=ENGLISH_TEMPLATE_PROPORTION_PROFILE;
+ const maleRatio=male.headWidthToShoulder*male.identityHeadScale;
+ const femaleRatio=female.headWidthToShoulder*female.identityHeadScale;
+ assert(maleRatio>.34&&maleRatio<.38,'Male head guide must remain natural, not tiny');
+ assert(maleRatio<femaleRatio*.9,'Men should no longer inherit the enlarged female v9 head target');
+ assert.equal(female.headWidthToShoulder,.44,'Keep the female head target unchanged');
+ const maleFields={...fields,portraitMode:'male',femaleFinishPair:undefined,faceIdentityBox:JSON.stringify([.22,.1,.78,.72])};
+ const input={buffer:cutout,mimetype:'image/png'};
+ const native=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ const identity=await portraitIdentityCrop(input,[.22,.1,.78,.72]);
+ const expected=await createEnglishBodyLayout(native,{headScale:male.identityHeadScale,identity,canvasWidth:1824,profile:male});
+ const calls=[];
+ await processProductionPortrait({input,fields:maleFields,root,key:'fixture',removeBackground:async()=>cutout,requestPortrait:async p=>{calls.push(p);return{png:cutout}}});
+ assert.equal(calls.length,1,'Do not consume a second AI generation to change proportions');
+ assert.deepEqual(calls[0].portrait,expected,'The actual first AI reference uses male guide proportions');
+ assert.match(calls[0].prompt,/MALE BODY BALANCE/);
+ assert.match(calls[0].prompt,/35–37%/);
+ assert.doesNotMatch(calls[0].prompt,/40–42%|NEVER raise the chin or reduce the face size/);
+ assert.match(calls[0].prompt,/Keep the garment at EXACTLY this template size/);
+ const femalePrompt=englishTemplateBodyPrompt({gender:'female',identityIndex:1,outfitIndex:2,identityLayout:true,proportionLock:true,naturalHeadNeck:true});
+ assert.match(femalePrompt,/40–42%/);
+ assert.doesNotMatch(femalePrompt,/MALE BODY BALANCE/);
 });
