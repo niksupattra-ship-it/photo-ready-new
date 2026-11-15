@@ -5,6 +5,7 @@ import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
 import {preparePortraitUpload} from './portrait-upload.js';
+import {validPortraitSubmissionId} from './portrait-submission-key.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
@@ -31,7 +32,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
+import {createAiJob,getAiSubmissionReceipt,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -500,6 +501,11 @@ app.post('/api/ai-jobs',(req,res,next)=>{
  let createdJobId=null,creditUse=null,stage='validate';const started=Date.now();
  const logStage=(next,extra={})=>{stage=next;console.info('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,...extra}))};
  try{
+  if(req.body?.clientSubmissionId){
+   if(!validPortraitSubmissionId(req.body.clientSubmissionId))return res.status(400).json({error:'invalid_submission_id'});
+   const receipt=await getAiSubmissionReceipt(walletId(req),req.body.clientSubmissionId);
+   if(receipt)return res.status(202).json(receipt);
+  }
   await preparePortraitUpload(req,{policy:downloadPolicy,wallet:walletId(req),recoverWork:recoverPortraitWork,isOriginalRequest:isOriginalPortraitAiRequest});
   const image=req.files?.image?.[0],mask=req.files?.mask?.[0],originalSource=req.files?.originalSource?.[0];
   if(!image)return res.status(400).json({error:'image_required'});
@@ -513,11 +519,11 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   creditUse=await requireCredit(req,res,creditKind);
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}
   logStage('persist_job');
-  const downloadWorkId=await downloadPolicy.beginWork(walletId(req),image.buffer,String(req.body?.downloadWorkId||''),req.get('X-IDPROM-Saved-Work')||'',originalSource?.buffer||null,{imageType:image.mimetype,originalType:originalSource?.mimetype||image.mimetype});
+  const downloadWorkId=req.reusedPortraitWork||await downloadPolicy.beginWork(walletId(req),image.buffer,String(req.body?.downloadWorkId||''),req.get('X-IDPROM-Saved-Work')||'',originalSource?.buffer||null,{imageType:image.mimetype,originalType:originalSource?.mimetype||image.mimetype});
   // beginWork verifies the immutable raw-source hash and wallet ownership first.
   // Original-AI jobs then use those proven original bytes, even for an older
   // work whose separate canonical input was previously levelled or encoded.
-  const pinned=isOriginalPortraitAiRequest(req.body)?{buffer:originalSource.buffer,mimetype:originalSource.mimetype}:await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,delivery_pending:true,delivery_confirmed:false};
+  const pinned=isOriginalPortraitAiRequest(req.body)?{buffer:originalSource.buffer,mimetype:originalSource.mimetype}:await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,downloadWorkId,delivery_pending:true,delivery_confirmed:false};
   // Only the immutable, owned work input reaches generation. A raw-upload proof
   // does not authorize substituting unrelated pixels beside that proof.
    if(!pinned.buffer.equals(image.buffer)){
@@ -536,11 +542,23 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   res.status(202).json({downloadWorkId,jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});
   logStage('queued',{jobId:id});setImmediate(()=>runAiJob(id));
  }catch(e){
+  if(e.code==='ai_submission_exists'){
+   if(creditUse)await refundCredit(creditUse.usageId);
+   const receipt=await getAiSubmissionReceipt(walletId(req),req.body.clientSubmissionId);
+   if(receipt)return res.status(202).json(receipt);
+   return res.status(503).json({error:'submission_receipt_unavailable'});
+  }
   // Log the failed stage before refund/storage recovery can itself wait.
   console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
   if(createdJobId)try{await failAiJob(createdJobId,'work_binding_failed')}catch(cleanupError){console.error('AI binding cleanup:',cleanupError.code||'storage_error')}
   if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:e.code==='active_ai_job'?'active_ai_job':e.code==='original_upload_required'?'original_upload_required':'job_create_failed',message:e.message,...(e.code==='active_ai_job'&&e.activeJobId?{activeJobId:e.activeJobId}:{})});
  }
+});
+app.get('/api/ai-submissions/:id',async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ if(!validPortraitSubmissionId(req.params.id))return res.status(400).json({error:'invalid_submission_id'});
+ try{const receipt=await getAiSubmissionReceipt(walletId(req),req.params.id,true);if(!receipt)return res.status(404).json({error:'submission_not_found'});res.json(receipt)}
+ catch(e){res.status(503).json({error:'submission_receipt_unavailable'})}
 });
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
  if(!['cancel','confirm'].includes(req.params.action))return next();

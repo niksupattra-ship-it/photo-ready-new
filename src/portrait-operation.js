@@ -19,6 +19,7 @@ export function waitForPortraitOperation(ms,operation){
 // The submit response identifies the server job. Keep cancellation visible until
 // that response settles, so a late job can be cancelled without losing its ID.
 export function submitPortraitJob(operation,submit){
+ if(operation?.pendingSubmission)return operation.pendingSubmission;
  const pending=Promise.resolve().then(()=>{
   // A user can cancel during local preparation before submission starts.
   // Never launch that later server request after cancellation was accepted.

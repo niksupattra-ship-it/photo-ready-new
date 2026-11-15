@@ -115,7 +115,7 @@ import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
 import {submitPortraitJob,cancelPortraitJob,createPortraitOperation,assertPortraitOperationActive,waitForPortraitOperation} from './portrait-operation.js';
-import {submitPortraitTransfer,portraitTransferError} from './portrait-transfer.js';
+import {submitPortraitTransfer,portraitTransferError,createPortraitSubmissionId} from './portrait-transfer.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
 
@@ -2921,10 +2921,12 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female',originalAi=portraitMode==='female';
+ const submissionId=operation?.submissionId||createPortraitSubmissionId();if(operation)operation.submissionId=submissionId;
  const info=await submitPortraitJob(operation,async()=>{
  let pinnedInput=null;
  for(let canonicalAttempt=0;canonicalAttempt<2;canonicalAttempt++){
  const fd=new FormData();
+ fd.append('clientSubmissionId',submissionId);
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
  const aiInput=originalAi?originalFile:pinnedInput||await canonicalPortraitInput(originalFile,{normalize:levelPortraitCutout,legacy:Boolean(activeSavedDownloadWork)});assertProcessActive(operation);
  fd.append('image',aiInput,aiInput===originalFile?(originalFile.name||'portrait.png'):'portrait-upright.png');
@@ -2956,7 +2958,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  assertProcessActive(operation);
  const acceptTrial=acceptedPaidTrial;acceptedPaidTrial=false;
  const submitHeaders={...(operation?.headers||walletHeaders()),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})};
- const transfer=()=>submitPortraitTransfer(portraitFetch,fd,{headers:submitHeaders,source:originalFile,originalAi,hashSource:resultSourceDigest,assertActive:()=>assertProcessActive(operation)});
+ const transfer=()=>submitPortraitTransfer(portraitFetch,fd,{headers:submitHeaders,source:originalFile,originalAi,hashSource:resultSourceDigest,assertActive:()=>assertProcessActive(operation),onRecover:()=>options.onJobStatus?.('queued','recover_submission')});
  let r=await transfer();
  // A different tab can already be generating for this wallet. Wait for that
  // wallet-owned job to leave the active queue, then submit THIS photo once.
