@@ -18,19 +18,52 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
 export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
  const {key}=options;
  if(!key)throw Object.assign(Error('ยังไม่ได้ตั้งค่า ARK_API_KEY '),{status:500});
- const signal=AbortSignal.timeout(timeoutMs);
- let response;
- try{response=await fetchImpl(REVIEW_SEEDREAM_ENDPOINT,{signal,method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(seedreamReviewPayload(options))});}
- catch(e){if(signal.aborted)throw Object.assign(Error('Seedream ใช้เวลาเกิน 4 นาที กรุณาลองใหม่'),{status:504,code:'seedream_timeout'});throw e}
- const body=await response.json().catch(()=>null);
- if(signal.aborted)throw Object.assign(Error('Seedream ใช้เวลาเกิน 4 นาที กรุณาลองใหม่'),{status:504,code:'seedream_timeout'});
- if(!response.ok){
-  const detail=String(body?.error?.message||body?.message||'คำขอไม่สำเร็จ').slice(0,600);
-  throw Object.assign(Error(`Seedream ประมวลผลไม่สำเร็จ (${response.status}): ${detail}`),{status:response.status,code:body?.error?.code||'seedream_failed'});
+ const payload=JSON.stringify(seedreamReviewPayload(options));
+ // Retry only temporary transport/provider failures within the SAME queued
+ // wallet job. No new credit is reserved, and image-content/moderation
+ // rejections are never retried.
+ for(let attempt=0;attempt<2;attempt++){
+  const signal=AbortSignal.timeout(timeoutMs);
+  let response,body;
+  try{
+   response=await fetchImpl(REVIEW_SEEDREAM_ENDPOINT,{
+    signal,method:'POST',
+    headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},
+    body:payload
+   });
+  }catch(error){
+   const timedOut=signal.aborted;
+   if(attempt===0){console.warn('Temporary image-provider transport failure; retrying once',timedOut?'timeout':'network');await new Promise(resolve=>setTimeout(resolve,900));continue}
+   if(timedOut)throw Object.assign(Error('Seedream ใช้เวลาเกิน 4 นาที กรุณาลองใหม่'),{status:504,code:'seedream_timeout'});
+   throw error;
+  }
+  try{body=await response.json()}catch{
+   if(attempt===0&&[200,408,429,500,502,503,504].includes(response.status)){
+    console.warn('Temporary image-provider response format; retrying once',response.status);
+    await new Promise(resolve=>setTimeout(resolve,900));continue;
+   }
+   throw Object.assign(Error('ผู้ให้บริการ AI ส่งข้อมูลตอบกลับไม่สมบูรณ์'),{status:502,code:'seedream_response_invalid'});
+  }
+  if(!response.ok){
+   const detail=String(body?.error?.message||body?.message||'คำขอไม่สำเร็จ').slice(0,600);
+   if(attempt===0&&[408,425,429,500,502,503,504].includes(response.status)){
+    const retryAfter=Math.min(3000,Math.max(0,Number(response.headers?.get?.('retry-after'))*1000||1000));
+    console.warn('Temporary image-provider status; retrying once',response.status);
+    await new Promise(resolve=>setTimeout(resolve,retryAfter));continue;
+   }
+   throw Object.assign(Error(`Seedream ประมวลผลไม่สำเร็จ (${response.status}): ${detail}`),{status:response.status,code:body?.error?.code||'seedream_failed'});
+  }
+  const b64=body?.data?.[0]?.b64_json;
+  if(typeof b64!=='string'||!b64.length){
+   if(attempt===0){console.warn('Image-provider response has no PNG; retrying once');continue}
+   throw Object.assign(Error('Seedream ไม่ได้ส่งภาพกลับมา'),{status:502,code:'seedream_empty_result'});
+  }
+  const png=Buffer.from(b64,'base64');
+  if(png.length<8||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))){
+   if(attempt===0){console.warn('Image-provider returned invalid PNG; retrying once');continue}
+   throw Object.assign(Error('Seedream ส่งผลลัพธ์ที่ไม่ใช่ PNG'),{status:502,code:'seedream_invalid_png'});
+  }
+  return {png,requestId:response.headers?.get?.('x-request-id')||''};
  }
- const b64=body?.data?.[0]?.b64_json;
- if(typeof b64!=='string'||!b64.length)throw Object.assign(Error('Seedream ไม่ได้ส่งภาพกลับมา'),{status:502});
- const png=Buffer.from(b64,'base64');
- if(png.length<8||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Object.assign(Error('Seedream ส่งผลลัพธ์ที่ไม่ใช่ PNG'),{status:502});
- return {png,requestId:response.headers?.get?.('x-request-id')||''};
+ throw Object.assign(Error('ผู้ให้บริการ AI ไม่สามารถส่งภาพกลับมาได้'),{status:502,code:'seedream_unavailable'});
 }
