@@ -285,7 +285,15 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
   return false;
  };
- const selectEditorTool=id=>{if(touch){setTouchToolsOpen(false);if(hydratingRef.current||!ready||blockingAssetBusy||processActive||comparing)return}if(chooseCanvasTool(id)){if(touch&&id==='move'){const target=state.current.find(l=>l.id===selectedRef.current);setTouchLayersOpen(!target);setLayerGuide(!target);setTouchOpen(Boolean(target))}return;}setTool(id);setCursor(null);setLayerGuide(!current&&id!=='pan');if(id==='neck'&&!touch){const suit=neckSuit();setSelected(suit?.id||null);setLayerGuide(false);if(!suit)setStatus('เลือกชุดก่อนปรับคอเสื้อ')}if(!touch&&id!=='pan')desktopLayersRef.current?.scrollIntoView({block:'nearest'});if(touch){if(id==='neck'){const suit=neckSuit();setSelected(suit?.id||null);setLayerGuide(false);setTouchLayersOpen(false);setToolRailOpen(!suit);setPicker(false);setTouchOpen(false);setTouchMore(suit?'tool':false);setTouchMenu(false);if(!suit)setStatus('เลือกชุดก่อนปรับคอเสื้อ');return}const reopen=Boolean(current);setTouchLayersOpen(!reopen&&id!=='pan');setToolRailOpen(true);setPicker(false);setTouchMore(reopen&&!['move','transform'].includes(id)?'tool':false);setTouchOpen(reopen&&['move','transform'].includes(id));if(id==='transform')setTouchTab('scale');setTouchMenu(false)}};
+ const selectEditorTool=id=>{
+  // Pixel-level erasing and warping need the native garment first. Position,
+  // scale, rotation and neck controls remain usable on the 512px layer.
+  if(['erase','warp','restore'].includes(id)&&state.current.some(l=>layerKind(l)==='suit'&&l.suitPreviewOnly)){
+   setStatus('กำลังเตรียมชุดความละเอียดสูงสำหรับเครื่องมือแก้รายละเอียด…');
+   void promotePreviewSuit().then(ok=>{if(ok)selectEditorTool(id);else setStatus('ยังเตรียมชุดสำหรับแก้รายละเอียดไม่สำเร็จ กรุณาลองใหม่')})
+    .catch(error=>setStatus(error.message||'เตรียมชุดความละเอียดสูงไม่สำเร็จ กรุณาลองใหม่'));return;
+  }
+  if(touch){setTouchToolsOpen(false);if(hydratingRef.current||!ready||blockingAssetBusy||processActive||comparing)return}if(chooseCanvasTool(id)){if(touch&&id==='move'){const target=state.current.find(l=>l.id===selectedRef.current);setTouchLayersOpen(!target);setLayerGuide(!target);setTouchOpen(Boolean(target))}return;}setTool(id);setCursor(null);setLayerGuide(!current&&id!=='pan');if(id==='neck'&&!touch){const suit=neckSuit();setSelected(suit?.id||null);setLayerGuide(false);if(!suit)setStatus('เลือกชุดก่อนปรับคอเสื้อ')}if(!touch&&id!=='pan')desktopLayersRef.current?.scrollIntoView({block:'nearest'});if(touch){if(id==='neck'){const suit=neckSuit();setSelected(suit?.id||null);setLayerGuide(false);setTouchLayersOpen(false);setToolRailOpen(!suit);setPicker(false);setTouchOpen(false);setTouchMore(suit?'tool':false);setTouchMenu(false);if(!suit)setStatus('เลือกชุดก่อนปรับคอเสื้อ');return}const reopen=Boolean(current);setTouchLayersOpen(!reopen&&id!=='pan');setToolRailOpen(true);setPicker(false);setTouchMore(reopen&&!['move','transform'].includes(id)?'tool':false);setTouchOpen(reopen&&['move','transform'].includes(id));if(id==='transform')setTouchTab('scale');setTouchMenu(false)}};
  const pickerDrawerRef=useRef(null),pickerSwipeRef=useRef(null),pickerSuppressClickRef=useRef(0);
  useEffect(()=>{
   if(!picker)return;
@@ -779,6 +787,14 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
 
   setSavePopup({state:'saving',title:'กำลังเตรียมดาวน์โหลด',message:'กำลังเตรียมไฟล์ภาพ กรุณารอสักครู่'});
   try{
+   // The editor deliberately uses a lightweight 512px suit while moving and
+   // resizing. Never export those preview pixels: wait for the exact native
+   // garment here and preserve the customer's current transform/mask.
+   if(state.current.some(l=>layerKind(l)==='suit'&&l.suitPreviewOnly)){
+    setSavePopup({state:'saving',title:'กำลังเตรียมดาวน์โหลด',message:'กำลังเตรียมชุดต้นฉบับความละเอียดสูง…'});
+    const full=await promotePreviewSuit();
+    if(!full)throw Error('ยังเตรียมชุดความละเอียดสูงไม่ได้ กรุณาลองดาวน์โหลดอีกครั้ง');
+   }
    if(!automatic)await prepareSourceDownload();
    if(onCheckoutPreview){
     flushTransforms();const frame=placementRef.current||{W:1128,H:1536},thumb=Object.assign(document.createElement('canvas'),{width:400,height:Math.round(400*frame.H/frame.W)}),ctx=thumb.getContext('2d');
@@ -943,7 +959,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!committed)return true;
    undo.current.push(previous);
    if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}
-   redo.current=[];setSelected(created.id);setRevision(v=>v+1);setStatus('เลือกชุดแล้ว · ปรับตำแหน่งและขนาดได้ทันที');
+   redo.current=[];setSelected(created.id);setTool('move');setRevision(v=>v+1);setStatus('เลือกชุดแล้ว · ปรับตำแหน่งและขนาดได้ทันที');
    trackUniformSelection(option,'apply','new');
    endSuitPreview(request);
    // Re-check the server policy without holding the entire editor hostage.
