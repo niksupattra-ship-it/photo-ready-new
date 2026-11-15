@@ -2655,10 +2655,13 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  let output;
  try{output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged||gathered})}
  catch(error){
-  // The generated image may be valid even when the browser's local segmentation
-  // model cannot classify hair/clothes. Require a real face before treating the
-  // quality test as inconclusive; never accept a blank or faceless result.
-  if(error?.code!=='portrait_finish_incomplete'||!String(error.message).includes('ตรวจความครบถ้วน'))throw error;
+  // Failure to load the segmentation model is not proof of a bad AI photo.
+  // Only an independently detected face can allow an inconclusive quality
+  // review; definite garment/hairstyle mismatches remain rejected.
+  const modelUnavailable=/model|segment|mediapipe|wasm|timeout|timed out|โหลดเครื่องมือ|เครื่องมือ.*ไม่พร้อม/i.test(String(error?.message||''))||
+   ['PORTRAIT_MODEL_TIMEOUT','PORTRAIT_MODEL_UNAVAILABLE'].includes(error?.code);
+  const missingEvidence=error?.code==='portrait_finish_incomplete'&&String(error.message).includes('ตรวจความครบถ้วน');
+  if(!modelUnavailable&&!missingEvidence)throw error;
   const im=await decodedPortraitImage(result);
   const face=await portraitFaceLandmarks(result,im);
   if(!face?.[33]||!face?.[263]||!face?.[152])throw error;
@@ -2868,9 +2871,13 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  // in pose, crop and cosmetic contrast must not discard a completed image.
  try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){
   if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
-  // An actual identity/hair-quality rejection must not be recovered as if it
-  // were a transient network interruption; cancel it and refund the credit.
-  if(operation)operation.qualityRejected=true;
+  // Only definite image-quality failures may cancel and refund this job.
+  // Model initialization, missing segmentation evidence, timeouts and decoder
+  // errors are LOCAL failures and must never delete a server-completed photo.
+  const definiteQualityReject=['portrait_finish_incomplete','selected_hairstyle_mismatch','face_proportion_changed'].includes(error?.code)||
+   /No clear face was found|ไม่พบใบหน้าในผลลัพธ์|ตรวจ.*ใบหน้า.*ไม่พบ/i.test(String(error?.message||''));
+  if(operation&&definiteQualityReject)operation.qualityRejected=true;
+  else if(operation?.serverCompleted)error.idpromRecoverableJob=true;
   portraitResultCache.delete(key);throw error;
  }
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
@@ -2901,7 +2908,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const finished=await finishRequested(result);
   if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
   assertCurrentOperation();
-  writeActiveAiJob({jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
+  writeActiveAiJob({...(readActiveAiJob()?.jobId===jobId?readActiveAiJob():{}),jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
   window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:result.idpromTrial,fullEdit:verified.fullEdit}}));
   options.onJobStatus?.('completed');
   return finished;
@@ -3000,15 +3007,37 @@ async function submitPortraitWithRecovery(transfer,submissionId,operation){
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
- const submissionKey=JSON.stringify([hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'']);
+ const submissionKey=JSON.stringify([hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':'th']);
+ const sourceDigest=await resultSourceDigest(originalFile);
+ const ownerScope=walletScope(authToken(),currentWalletId());
+ const priorJob=readActiveAiJob();
+ let alreadyOwned=null;
+ // A server-side generation can finish even if this browser crashes while
+ // decoding / rendering its result. On the SAME source, settings and account,
+ // attach to that job first, rather than reserving another AI generation.
+ if(priorJob?.scope===ownerScope&&priorJob.sourceDigest===sourceDigest&&priorJob.submissionKey===submissionKey&&/^job_[a-f0-9]{36}$/.test(priorJob.jobId||'')){
+  try{
+   const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(priorJob.jobId),{headers:operation?.headers||walletHeaders(),cache:'no-store',signal:operation?.readController?.signal},20000);
+   assertProcessActive(operation);
+   if(response.ok){
+    const status=await response.json();
+    if(['queued','processing','completed'].includes(status.status))alreadyOwned={jobId:priorJob.jobId,status:status.status,trialPreview:Boolean(priorJob.trialPreview),downloadWorkId:originalFile.idpromDownloadWorkId||''};
+    else if(status.status==='failed')clearActiveAiJob(priorJob.jobId);
+   }else if(response.status!==404)throw Object.assign(Error('ยังตรวจงาน AI ที่ทำไว้ก่อนหน้าไม่ได้ กรุณาลองเปิดอีกครั้ง ไม่ต้องส่งสร้างภาพซ้ำ'),{status:response.status,code:'AI_EXISTING_JOB_CHECK_FAILED'});
+  }catch(error){
+   if(error.code==='USER_CANCELLED')throw error;
+   // A failed status lookup is NOT evidence that it is safe to charge again.
+   throw Object.assign(Error('ยังตรวจสอบงาน AI ที่สร้างไว้ก่อนหน้าไม่ได้ กรุณาลองเปิดอีกครั้งโดยไม่สร้างงานใหม่'),{code:'AI_EXISTING_JOB_CHECK_FAILED',cause:error});
+  }
+ }
  const submissionId=pendingPortraitSubmission?.source===originalFile&&pendingPortraitSubmission.key===submissionKey
-  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-','');
+  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-');
  pendingPortraitSubmission={source:originalFile,key:submissionKey,id:submissionId};
- await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
+ if(!alreadyOwned)await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female',originalAi=portraitMode==='female';
- const info=await submitPortraitJob(operation,async()=>{
+ const info=alreadyOwned||await submitPortraitJob(operation,async()=>{
  let pinnedInput=null;
  for(let canonicalAttempt=0;canonicalAttempt<2;canonicalAttempt++){
  const fd=new FormData();
@@ -3084,7 +3113,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(info.downloadWorkId)originalFile.idpromDownloadWorkId=info.downloadWorkId;
  if(operation){operation.jobId=info.jobId;if(operation.cancelled){await cancelPortraitJob(operation,()=>settleProcessOperation(operation,'cancel'));throw cancelledProcessError()}}
  assertProcessActive(operation);
- writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
+ writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now(),sourceDigest,submissionKey,scope:ownerScope});
  // Keep the displayed balance until processing is confirmed; reservations prevent concurrent overspending.
  const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);
  // A reserved paid generation is not a trial just because its download has
@@ -5726,11 +5755,10 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    let aiHead;
    try{aiHead=await generate()}
    catch(error){
-    const transient=operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled&&(
-     ['fetch_result','fetch_makeup','verify_rights','poll_job'].includes(error?.idpromProcessStage)||
-     [408,429,500,502,503,504].includes(Number(error?.status||0))||
-     /network|fetch failed|failed to fetch|timeout|timed out|ใช้เวลานาน|การเชื่อมต่อ/i.test(String(error?.message||''))
-    );
+    // Once AI has finished, retry one LOCAL postprocessing or network error
+    // using its exact existing server job. Quality rejection/cancellation is
+    // never retried as a successful image.
+    const transient=Boolean(operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled);
     if(!transient)throw error;
     console.warn('AI output was already generated; automatically recovering the same job',operation.jobId);
     portraitResultCache.clear();
@@ -5767,7 +5795,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
   }catch(error){if(error.code!=='USER_CANCELLED'){
-   error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;
+   error.idpromProcessStage=error.idpromProcessStage||error.stage||(operation?.serverCompleted&&failureStage==='generation'?'local_finish':failureStage);
    if(operation?.serverCompleted&&!operation.settled&&!operation.qualityRejected)error.idpromRecoverableJob=true;
    console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
