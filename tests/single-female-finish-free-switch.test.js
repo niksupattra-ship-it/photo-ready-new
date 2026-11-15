@@ -117,7 +117,7 @@ test('Hair-first and Makeup-first selections require explicit completion before 
  assert.match(studio,/if\(activeHead&&!finishChanged&&/,'Already visible exact image does not call provider');
  assert.match(studio,/if\(mode==='female'\)setEasyFaceFinish\(finish\)/,'Completed AI output matches selected finish');
  assert.match(studio,/const easyFinishPending=Boolean/,'Easy Mode stages changes');
- assert.match(easy,/!thaiHairConfirmation\|\|choicesReady/,'Easy Mode Create hidden until selections complete');
+ assert.match(easy,/!hasResult&&thaiHairConfirmation&&choicesReady&&currentSuit/,'Easy Mode Create appears immediately when both choices and outfit are ready');
  assert.match(easy,/if\(hasResult\|\|thaiHairConfirmation\)onHair\(h\.id\)/,'First Easy Mode hairstyle choice is recorded, not ignored');
  assert.match(easy,/onSelect=\{style=>\{onSelectFaceFinish\?\.\(style\);setTab\('hair'\)/,'Easy Mode Makeup-first auto-opens Hair');
  assert.match(english,/setChoiceFlow\(previous=>previous\?\.first==='finish'&&previous\.step==='hair'/,'English Makeup-first -> Hair completion');
@@ -189,7 +189,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/onHair=\{englishFlow\?\(easyHasResult\?chooseHair:processEasyPhoto\):chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Thai Easy Mode uses the selection-confirm flow while English keeps its original quick action');
  assert.match(studio,/thaiHairConfirmation=\{!englishFlow\}/,'English Easy Mode retains existing behavior');
  assert.match(easy,/\(hasResult\|\|thaiHairConfirmation\)\&\&tab==='hair'/,'Thai Easy Mode must offer the hairstyle list before initial AI generation');
- assert.match(easy,/onGenerateHair\?\.\(choice\)/,'Thai Easy Mode must send the selected haircut, not auto-default hair');
+ assert.match(easy,/onGenerateHair\?\.\(choice\|\|selectedHair\|\|''\)/,'Thai Easy Mode sends the selected hairstyle or current draft');
  assert.match(easy,/thaiHairConfirmation&&hasResult&&\(hairSelectionPending\|\|finishChangePending\)/,'Thai Easy Mode holds hair and makeup selections until confirmation');
  assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'/,'Single-finish Makeup must not silently run local cosmetics instead of the AI worker');
 });
