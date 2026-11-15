@@ -2866,7 +2866,10 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  // Female AI finishes preserve geometry through the original-upload prompts.
  // Source/output landmark ratios are estimates, not a delivery gate: changes
  // in pose, crop and cosmetic contrast must not discard a completed image.
- try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){portraitResultCache.delete(key);throw error}
+ try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){
+  if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
+  portraitResultCache.delete(key);throw error;
+ }
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  const finishRequested=async base=>{
@@ -5743,7 +5746,10 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
-  }catch(error){if(error.code!=='USER_CANCELLED'){error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
+  }catch(error){if(error.code!=='USER_CANCELLED'){
+   error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;
+   if(operation?.serverCompleted&&!operation.settled)error.idpromRecoverableJob=true;
+   console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
