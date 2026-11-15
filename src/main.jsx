@@ -2652,7 +2652,20 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  const compareUnchanged=requestedHair&&result.idpromStudioSkinVersion!==ORIGINAL_PORTRAIT_AI_VERSION;
  const selected=PRODUCTION_HAIR_CATALOG.find(item=>item.id===hairId);
  const gathered=result.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&(!requestedHair||selectedHairDesign(selected)?.kind==='gathered');
- const output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged||gathered});
+ let output;
+ try{output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged||gathered})}
+ catch(error){
+  // The generated image may be valid even when the browser's local segmentation
+  // model cannot classify hair/clothes. Require a real face before treating the
+  // quality test as inconclusive; never accept a blank or faceless result.
+  if(error?.code!=='portrait_finish_incomplete'||!String(error.message).includes('ตรวจความครบถ้วน'))throw error;
+  const im=await decodedPortraitImage(result);
+  const face=await portraitFaceLandmarks(result,im);
+  if(!face?.[33]||!face?.[263]||!face?.[152])throw error;
+  console.warn('Studio quality model did not provide all labels; keeping generated face for user review');
+  result.idpromQualityReviewNeeded=true;
+  return;
+ }
  if(!output.garments?.measurable){
   // A segmentation measurement is not proof that AI generation failed.
   // Retain a completed image if the local quality checker is inconclusive.
@@ -5705,7 +5718,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    const head=layers.find(l=>l.name==='หัว · คอ · ผม');
    if(!head)throw Error('ไม่ได้รับเลเยอร์ภาพใหม่');
    const jobId=aiHead.idpromJobId,isTrial=Boolean(aiHead.idpromTrial);
-   Object.assign(head,{jobId,restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',hairPolicyVersion:portraitMode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle,initialFemaleEyeStyle:femaleEyeStyle,...(femaleEyeStyle==='soft-rosy-v1'?{softRosyFinishVersion:'soft-radiance-korean-brows-v7'}:{}),...femaleFinishMetadata(master)});
+   Object.assign(head,{jobId,qualityReviewNeeded:Boolean(aiHead.idpromQualityReviewNeeded),restrictedTrial:isTrial,outputUnlocked:!isTrial,hairId:selectedHair||'',hairPolicyVersion:portraitMode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle,initialFemaleEyeStyle:femaleEyeStyle,...(femaleEyeStyle==='soft-rosy-v1'?{softRosyFinishVersion:'soft-radiance-korean-brows-v7'}:{}),...femaleFinishMetadata(master)});
    const commit=()=>{
     if(delivered)return;assertProcessActive(operation);delivered=true;
     file.idpromPortraitMode=portraitMode;file.idpromFemaleEyeStyle=femaleEyeStyle;firstUploadedPhotoRef.current=file;setF(file);
