@@ -103,7 +103,7 @@ test('Thai hairstyle and makeup choices are reversible in one photo job, with no
  assert.match(haircut,/setThaiChoiceFlow\(\{origin:'finish',step:'ready'\}\)/,'Makeup-first becomes ready after Hair');
  assert.match(haircut,/setThaiChoiceFlow\(\{origin:'hair',step:'ready'\}\)/,'Hair-first becomes ready after Makeup');
  assert.match(haircut,/const backThaiChoice=\(\)=>/,'The back arrow has a reversible transition handler');
- assert.match(haircut,/previous\.origin==='hair'\?'finish':'hair'/,'Ready back follows the true original selection order');
+ assert.match(haircut,/flow\.origin==='hair'\?'finish':'hair'/,'Ready back follows the true original selection order');
  assert.match(haircut,/setPicker\('hair'\)/,'Returning to hair preserves the same Studio job');
  assert.doesNotMatch(haircut,/void applyHair\(chosen\.hairId/,'Choosing either appearance option must not spend AI');
  assert.match(finish,/setThaiChoiceFlow\(\{origin:'finish',step:'hair'\}\)/,'Makeup-first shows the hairstyle panel');
