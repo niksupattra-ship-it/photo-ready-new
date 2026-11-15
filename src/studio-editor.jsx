@@ -989,8 +989,11 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    }
    return true;
   }catch(error){
-   if(error?.code!=='SUIT_SELECTION_REPLACED')setStatus('เลือกชุดไม่สำเร็จ กรุณาลองอีกครั้ง');
-   return true;
+   if(error?.code==='SUIT_SELECTION_REPLACED')return true;
+   // If a preview is missing, damaged, or fails to decode, retry the
+   // established native selection path instead of disabling this outfit.
+   console.warn('Quick outfit preview unavailable; falling back to native source',error?.message);
+   return false;
   }finally{if(suitRequestRef.current===request)endSuitPreview(request)}
  };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false}={})=>{
@@ -1015,7 +1018,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   // Complex body-generated outfits and legacy repair paths retain the proven
   // full-resolution selection pipeline without changing their behavior.
   if(kind==='suit'&&option&&!combinedBody&&!repairSuitFit&&suitPreviewSource(option.template)){
-   await quickSuitSelection({option,target,fitHead,manualSuit});return;
+   if(await quickSuitSelection({option,target,fitHead,manualSuit}))return;
   }
   let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target):null;
   const blockingSelection=!request&&!(kind==='suit'&&!option);
