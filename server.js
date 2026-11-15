@@ -7,6 +7,7 @@ import {recoverPortraitWork} from './portrait-work-recovery.js';
 import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
+import {FEMALE_SINGLE_FINISH_VERSION} from './female-single-finish-policy.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
 import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
@@ -31,7 +32,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
+import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -570,6 +571,53 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:e.code==='active_ai_job'?'active_ai_job':e.code==='original_upload_required'?'original_upload_required':'job_create_failed',message:e.message,...(e.code==='active_ai_job'&&e.activeJobId?{activeJobId:e.activeJobId}:{})});
  }
 });
+// A second cosmetic finish uses the SAME purchased/trial job and the SAME
+// wallet-owned immutable source, outfit and hair. No new credit is reserved.
+// Its async worker survives a tab close and is resumable after server restart.
+const activeFemaleAlternateFinishes=new Set();
+async function runFemaleAlternateFinish(id){
+ if(activeFemaleAlternateFinishes.has(id))return;
+ activeFemaleAlternateFinishes.add(id);
+ let claimed=null,heartbeat=null,finish=null;
+ try{
+  claimed=await claimFemaleAlternateFinish(id);
+  if(!claimed)return;
+  const fields=claimed.fields||{},wid=claimed.wallet_id;
+  finish=fields.alternateFinish;
+  if(!['natural','makeup'].includes(finish)||fields.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('Invalid alternate finish');
+  heartbeat=setInterval(()=>{void touchFemaleAlternateFinish(id).catch(()=>{})},30000);heartbeat.unref?.();
+  const original=await downloadPolicy.inputForWork(wid,fields.downloadWorkId);
+  if(!original?.buffer?.length)throw Error('Original portrait is no longer available; the existing result is preserved');
+  await getModnetSession();
+  const nextFields={...fields,femaleEyeStyle:finish};
+  delete nextFields.femaleFinishPair;
+  // An alternate only changes cosmetics. All other choices are copied from
+  // the pinned source job rather than accepted from the incoming request.
+  validateProductionPortrait(original,nextFields);
+  const currentHair=await loadCurrentHairReference(nextFields,wid,getAiJobResult);
+  const result=await processProductionPortrait({
+   input:original,fields:nextFields,root:dir,currentHair,
+   removeBackground:source=>modnetRemoveBackground(source,{refine:false}),
+   key:process.env.ARK_API_KEY,
+   onStage:async stage=>{console.info('Alternate finish stage',id,stage)}
+  });
+  if(!await completeFemaleAlternateFinish(id,wid,finish,result))throw Error('Alternate finish was superseded');
+  console.info('Alternate finish completed',id,finish);
+ }catch(error){
+  console.error('Alternate finish error',id,error?.code||error?.message);
+  if(claimed&&finish)await failFemaleAlternateFinish(id,finish).catch(()=>{});
+ }finally{clearInterval(heartbeat);activeFemaleAlternateFinishes.delete(id)}
+}
+app.post('/api/ai-jobs/:id/finish',async(req,res)=>{
+ res.set('Cache-Control','private, no-store');
+ try{
+  const finish=String(req.body?.finish||''),hair=String(req.body?.hairId||'original'),outfit=String(req.body?.templatePath||'');
+  if(!['natural','makeup'].includes(finish)||hair.length>160||outfit.length>512)return res.status(400).json({error:'invalid_finish_request'});
+  const result=await queueFemaleAlternateFinish(req.params.id,walletId(req),finish,hair,outfit);
+  if(result.status===202)setImmediate(()=>runFemaleAlternateFinish(req.params.id));
+  return res.status(result.status).json(result);
+ }catch(error){console.error('Alternate finish request:',error.code||'error');return res.status(503).json({error:'alternate_finish_unavailable'})}
+});
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{
  if(!['cancel','confirm'].includes(req.params.action))return next();
  try{const result=await settleAiJobDelivery(req.params.id,walletId(req),req.params.action);res.status(result.status).json(result)}
@@ -589,12 +637,20 @@ app.post('/api/ai-jobs/:id/proportions',async(req,res)=>{
 });
 app.get('/api/ai-jobs/:id',async(req,res)=>{try{const j=await getAiJob(req.params.id,walletId(req));if(!j)return res.status(404).json({error:'job_not_found'});res.json(j)}catch(e){res.status(500).json({error:'job_status_failed'})}});
 app.get('/api/ai-jobs/:id/result',async(req,res)=>{try{
- const wid=walletId(req),j=await getAiJobResult(req.params.id,wid,req.query.finish==='makeup');if(!j)return res.status(404).send('ไม่พบงาน');
+ const wid=walletId(req),j=await getAiJobResult(req.params.id,wid,Boolean(req.query.finish));if(!j)return res.status(404).send('ไม่พบงาน');
  if(j.status==='failed')return res.status(409).send(j.error||'ประมวลผลไม่สำเร็จ');if(j.status!=='completed'||!j.result)return res.status(202).send('กำลังประมวลผล');
  if(req.query.finish&&!['natural','makeup'].includes(req.query.finish))return res.status(400).send('รูปแบบภาพไม่ถูกต้อง');
- if(req.query.finish==='makeup'&&!j.result_makeup)return res.status(404).send('งานนี้ยังไม่มีภาพแต่งหน้า');
+ let chosen=j.result;
+ if(j.femaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION&&req.query.finish){
+  if(req.query.finish===j.femaleEyeStyle)chosen=j.result;
+  else if(req.query.finish===j.alternateFinish&&j.alternateFinishStatus==='completed'&&j.result_makeup)chosen=j.result_makeup;
+  else return res.status(202).send('กำลังประมวลผลแบบที่เลือก');
+ }else if(req.query.finish==='makeup'){
+  if(!j.result_makeup)return res.status(404).send('งานนี้ยังไม่มีภาพแต่งหน้า');
+  chosen=j.result_makeup;
+ }
  const trial=!await accountPolicy(req).allowed(wid,req.params.id,{savedWorkId:req.get('X-IDPROM-Saved-Work')||''});
- res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(req.query.finish==='makeup'?j.result_makeup:j.result);
+ res.type('png').set('Cache-Control','no-store').set('X-IDPROM-Trial',trial?'1':'0').send(chosen);
 }catch(e){res.status(500).send('โหลดผลลัพธ์ไม่สำเร็จ')}});
 app.post('/api/images/:id/claim',async(req,res)=>{try{
  const user=req.accountUser||await authUser(req);if(!user)return res.status(401).json({error:'auth_required'});
@@ -621,7 +677,7 @@ app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-s
  res.status(out.ok?200:402).json({...out,...await getWallet(req.accountUser.wallet_id),...await policy.summary(req.accountUser.wallet_id)});
 }catch(e){res.status(e.status||503).json({error:'unlock_failed',message:'ยังปลดล็อกไม่ได้ กรุณาลองใหม่ ไม่ต้องจ่ายซ้ำ'})}});
 
-const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id))}catch(e){console.error('Resume AI jobs:',e)}};
+const resumeQueuedAiJobs=async()=>{try{for(const id of await queuedAiJobs())setImmediate(()=>runAiJob(id));for(const id of await queuedFemaleAlternateFinishes())setImmediate(()=>runFemaleAlternateFinish(id))}catch(e){console.error('Resume AI jobs:',e)}};
 setTimeout(()=>{void getModnetSession().then(()=>console.info('MODNet ready')).catch(e=>console.error('MODNet warmup:',e.message))},2000).unref();
 setTimeout(resumeQueuedAiJobs,1500);
 setInterval(resumeQueuedAiJobs,60000);

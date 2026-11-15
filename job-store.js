@@ -63,8 +63,52 @@ export async function claimAiJob(id){await ready();const {rows}=await pool.query
 export async function touchAiJob(id,stage=null){await ready();await pool.query(`UPDATE ai_jobs SET updated_at=now(),fields=CASE WHEN $2::text IS NULL THEN fields ELSE fields||jsonb_build_object('processing_stage',$2::text) END WHERE id=$1 AND status='processing'`,[id,stage])}
 export async function completeAiJob(id,result,makeup=null){await ready();await pool.query(`UPDATE ai_jobs SET status='completed',result=$2,result_makeup=$3,error=NULL,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference'-'studioSkinEvidence'-'englishHairFit',updated_at=now() WHERE id=$1 AND status='processing'`,[id,result,makeup])}
 export async function failAiJob(id,error){await ready();await pool.query(`UPDATE ai_jobs SET status='failed',error=$2,image='\\x'::bytea,mask=NULL,fields=fields-'femaleMakeupReference'-'studioSkinEvidence'-'englishHairFit',updated_at=now() WHERE id=$1 AND status IN ('queued','processing')`,[id,String(error||'AI processing failed').slice(0,2000)])}
-export async function getAiJob(id,walletId){await ready();const {rows}=await pool.query(`SELECT id,status,error,created_at,updated_at,fields->>'processing_stage' AS stage,fields->>'studioSkinVersion' AS "studioSkinVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'portraitMode' AS "portraitMode",fields->>'portraitComposition' AS "portraitComposition",fields->>'englishStudioFinishVersion' AS "englishStudioFinishVersion",fields->>'proportion_correction' AS "proportionCorrection",fields->>'naturalFinishVersion' AS "naturalFinishVersion",(result_makeup IS NOT NULL) AS "hasMakeupVariant",(result IS NOT NULL) AS has_result FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
-export async function getAiJobResult(id,walletId,includeMakeup=false){await ready();const {rows}=await pool.query(`SELECT status,result,${includeMakeup?'result_makeup':'NULL AS result_makeup'},error,usage_id FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
+
+export async function queueFemaleAlternateFinish(id,walletId,finish,expectedHair,expectedOutfit){
+ if(!/^job_[a-f0-9]{36}$/.test(id)||!['natural','makeup'].includes(finish)||!walletId)return {status:400,error:'invalid_finish_request'};
+ await ready();const c=await pool.connect();
+ try{
+  await c.query('BEGIN');
+  await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  const row=await c.query('SELECT * FROM ai_jobs WHERE id=$1 AND wallet_id=$2 FOR UPDATE',[id,walletId]);
+  const j=row.rows[0];if(!j){await c.query('ROLLBACK');return {status:404,error:'job_not_found'}}
+  const f=j.fields||{};
+  if(j.status!=='completed'||!j.result||f.femaleFinishSingleVersion!=='female-single-finish-v1'||f.portraitMode!=='female'||f.delivery_confirmed!==true||!f.downloadWorkId||!['natural','makeup'].includes(f.femaleEyeStyle)||String(f.hairId||'original')!==expectedHair||String(f.neckOutfitReferencePath||'')!==expectedOutfit){
+   await c.query('ROLLBACK');return {status:409,error:'finish_not_eligible'};
+  }
+  if(f.femaleEyeStyle===finish){await c.query('ROLLBACK');return {status:200,ready:true,finish}};
+  if(f.alternateFinish&&f.alternateFinish!==finish){await c.query('ROLLBACK');return {status:409,error:'different_finish_already_selected'}};
+  if(f.alternateFinishStatus==='completed'&&j.result_makeup){await c.query('ROLLBACK');return {status:200,ready:true,finish}};
+  if(['queued','processing'].includes(f.alternateFinishStatus)){await c.query('ROLLBACK');return {status:202,ready:false,finish}};
+  const attempts=Number(f.alternateFinishAttempts||0);
+  if(attempts>=3){await c.query('ROLLBACK');return {status:409,error:'finish_retry_limit'}};
+  await c.query("UPDATE ai_jobs SET fields=fields||jsonb_build_object('alternateFinish',$3::text,'alternateFinishStatus','queued','alternateFinishAttempts',$4::integer),updated_at=now() WHERE id=$1 AND wallet_id=$2",[id,walletId,finish,attempts+1]);
+  await c.query('COMMIT');return {status:202,ready:false,finish};
+ }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
+export async function claimFemaleAlternateFinish(id){
+ await ready();
+ const {rows}=await pool.query("UPDATE ai_jobs SET fields=fields||'{\"alternateFinishStatus\":\"processing\"}'::jsonb,updated_at=now() WHERE id=$1 AND status='completed' AND result IS NOT NULL AND fields->>'femaleFinishSingleVersion'='female-single-finish-v1' AND fields->>'alternateFinishStatus'='queued' RETURNING wallet_id,fields",[id]);
+ return rows[0]||null;
+}
+export async function touchFemaleAlternateFinish(id){
+ await ready();await pool.query("UPDATE ai_jobs SET updated_at=now() WHERE id=$1 AND status='completed' AND fields->>'alternateFinishStatus'='processing'",[id]);
+}
+export async function completeFemaleAlternateFinish(id,walletId,finish,result){
+ await ready();const {rowCount}=await pool.query("UPDATE ai_jobs SET result_makeup=$4,fields=fields||'{\"alternateFinishStatus\":\"completed\"}'::jsonb,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'alternateFinish'=$3 AND fields->>'alternateFinishStatus'='processing' AND result_makeup IS NULL",[id,walletId,finish,result]);
+ return rowCount>0;
+}
+export async function failFemaleAlternateFinish(id,finish){
+ await ready();await pool.query("UPDATE ai_jobs SET fields=fields||'{\"alternateFinishStatus\":\"failed\"}'::jsonb,updated_at=now() WHERE id=$1 AND status='completed' AND fields->>'alternateFinish'=$2 AND fields->>'alternateFinishStatus'='processing'",[id,finish]);
+}
+export async function queuedFemaleAlternateFinishes(){
+ await ready();
+ await pool.query("UPDATE ai_jobs SET fields=fields||'{\"alternateFinishStatus\":\"queued\"}'::jsonb,updated_at=now() WHERE status='completed' AND fields->>'femaleFinishSingleVersion'='female-single-finish-v1' AND fields->>'alternateFinishStatus'='processing' AND updated_at<now()-interval '4 minutes'");
+ const {rows}=await pool.query("SELECT id FROM ai_jobs WHERE status='completed' AND fields->>'femaleFinishSingleVersion'='female-single-finish-v1' AND fields->>'alternateFinishStatus'='queued' ORDER BY updated_at ASC LIMIT 12");
+ return rows.map(x=>x.id);
+}
+export async function getAiJob(id,walletId){await ready();const {rows}=await pool.query(`SELECT id,status,error,created_at,updated_at,fields->>'processing_stage' AS stage,fields->>'studioSkinVersion' AS "studioSkinVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'portraitMode' AS "portraitMode",fields->>'portraitComposition' AS "portraitComposition",fields->>'englishStudioFinishVersion' AS "englishStudioFinishVersion",fields->>'proportion_correction' AS "proportionCorrection",fields->>'naturalFinishVersion' AS "naturalFinishVersion",fields->>'femaleFinishSingleVersion' AS "femaleFinishSingleVersion",fields->>'alternateFinish' AS "alternateFinish",fields->>'alternateFinishStatus' AS "alternateFinishStatus",(result_makeup IS NOT NULL AND NOT (fields ? 'femaleFinishSingleVersion')) AS "hasMakeupVariant",(result IS NOT NULL) AS has_result FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
+export async function getAiJobResult(id,walletId,includeMakeup=false){await ready();const {rows}=await pool.query(`SELECT status,result,${includeMakeup?'result_makeup':'NULL AS result_makeup'},error,usage_id,fields->>'femaleFinishSingleVersion' AS "femaleFinishSingleVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'alternateFinish' AS "alternateFinish",fields->>'alternateFinishStatus' AS "alternateFinishStatus" FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
 export async function getAiJobsAccess(ids,walletId){if(!ids.length)return [];await ready();const {rows}=await pool.query('SELECT id,status,usage_id FROM ai_jobs WHERE wallet_id=$1 AND id=ANY($2::text[])',[walletId,ids]);return rows}
 export async function queuedAiJobs(){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='queued',updated_at=now() WHERE status='processing' AND updated_at < now()-interval '3 minutes' RETURNING id`);const q=await pool.query(`SELECT id FROM ai_jobs WHERE status='queued' ORDER BY created_at ASC LIMIT 20`);return q.rows.map(r=>r.id)}
 
