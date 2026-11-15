@@ -4088,7 +4088,7 @@ function App(){
   // Limit large image downloads and memory use on mobile. The most recent
   // paid photos are prepared first while the history thumbnails are visible.
   void (async()=>{
-   for(const item of items.filter(row=>row.editorStored).slice(0,3)){
+   for(const item of items.slice(0,2)){
     if(scope!==walletScope(authToken(),currentWalletId()))return;
     try{await startPurchasedEditorPrefetch(item)}catch(error){console.debug('Purchased editor prefetch skipped',error?.message)}
    }
@@ -4129,7 +4129,7 @@ function App(){
      if(known?.checked===false||known?.unlocked===false)throw Error('ยังยืนยันสิทธิ์ที่ชำระแล้วไม่ได้ ไม่ต้องชำระซ้ำ');
      activePurchasedPhotoRef.current={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};openPurchasedFullStudio();setPurchasedPhotosOpen(false);return;
     }
-    if(item.editorStored){
+    if(item.id&&item.updatedAt){
      try{
       const prepared=await startPurchasedEditorPrefetch(item);
       ensureSame();
