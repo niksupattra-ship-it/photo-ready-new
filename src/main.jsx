@@ -2914,9 +2914,52 @@ function measureEnglishHairPlacement(blob){
  }
  return pending;
 }
+// Preserve the one upload identity across disconnects. Query the original
+// wallet job first; retransmit only with the SAME nonce if no receipt exists.
+// Server-side nonce deduplication prevents duplicate AI jobs or credit use.
+async function submitPortraitWithRecovery(transfer,submissionId,operation){
+ const lookup=async()=>{
+  const response=await portraitFetch('/api/ai-jobs/submission/'+submissionId,{
+   headers:operation?.headers||walletHeaders(),cache:'no-store',signal:operation?.readController?.signal
+  },12000);
+  if(response.status===404)return null;
+  if(!response.ok)throw Object.assign(Error('Submission status temporarily unavailable'),{status:response.status});
+  const info=await response.json();
+  return info?.jobId?info:null;
+ };
+ const recover=async()=>{
+  for(let i=0;i<10;i++){
+   assertProcessActive(operation);
+   try{
+    const existing=await lookup();
+    if(existing)return new Response(JSON.stringify(existing),{status:202,headers:{'Content-Type':'application/json'}});
+   }catch(error){assertProcessActive(operation);console.warn('AI upload recovery lookup',i+1,error?.status||error?.code||'network')}
+   await waitForPortraitOperation(i<3?1200:2200,operation);
+  }
+  return null;
+ };
+ try{return await transfer()}
+ catch(error){
+  assertProcessActive(operation);
+  const transient=error?.code==='REQUEST_TIMEOUT'||error?.name==='AbortError'||error?.name==='TypeError'||
+   /failed to fetch|network|timeout|timed out|load failed|การเชื่อมต่อ|ใช้เวลานาน/i.test(String(error?.message||''));
+  if(!transient)throw error;
+  const recovered=await recover();
+  if(recovered)return recovered;
+  // No receipt was found. This is the same logical submission, not a new
+  // generation: the wallet-scoped nonce is deduplicated atomically on server.
+  try{return await transfer()}
+  catch(secondError){
+   const again=await recover();
+   if(again)return again;
+   throw secondError;
+  }
+ }
+}
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
+ const submissionId=crypto.randomUUID().replaceAll('-','');
  await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
@@ -2931,6 +2974,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(aiInput===originalFile)fd.append('originalSourceIsImage','1');
  else fd.append('originalSource',originalFile,originalFile.name||'original-portrait.png');
  fd.append('hairId',hairId||'original');
+ fd.append('submissionId',submissionId);
  if(originalFile.idpromDownloadWorkId)fd.append('downloadWorkId',originalFile.idpromDownloadWorkId);
  if(options.sourceJobId)fd.append('sourceJobId',options.sourceJobId);
  fd.append('femaleEyeStyle',portraitFinishChoice(options.femaleEyeStyle));
@@ -2957,7 +3001,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const acceptTrial=acceptedPaidTrial;acceptedPaidTrial=false;
  const submitHeaders={...(operation?.headers||walletHeaders()),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})};
  const transfer=()=>submitPortraitTransfer(portraitFetch,fd,{headers:submitHeaders,source:originalFile,originalAi,hashSource:resultSourceDigest,assertActive:()=>assertProcessActive(operation)});
- let r=await transfer();
+ let r=await submitPortraitWithRecovery(transfer,submissionId,operation);
  // A different tab can already be generating for this wallet. Wait for that
  // wallet-owned job to leave the active queue, then submit THIS photo once.
  // The conflict response has not created a job or spent a generation.
@@ -2980,7 +3024,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
    await waitForPortraitOperation(3000,operation);
   }
   assertProcessActive(operation);
-  r=await transfer();
+  r=await submitPortraitWithRecovery(transfer,submissionId,operation);
  }
 
  if(r.status===409&&r.headers.get('X-IDPROM-Canonical-Input')==='1'){
