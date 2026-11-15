@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import pg from 'pg';
+import {portraitSubmissionJobId} from './portrait-submission-key.js';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for job storage');
 const pool=new Pool({connectionTimeoutMillis:10000,statement_timeout:20000,connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'?false:{rejectUnauthorized:false}});
@@ -19,13 +20,24 @@ async function ready(){
  return readyPromise;
 }
 export async function createAiJob({walletId,usageId,fields,image,mask}){
- await ready();const id='job_'+crypto.randomBytes(18).toString('hex'),c=await pool.connect();
+ await ready();const id=portraitSubmissionJobId(walletId,fields?.clientSubmissionId)||'job_'+crypto.randomBytes(18).toString('hex'),c=await pool.connect();
  try{await c.query('BEGIN');await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  if(fields?.clientSubmissionId){const existing=await c.query('SELECT id FROM ai_jobs WHERE id=$1 AND wallet_id=$2',[id,walletId]);if(existing.rowCount)throw Object.assign(Error('submission already accepted'),{code:'ai_submission_exists'});}
   const active=await c.query("SELECT id FROM ai_jobs WHERE wallet_id=$1 AND status IN ('queued','processing') LIMIT 1",[walletId]);
   if(active.rowCount)throw Object.assign(Error('กรุณารอภาพก่อนหน้าสร้างเสร็จก่อน ไม่จำกัดจำนวนครั้งต่อวัน'),{status:429,code:'active_ai_job',activeJobId:active.rows[0].id});
   await c.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,mask,mask_name,mask_type) VALUES($1,$2,$3,'queued',$4,$5,$6,$7,$8,$9,$10)`,[id,walletId,usageId,fields||{},image.buffer,image.originalname||'image.png',image.mimetype||'image/png',mask?.buffer||null,mask?.originalname||null,mask?.mimetype||null]);
   await c.query('COMMIT');return id;
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
+}
+
+export async function getAiSubmissionReceipt(wallet,submission,allowLegacy=false){
+ const id=portraitSubmissionJobId(wallet,submission);if(!id)return null;
+ await ready();let {rows}=await pool.query(`SELECT id AS "jobId",fields->>'downloadWorkId' AS "downloadWorkId",status,(usage_id LIKE 'free_%' OR usage_id LIKE 'trial_%') AS "trialPreview" FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,wallet]);
+ // An in-flight upload may finish on an older instance during a rollout.
+ // That instance retains the nonce in fields but uses a random job ID.
+ // Only recovery reads need this bounded legacy lookup, not normal submits.
+ if(!rows.length&&allowLegacy)({rows}=await pool.query(`SELECT id AS "jobId",fields->>'downloadWorkId' AS "downloadWorkId",status,(usage_id LIKE 'free_%' OR usage_id LIKE 'trial_%') AS "trialPreview" FROM ai_jobs WHERE wallet_id=$1 AND fields->>'clientSubmissionId'=$2 AND created_at>now()-interval '5 minutes' ORDER BY created_at DESC LIMIT 1`,[wallet,submission]));
+ return rows[0]||null;
 }
 
 export async function createSourceDownloadJob({walletId,key,image}){

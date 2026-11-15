@@ -9,7 +9,23 @@ export function provenOriginalInput(row,sha256){
  return {buffer,mimetype:row.canonical_type||'image/png',originalname:'original-portrait'};
 }
 
+export function provenCanonicalInput(row,originalSha256,inputSha256){
+ if(!/^[a-f0-9]{64}$/.test(originalSha256||'')||!/^[a-f0-9]{64}$/.test(inputSha256||'')||!row?.canonical_image?.length)return null;
+ const buffer=Buffer.from(row.canonical_image);
+ if(row.original_source_hash!==originalSha256||createHash('sha256').update(buffer).digest('hex')!==inputSha256)return null;
+ return {buffer,mimetype:row.canonical_type||'image/png',originalname:'portrait-input'};
+}
+
 export async function preparePortraitUpload(req,{policy,wallet,recoverWork,isOriginalRequest}){
+ if(req.body?.reuseCanonicalInput==='1'){
+  if(!req.is('application/json')||req.files&&Object.keys(req.files).length||req.body.reuseOriginalSource==='1'||req.body.originalSourceIsImage==='1'||isOriginalRequest(req.body))throw Object.assign(Error('invalid_source_reuse'),{status:400});
+  const work=await recoverWork(policy,wallet,req.body);
+  const input=await policy.canonicalInputForWork(wallet,work,req.body.originalSourceSha256,req.body.canonicalInputSha256);
+  if(!input)throw Object.assign(Error('original_upload_required'),{status:428,code:'original_upload_required'});
+  // Both hashes and ownership were checked against immutable stored pixels.
+  // No fabricated original bytes are passed to beginWork for this path.
+  req.reusedPortraitWork=work;req.body.downloadWorkId=work;req.files={image:[input]};
+ }
  if(req.body?.reuseOriginalSource==='1'){
   if(!req.is('application/json')||req.files&&Object.keys(req.files).length||!isOriginalRequest(req.body))throw Object.assign(Error('invalid_source_reuse'),{status:400});
   const work=await recoverWork(policy,wallet,req.body);
@@ -26,5 +42,5 @@ export async function preparePortraitUpload(req,{policy,wallet,recoverWork,isOri
   // original-image validations still see exactly the same unmodified bytes.
   req.files.originalSource=[image];
  }
- delete req.body?.reuseOriginalSource;delete req.body?.originalSourceSha256;delete req.body?.originalSourceIsImage;
+ delete req.body?.reuseOriginalSource;delete req.body?.originalSourceSha256;delete req.body?.originalSourceIsImage;delete req.body?.reuseCanonicalInput;delete req.body?.canonicalInputSha256;
 }

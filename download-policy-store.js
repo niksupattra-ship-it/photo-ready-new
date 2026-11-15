@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import {provenOriginalInput} from './portrait-upload.js';
+import {provenOriginalInput,provenCanonicalInput} from './portrait-upload.js';
 import pg from 'pg';
 import {getSavedWorkRetentionPolicy} from './saved-work-store.js';
 // Credits stay in their original columns and ledger. Their new use is one
@@ -142,6 +142,11 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    if(!/^dwork_[a-f0-9]{36}$/.test(work||'')||!/^[a-f0-9]{64}$/.test(sha256||''))return null;
    await ready();const r=await pool.query('SELECT canonical_image,canonical_type,original_source_hash FROM download_works WHERE id=$1 AND wallet_id=$2',[work,wallet]);
    return provenOriginalInput(r.rows[0],sha256);
+  },
+  async canonicalInputForWork(wallet,work,originalSha256,inputSha256){
+   if(!/^dwork_[a-f0-9]{36}$/.test(work||'')||!/^[a-f0-9]{64}$/.test(originalSha256||'')||!/^[a-f0-9]{64}$/.test(inputSha256||''))return null;
+   await ready();const r=await pool.query('SELECT canonical_image,canonical_type,original_source_hash FROM download_works WHERE id=$1 AND wallet_id=$2',[work,wallet]);
+   return provenCanonicalInput(r.rows[0],originalSha256,inputSha256);
   },
   async inputForWork(wallet,work){await ready();const r=await pool.query('SELECT canonical_image,canonical_type FROM download_works WHERE id=$1 AND wallet_id=$2',[work,wallet]);const row=r.rows[0];if(!row?.canonical_image?.length)throw Object.assign(Error('ยังอ่านต้นฉบับของงานเดิมไม่ได้ กรุณาลองอีกครั้ง'),{status:409});return {buffer:Buffer.from(row.canonical_image),mimetype:row.canonical_type||'image/png'}},
   async attach(wallet,work,job){await ready();const r=await pool.query('INSERT INTO download_work_jobs(job_id,work_id,wallet_id) SELECT $1,w.id,w.wallet_id FROM download_works w JOIN ai_jobs j ON j.id=$1 AND j.wallet_id=w.wallet_id WHERE w.id=$2 AND w.wallet_id=$3 RETURNING job_id',[job,work,wallet]);if(!r.rowCount)throw Object.assign(Error('ไม่พบงานของบัญชีนี้'),{status:404})},
