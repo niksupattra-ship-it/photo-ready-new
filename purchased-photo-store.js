@@ -10,6 +10,7 @@ export function createPurchasedPhotoStore(pool){
    purchased_at timestamptz NOT NULL,created_at timestamptz NOT NULL DEFAULT clock_timestamp(),expires_at timestamptz NOT NULL,
    UNIQUE(wallet_id,work_scope,image_hash))`);
   await pool.query('ALTER TABLE purchased_photo_files ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()');
+  await pool.query('ALTER TABLE purchased_photo_files ADD COLUMN IF NOT EXISTS editor_project jsonb');
   await pool.query('CREATE INDEX IF NOT EXISTS purchased_photo_expiry_idx ON purchased_photo_files(expires_at)');
   await pool.query('CREATE INDEX IF NOT EXISTS purchased_photo_wallet_idx ON purchased_photo_files(wallet_id,created_at DESC)');
  })().catch(e=>{pending=null;throw e}));
@@ -30,8 +31,9 @@ export function createPurchasedPhotoStore(pool){
    if(!row.rows[0])throw Object.assign(Error('งานนี้พ้นระยะเก็บรูป 7 วันแล้ว ยังบันทึกไฟล์ที่เปิดอยู่ในหน้านี้ได้'),{status:410,code:'photo_expired'});
    return row.rows[0];
   },
-  async list(walletId){await ready();return (await pool.query(`SELECT ${metadata} FROM (SELECT DISTINCT ON(work_scope) * FROM purchased_photo_files WHERE wallet_id=$1 AND expires_at>clock_timestamp() AND image IS NOT NULL ORDER BY work_scope,updated_at DESC,created_at DESC,id DESC) AS works ORDER BY updated_at DESC,created_at DESC LIMIT 100`,[walletId])).rows},
-  async owned(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},image,preview,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},
+  async list(walletId){await ready();return (await pool.query(`SELECT ${metadata},(editor_project IS NOT NULL) AS editor_project_stored FROM (SELECT DISTINCT ON(work_scope) * FROM purchased_photo_files WHERE wallet_id=$1 AND expires_at>clock_timestamp() AND image IS NOT NULL ORDER BY work_scope,updated_at DESC,created_at DESC,id DESC) AS works ORDER BY updated_at DESC,created_at DESC LIMIT 100`,[walletId])).rows},
+  async owned(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},image,preview,editor_project,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},
+  async storeEditor(walletId,id,project){await ready();const r=await pool.query("UPDATE purchased_photo_files SET editor_project=$3::jsonb,updated_at=clock_timestamp() WHERE wallet_id=$1 AND id=$2 AND image IS NOT NULL AND expires_at>clock_timestamp() RETURNING id",[walletId,id,JSON.stringify(project)]);return r.rowCount>0},
   async byToken(token){await ready();return (await pool.query(`SELECT ${metadata},wallet_id,image,preview,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE token=$1`,[token])).rows[0]||null},
   async purge(){await ready();return (await pool.query('UPDATE purchased_photo_files SET image=NULL,preview=NULL WHERE expires_at<=clock_timestamp() AND (image IS NOT NULL OR preview IS NOT NULL)')).rowCount},
  };

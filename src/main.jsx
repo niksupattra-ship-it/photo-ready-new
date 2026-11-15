@@ -3569,6 +3569,23 @@ function App(){
    const response=await portraitFetch('/api/purchased-photos',{method:'POST',headers:walletHeaders(),body},30000),archive=await response.json();
    if(!active())return;if(!response.ok||!archive?.id||!/^\/receive\/[a-f0-9]{64}$/.test(archive.receiveUrl||''))throw Error(archive.message||'ยังเก็บลิงก์รับรูปไม่ได้ ยังดาวน์โหลดไฟล์ด้านบนได้');
    entry={...entry,archive,archiving:false,error:''};receivePhotoRef.current=entry;if(!entry.silent)setReceivePhoto(entry);
+   // Archive editable layers with the paid photo itself: no three-work save slot
+   // and no new payment. The receiving PNG is already available independently.
+   if(studioData&&Array.isArray(entry.jobIds)&&entry.jobIds.includes(currentOutputJobRef.current)){
+    const snapshot=paymentStudioRef.current?.(),source=firstUploadedPhotoRef.current;
+    const heads=snapshot?.layers?.filter(layer=>layer.kind==='head'||layer.kind==='source-photo'||layer.name==='หัว · คอ · ผม')||[];
+    if(source&&heads.length&&heads.every(layer=>entry.jobIds.includes(layer.jobId))){
+     const ownerScope=walletScope(authToken(),currentWalletId()),photoId=archive.id;
+     void (async()=>{
+      const project=await makeSavedProject({...snapshot,sourcePhoto:snapshot.sourcePhoto||source});
+      if(ownerScope!==walletScope(authToken(),currentWalletId()))return;
+      const data=new FormData();
+      data.append('project',new Blob([JSON.stringify(packSavedProjectTransfer(project))],{type:'application/json'}),'editor.json');
+      const result=await portraitFetch('/api/purchased-photos/'+encodeURIComponent(photoId)+'/editor',{method:'POST',headers:walletHeaders(),body:data},90000);
+      if(!result.ok)console.warn('Purchased photo editor snapshot was not saved',result.status);
+     })().catch(error=>console.warn('Purchased photo editor snapshot unavailable',error?.message));
+    }
+   }
   }catch(e){if(active()){entry={...entry,archiving:false,error:e.message||'ยังเก็บลิงก์รับรูปไม่ได้ ยังบันทึกไฟล์ด้านบนได้'};receivePhotoRef.current=entry;if(!entry.silent)setReceivePhoto(entry)}}
   finally{if(archiveBusyRef.current===entry.id)archiveBusyRef.current=null}
  };
@@ -4000,7 +4017,43 @@ function App(){
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปบันทึกงาน':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;
  const DownloadNoticeUI=()=>downloadNotice&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role={downloadNotice.state==='error'?'alertdialog':'dialog'} aria-modal="true" aria-labelledby="preview-download-title" aria-busy={downloadNotice.state==='working'}><h2 id="preview-download-title">{downloadNotice.title}</h2><p role={downloadNotice.state==='working'?'status':undefined} aria-live="polite">{downloadNotice.message}</p>{downloadNotice.state==='error'&&<button autoFocus style={{marginTop:20}} onClick={()=>setDownloadNotice(null)}>ตกลง</button>}</section></div>;
- const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onAutomaticDownload={requestPaidPhotoDownload} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onEdit={async item=>{if(!item.editableWorkId)throw Error('ไม่พบงานแก้ไขที่บันทึกไว้');const r=await portraitFetch('/api/saved-work/'+encodeURIComponent(item.editableWorkId),{headers:{...walletHeaders(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'},90000);const work=await r.json();if(!r.ok)throw Error(work.message||'เปิดงานเดิมไม่สำเร็จ');if(work?.project?.format==='idprom-project-transfer')work.project=unpackSavedProjectTransfer(work.project);await openAccountWork(work);closeReceivePhoto()}} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
+ const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onAutomaticDownload={requestPaidPhotoDownload} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onEdit={async item=>{
+    const photoJobs=Array.isArray(item.jobIds)?item.jobIds:[];
+    if(!photoJobs.length)throw Error('ไม่พบรหัสงานของรูปที่ซื้อ');
+    const ownerScope=walletScope(authToken(),currentWalletId());
+    const ensureSame=()=>{if(ownerScope!==walletScope(authToken(),currentWalletId()))throw Error('บัญชีเปลี่ยนแล้ว กรุณาเปิดรูปอีกครั้ง')};
+    // An already open editor is the most accurate original, not a reconstructed
+    // preview of the purchased PNG.
+    if(screen==='studio'&&studioData&&photoJobs.includes(currentOutputJobRef.current)){
+     const rights=await verifyOutputRights(currentOutputJobRef.current);ensureSame();
+     if(rights.checked===false||rights.unlocked!==true)throw Error('ยังยืนยันสิทธิ์ที่ชำระแล้วไม่ได้ ไม่ต้องชำระซ้ำ');
+     setPurchasedPhotosOpen(false);return;
+    }
+    if(!item.editorStored&&!item.editableWorkId){
+     const candidate=await loadPurchaseDraft();ensureSame();
+     if(candidate?.walletId===currentWalletId()&&photoJobs.includes(candidate.jobId)){
+      const rights=await verifyOutputRights(candidate.jobId);ensureSame();
+      if(rights.checked!==false&&rights.unlocked===true){
+       const restored=await restorePurchaseDraft({jobId:candidate.jobId});ensureSame();
+       if(restored){
+        currentOutputTrialRef.current=false;studioTrialRef.current=false;
+        setTrialPreview(false);setSavedWorkUnlocked(true);setPurchaseEditing(true);
+        setStudioData(previous=>previous?.map(layer=>photoJobs.includes(layer.jobId)?{...layer,restrictedTrial:false,outputUnlocked:true}:layer));
+        closeReceivePhoto();return;
+       }
+      }
+     }
+    }
+    const path=item.editorStored||!item.editableWorkId
+     ?'/api/purchased-photos/'+encodeURIComponent(item.id)+'/editor'
+     :'/api/saved-work/'+encodeURIComponent(item.editableWorkId);
+    const r=await portraitFetch(path,{headers:{...walletHeaders(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'},90000);
+    const work=await r.json();ensureSame();
+    if(!r.ok)throw Error(work.message||'เปิดรูปเพื่อแก้ไขไม่ได้ ไม่ต้องชำระซ้ำ');
+    if(work?.project?.format==='idprom-project-transfer')work.project=unpackSavedProjectTransfer(work.project);
+    await openAccountWork(work,{accountScope:JSON.stringify([walletHeaders().Authorization||'',walletHeaders()['X-Wallet-Id']||''])});
+    closeReceivePhoto();
+   }} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
  const SavedWorkUI=()=> <>{PurchaseDeliveryUI()}{PackageCodeUI()}<TrialChoiceUI/><DownloadNoticeUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} initialData={knownWalletData} accountScope={walletScope(authToken(),currentWalletId())} unlimited={privateTrialActive} onRights={data=>acceptWalletRights(data)} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}} onCode={openPackageCode}/>}{savedWorksOpen&&<SavedWorks headers={walletHeaders} onDelete={id=>{if(savedWorkIdRef.current===id)savedWorkIdRef.current=''}} onOpen={openAccountWork} onClose={()=>setSavedWorksOpen(false)}/>}</>;
  const isSinglePhotoOffer=id=>id==='89'||id==='119'||id==='usd_single_690_v2';
  const pinSinglePhotoCheckout=packageId=>{

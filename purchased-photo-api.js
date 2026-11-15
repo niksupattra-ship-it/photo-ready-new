@@ -1,10 +1,13 @@
-import {editableWorksForPurchasedPhotos} from './saved-work-store.js';
+import {editableWorksForPurchasedPhotos,validateProject} from './saved-work-store.js';
+import {assertSavedProjectResources} from './src/saved-project.js';
+import {unpackSavedProjectTransfer,packSavedProjectTransfer} from './src/saved-work-transfer.js';
 import {englishPhotoDeliveryPage} from './english-photo-delivery.js';
 import crypto from 'node:crypto';
 import multer from 'multer';
 import sharp from 'sharp';
 export function registerPurchasedPhotoApi(app,{store,policy}){
  const upload=multer({limits:{fileSize:20*1024*1024,files:1,fields:2}}).single('image');
+ const uploadEditor=multer({limits:{fileSize:48*1024*1024,files:1,fields:0}}).single('project');
  const headers=res=>res.set({'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, nofollow'});
  const member=(req,res,next)=>{headers(res);if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อดูรูปที่ซื้อแล้ว'});next()};
  const shape=row=>({id:row.id,jobIds:row.job_ids,packageId:row.package_id,width:row.width,height:row.height,purchasedAt:row.purchased_at,createdAt:row.created_at,expiresAt:row.expires_at,receiveUrl:'/receive/'+row.token,imageUrl:'/api/purchased-photos/'+row.id+'/image',previewUrl:'/api/purchased-photos/'+row.id+'/preview'});
@@ -25,7 +28,40 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   const row=await store.put({walletId,scope,jobIds,lineage:[...new Set([...lineage,...jobIds])],packageId,image,preview,width:meta.width,height:meta.height});
   res.json({...shape(row),serverNow:new Date().toISOString()});
  }));
- app.get('/api/purchased-photos',member,handle(async(req,res)=>{const walletId=req.accountUser.wallet_id,photos=await store.list(walletId),editable=await editableWorksForPurchasedPhotos(walletId,photos);res.json({items:photos.map(row=>({...shape(row),editableWorkId:editable[row.id]||null})),days:7,serverNow:new Date().toISOString()})}));
+ app.get('/api/purchased-photos',member,handle(async(req,res)=>{const walletId=req.accountUser.wallet_id,photos=await store.list(walletId),editable=await editableWorksForPurchasedPhotos(walletId,photos);res.json({items:photos.map(row=>({...shape(row),editableWorkId:editable[row.id]||null,editorStored:row.editor_project_stored===true})),days:7,serverNow:new Date().toISOString()})}));
+ // The purchased photo is its own 7-day editable archive, independent of the
+ // optional 45-day saved-work slots. Only the original paid job lineage can be reopened.
+ app.post('/api/purchased-photos/:id/editor',member,(req,res,next)=>uploadEditor(req,res,error=>error?res.status(413).json({message:'ข้อมูลงานแก้ไขใหญ่เกินขีดจำกัด'}):next()),handle(async(req,res)=>{
+  const wallet=req.accountUser.wallet_id,row=await store.owned(wallet,req.params.id);
+  if(!await check(row?{...row,wallet_id:wallet}:null,res))return;
+  if(!req.file)throw Object.assign(Error('ไม่พบข้อมูลงานแก้ไข'),{status:400});
+  let project;try{project=unpackSavedProjectTransfer(JSON.parse(req.file.buffer.toString('utf8')))}catch{throw Object.assign(Error('ข้อมูลเลเยอร์ไม่ถูกต้อง'),{status:400})}
+  const jobs=validateProject(project),lineage=await policy.jobIds(wallet,row.job_ids[0]);
+  if(!jobs.length||!jobs.some(id=>row.job_ids.includes(id))||jobs.some(id=>!lineage.includes(id))||(project.downloadWorkId&&project.downloadWorkId!==row.work_scope))throw Object.assign(Error('ข้อมูลแก้ไขไม่ตรงกับรูปที่ชำระแล้ว'),{status:403});
+  assertSavedProjectResources(project);
+  const ok=await store.storeEditor(wallet,row.id,project);
+  if(!ok)throw Object.assign(Error('รูปนี้หมดระยะเก็บ 7 วันแล้ว'),{status:410});
+  res.json({ok:true,id:row.id});
+ }));
+ app.get('/api/purchased-photos/:id/editor',member,handle(async(req,res)=>{
+  const wallet=req.accountUser.wallet_id,row=await store.owned(wallet,req.params.id);
+  if(!await check(row?{...row,wallet_id:wallet}:null,res))return;
+  let project=row.editor_project,reconstructed=false;
+  if(!project){
+   // Historical purchased downloads may predate editable snapshots. Present the
+   // exact purchased image as a movable layer; where possible, also recover
+   // the original verified input from the bound work (not from a fresh upload).
+   const photo=await sharp(row.image,{limitInputPixels:33554432}).resize(900,1200,{fit:'contain',background:'#ffffff'}).png({compressionLevel:9}).toBuffer();
+   const image='data:image/png;base64,'+photo.toString('base64');
+   let original=null,downloadWorkId=null;
+   if(/^dwork_[a-f0-9]{36}$/.test(row.work_scope)){
+    try{const input=await policy.inputForWork(wallet,row.work_scope);if(/^image\/(png|jpeg|webp)$/.test(input.mimetype)&&input.buffer.length<16*1024*1024){original='data:'+input.mimetype+';base64,'+input.buffer.toString('base64');downloadWorkId=row.work_scope}}catch{}
+   }
+   project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{kind:'head',name:'หัว · คอ · ผม',jobId:row.job_ids[0],source:image,sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,outputUnlocked:true,restrictedTrial:false}],compareSource:original||image,...(original?{downloadSource:original,downloadWorkId}:{})};
+   reconstructed=true;
+  }
+  res.json({id:'',unlocked:true,legacyDownload:false,reconstructed,project:packSavedProjectTransfer(project)});
+ }));
  app.get('/api/purchased-photos/:id/:kind',member,handle(async(req,res)=>{
   if(!['image','preview'].includes(req.params.kind))return res.sendStatus(404);
   const row=await store.owned(req.accountUser.wallet_id,req.params.id);if(!await check(row?{...row,wallet_id:req.accountUser.wallet_id}:null,res))return;
