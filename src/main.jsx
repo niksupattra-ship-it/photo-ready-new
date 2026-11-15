@@ -2871,9 +2871,13 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  // in pose, crop and cosmetic contrast must not discard a completed image.
  try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){
   if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
-  // An actual identity/hair-quality rejection must not be recovered as if it
-  // were a transient network interruption; cancel it and refund the credit.
-  if(operation)operation.qualityRejected=true;
+  // Only definite image-quality failures may cancel and refund this job.
+  // Model initialization, missing segmentation evidence, timeouts and decoder
+  // errors are LOCAL failures and must never delete a server-completed photo.
+  const definiteQualityReject=['portrait_finish_incomplete','selected_hairstyle_mismatch','face_proportion_changed'].includes(error?.code)||
+   /No clear face was found|ไม่พบใบหน้าในผลลัพธ์|ตรวจ.*ใบหน้า.*ไม่พบ/i.test(String(error?.message||''));
+  if(operation&&definiteQualityReject)operation.qualityRejected=true;
+  else if(operation?.serverCompleted)error.idpromRecoverableJob=true;
   portraitResultCache.delete(key);throw error;
  }
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
