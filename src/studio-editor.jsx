@@ -890,6 +890,93 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  };
  useEffect(()=>()=>{const request=suitRequestRef.current;request?.cancel();request?.preview?.release();suitRequestRef.current=null},[]);
  const [bodyOutfitRequest,setBodyOutfitRequest]=useState(null);
+ // A small garment preview is an editable layer, not a waiting overlay.
+ // High-resolution PNG is substituted only when needed for export or pixel
+ // edits. The template path, frame and transform are identical in both modes.
+ const nativeSuitUpgradeRef=useRef(null);
+ const promotePreviewSuit=async()=>{
+  flushTransforms();
+  const pending=state.current.find(l=>layerKind(l)==='suit'&&l.suitPreviewOnly&&l.templatePath);
+  if(!pending)return true;
+  const key=pending.id+'|'+pending.templatePath;
+  if(nativeSuitUpgradeRef.current?.key===key)return nativeSuitUpgradeRef.current.promise;
+  const promise=(async()=>{
+   const high=await nativeAsset('suit',{template:pending.templatePath},pending.sourceFrame||{x:0,y:0,w:W,h:H},null);
+   flushTransforms();
+   const currentSuit=state.current.find(l=>l.id===pending.id);
+   if(!currentSuit||currentSuit.source!==pending.source||currentSuit.templatePath!==pending.templatePath)return false;
+   const before=state.current,snapshot=historySnapshot();
+   const next=snapshot.map(l=>l.id===pending.id?{...l,source:high.source,suitPreviewOnly:false}:l);
+   const unchanged=new Set(next.filter(l=>l.id!==pending.id).map(l=>l.id));
+   const safe=()=>state.current===before&&!pendingTransforms.current.size&&!gesture.current;
+   const promoted=await hydrate(next,unchanged,safe);
+   if(promoted){setRevision(v=>v+1);setStatus('ชุดความละเอียดสูงพร้อมแล้ว')}
+   return promoted;
+  })();
+  nativeSuitUpgradeRef.current={key,promise};
+  try{return await promise}finally{if(nativeSuitUpgradeRef.current?.promise===promise)nativeSuitUpgradeRef.current=null}
+ };
+ const quickSuitSelection=async({option,target,fitHead,manualSuit})=>{
+  const thumbnail=suitPreviewSource(option.template);
+  if(!thumbnail)return false;
+  const request=beginSuitPreview(option,target);
+  try{
+   await request.wait(request.firstPaint);
+   const placement=placementRef.current;
+   const frame=target?.sourceFrame||target?.collarFrame||(placement?{x:placement.uX/placement.W*W,y:placement.uY/placement.H*H,w:placement.uW/placement.W*W,h:placement.uH/placement.H*H}:{x:0,y:0,w:W,h:H});
+   const quick=await request.wait(nativeAsset('suit',{template:thumbnail},frame,null));
+   if(suitRequestRef.current!==request)return true;
+   flushTransforms();
+   const previous=historySnapshot();
+   const base=target||fresh({name:'ชุด',kind:'suit',source:quick.source});
+   const created={...base,kind:'suit',name:'ชุด',source:quick.source.toDataURL('image/png'),
+    sourceFrame:target?.sourceFrame||frame,collarFrame:target?.collarFrame||frame,
+    neckWidth:0,neckHeight:0,mask:null,warpSource:null,warpBaseMask:null,
+    eraseRestoreSource:null,warpRestoreBase:null,collarParts:null,
+    visible:true,assetId:option.id,templatePath:option.template,suitPreviewOnly:true,
+    autoSuitFitVersion:null};
+   if(manualSuit)created.manualOutfitFitVersion=ENGLISH_MANUAL_OUTFIT_VERSION;
+   const next=target?previous.map(l=>l.id===target.id?created:l):[...previous,created];
+   const canCommit=()=>suitRequestRef.current===request;
+   const unchanged=new Set(previous.filter(l=>l.id!==target?.id).map(l=>l.id));
+   const committed=await request.wait(hydrate(next,unchanged,canCommit));
+   if(!committed)return true;
+   undo.current.push(previous);
+   if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}
+   redo.current=[];setSelected(created.id);setRevision(v=>v+1);setStatus('เลือกชุดแล้ว · ปรับตำแหน่งและขนาดได้ทันที');
+   trackUniformSelection(option,'apply','new');
+   endSuitPreview(request);
+   // Re-check the server policy without holding the entire editor hostage.
+   if(onSelectSuit){
+    const head=outputHeads(previous).find(l=>l.jobId);
+    if(head)void onSelectSuit(head.jobId,[target?.templatePath,option.template].filter(Boolean))
+     .then(policy=>{if(state.current.some(l=>l.id===created.id&&l.templatePath===option.template))setSuitPolicy(policy)})
+     .catch(error=>setStatus(error.message||'ยังตรวจสิทธิ์ของชุดนี้ไม่ได้ กรุณาตรวจสอบก่อนดาวน์โหลด'));
+   }
+   // Preserve old head-to-collar auto-fitting for an untouched selection.
+   // If the customer has already moved a layer, never jump their work later.
+   if(fitHead&&typeof onMeasureSuitFace==='function'){
+    const stable=state.current,headAsset=assets.current.get(fitHead.id);
+    if(headAsset)void fitStudioSuit({
+     layers:stable,previousSuit:target,nextSuit:created,
+     headSource:headAsset.warped||sharedStudioSkinSource(fitHead)||headAsset.original,
+     headMask:headAsset.mask,measureFace:onMeasureSuitFace
+    }).then(async fitted=>{
+     if(state.current!==stable||pendingTransforms.current.size||gesture.current)return;
+     const safe=()=>state.current===stable&&!pendingTransforms.current.size&&!gesture.current;
+     const changedIds=new Set(fitted.filter(l=>{
+      const prior=stable.find(p=>p.id===l.id);
+      return prior&&['source','mask','warpSource','x','y','scale','rotation','squeezeX','squeezeY','neckWidth','neckHeight'].every(key=>l[key]===prior[key]);
+     }).map(l=>l.id));
+     if(await hydrate(fitted,changedIds,safe)){setRevision(v=>v+1)}
+    }).catch(error=>console.warn('Optional suit fit skipped',error?.message));
+   }
+   return true;
+  }catch(error){
+   if(error?.code!=='SUIT_SELECTION_REPLACED')setStatus('เลือกชุดไม่สำเร็จ กรุณาลองอีกครั้ง');
+   return true;
+  }finally{if(suitRequestRef.current===request)endSuitPreview(request)}
+ };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false}={})=>{
   const manualSuit=englishFlow&&kind==='suit'&&!aiSetup;
   // Clicking an outfit thumbnail places its native PNG. AI is separately explicit.
@@ -908,6 +995,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(fitHead&&(fitHead.locked||state.current.some(l=>l.hairHeadId===fitHead.id&&l.kind!=='neck-fit'&&l.locked))){setStatus('ปลดล็อกเลเยอร์หัวและทรงผมก่อนจัดให้พอดีกับชุดใหม่');return}
   if(!target&&option&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}
   if(kind==='suit'&&!option)endSuitPreview(suitRequestRef.current);
+  // Only the simple transparent-overlay path uses immediate editable pixels.
+  // Complex body-generated outfits and legacy repair paths retain the proven
+  // full-resolution selection pipeline without changing their behavior.
+  if(kind==='suit'&&option&&!combinedBody&&!repairSuitFit&&suitPreviewSource(option.template)){
+   await quickSuitSelection({option,target,fitHead,manualSuit});return;
+  }
   let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target):null;
   const blockingSelection=!request&&!(kind==='suit'&&!option);
   if(blockingSelection)setAssetBusy(true);
