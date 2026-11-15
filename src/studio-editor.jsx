@@ -1277,6 +1277,15 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(processActive||assetBusy||!ready||processRequestRef.current)return;
   const existing=outputHeads(state.current).find(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
   
+  // Only the cosmetic choice changed: route through the SAME original job.
+  // The server checks the frozen outfit/hair/source, so no premium credit is
+  // reserved and the previously generated finish remains downloadable.
+  if(existing&&gender==='female'&&existing.femaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===englishTemplateBodyFinishForGender(gender)&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(existing.hairId||'')===(hair||'')&&existing.portraitMode===gender&&portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)!==finish){
+   setEnglishStep(null);setEnglishInlineAi(null);
+   await applyHair(hair,{femaleEyeStyle:finish,portraitMode:gender,appearanceKind:'makeup'});
+   setEnglishRoute('review');
+   return;
+  }
   if(existing&&(gender!=='female'||hair||keepCurrentHair||existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION)&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===englishTemplateBodyFinishForGender(gender)&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&(portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish||hasPairedPortraitFinish(existing))){
    const fitted=state.current.find(l=>l.id===existing.id);
    if(portraitFinishChoice(fitted.femaleEyeStyle,fitted.initialFemaleEyeStyle)!==finish)await switchPairedPortraitFinish(fitted,finish);
