@@ -103,7 +103,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/onClick=\{confirmThaiHair\}/);
  assert.match(studio,/setThaiPendingHair\(chosen\)/);
  assert.match(studio,/freeFinishChange=appearanceKind==='makeup'/);
- assert.match(studio,/onHair=\{chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Easy Mode must use the same two-step generation as Studio');
+ assert.match(studio,/onHair=\{englishFlow\?\(easyHasResult\?chooseHair:processEasyPhoto\):chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Thai Easy Mode uses the selection-confirm flow while English keeps its original quick action');
  assert.match(studio,/thaiHairConfirmation=\{!englishFlow\}/,'English Easy Mode retains existing behavior');
  assert.match(easy,/\(hasResult\|\|thaiHairConfirmation\)\&\&tab==='hair'/,'Thai Easy Mode must offer the hairstyle list before initial AI generation');
  assert.match(easy,/onGenerateHair\?\.\(choice\)/,'Thai Easy Mode must send the selected haircut, not auto-default hair');
