@@ -1,6 +1,28 @@
 # English portraits
 
-## Current: natural head and short supporting neck (v9)
+## Current: English female head/body matches English male (new female only)
+
+New English female portraits use `en-female-matched-head-body-v1` while English male
+portraits continue using `en-natural-head-neck-v9`. Old female v9 jobs
+are still accepted and rendered with their original guide, and already
+purchased/saved image pixels are not retroactively changed.
+
+New female and current male both use the identical `ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE`
+for conditioning: `identityHeadScale=.88`, `headWidthToShoulder=.35`,
+`headHeightToShoulder=.55`, `chinToCollar=.020`,
+`neckToShoulder=.255`, `chestToShoulder=.46`. The approximate
+face width is 30–32% of the same fixed template shoulder span, unlike
+the older female v9 reference near 40–42%. These are AI **input reference**
+values, not an exact promise for generated pixels.
+
+Only English female creation routes to the new head/body guide and corresponding
+female-specific proportionality/compact-neck prompt. English male prompt, hair,
+reference garment, makeup pair, native image output dimensions (1824×2432),
+and the entire Thai pipeline are unchanged. Keep outfit pixels, all underlayers,
+level shoulders, natural identity, selected hairstyle, and short jaw-to-upper-collar
+connection intact. A resumed old job retains the version stored on the server.
+
+## Previous: natural head and short supporting neck (v9)
 
 The released policy is `en-natural-head-neck-v9` with
 `outfit-complete-frame-v17-natural-head-neck`. Read the policy and production
