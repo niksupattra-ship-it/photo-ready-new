@@ -149,7 +149,7 @@ test('English male AI generation uses a smaller proportional head without alteri
  assert.doesNotMatch(calls[0].prompt,/40–42%|NEVER raise the chin or reduce the face size/);
  assert.match(calls[0].prompt,/Keep the garment at EXACTLY this template size/);
  assert.match(calls[0].prompt,/FINAL ENGLISH MALE SHORT-HAIR \/ NAPE PRIORITY/);
- assert.match(calls[0].prompt,/no mullet, rear hair curtain/i);
+ assert.match(calls[0].prompt,/No back curtain, mullet/i);
  assert.match(calls[0].prompt,/without adding a beard or extra rear lengths|no back curtain/i);
  const femalePrompt=englishTemplateBodyPrompt({gender:'female',identityIndex:1,outfitIndex:2,identityLayout:true,proportionLock:true,naturalHeadNeck:true});
  assert.match(femalePrompt,/40–42%/);
