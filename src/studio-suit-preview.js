@@ -31,8 +31,8 @@ export function createSuitPreviewRequest(){
  return {phase:'loading',preview:null,cancel,async wait(promise){const value=await Promise.race([promise,signal]);if(value===cancelled)throw Object.assign(Error('Replaced by another suit'),{code:'SUIT_SELECTION_REPLACED'});return value}};
 }
 
-// Garment pixels on the stage always use the native source. Small catalog
-// thumbnails can change sharpness/alpha when replaced by a full PNG.
+// Optional native prefetch. First feedback must not wait for this cache:
+// a decoded catalog garment can paint while native pixels load separately.
 const nativeReady=new Map(),nativePending=new Map(),NATIVE_LIMIT=32*1024*1024;
 export const readNativeSuitPreview=template=>nativeReady.get(template)||null;
 export function warmNativeSuitPreview(template){

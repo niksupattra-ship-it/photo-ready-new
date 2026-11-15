@@ -42,7 +42,7 @@ with sync_playwright()as pw:
      first_paint=p.evaluate('selectionPaintMs');assert first_paint<1000,first_paint
      if '--failure'in sys.argv:
       for r in held:r.abort()
-      p.wait_for_function("document.querySelector('.studio-status')?.textContent.includes('ไม่สำเร็จ')")
+      p.wait_for_function("!document.querySelector('.idstudio[data-suit-pending=true]')")
       restored=p.evaluate("JSON.stringify(selectionSnapshot.current().layers.map(l=>[l.kind,l.assetId,l.templatePath,l.sourceFrame,l.x,l.y,l.scale,l.rotation]))")
       assert restored==before,'Failed full image changed the previous work'
       expect(card).to_be_enabled();count=len(held);card.click();p.wait_for_timeout(50)
@@ -55,7 +55,7 @@ with sync_playwright()as pw:
       for r in held:r.continue_()
      expected_id={'suit':'female-lapel-suit','collar':'garuda-pair','chest':'pao','ribbon':'2504-2514'}[kind]
      p.wait_for_function("([kind,id])=>selectionSnapshot.current().layers.some(l=>l.kind===kind&&l.assetId===id)",arg=[kind,expected_id])
-     p.wait_for_function("kind=>document.querySelector('.studio-status')?.textContent.includes('เลือก')||kind==='suit'",arg=kind)
+     p.wait_for_function("!document.querySelector('.idstudio[data-suit-pending=true]')")
      current=p.evaluate("kind=>selectionSnapshot.current().layers.find(l=>l.kind===kind)",kind)
      assert current['source'].startswith('data:image/png;')
      assert current['assetId']=={'suit':'female-lapel-suit','collar':'garuda-pair','chest':'pao','ribbon':'2504-2514'}[kind],current['assetId']

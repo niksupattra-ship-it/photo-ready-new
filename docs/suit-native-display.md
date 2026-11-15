@@ -1,4 +1,6 @@
-# Native garment display in Thai and English
+# Earlier native-only display experiment (superseded)
+
+The native-only approach below was replaced by [responsive suit selection](suit-selection-responsive.md). Waiting for a native image did not satisfy immediate selection feedback, and the shared editor busy flag dimmed unrelated controls. Current selection uses a decoded garment preview immediately while native preparation runs separately.
 
 The stage previously drew a small catalog preview and later replaced it with the native PNG. Those two sources can differ in edge alpha and sharpness. Both languages now draw native garment pixels from the first changed frame; small images remain in the catalog only. This preserves the existing placement, masks, full-resolution exports, suit permissions and Thai automatic fitting.
 
