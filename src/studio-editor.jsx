@@ -887,7 +887,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const display=image=>{try{show(image)}catch{}};
   // Put the already visible catalog garment onto the stage before any native
   // download, fitting or policy read. A ready native image can be used directly.
-  const image=readNativeSuitPreview(option.template)||readSuitPreview(option.template);
+  const image=readSuitPreview(option.template);
   const displayed=image?(display(image),Promise.resolve()):warmSuitPreview(option.template).then(display).catch(()=>{});
   request.firstPaint=displayed.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   return request;
