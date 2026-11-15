@@ -522,9 +522,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   setStatus('');
  };
  const dismissThaiHairFinish=()=>{
+  // Cancelling a new hair/finish draft must show the FINISH of the visible
+  // output, never leave the selected Makeup pill ahead of Natural pixels.
   setThaiHairFinishChoice(null);
+  setThaiPendingHair(null);
   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   setSelectedHair(head?.hairId||'');
+  if(head?.portraitMode==='female')setEasyFaceFinish(portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle));
   setStatus('');
  };
  const confirmThaiHair=()=>{
