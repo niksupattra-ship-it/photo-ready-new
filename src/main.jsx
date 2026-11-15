@@ -35,7 +35,7 @@ import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {studioSkinWorkflowMetadata,hasCurrentStudioSkin} from '../studio-skin-metadata.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest,markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish,needsOriginalAiSkinPolish} from '../original-portrait-ai.js';
 import {SHARED_PORTRAIT_BASE_VERSION,portraitMakeupNeedsUpdate} from '../shared-portrait-policy.js';
-import {finishSharedStudioSkin,sharedStudioSkinSource,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,canReuseStudioSkinBase,isStudioSkinGeometry,studioSkinMasterFrame} from './shared-studio-skin.js';
+import {finishSharedStudioSkin,sharedStudioSkinSource,isCompletedServerMakeup,studioSkinBlobFromSource,copyStudioSkinBlobMetadata,canReuseStudioSkinBase,isStudioSkinGeometry,studioSkinMasterFrame} from './shared-studio-skin.js';
 import {finishFemaleMakeupEyeTone} from './female-makeup-eye-tone.js';
 import {isFemaleFinishProfile} from './female-finish-profile.js';
 import {isFemaleFinishReference} from './female-finish-reference.js';
@@ -2899,7 +2899,11 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
    frame.data.set(useAiMakeupPixels({natural:frame.data,makeup,width:W,height:H}));ctx.putImageData(frame,0,0);
    finished.idpromAiMakeupSource=canvas.toDataURL('image/png');delete finished.idpromAiMakeupBlob;
   }
-  if(gender==='female'&&[STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(finished.idpromStudioSkinVersion)){
+  // Do not re-run Natural-base cosmetics over the AI's already completed
+  // Makeup PNG. Its original Natural base is intentionally NOT stored in
+  // the new single-finish protocol, so local post-cosmetics cannot run.
+  // Preserve exactly the delivered Makeup pixels, alpha, hair and outfit.
+  if(gender==='female'&&[STUDIO_SKIN_WORKFLOW_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(finished.idpromStudioSkinVersion)&&!isCompletedServerMakeup(finished,options.femaleEyeStyle)){
    const image=await decodedPortraitImage(finished),face=await portraitFaceLandmarks(finished,image),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
    if(!face?.[152]||!face?.[234]||!face?.[454])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');
    finished.idpromStudioSkinGeometry={width,height,chinY:face[152].y*height,faceCX:(face[234].x+face[454].x)/2*width,faceWidth:Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height)};
