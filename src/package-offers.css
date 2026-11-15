@@ -91,6 +91,10 @@
 }
 .en-plans{font:inherit;color:#202849}
 .en-plans *{box-sizing:border-box}
+.en-diamond-photo-preview{display:flex;align-items:center;justify-content:center;gap:16px;margin:0 0 16px;padding:10px 16px;background:#f7f8fc;border:1px solid #e5e9f2;border-radius:12px}
+.en-diamond-photo-preview img{display:block;width:94px;max-height:127px;aspect-ratio:3/4;object-fit:contain;border-radius:7px;background:#fff;border:1px solid #dce2ec}
+.en-diamond-photo-preview figcaption{font-size:13px;font-weight:700;color:#4b5874;line-height:1.5}
+@media(max-width:620px){.en-diamond-photo-preview{gap:12px;padding:10px}.en-diamond-photo-preview img{width:74px;max-height:100px}.en-diamond-photo-preview figcaption{font-size:12px}}
 .en-plans-heading{text-align:center;margin:3px 38px 18px}
 .en-plans-heading .en-plans-eyebrow{display:block;color:#77839d;font-size:11px;letter-spacing:.14em;font-weight:800;margin-bottom:8px}
 .en-plans-heading h2{font-size:26px;font-weight:850;line-height:1.2;margin:0 0 8px;color:#151c36}
