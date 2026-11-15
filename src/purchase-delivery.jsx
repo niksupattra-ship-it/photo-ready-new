@@ -58,7 +58,7 @@ function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownlo
 }
 export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
  const locale=interfaceLocale(),english=locale!=='th-TH',t=(th,en)=>english?en:th;
- const active=useRef(false),opening=useRef(null);
+ const active=useRef(false),opening=useRef(null),previewBlobs=useRef(new Map());
  const [items,setItems]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(''),[urls,setUrls]=useState({}),[serverOffset,setServerOffset]=useState(0);
  useEffect(()=>{const controller=new AbortController(),owned=[];active.current=true;
   (async()=>{try{
@@ -74,6 +74,7 @@ export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
     if(!response.ok)continue;
     const blob=await response.blob();
     if(!active.current)break;
+    previewBlobs.current.set(item.id,blob);
     const url=URL.createObjectURL(blob);owned.push(url);setUrls(previous=>({...previous,[item.id]:url}));
    }
   }catch(e){if(active.current)setError(e.message||t('โหลดรายการไม่สำเร็จ กรุณาลองใหม่','Could not load your photos. Please try again.'))}})();
@@ -82,7 +83,7 @@ export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
  const edit=async item=>{
   if(opening.current||!onEdit)return;
   const controller=new AbortController();opening.current=controller;setBusy(item.id);setError('');
-  try{await onEdit(item);if(active.current&&!controller.signal.aborted)onClose()}
+  try{await onEdit(item,previewBlobs.current.get(item.id)||null);if(active.current&&!controller.signal.aborted)onClose()}
   catch(e){if(active.current&&!controller.signal.aborted)setError(english?'Could not open this photo for editing. Please try again.':e.message||'ยังเปิดงานแก้ไขไม่ได้')}
   finally{if(opening.current===controller)opening.current=null;if(active.current)setBusy('')}
  };
