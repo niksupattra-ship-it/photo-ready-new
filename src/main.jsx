@@ -197,7 +197,7 @@ async function retryExistingAiJobRead(jobId,kind,read,operation=activeProcessOpe
 }
 async function readExistingAiJob(jobId,path,kind,format,operation=activeProcessOperation){
  return retryExistingAiJobRead(jobId,kind,async()=>{
-  const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+path,{headers:walletHeaders(),cache:'no-store'},format==='blob'?120000:30000);
+  const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+path,{headers:walletHeaders(),cache:'no-store'});
   if(!response.ok||(format==='blob'&&response.status===202)){
    const message=await response.text().catch(()=>kind+' failed');
    throw Object.assign(Error(message||kind+' failed'),{status:response.status});
@@ -4968,7 +4968,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(cached)activeProcessOperation={jobId:null,cancelled:false,settled:true,finishing:false};
   const snap={adjust:{...liveAdjustRef.current},collarWarp:liveCollarWarpRef.current,collarHeight:liveCollarHeightRef.current,neckAdjust:{...liveNeckAdjustRef.current}};
   hairRequestRef.current=true;setHairGenerating(!cached);setHairBusy(true);if(!cached)beginProgress('กำลังประมวลผลทรงผมใหม่');setMsg(cached?'กำลังเปลี่ยนเป็นทรงที่เคยสร้างไว้…':'กำลังสร้างทรงผมจากรูปต้นฉบับ…');
-  let completed=false;
+  let completed=false,failureStage='generation';
   try{
    let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;if(sharedStudioSkinSource(nextMaster)&&(!hasOriginalPortraitAiFinish(nextMaster,finishStyle)||portraitMakeupNeedsUpdate(nextMaster))){const base=nextMaster;nextMaster=await finishSharedStudioSkin(base,{style:finishStyle,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(activeProcessOperation?.cancelled)}}});portraitGeometryBases.set(nextMaster,portraitGeometryBases.get(base)||base)}}else{
@@ -4979,7 +4979,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
      const transparent=aiHeadNeck;
      setProgressStage(76,'กำลังเตรียมภาพที่ประมวลผลแล้ว');
-     nextMaster=await finishFirstPortraitMaster(transparent);
+     failureStage='prepare_result';nextMaster=await finishFirstPortraitMaster(transparent);
      // Match the female hairstyle pipeline: use one coherent AI output layer.
      // Do not paste a second face over the new male hairline: the overlapping
      // face stencil produced the visible forehead patch / mask-shaped seam.
@@ -4988,7 +4988,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    if(!cached)setProgressStage(88,'กำลังประกอบกับชุดเดิม');
    const current=editCache.current;
    if(!current)throw Error('ไม่พบภาพที่กำลังแก้ไข');
-   const nextLock=await fitChangedHairMaster(nextMaster,current);
+   failureStage='fit_hair';const nextLock=await fitChangedHairMaster(nextMaster,current);
    if(studioOnly){
     // Do not replace App's master or populate reusable results until Studio has
     // decoded/hydrated the exact selected result and delivery is confirmed.
@@ -5026,7 +5026,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    else setProgressStage(97,'กำลังแสดงผลทรงผมใหม่');
    if(hairResultMode(id,portraitMode)==='female')firstUploadedPhoto.idpromFemaleEyeStyle=finishStyle;
    if(out)showBlob(out);setHairId(id);setMsg(cached?'เปลี่ยนเป็นทรงที่เคยสร้างไว้แล้ว · ไม่ใช้เครดิต':'เปลี่ยนทรงผมจากภาพต้นฉบับแล้ว');completed=true;
-  }catch(e){setMsg(PROCESS_FAILURE_MESSAGE);if(studioOnly)throw e}
+  }catch(e){if(e.code!=='USER_CANCELLED'&&!e.idpromProcessStage)e.idpromProcessStage=e.stage||failureStage;setMsg(PROCESS_FAILURE_MESSAGE);if(studioOnly)throw e}
   finally{try{if(!cached){if(!completed)await finishProgress(false);else if(!studioOnly)await finishProgress(true);}}finally{hairRequestRef.current=false;setHairGenerating(false);setHairBusy(false)}}
   return completed?{reused:Boolean(cached)}:false;
  };
@@ -5478,7 +5478,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   // Keep the accepted head's identity until Studio has hydrated and confirmed
   // this replacement. The generic job event must not publish a pending variant.
   studioPhotoTransactionRef.current=true;
-  let staged,committed=false,rolledBack=false;
+  let staged,committed=false,rolledBack=false,failureStage='generation';
   const rollback=()=>{
    if(committed||rolledBack)return;
    rolledBack=true;
@@ -5489,12 +5489,12 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   try{
    staged=await changeHairForStudio(id,portraitMode,{studioOnly:true,femaleEyeStyle,sourceJobId:previous.jobId,...(['korean-rosy-v1','soft-rosy-v1'].includes(femaleEyeStyle)?{outfitReferencePath}:{})});
    if(!staged?.master||staged.hairId!==(id||''))throw Error('ผลลัพธ์ไม่ตรงกับทรงที่เลือก กรุณาลองใหม่');
-   const layers=[];layers.headOnly=true;
+   failureStage='compose';const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(staged.master,staged.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    const head=layers.find(l=>l.name==='หัว · คอ · ผม');if(!head)throw Error('ไม่ได้รับเลเยอร์ทรงผมใหม่');
    Object.assign(head,{jobId:staged.jobId,restrictedTrial:staged.isTrial,outputUnlocked:!staged.isTrial,hairId:id||'',hairPolicyVersion:portraitMode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,portraitMode,femaleEyeStyle,initialFemaleEyeStyle:femaleEyeStyle,...(femaleEyeStyle==='soft-rosy-v1'?{softRosyFinishVersion:'soft-radiance-korean-brows-v7'}:{}),...femaleFinishMetadata(staged.master)});
    return {layer:head,reused:staged.reused,commit:()=>{if(committed)return;if(rolledBack)throw Error('ยกเลิกการเปลี่ยนทรงผมแล้ว กรุณาเลือกใหม่');staged.commit();committed=true;studioPhotoTransactionRef.current=false;window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:staged.jobId,isTrial:staged.isTrial,fullEdit:staged.fullEdit}}))},rollback};
-  }catch(error){rollback();throw error}
+  }catch(error){if(error.code!=='USER_CANCELLED'){error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;console.error('Studio hairstyle failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio_hair'})}rollback();throw error}
  };
  const LegacyPaidWarningUI=()=>{
   const warning=legacyPaidWarning;
