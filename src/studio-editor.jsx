@@ -1184,7 +1184,16 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
    if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    startedHydratingResult=true;
-   if(await hydrate(next)){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;resetPhotoHistory();resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;if(englishFlow){setEnglishStep(null);setEnglishRoute('review')}else if(easyMode){setEasyMode(false);setPicker(false)}setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');retryProcessOptionsRef.current=null;reportProcessedResult(result.layer,{reused:result.reused===true})}else {const hydrateError=lastHydrateErrorRef.current||Error('แสดงภาพไม่สำเร็จ');hydrateError.idpromProcessStage='studio_hydrate';throw hydrateError;}
+   let hydrated=await hydrate(next);
+   if(!hydrated&&!isProcessCancelled()){
+    // Native image decoding/canvas allocation may fail transiently while
+    // another large image is being released. Retry ONLY local hydration; the
+    // AI-generated image and its credit are reused, not resubmitted.
+    console.warn('Retrying Studio layer hydration without another AI request',lastHydrateErrorRef.current?.code||'decode');
+    await new Promise(resolve=>setTimeout(resolve,180));
+    hydrated=await hydrate(next);
+   }
+   if(hydrated){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;resetPhotoHistory();resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;if(englishFlow){setEnglishStep(null);setEnglishRoute('review')}else if(easyMode){setEasyMode(false);setPicker(false)}setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');retryProcessOptionsRef.current=null;reportProcessedResult(result.layer,{reused:result.reused===true})}else {const hydrateError=lastHydrateErrorRef.current||Error('แสดงภาพไม่สำเร็จ');hydrateError.idpromProcessStage='studio_hydrate';throw hydrateError;}
   }catch(e){
    const cancelled=isProcessCancelled()||e.code==='USER_CANCELLED';
    // Errors after a successful AI response are Studio-local: report them
