@@ -6,7 +6,7 @@
   "scripts": {
     "predev": "node scripts/prepare-vision-assets.mjs",
     "dev": "vite",
-    "prebuild": "node --check server.js && node --check job-store.js && node scripts/prepare-vision-assets.mjs && node scripts/verify-catalogue-hair-guides.mjs && node --test test/studio-ai-recovery.test.mjs tests/natural-pixel-preservation.test.js",
+    "prebuild": "node --check server.js && node --check job-store.js && node scripts/prepare-vision-assets.mjs && node scripts/verify-catalogue-hair-guides.mjs && node --test test/studio-ai-recovery.test.mjs tests/natural-pixel-preservation.test.js tests/english-female-matched-proportions.test.js",
     "build": "node scripts/build-uniform-quick-previews.mjs && vite build",
     "start": "node server.js"
   },

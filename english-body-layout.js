@@ -8,11 +8,14 @@ export const ENGLISH_TEMPLATE_PROPORTION_PROFILE=Object.freeze({
 });
 // English men's tailored outfits need a smaller skull relative to the fixed
 // garment shoulder span. This is conditioning geometry only, not a face warp.
-// Keep the female v9 proportion profile unchanged.
+// The legacy female v9 proportion profile above remains unchanged.
 export const ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE=Object.freeze({
  identityHeadScale:.88,headWidthToShoulder:.35,headHeightToShoulder:.55,
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
+// The new English female portrait uses EXACTLY the English male head/neck/
+// shoulder geometry. This alias cannot change the male or legacy female v9.
+export const ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE=ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE;
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
 export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null}={}){
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');

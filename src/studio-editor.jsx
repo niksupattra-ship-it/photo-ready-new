@@ -1,4 +1,4 @@
-import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION} from '../english-template-body-policy.js';
+import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
 import {AutoHairTile} from './auto-hair-tile.jsx';
 import {ProcessingIndicator} from './processing-indicator.jsx';
 import {describePortraitFailure} from './portrait-process-failure.js';
@@ -1254,7 +1254,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(processActive||assetBusy||!ready||processRequestRef.current)return;
   const existing=outputHeads(state.current).find(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
   
-  if(existing&&(gender!=='female'||hair||keepCurrentHair||existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION)&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===ENGLISH_TEMPLATE_BODY_FINISH_VERSION&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&(portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish||hasPairedPortraitFinish(existing))){
+  if(existing&&(gender!=='female'||hair||keepCurrentHair||existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION)&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===englishTemplateBodyFinishForGender(gender)&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&(portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish||hasPairedPortraitFinish(existing))){
    const fitted=state.current.find(l=>l.id===existing.id);
    if(portraitFinishChoice(fitted.femaleEyeStyle,fitted.initialFemaleEyeStyle)!==finish)await switchPairedPortraitFinish(fitted,finish);
    if(!await hydrate(state.current.map(l=>layerKind(l)==='suit'?{...l,visible:false}:l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l)))throw Error('Could not show your portrait.');
