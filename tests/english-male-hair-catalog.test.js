@@ -7,6 +7,7 @@ import {ENGLISH_MALE_HAIR_CATALOG} from '../english-male-hair-catalog.js';
 import {PRODUCTION_HAIR_CATALOG,productionHair,selectedHairDesign,selectedHairInstruction,downloadHairAllowed} from '../hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION,catalogueHairInstruction} from '../catalogue-hair-policy.js';
 import {loadCatalogueHairGuide} from '../catalogue-hair-guide.js';
+import {englishSelectedHairReference} from '../english-selected-hair.js';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 
@@ -48,8 +49,8 @@ test('each new male style uses its exact guide in the existing one-call clothed 
  for(const hair of ENGLISH_MALE_HAIR_CATALOG){
   const calls=[];let makeup=0;
   await processProductionPortrait({input:{buffer:image,mimetype:'image/png'},fields:{...fields,hairId:hair.id,englishHairFit:JSON.stringify(fit)},root,key:'inert-test',requestPortrait:async request=>{calls.push(request);return{png:matte}},removeBackground:async()=>matte,onMakeupVariant:async()=>makeup++});
-  assert.equal(calls.length,1);assert.equal(makeup,0);assert.deepEqual(calls[0].hair,await loadCatalogueHairGuide(hair.id,root));assert(calls[0].outfit);assert.equal(Boolean(calls[0].hairPlacementReference),Boolean(manifest.entries[hair.id].face));assert.equal(calls[0].size,'1824x2432');
+  assert.equal(calls.length,1);assert.equal(makeup,0);assert.deepEqual(calls[0].hair,await englishSelectedHairReference({selected:hair,hair:await loadCatalogueHairGuide(hair.id,root),root}));assert(calls[0].outfit);assert.equal(Boolean(calls[0].hairPlacementReference),Boolean(manifest.entries[hair.id].face));assert.equal(calls[0].size,'1824x2432');
   assert.match(calls[0].prompt,new RegExp('SELECTED ENGLISH MALE HAIRSTYLE '+hair.id));assert.equal(selectedHairDesign(hair).kind,'short');
-  const policy=catalogueHairInstruction(hair,'short');assert.match(policy,/short top, forehead fringe/);assert.doesNotMatch(policy,/Retain the exact bob, lob/);assert.match(selectedHairInstruction(hair),/bald scalp/);
+  const policy=catalogueHairInstruction(hair,'short');assert.match(policy,/short top, forehead fringe/);assert.doesNotMatch(policy,/Retain the exact bob, lob/);assert.match(selectedHairInstruction(hair),/No mullet or long rear hair absent from this reference/);
  }
 });

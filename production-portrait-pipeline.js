@@ -25,6 +25,7 @@ import {requestReviewSeedream} from './seedream-review-transport.js';
 import {femaleFinishFor,FEMALE_MAKEUP_TEXTURE_PRIORITY,FEMALE_MAKEUP_SOURCE_LOCK} from './review-portrait-finish.js';
 import {productionHair,selectedHairDesign,selectedHairInstruction,selectedHairPlacement} from './hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOFT_HAIR_TEXTURE_POLICY} from './catalogue-hair-policy.js';
+import {englishSelectedHairReference,englishSelectedHairBoundaryInstruction} from './english-selected-hair.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
 import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './english-studio-finish.js';
@@ -327,7 +328,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const autoFemaleHairSource=templateBody&&selected.gender==='female'&&!chosen&&!keepCurrentHair
   ?await sharp(input.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer()
   :null;
- const visualHairReference=hair||autoFemaleHairSource;
+ const visualHairReference=chosen&&!keepCurrentHair?await englishSelectedHairReference({selected:chosen,hair,root}):hair||autoFemaleHairSource;
  const identityBox=parsePortraitIdentityBox(fields.faceIdentityBox);
  let identity=await portraitIdentityCrop(input,identityBox);
  if(templateBody&&!identity)identity=await sharp(input.buffer).rotate().resize({width:1536,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
@@ -343,7 +344,8 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const identityHeadScale=fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
  const compositionReference=headOnly?null:await createEnglishBodyLayout(outfit,identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined),outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
- const prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(newEnglishProfile&&selected.gender==='male')}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(newEnglishProfile&&selected.gender==='male')}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ if(chosen&&!keepCurrentHair)prompt+='\n'+englishSelectedHairBoundaryInstruction(chosen);
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');

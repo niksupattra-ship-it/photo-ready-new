@@ -7,6 +7,7 @@ import {ENGLISH_FEMALE_HAIR_CATALOG} from '../english-female-hair-catalog.js';
 import {PRODUCTION_HAIR_CATALOG,productionHair,selectedHairDesign,selectedHairInstruction,downloadHairAllowed} from '../hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION,catalogueHairInstruction} from '../catalogue-hair-policy.js';
 import {loadCatalogueHairGuide} from '../catalogue-hair-guide.js';
+import {englishSelectedHairReference} from '../english-selected-hair.js';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
@@ -50,7 +51,7 @@ test('every selected English style reaches the existing AI path with its matchin
  for(const hair of ENGLISH_FEMALE_HAIR_CATALOG){
   const calls=[];
   await processProductionPortrait({input:{buffer:image,mimetype:'image/png'},fields:{...fields,hairId:hair.id},root,key:'inert-test',requestPortrait:async request=>{calls.push(request);return {png:matte}},removeBackground:async()=>matte});
-  assert.equal(calls.length,1);assert.deepEqual(calls[0].hair,await loadCatalogueHairGuide(hair.id,root));
+  assert.equal(calls.length,1);assert.deepEqual(calls[0].hair,await englishSelectedHairReference({selected:hair,hair:await loadCatalogueHairGuide(hair.id,root),root}));
   assert.match(calls[0].prompt,new RegExp('SELECTED ENGLISH HAIRSTYLE '+hair.id));assert(calls[0].outfit);assert.equal(calls[0].size,'1824x2432');
   assert.equal(selectedHairDesign(hair).description,hair.description);assert(catalogueHairInstruction(hair,hair.kind).includes(hair.description));
  }
@@ -61,6 +62,6 @@ test('every selected English style reaches the existing AI path with its matchin
 test('a newly selected hairstyle keeps the same two-call Natural and Makeup pair and silhouette',async()=>{
  const hair=ENGLISH_FEMALE_HAIR_CATALOG[18],calls=[];let makeup;
  const natural=await processProductionPortrait({input:{buffer:image,mimetype:'image/png'},fields:{...fields,hairId:hair.id,femaleFinishPair:AI_MAKEUP_PAIR_VERSION},root,key:'inert-test',requestPortrait:async request=>{calls.push(request);return {png:matte}},removeBackground:async()=>matte,onMakeupVariant:async result=>{makeup=result}});
- assert.equal(calls.length,2);assert.deepEqual(calls[0].hair,await loadCatalogueHairGuide(hair.id,root));assert(!calls[1].hair);
+ assert.equal(calls.length,2);assert.deepEqual(calls[0].hair,await englishSelectedHairReference({selected:hair,hair:await loadCatalogueHairGuide(hair.id,root),root}));assert(!calls[1].hair);
  assert.deepEqual(await sharp(natural).extractChannel(3).raw().toBuffer(),await sharp(makeup).extractChannel(3).raw().toBuffer());
 });
