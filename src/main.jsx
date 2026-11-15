@@ -4094,6 +4094,26 @@ function App(){
    }
   })();
  };
+ // Start preparing the latest paid photo soon after login, before the
+ // customer even opens purchased-photo history. This is the critical path for
+ // an Edit click that does not need to wait for a network download.
+ useEffect(()=>{
+  if(!accountEmail||!authToken()||!currentWalletId())return;
+  const scope=walletScope(authToken(),currentWalletId());
+  let cancelled=false;
+  const timer=setTimeout(()=>{
+   void (async()=>{
+    try{
+     const response=await portraitFetch('/api/purchased-photos',{headers:walletHeaders(),cache:'no-store'},18000);
+     if(!response.ok||cancelled||scope!==walletScope(authToken(),currentWalletId()))return;
+     const data=await response.json();
+     if(cancelled||scope!==walletScope(authToken(),currentWalletId()))return;
+     preloadPurchasedHistory(Array.isArray(data.items)?data.items:[]);
+    }catch{}
+   })();
+  },650);
+  return()=>{cancelled=true;clearTimeout(timer)};
+ },[accountEmail]);
  const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onAutomaticDownload={requestPaidPhotoDownload} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onPreload={preloadPurchasedHistory} onPreloadItem={item=>{void startPurchasedEditorPrefetch(item).catch(()=>{})}} onEdit={(item,previewBlob)=>{
     // Navigate on the same click. The underlying editor loads asynchronously
     // while the purchased thumbnail is already visible in the Studio shell.
