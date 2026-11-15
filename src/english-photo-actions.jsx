@@ -1,7 +1,7 @@
 import React,{useLayoutEffect,useState} from 'react';
 
 // These are editor controls above the visible photo, never canvas/export pixels.
-export function EnglishPhotoActions({stageRef,canvasRef,drawerRef,toolbarRef,viewKey,busy,disabled,onCreate,onCancel}){
+export function EnglishPhotoActions({stageRef,canvasRef,drawerRef,toolbarRef,viewKey,busy,disabled,onCreate,onCancel,createLabel='Create',cancelLabel='Cancel',groupLabel='Create selected portrait'}){
  const [bounds,setBounds]=useState(null);
  useLayoutEffect(()=>{
   let frame=0;
@@ -29,9 +29,9 @@ export function EnglishPhotoActions({stageRef,canvasRef,drawerRef,toolbarRef,vie
  },[stageRef,canvasRef,drawerRef,toolbarRef,viewKey]);
  const stop=event=>event.stopPropagation();
  return bounds&&<div className="english-photo-actions" style={bounds}>
-  <div className="english-inline-ai" role="group" aria-label="Create selected portrait" onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} onPointerCancel={stop} onWheel={stop} onClick={stop}>
-   <button type="button" disabled={disabled||busy} onClick={onCreate}>Create</button>
-   <button type="button" disabled={busy} onClick={onCancel}>Cancel</button>
+  <div className="english-inline-ai" role="group" aria-label={groupLabel} onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} onPointerCancel={stop} onWheel={stop} onClick={stop}>
+   <button type="button" disabled={disabled||busy} onClick={onCreate}>{createLabel}</button>
+   <button type="button" disabled={busy} onClick={onCancel}>{cancelLabel}</button>
   </div>
  </div>;
 }
