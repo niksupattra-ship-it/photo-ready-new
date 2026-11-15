@@ -6,7 +6,7 @@ import {createEnglishBodyLayout,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH
 import {processProductionPortrait,validateProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
 import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
-import {ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,englishTemplateBodyFinishForGender,isEnglishTemplateBodyFinish,usesEnglishIdentityLayout,ENGLISH_TEMPLATE_BODY_SIZE} from '../english-template-body-policy.js';
+import {ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,englishTemplateBodyFinishForGender,isEnglishTemplateBodyFinish,usesEnglishIdentityLayout,ENGLISH_TEMPLATE_BODY_SIZE} from '../english-template-body-policy.js';
 
 const root=new URL('..',import.meta.url).pathname;
 const template='/assets/job-uniforms/female-job-ivory-bow-blouse.png';
@@ -33,7 +33,9 @@ const run=async(gender,version)=>{
 
 test('new female English uses exactly the male geometry while old male and female v9 are unchanged',()=>{
  assert.equal(englishTemplateBodyFinishForGender('male'),ENGLISH_TEMPLATE_BODY_FINISH_VERSION);
- assert.equal(englishTemplateBodyFinishForGender('female'),ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION);
+ assert.equal(englishTemplateBodyFinishForGender('female'),ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION);
+ assert.equal(isEnglishTemplateBodyFinish(ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION),true);
+ assert.equal(usesEnglishIdentityLayout(fields('female',ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION)),true);
  assert.equal(isEnglishTemplateBodyFinish(ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION),true);
  assert.equal(usesEnglishIdentityLayout(fields('female',ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION)),true);
  assert.deepEqual(ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE);
