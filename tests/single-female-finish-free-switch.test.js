@@ -83,15 +83,11 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
   else assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
  }
 });
-test('One-pass mode rejects malformed or mixed legacy dual-image requests',()=>{
+test('One-pass mode is restricted to single-finish female portraits',()=>{
  const f=fields('th','makeup','one');
- assert.doesNotThrow(()=>validateProductionPortrait({buffer:Buffer.alloc(128),mimetype:'image/png'},f));
- assert.throws(()=>processVersionMismatch(),/one-pass|ครั้งเดียว/);
- function processVersionMismatch(){
-  // The policy can never be silently enabled for a two-finish or male job.
-  const bad={...f,femaleFinishPair:AI_MAKEUP_PAIR_VERSION};
-  if(bad.femaleFinishPair&&bad.singlePassPortraitVersion)throw Error('one-pass must not accompany a legacy pair');
- }
+ assert.doesNotThrow(()=>validateProductionPortrait(input,f));
+ assert.throws(()=>validateProductionPortrait(input,{...f,femaleFinishPair:AI_MAKEUP_PAIR_VERSION}),/ตัวเลือก/);
+ assert.throws(()=>validateProductionPortrait(input,{...f,portraitMode:'male'}),/ตัวเลือก/);
 });
 test('old paired jobs remain two images on demand, not reinterpreted by new single-finish protocol',async()=>{
  const old=await run('en','natural','pair');
@@ -136,6 +132,6 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/thaiHairConfirmation=\{!englishFlow\}/,'English Easy Mode retains existing behavior');
  assert.match(easy,/\(hasResult\|\|thaiHairConfirmation\)\&\&tab==='hair'/,'Thai Easy Mode must offer the hairstyle list before initial AI generation');
  assert.match(easy,/onGenerateHair\?\.\(choice\)/,'Thai Easy Mode must send the selected haircut, not auto-default hair');
- assert.match(easy,/thaiHairConfirmation&&hasResult&&tab==='hair'&&hairSelectionPending&&<button type="button" className="easy-primary"/,'Only Thai Easy Mode hair changes need the new confirmation');
+ assert.match(easy,/thaiHairConfirmation&&hasResult&&\(hairSelectionPending\|\|finishChangePending\)/,'Thai Easy Mode holds hair and makeup selections until confirmation');
  assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'/,'Single-finish Makeup must not silently run local cosmetics instead of the AI worker');
 });
