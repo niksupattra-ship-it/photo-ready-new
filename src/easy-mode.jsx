@@ -49,7 +49,7 @@ export function EasyMode({adjustments,insignia,canvasRef,renderVersion,sourcePre
  useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setWizard(false);setTab('adjust');if(mobile){setCollapsed(true);setAdjustOpen(true)}}wasProcessing.current=Boolean(processing)},[processing,hasResult,mobile]);
  useEffect(()=>{if(processing){setAdjustOpen(false);setWizard(false);if(mobile)setCollapsed(true)}},[processing,mobile]);
  const wizardOpen=wizard&&!hasResult&&Boolean(sourcePreview)&&!processing;
- const wizardTabs=['type','hair','suit','background'];
+ const wizardTabs=thaiHairConfirmation?['type','hair','suit','background']:['type','suit','background'];
  const openTab=name=>{if(mobile&&processing)return;if(mobile&&!hasResult&&sourcePreview&&wizardTabs.includes(name)){setAdjustOpen(false);setTab(name);setCollapsed(false);setWizard(true);return}if(mobile&&name==='adjust'&&hasResult){setTab('adjust');setCollapsed(true);setAdjustOpen(true);return}setAdjustOpen(false);setCollapsed(mobile&&tab===name&&!collapsed);setTab(name)};
  useEffect(()=>{if(!adjustOpen)return;const close=e=>{if(e.key==='Escape')setAdjustOpen(false)};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[adjustOpen]);
  useEffect(()=>{if(!adjustOpen||!canvasRef.current||!modalPreview.current)return;const src=canvasRef.current,dst=modalPreview.current;dst.width=src.width;dst.height=src.height;dst.getContext('2d').drawImage(src,0,0)},[adjustOpen,renderVersion,canvasRef]);
