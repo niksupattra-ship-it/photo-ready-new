@@ -5329,7 +5329,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
   const key=hairResultKey(id,portraitMode,femaleEyeStyle,outfitReferencePath),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
-  const entry={master,sourcePhoto:firstUploadedPhotoRef.current,scope,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current,confirmed:Boolean(previous?.confirmed&&previous.master===master&&previous.sourcePhoto===firstUploadedPhotoRef.current&&previous.scope===scope&&previous.jobId===currentOutputJobRef.current)};
+  const entry={master,lock:editCache.current?.lock,sourcePhoto:firstUploadedPhotoRef.current,scope,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current,confirmed:Boolean(previous?.confirmed&&previous.master===master&&previous.sourcePhoto===firstUploadedPhotoRef.current&&previous.scope===scope&&previous.jobId===currentOutputJobRef.current)};
   hairResultCacheRef.current.set(key,entry);return entry;
  };
  const rememberRestoredHairResult=head=>{
@@ -5858,7 +5858,10 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     liveCollarWarpRef.current=0;setCollarWarp(0);liveCollarHeightRef.current=0;setCollarHeight(0);
     liveNeckAdjustRef.current={width:0,length:0};setNeckAdjust({...liveNeckAdjustRef.current});
     setPlacementLocked(false);lockedPlacementRef.current=null;lockedMasterRef.current=null;
-    hairResultCacheRef.current.clear();preparedHairBaseRef.current=null;lastHairDonorRef.current=null;
+    // Preserve older confirmed results from this upload for native Undo/Redo
+    // and exact-selection reuse. Cache entries already carry source, scope,
+    // hair and finish identities; new uploads cannot reuse stale entries.
+    preparedHairBaseRef.current=null;lastHairDonorRef.current=null;
     cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
     studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');
     const entry=rememberHairResult(selectedHair,master,portraitMode);entry.confirmed=true;
@@ -5877,7 +5880,27 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  // History restores accepted pixels and their finish together. Never seed a
  // hairstyle cache with the previous finish under the newly selected label.
  const syncStudioPortraitFinish=(head,preparedMaster)=>{
-  if(!editCache.current||!firstUploadedPhotoRef.current||head?.jobId!==currentOutputJobRef.current||!sharedStudioSkinSource(head))return false;
+  if(!editCache.current||!firstUploadedPhotoRef.current||!head?.jobId)return false;
+  if(head.jobId!==currentOutputJobRef.current){
+   // Undo/Redo can cross different completed AI jobs in the SAME Studio work.
+   // Recover the accepted master and fitting frame locally; never call AI.
+   const original=firstUploadedPhotoRef.current,scope=hairResultScope();
+   const cached=[...hairResultCacheRef.current.values()].find(entry=>
+    entry?.confirmed&&entry.jobId===head.jobId&&entry.sourcePhoto===original&&
+    entry.scope===scope&&entry.master&&entry.lock);
+   if(!cached)return false;
+   editCache.current={...editCache.current,master:cached.master,lock:cached.lock};
+   currentOutputJobRef.current=head.jobId;
+   currentOutputTrialRef.current=Boolean(cached.isTrial);
+   studioTrialRef.current=Boolean(cached.studioTrial);
+   setOutputJobId(head.jobId);setTrialPreview(Boolean(cached.studioTrial));
+   const finish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle);
+   original.idpromFemaleEyeStyle=finish;
+   original.idpromPortraitMode=head.portraitMode||'female';
+   setHairId(head.hairId||'');
+   return true;
+  }
+  if(!sharedStudioSkinSource(head))return false;
   const finish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle);
   if(!hasCurrentStudioSkin(head,finish)&&!hasOriginalPortraitAiFinish(head,finish))return false;
   const geometry=isStudioSkinGeometry(head.studioSkinGeometry)?head.studioSkinGeometry:studioSkinGeometryRef.current?.source===head.studioSkinBaseSource?studioSkinGeometryRef.current.geometry:null;
