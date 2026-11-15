@@ -8,6 +8,7 @@ import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from './female-single-finish-policy.js';
+import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup,NATURAL_MASTER_MAKEUP_VERSION} from './natural-master-makeup.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
 import {generateJobOutfit,isJobOutfitTemplate} from './job-outfit-ai.js';
 import {registerYoucamHairApi} from './youcam-hair-api.js';
@@ -586,22 +587,36 @@ async function runFemaleAlternateFinish(id){
   finish=fields.alternateFinish;
   if(!['natural','makeup'].includes(finish)||fields.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('Invalid alternate finish');
   heartbeat=setInterval(()=>{void touchFemaleAlternateFinish(id).catch(()=>{})},30000);heartbeat.unref?.();
-  const original=await downloadPolicy.inputForWork(wid,fields.downloadWorkId);
-  if(!original?.buffer?.length)throw Error('Original portrait is no longer available; the existing result is preserved');
-  await getModnetSession();
-  const nextFields={...fields,femaleEyeStyle:finish};
-  delete nextFields.femaleFinishPair;
-  // An alternate only changes cosmetics. All other choices are copied from
-  // the pinned source job rather than accepted from the incoming request.
-  validateProductionPortrait(original,nextFields);
-  const currentHair=await loadCurrentHairReference(nextFields,wid,getAiJobResult);
-  const result=await processProductionPortrait({
-   input:original,fields:nextFields,root:dir,currentHair,
-   removeBackground:source=>modnetRemoveBackground(source,{refine:false}),
-   key:process.env.ARK_API_KEY,
-   onStage:async stage=>{console.info('Alternate finish stage',id,stage)}
-  });
-  if(!await completeFemaleAlternateFinish(id,wid,finish,result))throw Error('Alternate finish was superseded');
+  let result;
+  const legacyAiMakeup=shouldUseNaturalMasterMakeup(fields,finish);
+  if(legacyAiMakeup){
+   // Preserve the established makeup appearance: edit the ACTUAL completed
+   // Natural output with the old dedicated AI makeup prompt. Do NOT regenerate
+   // the face/hair from the original upload or apply local color filters.
+   const naturalJob=await getAiJobResult(id,wid);
+   if(naturalJob?.status!=='completed'||!naturalJob.result?.length)throw Error('Completed Natural image is unavailable; original result preserved');
+   console.info('Alternate finish from completed Natural master',id,NATURAL_MASTER_MAKEUP_VERSION);
+   result=await generateMakeupFromCompletedNatural({
+    natural:naturalJob.result,fields,key:process.env.ARK_API_KEY
+   });
+  }else{
+   // Makeup -> Natural has no Natural master. Keep the existing original-upload
+   // generation route; never treat a Makeup image as Natural by stripping color.
+   const original=await downloadPolicy.inputForWork(wid,fields.downloadWorkId);
+   if(!original?.buffer?.length)throw Error('Original portrait is no longer available; the existing result is preserved');
+   await getModnetSession();
+   const nextFields={...fields,femaleEyeStyle:finish};
+   delete nextFields.femaleFinishPair;
+   validateProductionPortrait(original,nextFields);
+   const currentHair=await loadCurrentHairReference(nextFields,wid,getAiJobResult);
+   result=await processProductionPortrait({
+    input:original,fields:nextFields,root:dir,currentHair,
+    removeBackground:source=>modnetRemoveBackground(source,{refine:false}),
+    key:process.env.ARK_API_KEY,
+    onStage:async stage=>{console.info('Alternate finish stage',id,stage)}
+   });
+  }
+  if(!await completeFemaleAlternateFinish(id,wid,finish,result,legacyAiMakeup?NATURAL_MASTER_MAKEUP_VERSION:null))throw Error('Alternate finish was superseded');
   console.info('Alternate finish completed',id,finish);
  }catch(error){
   console.error('Alternate finish error',id,error?.code||error?.message);

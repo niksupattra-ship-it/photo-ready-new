@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import {NATURAL_MASTER_MAKEUP_VERSION} from './female-single-finish-policy.js';
 import pg from 'pg';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for job storage');
@@ -78,9 +79,13 @@ export async function queueFemaleAlternateFinish(id,walletId,finish,expectedHair
   }
   if(f.femaleEyeStyle===finish){await c.query('ROLLBACK');return {status:200,ready:true,finish}};
   if(f.alternateFinish&&f.alternateFinish!==finish){await c.query('ROLLBACK');return {status:409,error:'different_finish_already_selected'}};
-  if(f.alternateFinishStatus==='completed'&&j.result_makeup){await c.query('ROLLBACK');return {status:200,ready:true,finish}};
+  // Older v1 one-pass alternates were generated from the raw upload and look
+  // different from the released Natural->Makeup studio finish. Rebuild ONLY
+  // on an explicit Makeup request; never silently replace the primary image.
+  const staleNaturalMakeup=f.femaleEyeStyle==='natural'&&finish==='makeup'&&f.alternateMakeupVersion!==NATURAL_MASTER_MAKEUP_VERSION;
+  if(f.alternateFinishStatus==='completed'&&j.result_makeup&&!staleNaturalMakeup){await c.query('ROLLBACK');return {status:200,ready:true,finish}};
   if(['queued','processing'].includes(f.alternateFinishStatus)){await c.query('ROLLBACK');return {status:202,ready:false,finish}};
-  const attempts=Number(f.alternateFinishAttempts||0);
+  const attempts=staleNaturalMakeup&&j.result_makeup?0:Number(f.alternateFinishAttempts||0);
   if(attempts>=3){await c.query('ROLLBACK');return {status:409,error:'finish_retry_limit'}};
   await c.query("UPDATE ai_jobs SET fields=fields||jsonb_build_object('alternateFinish',$3::text,'alternateFinishStatus','queued','alternateFinishAttempts',$4::integer),updated_at=now() WHERE id=$1 AND wallet_id=$2",[id,walletId,finish,attempts+1]);
   await c.query('COMMIT');return {status:202,ready:false,finish};
@@ -94,8 +99,8 @@ export async function claimFemaleAlternateFinish(id){
 export async function touchFemaleAlternateFinish(id){
  await ready();await pool.query("UPDATE ai_jobs SET updated_at=now() WHERE id=$1 AND status='completed' AND fields->>'alternateFinishStatus'='processing'",[id]);
 }
-export async function completeFemaleAlternateFinish(id,walletId,finish,result){
- await ready();const {rowCount}=await pool.query("UPDATE ai_jobs SET result_makeup=$4,fields=fields||'{\"alternateFinishStatus\":\"completed\"}'::jsonb,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'alternateFinish'=$3 AND fields->>'alternateFinishStatus'='processing' AND result_makeup IS NULL",[id,walletId,finish,result]);
+export async function completeFemaleAlternateFinish(id,walletId,finish,result,makeupVersion=null){
+ await ready();const {rowCount}=await pool.query("UPDATE ai_jobs SET result_makeup=$4,fields=fields||jsonb_build_object('alternateFinishStatus','completed')||CASE WHEN $5::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('alternateMakeupVersion',$5::text) END,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'alternateFinish'=$3 AND fields->>'alternateFinishStatus'='processing' AND (result_makeup IS NULL OR ($5::text IS NOT NULL AND fields->>'alternateMakeupVersion' IS DISTINCT FROM $5::text))",[id,walletId,finish,result,makeupVersion]);
  return rowCount>0;
 }
 export async function failFemaleAlternateFinish(id,finish){

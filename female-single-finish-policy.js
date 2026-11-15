@@ -5,3 +5,6 @@
 export const FEMALE_SINGLE_FINISH_VERSION='female-single-finish-v1';
 export const isFemaleSingleFinish=fields=>fields?.femaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION&&fields?.portraitMode==='female'&&['natural','makeup'].includes(fields?.femaleEyeStyle);
 export const oppositeFemaleFinish=finish=>finish==='natural'?'makeup':finish==='makeup'?'natural':null;
+
+// Server-delivered Makeup built with the released, dedicated AI editor on an existing Natural portrait.
+export const NATURAL_MASTER_MAKEUP_VERSION='natural-master-ai-makeup-v1';

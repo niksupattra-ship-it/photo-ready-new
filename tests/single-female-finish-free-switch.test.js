@@ -6,6 +6,8 @@ import {processProductionPortrait,validateProductionPortrait} from '../productio
 import {FEMALE_SINGLE_FINISH_VERSION,isFemaleSingleFinish,oppositeFemaleFinish} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
+import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup} from '../natural-master-makeup.js';
+import {AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
 
@@ -89,21 +91,46 @@ test('One-pass mode is restricted to single-finish female portraits',()=>{
  assert.throws(()=>validateProductionPortrait(input,{...f,femaleFinishPair:AI_MAKEUP_PAIR_VERSION}),/ตัวเลือก/);
  assert.throws(()=>validateProductionPortrait(input,{...f,portraitMode:'male'}),/ตัวเลือก/);
 });
-test('Thai completed hairstyle selection asks for Natural or Makeup first, then creates only the chosen finish',async()=>{
+test('Thai edits draft all selections before any AI provider call',async()=>{
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const haircut=studio.slice(studio.indexOf(' const chooseHair=id=>'),studio.indexOf(' const confirmThaiHair=()=>'));
- assert.match(haircut,/!pendingNewPhoto&&hairGender==='female'/,'Only completed female images need an additional finish choice after choosing new hair');
- assert.match(haircut,/setThaiHairFinishChoice\(chosen\)/,'Selecting hair shows the finish choice and does not launch AI immediately');
- assert.doesNotMatch(haircut,/setStatus\('เลือกทรงผมแล้ว/,'No orange selection message on normal hair clicks');
+ const finish=studio.slice(studio.indexOf(' const selectPortraitFinish=style=>'),studio.indexOf(' const commitMakeupSource=async'));
+ assert.match(haircut,/!pendingNewPhoto&&hairGender==='female'/,'After completed hair selection show finish choices');
+ assert.match(haircut,/setThaiHairFinishChoice\(chosen\)/,'Hair choices are only drafted, not generated');
  assert.match(haircut,/const createThaiHairWithFinish=style=>/);
- assert.match(haircut,/void applyHair\(choice\.hairId,\{femaleEyeStyle:finish,portraitMode:'female',appearanceKind:'hair'\}\)/,'The latest selected finish is passed directly into the single-call hair pipeline');
+ assert.match(haircut,/setEasyFaceFinish\(portraitFinishChoice\(style\)\)/);
+ assert.match(haircut,/setThaiPendingHair\(choice\)/,'Finish choice stages draft hairstyle');
+ assert.doesNotMatch(haircut,/void applyHair\(choice\.hairId/,'No AI call when user merely taps the cosmetic choice');
+ assert.doesNotMatch(haircut,/void processPhoto\(\{hairId:choice/,'No first generation starts on finish choice');
  assert.match(studio,/id="thai-hair-finish-title"/);
- assert.match(studio,/onSelect=\{createThaiHairWithFinish\}/,'One click on Natural/Makeup starts generation');
- assert.match(studio,/const dismissThaiHairFinish=/,'Cancelling keeps the original result');
- assert.match(studio,/const selectEasyFaceFinish=style=>/);
- assert.match(studio,/else selectPortraitFinish\(selected\)/,'Easy Mode can switch a completed photo with a new AI request');
- assert.match(studio,/appearanceKind:'makeup'\}\);\n \};/,'Studio makeup selection invokes one new finish without staging the orange prompt');
- assert.match(studio,/if\(mode==='female'\)setEasyFaceFinish\(finish\)/,'Successful processing updates the visible finish selection');
+ assert.match(studio,/onSelect=\{createThaiHairWithFinish\}/);
+ assert.match(finish,/setThaiPendingHair\(prev=>prev\|\|/,'Cosmetic-only selection becomes a draft');
+ assert.doesNotMatch(finish,/void applyHair\(/,'Clicking Makeup/Natural by itself does not generate an image');
+ assert.match(studio,/const easyFinishPending=Boolean/);
+ assert.match(studio,/else\{setEasyFaceFinish\(selected\);const head=/,'Easy Mode also drafts cosmetic changes');
+ assert.match(studio,/onCreate=\{confirmThaiHair\}/,'Generate only after the user confirms all selections');
+ assert.match(studio,/if\(activeHead&&!finishChanged&&/,'Selecting an already-displayed exact combination is a no-op');
+ assert.match(studio,/if\(mode==='female'\)setEasyFaceFinish\(finish\)/,'Successful generation updates the selected finish');
+});
+test('Natural to Makeup edits the completed Natural image with the released AI makeup prompt once',async()=>{
+ const selected=fields('th','natural','one');
+ assert.equal(shouldUseNaturalMasterMakeup(selected,'makeup'),true);
+ assert.equal(shouldUseNaturalMasterMakeup({...selected,femaleEyeStyle:'makeup'},'makeup'),false);
+ const requests=[];
+ const makeup=await generateMakeupFromCompletedNatural({natural:rgba,fields:selected,key:'test-makeup',
+  requestPortrait:async request=>{requests.push(request);return {png:rgba}}});
+ assert.equal(requests.length,1,'Existing Natural image only takes one additional AI request');
+ assert.equal(requests[0].portraitMime,'image/png');
+ assert.match(requests[0].prompt,/Apply delicate natural Korean-inspired studio portrait makeup/);
+ assert.match(requests[0].prompt,/BROWS:/);
+ assert(requests[0].prompt.includes(AI_MAKEUP_PROMPT),'Exact previously shipped AI makeup instructions are reused');
+ assert(makeup.length>0);
+ const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
+ const store=await readFile(new URL('../job-store.js',import.meta.url),'utf8');
+ assert.match(server,/naturalJob\.result/,'AI makeup uses the previously finished Natural pixels');
+ assert.match(server,/generateMakeupFromCompletedNatural/,'Natural-to-Makeup goes through original AI makeup editor');
+ assert.match(store,/staleNaturalMakeup/,'Explicit retry repairs older alternate results created with a different prompt');
+ assert.match(store,/alternateMakeupVersion/,'Corrected AI makeup is cached and reused without a new provider call');
 });
 test('old paired jobs remain two images on demand, not reinterpreted by new single-finish protocol',async()=>{
  const old=await run('en','natural','pair');
