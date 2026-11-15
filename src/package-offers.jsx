@@ -1,5 +1,5 @@
 import {englishPreviewEnabled} from './english-preview.js';
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import './package-offers.css';
 import {ServiceTermsLink} from './service-terms.jsx';
 
@@ -9,7 +9,7 @@ const OFFERS=[
  {price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'},
  {price:'159',name:'รับรูปนี้ + ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผม'}
 ];
-function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={}}){
+function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={},diamondHairOffer=false}){
  const ready=Boolean(hasTrial)&&!payBusy;
  const premiumRunning=Boolean(premiumState.usdPremiumActive&&Number(premiumState.usdPremiumRemaining)>0);
  const plans=[
@@ -23,6 +23,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
    <span className="en-plans-eyebrow">IDPROM STUDIO</span>
    <h2>Choose Your Plan</h2>
   </header>
+  {diamondHairOffer&&preview&&<figure className="en-diamond-photo-preview"><img src={preview} alt="Your current Studio photo"/><figcaption>Current Studio photo · Diamond hairstyle selected</figcaption></figure>}
   {premiumState.usdPremiumPurchased&&<div className="en-plans-balance" role="status"><span>{premiumState.usdPremiumActive?'Premium active':'Premium access ended'}</span><strong>{premiumState.usdPremiumRemaining||0} / 20 AI generations left</strong>{premiumState.usdPremiumUntil&&<small>Access until {new Date(premiumState.usdPremiumUntil).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</small>}</div>}
   <div className="en-plans-grid">
    {plans.map((plan,index)=><section className={'en-plan-card'+(index?' en-plan-premium':'')} key={plan.id} aria-label={plan.name+' '+plan.price}>
@@ -31,7 +32,7 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
      <p className="en-plan-price">{plan.price}</p>
      {plan.period&&<p className="en-plan-period">{plan.period}</p>}
     </div>
-    {index===0&&preview&&<div className="en-plan-card-preview"><img src={preview} alt="Your selected photo preview"/><span>Selected photo preview</span></div>}
+    {index===0&&preview&&!diamondHairOffer&&<div className="en-plan-card-preview"><img src={preview} alt="Your selected photo preview"/><span>Selected photo preview</span></div>}
     <ul className="en-plan-features">{plan.features.map(item=><li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
     <button type="button" className="en-plan-action" disabled={!ready||(index===1&&premiumRunning)} onClick={()=>startCheckout(plan.id)}>{payBusy?'Preparing…':index===1&&premiumRunning?'Premium Active · '+premiumState.usdPremiumRemaining+' AI Left':plan.button}</button>
     {index===0&&<button type="button" className="single-photo-back" disabled={!ready} onClick={()=>onBackToPhoto?.(plan.id)}>← Back to this photo</button>}
@@ -57,10 +58,11 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
  </div>;
 }
 
-export function PackageOffers({preview,payBusy,payMsg,hasTrial,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,onBackToPhoto,isAuthenticated=true,premiumState={}}){
+export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=false,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,onBackToPhoto,isAuthenticated=true,premiumState={}}){
  const english=englishPreviewEnabled();
- const [selected,setSelected]=useState('89');
- if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} onBackToPhoto={onBackToPhoto} premiumState={premiumState}/>;
+ const [selected,setSelected]=useState(diamondHairOffer?'159':'89');
+ useEffect(()=>{if(diamondHairOffer)setSelected('159')},[diamondHairOffer]);
+ if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} onBackToPhoto={onBackToPhoto} premiumState={premiumState} diamondHairOffer={diamondHairOffer}/>;
  const disabled=payBusy||!hasTrial;
  const premiumCredits=Math.max(0,Math.floor(Number(premiumCreditBalance)||0)),credits=Math.max(0,Math.floor(Number(creditBalance)||0))+premiumCredits;
  const usePremium=isAuthenticated&&premiumCredits>0;
