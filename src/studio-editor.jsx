@@ -522,6 +522,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   setThaiPendingHair(null);
   const activeHead=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   setSelectedHair(activeHead?.hairId||'');
+  if(activeHead?.portraitMode==='female')setEasyFaceFinish(portraitFinishChoice(activeHead.femaleEyeStyle,activeHead.initialFemaleEyeStyle));
   setStatus('');
  };
  useEffect(()=>{if(processRequestRef.current)return;const head=layers.find(l=>l.name==='หัว · คอ · ผม');if(head?.jobId)window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:head.jobId,isTrial:Boolean(head.restrictedTrial&&!paidOutputIds.includes(head.jobId))}}))},[layers,paidOutputIds]);
@@ -1500,7 +1501,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!['makeup','natural','korean-rosy-v1','soft-rosy-v1'].includes(style)||!head?.jobId||(head.portraitMode||portraitMode)!=='female'||!sourcePhoto||processHairPending||state.current.some(l=>l.id===sourceLayerRef.current))return;
   const current=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   if((['soft-rosy-ai-v1','soft-rosy-makeup-v1'].includes(head.makeupStyles?.look))&&head.makeupBaseSource&&style===current&&(style!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&hasOriginalPortraitAiFinish(head,style)){void restoreMakeup();return}
-  void applyHair(head.freeHairBaseOriginal?'':head.hairId||'',{femaleEyeStyle:style,portraitMode:'female',appearanceKind:'makeup'});
+  // Draft the cosmetic choice. No AI call until the user confirms their
+  // combined current/new hairstyle, makeup and outfit selections.
+  setEasyFaceFinish(portraitFinishChoice(style));
+  setThaiPendingHair({hairId:head.freeHairBaseOriginal?'':head.hairId||'',portraitMode:'female',first:false});
+  setSelectedHair(head.hairId||'');
+  setPicker('hair');
+  setStatus('เลือกเมคอัพแล้ว · ตรวจสอบทรงผมและชุด แล้วกดสร้างภาพ');
  };
  const commitMakeupSource=async(head,previous,source,base,full,look,intensity,signal)=>{
   const next=previous.map(l=>l.id===head.id?{...l,source,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,makeupBaseSource:base,makeupCleanBaseSource:base,makeupFullSource:intensity===100?null:full,makeupStyles:{look},makeupIntensity:intensity,makeupRenderVersion:'skin-current-layer-v2'}:l);
