@@ -165,7 +165,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(store,/result_makeup=\$4/,'The existing first output is not overwritten');
  assert.match(store,/CASE WHEN fields->>'femaleFinishSingleVersion'='female-single-finish-v1'/,'Store English hair placement for later same-look cosmetic finish');
  assert.match(saved,/if\(head\.femaleFinishSingleVersion==='female-single-finish-v1'\)master\.idpromFemaleFinishSingleVersion/,'Purchased photos restore free cosmetic right after reopen');
- assert.match(studio,/setThaiPendingHair\(null\);setThaiHairFinishChoice\(null\);setSelectedHair\(''\);setAppearanceError\(null\)/,'New source image cancels both pending Thai hair and finish selection');
+ assert.match(studio,/setThaiPendingHair\(null\);setThaiHairFinishChoice\(null\);setThaiChoiceFlow\(null\);setSelectedHair\(''\);setAppearanceError\(null\)/,'New source image cancels both pending Thai hair and finish selection, plus navigation history');
  assert.match(server,/downloadPolicy\.inputForWork\(wid,fields\.downloadWorkId\)/,'Only pinned owned original inputs are processed');
  assert.match(server,/const nextFields=\{\.\.\.fields,femaleEyeStyle:finish\}/,'Cosmetics are the sole allowed change');
  assert.match(server,/queueFemaleAlternateFinish\(req\.params\.id,walletId\(req\),finish,hair,outfit\)/);
