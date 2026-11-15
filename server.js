@@ -4,6 +4,7 @@ import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js'
 import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
+import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
@@ -490,12 +491,19 @@ async function runAiJob(id){
   }
  }catch(e){console.error('AI job failed',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job worker stopped',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
-app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1},{name:'originalSource',maxCount:1}]),async(req,res)=>{
+app.post('/api/ai-jobs',(req,res,next)=>{
+ const started=Date.now(),requestId=crypto.randomBytes(8).toString('hex');
+ res.set('X-IDPROM-Request-ID',requestId);
+ req.once('aborted',()=>console.warn('AI upload interrupted',JSON.stringify({requestId,elapsedMs:Date.now()-started,expectedBytes:Number(req.get('content-length')||0)})));
+ next();
+},upload.fields([{name:'image',maxCount:1},{name:'mask',maxCount:1},{name:'originalSource',maxCount:1}]),async(req,res)=>{
  let createdJobId=null,creditUse=null,stage='validate';const started=Date.now();
  const logStage=(next,extra={})=>{stage=next;console.info('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,...extra}))};
  try{
+  await preparePortraitUpload(req,{policy:downloadPolicy,wallet:walletId(req),recoverWork:recoverPortraitWork,isOriginalRequest:isOriginalPortraitAiRequest});
   const image=req.files?.image?.[0],mask=req.files?.mask?.[0],originalSource=req.files?.originalSource?.[0];
   if(!image)return res.status(400).json({error:'image_required'});
+  logStage('upload_ready',{imageBytes:image.buffer.length,sourceBytes:originalSource?.buffer?.length||0,storedSource:req.is('application/json')!==false});
   try{if(req.body?.studioSkinVersion==='studio-original-ai-v3'&&(req.body.femaleEyeStyle||'natural')!=='natural')throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนปรับแสงผิวล่าสุด');validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
@@ -531,7 +539,7 @@ app.post('/api/ai-jobs',upload.fields([{name:'image',maxCount:1},{name:'mask',ma
   // Log the failed stage before refund/storage recovery can itself wait.
   console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
   if(createdJobId)try{await failAiJob(createdJobId,'work_binding_failed')}catch(cleanupError){console.error('AI binding cleanup:',cleanupError.code||'storage_error')}
-  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:e.code==='active_ai_job'?'active_ai_job':'job_create_failed',message:e.message,...(e.code==='active_ai_job'&&e.activeJobId?{activeJobId:e.activeJobId}:{})});
+  if(creditUse)await refundCredit(creditUse.usageId);console.error('Create AI job:',e);if(!res.headersSent)res.status(e.status||500).json({error:e.code==='active_ai_job'?'active_ai_job':e.code==='original_upload_required'?'original_upload_required':'job_create_failed',message:e.message,...(e.code==='active_ai_job'&&e.activeJobId?{activeJobId:e.activeJobId}:{})});
  }
 });
 app.post('/api/ai-jobs/:id/:action',async(req,res,next)=>{

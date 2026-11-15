@@ -22,6 +22,9 @@ export function describePortraitFailure(error,english=false){
  if(status===401||status===403){
   return make('auth_required','Access verification needed','Sign in and check that your account can use this photo.','กรุณาตรวจสอบสิทธิ์','เข้าสู่ระบบและตรวจสอบสิทธิ์การใช้รูปนี้');
  }
+ if(stage==='submit_job'&&(code==='REQUEST_TIMEOUT'||/failed to fetch|networkerror|fetch failed|load failed|network request failed/i.test(message))){
+  return make('upload','Photo upload interrupted','The photo could not be uploaded or its receipt could not be confirmed. Your previous photo is kept. Check the existing job before trying again.','ส่งรูปไม่สำเร็จ','การอัปโหลดหรือการยืนยันรับรูปสะดุด รูปเดิมยังอยู่ กรุณาตรวจสอบงานเดิมก่อนลองอีกครั้ง');
+ }
  if(code==='PORTRAIT_MODEL_TIMEOUT'||/timed out|timeout|หมดเวลารอ|ใช้เวลานาน/i.test(message)){
   return make('timeout','Processing timed out','Check the photo job status before starting another generation.','ประมวลผลใช้เวลานานเกินไป','ตรวจสอบสถานะงานก่อนสร้างภาพใหม่ เพื่อป้องกันการใช้สิทธิ์ซ้ำ');
  }

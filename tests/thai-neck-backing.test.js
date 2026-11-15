@@ -1,3 +1,5 @@
+import {submitPortraitTransfer,portraitTransferError} from '../src/portrait-transfer.js';
+import {resultSourceDigest} from '../src/ai-result-cache.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION} from '../english-head-portrait.js';
 import {test} from 'node:test';
@@ -63,7 +65,7 @@ test('the same opt-in flag cannot change English provider input, reference image
  assert.equal(calls.length,1);assert.deepEqual(calls[0].portrait,input);assert(!calls[0].neckReference&&!calls[0].neckShapeReference);assert(calls[0].compositionReference);assert.doesNotMatch(calls[0].prompt,/COMPLETE THAI HEAD|COMPLETE NECK AND U-BACKING/);
 });
 
-test('the actual browser submission opts in only Thai, preserves both original uploads and still submits when optional face measurement fails',async()=>{
+test('the actual browser submission opts in only Thai, preserves the exact original without duplicate transfer and still submits when optional face measurement fails',async()=>{
  const {PRODUCTION_HAIR_CATALOG}=await import('../hairstyle-catalog.js');
  const {NATURAL_STUDIO_SKIN_VERSION}=await import('../natural-studio-skin.js');
  const {markOriginalPortraitAiFinish,hasOriginalPortraitAiFinish}=await import('../original-portrait-ai.js');
@@ -72,11 +74,11 @@ test('the actual browser submission opts in only Thai, preserves both original u
  assert(a>=0&&b>a);
  for(const [english,missingFace,cancelled]of [[false,false,false],[false,true,false],[true,false,false],[false,true,true]]){
   const source=new File([input],'original.png',{type:'image/png'}),operation={cancelled:false};let body,scans=0;
-  const env={ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_STUDIO_FINISH_VERSION,THAI_NECK_BACKING_VERSION,AI_MAKEUP_PAIR_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,PRODUCTION_HAIR_CATALOG,HAIR_REFERENCE_VERSION,FormData,acceptedPaidTrial:false,activeProcessOperation:operation,activeSavedDownloadWork:null,englishPreviewEnabled:()=>english,assertProcessActive(){if(operation.cancelled)throw Error('cancelled')},portraitFinishChoice,hasOriginalPortraitAiFinish,warmPortraitResources:async()=>{},submitPortraitJob:async(_op,run)=>run(),replacementFaceIdentityBox:async()=>{scans++;if(cancelled)operation.cancelled=true;if(missingFace)throw Error('optional measurement unavailable');return box},saveAiJobFile:async file=>assert.equal(file,source),walletHeaders:()=>({}),analyticsTagError:e=>e,portraitJobError:e=>e,writeActiveAiJob(){},portraitFetch:async(_url,options)=>{body=options.body;return {ok:true,json:async()=>({jobId:'same-job',trialPreview:true})}},waitForAiJob:async()=>Object.assign(markOriginalPortraitAiFinish(new Blob([cutout],{type:'image/png'}),'natural'),{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION})};
+  const env={submitPortraitTransfer,portraitTransferError,resultSourceDigest,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_STUDIO_FINISH_VERSION,THAI_NECK_BACKING_VERSION,AI_MAKEUP_PAIR_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,PRODUCTION_HAIR_CATALOG,HAIR_REFERENCE_VERSION,FormData,acceptedPaidTrial:false,activeProcessOperation:operation,activeSavedDownloadWork:null,englishPreviewEnabled:()=>english,assertProcessActive(){if(operation.cancelled)throw Error('cancelled')},portraitFinishChoice,hasOriginalPortraitAiFinish,warmPortraitResources:async()=>{},submitPortraitJob:async(_op,run)=>run(),replacementFaceIdentityBox:async()=>{scans++;if(cancelled)operation.cancelled=true;if(missingFace)throw Error('optional measurement unavailable');return box},saveAiJobFile:async file=>assert.equal(file,source),walletHeaders:()=>({}),analyticsTagError:e=>e,portraitJobError:e=>e,writeActiveAiJob(){},portraitFetch:async(_url,options)=>{body=options.body;return {ok:true,json:async()=>({jobId:'same-job',trialPreview:true})}},waitForAiJob:async()=>Object.assign(markOriginalPortraitAiFinish(new Blob([cutout],{type:'image/png'}),'natural'),{idpromNaturalStudioSkinVersion:NATURAL_STUDIO_SKIN_VERSION})};
   const run=Function('env','with(env){'+code.slice(a,b)+';return aiFinishPortraitUncached}')(env);
   if(cancelled){await assert.rejects(run(source,'original',{portraitMode:'female',femaleEyeStyle:'natural'}),/cancelled/);assert.equal(body,undefined);continue}
   const result=await run(source,'original',{portraitMode:'female',femaleEyeStyle:'natural'});assert(result.size);
-  assert.deepEqual(new Uint8Array(await body.get('image').arrayBuffer()),new Uint8Array(input));assert.deepEqual(new Uint8Array(await body.get('originalSource').arrayBuffer()),new Uint8Array(input));
+  assert.deepEqual(new Uint8Array(await body.get('image').arrayBuffer()),new Uint8Array(input));assert.equal(body.get('originalSource'),null);assert.equal(body.get('originalSourceIsImage'),'1');
   assert.equal(body.get('thaiNeckBackingVersion'),english?null:THAI_NECK_BACKING_VERSION);assert.equal(body.get('faceIdentityBox'),!missingFace?JSON.stringify(box):null);assert.equal(scans,1);
  }
 });

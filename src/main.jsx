@@ -115,6 +115,7 @@ import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
 import {submitPortraitJob,cancelPortraitJob} from './portrait-operation.js';
+import {submitPortraitTransfer,portraitTransferError} from './portrait-transfer.js';
 import{analyticsContext,analyticsEvent,analyticsSelection,analyticsCheckout,analyticsPurchase,analyticsTagError,analyticsProcessFailure}from'./analytics.js';
 import{PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cropPhotoForDownload}from'./photo-size.jsx';
 
@@ -196,7 +197,7 @@ async function retryExistingAiJobRead(jobId,kind,read,operation=activeProcessOpe
 }
 async function readExistingAiJob(jobId,path,kind,format,operation=activeProcessOperation){
  return retryExistingAiJobRead(jobId,kind,async()=>{
-  const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+path,{headers:walletHeaders(),cache:'no-store'});
+  const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(jobId)+path,{headers:walletHeaders(),cache:'no-store'},format==='blob'?120000:30000);
   if(!response.ok||(format==='blob'&&response.status===202)){
    const message=await response.text().catch(()=>kind+' failed');
    throw Object.assign(Error(message||kind+' failed'),{status:response.status});
@@ -2926,7 +2927,8 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
  const aiInput=originalAi?originalFile:pinnedInput||await canonicalPortraitInput(originalFile,{normalize:levelPortraitCutout,legacy:Boolean(activeSavedDownloadWork)});assertProcessActive(operation);
  fd.append('image',aiInput,aiInput===originalFile?(originalFile.name||'portrait.png'):'portrait-upright.png');
- fd.append('originalSource',originalFile,originalFile.name||'original-portrait.png');
+ if(aiInput===originalFile)fd.append('originalSourceIsImage','1');
+ else fd.append('originalSource',originalFile,originalFile.name||'original-portrait.png');
  fd.append('hairId',hairId||'original');
  if(originalFile.idpromDownloadWorkId)fd.append('downloadWorkId',originalFile.idpromDownloadWorkId);
  if(options.sourceJobId)fd.append('sourceJobId',options.sourceJobId);
@@ -2953,7 +2955,8 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  await saveAiJobFile(originalFile);assertProcessActive(operation);
  const acceptTrial=acceptedPaidTrial;acceptedPaidTrial=false;
  const submitHeaders={...walletHeaders(),...(acceptTrial?{'X-IDPROM-Accept-Trial':'1'}:{})};
- let r=await portraitFetch('/api/ai-jobs',{method:'POST',body:fd,headers:submitHeaders},90000);
+ const transfer=()=>submitPortraitTransfer(portraitFetch,fd,{headers:submitHeaders,source:originalFile,originalAi,hashSource:resultSourceDigest,assertActive:()=>assertProcessActive(operation)});
+ let r=await transfer();
  // A different tab can already be generating for this wallet. Wait for that
  // wallet-owned job to leave the active queue, then submit THIS photo once.
  // The conflict response has not created a job or spent a generation.
@@ -2976,7 +2979,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
    await new Promise(resolve=>setTimeout(resolve,3000));
   }
   assertProcessActive(operation);
-  r=await portraitFetch('/api/ai-jobs',{method:'POST',body:fd,headers:submitHeaders},90000);
+  r=await transfer();
  }
 
  if(r.status===409&&r.headers.get('X-IDPROM-Canonical-Input')==='1'){
@@ -2985,8 +2988,8 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
   if(!frozen.size||frozen.size>20*1024*1024||!['image/png','image/jpeg','image/webp'].includes(frozen.type))throw Error('กรอบผิวไม่ตรงกับภาพต้นฉบับของงาน กรุณาเปิดงานเดิมใหม่แล้วลองอีกครั้ง');
   pinnedInput=frozen;continue;
  }
- if(!r.ok){const responseText=await r.text();let responseBody=null;try{responseBody=JSON.parse(responseText)}catch{}if(r.status===429){throw analyticsTagError(Object.assign(Error('มีงาน AI ก่อนหน้ากำลังประมวลผลอยู่ กรุณารอให้งานเดิมเสร็จหรือยกเลิกก่อน แล้วจึงประมวลผลรูปนี้อีกครั้ง'),{code:'ACTIVE_AI_JOB',status:429}),{error_stage:'submit_job',http_status:429})}if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(Object.assign(Error(responseBody?.message||responseText||'เครดิตสร้างรูปหมดแล้ว กรุณาซื้อแพ็กเกจเพิ่มเติม'),{status:r.status,code:responseBody?.error||'AI_SUBMIT_FAILED'}),{error_stage:'submit_job',http_status:r.status})}
- const submitted=await r.json();if(pinnedInput)originalFile.idpromCanonicalInput=pinnedInput;return submitted;
+ if(!r.ok){const responseText=await r.text();let responseBody=null;try{responseBody=JSON.parse(responseText)}catch{}if(r.status===429){throw analyticsTagError(Object.assign(Error('มีงาน AI ก่อนหน้ากำลังประมวลผลอยู่ กรุณารอให้งานเดิมเสร็จหรือยกเลิกก่อน แล้วจึงประมวลผลรูปนี้อีกครั้ง'),{code:'ACTIVE_AI_JOB',status:429}),{error_stage:'submit_job',http_status:429})}if(r.status===402)window.dispatchEvent(new Event('idprom-buy'));throw analyticsTagError(portraitTransferError(Object.assign(Error(responseBody?.message||responseText||'รับคำขอสร้างรูปไม่สำเร็จ'),{status:r.status,code:responseBody?.error||'AI_SUBMIT_FAILED'}),'submit_job'),{error_stage:'submit_job',http_status:r.status})}
+ let submitted;try{submitted=await r.json()}catch(error){throw portraitTransferError(error,'submit_job')}if(pinnedInput)originalFile.idpromCanonicalInput=pinnedInput;return submitted;
  }
  });
  if(info.downloadWorkId)originalFile.idpromDownloadWorkId=info.downloadWorkId;
