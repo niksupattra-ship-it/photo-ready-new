@@ -10,7 +10,7 @@ import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 const root=new URL('..',import.meta.url).pathname,template='/assets/job-uniforms/female-job-ivory-bow-blouse.png';
 const inputBytes=await sharp({create:{width:120,height:160,channels:4,background:'#ad7a65'}}).png().toBuffer();
 const input={buffer:inputBytes,mimetype:'image/png'};
-const natural=await sharp({create:{width:120,height:160,channels:4,background:'#ad7a65'}}).png().toBuffer();
+const natural=await sharp({create:{width:120,height:160,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:96,height:136,channels:4,background:'#ad7a65'}}).png().toBuffer(),left:12,top:14}]).png().toBuffer();
 const fields=(gender,englishStudioFinishVersion)=>({
  interfaceLanguage:'en',portraitComposition:'en-outfit-body-v1',portraitMode:gender,
  englishStudioFinishVersion,neckOutfitReferencePath:template,
@@ -38,7 +38,7 @@ test('model warming moves to English photo selection, but all paid submits retai
  const src=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const upload=src.indexOf('setHairId(null);setF(v);');
  const warm=src.indexOf('warmPortraitResources(v,null,{requiresSegmentation:false,english:true})',upload);
- const submit=src.indexOf('const info=alreadyOwned||await submitPortraitJob(',upload);
+ const submit=src.indexOf('const info=alreadyOwned||await submitPortraitJob(');
  assert(upload>0&&warm>upload,'Model prewarm must be initiated only on a selected uploaded image');
  assert.match(src,/if\(!alreadyOwned\)await warmPortraitResources\(originalFile/,'The AI submission gate still checks vision model readiness before reserving credits');
  assert.match(src,/warmPortraitResources\(v,null,\{requiresSegmentation:false,english:true\}\)\.catch\(\(\)=>\{\}\)/,'Prewarm failures must be swallowed and safely retried at the existing paid preflight');
