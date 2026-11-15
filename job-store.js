@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import {NATURAL_MASTER_MAKEUP_VERSION} from './natural-master-makeup.js';
+import {NATURAL_MASTER_MAKEUP_VERSION} from './female-single-finish-policy.js';
 import pg from 'pg';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for job storage');
