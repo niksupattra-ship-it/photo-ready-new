@@ -56,7 +56,7 @@ function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownlo
   if(cropKey(crop)!==cropKey(receipt.crop))void onPrepareSize?.(crop);
  }}/>;
 }
-export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
+export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit,onPreload,onPreloadItem}){
  const locale=interfaceLocale(),english=locale!=='th-TH',t=(th,en)=>english?en:th;
  const active=useRef(false),opening=useRef(null),previewBlobs=useRef(new Map());
  const [items,setItems]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(''),[urls,setUrls]=useState({}),[serverOffset,setServerOffset]=useState(0);
@@ -68,6 +68,9 @@ export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
    if(!active.current)return;
    if(!Array.isArray(data.items))throw Error(t('โหลดรายการไม่สำเร็จ กรุณาลองใหม่','Could not load the photo list. Please try again.'));
    setItems(data.items);
+   // Prepare owned editable layers before a photo is chosen, in parallel
+   // with the lightweight thumbnails shown in this purchase-history list.
+   onPreload?.(data.items);
    setServerOffset(Number.isFinite(Date.parse(data.serverNow))?Date.parse(data.serverNow)-Date.now():0);
    for(const item of data.items){
     const response=await request(item.previewUrl,{headers:headers(),cache:'no-store',signal:controller.signal});
@@ -107,7 +110,7 @@ export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
    {items?.length===0&&<p>{t('ยังไม่มีไฟล์รับรูปที่เก็บไว้ในช่วง 7 วันนี้','No purchased photos are available within the last 7 days.')}</p>}
    {items?.map((item,i)=>{
     const remaining=Math.max(0,Math.ceil((Date.parse(item.expiresAt)-Date.now()-serverOffset)/86400000));
-    return <article className="purchased-photo-row" key={item.id}>
+    return <article className="purchased-photo-row" key={item.id} onPointerEnter={()=>onPreloadItem?.(item)} onFocusCapture={()=>onPreloadItem?.(item)}>
      {urls[item.id]?<img src={urls[item.id]} alt={t('รูปที่ซื้อ ','Purchased photo ')+(i+1)}/>:<div className="purchased-photo-placeholder"/>}
      <div className="purchased-photo-info">
       <strong>{t('รูป ','Photo ')+item.id.slice(-6).toUpperCase()}</strong>
