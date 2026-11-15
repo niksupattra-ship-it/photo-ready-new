@@ -6,7 +6,15 @@ const styles=[
  ['Textured side-swept crop','short','a short dark textured crop with a soft side sweep across the forehead, low natural volume and neat compact sides'],
  ['Flowing wavy middle part','short','dark centre-parted hair with full soft flowing waves, a curved M-shaped front and longer rounded side locks at temple level'],
  ['Tousled wavy middle part','short','short dark tousled wavy hair with a centre opening, lifted separated textured strands and irregular soft waves; no stiff spikes or extra crown height'],
- ['Straight textured fringe','short','short straight dark layered hair with a low uneven forehead fringe, a subtle off-centre split and compact tapered sides; preserve its straight strand texture']
+ ['Straight textured fringe','short','short straight dark layered hair with a low uneven forehead fringe, a subtle off-centre split and compact tapered sides; preserve its straight strand texture'],
+ ['Classic slicked-back','short','sleek dark hair combed straight back from a rounded open forehead, defined fine swept ridges on the crown, compact naturally tapered sides'],
+ ['Neat side-swept taper','short','short dark brown smooth side-swept hair with a soft diagonal front and tight clean temple taper, no elevated quiff'],
+ ['Textured ash-blonde quiff','short','light ash-brown hair with a softly lifted textured swept-back front, separated natural strands and short tapered sides'],
+ ['Smooth open-forehead sweep','short','dark brown glossy swept-back cut with a gentle side part, open forehead, rounded low crown and neat close-cut sides'],
+ ['Soft side-part pompadour','short','dark brown side-parted haircut with a smooth rounded side-swept front and restrained crown lift, compact natural sideburns'],
+ ['Short curly crop','short','very short dark tightly textured curly crop with a compact low front, close neat sides and an even rounded crown'],
+ ['Tousled textured waves','short','short dark layered soft waves tousled across the forehead, loose irregular wavy texture and compact sides'],
+ ['Short neat textured buzz','short','very short dark even textured crop with a natural low frontal hairline, tiny short strands and close tapered sides']
 ];
 export const ENGLISH_MALE_HAIR_CATALOG=styles.map(([name,kind,description],i)=>({
  id:'seedream-'+String(64+i),gender:'male',interfaceLanguage:'en',
