@@ -48,7 +48,7 @@ test('new female only: balanced ~39% guide, smaller than older v9 but larger tha
  assert.equal(fresh.identityHeadScale,.95);
  assert.equal(fresh.headWidthToShoulder,.41);
  assert.equal(fresh.headHeightToShoulder,.55,'Reserve the same framing as male v1; do not shrink the jacket');
- assert.equal(fresh.chinToCollar,.015);
+ assert.equal(fresh.chinToCollar,.020,'Keep the same short upper-collar anchor as the unchanged male and v1 guide');
  assert.equal(fresh.neckToShoulder,.255);
  assert.equal(fresh.chestToShoulder,.46);
  const width=fresh.identityHeadScale*fresh.headWidthToShoulder;
