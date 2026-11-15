@@ -749,7 +749,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     setEasyFaceFinish(portraitFinishChoice(restored.femaleEyeStyle,restored.initialFemaleEyeStyle));
     setHairGender(restored.portraitMode||'female');
    }
-   setThaiPendingHair(null);setThaiHairFinishChoice(null);
+   setThaiPendingHair(null);setThaiHairFinishChoice(null);setThaiChoiceFlow(null);
    from.pop();to.push(saved);setRevision(v=>v+1);setStatus(back?'ย้อนกลับแล้ว':'ทำซ้ำแล้ว');
   }
  };
