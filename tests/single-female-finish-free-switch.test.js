@@ -83,6 +83,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const saved=await readFile(new URL('../src/saved-project.js',import.meta.url),'utf8');
+ const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
  assert.match(store,/SELECT \* FROM ai_jobs WHERE id=\$1 AND wallet_id=\$2 FOR UPDATE/,'Wallet and job are locked for entitlement');
  assert.match(store,/f\.delivery_confirmed!==true/,'Only delivered jobs may request the free opposite');
  assert.match(store,/String\(f\.hairId\|\|'original'\)!==expectedHair/,'An alternative hair ID cannot bypass credits');
@@ -102,4 +103,9 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/onClick=\{confirmThaiHair\}/);
  assert.match(studio,/setThaiPendingHair\(chosen\)/);
  assert.match(studio,/freeFinishChange=appearanceKind==='makeup'/);
+ assert.match(studio,/onHair=\{chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Easy Mode must use the same two-step generation as Studio');
+ assert.match(easy,/tab==='hair'&&/,'Easy Mode must offer the hairstyle list before initial AI generation');
+ assert.match(easy,/onGenerateHair\?\.\(choice\)/,'Easy Mode must send the selected haircut, not auto-default hair');
+ assert.match(easy,/hairSelectionPending&&<button type="button" className="easy-primary"/,'After first generation, hair changes also need explicit confirmation');
+ assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'/,'Single-finish Makeup must not silently run local cosmetics instead of the AI worker');
 });
