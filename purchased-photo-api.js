@@ -10,7 +10,7 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
  const uploadEditor=multer({limits:{fileSize:48*1024*1024,files:1,fields:0}}).single('project');
  const headers=res=>res.set({'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, nofollow'});
  const member=(req,res,next)=>{headers(res);if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อดูรูปที่ซื้อแล้ว'});next()};
- const shape=row=>({id:row.id,jobIds:row.job_ids,packageId:row.package_id,width:row.width,height:row.height,purchasedAt:row.purchased_at,createdAt:row.created_at,expiresAt:row.expires_at,receiveUrl:'/receive/'+row.token,imageUrl:'/api/purchased-photos/'+row.id+'/image',previewUrl:'/api/purchased-photos/'+row.id+'/preview'});
+ const shape=row=>({id:row.id,jobIds:row.job_ids,packageId:row.package_id,width:row.width,height:row.height,purchasedAt:row.purchased_at,createdAt:row.created_at,updatedAt:row.updated_at,expiresAt:row.expires_at,receiveUrl:'/receive/'+row.token,imageUrl:'/api/purchased-photos/'+row.id+'/image',previewUrl:'/api/purchased-photos/'+row.id+'/preview'});
  const authorized=async row=>row&&await policy.allowedJobs(row.wallet_id,row.job_ids);
  const check=async(row,res,english=false)=>{if(!row){res.status(404).send(english?'The photo was not found.':'ไม่พบรูป');return false}if(row.expired||!row.image){res.status(410).send(english?'The 7-day retention period for this photo has ended.':'รูปนี้หมดระยะจัดเก็บ 7 วันแล้ว');return false}if(!await authorized(row)){res.status(403).send(english?'Access to this photo could not be confirmed.':'ยังยืนยันสิทธิ์ของรูปนี้ไม่ได้');return false}return true};
  const handle=run=>async(req,res)=>{headers(res);try{await run(req,res)}catch(e){if(!res.headersSent)res.status(e.status||503).json({error:e.code||'purchased_photo_unavailable',message:e.status?e.message:'ยังเปิดรูปที่ซื้อไม่ได้ กรุณาลองอีกครั้ง ไม่ต้องชำระซ้ำ'})}};
@@ -43,7 +43,7 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   assertSavedProjectResources(project);
   const ok=await store.storeEditor(wallet,row.id,project);
   if(!ok)throw Object.assign(Error('รูปนี้หมดระยะเก็บ 7 วันแล้ว'),{status:410});
-  res.json({ok:true,id:row.id});
+  res.json({ok:true,id:row.id,updatedAt:ok.updated_at});
  }));
  app.get('/api/purchased-photos/:id/editor',member,handle(async(req,res)=>{
   const wallet=req.accountUser.wallet_id,row=await store.ownedEditor(wallet,req.params.id);
@@ -86,7 +86,7 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
    project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{kind:'head',name:'หัว · คอ · ผม',jobId:row.job_ids[0],source:image,sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,outputUnlocked:true,restrictedTrial:false}],compareSource:original||image,...(original?{downloadSource:original,downloadWorkId}:{})};
    reconstructed=true;
   }
-  res.json({id:'',unlocked:true,legacyDownload:false,reconstructed,project:packSavedProjectTransfer(project)});
+  res.json({id:'',unlocked:true,legacyDownload:false,reconstructed,updatedAt:row.updated_at,project:packSavedProjectTransfer(project)});
  }));
  app.get('/api/purchased-photos/:id/:kind',member,handle(async(req,res)=>{
   if(!['image','preview'].includes(req.params.kind))return res.sendStatus(404);
