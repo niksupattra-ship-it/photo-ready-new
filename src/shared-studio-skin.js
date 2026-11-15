@@ -56,12 +56,17 @@ export async function finishSharedStudioSkin(blob,{style='natural',encodeBase,pr
  const version=blob?.idpromStudioSkinVersion,original=version===ORIGINAL_PORTRAIT_AI_VERSION||version==='studio-original-ai-v5';
  if(!supported.has(style)||!original&&version!==STUDIO_SKIN_WORKFLOW_VERSION)throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  let source=sharedStudioSkinSource(blob);
+ const sourceFromUnchangedBlob=!source;
  if(!source){
   if(blob.idpromStudioCosmeticsVersion||typeof encodeBase!=='function')throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
   source=await encodeBase(blob);abort(signal);
   if(!isStudioSkinBaseSource(source))throw Error('ภาพฐานแสงและผิวยังไม่พร้อมสำหรับแต่งเมคอัพ');
  }
- const base=copyStudioSkinBlobMetadata(blob,studioSkinBlobFromSource(source),{bare:true});
+ // For a fresh Natural PNG, encodeBase records the same pixels as the source.
+ // Blob.slice preserves the exact PNG bytes without another base64 decode.
+ // Older work and all Makeup paths still rebuild from the stored base.
+ const nativeNatural=style==='natural'&&sourceFromUnchangedBlob&&blob.type==='image/png';
+ const base=copyStudioSkinBlobMetadata(blob,nativeNatural?blob.slice(0,blob.size,blob.type):studioSkinBlobFromSource(source),{bare:true});
  base.idpromStudioSkinVersion=version;
  if(original)base.idpromSharedPortraitBaseVersion=SHARED_PORTRAIT_BASE_VERSION;
  base.idpromStudioSkinBaseSource=source;

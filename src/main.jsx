@@ -2858,7 +2858,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
    const image=await decodedPortraitImage(finished),face=await portraitFaceLandmarks(finished,image),width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
    if(!face?.[152]||!face?.[234]||!face?.[454])throw Error('ตรวจตำแหน่งคางในผลลัพธ์ไม่ได้ กรุณาลองรูปหน้าตรง');
    finished.idpromStudioSkinGeometry={width,height,chinY:face[152].y*height,faceCX:(face[234].x+face[454].x)/2*width,faceWidth:Math.hypot((face[454].x-face[234].x)*width,(face[454].y-face[234].y)*height)};
-   finished=await finishSharedStudioSkin(finished,{style:options.femaleEyeStyle,encodeBase:async blob=>{if(bodyPortrait&&([ENGLISH_STUDIO_FINISH_VERSION,ENGLISH_HEAD_FINISH_VERSION].includes(blob.idpromEnglishStudioFinishVersion)||isEnglishTemplateBodyFinish(blob.idpromEnglishStudioFinishVersion)))return blobDataURL(blob);const image=await decodedPortraitImage(blob),native=canvasFor(image.naturalWidth||image.width,image.naturalHeight||image.height);native.getContext('2d').drawImage(image,0,0);try{return native.toDataURL('image/png')}finally{native.width=1;native.height=1}},prepare:async source=>{const url=URL.createObjectURL(source);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return Boolean(operation?.cancelled||activeProcessOperation!==operation)}}});
+   finished=await finishSharedStudioSkin(finished,{style:options.femaleEyeStyle,encodeBase:async blob=>{if(bodyPortrait&&([ENGLISH_STUDIO_FINISH_VERSION,ENGLISH_HEAD_FINISH_VERSION].includes(blob.idpromEnglishStudioFinishVersion)||isEnglishTemplateBodyFinish(blob.idpromEnglishStudioFinishVersion)))return blobDataURL(blob);if(blob.type==='image/png')return blobDataURL(blob);const image=await decodedPortraitImage(blob),native=canvasFor(image.naturalWidth||image.width,image.naturalHeight||image.height);native.getContext('2d').drawImage(image,0,0);try{return native.toDataURL('image/png')}finally{native.width=1;native.height=1}},prepare:async source=>{const url=URL.createObjectURL(source);try{return await prepareStudioMakeup(url)}finally{URL.revokeObjectURL(url)}},toBlob:canvasPng,signal:{get aborted(){return Boolean(operation?.cancelled||activeProcessOperation!==operation)}}});
   }
   // Legacy makeup retains its existing selective finish. The new rosy look
   // uses AI skin refinement and soft light, without a separate face overlay.
@@ -2884,6 +2884,13 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  const finishRequested=async base=>{
   if(gender!=='female'||!sharedStudioSkinSource(base))return base;
+  // Natural was already finished before caching. Copy its exact bytes and
+  // metadata rather than decode and rebuild the identical base a second time.
+  if(requestedFinish==='natural'&&base.idpromFemaleEyeStyle==='natural'&&base.idpromNaturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION){
+   const finished=copyStudioSkinBlobMetadata(base,base.slice(0,base.size,base.type));
+   portraitGeometryBases.set(finished,base);
+   return finished;
+  }
   try{
    const finished=await finishSharedStudioSkin(base,{style:requestedFinish,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(operation?.cancelled||activeProcessOperation!==operation)}}});
    assertCurrentOperation();
