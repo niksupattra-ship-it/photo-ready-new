@@ -2,7 +2,7 @@ import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {finishStudioPostCosmetics} from './studio-post-cosmetics.js';
 import {encodedImageSize} from './project-resource-guard.js';
-import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
+import {ORIGINAL_PORTRAIT_AI_VERSION,hasOriginalPortraitAiFinish} from '../original-portrait-ai.js';
 import {PORTRAIT_MAKEUP_VERSION,SHARED_PORTRAIT_BASE_VERSION,sharedOriginalPortraitSource} from '../shared-portrait-policy.js';
 
 const sourcePattern=/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
@@ -15,6 +15,15 @@ export function sharedStudioSkinSource(subject){
  if((subject?.idpromStudioSkinVersion||subject?.studioSkinVersion)!==STUDIO_SKIN_WORKFLOW_VERSION)return null;
  const value=subject?.idpromStudioSkinBaseSource||subject?.studioSkinBaseSource;
  return isStudioSkinBaseSource(value)?value:null;
+}
+// Makeup generated and matted on the server is the FINAL selected image.
+// It has no independent Natural base. Calling finishSharedStudioSkin() on
+// those already-complete pixels throws "image base not ready" during
+// local_finish and blocks Studio even though the customer's AI job succeeded.
+// This is ONLY for fully marked original-AI Makeup; legacy Natural/paired
+// paths retain the existing base/geometry and finish pipeline.
+export function isCompletedServerMakeup(blob,style){
+ return style==='makeup'&&hasOriginalPortraitAiFinish(blob,'makeup')&&!sharedStudioSkinSource(blob);
 }
 export function canReuseStudioSkinBase(head){
  return Boolean(sharedStudioSkinSource(head)&&head?.jobId&&head.portraitMode==='female'&&!head.mask&&!head.warpSource&&!head.warpBaseMask&&!head.eraseRestoreSource&&!head.warpRestoreBase&&!head.makeupStyles?.look);
