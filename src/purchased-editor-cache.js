@@ -1,6 +1,10 @@
 // Local acceleration ONLY for already-owned purchased photos. The server remains
 // authoritative for ownership, paid rights, and the seven-day expiry.
 const NAME='idprom-purchased-editor-cache-v1',STORE='projects',MAX=12;
+// A small RAM hot cache bypasses large IndexedDB structured-clone reads when
+// returning to a purchased edit within the same browser tab.
+const hot=new Map(),HOT_MAX=3;
+const rememberHot=row=>{if(hot.has(row.key))hot.delete(row.key);hot.set(row.key,row);while(hot.size>HOT_MAX)hot.delete(hot.keys().next().value)};
 const key=(walletId,photoId)=>walletId+':'+photoId;
 function openDb(){
  return new Promise((resolve,reject)=>{
@@ -31,15 +35,22 @@ const validIdentity=(walletId,photoId)=>typeof walletId==='string'&&walletId.len
 export async function readPurchasedEditorCache({walletId,photoId,updatedAt,expiresAt}){
  if(!validIdentity(walletId,photoId)||!updatedAt)return null;
  try{
-  const row=await transact('readonly',store=>store.get(key(walletId,photoId)));
-  if(!row||row.updatedAt!==updatedAt||!validProject(row.project)||!Number.isFinite(Date.parse(row.expiresAt))||Date.parse(row.expiresAt)<=Date.now()||(expiresAt&&row.expiresAt!==expiresAt))return null;
+  const id=key(walletId,photoId),valid=row=>row&&row.updatedAt===updatedAt&&validProject(row.project)&&Number.isFinite(Date.parse(row.expiresAt))&&Date.parse(row.expiresAt)>Date.now()&&(!expiresAt||row.expiresAt===expiresAt);
+  const warm=hot.get(id);
+  if(valid(warm))return warm.project;
+  if(warm)hot.delete(id);
+  const row=await transact('readonly',store=>store.get(id));
+  if(!valid(row))return null;
+  rememberHot(row);
   return row.project;
  }catch{return null}
 }
 export async function writePurchasedEditorCache({walletId,photoId,project,updatedAt,expiresAt}){
  if(!validIdentity(walletId,photoId)||!validProject(project)||!updatedAt||!expiresAt||Date.parse(expiresAt)<=Date.now())return false;
  try{
-  await transact('readwrite',store=>store.put({key:key(walletId,photoId),walletId,photoId,project,updatedAt,expiresAt,savedAt:Date.now()}));
+  const row={key:key(walletId,photoId),walletId,photoId,project,updatedAt,expiresAt,savedAt:Date.now()};
+  rememberHot(row);
+  await transact('readwrite',store=>store.put(row));
   // Keep a small, expiring cache: downloaded photos themselves are not stored.
   await transact('readwrite',store=>{
    const cursor=store.openCursor();const now=Date.now();
@@ -55,5 +66,6 @@ export async function writePurchasedEditorCache({walletId,photoId,project,update
 }
 export async function deletePurchasedEditorCache(walletId,photoId){
  if(!validIdentity(walletId,photoId))return;
+ hot.delete(key(walletId,photoId));
  try{await transact('readwrite',store=>store.delete(key(walletId,photoId)))}catch{}
 }
