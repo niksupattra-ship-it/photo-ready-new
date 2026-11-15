@@ -956,7 +956,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const canCommit=()=>suitRequestRef.current===request;
    const unchanged=new Set(previous.filter(l=>l.id!==target?.id).map(l=>l.id));
    const committed=await request.wait(hydrate(next,unchanged,canCommit));
-   if(!committed)return true;
+   if(!committed)return suitRequestRef.current!==request;
    undo.current.push(previous);
    if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false}
    redo.current=[];selectedRef.current=created.id;setSelected(created.id);setTool('move');setRevision(v=>v+1);setStatus('เลือกชุดแล้ว · ปรับตำแหน่งและขนาดได้ทันที');
