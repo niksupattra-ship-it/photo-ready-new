@@ -40,7 +40,7 @@ function warmEditorLayers(project,isCurrent){
  * happens when purchased-photo history appears, not after the Edit click.
  */
 export function prefetchPurchasedEditor({item,scope,walletId,request,headers,currentScope}){
- if(!item?.id||!item?.editorStored||!item.updatedAt||!item.expiresAt||!walletId||!scope)return Promise.resolve(null);
+ if(!item?.id||!item.updatedAt||!item.expiresAt||!walletId||!scope)return Promise.resolve(null);
  const id=cacheKey(scope,item),prior=active.get(id);
  if(prior){active.delete(id);active.set(id,prior);return prior}
  const isCurrent=()=>scope===currentScope()&&Date.parse(item.expiresAt)>Date.now();
