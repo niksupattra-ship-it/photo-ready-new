@@ -55,7 +55,7 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
    const image='data:image/png;base64,'+photo.toString('base64');
    let original=null,downloadWorkId=null;
    if(/^dwork_[a-f0-9]{36}$/.test(row.work_scope)){
-    try{const input=await policy.inputForWork(wallet,row.work_scope);if(/^image\\/(png|jpeg|webp)$/.test(input.mimetype)&&input.buffer.length<16*1024*1024){original='data:'+input.mimetype+';base64,'+input.buffer.toString('base64');downloadWorkId=row.work_scope}}catch{}
+    try{const input=await policy.inputForWork(wallet,row.work_scope);if(/^image\/(png|jpeg|webp)$/.test(input.mimetype)&&input.buffer.length<16*1024*1024){original='data:'+input.mimetype+';base64,'+input.buffer.toString('base64');downloadWorkId=row.work_scope}}catch{}
    }
    project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{kind:'head',name:'หัว · คอ · ผม',jobId:row.job_ids[0],source:image,sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,outputUnlocked:true,restrictedTrial:false}],compareSource:original||image,...(original?{downloadSource:original,downloadWorkId}:{})};
    reconstructed=true;
