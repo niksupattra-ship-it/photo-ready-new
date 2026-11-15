@@ -106,3 +106,29 @@ export async function purgeExpiredWorks({limit=100}={}){
  ) DELETE FROM saved_studio_work w USING remembered r WHERE w.id=r.id RETURNING w.id`,[RETENTION_VERSION,batch]);
  return r.rowCount;
 }
+
+/**
+ * Match a purchased 7-day photo to an existing editable saved project.
+ * Historical purchases retain their original per-job rights: this is only a
+ * navigation hint. Opening the project still requires savedWorkRights.
+ */
+export async function editableWorksForPurchasedPhotos(walletId,photos=[]){
+ await ready();
+ if(!Array.isArray(photos)||photos.length===0)return {};
+ const rows=await pool.query(`SELECT id,ARRAY(
+  SELECT DISTINCT layer->>'jobId'
+  FROM jsonb_array_elements(CASE WHEN jsonb_typeof(project->'layers')='array'
+    THEN project->'layers' ELSE '[]'::jsonb END) layer
+  WHERE (layer->>'kind' IN ('head','source-photo') OR layer->>'name'='หัว · คอ · ผม')
+    AND COALESCE(layer->>'jobId','')<>''
+ ) AS job_ids FROM saved_studio_work
+ WHERE wallet_id=$1 AND ${ACTIVE_WORK}
+ ORDER BY updated_at DESC`,[walletId]);
+ const result={};
+ for(const photo of photos){
+  const ids=Array.isArray(photo.job_ids)?photo.job_ids:[];
+  const matching=rows.rows.find(row=>row.job_ids.some(id=>ids.includes(id)));
+  if(matching)result[photo.id]=matching.id;
+ }
+ return result;
+}
