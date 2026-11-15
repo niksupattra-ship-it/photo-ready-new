@@ -5722,7 +5722,21 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
   try{
    const femaleEyeStyle=portraitFinishChoice(requestedFinish,file.idpromFemaleEyeStyle);
-   const aiHead=await aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
+   const generate=()=>aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
+   let aiHead;
+   try{aiHead=await generate()}
+   catch(error){
+    const transient=operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled&&(
+     ['fetch_result','fetch_makeup','verify_rights','poll_job'].includes(error?.idpromProcessStage)||
+     [408,429,500,502,503,504].includes(Number(error?.status||0))||
+     /network|fetch failed|failed to fetch|timeout|timed out|ใช้เวลานาน|การเชื่อมต่อ/i.test(String(error?.message||''))
+    );
+    if(!transient)throw error;
+    console.warn('AI output was already generated; automatically recovering the same job',operation.jobId);
+    portraitResultCache.clear();
+    await waitForPortraitOperation(700,operation);
+    aiHead=await generate();
+   }
    failureStage='compose';
    const master=await finishFirstPortraitMaster(aiHead);
    const composed=await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
