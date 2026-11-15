@@ -10,6 +10,15 @@ export function describePortraitFailure(error,english=false){
   code:key,title:hint(enTitle,thTitle),message:hint(enMessage,thMessage),
   ...(stage?{stage}:{}),...(status?{status}:{})
  });
+ if(error?.idpromRecoverableJob){
+  return make('recover_result','AI finished — recover your photo','The photo was generated, but Studio could not finish displaying it. Choose Recover original result to reopen the SAME job without another AI generation or credit reservation.','AI สร้างรูปเสร็จแล้ว · รับผลเดิมได้','AI สร้างรูปสำเร็จ แต่ Studio เปิดผลไม่ครบ กด “รับผลเดิม” เพื่อเปิดงานเดิม โดยไม่สร้างซ้ำหรือจองเครดิตใหม่');
+ }
+ if(code==='AI_INPUT_REJECTED'||code==='AI_OUTPUT_REJECTED'||/SensitiveContentDetected/.test(message)){
+  return make('provider_rejected','Image could not be generated','The image provider did not return a usable image. No photo will be substituted for a rejected output.','AI ไม่อนุญาตให้สร้างภาพนี้','ผู้ให้บริการ AI ไม่ส่งผลลัพธ์สำหรับภาพนี้ ระบบจะไม่ใช้ภาพอื่นแทน');
+ }
+ if(stage==='quality_check'||code==='portrait_finish_incomplete'||code==='selected_hairstyle_mismatch'){
+  return make('quality_check','The AI result needs another attempt','The generated result did not pass the face, hairstyle or cutout check. The previous photo is preserved.','ผลลัพธ์ AI ยังไม่ผ่านการตรวจ','รูปที่สร้างยังไม่ตรงเงื่อนไขใบหน้า ทรงผม หรือขอบภาพ ระบบเก็บรูปเดิมไว้');
+ }
  if(code==='PORTRAIT_MODEL_UNAVAILABLE'||code==='PORTRAIT_MODEL_TIMEOUT'||stage==='prepare_model'){
   return make('model_initialization','Could not prepare photo tools','The face-analysis tools could not load. Check your connection and try again. No new generation was submitted at this stage.','โหลดเครื่องมือตรวจใบหน้าไม่สำเร็จ','ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง ขั้นตอนนี้ยังไม่ได้ส่งงานสร้างภาพใหม่');
  }
