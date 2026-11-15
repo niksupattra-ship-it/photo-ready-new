@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {FEMALE_SINGLE_FINISH_VERSION,isFemaleSingleFinish,oppositeFemaleFinish} from '../female-single-finish-policy.js';
+import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
@@ -15,7 +16,7 @@ const input={buffer:rgba,mimetype:'image/png'};
 const fields=(language,finish,protocol='single')=>({
  portraitMode:'female',femaleEyeStyle:protocol==='pair'?'natural':finish,
  studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,
- ...(protocol==='pair'?{femaleFinishPair:AI_MAKEUP_PAIR_VERSION}:{femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION}),
+ ...(protocol==='pair'?{femaleFinishPair:AI_MAKEUP_PAIR_VERSION}:{femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,...(protocol==='one'?{singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION}:{})}),
  ...(language==='en'?{
   interfaceLanguage:'en',portraitComposition:'en-outfit-body-v1',
   englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,
@@ -70,6 +71,28 @@ test('Makeup selected: exact original paired AI makeup pipeline remains, but onl
   assert.deepEqual(selected.calls.map(x=>x.size),oldPair.calls.map(x=>x.size),'Same image dimensions and provider model requests');
  }
 });
+test('New single-pass Natural and Makeup each make exactly ONE provider request in Thai and English',async()=>{
+ for(const language of ['th','en'])for(const finish of ['natural','makeup']){
+  const got=await run(language,finish,'one');
+  assert.equal(got.calls.length,1,language+'/'+finish+' must call the image AI once');
+  assert.equal(got.variant,null,'No extra AI portrait is produced without selection');
+  assert(got.result.length>100);
+  assert(!got.stages.includes('skin-prepare'),'No hidden Thai skin preparation request');
+  assert(!got.stages.includes('makeup'),'No hidden second makeup request');
+  if(finish==='makeup')assert.match(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
+  else assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
+ }
+});
+test('One-pass mode rejects malformed or mixed legacy dual-image requests',()=>{
+ const f=fields('th','makeup','one');
+ assert.doesNotThrow(()=>validateProductionPortrait({buffer:Buffer.alloc(128),mimetype:'image/png'},f));
+ assert.throws(()=>processVersionMismatch(),/one-pass|ครั้งเดียว/);
+ function processVersionMismatch(){
+  // The policy can never be silently enabled for a two-finish or male job.
+  const bad={...f,femaleFinishPair:AI_MAKEUP_PAIR_VERSION};
+  if(bad.femaleFinishPair&&bad.singlePassPortraitVersion)throw Error('one-pass must not accompany a legacy pair');
+ }
+});
 test('old paired jobs remain two images on demand, not reinterpreted by new single-finish protocol',async()=>{
  const old=await run('en','natural','pair');
  assert.equal(old.calls.length,2);
@@ -97,9 +120,12 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(server,/queueFemaleAlternateFinish\(req\.params\.id,walletId\(req\),finish,hair,outfit\)/);
  assert.match(server,/queuedFemaleAlternateFinishes\(\)/,'Pending requests resume after server restart');
  assert.match(main,/fd\.append\('femaleFinishSingleVersion',FEMALE_SINGLE_FINISH_VERSION\)/);
+ assert.match(main,/fd\.append\('singlePassPortraitVersion',SINGLE_PASS_PORTRAIT_VERSION\)/);
  assert.doesNotMatch(main,/fd\.append\('femaleFinishPair',AI_MAKEUP_PAIR_VERSION\)/,'New jobs must not generate both automatically');
  assert.match(main,/requestFreeFemaleAlternate\(options\.sourceJobId/);
  assert.match(studio,/const confirmThaiHair=/,'Thai must offer a separate create button');
+ assert.match(studio,/finishChangePending=\{easyFinishPending\}/,'Thai finish is drafted for the next confirmed generation');
+ assert.match(easy,/\['type','hair','suit','background'\]/,'Hair is chosen before submitting AI');
  assert.match(studio,/onCreate=\{confirmThaiHair\}/,'Thai Full Studio must place the create button directly over the photo');
  assert.match(studio,/createLabel="สร้างภาพ" cancelLabel="ยกเลิก"/,'Thai on-photo actions must show localized Create and Cancel');
  assert.doesNotMatch(studio,/studio-hair-confirm-button/,'Thai Full Studio must not use the old below-picker confirmation');
