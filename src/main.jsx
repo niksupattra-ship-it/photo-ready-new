@@ -2893,6 +2893,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const finishMeta=femaleFinishMetadata(cached.value);if(finishMeta.femaleFinishProfile)result.idpromFemaleFinishProfile=finishMeta.femaleFinishProfile;if(finishMeta.femaleFinishReference)result.idpromFemaleFinishReference=finishMeta.femaleFinishReference;
   if(firstPortrait)result.idpromPortraitCacheKey=key;
   const finished=await finishRequested(result);
+  if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
   assertCurrentOperation();
   writeActiveAiJob({jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
   window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:result.idpromTrial,fullEdit:verified.fullEdit}}));
@@ -2900,6 +2901,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   return finished;
  }
  const finished=await finishRequested(cached.value);
+ if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
  window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:cached.value.idpromJobId,isTrial:cached.value.idpromTrial,fullEdit:cached.value.idpromFullEdit}}));
  return finished;
 }
@@ -4662,6 +4664,9 @@ function App(){
      // hydration or network-read error. The user can retry the SAME wallet-
      // scoped submission with no new AI generation or credit reservation.
      console.warn('Preserving completed AI job after local delivery failure',operation.jobId);
+     // The next click must refetch this same completed provider result rather
+     // than replaying a failed local postprocessing promise from the cache.
+     portraitResultCache.clear();
      setMsg('AI สร้างภาพเสร็จแล้ว แต่ Studio ยังเปิดผลไม่ได้ · กดประมวลผลอีกครั้งเพื่อรับงานเดิม ไม่หักเครดิตซ้ำ');
     }else{
      operation.cancelled=true;portraitResultCache.clear();
