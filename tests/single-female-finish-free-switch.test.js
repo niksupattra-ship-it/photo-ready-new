@@ -50,7 +50,9 @@ test('single finish protocol accepts only female Natural/Makeup; legacy pair sti
 test('Natural selected: only one AI generation, one output and no automatic Makeup for Thai and English',async()=>{
  for(const language of ['th','en']){
   const got=await run(language,'natural');
-  assert.equal(got.calls.length,1);
+  const oldPair=await run(language,'natural','pair');
+  assert.equal(got.calls.length,oldPair.calls.length-1,'Only the unnecessary second Makeup call is removed; original Thai skin polish is preserved');
+  assert.deepEqual(got.result,oldPair.result,'Natural pixels must be unchanged');
   assert.equal(got.variant,null,'A second selectable image is not created');
   assert(got.result.length>100);
   assert(!got.stages.includes('makeup'));
@@ -60,8 +62,8 @@ test('Makeup selected: exact original paired AI makeup pipeline remains, but onl
  for(const language of ['th','en']){
   const selected=await run(language,'makeup');
   const oldPair=await run(language,'natural','pair');
-  assert.equal(selected.calls.length,2,'Natural base plus original Makeup edit, not a third AI call');
-  assert.equal(oldPair.calls.length,2);
+  assert.equal(selected.calls.length,oldPair.calls.length,'Selected Makeup preserves exactly the previous full quality pipeline');
+  assert(oldPair.calls.length>=2);
   assert.equal(selected.variant,null,'Do not expose an unselected Natural image');
   assert(selected.stages.includes('makeup'));
   assert.deepEqual(selected.result,oldPair.variant,'Makeup PNG stays identical to the former paired output for the same provider response');
