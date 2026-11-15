@@ -10,6 +10,7 @@ import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup} from '.
 import {AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
+import {ENGLISH_STUDIO_FREE_HAIR_IDS,isEnglishStudioFreeHair,isEnglishStudioDiamondHair,orderEnglishStudioHair,englishStudioDiamondActive} from '../src/english-studio-hair-policy.js';
 
 const root=new URL('..',import.meta.url).pathname;
 const outfit='/assets/job-uniforms/female-job-ivory-bow-blouse.png';
@@ -220,4 +221,66 @@ test('Existing Studio Undo and Redo restore earlier completed AI generations wit
  assert.match(masterRestore,/master:cached\.master,lock:cached\.lock/,'The original processed master and fitting frame are restored');
  assert.doesNotMatch(masterRestore,/requestPortrait|aiFinishPortrait|processStudioPhoto/,'AI is never invoked when restoring a prior job');
  assert.doesNotMatch(studio,/const backThaiChoice=\(\)=>/,'No new selection-navigation arrow was added');
+});
+
+test('English-only Studio remembers homepage gender and always reselects it for a newly added Studio photo',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ assert.match(main,/if\(englishPreviewEnabled\(\)\)v\.idpromPortraitMode=gender/,'Upload captures the homepage sex');
+ assert.match(main,/if\(englishPreviewEnabled\(\)&&f\)f\.idpromPortraitMode=gender/,'Homepage sex changes after upload stay in sync');
+ assert.match(main,/initialGender=\{englishPreviewEnabled\(\)\?gender:null\}/,'Only English passes remembered gender to Studio');
+ assert.match(studio,/englishFlow\?\(initialSourcePhoto\?\.idpromPortraitMode\|\|initialGender\):null/,'First visit restores sex from uploaded source');
+ const source=studio.slice(studio.indexOf(' const addSourcePhoto=async '),studio.indexOf(' useEffect(()=>{if(!initialSourcePhoto'));
+ assert.match(source,/if\(englishFlow\)apiFile\.idpromPortraitMode=null/,'New Studio upload cannot inherit the previous image sex');
+ assert.match(source,/else if\(englishFlow\)\{setPicker\(false\);setPortraitChoiceOpen\(true\)/,'Every Studio replacement opens a sex modal before creation');
+ assert.match(source,/if\(englishFlow\)\{setEnglishInlineAi\(null\);setEnglishDraft\(null\);setEnglishRoute\(null\);setEnglishStep\(null\)\}/,'English setup is suspended under the gender modal');
+ assert.match(studio,/englishFlow\?'Choose the photo type':'กรุณาเลือกชนิดรูป'/,'Modal is localized in English without changing Thai copy');
+ assert.match(studio,/if\(englishFlow\)\{trackPhotoType\(mode,'select'\);if\(sourcePhoto\)\{sourcePhoto\.idpromPortraitMode=mode/,'Chosen gender binds to the new uploaded photo');
+ assert.match(studio,/setEnglishStep\('choose'\);setEnglishRoute\(null\);setStatus\(''\);return/,'Choosing gender shows existing English AI/manual setup, no processing yet');
+});
+test('English homepage and Easy Mode use AI automatic hair for both men and women',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
+ const english=await readFile(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');
+ assert.match(studio,/allowHairChoice=\{false\} initialGender=/,'English landing wizard does not offer manual hair options');
+ assert.match(english,/hair:allowHairChoice\?hair:''/,'Woman and man both send AI-selected default hair');
+ assert.match(english,/gender==='female'&&<fieldset/,'Makeup choices appear only for women');
+ assert.match(easy,/const wizardTabs=englishPreviewEnabled\(\)\?\['type','suit','background'\]/,'English Easy Mode skips hair step');
+ assert.match(easy,/hasResult&&!englishPreviewEnabled\(\)&&<button className=\{tab==='hair'/,'Hair picker tab hidden in English Easy Mode');
+ assert.match(main,/\{!englishPreviewEnabled\(\)&&<button type="button" data-hair-guide="male-hair"/,'Old English homepage does not expose male hair controls');
+ assert.match(main,/\{!englishPreviewEnabled\(\)&&<button type="button" data-hair-guide="female-hair"/,'Old English homepage does not expose female hair controls');
+ assert.match(main,/!englishPreviewEnabled\(\)&&f&&!b&&hairId===null/,'English homepage has no hairstyle-first hint');
+});
+test('English Studio shows two neat free hairs before Diamond per gender; Diamond needs active 30-day package',async()=>{
+ assert.deepEqual(ENGLISH_STUDIO_FREE_HAIR_IDS.female,['seedream-49','seedream-53']);
+ assert.deepEqual(ENGLISH_STUDIO_FREE_HAIR_IDS.male,['seedream-67','seedream-76']);
+ for(const gender of ['female','male']){
+  const ids=ENGLISH_STUDIO_FREE_HAIR_IDS[gender];
+  assert.equal(ids.length,2);
+  ids.forEach(id=>assert.equal(isEnglishStudioFreeHair(id,gender),true));
+  assert.equal(isEnglishStudioDiamondHair('seedream-999',gender),true);
+  assert.equal(isEnglishStudioDiamondHair('',gender),false);
+  assert.deepEqual(orderEnglishStudioHair([{id:'seedream-999',gender},{id:ids[1],gender},{id:ids[0],gender}],gender).map(h=>h.id),[ids[0],ids[1],'seedream-999']);
+ }
+ const now=Date.parse('2026-11-15T12:00:00Z'),wallet={usdPremiumPurchased:true,usdPremiumActive:true,usdPremiumUntil:'2026-12-14T12:00:00Z'};
+ assert.equal(englishStudioDiamondActive(wallet,now),true);
+ assert.equal(englishStudioDiamondActive({...wallet,usdPremiumUntil:'2026-11-14T12:00:00Z'},now),false,'Expired 30-day package cannot select a new Diamond hair');
+ assert.equal(englishStudioDiamondActive({...wallet,usdPremiumActive:false},now),false);
+ assert.equal(englishStudioDiamondActive({...wallet,usdPremiumPurchased:false},now),false);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const payments=await readFile(new URL('../payment-store.js',import.meta.url),'utf8');
+ assert.match(payments,/usd_premium_expires_at=clock_timestamp\(\)\+interval '30 days'/,'Use existing server 30-day validity, no invented plan');
+ assert.match(main,/englishPreviewEnabled\(\)\?englishStudioDiamondActive\(knownWalletData\):rights\.premiumDownloadRemaining>0/,'English uses 30-day purchase, Thai keeps own rights');
+ assert.match(main,/englishPreviewEnabled\(\)\?orderEnglishStudioHair\(ENGLISH_MALE_HAIR_CATALOG,'male'\):MALE_HAIR_OPTIONS/,'Only English hair gets reordered');
+ assert.match(main,/englishPreviewEnabled\(\)\?orderEnglishStudioHair\(ENGLISH_FEMALE_HAIR_CATALOG,'female'\):STUDIO_FEMALE_HAIR_OPTIONS/);
+ assert.match(studio,/const premiumHairAllowed=englishFlow\?premiumHairCreditAvailable===true:/,'Thai purchase rights untouched');
+ assert.match(studio,/const isPremiumHair=id=>englishFlow\?isEnglishStudioDiamondHair/,'Thai free and Diamond mappings untouched');
+ assert.match(studio,/if\(isPremiumHair\(id\)&&!premiumHairAllowed&&!canRestoreHair\(id,englishInlineAi\.gender,englishInlineAi\.finish\)\)/,'English pending hair selection checks 30-day plan');
+ assert.match(studio,/if\(hair&&isPremiumHair\(hair\)&&!premiumHairAllowed&&!canRestoreHair\(hair,gender,finish\)\)/,'Creation cannot bypass Diamond eligibility');
+ assert.match(studio,/englishFlow\?isPremiumHair\(h\.id\)/,'Each English Diamond tile is visibly marked');
+ assert.match(studio,/englishFlow\?isEnglishStudioFreeHair\(h\.id,hairGender\):isFreeFemaleHair\(h\.id\)/,'Only the two selected haircuts have a Free label');
+ assert.match(studio,/\(!englishFlow\|\|hairGender==='female'\|\|id!=='makeup'\)/,'Male English studio does not show makeup');
+ assert.match(studio,/rememberProcessedHistory\(previous\)/,'Existing Studio Undo/Redo continues tracking processed results');
 });
