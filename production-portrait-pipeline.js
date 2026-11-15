@@ -3,7 +3,8 @@ import {usesCompleteThaiNeckBacking,completeThaiNeckPrompt,completeThaiNeckGuide
 import {prepareThaiNeckCanvas} from './thai-neck-canvas.js';
 import {validateCurrentHairRequest} from './english-current-hair.js';
 import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
-import {createAiMakeupVariant} from './ai-portrait-makeup.js';
+import {createAiMakeupVariant,AI_MAKEUP_PROMPT} from './ai-portrait-makeup.js';
+import {isSinglePassPortrait} from './single-pass-portrait-policy.js';
 import {decontaminateEnglishBlueEdgeRgba} from './english-blue-edge-clean.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {isFemaleSingleFinish} from './female-single-finish-policy.js';
@@ -29,7 +30,7 @@ import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOF
 import {englishSelectedHairReference,englishSelectedHairBoundaryInstruction} from './english-selected-hair.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
-import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './english-studio-finish.js';
+import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY,ENGLISH_REFERENCE_COSMETICS} from './english-studio-finish.js';
 import {parseEnglishHairFit,createEnglishHairFitGuide} from './english-hair-fit-guide.js';
 import {isEnglishHeadPortrait,ENGLISH_HEAD_FINISH_VERSION} from './english-head-portrait.js';
 import {englishHeadPortraitPrompt} from './english-head-prompt.js';
@@ -169,25 +170,34 @@ export function studioReferenceIdentityBox(evidence){
  const points=ids.map(id=>evidence.face[id]),fw=Math.hypot((evidence.face[454][0]-evidence.face[234][0])*evidence.width,(evidence.face[454][1]-evidence.face[234][1])*evidence.height),mx=fw*.08/evidence.width,my=fw*.08/evidence.height;
  return parsePortraitIdentityBox([Math.max(0,Math.min(...points.map(p=>p[0]))-mx),Math.max(0,Math.min(...points.map(p=>p[1]))-my),Math.min(1,Math.max(...points.map(p=>p[0]))+mx),Math.min(1,Math.max(...points.map(p=>p[1]))+my)]);
 }
+// One provider generation combines hair, skin, lighting and the requested finish.
+// This wording applies only to new, explicitly versioned one-pass jobs.
+function onePassMakeupPriority(english=false){
+ if(english)return '\nFINAL FINISH PRIORITY — ONE AI IMAGE, REQUESTED MAKEUP: Any earlier instruction to create a Natural/no-cosmetics base applies ONLY to jobs without this final selected Makeup finish. Generate the selected hairstyle, garment, restored studio complexion, and the following makeup together from the uploaded person, in this SAME request. No separate Natural image or second edit is requested. The original person alone sets face anatomy, eye geometry, gaze, skin tone and identity.\n'+ENGLISH_REFERENCE_COSMETICS+'\nMatch professional soft frontal light across the entire face, ears and neck, with a refined sheer foundation but no whitening, enlarged eyes, reshaped lips or skin-mask borders. Keep original garment details and target body proportions exactly, and complete the clean silhouette in this single photograph.';
+ const details=AI_MAKEUP_PROMPT.slice(AI_MAKEUP_PROMPT.indexOf('BROWS:')).replace('The original Natural portrait supplies exact camera framing, skin tone, background, outfit, hairstyle and lighting.','The uploaded original person supplies facial anatomy and complexion; the selected hair and selected outfit rules supply the required new hairstyle and garment.');
+ return '\nFINAL FINISH PRIORITY — ONE AI IMAGE, REQUESTED MAKEUP: Complete source-matched skin repair, soft studio lighting, the specifically selected hairstyle and the following delicate Korean-style makeup inside THIS SAME image generation. Image 1 is the untouched original person, not a completed Natural image. Do not run a preliminary Natural portrait, do not preserve source hair instead of the selected reference, and do not change the real face.\n'+details;
+}
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  const chosen=validateProductionPortrait(input,fields);
  // Preserve old paired Makeup quality: first build the same Natural base
  // internally, then return ONLY the user-selected Makeup PNG. The internal
  // base is not a second deliverable and does not trigger extra credits.
+ const singlePass=isSinglePassPortrait(fields);
+ if(fields.singlePassPortraitVersion&&!singlePass)throw Error('ตัวเลือกการประมวลผลครั้งเดียวไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  const selectedSingleMakeup=isFemaleSingleFinish(fields)&&fields.femaleEyeStyle==='makeup';
- if(selectedSingleMakeup)fields={...fields,femaleEyeStyle:'natural'};
+ if(selectedSingleMakeup&&!singlePass)fields={...fields,femaleEyeStyle:'natural'};
  const selected=chosen||{gender:fields.portraitMode};
  // Current English requests never enter the Thai preparation, head cutout,
  // skin-board or discarded Thai prompt construction below. Old queued jobs
  // retain their released route; Thai requests keep the same processing.
- if(usesEnglishStudioFinish(fields)||isEnglishHeadPortrait(fields))return processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup});
+ if(usesEnglishStudioFinish(fields)||isEnglishHeadPortrait(fields))return processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup,singlePass});
  const originalAi=selected.gender==='female'&&isOriginalPortraitAiRequest(fields);
  const originalAiV2=originalAi&&[ORIGINAL_PORTRAIT_AI_GUIDED_VERSION,ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION,ORIGINAL_PORTRAIT_AI_PREPARED_VERSION,ORIGINAL_PORTRAIT_AI_V5_VERSION,ORIGINAL_PORTRAIT_AI_VERSION].includes(fields.studioSkinVersion);
  const englishBody=isEnglishBodyPortrait(fields);
  // English creates anatomy, outfit and natural retouch once from the upload.
  // Feeding an earlier generated portrait back in can compound geometry drift.
- const preparedMakeup=!englishBody&&needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
- const preparedNatural=!englishBody&&needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
+ const preparedMakeup=!singlePass&&!englishBody&&needsOriginalAiSkinPreparation({...fields,portraitMode:selected.gender});
+ const preparedNatural=!singlePass&&!englishBody&&needsNaturalAiPreparation({...fields,portraitMode:selected.gender});
  const bounded=!englishBody&&isBoundedPortrait({...fields,portraitMode:selected.gender});
  const completeNeck=bounded&&usesCompleteThaiNeckBacking({...fields,portraitMode:selected.gender});
  const staged=selected.gender==='female'&&isStudioSkinWorkflowVersion(fields.studioSkinVersion);
@@ -196,7 +206,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const continuousSkin=staged&&fields.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION;
  if(staged)await onStage('skin-base');
  const prepared=await prepareStudioSkinInput(input,fields,selected.gender),portrait=prepared.input;
- let prompt=productionPortraitPrompt(selected,fields.femaleEyeStyle,fields);
+ let prompt=productionPortraitPrompt(selected,fields.femaleEyeStyle,singlePass?{...fields,studioSkinVersion:ORIGINAL_PORTRAIT_AI_GUIDED_VERSION}:fields);
  if(!chosen&&selected.gender==='male'){
   prompt=prompt.replaceAll('Image 2','the new neat short haircut specified below').replace('เป็นทรงที่แนบในภาพที่ 2','เป็นผมสั้นสุภาพตามคำสั่งด้านล่าง');
   prompt+="\nMALE DEFAULT HAIRSTYLE: No second image is supplied. Create the following haircut instead of preserving source hair; this instruction overrides references to keeping the old haircut, fringe, parting or length. Keep the existing skin/cosmetics, neckline cutout, no-earrings and transparent-edge requirements.\nMALE INITIAL PORTRAIT — CONSISTENT NEAT SHORT HAIRCUT:\nFor EVERY customer-selected MALE first portrait, create a NEW neat professional short haircut, even if the source has long hair, thick bangs, a fringe covering the forehead/brows or an untidy style. Use the unchanged customer's skull and face to fit the cut. Keep the top short but naturally combable, lying close to the head with modest volume and individually resolved strands. Brush it gently back or slightly to one side, leaving the ENTIRE forehead and BOTH eyebrows uncovered. Do not require a central part or invent a tall quiff, pompadour, spiky crown, excessive thickness or a helmet-like wig.\nKeep both sides and the nape short with a soft natural taper; no skin-shaved sides, extreme high fade, harsh undercut, shaved line or decorative cut. Expose both complete ears. Keep the upper side hair above or discreetly behind the upper ear attachment, without dangling wisps, hanging strands, long sideburns or tails beside the cheek, below the ears or onto the neck. Remove obsolete original long/back hair and source fringe; reconstruct only previously hidden skin/ear regions according to the existing clean-ear policy. Use natural deep-black/charcoal variation and restrained photographic highlights, not flat painted black or metallic gloss.\nApply this grooming within the SAME initial portrait request. Preserve the original identity, facial geometry and proportions, eyes, eyebrows, nose, mouth, expression and asymmetry; do not masculinize, slim, stretch or mirror the face. Preserve the established skin treatment, pores, complexion, neck anatomy/coverage, lighting, framing and transparency. This overrides only conflicting SOURCE hairstyle, fringe, parting or volume retention for the MALE first portrait. It does not affect female portraits or subsequent local PNG hairstyle placement.";
@@ -289,6 +299,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
  if(completeNeck)generationInput=await prepareThaiNeckCanvas(generationInput,explicitIdentityBox);
+ if(singlePass&&fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(false);
  await onStage('generation');
  let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:completeNeck&&generationInput.neckCanvasSize||'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
@@ -308,7 +319,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  // be flood-deleted as if it were the temporary background.
  const {png:transparent,alpha}=englishBody?await preserveEnglishPortraitMatte(matted):await cleanTrialCutoutEdges(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('แยกพื้นหลังโปร่งใสไม่สำเร็จ กรุณาลองใหม่');
- if(selectedSingleMakeup){
+ if(selectedSingleMakeup&&!singlePass){
   await onStage('makeup');
   return createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:englishBody});
  }
@@ -320,7 +331,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  return transparent;
 }
-async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false}){
+async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
  const headOnly=isEnglishHeadPortrait(fields);
  const templateBody=isEnglishTemplateBody(fields);
  const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
@@ -372,12 +383,13 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  if(chosen&&!keepCurrentHair)prompt+='\n'+englishSelectedHairBoundaryInstruction(chosen);
+ if(singlePass&&fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(true);
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
- if(selectedSingleMakeup){
+ if(selectedSingleMakeup&&!singlePass){
   await onStage('makeup');
   return createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
  }
