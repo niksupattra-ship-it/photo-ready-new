@@ -31,7 +31,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
+import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -491,6 +491,18 @@ async function runAiJob(id){
   }
  }catch(e){console.error('AI job failed',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job worker stopped',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
+// Query by a random wallet-scoped upload nonce, so a lost POST response can
+// attach to the existing AI job without re-uploading or spending another credit.
+app.get('/api/ai-jobs/submission/:nonce',async(req,res)=>{
+ const nonce=String(req.params.nonce||'');
+ if(!/^[a-f0-9]{32}$/.test(nonce))return res.status(400).json({error:'invalid_submission_id'});
+ try{
+  const existing=await getAiJobBySubmission(walletId(req),nonce);
+  res.set('Cache-Control','private, no-store');
+  if(!existing)return res.status(404).json({error:'submission_not_found'});
+  return res.json({jobId:existing.id,status:existing.status,downloadWorkId:existing.downloadWorkId||''});
+ }catch(e){console.error('AI submission lookup:',e.code||'lookup_failed');res.status(503).json({error:'submission_lookup_failed'})}
+});
 app.post('/api/ai-jobs',(req,res,next)=>{
  const started=Date.now(),requestId=crypto.randomBytes(8).toString('hex');
  res.set('X-IDPROM-Request-ID',requestId);
@@ -506,6 +518,14 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   logStage('upload_ready',{imageBytes:image.buffer.length,sourceBytes:originalSource?.buffer?.length||0,storedSource:req.is('application/json')!==false});
   try{if(req.body?.studioSkinVersion==='studio-original-ai-v3'&&(req.body.femaleEyeStyle||'natural')!=='natural')throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนปรับแสงผิวล่าสุด');validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
+  const submissionId=String(req.body?.submissionId||'');
+  if(submissionId&&!/^[a-f0-9]{32}$/.test(submissionId))return res.status(400).json({error:'invalid_submission_id'});
+  // Check before reserving credits. A repeated upload or reconnected tab
+  // receives the existing job, even if its first response disappeared.
+  if(submissionId){
+   const existing=await getAiJobBySubmission(walletId(req),submissionId);
+   if(existing)return res.status(202).set('Cache-Control','private, no-store').json({jobId:existing.id,status:existing.status,downloadWorkId:existing.downloadWorkId||'',recovered:true});
+  }
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);
   await loadCurrentHairReference(req.body,walletId(req),getAiJobResult);
@@ -536,6 +556,14 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   res.status(202).json({downloadWorkId,jobId:id,status:'queued',generationRemaining:Number(creditUse.generationRemaining||0),hairRemaining:Number(creditUse.hairRemaining||0),trialPreview:Boolean(creditUse.trialPreview)});
   logStage('queued',{jobId:id});setImmediate(()=>runAiJob(id));
  }catch(e){
+  // A racing retry can find the original job inside the wallet-locked DB
+  // transaction. Refund ONLY the new unused reservation, not that job.
+  if(e.code==='duplicate_ai_submission'&&e.activeJobId){
+   if(creditUse)await refundCredit(creditUse.usageId).catch(err=>console.error('AI retry credit refund:',err.code||'error'));
+   creditUse=null;
+   const existing=await getAiJobBySubmission(walletId(req),String(req.body?.submissionId||'')).catch(()=>null);
+   return res.status(202).set('Cache-Control','private, no-store').json({jobId:e.activeJobId,status:existing?.status||'queued',downloadWorkId:existing?.downloadWorkId||'',recovered:true});
+  }
   // Log the failed stage before refund/storage recovery can itself wait.
   console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
   if(createdJobId)try{await failAiJob(createdJobId,'work_binding_failed')}catch(cleanupError){console.error('AI binding cleanup:',cleanupError.code||'storage_error')}
