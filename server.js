@@ -500,7 +500,7 @@ app.get('/api/ai-jobs/submission/:nonce',async(req,res)=>{
   const existing=await getAiJobBySubmission(walletId(req),nonce);
   res.set('Cache-Control','private, no-store');
   if(!existing)return res.status(404).json({error:'submission_not_found'});
-  return res.json({jobId:existing.id,status:existing.status,downloadWorkId:existing.downloadWorkId||''});
+  return res.json({jobId:existing.id,status:existing.status,downloadWorkId:existing.downloadWorkId||'',trialPreview:existing.trialPreview});
  }catch(e){console.error('AI submission lookup:',e.code||'lookup_failed');res.status(503).json({error:'submission_lookup_failed'})}
 });
 app.post('/api/ai-jobs',(req,res,next)=>{
@@ -524,7 +524,7 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   // receives the existing job, even if its first response disappeared.
   if(submissionId){
    const existing=await getAiJobBySubmission(walletId(req),submissionId);
-   if(existing)return res.status(202).set('Cache-Control','private, no-store').json({jobId:existing.id,status:existing.status,downloadWorkId:existing.downloadWorkId||'',recovered:true});
+   if(existing)return res.status(202).set('Cache-Control','private, no-store').json({jobId:existing.id,status:existing.status,downloadWorkId:existing.downloadWorkId||'',trialPreview:existing.trialPreview,recovered:true});
   }
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);
@@ -562,7 +562,7 @@ app.post('/api/ai-jobs',(req,res,next)=>{
    if(creditUse)await refundCredit(creditUse.usageId).catch(err=>console.error('AI retry credit refund:',err.code||'error'));
    creditUse=null;
    const existing=await getAiJobBySubmission(walletId(req),String(req.body?.submissionId||'')).catch(()=>null);
-   return res.status(202).set('Cache-Control','private, no-store').json({jobId:e.activeJobId,status:existing?.status||'queued',downloadWorkId:existing?.downloadWorkId||'',recovered:true});
+   return res.status(202).set('Cache-Control','private, no-store').json({jobId:e.activeJobId,status:existing?.status||'queued',downloadWorkId:existing?.downloadWorkId||'',trialPreview:existing?.trialPreview,recovered:true});
   }
   // Log the failed stage before refund/storage recovery can itself wait.
   console.error('AI submit:',JSON.stringify({stage,elapsedMs:Date.now()-started,errorCode:String(e.code||'job_create_failed').replace(/[^a-zA-Z0-9_:-]/g,'').slice(0,80)}));
