@@ -2901,7 +2901,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const finished=await finishRequested(result);
   if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
   assertCurrentOperation();
-  writeActiveAiJob({jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
+  writeActiveAiJob({...(readActiveAiJob()?.jobId===jobId?readActiveAiJob():{}),jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
   window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial:result.idpromTrial,fullEdit:verified.fullEdit}}));
   options.onJobStatus?.('completed');
   return finished;
@@ -3000,15 +3000,37 @@ async function submitPortraitWithRecovery(transfer,submissionId,operation){
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
- const submissionKey=JSON.stringify([hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'']);
+ const submissionKey=JSON.stringify([hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':'th']);
+ const sourceDigest=await resultSourceDigest(originalFile);
+ const ownerScope=walletScope(authToken(),currentWalletId());
+ const priorJob=readActiveAiJob();
+ let alreadyOwned=null;
+ // A server-side generation can finish even if this browser crashes while
+ // decoding / rendering its result. On the SAME source, settings and account,
+ // attach to that job first, rather than reserving another AI generation.
+ if(priorJob?.scope===ownerScope&&priorJob.sourceDigest===sourceDigest&&priorJob.submissionKey===submissionKey&&/^job_[a-f0-9]{36}$/.test(priorJob.jobId||'')){
+  try{
+   const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(priorJob.jobId),{headers:operation?.headers||walletHeaders(),cache:'no-store',signal:operation?.readController?.signal},20000);
+   assertProcessActive(operation);
+   if(response.ok){
+    const status=await response.json();
+    if(['queued','processing','completed'].includes(status.status))alreadyOwned={jobId:priorJob.jobId,status:status.status,trialPreview:Boolean(priorJob.trialPreview),downloadWorkId:originalFile.idpromDownloadWorkId||''};
+    else if(status.status==='failed')clearActiveAiJob(priorJob.jobId);
+   }else if(response.status!==404)throw Object.assign(Error('ยังตรวจงาน AI ที่ทำไว้ก่อนหน้าไม่ได้ กรุณาลองเปิดอีกครั้ง ไม่ต้องส่งสร้างภาพซ้ำ'),{status:response.status,code:'AI_EXISTING_JOB_CHECK_FAILED'});
+  }catch(error){
+   if(error.code==='USER_CANCELLED')throw error;
+   // A failed status lookup is NOT evidence that it is safe to charge again.
+   throw Object.assign(Error('ยังตรวจสอบงาน AI ที่สร้างไว้ก่อนหน้าไม่ได้ กรุณาลองเปิดอีกครั้งโดยไม่สร้างงานใหม่'),{code:'AI_EXISTING_JOB_CHECK_FAILED',cause:error});
+  }
+ }
  const submissionId=pendingPortraitSubmission?.source===originalFile&&pendingPortraitSubmission.key===submissionKey
-  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-','');
+  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-');
  pendingPortraitSubmission={source:originalFile,key:submissionKey,id:submissionId};
- await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
+ if(!alreadyOwned)await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female',originalAi=portraitMode==='female';
- const info=await submitPortraitJob(operation,async()=>{
+ const info=alreadyOwned||await submitPortraitJob(operation,async()=>{
  let pinnedInput=null;
  for(let canonicalAttempt=0;canonicalAttempt<2;canonicalAttempt++){
  const fd=new FormData();
@@ -3084,7 +3106,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(info.downloadWorkId)originalFile.idpromDownloadWorkId=info.downloadWorkId;
  if(operation){operation.jobId=info.jobId;if(operation.cancelled){await cancelPortraitJob(operation,()=>settleProcessOperation(operation,'cancel'));throw cancelledProcessError()}}
  assertProcessActive(operation);
- writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
+ writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now(),sourceDigest,submissionKey,scope:ownerScope});
  // Keep the displayed balance until processing is confirmed; reservations prevent concurrent overspending.
  const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);
  // A reserved paid generation is not a trial just because its download has
