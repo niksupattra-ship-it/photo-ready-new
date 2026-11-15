@@ -218,7 +218,7 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
   if(j.hasMakeupVariant||j.portraitMode==='female')deadline=Math.max(deadline,started+15*60*1000);
   if(needsOriginalAiSkinPolish(j))deadline=Math.max(deadline,started+10*60*1000);
   assertProcessActive(operation);onStatus?.(j.status,j.stage);
-  if(j.status==='failed')throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});
+  if(j.status==='failed'){pendingPortraitSubmission=null;throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});}
   if(j.status==='completed'&&j.proportionCorrection!=='processing'){
    const [original,verified]=await Promise.all([
     readExistingAiJob(jobId,'/result','fetch_result','blob',operation),
@@ -2917,6 +2917,9 @@ function measureEnglishHairPlacement(blob){
 // Preserve the one upload identity across disconnects. Query the original
 // wallet job first; retransmit only with the SAME nonce if no receipt exists.
 // Server-side nonce deduplication prevents duplicate AI jobs or credit use.
+// Keep the logical upload identity if recovery exhausts and the user presses
+// Generate again on this exact source/selection. A finished job clears it.
+let pendingPortraitSubmission=null;
 async function submitPortraitWithRecovery(transfer,submissionId,operation){
  const lookup=async()=>{
   const response=await portraitFetch('/api/ai-jobs/submission/'+submissionId,{
@@ -2959,7 +2962,10 @@ async function submitPortraitWithRecovery(transfer,submissionId,operation){
 async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=null){
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
- const submissionId=crypto.randomUUID().replaceAll('-','');
+ const submissionKey=JSON.stringify([hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'']);
+ const submissionId=pendingPortraitSubmission?.source===originalFile&&pendingPortraitSubmission.key===submissionKey
+  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-','');
+ pendingPortraitSubmission={source:originalFile,key:submissionKey,id:submissionId};
  await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
@@ -3042,7 +3048,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  assertProcessActive(operation);
  writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
  // Keep the displayed balance until processing is confirmed; reservations prevent concurrent overspending.
- const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);if(englishPreviewEnabled())result.idpromEnglishStudioFinishVersion=ENGLISH_TEMPLATE_BODY_FINISH_VERSION;if(selected)result.idpromHairReferenceVersion=HAIR_REFERENCE_VERSION;if((PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female')==='female'&&(!hasOriginalPortraitAiFinish(result,portraitFinishChoice(options.femaleEyeStyle))||(portraitFinishChoice(options.femaleEyeStyle)==='natural'&&result.idpromNaturalStudioSkinVersion!==NATURAL_STUDIO_SKIN_VERSION)))throw Error('ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');return result;
+ const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);if(englishPreviewEnabled())result.idpromEnglishStudioFinishVersion=ENGLISH_TEMPLATE_BODY_FINISH_VERSION;if(selected)result.idpromHairReferenceVersion=HAIR_REFERENCE_VERSION;if((PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female')==='female'&&(!hasOriginalPortraitAiFinish(result,portraitFinishChoice(options.femaleEyeStyle))||(portraitFinishChoice(options.femaleEyeStyle)==='natural'&&result.idpromNaturalStudioSkinVersion!==NATURAL_STUDIO_SKIN_VERSION)))throw Error('ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');if(pendingPortraitSubmission?.id===submissionId)pendingPortraitSubmission=null;return result;
 }
 
 // V206: provider edit masks are not a pixel-identity guarantee. Restore the
