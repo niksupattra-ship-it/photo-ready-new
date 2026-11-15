@@ -4820,7 +4820,7 @@ function App(){
  // Immutable upload reference: hairstyle changes must never use an AI result as input.
  const firstUploadedPhotoRef=useRef(null);
  const initialFemaleMakeupRef=useRef(null);
- const hairResultCacheRef=useRef(new Map()),hairRequestRef=useRef(false);
+ const hairResultCacheRef=useRef(new Map()),processedStudioHistoryRef=useRef(new Map()),hairRequestRef=useRef(false);
  const [hairGenerating,setHairGenerating]=useState(false);
  const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null),cleanHairBaseRef=useRef(null),initialStyledHairRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
@@ -5330,7 +5330,16 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
   const key=hairResultKey(id,portraitMode,femaleEyeStyle,outfitReferencePath),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
   const entry={master,lock:editCache.current?.lock,sourcePhoto:firstUploadedPhotoRef.current,scope,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current,confirmed:Boolean(previous?.confirmed&&previous.master===master&&previous.sourcePhoto===firstUploadedPhotoRef.current&&previous.scope===scope&&previous.jobId===currentOutputJobRef.current)};
-  hairResultCacheRef.current.set(key,entry);return entry;
+  hairResultCacheRef.current.set(key,entry);
+  // Exact processed-result history is keyed by AI job, not by hairstyle.
+  // Several distinct jobs can legitimately share hair/finish choices; the
+  // native Undo/Redo buttons must restore EACH accepted image's own pixels.
+  if(entry.jobId&&entry.master&&entry.lock){
+   processedStudioHistoryRef.current.delete(entry.jobId);
+   processedStudioHistoryRef.current.set(entry.jobId,entry);
+   while(processedStudioHistoryRef.current.size>25)processedStudioHistoryRef.current.delete(processedStudioHistoryRef.current.keys().next().value);
+  }
+  return entry;
  };
  const rememberRestoredHairResult=head=>{
   const source=firstUploadedPhotoRef.current;let master=editCache.current?.master;
@@ -5885,9 +5894,11 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    // Undo/Redo can cross different completed AI jobs in the SAME Studio work.
    // Recover the accepted master and fitting frame locally; never call AI.
    const original=firstUploadedPhotoRef.current,scope=hairResultScope();
-   const cached=[...hairResultCacheRef.current.values()].find(entry=>
-    entry?.confirmed&&entry.jobId===head.jobId&&entry.sourcePhoto===original&&
-    entry.scope===scope&&entry.master&&entry.lock);
+   const remembered=processedStudioHistoryRef.current.get(head.jobId);
+   const cached=remembered?.sourcePhoto===original&&remembered.scope===scope&&remembered.master&&remembered.lock
+    ?remembered:[...hairResultCacheRef.current.values()].find(entry=>
+      entry?.confirmed&&entry.jobId===head.jobId&&entry.sourcePhoto===original&&
+      entry.scope===scope&&entry.master&&entry.lock);
    if(!cached)return false;
    editCache.current={...editCache.current,master:cached.master,lock:cached.lock};
    currentOutputJobRef.current=head.jobId;
