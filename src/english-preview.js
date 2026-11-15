@@ -182,7 +182,9 @@ export const ENGLISH_COPY = {
 const THAI=/[\u0E00-\u0E7F]/;
 const fragments=Object.entries(ENGLISH_COPY).filter(([thai])=>thai.length>1&&!['พร้อม','รูป'].includes(thai)).sort((a,b)=>b[0].length-a[0].length);
 export function englishPreviewEnabled(location=globalThis.location){
- return new URLSearchParams(location?.search||'').get('lang')==='en';
+ // Dedicated English landing URL; keep legacy ?lang=en links and Stripe returns.
+ const path=location?.pathname||'';
+ return path==='/en'||path==='/en/'||new URLSearchParams(location?.search||'').get('lang')==='en';
 }
 export function insigniaForLanguage(location=globalThis.location){
  return !englishPreviewEnabled(location);
@@ -195,7 +197,9 @@ export function defaultPortraitBackground(location=globalThis.location){
 }
 export function languageLink(location=globalThis.location,english=true){
  const url=new URL(location.href);
- if(english)url.searchParams.set('lang','en');else url.searchParams.delete('lang');
+ // Keep languages on separate indexable URLs.
+ url.pathname=english?'/en/':'/';
+ url.searchParams.delete('lang');
  return url.pathname+url.search+url.hash;
 }
 export function translateEnglish(value){
@@ -222,7 +226,10 @@ export function interfaceText(value,location=globalThis.location){return english
 export function localizedLink(value,location=globalThis.location){
  if(!englishPreviewEnabled(location))return value;
  const url=new URL(value,location.href);if(url.origin!==new URL(location.href).origin)return value;
- url.searchParams.set('lang','en');return url.pathname+url.search+url.hash;
+ if(url.pathname==='/'||url.pathname==='/en/'||url.pathname==='/en'){
+  url.pathname='/en/';url.searchParams.delete('lang');
+ }else url.searchParams.set('lang','en');
+ return url.pathname+url.search+url.hash;
 }
 export function interfaceLocale(location=globalThis.location){return englishPreviewEnabled(location)?'en-GB':'th-TH'}
 export function startEnglishPreview(doc=globalThis.document){
@@ -231,7 +238,9 @@ export function startEnglishPreview(doc=globalThis.document){
  doc.documentElement.lang='en';doc.documentElement.classList.add('english-preview');
  doc.title='ID Phrom | Professional ID and job application photos';
  const description=doc.querySelector('meta[name="description"]');if(description)description.content='Create and edit professional ID and job application photos. Choose your hairstyle, outfit and background.';
- const robots=doc.querySelector('meta[name="robots"]');if(robots)robots.content='noindex,follow';
+ const robots=doc.querySelector('meta[name="robots"]');
+ // Only the canonical /en/ landing is indexable; legacy ?lang=en remains functional.
+ if(robots)robots.content=/^\/en\/?$/.test(win.location.pathname)?'index,follow,max-image-preview:large':'noindex,follow';
  const observed=new WeakSet();
  const observer=new win.MutationObserver(records=>{
   for(const record of records){
