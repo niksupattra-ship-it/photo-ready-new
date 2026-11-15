@@ -14,7 +14,9 @@ assert.equal(featured.length,3);
 assert.equal(englishPreviewEnabled({search:''}),false);
 assert.equal(englishPreviewEnabled({search:'?lang=th'}),false);
 assert.equal(englishPreviewEnabled({search:'?lang=en'}),true);
-assert.equal(languageLink({href:'https://idpromth.com/?work=123#photo'},true),'/?work=123&lang=en#photo');
+assert.equal(englishPreviewEnabled({pathname:'/en/',search:''}),true);
+assert.equal(englishPreviewEnabled({pathname:'/',search:''}),false);
+assert.equal(languageLink({href:'https://idpromth.com/?work=123#photo'},true),'/en/?work=123#photo');
 assert.equal(languageLink({href:'https://idpromth.com/?work=123&lang=en#photo'},false),'/?work=123#photo');
 assert.equal(translateEnglish('89 บาท'),'89 THB');
 assert.equal(translateEnglish('customer@example.com'),'customer@example.com');
@@ -55,7 +57,7 @@ try{
  const old=globalThis.location;globalThis.location=new URL('https://idpromth.com/?lang=en');
  const {LanguageSwitch}=await server.ssrLoadModule('/src/language-switch.jsx');
  const switchHtml=renderToStaticMarkup(React.createElement(LanguageSwitch));
- assert(switchHtml.includes('English preview'));assert(switchHtml.includes('href="/"'));assert(switchHtml.includes('ภาษาไทย'));
+ assert(!switchHtml.includes('English preview'));assert(switchHtml.includes('href="/"'));assert(switchHtml.includes('ภาษาไทย'));
  globalThis.location=old;
 }finally{await server.close();delete globalThis.window}
 console.log('PASS opt-in English URL, Thai return link, Thai-page isolation, prices, landing, editor controls and language switch. No AI, payments or external requests.');
