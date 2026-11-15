@@ -16,6 +16,14 @@ export const ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE=Object.freeze({
 // The new English female portrait uses EXACTLY the English male head/neck/
 // shoulder geometry. This alias cannot change the male or legacy female v9.
 export const ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE=ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE;
+// English female v2: the male-matched v1 head was too small against the
+// unchanged full-width business suit. Increase only the conditioning head
+// envelope to ~39% of the fixed outfit shoulder span. Keep existing v1,
+// older female v9 and all male guides reproducible for saved/queued jobs.
+export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
+ identityHeadScale:.95,headWidthToShoulder:.41,headHeightToShoulder:.58,
+ chinToCollar:.015,neckToShoulder:.255,chestToShoulder:.46
+});
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
 export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null}={}){
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
