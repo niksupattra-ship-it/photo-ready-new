@@ -312,28 +312,39 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const headOnly=isEnglishHeadPortrait(fields);
  const templateBody=isEnglishTemplateBody(fields);
  const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
- if(headOnly)await access(path.join(root,'public',file.slice(1)));
- const outfit=headOnly?null:await sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  const keepCurrentHair=fields.keepCurrentHair==='1';
  if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
- let hair=null;
- if(keepCurrentHair&&currentHair)hair=await sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
- else if(chosen){
-  if(chosen.id.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION)hair=await loadCatalogueHairGuide(chosen.id,root);
-  else{const buffer=await readFile(chosen.referenceDirectory==='hair'?path.join(root,'public/assets/hair',chosen.file):path.join(root,'public/assets/seedream-hairstyles/references',chosen.file));hair=chosen.referenceDirectory==='hair'?await prepareFreePngReference(buffer,chosen.id):buffer}
- }
- // English women's AI Picks must see the actual uploaded hairstyle, not only
- // the face cropped into Image 1's outfit-layout guide. This is a reference
- // image, NOT a selected hairstyle or another AI generation.
- const autoFemaleHairSource=templateBody&&selected.gender==='female'&&!chosen&&!keepCurrentHair
-  ?await sharp(input.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer()
-  :null;
- const visualHairReference=chosen&&!keepCurrentHair?await englishSelectedHairReference({selected:chosen,hair,root}):hair||autoFemaleHairSource;
  const identityBox=parsePortraitIdentityBox(fields.faceIdentityBox);
- let identity=await portraitIdentityCrop(input,identityBox);
- if(templateBody&&!identity)identity=await sharp(input.buffer).rotate().resize({width:1536,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  const fit=!keepCurrentHair&&chosen?parseEnglishHairFit(fields.englishHairFit):null;
- const hairPlacementReference=fit?await createEnglishHairFitGuide({fit,hair,selected:chosen,root}):null;
+ // Outfit, original identity and hairstyle guides are independent sharp/file
+ // operations. Prepare them concurrently; the returned PNG bytes, prompt
+ // order, model calls and generated pixel content are completely unchanged.
+ const outfitTask=(async()=>{
+  if(headOnly){await access(path.join(root,'public',file.slice(1)));return null}
+  return sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ })();
+ const hairTask=(async()=>{
+  if(keepCurrentHair&&currentHair)return sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
+  if(!chosen)return null;
+  if(chosen.id.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION)return loadCatalogueHairGuide(chosen.id,root);
+  const buffer=await readFile(chosen.referenceDirectory==='hair'?path.join(root,'public/assets/hair',chosen.file):path.join(root,'public/assets/seedream-hairstyles/references',chosen.file));
+  return chosen.referenceDirectory==='hair'?prepareFreePngReference(buffer,chosen.id):buffer;
+ })();
+ // English female AI Picks still receives the ORIGINAL uploaded hairstyle.
+ const autoHairTask=templateBody&&selected.gender==='female'&&!chosen&&!keepCurrentHair
+  ?sharp(input.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer()
+  :Promise.resolve(null);
+ const identityTask=(async()=>{
+  const originalIdentity=await portraitIdentityCrop(input,identityBox);
+  return templateBody&&!originalIdentity
+   ?sharp(input.buffer).rotate().resize({width:1536,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer()
+   :originalIdentity;
+ })();
+ const [outfit,hair,autoFemaleHairSource,identity]=await Promise.all([outfitTask,hairTask,autoHairTask,identityTask]);
+ const [visualHairReference,hairPlacementReference]=await Promise.all([
+  chosen&&!keepCurrentHair?englishSelectedHairReference({selected:chosen,hair,root}):Promise.resolve(hair||autoFemaleHairSource),
+  fit?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
+ ]);
  const identityLayout=usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
  const identityReference=identityLayout?null:identity;
  // New English female jobs use the SAME male guide proportions. Existing
