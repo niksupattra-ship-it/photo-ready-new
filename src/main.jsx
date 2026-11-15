@@ -112,6 +112,7 @@ import {createPortraitFaceCache} from './portrait-analysis-cache.js';
 import {PackageOffers} from './package-offers.jsx';
 import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
+import {readPurchasedEditorCache,writePurchasedEditorCache,deletePurchasedEditorCache} from './purchased-editor-cache.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
 import {submitPortraitJob,cancelPortraitJob,createPortraitOperation,assertPortraitOperationActive,waitForPortraitOperation} from './portrait-operation.js';
@@ -3574,6 +3575,10 @@ function App(){
    const response=await portraitFetch('/api/purchased-photos/'+encodeURIComponent(target.id)+'/editor',{method:'POST',headers:walletHeaders(),body:form},90000);
    const result=await response.json().catch(()=>({}));
    if(!response.ok)throw Error(result.message||'บันทึกข้อมูลแก้ไขในรูปที่ซื้อแล้วไม่สำเร็จ');
+   // A server-approved and versioned local copy accelerates returning to the
+   // same purchased photo. The paid server remains the authority.
+   if(target.expiresAt&&result.updatedAt&&target.scope===walletScope(authToken(),currentWalletId()))
+    void writePurchasedEditorCache({walletId:currentWalletId(),photoId:target.id,project,updatedAt:result.updatedAt,expiresAt:target.expiresAt});
    return true;
   };
   const waiting=purchasedEditorQueueRef.current.catch(()=>{}).then(task);
@@ -3599,7 +3604,7 @@ function App(){
    const response=await portraitFetch('/api/purchased-photos',{method:'POST',headers:walletHeaders(),body},30000),archive=await response.json();
    if(entry.scope!==walletScope(authToken(),currentWalletId()))return;if(!response.ok||!archive?.id||!/^\/receive\/[a-f0-9]{64}$/.test(archive.receiveUrl||''))throw Error(archive.message||'ยังเก็บลิงก์รับรูปไม่ได้ ยังดาวน์โหลดไฟล์ด้านบนได้');
    entry={...entry,archive,archiving:false,error:''};if(active()){receivePhotoRef.current=entry;if(!entry.silent)setReceivePhoto(entry)}
-   const target={id:archive.id,scope:entry.scope};
+   const target={id:archive.id,scope:entry.scope,expiresAt:archive.expiresAt};
    if(active())activePurchasedPhotoRef.current=target;
    const snapshot=entry.editorSnapshot;
    if(snapshot){
@@ -4054,7 +4059,7 @@ function App(){
      // Reuse the editor in memory without an extra network round trip.
      const known=verifiedJobs[currentOutputJobRef.current];
      if(known?.checked===false||known?.unlocked===false)throw Error('ยังยืนยันสิทธิ์ที่ชำระแล้วไม่ได้ ไม่ต้องชำระซ้ำ');
-     activePurchasedPhotoRef.current={id:item.id,scope:ownerScope};openPurchasedFullStudio();setPurchasedPhotosOpen(false);return;
+     activePurchasedPhotoRef.current={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};openPurchasedFullStudio();setPurchasedPhotosOpen(false);return;
     }
     if(!item.editorStored&&!item.editableWorkId){
      const candidate=await loadPurchaseDraft();ensureSame();
@@ -4066,7 +4071,7 @@ function App(){
         currentOutputTrialRef.current=false;studioTrialRef.current=false;
         setTrialPreview(false);setSavedWorkUnlocked(true);setPurchaseEditing(true);
         setStudioData(previous=>previous?.map(layer=>photoJobs.includes(layer.jobId)?{...layer,restrictedTrial:false,outputUnlocked:true}:layer));
-        const target={id:item.id,scope:ownerScope};activePurchasedPhotoRef.current=target;
+        const target={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};activePurchasedPhotoRef.current=target;
         openPurchasedFullStudio();setScreen('studio');
         void persistPurchasedEditor(target,{...restored,sourcePhoto:restored.sourcePhoto||firstUploadedPhotoRef.current}).catch(error=>console.warn('Purchased draft archive failed',error?.message));
         closeReceivePhoto();return;
@@ -4077,12 +4082,33 @@ function App(){
     // Purchased history is the single editable source: never detour through
     // a separate saved-project screen.
     const path='/api/purchased-photos/'+encodeURIComponent(item.id)+'/editor';
+    const currentAccountScope=JSON.stringify([walletHeaders().Authorization||'',walletHeaders()['X-Wallet-Id']||'']);
+    const options={accountScope:currentAccountScope,purchasedPhoto:true};
+    // The server-verified purchased-photo list includes the revision and expiry.
+    // Reopen its matching local editable snapshot instead of downloading large
+    // full-resolution layer images for every return visit.
+    const cached=await readPurchasedEditorCache({walletId:currentWalletId(),photoId:item.id,updatedAt:item.updatedAt,expiresAt:item.expiresAt});
+    ensureSame();
+    if(cached){
+     try{
+      await openAccountWork({project:cached,unlocked:true},options);
+      activePurchasedPhotoRef.current={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};
+      closeReceivePhoto();return;
+     }catch(error){
+      void deletePurchasedEditorCache(currentWalletId(),item.id);
+      ensureSame();
+      console.warn('Purchased editor cache invalid; reading server copy',error?.message);
+     }
+    }
     const r=await portraitFetch(path,{headers:{...walletHeaders(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'},90000);
     const work=await r.json();ensureSame();
     if(!r.ok)throw Error(work.message||'เปิดรูปเพื่อแก้ไขไม่ได้ ไม่ต้องชำระซ้ำ');
     if(work?.project?.format==='idprom-project-transfer')work.project=unpackSavedProjectTransfer(work.project);
-    await openAccountWork(work,{accountScope:JSON.stringify([walletHeaders().Authorization||'',walletHeaders()['X-Wallet-Id']||'']),purchasedPhoto:true});
-    activePurchasedPhotoRef.current={id:item.id,scope:ownerScope};closeReceivePhoto();
+    // Populate the cache asynchronously; the first online open proceeds as
+    // soon as its project is available, without waiting for IndexedDB writes.
+    void writePurchasedEditorCache({walletId:currentWalletId(),photoId:item.id,project:work.project,updatedAt:work.updatedAt||item.updatedAt,expiresAt:item.expiresAt});
+    await openAccountWork(work,options);
+    activePurchasedPhotoRef.current={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};closeReceivePhoto();
    }} onOpen={(blob,item)=>receivePurchasedImage(blob,{archive:item,jobIds:item.jobIds,name:'IDPROM-'+item.id+'.png'})}/>}</>;
  const SavedWorkUI=()=> <>{PurchaseDeliveryUI()}{PackageCodeUI()}<TrialChoiceUI/><DownloadNoticeUI/>{!studioData&&accountSaveNotice?.state==='error'&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role="alertdialog" aria-modal="true" aria-labelledby="account-save-recovery-title"><h2 id="account-save-recovery-title">{accountSaveNotice.title||'ยังบันทึกงานไม่สำเร็จ'}</h2><p>{accountSaveNotice.message}</p><button autoFocus style={{marginTop:20}} onClick={()=>setAccountSaveNotice(null)}>ตกลง</button></section></div>}{rightsOpen&&<StudioRightsDialog key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} initialData={knownWalletData} accountScope={walletScope(authToken(),currentWalletId())} unlimited={privateTrialActive} onRights={data=>acceptWalletRights(data)} onClose={()=>setRightsOpen(false)} onPackages={()=>{setRightsOpen(false);setPayMsg('');setBuyOpen(true)}} onCode={openPackageCode}/>}</>;
  const isSinglePhotoOffer=id=>id==='89'||id==='119'||id==='usd_single_690_v2';
