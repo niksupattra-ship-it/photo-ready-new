@@ -1,7 +1,7 @@
 import React,{useLayoutEffect,useState} from 'react';
 
 // These are editor controls above the visible photo, never canvas/export pixels.
-export function EnglishPhotoActions({stageRef,canvasRef,drawerRef,toolbarRef,viewKey,busy,disabled,onCreate,onCancel,createLabel='Create',cancelLabel='Cancel',groupLabel='Create selected portrait'}){
+export function EnglishPhotoActions({stageRef,canvasRef,drawerRef,toolbarRef,viewKey,busy,disabled,onCreate,onCancel,onBack=null,backLabel='← Back',createLabel='Create',cancelLabel='Cancel',groupLabel='Create selected portrait'}){
  const [bounds,setBounds]=useState(null);
  useLayoutEffect(()=>{
   let frame=0;
@@ -30,6 +30,7 @@ export function EnglishPhotoActions({stageRef,canvasRef,drawerRef,toolbarRef,vie
  const stop=event=>event.stopPropagation();
  return bounds&&<div className="english-photo-actions" style={bounds}>
   <div className="english-inline-ai" role="group" aria-label={groupLabel} onPointerDown={stop} onPointerMove={stop} onPointerUp={stop} onPointerCancel={stop} onWheel={stop} onClick={stop}>
+   {onBack&&<button type="button" disabled={disabled||busy} onClick={onBack}>{backLabel}</button>}
    <button type="button" disabled={disabled||busy} onClick={onCreate}>{createLabel}</button>
    <button type="button" disabled={busy} onClick={onCancel}>{cancelLabel}</button>
   </div>
