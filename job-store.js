@@ -23,7 +23,7 @@ async function ready(){
 export async function getAiJobBySubmission(walletId,submissionId){
  if(typeof submissionId!=='string'||!/^[a-f0-9]{32}$/.test(submissionId)||!walletId)return null;
  await ready();
- const {rows}=await pool.query("SELECT id,status FROM ai_jobs WHERE wallet_id=$1 AND fields->>'submissionId'=$2 ORDER BY created_at DESC LIMIT 1",[walletId,submissionId]);
+ const {rows}=await pool.query("SELECT id,status,fields->>'downloadWorkId' AS "downloadWorkId" FROM ai_jobs WHERE wallet_id=$1 AND fields->>'submissionId'=$2 ORDER BY created_at DESC LIMIT 1",[walletId,submissionId]);
  return rows[0]||null;
 }
 export async function createAiJob({walletId,usageId,fields,image,mask}){
