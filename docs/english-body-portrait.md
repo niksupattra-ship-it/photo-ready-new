@@ -1,5 +1,32 @@
 # English portraits
 
+## Current: larger, balanced English female head (v2, new female only)
+
+The November 15 screenshot of the English Studio showed that the v1
+male-matched female head looks too small against a full-width blazer.
+Only **new English female generations** now use
+`en-female-balanced-head-body-v2` and
+`ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE`:
+
+- `identityHeadScale=.95`, `headWidthToShoulder=.41`: ~39% face-to-fixed-shoulder guide width
+- `headHeightToShoulder=.55` and `chinToCollar=.020`: retain the v1
+  outfit-frame and natural short neck, keeping the outfit in its original position
+- `neckToShoulder=.255`, `chestToShoulder=.46`: same compact neck/chest landmarks
+
+This is larger than v1 English female's 30–32% guide, but smaller than the
+older v9 female's 40–42% guide. It changes the face envelope's overall
+size in the AI conditioning image, **not** the person's eyes, nose,
+mouth, face aspect ratio or jaw geometry. The original outfit shoulder
+span, blouse underlayer, garment scale, colour, silhouette and lower
+boundary are fixed. Existing English males continue using the v9 male
+profile unchanged. Old v1 female, older v9 female and older generations
+retain their original routes and saved pixels; Thai never uses this code.
+Natural and Makeup still use the existing two-call generation and saved pair,
+with no additional credits required for selecting either completed variant.
+The real provider output can vary; these ratios describe reference images,
+not guaranteed final image measurements.
+
+## Previous: English female head/body matches English male (v1)
 ## Current: English female head/body matches English male (new female only)
 
 New English female portraits use `en-female-matched-head-body-v1` while English male
