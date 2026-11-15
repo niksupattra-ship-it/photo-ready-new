@@ -1,3 +1,4 @@
+import {editableWorksForPurchasedPhotos} from './saved-work-store.js';
 import {englishPhotoDeliveryPage} from './english-photo-delivery.js';
 import crypto from 'node:crypto';
 import multer from 'multer';
@@ -24,7 +25,7 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   const row=await store.put({walletId,scope,jobIds,lineage:[...new Set([...lineage,...jobIds])],packageId,image,preview,width:meta.width,height:meta.height});
   res.json({...shape(row),serverNow:new Date().toISOString()});
  }));
- app.get('/api/purchased-photos',member,handle(async(req,res)=>res.json({items:(await store.list(req.accountUser.wallet_id)).map(shape),days:7,serverNow:new Date().toISOString()})));
+ app.get('/api/purchased-photos',member,handle(async(req,res)=>{const walletId=req.accountUser.wallet_id,photos=await store.list(walletId),editable=await editableWorksForPurchasedPhotos(walletId,photos);res.json({items:photos.map(row=>({...shape(row),editableWorkId:editable[row.id]||null})),days:7,serverNow:new Date().toISOString()})}));
  app.get('/api/purchased-photos/:id/:kind',member,handle(async(req,res)=>{
   if(!['image','preview'].includes(req.params.kind))return res.sendStatus(404);
   const row=await store.owned(req.accountUser.wallet_id,req.params.id);if(!await check(row?{...row,wallet_id:req.accountUser.wallet_id}:null,res))return;
