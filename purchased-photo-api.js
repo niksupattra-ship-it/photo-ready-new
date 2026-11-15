@@ -1,4 +1,4 @@
-import {editableWorksForPurchasedPhotos,validateProject} from './saved-work-store.js';
+import {editableWorksForPurchasedPhotos,getWork,validateProject} from './saved-work-store.js';
 import {assertSavedProjectResources} from './src/saved-project.js';
 import {unpackSavedProjectTransfer,packSavedProjectTransfer} from './src/saved-work-transfer.js';
 import {englishPhotoDeliveryPage} from './english-photo-delivery.js';
@@ -37,7 +37,9 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   if(!req.file)throw Object.assign(Error('ไม่พบข้อมูลงานแก้ไข'),{status:400});
   let project;try{project=unpackSavedProjectTransfer(JSON.parse(req.file.buffer.toString('utf8')))}catch{throw Object.assign(Error('ข้อมูลเลเยอร์ไม่ถูกต้อง'),{status:400})}
   const jobs=validateProject(project),lineage=await policy.jobIds(wallet,row.job_ids[0]);
-  if(!jobs.length||!jobs.some(id=>row.job_ids.includes(id))||jobs.some(id=>!lineage.includes(id))||(project.downloadWorkId&&project.downloadWorkId!==row.work_scope))throw Object.assign(Error('ข้อมูลแก้ไขไม่ตรงกับรูปที่ชำระแล้ว'),{status:403});
+  // Generated hairstyle variants remain part of the same paid work. A photo
+  // from another upload will not be in this ownership-checked lineage.
+  if(!jobs.length||jobs.some(id=>!lineage.includes(id))||(project.downloadWorkId&&project.downloadWorkId!==row.work_scope))throw Object.assign(Error('ข้อมูลแก้ไขไม่ตรงกับรูปที่ชำระแล้ว'),{status:403});
   assertSavedProjectResources(project);
   const ok=await store.storeEditor(wallet,row.id,project);
   if(!ok)throw Object.assign(Error('รูปนี้หมดระยะเก็บ 7 วันแล้ว'),{status:410});
@@ -48,6 +50,25 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   if(!await check(row?{...row,wallet_id:wallet}:null,res))return;
   let project=row.editor_project,reconstructed=false;
   if(!project){
+   // One-time compatibility for previously paid accounts. A historical editor
+   // snapshot is imported INTO the purchased photo, not opened as a separate
+   // saved-work screen or required for future purchases.
+   const linked=await editableWorksForPurchasedPhotos(wallet,[row]);
+   if(linked[row.id]){
+    try{
+     const old=await getWork(wallet,linked[row.id]);
+     if(old?.project){
+      const ids=validateProject(old.project),lineage=await policy.jobIds(wallet,row.job_ids[0]);
+      if(ids.length&&ids.every(id=>lineage.includes(id))){
+       assertSavedProjectResources(old.project);
+       project=old.project;
+       await store.storeEditor(wallet,row.id,project);
+      }
+     }
+    }catch{} // Expired/malformed old projects never block purchased-photo recovery.
+   }
+  }
+  if(!project){
    // Historical purchased downloads may predate editable snapshots. Present the
    // exact purchased image as a movable layer; where possible, also recover
    // the original verified input from the bound work (not from a fresh upload).
@@ -56,6 +77,9 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
    let original=null,downloadWorkId=null;
    if(/^dwork_[a-f0-9]{36}$/.test(row.work_scope)){
     try{const input=await policy.inputForWork(wallet,row.work_scope);if(/^image\/(png|jpeg|webp)$/.test(input.mimetype)&&input.buffer.length<16*1024*1024){original='data:'+input.mimetype+';base64,'+input.buffer.toString('base64');downloadWorkId=row.work_scope}}catch{}
+   }
+   if(!original){
+    return res.status(409).json({error:'original_unavailable',message:'รูปที่ซื้อใบนี้ยังมีไฟล์รับรูป แต่ไม่มีต้นฉบับที่ยืนยันได้สำหรับเปลี่ยนทรงผมโดยไม่ใช้สิทธิ์รูปใหม่'});
    }
    project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{kind:'head',name:'หัว · คอ · ผม',jobId:row.job_ids[0],source:image,sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,outputUnlocked:true,restrictedTrial:false}],compareSource:original||image,...(original?{downloadSource:original,downloadWorkId}:{})};
    reconstructed=true;
