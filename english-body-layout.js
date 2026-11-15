@@ -10,8 +10,8 @@ export const ENGLISH_TEMPLATE_PROPORTION_PROFILE=Object.freeze({
 // garment shoulder span. This is conditioning geometry only, not a face warp.
 // Keep the female v9 proportion profile unchanged.
 export const ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE=Object.freeze({
- identityHeadScale:.92,headWidthToShoulder:.39,headHeightToShoulder:.60,
- chinToCollar:.018,neckToShoulder:.255,chestToShoulder:.46
+ identityHeadScale:.88,headWidthToShoulder:.35,headHeightToShoulder:.55,
+ chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
 export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null}={}){
