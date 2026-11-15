@@ -5813,7 +5813,8 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const operation=activeProcessOperation;let delivered=false,failureStage='generation';const processingStarted=Date.now();
   const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
   try{
-   const femaleEyeStyle=portraitFinishChoice(requestedFinish,file.idpromFemaleEyeStyle);
+   const selectedFinish=portraitFinishChoice(requestedFinish,file.idpromFemaleEyeStyle);
+   const femaleEyeStyle=portraitMode==='female'&&selectedFinish!=='natural'?'makeup':selectedFinish;
    const generate=()=>aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
    let aiHead;
    try{aiHead=await generate()}
