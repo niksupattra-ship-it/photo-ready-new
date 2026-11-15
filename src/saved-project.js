@@ -107,7 +107,12 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   const lock={...p,W,H,hX:f.x/900*W,hY:f.y/1200*H,headW:width,headH:height,scale:f.w/900*W/width,uX:u.x/900*W,uY:u.y/1200*H,uW:u.w/900*W,uH:u.h/1200*H,templatePath:suit?.templatePath||p.templatePath};
   // The saved layer may have been moved/resized since its first AI generation.
   for(const key of ['hairFitEyeSize','hairFitEyeCentreX','hairFitChinAnchorY'])delete lock[key];
-  editCache={master:await blob(head.source),lock};
+  const master=await blob(head.source);
+  // Native Blob metadata is not serialized as pixels. Recover the finish
+  // protocol from the saved head so a purchased photo can still generate its
+  // other cosmetic finish for free on the SAME wallet-owned source job.
+  if(head.femaleFinishSingleVersion==='female-single-finish-v1')master.idpromFemaleFinishSingleVersion=head.femaleFinishSingleVersion;
+  editCache={master,lock};
  }
  abort(signal);
  const femaleFinish=head&&(head.femaleFinishProfile!==undefined||head.femaleFinishReference!==undefined)?{profile:head.femaleFinishProfile,reference:head.femaleFinishReference}:undefined;
