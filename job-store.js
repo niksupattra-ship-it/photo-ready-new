@@ -18,9 +18,24 @@ async function ready(){
  })().catch(e=>{readyPromise=null;throw e});
  return readyPromise;
 }
+// A nonce belongs to one wallet submission; it is not a new credit or output.
+// The owner can recover the same job after the upload response is lost.
+export async function getAiJobBySubmission(walletId,submissionId){
+ if(typeof submissionId!=='string'||!/^[a-f0-9]{32}$/.test(submissionId)||!walletId)return null;
+ await ready();
+ const {rows}=await pool.query("SELECT id,status FROM ai_jobs WHERE wallet_id=$1 AND fields->>'submissionId'=$2 ORDER BY created_at DESC LIMIT 1",[walletId,submissionId]);
+ return rows[0]||null;
+}
 export async function createAiJob({walletId,usageId,fields,image,mask}){
  await ready();const id='job_'+crypto.randomBytes(18).toString('hex'),c=await pool.connect();
  try{await c.query('BEGIN');await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  // Serialize the lookup with creation under the wallet lock. Even two
+  // overlapping retries of one upload cannot create or charge two AI jobs.
+  if(fields?.submissionId){
+   if(!/^[a-f0-9]{32}$/.test(fields.submissionId))throw Object.assign(Error('Invalid submission ID'),{status:400,code:'invalid_submission_id'});
+   const duplicate=await c.query("SELECT id FROM ai_jobs WHERE wallet_id=$1 AND fields->>'submissionId'=$2 LIMIT 1",[walletId,fields.submissionId]);
+   if(duplicate.rowCount)throw Object.assign(Error('This upload already created a job'),{status:409,code:'duplicate_ai_submission',activeJobId:duplicate.rows[0].id});
+  }
   const active=await c.query("SELECT id FROM ai_jobs WHERE wallet_id=$1 AND status IN ('queued','processing') LIMIT 1",[walletId]);
   if(active.rowCount)throw Object.assign(Error('กรุณารอภาพก่อนหน้าสร้างเสร็จก่อน ไม่จำกัดจำนวนครั้งต่อวัน'),{status:429,code:'active_ai_job',activeJobId:active.rows[0].id});
   await c.query(`INSERT INTO ai_jobs(id,wallet_id,usage_id,status,fields,image,image_name,image_type,mask,mask_name,mask_type) VALUES($1,$2,$3,'queued',$4,$5,$6,$7,$8,$9,$10)`,[id,walletId,usageId,fields||{},image.buffer,image.originalname||'image.png',image.mimetype||'image/png',mask?.buffer||null,mask?.originalname||null,mask?.mimetype||null]);
