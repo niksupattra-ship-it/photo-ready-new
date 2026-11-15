@@ -223,6 +223,9 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
   assertProcessActive(operation);onStatus?.(j.status,j.stage);
   if(j.status==='failed'){pendingPortraitSubmission=null;throw analyticsTagError(portraitJobError(j.error),{error_stage:'ai_job'});}
   if(j.status==='completed'&&j.proportionCorrection!=='processing'){
+   // Generation already succeeded on the server. If receiving/finishing
+   // the result fails in this tab, preserve it for a no-new-credit retry.
+   if(operation)operation.serverCompleted=true;
    const [original,verified]=await Promise.all([
     readExistingAiJob(jobId,'/result','fetch_result','blob',operation),
     retryExistingAiJobRead(jobId,'verify_rights',()=>verifyOutputRights(jobId,operation),operation)
@@ -1672,7 +1675,12 @@ async function levelPortraitCutout(blob){
   const result=copyStudioSkinBlobMetadata(blob,await canvasPng(canvas));
   if(blob.idpromAiMakeupBlob){const pair=await decodedPortraitImage(blob.idpromAiMakeupBlob);ctx.resetTransform();ctx.clearRect(0,0,canvas.width,canvas.height);ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(transform.angle);ctx.drawImage(pair,-W/2,-H/2);result.idpromAiMakeupBlob=await canvasPng(canvas)}
   return result;
- }catch(error){if(blob.idpromAiMakeupBlob)throw error;return blob}
+ }catch(error){
+  // Eye/pose analysis is optional. Keep the original natural/makeup pair
+  // together instead of rejecting a perfectly usable server-generated photo.
+  console.warn('Optional portrait levelling skipped',error?.code||error?.name||'unavailable');
+  return blob;
+ }
 }
 
 // Extend low-resolution hair segmentation along connected, hair-coloured pixels of
@@ -2645,7 +2653,13 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  const selected=PRODUCTION_HAIR_CATALOG.find(item=>item.id===hairId);
  const gathered=result.idpromStudioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION&&(!requestedHair||selectedHairDesign(selected)?.kind==='gathered');
  const output=await portraitCompletionEvidence(result,true,{includeHair:compareSelected||compareUnchanged||gathered});
- if(!output.garments?.measurable)throw Object.assign(Error('ตรวจเสื้อเดิมในผลลัพธ์ไม่สำเร็จ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
+ if(!output.garments?.measurable){
+  // A segmentation measurement is not proof that AI generation failed.
+  // Retain a completed image if the local quality checker is inconclusive.
+  console.warn('Portrait clothing check inconclusive; retaining generated result');
+  result.idpromQualityReviewNeeded=true;
+  return;
+ }
  if(output.garments.retained)throw Object.assign(Error('AI ยังตัดเสื้อเดิมออกไม่ครบ ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(gathered){
   const compact=inspectGatheredPortraitHair(output,{strict:result.idpromStudioSkinVersion==='studio-original-ai-v5-clear-gathered-v1'});
@@ -3051,7 +3065,11 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  assertProcessActive(operation);
  writeActiveAiJob({jobId:info.jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:Boolean(info.trialPreview),createdAt:Date.now()});
  // Keep the displayed balance until processing is confirmed; reservations prevent concurrent overspending.
- const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);if(englishPreviewEnabled())result.idpromEnglishStudioFinishVersion=ENGLISH_TEMPLATE_BODY_FINISH_VERSION;if(selected)result.idpromHairReferenceVersion=HAIR_REFERENCE_VERSION;if((PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female')==='female'&&(!hasOriginalPortraitAiFinish(result,portraitFinishChoice(options.femaleEyeStyle))||(portraitFinishChoice(options.femaleEyeStyle)==='natural'&&result.idpromNaturalStudioSkinVersion!==NATURAL_STUDIO_SKIN_VERSION)))throw Error('ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');if(pendingPortraitSubmission?.id===submissionId)pendingPortraitSubmission=null;return result;
+ const result=await waitForAiJob(info.jobId,options.onJobStatus,operation);
+ // A reserved paid generation is not a trial just because its download has
+ // not yet been confirmed. Use the job's credit reservation classification.
+ if(typeof info.trialPreview==='boolean')result.idpromTrial=info.trialPreview;
+ if(englishPreviewEnabled())result.idpromEnglishStudioFinishVersion=ENGLISH_TEMPLATE_BODY_FINISH_VERSION;if(selected)result.idpromHairReferenceVersion=HAIR_REFERENCE_VERSION;if((PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female')==='female'&&(!hasOriginalPortraitAiFinish(result,portraitFinishChoice(options.femaleEyeStyle))||(portraitFinishChoice(options.femaleEyeStyle)==='natural'&&result.idpromNaturalStudioSkinVersion!==NATURAL_STUDIO_SKIN_VERSION)))throw Error('ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');return result;
 }
 
 // V206: provider edit masks are not a pixel-identity guarantee. Restore the
@@ -4618,11 +4636,26 @@ function App(){
     // boundary the close button can cancel and return the reservation.
     if(operation)operation.finishing=true;
     if(!operation?.settled)await settleProcessOperation(operation,'confirm');
+    // Only after Studio has accepted/confirmed the result can a new click
+    // intentionally request another generation with fresh billing identity.
+    pendingPortraitSubmission=null;
     assertProcessActive(operation);
     // Only delivered results may be selected again without another AI job.
     if(operation?.jobId&&!operation.cancelled)for(const entry of hairResultCacheRef.current.values())if(entry.jobId===operation.jobId)entry.confirmed=true;
    }
-   else if(operation?.jobId&&!operation.settled){operation.cancelled=true;portraitResultCache.clear();await settleProcessOperation(operation,'cancel');for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);}
+   else if(operation?.jobId&&!operation.settled){
+    if(operation.serverCompleted&&!operation.cancelled){
+     // Never destroy a completed AI image on a client-side render, mask,
+     // hydration or network-read error. The user can retry the SAME wallet-
+     // scoped submission with no new AI generation or credit reservation.
+     console.warn('Preserving completed AI job after local delivery failure',operation.jobId);
+     setMsg('AI สร้างภาพเสร็จแล้ว แต่ Studio ยังเปิดผลไม่ได้ · กดประมวลผลอีกครั้งเพื่อรับงานเดิม ไม่หักเครดิตซ้ำ');
+    }else{
+     operation.cancelled=true;portraitResultCache.clear();
+     await settleProcessOperation(operation,'cancel');
+     for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);
+    }
+   }
    if(activeProcessOperation===operation){
     clearInterval(progressTimerRef.current);progressTimerRef.current=null;
     if(success){setProcessProgress({active:true,value:100,label:'ภาพพร้อมแล้ว'});await new Promise(resolve=>setTimeout(resolve,80));}
@@ -5692,7 +5725,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
-  }catch(error){if(error.code!=='USER_CANCELLED'){error.idpromProcessStage=error.stage||failureStage;console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
+  }catch(error){if(error.code!=='USER_CANCELLED'){error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
   return requestStudioMakeup(source,styles,options);
