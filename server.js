@@ -537,7 +537,7 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   // beginWork verifies the immutable raw-source hash and wallet ownership first.
   // Original-AI jobs then use those proven original bytes, even for an older
   // work whose separate canonical input was previously levelled or encoded.
-  const pinned=isOriginalPortraitAiRequest(req.body)?{buffer:originalSource.buffer,mimetype:originalSource.mimetype}:await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,delivery_pending:true,delivery_confirmed:false};
+  const pinned=isOriginalPortraitAiRequest(req.body)?{buffer:originalSource.buffer,mimetype:originalSource.mimetype}:await downloadPolicy.inputForWork(walletId(req),downloadWorkId),fields={...req.body,downloadWorkId,delivery_pending:true,delivery_confirmed:false};
   // Only the immutable, owned work input reaches generation. A raw-upload proof
   // does not authorize substituting unrelated pixels beside that proof.
    if(!pinned.buffer.equals(image.buffer)){
