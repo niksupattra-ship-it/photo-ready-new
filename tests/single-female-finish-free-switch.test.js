@@ -129,7 +129,8 @@ test('Natural to Makeup edits the completed Natural image with the released AI m
  const store=await readFile(new URL('../job-store.js',import.meta.url),'utf8');
  assert.match(server,/naturalJob\.result/,'AI makeup uses the previously finished Natural pixels');
  assert.match(server,/generateMakeupFromCompletedNatural/,'Natural-to-Makeup goes through original AI makeup editor');
- assert.match(store,/staleNaturalMakeup/,'Explicit retry repairs older alternate results created with a different prompt');
+ assert.match(store,/if\(f\.alternateFinishStatus==='completed'&&j\.result_makeup\)/,'An already generated alternate is reused regardless of its previous prompt version');
+ assert.match(store,/AND result_makeup IS NULL/,'Completed alternate image bytes are never overwritten');
  assert.match(store,/alternateMakeupVersion/,'Corrected AI makeup is cached and reused without a new provider call');
 });
 test('old paired jobs remain two images on demand, not reinterpreted by new single-finish protocol',async()=>{
