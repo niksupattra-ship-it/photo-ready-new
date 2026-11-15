@@ -3030,8 +3030,8 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
    throw Object.assign(Error('ยังตรวจสอบงาน AI ที่สร้างไว้ก่อนหน้าไม่ได้ กรุณาลองเปิดอีกครั้งโดยไม่สร้างงานใหม่'),{code:'AI_EXISTING_JOB_CHECK_FAILED',cause:error});
   }
  }
- const submissionId=pendingPortraitSubmission?.source===originalFile&&pendingPortraitSubmission.key===submissionKey
-  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-');
+ const submissionId=pendingPortraitSubmission?.source===originalFile&&pendingPortraitSubmission.key===submissionKey&&/^[a-f0-9]{32}$/.test(pendingPortraitSubmission.id)
+  ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-','');
  pendingPortraitSubmission={source:originalFile,key:submissionKey,id:submissionId};
  if(!alreadyOwned)await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
  assertProcessActive(operation);
