@@ -104,8 +104,9 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/setThaiPendingHair\(chosen\)/);
  assert.match(studio,/freeFinishChange=appearanceKind==='makeup'/);
  assert.match(studio,/onHair=\{chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Easy Mode must use the same two-step generation as Studio');
- assert.match(easy,/tab==='hair'&&/,'Easy Mode must offer the hairstyle list before initial AI generation');
- assert.match(easy,/onGenerateHair\?\.\(choice\)/,'Easy Mode must send the selected haircut, not auto-default hair');
- assert.match(easy,/hairSelectionPending&&<button type="button" className="easy-primary"/,'After first generation, hair changes also need explicit confirmation');
+ assert.match(studio,/thaiHairConfirmation=\{!englishFlow\}/,'English Easy Mode retains existing behavior');
+ assert.match(easy,/\(hasResult\|\|thaiHairConfirmation\)\&\&tab==='hair'/,'Thai Easy Mode must offer the hairstyle list before initial AI generation');
+ assert.match(easy,/onGenerateHair\?\.\(choice\)/,'Thai Easy Mode must send the selected haircut, not auto-default hair');
+ assert.match(easy,/thaiHairConfirmation&&hasResult&&tab==='hair'&&hairSelectionPending&&<button type="button" className="easy-primary"/,'Only Thai Easy Mode hair changes need the new confirmation');
  assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'/,'Single-finish Makeup must not silently run local cosmetics instead of the AI worker');
 });
