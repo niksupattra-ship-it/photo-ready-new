@@ -1,4 +1,4 @@
-import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE} from './english-body-layout.js';
+import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE} from './english-body-layout.js';
 import {usesCompleteThaiNeckBacking,completeThaiNeckPrompt,completeThaiNeckGuideInstruction} from './thai-neck-backing-policy.js';
 import {prepareThaiNeckCanvas} from './thai-neck-canvas.js';
 import {validateCurrentHairRequest} from './english-current-hair.js';
@@ -32,7 +32,7 @@ import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './englis
 import {parseEnglishHairFit,createEnglishHairFitGuide} from './english-hair-fit-guide.js';
 import {isEnglishHeadPortrait,ENGLISH_HEAD_FINISH_VERSION} from './english-head-portrait.js';
 import {englishHeadPortraitPrompt} from './english-head-prompt.js';
-import {isEnglishTemplateBody,ENGLISH_TEMPLATE_BODY_SIZE,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,usesEnglishIdentityLayout} from './english-template-body-policy.js';
+import {isEnglishTemplateBody,ENGLISH_TEMPLATE_BODY_SIZE,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,usesEnglishIdentityLayout} from './english-template-body-policy.js';
 import {englishTemplateBodyPrompt} from './english-template-body-prompt.js';
 
 export function checkedOutfitReferencePath(value){
@@ -336,15 +336,18 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const hairPlacementReference=fit?await createEnglishHairFitGuide({fit,hair,selected:chosen,root}):null;
  const identityLayout=usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
  const identityReference=identityLayout?null:identity;
- // Only v9 receives the new, larger head and shorter collar-to-chin gap.
- // Replay v8 jobs with their original opt-in guide values.
- const newEnglishProfile=templateBody&&fields.englishStudioFinishVersion===ENGLISH_TEMPLATE_BODY_FINISH_VERSION?(selected.gender==='male'?ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE:ENGLISH_TEMPLATE_PROPORTION_PROFILE):null;
+ // New English female jobs use the SAME male guide proportions. Existing
+ // English male jobs and previously queued female v9 jobs retain their
+ // established reference geometry; earlier v8 routes remain unchanged.
+ const matchedFemale=templateBody&&selected.gender==='female'&&fields.englishStudioFinishVersion===ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION;
+ const legacyV9=templateBody&&fields.englishStudioFinishVersion===ENGLISH_TEMPLATE_BODY_FINISH_VERSION;
+ const newEnglishProfile=matchedFemale?ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE:legacyV9?(selected.gender==='male'?ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE:ENGLISH_TEMPLATE_PROPORTION_PROFILE):null;
  const legacyV8Profile=templateBody&&fields.englishStudioFinishVersion==='en-body-proportion-lock-v8'?{identityHeadScale:.84,chinToCollar:.045,neckToShoulder:.24,chestToShoulder:.42}:null;
  const layoutProfile=newEnglishProfile||legacyV8Profile;
  const identityHeadScale=fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
  const compositionReference=headOnly?null:await createEnglishBodyLayout(outfit,identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined),outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
- let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(newEnglishProfile&&selected.gender==='male')}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  if(chosen&&!keepCurrentHair)prompt+='\n'+englishSelectedHairBoundaryInstruction(chosen);
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
