@@ -69,8 +69,15 @@ export async function makeSavedProject(snapshot,options={}){
  project=await normalizeSavedProjectMasks(project,options);assertSavedProjectResources(project);return project;
 }
 // Decode everything before changing the active project; a failed image leaves the current work intact.
-export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal,inspectMask}={}){
- abort(signal);project=await normalizeSavedProjectMasks(project,{inspectMask,signal});const resources=assertSavedProjectResources(project);
+export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal,inspectMask,fastOpen=false}={}){
+ abort(signal);
+ // Purchased photos were already validated at write time. Avoid decoding every
+ // optional layer attachment twice: once here and again in Studio hydration.
+ if(fastOpen)validateSavedProject(project);
+ else project=await normalizeSavedProjectMasks(project,{inspectMask,signal});
+ let resources;
+ try{resources=assertSavedProjectResources(project)}
+ catch(error){if(fastOpen)return prepareSavedProject(project,{decode,fetchImage,makeFile,signal,inspectMask});throw error}
  const decoded=new Map();
  const bounded=operation=>new Promise((resolve,reject)=>{
   let settled=false,timer;const finish=(callback,value)=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);callback(value)};
@@ -81,13 +88,14 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
  });
  const read=async(src,collar=false)=>{abort(signal);if(!decoded.has(src)){const im=await bounded(()=>decode(src)),w=im.naturalWidth||im.width,h=im.naturalHeight||im.height;resources.checkDecoded(src,w,h);if(w<1||h<1||w>(collar?16384:8192)||h>8192)throw Error('ขนาดภาพเลเยอร์ไม่ถูกต้อง');decoded.set(src,im)}return decoded.get(src)};
  const blob=src=>bounded(async()=>{const response=await fetchImage(src,{signal});abort(signal);const data=await response.blob();abort(signal);return data});
- for(const l of project.layers){
+ for(const l of (fastOpen?project.layers.filter(isHead).slice(0,1):project.layers)){
   const original=await read(l.source,Boolean(l.collarParts));
+  if(fastOpen)break;
   for(const key of imageFields.slice(1))if(l[key]){const im=await read(l[key],Boolean(l.collarParts));if(['eraseRestoreSource','warpRestoreBase','studioSkinBaseSource','aiMakeupSource','englishNeckClipMask'].includes(key)&&((im.naturalWidth||im.width)!==(original.naturalWidth||original.width)||(im.naturalHeight||im.height)!==(original.naturalHeight||original.height)))throw Error(key==='studioSkinBaseSource'?'ขนาดภาพฐานผิวไม่ตรงกับเลเยอร์':'ขนาดภาพอ้างอิงคืนขอบไม่ตรงกับเลเยอร์')}
   if(l.femaleFinishReference){const im=await read(l.femaleFinishReference);if((im.naturalWidth||im.width)>FEMALE_FINISH_REFERENCE_MAX_EDGE||(im.naturalHeight||im.height)>FEMALE_FINISH_REFERENCE_MAX_EDGE)throw Error('ขนาดภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง')}
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }
- let source=null;const original=project.downloadSource||project.compareSource;if(original){await read(original);source=makeFile(await blob(original));if(project.downloadWorkId)source.idpromDownloadWorkId=project.downloadWorkId}
+ let source=null;const original=project.downloadSource||project.compareSource;if(original){if(!fastOpen)await read(original);source=makeFile(await blob(original));if(project.downloadWorkId)source.idpromDownloadWorkId=project.downloadWorkId}
  if(project.canonicalInput&&source)source.idpromCanonicalInput=await blob(project.canonicalInput);
  const head=project.layers.find(isHead),suit=project.layers.find(l=>l.kind==='suit'||l.name==='ชุด');
  let editCache=null;

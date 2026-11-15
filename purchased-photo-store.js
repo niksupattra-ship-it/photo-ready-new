@@ -31,8 +31,11 @@ export function createPurchasedPhotoStore(pool){
    if(!row.rows[0])throw Object.assign(Error('งานนี้พ้นระยะเก็บรูป 7 วันแล้ว ยังบันทึกไฟล์ที่เปิดอยู่ในหน้านี้ได้'),{status:410,code:'photo_expired'});
    return row.rows[0];
   },
-  async list(walletId){await ready();return (await pool.query(`SELECT ${metadata},(editor_project IS NOT NULL) AS editor_project_stored FROM (SELECT DISTINCT ON(work_scope) * FROM purchased_photo_files WHERE wallet_id=$1 AND expires_at>clock_timestamp() AND image IS NOT NULL ORDER BY work_scope,updated_at DESC,created_at DESC,id DESC) AS works ORDER BY updated_at DESC,created_at DESC LIMIT 100`,[walletId])).rows},
+  async list(walletId){await ready();return (await pool.query(`SELECT * FROM (SELECT DISTINCT ON(work_scope) ${metadata},(editor_project IS NOT NULL) AS editor_project_stored FROM purchased_photo_files WHERE wallet_id=$1 AND expires_at>clock_timestamp() AND image IS NOT NULL ORDER BY work_scope,updated_at DESC,created_at DESC,id DESC) AS works ORDER BY updated_at DESC,created_at DESC LIMIT 100`,[walletId])).rows},
   async owned(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},image,preview,editor_project,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},
+  // Editing only needs its project and access metadata. Avoid transferring the
+  // full-resolution delivery image and preview from PostgreSQL on every open.
+  async ownedEditor(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},editor_project,(image IS NOT NULL) AS has_image,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},
   async storeEditor(walletId,id,project){await ready();const r=await pool.query("UPDATE purchased_photo_files SET editor_project=$3::jsonb,updated_at=clock_timestamp() WHERE wallet_id=$1 AND id=$2 AND image IS NOT NULL AND expires_at>clock_timestamp() RETURNING id",[walletId,id,JSON.stringify(project)]);return r.rowCount>0},
   async byToken(token){await ready();return (await pool.query(`SELECT ${metadata},wallet_id,image,preview,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE token=$1`,[token])).rows[0]||null},
   async purge(){await ready();return (await pool.query('UPDATE purchased_photo_files SET image=NULL,preview=NULL,editor_project=NULL WHERE expires_at<=clock_timestamp() AND (image IS NOT NULL OR preview IS NOT NULL OR editor_project IS NOT NULL)')).rowCount},

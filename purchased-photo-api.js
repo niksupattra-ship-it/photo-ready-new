@@ -32,8 +32,8 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
  // The purchased photo is its own 7-day editable archive, independent of the
  // optional 45-day saved-work slots. Only the original paid job lineage can be reopened.
  app.post('/api/purchased-photos/:id/editor',member,(req,res,next)=>uploadEditor(req,res,error=>error?res.status(413).json({message:'ข้อมูลงานแก้ไขใหญ่เกินขีดจำกัด'}):next()),handle(async(req,res)=>{
-  const wallet=req.accountUser.wallet_id,row=await store.owned(wallet,req.params.id);
-  if(!await check(row?{...row,wallet_id:wallet}:null,res))return;
+  const wallet=req.accountUser.wallet_id,row=await store.ownedEditor(wallet,req.params.id);
+  if(!await check(row?{...row,image:row.has_image,wallet_id:wallet}:null,res))return;
   if(!req.file)throw Object.assign(Error('ไม่พบข้อมูลงานแก้ไข'),{status:400});
   let project;try{project=unpackSavedProjectTransfer(JSON.parse(req.file.buffer.toString('utf8')))}catch{throw Object.assign(Error('ข้อมูลเลเยอร์ไม่ถูกต้อง'),{status:400})}
   const jobs=validateProject(project),lineage=await policy.jobIds(wallet,row.job_ids[0]);
@@ -46,8 +46,8 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   res.json({ok:true,id:row.id});
  }));
  app.get('/api/purchased-photos/:id/editor',member,handle(async(req,res)=>{
-  const wallet=req.accountUser.wallet_id,row=await store.owned(wallet,req.params.id);
-  if(!await check(row?{...row,wallet_id:wallet}:null,res))return;
+  const wallet=req.accountUser.wallet_id,row=await store.ownedEditor(wallet,req.params.id);
+  if(!await check(row?{...row,image:row.has_image,wallet_id:wallet}:null,res))return;
   let project=row.editor_project,reconstructed=false;
   if(!project){
    // One-time compatibility for previously paid accounts. A historical editor
@@ -72,7 +72,9 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
    // Historical purchased downloads may predate editable snapshots. Present the
    // exact purchased image as a movable layer; where possible, also recover
    // the original verified input from the bound work (not from a fresh upload).
-   const photo=await sharp(row.image,{limitInputPixels:33554432}).resize(900,1200,{fit:'contain',background:'#ffffff'}).png({compressionLevel:9}).toBuffer();
+   const delivery=await store.owned(wallet,req.params.id);
+    if(!delivery?.image)return res.status(410).json({message:'รูปนี้หมดระยะเก็บ 7 วันแล้ว'});
+    const photo=await sharp(delivery.image,{limitInputPixels:33554432}).resize(900,1200,{fit:'contain',background:'#ffffff'}).png({compressionLevel:9}).toBuffer();
    const image='data:image/png;base64,'+photo.toString('base64');
    let original=null,downloadWorkId=null;
    if(/^dwork_[a-f0-9]{36}$/.test(row.work_scope)){
