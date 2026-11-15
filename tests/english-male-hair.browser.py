@@ -86,6 +86,8 @@ with sync_playwright() as pw:
     assert page.evaluate('bodyCalls.length')==submitted+2,'One Create starts one generation and one commit'
     assert page.evaluate('bodyCalls.findLast(c=>!c.committed).hair')=='seedream-64'
     assert page.evaluate('bodyCalls.findLast(c=>!c.committed).mode')=='male'
+    assert page.evaluate('bodyCalls.findLast(c=>!c.committed).options.sourceJobId')=='fixture-new'
+    assert page.evaluate('bodyCalls.findLast(c=>!c.committed).options.creditKind')=='hairstyle'
     assert page.locator('.english-photo-actions').count()==0
     if width>600:
      if not page.locator('.studio-hair-panel').is_visible():page.locator('.studio-bottom-choices').get_by_role('button',name='ทรงผม',exact=True).click()
