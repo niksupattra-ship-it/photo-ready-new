@@ -40,7 +40,7 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
   const row=await store.put({walletId,scope,jobIds,lineage:[...new Set([...lineage,...jobIds])],packageId,image,preview,width:meta.width,height:meta.height});
   res.json({...shape(row),serverNow:new Date().toISOString()});
  }));
- app.get('/api/purchased-photos',member,handle(async(req,res)=>{const walletId=req.accountUser.wallet_id,photos=await store.list(walletId),editable=await editableWorksForPurchasedPhotos(walletId,photos);res.json({items:photos.map(row=>({...shape(row),editableWorkId:editable[row.id]||null,editorStored:row.editor_project_stored===true})),days:7,serverNow:new Date().toISOString()})}));
+ app.get('/api/purchased-photos',member,handle(async(req,res)=>{const photos=await store.list(req.accountUser.wallet_id);res.json({items:photos.map(row=>({...shape(row),editableWorkId:null,editorStored:row.editor_project_stored===true})),days:7,serverNow:new Date().toISOString()})}));
  // The purchased photo is its own 7-day editable archive, independent of the
  // optional 45-day saved-work slots. Only the original paid job lineage can be reopened.
  app.post('/api/purchased-photos/:id/editor',member,(req,res,next)=>uploadEditor(req,res,error=>error?res.status(413).json({message:'ข้อมูลงานแก้ไขใหญ่เกินขีดจำกัด'}):next()),handle(async(req,res)=>{
