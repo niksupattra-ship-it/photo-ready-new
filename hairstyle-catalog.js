@@ -267,7 +267,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 export const FIRST_GENERATION_FEMALE_HAIR='female-default-reference';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
-export const HAIR_DESIGN_VERSION='selected-silhouette-v23-generate-straight-neck-alpha';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v24-english-male-66-78';
 const compact={
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp and fully gathered at the low rear, with open forehead, clean visible ears and no hanging rear lengths'],
