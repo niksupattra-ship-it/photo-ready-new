@@ -114,6 +114,7 @@ import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {readPurchasedEditorCache,writePurchasedEditorCache,deletePurchasedEditorCache} from './purchased-editor-cache.js';
 import {PurchasedStudioOpening} from './purchased-studio-opening.jsx';
+import {prefetchPurchasedEditor,clearPurchasedEditorPrefetch} from './purchased-editor-prefetch.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
 import {canonicalPortraitInput} from './canonical-portrait-input.js';
 import {submitPortraitJob,cancelPortraitJob,createPortraitOperation,assertPortraitOperationActive,waitForPortraitOperation} from './portrait-operation.js';
@@ -3860,7 +3861,7 @@ function App(){
  saveAccountWork.currentScope=()=>savedWorkOpenRequestRef.current;
  const savedWorkOpenRequestRef=useRef(0);
  const savedWorkLoadRequestRef=useRef(0);
- const openAccountWork=async(work,{signal,accountScope,purchasedPhoto=false}={})=>{
+ const openAccountWork=async(work,{signal,accountScope,purchasedPhoto=false,preparedWork=null}={})=>{
   const request=++savedWorkLoadRequestRef.current,workScope=savedWorkOpenRequestRef.current,token=authToken();let wallet=purchasedPhoto?currentWalletId():undefined;
   const ensureCurrent=()=>{
    if(signal?.aborted)throw Object.assign(Error('ยกเลิกการเปิดงานแล้ว'),{name:'AbortError'});
@@ -3868,13 +3869,18 @@ function App(){
    if(request!==savedWorkLoadRequestRef.current||workScope!==savedWorkOpenRequestRef.current||token!==authToken()||(wallet!==undefined&&wallet!==currentWalletId())||(accountScope!==undefined&&accountScope!==currentScope))throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานอีกครั้ง');
   };
   ensureCurrent();
-  const preparation=new AbortController(),cancelPreparation=()=>preparation.abort();
-  signal?.addEventListener('abort',cancelPreparation,{once:true});let restored;
-  try{
-   const refreshing=purchasedPhoto?Promise.resolve():Promise.resolve(refreshWallet()).then(()=>{ensureCurrent();wallet=currentWalletId()});
-   const preparing=prepareSavedProject(work.project,{decode:decodedStudioImage,signal:preparation.signal,fastOpen:purchasedPhoto});
-   [,restored]=await Promise.all([refreshing,preparing]);
-  }catch(error){preparation.abort();throw error}finally{signal?.removeEventListener('abort',cancelPreparation)}
+  // If purchase-history prepared this exact server revision in advance, its
+  // validated source and decoded head already exist. Do not prepare them again.
+  let restored=preparedWork;
+  if(!restored){
+   const preparation=new AbortController(),cancelPreparation=()=>preparation.abort();
+   signal?.addEventListener('abort',cancelPreparation,{once:true});
+   try{
+    const refreshing=purchasedPhoto?Promise.resolve():Promise.resolve(refreshWallet()).then(()=>{ensureCurrent();wallet=currentWalletId()});
+    const preparing=prepareSavedProject(work.project,{decode:decodedStudioImage,signal:preparation.signal,fastOpen:purchasedPhoto});
+    [,restored]=await Promise.all([refreshing,preparing]);
+   }catch(error){preparation.abort();throw error}finally{signal?.removeEventListener('abort',cancelPreparation)}
+  }
   ensureCurrent();
   // Commit only the completely decoded project, and discard all previous-person state.
   ++savedWorkOpenRequestRef.current;
@@ -4068,7 +4074,27 @@ function App(){
  <div className="idprom-credit-notice-actions"><button autoFocus className="idprom-credit-notice-save" onClick={()=>chooseTrial(false)}>{trialChoice.purchased?'กลับไปดูรูปเดิม':'กลับไปดูรูปเดิม'}</button><button className="idprom-credit-notice-buy" onClick={()=>{chooseTrial(false);setBuyOpen(true)}}>ซื้อเครดิตเพิ่ม <span aria-hidden="true">→</span></button></div>
  </section></div>;
  const DownloadNoticeUI=()=>downloadNotice&&<div className="studio-processing-overlay" style={{zIndex:31000}}><section className="studio-processing-card" role={downloadNotice.state==='error'?'alertdialog':'dialog'} aria-modal="true" aria-labelledby="preview-download-title" aria-busy={downloadNotice.state==='working'}><h2 id="preview-download-title">{downloadNotice.title}</h2><p role={downloadNotice.state==='working'?'status':undefined} aria-live="polite">{downloadNotice.message}</p>{downloadNotice.state==='error'&&<button autoFocus style={{marginTop:20}} onClick={()=>setDownloadNotice(null)}>ตกลง</button>}</section></div>;
- const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onAutomaticDownload={requestPaidPhotoDownload} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onEdit={(item,previewBlob)=>{
+ // Pre-load purchased editable projects before the Edit button is pressed.
+ // Work is warmed under the current signed-in account and the exact server
+ // revision, never as a separate saved-project history.
+ const startPurchasedEditorPrefetch=item=>prefetchPurchasedEditor({
+  item,scope:walletScope(authToken(),currentWalletId()),walletId:currentWalletId(),
+  request:portraitFetch,headers:walletHeaders,
+  currentScope:()=>walletScope(authToken(),currentWalletId())
+ });
+ const preloadPurchasedHistory=items=>{
+  if(!Array.isArray(items))return;
+  const scope=walletScope(authToken(),currentWalletId());
+  // Limit large image downloads and memory use on mobile. The most recent
+  // paid photos are prepared first while the history thumbnails are visible.
+  void (async()=>{
+   for(const item of items.filter(row=>row.editorStored).slice(0,3)){
+    if(scope!==walletScope(authToken(),currentWalletId()))return;
+    try{await startPurchasedEditorPrefetch(item)}catch(error){console.debug('Purchased editor prefetch skipped',error?.message)}
+   }
+  })();
+ };
+ const PurchaseDeliveryUI=()=> <>{receivePhoto&&receivePhoto.scope===walletScope(authToken(),currentWalletId())&&<PurchaseReceipt key={receivePhoto.receiptKey} receipt={receivePhoto} onPrepareSize={prepareReceivedPhoto} onAutomaticDownload={requestPaidPhotoDownload} onClose={closeReceivePhoto} onRetry={()=>{const entry=receivePhotoRef.current;if(entry){const next={...entry,archiving:true,error:''};receivePhotoRef.current=next;setReceivePhoto(next);void archiveReceivedPhoto(next)}}} onHistory={()=>{closeReceivePhoto();openPurchasedPhotos()}}/>}{purchasedPhotosOpen&&<PurchasedPhotos key={walletScope(authToken(),currentWalletId())} request={portraitFetch} headers={walletHeaders} onClose={()=>setPurchasedPhotosOpen(false)} onPreload={preloadPurchasedHistory} onPreloadItem={item=>{void startPurchasedEditorPrefetch(item).catch(()=>{})}} onEdit={(item,previewBlob)=>{
     // Navigate on the same click. The underlying editor loads asynchronously
     // while the purchased thumbnail is already visible in the Studio shell.
     const ticket=++purchasedOpeningRequestRef.current,scope=walletScope(authToken(),currentWalletId()),previousScreen=screen;
@@ -4102,6 +4128,24 @@ function App(){
      const known=verifiedJobs[currentOutputJobRef.current];
      if(known?.checked===false||known?.unlocked===false)throw Error('ยังยืนยันสิทธิ์ที่ชำระแล้วไม่ได้ ไม่ต้องชำระซ้ำ');
      activePurchasedPhotoRef.current={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};openPurchasedFullStudio();setPurchasedPhotosOpen(false);return;
+    }
+    if(item.editorStored){
+     try{
+      const prepared=await startPurchasedEditorPrefetch(item);
+      ensureSame();
+      if(prepared?.restored){
+       await openAccountWork(prepared.work,{
+        accountScope:JSON.stringify([walletHeaders().Authorization||'',walletHeaders()['X-Wallet-Id']||'']),
+        purchasedPhoto:true,preparedWork:prepared.restored
+       });
+       ensureSame();
+       activePurchasedPhotoRef.current={id:item.id,scope:ownerScope,expiresAt:item.expiresAt};
+       closeReceivePhoto();return;
+      }
+     }catch(error){
+      ensureSame();
+      console.warn('Purchased editor preload unavailable; opening from server',error?.message);
+     }
     }
     if(!item.editorStored&&!item.editableWorkId){
      const candidate=await loadPurchaseDraft();ensureSame();
@@ -4374,7 +4418,7 @@ function App(){
   const content=<section className="idprom-auth-form" style={{width:embedded?'100%':'min(420px,calc(100vw - 28px))',background:'#fff',borderRadius:24,padding:embedded?0:26,boxShadow:embedded?'none':'0 24px 70px rgba(15,35,65,.24)',position:'relative'}}>{!embedded&&<button type="button" disabled={authBusy} className="credit-modal-close" aria-label="ปิดเข้าสู่ระบบหรือสมัครสมาชิก" onClick={()=>{setAuthOpen(false);setPendingPackage(null)}}>×</button>}<div style={{fontWeight:900,fontSize:20,color:'#1769c8',marginBottom:6}}>IDพร้อม</div><h2 style={{margin:'0 0 6px',fontSize:26,color:'#12233f'}}>{authMode==='register'?'สมัครสมาชิก':'เข้าสู่ระบบ'}</h2><label htmlFor="idprom-auth-email" style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>อีเมล</label><input id="idprom-auth-email" type="email" disabled={authBusy} autoCapitalize="none" autoCorrect="off" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" placeholder="example@email.com" style={{width:'100%',boxSizing:'border-box',padding:'12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16,marginBottom:14}}/><label htmlFor="idprom-auth-password" style={{display:'block',fontWeight:700,fontSize:13,marginBottom:6}}>รหัสผ่าน</label><div style={{position:'relative'}}><input id="idprom-auth-password" disabled={authBusy} type={showPassword?'text':'password'} value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={authMode==='register'?'new-password':'current-password'} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="อย่างน้อย 8 ตัวอักษร" onKeyDown={e=>{if(e.key==='Enter'&&!authBusy)submitAuth()}} style={{width:'100%',boxSizing:'border-box',padding:'12px 46px 12px 14px',border:'1px solid #d8e1ed',borderRadius:12,fontSize:16}}/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} title={showPassword?'ซ่อนรหัสผ่าน':'แสดงรหัสผ่าน'} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',width:36,height:36,border:0,background:'transparent',padding:0,cursor:'pointer',display:'grid',placeItems:'center',color:'#53657d'}}>{showPassword?<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 4.2A10.5 10.5 0 0112 4c5.5 0 9.5 5.2 9.5 5.2a15.6 15.6 0 01-3.1 3.6"/><path d="M6.6 6.6C4 8.3 2.5 10.2 2.5 10.2S6.5 16 12 16c1 0 2-.2 2.9-.5"/></svg>:<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12S6.5 6 12 6s9.5 6 9.5 6-4 6-9.5 6S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.5"/></svg>}</button></div>{authMode==='login'&&<button type="button" disabled={authBusy} onClick={()=>window.dispatchEvent(new Event('idprom-forgot-password'))} style={{display:'block',margin:'10px 0 0 auto',border:0,background:'transparent',color:'#1769c8',fontSize:13,cursor:'pointer'}}>ลืมรหัสผ่าน?</button>}{authMsg&&<p style={{color:'#c62828',fontSize:13,margin:'10px 0 0'}}>{authMsg}</p>}<button type="button" disabled={authBusy||!authEmail||authPassword.length<8} onClick={submitAuth} style={{width:'100%',border:0,borderRadius:13,padding:'13px 16px',background:'#176fd2',color:'#fff',fontWeight:800,fontSize:15,marginTop:18,cursor:'pointer',opacity:(authBusy||!authEmail||authPassword.length<8)?.6:1}}>{authBusy?'กำลังดำเนินการ…':pendingPackage?.startsWith('promo:')?(authMode==='register'?'สมัครสมาชิกและรับเครดิตฟรี':'เข้าสู่ระบบและรับเครดิตฟรี'):checkoutAuth?(authMode==='register'?'สมัครสมาชิกและเปิด QR':'เข้าสู่ระบบและเปิด QR'):authMode==='register'?'สมัครสมาชิก':'เข้าสู่ระบบ'}</button><button type="button" disabled={authBusy} onClick={()=>{setAuthMode(authMode==='register'?'login':'register');setAuthMsg('')}} style={{width:'100%',border:0,background:'transparent',padding:'13px 0 0',color:'#1769c8',fontWeight:700,cursor:'pointer'}}>{authMode==='register'?'มีบัญชีแล้ว? เข้าสู่ระบบ':'ยังไม่มีบัญชี? สมัครสมาชิก'}</button></section>;
   return embedded?content:<AccountFlowDialog label={authMode==='register'?'สมัครสมาชิก IDพร้อม':'เข้าสู่ระบบ IDพร้อม'} busy={authBusy} initialFocus="#idprom-auth-email" onClose={()=>{if(authSubmitBusyRef.current)return;setAuthOpen(false);setPendingPackage(null)}}><div className="credit-modal-backdrop idprom-auth-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!authSubmitBusyRef.current){setAuthOpen(false);setPendingPackage(null)}}}>{content}</div></AccountFlowDialog>;
  };
- const logout=()=>{cancelPurchasedOpening();activePurchasedPhotoRef.current=null;if(activeProcessOperation&&!activeProcessOperation.finished&&!activeProcessOperation.settled)cancelProgress();closeReceivePhoto();setPurchasedPhotosOpen(false);setCheckoutPreview(null);setPackageCodeRecovery(null);setPackageCodeRecoveryMessage('');setPackageCodeInput('');setPackageCodeResult(null);setPackageCodeMessage('');setPackageCodeOpen(false);appStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false);activeSavedDownloadWork='';walletRefreshRef.current.invalidate();authClaimRef.current=null;setQrPayment(null);setCheckoutRecovery(null);setCheckoutRecoveryMessage('');setPendingLegacyCheckout(null);setPurchaseEditing(false);setWalletBalance({scope:'',data:null,error:''});setFeatureSession(false);setFreeFeatureSession(false);appStorage.removeItem(AUTH_TOKEN_KEY);try{refreshDownloadAuditSession()}catch{}appStorage.removeItem('idprom_account_email');appStorage.removeItem(WALLET_KEY);setRights({generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]});setAccountEmail('');setAccountMenuOpen(false);refreshWallet()};
+ const logout=()=>{clearPurchasedEditorPrefetch();cancelPurchasedOpening();activePurchasedPhotoRef.current=null;if(activeProcessOperation&&!activeProcessOperation.finished&&!activeProcessOperation.settled)cancelProgress();closeReceivePhoto();setPurchasedPhotosOpen(false);setCheckoutPreview(null);setPackageCodeRecovery(null);setPackageCodeRecoveryMessage('');setPackageCodeInput('');setPackageCodeResult(null);setPackageCodeMessage('');setPackageCodeOpen(false);appStorage.removeItem(PRIVATE_TRIAL_KEY);setPrivateTrialActive(false);activeSavedDownloadWork='';walletRefreshRef.current.invalidate();authClaimRef.current=null;setQrPayment(null);setCheckoutRecovery(null);setCheckoutRecoveryMessage('');setPendingLegacyCheckout(null);setPurchaseEditing(false);setWalletBalance({scope:'',data:null,error:''});setFeatureSession(false);setFreeFeatureSession(false);appStorage.removeItem(AUTH_TOKEN_KEY);try{refreshDownloadAuditSession()}catch{}appStorage.removeItem('idprom_account_email');appStorage.removeItem(WALLET_KEY);setRights({generationRemaining:0,hairRemaining:0,unlockedJobIds:[],editableJobIds:[]});setAccountEmail('');setAccountMenuOpen(false);refreshWallet()};
  const AccountUI=()=>{const loggedIn=!!authToken();const openAuth=event=>{event?.currentTarget?.closest('.idprom-member-menu')?.querySelector('button')?.focus({preventScroll:true});setAccountMenuOpen(false);setAuthMode('login');setAuthMsg('');setAuthOpen(true)};return <div className="idprom-member-menu" style={{position:'relative',display:'inline-flex',alignItems:'center',gap:8}}><button type="button" onClick={()=>setAccountMenuOpen(v=>!v)} aria-label={loggedIn?'บัญชีสมาชิก':'เมนูสมาชิก'} aria-expanded={accountMenuOpen} aria-haspopup="true" title={loggedIn?'บัญชีสมาชิก':'เมนูสมาชิก / เข้าสู่ระบบ'} style={{width:42,height:42,border:'1px solid #dbe5f1',background:loggedIn?'#176fd2':'#fff',borderRadius:'50%',padding:0,color:loggedIn?'#fff':'#176fd2',cursor:'pointer',display:'grid',placeItems:'center',flex:'0 0 auto'}}>{loggedIn?<span style={{fontSize:17,fontWeight:900,lineHeight:1}}>{(accountEmail||'ส').trim().charAt(0).toUpperCase()}</span>:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/><path d="M19 8v6M16 11h6"/></svg>}</button>{accountMenuOpen&&<div className="idprom-member-popover" style={{position:'absolute',right:0,top:'calc(100% + 9px)',zIndex:1000,width:'min(320px,calc(100vw - 24px))',background:'#232323',color:'#fff',borderRadius:10,padding:'18px 16px 12px',boxShadow:'0 10px 30px rgba(0,0,0,.28)'}}>{loggedIn?<><div style={{display:'flex',gap:12,alignItems:'center',paddingBottom:16,borderBottom:'1px solid rgba(255,255,255,.18)'}}><div style={{width:52,height:52,borderRadius:'50%',background:'#176fd2',display:'grid',placeItems:'center',fontSize:22,fontWeight:900,flex:'0 0 auto'}}>{(accountEmail||'ส').trim().charAt(0).toUpperCase()}</div><div style={{minWidth:0}}><div style={{fontWeight:900,fontSize:16,marginBottom:4}}>สมาชิก IDพร้อม</div><div style={{fontSize:13,color:'#ddd',wordBreak:'break-all'}}>{accountEmail||'เข้าสู่ระบบแล้ว'}</div></div></div><div style={{padding:'14px 0',fontSize:14,borderBottom:'1px solid rgba(255,255,255,.18)'}}><div style={{fontSize:11,color:'#aaa',marginBottom:8}}>เครดิตคงเหลือ</div><button type="button" onClick={()=>{setAccountMenuOpen(false);setBuyOpen(true)}} style={{border:'1px solid rgba(255,255,255,.22)',background:'rgba(255,255,255,.08)',color:'#fff',borderRadius:9,padding:'9px 11px',fontWeight:700,cursor:'pointer'}}>{walletBalanceLabel}</button></div><button type="button" onClick={()=>{setAccountMenuOpen(false);openPurchasedPhotos()}} style={{width:'100%',padding:12}}>รูปที่ซื้อแล้ว</button></>:<><div style={{fontWeight:900,fontSize:16,marginBottom:12}}>สมาชิก IDพร้อม</div><button type="button" onClick={openAuth} style={{width:'100%',padding:12,borderRadius:9,border:'1px solid rgba(255,255,255,.22)',background:'#176fd2',color:'#fff',textAlign:'left',fontWeight:700,cursor:'pointer'}}>เข้าสู่ระบบ / สมัครสมาชิก</button></>}<button type="button" className="idprom-package-code-open" onClick={openPackageCode} style={{width:'100%',marginTop:10,padding:12,textAlign:'left'}}>ใส่โค้ด</button>{loggedIn&&<button type="button" onClick={logout} style={{width:'100%',border:0,background:'transparent',color:'#fff',textAlign:'left',padding:'15px 0 4px',fontSize:14,cursor:'pointer'}}>ลงชื่อออก</button>}</div>}</div>};
  const clearQrPayment=paymentId=>{if(paymentId&&qrPaymentRef.current?.paymentIntentId!==paymentId)return;setQrPayment(null);setCheckoutRecovery(previous=>!paymentId||previous?.paymentIntentId===paymentId?null:previous);setCheckoutRecoveryMessage('');try{const stored=JSON.parse(appStorage.getItem('idprom_pending_qr_v1')||'null');if(!paymentId||stored?.paymentIntentId===paymentId){appStorage.removeItem('idprom_pending_qr_v1');appStorage.removeItem('idprom_qr_attempt_v1')}}catch{}};
  const expireQrPayment=async(expectedPayment=qrPaymentRef.current)=>{
