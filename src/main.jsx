@@ -2868,6 +2868,9 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  // in pose, crop and cosmetic contrast must not discard a completed image.
  try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){
   if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
+  // An actual identity/hair-quality rejection must not be recovered as if it
+  // were a transient network interruption; cancel it and refund the credit.
+  if(operation)operation.qualityRejected=true;
   portraitResultCache.delete(key);throw error;
  }
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
@@ -4662,7 +4665,7 @@ function App(){
     if(operation?.jobId&&!operation.cancelled)for(const entry of hairResultCacheRef.current.values())if(entry.jobId===operation.jobId)entry.confirmed=true;
    }
    else if(operation?.jobId&&!operation.settled){
-    if(operation.serverCompleted&&!operation.cancelled){
+    if(operation.serverCompleted&&!operation.cancelled&&!operation.qualityRejected){
      // Never destroy a completed AI image on a client-side render, mask,
      // hydration or network-read error. The user can retry the SAME wallet-
      // scoped submission with no new AI generation or credit reservation.
@@ -4673,6 +4676,9 @@ function App(){
      setMsg('AI สร้างภาพเสร็จแล้ว แต่ Studio ยังเปิดผลไม่ได้ · กดประมวลผลอีกครั้งเพื่อรับงานเดิม ไม่หักเครดิตซ้ำ');
     }else{
      operation.cancelled=true;portraitResultCache.clear();
+     // A rejected result cannot be retried via its old idempotency nonce.
+     // Refund first, then allow the next click to create a fresh request.
+     if(operation.qualityRejected)pendingPortraitSubmission=null;
      await settleProcessOperation(operation,'cancel');
      for(const [key,entry] of hairResultCacheRef.current)if(entry.jobId===operation.jobId)hairResultCacheRef.current.delete(key);
     }
@@ -5748,7 +5754,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
   }catch(error){if(error.code!=='USER_CANCELLED'){
    error.idpromProcessStage=error.idpromProcessStage||error.stage||failureStage;
-   if(operation?.serverCompleted&&!operation.settled)error.idpromRecoverableJob=true;
+   if(operation?.serverCompleted&&!operation.settled&&!operation.qualityRejected)error.idpromRecoverableJob=true;
    console.error('Studio portrait failed',{jobId:activeProcessOperation?.jobId||null,stage:error.idpromProcessStage,code:error.code||error.name,message:error.message});analyticsProcessFailure(error,error.idpromProcessStage,{usage_mode:'studio',duration_ms:Date.now()-processingStarted})}rollback();throw error}finally{setBusy(false)}
  };
  const applyStudioMakeup=async(source,styles,options={})=>{
