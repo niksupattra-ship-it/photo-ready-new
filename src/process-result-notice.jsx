@@ -20,7 +20,7 @@ export function ProcessResultNotice({notice,remaining,onClose,onDownload,onSave,
    <p>{notice.kind==='preview'?<><span>คงเหลือ</span> <strong>ไม่จำกัด</strong></>:knownRemaining?<>เหลือ <strong>{remaining}</strong> <span>{creditUnit}</span></>:<span className="process-result-balance-pending">{notice.balanceState==='error'?'ยังตรวจสอบยอดคงเหลือไม่ได้':'กำลังตรวจสอบยอดคงเหลือ…'}</span>}</p>
   </div>
   <div className="process-result-actions">
-   <button type="button" className="process-result-primary" disabled={saving||saved} onClick={trial?onDownload:full?onManage:onSave}>{saving&&<span className="process-result-spinner" aria-hidden="true"/>}{trial?'รับรูปไม่มีลายน้ำ':saving?'กำลังบันทึก…':saved?'บันทึกงานแล้ว':full?'จัดการงานที่บันทึก':'บันทึกงาน'}</button>
+   <button type="button" className="process-result-primary" disabled={Boolean(onSave)&&(saving||saved)} onClick={onSave?(trial?onDownload:full?onManage:onSave):onDownload}>{onSave&&saving&&<span className="process-result-spinner" aria-hidden="true"/>}{!onSave?'รับรูปที่สร้างแล้ว':trial?'รับรูปไม่มีลายน้ำ':saving?'กำลังบันทึก…':saved?'บันทึกงานแล้ว':full?'จัดการงานที่บันทึก':'บันทึกงาน'}</button>
    <button type="button" className="process-result-continue" onClick={onClose}>แก้ไขรูปต่อ<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button>
   </div>
  </section></div>;
