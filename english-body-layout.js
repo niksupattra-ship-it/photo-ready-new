@@ -21,7 +21,7 @@ export const ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE=ENGLISH_MALE_TEMPLATE_PRO
 // envelope to ~39% of the fixed outfit shoulder span. Keep existing v1,
 // older female v9 and all male guides reproducible for saved/queued jobs.
 export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
- identityHeadScale:.95,headWidthToShoulder:.41,headHeightToShoulder:.58,
+ identityHeadScale:.95,headWidthToShoulder:.41,headHeightToShoulder:.55,
  chinToCollar:.015,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
