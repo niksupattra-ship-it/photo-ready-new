@@ -179,3 +179,31 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(easy,/thaiHairConfirmation&&hasResult&&\(hairSelectionPending\|\|finishChangePending\)/,'Thai Easy Mode holds hair and makeup selections until confirmation');
  assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'/,'Single-finish Makeup must not silently run local cosmetics instead of the AI worker');
 });
+
+test('Existing Studio Undo and Redo restore earlier completed AI generations without new provider calls or new UI arrows',async()=>{
+ const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const editorHistory=studio.slice(studio.indexOf(' const history=async back=>'),studio.indexOf(' const point=e=>'));
+ const studioAI=studio.slice(studio.indexOf(' const applyHair=async '),studio.indexOf(' const balanceHeadSize=async'));
+ const firstProcess=studio.slice(studio.indexOf(' const processPhoto=async(options={})=>'),studio.indexOf(' const applyFreeHair=async'));
+ const masterRestore=main.slice(main.indexOf('const syncStudioPortraitFinish='),main.indexOf('const changeStudioPortraitFinish=async'));
+ assert.match(studio,/const rememberProcessedHistory=previous=>/,'AI results enter the existing Undo stack');
+ assert.match(studio,/undo\.current\.push\(previous\)/,'The previous image remains a history snapshot');
+ assert.match(studio,/redo\.current=\[\]/,'A new AI edit starts a fresh Redo branch');
+ assert.match(studioAI,/rememberProcessedHistory\(previous\);resetBrushSession\(\)/,'Makeup and hairstyle changes append snapshots, not reset history');
+ assert.match(firstProcess,/if\(oldHead&&!newSourcePending\)rememberProcessedHistory\(previous\)/,'AI edits in the same original photo retain history');
+ assert.match(firstProcess,/else resetPhotoHistory\(\)/,'A new uploaded original starts a separate history');
+ assert.match(editorHistory,/const from=back\?undo\.current:redo\.current,to=back\?redo\.current:undo\.current/,'Existing Undo and Redo stacks are used both ways');
+ assert.match(editorHistory,/restoreHistory\(next\)\|\|await hydrate\(next\)/,'Restore reuses existing image pixels and local hydration');
+ assert.doesNotMatch(editorHistory,/onChangeHair|onProcessPhoto|requestPortrait|aiFinishPortrait/,'Undo/Redo never calls any AI');
+ assert.match(editorHistory,/onRestorePortraitFinish\?\.\(/,'History restores parent job metadata alongside visible pixels');
+ assert.match(editorHistory,/setEasyFaceFinish\(portraitFinishChoice\(restored\.femaleEyeStyle/,'Undo/Redo restores the cosmetics selection');
+ assert.match(main,/processedStudioHistoryRef=useRef\(new Map\(\)\)/,'Completed AI jobs retain their own master and geometry');
+ assert.match(main,/processedStudioHistoryRef\.current\.set\(entry\.jobId,entry\)/,'History is keyed by job and does not conflate the same hair style');
+ assert.match(main,/lock:editCache\.current\?\.lock/,'The prior hairstyle/outfit fitting frame is retained');
+ assert.match(masterRestore,/if\(head\.jobId!==currentOutputJobRef\.current\)/,'Undo to a different completed AI job switches active job');
+ assert.match(masterRestore,/currentOutputJobRef\.current=head\.jobId/,'The restored job identity is active for later edits');
+ assert.match(masterRestore,/master:cached\.master,lock:cached\.lock/,'The original processed master and fitting frame are restored');
+ assert.doesNotMatch(masterRestore,/requestPortrait|aiFinishPortrait|processStudioPhoto/,'AI is never invoked when restoring a prior job');
+ assert.doesNotMatch(studio,/const backThaiChoice=\(\)=>/,'No new selection-navigation arrow was added');
+});
