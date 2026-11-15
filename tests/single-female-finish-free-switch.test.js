@@ -89,6 +89,22 @@ test('One-pass mode is restricted to single-finish female portraits',()=>{
  assert.throws(()=>validateProductionPortrait(input,{...f,femaleFinishPair:AI_MAKEUP_PAIR_VERSION}),/ตัวเลือก/);
  assert.throws(()=>validateProductionPortrait(input,{...f,portraitMode:'male'}),/ตัวเลือก/);
 });
+test('Thai completed hairstyle selection asks for Natural or Makeup first, then creates only the chosen finish',async()=>{
+ const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const haircut=studio.slice(studio.indexOf(' const chooseHair=id=>'),studio.indexOf(' const confirmThaiHair=()=>'));
+ assert.match(haircut,/!pendingNewPhoto&&hairGender==='female'/,'Only completed female images need an additional finish choice after choosing new hair');
+ assert.match(haircut,/setThaiHairFinishChoice\(chosen\)/,'Selecting hair shows the finish choice and does not launch AI immediately');
+ assert.doesNotMatch(haircut,/setStatus\('เลือกทรงผมแล้ว/,'No orange selection message on normal hair clicks');
+ assert.match(haircut,/const createThaiHairWithFinish=style=>/);
+ assert.match(haircut,/void applyHair\(choice\.hairId,\{femaleEyeStyle:finish,portraitMode:'female',appearanceKind:'hair'\}\)/,'The latest selected finish is passed directly into the single-call hair pipeline');
+ assert.match(studio,/id="thai-hair-finish-title"/);
+ assert.match(studio,/onSelect=\{createThaiHairWithFinish\}/,'One click on Natural/Makeup starts generation');
+ assert.match(studio,/const dismissThaiHairFinish=/,'Cancelling keeps the original result');
+ assert.match(studio,/const selectEasyFaceFinish=style=>/);
+ assert.match(studio,/else selectPortraitFinish\(selected\)/,'Easy Mode can switch a completed photo with a new AI request');
+ assert.match(studio,/appearanceKind:'makeup'\}\);\n \};/,'Studio makeup selection invokes one new finish without staging the orange prompt');
+ assert.match(studio,/if\(mode==='female'\)setEasyFaceFinish\(finish\)/,'Successful processing updates the visible finish selection');
+});
 test('old paired jobs remain two images on demand, not reinterpreted by new single-finish protocol',async()=>{
  const old=await run('en','natural','pair');
  assert.equal(old.calls.length,2);
@@ -110,7 +126,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(store,/result_makeup=\$4/,'The existing first output is not overwritten');
  assert.match(store,/CASE WHEN fields->>'femaleFinishSingleVersion'='female-single-finish-v1'/,'Store English hair placement for later same-look cosmetic finish');
  assert.match(saved,/if\(head\.femaleFinishSingleVersion==='female-single-finish-v1'\)master\.idpromFemaleFinishSingleVersion/,'Purchased photos restore free cosmetic right after reopen');
- assert.match(studio,/setThaiPendingHair\(null\);setSelectedHair\(''\);setAppearanceError\(null\)/,'New source image cancels pending Thai hair selection');
+ assert.match(studio,/setThaiPendingHair\(null\);setThaiHairFinishChoice\(null\);setSelectedHair\(''\);setAppearanceError\(null\)/,'New source image cancels both pending Thai hair and finish selection');
  assert.match(server,/downloadPolicy\.inputForWork\(wid,fields\.downloadWorkId\)/,'Only pinned owned original inputs are processed');
  assert.match(server,/const nextFields=\{\.\.\.fields,femaleEyeStyle:finish\}/,'Cosmetics are the sole allowed change');
  assert.match(server,/queueFemaleAlternateFinish\(req\.params\.id,walletId\(req\),finish,hair,outfit\)/);
