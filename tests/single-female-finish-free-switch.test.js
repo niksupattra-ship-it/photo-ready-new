@@ -100,7 +100,10 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.doesNotMatch(main,/fd\.append\('femaleFinishPair',AI_MAKEUP_PAIR_VERSION\)/,'New jobs must not generate both automatically');
  assert.match(main,/requestFreeFemaleAlternate\(options\.sourceJobId/);
  assert.match(studio,/const confirmThaiHair=/,'Thai must offer a separate create button');
- assert.match(studio,/onClick=\{confirmThaiHair\}/);
+ assert.match(studio,/onCreate=\{confirmThaiHair\}/,'Thai Full Studio must place the create button directly over the photo');
+ assert.match(studio,/createLabel="สร้างภาพ" cancelLabel="ยกเลิก"/,'Thai on-photo actions must show localized Create and Cancel');
+ assert.doesNotMatch(studio,/studio-hair-confirm-button/,'Thai Full Studio must not use the old below-picker confirmation');
+ assert.match(studio,/femaleEyeStyle:finish/,'Changing hair must preserve the most recently chosen makeup finish');
  assert.match(studio,/setThaiPendingHair\(chosen\)/);
  assert.match(studio,/freeFinishChange=appearanceKind==='makeup'/);
  assert.match(studio,/onHair=\{englishFlow\?\(easyHasResult\?chooseHair:processEasyPhoto\):chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Thai Easy Mode uses the selection-confirm flow while English keeps its original quick action');
