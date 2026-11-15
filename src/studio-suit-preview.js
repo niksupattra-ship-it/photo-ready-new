@@ -30,3 +30,21 @@ export function createSuitPreviewRequest(){
  let cancel;const cancelled=Symbol('cancelled'),signal=new Promise(resolve=>{cancel=()=>resolve(cancelled)});
  return {phase:'loading',preview:null,cancel,async wait(promise){const value=await Promise.race([promise,signal]);if(value===cancelled)throw Object.assign(Error('Replaced by another suit'),{code:'SUIT_SELECTION_REPLACED'});return value}};
 }
+
+// Garment pixels on the stage always use the native source. Small catalog
+// thumbnails can change sharpness/alpha when replaced by a full PNG.
+const nativeReady=new Map(),nativePending=new Map(),NATIVE_LIMIT=32*1024*1024;
+export const readNativeSuitPreview=template=>nativeReady.get(template)||null;
+export function warmNativeSuitPreview(template){
+ if(!template)return Promise.resolve(null);
+ if(nativeReady.has(template)){const image=nativeReady.get(template);nativeReady.delete(template);nativeReady.set(template,image);return Promise.resolve(image)}
+ if(nativePending.has(template))return nativePending.get(template);
+ const request=decodedStudioImage(template).then(async image=>{
+  if(image.decode)await image.decode();
+  nativeReady.set(template,image);
+  let bytes=0;for(const value of nativeReady.values())bytes+=(value.naturalWidth||value.width)*(value.naturalHeight||value.height)*4;
+  for(const [key,value] of nativeReady){if(bytes<=NATIVE_LIMIT&&nativeReady.size<=4)break;nativeReady.delete(key);bytes-=(value.naturalWidth||value.width)*(value.naturalHeight||value.height)*4}
+  return image;
+ }).finally(()=>nativePending.delete(template));
+ nativePending.set(template,request);return request;
+}
