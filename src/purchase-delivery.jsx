@@ -57,14 +57,71 @@ function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownlo
  }}/>;
 }
 export function PurchasedPhotos({request,headers,onClose,onOpen,onEdit}){
+ const locale=interfaceLocale(),english=locale!=='th-TH',t=(th,en)=>english?en:th;
  const active=useRef(false),opening=useRef(null);
  const [items,setItems]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(''),[urls,setUrls]=useState({}),[serverOffset,setServerOffset]=useState(0);
  useEffect(()=>{const controller=new AbortController(),owned=[];active.current=true;
-  (async()=>{try{const r=await request('/api/purchased-photos',{headers:headers(),cache:'no-store',signal:controller.signal});const data=await r.json();if(!r.ok)throw Error(data.message||'ยังเปิดรูปที่ซื้อไม่ได้');if(!active.current)return;if(!Array.isArray(data.items))throw Error('โหลดรายการไม่สำเร็จ กรุณาลองใหม่');setItems(data.items);setServerOffset(Number.isFinite(Date.parse(data.serverNow))?Date.parse(data.serverNow)-Date.now():0);
-   for(const item of data.items){const response=await request(item.previewUrl,{headers:headers(),cache:'no-store',signal:controller.signal});if(!response.ok)continue;const blob=await response.blob();if(!active.current)break;const url=URL.createObjectURL(blob);owned.push(url);setUrls(previous=>({...previous,[item.id]:url}))}
-  }catch(e){if(active.current)setError(e.message||'โหลดรายการไม่สำเร็จ กรุณาลองใหม่')}})();return()=>{active.current=false;controller.abort();opening.current?.abort();owned.forEach(url=>URL.revokeObjectURL(url))};
+  (async()=>{try{
+   const r=await request('/api/purchased-photos',{headers:headers(),cache:'no-store',signal:controller.signal});
+   const data=await r.json();
+   if(!r.ok)throw Error(english?'Unable to load your purchased photos.':data.message||'ยังเปิดรูปที่ซื้อไม่ได้');
+   if(!active.current)return;
+   if(!Array.isArray(data.items))throw Error(t('โหลดรายการไม่สำเร็จ กรุณาลองใหม่','Could not load the photo list. Please try again.'));
+   setItems(data.items);
+   setServerOffset(Number.isFinite(Date.parse(data.serverNow))?Date.parse(data.serverNow)-Date.now():0);
+   for(const item of data.items){
+    const response=await request(item.previewUrl,{headers:headers(),cache:'no-store',signal:controller.signal});
+    if(!response.ok)continue;
+    const blob=await response.blob();
+    if(!active.current)break;
+    const url=URL.createObjectURL(blob);owned.push(url);setUrls(previous=>({...previous,[item.id]:url}));
+   }
+  }catch(e){if(active.current)setError(e.message||t('โหลดรายการไม่สำเร็จ กรุณาลองใหม่','Could not load your photos. Please try again.'))}})();
+  return()=>{active.current=false;controller.abort();opening.current?.abort();owned.forEach(url=>URL.revokeObjectURL(url))};
  },[]);
- const edit=async item=>{if(opening.current||!onEdit)return;const controller=new AbortController();opening.current=controller;setBusy(item.id);setError('');try{await onEdit(item);if(active.current&&!controller.signal.aborted)onClose()}catch(e){if(active.current&&!controller.signal.aborted)setError(e.message||'ยังเปิดงานแก้ไขไม่ได้')}finally{if(opening.current===controller)opening.current=null;if(active.current)setBusy('')}};
- const open=async item=>{if(opening.current)return;const controller=new AbortController();opening.current=controller;setBusy(item.id);setError('');try{const r=await request(item.imageUrl,{headers:headers(),cache:'no-store',signal:controller.signal});if(!r.ok)throw Error(r.status===410?'รูปนี้หมดระยะเก็บ 7 วันแล้ว':'ยังเปิดรูปไม่ได้ กรุณาลองใหม่ ไม่ต้องชำระซ้ำ');const blob=await r.blob();if(active.current&&!controller.signal.aborted)await onOpen(blob,item)}catch(e){if(active.current&&!controller.signal.aborted)setError(e.message)}finally{if(opening.current===controller)opening.current=null;if(active.current)setBusy('')}};
- return <AccountFlowDialog label="รูปที่ซื้อแล้ว" onClose={onClose}><div className="purchase-surface"><section className="purchase-page"><header><strong>IDพร้อม <em>Studio</em></strong><button onClick={onClose} aria-label="ปิดรูปที่ซื้อแล้ว">×</button></header><div className="purchase-step">6 · กลับมารับรูปภายหลัง</div><h1>รูปที่ซื้อแล้ว</h1>{error&&<p className="purchase-error" role="status">{error}</p>}{!items&&!error&&<p role="status">กำลังโหลดรูปที่ซื้อแล้ว…</p>}{items?.length===0&&<p>ยังไม่มีไฟล์รับรูปที่เก็บไว้ในช่วง 7 วันนี้</p>}{items?.map((item,i)=><article className="purchased-photo-row" key={item.id}>{urls[item.id]?<img src={urls[item.id]} alt={'รูปที่ซื้อ '+(i+1)}/>:<div className="purchased-photo-placeholder"/>}<div><strong>รูป {item.id.slice(-6).toUpperCase()}</strong><small>{(new Date(item.purchasedAt).toLocaleString(interfaceLocale(),{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'})+(interfaceLocale()==='en-GB'?' (UTC+07:00)':''))}</small><span>เหลือเวลาเก็บอีก {Math.max(0,Math.ceil((Date.parse(item.expiresAt)-Date.now()-serverOffset)/86400000))} วัน</span></div><div className="purchased-photo-actions">{onEdit&&<button className="purchase-secondary" disabled={!!busy} onClick={()=>edit(item)}>{busy===item.id?'กำลังเปิด…':'เปิดแก้ไขรูป'}</button>}<button className="purchase-primary" disabled={!!busy} onClick={()=>open(item)}>{busy===item.id?'กำลังเปิด…':'รับรูป'}</button></div></article>)}<p className="purchase-hint">ดาวน์โหลดซ้ำได้ภายใน 7 วันนับจากรับสิทธิ์ของงาน<br/>เมื่อครบกำหนด ระบบลบไฟล์รับรูปที่เก็บไว้</p></section></div></AccountFlowDialog>;
+ const edit=async item=>{
+  if(opening.current||!onEdit)return;
+  const controller=new AbortController();opening.current=controller;setBusy(item.id);setError('');
+  try{await onEdit(item);if(active.current&&!controller.signal.aborted)onClose()}
+  catch(e){if(active.current&&!controller.signal.aborted)setError(english?'Could not open this photo for editing. Please try again.':e.message||'ยังเปิดงานแก้ไขไม่ได้')}
+  finally{if(opening.current===controller)opening.current=null;if(active.current)setBusy('')}
+ };
+ const open=async item=>{
+  if(opening.current)return;
+  const controller=new AbortController();opening.current=controller;setBusy(item.id);setError('');
+  try{
+   const r=await request(item.imageUrl,{headers:headers(),cache:'no-store',signal:controller.signal});
+   if(!r.ok)throw Error(r.status===410?t('รูปนี้หมดระยะเก็บ 7 วันแล้ว','This photo is no longer available after the 7-day period.'):t('ยังเปิดรูปไม่ได้ กรุณาลองใหม่ ไม่ต้องชำระซ้ำ','Could not open this photo. Please try again; no additional payment is needed.'));
+   const blob=await r.blob();
+   if(active.current&&!controller.signal.aborted)await onOpen(blob,item);
+  }catch(e){if(active.current&&!controller.signal.aborted)setError(e.message||t('ยังเปิดรูปไม่ได้','Could not open this photo.'))}
+  finally{if(opening.current===controller)opening.current=null;if(active.current)setBusy('')}
+ };
+ return <AccountFlowDialog label={t('รูปที่ซื้อแล้ว','Purchased Photos')} onClose={onClose}>
+  <div className="purchase-surface"><section className="purchase-page purchased-photo-page">
+   <header><strong>IDพร้อม <em>Studio</em></strong><button type="button" onClick={onClose} aria-label={t('ปิดรูปที่ซื้อแล้ว','Close purchased photos')}>×</button></header>
+   <h1>{t('รูปที่ซื้อแล้ว','Purchased Photos')}</h1>
+   {error&&<p className="purchase-error" role="status">{error}</p>}
+   {!items&&!error&&<p role="status">{t('กำลังโหลดรูปที่ซื้อแล้ว…','Loading your purchased photos…')}</p>}
+   {items?.length===0&&<p>{t('ยังไม่มีไฟล์รับรูปที่เก็บไว้ในช่วง 7 วันนี้','No purchased photos are available within the last 7 days.')}</p>}
+   {items?.map((item,i)=>{
+    const remaining=Math.max(0,Math.ceil((Date.parse(item.expiresAt)-Date.now()-serverOffset)/86400000));
+    return <article className="purchased-photo-row" key={item.id}>
+     {urls[item.id]?<img src={urls[item.id]} alt={t('รูปที่ซื้อ ','Purchased photo ')+(i+1)}/>:<div className="purchased-photo-placeholder"/>}
+     <div className="purchased-photo-info">
+      <strong>{t('รูป ','Photo ')+item.id.slice(-6).toUpperCase()}</strong>
+      <small>{new Date(item.purchasedAt).toLocaleString(locale,{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'})+(english?' (UTC+07:00)':'')}</small>
+      <span>{english?remaining+' '+(remaining===1?'day':'days')+' remaining':'เหลือเวลาเก็บอีก '+remaining+' วัน'}</span>
+     </div>
+     <div className="purchased-photo-actions">
+      {onEdit&&<button type="button" className="purchase-secondary" disabled={!!busy} onClick={()=>edit(item)}><DeliveryIcon kind="open"/>{busy===item.id?t('กำลังเปิด…','Opening…'):t('เปิดแก้ไขรูป','Edit Photo')}</button>}
+      <button type="button" className="purchase-primary" disabled={!!busy} onClick={()=>open(item)}><DeliveryIcon kind="download"/>{busy===item.id?t('กำลังเปิด…','Opening…'):t('รับรูป','Download')}</button>
+     </div>
+    </article>
+   })}
+   <p className="purchase-hint">{t('ดาวน์โหลดซ้ำได้ภายใน 7 วัน','You can download again within 7 days')}
+    <span>{t('เมื่อครบกำหนด ระบบลบไฟล์รับรูปที่เก็บไว้','After that, the stored download file will be deleted')}</span>
+   </p>
+  </section></div>
+ </AccountFlowDialog>;
 }
