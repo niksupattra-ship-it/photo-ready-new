@@ -100,7 +100,7 @@ export async function touchFemaleAlternateFinish(id){
  await ready();await pool.query("UPDATE ai_jobs SET updated_at=now() WHERE id=$1 AND status='completed' AND fields->>'alternateFinishStatus'='processing'",[id]);
 }
 export async function completeFemaleAlternateFinish(id,walletId,finish,result,makeupVersion=null){
- await ready();const {rowCount}=await pool.query("UPDATE ai_jobs SET result_makeup=$4,fields=fields||jsonb_build_object('alternateFinishStatus','completed')||CASE WHEN $5::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('alternateMakeupVersion',$5::text) END,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'alternateFinish'=$3 AND fields->>'alternateFinishStatus'='processing'",[id,walletId,finish,result,makeupVersion]);
+ await ready();const {rowCount}=await pool.query("UPDATE ai_jobs SET result_makeup=$4,fields=fields||jsonb_build_object('alternateFinishStatus','completed')||CASE WHEN $5::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('alternateMakeupVersion',$5::text) END,updated_at=now() WHERE id=$1 AND wallet_id=$2 AND status='completed' AND fields->>'alternateFinish'=$3 AND fields->>'alternateFinishStatus'='processing' AND (result_makeup IS NULL OR ($5::text IS NOT NULL AND fields->>'alternateMakeupVersion' IS DISTINCT FROM $5::text))",[id,walletId,finish,result,makeupVersion]);
  return rowCount>0;
 }
 export async function failFemaleAlternateFinish(id,finish){
