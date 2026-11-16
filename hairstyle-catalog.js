@@ -267,10 +267,10 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 export const FIRST_GENERATION_FEMALE_HAIR='female-default-reference';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
-export const HAIR_DESIGN_VERSION='selected-silhouette-v24-english-male-66-78';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v25-clean-nape-no-bun-both-genders';
 const compact={
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
- 'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp and fully gathered at the low rear, with open forehead, clean visible ears and no hanging rear lengths'],
+ 'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
  'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
  'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
@@ -321,7 +321,7 @@ export function selectedHairInstruction(selected){
  if(selected?.interfaceLanguage==='en')return englishFemaleHairInstruction(selected);
  const design=selectedHairDesign(selected);if(!design)return '';
  const extent=design.kind==='gathered'
-  ?'Keep the compact reference hair close to the scalp. Any gathering stays discreetly at the low rear, not above the crown. Keep the neck silhouette clear. NO loose long hair, straight hanging panels, ponytail extensions or curtains behind either ear, jaw, neck or shoulder. Do not interpret a transparent cutout as missing long hair to complete.'
+  ?'Keep the compact reference hair close to the scalp. Gathered ends stay fully hidden against the rear skull above the nape: NEVER a visible low bun, side-neck bulge, rear knot, or hair ball at neck level; keep the natural crown silhouette, with no topknot. Keep the neck silhouette clear. NO loose long hair, straight hanging panels, ponytail extensions or curtains behind either ear, jaw, neck or shoulder. Do not interpret a transparent cutout as missing long hair to complete.'
   :design.kind==='short'||design.kind==='bob'
   ?'The selected SHORT cut ends at the exact anatomical level shown in Image 2. Preserve its bob/pixie/shag shape and intended forehead fringe. Never convert a short haircut into an updo. NO additional rear curtain, mullet, long tail, ponytail or shoulder/back extensions beyond those reference ends. A short bob must stay a short bob when tucked behind the ears; never extend it to reach the shoulders.'
   :'Only the long sections actually present in Image 2 may hang behind the ears/neck; never blend source hair or invent extra length. Trim only excess beyond the upper-armpit maximum.';

@@ -431,3 +431,32 @@ test('v8 Makeup AI complexion is evenly bright and clear without a mask or extra
  assert.doesNotMatch(natural,/MAKEUP COMPLEXION FINAL AUTHORITY/,'Natural keeps its separate no-makeup skin rules');
  assert.match(natural,/NO ADDED MAKEUP/);
 });
+
+test('both genders receive a last AI-only clean-nape rule without changing cosmetics or genuine long hair',async()=>{
+ const femaleThai=await run('th','makeup','one');
+ const femaleEnglish=await run('en','natural','one');
+ for(const got of [femaleThai,femaleEnglish]){
+  assert.equal(got.calls.length,1);
+  const prompt=got.calls[0].prompt;
+  assert.match(prompt,/FINAL HAIR-ONLY NAPE \/ SIDE-NECK CLEANUP/);
+  assert.match(prompt,/NO visible bun, low bun, nape knot/);
+  assert.match(prompt,/directly UNDER either ear/);
+  assert.match(prompt,/tuck the collected ends invisibly against the BACK OF THE SKULL ABOVE THE NAPE/);
+  assert.match(prompt,/IF HAIR IS LOOSE\/LONG: preserve genuine continuous long sections/);
+  assert.match(prompt,/Do not add a mask, blur, skin filter, postprocessing pass or second AI request/);
+  assert.equal(prompt.match(/FINAL HAIR-ONLY NAPE \/ SIDE-NECK CLEANUP/g)?.length,1);
+ }
+ const maleCalls=[];
+ await processProductionPortrait({
+  input,fields:{portraitMode:'male',femaleEyeStyle:'natural'},root,key:'male-nape-test',
+  removeBackground:async()=>rgba,requestPortrait:async req=>{maleCalls.push(req);return {png:rgba}}
+ });
+ assert.equal(maleCalls.length,1,'Men still use one provider request');
+ assert.match(maleCalls[0].prompt,/FINAL HAIR-ONLY NAPE \/ SIDE-NECK CLEANUP/);
+ const code=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
+ assert.match(code,/prompt\+='\\n'\+VISIBLE_NAPE_BUN_PROHIBITION;\s+await onStage\('generation'\);\s+let result=await requestPortrait\(/,'Thai last rule before provider');
+ assert.match(code,/prompt\+='\\n'\+VISIBLE_NAPE_BUN_PROHIBITION;\s+await onStage\('generation'\);\s+const result=await requestPortrait\(/,'English last rule before provider');
+ const catalog=await readFile(new URL('../hairstyle-catalog.js',import.meta.url),'utf8');
+ assert.match(catalog,/selected-silhouette-v25-clean-nape-no-bun-both-genders/);
+ assert.doesNotMatch(catalog,/discreetly at the low rear/);
+});
