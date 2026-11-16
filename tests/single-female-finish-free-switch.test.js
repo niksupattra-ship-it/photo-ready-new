@@ -5,6 +5,7 @@ import {readFile} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {FEMALE_SINGLE_FINISH_VERSION,isFemaleSingleFinish,oppositeFemaleFinish} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
+import {SINGLE_PASS_SKIN_QUALITY_VERSION,onePassSkinQualityPriority} from '../single-pass-skin-quality.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup} from '../natural-master-makeup.js';
 import {AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
@@ -82,8 +83,39 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
   assert(got.result.length>100);
   assert(!got.stages.includes('skin-prepare'),'No hidden Thai skin preparation request');
   assert(!got.stages.includes('makeup'),'No hidden second makeup request');
-  if(finish==='makeup')assert.match(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
-  else assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
+  if(finish==='makeup'){
+   assert.match(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
+   assert.match(got.calls[0].prompt,/FIRST give temporary red speckles/,'Makeup corrects surface redness before adding colour');
+   assert.match(got.calls[0].prompt,/THEN apply restrained soft dusty-rose blush/,'Makeup adds cosmetically finished eyes, cheeks and lips');
+   assert.match(got.calls[0].prompt,/light-to-medium coverage foundation appearance/,'Makeup has convincing foundation coverage in one pass');
+  }else{
+   assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
+   assert.match(got.calls[0].prompt,/SELECTED FINISH — NATURAL, NO ADDED MAKEUP/);
+   assert.doesNotMatch(got.calls[0].prompt,/THEN apply restrained soft dusty-rose blush/);
+  }
+  assert.match(got.calls[0].prompt,/FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY/);
+  assert.match(got.calls[0].prompt,/identity and natural colour lock/i);
+  assert.match(got.calls[0].prompt,/NON-SKIN PROTECTION/);
+  assert.match(got.calls[0].prompt,/same image generation/i);
+  assert.equal(got.calls.filter(c=>c.prompt.includes('FINAL ONE-PASS STUDIO SKIN')).length,1);
+ }
+});
+test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
+ assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v2');
+ assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
+ assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
+ assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
+ assert.match(main,/gender==='female'\?SINGLE_PASS_SKIN_QUALITY_VERSION/);
+ assert.match(main,/options\.portraitMode==='female'\?SINGLE_PASS_SKIN_QUALITY_VERSION/);
+ assert.match(pipeline,/if\(singlePass\)\{\s*if\(fields\.femaleEyeStyle==='makeup'\)prompt\+=onePassMakeupPriority\(false\);\s*prompt\+=onePassSkinQualityPriority\(fields\.femaleEyeStyle,false\)/);
+ assert.match(pipeline,/if\(singlePass\)\{\s*if\(fields\.femaleEyeStyle==='makeup'\)prompt\+=onePassMakeupPriority\(true\);\s*prompt\+=onePassSkinQualityPriority\(fields\.femaleEyeStyle,true\)/);
+ for(const lang of ['th','en']){
+  const legacy=await run(lang,'natural','pair');
+  assert(!legacy.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old paired job prompts remain unchanged');
+  const oldSingle=await run(lang,'makeup');
+  assert(!oldSingle.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old single-finish protocol uses its released two-step quality');
  }
 });
 test('One-pass mode is restricted to single-finish female portraits',()=>{
