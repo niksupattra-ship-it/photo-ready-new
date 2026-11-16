@@ -91,7 +91,7 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
    assert.match(got.calls[0].prompt,/BROAD UNDER-EYE BLUSH GRADIENT/,'Blush expands from under-eye cheek to outer edge');
    assert.match(got.calls[0].prompt,/out toward the temples and outer facial contour on BOTH sides/,'Blush extends to outer facial contours, not dots');
    assert.match(got.calls[0].prompt,/not a small intense pink centre, disk, stamped circle/,'No saturated circular blush');
-   assert.match(got.calls[0].prompt,/no additional retouching, face masks or post-processing/,'AI-only finished pixels');
+   assert.match(got.calls[0].prompt,/do not require additional retouching, face masks or post-processing/,'AI-only finished pixels');
   }else{
    assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
    assert.match(got.calls[0].prompt,/SELECTED FINISH — NATURAL CLEAR STUDIO SKIN, NO ADDED MAKEUP/);
