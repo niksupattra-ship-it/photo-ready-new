@@ -85,13 +85,13 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
   assert(!got.stages.includes('makeup'),'No hidden second makeup request');
   if(finish==='makeup'){
    assert.match(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
-   assert.match(got.calls[0].prompt,/FIRST give temporary red speckles/,'Makeup corrects surface redness before adding colour');
-   assert.match(got.calls[0].prompt,/THEN apply restrained soft dusty-rose blush/,'Makeup adds cosmetically finished eyes, cheeks and lips');
-   assert.match(got.calls[0].prompt,/light-to-medium coverage foundation appearance/,'Makeup has convincing foundation coverage in one pass');
+   assert.match(got.calls[0].prompt,/FIRST — FOUNDATION AND COMPLEXION COVERAGE/,'Makeup corrects surface redness before adding colour');
+   assert.match(got.calls[0].prompt,/THEN — SUBTLE COSMETICS/,'Makeup adds cosmetically finished eyes, cheeks and lips');
+   assert.match(got.calls[0].prompt,/natural light-to-medium coverage foundation appearance/,'Makeup has convincing foundation coverage in one pass');
   }else{
    assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
-   assert.match(got.calls[0].prompt,/SELECTED FINISH — NATURAL, NO ADDED MAKEUP/);
-   assert.doesNotMatch(got.calls[0].prompt,/THEN apply restrained soft dusty-rose blush/);
+   assert.match(got.calls[0].prompt,/SELECTED FINISH — NATURAL CLEAR STUDIO SKIN, NO ADDED MAKEUP/);
+   assert.doesNotMatch(got.calls[0].prompt,/THEN — SUBTLE COSMETICS/);
   }
   assert.match(got.calls[0].prompt,/FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY/);
   assert.match(got.calls[0].prompt,/identity and natural colour lock/i);
@@ -101,7 +101,7 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
  }
 });
 test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
- assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v2');
+ assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v3');
  assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
  assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
  assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
