@@ -124,6 +124,14 @@ test('One-pass mode is restricted to single-finish female portraits',()=>{
  assert.throws(()=>validateProductionPortrait(input,{...f,femaleFinishPair:AI_MAKEUP_PAIR_VERSION}),/ตัวเลือก/);
  assert.throws(()=>validateProductionPortrait(input,{...f,portraitMode:'male'}),/ตัวเลือก/);
 });
+test('Easy Mode create label stays compact for male and female while original click paths remain intact',async()=>{
+ const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
+ assert.equal((easy.match(/>ประมวลผลรูป<\/button>/g)||[]).length,3,'Both staged create buttons and default create use the old short label');
+ assert.doesNotMatch(easy,/สร้างภาพตามทรงผมและเมคอัพที่เลือก/,'Long gender-specific label must not return');
+ assert.match(easy,/onClick=\{\(\)=>onConfirmHair\?\.\(\)\}>ประมวลผลรูป<\/button>/);
+ assert.match(easy,/onClick=\{\(\)=>onGenerateHair\?\.\(choice\|\|selectedHair\|\|''\)\}>ประมวลผลรูป<\/button>/);
+ assert.match(easy,/disabled=\{busy\|\|!ready\|\|!currentSuit\|\|!choicesReady\}/,'Keep confirmation button constraints');
+});
 test('Hair-first and Makeup-first selections require explicit completion before one AI Create (Thai and English)',async()=>{
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
