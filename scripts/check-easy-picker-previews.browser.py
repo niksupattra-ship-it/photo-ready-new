@@ -54,7 +54,7 @@ async def run():
     await page.close()
   page=await browser.new_page(viewport={'width':1440,'height':1000})
   await page.goto(BASE+'/scripts/fixtures/easy-picker-previews.html?gender=male')
-  original=await page.evaluate('pickerFixture.hairs[1].src')
+  original=await page.evaluate('pickerFixture.hairs.at(-1).src')
   # One failed menu thumbnail falls back to its original catalog preview.
   await page.route('**/hair-picker-thumbnails/**',lambda route:route.abort())
   await page.get_by_role('button',name='ทรงผม',exact=True).click()

@@ -14,8 +14,10 @@ const options=Object.keys(backgrounds).map((src,index)=>({id:'background-'+index
 const photo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0X8AAAAASUVORK5CYII=';
 window.pickerFixture={hairs,templates,backgrounds:options,calls:[]};
 function Fixture(){
+ const [warmingPaused,setWarmingPaused]=useState(new URLSearchParams(location.search).has('manual'));
+ window.pickerFixture.startWarmup=()=>setWarmingPaused(false);
  const canvasRef=useRef(null),[hair,setHair]=useState(''),[suit,setSuit]=useState(templates[0].template),[background,setBackground]=useState(options[0].id);
  const choose=(kind,option,update,value)=>{window.pickerFixture.calls.push({kind,option});update(value)};
- return <main className="idstudio"><EasyMode canvasRef={canvasRef} hasResult ready busy={false} processing={false} sourcePreview={photo} gender={gender} hairs={hairs} selectedHair={hair} templates={templates} currentSuit={suit} backgrounds={options} currentBackground={background} onHair={id=>choose('hair',hairs.find(h=>h.id===id),setHair,id)} onSuit={option=>choose('suit',option,setSuit,option.template)} onBackground={option=>choose('background',option,setBackground,option.id)} onHome={()=>{}} onStudio={()=>{}}/></main>;
+ return <main className="idstudio"><EasyMode canvasRef={canvasRef} hasResult ready busy={warmingPaused} processing={false} sourcePreview={photo} gender={gender} hairs={hairs} selectedHair={hair} templates={templates} currentSuit={suit} backgrounds={options} currentBackground={background} onHair={id=>choose('hair',hairs.find(h=>h.id===id),setHair,id)} onSuit={option=>choose('suit',option,setSuit,option.template)} onBackground={option=>choose('background',option,setBackground,option.id)} onHome={()=>{}} onStudio={()=>{}}/></main>;
 }
 createRoot(document.getElementById('root')).render(<Fixture/>);
