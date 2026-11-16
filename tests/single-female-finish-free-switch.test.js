@@ -94,6 +94,10 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
    assert.doesNotMatch(got.calls[0].prompt,/THEN — SUBTLE COSMETICS/);
   }
   assert.match(got.calls[0].prompt,/FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY/);
+  assert.match(got.calls[0].prompt,/MANDATORY COMMON CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP/,'Both finishes receive the same blemish-removal base');
+  assert.match(got.calls[0].prompt,/REMOVE noticeable temporary pimples/,'Retouch is an explicit instruction to change rendered pixels');
+  assert.match(got.calls[0].prompt,/Soften superficial lines/,'Fine-line correction is shared');
+  assert.match(got.calls[0].prompt,/This is an instruction to alter the final rendered skin pixels/,'Not merely a narrative prompt');
   assert.match(got.calls[0].prompt,/identity and natural colour lock/i);
   assert.match(got.calls[0].prompt,/NON-SKIN PROTECTION/);
   assert.match(got.calls[0].prompt,/same image generation/i);
@@ -101,7 +105,7 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
  }
 });
 test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
- assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v3');
+ assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v4');
  assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
  assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
  assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
