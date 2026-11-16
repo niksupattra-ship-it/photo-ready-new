@@ -110,7 +110,7 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
  }
 });
 test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
- assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v7-ai-only-blended-blush');
+ assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v8-ai-only-even-bright-complexion');
  assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
  assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
  assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
@@ -412,4 +412,22 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(offers,/const \[selected,setSelected\]=useState\(diamondHairOffer\?'159':'89'\)/,'Thai Diamond checkout preselects 159 rather than basic');
  assert.match(offers,/diamondHairOffer&&preview&&<figure className="en-diamond-photo-preview">/,'English Diamond offer shows the current photo with the Premium plan');
  assert.match(styles,/\.en-diamond-photo-preview img/,'English preview remains visible on desktop and mobile');
+});
+
+test('v8 Makeup AI complexion is evenly bright and clear without a mask or extra processing',()=>{
+ const makeup=onePassSkinQualityPriority('makeup',false);
+ const englishMakeup=onePassSkinQualityPriority('makeup',true);
+ const natural=onePassSkinQualityPriority('natural',false);
+ for(const prompt of [makeup,englishMakeup]){
+  assert.match(prompt,/MAKEUP COMPLEXION FINAL AUTHORITY/);
+  assert.match(prompt,/visibly clear active pimples, clusters of temporary acne blemishes/);
+  assert.match(prompt,/WHOLE continuous facial skin surface/);
+  assert.match(prompt,/VISIBLY BRIGHTER, FRESHER STUDIO ILLUMINATION/);
+  assert.match(prompt,/across the facial edges to ears and visible neck/);
+  assert.match(prompt,/NO MASK, NO OVERLAY, NO LOCAL FILTER/);
+  assert.match(prompt,/SAME AI image-generation response/);
+  assert.match(prompt,/authentic pigment depth or undertone/);
+ }
+ assert.doesNotMatch(natural,/MAKEUP COMPLEXION FINAL AUTHORITY/,'Natural keeps its separate no-makeup skin rules');
+ assert.match(natural,/NO ADDED MAKEUP/);
 });
