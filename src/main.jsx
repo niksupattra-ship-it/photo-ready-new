@@ -15,6 +15,7 @@ import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
+import {diffuseFemaleMakeupCheekBlush} from './female-makeup-cheek-blend.js';
 import {captureStudioSkinEvidence} from './studio-skin-evidence.js';
 import {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION} from '../english-makeup-light-policy.js';
 import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
@@ -1559,6 +1560,38 @@ async function finishFemaleMakeupEyeToneBlob(blob){
  }catch{return blob}
 }
 
+// New ONE-PASS Makeup: correct an over-concentrated rose cheek patch using
+// actual generated-face landmarks. This is a local chroma-only colour blend,
+// NOT another AI generation, and runs before the Studio stores the visible PNG.
+async function finishOnePassMakeupCheekBlushBlob(blob){
+ try{
+  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
+  if(!W||!H||W*H>8388608)return blob;
+  const face=(await getLandmarker()).detect(image).faceLandmarks?.[0];
+  if(!face)return blob;
+  const masks=await getV192MasterMasks(blob,image);
+  if(!masks.skinMask||!masks.hairMask)return blob;
+  const alpha=mask=>{
+   const rgba=mask.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H).data,out=new Uint8Array(W*H);
+   for(let i=0;i<out.length;i++)out[i]=rgba[i*4+3];
+   return out;
+  };
+  const canvas=canvasFor(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(image,0,0);
+  const frame=ctx.getImageData(0,0,W,H);
+  const blended=diffuseFemaleMakeupCheekBlush({pixels:frame.data,width:W,height:H,face,skin:alpha(masks.skinMask),hair:alpha(masks.hairMask)});
+  if(!blended.changed)return blob;
+  frame.data.set(blended.pixels);ctx.putImageData(frame,0,0);
+  const updated=await canvasPng(canvas);
+  for(const key of Object.getOwnPropertyNames(blob))if(key.startsWith('idprom'))Object.defineProperty(updated,key,Object.getOwnPropertyDescriptor(blob,key));
+  v192MasterMaskCache.set(updated,Promise.resolve(masks));
+  return updated;
+ }catch(error){
+  console.warn('Optional cheek colour diffusion unavailable; preserving AI result:',error?.message);
+  return blob;
+ }
+}
+
 // A native-resolution, skin-only finish for the selected female makeup output.
 // Reuse existing landmark/segmentation evidence; no extra generation or credit.
 async function finishFemaleMakeupSoftFocusBlob(blob){
@@ -2916,6 +2949,11 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   // Legacy makeup retains its existing selective finish. The new rosy look
   // uses AI skin refinement and soft light, without a separate face overlay.
   if(gender==='female'&&options.femaleEyeStyle==='makeup'&&finished.idpromStudioSkinVersion!==STUDIO_SKIN_WORKFLOW_VERSION&&!isOriginalPortraitAiRequest({studioSkinVersion:finished.idpromStudioSkinVersion}))finished=await finishFemaleMakeupSoftFocusBlob(finished);
+  // New selected Makeup only: diffuse saturated circular cheek blush without
+  // touching Natural, hair, outfits or the number of AI provider requests.
+  if(gender==='female'&&options.femaleEyeStyle==='makeup'&&finished.idpromFemaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION){
+   finished=await finishOnePassMakeupCheekBlushBlob(finished);
+  }
   assertCurrentOperation();
   return finished;
  });
