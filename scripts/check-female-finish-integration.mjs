@@ -117,7 +117,7 @@ function restorationFixture(){
  const env={...helpers,femaleFinishMetadata:metadata,femaleFinishHeadMetadata:headMetadata,femaleFinishAnchor:anchor,portraitFinishChoice,activeSavedDownloadWork:'',
   currentWalletId:()=>wallet,authToken:()=>token,walletHeaders:()=>({Authorization:token,'X-Wallet-Id':wallet}),refreshWallet:async()=>{},
   PRODUCTION_HAIR_CATALOG,HAIR_DESIGN_VERSION,isFreeFemaleHair,currentResultCacheScope:()=>wallet,privateTrialRequested:()=>false,activeProcessOperation:null,activeUniformTemplate:'female.png',
-  savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:0},prepareSavedProject:async()=>restored,decodedStudioImage:noop,
+  loadStudioEditor:async()=>{},savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:0},prepareSavedProject:async()=>restored,decodedStudioImage:noop,
   firstUploadedPhotoRef:{current:photo()},editCache:{current:{master:oldMaster}},initialFemaleMakeupRef:{current:null},initialProcessedMasterRef:{current:oldMaster},
   hairResultCacheRef:{current:new Map([['old','entry']])},preparedHairBaseRef:{current:null},lastHairDonorRef:{current:null},cleanHairBaseRef:{current:null},initialStyledHairRef:{current:null},
   liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},

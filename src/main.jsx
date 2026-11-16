@@ -101,7 +101,7 @@ import {VISION_WASM_ROOT,FACE_LANDMARK_MODEL,PERSON_SEGMENTATION_MODEL} from './
 import'./style.css';
 import './home-layout.css';
 import './trial-choice.css';
-import {StudioEditor} from './studio-editor.jsx';
+import {StudioEditor,loadStudioEditor} from './studio-editor-loader.jsx';
 import {renderLocalSkin} from './local-skin.js';
 import {makeupLook} from '../makeup-presets.js';
 import {blendHairlineSeam} from './hairline-seam.js';
@@ -4005,6 +4005,8 @@ function App(){
    if(request!==savedWorkLoadRequestRef.current||workScope!==savedWorkOpenRequestRef.current||token!==authToken()||(wallet!==undefined&&wallet!==currentWalletId())||(accountScope!==undefined&&accountScope!==currentScope))throw Error('บัญชีหรืองานเปลี่ยนแล้ว กรุณาเปิดงานอีกครั้ง');
   };
   ensureCurrent();
+  const editorReady=loadStudioEditor();
+  void editorReady.catch(()=>{});
   // If purchase-history prepared this exact server revision in advance, its
   // validated source and decoded head already exist. Do not prepare them again.
   let restored=preparedWork;
@@ -4017,8 +4019,9 @@ function App(){
     [,restored]=await Promise.all([refreshing,preparing]);
    }catch(error){preparation.abort();throw error}finally{signal?.removeEventListener('abort',cancelPreparation)}
   }
-  ensureCurrent();
-  // Commit only the completely decoded project, and discard all previous-person state.
+  await editorReady;ensureCurrent();
+  // Commit only after the project AND editing tools are ready. Network failure
+  // leaves the current photo intact and uses the existing opening error screen.
   ++savedWorkOpenRequestRef.current;
   activeSavedDownloadWork=work.legacyDownload===true?(work.id||''):'';
   firstUploadedPhotoRef.current=restored.source;editCache.current=restored.editCache;
@@ -4716,6 +4719,8 @@ function App(){
 `}</style><button className="credit-modal-close" aria-label="ปิดแพ็กเกจ" disabled={payBusy||authBusy} onClick={()=>{if(payBusy||authSubmitBusyRef.current)return;setBuyOpen(false);if(authOpen){setAuthOpen(false);setPendingPackage(null)}}}>×</button><nav aria-label="ขั้นตอนการชำระเงิน" className="checkout-flow-steps"><span data-active={!authOpen&&!qrPayment&&!payBusy}>เลือกแพ็กเกจ</span><span aria-hidden="true">›</span><span data-active={authOpen}>บัญชีสมาชิก</span><span aria-hidden="true">›</span><span data-active={!!qrPayment||payBusy}>ชำระเงิน</span></nav>{authOpen&&['89','119','159','usd_single_690_v2','usd_premium_1490_v2'].includes(pendingPackage)?<div className="checkout-flow-auth">{String(pendingPackage).startsWith('usd_')?<p className="en-checkout-auth-summary">{pendingPackage==='usd_premium_1490_v2'?'Premium · $14.90':'Single Image · $6.90'} · One-time payment</p>:<PurchaseSummary preview={checkoutImagePreview()} price={pendingPackage}/>} {AuthUI({embedded:true})}<button type="button" className="checkout-flow-back" disabled={authBusy} onClick={()=>{setAuthOpen(false);setPendingPackage(null);setAuthMsg('')}}>‹ เปลี่ยนแพ็กเกจ</button>{isSinglePhotoOffer(pendingPackage)&&<button type="button" className="checkout-flow-back single-photo-back" disabled={authBusy||payBusy} onClick={()=>returnToSinglePhoto(pendingPackage)}>{englishPreviewEnabled()?'← Back to this photo':'← ย้อนกลับไปแก้ไขรูปนี้'}</button>}</div>:qrPayment?<><PurchaseSummary preview={checkoutImagePreview()} price={String(qrPayment.amount)}/><PromptpayPanel key={qrPayment.paymentIntentId} payment={qrPayment} headers={()=>({...walletHeaders(),...authHeaders()})} onPaid={finishQrPayment} onExpired={expireQrPayment}/>{isSinglePhotoOffer(qrPayment.packageId)&&<button type="button" className="checkout-flow-back single-photo-back" disabled={payBusy||authBusy||checkoutBusyRef.current} onClick={()=>returnToSinglePhoto(qrPayment.packageId)}>{englishPreviewEnabled()?"← Back to this photo":"← ย้อนกลับไปแก้ไขรูปนี้"}</button>}</>:payBusy?<div className="checkout-flow-loading" role="status"><span className="checkout-flow-spinner" aria-hidden="true"/><h2>{englishPreviewEnabled()?'Preparing secure checkout':'กำลังเตรียม QR ชำระเงิน'}</h2><p>{englishPreviewEnabled()?'Verifying your photo and saving your work.':'กำลังตรวจบัญชีและสำรองรูปของคุณ กรุณารอสักครู่'}</p></div>:<><PackageOffers preview={checkoutImagePreview(true)} diamondHairOffer={checkoutPreview?.kind==='diamond-hair'} isAuthenticated={Boolean(authToken())} payBusy={payBusy} payMsg={payMsg} hasTrial={Boolean(outputJobId)&&!outputChangePending()} creditBalance={rights.generationRemaining} premiumCreditBalance={rights.premiumDownloadRemaining||0} premiumState={knownWalletData||{}} onUseCredit={useDownloadCredit} startCheckout={startCheckout} onBackToPhoto={returnToSinglePhoto} onOpenCode={()=>{setBuyOpen(false);openPackageCode()}}/>{pendingLegacyCheckout&&pendingLegacyCheckout.accountScope===walletScope(authToken(),currentWalletId())&&pendingLegacyCheckout.jobId===currentOutputJobRef.current&&<div className="checkout-legacy-resume"><p>มีรายการชำระเงินเดิมสำหรับงานนี้</p><button type="button" disabled={payBusy} onClick={continueLegacyCheckout}>ดำเนินการชำระรายการเดิม</button></div>}</>}</section></div></AccountFlowDialog>}</>;
  const[f,setF]=useState(),[a,setA]=useState(),[b,setB]=useState(),[busy,setBusy]=useState(false),[msg,setMsg]=useState(''),[hairId,setHairId]=useState(null);
  const[studioData,setStudioData]=useState(null),[studioBusy,setStudioBusy]=useState(false);
+ // Start downloading editing tools while the selected photo is being prepared.
+ useEffect(()=>{if(f)void loadStudioEditor().catch(()=>{})},[f]);
  const studioDraftRef=useRef(null),studioOriginRef=useRef(null),studioHairOriginRef=useRef(null),studioTrialRef=useRef(false);
  const[photoGuideOpen,setPhotoGuideOpen]=useState(false);
  const[safetyBlocked,setSafetyBlocked]=useState(false);

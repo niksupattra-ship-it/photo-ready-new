@@ -7,7 +7,7 @@ import {encodeSavedWorkRequest} from '../src/saved-work-request.js';
 
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const saveCode=main.slice(main.indexOf(' const saveAccountWork='),main.indexOf(' const savedWorkOpenRequestRef='));
-const openCode=main.slice(main.indexOf(' const openAccountWork=async'),main.indexOf(' const paidSaveInFlightRef='));
+const openCode=main.slice(main.indexOf(' const openAccountWork=async'),main.indexOf('\n const [downloadUnlockSignal'));
 assert(saveCode.startsWith(' const saveAccountWork='));assert(openCode.startsWith(' const openAccountWork=async'));
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return{promise,resolve,reject}};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
@@ -37,17 +37,17 @@ function makeSave({encoder=encodeSavedWorkRequest,response=()=>success('work_A')
 }
 function makeOpen(){
  const state={wallet:'wallet_A',token:'token_A'},refresh=deferred(),prepare=deferred(),calls=[],sets=[];
- const env={savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:1},authToken:()=>state.token,
+ const env={loadStudioEditor:async()=>{},savedWorkLoadRequestRef:{current:0},savedWorkOpenRequestRef:{current:1},authToken:()=>state.token,
   walletHeaders:()=>({Authorization:'Bearer '+state.token,'X-Wallet-Id':state.wallet}),currentWalletId:()=>state.wallet,
   decodedStudioImage:()=>{},refreshWallet:()=>{calls.push('refresh');return refresh.promise},
   prepareSavedProject:(value,options)=>{calls.push('prepare');assert.equal(value,project);assert.equal(options.decode,env.decodedStudioImage);env.preparationSignal=options.signal;return prepare.promise},
-  portraitFinishChoice:(a,b)=>a||b,
+  portraitFinishChoice:(a,b)=>a||b,femaleFinishAnchor:()=>null,rememberRestoredHairResult:()=>{},
   firstUploadedPhotoRef:{current:'previous-person'},editCache:{current:'previous-cache'},initialFemaleMakeupRef:{current:'previous-makeup'},
   initialProcessedMasterRef:{current:'previous-master'},hairResultCacheRef:{current:new Map([['previous-hair',true]])}
  };
  for(const key of ['preparedHairBaseRef','lastHairDonorRef','cleanHairBaseRef','initialStyledHairRef','liveAdjustRef','liveCollarWarpRef','liveCollarHeightRef','liveNeckAdjustRef','currentOutputJobRef','currentOutputTrialRef','studioTrialRef','studioOriginRef','savedWorkIdRef'])env[key]={current:'previous'};
  for(const name of ['setOutputJobId','setTrialPreview','setHairId','setF','setRestoredSourcePhoto','setAccountSaveNotice','setSavedWorkUnlocked','setPurchaseEditing','setSessionEditJob','setStudioData','setSavedWorkRevision','setScreen'])env[name]=value=>sets.push([name,value]);
- const restored={source:{name:'restored-original'},editCache:{master:'lossless-native-master'},head};
+ const restored={source:{name:'restored-original'},editCache:{master:'lossless-native-master'},head,project};
  const work={id:'work_A',unlocked:true,project};
  const open=new Function('env','with(env){'+openCode+';return openAccountWork}')(env);
  return {state,env,open,work,restored,refresh,prepare,calls,sets};
@@ -111,6 +111,16 @@ await check('open starts wallet refresh and shared-cache decode together, then w
 });
 await check('wallet-first open waits for decoding before committing editable native layers',async()=>{
  const t=makeOpen(),pending=t.open(t.work);t.refresh.resolve();await tick();unchanged(t);t.prepare.resolve(t.restored);await pending;committed(t);
+});
+await check('decoded work waits for editing tools before replacing the active photo',async()=>{
+ const t=makeOpen(),tools=deferred();t.env.loadStudioEditor=()=>tools.promise;
+ const pending=t.open(t.work);t.refresh.resolve();t.prepare.resolve(t.restored);await tick();unchanged(t);
+ tools.resolve();await pending;committed(t);
+});
+await check('editing-tool download failure leaves the active photo and project intact',async()=>{
+ const t=makeOpen();t.env.loadStudioEditor=async()=>{throw Error('offline tools')};
+ const pending=t.open(t.work);t.refresh.resolve();t.prepare.resolve(t.restored);
+ await assert.rejects(pending,/offline tools/);unchanged(t);
 });
 await check('wallet refresh failure cancels preparation and leaves the current work untouched',async()=>{
  const t=makeOpen(),pending=t.open(t.work);t.refresh.reject(Error('wallet failure'));await assert.rejects(pending,/wallet failure/);assert(t.env.preparationSignal.aborted);t.prepare.resolve(t.restored);await tick();unchanged(t);
