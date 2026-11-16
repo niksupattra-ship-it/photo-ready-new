@@ -8,6 +8,7 @@ import {englishLandingHtml} from './english-seo-page.js';
 import {readFile} from 'node:fs/promises';
 import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
+import {isEnglishStudioFreeHair} from './src/english-studio-hair-policy.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from './female-single-finish-policy.js';
 import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup,NATURAL_MASTER_MAKEUP_VERSION} from './natural-master-makeup.js';
@@ -266,10 +267,17 @@ async function requireCredit(req,res,kind){
   if(kind==='ai-finish'||kind==='hairstyle'){
    if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
-   if(chosen&&((chosen.gender==='female'&&chosen.id!==FIRST_GENERATION_FEMALE_HAIR&&![40,41].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
-   // Purchased English Premium always uses the same 20-credit cycle for AI.
-   // Before purchase the existing preview behavior stays unchanged.
-   const premiumWallet=await getWallet(wid);
+   const englishRequest=req.body?.interfaceLanguage==='en';
+   const englishWallet=englishRequest?await getWallet(wid):null;
+   // English Studio's two free styles per gender are different from Thai's.
+   // Use the SAME source of truth as the English picker, including subsequent
+   // changes to a completed portrait. Do not run the Thai premium-hair check.
+   if(englishRequest&&chosen&&!isEnglishStudioFreeHair(chosen.id,chosen.gender)&&!englishWallet?.usdPremiumActive){
+    res.status(403).json({error:'premium_hair_required',message:'Choose a 30-day package to unlock Diamond hairstyles.'});return null;
+   }
+   if(!englishRequest&&chosen&&((chosen.gender==='female'&&chosen.id!==FIRST_GENERATION_FEMALE_HAIR&&![40,41].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   // Purchased English Premium continues using its existing 20-credit cycle.
+   const premiumWallet=englishWallet||await getWallet(wid);
    if(premiumWallet?.usdPremiumPurchased){
     if(req.accountUser?.wallet_id!==wid){res.status(401).json({error:'auth_required',message:'Sign in to access your Premium AI generations.'});return null}
     const credit=await reserveUsdPremiumCredit(wid,kind);

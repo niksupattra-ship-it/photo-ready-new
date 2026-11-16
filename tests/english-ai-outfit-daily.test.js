@@ -17,3 +17,62 @@ test('English unlimited PNG suits remain selectable and Edit with AI opens packa
  assert.ok(m.includes("onCheckEnglishOutfitAi={async()=>{"));
  assert.ok(m.includes('/api/english-ai-outfit/access'));
 });
+
+test('English free hairstyle ids match server credit gate for both genders, Thai remains independent',async()=>{
+ const server=await read('server.js');
+ const policy=await read('src/english-studio-hair-policy.js');
+ assert.match(server,/import \{isEnglishStudioFreeHair\} from '\.\/src\/english-studio-hair-policy\.js'/);
+ assert.match(server,/englishRequest&&chosen&&!isEnglishStudioFreeHair\(chosen.id,chosen.gender\)/);
+ assert.match(server,/!englishRequest&&chosen&&/);
+ for(const id of ['seedream-49','seedream-53','seedream-67','seedream-76'])assert.ok(policy.includes(id),id);
+ const {PRODUCTION_HAIR_CATALOG,downloadHairAllowed}=await import('../hairstyle-catalog.js');
+ const {isEnglishStudioFreeHair}=await import('../src/english-studio-hair-policy.js');
+ for(const [gender,ids] of Object.entries({female:['seedream-49','seedream-53'],male:['seedream-67','seedream-76']})){
+  for(const id of ids){
+   const item=PRODUCTION_HAIR_CATALOG.find(h=>h.id===id);
+   assert.equal(item?.gender,gender,id+' must be in current provider catalogue');
+   assert.equal(downloadHairAllowed(id),true);
+   assert.equal(isEnglishStudioFreeHair(item.id,item.gender),true);
+  }
+ }
+ assert.equal(isEnglishStudioFreeHair('seedream-42','female'),false,'English Diamond stays paid');
+ assert.equal(isEnglishStudioFreeHair('seedream-37','male'),false,'English Diamond stays paid');
+});
+test('actual credit handler accepts continuing English free hairstyle with daily slots and reserves neither Thai nor Diamond credits',async()=>{
+ const server=await read('server.js');
+ const first=server.indexOf('async function requireCredit(req,res,kind){');
+ const last=server.indexOf('\nconst upload=multer(',first);
+ assert.ok(first>=0&&last>first);
+ const source=server.slice(first,last);
+ const {PRODUCTION_HAIR_CATALOG,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR}=await import('../hairstyle-catalog.js');
+ const {isEnglishStudioFreeHair}=await import('../src/english-studio-hair-policy.js');
+ const calls={free:0,paid:0,thai:0};
+ let premium=false;
+ const deps={walletId:req=>req.wallet,isPrivateOwner:()=>false,hasPrivateTrial:()=>false,
+  PRODUCTION_HAIR_CATALOG,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR,isEnglishStudioFreeHair,
+  getWallet:async()=>premium?{usdPremiumPurchased:true,usdPremiumActive:true,usdPremiumRemaining:12}:{usdPremiumPurchased:false},
+  accountPolicy:()=>({canGeneratePremiumHair:async()=>{calls.thai++;return false}}),
+  reserveEnglishDailyAiOutfit:async()=>{calls.free++;return calls.free<=2?{usageId:'free_fixture'+calls.free,trialPreview:true}:null},
+  reserveUsdPremiumCredit:async()=>{calls.paid++;return {usageId:'paid_fixture',credits:11}},
+  crypto:{randomBytes:()=>({toString:()=> 'fixture'})}
+ };
+ const requireCredit=new Function('deps','with(deps){'+source+';return requireCredit;}')(deps);
+ const check=async(hairId,language='en')=>{
+  let status=200,body=null;
+  const res={status(v){status=v;return this},json(v){body=v;return this}};
+  const req={wallet:'wallet-fixture',body:{hairId,interfaceLanguage:language},get:()=>'',accountUser:{wallet_id:'wallet-fixture'}};
+  const credit=await requireCredit(req,res,'hairstyle');return {credit,status,body};
+ };
+ assert.equal((await check('seedream-49')).status,200);
+ assert.equal((await check('seedream-67')).status,200);
+ const exhausted=await check('seedream-53');
+ assert.equal(exhausted.status,402,'Third free generation opens package flow, not 403');
+ assert.equal(exhausted.body?.error,'english_ai_daily_limit');
+ assert.equal(calls.thai,0,'English free hair never passes Thai policy');
+ assert.equal((await check('seedream-42')).body?.error,'premium_hair_required','Diamond still needs a plan');
+ assert.equal(calls.free,3,'Diamond denial never reserves a daily slot');
+ assert.equal((await check('seedream-49','th')).status,403,'Thai policy stays unchanged');
+ premium=true;
+ assert.equal((await check('seedream-42')).status,200,'active USD Premium can use English Diamond');
+ assert.equal(calls.paid,1);
+});
