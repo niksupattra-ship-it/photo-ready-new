@@ -384,7 +384,7 @@ test('English Studio shows two neat free hairs before Diamond per gender; Diamon
  assert.match(studio,/if\(isPremiumHair\(id\)&&!premiumHairAllowed&&!canRestoreHair\(id,englishInlineAi\.gender,englishInlineAi\.finish\)\)/,'English pending hair selection checks 30-day plan');
  assert.match(studio,/if\(hair&&isPremiumHair\(hair\)&&!premiumHairAllowed&&!canRestoreHair\(hair,gender,finish\)\)/,'Creation cannot bypass Diamond eligibility');
  assert.match(studio,/englishFlow\?isPremiumHair\(h\.id\)/,'Each English Diamond tile is visibly marked');
- assert.match(studio,/englishFlow\?isEnglishStudioFreeHair\(h\.id,hairGender\):isFreeFemaleHair\(h\.id\)/,'Only the two selected haircuts have a Free label');
+ assert.match(studio,/\{!englishFlow&&isFreeFemaleHair\(h\.id\)&&<small>ฟรี<\/small>\}/,'English hides Free labels, while Thai retains the Thai caption');
  assert.match(studio,/\(!englishFlow\|\|hairGender==='female'\|\|id!=='makeup'\)/,'Male English studio does not show makeup');
  assert.match(studio,/rememberProcessedHistory\(previous\)/,'Existing Studio Undo/Redo continues tracking processed results');
 });
