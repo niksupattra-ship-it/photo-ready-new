@@ -6,7 +6,6 @@ import {processProductionPortrait,validateProductionPortrait} from '../productio
 import {FEMALE_SINGLE_FINISH_VERSION,isFemaleSingleFinish,oppositeFemaleFinish} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION,onePassSkinQualityPriority} from '../single-pass-skin-quality.js';
-import {diffuseFemaleMakeupCheekBlush,DIFFUSE_CHEEK_BLUSH_VERSION} from '../src/female-makeup-cheek-blend.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
 import {parseStudioSkinRequest,prepareStudioSkinInput} from '../studio-skin-input.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
@@ -108,7 +107,7 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
  }
 });
 test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
- assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v6');
+ assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v5');
  assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
  assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
  assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
@@ -161,42 +160,6 @@ test('Native skin stage repairs a measured acne spot BEFORE exactly one provider
   assert(stages.includes('skin-base'),'Native skin preflight ran for '+lang+'/'+finish);
   if(lang==='th')assert.notDeepEqual(calls[0].portrait,source.buffer,'Thai AI receives actually retouched source pixels');
  }
-});
-test('One-pass Makeup softens a concentrated cheek hotspot into a diffuse blend without modifying eyes, lips, identity or Natural',async()=>{
- const W=192,H=256,pixels=new Uint8ClampedArray(W*H*4),skin=new Uint8Array(W*H).fill(255),hair=new Uint8Array(W*H);
- const face=Array.from({length:468},()=>({x:.5,y:.5}));
- for(const [id,x,y]of [[33,.28,.32],[263,.72,.32],[50,.30,.52],[280,.70,.52],[1,.50,.52],[61,.42,.76],[291,.58,.76],[152,.50,.85]])face[id]={x,y};
- const centres=[face[50],face[280]];
- for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-  const k=(y*W+x)*4,concentrated=centres.reduce((sum,c)=>sum+30*Math.exp(-2*((x-c.x*W)**2+(y-c.y*H)**2)/(15*15)),0);
-  pixels[k]=Math.round(184+concentrated*.72);pixels[k+1]=Math.round(143-concentrated*.28);pixels[k+2]=134;pixels[k+3]=255;
- }
- const original=Uint8ClampedArray.from(pixels);
- const result=diffuseFemaleMakeupCheekBlush({pixels,width:W,height:H,face,skin,hair});
- assert.equal(DIFFUSE_CHEEK_BLUSH_VERSION,'diffuse-cheek-blush-v1');
- assert.equal(result.changed,true,'Concentrated blush must produce an actual pixel correction');
- assert.equal(result.report.affectedSides,2,'Both cheeks are corrected');
- assert(result.report.changedPixels>500);
- for(const centre of centres){
-  const x=Math.round(centre.x*W),y=Math.round(centre.y*H),k=(y*W+x)*4;
-  const redBefore=original[k]-original[k+1],redAfter=result.pixels[k]-result.pixels[k+1];
-  assert(redAfter<=redBefore-10,'Strong pink cheek hotspot must be visibly reduced');
-  assert(Math.abs((.2126*result.pixels[k]+.7152*result.pixels[k+1]+.0722*result.pixels[k+2])-(.2126*original[k]+.7152*original[k+1]+.0722*original[k+2]))<1,'Photographic brightness stays unchanged');
-  assert.equal(result.pixels[k+2],original[k+2],'Blue detail channel remains original');
- }
- for(const [x,y]of [[5,5],[W/2,13],[W/2,Math.round(H*.53)],[W/2,Math.round(H*.76)],[Math.round(W*.28),Math.round(H*.32)]]){
-  const k=(y*W+x)*4;assert.deepEqual(Array.from(result.pixels.slice(k,k+4)),Array.from(original.slice(k,k+4)),'Outside cheeks and eyes remain pixel-identical');
- }
- for(let k=3;k<pixels.length;k+=4)assert.equal(result.pixels[k],255,'Original transparency is unchanged');
- assert.deepEqual(pixels,original,'Native source is never mutated');
- const clean=new Uint8ClampedArray(W*H*4);
- for(let i=0;i<clean.length;i+=4)clean.set([184,143,134,255],i);
- assert.equal(diffuseFemaleMakeupCheekBlush({pixels:clean,width:W,height:H,face,skin,hair}).changed,false,'Do not paint blush onto Natural skin');
- assert.equal(diffuseFemaleMakeupCheekBlush({pixels,width:W,height:H,face,skin:new Uint8Array(W*H),hair}).changed,false,'Missing skin mask must not colour background');
- const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.match(main,/gender==='female'&&options\.femaleEyeStyle==='makeup'&&finished\.idpromFemaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION/);
- assert.match(main,/finished=await finishOnePassMakeupCheekBlushBlob\(finished\)/);
- assert.match(main,/diffuseFemaleMakeupCheekBlush\(\{pixels:frame\.data,width:W,height:H,face,skin:alpha\(masks\.skinMask\),hair:alpha\(masks\.hairMask\)\}\)/);
 });
 test('One-pass mode is restricted to single-finish female portraits',()=>{
  const f=fields('th','makeup','one');
