@@ -4,7 +4,7 @@ import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js'
 import {publicAssetHeaders} from './public-assets-cache.js';
 import {downloadPolicy} from './download-policy-store.js';
 import {recoverPortraitWork} from './portrait-work-recovery.js';
-import {englishLandingHtml} from './english-seo-page.js';
+import {registerEnglishLanding} from './english-seo-page.js';
 import {readFile} from 'node:fs/promises';
 import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
@@ -752,19 +752,12 @@ app.use((err,req,res,next)=>{
 });
 
 app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
-app.use(express.static(path.join(dir,"dist"),{setHeaders:publicAssetHeaders}));
 // Serve an indexable English landing at /en/ with the same built app and APIs.
 // All Thai pages and Stripe endpoints continue to use their existing routes.
-app.get(/^\/en\/?$/,async(req,res,next)=>{
- try{
-  if(req.path==='/en'){
-   const query=req.originalUrl.includes('?')?req.originalUrl.slice(req.originalUrl.indexOf('?')):'';
-   return res.redirect(308,'/en/'+query);
-  }
-  const built=await readFile(path.join(dir,'dist','index.html'),'utf8');
-  return res.set('Cache-Control','no-cache').type('html').send(englishLandingHtml(built));
- }catch(error){console.error('English SEO landing:',error);next(error)}
-});
+registerEnglishLanding(app,{loadIndex:()=>readFile(path.join(dir,'dist','index.html'),'utf8')});
+app.use(express.static(path.join(dir,"dist"),{setHeaders:publicAssetHeaders}));
+// Unknown English guide URLs must not masquerade as an indexable Thai app page.
+app.get(/^\/en\/.+$/,(_req,res)=>res.status(404).set({'Cache-Control':'no-cache','Content-Language':'en'}).type('html').send('<!doctype html><html lang="en"><head><meta charset="UTF-8"><title>Page not found | IDProm</title></head><body><h1>Page not found</h1><p><a href="/en/">Open the English photo editor</a></p></body></html>'));
 app.use((req,res)=>res.set("Cache-Control","no-cache").sendFile(path.join(dir,"dist","index.html")));
 app.listen(process.env.PORT||3000,()=>console.log("BG Remover ready"));
 startSavedWorkRetentionCleanup();

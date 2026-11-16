@@ -1,4 +1,5 @@
 import {ENGLISH_ADDITIONAL_COPY} from './english-copy-additions.js';
+import {ENGLISH_SEO_TITLE,ENGLISH_SEO_DESCRIPTION} from '../english-seo-meta.js';
 // Opt-in presentation layer for the English trial. It never changes API data,
 // form values, uploaded files, canvas pixels, account data or saved projects.
 export const ENGLISH_COPY = {
@@ -236,8 +237,8 @@ export function startEnglishPreview(doc=globalThis.document){
  if(!doc||!englishPreviewEnabled(doc.defaultView?.location))return()=>{};
  const win=doc.defaultView;
  doc.documentElement.lang='en';doc.documentElement.classList.add('english-preview');
- doc.title='ID Phrom | Professional ID and job application photos';
- const description=doc.querySelector('meta[name="description"]');if(description)description.content='Create and edit professional ID and job application photos. Choose your hairstyle, outfit and background.';
+ doc.title=ENGLISH_SEO_TITLE;
+ const description=doc.querySelector('meta[name="description"]');if(description)description.content=ENGLISH_SEO_DESCRIPTION;
  const robots=doc.querySelector('meta[name="robots"]');
  // Only the canonical /en/ landing is indexable; legacy ?lang=en remains functional.
  if(robots)robots.content=/^\/en\/?$/.test(win.location.pathname)?'index,follow,max-image-preview:large':'noindex,follow';

@@ -1,8 +1,7 @@
 // Server-side English entry page for /en/.
 // Uses the same built React app as Thai; does not alter Thai HTML or payment APIs.
-export const ENGLISH_LANDING_URL='https://idpromth.com/en/';
-const TITLE='Professional ID Photos & Job Application Portraits Online | IDProm';
-const DESCRIPTION='Create professional ID photos and job application portraits online. Upload a clear front-facing photo, choose outfits and hairstyles, preview your result, and download PNG or PDF after purchase.';
+import {ENGLISH_LANDING_URL,ENGLISH_SEO_TITLE as TITLE,ENGLISH_SEO_DESCRIPTION as DESCRIPTION} from './english-seo-meta.js';
+export {ENGLISH_LANDING_URL} from './english-seo-meta.js';
 const URL=ENGLISH_LANDING_URL;
 function once(source,replacementPattern,replacement,label){
  const flags=replacementPattern.flags.includes('g')?replacementPattern.flags:replacementPattern.flags+'g';
@@ -19,9 +18,9 @@ const ENGLISH_CONTENT=[
  '  <div class="idprom-howto">',
  '    <header class="idprom-howto-head">',
  '      <div>',
- '        <span class="idprom-howto-eyebrow">Professional portraits made simple</span>',
+ '        <span class="idprom-howto-eyebrow">AI professional headshots · Resume and CV photos</span>',
  '        <h2 id="idprom-seo-title">Create Professional ID and Job Application Photos Online</h2>',
- '        <p>Upload your front-facing photo, choose a professional outfit and hairstyle, and adjust the background. Preview your portrait before deciding whether to purchase.</p>',
+ '        <p>Turn a clear photo into a professional headshot for your resume, CV, job application or professional profile. Choose a business outfit, hairstyle and background, then review the AI portrait before deciding whether to purchase a download.</p>',
  '      </div>',
  '    </header>',
  '    <div class="idprom-steps" aria-label="How to create your professional photo">',
@@ -30,6 +29,17 @@ const ENGLISH_CONTENT=[
  '      <div class="idprom-step"><span class="idprom-step-num">03</span><strong>Review your portrait</strong><span>Check the preview and refine your image in Studio before purchasing.</span></div>',
  '      <div class="idprom-step"><span class="idprom-step-num">04</span><strong>Download your photo</strong><span>Choose a photo size and save PNG or PDF after unlocking.</span></div>',
  '    </div>',
+ '    <h3>Professional headshots from your own photo</h3>',
+ '    <p>IDProm is a browser-based AI portrait editor. Start with a front-facing photo in even light, select a suit or shirt, and refine the result in Studio. Keep your portrait recognizable and check the face, hair, clothing and edges before using it for an application.</p>',
+ '    <h3>Resume, CV and job application photos</h3>',
+ '    <p>Use a photo when the employer or application asks for one. A simple background and a clear head-and-shoulders crop keep attention on your face. Whether a resume should include a photo depends on the application and destination; follow the employer’s instructions.</p>',
+ '    <h3>Photo sizes and printable downloads</h3>',
+ '    <p>The English editor includes original size, 35 × 45 mm, 2 × 2 inches, 33 × 48 mm and 50 × 70 mm. After unlocking your image, choose a PNG download or a printable PDF. A matching size alone does not make an AI-edited photo acceptable for an official document.</p>',
+ '    <nav class="idprom-guide-links" aria-label="English photo guides"><a href="/en/job-application-photos/">Resume and job application photo guide</a><a href="/en/photo-sizes/">Photo sizes in millimetres, inches and pixels</a></nav>',
+ '    <h3>Questions before you start</h3>',
+ '    <details><summary>Can I preview a portrait before paying?</summary><p>You can review the available preview before purchasing a download. Watermark-free downloads require an eligible purchase or an existing entitlement.</p></details>',
+ '    <details><summary>Do I need to install an app?</summary><p>No installation is needed. Use IDProm in a current desktop or mobile browser, upload your photo and use the English editor.</p></details>',
+ '    <details><summary>Can I use an AI portrait for a passport or visa?</summary><p>Do not assume an AI-edited portrait is suitable. Official applications may prohibit generated or digitally altered photographs. Check the issuing authority’s current rules and use an unedited photo when required.</p></details>',
  '    <p class="idprom-seo-note">Photo requirements vary by employer, institution and country. Confirm the specific requirements before submitting your photo.</p>',
  '  </div>',
  '</section>'
@@ -38,7 +48,8 @@ const schema={
  '@context':'https://schema.org',
  '@graph':[
   {'@type':'WebSite','@id':URL+'#website','name':'IDProm','alternateName':'ID Phrom','url':URL,'inLanguage':'en','description':DESCRIPTION},
-  {'@type':'WebPage','@id':URL+'#webpage','url':URL,'name':TITLE,'description':DESCRIPTION,'inLanguage':'en','isPartOf':{'@id':URL+'#website'}}
+  {'@type':'WebPage','@id':URL+'#webpage','url':URL,'name':TITLE,'description':DESCRIPTION,'inLanguage':'en','isPartOf':{'@id':URL+'#website'},'mainEntity':{'@id':URL+'#app'}},
+  {'@type':'WebApplication','@id':URL+'#app','name':'IDProm','url':URL,'applicationCategory':'MultimediaApplication','operatingSystem':'Any','browserRequirements':'Requires JavaScript and a current web browser','inLanguage':'en','description':DESCRIPTION,'featureList':['AI professional portraits','Outfit and background selection','Photo crop and size presets','PNG and printable PDF downloads after unlocking']}
  ]
 };
 export function englishLandingHtml(thaiHtml){
@@ -57,4 +68,18 @@ export function englishLandingHtml(thaiHtml){
  const end=html.indexOf('</section>',begin);
  if(end<0)throw Error('English SEO visible section not closed');
  return html.slice(0,begin)+ENGLISH_CONTENT+html.slice(end+'</section>'.length);
+}
+
+// Register before static files: /public/en/ contains guides, so serving static
+// first would change the application's /en redirect from 308 to a directory 301.
+export function registerEnglishLanding(app,{loadIndex}){
+ app.get(/^\/en\/?$/,async(req,res,next)=>{
+  try{
+   if(req.path==='/en'){
+    const query=req.originalUrl.includes('?')?req.originalUrl.slice(req.originalUrl.indexOf('?')):'';
+    return res.redirect(308,'/en/'+query);
+   }
+   return res.set({'Cache-Control':'no-cache','Content-Language':'en'}).type('html').send(englishLandingHtml(await loadIndex()));
+  }catch(error){next(error)}
+ });
 }
