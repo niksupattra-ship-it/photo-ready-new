@@ -34,7 +34,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
@@ -277,6 +277,11 @@ async function requireCredit(req,res,kind){
     res.status(402).json({error:'usd_premium_credits_exhausted',message:'All 20 AI generations have been used, or your 30-day Premium access has ended. You can still download saved photos.'});
     return null;
    }
+   if(req.body?.interfaceLanguage==='en'){
+    const daily=await reserveEnglishDailyAiOutfit(wid);
+    if(!daily){res.status(402).json({error:'english_ai_daily_limit'});return null}
+    return daily;
+   }
    return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
   res.status(403).json({error:'unsupported_generation'});return null;
@@ -402,6 +407,14 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
  }
 });
 
+// English AI outfit eligibility is read-only. The PNG path never calls this.
+app.get('/api/english-ai-outfit/access',async(req,res)=>{
+ try{
+  const wid=walletId(req);
+  if(!wid)return res.status(403).set('Cache-Control','no-store').json({allowed:false,remaining:0});
+  return res.set('Cache-Control','private, no-store').json(await englishDailyAiOutfitAccess(wid));
+ }catch(error){console.warn('English outfit eligibility unavailable',error.code||'unavailable');return res.status(503).set('Cache-Control','no-store').json({allowed:false})}
+});
 const aiFinishHandler=async(req,res)=>{
  let creditUse=req.preReservedCreditUse||null;
  try{

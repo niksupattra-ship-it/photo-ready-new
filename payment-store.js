@@ -249,6 +249,47 @@ export async function reserveCredit(walletId,kind){
   const after=await c.query('SELECT generation_remaining,hair_remaining FROM wallets WHERE id=$1',[walletId]);await c.query('COMMIT');return {usageId:id,...shape(walletId,after.rows[0])};
  }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
 }
+
+const ENGLISH_DAILY_AI_OUTFIT_LIMIT=2;
+export async function englishDailyAiOutfitAccess(walletId){
+ if(!walletId)return {allowed:false,remaining:0};
+ await ready();
+ const {rows:wallets}=await pool.query('SELECT usd_premium_cycle,usd_premium_remaining,usd_premium_expires_at FROM wallets WHERE id=$1',[walletId]);
+ const w=wallets[0];
+ if(!w)return {allowed:false,remaining:0};
+ if(w.usd_premium_cycle){
+  const active=w.usd_premium_expires_at&&new Date(w.usd_premium_expires_at).getTime()>Date.now();
+  const remaining=active?Math.max(0,Number(w.usd_premium_remaining||0)):0;
+  return {allowed:remaining>0,remaining,paid:true};
+ }
+ const {rows}=await pool.query(`SELECT COUNT(*)::int AS used FROM credit_usage
+  WHERE wallet_id=$1 AND kind='english-daily-ai-outfit' AND status IN ('reserved','completed')
+  AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date`,[walletId]);
+ const remaining=Math.max(0,ENGLISH_DAILY_AI_OUTFIT_LIMIT-Number(rows[0]?.used||0));
+ return {allowed:remaining>0,remaining,paid:false};
+}
+export async function reserveEnglishDailyAiOutfit(walletId){
+ if(!walletId)return null;
+ await ready();
+ const c=await pool.connect();
+ try{
+  await c.query('BEGIN');
+  // Serialize reservations across browser tabs and Railway instances.
+  const wallet=await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  if(!wallet.rowCount){await c.query('ROLLBACK');return null}
+  const {rows}=await c.query(`SELECT COUNT(*)::int AS used FROM credit_usage
+   WHERE wallet_id=$1 AND kind='english-daily-ai-outfit' AND status IN ('reserved','completed')
+   AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date`,[walletId]);
+  const used=Number(rows[0]?.used||0);
+  if(used>=ENGLISH_DAILY_AI_OUTFIT_LIMIT){await c.query('ROLLBACK');return null}
+  const id='use_'+crypto.randomBytes(18).toString('hex');
+  await c.query(`INSERT INTO credit_usage(id,wallet_id,kind,status,credit_column,full_edit_output,created_at)
+   VALUES($1,$2,'english-daily-ai-outfit','reserved','english-daily-ai-outfit',false,clock_timestamp())`,[id,walletId]);
+  await c.query('COMMIT');
+  return {usageId:id,trialPreview:true,freeGeneration:true,remaining:ENGLISH_DAILY_AI_OUTFIT_LIMIT-used-1,generationRemaining:0,hairRemaining:0};
+ }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
+}
+
 // Compatibility entry point: free processing has no daily/device/network quota.
 export async function reserveTrialPreview(walletId,fingerprint,networkFingerprint=null){
  if(!walletId)return null;
@@ -267,6 +308,11 @@ export async function refundCredit(usageId){
   await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[owner.rows[0].wallet_id]);
   const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output,usd_premium_cycle FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);
   if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}
+  if(u.rows[0].kind==='english-daily-ai-outfit'){
+   // A failed free AI request releases its slot without adding any paid credit.
+   await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
+   await c.query('COMMIT');return true;
+  }
   const isUsd=u.rows[0].credit_column==='usd_premium_remaining';
   const col=isUsd?'usd_premium_remaining':u.rows[0].credit_column==='hair_remaining'?'hair_remaining':u.rows[0].credit_column==='generation_remaining'?'generation_remaining':u.rows[0].kind==='hairstyle'?'hair_remaining':'generation_remaining';
   if(isUsd)await c.query('UPDATE wallets SET usd_premium_remaining=usd_premium_remaining+1 WHERE id=$1 AND usd_premium_cycle=$2 AND usd_premium_expires_at>clock_timestamp()',[u.rows[0].wallet_id,u.rows[0].usd_premium_cycle]);
