@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitAiFields} from './original-portrait-ai.js';
+import {isSinglePassPortrait} from './single-pass-portrait-policy.js';
 import {STUDIO_SKIN_WORKFLOW_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_SOFT_VERSION,isStudioSkinWorkflowVersion,parseStudioSkinEvidence,applyStudioSkinBase} from './studio-skin-treatment.js';
 import {applyStudioSkinSoftFocus} from './studio-skin-soft-focus.js';
 import {applyStudioSkinRetouch} from './studio-skin-retouch.js';
@@ -13,6 +14,17 @@ const invalid=(message,code='studio_skin_evidence_invalid')=>Object.assign(Error
 // No field keeps historical requests on their existing route. A declared stage
 // must carry valid evidence; it never silently falls back to the original input.
 export function parseStudioSkinRequest(fields={},gender=fields.portraitMode){
+ // Opt-in native skin preparation for NEW one-pass female jobs only.
+ // Existing original-AI, paired jobs and purchased results retain their
+ // released contract; this evidence never causes a second provider request.
+ if(fields.onePassSkinEvidence!==undefined){
+  if(!isSinglePassPortrait(fields)||gender!=='female')throw invalid('ข้อมูลปรับผิวสำหรับภาพใหม่ไม่ถูกต้อง');
+  let selected;
+  try{selected=parseStudioSkinEvidence(fields.onePassSkinEvidence)}catch{throw invalid('ข้อมูลปรับผิวไม่ตรงกับรูป กรุณาเลือกรูปใหม่')}
+  if(selected.version!==STUDIO_SKIN_WORKFLOW_VERSION)throw invalid('กรุณารีเฟรชหน้าเว็บเพื่อปรับผิวล่าสุด');
+  if(isOriginalPortraitAiRequest(fields))validateOriginalPortraitAiFields(fields,gender);
+  return selected;
+ }
  if(isOriginalPortraitAiRequest(fields)){validateOriginalPortraitAiFields(fields,gender);return null}
  const version=fields.studioSkinVersion,evidence=fields.studioSkinEvidence;
  if(version===undefined||version===null||version===''){
