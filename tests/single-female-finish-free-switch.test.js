@@ -6,8 +6,6 @@ import {processProductionPortrait,validateProductionPortrait} from '../productio
 import {FEMALE_SINGLE_FINISH_VERSION,isFemaleSingleFinish,oppositeFemaleFinish} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION,onePassSkinQualityPriority} from '../single-pass-skin-quality.js';
-import {STUDIO_SKIN_WORKFLOW_VERSION} from '../studio-skin-treatment.js';
-import {parseStudioSkinRequest,prepareStudioSkinInput} from '../studio-skin-input.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup} from '../natural-master-makeup.js';
 import {AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
@@ -107,7 +105,7 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
  }
 });
 test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
- assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v5');
+ assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v4');
  assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
  assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
  assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
@@ -122,43 +120,6 @@ test('one-pass skin quality version changes new cache keys and preserves legacy 
   assert(!legacy.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old paired job prompts remain unchanged');
   const oldSingle=await run(lang,'makeup');
   assert(!oldSingle.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old single-finish protocol uses its released two-step quality');
- }
-});
-test('Native skin stage repairs a measured acne spot BEFORE exactly one provider call in both locales',async()=>{
- const w=256,h=320,oval=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
- const eyes=[[33,246,161,160,159,158,157,173,133,155,154,153,145,144,163,7],[263,466,388,387,386,385,384,398,362,382,381,380,374,373,390,249]];
- const brows=[[70,63,105,66,107,55,65,52,53,46],[336,296,334,293,300,276,283,282,295,285]];
- const lips=[61,185,40,39,37,0,267,269,270,409,291,375,321,405,314,17,84,181,91,146];
- const face=Array.from({length:468},()=>[.5,.44]);
- oval.forEach((id,i)=>{const a=i/oval.length*Math.PI*2;face[id]=[.5+.25*Math.sin(a),.44-.32*Math.cos(a)]});
- const ellipse=(ids,x,y,rx,ry)=>ids.forEach((id,i)=>{const a=i/ids.length*Math.PI*2;face[id]=[x+rx*Math.cos(a),y+ry*Math.sin(a)]});
- ellipse(eyes[0],.39,.36,.056,.024);ellipse(eyes[1],.61,.36,.056,.024);
- ellipse(brows[0],.39,.30,.061,.014);ellipse(brows[1],.61,.30,.061,.014);
- ellipse(lips,.5,.625,.064,.025);face[98]=[.475,.51];face[327]=[.525,.51];
- const mw=128,mh=160,labels=Array(mw*mh).fill(0),pixels=new Uint8ClampedArray(w*h*4);
- const skin=(x,y)=>((x-.5)/.25)**2+((y-.44)/.32)**2<1||y>=.69&&y<.96&&Math.abs(x-.5)<.15;
- for(let y=0;y<mh;y++)for(let x=0;x<mw;x++)if(skin((x+.5)/mw,(y+.5)/mh))labels[y*mw+x]=(y+.5)/mh>.73?2:3;
- for(let y=0;y<h;y++)for(let x=0;x<w;x++){
-  const u=(x+.5)/w,v=(y+.5)/h,i=(y*w+x)*4,skinLabel=labels[Math.floor(v*mh)*mw+Math.floor(u*mw)];
-  let rgb=skinLabel===2||skinLabel===3?[184,143,124]:[70,130,220];
-  if(skinLabel===3){const spot=Math.exp(-(((u-.62)/.020)**2+((v-.50)/.020)**2)*2);rgb=rgb.map((t,c)=>Math.max(0,Math.min(255,Math.round(t+spot*[38,-22,-19][c]))))}
-  pixels.set([...rgb,255],i);
- }
- const evidence={version:STUDIO_SKIN_WORKFLOW_VERSION,width:w,height:h,maskWidth:mw,maskHeight:mh,face,labels};
- const source={buffer:await sharp(pixels,{raw:{width:w,height:h,channels:4}}).png().toBuffer(),mimetype:'image/png'};
- const stage=await prepareStudioSkinInput(source,{...fields('th','natural','one'),onePassSkinEvidence:JSON.stringify(evidence)},'female');
- assert.equal(stage.staged,true);assert.notDeepEqual(stage.input.buffer,source.buffer);
- assert.equal(parseStudioSkinRequest({...fields('th','makeup','one'),onePassSkinEvidence:JSON.stringify(evidence)},'female').version,STUDIO_SKIN_WORKFLOW_VERSION);
- assert.throws(()=>parseStudioSkinRequest({...fields('th','natural','single'),onePassSkinEvidence:JSON.stringify(evidence)},'female'),/ข้อมูลปรับผิว/,'Old job cannot use one-pass evidence');
- for(const lang of ['th','en'])for(const finish of ['natural','makeup']){
-  const f={...fields(lang,finish,'one'),onePassSkinEvidence:JSON.stringify(evidence)};
-  let calls=[],stages=[];
-  const result=await processProductionPortrait({input:source,fields:f,root,key:'native-one-call-test',
-   requestPortrait:async a=>{calls.push(a);return {png:rgba}},removeBackground:async()=>rgba,
-   onStage:async stage=>{stages.push(stage)}});
-  assert(result.length>100);assert.equal(calls.length,1,lang+'/'+finish+' exactly one provider call');
-  assert(stages.includes('skin-base'),'Native skin preflight ran for '+lang+'/'+finish);
-  if(lang==='th')assert.notDeepEqual(calls[0].portrait,source.buffer,'Thai AI receives actually retouched source pixels');
  }
 });
 test('One-pass mode is restricted to single-finish female portraits',()=>{

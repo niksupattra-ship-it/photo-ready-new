@@ -15,7 +15,6 @@ import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
-import {captureStudioSkinEvidence} from './studio-skin-evidence.js';
 import {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION} from '../english-makeup-light-policy.js';
 import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
 import {expandPortraitHairProtection} from './portrait-hair-protection.js';
@@ -3124,21 +3123,6 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(portraitMode==='female'){
   fd.append('femaleFinishSingleVersion',FEMALE_SINGLE_FINISH_VERSION);
   fd.append('singlePassPortraitVersion',SINGLE_PASS_PORTRAIT_VERSION);
-  // Reuse already-installed face/skin analysis to prepare the SOURCE skin
-  // before the single AI image generation. It costs zero extra provider calls.
-  // A failed local measurement cannot strand a paid AI job or block an upload:
-  // the original one-call AI skin prompt remains as a safe fallback.
-  try{
-   const evidence=await captureStudioSkinEvidence(aiInput,{
-    decode:decodedPortraitImage,landmarker:getLandmarker,
-    segmenter:getPersonSegmenter,signal:operation?.readController?.signal
-   });
-   assertProcessActive(operation);
-   fd.append('onePassSkinEvidence',JSON.stringify(evidence));
-  }catch(error){
-   assertProcessActive(operation);
-   console.warn('Native skin preparation not available; using one-pass AI finish:',error?.code||error?.message);
-  }
  }
  if(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)&&options.templatePath)fd.append('outfitReferencePath',options.templatePath);
  if(selected){if(!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}
