@@ -205,7 +205,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  const retouchedSkin=staged&&[STUDIO_SKIN_RETOUCH_VERSION,STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
  const referenceSkin=staged&&[STUDIO_SKIN_REFERENCE_VERSION,STUDIO_SKIN_WORKFLOW_VERSION].includes(fields.studioSkinVersion);
  const continuousSkin=staged&&fields.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION;
- if(staged)await onStage('skin-base');
+ if(staged||singlePass&&fields.onePassSkinEvidence!==undefined)await onStage('skin-base');
  const prepared=await prepareStudioSkinInput(input,fields,selected.gender),portrait=prepared.input;
  let prompt=productionPortraitPrompt(selected,fields.femaleEyeStyle,singlePass?{...fields,studioSkinVersion:ORIGINAL_PORTRAIT_AI_GUIDED_VERSION}:fields);
  if(!chosen&&selected.gender==='male'){
@@ -336,6 +336,13 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  return transparent;
 }
 async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
+ // Keep English face, identity crop, auto-hair reference and composition in the
+ // SAME native retouched frame. No extra image-provider call is made here.
+ if(singlePass&&fields.onePassSkinEvidence!==undefined){
+  await onStage('skin-base');
+  const prepared=await prepareStudioSkinInput(input,fields,selected.gender);
+  if(prepared.staged)input=prepared.input;
+ }
  const headOnly=isEnglishHeadPortrait(fields);
  const templateBody=isEnglishTemplateBody(fields);
  const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
