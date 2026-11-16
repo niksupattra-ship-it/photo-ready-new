@@ -1,0 +1,764 @@
+{
+  "uniforms": {
+    "/assets/job-uniforms/female-job-ivory-bow-blouse.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 279,
+      "opaqueWidth": 1504,
+      "socketY": 468,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-bow-blouse.webp",
+      "sha256": "0310c8fcc39cf001055d1ab06328cc8b5ac85d67c9ae29eb7e7413ca0766b528"
+    },
+    "/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 11,
+      "opaqueWidth": 1504,
+      "socketY": 498,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-light-pink-tweed-pearl-trim.webp",
+      "sha256": "745605274ab7dbffc7b2c0a1437dec1944109392b05940aad81a21254679be28"
+    },
+    "/assets/job-uniforms/female-job-navy-suit-gathered-cream-blouse.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 218,
+      "opaqueWidth": 1504,
+      "socketY": 619,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-suit-gathered-cream-blouse.webp",
+      "sha256": "7504b9d6ace959ecd941be6cd6e7a99f63447c26a610621b3c7ba21fdf2d1573"
+    },
+    "/assets/job-uniforms/female-job-dusty-rose-tweed-pearl-buttons.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 6,
+      "top": 0,
+      "opaqueWidth": 1477,
+      "socketY": 327,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-dusty-rose-tweed-pearl-buttons.webp",
+      "sha256": "952aae65216ee702b4cc7f14d39cd88393ca32fe6c10906a66f7767c8f3dc98b"
+    },
+    "/assets/job-uniforms/female-job-ivory-tweed-cream-trim-gold-buttons.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 176,
+      "opaqueWidth": 1504,
+      "socketY": 335,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-tweed-cream-trim-gold-buttons.webp",
+      "sha256": "de3a19004ca3d1976f4c8c9bae5a67807d29e9e4ef6b5bd403416ccf7488277c"
+    },
+    "/assets/job-uniforms/male-job-navy-three-piece-burgundy-tie.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 178,
+      "opaqueWidth": 1504,
+      "socketY": 337,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-three-piece-burgundy-tie.webp",
+      "sha256": "3e4e630620be5814548ed8b54347fff6af21cd8b3a752aab55eb6d9d45a2d7c8"
+    },
+    "/assets/job-uniforms/male-job-navy-v-neck-knit-shirt.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 234,
+      "opaqueWidth": 1504,
+      "socketY": 442,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-v-neck-knit-shirt.webp",
+      "sha256": "4a84ddbf58881bcc2786f352d0b791121db34222c0870ef37cef432fe2287c30"
+    },
+    "/assets/job-uniforms/male-job-blue-two-button-navy-tie.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 136,
+      "opaqueWidth": 1497,
+      "socketY": 283,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-blue-two-button-navy-tie.webp",
+      "sha256": "1a6f1dfcd97720ea08097c562efd9f430f5b71719cbfaaa95dcfbce8ddb2924f"
+    },
+    "/assets/job-uniforms/female-job-taupe-cream-blouse.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 208,
+      "opaqueWidth": 1504,
+      "socketY": 516,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-taupe-cream-blouse.webp",
+      "sha256": "8ef1c3497a1780f835c75c6811aff74244c7b079117fa37e27bc84134ce32b12"
+    },
+    "/assets/job-uniforms/female-job-light-blue-shirt.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 174,
+      "opaqueWidth": 1504,
+      "socketY": 388,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-light-blue-shirt.webp",
+      "sha256": "aa59daa958e0b465fd0dd54986575958b4eb45c12cb24653493cc0b7cf6b569e"
+    },
+    "/assets/job-uniforms/female-job-ivory-tweed-gold-buttons.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 291,
+      "opaqueWidth": 1504,
+      "socketY": 439,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-tweed-gold-buttons.webp",
+      "sha256": "c2033f6a5bc9c56deb3b05764c6e7e4ef6c8e4f909454c6f478363a341d24696"
+    },
+    "/assets/job-uniforms/female-job-navy-notch-white-shirt.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 126,
+      "opaqueWidth": 1504,
+      "socketY": 446,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-notch-white-shirt.webp",
+      "sha256": "ae3fffd8ca5d61ac39793e29f159d89ba28204b0a32d49a92bc95eea0593d033"
+    },
+    "/assets/job-uniforms/female-job-navy-double-breasted-cream-blouse.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 183,
+      "opaqueWidth": 1504,
+      "socketY": 403,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-double-breasted-cream-blouse.webp",
+      "sha256": "03092bd7317bd3e71d37c7e69d300590ead7ddb6ae8a3e32ad693913c1d6042c"
+    },
+    "/assets/job-uniforms/male-job-blue-navy-tie.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 204,
+      "opaqueWidth": 1504,
+      "socketY": 385,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-blue-navy-tie.webp",
+      "sha256": "9fb1f30315dbfa574a546a71e53578144063b51c7e283d1a60bef8eda1ec8266"
+    },
+    "/assets/job-uniforms/male-job-navy-double-breasted-black-tie.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 79,
+      "top": 104,
+      "opaqueWidth": 1352,
+      "socketY": 196,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-double-breasted-black-tie.webp",
+      "sha256": "370aa64187d76fe4b6fdf237ced007055f38c6905aa6f71365da069a66312fc7"
+    },
+    "/assets/job-uniforms/male-job-charcoal-burgundy-tie.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 190,
+      "opaqueWidth": 1504,
+      "socketY": 355,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-charcoal-burgundy-tie.webp",
+      "sha256": "a8ddf44b03e44c70a19811a0e62825ebdc710f77cd3d0f1fc131ae2e945dabf8"
+    },
+    "/assets/job-uniforms/male-job-navy-burgundy-shirt.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 196,
+      "opaqueWidth": 1504,
+      "socketY": 426,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-burgundy-shirt.webp",
+      "sha256": "5d138e2014750fad9d51951d8be08611d7365469ef12ea50db26e881d8f317c1"
+    },
+    "/assets/job-uniforms/male-job-navy-solid-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 187,
+      "opaqueWidth": 1504,
+      "socketY": 410,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-solid-tie.webp",
+      "sha256": "b612e73632cff7810e13650759cf6a70975a4be9849f20ac9af841503887dc35"
+    },
+    "/assets/job-uniforms/male-job-navy-striped-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 225,
+      "opaqueWidth": 1504,
+      "socketY": 364,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-striped-tie.webp",
+      "sha256": "4c84024291311f00673060aea0d62d7b12e6074bdd774e954ed9beee34f9d0fe"
+    },
+    "/assets/job-uniforms/male-job-charcoal-patterned-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 196,
+      "opaqueWidth": 1504,
+      "socketY": 346,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-charcoal-patterned-tie.webp",
+      "sha256": "a988dffb2bc73c8a167e66a7919fecb629e3c8049ffbf9fb8dc4a9e691e0c30b"
+    },
+    "/assets/job-uniforms/male-job-black-solid-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 150,
+      "opaqueWidth": 1504,
+      "socketY": 343,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-black-solid-tie.webp",
+      "sha256": "8d81f5160424799edbda83b9bc7398338d6dd6690068800b1321f7dcf571df03"
+    },
+    "/assets/job-uniforms/female-white-shirt.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 61,
+      "opaqueWidth": 1503,
+      "socketY": 455,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-white-shirt.webp",
+      "sha256": "717f9e1bf7a99a577fdfc88ac8c89a13c3737d65fe93118c921a22f85bf24d7e"
+    },
+    "/assets/job-uniforms/female-white-shirt-02.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 93,
+      "opaqueWidth": 1504,
+      "socketY": 438,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-white-shirt-02.webp",
+      "sha256": "3ffb65d09ad4d37f75230e2deccc618a3e830d595e83b5cb83d6c602fda5db34"
+    },
+    "/assets/job-uniforms/male-open-collar-suit.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 76,
+      "opaqueWidth": 1504,
+      "socketY": 423,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-open-collar-suit.webp",
+      "sha256": "43f25b051930a907d5401c27eb1748b09a9175fa16af7a31dcadf44033734e78"
+    },
+    "/assets/job-uniforms/female-navy-suit-6.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 144,
+      "opaqueWidth": 1504,
+      "socketY": 394,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-navy-suit-6.webp",
+      "sha256": "145f040e24efc9f6141289fac389d54719b88f34b9e263069b3b5372ae6676df"
+    },
+    "/assets/job-uniforms/female-navy-suit-7.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 160,
+      "opaqueWidth": 1504,
+      "socketY": 298,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-navy-suit-7.webp",
+      "sha256": "f20504396a09175c990e5ac8468a8acb8970e958cf45db4a1a0990bfa05843bf"
+    },
+    "/assets/job-uniforms/male-navy-suit-5.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 153,
+      "opaqueWidth": 1504,
+      "socketY": 603,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-navy-suit-5.webp",
+      "sha256": "2dc3eb72428ed05dd8e56d3e0e5f48794a0a4d97164b965e277b49e1ed787310"
+    },
+    "/assets/job-uniforms/female-job-navy-collared.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 138,
+      "opaqueWidth": 1504,
+      "socketY": 497,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-collared.webp",
+      "sha256": "b951ef9b297710482097f4455f606ca12966f679d696d738345630ba2f1b0378"
+    },
+    "/assets/job-uniforms/female-job-navy-white-collar.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 179,
+      "opaqueWidth": 1504,
+      "socketY": 524,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-white-collar.webp",
+      "sha256": "a6751479fa2d41a465851bf0a744e82fab158e1d877d9cd4dd240ff180c1a656"
+    },
+    "/assets/job-uniforms/female-job-black-round-collar.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 41,
+      "opaqueWidth": 1504,
+      "socketY": 584,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-black-round-collar.webp",
+      "sha256": "98131dc631958e732bc9f3585b834557ca1d2897b5f95979cd0301b42592eae5"
+    },
+    "/assets/job-uniforms/female-job-tan-round-collar.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 71,
+      "opaqueWidth": 1504,
+      "socketY": 481,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-tan-round-collar.webp",
+      "sha256": "bdedd85692c4ce3ccfd45d64dd294c548eaaa2a5048c301a2bab32eca50c09d5"
+    },
+    "/assets/job-uniforms/female-job-burgundy-patterned-blouse.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 117,
+      "opaqueWidth": 1504,
+      "socketY": 517,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-burgundy-patterned-blouse.webp",
+      "sha256": "ab073296cf6e3f8d6da1630b37e60d22584f57b3afd6b3950f607cfc79f298ff"
+    },
+    "/assets/job-uniforms/female-job-black-cream-blouse.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 120,
+      "opaqueWidth": 1504,
+      "socketY": 471,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-black-cream-blouse.webp",
+      "sha256": "8769693f2106a183811da3cdaf095714d0b5b937db32a85cbe78d8bb55d7ffd3"
+    },
+    "/assets/job-uniforms/female-job-ivory-tweed-burgundy-trim-gold-buttons.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 238,
+      "opaqueWidth": 1504,
+      "socketY": 425,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-tweed-burgundy-trim-gold-buttons.webp",
+      "sha256": "80bad15c4eecb1f34913315fd302fbbc5b9a752ad96c5477ebbafd470e360e7b"
+    },
+    "/assets/job-uniforms/female-job-ivory-bow-collar-blouse.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 87,
+      "opaqueWidth": 1504,
+      "socketY": 287,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-bow-collar-blouse.webp",
+      "sha256": "bf7b9be6c28b0bdba55d1ed42c655dc4500f56ed3eef5fc443cb36d356ca09cd"
+    },
+    "/assets/job-uniforms/female-job-powder-blue-knit-peter-pan-collar.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 254,
+      "opaqueWidth": 1504,
+      "socketY": 427,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-powder-blue-knit-peter-pan-collar.webp",
+      "sha256": "c6394bb9545987c7ea61ea999be8d4db7475d53ded57ad0d71cf3355eac7fb63"
+    },
+    "/assets/job-uniforms/female-job-taupe-ribbed-round-neck-cardigan.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 313,
+      "opaqueWidth": 1504,
+      "socketY": 604,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-taupe-ribbed-round-neck-cardigan.webp",
+      "sha256": "93004c15737182a04eb6bb7589c4f3ab74473287438237e604d3b7df698c7c02"
+    },
+    "/assets/job-uniforms/female-job-dusty-blue-tailored-blazer-ivory-top.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 112,
+      "opaqueWidth": 1504,
+      "socketY": 439,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-dusty-blue-tailored-blazer-ivory-top.webp",
+      "sha256": "92be548a5bd9c86f3dba8bdef985e368384aec1554dcde2264d776821c704053"
+    },
+    "/assets/job-uniforms/female-job-blush-pink-tweed-burgundy-trim.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 101,
+      "opaqueWidth": 1504,
+      "socketY": 563,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-blush-pink-tweed-burgundy-trim.webp",
+      "sha256": "39527bc4ad92189ac76b4e8506c2f95d524be9c2ca0b7a290265155a4191eeb2"
+    },
+    "/assets/job-uniforms/female-job-sand-beige-wide-lapel-blazer.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 0,
+      "opaqueWidth": 1504,
+      "socketY": 408,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-sand-beige-wide-lapel-blazer.webp",
+      "sha256": "4724255953b88f39dc55f3a75e6dc1c4f39e222236c61f858fa417048dd46199"
+    },
+    "/assets/job-uniforms/female-job-charcoal-pinstripe-tailored-blazer.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 0,
+      "opaqueWidth": 1504,
+      "socketY": 551,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-charcoal-pinstripe-tailored-blazer.webp",
+      "sha256": "3c7aab06ea01b2f7e1e6e6f39cb6a12965f93fc90ae76a18dced6a81a8aec7ec"
+    },
+    "/assets/job-uniforms/female-job-ivory-pleated-round-neck-blouse.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 312,
+      "opaqueWidth": 1504,
+      "socketY": 504,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-pleated-round-neck-blouse.webp",
+      "sha256": "bcefc4f5653dc2edfe3b29f5586359195d0c962cfff10db2165b50c659aec658"
+    },
+    "/assets/job-uniforms/female-job-deep-navy-double-breasted-blazer.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 11,
+      "top": 125,
+      "opaqueWidth": 1493,
+      "socketY": 366,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-deep-navy-double-breasted-blazer.webp",
+      "sha256": "5eed9cd787c67f8732e79aca1918cc13dff60a0b6a4783249d915d15e0d5059b"
+    },
+    "/assets/job-uniforms/female-job-warm-taupe-blazer-beige-shirt.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 0,
+      "opaqueWidth": 1504,
+      "socketY": 483,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-warm-taupe-blazer-beige-shirt.webp",
+      "sha256": "02b5d473c0a6508fa1fed571eddbfe18a9c4b1c77184f65a30e6f29d118fd9f6"
+    },
+    "/assets/job-uniforms/female-job-cream-neck-tie-blouse.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 171,
+      "opaqueWidth": 1504,
+      "socketY": 330,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-cream-neck-tie-blouse.webp",
+      "sha256": "4611f94f75a63ea9f6f0c0ca114e9bd5088f1e21838150065df5ac28241a0f7f"
+    },
+    "/assets/job-uniforms/female-job-sage-blue-mandarin-collar-jacket.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 202,
+      "opaqueWidth": 1504,
+      "socketY": 514,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-sage-blue-mandarin-collar-jacket.webp",
+      "sha256": "fcf0457da5fe7d76af21eabe4a72ea726d38640e5f18f6bf436c9803f27c66f6"
+    },
+    "/assets/job-uniforms/female-job-rose-pink-tweed-collarless-pockets.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 0,
+      "opaqueWidth": 1504,
+      "socketY": 469,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-rose-pink-tweed-collarless-pockets.webp",
+      "sha256": "be75d793dd984168fdc859764a2622dde6ea191d079ea2b3064be9b89b79bcda"
+    },
+    "/assets/job-uniforms/female-job-midnight-navy-blazer-cream-ruffle-blouse.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 201,
+      "opaqueWidth": 1504,
+      "socketY": 578,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-midnight-navy-blazer-cream-ruffle-blouse.webp",
+      "sha256": "cdd54719d399cea37469e0a48425d485bb097b9bc7ba61cd505bbcc28b83753b"
+    },
+    "/assets/job-uniforms/female-job-royal-blue-blazer-white-collar-shirt.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 106,
+      "opaqueWidth": 1504,
+      "socketY": 318,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-royal-blue-blazer-white-collar-shirt.webp",
+      "sha256": "272a83c0ddb2dd13bac8aff2808c3ca39ca04a054d55f1fc9e277c6147bbf107"
+    },
+    "/assets/job-uniforms/male-job-black-suit-silver-gray-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 97,
+      "opaqueWidth": 1504,
+      "socketY": 251,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-black-suit-silver-gray-tie.webp",
+      "sha256": "2ccd667e69410bc10b9eda332697418fb956d8d3ca6fc1ccec90f1049270ff88"
+    },
+    "/assets/job-uniforms/male-job-slate-navy-suit-burgundy-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 208,
+      "opaqueWidth": 1504,
+      "socketY": 422,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-slate-navy-suit-burgundy-tie.webp",
+      "sha256": "8ed8112d58ce117a359a4b1b6317119dbd050033040494aba41ced0843e91493"
+    },
+    "/assets/job-uniforms/male-job-charcoal-gray-suit-burgundy-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 0,
+      "opaqueWidth": 1504,
+      "socketY": 267,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-charcoal-gray-suit-burgundy-tie.webp",
+      "sha256": "cc72d907390534e07c2fe17df12e774f8bfd6207cbaf8d1859d9c72cc07b610d"
+    },
+    "/assets/job-uniforms/male-job-midnight-black-suit-textured-silver-tie.webp": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 259,
+      "opaqueWidth": 1504,
+      "socketY": 422,
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-midnight-black-suit-textured-silver-tie.webp",
+      "sha256": "ca16efd61e57476a2e7b4b55c5a3e87261a4e33937ab8698e290eb17f225268d"
+    },
+    "/assets/student-uniforms/female-01.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 175,
+      "opaqueWidth": 2048,
+      "socketY": 741,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--female-01.webp",
+      "sha256": "bf5c4b082fcc520238167cbfe4396e720c96f66ca9a5bee2eb05a2c035fb7e9c"
+    },
+    "/assets/student-uniforms/female-02.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 75,
+      "opaqueWidth": 2048,
+      "socketY": 685,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--female-02.webp",
+      "sha256": "2a8f92db48faa2d3096bbc10f0c88c31e55523ca458617b5fc9df62a310c7e08"
+    },
+    "/assets/student-uniforms/male-01.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 36,
+      "opaqueWidth": 2047,
+      "socketY": 489,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--male-01.webp",
+      "sha256": "886dbf2a811b42cae48b9971a036faddd364d927a7355c25e34763db20dc67e6"
+    },
+    "/assets/student-uniforms/male-02.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 35,
+      "opaqueWidth": 2048,
+      "socketY": 372,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--male-02.webp",
+      "sha256": "241854ed02de623cc7e73b310301c2d64d036829193ee00255b03afee2fdb13f"
+    },
+    "/assets/student-uniforms/female-rajamangala.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 223,
+      "opaqueWidth": 2048,
+      "socketY": 801,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--female-rajamangala.webp",
+      "sha256": "6b17a968381a3bce18739ed7055bbd3e9e792b9da0f6b8529e195c0994d45990"
+    },
+    "/assets/student-uniforms/female-msu.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 219,
+      "opaqueWidth": 2048,
+      "socketY": 786,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--female-msu.webp",
+      "sha256": "83557d8b1c95280226c89bcf33d53dec6ab04b49c80b8d3b73883a173c9152b3"
+    },
+    "/assets/student-uniforms/female-rajabhat.png": {
+      "width": 2048,
+      "height": 1655,
+      "left": 0,
+      "top": 223,
+      "opaqueWidth": 2048,
+      "socketY": 803,
+      "preview": "/assets/uniform-quick-previews/student-uniforms--female-rajabhat.webp",
+      "sha256": "4470a46ae305d79e3cadc3f874c2196c5ebfcacbd3aefd66905814c2b396754d"
+    },
+    "/assets/gown-uniforms/kmitl-female.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 163,
+      "opaqueWidth": 1504,
+      "socketY": 371,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--kmitl-female.webp",
+      "sha256": "1dc8c143d541bd4556fbbff07baec3a9d3b021b4d672b67c5997c4ad578a9252"
+    },
+    "/assets/gown-uniforms/kmitl-male.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 161,
+      "opaqueWidth": 1504,
+      "socketY": 327,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--kmitl-male.webp",
+      "sha256": "70e7bf1cec2609cb3d343048493749ac585e809041c9c56de9e3cfdc47285f57"
+    },
+    "/assets/gown-uniforms/khon-kaen-female.png": {
+      "width": 1600,
+      "height": 1404,
+      "left": 0,
+      "top": 148,
+      "opaqueWidth": 1600,
+      "socketY": 282,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--khon-kaen-female.webp",
+      "sha256": "9055df3136a50eb854b9b342eecbe87893aca52efaa8d5dccf04e53701f825bf"
+    },
+    "/assets/gown-uniforms/khon-kaen-male.png": {
+      "width": 1600,
+      "height": 1404,
+      "left": 0,
+      "top": 0,
+      "opaqueWidth": 1600,
+      "socketY": 233,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--khon-kaen-male.webp",
+      "sha256": "51aa0f99003c4f9a64934ec53abbd91767ff12b9beb7227308ad15b3b42dc9e6"
+    },
+    "/assets/gown-uniforms/thai-bar-female.png": {
+      "width": 1600,
+      "height": 1404,
+      "left": 0,
+      "top": 207,
+      "opaqueWidth": 1600,
+      "socketY": 405,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--thai-bar-female.webp",
+      "sha256": "7dc615bec190211de0b564b3eb3f86773f29c5d1dc4ef29c924aeb2139fd3a5c"
+    },
+    "/assets/gown-uniforms/thai-bar-male.png": {
+      "width": 1600,
+      "height": 1404,
+      "left": 0,
+      "top": 147,
+      "opaqueWidth": 1600,
+      "socketY": 299,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--thai-bar-male.webp",
+      "sha256": "469a4020e91fb39a4b4a2f24049c0ff071240a40e2169349be7e022e0ac1674d"
+    },
+    "/assets/gown-uniforms/stou-operational.png": {
+      "width": 1600,
+      "height": 1404,
+      "left": 0,
+      "top": 194,
+      "opaqueWidth": 1600,
+      "socketY": 382,
+      "preview": "/assets/uniform-quick-previews/gown-uniforms--stou-operational.webp",
+      "sha256": "b6a3cc1f5ebc091ffe9dd9260a11da51d541145dfa489fb80db28c7417045137"
+    },
+    "/assets/government-uniforms/interior-01.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 155,
+      "opaqueWidth": 1504,
+      "socketY": 304,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--interior-01.webp",
+      "sha256": "c6adce8907e9bec0093a68aa543d7b713753c5e7c7dc426f37a262ce1902bee6"
+    },
+    "/assets/government-uniforms/interior-02.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 153,
+      "opaqueWidth": 1504,
+      "socketY": 304,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--interior-02.webp",
+      "sha256": "00955a0739b1aa05d6d405fd0746c67a120fe8d8ef005519a477f40bcceff454"
+    },
+    "/assets/government-uniforms/interior-03.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 154,
+      "opaqueWidth": 1504,
+      "socketY": 303,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--interior-03.webp",
+      "sha256": "7fe6bf2df90c7be8221a50fbd52c8ffeae2a8188538458a3b1fbb9d9284cea27"
+    },
+    "/assets/government-uniforms/male-government-employee.png": {
+      "width": 1504,
+      "height": 1285,
+      "left": 0,
+      "top": 154,
+      "opaqueWidth": 1504,
+      "socketY": 304,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--male-government-employee.webp",
+      "sha256": "49a06e229caba9ebc1398a6c2aefef0741135a30908a6f9a057ef69d8cd82918"
+    },
+    "/assets/government-uniforms/female-operational.png": {
+      "width": 2048,
+      "height": 1731,
+      "left": 0,
+      "top": 164,
+      "opaqueWidth": 2048,
+      "socketY": 409,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--female-operational.webp",
+      "sha256": "da6e11aed4e9043e013a908f6d2a43e6bd67cd16062b841a5353c2f1fb60804c"
+    },
+    "/assets/government-uniforms/female-academic.png": {
+      "width": 2048,
+      "height": 1731,
+      "left": 0,
+      "top": 161,
+      "opaqueWidth": 2048,
+      "socketY": 407,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--female-academic.webp",
+      "sha256": "2b9a923231061168be92023709c07fafa527463131c54969a40a5ee118d846b9"
+    },
+    "/assets/government-uniforms/female-senior.png": {
+      "width": 2048,
+      "height": 1731,
+      "left": 0,
+      "top": 160,
+      "opaqueWidth": 2048,
+      "socketY": 404,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--female-senior.webp",
+      "sha256": "59039a5e387a87d2825f73f6f83f51bf77182222f300ee32ef36eed837304b21"
+    },
+    "/assets/government-uniforms/female-government-employee.png": {
+      "width": 2048,
+      "height": 1731,
+      "left": 0,
+      "top": 160,
+      "opaqueWidth": 2048,
+      "socketY": 404,
+      "preview": "/assets/uniform-quick-previews/government-uniforms--female-government-employee.webp",
+      "sha256": "f0ba8a0364670db19434fb8123757e974936539daa76557a738d2915dcbedf95"
+    }
+  },
+  "backgrounds": {
+    "/assets/background.jpg": {
+      "width": 1128,
+      "height": 1536
+    },
+    "/assets/background-options/white.jpg": {
+      "width": 1504,
+      "height": 2047
+    }
+  }
+}
