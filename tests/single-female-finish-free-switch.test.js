@@ -107,7 +107,7 @@ test('one-pass skin quality version changes new cache keys and preserves legacy 
  assert.doesNotMatch(onePassSkinQualityPriority('natural',false),/ENGLISH OUTFIT REFERENCE LOCK/);
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
- assert.match(main,/gender==='female'\?SINGLE_PASS_SKIN_QUALITY_VERSION/);
+ assert.match(main,/gender==='female'\?\(options\.femaleEyeStyle==='makeup'\?'dedicated-natural-then-ai-makeup-restored-v1':SINGLE_PASS_SKIN_QUALITY_VERSION\)/);
  assert.match(main,/options\.portraitMode==='female'\?SINGLE_PASS_SKIN_QUALITY_VERSION/);
  assert.match(pipeline,/if\(singlePass\)\{\s*if\(fields\.femaleEyeStyle==='makeup'\)prompt\+=onePassMakeupPriority\(false\);\s*prompt\+=onePassSkinQualityPriority\(fields\.femaleEyeStyle,false\)/);
  assert.match(pipeline,/if\(singlePass\)\{\s*if\(fields\.femaleEyeStyle==='makeup'\)prompt\+=onePassMakeupPriority\(true\);\s*prompt\+=onePassSkinQualityPriority\(fields\.femaleEyeStyle,true\)/);
@@ -116,6 +116,28 @@ test('one-pass skin quality version changes new cache keys and preserves legacy 
   assert(!legacy.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old paired job prompts remain unchanged');
   const oldSingle=await run(lang,'makeup');
   assert(!oldSingle.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old single-finish protocol uses its released two-step quality');
+ }
+});
+test('New Makeup creation restores dedicated old AI finish while Natural stays one-pass, one click and one entitlement',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
+ const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
+ assert.match(main,/if\(portraitFinishChoice\(options\.femaleEyeStyle\)==='natural'\)fd\.append\('singlePassPortraitVersion',SINGLE_PASS_PORTRAIT_VERSION\)/);
+ assert.match(main,/gender==='female'\?\(options\.femaleEyeStyle==='makeup'\?'dedicated-natural-then-ai-makeup-restored-v1'/);
+ assert.match(main,/options\.portraitMode==='female'&&options\.femaleEyeStyle==='makeup'\?'dedicated-natural-then-ai-makeup-restored-v1'/);
+ assert.match(main,/fd\.append\('femaleFinishSingleVersion',FEMALE_SINGLE_FINISH_VERSION\)/,'Same customer job and free opposite finish rights');
+ assert.match(pipeline,/if\(selectedSingleMakeup&&!singlePass\)/,'Dedicate second AI editing stage for Makeup');
+ assert.match(server,/processProductionPortrait\(/,'Existing generation endpoint continues to process both variants');
+ for(const language of ['th','en']){
+  const natural=await run(language,'natural','one');
+  const makeup=await run(language,'makeup','single');
+  const oldPair=await run(language,'natural','pair');
+  assert.equal(natural.calls.length,1,language+' Natural remains exactly one AI request');
+  assert.equal(makeup.calls.length,oldPair.calls.length,language+' selected Makeup uses released quality pipeline');
+  assert.deepEqual(makeup.calls.map(v=>v.prompt),oldPair.calls.map(v=>v.prompt),language+' exactly retains original model prompts');
+  assert.deepEqual(makeup.result,oldPair.variant,language+' returns selected makeup only');
+  assert(makeup.calls.length>1,language+' restored dedicated makeup requires extra model call');
+  assert.equal(makeup.variant,null,'No unnecessary second customer-facing deliverable');
  }
 });
 test('One-pass mode is restricted to single-finish female portraits',()=>{
