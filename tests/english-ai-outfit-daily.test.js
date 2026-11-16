@@ -76,3 +76,13 @@ test('actual credit handler accepts continuing English free hairstyle with daily
  assert.equal((await check('seedream-42')).status,200,'active USD Premium can use English Diamond');
  assert.equal(calls.paid,1);
 });
+
+test('English hairstyle cards no longer show a Free caption, without changing hair permissions or Thai label',async()=>{
+ const editor=await read('src/studio-editor.jsx');
+ assert.ok(editor.includes("{!englishFlow&&isFreeFemaleHair(h.id)&&<small>ฟรี</small>}"));
+ assert.ok(!editor.includes("englishFlow?'Free':'ฟรี'"));
+ assert.ok(editor.includes("isEnglishStudioDiamondHair(id,femaleHair.some(h=>h.id===id)?'female':'male')"));
+ const policy=await read('src/english-studio-hair-policy.js');
+ assert.ok(policy.includes("female:Object.freeze(['seedream-49','seedream-53'])"));
+ assert.ok(policy.includes("male:Object.freeze(['seedream-67','seedream-76'])"));
+});
