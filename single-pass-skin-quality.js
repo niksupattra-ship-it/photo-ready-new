@@ -3,7 +3,7 @@
 // protocol, old queued jobs, saved images, credits, or the two-pass legacy route.
 export const SINGLE_PASS_SKIN_QUALITY_VERSION='one-pass-studio-skin-finish-v7-ai-only-blended-blush';
 
-const SHARED_SKIN=`FINAL ONE-PASS AI STUDIO SKIN AND LIGHT — USE INSIDE THE SAME PORTRAIT GENERATION:
+const SHARED_SKIN=`FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY — AI ONLY, USE INSIDE THE SAME PORTRAIT GENERATION:
 The customer's original portrait is the sole facial identity reference. Complete the hairstyle, clothing, requested Natural/Makeup finish, studio skin refinement and lighting in ONE image-generation request. This is a photographic re-render by the AI, NOT a face replacement, separate skin layer, facial mask, pixel-retouch operation, canvas blur, or follow-up AI generation.
 IDENTITY AND SKIN-TONE LOCK: Retain the exact person's facial proportions, asymmetry, expression, eye openings, natural lip edges, facial age, genuine skin-tone depth and undertone. Keep permanent features such as distinctive freckles and moles. Do not whiten or transplant another face or alter nose, jaw, eyes, lips or neck dimensions.
 NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP: Subtly clean up small active pimples, temporary acne-red dots and post-acne marks and soften distracting localized red blotches and shallow rough patches. Correct the individual temporary imperfections as part of a genuine photograph while leaving fine uneven pores, natural pigment variation, small facial shadows and subtle texture visible across the surrounding skin. The corrected areas must merge imperceptibly with the person's adjacent real skin; never render a uniform, textureless face, opaque foundation plate, pasted cheek panel, blurred patch, or pale halo.
