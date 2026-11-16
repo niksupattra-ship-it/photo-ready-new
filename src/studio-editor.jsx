@@ -9,6 +9,7 @@ import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION} from '../english-head-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {outfitChoicePreview,outfitPickerPreview,isJobOutfit} from './outfit-choice-preview.js';
+import {hairPickerPreview} from './hair-picker-preview.js';
 import {insigniaForLanguage,englishPreviewEnabled} from './english-preview.js';
 import {EnglishPortraitFlow} from './english-portrait-flow.jsx';
 import {EnglishPhotoActions} from './english-photo-actions.jsx';
@@ -82,20 +83,24 @@ import thumbnailMap from './studio-thumbnail-map.json';
 import {MakeupPanel} from './studio-makeup.jsx';
 import {makeupLook} from '../makeup-presets.js';
 import {createMakeupLookCache,mixMakeupLookSources} from './makeup-look-tools.js';
-function CatalogPreview({src,eager=false,maleHair=false,englishHair=false,suitTemplate=null,assetKind=null,assetOption=null}){
+export function CatalogPreview({src,eager=false,maleHair=false,englishHair=false,suitTemplate=null,assetKind=null,assetOption=null}){
  src=outfitPickerPreview({template:suitTemplate},src);
+ const hairSource=hairPickerPreview(src),smallHair=hairSource!==src;
  const element=useRef(null),[visibleSource,setVisibleSource]=useState(null);
- const visible=eager||visibleSource===src;
+ const visible=smallHair||eager||visibleSource===src;
  useEffect(()=>{
+  // Only the selected hair tab is mounted. Its small images can start directly
+  // without waiting for an observer or queueing visible tiles at low priority.
+  if(smallHair)return;
   let active=true;
   const reveal=()=>{if(!active)return;setVisibleSource(src);if(assetKind&&assetOption)void warmAssetPreview(assetKind,assetOption).catch(()=>{})};
   if(eager||typeof IntersectionObserver!=='function'){reveal();return()=>{active=false}}
   const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){reveal();observer.disconnect()}},{rootMargin:'120px'});
   if(element.current)observer.observe(element.current);
   return()=>{active=false;observer.disconnect()};
- },[src,eager,suitTemplate,assetKind,assetOption]);
+ },[src,eager,suitTemplate,assetKind,assetOption,smallHair]);
  const closeMalePreview=maleHair&&/\/seedream-hairstyles\/previews\/(?:36|37)\.webp(?:\?|$)/.test(src);
- return <img ref={element} src={visible?(thumbnailMap[src]||src):undefined} alt="" loading="eager" fetchPriority={eager?'high':'low'} decoding="async" width="96" height="96" style={suitTemplate?{objectFit:'contain',objectPosition:'center'}:maleHair&&englishHair?{objectFit:'cover',objectPosition:'50% 0%',transform:'scale(1.2)',transformOrigin:'50% 0%'}:maleHair?{objectFit:'cover',objectPosition:closeMalePreview?'50% 57.5%':'50% 12%',transform:closeMalePreview?'scale(1.01)':'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onLoad={e=>{if(suitTemplate)rememberSuitPreview(suitTemplate,e.currentTarget)}} onPointerDown={e=>{if(suitTemplate)rememberSuitPreview(suitTemplate,e.currentTarget)}} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>;
+ return <img ref={element} src={visible?(smallHair?hairSource:thumbnailMap[src]||src):undefined} alt="" loading="eager" fetchPriority={eager?'high':smallHair?'auto':'low'} decoding="async" width="96" height="96" style={suitTemplate?{objectFit:'contain',objectPosition:'center'}:maleHair&&englishHair?{objectFit:'cover',objectPosition:'50% 0%',transform:'scale(1.2)',transformOrigin:'50% 0%'}:maleHair?{objectFit:'cover',objectPosition:closeMalePreview?'50% 57.5%':'50% 12%',transform:closeMalePreview?'scale(1.01)':'scale(1.35)',transformOrigin:'50% 12%'}:(src.includes('/female-hair-catalog-v12/')||src.includes('/seedream-hairstyles/'))?{objectFit:'contain',objectPosition:'center',transform:'none',transformOrigin:'center'}:undefined} onLoad={e=>{if(suitTemplate)rememberSuitPreview(suitTemplate,e.currentTarget)}} onPointerDown={e=>{if(suitTemplate)rememberSuitPreview(suitTemplate,e.currentTarget)}} onError={e=>{if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=src}}/>;
 }
 const STUDIO_DOWNLOAD_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id)));
 const W=900,H=1200;
