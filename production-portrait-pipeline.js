@@ -5,6 +5,7 @@ import {validateCurrentHairRequest} from './english-current-hair.js';
 import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
 import {createAiMakeupVariant,AI_MAKEUP_PROMPT} from './ai-portrait-makeup.js';
 import {isSinglePassPortrait} from './single-pass-portrait-policy.js';
+import {onePassSkinQualityPriority} from './single-pass-skin-quality.js';
 import {decontaminateEnglishBlueEdgeRgba} from './english-blue-edge-clean.js';
 import {isAiMakeupPairVersion} from './ai-makeup-pair-policy.js';
 import {isFemaleSingleFinish} from './female-single-finish-policy.js';
@@ -299,7 +300,10 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
  if(completeNeck)generationInput=await prepareThaiNeckCanvas(generationInput,explicitIdentityBox);
- if(singlePass&&fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(false);
+ if(singlePass){
+  if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(false);
+  prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,false);
+ }
  await onStage('generation');
  let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:completeNeck&&generationInput.neckCanvasSize||'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
@@ -383,7 +387,10 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  if(chosen&&!keepCurrentHair)prompt+='\n'+englishSelectedHairBoundaryInstruction(chosen);
- if(singlePass&&fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(true);
+ if(singlePass){
+  if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(true);
+  prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,true);
+ }
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
