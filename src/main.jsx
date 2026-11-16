@@ -4238,11 +4238,14 @@ function App(){
   if(work.reconstructed!==true)return work;
   const scope=walletScope(authToken(),currentWalletId());
   const ensureCurrent=()=>{if(scope!==walletScope(authToken(),currentWalletId()))throw Error('บัญชีเปลี่ยนแล้ว กรุณาเปิดรูปอีกครั้ง')};
-  const response=await portraitFetch('/api/purchased-photos/'+encodeURIComponent(item.id)+'/edit',{headers:walletHeaders(),cache:'no-store'},30000),data=await response.json();ensureCurrent();
-  if(!response.ok)throw Error(data.message||'ยังเปิดงานเดิมไม่ได้ กรุณาลองอีกครั้ง ไม่ต้องชำระซ้ำ');
-  const context=preparePurchasedWorkContext(data);
+  let data=work.nativeContext;
+  if(!data){
+   const response=await portraitFetch('/api/purchased-photos/'+encodeURIComponent(item.id)+'/edit',{headers:walletHeaders(),cache:'no-store'},30000);data=await response.json();ensureCurrent();
+   if(!response.ok)throw Error(data.message||'ยังเปิดงานเดิมไม่ได้ กรุณาลองอีกครั้ง ไม่ต้องชำระซ้ำ');
+  }
+  ensureCurrent();const context=preparePurchasedWorkContext(data);
   const project=await restorePurchasedWorkProject(context,{composePortrait,renderAdjustedFinal,loadImage,canvasFor,backgroundSource:defaultPortraitBackground().src,englishBodyVersion:ENGLISH_BODY_PORTRAIT_VERSION,ensureCurrent});
-  ensureCurrent();return {...work,project,reconstructed:false};
+  ensureCurrent();const restoredWork={...work,project,reconstructed:false};delete restoredWork.nativeContext;return restoredWork;
  };
  const startPurchasedEditorPrefetch=item=>prefetchPurchasedEditor({
   item,scope:walletScope(authToken(),currentWalletId()),walletId:currentWalletId(),
@@ -4373,7 +4376,7 @@ function App(){
       console.warn('Purchased editor cache invalid; reading server copy',error?.message);
      }
     }
-    const r=await portraitFetch(path,{headers:{...walletHeaders(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'},90000);
+    const r=await portraitFetch(path,{headers:{...walletHeaders(),'X-IDPROM-Project-Transfer':'images-v1','X-IDPROM-Native-Recovery':'1'},cache:'no-store'},90000);
     let work=await r.json();ensureSame();
     if(!r.ok)throw Error(work.message||'เปิดรูปเพื่อแก้ไขไม่ได้ ไม่ต้องชำระซ้ำ');
     if(work?.project?.format==='idprom-project-transfer')work.project=unpackSavedProjectTransfer(work.project);

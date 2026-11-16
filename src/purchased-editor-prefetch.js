@@ -50,7 +50,7 @@ export function prefetchPurchasedEditor({item,scope,walletId,request,headers,cur
   let revision=item.updatedAt;
   if(!project){
    const response=await request('/api/purchased-photos/'+encodeURIComponent(item.id)+'/editor',{
-    headers:{...headers(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'
+    headers:{...headers(),'X-IDPROM-Project-Transfer':'images-v1','X-IDPROM-Native-Recovery':'1'},cache:'no-store'
    },90000);
    if(!response.ok)throw Error('Unable to prefetch this purchased editor');
    let work=await response.json();
@@ -63,9 +63,8 @@ export function prefetchPurchasedEditor({item,scope,walletId,request,headers,cur
    void writePurchasedEditorCache({walletId,photoId:item.id,project,updatedAt:revision,expiresAt:item.expiresAt});
   }
   if(!isCurrent())return null;
-  const restored=await prepareSavedProject(project,{decode:decodedStudioImage,fastOpen:true});
+  const restored=await prepareSavedProject(project,{decode:decodedStudioImage,fastOpen:true,onValidated:validatedProject=>warmEditorLayers(validatedProject,isCurrent)});
   if(!isCurrent())return null;
-  warmEditorLayers(project,isCurrent);
   return {work:{project,unlocked:true,updatedAt:revision},restored};
  })().catch(error=>{if(active.get(id)===promise)active.delete(id);throw error});
  active.set(id,promise);

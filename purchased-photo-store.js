@@ -33,6 +33,13 @@ export function createPurchasedPhotoStore(pool){
   },
   async list(walletId){await ready();return (await pool.query(`SELECT * FROM (SELECT DISTINCT ON(work_scope) ${metadata},(editor_project IS NOT NULL) AS editor_project_stored FROM purchased_photo_files WHERE wallet_id=$1 AND expires_at>clock_timestamp() AND image IS NOT NULL ORDER BY work_scope,updated_at DESC,created_at DESC,id DESC) AS works ORDER BY updated_at DESC,created_at DESC LIMIT 100`,[walletId])).rows},
   async owned(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},image,preview,editor_project,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},
+  // Asset and access reads do not need the large editable project or unrelated
+  // image blobs. Ownership/expiry metadata is still read fresh for each request.
+  async ownedAccess(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},(image IS NOT NULL) AS has_image,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},
+  async ownedAsset(walletId,id,kind){
+   if(!['image','preview'].includes(kind))throw Object.assign(Error('ชนิดไฟล์ไม่ถูกต้อง'),{status:400});
+   await ready();return (await pool.query(`SELECT ${metadata},${kind},(image IS NOT NULL) AS has_image,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null;
+  },
   // Editing only needs its project and access metadata. Avoid transferring the
   // full-resolution delivery image and preview from PostgreSQL on every open.
   async ownedEditor(walletId,id){await ready();return (await pool.query(`SELECT ${metadata},editor_project,(image IS NOT NULL) AS has_image,(expires_at<=clock_timestamp()) AS expired FROM purchased_photo_files WHERE wallet_id=$1 AND id=$2`,[walletId,id])).rows[0]||null},

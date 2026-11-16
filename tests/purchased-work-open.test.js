@@ -24,6 +24,15 @@ test('stored editable snapshots retain their exact layers without native reconst
 test('historical Thai and English archives restore native head geometry and owned canonical scope',async()=>{
  for(const english of [false,true]){const f=fixture({english}),work=await f.open({reconstructed:true},{id:'photo_owned'});assert.equal(f.calls[0].url,'/api/purchased-photos/photo_owned/edit');assert.equal(work.reconstructed,false);assert.equal(work.project.downloadWorkId,f.data.workId);assert.equal(work.project.canonicalInput,image);assert.deepEqual(work.project.layers.find(l=>l.kind==='head').sourceFrame,{x:100,y:0,w:700,h:900});assert.equal(work.project.layers.find(l=>l.kind==='suit').visible,!english);assert.equal(f.calls.length,1)}
 });
+test('a negotiated native context restores the same project without a second archive request',async()=>{
+ for(const english of [false,true]){
+  const f=fixture({english});f.env.portraitFetch=async()=>assert.fail('The first editor response already contains the owned context');
+  const work=await f.open({reconstructed:true,nativeContext:f.data},{id:'photo_owned'});
+  assert.equal(work.project.downloadWorkId,f.data.workId);assert.equal(work.project.canonicalInput,image);assert.equal(work.reconstructed,false);
+  assert.equal(work.nativeContext,undefined,'Consumed native pixels must not remain in the returned editor work');
+  assert.deepEqual(work.project.layers.find(l=>l.kind==='head').sourceFrame,{x:100,y:0,w:700,h:900});
+ }
+});
 test('a source-only paid photo keeps its aspect ratio without adding a generated head or suit',async()=>{
  const f=fixture();f.data.job.source_only=true;f.env.loadImage=async()=>({naturalWidth:1200,naturalHeight:800});f.env.composePortrait=async()=>assert.fail('Source-only photos must not be recomposed');
  const {project}=await f.open({reconstructed:true},{id:'photo_owned'});assert.equal(project.layers.length,1);const layer=project.layers[0];assert.equal(layer.kind,'source-photo');assert.equal(layer.jobId,'job_owned');assert.equal(layer.outputUnlocked,true);assert.deepEqual(layer.sourceFrame,{x:0,y:300,w:900,h:600});assert.equal(project.downloadWorkId,f.data.workId);

@@ -8,7 +8,7 @@ function fixture(){
  const env={readPurchasedEditorCache:async()=>null,writePurchasedEditorCache:async row=>writes.push(row),prepareSavedProject:async p=>{events.push('prepare');return {project:p}},decodedStudioImage:async()=>({}),unpackSavedProjectTransfer:value=>value};
  const prefetch=Function('env',`with(env){${source};return prefetchPurchasedEditor}`)(env);
  const args={item:{id:'photo_owned',updatedAt:'2026-11-16T00:00:00Z',expiresAt:'2099-01-01T00:00:00Z'},scope:'owner',walletId:'wallet-owner',headers:()=>({Authorization:'owner'}),currentScope:()=>current,request:async()=>({ok:true,json:async()=>({reconstructed:true,project:{layers:[{source:'flattened-receipt'}]}})}),transformWork:async work=>{events.push('native');return {...work,project}}};
- return {prefetch,args,writes,events,switchAccount:()=>{current='foreign'}};
+ return {prefetch,args,writes,events,env,switchAccount:()=>{current='foreign'}};
 }
 test('historical native recovery precedes cache writes and preparation; duplicate opens share the same work',async()=>{
  const f=fixture(),first=f.prefetch(f.args),second=f.prefetch(f.args);assert.equal(first,second);const work=await first;
@@ -27,4 +27,15 @@ test('valid existing snapshots from cache keep their manual layers and skip nati
  const env={readPurchasedEditorCache:async()=>cached,writePurchasedEditorCache:async()=>assert.fail('No rewrite needed'),prepareSavedProject:async p=>({project:p}),decodedStudioImage:async()=>({}),unpackSavedProjectTransfer:value=>value};
  const prefetch=Function('env',`with(env){${source};return prefetchPurchasedEditor}`)(env);
  const result=await prefetch({...f.args,transformWork:async()=>assert.fail('Stored snapshots must remain unchanged')});assert.equal(result.work.project,cached);
+});
+test('editor prefetch negotiates a native response while retaining account headers and lossless transfer',async()=>{
+ const f=fixture();f.args.request=async(path,options)=>{assert.equal(options.headers.Authorization,'owner');assert.equal(options.headers['X-IDPROM-Project-Transfer'],'images-v1');assert.equal(options.headers['X-IDPROM-Native-Recovery'],'1');return {ok:true,json:async()=>({project})}};
+ await f.prefetch(f.args);
+});
+test('layer warming overlaps blob preparation only after the validation callback',async()=>{
+ const f=fixture(),decoded=[];let release,validated=false;const gate=new Promise(resolve=>release=resolve);
+ f.args.transformWork=async work=>({...work,project:{...project,layers:[...project.layers,{kind:'suit',source:'data:image/png;base64,c3VpdA=='},{kind:'background',source:'data:image/png;base64,Ymc='}]}});
+ f.env.decodedStudioImage=async source=>{assert.equal(validated,true);decoded.push(source)};
+ f.env.prepareSavedProject=async(p,options)=>{assert.equal(decoded.length,0);validated=true;options.onValidated(p);await gate;return {project:p}};
+ const opening=f.prefetch(f.args);await new Promise(resolve=>setImmediate(resolve));assert.equal(decoded.length,3);release();assert(await opening);
 });

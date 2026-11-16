@@ -69,7 +69,7 @@ export async function makeSavedProject(snapshot,options={}){
  project=await normalizeSavedProjectMasks(project,options);assertSavedProjectResources(project);return project;
 }
 // Decode everything before changing the active project; a failed image leaves the current work intact.
-export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal,inspectMask,fastOpen=false}={}){
+export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeFile=(blob)=>new File([blob],'original-portrait.png',{type:blob.type}),signal,inspectMask,fastOpen=false,onValidated=()=>{}}={}){
  abort(signal);
  // Purchased photos were already validated at write time. Avoid decoding every
  // optional layer attachment twice: once here and again in Studio hydration.
@@ -77,8 +77,9 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
  else project=await normalizeSavedProjectMasks(project,{inspectMask,signal});
  let resources;
  try{resources=assertSavedProjectResources(project)}
- catch(error){if(fastOpen)return prepareSavedProject(project,{decode,fetchImage,makeFile,signal,inspectMask});throw error}
- const decoded=new Map();
+ catch(error){if(fastOpen)return prepareSavedProject(project,{decode,fetchImage,makeFile,signal,inspectMask,onValidated});throw error}
+ onValidated(project);
+ const decoded=new Map(),blobs=new Map();
  const bounded=operation=>new Promise((resolve,reject)=>{
   let settled=false,timer;const finish=(callback,value)=>{if(settled)return;settled=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);callback(value)};
   const cancel=()=>{try{abort(signal)}catch(error){finish(reject,error)}};
@@ -87,7 +88,10 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   Promise.resolve().then(async()=>{abort(signal);const value=await operation();abort(signal);return value}).then(value=>finish(resolve,value),error=>finish(reject,error));
  });
  const read=async(src,collar=false)=>{abort(signal);if(!decoded.has(src)){const im=await bounded(()=>decode(src)),w=im.naturalWidth||im.width,h=im.naturalHeight||im.height;resources.checkDecoded(src,w,h);if(w<1||h<1||w>(collar?16384:8192)||h>8192)throw Error('ขนาดภาพเลเยอร์ไม่ถูกต้อง');decoded.set(src,im)}return decoded.get(src)};
- const blob=src=>bounded(async()=>{const response=await fetchImage(src,{signal});abort(signal);const data=await response.blob();abort(signal);return data});
+ // A work commonly stores the same bytes as both downloadSource and canonical
+ // input. Convert each exact data URL once per preparation; at most the source,
+ // canonical input and head are retained, without a global customer-image cache.
+ const blob=src=>{abort(signal);if(!blobs.has(src))blobs.set(src,bounded(async()=>{const response=await fetchImage(src,{signal});abort(signal);const data=await response.blob();abort(signal);return data}));return blobs.get(src)};
  for(const l of (fastOpen?project.layers.filter(isHead).slice(0,1):project.layers)){
   const original=await read(l.source,Boolean(l.collarParts));
   if(fastOpen)break;
@@ -95,9 +99,21 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   if(l.femaleFinishReference){const im=await read(l.femaleFinishReference);if((im.naturalWidth||im.width)>FEMALE_FINISH_REFERENCE_MAX_EDGE||(im.naturalHeight||im.height)>FEMALE_FINISH_REFERENCE_MAX_EDGE)throw Error('ขนาดภาพอ้างอิงโทนผิวที่บันทึกไม่ถูกต้อง')}
   if(l.collarParts)for(const src of [l.collarParts.left,l.collarParts.right]){const part=await read(src,true);if((part.naturalWidth||part.width)!==(original.naturalWidth||original.width)||(part.naturalHeight||part.height)!==(original.naturalHeight||original.height))throw Error('ขนาดเข็มปกคอไม่ถูกต้อง')}
  }
- let source=null;const original=project.downloadSource||project.compareSource;if(original){if(!fastOpen)await read(original);source=makeFile(await blob(original));if(project.downloadWorkId)source.idpromDownloadWorkId=project.downloadWorkId}
- if(project.canonicalInput&&source)source.idpromCanonicalInput=await blob(project.canonicalInput);
  const head=project.layers.find(isHead),suit=project.layers.find(l=>l.kind==='suit'||l.name==='ชุด');
+ let source=null,preparedMaster=null;const original=project.downloadSource||project.compareSource;
+ if(original){
+  if(fastOpen){
+   // All resources have passed their size/shape checks. These independent data
+   // URL reads can overlap while the editor still commits only on full success.
+   const [originalBlob,canonicalBlob,masterBlob]=await Promise.all([blob(original),project.canonicalInput?blob(project.canonicalInput):null,head?blob(head.source):null]);
+   abort(signal);source=makeFile(originalBlob);preparedMaster=masterBlob;
+   if(canonicalBlob)source.idpromCanonicalInput=canonicalBlob;
+  }else{
+   await read(original);source=makeFile(await blob(original));
+   if(project.canonicalInput)source.idpromCanonicalInput=await blob(project.canonicalInput);
+  }
+  if(project.downloadWorkId)source.idpromDownloadWorkId=project.downloadWorkId;
+ }
  let editCache=null;
  if(head&&source){
   source.idpromPortraitMode=head.portraitMode;source.idpromFemaleEyeStyle=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle);
@@ -107,7 +123,7 @@ export async function prepareSavedProject(project,{decode,fetchImage=fetch,makeF
   const lock={...p,W,H,hX:f.x/900*W,hY:f.y/1200*H,headW:width,headH:height,scale:f.w/900*W/width,uX:u.x/900*W,uY:u.y/1200*H,uW:u.w/900*W,uH:u.h/1200*H,templatePath:suit?.templatePath||p.templatePath};
   // The saved layer may have been moved/resized since its first AI generation.
   for(const key of ['hairFitEyeSize','hairFitEyeCentreX','hairFitChinAnchorY'])delete lock[key];
-  const master=await blob(head.source);
+  const master=preparedMaster||await blob(head.source);
   // Native Blob metadata is not serialized as pixels. Recover the finish
   // protocol from the saved head so a purchased photo can still generate its
   // other cosmetic finish for free on the SAME wallet-owned source job.
