@@ -111,6 +111,10 @@ export async function queuedFemaleAlternateFinishes(){
 }
 export async function getAiJob(id,walletId){await ready();const {rows}=await pool.query(`SELECT id,status,error,created_at,updated_at,fields->>'processing_stage' AS stage,fields->>'studioSkinVersion' AS "studioSkinVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'portraitMode' AS "portraitMode",fields->>'portraitComposition' AS "portraitComposition",fields->>'englishStudioFinishVersion' AS "englishStudioFinishVersion",fields->>'proportion_correction' AS "proportionCorrection",fields->>'naturalFinishVersion' AS "naturalFinishVersion",fields->>'femaleFinishSingleVersion' AS "femaleFinishSingleVersion",fields->>'alternateFinish' AS "alternateFinish",fields->>'alternateFinishStatus' AS "alternateFinishStatus",(result_makeup IS NOT NULL AND NOT (fields ? 'femaleFinishSingleVersion')) AS "hasMakeupVariant",(result IS NOT NULL) AS has_result FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
 export async function getAiJobResult(id,walletId,includeMakeup=false){await ready();const {rows}=await pool.query(`SELECT status,result,${includeMakeup?'result_makeup':'NULL AS result_makeup'},error,usage_id,fields->>'femaleFinishSingleVersion' AS "femaleFinishSingleVersion",fields->>'femaleEyeStyle' AS "femaleEyeStyle",fields->>'alternateFinish' AS "alternateFinish",fields->>'alternateFinishStatus' AS "alternateFinishStatus" FROM ai_jobs WHERE id=$1 AND wallet_id=$2`,[id,walletId]);return rows[0]||null}
+// Editor recovery reads only the owner's native completed result and metadata.
+// Generation inputs are discarded on completion; canonical input proof belongs
+// to download_works rather than a rendered or cropped delivery PNG.
+export async function getAiJobEditContext(id,walletId){await ready();const {rows}=await pool.query("SELECT id,status,fields,result,result_makeup FROM ai_jobs WHERE id=$1 AND wallet_id=$2 AND status='completed'",[id,walletId]);return rows[0]||null}
 export async function getAiJobsAccess(ids,walletId){if(!ids.length)return [];await ready();const {rows}=await pool.query('SELECT id,status,usage_id FROM ai_jobs WHERE wallet_id=$1 AND id=ANY($2::text[])',[walletId,ids]);return rows}
 export async function queuedAiJobs(){await ready();const {rows}=await pool.query(`UPDATE ai_jobs SET status='queued',updated_at=now() WHERE status='processing' AND updated_at < now()-interval '3 minutes' RETURNING id`);const q=await pool.query(`SELECT id FROM ai_jobs WHERE status='queued' ORDER BY created_at ASC LIMIT 20`);return q.rows.map(r=>r.id)}
 
@@ -148,6 +152,11 @@ export async function settleAiJobDelivery(id,walletId,action){
     }
    }
    else if(trial)await c.query('DELETE FROM trial_previews WHERE id=$1',[j.usage_id]);
+   else if(u.kind==='english-daily-ai-outfit'){
+    // Daily free slots have no paid balance to restore. Match refundCredit:
+    // release this reservation without minting a legacy generation credit.
+    await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[j.usage_id]);
+   }
    else{
     const isUsd=u.credit_column==='usd_premium_remaining';
     const col=isUsd?'usd_premium_remaining':u.credit_column==='hair_remaining'?'hair_remaining':u.credit_column==='generation_remaining'?'generation_remaining':u.kind==='hairstyle'?'hair_remaining':'generation_remaining';

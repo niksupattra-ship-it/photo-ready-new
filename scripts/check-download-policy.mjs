@@ -85,7 +85,7 @@ try{
  });
  await check('existing premium works start with five slots while unrelated basic89 and historic119 works stay at three',async()=>{
   for(const offer of ['basic89','historic119','existing159']){
-   const work=await policy.beginWork('new',bytes);const id='offer-'+offer;await job(id);await policy.attach('new',work,id);
+   const work=await policy.beginWork('new',Buffer.from('unrelated-offer-'+offer));const id='offer-'+offer;await job(id);await policy.attach('new',work,id);
    await query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,true)',['new',id]);
    if(offer==='existing159')await query('INSERT INTO premium_hair_unlocks VALUES($1,$2)',['new',id]);
    else await query('INSERT INTO premium_hair_unlocks VALUES($1,$2)',['foreign',id]);
@@ -102,11 +102,11 @@ try{
   assert.deepEqual((await query('SELECT wallet_id,scope,choices FROM download_suit_choices ORDER BY wallet_id,scope')).rows,before);
  });
  await check('a failed earlier render cannot hide a later premium unlock for the same work',async()=>{
-  const work=await policy.beginWork('new',bytes);await job('premium-failed','new','free_earlier','failed');await policy.attach('new',work,'premium-failed');await job('premium-completed');await policy.attach('new',work,'premium-completed');
+  const work=await policy.beginWork('new',Buffer.from('separate-premium-fixture'));await job('premium-failed','new','free_earlier','failed');await policy.attach('new',work,'premium-failed');await job('premium-completed');await policy.attach('new',work,'premium-completed');
   assert.equal(await policy.premiumWork('new',work),false);await query("INSERT INTO premium_hair_unlocks VALUES('new','premium-completed')");assert.equal(await policy.premiumWork('new',work),true);assert.equal(await policy.premiumWork('foreign',work),false);
  });
  await check('unrelated works remain locked and depleted balance never goes negative',async()=>{
-  for(const id of ['separate-a','separate-b']){const work=await policy.beginWork('new',bytes);await job(id);await policy.attach('new',work,id)}
+  for(const id of ['separate-a','separate-b']){const work=await policy.beginWork('new',Buffer.from('unrelated-'+id));await job(id);await policy.attach('new',work,id)}
   assert.equal(await policy.allowed('new','separate-a'),false);assert.equal((await policy.redeem('new','separate-a')).ok,true);assert.equal((await balance('new')).hair_remaining,0);
   assert.deepEqual(await policy.redeem('new','separate-b'),{ok:false,error:'download_credit_required'});assert.equal((await balance('new')).generation_remaining,0);assert.equal((await balance('new')).hair_remaining,0);
  });
@@ -122,6 +122,38 @@ try{
   for(const status of ['queued','processing','failed']){const id='unready-'+status;await job(id,'new','use_paid',status);assert.equal(await policy.allowedJobs('new',[id]),false)}
   const ids=Array.from({length:20},(_,i)=>'paid-head-'+i);for(const id of ids)await job(id,'old-paid','use_old');
   const before=queries.length;assert.equal(await policy.allowedJobs('old-paid',ids),true);assert.equal(queries.length-before,1);assert(!/\b(?:result|image|project)\b/.test(queries.at(-1)));
+ });
+ await check('returning to the exact owned original recovers its package and used suits without consuming credit',async()=>{
+  const raw=Buffer.from('paid-original-reopen'),canonical=Buffer.from('paid-original-levelled');
+  const work=await policy.beginWork('new',canonical,'','',raw);await job('reopen-paid');await policy.attach('new',work,'reopen-paid');
+  await query("INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES('new','reopen-paid',true)");await query("INSERT INTO premium_hair_unlocks VALUES('new','reopen-paid')");
+  await policy.suits('new','reopen-paid',['/retained-one','/retained-two']);const before=await balance('new');
+  assert.equal(await policy.beginWork('new',canonical,'','',raw),work);
+  assert.equal(await policy.beginWork('new',canonical,work,'',canonical),work,'owned exact canonical pair must survive reopen');
+  assert.equal(await policy.premiumWork('new',work),true);assert.deepEqual((await policy.suits('new','reopen-paid')).choices,['/retained-one','/retained-two']);
+  const other=await policy.beginWork('new',Buffer.from('different-person'));assert.notEqual(other,work);assert.equal(await policy.premiumWork('new',other),false);
+  await assert.rejects(policy.beginWork('foreign',canonical,work,'',raw),e=>e.status===409);
+  await assert.rejects(policy.beginWork('new',canonical,work,'',Buffer.from('unproven-original')),e=>e.status===409);
+  assert((await policy.inputForWork('new',work)).buffer.equals(canonical));assert.deepEqual(await balance('new'),before);
+ });
+ await check('historical job-scoped choices merge into the owned work without resetting unused slots',async()=>{
+  const work=await policy.beginWork('new',Buffer.from('old-choice-original'));await job('old-choice-job');await policy.attach('new',work,'old-choice-job');
+  await query("INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES('new','old-choice-job',true)");
+  await query("INSERT INTO download_suit_choices(wallet_id,scope,choices) VALUES('new','old-choice-job',ARRAY['/old-a','/old-b'])");
+  assert.deepEqual(await policy.suits('new','old-choice-job',['/new-c']),{limited:true,choices:['/old-a','/old-b','/new-c'],limit:3});
+  assert.deepEqual((await policy.suits('new','old-choice-job',['/old-a'])).choices,['/old-a','/old-b','/new-c']);
+  await assert.rejects(policy.suits('new','old-choice-job',['/fourth']),e=>e.status===409);
+ });
+ await check('only provable historical hair-offer receipts restore hair access, never another package or wallet',async()=>{
+  await query("CREATE TABLE download_payment_receipts(session_id text,wallet_id text,work_scope text,package_id text,overlap boolean,refund_status text)");
+  for(const [id,offer,state]of [['repair-hair','download_159_hair_v1','not_required'],['repair-old159','159_v6','not_required'],['repair-refund','download_159_hair_v1','succeeded']]){
+   const work=await policy.beginWork('new',Buffer.from(id));await job(id);await policy.attach('new',work,id);
+   await query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,true)',['new',id]);
+   await query('INSERT INTO download_payment_receipts VALUES($1,$2,$3,$4,false,$5)',['receipt-'+id,'new',work,offer,state]);
+   assert.equal(await policy.premiumHair('new',id),id==='repair-hair');assert.equal(await policy.premiumWork('new',work),id==='repair-hair');
+   if(id==='repair-hair'){await query("DELETE FROM premium_hair_unlocks WHERE wallet_id='new' AND job_id='repair-hair'");assert.equal(await policy.premiumHair('new',id),true);}
+  }
+  await assert.rejects(policy.premiumHair('foreign','repair-hair'),e=>e.status===404);
  });
  await check('saved-work ownership, three-work quota, immutable 45 days and expired tombstones remain enforced',async()=>{
   const saved=await store.saveWork('retention','',project());const before=(await store.getWork('retention',saved.id));assert.equal(new Date(before.expires_at)-new Date(before.retention_started_at),45*86400000);

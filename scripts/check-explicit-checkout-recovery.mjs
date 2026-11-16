@@ -25,6 +25,7 @@ function fixture({status='requires_action',job='',draftKind='studio'}={}){
  let draft={walletId:payment.walletId,jobId:payment.jobId,isTrial:true,workId:'',originalFile:new Blob(['original'],{type:'image/png'}),downloadWorkId:'dwork_original',studio:{layers:[head],placement:{W:900,H:1200}}};
  if(draftKind==='classic')draft={...draft,studio:null,classicMaster:new Blob(['master']),classicLock:{W:900,H:1200}};
  const e={
+  outputChangePending:()=>false,outputJobId:job,singlePhotoCheckoutScopeRef:{current:null},
   walletScope,authToken:()=>storage.get('token')||'',currentWalletId:()=>storage.get('wallet')||'',
   appStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
   AUTH_TOKEN_KEY:'token',WALLET_KEY:'wallet',checkoutRecovery:{...payment},checkoutRecoveryBusyRef:{current:false},checkoutBusyRef:{current:false},checkoutReturnRef:{current:null},
@@ -54,6 +55,7 @@ function fixture({status='requires_action',job='',draftKind='studio'}={}){
  for(const [name,event] of [['checkoutRecovery','recovery'],['checkoutRecoveryMessage','recoveryMessage'],['checkoutRecoveryBusy','recoveryBusy'],['pendingLegacyCheckout','legacy'],['studioData','studio'],['payMsg','payMessage'],['buyOpen','buy'],['payBusy','payBusy'],['screen','screen']])e['set'+name[0].toUpperCase()+name.slice(1)]=stateSetter(name,event);
  for(const [name,event] of [['setTrialPreview','trial'],['setAccountSaveNotice','notice'],['setDownloadUnlockSignal','unlock'],['setPurchaseEditing','editing'],['setF','source'],['setA','sourceURL'],['setOutputJobId','output'],['setHairId','hair'],['setSavedWorkUnlocked','savedUnlocked'],['setSessionEditJob','sessionJob'],['setRestoredSourcePhoto','restoredSource'],['setSavedWorkRevision','revision'],['setPendingPackage','package'],['setAuthMode','authMode'],['setAuthMsg','authMessage'],['setAuthOpen','authOpen']])e[name]=value=>events.push([event,value]);
  e.setQrPayment=value=>{e.qrPaymentRef.current=value;events.push(['qr',value])};
+ e.isSinglePhotoOffer=compile('isSinglePhotoOffer',e,{singleLine:true});e.pinSinglePhotoCheckout=compile('pinSinglePhotoCheckout',e);
  e.clearQrPayment=compile('clearQrPayment',e,{singleLine:true});
  for(const name of ['restorePurchaseDraft','savePaidCheckout','finishQrPayment','resumeStoredCheckout','continueLegacyCheckout','startCheckout'])e[name]=compile(name,e);
  return {e,events,requests,storage,payment,head,get draft(){return draft},set draft(value){draft=value},switchAccount(){storage.set('token','token_replacement');storage.set('wallet','wallet_replacement')}};

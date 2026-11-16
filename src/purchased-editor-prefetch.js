@@ -39,7 +39,7 @@ function warmEditorLayers(project,isCurrent){
  * Returns a prevalidated, prepared paid editor. Most of the expensive work
  * happens when purchased-photo history appears, not after the Edit click.
  */
-export function prefetchPurchasedEditor({item,scope,walletId,request,headers,currentScope}){
+export function prefetchPurchasedEditor({item,scope,walletId,request,headers,currentScope,transformWork=async work=>work}){
  if(!item?.id||!item.updatedAt||!item.expiresAt||!walletId||!scope)return Promise.resolve(null);
  const id=cacheKey(scope,item),prior=active.get(id);
  if(prior){active.delete(id);active.set(id,prior);return prior}
@@ -53,7 +53,9 @@ export function prefetchPurchasedEditor({item,scope,walletId,request,headers,cur
     headers:{...headers(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'
    },90000);
    if(!response.ok)throw Error('Unable to prefetch this purchased editor');
-   const work=await response.json();
+   let work=await response.json();
+   if(!isCurrent())return null;
+   work=await transformWork(work,item);
    if(!isCurrent())return null;
    project=work?.project?.format==='idprom-project-transfer'?unpackSavedProjectTransfer(work.project):work?.project;
    revision=work.updatedAt||revision;

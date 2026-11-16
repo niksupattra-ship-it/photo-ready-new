@@ -117,6 +117,7 @@ import {PackageOffers} from './package-offers.jsx';
 import {HomePhotoSizes} from './home-photo-sizes.jsx';
 import {savePurchaseDraft,loadPurchaseDraft} from './purchase-draft.js';
 import {readPurchasedEditorCache,writePurchasedEditorCache,deletePurchasedEditorCache} from './purchased-editor-cache.js';
+import {preparePurchasedWorkContext,restorePurchasedWorkProject} from './purchased-work-context.js';
 import {PurchasedStudioOpening} from './purchased-studio-opening.jsx';
 import {prefetchPurchasedEditor,clearPurchasedEditorPrefetch} from './purchased-editor-prefetch.js';
 import {CheckoutRecovery} from './checkout-recovery.jsx';
@@ -4233,10 +4234,20 @@ function App(){
  // Pre-load purchased editable projects before the Edit button is pressed.
  // Work is warmed under the current signed-in account and the exact server
  // revision, never as a separate saved-project history.
+ const restoreNativePurchasedEditor=async(work,item)=>{
+  if(work.reconstructed!==true)return work;
+  const scope=walletScope(authToken(),currentWalletId());
+  const ensureCurrent=()=>{if(scope!==walletScope(authToken(),currentWalletId()))throw Error('บัญชีเปลี่ยนแล้ว กรุณาเปิดรูปอีกครั้ง')};
+  const response=await portraitFetch('/api/purchased-photos/'+encodeURIComponent(item.id)+'/edit',{headers:walletHeaders(),cache:'no-store'},30000),data=await response.json();ensureCurrent();
+  if(!response.ok)throw Error(data.message||'ยังเปิดงานเดิมไม่ได้ กรุณาลองอีกครั้ง ไม่ต้องชำระซ้ำ');
+  const context=preparePurchasedWorkContext(data);
+  const project=await restorePurchasedWorkProject(context,{composePortrait,renderAdjustedFinal,loadImage,canvasFor,backgroundSource:defaultPortraitBackground().src,englishBodyVersion:ENGLISH_BODY_PORTRAIT_VERSION,ensureCurrent});
+  ensureCurrent();return {...work,project,reconstructed:false};
+ };
  const startPurchasedEditorPrefetch=item=>prefetchPurchasedEditor({
   item,scope:walletScope(authToken(),currentWalletId()),walletId:currentWalletId(),
   request:portraitFetch,headers:walletHeaders,
-  currentScope:()=>walletScope(authToken(),currentWalletId())
+  transformWork:restoreNativePurchasedEditor,currentScope:()=>walletScope(authToken(),currentWalletId())
  });
  const preloadPurchasedHistory=items=>{
   if(!Array.isArray(items))return;
@@ -4363,9 +4374,10 @@ function App(){
      }
     }
     const r=await portraitFetch(path,{headers:{...walletHeaders(),'X-IDPROM-Project-Transfer':'images-v1'},cache:'no-store'},90000);
-    const work=await r.json();ensureSame();
+    let work=await r.json();ensureSame();
     if(!r.ok)throw Error(work.message||'เปิดรูปเพื่อแก้ไขไม่ได้ ไม่ต้องชำระซ้ำ');
     if(work?.project?.format==='idprom-project-transfer')work.project=unpackSavedProjectTransfer(work.project);
+    work=await restoreNativePurchasedEditor(work,item);ensureSame();
     // Populate the cache asynchronously; the first online open proceeds as
     // soon as its project is available, without waiting for IndexedDB writes.
     void writePurchasedEditorCache({walletId:currentWalletId(),photoId:item.id,project:work.project,updatedAt:work.updatedAt||item.updatedAt,expiresAt:item.expiresAt});

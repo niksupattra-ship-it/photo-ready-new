@@ -1,6 +1,6 @@
 // Local acceleration ONLY for already-owned purchased photos. The server remains
 // authoritative for ownership, paid rights, and the seven-day expiry.
-const NAME='idprom-purchased-editor-cache-v1',STORE='projects',MAX=12;
+const NAME='idprom-purchased-editor-cache-v1',STORE='projects',MAX=12,CACHE_FORMAT=2;
 // A small RAM hot cache bypasses large IndexedDB structured-clone reads when
 // returning to a purchased edit within the same browser tab.
 const hot=new Map(),HOT_MAX=3;
@@ -35,7 +35,7 @@ const validIdentity=(walletId,photoId)=>typeof walletId==='string'&&walletId.len
 export async function readPurchasedEditorCache({walletId,photoId,updatedAt,expiresAt}){
  if(!validIdentity(walletId,photoId)||!updatedAt)return null;
  try{
-  const id=key(walletId,photoId),valid=row=>row&&row.updatedAt===updatedAt&&validProject(row.project)&&Number.isFinite(Date.parse(row.expiresAt))&&Date.parse(row.expiresAt)>Date.now()&&(!expiresAt||row.expiresAt===expiresAt);
+  const id=key(walletId,photoId),valid=row=>row&&row.cacheFormat===CACHE_FORMAT&&row.updatedAt===updatedAt&&validProject(row.project)&&Number.isFinite(Date.parse(row.expiresAt))&&Date.parse(row.expiresAt)>Date.now()&&(!expiresAt||row.expiresAt===expiresAt);
   const warm=hot.get(id);
   if(valid(warm))return warm.project;
   if(warm)hot.delete(id);
@@ -48,7 +48,7 @@ export async function readPurchasedEditorCache({walletId,photoId,updatedAt,expir
 export async function writePurchasedEditorCache({walletId,photoId,project,updatedAt,expiresAt}){
  if(!validIdentity(walletId,photoId)||!validProject(project)||!updatedAt||!expiresAt||Date.parse(expiresAt)<=Date.now())return false;
  try{
-  const row={key:key(walletId,photoId),walletId,photoId,project,updatedAt,expiresAt,savedAt:Date.now()};
+  const row={key:key(walletId,photoId),cacheFormat:CACHE_FORMAT,walletId,photoId,project,updatedAt,expiresAt,savedAt:Date.now()};
   rememberHot(row);
   await transact('readwrite',store=>store.put(row));
   // Keep a small, expiring cache: downloaded photos themselves are not stored.

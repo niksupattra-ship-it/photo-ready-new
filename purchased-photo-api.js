@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import {gzip} from 'node:zlib';
 import multer from 'multer';
 import sharp from 'sharp';
-export function registerPurchasedPhotoApi(app,{store,policy}){
+export function registerPurchasedPhotoApi(app,{store,policy,getJobContext=async()=>null,findEditableWorks=editableWorksForPurchasedPhotos,loadSavedWork=getWork}){
  const upload=multer({limits:{fileSize:20*1024*1024,files:1,fields:2}}).single('image');
  const uploadEditor=multer({limits:{fileSize:48*1024*1024,files:1,fields:0}}).single('project');
  const headers=res=>res.set({'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Robots-Tag':'noindex, nofollow'});
@@ -65,10 +65,10 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
    // One-time compatibility for previously paid accounts. A historical editor
    // snapshot is imported INTO the purchased photo, not opened as a separate
    // saved-work screen or required for future purchases.
-   const linked=await editableWorksForPurchasedPhotos(wallet,[row]);
+   const linked=await findEditableWorks(wallet,[row]);
    if(linked[row.id]){
     try{
-     const old=await getWork(wallet,linked[row.id]);
+     const old=await loadSavedWork(wallet,linked[row.id]);
      if(old?.project){
       const ids=validateProject(old.project),lineage=await policy.jobIds(wallet,row.job_ids[0]);
       if(ids.length&&ids.every(id=>lineage.includes(id))){
@@ -90,15 +90,47 @@ export function registerPurchasedPhotoApi(app,{store,policy}){
    const image='data:image/png;base64,'+photo.toString('base64');
    let original=null,downloadWorkId=null;
    if(/^dwork_[a-f0-9]{36}$/.test(row.work_scope)){
-    try{const input=await policy.inputForWork(wallet,row.work_scope);if(/^image\/(png|jpeg|webp)$/.test(input.mimetype)&&input.buffer.length<16*1024*1024){original='data:'+input.mimetype+';base64,'+input.buffer.toString('base64');downloadWorkId=row.work_scope}}catch{}
+    try{const input=await policy.inputForWork(wallet,row.work_scope);if(/^image\/(png|jpeg|webp)$/.test(input.mimetype)&&input.buffer.length<16*1024*1024){original='data:'+input.mimetype+';base64,'+input.buffer.toString('base64');downloadWorkId=row.work_scope}}catch(error){if(error.status!==409)throw error}
    }
    if(!original){
     return res.status(409).json({error:'original_unavailable',message:'รูปที่ซื้อใบนี้ยังมีไฟล์รับรูป แต่ไม่มีต้นฉบับที่ยืนยันได้สำหรับเปลี่ยนทรงผมโดยไม่ใช้สิทธิ์รูปใหม่'});
    }
-   project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{kind:'head',name:'หัว · คอ · ผม',jobId:row.job_ids[0],source:image,sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,outputUnlocked:true,restrictedTrial:false}],compareSource:original||image,...(original?{downloadSource:original,downloadWorkId}:{})};
+   project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{kind:'head',name:'หัว · คอ · ผม',jobId:row.job_ids[0],source:image,sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0,opacity:1,visible:true,locked:false,outputUnlocked:true,restrictedTrial:false}],compareSource:original||image,...(original?{downloadSource:original,canonicalInput:original,downloadWorkId}:{})};
    reconstructed=true;
   }
   await sendEditor(req,res,{id:'',unlocked:true,legacyDownload:false,reconstructed,updatedAt:row.updated_at,project:packSavedProjectTransfer(project)});
+ }));
+ app.get('/api/purchased-photos/:id/edit',member,handle(async(req,res)=>{
+  const wallet=req.accountUser.wallet_id,row=await store.owned(wallet,req.params.id);
+  if(!row)throw Object.assign(Error('ไม่พบรูปที่ซื้อของบัญชีนี้'),{status:404});
+  if(row.expired||!row.image)throw Object.assign(Error('งานนี้พ้นระยะเก็บรูป 7 วันแล้ว'),{status:410,code:'photo_expired'});
+  if(!await authorized({...row,wallet_id:wallet}))throw Object.assign(Error('ยังยืนยันสิทธิ์รูปนี้ไม่ได้ กรุณาตรวจสอบการชำระเงิน ไม่ต้องจ่ายซ้ำ'),{status:403});
+  // Derive all identity links on the server. An archive's displayed PNG and
+  // client-supplied job/work IDs can never become proof of an original upload.
+  const jobIds=[...new Set(row.job_ids)],scopes=await Promise.all(jobIds.map(id=>policy.scopeForJob(wallet,id))),workId=scopes[0];
+  const sameWork=Boolean(workId)&&scopes.every(scope=>scope===workId);
+  const response={id:row.id,workId,jobIds,packageId:row.package_id,purchasedAt:row.purchased_at,expiresAt:row.expires_at,originalAvailable:false};
+  if(sameWork&&/^dwork_[a-f0-9]{36}$/.test(workId)){
+   response.downloadWorkId=workId;
+   try{
+    const original=await policy.inputForWork(wallet,workId);
+    if(original?.buffer?.length&&['image/png','image/jpeg','image/webp'].includes(original.mimetype)){
+     response.originalAvailable=true;response.originalType=original.mimetype;
+     response.originalSource='data:'+original.mimetype+';base64,'+Buffer.from(original.buffer).toString('base64');
+    }
+   }catch(error){if(error.status!==409)throw error}
+  }
+  const metadata=['femaleFinishSingleVersion','alternateFinish','alternateFinishStatus','source_only','hairId','portraitMode','portraitComposition','englishStudioFinishVersion','femaleEyeStyle','studioSkinVersion','naturalFinishVersion','neckOutfitReferencePath','outfitReferencePath','keepCurrentHair','hairReferenceVersion'];
+  for(const id of jobIds){
+   const context=await getJobContext(id,wallet);
+   if(context?.status!=='completed'||!context.result?.length)continue;
+   response.jobId=id;response.job={id,status:'completed'};
+   for(const name of metadata){const value=context.fields?.[name];if(typeof value==='string'||typeof value==='boolean')response.job[name]=value}
+   response.resultSource='data:image/png;base64,'+Buffer.from(context.result).toString('base64');
+   if(context.result_makeup?.length&&!context.fields?.femaleFinishSingleVersion)response.makeupSource='data:image/png;base64,'+Buffer.from(context.result_makeup).toString('base64');
+   break;
+  }
+  res.json(response);
  }));
  app.get('/api/purchased-photos/:id/:kind',member,handle(async(req,res)=>{
   if(!['image','preview'].includes(req.params.kind))return res.sendStatus(404);

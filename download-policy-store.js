@@ -17,6 +17,8 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
    await c.query(`CREATE TABLE IF NOT EXISTS download_works(id text PRIMARY KEY,wallet_id text NOT NULL,source_hash text NOT NULL,legacy_work_id text,created_at timestamptz NOT NULL DEFAULT now())`);
    await c.query('ALTER TABLE download_works ADD COLUMN IF NOT EXISTS original_source_hash text');
    await c.query('ALTER TABLE download_works ADD COLUMN IF NOT EXISTS canonical_image bytea,ADD COLUMN IF NOT EXISTS canonical_type text');
+   await c.query('CREATE INDEX IF NOT EXISTS download_works_source_idx ON download_works(wallet_id,source_hash)');
+   await c.query('CREATE INDEX IF NOT EXISTS download_works_original_source_idx ON download_works(wallet_id,original_source_hash) WHERE original_source_hash IS NOT NULL');
    await c.query(`CREATE TABLE IF NOT EXISTS download_work_jobs(job_id text PRIMARY KEY,work_id text NOT NULL REFERENCES download_works(id),wallet_id text NOT NULL)`);
    await c.query('CREATE INDEX IF NOT EXISTS download_work_jobs_work_idx ON download_work_jobs(work_id,wallet_id)');
    await c.query('CREATE TABLE IF NOT EXISTS download_suit_choices(wallet_id text NOT NULL,scope text NOT NULL,choices text[] NOT NULL DEFAULT ARRAY[]::text[],PRIMARY KEY(wallet_id,scope))');
@@ -71,8 +73,45 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   // Historical paid renders also cover later renders of the same owned work.
   return Boolean(r.rowCount||await oldPaid(wallet,ids,db));
  };
- const premiumHair=async(wallet,job,{db=pool}={})=>{await ready();await ownedJob(wallet,job,db);const ids=await jobIds(wallet,job,db);const q=await db.query('SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);return q.rowCount>0};
- const premiumWork=async(wallet,work)=>{await ready();if(!work)return false;const q=await pool.query('SELECT 1 FROM download_work_jobs j JOIN download_works w ON w.id=j.work_id AND w.wallet_id=j.wallet_id JOIN premium_hair_unlocks p ON p.job_id=j.job_id AND p.wallet_id=j.wallet_id WHERE j.wallet_id=$1 AND j.work_id=$2 LIMIT 1',[wallet,work]);return q.rowCount>0};
+ // Repair only work-specific historical evidence, never a wallet-wide 159-baht
+ // balance. Old schemas may predate receipts or their timestamps entirely.
+ const repairPremium=async(wallet,db=pool)=>{
+  const columns=await db.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name IN ('download_payment_receipts','payments','paid_image_unlocks','purchased_photo_files')");
+  const has=(table,...names)=>names.every(name=>columns.rows.some(r=>r.table_name===table&&r.column_name===name));
+  const receipts=has('download_payment_receipts','wallet_id','session_id','work_scope','package_id','overlap','refund_status');
+  if(receipts)await db.query(`INSERT INTO premium_hair_unlocks(wallet_id,job_id)
+   SELECT DISTINCT j.wallet_id,j.id FROM download_payment_receipts r
+   JOIN ai_jobs j ON j.wallet_id=r.wallet_id AND j.status='completed'
+   LEFT JOIN download_work_jobs m ON m.job_id=j.id AND m.wallet_id=j.wallet_id
+   WHERE r.wallet_id=$1 AND r.package_id='download_159_hair_v1' AND NOT r.overlap AND r.refund_status='not_required'
+    AND (r.work_scope='job:'||j.id OR r.work_scope=m.work_id)
+    AND EXISTS(SELECT 1 FROM paid_image_unlocks p WHERE p.wallet_id=j.wallet_id AND (p.job_id=j.id OR p.job_id IN (SELECT peer.job_id FROM download_work_jobs peer WHERE peer.wallet_id=j.wallet_id AND peer.work_id=m.work_id)))
+   ON CONFLICT DO NOTHING`,[wallet]);
+  if(has('payments','wallet_id','session_id','package_id','created_at')&&has('paid_image_unlocks','wallet_id','job_id','created_at'))await db.query(`INSERT INTO premium_hair_unlocks(wallet_id,job_id)
+   SELECT DISTINCT j.wallet_id,j.id FROM payments p JOIN paid_image_unlocks u ON u.wallet_id=p.wallet_id AND u.created_at=p.created_at
+   JOIN ai_jobs j ON j.id=u.job_id AND j.wallet_id=u.wallet_id AND j.status='completed'
+   WHERE p.wallet_id=$1 AND p.package_id='download_159_hair_v1'
+    ${receipts?"AND NOT EXISTS(SELECT 1 FROM download_payment_receipts r WHERE r.session_id=p.session_id)":''}
+   ON CONFLICT DO NOTHING`,[wallet]);
+  if(has('purchased_photo_files','wallet_id','job_ids','package_id','expires_at'))await db.query(`INSERT INTO premium_hair_unlocks(wallet_id,job_id)
+   SELECT DISTINCT j.wallet_id,j.id FROM purchased_photo_files f JOIN ai_jobs j ON j.wallet_id=f.wallet_id AND j.id=ANY(f.job_ids) AND j.status='completed'
+   WHERE f.wallet_id=$1 AND f.package_id='159' AND f.expires_at>clock_timestamp()
+    AND EXISTS(SELECT 1 FROM paid_image_unlocks p WHERE p.wallet_id=j.wallet_id AND p.job_id=j.id)
+   ON CONFLICT DO NOTHING`,[wallet]);
+ };
+ const paidSourceWork=async(wallet,image,originalSource=null)=>{
+  const hash=crypto.createHash('sha256').update(image).digest('hex'),originalHash=originalSource?.length?crypto.createHash('sha256').update(originalSource).digest('hex'):null;
+  const known=await pool.query(`SELECT w.id,w.original_source_hash FROM download_works w WHERE w.wallet_id=$1
+     AND CASE WHEN $3::text IS NOT NULL AND w.original_source_hash IS NOT NULL THEN w.original_source_hash=$3
+      ELSE w.source_hash=$2 OR w.original_source_hash=$2 OR ($3::text IS NOT NULL AND w.source_hash=$3) END
+     AND EXISTS(SELECT 1 FROM download_work_jobs m JOIN ai_jobs j ON j.id=m.job_id AND j.wallet_id=m.wallet_id
+      WHERE m.work_id=w.id AND m.wallet_id=w.wallet_id AND j.status='completed'
+       AND (left(j.usage_id,4)='use_' OR EXISTS(SELECT 1 FROM paid_image_unlocks p WHERE p.wallet_id=j.wallet_id AND p.job_id=j.id)))
+     ORDER BY EXISTS(SELECT 1 FROM download_work_jobs m JOIN premium_hair_unlocks p ON p.wallet_id=m.wallet_id AND p.job_id=m.job_id WHERE m.work_id=w.id AND m.wallet_id=w.wallet_id) DESC,w.created_at,w.id LIMIT 1`,[wallet,hash,originalHash]);
+  return known.rows[0]||null;
+ };
+ const premiumHair=async(wallet,job,{db=pool}={})=>{await ready();await ownedJob(wallet,job,db);const ids=await jobIds(wallet,job,db);const read=()=>db.query('SELECT 1 FROM premium_hair_unlocks WHERE wallet_id=$1 AND job_id=ANY($2::text[]) LIMIT 1',[wallet,ids]);let q=await read();if(!q.rowCount){await repairPremium(wallet,db);q=await read()}return q.rowCount>0};
+ const premiumWork=async(wallet,work)=>{await ready();if(!work)return false;const read=()=>pool.query('SELECT 1 FROM download_work_jobs j JOIN download_works w ON w.id=j.work_id AND w.wallet_id=j.wallet_id JOIN premium_hair_unlocks p ON p.job_id=j.job_id AND p.wallet_id=j.wallet_id WHERE j.wallet_id=$1 AND j.work_id=$2 LIMIT 1',[wallet,work]);let q=await read();if(!q.rowCount){await repairPremium(wallet);q=await read()}return q.rowCount>0};
  const allowedJobs=async(wallet,jobs)=>{
   const ids=[...new Set(jobs)];if(!ids.length)return false;await ready();
   // Saved projects can contain many heads. Read ownership and grouped rights in
@@ -87,6 +126,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   return r.rows.length===ids.length&&r.rows.every(row=>row.status==='completed'&&row.unlocked);
  };
  return {ready,ownedJob,jobIds,legacyAllows,allowed,allowedJobs,premiumHair,premiumWork,
+  async paidWorkForSource(wallet,image,originalSource=null){await ready();return (await paidSourceWork(wallet,image,originalSource))?.id||''},
   async scopeForJob(wallet,job){await ready();await ownedJob(wallet,job);const q=await pool.query('SELECT work_id FROM download_work_jobs WHERE wallet_id=$1 AND job_id=$2',[wallet,job]);return q.rows[0]?.work_id||'job:'+job},
   async suits(wallet,job,templates=[],savedWorkId=''){
    await ready();await ownedJob(wallet,job);
@@ -97,7 +137,11 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
     // that serializes its choices. Upgrades retain the existing chosen suits.
     const limit=await premiumHair(wallet,job,{db:c})?5:3;
     await c.query('INSERT INTO download_suit_choices(wallet_id,scope) VALUES($1,$2) ON CONFLICT DO NOTHING',[wallet,scope]);
-    const q=await c.query('SELECT choices FROM download_suit_choices WHERE wallet_id=$1 AND scope=$2 FOR UPDATE',[wallet,scope]);const choices=q.rows[0].choices;
+    // Older clients keyed choices by the job, before jobs were grouped into a
+    // stable work. Merge their actual choices; reopening must not reset slots.
+    const ids=await jobIds(wallet,job,c),scopes=[...new Set([scope,...ids,...ids.map(id=>'job:'+id)])];
+    const q=await c.query('SELECT scope,choices FROM download_suit_choices WHERE wallet_id=$1 AND scope=ANY($2::text[]) ORDER BY scope FOR UPDATE',[wallet,scopes]);
+    const choices=[...new Set([...(q.rows.find(r=>r.scope===scope)?.choices||[]),...q.rows.flatMap(r=>r.choices)])];
     for(const value of templates){if(!value)continue;if(typeof value!=='string'||value.length>500||!value.startsWith('/'))throw Object.assign(Error('ชุดไม่ถูกต้อง'),{status:400});if(!choices.includes(value)){if(choices.length>=limit)throw Object.assign(Error(`เลือกชุดครบ ${limit} ชุดแล้ว กรุณาเลือกชุดที่เคยเลือกไว้`),{status:409});choices.push(value)}}
     await c.query('UPDATE download_suit_choices SET choices=$3 WHERE wallet_id=$1 AND scope=$2',[wallet,scope,choices]);await c.query('COMMIT');return {limited:true,choices,limit};
    }catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}
@@ -119,13 +163,20 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   },
   async beginWork(wallet,image,requested='',savedWorkId='',originalSource=null,{imageType='image/png',originalType='image/png'}={}){
    await ready();const hash=crypto.createHash('sha256').update(image).digest('hex');
-   const originalHash=originalSource?.length?crypto.createHash('sha256').update(originalSource).digest('hex'):null;
+   let originalHash=originalSource?.length?crypto.createHash('sha256').update(originalSource).digest('hex'):null;
+   if(!requested&&!savedWorkId){
+    // Exact immutable source bytes can recover an owned paid work after a new
+    // browser/upload loses its local work ID. Unpaid previews remain separate.
+    const found=await paidSourceWork(wallet,image,originalSource);
+    if(found){requested=found.id;if(!originalSource&&found.original_source_hash===hash){originalSource=image;originalType=imageType;originalHash=hash}}
+   }
    if(requested){
     const c=await pool.connect();try{
      await c.query('BEGIN');const r=await c.query('SELECT id,source_hash,original_source_hash,(canonical_image IS NOT NULL) AS has_canonical FROM download_works WHERE id=$1 AND wallet_id=$2 FOR UPDATE',[requested,wallet]),work=r.rows[0];
      // The raw upload is stable across optional leveling and browser encoders.
      // Old clients still prove the exact previously submitted input bytes.
-     const matches=work&&(originalHash&&work.original_source_hash?originalHash===work.original_source_hash:hash===work.source_hash||Boolean(originalHash&&originalHash===work.source_hash));
+     const canonicalPair=work&&hash===work.source_hash&&originalHash===hash;
+     const matches=work&&(canonicalPair||(originalHash&&work.original_source_hash?originalHash===work.original_source_hash:hash===work.source_hash||Boolean(originalHash&&originalHash===work.source_hash)));
      if(!matches)throw Object.assign(Error('ยังยืนยันต้นฉบับกับงานเดิมไม่ได้ · งานและสิทธิ์เดิมยังอยู่ กรุณาเปิดจากเบราว์เซอร์เดิมหรือติดต่อผู้ดูแล'),{status:409});
      if(originalHash&&!work.original_source_hash)await c.query('UPDATE download_works SET original_source_hash=$3 WHERE id=$1 AND wallet_id=$2 AND original_source_hash IS NULL',[requested,wallet,originalHash]);
      // Existing canonical proof can be pinned as-is. When only the frozen raw

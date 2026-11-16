@@ -1,3 +1,4 @@
+import {preparePortraitUpload} from '../portrait-upload.js';
 import {recoverPortraitWork} from '../portrait-work-recovery.js';
 // Actual generation routes + entitlement stores against disposable SQL.
 // Providers, token verification and job execution are local inert fixtures.
@@ -9,7 +10,9 @@ import {readFile,writeFile} from 'node:fs/promises';
 import express from 'express';
 import {requestDownloadPolicy} from '../account-feature-policy.js';
 import {createPremiumDownloadCredits,recipientHashForEmail} from '../premium-download-credits.js';
-import {PRODUCTION_HAIR_CATALOG,downloadHairAllowed} from '../hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from '../hairstyle-catalog.js';
+import {isEnglishStudioFreeHair} from '../src/english-studio-hair-policy.js';
+import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from '../original-portrait-ai.js';
 import {hasPrivateTrial,isPrivateOwner} from '../private-trial.js';
 
@@ -54,12 +57,12 @@ try{
  const basicScope=await addJob(accounts.basic.wallet_id,'basic1');
  await query('INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,true)',[accounts.basic.wallet_id,'basic1']);
  const getWallet=async wallet=>({walletId:wallet,processRemaining:0,generationRemaining:0,hairRemaining:0});
- const gateEnv={walletId,accountPolicy:policyFor,hasPrivateTrial,isPrivateOwner,crypto,getWallet,PRODUCTION_HAIR_CATALOG,downloadHairAllowed};
+ const gateEnv={FIRST_GENERATION_FEMALE_HAIR,isEnglishStudioFreeHair,FEMALE_SINGLE_FINISH_VERSION,walletId,accountPolicy:policyFor,hasPrivateTrial,isPrivateOwner,crypto,getWallet,PRODUCTION_HAIR_CATALOG,downloadHairAllowed};
  const requireCredit=new Function('env',`with(env){${capture('async function requireCredit(','\nconst upload=')};return requireCredit}`)(gateEnv);
  const app=express();app.use(express.json());
- app.use(async(req,res,next)=>{try{req.accountUser=accounts[req.get('X-Test-Session')]||null;let buffer=Buffer.from('input-png-local'),work=req.body?.downloadWorkId;if(!work&&req.body?.sourceJobId){try{work=await policy.scopeForJob(walletId(req),req.body.sourceJobId)}catch{}}if(work){try{buffer=(await policy.inputForWork(walletId(req),work)).buffer}catch{}}if(req.body?.wrongSource)buffer=Buffer.from('different-person');const image={buffer,mimetype:'image/png',originalname:'fixture.png'};req.file=image;req.files={image:[image]};next()}catch(error){next(error)}});
+ app.use(async(req,res,next)=>{try{req.accountUser=accounts[req.get('X-Test-Session')]||null;let buffer=Buffer.from('input-png-local'),work=req.body?.downloadWorkId||req.body?.fixtureOriginalScope;if(!work&&req.body?.sourceJobId){try{work=await policy.scopeForJob(walletId(req),req.body.sourceJobId)}catch{}}if(work){try{buffer=(await policy.inputForWork(walletId(req),work)).buffer}catch{}}if(req.body?.wrongSource)buffer=Buffer.from('different-person');const image={buffer,mimetype:'image/png',originalname:'fixture.png'};req.file=image;req.files={image:[image]};next()}catch(error){next(error)}});
  const noopUpload=(req,res,next)=>next(),upload={single:()=>noopUpload,fields:()=>noopUpload};
- const env={recoverPortraitWork,isOriginalPortraitAiRequest,validateOriginalPortraitUpload,...gateEnv,app,upload,requireCredit,dir:'/unused-local-fixture',downloadPolicy:policy,
+ const env={getAiJobResult:async(id,wallet)=>{const j=await one('SELECT * FROM ai_jobs WHERE id=$1 AND wallet_id=$2',[id,wallet]);return j?{...j,result:Buffer.from('fixture-png')}:null},loadCurrentHairReference:async()=>null,preparePortraitUpload,getAiJobBySubmission:async()=>null,recoverPortraitWork,isOriginalPortraitAiRequest,validateOriginalPortraitUpload,...gateEnv,app,upload,requireCredit,dir:'/unused-local-fixture',downloadPolicy:policy,
   process:{env:{ARK_API_KEY:'fixture-provider-never-sent'}},validateProductionPortrait(){},getModnetSession:async()=>{},
   editHairstyle:async args=>{providerCalls.push(['hairstyle',args.hairId]);return {provider:'fixture',png:Buffer.from('fixture-png')}},
   processProductionPortrait:async args=>{providerCalls.push(['portrait',args.fields.hairId]);return Buffer.from('fixture-png')},
@@ -133,8 +136,14 @@ try{
   assert.equal((await request('/api/images/a3/unlock',{body:{premium:true}})).status,402);
   assert.equal((await one('SELECT count(*)::int AS n FROM premium_download_grants')).n,1);
  });
+ await check('reuploading exact original bytes recovers paid hair before the generation gate without spending another credit',async()=>{
+  const out=await request('/api/ai-jobs',{body:{hairId:'seedream-07',fixtureOriginalScope:scopeA}});
+  assert.equal(out.status,202,JSON.stringify(out.data));assert.equal(out.data.downloadWorkId,scopeA);assert.equal(await balance(),0);
+  await query("UPDATE ai_jobs SET status='completed' WHERE id=$1",[out.data.jobId]);
+  assert.equal(await policy.premiumHair(member.wallet_id,out.data.jobId),true);
+ });
  await check('standard hairstyles keep working after premium credits expire without financial or generation debits',async()=>{
-  for(const route of routes){const r=await request(route,{body:{hairId:'seedream-16'}});assert.equal(r.status,route==='/api/ai-jobs'?202:200)}
+  for(const route of routes){const r=await request(route,{body:{hairId:'seedream-40'}});assert.equal(r.status,route==='/api/ai-jobs'?202:200)}
   assert.equal(await balance(),0);assert.equal((await one('SELECT count(*)::int AS n FROM payments')).n,0);
   assert.equal((await one('SELECT count(*)::int AS n FROM credit_usage')).n,0);
   assert.equal((await one('SELECT sum(generation_remaining+hair_remaining)::int AS n FROM wallets')).n,0);

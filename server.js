@@ -36,7 +36,7 @@ import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
 import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
-import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
+import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobEditContext,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
 
@@ -554,6 +554,8 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   const creditKind=req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish';
   req.body.downloadWorkId=await recoverPortraitWork(downloadPolicy,walletId(req),req.body);
   await loadCurrentHairReference(req.body,walletId(req),getAiJobResult);
+  // Recover an exact owned paid source before the per-work hair gate.
+  if(!req.body.downloadWorkId&&downloadPolicy.paidWorkForSource)req.body.downloadWorkId=await downloadPolicy.paidWorkForSource(walletId(req),image.buffer,originalSource?.buffer||null);
   logStage('reserve_credit',{kind:creditKind});
   creditUse=await requireCredit(req,res,creditKind);
   if(!creditUse){logStage('rejected',{status:res.statusCode});return}
@@ -731,7 +733,7 @@ registerSavedWorkApi(app,{savedWorkRights,downloadPolicy,policyForRequest:accoun
 const purchasedPhotoPool=new pg.Pool({max:2,connectionTimeoutMillis:5000,statement_timeout:15000,connectionString:process.env.DATABASE_URL,ssl:process.env.PGSSLMODE==='disable'||/localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL||'')?false:{rejectUnauthorized:false}});
 purchasedPhotoPool.on('error',()=>console.warn('Purchased photo storage unavailable'));
 const purchasedPhotoStore=createPurchasedPhotoStore(purchasedPhotoPool);
-registerPurchasedPhotoApi(app,{store:purchasedPhotoStore,policy:downloadPolicy});
+registerPurchasedPhotoApi(app,{store:purchasedPhotoStore,policy:downloadPolicy,getJobContext:getAiJobEditContext});
 const purgePurchasedPhotos=()=>purchasedPhotoStore.purge().catch(()=>console.warn('Purchased photo cleanup will retry'));
 setTimeout(purgePurchasedPhotos,10000).unref();
 setInterval(purgePurchasedPhotos,60*60*1000).unref();
