@@ -282,7 +282,7 @@ export async function reserveEnglishDailyAiOutfit(walletId){
    AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date`,[walletId]);
   const used=Number(rows[0]?.used||0);
   if(used>=ENGLISH_DAILY_AI_OUTFIT_LIMIT){await c.query('ROLLBACK');return null}
-  const id='use_'+crypto.randomBytes(18).toString('hex');
+  const id='free_'+crypto.randomBytes(18).toString('hex');
   await c.query(`INSERT INTO credit_usage(id,wallet_id,kind,status,credit_column,full_edit_output,created_at)
    VALUES($1,$2,'english-daily-ai-outfit','reserved','english-daily-ai-outfit',false,clock_timestamp())`,[id,walletId]);
   await c.query('COMMIT');
