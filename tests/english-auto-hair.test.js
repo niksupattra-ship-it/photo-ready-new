@@ -64,12 +64,13 @@ test('Thai first-generation female reference stays unchanged; English UI does no
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert.doesNotMatch(englishFlow,/firstGenerationHairFor/);
- assert.match(englishFlow,/onCreate\(\{outfit,hair,finish/);
+ assert.match(englishFlow,/onCreate\(\{outfit,hair:allowHairChoice\?hair:''[,}]/,'Hidden English auto-choice UI submits no forced catalogue hairstyle');
  assert.doesNotMatch(studio,/if\(!existing\)hair=firstGenerationHairFor\(gender\)/);
  assert.match(studio,/if\(!id&&hairGender==='female'&&!englishFlow\)id=firstGenerationHairFor\('female'\)/);
  assert.match(studio,/head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION/);
  assert.match(studio,/existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION/);
- assert.match(studio,/const processEasyPhoto=\(\)=>\{const hairId=firstGenerationHairFor\(hairGender\)/);
+ const easyHandler=studio.slice(studio.indexOf(' const processEasyPhoto='),studio.indexOf('\n',studio.indexOf(' const processEasyPhoto=')));
+ assert.match(easyHandler,/const hairId=selectedHairId\|\|firstGenerationHairFor\(hairGender\)/,'Thai Easy keeps its selected hairstyle before the existing default');
  assert.match(pipeline,/selectedHairKind:keepCurrentHair\?null:chosen\?selectedHairDesign\(chosen\)\?\.kind:selected.gender==='male'\?'short':null/);
  assert.match(main,/gender==='female'&&\(!hairId\|\|hairId==='original'\)&&!options.keepCurrentHair\?ENGLISH_AUTO_HAIR_VERSION/);
 });

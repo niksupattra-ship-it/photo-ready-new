@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
+import {selectedHairBoundaryInstruction} from '../hair-neck-boundary.js';
 import {FEMALE_SINGLE_FINISH_VERSION,isFemaleSingleFinish,oppositeFemaleFinish} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION,onePassSkinQualityPriority} from '../single-pass-skin-quality.js';
@@ -453,10 +454,11 @@ test('both genders receive a last AI-only clean-nape rule without changing cosme
  });
  assert.equal(maleCalls.length,1,'Men still use one provider request');
  assert.match(maleCalls[0].prompt,/FINAL HAIR-ONLY NAPE \/ SIDE-NECK CLEANUP/);
- const code=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
- assert.match(code,/prompt\+='\\n'\+VISIBLE_NAPE_BUN_PROHIBITION;\s+await onStage\('generation'\);\s+let result=await requestPortrait\(/,'Thai last rule before provider');
- assert.match(code,/prompt\+='\\n'\+VISIBLE_NAPE_BUN_PROHIBITION;\s+await onStage\('generation'\);\s+const result=await requestPortrait\(/,'English last rule before provider');
+ for(const [got,english,gender] of [[femaleThai,false,'female'],[femaleEnglish,true,'female'],[{calls:maleCalls},false,'male']]){
+  assert(got.calls[0].prompt.endsWith(selectedHairBoundaryInstruction(null,{portraitMode:gender,english,keepCurrentHair:false,referenceBoard:false})),'Kind-specific under-ear rule must be last after cosmetics and no-bun cleanup');
+  assert.equal(got.calls[0].prompt.match(/FINAL SELECTED HAIR BOUNDARY AUTHORITY/g)?.length,1);
+ }
  const catalog=await readFile(new URL('../hairstyle-catalog.js',import.meta.url),'utf8');
- assert.match(catalog,/selected-silhouette-v25-clean-nape-no-bun-both-genders/);
+ assert.match(catalog,/selected-silhouette-v26-no-under-ear-neck-hair-both-locales/);
  assert.doesNotMatch(catalog,/discreetly at the low rear/);
 });

@@ -267,7 +267,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 export const FIRST_GENERATION_FEMALE_HAIR='female-default-reference';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
-export const HAIR_DESIGN_VERSION='selected-silhouette-v25-clean-nape-no-bun-both-genders';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v26-no-under-ear-neck-hair-both-locales';
 const compact={
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
@@ -329,7 +329,7 @@ export function selectedHairInstruction(selected){
 }
 export function selectedHairPlacement(selected){
  const design=selectedHairDesign(selected);
- if(design&&design.kind!=='long')return `SHORT / GATHERED HAIR PLACEMENT: ${selectedHairInstruction(selected)} Behind-the-ears placement never authorizes extra hair below the selected cut. Keep the front neck and clavicles clear; retain natural short tips only where Image 2 shows them.`;
+ if(design&&design.kind!=='long')return `SHORT / GATHERED HAIR PLACEMENT: ${selectedHairInstruction(selected)} Behind-the-ears placement never authorizes extra hair below the selected cut. For short or gathered cuts, keep the entire under-ear and neck-side space hair-free; no preserved tip or sideburn may extend into it. For a bob retain its actual continuous edge without an extra rear layer. Keep the front neck and clavicles clear.`;
  return 'REAR PLACEMENT FOR EXISTING LENGTHS ONLY: Keep only the selected hairstyle lengths (or the original length when no new hairstyle is selected). Move front-draped long sections behind the ears and behind the neck/shoulders without lengthening them. Keep the neck and clavicles unobstructed, preserve crown/fringe and the actual cut length, and never invent extra strands or a rear curtain. The upper-armpit level is a maximum for already-long hair, never a target length.';
 }
 

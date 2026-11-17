@@ -28,7 +28,9 @@ import {requestReviewSeedream} from './seedream-review-transport.js';
 import {femaleFinishFor,FEMALE_MAKEUP_TEXTURE_PRIORITY,FEMALE_MAKEUP_SOURCE_LOCK} from './review-portrait-finish.js';
 import {productionHair,selectedHairDesign,selectedHairInstruction,selectedHairPlacement} from './hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOFT_HAIR_TEXTURE_POLICY} from './catalogue-hair-policy.js';
-import {englishSelectedHairReference,englishSelectedHairBoundaryInstruction} from './english-selected-hair.js';
+import {englishSelectedHairReference} from './english-selected-hair.js';
+import {selectedHairBoundaryInstruction} from './hair-neck-boundary.js';
+import {thaiCompactHairReference} from './thai-compact-hair-reference.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
 import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY,ENGLISH_REFERENCE_COSMETICS} from './english-studio-finish.js';
@@ -175,7 +177,7 @@ export function studioReferenceIdentityBox(evidence){
 export const VISIBLE_NAPE_BUN_PROHIBITION = `FINAL HAIR-ONLY NAPE / SIDE-NECK CLEANUP — BOTH WOMEN AND MEN, ALL HAIRSTYLES, ALL LOCALES:
 HARD REQUIREMENT FOR THE FINISHED FRONT-FACING PORTRAIT: NO visible bun, low bun, nape knot, rolled coil, twisted ball, braid knot, ponytail base, tied hair bulb, stacked dark hair patch or gathered hair protrusion at the BACK OF THE NECK, directly UNDER either ear, or BESIDE either neck edge. In particular, do not draw the two dark vertical or rounded clumps emerging behind the jaw and running down the left and right sides of the neck. A smooth dark patch behind each ear is not a hidden bun: remove it from the visible silhouette. The empty spaces between the lower ear/jaw and the suit collar must show the same continuous real neck skin or existing background, not invented hair.
 IF HAIR IS TIED, GATHERED OR BRAIDED UP: preserve its actual selected front part, hairline, crown styling and intended flat braids, but tuck the collected ends invisibly against the BACK OF THE SKULL ABOVE THE NAPE, out of the camera view. Never position a low gathered bundle at neck level or allow either side of that bundle to peek out next to the neck. This applies even if a source photo or hairstyle reference shows a neck-level bun: remove ONLY the visible bun, not the selected front hairstyle. Do not substitute a pixie cut, change the part, erase existing selected fringe or add a topknot.
-IF HAIR IS SHORT: retain the reference's genuine short tapered nape/hairline and natural sideburns but add no ponytail, bun, dangling back strands or dark hair mass below the cut end. IF HAIR IS LOOSE/LONG: preserve genuine continuous long sections and their selected length and outer-shoulder silhouette; do not mistake attached long hair for a bun, crop the lengths or erase deliberate bob ends. Remove ONLY an additional tied bundle/neck-side bulge or an invented strand not present in that long hairstyle.
+IF HAIR IS SHORT: preserve its chosen top, fringe and tapered scalp roots ABOVE the lower-ear line. The whole area below either ear and alongside the neck must be hair-free; natural sideburns and nape endpoints never authorize a dark tuft, strip or extension there. IF HAIR IS LOOSE/LONG: preserve genuine continuous long sections and their selected length and outer-shoulder silhouette; do not mistake attached long hair for a bun, crop the lengths or erase deliberate bob ends. Remove ONLY an additional tied bundle/neck-side bulge or an invented strand not present in that long hairstyle.
 FINAL SELF-CHECK BEFORE OUTPUT: Inspect the area directly below BOTH ears, behind BOTH jaw corners, BOTH neck-side edges and the nape. Correct any visible bun, tied lump, mirrored black side-neck columns or hair touching the neck in violation of the chosen design WITHIN THIS SAME AI GENERATION. Rebuild only newly exposed skin or background naturally. Preserve the original person's facial identity, expression, geometry, makeup/Natural finish, complexion and lighting, ears, jawline, neck width/length, suit and collar, background, crop and all unrelated pixels as instructed. Do not add a mask, blur, skin filter, postprocessing pass or second AI request.`;
 
 // One provider generation combines hair, skin, lighting and the requested finish.
@@ -285,6 +287,8 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   if(!bounded)prompt+='\n'+(preparedNatural?NATURAL_PREPARED_PRIORITY:preparedMakeup?ORIGINAL_AI_PREPARED_SKIN_PRIORITY:ORIGINAL_AI_TARGET_PRIORITY);
  }
  if(!preparedNatural&&needsNaturalClearSkin(fields)){prompt+='\n'+NATURAL_CLEAR_SKIN_PRIORITY;prompt=naturalSpotRepairPrompt(prompt,fields);}
+ const compactHairBoard=Boolean(pickerGuide&&['short','gathered'].includes(selectedHairDesign(chosen)?.kind));
+ if(compactHairBoard)hair=await thaiCompactHairReference({selected:chosen,hair,root});
  if(pickerGuide)prompt+='\n'+(bounded?'':catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind))+'\n'+PICKER_HAIR_PRIORITY;
  if(completeNeck)prompt=completeThaiNeckPrompt(prompt);
  prompt+='\n'+SOFT_HAIR_TEXTURE_POLICY+(completeNeck?'':'\n'+BALANCED_NECK_POLICY);
@@ -313,6 +317,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  // Last hair-only authority after cosmetics and hairstyle/default instructions.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
+ prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:englishBody,keepCurrentHair:fields.keepCurrentHair==='1',referenceBoard:compactHairBoard});
  await onStage('generation');
  let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:completeNeck&&generationInput.neckCanvasSize||'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
@@ -395,13 +400,13 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const compositionReference=headOnly?null:await createEnglishBodyLayout(outfit,identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined),outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale}):headOnly?englishHeadPortraitPrompt(refs):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
- if(chosen&&!keepCurrentHair)prompt+='\n'+englishSelectedHairBoundaryInstruction(chosen);
  if(singlePass){
   if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(true);
   prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,true);
  }
  // Apply the same last hair-only rule to English women/men and AI Picks.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
+ prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:true,keepCurrentHair,referenceBoard:chosen?.interfaceLanguage==='en'&&!keepCurrentHair});
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');

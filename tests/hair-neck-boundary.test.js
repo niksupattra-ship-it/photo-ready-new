@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {PRODUCTION_HAIR_CATALOG,productionHair,selectedHairDesign,HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
+import {FREE_FEMALE_HAIR_OPTIONS} from '../src/free-female-hair.js';
+import {selectedHairBoundaryInstruction} from '../hair-neck-boundary.js';
+
+test('every available selected cut uses its own extent contract in both locales',()=>{
+ const seen=new Set();
+ for(const selected of [...PRODUCTION_HAIR_CATALOG,...FREE_FEMALE_HAIR_OPTIONS]){
+  const {kind}=selectedHairDesign(selected),prompt=selectedHairBoundaryInstruction(selected);
+  seen.add(kind);assert.match(prompt,new RegExp('FINAL SELECTED HAIR BOUNDARY AUTHORITY — '+selected.id));
+  assert(prompt.includes(kind.toUpperCase()+' SELECTED DESIGN'),selected.id+' has no '+kind+' contract');
+  if(['short','gathered'].includes(kind)){
+   assert.match(prompt,/BELOW the lower edge of EITHER ear/);assert.match(prompt,/ZERO visible hair/);
+   assert.match(prompt,/Sideburns and tapered scalp roots must stop ABOVE/);
+   assert.match(prompt,/overrides earlier side-lock, reference-wisp, sideburn and nape-preservation exceptions/);
+   assert.doesNotMatch(prompt,/Preserve the natural short nape and reference sideburns without shaving them away/);
+  }else{
+   assert.doesNotMatch(prompt,/COMPACT UNDER-EAR \/ NECK EXCLUSION — HARD SPATIAL LIMIT/);
+   assert.match(prompt,/continuous|connected/);assert.match(prompt,/NO (?:extra|second)/);
+  }
+ }
+ assert.deepEqual([...seen].sort(),['bob','gathered','long','short']);
+});
+
+test('the reported braided crown stays compact while actual bob and long lengths stay protected',()=>{
+ const braided=selectedHairBoundaryInstruction(productionHair('seedream-41'),{referenceBoard:true});
+ assert.match(braided,/GATHERED SELECTED DESIGN/);assert.match(braided,/flat braid structure/);
+ assert.match(braided,/RIGHT is its actual picker photograph/);assert.match(braided,/evidence of ABSENT hair/);
+ assert.match(braided,/existing background OUTSIDE/);assert.match(braided,/do not widen the neck/);
+ for(const id of ['seedream-42','seedream-44']){
+  const long=selectedHairBoundaryInstruction(productionHair(id));
+  assert.match(long,/Do not shorten it to a bob/);assert.match(long,/compact under-ear exclusion is not applied/);
+ }
+ const bob=selectedHairBoundaryInstruction(productionHair('seedream-47'));
+ assert.match(bob,/Do not replace this bob with a pixie or updo or cut away its genuine continuous edge/);
+});
+
+test('current hair and female English AI Picks classify the real reference instead of forcing a stale selected kind',()=>{
+ for(const options of [{portraitMode:'female',english:true},{portraitMode:'female',english:true,keepCurrentHair:true},{portraitMode:'male',english:true,keepCurrentHair:true}]){
+  const selected=options.keepCurrentHair?productionHair('seedream-77'):null;
+  const prompt=selectedHairBoundaryInstruction(selected,options);
+  assert.match(prompt,/REFERENCE-CONDITIONED CURRENT \/ AI-PICKS HAIR/);
+  assert.match(prompt,/never from a cropped face or stale hairstyle ID/);
+  const start=prompt.indexOf('CONDITIONAL RULE, ONLY FOR AN ACTUALLY SHORT OR GATHERED REFERENCE:');
+  const compact=prompt.indexOf('COMPACT UNDER-EAR / NECK EXCLUSION');
+  const end=prompt.indexOf('END CONDITIONAL COMPACT RULE.');
+  assert(start>=0&&start<compact&&compact<end);
+  assert.match(prompt.slice(end),/For an actually long or bob reference, preserve its genuine continuous ends and lengths/);
+  assert.doesNotMatch(prompt,/SHORT SELECTED DESIGN:|GATHERED SELECTED DESIGN:/);
+ }
+ assert.match(selectedHairBoundaryInstruction(null,{portraitMode:'male',english:true}),/SHORT SELECTED DESIGN/);
+ assert.match(selectedHairBoundaryInstruction(null,{portraitMode:'female',english:false}),/GATHERED SELECTED DESIGN/);
+});
+
+test('new boundary version invalidates generation caches without relabeling stored pixels',async()=>{
+ assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v26-no-under-ear-neck-hair-both-locales');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const cache=main.slice(main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION'),main.indexOf(' const cached=await portraitResultCache.get',main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION')));
+ assert.match(cache,/HAIR_DESIGN_VERSION/);
+ assert.match(main,/head\.hairPolicyVersion!==HAIR_DESIGN_VERSION\+'-female-reference-v1'/);
+ assert.match(main,/head\.hairPolicyVersion!==HAIR_DESIGN_VERSION\)return/);
+});
