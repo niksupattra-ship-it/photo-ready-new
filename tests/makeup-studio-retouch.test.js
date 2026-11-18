@@ -57,6 +57,10 @@ function assertRetouch(prompt){
  assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
  assert.match(prompt,/FINAL PORTRAIT CHECK — SELECTED MAKEUP ONLY/);
  assert.match(prompt,/individual temporary pimples, acne bumps or their red\/brown marks/);
+ assert.match(prompt,/Check again for temporary acne marks and residual high-contrast superficial fine lines/);
+ assert.match(prompt,/Temporary acne detail in the source photograph is not a required identity feature/);
+ assert.match(prompt,/without erasing identifying marks, anatomical folds or changing the apparent age/);
+ assert.match(prompt,/protect the requested finished appearance, not the original unedited skin surface/);
  assert.match(prompt,/Retain identifying moles, freckles, natural complexion/);
  assert.match(prompt,/BALANCED APPLICATION — PHOTOGRAPHIC LIGHT AND COSMETICS ONLY/);
  assert.match(prompt,/not symmetry of facial anatomy/);
@@ -101,7 +105,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v5-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v6-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -127,6 +131,8 @@ test('actual Thai and English single-pass Makeup use the reference finish once w
    assertRetouch(prompt.slice(0,position+MAKEUP_STUDIO_RETOUCH_POLICY.length));
    assert.doesNotMatch(prompt,/FINAL ORIGINAL-AI V2 SKIN \/ LIGHT AUTHORITY|ORIGINAL-PHOTO STUDIO LIGHTING:/,'The current Makeup route uses one appearance authority, not legacy satin lighting instructions');
    assert(position<prompt.indexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Existing final hair protection stays authoritative for hair only');
+   assert.match(prompt,/Prior Natural\/no-cosmetics descriptions are inactive for this selected Makeup finish/);
+   assert.doesNotMatch(prompt,/Earlier Natural\/no-cosmetics descriptions describe the base portrait only/);
   }else{
    if(name==='Thai'||name==='English template')assert.equal(digest(prompt),naturalPipelineHashes[name==='Thai'?'th':'en'],'Full released Natural request is unchanged');
    assert(!prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
@@ -187,6 +193,7 @@ test('dewy style guide delegates cosmetics and reflections to the one Makeup aut
  const guide=makeupStudioReferenceInstruction(2);
  assert.match(guide,/NOT a matte\/satin-only finish or the cosmetic palette/);
  assert.match(guide,/governed exclusively by the final Makeup specification/);
+ assert.match(guide,/fine texture is not a requirement to reproduce temporary acne detail/);
  assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/translucent coral-pink gloss tint/);
  assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/soft translucent peach-pink blush/);
  assert.doesNotMatch(MAKEUP_STUDIO_RETOUCH_POLICY,/Finish with gentle luminous satin and a restrained broad sheen/);
