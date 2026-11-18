@@ -275,7 +275,7 @@ async function requireCredit(req,res,kind){
    if(englishRequest&&chosen&&!isEnglishStudioFreeHair(chosen.id,chosen.gender)&&!englishWallet?.usdPremiumActive){
     res.status(403).json({error:'premium_hair_required',message:'Choose a 30-day package to unlock Diamond hairstyles.'});return null;
    }
-   if(!englishRequest&&chosen&&((chosen.gender==='female'&&chosen.id!==FIRST_GENERATION_FEMALE_HAIR&&![40,41].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   if(!englishRequest&&chosen&&((chosen.gender==='female'&&chosen.id!==FIRST_GENERATION_FEMALE_HAIR&&chosen.id!=='female-default-reference'&&![40,41,42].includes(Number(chosen.id.slice(9))))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
    // Purchased English Premium continues using its existing 20-credit cycle.
    const premiumWallet=englishWallet||await getWallet(wid);
    if(premiumWallet?.usdPremiumPurchased){

@@ -55,9 +55,9 @@ test('Explicitly selected hairstyles and Keep Current are not replaced by AI Pic
   assert.match(kept,/IMAGE 2|Image 2/,name+' keep current reference remains');
  }
 });
-test('Thai first-generation female reference stays unchanged; English UI does not force it',async()=>{
- assert.equal(FIRST_GENERATION_FEMALE_HAIR,'female-default-reference');
- assert.equal(firstGenerationHairFor('female'),'female-default-reference');
+test('Thai first-generation female reference is the visible free centre-parted cut; English UI does not force it',async()=>{
+ assert.equal(FIRST_GENERATION_FEMALE_HAIR,'seedream-42');
+ assert.equal(firstGenerationHairFor('female'),'seedream-42');
  assert.equal(firstGenerationHairFor('male'),'');
  const englishFlow=await readFile(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
@@ -73,4 +73,14 @@ test('Thai first-generation female reference stays unchanged; English UI does no
  assert.match(easyHandler,/const hairId=selectedHairId\|\|firstGenerationHairFor\(hairGender\)/,'Thai Easy keeps its selected hairstyle before the existing default');
  assert.match(pipeline,/selectedHairKind:keepCurrentHair\?null:chosen\?selectedHairDesign\(chosen\)\?\.kind:selected.gender==='male'\?'short':null/);
  assert.match(main,/gender==='female'&&\(!hairId\|\|hairId==='original'\)&&!options.keepCurrentHair\?ENGLISH_AUTO_HAIR_VERSION/);
+});
+
+
+test('Thai female picker starts with seedream-42, retains other basic cuts, and hides only female Thai auto tile',async()=>{
+ const [main,studio,easy]=await Promise.all(['../src/main.jsx','../src/studio-editor.jsx','../src/easy-mode.jsx'].map(p=>readFile(new URL(p,import.meta.url),'utf8')));
+ assert.match(main,/const BASIC_FEMALE_HAIR_IDS=\['seedream-42','seedream-40','seedream-41'\]/);
+ assert.match(studio,/!\['seedream-42','seedream-40','seedream-41'\]\.includes\(id\)/);
+ assert.match(studio,/\{\(englishFlow\|\|hairGender!=='female'\)&&<button className=\{'studio-none-choice'/);
+ assert.match(easy,/\{\(englishPreviewEnabled\(\)\|\|gender!=='female'\)&&<button type="button" className=\{"easy-no-hair"/);
+ assert.match(studio,/selectedHair=\{selectedHair\} templates=/);
 });

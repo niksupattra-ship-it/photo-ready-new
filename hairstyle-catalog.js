@@ -261,10 +261,9 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
-// First-generation defaults. The female reference is an existing catalog PNG
-// (straight, centre-parted hair with visible ears and rear lengths).
-// Male uses the legacy no-selection/original-hair behavior.
-export const FIRST_GENERATION_FEMALE_HAIR='female-default-reference';
+// Thai first-generation defaults: use the visible, selectable long centre-parted cut.
+// Keep the old hidden reference in the catalog for previously saved work.
+export const FIRST_GENERATION_FEMALE_HAIR='seedream-42';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
