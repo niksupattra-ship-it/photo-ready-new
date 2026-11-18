@@ -55,7 +55,7 @@ test('current hair and female English AI Picks classify the real reference inste
 });
 
 test('new boundary version invalidates generation caches without relabeling stored pixels',async()=>{
- assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v27-replace-all-source-hair');
+ assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v28-explicit-clean-neck-output');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const cache=main.slice(main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION'),main.indexOf(' const cached=await portraitResultCache.get',main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION')));
  assert.match(cache,/HAIR_DESIGN_VERSION/);
@@ -74,4 +74,14 @@ test('explicit selected hairstyles replace all source hairstyle evidence with th
   assert.match(prompt,/For short or gathered designs, leave these spaces completely hair-free/);
  }
  for(const options of [{portraitMode:'female',english:true},{portraitMode:'male'},{portraitMode:'female',english:true,keepCurrentHair:true}])assert.doesNotMatch(selectedHairBoundaryInstruction(null,options),/EXPLICIT SELECTED HAIRSTYLE ONLY/);
+});
+
+test('explicit compact cuts receive a final output gate with clear sides of the neck, not source hair',()=>{
+ for(const id of ['seedream-41','seedream-36','seedream-53','seedream-77']){
+  const prompt=selectedHairBoundaryInstruction(productionHair(id));
+  assert.match(prompt,/OUTPUT GATE — CLEAN NECK FOR THIS EXACT COMPACT CUT/);
+  assert.match(prompt,/Do not render any separate dark hair-shaped silhouette in either gap/);
+  assert.doesNotMatch(prompt,/In current-hair\/AI-Picks mode use the referenced cut itself/);
+ }
+ assert.doesNotMatch(selectedHairBoundaryInstruction(productionHair('seedream-44')),/OUTPUT GATE — CLEAN NECK/);
 });

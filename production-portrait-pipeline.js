@@ -281,11 +281,13 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   skinReference=await loadStudioSkinLightReference(root);
   prompt=originalAiTargetLightWording(prompt);
   const guideIndex=2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit));
-  if(bounded)prompt+=`\nSKIN/LIGHT GUIDE — IMAGE ${guideIndex}: Identity-free skin material and soft-light reference only. Retain Image 1's repaired skin/light and continue it into ears/neck; never copy guide RGB, a face, grid or enlarged pores. The original identity image controls anatomy/expression only, never old skin marks, wrinkles, lighting or hairstyle.\n`;
+  if(singlePass&&fields.femaleEyeStyle==='makeup'){
+   // The Makeup-specific guide is appended once below, not mixed with legacy skin/texture targets.
+  }else if(bounded)prompt+=`\nSKIN/LIGHT GUIDE — IMAGE ${guideIndex}: Identity-free skin material and soft-light reference only. Retain Image 1's repaired skin/light and continue it into ears/neck; never copy guide RGB, a face, grid or enlarged pores. The original identity image controls anatomy/expression only, never old skin marks, wrinkles, lighting or hairstyle.\n`;
   else prompt+=preparedNatural?naturalAiPreparedGuide(guideIndex):preparedMakeup?originalAiPreparedSkinGuideInstruction(guideIndex,fields.femaleEyeStyle):originalAiSkinGuideInstruction(guideIndex,fields.femaleEyeStyle||'natural');
   // Last authority, after all hair/default/identity scaffolding. This changes
   // lighting authority without authorizing face, hair or cutout reshaping.
-  if(!bounded)prompt+='\n'+(preparedNatural?NATURAL_PREPARED_PRIORITY:preparedMakeup?ORIGINAL_AI_PREPARED_SKIN_PRIORITY:ORIGINAL_AI_TARGET_PRIORITY);
+  if(!bounded&&!(singlePass&&fields.femaleEyeStyle==='makeup'))prompt+='\n'+(preparedNatural?NATURAL_PREPARED_PRIORITY:preparedMakeup?ORIGINAL_AI_PREPARED_SKIN_PRIORITY:ORIGINAL_AI_TARGET_PRIORITY);
  }
  if(!preparedNatural&&needsNaturalClearSkin(fields)){prompt+='\n'+NATURAL_CLEAR_SKIN_PRIORITY;prompt=naturalSpotRepairPrompt(prompt,fields);}
  const compactHairBoard=Boolean(pickerGuide&&['short','gathered'].includes(selectedHairDesign(chosen)?.kind));

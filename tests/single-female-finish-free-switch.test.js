@@ -464,6 +464,6 @@ test('both genders receive a last AI-only clean-nape rule without changing cosme
   assert.equal(got.calls[0].prompt.match(/FINAL SELECTED HAIR BOUNDARY AUTHORITY/g)?.length,1);
  }
  const catalog=await readFile(new URL('../hairstyle-catalog.js',import.meta.url),'utf8');
- assert.match(catalog,/selected-silhouette-v27-replace-all-source-hair/);
+ assert.match(catalog,/selected-silhouette-v28-explicit-clean-neck-output/);
  assert.doesNotMatch(catalog,/discreetly at the low rear/);
 });

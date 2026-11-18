@@ -267,7 +267,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 export const FIRST_GENERATION_FEMALE_HAIR='female-default-reference';
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
-export const HAIR_DESIGN_VERSION='selected-silhouette-v27-replace-all-source-hair';
+export const HAIR_DESIGN_VERSION='selected-silhouette-v28-explicit-clean-neck-output';
 const compact={
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],

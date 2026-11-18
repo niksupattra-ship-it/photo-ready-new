@@ -55,6 +55,9 @@ function assertRetouch(prompt){
  assert.match(prompt,/satin/i,'Reference finish keeps restrained hydrated light rather than matte-only powder');
  assert.match(prompt,/wrinkles/i);assert.match(prompt,/acne/i);
  assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
+ assert.match(prompt,/FINAL PORTRAIT CHECK — SELECTED MAKEUP ONLY/);
+ assert.match(prompt,/individual temporary pimples, acne bumps or their red\/brown marks/);
+ assert.match(prompt,/Retain identifying moles, freckles, natural complexion/);
  assert.match(prompt,/BALANCED APPLICATION — PHOTOGRAPHIC LIGHT AND COSMETICS ONLY/);
  assert.match(prompt,/not symmetry of facial anatomy/);
  assert.match(prompt,/Do not mirror one side/);
@@ -98,7 +101,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v3-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v4-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -122,6 +125,7 @@ test('actual Thai and English single-pass Makeup use the reference finish once w
    // The pipeline adds hair-only instructions after complexion. The full
    // appearance segment must match the common specification exactly.
    assertRetouch(prompt.slice(0,position+MAKEUP_STUDIO_RETOUCH_POLICY.length));
+   assert.doesNotMatch(prompt,/FINAL ORIGINAL-AI V2 SKIN \/ LIGHT AUTHORITY/,'The current Makeup route uses one appearance authority, not legacy skin instructions');
    assert(position<prompt.indexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Existing final hair protection stays authoritative for hair only');
   }else{
    if(name==='Thai'||name==='English template')assert.equal(digest(prompt),naturalPipelineHashes[name==='Thai'?'th':'en'],'Full released Natural request is unchanged');

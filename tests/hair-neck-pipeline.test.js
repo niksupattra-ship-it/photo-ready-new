@@ -105,3 +105,11 @@ test('selected Thai and English hair requests reject all source hair evidence wi
   assert.equal(got.fields.femaleEyeStyle,finish);
  }
 });
+
+test('selected compact Thai and English outputs get the final neck gate in the actual AI request',async()=>{
+ for(const [id,language,finish] of [['seedream-41','th','makeup'],['seedream-36','th','natural'],['seedream-53','en','makeup'],['seedream-77','en','natural']]){
+  const got=await run({id,language,finish});
+  assert.match(got.request.prompt,/OUTPUT GATE — CLEAN NECK FOR THIS EXACT COMPACT CUT/);
+  assert.ok(got.request.prompt.endsWith(got.final));
+ }
+});

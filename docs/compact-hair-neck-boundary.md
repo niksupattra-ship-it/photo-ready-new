@@ -34,7 +34,7 @@ reference files are not overwritten. This is conditioning evidence, not a mask
 or pixel operation on the generated customer image.
 
 `HAIR_DESIGN_VERSION` advances to
-`selected-silhouette-v27-replace-all-source-hair`. Explicit selected hairstyles now reject all original hair as hairstyle evidence, including overlapping scalp sections and residual hair behind the ears or neck. The selected reference alone determines the design, endpoints and negative space; the original face and skull determine fit only. Explicit current-hair and no-selection modes keep their existing contracts. New-generation
+`selected-silhouette-v28-explicit-clean-neck-output`. Explicit selected hairstyles now reject all original hair as hairstyle evidence, including overlapping scalp sections and residual hair behind the ears or neck. The selected reference alone determines the design, endpoints and negative space; the original face and skull determine fit only. Explicit compact selections also receive a final neck-side negative-space instruction; selected long/bob lengths and current-hair/no-selection contracts are retained. These instructions do not constitute a visual validator. New-generation
 result/hairstyle caches use that version. Purchased PNGs and stored manual edits
 are not relabeled or rewritten. Existing job recovery, pricing, package rights,
 credit reservation and payment settlement are unchanged.
