@@ -1,9 +1,13 @@
 import {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION} from '../english-makeup-light-policy.js';
+import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
+import {SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
+import {ENGLISH_AUTO_HAIR_VERSION} from '../english-auto-hair.js';
+import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../makeup-studio-retouch-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
-import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,isEnglishTemplateBodyFinish,isEnglishTemplateBody} from '../english-template-body-policy.js';
+import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender,isEnglishTemplateBodyFinish,isEnglishTemplateBody} from '../english-template-body-policy.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION} from '../english-head-portrait.js';
 import {ENGLISH_STUDIO_FINISH_VERSION} from '../english-studio-finish-policy.js';
@@ -11,7 +15,7 @@ import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest} from '../origi
 import {NATURAL_STUDIO_SKIN_VERSION} from '../natural-studio-skin.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
-import {finishSharedStudioSkin,sharedStudioSkinSource} from '../src/shared-studio-skin.js';
+import {finishSharedStudioSkin,sharedStudioSkinSource,isCompletedServerMakeup,copyStudioSkinBlobMetadata} from '../src/shared-studio-skin.js';
 const raw=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const natural=await sharp({create:{width:96,height:128,channels:4,background:{r:138,g:101,b:87,alpha:.8}}}).png().toBuffer();
 const makeup=await sharp(natural).tint('#d6a3aa').png().toBuffer();
@@ -24,7 +28,7 @@ test('the actual English completion path retains both native PNGs without automa
   let submitted=0,completed=0;const operation={},source=new File([natural],'source.png',{type:'image/png'});
   const returned=Object.assign(new Blob([natural],{type:'image/png'}),{idpromPortraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,idpromEnglishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,idpromJobId:'owned-job',...(gender==='female'?{idpromStudioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,idpromAiMakeupBlob:new Blob([makeup],{type:'image/png'})}:{})});
   const face={152:{x:.5,y:.65},234:{x:.28,y:.4},454:{x:.72,y:.4}};
-  const env={ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,isEnglishTemplateBodyFinish,ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION,ENGLISH_STUDIO_FINISH_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,AI_MAKEUP_PAIR_VERSION,STUDIO_SKIN_WORKFLOW_VERSION:'unused-legacy',THAI_NECK_BACKING_VERSION:'unused-thai',HAIR_DESIGN_VERSION:'fixture',PRODUCTION_HAIR_CATALOG:[],activeProcessOperation:operation,assertProcessActive(){},englishPreviewEnabled:()=>true,portraitFinishChoice,currentResultCacheScope:()=> 'owner',resultSourceDigest:async()=> 'source',uploadGenerationScope:()=> 'upload',portraitResultCache:{get:async(_key,run)=>({value:await run(),reused:false}),delete(){}},aiFinishPortraitUncached:async()=>{submitted++;return returned;},balanceEnglishPortrait:forbidden,cleanEnglishHeadPair:forbidden,cleanPortraitClothing:forbidden,checkPortraitProportions:forbidden,canvasFor:forbidden,canvasPng:forbidden,prepareStudioMakeup:forbidden,prepareSharedPortraitMakeup:forbidden,finishFemaleMakeupSoftFocusBlob:forbidden,blobDataURL:dataUrl,decodedPortraitImage:async()=>({naturalWidth:96,naturalHeight:128}),portraitFaceLandmarks:async()=>face,isOriginalPortraitAiRequest,finishSharedStudioSkin,sharedStudioSkinSource,portraitGeometryBases:new WeakMap(),checkPortraitCompletion:async()=>{completed++;},window:{dispatchEvent(){}},CustomEvent:class{}};
+  const env={SINGLE_PASS_PORTRAIT_VERSION,SINGLE_PASS_SKIN_QUALITY_VERSION,ENGLISH_AUTO_HAIR_VERSION,MAKEUP_STUDIO_RETOUCH_VERSION,englishTemplateBodyFinishForGender,isCompletedServerMakeup,copyStudioSkinBlobMetadata,ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,isEnglishTemplateBodyFinish,ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION,ENGLISH_STUDIO_FINISH_VERSION,ORIGINAL_PORTRAIT_AI_VERSION,NATURAL_STUDIO_SKIN_VERSION,AI_MAKEUP_PAIR_VERSION,STUDIO_SKIN_WORKFLOW_VERSION:'unused-legacy',THAI_NECK_BACKING_VERSION:'unused-thai',HAIR_DESIGN_VERSION:'fixture',PRODUCTION_HAIR_CATALOG:[],activeProcessOperation:operation,assertProcessActive(){},englishPreviewEnabled:()=>true,portraitFinishChoice,currentResultCacheScope:()=> 'owner',resultSourceDigest:async()=> 'source',uploadGenerationScope:()=> 'upload',portraitResultCache:{get:async(_key,run)=>({value:await run(),reused:false}),delete(){}},aiFinishPortraitUncached:async()=>{submitted++;return returned;},balanceEnglishPortrait:forbidden,cleanEnglishHeadPair:forbidden,cleanPortraitClothing:forbidden,checkPortraitProportions:forbidden,canvasFor:forbidden,canvasPng:forbidden,prepareStudioMakeup:forbidden,prepareSharedPortraitMakeup:forbidden,finishFemaleMakeupSoftFocusBlob:forbidden,blobDataURL:dataUrl,decodedPortraitImage:async()=>({naturalWidth:96,naturalHeight:128}),portraitFaceLandmarks:async()=>face,isOriginalPortraitAiRequest,finishSharedStudioSkin,sharedStudioSkinSource,portraitGeometryBases:new WeakMap(),checkPortraitCompletion:async()=>{completed++;},window:{dispatchEvent(){}},CustomEvent:class{}};
   const finishPortrait=Function('env',`with(env){${raw.slice(start,end)};return aiFinishPortrait}`)(env);
   const output=await finishPortrait(source,'',{portraitMode:gender,femaleEyeStyle:finish,templatePath:'/assets/job-uniforms/fixture.png'});
   assert.equal(submitted,1);assert.equal(completed,1);assert.equal(output.idpromEnglishFramingVersion,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION);

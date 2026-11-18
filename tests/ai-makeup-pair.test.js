@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import {createAiMakeupVariant} from '../ai-portrait-makeup.js';
+import {createAiMakeupVariant,AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
 import {finishSharedStudioSkin,copyStudioSkinBlobMetadata} from '../src/shared-studio-skin.js';
 import {useAiMakeupPixels} from '../src/ai-makeup-pair.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,originalPortraitAiMetadata} from '../original-portrait-ai.js';
@@ -12,7 +13,7 @@ const png=(colour,w=16,h=24)=>sharp({create:{width:w,height:h,channels:4,backgro
 const source=b=>'data:image/png;base64,'+b.toString('base64');
 test('AI edit uses the finished natural portrait and retains its exact alpha',async()=>{
  const natural=await png({r:90,g:80,b:70,alpha:.5}),made=await png({r:120,g:70,b:80,alpha:1});let calls=0;
- const result=await createAiMakeupVariant(natural,{key:'test-not-sent',requestPortrait:async options=>{calls++;assert(options.portrait.length);assert.match(options.prompt,/Only cosmetics/);return {png:made}}});
+ const result=await createAiMakeupVariant(natural,{key:'test-not-sent',requestPortrait:async options=>{calls++;assert(options.portrait.length);assert(options.prompt.includes(AI_MAKEUP_PROMPT));assert(options.prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));return {png:made}}});
  assert.equal(calls,1);const out=await sharp(result).raw().toBuffer(),base=await sharp(natural).raw().toBuffer();
  for(let i=3;i<out.length;i+=4)assert.equal(out[i],base[i]);assert.notEqual(out[0],base[0]);
  await assert.rejects(createAiMakeupVariant(natural,{requestPortrait:async()=>({png:await png('red',30,16)})}),/สัดส่วน/);
@@ -51,7 +52,7 @@ test('production pipeline finishes both images before delivery and fails the job
  for(const [fail,pairVersion] of [[false,AI_MAKEUP_PAIR_VERSION],[false,'ai-makeup-pair-v1'],[true,AI_MAKEUP_PAIR_VERSION]]){
   let variant,makeupCalls=0;const stages=[];
   const operation=()=>processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields:{portraitMode:'female',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:pairVersion},root:new URL('..',import.meta.url).pathname,key:'fixture-not-sent',removeBackground:async()=>natural,onStage:async stage=>stages.push(stage),onMakeupVariant:async png=>{variant=png},requestPortrait:async options=>{
-   if(options.prompt.includes('Apply professional peach-rose')){makeupCalls++;if(fail)throw Error('makeup failed');}return {png:natural};
+   if(options.prompt.includes(AI_MAKEUP_PROMPT)){makeupCalls++;assert(options.prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));if(fail)throw Error('makeup failed');}return {png:natural};
   }});
   if(fail){await assert.rejects(operation(),/makeup failed/);assert.equal(variant,undefined)}else{const result=await operation();assert(result.length);assert(variant?.length);assert.equal(stages.at(-1),'makeup')}
   assert.equal(makeupCalls,1);
@@ -67,7 +68,9 @@ test('Thai AI makeup matches soft-rose studio style, preserves the Natural base 
  for(const preserveOutfit of [false,true]){
   let sent;await createAiMakeupVariant(natural,{key:'fixture-not-sent',preserveOutfit,requestPortrait:async p=>{sent=p;return {png:natural}}});
   assert(sent.prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
-  assert(sent.prompt.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY));
+  assert(sent.prompt.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
+  assert(sent.prompt.indexOf(AI_MAKEUP_FACE_LIGHTING_POLICY)<sent.prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY));
+  assert(sent.prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
   assert.match(sent.prompt,/delicate natural Korean-inspired studio portrait makeup/);
   assert.match(sent.prompt,/muted dusty-rose blush/);
   assert.match(sent.prompt,/softly blended fresh neutral rose-pink tint/);
@@ -93,7 +96,9 @@ test('English-only makeup uses pressed powder to refine skin without affecting T
   const result=await createAiMakeupVariant(natural,{key:'english-compact-powder-v6',[option]:true,preserveOutfit:true,requestPortrait:async p=>{prompt=p.prompt;requests++;return {png:natural}}});
   assert.equal(requests,1);
   assert(result.length>0);
-  assert(prompt.endsWith(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK));
+  assert(prompt.includes(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK));
+  assert(prompt.indexOf(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK)<prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY));
+  assert(prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
   assert.match(prompt,/MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/);
   assert.match(prompt,/medium-coverage foundation, spot concealer and fine PRESSED COMPACT POWDER/);
   assert.match(prompt,/Minimise rough granular skin noise/);
@@ -108,6 +113,8 @@ test('English-only makeup uses pressed powder to refine skin without affecting T
  }
  let thai;
  await createAiMakeupVariant(natural,{key:'thai-prompt-regression',requestPortrait:async p=>{thai=p.prompt;return {png:natural}}});
- assert(thai.endsWith(AI_MAKEUP_FACE_LIGHTING_POLICY));
+ assert(thai.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
+ assert(thai.indexOf(AI_MAKEUP_FACE_LIGHTING_POLICY)<thai.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY));
+ assert(thai.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
  assert.doesNotMatch(thai,/MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/);
 });
