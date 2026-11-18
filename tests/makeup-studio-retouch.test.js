@@ -52,7 +52,7 @@ function assertRetouch(prompt){
  assert(prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY),'One canonical appearance specification follows the route context');
  assert.equal(prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1,'Canonical appearance occurs exactly once');
  assert.equal(prompt.split('FINAL MAKEUP STUDIO-RETOUCH AUTHORITY').length-1,1);
- assert.match(prompt,/satin/i,'Reference finish keeps restrained hydrated light rather than matte-only powder');
+ assert.match(prompt,/visible but controlled dewy reflections on the forehead, nose bridge and tip, upper cheekbones and chin/,'The selected reference uses dewy reflections, rather than matte-only powder');
  assert.match(prompt,/wrinkles/i);assert.match(prompt,/acne/i);
  assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
  assert.match(prompt,/FINAL PORTRAIT CHECK — SELECTED MAKEUP ONLY/);
@@ -64,9 +64,9 @@ function assertRetouch(prompt){
  assert.match(prompt,/ears.*neck/i,'Skin and light remain continuous through ears and neck');
  assert.match(prompt,/undertone/i);assert.match(prompt,/identity/i);
  assert.match(prompt,/no fixed EV increment/,'Illumination adapts to each source instead of a forced exposure lift');
- assert.match(prompt,/faint low-contrast neutral rose-pink blush broadly through the upper cheeks/);
- assert.match(prompt,/fine soft-brown line along existing upper lash roots/);
- assert.match(prompt,/fresh muted rose-pink satin tint/,'The same satin lip finish replaces route-specific wet gloss');
+ assert.match(prompt,/soft translucent peach-pink blush broadly through the upper cheeks/);
+ assert.match(prompt,/soft warm-brown edge along the existing eyelash roots/);
+ assert.match(prompt,/translucent coral-pink gloss tint/,'The same coral-pink lip gloss is used by every route');
  assert.match(prompt,/short or gathered cuts and genuine continuous lengths for bob or long cuts/);
  assert.match(prompt,/brows/i);assert.match(prompt,/lip/i);assert.match(prompt,/hair/i);assert.match(prompt,/outfit|garment/i);
  assert.doesNotMatch(prompt,/NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP|Subtly clean up small active pimples|fine uneven pores/,'Natural-only skin limits are not sent in Makeup appearance');
@@ -101,7 +101,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v4-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v5-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -125,7 +125,7 @@ test('actual Thai and English single-pass Makeup use the reference finish once w
    // The pipeline adds hair-only instructions after complexion. The full
    // appearance segment must match the common specification exactly.
    assertRetouch(prompt.slice(0,position+MAKEUP_STUDIO_RETOUCH_POLICY.length));
-   assert.doesNotMatch(prompt,/FINAL ORIGINAL-AI V2 SKIN \/ LIGHT AUTHORITY/,'The current Makeup route uses one appearance authority, not legacy skin instructions');
+   assert.doesNotMatch(prompt,/FINAL ORIGINAL-AI V2 SKIN \/ LIGHT AUTHORITY|ORIGINAL-PHOTO STUDIO LIGHTING:/,'The current Makeup route uses one appearance authority, not legacy satin lighting instructions');
    assert(position<prompt.indexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Existing final hair protection stays authoritative for hair only');
   }else{
    if(name==='Thai'||name==='English template')assert.equal(digest(prompt),naturalPipelineHashes[name==='Thai'?'th':'en'],'Full released Natural request is unchanged');
@@ -181,4 +181,13 @@ test('Makeup light guide is a fixed JPEG appended after existing references with
  assert.deepEqual(next.image.slice(0,-1),old.image);
  assert.equal(next.image.at(-1),'data:image/jpeg;base64,'+guide.toString('base64'));
  assert.match(makeupStudioReferenceInstruction(next.image.length),/only|ONLY/);
+});
+
+test('dewy style guide delegates cosmetics and reflections to the one Makeup authority',()=>{
+ const guide=makeupStudioReferenceInstruction(2);
+ assert.match(guide,/NOT a matte\/satin-only finish or the cosmetic palette/);
+ assert.match(guide,/governed exclusively by the final Makeup specification/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/translucent coral-pink gloss tint/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/soft translucent peach-pink blush/);
+ assert.doesNotMatch(MAKEUP_STUDIO_RETOUCH_POLICY,/Finish with gentle luminous satin and a restrained broad sheen/);
 });
