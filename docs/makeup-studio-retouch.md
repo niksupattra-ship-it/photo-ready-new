@@ -1,6 +1,6 @@
 # Makeup studio complexion
 
-Newly generated Makeup portraits use one shared appearance specification in both Thai and English. Version `makeup-studio-retouch-v2-reference-soft-satin` follows the supplied portrait's softly diffused studio finish: smooth clear skin, broad soft frontal light, restrained luminous satin, faint blended rosy cheeks, natural brows and lashes, neutral pink-brown lids and muted pink satin lips. Surface wrinkles, pimples, acne marks, patchy redness and coarse texture are repaired before adding cosmetic colour. Full-face treatment continues through ears and the visible neck, while eyes and lip borders stay sharp.
+Newly generated Makeup portraits use one shared appearance specification in both Thai and English. Version `makeup-studio-retouch-v3-balanced-studio-light` follows the supplied portrait's softly diffused studio finish: smooth clear skin, broad soft frontal light, restrained luminous satin, faint blended rosy cheeks, natural brows and lashes, neutral pink-brown lids and muted pink satin lips. Surface wrinkles, pimples, acne marks, patchy redness and coarse texture are repaired before adding cosmetic colour. Full-face treatment continues through ears and the visible neck, while eyes and lip borders stay sharp.
 
 The previous implementation appended a stronger skin directive after conflicting Natural, thin-foundation, pressed-powder, fixed-exposure and route-specific cosmetics instructions. This revision selects a Makeup-specific base context and uses the shared specification for skin, light and cosmetic colour together. Makeup no longer inherits Natural's small-correction/uneven-pore restrictions or different wet-gloss and hardcoded pigment palettes from each route. Natural's default prompt bytes remain unchanged.
 
@@ -15,7 +15,7 @@ The retouch changes skin appearance through tone and light, without reshaping th
 
 No additional provider request, local skin filter or facial overlay is introduced. Existing codec, alpha and outer-edge handling remains in place. Prices, credits, entitlements, retention and source-photo ownership are unchanged. Skin illumination adapts to the source and the selected garment without a fixed exposure increment or a common pale skin target.
 
-The supplied reference was visually analysed to define this text specification. The application does not upload that reference portrait or use its face as a generation input. Text instructions guide appearance; they do not guarantee identical pixels or provider compliance on every source.
+The reference portrait was used to define the specification, not uploaded as a donor face. New Makeup requests also use the existing identity-free studio-light swatch board as an illumination/material guide only, without copying any swatch colour. The Thai route reuses its existing board when present; English and completed-Natural edits append the guide last to preserve all earlier reference indices. If the guide is unavailable, the text-only Makeup request still works. The v3 policy asks for balanced left/right illumination and cosmetic application while preserving original eye, brow, lip, jaw and other facial geometry. No face mirroring, masks, extra generation or post-AI retouch. Natural and male requests and cache identities remain unchanged. Provider visual compliance must still be checked with actual results.
 
 ## Verification
 

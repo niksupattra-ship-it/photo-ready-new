@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import {restoreEnglishMakeupSilhouette} from './english-makeup-edge-repair.js';
 import {ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY} from './english-studio-finish.js';
 import {MAKEUP_STUDIO_RETOUCH_POLICY} from './makeup-studio-retouch-policy.js';
+import {loadMakeupStudioReference,makeupStudioReferenceInstruction} from './makeup-studio-reference.js';
 export {AI_MAKEUP_PAIR_VERSION} from './ai-makeup-pair-policy.js';
 // Only the input/edit contract belongs here. Every route uses the same final
 // complexion, cosmetics and skin-light specification below, without a second
@@ -23,8 +24,10 @@ export async function createAiMakeupVariant(natural,{key,requestPortrait,preserv
  const englishEdgeLock=englishOnly?'\n'+ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY+'\nNATURAL OUTER-CUTOUT LOCK: Preserve the existing clean outer silhouette and flat exterior background. No grey/black/blue outline, rim glow, matte fringe, double edge, drop shadow or vignette around hair, ears, jaw, neck, shoulders or garments. Keep the selected hairstyle\'s true connected lengths; remove only extra stray wisps or invented rear layers absent from that design.':'';
  // English AI repairs its own complexion; a separate English-only clean-cutout
  // finishing step later restores only the OUTER silhouette edge, not face skin.
- const prompt=AI_MAKEUP_PROMPT+'\n'+modeLock+outfitLock+englishEdgeLock+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY;
- const result=await requestPortrait({key,prompt,portrait,portraitMime:'image/png',size:`${width}x${height}`});
+ const makeupStudioReference=await loadMakeupStudioReference();
+ const guide=makeupStudioReference?makeupStudioReferenceInstruction(2):'';
+ const prompt=AI_MAKEUP_PROMPT+'\n'+modeLock+outfitLock+englishEdgeLock+guide+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY;
+ const result=await requestPortrait({key,prompt,portrait,portraitMime:'image/png',size:`${width}x${height}`,...(makeupStudioReference?{makeupStudioReference}:{})});
  if(!result?.png?.length)throw Error('สร้างภาพแต่งหน้าไม่สำเร็จ กรุณาลองใหม่');
  const meta=await sharp(result.png).metadata();
  if(!meta.width||!meta.height||Math.abs(meta.width/meta.height-width/height)>.02)throw Error('ภาพแต่งหน้ามีสัดส่วนไม่ตรงกับภาพฐาน');

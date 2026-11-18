@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {MAKEUP_STUDIO_RETOUCH_VERSION,MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
+import {seedreamReviewPayload} from '../seedream-review-transport.js';
+import {loadMakeupStudioReference,makeupStudioReferenceInstruction} from '../makeup-studio-reference.js';
 import {onePassSkinQualityPriority,SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
 import {AI_MAKEUP_PROMPT,createAiMakeupVariant} from '../ai-portrait-makeup.js';
 import {generateMakeupFromCompletedNatural} from '../natural-master-makeup.js';
@@ -53,6 +55,9 @@ function assertRetouch(prompt){
  assert.match(prompt,/satin/i,'Reference finish keeps restrained hydrated light rather than matte-only powder');
  assert.match(prompt,/wrinkles/i);assert.match(prompt,/acne/i);
  assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
+ assert.match(prompt,/BALANCED APPLICATION — PHOTOGRAPHIC LIGHT AND COSMETICS ONLY/);
+ assert.match(prompt,/not symmetry of facial anatomy/);
+ assert.match(prompt,/Do not mirror one side/);
  assert.match(prompt,/ears.*neck/i,'Skin and light remain continuous through ears and neck');
  assert.match(prompt,/undertone/i);assert.match(prompt,/identity/i);
  assert.match(prompt,/no fixed EV increment/,'Illumination adapts to each source instead of a forced exposure lift');
@@ -93,7 +98,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v2-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v3-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -112,6 +117,8 @@ test('actual Thai and English single-pass Makeup use the reference finish once w
   assert.equal(calls.length,1,name+'/'+finish);const prompt=calls[0].prompt;
   if(finish==='makeup'){
    const position=prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY);assert(position>=0);
+   assert.match(prompt,/MAKEUP LIGHT GUIDE — IMAGE \d+/);
+   assert.ok(calls[0].skinReference?.length||calls[0].makeupStudioReference?.length,'Makeup includes a faceless light guide');
    // The pipeline adds hair-only instructions after complexion. The full
    // appearance segment must match the common specification exactly.
    assertRetouch(prompt.slice(0,position+MAKEUP_STUDIO_RETOUCH_POLICY.length));
@@ -119,6 +126,7 @@ test('actual Thai and English single-pass Makeup use the reference finish once w
   }else{
    if(name==='Thai'||name==='English template')assert.equal(digest(prompt),naturalPipelineHashes[name==='Thai'?'th':'en'],'Full released Natural request is unchanged');
    assert(!prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
+   assert(!calls[0].makeupStudioReference,'Natural never adds the Makeup guide');
   }
   assert(!stages.includes('makeup')&&!stages.includes('skin-prepare'),'No additional image generation stage is added');
   assert.deepEqual(fields,originalFields);assert.equal(digest(natural),sourceHash);
@@ -133,6 +141,8 @@ test('all dedicated Makeup modes append the same final complexion authority with
   const result=await createAiMakeupVariant(natural,{...options,key:'inert-makeup-fixture',requestPortrait:async request=>{calls.push(request);return {png:aiResult}}});
   assert.equal(calls.length,1,name);assertRetouch(calls[0].prompt);
   assert.equal(calls[0].size,'96x128');assert.equal(calls[0].portraitMime,'image/png');
+  assert.ok(calls[0].makeupStudioReference?.length);
+  assert.match(calls[0].prompt,/MAKEUP LIGHT GUIDE — IMAGE 2/);
   const metadata=await sharp(result).metadata();assert.equal(metadata.width,96);assert.equal(metadata.height,128);
   assert.deepEqual(await alpha(result),await alpha(natural),name+' cutout alpha');
   assert.deepEqual(await pixel(result),[205,177,156],name+' interior must stay provider pixels');
@@ -157,4 +167,14 @@ test('a malformed AI makeup image still rejects once without returning a partial
  const before=digest(natural),wrongShape=await sharp({create:{width:192,height:64,channels:4,background:'#ffffff'}}).png().toBuffer();let calls=0;
  await assert.rejects(createAiMakeupVariant(natural,{key:'inert-makeup-fixture',requestPortrait:async()=>{calls++;return {png:wrongShape}}}),/สัดส่วนไม่ตรง/);
  assert.equal(calls,1);assert.equal(digest(natural),before);
+});
+
+test('Makeup light guide is a fixed JPEG appended after existing references without altering previous image order',async()=>{
+ const guide=await loadMakeupStudioReference(root);assert.ok(guide?.length);
+ assert.equal((await sharp(guide).metadata()).format,'jpeg');
+ const old=seedreamReviewPayload({prompt:'fixture',portrait:natural,hair:natural,identity:natural,outfit:natural,compositionReference:natural});
+ const next=seedreamReviewPayload({prompt:'fixture',portrait:natural,hair:natural,identity:natural,outfit:natural,compositionReference:natural,makeupStudioReference:guide});
+ assert.deepEqual(next.image.slice(0,-1),old.image);
+ assert.equal(next.image.at(-1),'data:image/jpeg;base64,'+guide.toString('base64'));
+ assert.match(makeupStudioReferenceInstruction(next.image.length),/only|ONLY/);
 });
