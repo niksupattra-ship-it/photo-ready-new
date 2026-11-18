@@ -31,6 +31,7 @@ import {productionHair,selectedHairDesign,selectedHairInstruction,selectedHairPl
 import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOFT_HAIR_TEXTURE_POLICY} from './catalogue-hair-policy.js';
 import {englishSelectedHairReference} from './english-selected-hair.js';
 import {selectedHairBoundaryInstruction} from './hair-neck-boundary.js';
+import {compactHairIdentityCanvas,COMPACT_IDENTITY_CANVAS_INSTRUCTION} from './compact-hair-identity-canvas.js';
 import {thaiCompactHairReference} from './thai-compact-hair-reference.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
@@ -313,6 +314,12 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   if(!preparedSkin?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_prepare_invalid'});
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
+ // Only an explicit compact replacement uses the identity-only canvas. Legacy
+ // prepared skin stages and current-hair requests remain on their original path.
+ if(!preparedMakeup&&!staged){
+  const cleanInput=await compactHairIdentityCanvas(generationInput,explicitIdentityBox,chosen,{keepCurrentHair:fields.keepCurrentHair==='1'});
+  if(cleanInput!==generationInput){generationInput=cleanInput;prompt+='\n'+COMPACT_IDENTITY_CANVAS_INSTRUCTION;}
+ }
  if(completeNeck)generationInput=await prepareThaiNeckCanvas(generationInput,explicitIdentityBox);
  let makeupStudioReference=null;
  if(singlePass&&fields.femaleEyeStyle==='makeup'){
@@ -419,11 +426,15 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(true);
   prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,true);
  }
+ // Template-body already uses a face-only composition. For the head-only and
+ // older non-template routes, remove obsolete source hair from Image 1 too.
+ const englishGenerationInput=templateBody?input:await compactHairIdentityCanvas(input,identityBox,chosen,{keepCurrentHair});
+ if(englishGenerationInput!==input)prompt+='\n'+COMPACT_IDENTITY_CANVAS_INSTRUCTION;
  // Apply the same last hair-only rule to English women/men and AI Picks.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
  prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:true,keepCurrentHair,referenceBoard:chosen?.interfaceLanguage==='en'&&!keepCurrentHair});
  await onStage('generation');
- const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:input.buffer,portraitMime:templateBody?'image/png':input.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');

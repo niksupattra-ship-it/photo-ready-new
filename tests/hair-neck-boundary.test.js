@@ -55,7 +55,7 @@ test('current hair and female English AI Picks classify the real reference inste
 });
 
 test('new boundary version invalidates generation caches without relabeling stored pixels',async()=>{
- assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v28-explicit-clean-neck-output');
+ assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v29-face-only-compact-source');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const cache=main.slice(main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION'),main.indexOf(' const cached=await portraitResultCache.get',main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION')));
  assert.match(cache,/HAIR_DESIGN_VERSION/);

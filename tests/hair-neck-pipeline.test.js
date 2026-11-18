@@ -8,6 +8,7 @@ import {productionHair,selectedHairDesign} from '../hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';
 import {loadCatalogueHairGuide} from '../catalogue-hair-guide.js';
 import {selectedHairBoundaryInstruction} from '../hair-neck-boundary.js';
+import {compactHairIdentityCanvas,COMPACT_IDENTITY_CANVAS_INSTRUCTION} from '../compact-hair-identity-canvas.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -112,4 +113,27 @@ test('selected compact Thai and English outputs get the final neck gate in the a
   assert.match(got.request.prompt,/OUTPUT GATE — CLEAN NECK FOR THIS EXACT COMPACT CUT/);
   assert.ok(got.request.prompt.endsWith(got.final));
  }
+});
+
+test('compact source conditioning excludes old hair below chin and keeps exact measured face pixels and source geometry',async()=>{
+ const source=await sharp({create:{width:128,height:176,channels:3,background:'#151515'}}).composite([{input:await sharp({create:{width:64,height:90,channels:3,background:'#b88a75'}}).png().toBuffer(),left:32,top:20}]).png().toBuffer();
+ const original={buffer:source,mimetype:'image/png'},box=[.25,20/176,.75,110/176],before=hash(source);
+ const rgb=async(buffer,left,top)=>[...await sharp(buffer).extract({left,top,width:1,height:1}).removeAlpha().raw().toBuffer()];
+ for(const id of ['seedream-41','seedream-36','seedream-53','seedream-77']){
+  const chosen=productionHair(id),clean=await compactHairIdentityCanvas(original,box,chosen);
+  assert.notEqual(clean,original);
+  const meta=await sharp(clean.buffer).metadata();assert.equal(meta.width,128);assert.equal(meta.height,176);
+  assert.deepEqual(await rgb(clean.buffer,64,55),await rgb(source,64,55));
+  for(const [x,y] of [[64,145],[14,133],[112,133],[3,5]])assert.deepEqual(await rgb(clean.buffer,x,y),[53,107,216]);
+ }
+ assert.equal(hash(source),before,'Immutable original');
+ for(const id of ['seedream-42','seedream-44','seedream-47'])assert.equal(await compactHairIdentityCanvas(original,box,productionHair(id)),original);
+ assert.equal(await compactHairIdentityCanvas(original,null,productionHair('seedream-41')),original);
+ assert.equal(await compactHairIdentityCanvas(original,box,productionHair('seedream-41'),{keepCurrentHair:true}),original);
+ const calls=[];
+ await processProductionPortrait({input:original,fields:{portraitMode:'male',femaleEyeStyle:'natural',hairId:'seedream-36',hairReferenceVersion:HAIR_REFERENCE_VERSION,faceIdentityBox:JSON.stringify(box)},root,key:'compact-source-fixture',requestPortrait:async req=>{calls.push(req);return {png:matte}},removeBackground:async()=>matte});
+ assert.equal(calls.length,1);
+ assert.ok(calls[0].prompt.includes(COMPACT_IDENTITY_CANVAS_INSTRUCTION));
+ assert.deepEqual(await rgb(calls[0].portrait,64,145),[53,107,216]);
+ assert.deepEqual(await rgb(calls[0].portrait,64,55),await rgb(source,64,55));
 });
