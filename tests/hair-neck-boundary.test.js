@@ -55,10 +55,23 @@ test('current hair and female English AI Picks classify the real reference inste
 });
 
 test('new boundary version invalidates generation caches without relabeling stored pixels',async()=>{
- assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v26-no-under-ear-neck-hair-both-locales');
+ assert.equal(HAIR_DESIGN_VERSION,'selected-silhouette-v27-replace-all-source-hair');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const cache=main.slice(main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION'),main.indexOf(' const cached=await portraitResultCache.get',main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION')));
  assert.match(cache,/HAIR_DESIGN_VERSION/);
  assert.match(main,/head\.hairPolicyVersion!==HAIR_DESIGN_VERSION\+'-female-reference-v1'/);
  assert.match(main,/head\.hairPolicyVersion!==HAIR_DESIGN_VERSION\)return/);
+});
+
+test('explicit selected hairstyles replace all source hairstyle evidence with the selected guide',()=>{
+ for(const selected of [...PRODUCTION_HAIR_CATALOG,...FREE_FEMALE_HAIR_OPTIONS]){
+  const prompt=selectedHairBoundaryInstruction(selected);
+  assert.match(prompt,/EXPLICIT SELECTED HAIRSTYLE ONLY — FULL REPLACEMENT, NOT AN OVERLAY/);
+  assert.match(prompt,/Remove the ENTIRE original hairstyle, even where it overlaps the chosen design/);
+  assert.match(prompt,/sole hairstyle design authority/);
+  assert.match(prompt,/adapt only its placement, scale and scalp attachment, not the person's face/);
+  assert.match(prompt,/Empty regions in the selected guide must stay free of hair/);
+  assert.match(prompt,/For short or gathered designs, leave these spaces completely hair-free/);
+ }
+ for(const options of [{portraitMode:'female',english:true},{portraitMode:'male'},{portraitMode:'female',english:true,keepCurrentHair:true}])assert.doesNotMatch(selectedHairBoundaryInstruction(null,options),/EXPLICIT SELECTED HAIRSTYLE ONLY/);
 });

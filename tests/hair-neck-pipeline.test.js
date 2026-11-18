@@ -94,3 +94,14 @@ test('new default male and Thai gathered requests still receive compact exclusio
  const source=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
  assert.equal((source.match(/prompt\+='\\n'\+selectedHairBoundaryInstruction\(/g)||[]).length,2,'Both actual generation routes must append the same policy');
 });
+
+test('selected Thai and English hair requests reject all source hair evidence with one provider call',async()=>{
+ for(const [id,language,finish] of [['seedream-41','th','makeup'],['seedream-36','th','natural'],['seedream-53','en','makeup'],['seedream-77','en','natural'],['seedream-44','en','natural']]){
+  const got=await run({id,language,finish});
+  assert.ok(got.request.hair?.length);
+  assert.match(got.request.prompt,/Treat EVERY visible hairstyle pixel in the upload, identity crop, original or previously generated portrait as obsolete hair evidence/);
+  assert.match(got.final,/Remove the ENTIRE original hairstyle, even where it overlaps the chosen design/);
+  assert.match(got.final,/not the person's face, ears, jaw or head geometry/);
+  assert.equal(got.fields.femaleEyeStyle,finish);
+ }
+});

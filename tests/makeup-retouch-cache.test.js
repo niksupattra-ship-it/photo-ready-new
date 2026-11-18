@@ -21,10 +21,14 @@ function fixture(english,gender,finish='natural'){
  const hairKey=Function('env',`with(env){${main.slice(ha,hb)};return hairResultKey}`)(env);
  return {portrait,hair:hairKey('seedream-fixture',gender,finish,'/fixture.png')};
 }
-test('Natural and male result/style cache keys stay byte-for-byte identical in both languages',()=>{
+// The explicit hair replacement revision intentionally expires generation caches; the other key fields must remain identical.
+const previousHairVersion='selected-silhouette-v26-no-under-ear-neck-hair-both-locales';
+const beforeHairRevision=key=>key.replaceAll(HAIR_DESIGN_VERSION,previousHairVersion);
+test('Natural and male result/style cache keys differ only by the deliberate hair policy revision',()=>{
  for(const english of [false,true])for(const gender of ['female','male']){
   const actual=fixture(english,gender),id=(english?'en':'th')+':'+gender;
-  assert.equal(hash(actual.portrait),portraitHashes[id]);assert.equal(hash(actual.hair),hairHashes[gender]);
+  assert.ok(actual.portrait.includes(HAIR_DESIGN_VERSION));assert.ok(actual.hair.includes(HAIR_DESIGN_VERSION));
+  assert.equal(hash(beforeHairRevision(actual.portrait)),portraitHashes[id]);assert.equal(hash(beforeHairRevision(actual.hair)),hairHashes[gender]);
   assert(!actual.portrait.includes(MAKEUP_STUDIO_RETOUCH_VERSION));assert(!actual.hair.includes(MAKEUP_STUDIO_RETOUCH_VERSION));
  }
 });
