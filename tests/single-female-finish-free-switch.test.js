@@ -301,7 +301,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(easy,/\(hasResult\|\|thaiHairConfirmation\)\&\&tab==='hair'/,'Thai Easy Mode must offer the hairstyle list before initial AI generation');
  assert.match(easy,/onGenerateHair\?\.\(choice\|\|selectedHair\|\|''\)/,'Thai Easy Mode sends the selected hairstyle or current draft');
  assert.match(easy,/thaiHairConfirmation&&hasResult&&\(hairSelectionPending\|\|finishChangePending\)/,'Thai Easy Mode holds hair and makeup selections until confirmation');
- assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'/,'Single-finish Makeup must not silently run local cosmetics instead of the AI worker');
+ assert.match(studio,/head\.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'&&finish!=='makeup'/,'Explicit Makeup must not silently run local cosmetics instead of the AI worker');
 });
 
 test('Existing Studio Undo and Redo restore earlier completed AI generations without new provider calls or new UI arrows',async()=>{

@@ -10,6 +10,9 @@ import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {isEnglishStudioFreeHair} from './src/english-studio-hair-policy.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
+import {requestReviewSeedream} from './seedream-review-transport.js';
+import {createMakeupRequestAudit} from './makeup-generation-audit.js';
+import {isSinglePassPortrait} from './single-pass-portrait-policy.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from './female-single-finish-policy.js';
 import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup,NATURAL_MASTER_MAKEUP_VERSION} from './natural-master-makeup.js';
 import {isOriginalPortraitAiRequest,validateOriginalPortraitUpload} from './original-portrait-ai.js';
@@ -434,7 +437,10 @@ const aiFinishHandler=async(req,res)=>{
   // Matting must be available before spending on external image generation.
   await getModnetSession();
   const currentHair=await loadCurrentHairReference(req.body,walletId(req),getAiJobResult);
-  const data=await processProductionPortrait({input,fields:req.body,currentHair,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:process.env.ARK_API_KEY});
+  const selectedMakeup=req.body?.portraitMode==='female'&&req.body?.femaleEyeStyle==='makeup';
+  const audit=createMakeupRequestAudit(requestReviewSeedream,{requirePolicy:selectedMakeup&&isSinglePassPortrait(req.body)});
+  const data=await processProductionPortrait({input,fields:req.body,currentHair,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:process.env.ARK_API_KEY,requestPortrait:audit.requestPortrait});
+  req.makeupGenerationAudit=audit.snapshot();
   if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
   res.set('Cache-Control','no-store');res.set('X-Credits-Remaining',String(creditUse.credits));
   return res.type('image/png').send(data);
@@ -507,7 +513,8 @@ async function runAiJob(id){
   req.onPortraitStage=async stage=>{console.info('AI stage',id,stage,Date.now()-started+'ms');await touchAiJob(id,stage)};
   const cap=captureResponse();await aiFinishHandler(req,cap.res);await cap.done;const out=cap.get();
   if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length){
-   await completeAiJob(id,out.payload,req.aiMakeupVariant);
+   await completeAiJob(id,out.payload,req.aiMakeupVariant,job.fields?.femaleEyeStyle==='makeup'?req.makeupGenerationAudit?.makeupPolicyVersion:null);
+   if(job.fields?.femaleEyeStyle==='makeup')console.info('Makeup generation audit',id,{route:'direct',...req.makeupGenerationAudit});
    console.info('AI job completed',id,{hasMakeup:Boolean(req.aiMakeupVariant),elapsedMs:Date.now()-started});
   }else{
    const failure=out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`;
@@ -613,6 +620,7 @@ async function runFemaleAlternateFinish(id){
   if(!['natural','makeup'].includes(finish)||fields.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('Invalid alternate finish');
   heartbeat=setInterval(()=>{void touchFemaleAlternateFinish(id).catch(()=>{})},30000);heartbeat.unref?.();
   let result;
+  const audit=createMakeupRequestAudit(requestReviewSeedream,{requirePolicy:finish==='makeup'&&shouldUseNaturalMasterMakeup(fields,finish)});
   const legacyAiMakeup=shouldUseNaturalMasterMakeup(fields,finish);
   if(legacyAiMakeup){
    // Preserve the established makeup appearance: edit the ACTUAL completed
@@ -622,7 +630,7 @@ async function runFemaleAlternateFinish(id){
    if(naturalJob?.status!=='completed'||!naturalJob.result?.length)throw Error('Completed Natural image is unavailable; original result preserved');
    console.info('Alternate finish from completed Natural master',id,NATURAL_MASTER_MAKEUP_VERSION);
    result=await generateMakeupFromCompletedNatural({
-    natural:naturalJob.result,fields,key:process.env.ARK_API_KEY
+    natural:naturalJob.result,fields,key:process.env.ARK_API_KEY,requestPortrait:audit.requestPortrait
    });
   }else{
    // Makeup -> Natural has no Natural master. Keep the existing original-upload
@@ -638,10 +646,11 @@ async function runFemaleAlternateFinish(id){
     input:original,fields:nextFields,root:dir,currentHair,
     removeBackground:source=>modnetRemoveBackground(source,{refine:false}),
     key:process.env.ARK_API_KEY,
-    onStage:async stage=>{console.info('Alternate finish stage',id,stage)}
+    requestPortrait:audit.requestPortrait,onStage:async stage=>{console.info('Alternate finish stage',id,stage)}
    });
   }
-  if(!await completeFemaleAlternateFinish(id,wid,finish,result,legacyAiMakeup?NATURAL_MASTER_MAKEUP_VERSION:null))throw Error('Alternate finish was superseded');
+  if(!await completeFemaleAlternateFinish(id,wid,finish,result,legacyAiMakeup?NATURAL_MASTER_MAKEUP_VERSION:null,finish==='makeup'?audit.snapshot().makeupPolicyVersion:null))throw Error('Alternate finish was superseded');
+  if(finish==='makeup')console.info('Makeup generation audit',id,{route:'alternate',...audit.snapshot()});
   console.info('Alternate finish completed',id,finish);
  }catch(error){
   console.error('Alternate finish error',id,error?.code||error?.message);
@@ -655,6 +664,7 @@ app.post('/api/ai-jobs/:id/finish',async(req,res)=>{
   if(!['natural','makeup'].includes(finish)||hair.length>160||outfit.length>512)return res.status(400).json({error:'invalid_finish_request'});
   const result=await queueFemaleAlternateFinish(req.params.id,walletId(req),finish,hair,outfit);
   if(result.status===202)setImmediate(()=>runFemaleAlternateFinish(req.params.id));
+  else if(result.status===200&&finish==='makeup')console.info('Makeup generation audit',req.params.id,{route:'stored-result',providerCalls:0,makeupPolicyVersion:result.makeupPolicyVersion||null});
   return res.status(result.status).json(result);
  }catch(error){console.error('Alternate finish request:',error.code||'error');return res.status(503).json({error:'alternate_finish_unavailable'})}
 });

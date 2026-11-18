@@ -1533,7 +1533,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;
   const asset=assets.current.get(head.id),cleanHead={...head,mask:null};
-  const localFinish=head.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'&&typeof onLocalPortraitFinish==='function'&&canReuseStudioSkinBase(cleanHead)&&!asset?.warped&&!asset?.eraseRestoreSource&&identityStudioMask(asset?.mask);
+  const localFinish=head.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION&&appearanceKind==='makeup'&&finish!=='makeup'&&typeof onLocalPortraitFinish==='function'&&canReuseStudioSkinBase(cleanHead)&&!asset?.warped&&!asset?.eraseRestoreSource&&identityStudioMask(asset?.mask);
   const requestSource=sourcePhoto,requestScope=accountScope,requestBase=head.studioSkinBaseSource;
   const localCurrent=()=>mounted.current&&sourcePhotoRef.current===requestSource&&outputScopeRef.current===requestScope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId&&l.studioSkinBaseSource===requestBase);
   const assertAppearanceCurrent=()=>{if(localFinish?!localCurrent():isProcessCancelled())throw Error(localFinish?'บัญชีหรือรูปเปลี่ยนแล้ว กรุณาเลือกเมคอัพอีกครั้ง':'ยกเลิกการประมวลผลแล้ว')};

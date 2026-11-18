@@ -256,6 +256,7 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
    if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female')blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
    blob.idpromTrial=original.trial;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;
    if(j.femaleFinishSingleVersion)blob.idpromFemaleFinishSingleVersion=j.femaleFinishSingleVersion;
+   if(j.femaleEyeStyle==='makeup')blob.idpromMakeupPolicyVersion=j.makeupPolicyVersion||null;
    blob.idpromEnglishProportionCorrection=j.proportionCorrection;
    return blob;
   }
@@ -2862,6 +2863,10 @@ async function requestFreeFemaleAlternate(jobId,finish,hairId,templatePath,onSta
  if(finish==='natural')blob.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  blob.idpromJobId=jobId;blob.idpromTrial=!rights.unlocked;blob.idpromFullEdit=rights.fullEdit;blob.idpromReused=true;
  blob.idpromFemaleFinishSingleVersion=FEMALE_SINGLE_FINISH_VERSION;
+ if(finish==='makeup'){
+  blob.idpromMakeupPolicyVersion=job.femaleEyeStyle==='makeup'?job.makeupPolicyVersion||null:job.alternateMakeupPolicyVersion||null;
+  console.info('Makeup result provenance',{route:request.status===200?'stored-result':'alternate-generation',makeupPolicyVersion:blob.idpromMakeupPolicyVersion,expected:MAKEUP_STUDIO_RETOUCH_VERSION});
+ }
  if(operation)operation.serverCompleted=true;
  onStatus?.('completed');
  return blob;
@@ -5431,7 +5436,10 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  };
  const cachedHairResult=(id,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
   let entry=hairResultCacheRef.current.get(hairResultKey(id,portraitMode,femaleEyeStyle,outfitReferencePath));
-  if(!entry&&hairResultMode(id,portraitMode)==='female'){
+  // Do not substitute the older Natural-only browser renderer for requested AI Makeup.
+  const requestedFinish=portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle);
+  if(requestedFinish==='makeup'&&entry&&sharedStudioSkinSource(entry.master)&&!entry.master.idpromAiMakeupSource&&!entry.master.idpromMakeupPolicyVersion)entry=null;
+  if(!entry&&hairResultMode(id,portraitMode)==='female'&&requestedFinish!=='makeup'){
    for(const style of ['natural','makeup','korean-rosy-v1','soft-rosy-v1']){const candidate=hairResultCacheRef.current.get(hairResultKey(id,portraitMode,style,outfitReferencePath));if(candidate?.confirmed&&sharedStudioSkinSource(candidate.master)){entry=candidate;break}}
   }
   return entry?.confirmed&&(hairResultMode(id,portraitMode)!=='female'||(sharedStudioSkinSource(entry.master)||hasOriginalPortraitAiFinish(entry.master,portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle))))&&entry.sourcePhoto===firstUploadedPhotoRef.current&&entry.scope===hairResultScope()&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;

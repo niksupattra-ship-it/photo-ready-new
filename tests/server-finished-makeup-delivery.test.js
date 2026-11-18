@@ -54,3 +54,25 @@ test('new Studio path skips ONLY completed single Makeup and never requests a ne
  const recovery=main.slice(main.indexOf('const generate=()=>aiFinishPortrait('),main.indexOf('const master=await finishFirstPortraitMaster(aiHead)'));
  assert.match(recovery,/AI output was already generated; automatically recovering the same job/,'recover existing job rather than asking AI to create another');
 });
+
+
+test('explicit Makeup does not fall back to a Natural-only local cache',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ assert.ok(main.includes("requestedFinish==='makeup'&&entry&&sharedStudioSkinSource(entry.master)&&!entry.master.idpromAiMakeupSource&&!entry.master.idpromMakeupPolicyVersion"));
+ assert.ok(main.includes("hairResultMode(id,portraitMode)==='female'&&requestedFinish!=='makeup'"));
+ assert.ok(editor.includes("appearanceKind==='makeup'&&finish!=='makeup'&&typeof onLocalPortraitFinish"));
+});
+test('audit records actual successful provider requests and rejects a missing or duplicate required policy before submission',async()=>{
+ const {createMakeupRequestAudit}=await import('../makeup-generation-audit.js');
+ const {MAKEUP_STUDIO_RETOUCH_POLICY,MAKEUP_STUDIO_RETOUCH_VERSION}=await import('../makeup-studio-retouch-policy.js');
+ let calls=0;
+ const a=createMakeupRequestAudit(async()=>{calls++;return {png:Buffer.from('fixture')}},{requirePolicy:true});
+ for(const prompt of ['legacy prompt',MAKEUP_STUDIO_RETOUCH_POLICY+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY])await assert.rejects(a.requestPortrait({prompt}),{code:'MAKEUP_POLICY_MISMATCH'});
+ assert.equal(calls,0);assert.equal(a.snapshot().makeupPolicyVersion,null);
+ await a.requestPortrait({prompt:MAKEUP_STUDIO_RETOUCH_POLICY});
+ assert.deepEqual(a.snapshot(),{providerCalls:1,makeupPolicyVersion:MAKEUP_STUDIO_RETOUCH_VERSION});
+ const legacy=createMakeupRequestAudit(async()=>({png:Buffer.from('fixture')}));
+ await legacy.requestPortrait({prompt:'legacy prompt'});
+ assert.deepEqual(legacy.snapshot(),{providerCalls:1,makeupPolicyVersion:null});
+});
