@@ -313,18 +313,16 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  if(completeNeck)generationInput=await prepareThaiNeckCanvas(generationInput,explicitIdentityBox);
  let makeupStudioReference=null;
- if(singlePass){
-  if(fields.femaleEyeStyle==='makeup'){
-   prompt+=onePassMakeupPriority(false);
-   // Use the existing skin board in-place where already present; otherwise
-   // append the guide last so hairstyle/outfit/neck reference indices stay valid.
-   if(skinReference){
-    prompt+=makeupStudioReferenceInstruction(2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit)));
-   }else{
-    makeupStudioReference=await loadMakeupStudioReference(root);
-    if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[hair,identity,outfit,neckReference,neckShapeReference,compositionReference].filter(Boolean).length);
-   }
+ if(singlePass&&fields.femaleEyeStyle==='makeup'){
+  // Reuse an existing board; otherwise append it after all existing images.
+  if(skinReference)prompt+=makeupStudioReferenceInstruction(2+Number(Boolean(hair))+Number(Boolean(identity))+Number(Boolean(outfit)));
+  else{
+   makeupStudioReference=await loadMakeupStudioReference(root);
+   if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[hair,identity,outfit,neckReference,neckShapeReference,compositionReference].filter(Boolean).length);
   }
+ }
+ if(singlePass){
+  if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(false);
   prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,false);
  }
  // Last hair-only authority after cosmetics and hairstyle/default instructions.
@@ -414,11 +412,9 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const makeupFinish=singlePass&&fields.femaleEyeStyle==='makeup';
  let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  const makeupStudioReference=makeupFinish?await loadMakeupStudioReference(root):null;
+ if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference].filter(Boolean).length);
  if(singlePass){
-  if(fields.femaleEyeStyle==='makeup'){
-   prompt+=onePassMakeupPriority(true);
-   if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference].filter(Boolean).length);
-  }
+  if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(true);
   prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,true);
  }
  // Apply the same last hair-only rule to English women/men and AI Picks.
