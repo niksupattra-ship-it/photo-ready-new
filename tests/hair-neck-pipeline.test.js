@@ -51,7 +51,7 @@ test('Thai compact female crown/short and male short cuts end with the hard excl
   assert.match(got.final,/Sideburns and tapered scalp roots must stop ABOVE/);
   const metadata=await sharp(got.request.hair).metadata();assert.equal(metadata.width,1024);assert.equal(metadata.height,768);
   assert.match(got.final,/RIGHT is its actual picker photograph/);
-  if(finish==='makeup')assert.match(got.request.prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE, REQUESTED MAKEUP/);
+  if(finish==='makeup')assert.match(got.request.prompt,/SELECTED MAKEUP — SAME-GENERATION INPUT CONTEXT/);
   else if(productionHair(id).gender==='female')assert.match(got.request.prompt,/NO ADDED MAKEUP/);
  }
 });
@@ -62,7 +62,7 @@ test('English compact female gathered and male short cuts share the same final e
   assert.equal(got.fields.neckOutfitReferencePath,outfit);assert(got.request.outfit?.length);
   const metadata=await sharp(got.request.hair).metadata();assert.equal(metadata.width,1024);assert.equal(metadata.height,768);
   assert.match(got.final,/two-panel reference board/);
-  if(finish==='makeup')assert.match(got.request.prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE, REQUESTED MAKEUP/);
+  if(finish==='makeup')assert.match(got.request.prompt,/SELECTED MAKEUP — SAME-GENERATION INPUT CONTEXT/);
  }
 });
 

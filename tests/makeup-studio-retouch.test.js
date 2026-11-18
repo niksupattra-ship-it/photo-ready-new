@@ -13,6 +13,8 @@ import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_STUDIO_FINISH_VERSION} from '../english-studio-finish-policy.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION} from '../english-head-portrait.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
+import {englishHeadPortraitPrompt} from '../english-head-prompt.js';
+import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
 
 // Real prompt preparation, image codecs and established edge handling, with an
 // inert provider. No customer, account, payment or live image AI is contacted.
@@ -22,6 +24,9 @@ const naturalHashes={
  false:'82c7515a3724264c011d678fded9ac5b77930144998debb992d658ab68a4cb50',
  true:'1db8affb8c994f095c866fba7a706c55f3ce6d4e8128e69da3b31b21a7eb6174'
 };
+// Full real pipeline request prompts, captured from released e222ccd before
+// separating Makeup from Natural's appearance instructions.
+const naturalPipelineHashes={th:'d2fb5d1835af219d3d13758e8c4f23feb6d9373ebc19f6ad659fb347a5287ff1',en:'d81ad7924d44abffc2419286b00bf37dd2d625bd3fbc9955fffdf8e4d53c48b8'};
 const natural=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([
  {input:await sharp({create:{width:72,height:104,channels:4,background:'#aa806a'}}).png().toBuffer(),left:12,top:12}
 ]).png().toBuffer();
@@ -42,30 +47,53 @@ const englishFields={
 };
 
 function assertRetouch(prompt){
- assert(prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY),'New skin authority must follow every older lighting/skin limitation');
+ assert(prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY),'One canonical appearance specification follows the route context');
+ assert.equal(prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1,'Canonical appearance occurs exactly once');
  assert.equal(prompt.split('FINAL MAKEUP STUDIO-RETOUCH AUTHORITY').length-1,1);
- for(const requirement of ['REMOVE VISIBLE SURFACE WRINKLES AND BLEMISHES','crow\'s-feet','fine under-eye crease texture','temporary acne-red/brown marks','shallow pitted acne roughness','WHOLE FACE, EARS AND VISIBLE NECK','no anatomy']){
-  if(requirement==='no anatomy')assert.match(prompt,/never added cheek volume, a facelift, stretched skin, changed facial anatomy/);
-  else assert(prompt.includes(requirement),requirement);
- }
- assert.match(prompt,/authentic pigment depth, undertone/);
- assert.match(prompt,/eyes, brows, lashes, irises, nostrils and original lip edges sharply resolved/);
- assert.match(prompt,/selected hair boundaries and clean under-ear\/neck space/);
- assert.match(prompt,/local canvas retouch, post-AI skin filter, additional pass or extra provider request/);
+ assert.match(prompt,/satin/i,'Reference finish keeps restrained hydrated light rather than matte-only powder');
+ assert.match(prompt,/wrinkles/i);assert.match(prompt,/acne/i);
+ assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
+ assert.match(prompt,/ears.*neck/i,'Skin and light remain continuous through ears and neck');
+ assert.match(prompt,/undertone/i);assert.match(prompt,/identity/i);
+ assert.match(prompt,/no fixed EV increment/,'Illumination adapts to each source instead of a forced exposure lift');
+ assert.match(prompt,/faint low-contrast neutral rose-pink blush broadly through the upper cheeks/);
+ assert.match(prompt,/fine soft-brown line along existing upper lash roots/);
+ assert.match(prompt,/fresh muted rose-pink satin tint/,'The same satin lip finish replaces route-specific wet gloss');
+ assert.match(prompt,/short or gathered cuts and genuine continuous lengths for bob or long cuts/);
+ assert.match(prompt,/brows/i);assert.match(prompt,/lip/i);assert.match(prompt,/hair/i);assert.match(prompt,/outfit|garment/i);
+ assert.doesNotMatch(prompt,/NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP|Subtly clean up small active pimples|fine uneven pores/,'Natural-only skin limits are not sent in Makeup appearance');
+ assert.doesNotMatch(prompt,/FIRST — FOUNDATION AND COMPLEXION COVERAGE|THEN — SUBTLE COSMETICS|FINAL ENGLISH REFINED SKIN FINISH|MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/,'Former competing Makeup authorities are absent');
+ assert.doesNotMatch(prompt,/#FF747F|#F0A2A8|#DD9C8C|EYESHADOW COLOUR OVERRIDE|GLOSS — TRANSLUCENT HYDRATED WET LIP SURFACE/,'No second route-specific cosmetic palette or wet-gloss directive');
+ assert.doesNotMatch(prompt,/\+0\.20 to \+0\.30 EV|very small adaptive adjustment|avoid heavy smoothing/i,'No fixed lift or obsolete tiny-correction limit');
 }
 
-test('Natural prompt bytes and the released base makeup prompt remain unchanged',()=>{
+test('Natural prompt bytes and its shared cache version remain unchanged',()=>{
  assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v8-ai-only-even-bright-complexion');
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('natural',english);
   assert.equal(digest(prompt),naturalHashes[english]);
   assert(!prompt.includes('FINAL MAKEUP STUDIO-RETOUCH AUTHORITY'));
  }
- assert.equal(digest(AI_MAKEUP_PROMPT),'2786a8d2e31d51835ff9c8a204d8073325527a02917ee166e773f7e28ef2580a');
 });
 
-test('both direct Makeup prompt variants end with the shared studio retouch while Natural receives none',()=>{
- assert.equal(MAKEUP_STUDIO_RETOUCH_VERSION,'makeup-studio-retouch-v1-radiant-diffused-clear-skin');
+test('English head/template default and explicit Natural builders retain released bytes while Makeup omits bare-skin authorities',()=>{
+ const fixtures=[
+  [englishHeadPortraitPrompt,[{}, {gender:'male'}, {gender:'female',hairIndex:2,identityIndex:3,hairFitIndex:4,keepCurrentHair:true}, {gender:'female',hairIndex:2,hairGuidance:'fixture-specific hair'}],['e3b2991247026cc85c3e6084a5ae267afdd4b0d8550d1422e989e97e97b65e58','af17850f4d9fb9d38c461e77228a7f4b7d66bc5e66a21cb0c162b9c99023342c','b4261582b24321c6a7521a4082e219157d5796ba3914511971159ee8b8684926','24f67498196330fb6d3ce76bfdf9c0a45ad4afaab05898ecf17adb991abbe3ef']],
+  [englishTemplateBodyPrompt,[{gender:'female',identityIndex:2,outfitIndex:3},{gender:'male',identityIndex:2,outfitIndex:3,proportionLock:true,naturalHeadNeck:true,maleBodyBalance:true,selectedHairKind:'short'},{gender:'female',identityIndex:1,outfitIndex:2,identityLayout:true,proportionLock:true,naturalHeadNeck:true,femaleBalancedHead:true,selectedHairKind:'gathered'},{gender:'female',hairIndex:2,identityIndex:3,outfitIndex:4,hairFitIndex:5,keepCurrentHair:true}],['1c9936c974bcf4703529e493adeb9e9f76b6076f94798f9daef3a1ed929502c8','29a8dcb549363c4b6573cc7c3070e16095a3fc812cf1aa4bc9671bdff45335cb','cf6f7eefb6bd663c4fd3ad7a2ef98519a74b29bef37791e1a9a14e69c6911d00','a1b451eb994a2c74007d54dd0aa596e9ba506ca644514c6eccf9050a8f74e947']]
+ ];
+ for(const [build,scenarios,hashes] of fixtures)for(const [index,args] of scenarios.entries()){
+  assert.equal(digest(build(args)),hashes[index],'Default Natural builder retains its exact released prompt');
+  assert.equal(digest(build({...args,makeupFinish:false})),hashes[index],'Explicit false retains the same Natural bytes');
+  if(args.gender==='male')continue;
+  const makeup=build({...args,makeupFinish:true});
+  assert.notEqual(digest(makeup),hashes[index]);
+  assert.doesNotMatch(makeup,/NATURAL SHARED BASE — FINISH HERE ONCE|NATURAL SKIN AND LIGHT — COMPLETE ONCE|ENGLISH NATURAL SKIN DETAIL|add no eyebrow reconstruction/,'Makeup base does not require a bare-skin finish');
+  assert.match(makeup,/eye|iris/i);assert.match(makeup,/hair/i);assert.match(makeup,/geometry|proportions/i);
+ }
+});
+
+test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v2-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -74,15 +102,24 @@ test('both direct Makeup prompt variants end with the shared studio retouch whil
  }
 });
 
-test('actual Thai and English single-pass Makeup keep one generation and preserve source options and fixture pixels',async()=>{
- for(const language of ['th','en']){
-  const fields={portraitMode:'female',femaleEyeStyle:'makeup',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,
-   ...(language==='en'?{...englishFields['English template'],neckOutfitReferencePath:'/assets/job-uniforms/female-job-ivory-bow-blouse.png'}:{})};
+test('actual Thai and English single-pass Makeup use the reference finish once while full Natural request bytes remain unchanged',async()=>{
+ for(const [name] of modes)for(const finish of ['natural','makeup']){
+  const fields={portraitMode:'female',femaleEyeStyle:finish,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,
+   ...(englishFields[name]||{}),...(name.startsWith('English')?{neckOutfitReferencePath:'/assets/job-uniforms/female-job-ivory-bow-blouse.png'}:{})};
   const originalFields=structuredClone(fields),sourceHash=digest(natural),calls=[],stages=[];
   const result=await processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields,root,key:'inert-makeup-fixture',
    requestPortrait:async request=>{calls.push(request);return {png:aiMatte}},removeBackground:async()=>aiMatte,onStage:async stage=>stages.push(stage)});
-  assert.equal(calls.length,1);assert.equal(calls[0].prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
-  assert(calls[0].prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY)<calls[0].prompt.indexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Existing final hair protection stays authoritative for hair only');
+  assert.equal(calls.length,1,name+'/'+finish);const prompt=calls[0].prompt;
+  if(finish==='makeup'){
+   const position=prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY);assert(position>=0);
+   // The pipeline adds hair-only instructions after complexion. The full
+   // appearance segment must match the common specification exactly.
+   assertRetouch(prompt.slice(0,position+MAKEUP_STUDIO_RETOUCH_POLICY.length));
+   assert(position<prompt.indexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Existing final hair protection stays authoritative for hair only');
+  }else{
+   if(name==='Thai'||name==='English template')assert.equal(digest(prompt),naturalPipelineHashes[name==='Thai'?'th':'en'],'Full released Natural request is unchanged');
+   assert(!prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
+  }
   assert(!stages.includes('makeup')&&!stages.includes('skin-prepare'),'No additional image generation stage is added');
   assert.deepEqual(fields,originalFields);assert.equal(digest(natural),sourceHash);
   assert.deepEqual(await pixel(result),[205,177,156]);
@@ -100,8 +137,7 @@ test('all dedicated Makeup modes append the same final complexion authority with
   assert.deepEqual(await alpha(result),await alpha(natural),name+' cutout alpha');
   assert.deepEqual(await pixel(result),[205,177,156],name+' interior must stay provider pixels');
   assert.equal(digest(natural),sourceHash);
-  if(name==='Thai')assert(calls[0].prompt.includes(AI_MAKEUP_PROMPT));
-  else assert(calls[0].prompt.indexOf('FINAL ENGLISH REFINED SKIN FINISH')<calls[0].prompt.indexOf('FINAL MAKEUP STUDIO-RETOUCH AUTHORITY'));
+  assert(calls[0].prompt.includes(AI_MAKEUP_PROMPT),name+' uses the same completed-Natural context');
  }
 });
 

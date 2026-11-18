@@ -9,6 +9,7 @@ import {measureUniformAnchors} from '../src/portrait-uniform-fit.js';
 import {englishHeadCutoutAlpha,englishNeckClipAlpha} from '../src/english-head-cutout.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
 const root=new URL('..',import.meta.url).pathname;
 const face={10:{x:.5,y:.20},152:{x:.5,y:.67},234:{x:.23,y:.43},454:{x:.77,y:.43}};
 const fields={interfaceLanguage:'en',portraitComposition:ENGLISH_HEAD_PORTRAIT_VERSION,englishStudioFinishVersion:ENGLISH_HEAD_FINISH_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION,neckOutfitReferencePath:'/assets/job-uniforms/female-job-ivory-bow-blouse.png'};
@@ -18,7 +19,7 @@ test('new English close-up pair has exactly two AI calls, no outfit/body referen
   const f={...fields,...(mode==='selected'?{hairId:'seedream-41',hairReferenceVersion:'picker-hair-v1'}:{}),...(mode==='keep'?{keepCurrentHair:'1',preserveHairJobId:'owned'}:{})},calls=[];let pair;
   const natural=await processProductionPortrait({input:{buffer:image,mimetype:'image/png'},fields:f,root,key:'inert',currentHair:mode==='keep'?image:null,requestPortrait:async p=>{calls.push(p);return{png:matte}},removeBackground:async()=>matte,onMakeupVariant:async p=>pair=p});
   assert.equal(calls.length,2);assert.deepEqual(calls[0].portrait,image);assert(!calls[0].outfit&&!calls[0].compositionReference&&!calls[0].skinReference&&!calls[0].neckReference);assert.match(calls[0].prompt,/large sharply resolved face/);assert.match(calls[0].prompt,/Do not generate a final suit/);assert.doesNotMatch(calls[0].prompt,/OUTFIT LIGHTING IS THE FIXED AUTHORITY|90%|27–31%/);
-  assert.match(calls[1].prompt,/#FF747F/);assert.match(calls[1].prompt,/identity.*pose/);assert.match(calls[1].prompt,/eye|iris/i);assert.doesNotMatch(calls[1].prompt,/EYESHADOW COLOUR OVERRIDE|40% pigment opacity/);
+  assert(calls[1].prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));assert.equal(calls[1].prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);assert.match(calls[1].prompt,/identity.*pose/);assert.match(calls[1].prompt,/eye|iris/i);assert.doesNotMatch(calls[1].prompt,/EYESHADOW COLOUR OVERRIDE|40% pigment opacity|#FF747F/);
   assert.deepEqual(await sharp(natural).extractChannel(3).raw().toBuffer(),await sharp(pair).extractChannel(3).raw().toBuffer());
   if(mode==='keep')assert.match(calls[0].prompt,/EXISTING HAIR — IMAGE 2/);
  }

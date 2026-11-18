@@ -58,8 +58,7 @@ test('production pipeline finishes both images before delivery and fails the job
   assert.equal(makeupCalls,1);
  }
 });
-test('Thai AI makeup matches soft-rose studio style, preserves the Natural base and keeps old jobs valid',async()=>{
- const {AI_MAKEUP_COMPLEXION_POLICY,AI_MAKEUP_FACE_LIGHTING_POLICY}=await import('../ai-portrait-makeup.js');
+test('Thai AI makeup uses one reference satin finish, preserves the Natural scene and keeps old jobs valid',async()=>{
  const {AI_MAKEUP_PAIR_VERSION,isAiMakeupPairVersion}=await import('../ai-makeup-pair-policy.js');
  assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v15-soft-rose-studio-natural-tone');
  assert(isAiMakeupPairVersion('ai-makeup-pair-v14-even-bright-fair-skin'),'queued previous-version jobs remain valid');
@@ -67,54 +66,49 @@ test('Thai AI makeup matches soft-rose studio style, preserves the Natural base 
  const natural=await png('tan');
  for(const preserveOutfit of [false,true]){
   let sent;await createAiMakeupVariant(natural,{key:'fixture-not-sent',preserveOutfit,requestPortrait:async p=>{sent=p;return {png:natural}}});
-  assert(sent.prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
-  assert(sent.prompt.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
-  assert(sent.prompt.indexOf(AI_MAKEUP_FACE_LIGHTING_POLICY)<sent.prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY));
+  assert(sent.prompt.includes(AI_MAKEUP_PROMPT));
   assert(sent.prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
-  assert.match(sent.prompt,/delicate natural Korean-inspired studio portrait makeup/);
-  assert.match(sent.prompt,/muted dusty-rose blush/);
-  assert.match(sent.prompt,/softly blended fresh neutral rose-pink tint/);
-  assert.match(sent.prompt,/Keep face width-to-height ratio/);
-  assert.match(sent.prompt,/never authorize face slimming/);
-  assert.match(sent.prompt,/own authentic complexion depth and undertone/i);
-  assert.match(sent.prompt,/Face, ears, jaw and visible neck/);
-  assert.match(sent.prompt,/Reus[e] that same overall studio exposure/);
-  assert.match(sent.prompt,/Keep clothing and clothed torso at precisely their Natural exposure/);
-  assert.match(sent.prompt,/do not edit hair or background/i);
+  assert.equal(sent.prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
+  assert.match(sent.prompt,/faint low-contrast neutral rose-pink blush/);
+  assert.match(sent.prompt,/fresh muted rose-pink satin tint/);
+  assert.match(sent.prompt,/facial proportions, asymmetry, age structure/);
+  assert.match(sent.prompt,/authentic pigment depth and undertone/i);
+  assert.match(sent.prompt,/Face, ears and neck must look continuous/);
+  assert.match(sent.prompt,/do not apply an image-wide exposure or white-balance change to hair, clothing or background/);
+  assert.match(sent.prompt,/THAI FINISHED-PORTRAIT GEOMETRY LOCK/);
+  if(preserveOutfit)assert.match(sent.prompt,/Preserve fabric weave, pattern direction and scale/);
   assert.doesNotMatch(sent.prompt,/visibly more even, brighter fair-pink makeup finish|clearly fairer, bright, evenly toned/);
-  assert.doesNotMatch(sent.prompt,/aim for approximately \+0\.4 to \+0\.6 EV/);
+  assert.doesNotMatch(sent.prompt,/NATURAL SOFT-ROSE COMPLEXION|MAKEUP EDIT SCOPE — FACE AND VISIBLE NECK ONLY|very small adaptive adjustment|Use only a thin, believable makeup foundation finish/,'Old limiting authorities no longer compete');
+  assert.doesNotMatch(sent.prompt,/aim for approximately \+0\.4 to \+0\.6 EV|\+0\.20 to \+0\.30 EV/);
  }
 });
 
-test('English-only makeup uses pressed powder to refine skin without affecting Thai or hair edges',async()=>{
+test('all English makeup modes share the Thai reference finish and retain mode-specific geometry and clean edges',async()=>{
  const {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK}=await import('../english-makeup-light-policy.js');
- const {AI_MAKEUP_FACE_LIGHTING_POLICY,AI_MAKEUP_COMPLEXION_POLICY}=await import('../ai-portrait-makeup.js');
+ const {ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY}=await import('../english-studio-finish.js');
  const natural=await png({r:132,g:119,b:101,alpha:1},28,36);
- assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-pressed-powder-v6');
+ assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-pressed-powder-v6','Shared Natural/cache identities do not change just to revise Makeup');
+ const modes={englishReferenceFinish:'ENGLISH FINISHED-PORTRAIT GEOMETRY LOCK',englishHeadFinish:'ENGLISH CLOSE-UP HEAD/NECK MASTER LOCK',englishTemplateFinish:'ENGLISH COMPLETE-OUTFIT GEOMETRY LOCK'};
  for(const option of ['englishReferenceFinish','englishHeadFinish','englishTemplateFinish']){
   let prompt,requests=0;
   const result=await createAiMakeupVariant(natural,{key:'english-compact-powder-v6',[option]:true,preserveOutfit:true,requestPortrait:async p=>{prompt=p.prompt;requests++;return {png:natural}}});
   assert.equal(requests,1);
   assert(result.length>0);
-  assert(prompt.includes(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK));
-  assert(prompt.indexOf(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK)<prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY));
+  assert(prompt.includes(AI_MAKEUP_PROMPT));
+  assert(!prompt.includes(ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK),'Old fixed-exposure pressed-powder policy is no longer active');
   assert(prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
-  assert.match(prompt,/MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/);
-  assert.match(prompt,/medium-coverage foundation, spot concealer and fine PRESSED COMPACT POWDER/);
-  assert.match(prompt,/Minimise rough granular skin noise/);
-  assert.match(prompt,/\+0\.20 to \+0\.30 EV/);
-  assert.match(prompt,/ABSOLUTE NON-SKIN LOCK/);
-  assert.match(prompt,/ENGLISH CLEAN EARS AND NO JEWELLERY/);
-  assert.match(prompt,/NO OUTER SILHOUETTE HALO/);
-  assert.match(prompt,/Keep outfit colours, weave, shadows and brightness identical/);
-  assert.match(prompt,/No changes of any kind to non-skin elements/);
-  assert(!prompt.includes(AI_MAKEUP_COMPLEXION_POLICY));
-  assert(!prompt.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
+  assert.equal(prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
+  assert(prompt.includes(modes[option]));
+  assert(prompt.includes(ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY));
+  assert.match(prompt,/NATURAL OUTER-CUTOUT LOCK/);
+  assert.match(prompt,/No grey\/black\/blue outline, rim glow, matte fringe, double edge/);
+  assert.match(prompt,/Preserve fabric weave, pattern direction and scale/);
+  assert.match(prompt,/do not apply an image-wide exposure or white-balance change to hair, clothing or background/);
+  assert.doesNotMatch(prompt,/FINAL ENGLISH REFINED SKIN FINISH|MAKEUP SKIN FINISH — PRESSED COMPACT POWDER|\+0\.20 to \+0\.30 EV|#FF747F|#F0A2A8|#DD9C8C/);
  }
  let thai;
  await createAiMakeupVariant(natural,{key:'thai-prompt-regression',requestPortrait:async p=>{thai=p.prompt;return {png:natural}}});
- assert(thai.includes(AI_MAKEUP_FACE_LIGHTING_POLICY));
- assert(thai.indexOf(AI_MAKEUP_FACE_LIGHTING_POLICY)<thai.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY));
  assert(thai.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
- assert.doesNotMatch(thai,/MAKEUP SKIN FINISH — PRESSED COMPACT POWDER/);
+ assert.equal(thai.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
+ assert.doesNotMatch(thai,/ENGLISH STRICT HAIR AND EAR PRIORITY/,'Existing Thai edge path stays separate');
 });

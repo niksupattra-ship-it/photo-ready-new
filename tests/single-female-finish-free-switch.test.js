@@ -10,6 +10,7 @@ import {SINGLE_PASS_SKIN_QUALITY_VERSION,onePassSkinQualityPriority} from '../si
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup} from '../natural-master-makeup.js';
 import {AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
 import {ENGLISH_STUDIO_FREE_HAIR_IDS,isEnglishStudioFreeHair,isEnglishStudioDiamondHair,orderEnglishStudioHair,englishStudioDiamondActive} from '../src/english-studio-hair-policy.js';
@@ -85,32 +86,35 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
   assert(!got.stages.includes('skin-prepare'),'No hidden Thai skin preparation request');
   assert(!got.stages.includes('makeup'),'No hidden second makeup request');
   if(finish==='makeup'){
-   assert.match(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
-   assert.match(got.calls[0].prompt,/FIRST — FOUNDATION AND COMPLEXION COVERAGE/,'Makeup corrects surface redness before adding colour');
-   assert.match(got.calls[0].prompt,/THEN — SUBTLE COSMETICS/,'Makeup adds cosmetically finished eyes, cheeks and lips');
-   assert.match(got.calls[0].prompt,/very thin skin-matched sheer foundation look/,'Makeup has no opaque facial foundation layer');
-   assert.match(got.calls[0].prompt,/BROAD UNDER-EYE BLUSH GRADIENT/,'Blush expands from under-eye cheek to outer edge');
-   assert.match(got.calls[0].prompt,/out toward the temples and outer facial contour on BOTH sides/,'Blush extends to outer facial contours, not dots');
-   assert.match(got.calls[0].prompt,/not a small intense pink centre, disk, stamped circle/,'No saturated circular blush');
-   assert.match(got.calls[0].prompt,/do not require additional retouching, face masks or post-processing/,'AI-only finished pixels');
+   assert.match(got.calls[0].prompt,/SELECTED MAKEUP — SAME-GENERATION INPUT CONTEXT/);
+   assert(got.calls[0].prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY),'Makeup gets the same complete reference finish as a Natural-to-Makeup edit');
+   assert.equal(got.calls[0].prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
+   assert.match(got.calls[0].prompt,/COMPLEXION — CONTINUOUS STUDIO RETOUCH BEFORE COSMETIC COLOUR/,'Makeup repairs skin before adding colour');
+   assert.match(got.calls[0].prompt,/ONE COHERENT COSMETIC PALETTE/);
+   assert.match(got.calls[0].prompt,/faint low-contrast neutral rose-pink blush broadly through the upper cheeks/);
+   assert.match(got.calls[0].prompt,/without a visible boundary or circular centre/,'No saturated circular blush');
+   assert.match(got.calls[0].prompt,/No preliminary Natural generation, additional provider request, face\/skin mask/,'AI-only finished pixels');
+   assert.match(got.calls[0].prompt,/same person's recognisable identity, facial proportions/);
+   assert.match(got.calls[0].prompt,/Keep pose, outfit, collar, fabric, buttons, insignia, background, canvas dimensions/);
+   assert.doesNotMatch(got.calls[0].prompt,/NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP|Subtly clean up small active pimples|very thin skin-matched sheer foundation look/,'Bare-skin limits no longer compete with selected Makeup');
   }else{
-   assert.doesNotMatch(got.calls[0].prompt,/FINAL FINISH PRIORITY — ONE AI IMAGE/);
+   assert.doesNotMatch(got.calls[0].prompt,/SELECTED MAKEUP — SAME-GENERATION INPUT CONTEXT/);
    assert.match(got.calls[0].prompt,/SELECTED FINISH — NATURAL CLEAR STUDIO SKIN, NO ADDED MAKEUP/);
    assert.doesNotMatch(got.calls[0].prompt,/THEN — SUBTLE COSMETICS/);
    assert.doesNotMatch(got.calls[0].prompt,/BROAD UNDER-EYE BLUSH GRADIENT/,'Natural must have zero blush');
+   assert.match(got.calls[0].prompt,/FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY — AI ONLY/);
+   assert.match(got.calls[0].prompt,/NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP/,'Natural keeps its released complexion instructions');
+   assert.match(got.calls[0].prompt,/Subtly clean up small active pimples/,'Natural acne reduction should not create a mask');
+   assert.match(got.calls[0].prompt,/real pores, fine facial detail and soft tonal transitions/,'Natural skin remains textured');
+   assert.match(got.calls[0].prompt,/no.*later skin-processing stage/i,'No additional beauty filter or native skin pass');
+   assert.match(got.calls[0].prompt,/IDENTITY AND SKIN-TONE LOCK/);
+   assert.match(got.calls[0].prompt,/NON-FACE PROTECTION/);
+   assert.match(got.calls[0].prompt,/ONE image-generation request/i);
+   assert.equal(got.calls.filter(c=>c.prompt.includes('FINAL ONE-PASS STUDIO SKIN')).length,1);
   }
-  assert.match(got.calls[0].prompt,/FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY — AI ONLY/);
-  assert.match(got.calls[0].prompt,/NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP/,'Both finishes receive the same believable complexion base');
-  assert.match(got.calls[0].prompt,/Subtly clean up small active pimples/,'Acne reduction should not create a mask');
-  assert.match(got.calls[0].prompt,/real pores, fine facial detail and soft tonal transitions/,'Skin remains textured and natural');
-  assert.match(got.calls[0].prompt,/no.*later skin-processing stage/i,'No additional beauty filter or native skin pass');
-  assert.match(got.calls[0].prompt,/IDENTITY AND SKIN-TONE LOCK/);
-  assert.match(got.calls[0].prompt,/NON-FACE PROTECTION/);
-  assert.match(got.calls[0].prompt,/ONE image-generation request/i);
-  assert.equal(got.calls.filter(c=>c.prompt.includes('FINAL ONE-PASS STUDIO SKIN')).length,1);
  }
 });
-test('one-pass skin quality version changes new cache keys and preserves legacy paired prompts',async()=>{
+test('shared skin version and legacy paired processing contracts remain stable',async()=>{
  assert.equal(SINGLE_PASS_SKIN_QUALITY_VERSION,'one-pass-studio-skin-finish-v8-ai-only-even-bright-complexion');
  assert.throws(()=>onePassSkinQualityPriority('invalid'),/Invalid one-pass skin finish/);
  assert.match(onePassSkinQualityPriority('makeup',true),/ENGLISH OUTFIT REFERENCE LOCK/);
@@ -123,7 +127,7 @@ test('one-pass skin quality version changes new cache keys and preserves legacy 
  assert.match(pipeline,/if\(singlePass\)\{\s*if\(fields\.femaleEyeStyle==='makeup'\)prompt\+=onePassMakeupPriority\(true\);\s*prompt\+=onePassSkinQualityPriority\(fields\.femaleEyeStyle,true\)/);
  for(const lang of ['th','en']){
   const legacy=await run(lang,'natural','pair');
-  assert(!legacy.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old paired job prompts remain unchanged');
+  assert(!legacy.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Legacy pairs do not enter the single-pass skin route');
   const oldSingle=await run(lang,'makeup');
   assert(!oldSingle.calls.some(x=>x.prompt.includes('FINAL ONE-PASS STUDIO SKIN')),'Old single-finish protocol uses its released two-step quality');
  }
@@ -133,15 +137,15 @@ test('AI-only diffuse blush retains Natural colour, identity and previous one-pa
  const natural=onePassSkinQualityPriority('natural',false);
  const english=onePassSkinQualityPriority('makeup',true);
  for(const text of [makeup,english]){
-  assert.match(text,/beginning immediately BELOW the lower-eye area/,'Blush starts on upper cheeks');
-  assert.match(text,/out toward the temples and outer facial contour on BOTH sides/,'Blush extends to face contour');
-  assert.match(text,/low-contrast, softly feathered colour gradient/,'Blush gradient never a circle');
-  assert.match(text,/no discernible circular centre/,'No concentrated cheek patch');
-  assert.match(text,/no thick foundation/,'Skin must not be an opaque face layer');
+  assert.match(text,/blush broadly through the upper cheeks/,'Blush stays on cheek skin');
+  assert.match(text,/fading into the outer cheek and temple/,'Blush diffuses toward face contour');
+  assert.match(text,/faint low-contrast neutral rose-pink blush/,'Blush remains restrained');
+  assert.match(text,/without a visible boundary or circular centre/,'No concentrated cheek patch');
+  assert.match(text,/No isolated blurred islands, concealer circles, stamped patches, facial plate or jaw\/neck seam/,'Skin must not become an opaque face layer');
  }
  assert.doesNotMatch(natural,/under-eye-to-outer-face blush haze/,'No makeup in Natural');
  assert.match(natural,/no blush, eyeliner, eyeshadow, lipstick/,'Natural skin should stay bare');
- assert.match(makeup,/do not require additional retouching, face masks or post-processing/,'No retouching after AI request');
+ assert.match(makeup,/No preliminary Natural generation, additional provider request, face\/skin mask/,'No retouching after AI request');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
  assert.doesNotMatch(main,/captureStudioSkinEvidence|onePassSkinEvidence|finishOnePassMakeupCheekBlushBlob|diffuseFemaleMakeupCheekBlush/,'No face mask, skin-preprocessing evidence or post-AI cheek correction');
@@ -232,7 +236,7 @@ test('Easy Mode uses a guided selection order for both genders without skipping 
  assert.doesNotMatch(easy,/!hasResult&&thaiHairConfirmation&&choicesReady&&currentSuit\?\s*<button/,
   'Old early Create shortcut must not return');
 });
-test('Natural to Makeup edits the completed Natural image with the released AI makeup prompt once',async()=>{
+test('Natural to Makeup edits the completed Natural image with the shared reference finish once',async()=>{
  const selected=fields('th','natural','one');
  assert.equal(shouldUseNaturalMasterMakeup(selected,'makeup'),true);
  assert.equal(shouldUseNaturalMasterMakeup({...selected,femaleEyeStyle:'makeup'},'makeup'),false);
@@ -241,9 +245,9 @@ test('Natural to Makeup edits the completed Natural image with the released AI m
   requestPortrait:async request=>{requests.push(request);return {png:rgba}}});
  assert.equal(requests.length,1,'Existing Natural image only takes one additional AI request');
  assert.equal(requests[0].portraitMime,'image/png');
- assert.match(requests[0].prompt,/Apply delicate natural Korean-inspired studio portrait makeup/);
- assert.match(requests[0].prompt,/BROWS:/);
- assert(requests[0].prompt.includes(AI_MAKEUP_PROMPT),'Exact previously shipped AI makeup instructions are reused');
+ assert(requests[0].prompt.includes(AI_MAKEUP_PROMPT),'Edit context uses the approved completed Natural photograph');
+ assert(requests[0].prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY),'Same reference appearance as direct Makeup');
+ assert.equal(requests[0].prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
  assert(makeup.length>0);
  const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
  const store=await readFile(new URL('../job-store.js',import.meta.url),'utf8');
@@ -415,21 +419,22 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(styles,/\.en-diamond-photo-preview img/,'English preview remains visible on desktop and mobile');
 });
 
-test('v8 Makeup AI complexion is evenly bright and clear without a mask or extra processing',()=>{
+test('reference Makeup complexion is evenly clear and softly satin without a mask or extra processing',()=>{
  const makeup=onePassSkinQualityPriority('makeup',false);
  const englishMakeup=onePassSkinQualityPriority('makeup',true);
  const natural=onePassSkinQualityPriority('natural',false);
  for(const prompt of [makeup,englishMakeup]){
-  assert.match(prompt,/MAKEUP COMPLEXION FINAL AUTHORITY/);
-  assert.match(prompt,/visibly clear active pimples, clusters of temporary acne blemishes/);
-  assert.match(prompt,/WHOLE continuous facial skin surface/);
-  assert.match(prompt,/VISIBLY BRIGHTER, FRESHER STUDIO ILLUMINATION/);
-  assert.match(prompt,/across the facial edges to ears and visible neck/);
-  assert.match(prompt,/NO MASK, NO OVERLAY, NO LOCAL FILTER/);
-  assert.match(prompt,/SAME AI image-generation response/);
-  assert.match(prompt,/authentic pigment depth or undertone/);
+  assert(prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
+  assert.match(prompt,/Remove conspicuous surface wrinkles/);
+  assert.match(prompt,/active pimples, acne bumps, acne-red\/brown dots/);
+  assert.match(prompt,/throughout the forehead, temples, both cheeks to their outer edges/);
+  assert.match(prompt,/LIGHT AND SURFACE — BROAD SOFTBOX, RESTRAINED SATIN/);
+  assert.match(prompt,/across the whole face, ears and visible neck/);
+  assert.match(prompt,/No preliminary Natural generation, additional provider request, face\/skin mask/);
+  assert.match(prompt,/SAME requested AI generation\/edit/);
+  assert.match(prompt,/authentic pigment depth and undertone/);
  }
- assert.doesNotMatch(natural,/MAKEUP COMPLEXION FINAL AUTHORITY/,'Natural keeps its separate no-makeup skin rules');
+ assert.doesNotMatch(natural,/FINAL MAKEUP STUDIO-RETOUCH AUTHORITY/,'Natural keeps its separate no-makeup skin rules');
  assert.match(natural,/NO ADDED MAKEUP/);
 });
 

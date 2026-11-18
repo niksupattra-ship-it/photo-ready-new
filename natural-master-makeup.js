@@ -9,7 +9,9 @@ import {isEnglishTemplateBody} from './english-template-body-policy.js';
 // image, not a joint hair+makeup generation prompted from the untouched upload.
 // Reusing the existing Natural AI pixels makes a Natural -> Makeup switch only
 // ONE additional provider request and preserves the original complexion,
-// hairstyle, framing, garment, and the exact previously released makeup prompt.
+// hairstyle, framing and garment. Its Makeup appearance uses the same canonical
+// finish as a direct Makeup request, while the approved Natural pixels remain
+// the conditioning image and completed stored alternates remain reusable.
 export {NATURAL_MASTER_MAKEUP_VERSION} from './female-single-finish-policy.js';
 export const shouldUseNaturalMasterMakeup=(fields,finish)=>
  fields?.portraitMode==='female'&&fields?.femaleFinishSingleVersion==='female-single-finish-v1'&&
