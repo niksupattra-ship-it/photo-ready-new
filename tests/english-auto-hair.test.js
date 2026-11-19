@@ -56,8 +56,8 @@ test('Explicitly selected hairstyles and Keep Current are not replaced by AI Pic
  }
 });
 test('Thai first-generation female reference is the visible free centre-parted cut; English UI does not force it',async()=>{
- assert.equal(FIRST_GENERATION_FEMALE_HAIR,'seedream-42');
- assert.equal(firstGenerationHairFor('female'),'seedream-42');
+ assert.equal(FIRST_GENERATION_FEMALE_HAIR,'seedream-14');
+ assert.equal(firstGenerationHairFor('female'),'seedream-14');
  assert.equal(firstGenerationHairFor('male'),'');
  const englishFlow=await readFile(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
@@ -76,10 +76,10 @@ test('Thai first-generation female reference is the visible free centre-parted c
 });
 
 
-test('Thai female picker starts with seedream-42, retains other basic cuts, and hides only female Thai auto tile',async()=>{
+test('Thai female picker starts with the three requested free cuts, and hides only female Thai auto tile',async()=>{
  const [main,studio,easy]=await Promise.all(['../src/main.jsx','../src/studio-editor.jsx','../src/easy-mode.jsx'].map(p=>readFile(new URL(p,import.meta.url),'utf8')));
- assert.match(main,/const BASIC_FEMALE_HAIR_IDS=\['seedream-42','seedream-40','seedream-41'\]/);
- assert.match(studio,/!\['seedream-42','seedream-40','seedream-41'\]\.includes\(id\)/);
+ assert.match(main,/const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS/);
+ assert.match(studio,/!THAI_FREE_FEMALE_HAIR_IDS\.includes\(id\)/);
  assert.match(studio,/\{\(englishFlow\|\|hairGender!=='female'\)&&<button className=\{'studio-none-choice'/);
  assert.match(easy,/\{\(englishPreviewEnabled\(\)\|\|gender!=='female'\)&&<button type="button" className=\{"easy-no-hair"/);
  assert.match(studio,/selectedHair=\{selectedHair\} templates=/);

@@ -50,7 +50,7 @@ import {packSavedProjectTransfer,unpackSavedProjectTransfer,getSavedWorkRequestS
 import {encodeSavedWorkRequest} from './saved-work-request.js';
 import {decodedStudioImage} from './studio-image-cache.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
-import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,HAIR_DESIGN_VERSION,selectedHairDesign} from '../hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,isTrialHairAllowed,HAIR_DESIGN_VERSION,selectedHairDesign} from '../hairstyle-catalog.js';
 import {ENGLISH_FEMALE_HAIR_CATALOG} from '../english-female-hair-catalog.js';
 import {ENGLISH_MALE_HAIR_CATALOG} from '../english-male-hair-catalog.js';
 import {orderEnglishStudioHair,englishStudioDiamondActive} from './english-studio-hair-policy.js';
@@ -3483,10 +3483,10 @@ const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิ�
 const BASIC_MALE_HAIR_IDS=['seedream-36','seedream-28'];
 const MALE_HAIR_OPTIONS=[...BASIC_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)).filter(Boolean),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.interfaceLanguage!=='en'&&h.id!=='seedream-35'&&!BASIC_MALE_HAIR_IDS.includes(h.id))];
 const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden&&h.interfaceLanguage!=='en');
-const BASIC_FEMALE_HAIR_IDS=['seedream-42','seedream-40','seedream-41'];
+const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS;
 const PRIORITY_PREMIUM_FEMALE_HAIR_IDS=['seedream-23','seedream-25'];
-const REMOVED_FEMALE_HAIR_IDS=new Set(['hair-21','hair-25','seedream-26','seedream-19','seedream-01','seedream-38','hair-26','seedream-27','seedream-25']);
-const STUDIO_FEMALE_HAIR_OPTIONS=[...BASIC_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...FREE_FEMALE_HAIR_OPTIONS,...PRIORITY_PREMIUM_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...HAIR_OPTIONS.filter(h=>!BASIC_FEMALE_HAIR_IDS.includes(h.id)&&!PRIORITY_PREMIUM_FEMALE_HAIR_IDS.includes(h.id))].filter(h=>!REMOVED_FEMALE_HAIR_IDS.has(h.id));
+const REMOVED_FEMALE_HAIR_IDS=new Set(['hair-21','hair-25','seedream-19','seedream-01','seedream-38','hair-26','seedream-25']);
+const STUDIO_FEMALE_HAIR_OPTIONS=[...BASIC_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...PRIORITY_PREMIUM_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...HAIR_OPTIONS.filter(h=>!BASIC_FEMALE_HAIR_IDS.includes(h.id)&&!PRIORITY_PREMIUM_FEMALE_HAIR_IDS.includes(h.id))].filter(h=>!REMOVED_FEMALE_HAIR_IDS.has(h.id));
 const JOB_UNIFORMS=[
  {id:'female-job-ivory-bow-blouse',title:'เสื้อหญิงไอวอรีผูกโบ',titleEn:"Women’s ivory bow-neck blouse",img:'/assets/uniform-quick-previews/job-uniforms--female-job-ivory-bow-blouse.webp',template:'/assets/job-uniforms/female-job-ivory-bow-blouse.png',cat:'job',gender:'female',searchKeywords:'cream ivory bow neck tie blouse women female เสื้อสีครีม โบว์ ผูกโบ'},
  {id:'female-job-light-pink-tweed-pearl-trim',title:'แจ็กเก็ตหญิงทวีดชมพูอ่อนขอบครีม กระดุมมุก',titleEn:"Women’s light pink tweed jacket with cream trim and pearl buttons",img:'/assets/uniform-quick-previews/job-uniforms--female-job-light-pink-tweed-pearl-trim.webp',template:'/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png',cat:'job',gender:'female',searchKeywords:'light pink tweed cream trim pearl buttons women female แจ็คเก็ต ทวีต สีชมพู คอกลม'},

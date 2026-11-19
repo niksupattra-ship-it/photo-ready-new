@@ -37,7 +37,7 @@ import {PHOTO_SIZES,photoSizesForLanguage,DEFAULT_PHOTO_CROP,PhotoSizeEditor,cro
 import {outputAccessResult,unavailableOutputRights,mergeOutputRights} from './output-rights.js';
 import {makeSavedProject} from './saved-project.js';
 import {replaceHairstyleLayer} from './replace-hairstyle-layer.js';
-import {HAIR_DESIGN_VERSION,firstGenerationHairFor} from '../hairstyle-catalog.js';
+import {HAIR_DESIGN_VERSION,THAI_FREE_FEMALE_HAIR_IDS,firstGenerationHairFor} from '../hairstyle-catalog.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
 import {splitNativeCollarParts} from './collar-native-parts.js';
 import {StudioCollarControls} from './studio-collar-controls.jsx';
@@ -463,7 +463,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  // Available pro159 credits permit hairstyle generation without spending a download.
  // A redeemed work keeps its own premium right after the balance reaches zero.
  const premiumHairAllowed=englishFlow?premiumHairCreditAvailable===true:(premiumHairCreditAvailable===true||outputHeads(layers).some(l=>verifiedJobs[l.jobId]?.premiumHair===true));
- const isPremiumHair=id=>englishFlow?isEnglishStudioDiamondHair(id,femaleHair.some(h=>h.id===id)?'female':'male'):(femaleHair.some(h=>h.id===id)&&!isFreeFemaleHair(id)&&!['seedream-42','seedream-40','seedream-41'].includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-36'].includes(id));
+ const isPremiumHair=id=>englishFlow?isEnglishStudioDiamondHair(id,femaleHair.some(h=>h.id===id)?'female':'male'):(femaleHair.some(h=>h.id===id)&&!THAI_FREE_FEMALE_HAIR_IDS.includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-36'].includes(id));
  // Diamond selections open the SAME package dialog as Download. Capture the
  // ACTUAL editor canvas at the moment of the click, not the uploaded original,
  // a previously generated image, or the hairstyle catalogue thumbnail.
