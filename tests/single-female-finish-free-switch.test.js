@@ -173,15 +173,15 @@ test('Hair-first and Makeup-first selections require explicit completion before 
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
  const english=await readFile(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');
- const thaiHair=studio.slice(studio.indexOf(' const chooseHair=id=>'),studio.indexOf(' const confirmThaiHair=()=>'));
+ const thaiHair=studio.slice(studio.indexOf(' const chooseHair=async id=>'),studio.indexOf(' const confirmThaiHair=()=>'));
  const thaiFinish=studio.slice(studio.indexOf(' const selectPortraitFinish=style=>'),studio.indexOf(' const commitMakeupSource=async'));
  const thaiCreate=studio.slice(studio.indexOf(' const confirmThaiHair=()=>'),studio.indexOf(' const cancelThaiHair=()=>'));
- assert.match(thaiHair,/setThaiChoiceFlow\(\{origin:'hair',step:'finish'\}\)/,'Choosing hair opens Makeup next');
- assert.match(thaiHair,/setThaiHairFinishChoice\(chosen\)/,'Hair-first opens the existing face image chooser');
- assert.match(thaiHair,/setThaiChoiceFlow\(\{origin:'finish',step:'ready'\}\)/,'Hair after Makeup completes both choices');
+ assert.match(thaiHair,/choiceStep:hairGender==='female'\?'finish':'ready'/,'Both languages stage Makeup after a female hairstyle');
+ assert.match(thaiHair,/setEnglishInlineAi/,'Both languages use the same draft UI');
+ assert.match(thaiHair,/choiceOrigin==='finish'&&d.choiceStep==='hair'\?'ready'/,'Hair after Makeup completes both choices');
  assert.match(thaiHair,/setThaiChoiceFlow\(\{origin:'hair',step:'ready'\}\)/,'Makeup after Hair completes both choices');
  assert.doesNotMatch(thaiHair,/void applyHair\(chosen\.hairId|void processPhoto\(\{hairId:choice/,'Changing draft options cannot call AI');
- assert.match(thaiFinish,/setThaiChoiceFlow\(\{origin:'finish',step:'hair'\}\)/,'Choosing Makeup opens hairstyles next');
+ assert.match(thaiFinish,/choiceStep:'hair',choiceOrigin:'finish'/,'Choosing Makeup opens the shared hairstyle draft next');
  assert.doesNotMatch(thaiFinish,/void applyHair\(/,'Cosmetic choice only stages a draft');
  assert.match(thaiCreate,/thaiChoiceFlow\?\.step!=='ready'/,'Create refuses incomplete selections');
  assert.match(thaiCreate,/if\(!currentSuit\)return/,'Create refuses missing outfit');
@@ -294,7 +294,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/createLabel="สร้างภาพ" cancelLabel="ยกเลิก"/,'Thai on-photo actions must show localized Create and Cancel');
  assert.doesNotMatch(studio,/studio-hair-confirm-button/,'Thai Full Studio must not use the old below-picker confirmation');
  assert.match(studio,/femaleEyeStyle:finish/,'Changing hair must preserve the most recently chosen makeup finish');
- assert.match(studio,/setThaiPendingHair\(chosen\)/);
+ assert.match(studio,/setEnglishInlineAi\(d=>\(\{\.\.\.d,hair:id\|\|''/,'Thai and English share the staged hairstyle draft');
  assert.match(studio,/freeFinishChange=appearanceKind==='makeup'/);
  assert.match(studio,/onHair=\{englishFlow\?\(easyHasResult\?chooseHair:processEasyPhoto\):chooseHair\} onGenerateHair=\{processEasyPhoto\} onConfirmHair=\{confirmThaiHair\}/,'Thai Easy Mode uses the selection-confirm flow while English keeps its original quick action');
  assert.match(studio,/thaiHairConfirmation=\{!englishFlow\}/,'English Easy Mode retains existing behavior');
@@ -332,20 +332,20 @@ test('Existing Studio Undo and Redo restore earlier completed AI generations wit
  assert.doesNotMatch(studio,/const backThaiChoice=\(\)=>/,'No new selection-navigation arrow was added');
 });
 
-test('English-only Studio remembers homepage gender and always reselects it for a newly added Studio photo',async()=>{
+test('Both locales remember homepage gender and reselect it for a newly added Studio photo',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  assert.match(main,/if\(englishPreviewEnabled\(\)\)v\.idpromPortraitMode=gender/,'Upload captures the homepage sex');
  assert.match(main,/if\(englishPreviewEnabled\(\)&&f\)f\.idpromPortraitMode=gender/,'Homepage sex changes after upload stay in sync');
- assert.match(main,/initialGender=\{englishPreviewEnabled\(\)\?gender:null\}/,'Only English passes remembered gender to Studio');
- assert.match(studio,/englishFlow\?\(initialSourcePhoto\?\.idpromPortraitMode\|\|initialGender\):null/,'First visit restores sex from uploaded source');
+ assert.match(main,/initialGender=\{gender\}/,'Both locales pass remembered gender to Studio');
+ assert.match(studio,/initialSourcePhoto\?\.idpromPortraitMode\|\|initialGender/,'First visit restores sex from uploaded source');
  const source=studio.slice(studio.indexOf(' const addSourcePhoto=async '),studio.indexOf(' useEffect(()=>{if(!initialSourcePhoto'));
- assert.match(source,/if\(englishFlow\)apiFile\.idpromPortraitMode=null/,'New Studio upload cannot inherit the previous image sex');
- assert.match(source,/else if\(englishFlow\)\{setPicker\(false\);setPortraitChoiceOpen\(true\)/,'Every Studio replacement opens a sex modal before creation');
+ assert.match(source,/apiFile\.idpromPortraitMode=null/,'New Studio upload cannot inherit the previous image sex');
+ assert.match(source,/setPicker\(false\);setPortraitChoiceOpen\(chooseWorkflow\)/,'Every Studio replacement opens a sex modal before creation');
  assert.match(source,/setEnglishInlineAi\(null\);setEnglishDraft\(null\);setEnglishRoute\(null\);setEnglishStep\(null\);/,'A new upload clears staged AI choices in both locales');
  assert.match(studio,/englishFlow\?'Choose the photo type':'กรุณาเลือกชนิดรูป'/,'Modal is localized in English without changing Thai copy');
- assert.match(studio,/if\(englishFlow\)\{trackPhotoType\(mode,'select'\);if\(sourcePhoto\)\{sourcePhoto\.idpromPortraitMode=mode/,'Chosen gender binds to the new uploaded photo');
- assert.match(studio,/setEnglishStep\('choose'\);setEnglishRoute\(null\);setStatus\(''\);return/,'Choosing gender shows existing English AI/manual setup, no processing yet');
+ assert.match(studio,/trackPhotoType\(mode,'select'\);if\(sourcePhoto\)\{sourcePhoto\.idpromPortraitMode=mode/,'Chosen gender binds to the new uploaded photo');
+ assert.match(studio,/setEnglishStep\('choose'\);setEnglishRoute\(null\);setStatus\(''\)/,'Choosing gender shows existing English AI/manual setup, no processing yet');
 });
 test('English homepage and Easy Mode use AI automatic hair for both men and women',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
@@ -399,15 +399,15 @@ test('Diamond hair in both locales opens existing Download packages with the act
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const offers=await readFile(new URL('../src/package-offers.jsx',import.meta.url),'utf8');
  const styles=await readFile(new URL('../src/package-offers.css',import.meta.url),'utf8');
- const snapshot=studio.slice(studio.indexOf(' const openDiamondHairOffer=hairId=>'),studio.indexOf(' const chooseHair=id=>'));
- const choose=studio.slice(studio.indexOf(' const chooseHair=id=>'),studio.indexOf(' const createThaiHairWithFinish=style=>'));
+ const snapshot=studio.slice(studio.indexOf(' const openDiamondHairOffer=hairId=>'),studio.indexOf(' const chooseHair=async id=>'));
+ const choose=studio.slice(studio.indexOf(' const chooseHair=async id=>'),studio.indexOf(' const createThaiHairWithFinish=style=>'));
  assert.match(snapshot,/canvasRef\.current/,'Screenshot must come from the current displayed Studio canvas');
  assert.match(snapshot,/ctx\.drawImage\(current,0,0,thumb\.width,thumb\.height\)/,'Snapshot contains the on-screen photo, not the original upload');
  assert.match(snapshot,/ctx\.fillText\('IDพร้อม',0,0\)/,'Use the same watermark style as download checkout');
  assert.match(snapshot,/onRequestUnlock\?\.\(\{reason:'diamond-hair',hairId,preview,jobId:/,'Use existing checkout callback with the clicked image');
  assert.doesNotMatch(snapshot,/void applyHair|onChangeHair|processPhoto\(|onProcessPhoto\(/,'Preview capture must never call AI');
  assert.match(choose,/if\(englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
- assert.match(choose,/if\(!englishFlow\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'Thai Diamond hair opens checkout');
+ assert.match(choose,/if\(isPremiumHair\(id\)&&!premiumHairAllowed&&!canRestoreHair\(id,hairGender,easyFaceFinish\)\)\{openDiamondHairOffer\(id\);return\}/,'Thai Diamond hair still opens its locale checkout');
  assert.match(choose,/if\(isPremiumHair\(id\)&&!premiumHairAllowed&&!canRestoreHair\(id,hairGender,easyFaceFinish\)\)\{openDiamondHairOffer\(id\);return\}/,'English hair picker opens checkout without generation');
  assert.match(studio,/if\(hair&&isPremiumHair\(hair\)&&!premiumHairAllowed&&!canRestoreHair\(hair,gender,finish\)\)\{openDiamondHairOffer\(hair\);return\}/,'Final English Create retains Diamond safeguard');
  assert.match(main,/setCheckoutPreview\(\{kind:'diamond-hair',jobId:context\.jobId\|\|'',preview:context\.preview\|\|null\}\)/,'Checkout snapshots are bound to this explicit Diamond click');
