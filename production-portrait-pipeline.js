@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,thaiOutfitGenerationFields} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitParity,isThaiOutfitPath,thaiOutfitGenerationFields} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -391,7 +391,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   return sharp(originalOutfit).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  })();
  const hairTask=(async()=>{
-  if(isThaiOutfitAi(fields)&&keepCurrentHair&&!currentHair)return sharp(input.buffer).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+  if(isThaiOutfitAi(fields)&&!isThaiOutfitParity(fields)&&keepCurrentHair&&!currentHair)return sharp(input.buffer).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   if(keepCurrentHair&&currentHair)return sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
   if(!chosen)return null;
   if(chosen.id.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION)return loadCatalogueHairGuide(chosen.id,root);

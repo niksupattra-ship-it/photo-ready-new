@@ -1,3 +1,4 @@
+import {THAI_OUTFIT_PARITY_VERSION} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
 import {AutoHairTile} from './auto-hair-tile.jsx';
 import {ProcessingIndicator} from './processing-indicator.jsx';
@@ -1443,7 +1444,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    setEnglishRoute('review');
    return;
   }
-  if(existing&&(gender!=='female'||hair||keepCurrentHair||existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION)&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===englishTemplateBodyFinishForGender(gender)&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&(portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish||hasPairedPortraitFinish(existing))){
+  if(existing&&(englishFlow||existing.thaiOutfitParityVersion===THAI_OUTFIT_PARITY_VERSION)&&(gender!=='female'||hair||keepCurrentHair||existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION)&&existing.portraitFramingVersion===ENGLISH_TEMPLATE_BODY_FRAMING_VERSION&&existing.englishStudioFinishVersion===englishTemplateBodyFinishForGender(gender)&&existing.generatedOutfitTemplate===outfit.template&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(keepCurrentHair||(existing.hairId||'')===hair)&&existing.portraitMode===gender&&(portraitFinishChoice(existing.femaleEyeStyle,existing.initialFemaleEyeStyle)===finish||hasPairedPortraitFinish(existing))){
    const fitted=state.current.find(l=>l.id===existing.id);
    if(portraitFinishChoice(fitted.femaleEyeStyle,fitted.initialFemaleEyeStyle)!==finish)await switchPairedPortraitFinish(fitted,finish);
    if(!await hydrate(state.current.map(l=>layerKind(l)==='suit'?{...l,visible:false}:l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l)))throw Error('Could not show your portrait.');
