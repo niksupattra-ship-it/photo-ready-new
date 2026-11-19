@@ -1,3 +1,4 @@
+import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
 import {usesCompleteThaiNeckBacking,completeThaiNeckPrompt,completeThaiNeckGuideInstruction} from './thai-neck-backing-policy.js';
 import {prepareThaiNeckCanvas} from './thai-neck-canvas.js';
@@ -379,9 +380,11 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // Outfit, original identity and hairstyle guides are independent sharp/file
  // operations. Prepare them concurrently; the returned PNG bytes, prompt
  // order, model calls and generated pixel content are completely unchanged.
+ let originalOutfit=null;
  const outfitTask=(async()=>{
   if(headOnly){await access(path.join(root,'public',file.slice(1)));return null}
-  return sharp(await readFile(path.join(root,'public',file.slice(1)))).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+  originalOutfit=await readFile(path.join(root,'public',file.slice(1)));
+  return sharp(originalOutfit).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  })();
  const hairTask=(async()=>{
   if(keepCurrentHair&&currentHair)return sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
@@ -420,6 +423,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  const makeupFinish=singlePass&&fields.femaleEyeStyle==='makeup';
  let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ const outfitDetailReference=!headOnly&&fields.englishOutfitFidelityVersion===ENGLISH_OUTFIT_FIDELITY_VERSION?await createEnglishOutfitDetailReference(originalOutfit):null;
  const makeupStudioReference=makeupFinish?await loadMakeupStudioReference(root):null;
  if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference].filter(Boolean).length);
  if(singlePass){
@@ -433,8 +437,9 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // Apply the same last hair-only rule to English women/men and AI Picks.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
  prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:true,keepCurrentHair,referenceBoard:chosen?.interfaceLanguage==='en'&&!keepCurrentHair});
+ if(outfitDetailReference)prompt+=englishOutfitFidelityInstruction(outfitIndex,2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference,makeupStudioReference].filter(Boolean).length);
  await onStage('generation');
- const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
