@@ -425,9 +425,9 @@ test('reference Makeup complexion is continuous and softly dewy without a mask o
  const natural=onePassSkinQualityPriority('natural',false);
  for(const prompt of [makeup,englishMakeup]){
   assert(prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
-  assert.match(prompt,/Soften the contrast of superficial skin wrinkles and fine lines/);
-  assert.match(prompt,/keep the person's actual age, expression, anatomical folds and features/);
-  assert.match(prompt,/Check again for temporary acne marks and residual high-contrast superficial fine lines/);
+  assert.match(prompt,/Retouch away visible superficial skin wrinkles, fine lines/);
+  assert.match(prompt,/Retain the person's actual age structure, expression and defining anatomical folds/);
+  assert.match(prompt,/Check again for acne marks, melasma, freckles, uneven pigmentation and visible superficial wrinkles or fine lines/);
   assert.match(prompt,/active pimples, acne bumps, acne-red\/brown dots/);
   assert.match(prompt,/throughout the forehead, temples, both cheeks to their outer edges/);
   assert.match(prompt,/LIGHT AND SURFACE — BROAD SOFTBOX, DEWY PHOTOGRAPHIC REFLECTIONS/);

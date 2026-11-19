@@ -1,6 +1,6 @@
 # Makeup studio complexion
 
-Newly generated Makeup portraits use one shared appearance specification in both Thai and English. Version `makeup-studio-retouch-v6-photo-surface-priority` follows the supplied portrait's softly diffused studio finish: natural photographic texture, broad soft frontal light, controlled dewy reflections on the forehead, nose, cheekbones and chin, translucent peach-pink cheeks, natural brows and lashes, warm peach-beige lids and translucent coral-pink lip gloss. Surface wrinkles, pimples, acne marks, patchy redness and coarse texture are repaired before adding cosmetic colour. Full-face treatment continues through ears and the visible neck, while eyes and lip borders stay sharp.
+Newly generated Makeup portraits use one shared appearance specification in both Thai and English. Version `makeup-studio-retouch-v7-bright-smooth-balanced-brows-lashes` follows the supplied portrait's softly diffused studio finish: natural photographic texture, broad soft frontal light, controlled dewy reflections on the forehead, nose, cheekbones and chin, translucent peach-pink cheeks, natural brows and lashes, warm peach-beige lids and translucent coral-pink lip gloss. Surface wrinkles, pimples, acne marks, patchy redness and coarse texture are repaired before adding cosmetic colour. Full-face treatment continues through ears and the visible neck, while eyes and lip borders stay sharp.
 
 The previous implementation appended a stronger skin directive after conflicting Natural, thin-foundation, pressed-powder, fixed-exposure and route-specific cosmetics instructions. This revision selects a Makeup-specific base context and uses the shared specification for skin, light and cosmetic colour together. Makeup no longer inherits Natural's small-correction/uneven-pore restrictions or different wet-gloss and hardcoded pigment palettes from each route. Natural's default prompt bytes remain unchanged.
 
@@ -34,3 +34,25 @@ The opt-in Makeup finish now specifies temporary acne retouch and softening phot
 ## Makeup provider provenance and legacy cache routing
 
 New successful provider requests record the actual canonical policy used. The server distinguishes newly generated results from stored-result reuse, with old provenance reported as unknown rather than rewriting existing images. Explicit Makeup selection bypasses the older browser-only cosmetic path and Natural-only shared cache fallback. No automatic regeneration of stored results or extra provider pass is introduced. The gate checks policy presence before a required one-pass Makeup request, not the returned photograph's visual appearance. Tests use an inert provider; live visual compliance remains unverified.
+
+
+## V7 brighter smooth skin, balanced brows and lifted lashes
+
+The explicit Makeup finish now requests visibly brighter skin-only midtones,
+removal of superficial wrinkles/fine lines, acne and post-acne marks, melasma,
+freckles and uneven pigmentation. Previous instructions preserving freckles
+and cosmetic brow asymmetry have been removed from the shared authority and
+its final check. Identifying moles, underlying anatomy, age structure and the
+customer’s undertone remain protected, with fine photographic texture rather
+than a waxy overlay. The cosmetic brow pair is matched in apparent thickness,
+length, arch balance and tapered tails, with distinct hair strokes and soft
+feathered edges. Lashes are fuller-looking, lifted, curled and separated while
+preserving eye openings, without a heavy false-lash strip.
+
+This changes only the shared Makeup instruction and its Makeup-specific cache
+version. Both locales and direct/completed-Natural generation receive the same
+specification. Existing completed results are still reused without automatic
+regeneration or charges. Natural/male instructions, prices, entitlements,
+source ownership, request counts and hairstyle/outfit protection are unchanged.
+Tests inspect real request construction with an inert provider; no live paid
+image generation or visual guarantee is included in this verification.

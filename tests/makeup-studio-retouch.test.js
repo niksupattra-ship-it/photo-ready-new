@@ -57,11 +57,19 @@ function assertRetouch(prompt){
  assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
  assert.match(prompt,/FINAL PORTRAIT CHECK — SELECTED MAKEUP ONLY/);
  assert.match(prompt,/individual temporary pimples, acne bumps or their red\/brown marks/);
- assert.match(prompt,/Check again for temporary acne marks and residual high-contrast superficial fine lines/);
+ assert.match(prompt,/Check again for acne marks, melasma, freckles, uneven pigmentation and visible superficial wrinkles or fine lines/);
  assert.match(prompt,/Temporary acne detail in the source photograph is not a required identity feature/);
- assert.match(prompt,/without erasing identifying marks, anatomical folds or changing the apparent age/);
+ assert.match(prompt,/without erasing identifying moles, anatomical folds or changing the apparent age/);
  assert.match(prompt,/protect the requested finished appearance, not the original unedited skin surface/);
- assert.match(prompt,/Retain identifying moles, freckles, natural complexion/);
+ assert.match(prompt,/Retain identifying moles, natural complexion and undertone/);
+ assert.doesNotMatch(prompt,/Keep genuine identifying moles and distinctive freckles|Retain identifying moles, freckles|retaining each brow's natural anchors, arch and asymmetry/,'No older freckle or asymmetric-cosmetic preservation instruction competes with the requested look');
+ assert.match(prompt,/remove visible active pimples.*melasma patches, freckles and uneven pigmentation/);
+ assert.match(prompt,/Retouch away visible superficial skin wrinkles, fine lines/);
+ assert.match(prompt,/Brighten dull or underexposed skin midtones visibly/);
+ assert.match(prompt,/visually symmetrical, balanced pair/);
+ assert.match(prompt,/clear strand definition with softly feathered edges and diffused inner fronts/);
+ assert.match(prompt,/gentle upward lift, soft curl and refined length/);
+ assert.match(prompt,/Preserve the original brow anchors and underlying eye and forehead anatomy/);
  assert.match(prompt,/BALANCED APPLICATION — PHOTOGRAPHIC LIGHT AND COSMETICS ONLY/);
  assert.match(prompt,/not symmetry of facial anatomy/);
  assert.match(prompt,/Do not mirror one side/);
@@ -105,7 +113,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v6-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v7-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
