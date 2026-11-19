@@ -2691,12 +2691,25 @@ async function checkPortraitCompletion(originalFile,result,hairId){
  if(output.garments.retained)throw Object.assign(Error('AI ยังตัดเสื้อเดิมออกไม่ครบ ผลนี้ยังไม่ผ่านการตรวจ กรุณาลองใหม่'),{code:'portrait_finish_incomplete'});
  if(gathered){
   const compact=inspectGatheredPortraitHair(output,{strict:result.idpromStudioSkinVersion==='studio-original-ai-v5-clear-gathered-v1'});
-  if(!compact.measurable||compact.retained)throw Object.assign(Error('AI ยังเก็บผมยาวข้างคอออกไม่ครบสำหรับทรงรวบ · เก็บภาพเดิมไว้ กรุณาลองสร้างใหม่'),{code:'selected_hairstyle_mismatch'});
+  if(!compact.measurable&&!englishPreviewEnabled()){
+   // A missing mask measurement does not establish that the generated hair is wrong.
+   result.idpromQualityReviewNeeded=true;
+   console.warn('Thai Studio gathered-hair measurement inconclusive; retaining completed portrait');
+  }else if(!compact.measurable||compact.retained)throw Object.assign(Error('AI ยังเก็บผมยาวข้างคอออกไม่ครบสำหรับทรงรวบ · เก็บภาพเดิมไว้ กรุณาลองสร้างใหม่'),{code:'selected_hairstyle_mismatch'});
  }
  if(requestedHair){
   if(compareSelected){
    const reference=await selectedHairEvidence(hairId);
-   if(reference&&inspectSelectedPortraitHair(reference,output).mismatch)throw Object.assign(Error('ทรงผมที่ได้ยังไม่ตรงกับแบบที่เลือก · เก็บรูปและเลเยอร์เดิมไว้ กรุณาลองอีกครั้ง'),{code:'selected_hairstyle_mismatch'});
+   const comparison=reference?inspectSelectedPortraitHair(reference,output):null;
+   if(comparison?.mismatch){
+    if(englishPreviewEnabled())throw Object.assign(Error('ทรงผมที่ได้ยังไม่ตรงกับแบบที่เลือก · เก็บรูปและเลเยอร์เดิมไว้ กรุณาลองอีกครั้ง'),{code:'selected_hairstyle_mismatch'});
+    // The eye-aligned catalogue mask is a heuristic, not an exact style match:
+    // different heads, poses and transparent crops can change its fringe/length.
+    // Thai Studio already presents the image for user review. Do not cancel
+    // a completed job (or require another paid generation) on this signal alone.
+    result.idpromQualityReviewNeeded=true;
+    console.warn('Thai Studio catalogue hair review needed:',comparison.reason);
+   }
   }
   // V5 already permits a selected style to resemble the upload. Its old
   // source-hair segmentation/comparison could not reject a result.
@@ -2934,6 +2947,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  // in pose, crop and cosmetic contrast must not discard a completed image.
  try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){
   if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
+  console.warn('Portrait quality check stopped delivery:',error?.code||'unknown',String(error?.message||''));
   // Only definite image-quality failures may cancel and refund this job.
   // Model initialization, missing segmentation evidence, timeouts and decoder
   // errors are LOCAL failures and must never delete a server-completed photo.
