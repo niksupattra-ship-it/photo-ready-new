@@ -9,3 +9,7 @@ New 159-baht purchases use `download_159_ai10_v2`: existing image download/full-
 The existing server-verified owner check grants unlimited AI usage to the configured owner account. The login identity must match both the configured email and request wallet; an email in request JSON or a different wallet does not grant access. The eligibility endpoints use that same check. No customer record is modified manually.
 
 Validation uses inert AI providers, real Chromium UI flows, and isolated PostgreSQL WASM payment/storage tests. Includes all four outfit categories, native-output preservation, male/female staged creation, exhausted entitlement behavior, concurrent quota reservations, actual SQL debits/refunds/reset, payment replay/re-purchase, and authenticated owner bypass. No live AI generation, production database writes, or customer payment occurred during testing.
+
+## Studio processing stability
+
+Background suit entitlement synchronization is keyed to the actual account, output, selected suit, entitlement revision and processing state rather than a changing callback on every progress render. The check is suspended during generation; explicit export and selection checks still use the server. After a Thai full-outfit AI result, PNG suit selections remain manual and no longer queue an implicit AI job. Explicit hair/finish changes retain full-outfit composition and reuse the existing same-job finish rules where eligible. Credit reservation, package prices and provider prompts are unchanged. These regression tests do not confirm live image delivery.

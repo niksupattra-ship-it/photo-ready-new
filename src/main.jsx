@@ -6032,10 +6032,11 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(studioPhotoTransactionRef.current||busy||hairBusy)throw Error('กรุณารอการทำงานก่อนหน้าให้เสร็จ');
   femaleEyeStyle=hairResultMode(id,portraitMode)==='female'?portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle):'natural';
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
-  if(englishPreviewEnabled()){
+  const thaiFullOutfit=!englishPreviewEnabled()&&editCache.current.master?.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
+  if(englishPreviewEnabled()||thaiFullOutfit){
    const desiredTemplate=outfitReferencePath||editCache.current.lock.templatePath;
    const freeOppositeFinish=Boolean(portraitMode==='female'&&id===hairId&&desiredTemplate===editCache.current.lock.templatePath&&editCache.current.master?.idpromFemaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION&&femaleEyeStyle!==portraitFinishChoice(firstUploadedPhotoRef.current?.idpromFemaleEyeStyle));
-   return processStudioPhoto(firstUploadedPhotoRef.current,desiredTemplate,id,portraitMode,femaleEyeStyle,{creditKind:'hairstyle',sourceJobId:currentOutputJobRef.current,freeOppositeFinish});
+   return processStudioPhoto(firstUploadedPhotoRef.current,desiredTemplate,id,portraitMode,femaleEyeStyle,{creditKind:'hairstyle',sourceJobId:currentOutputJobRef.current,freeOppositeFinish,...(thaiFullOutfit?{thaiOutfitAi:true}:{})});
   }
   const previous={jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current};
   // Keep the accepted head's identity until Studio has hydrated and confirmed

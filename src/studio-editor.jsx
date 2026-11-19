@@ -446,7 +446,20 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const [suitPolicy,setSuitPolicy]=useState({limited:false,choices:[]}),[suitPolicyError,setSuitPolicyError]=useState('');
  const suitChoiceLimit=suitPolicy.limit===5?5:3;
  const currentSuit=layers.find(l=>layerKind(l)==='suit')?.templatePath||'';
- useEffect(()=>{let cancelled=false;setSuitPolicy({limited:false,choices:[]});setSuitPolicyError('');const head=outputHeads(layers)[0];if(!head||restrictedTrial||!onSelectSuit)return;onSelectSuit(head.jobId,currentSuit?[currentSuit]:[]).then(p=>{if(!cancelled)setSuitPolicy(p)}).catch(e=>{if(!cancelled)setSuitPolicyError(e.message)});return()=>{cancelled=true}},[outputKey,restrictedTrial,onSelectSuit,downloadUnlockSignal]);
+ // Parent progress renders recreate the callback. Subscribe to actual output,
+ // account, outfit and unlock changes, not the callback's object identity.
+ const selectSuitPolicyRef=useRef(onSelectSuit);selectSuitPolicyRef.current=onSelectSuit;
+ const hasSuitPolicyCallback=typeof onSelectSuit==='function';
+ const suitPolicyUnlockId=downloadUnlockSignal?.id??null;
+ useEffect(()=>{
+  let cancelled=false;
+  if(processActive)return;
+  setSuitPolicy({limited:false,choices:[]});setSuitPolicyError('');
+  const head=outputHeads(layers)[0];
+  if(!head?.jobId||restrictedTrial||!hasSuitPolicyCallback)return;
+  Promise.resolve().then(()=>selectSuitPolicyRef.current(head.jobId,currentSuit?[currentSuit]:[])).then(p=>{if(!cancelled&&outputScopeRef.current===accountScope)setSuitPolicy(p)}).catch(e=>{if(!cancelled&&outputScopeRef.current===accountScope)setSuitPolicyError(e.message)});
+  return()=>{cancelled=true};
+ },[accountScope,outputKey,currentSuit,restrictedTrial,hasSuitPolicyCallback,suitPolicyUnlockId,processActive]);
  const canUseAllSuits=allOptionsAvailable||hasCredits||trialUnlocked||state.current.some(l=>(layerKind(l)==='head'||l.name==='หัว · คอ · ผม'||l.kind==='source-photo')&&(editableOutputIds.includes(l.jobId)||(verifiedJobs[l.jobId]?.checked!==false&&verifiedJobs[l.jobId]?.unlocked===true&&verifiedJobs[l.jobId]?.fullEdit===true)));
  const paidSessionOutput=outputHeads(layers).length>0&&sessionAllowsOutput(outputHeads(layers));
  const hasDownloadExitRight=hasPaidDownloadForJobs(outputHeads(layers).map(l=>l.jobId),warningVerifiedJobs,paidWarningOutputIds);
@@ -1059,7 +1072,6 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   return request;
  };
  useEffect(()=>()=>{const request=suitRequestRef.current;request?.cancel();request?.preview?.release();suitRequestRef.current=null},[]);
- const [bodyOutfitRequest,setBodyOutfitRequest]=useState(null);
  // A small garment preview is an editable layer, not a waiting overlay.
  // High-resolution PNG is substituted only when needed for export or pixel
  // edits. The template path, frame and transform are identical in both modes.
@@ -1151,7 +1163,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }finally{if(suitRequestRef.current===request)endSuitPreview(request)}
  };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false}={})=>{
-  const manualSuit=englishFlow&&kind==='suit'&&!aiSetup;
+  const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&outputHeads(state.current).some(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION));
   // Clicking an outfit thumbnail places its native PNG. AI is separately explicit.
   if(manualSuit)setEnglishInlineAi(null);
   if(!ready||processActive||comparing||(assetBusy&&!(kind==='suit'&&suitRequestRef.current?.kind==='suit'&&suitRequestRef.current.phase==='loading')))return;
@@ -1219,7 +1231,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(kind==='suit'&&option&&!aiSetup&&onSelectSuit){const head=outputHeads(previous).find(l=>l.jobId);if(head)try{const checking=onSelectSuit(head.jobId,[target?.templatePath,option.template].filter(Boolean));const policy=request?await request.wait(checking):await checking;setSuitPolicy(policy)}catch(e){if(e.code==='SUIT_SELECTION_REPLACED')throw e;setStatus(e.message);return}}
    const canCommit=()=>!request||suitRequestRef.current===request;
    const preparing=hydrate(next,new Set(previous.filter(l=>{const n=next.find(n=>n.id===l.id);return l.id!==target?.id&&n&&['sourceFrame','source','mask','englishNeckClipMask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase'].every(key=>n[key]===l[key])}).map(l=>l.id)),canCommit);
-   if(request?await request.wait(preparing):await preparing){undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];const chosen=next.find(l=>layerKind(l)===kind);if(chosen){if(touch&&['collar','chest','ribbon'].includes(kind)){resetBrushSession();choosePart(chosen.id);setTouchTab('position')}else setSelected(chosen.id)}setRevision(v=>v+1);setStatus(option?'เลือก '+(option.name||option.title||ASSET_NAMES[kind])+' แล้ว'+(fitWarning?' · '+fitWarning:''):'นำ '+ASSET_NAMES[kind]+' ออกแล้ว');if(kind==='suit'&&(option?!target||!((option.id&&target.assetId===option.id)||(option.template&&target.templatePath===option.template)):Boolean(target)))trackUniformSelection(option,'apply',option?'new':'remove');if(kind==='suit'&&option&&combinedBody){if(englishFlow){setEnglishDraft(d=>({...d,outfitPath:option.template,gender:option.gender||portraitMode||'female'}));if(manualSuit)setEnglishRoute('manual')}else setBodyOutfitRequest({template:option.template})}}else if(canCommit())setStatus('ยังแสดง '+ASSET_NAMES[kind]+' ไม่สำเร็จ งานเดิมยังอยู่ กรุณาลองเลือกอีกครั้ง');
+   if(request?await request.wait(preparing):await preparing){undo.current.push(previous);if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];const chosen=next.find(l=>layerKind(l)===kind);if(chosen){if(touch&&['collar','chest','ribbon'].includes(kind)){resetBrushSession();choosePart(chosen.id);setTouchTab('position')}else setSelected(chosen.id)}setRevision(v=>v+1);setStatus(option?'เลือก '+(option.name||option.title||ASSET_NAMES[kind])+' แล้ว'+(fitWarning?' · '+fitWarning:''):'นำ '+ASSET_NAMES[kind]+' ออกแล้ว');if(kind==='suit'&&(option?!target||!((option.id&&target.assetId===option.id)||(option.template&&target.templatePath===option.template)):Boolean(target)))trackUniformSelection(option,'apply',option?'new':'remove');if(kind==='suit'&&option&&combinedBody&&englishFlow){setEnglishDraft(d=>({...d,outfitPath:option.template,gender:option.gender||portraitMode||'female'}));if(manualSuit)setEnglishRoute('manual')}}else if(canCommit())setStatus('ยังแสดง '+ASSET_NAMES[kind]+' ไม่สำเร็จ งานเดิมยังอยู่ กรุณาลองเลือกอีกครั้ง');
   }catch(e){if(e.code!=='SUIT_SELECTION_REPLACED')setStatus(typeof e.code==='string'&&e.code.startsWith('SUIT_FIT_')?e.message:'เลือก '+ASSET_NAMES[kind]+' ไม่สำเร็จ กรุณาลองใหม่')}
   finally{if(!request||suitRequestRef.current===request){endSuitPreview(request);if(blockingSelection)setAssetBusy(false)}}
  };
@@ -1450,12 +1462,6 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   setEnglishInlineAi(null);
   await processPhoto({hairId:hair,portraitMode:gender,continueWithoutSave:true,explicitCreate:true,generationOptions:{thaiOutfitAi:!englishFlow,keepCurrentHair,preserveHairJobId:keepCurrentHair?preserveHairJobId:''}});
  };
- useEffect(()=>{
-  if(englishFlow||!bodyOutfitRequest||assetBusy||processActive||!ready)return;
-  const head=outputHeads(state.current).find(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
-  setBodyOutfitRequest(null);
-  if(head)void processPhoto({hairId:head.hairId||'',portraitMode:head.portraitMode||portraitMode});
- },[bodyOutfitRequest,assetBusy,processActive,ready]);
 
  useEffect(()=>{if(!sourcePhoto){setSourcePreview(null);return}const url=URL.createObjectURL(sourcePhoto);setSourcePreview(url);return()=>URL.revokeObjectURL(url)},[sourcePhoto]);
  const applyFreeHair=async id=>{
@@ -1557,6 +1563,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
    assertAppearanceCurrent();
    let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
+   if(!englishFlow&&!localFinish&&replacement.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
    if(finishedReplacement.makeupStyles?.look)next=next.map(l=>l.id===head.id?{...l,processedOriginalSource:result.layer.source}:l);
    // Free hairstyles remain local PNG overlays when the underlying finish changes.
    // Fit them to the new native head before committing either set of pixels.

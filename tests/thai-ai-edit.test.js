@@ -87,3 +87,25 @@ test('authenticated unlimited owner bypasses both free and paid reservation path
  for(let i=0;i<30;i++){const result=await credit(req,{status(){throw Error('Owner rejected')}},i%2?'hairstyle':'ai-finish');assert(result.usageId.startsWith('private_full_'));assert.equal(result.trialPreview,false)}
  assert.equal(reservations,0);
 });
+
+
+test('Studio suit permission subscription is stable during parent progress renders',async()=>{
+ const ed=await readFile(root+'src/studio-editor.jsx','utf8');
+ const start=ed.indexOf(' const selectSuitPolicyRef=useRef(onSelectSuit)'),end=ed.indexOf(' const canUseAllSuits=',start);
+ assert(start>=0&&end>start);
+ const effect=ed.slice(start,end);
+ assert.match(effect,/if\(processActive\)return/);
+ assert.match(effect,/selectSuitPolicyRef\.current\(head\.jobId/);
+ assert.match(effect,/\[accountScope,outputKey,currentSuit,restrictedTrial,hasSuitPolicyCallback,suitPolicyUnlockId,processActive\]/);
+ assert.doesNotMatch(effect,/\[outputKey,restrictedTrial,onSelectSuit/);
+ assert.match(effect,/!cancelled&&outputScopeRef\.current===accountScope/);
+});
+test('Thai combined outfit PNG changes never schedule an implicit generation and explicit hair changes retain body composition',async()=>{
+ const ed=await readFile(root+'src/studio-editor.jsx','utf8'),main=await readFile(root+'src/main.jsx','utf8');
+ assert.doesNotMatch(ed,/setBodyOutfitRequest|\[bodyOutfitRequest,/);
+ assert.match(ed,/!englishFlow&&kind==='suit'&&!aiSetup&&outputHeads\(state\.current\)\.some\(l=>l\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION\)/);
+ assert.match(ed,/generationOptions:\{thaiOutfitAi:!englishFlow,keepCurrentHair/);
+ assert.match(main,/const thaiFullOutfit=!englishPreviewEnabled\(\)&&editCache\.current\.master\?\.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/);
+ assert.match(main,/\.\.\.\(thaiFullOutfit\?\{thaiOutfitAi:true\}:\{\}\)/);
+ assert.match(ed,/!englishFlow&&!localFinish&&replacement\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/);
+});
