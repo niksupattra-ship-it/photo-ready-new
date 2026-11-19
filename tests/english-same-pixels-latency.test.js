@@ -121,3 +121,27 @@ test('English women can generate the single selected civil-service outfit from i
  assert(calls[0].outfitDetailReference?.length);
  assert.match(calls[0].prompt,/Preserve visible insignia, ribbons and badges/);
 });
+
+test('new English civil-service white-fabric correction is scoped and follows competing colour locks',async()=>{
+ const {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY}=await import('../english-civil-service-outfit.js');
+ const {ENGLISH_OUTFIT_FIDELITY_VERSION}=await import('../english-outfit-fidelity-version.js');
+ const {SINGLE_PASS_PORTRAIT_VERSION}=await import('../single-pass-portrait-policy.js');
+ const {FEMALE_SINGLE_FINISH_VERSION}=await import('../female-single-finish-policy.js');
+ for(const [templatePath,version,finish,expected] of [
+  [ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,'natural',true],
+  [ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,'makeup',true],
+  [ENGLISH_CIVIL_SERVICE_TEMPLATE,undefined,'natural',false],
+  [template,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,'natural',false]
+ ]){
+  const calls=[];
+  await processProductionPortrait({input,fields:{...fields('female',ENGLISH_TEMPLATE_BODY_FINISH_VERSION),neckOutfitReferencePath:templatePath,englishCivilServiceFabricVersion:version,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,femaleEyeStyle:finish,...(finish==='makeup'?{singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION}:{})},root,key:'test',removeBackground:async()=>natural,requestPortrait:async p=>{calls.push(p);return {png:natural}}});
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].prompt.endsWith(ENGLISH_CIVIL_SERVICE_FABRIC_POLICY),expected);
+  if(expected){
+   assert.match(calls[0].prompt,/overrides earlier exact source-hue/);
+   assert.match(calls[0].prompt,/clean neutral white fabric/);
+   assert.match(calls[0].prompt,/realistic fine woven textile texture/);
+   assert.match(calls[0].prompt,/Do not desaturate or whiten the insignia, buttons or tie/);
+  }
+ }
+});
