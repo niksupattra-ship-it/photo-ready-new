@@ -426,7 +426,7 @@ test('reference Makeup complexion is continuous and softly dewy without a mask o
  for(const prompt of [makeup,englishMakeup]){
   assert(prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
   assert.match(prompt,/Retouch away visible superficial skin wrinkles, fine lines/);
-  assert.match(prompt,/Retain the person's actual age structure, expression and defining anatomical folds/);
+  assert.match(prompt,/Retain the person's actual age structure and expression through unchanged facial geometry/);
   assert.match(prompt,/Check again for acne marks, melasma, freckles, uneven pigmentation and visible superficial wrinkles or fine lines/);
   assert.match(prompt,/active pimples, acne bumps, acne-red\/brown dots/);
   assert.match(prompt,/throughout the forehead, temples, both cheeks to their outer edges/);

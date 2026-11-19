@@ -1,6 +1,6 @@
 # Makeup studio complexion
 
-Newly generated Makeup portraits use one shared appearance specification in both Thai and English. Version `makeup-studio-retouch-v7-bright-smooth-balanced-brows-lashes` follows the supplied portrait's softly diffused studio finish: natural photographic texture, broad soft frontal light, controlled dewy reflections on the forehead, nose, cheekbones and chin, translucent peach-pink cheeks, natural brows and lashes, warm peach-beige lids and translucent coral-pink lip gloss. Surface wrinkles, pimples, acne marks, patchy redness and coarse texture are repaired before adding cosmetic colour. Full-face treatment continues through ears and the visible neck, while eyes and lip borders stay sharp.
+Newly generated Makeup portraits use one shared appearance specification in both Thai and English. Version `makeup-studio-retouch-v8-even-skin-eye-mouth-retouch` follows the supplied portrait's softly diffused studio finish: natural photographic texture, broad soft frontal light, controlled dewy reflections on the forehead, nose, cheekbones and chin, translucent peach-pink cheeks, natural brows and lashes, warm peach-beige lids and translucent coral-pink lip gloss. Surface wrinkles, pimples, acne marks, patchy redness and coarse texture are repaired before adding cosmetic colour. Full-face treatment continues through ears and the visible neck, while eyes and lip borders stay sharp.
 
 The previous implementation appended a stronger skin directive after conflicting Natural, thin-foundation, pressed-powder, fixed-exposure and route-specific cosmetics instructions. This revision selects a Makeup-specific base context and uses the shared specification for skin, light and cosmetic colour together. Makeup no longer inherits Natural's small-correction/uneven-pore restrictions or different wet-gloss and hardcoded pigment palettes from each route. Natural's default prompt bytes remain unchanged.
 
@@ -56,3 +56,9 @@ regeneration or charges. Natural/male instructions, prices, entitlements,
 source ownership, request counts and hairstyle/outfit protection are unchanged.
 Tests inspect real request construction with an inert provider; no live paid
 image generation or visual guarantee is included in this verification.
+
+## V8 even skin, eye and mouth retouch
+
+Refines the selected Makeup finish after a customer example showed uneven skin, lower-eye darkness and residual eye/mouth lines. Explicitly corrects under-eye pigmentation and patchy tone, retouches fine crinkled skin and perioral lines, and reduces nasolabial/mouth-corner crease shadows. Removes the broad instruction to preserve defining anatomical folds, which could compete with these cosmetic requests. Upper-eyelid anatomy, feature positions, expression, facial volume, moles and authentic skin undertone remain protected. Deeper crease shadows soften without reshaping the face.
+
+Checks the eye and mouth areas at close portrait scale as well as normal size. Brows, lashes and the existing cosmetic palette are unchanged. Only new Makeup requests use v8; saved results, Natural/male prompts, recovery identity and provider request counts are unchanged. Automated prompt/pipeline checks do not verify the visual result of a live AI generation.
