@@ -59,12 +59,17 @@ function assertRetouch(prompt){
  assert.match(prompt,/individual temporary pimples, acne bumps or their red\/brown marks/);
  assert.match(prompt,/Check again for acne marks, melasma, freckles, uneven pigmentation and visible superficial wrinkles or fine lines/);
  assert.match(prompt,/Temporary acne detail in the source photograph is not a required identity feature/);
- assert.match(prompt,/without erasing identifying moles, anatomical folds or changing the apparent age/);
+ assert.match(prompt,/without erasing identifying moles, upper-eyelid anatomy or changing facial geometry/);
  assert.match(prompt,/protect the requested finished appearance, not the original unedited skin surface/);
  assert.match(prompt,/Retain identifying moles, natural complexion and undertone/);
  assert.doesNotMatch(prompt,/Keep genuine identifying moles and distinctive freckles|Retain identifying moles, freckles|retaining each brow's natural anchors, arch and asymmetry/,'No older freckle or asymmetric-cosmetic preservation instruction competes with the requested look');
  assert.match(prompt,/remove visible active pimples.*melasma patches, freckles and uneven pigmentation/);
  assert.match(prompt,/Retouch away visible superficial skin wrinkles, fine lines/);
+ assert.match(prompt,/nasolabial smile-line shadows from nose to mouth, mouth-corner creases, marionette-line shadows and fine perioral lines/);
+ assert.match(prompt,/Correct brown, grey, blue-purple or reddish dark-circle discoloration beneath both eyes/);
+ assert.match(prompt,/at close portrait viewing scale as well as normal size/);
+ assert.match(prompt,/Keep cheek volume, nose-to-mouth geometry, lip borders and mouth corners unchanged/);
+ assert.doesNotMatch(MAKEUP_STUDIO_RETOUCH_POLICY,/expression and defining anatomical folds|without erasing identifying moles, anatomical folds/,'Fold-preservation wording must not override the selected skin corrections');
  assert.match(prompt,/Brighten dull or underexposed skin midtones visibly/);
  assert.match(prompt,/visually symmetrical, balanced pair/);
  assert.match(prompt,/clear strand definition with softly feathered edges and diffused inner fronts/);
@@ -113,7 +118,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v7-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v8-/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
