@@ -13,7 +13,7 @@ const pool={query:async(sql,params=[])=>{queries.push(sql);const result=await db
 const pg={Pool:class{constructor(){return pool}}};
 const processFixture={env:{DATABASE_URL:'postgres://localhost/isolated-test',PGSSLMODE:'disable'}};
 function load(source,names){return new Function('crypto','pg','packageFor','remaining','process',source.replace(/^import .*;\n/gm,'').replace(/export /g,'')+'\nreturn {'+names.join(',')+'};')(crypto,pg,packageFor,remaining,processFixture)}
-const storeNames=['newWallet','getWallet','creditPaid','reserveCredit','commitCredit','refundCredit','imageEntitlements','currentPaymentSchema','ready','reserveUsdPremiumCredit'];
+const storeNames=['newWallet','getWallet','creditPaid','reserveCredit','commitCredit','refundCredit','imageEntitlements','currentPaymentSchema','ready','reserveUsdPremiumCredit','reserveThaiAiEdit','thaiAiEditAccess','ensureWallet'];
 const store=load(paymentSource,storeNames),jobs=load(jobSource,['createAiJob','claimAiJob','completeAiJob','settleAiJobDelivery','ready']);
 let passed=0;
 async function check(name,run){await run();passed++;console.log('PASS '+name)}
@@ -106,6 +106,22 @@ try{
   await store.creditPaid(wallet,'cs_new_usd_cycle','usd_premium_990_v1','historical_job_usd_premium_990_v1');
   assert.equal(await store.refundCredit(uses[2]),true);
   assert.equal((await row('SELECT usd_premium_remaining FROM wallets WHERE id=$1',[wallet])).usd_premium_remaining,20,'old-cycle refunds must not inflate a newly purchased plan');
+ });
+ await check('Thai daily slots, ten-use purchase, replay and refunds share the real SQL ledger',async()=>{
+  const wallet='thai-ai-ten';await store.ensureWallet(wallet);
+  const free=[];for(let i=0;i<2;i++){const use=await store.reserveThaiAiEdit(wallet,'ai-finish');assert(use.trialPreview);free.push(use);await store.commitCredit(use.usageId)}
+  for(let i=0;i<3;i++)await store.creditPaid(wallet,'pi_thai_ai_ten','download_159_ai10_v2','thai-ai-job');
+  assert.equal((await store.getWallet(wallet)).processRemaining,10);
+  const paid=[];for(let i=0;i<10;i++){const use=await store.reserveThaiAiEdit(wallet,i%2?'hairstyle':'ai-finish');assert.equal(use.trialPreview,false);paid.push(use)}
+  assert.equal(await store.reserveThaiAiEdit(wallet,'hairstyle'),null);
+  assert.equal((await store.thaiAiEditAccess(wallet)).allowed,false);
+  assert.equal(await store.refundCredit(paid[0].usageId),true);assert.equal(await store.refundCredit(paid[0].usageId),false);
+  assert.equal((await store.getWallet(wallet)).processRemaining,1);
+  await store.reserveThaiAiEdit(wallet,'hairstyle');
+  await db.query("UPDATE credit_usage SET created_at=clock_timestamp()-interval '2 days' WHERE wallet_id=$1 AND kind='thai-daily-ai-edit'",[wallet]);
+  assert.equal((await store.thaiAiEditAccess(wallet)).dailyRemaining,2);
+  const daily=await store.reserveThaiAiEdit(wallet,'ai-finish');assert(daily.trialPreview);assert.equal(await store.refundCredit(daily.usageId),true);assert.equal((await store.thaiAiEditAccess(wallet)).dailyRemaining,2);
+  assert.equal((await store.getWallet(wallet)).processRemaining,0,'Refunding a free slot must not add paid credits');
  });
 }finally{await db.close()}
 console.log(JSON.stringify({passed,scope:'Actual payment/job SQL against isolated in-memory PostgreSQL; repeated delivery, rollback, all frozen packages, lifecycle, migration and lock ordering. No production connections or writes. Single-session engine does not reproduce real concurrent PostgreSQL scheduling.'}));

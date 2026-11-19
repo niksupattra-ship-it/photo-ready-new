@@ -1,3 +1,4 @@
+import {isThaiOutfitAi,isThaiOutfitPath,thaiOutfitGenerationFields} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -91,6 +92,7 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
+ fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.englishHairFit!==undefined){if(!usesEnglishStudioFinish(fields)&&!isEnglishHeadPortrait(fields))throw Error('Invalid English hair placement option');parseEnglishHairFit(fields.englishHairFit)}
  validateCurrentHairRequest(fields);
@@ -107,7 +109,7 @@ export function validateProductionPortrait(input,fields={}){
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');
  if(['korean-rosy-v1','soft-rosy-v1'].includes(fields.femaleEyeStyle)&&fields.outfitReferencePath)checkedOutfitReferencePath(fields.outfitReferencePath);
  if(fields.portraitComposition){
-  if((!isEnglishBodyPortrait(fields)&&!(isEnglishHeadPortrait(fields)&&fields.englishStudioFinishVersion===ENGLISH_HEAD_FINISH_VERSION))||!isEnglishBodyOutfitPath(fields.neckOutfitReferencePath))throw Error('Invalid English outfit portrait option');
+  if((!isEnglishBodyPortrait(fields)&&!(isEnglishHeadPortrait(fields)&&fields.englishStudioFinishVersion===ENGLISH_HEAD_FINISH_VERSION))||!(isThaiOutfitAi(fields)?isThaiOutfitPath(fields.neckOutfitReferencePath):isEnglishBodyOutfitPath(fields.neckOutfitReferencePath)))throw Error('Invalid English outfit portrait option');
  }
  if(fields.neckOutfitReferencePath)checkedOutfitReferencePath(fields.neckOutfitReferencePath);
  parsePortraitIdentityBox(fields.faceIdentityBox);
@@ -192,6 +194,7 @@ function onePassMakeupPriority(english=false){
  return '\nSELECTED MAKEUP — SAME-GENERATION INPUT CONTEXT: The input is this customer\'s original photograph, not a completed Natural image. Generate the selected hairstyle, required portrait composition and requested Makeup finish together in THIS SAME image request. The uploaded person alone supplies identity, facial anatomy, expression, eye geometry, gaze and authentic complexion. The single Makeup finish specification below is the only active skin-surface, cosmetics and skin-light appearance instruction. Treat original or cropped upload images as identity and authentic complexion references, not a demand to copy individual temporary acne detail or lighting contrast on superficial skin creases. Prior Natural/no-cosmetics descriptions are inactive for this selected Makeup finish. Keep natural pores, identifying features, anatomical folds and actual age. Do not create a preliminary Natural portrait or a second edit. '+(english?'The selected garment and composition guide control the existing outfit, its native lighting and head/body placement.':'The selected hairstyle and existing head/neck cutout instructions control hair design and portrait composition.');
 }
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
+ fields=thaiOutfitGenerationFields(fields);
  const chosen=validateProductionPortrait(input,fields);
  // Preserve old paired Makeup quality: first build the same Natural base
  // internally, then return ONLY the user-selected Makeup PNG. The internal
@@ -388,6 +391,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   return sharp(originalOutfit).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  })();
  const hairTask=(async()=>{
+  if(isThaiOutfitAi(fields)&&keepCurrentHair&&!currentHair)return sharp(input.buffer).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   if(keepCurrentHair&&currentHair)return sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
   if(!chosen)return null;
   if(chosen.id.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION)return loadCatalogueHairGuide(chosen.id,root);

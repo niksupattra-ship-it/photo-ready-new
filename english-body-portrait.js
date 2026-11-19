@@ -1,3 +1,4 @@
+import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE} from './english-civil-service-outfit.js';
 import {englishProfessionalDefaultHair,ENGLISH_AUTO_FEMALE_EDGE_POLICY} from './english-auto-hair.js';
 export const ENGLISH_HEAD_SCALE=0.90;
@@ -14,7 +15,7 @@ export const ENGLISH_ANATOMY_CAMERA_POLICY=`FINAL ANATOMY AND CAMERA LOCK — EN
 export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(path===ENGLISH_CIVIL_SERVICE_TEMPLATE||/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.(?:png|webp)$/.test(path))}
 export const ENGLISH_BODY_PORTRAIT_VERSION='en-outfit-body-v1';
 export function isEnglishBodyPortrait(fields={}){
- return fields.interfaceLanguage==='en'&&fields.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
+ return (fields.interfaceLanguage==='en'||isThaiOutfitAi(fields))&&fields.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
 }
 export function englishBodyPortraitPrompt({gender='female',hairIndex=null,identityIndex=null,outfitIndex,skinIndex=null,layoutIndex=null,keepCurrentHair=false,naturalSkinPolicy=null,scalpFitPolicy='',hairFitIndex=null,autoHairSourceIndex=null}={}){
  return `Create ONE photorealistic frontal professional portrait of the person in Image 1, wearing the complete selected outfit in Image ${outfitIndex}. Generate the head, new upright neck, level shoulders and clothed upper torso together. Image 1 controls facial identity, not head tilt, neck length, torso size or framing. The selected outfit controls garment design and body silhouette; the composition guide controls balanced placement. Preserve the real facial anatomy and expression while setting a new upright frontal pose. Do not copy a face, skin or pose from hair, garment or mannequin references.

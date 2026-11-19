@@ -7,7 +7,7 @@ function OfferDiamond(){return <svg className="offer-diamond" viewBox="0 0 40 34
 
 const OFFERS=[
  {price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'},
- {price:'159',name:'รับรูปนี้ + ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผม'}
+ {price:'159',name:'รับรูปนี้ + แก้ไขด้วย AI 10 ครั้ง',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผม · AI ชุดและทรงผมรวม 10 ครั้ง'}
 ];
 function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={},diamondHairOffer=false}){
  const ready=Boolean(hasTrial)&&!payBusy;

@@ -176,7 +176,7 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
    if(p.usdPremium)await c.query("UPDATE wallets SET usd_premium_remaining=20,usd_premium_expires_at=clock_timestamp()+interval '30 days',usd_premium_cycle=$2 WHERE id=$1",[walletId,sessionId]);
    if(p.fullEdit&&(p.g+p.h)>0)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,p.g+p.h]);
    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
-   if(!overlap&&jobId&&(packageId==='download_159_hair_v1'||p.usdPremium))await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
+   if(!overlap&&jobId&&(['download_159_hair_v1','download_159_ai10_v2'].includes(packageId)||p.usdPremium))await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
    if(!overlap&&jobId)await c.query(p.currency==='usd'?
     "INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit,created_at) SELECT $1,j.id,$3,j.created_at FROM ai_jobs j WHERE j.id=$2 AND j.wallet_id=$1 AND j.status='completed' ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit":
     'INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
@@ -290,6 +290,38 @@ export async function reserveEnglishDailyAiOutfit(walletId){
  }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
 }
 
+const THAI_DAILY_AI_LIMIT=2;
+export async function thaiAiEditAccess(walletId){
+ if(!walletId)return {allowed:false,remaining:0,dailyRemaining:0,paidRemaining:0};
+ await ready();
+ const {rows}=await pool.query(`SELECT w.generation_remaining,w.hair_remaining,
+ (SELECT COUNT(*)::int FROM credit_usage u WHERE u.wallet_id=w.id AND u.kind='thai-daily-ai-edit' AND u.status IN ('reserved','completed') AND (u.created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date) AS used
+ FROM wallets w WHERE w.id=$1`,[walletId]);
+ const w=rows[0];if(!w)return {allowed:false,remaining:0,dailyRemaining:0,paidRemaining:0};
+ const dailyRemaining=Math.max(0,THAI_DAILY_AI_LIMIT-Number(w.used||0)),paidRemaining=remaining(w);
+ return {allowed:dailyRemaining+paidRemaining>0,remaining:dailyRemaining+paidRemaining,dailyRemaining,paidRemaining};
+}
+export async function reserveThaiAiEdit(walletId,kind){
+ if(!walletId)return null;
+ await ready();const c=await pool.connect();
+ try{
+  await c.query('BEGIN');
+  const q=await c.query('SELECT generation_remaining,hair_remaining,full_edit_remaining FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  const w=q.rows[0];if(!w){await c.query('ROLLBACK');return null}
+  const {rows}=await c.query(`SELECT COUNT(*)::int AS used FROM credit_usage WHERE wallet_id=$1 AND kind='thai-daily-ai-edit' AND status IN ('reserved','completed') AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date`,[walletId]);
+  const daily=remaining(w)<1&&Number(rows[0]?.used||0)<THAI_DAILY_AI_LIMIT;
+  if(!daily&&remaining(w)<1){await c.query('ROLLBACK');return null}
+  const id=(daily?'free_':'use_')+crypto.randomBytes(18).toString('hex');
+  const column=daily?'thai-daily-ai-edit':Number(w.generation_remaining)>0?'generation_remaining':'hair_remaining';
+  const fullEdit=!daily&&Number(w.full_edit_remaining)>0;
+  if(!daily)await c.query(`UPDATE wallets SET ${column}=${column}-1 WHERE id=$1`,[walletId]);
+  if(fullEdit)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining-1 WHERE id=$1',[walletId]);
+  await c.query("INSERT INTO credit_usage(id,wallet_id,kind,status,credit_column,full_edit_output) VALUES($1,$2,$3,'reserved',$4,$5)",[id,walletId,daily?'thai-daily-ai-edit':kind,column,fullEdit]);
+  await c.query('COMMIT');
+  return {usageId:id,trialPreview:daily,generationRemaining:Math.max(0,Number(w.generation_remaining||0)-Number(column==='generation_remaining')),hairRemaining:Math.max(0,Number(w.hair_remaining||0)-Number(column==='hair_remaining'))};
+ }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
+}
+
 // Compatibility entry point: free processing has no daily/device/network quota.
 export async function reserveTrialPreview(walletId,fingerprint,networkFingerprint=null){
  if(!walletId)return null;
@@ -308,7 +340,7 @@ export async function refundCredit(usageId){
   await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[owner.rows[0].wallet_id]);
   const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output,usd_premium_cycle FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);
   if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}
-  if(u.rows[0].kind==='english-daily-ai-outfit'){
+  if(['english-daily-ai-outfit','thai-daily-ai-edit'].includes(u.rows[0].kind)){
    // A failed free AI request releases its slot without adding any paid credit.
    await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
    await c.query('COMMIT');return true;

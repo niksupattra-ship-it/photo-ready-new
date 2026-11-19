@@ -1,6 +1,8 @@
+import {thaiOutfitGenerationFields} from './thai-outfit-ai-policy.js';
 import {isEnglishBodyPortrait} from './english-body-portrait.js';
 import {isEnglishHeadPortrait} from './english-head-portrait.js';
 export function validateCurrentHairRequest(fields={}){
+ fields=thaiOutfitGenerationFields(fields);
  if(!fields.keepCurrentHair&&!fields.preserveHairJobId)return;
  if(fields.keepCurrentHair!=='1'||!(isEnglishBodyPortrait(fields)||isEnglishHeadPortrait(fields))||(fields.hairId||'original')!=='original'||(fields.preserveHairJobId&&typeof fields.preserveHairJobId!=='string'))throw Error('Invalid current hairstyle option');
 }

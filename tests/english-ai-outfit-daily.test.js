@@ -5,7 +5,7 @@ import {readFile} from 'node:fs/promises';
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
 test('two daily English AI requests are recorded per wallet and refundable on failure',async()=>{
  const p=await read('payment-store.js');
- for(const x of ['ENGLISH_DAILY_AI_OUTFIT_LIMIT=2','SELECT id FROM wallets WHERE id=$1 FOR UPDATE',"kind='english-daily-ai-outfit'","status IN ('reserved','completed')","AT TIME ZONE 'Asia/Bangkok'",'if(used>=ENGLISH_DAILY_AI_OUTFIT_LIMIT)',"if(u.rows[0].kind==='english-daily-ai-outfit')"])assert.ok(p.includes(x),x);
+ for(const x of ['ENGLISH_DAILY_AI_OUTFIT_LIMIT=2','SELECT id FROM wallets WHERE id=$1 FOR UPDATE',"kind='english-daily-ai-outfit'","status IN ('reserved','completed')","AT TIME ZONE 'Asia/Bangkok'",'if(used>=ENGLISH_DAILY_AI_OUTFIT_LIMIT)',"['english-daily-ai-outfit','thai-daily-ai-edit'].includes(u.rows[0].kind)"])assert.ok(p.includes(x),x);
 });
 test('server gates only English AI while preserving Premium credits and Thai workflow',async()=>{
  const s=await read('server.js');
@@ -13,7 +13,7 @@ test('server gates only English AI while preserving Premium credits and Thai wor
 });
 test('English unlimited PNG suits remain selectable and Edit with AI opens packages when exhausted',async()=>{
  const e=await read('src/studio-editor.jsx'),m=await read('src/main.jsx');
- for(const x of ["const manualSuit=englishFlow&&kind==='suit'&&!aiSetup","if(kind==='suit'&&option&&!englishFlow&&suitPolicy.limited","if(kind==='suit'&&option&&!englishFlow&&!canUseAllSuits","visiblePicker==='suit'&&!englishFlow&&isJobOutfit(o)","if(!await englishOutfitAiAllowed()","if(access?.allowed===false)onRequestUnlock?.()"])assert.ok(e.includes(x),x);
+ for(const x of ["const manualSuit=englishFlow&&kind==='suit'&&!aiSetup","if(kind==='suit'&&option&&!aiSetup&&!englishFlow&&suitPolicy.limited","if(kind==='suit'&&option&&!aiSetup&&!englishFlow&&!canUseAllSuits","visiblePicker==='suit'&&!englishFlow&&isJobOutfit(o)","if(!await englishOutfitAiAllowed()","if(access?.allowed===false)onRequestUnlock?.()"])assert.ok(e.includes(x),x);
  assert.ok(m.includes("onCheckEnglishOutfitAi={async()=>{"));
  assert.ok(m.includes('/api/english-ai-outfit/access'));
 });
@@ -23,7 +23,7 @@ test('English free hairstyle ids match server credit gate for both genders, Thai
  const policy=await read('src/english-studio-hair-policy.js');
  assert.match(server,/import \{isEnglishStudioFreeHair\} from '\.\/src\/english-studio-hair-policy\.js'/);
  assert.match(server,/englishRequest&&chosen&&!isEnglishStudioFreeHair\(chosen.id,chosen.gender\)/);
- assert.match(server,/!englishRequest&&chosen&&/);
+ assert.match(server,/!englishRequest&&.*chosen&&/);
  for(const id of ['seedream-49','seedream-53','seedream-67','seedream-76'])assert.ok(policy.includes(id),id);
  const {PRODUCTION_HAIR_CATALOG,downloadHairAllowed}=await import('../hairstyle-catalog.js');
  const {isEnglishStudioFreeHair}=await import('../src/english-studio-hair-policy.js');
@@ -49,7 +49,7 @@ test('actual credit handler accepts continuing English free hairstyle with daily
  const calls={free:0,paid:0,thai:0};
  let premium=false;
  const deps={walletId:req=>req.wallet,isPrivateOwner:()=>false,hasPrivateTrial:()=>false,
-  PRODUCTION_HAIR_CATALOG,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR,isEnglishStudioFreeHair,
+  PRODUCTION_HAIR_CATALOG,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR,isEnglishStudioFreeHair,reserveThaiAiEdit:async()=>({usageId:'thai-fixture'}),
   getWallet:async()=>premium?{usdPremiumPurchased:true,usdPremiumActive:true,usdPremiumRemaining:12}:{usdPremiumPurchased:false},
   accountPolicy:()=>({canGeneratePremiumHair:async()=>{calls.thai++;return false}}),
   reserveEnglishDailyAiOutfit:async()=>{calls.free++;return calls.free<=2?{usageId:'free_fixture'+calls.free,trialPreview:true}:null},
