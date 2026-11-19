@@ -104,3 +104,20 @@ test('detail reference retains original material colour without enhancement and 
  const empty=await sharp({create:{width:8,height:8,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer();
  await assert.rejects(createEnglishOutfitDetailReference(empty),/empty/);
 });
+
+test('English women can generate the single selected civil-service outfit from its actual template',async()=>{
+ const {ENGLISH_CIVIL_SERVICE_OUTFIT:o}=await import('../english-civil-service-outfit.js');
+ const {isEnglishBodyOutfitPath}=await import('../english-body-portrait.js');
+ const {ENGLISH_OUTFIT_FIDELITY_VERSION}=await import('../english-outfit-fidelity-version.js');
+ assert.equal(isEnglishBodyOutfitPath(o.template),true);
+ assert.equal(isEnglishBodyOutfitPath('/assets/government-uniforms/female-academic.png'),false,'Only one government outfit is added');
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
+ assert.match(main,/if\(englishPreviewEnabled\(\)\)JOB_UNIFORMS\.push\(ENGLISH_CIVIL_SERVICE_OUTFIT\)/,'Thai catalogue remains unchanged');
+ const calls=[];
+ await processProductionPortrait({input,fields:{...fields('female',ENGLISH_TEMPLATE_BODY_FINISH_VERSION),neckOutfitReferencePath:o.template,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION},root,key:'test',removeBackground:async()=>natural,requestPortrait:async p=>{calls.push(p);return {png:natural}}});
+ assert.equal(calls.length,1);
+ const expected=await sharp(await readFile(root+'public'+o.template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ assert.deepEqual(calls[0].outfit,expected);
+ assert(calls[0].outfitDetailReference?.length);
+ assert.match(calls[0].prompt,/Preserve visible insignia, ribbons and badges/);
+});
