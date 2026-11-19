@@ -29,6 +29,7 @@ test('parallel English preparation retains identical male and female guide bytes
   assert.equal(calls.length,1,'Without a finish pair request, never add an AI generation');
   assert.deepEqual(calls[0].portrait,expected,'Layout remains byte-identical');
   assert.deepEqual(calls[0].outfit,outfit,'Original outfit reference remains byte-identical');
+  assert.equal(calls[0].outfitDetailReference,undefined,'Unversioned queued requests retain their old references');
   assert.equal(calls[0].identity,null,'Original face must stay inside the combined guide');
   assert.equal(calls[0].size,ENGLISH_TEMPLATE_BODY_SIZE);
  }
@@ -65,4 +66,41 @@ test('Thai processing, image dimensions and original Makeup generation instructi
  assert.match(pipeline,/await createAiMakeupVariant\(transparent,\{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody\}\)/);
  assert.match(pipeline,/const \[outfit,hair,autoFemaleHairSource,identity\]=await Promise\.all\(\[outfitTask,hairTask,autoHairTask,identityTask\]\)/);
  assert.match(app,/if\(!english\)void Promise\.allSettled/);
+});
+
+test('new English outfit fidelity sends unchanged full outfit plus same-asset detail crops in one request',async()=>{
+ const {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference}=await import('../english-outfit-fidelity.js');
+ const {seedreamReviewPayload}=await import('../seedream-review-transport.js');
+ const {SINGLE_PASS_PORTRAIT_VERSION}=await import('../single-pass-portrait-policy.js');
+ const {FEMALE_SINGLE_FINISH_VERSION}=await import('../female-single-finish-policy.js');
+ const original=await sharp(await readFile(root+'public'+template)).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ const expected=await createEnglishOutfitDetailReference(await readFile(root+'public'+template));
+ for(const [gender,finish] of [['female','natural'],['male','natural'],['female','makeup']]){
+  const calls=[];
+  await processProductionPortrait({input,fields:{...fields(gender,ENGLISH_TEMPLATE_BODY_FINISH_VERSION),femaleEyeStyle:finish,...(finish==='makeup'?{singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION}:{}),englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION},root,key:'test',removeBackground:async()=>natural,requestPortrait:async params=>{calls.push(params);return {png:natural}}});
+  assert.equal(calls.length,1);
+  const call=calls[0];
+  assert.deepEqual(call.outfit,original,'Never replace or recolour the full selected outfit');
+  assert.deepEqual(call.outfitDetailReference,expected,'Details come from that selected asset');
+  const payload=seedreamReviewPayload(call);
+  assert.equal(payload.image.at(-1),'data:image/png;base64,'+expected.toString('base64'));
+  assert.match(call.prompt,new RegExp('Image '+payload.image.length+' contains two crops'));
+  assert.match(call.prompt,/actual hue, saturation, lightness, fabric weave/);
+  assert.match(call.prompt,/button count and spacing/);
+  assert.match(call.prompt,/adapt face\/neck lighting to the outfit rather than relighting/);
+  assert.match(call.prompt,/Hair, skin-light and Makeup references supply NO garment colours/);
+  assert.equal(call.size,ENGLISH_TEMPLATE_BODY_SIZE);
+ }
+});
+
+test('detail reference retains original material colour without enhancement and rejects empty assets',async()=>{
+ const {createEnglishOutfitDetailReference}=await import('../english-outfit-fidelity.js');
+ const asset=await sharp({create:{width:80,height:120,channels:4,background:{r:24,g:48,b:89,alpha:1}}}).png().toBuffer();
+ const {data,info}=await sharp(await createEnglishOutfitDetailReference(asset)).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ assert.equal(info.width,1536);assert.equal(info.height,768);
+ let opaque=0;
+ for(let i=0;i<data.length;i+=4)if(data[i+3]===255){assert.deepEqual([...data.subarray(i,i+3)],[24,48,89]);opaque++}
+ assert(opaque>0);
+ const empty=await sharp({create:{width:8,height:8,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer();
+ await assert.rejects(createEnglishOutfitDetailReference(empty),/empty/);
 });

@@ -1,0 +1,9 @@
+# English outfit colour and detail fidelity
+
+New English requests send `englishOutfitFidelityVersion=en-outfit-colour-detail-v1`. The full garment and head/body layout remain unchanged. A final PNG reference adds two crops from the selected full-resolution asset: upper garment/collar/shoulders and central layers/placket. It crops transparent margins, resizes to a bounded 1536×768 board without enlarging source details, and applies no colour, exposure, sharpness or saturation adjustments. The full garment remains the colour/design authority and the existing composition remains the geometry authority.
+
+The final instruction explicitly preserves material colour, weave, sheen, pattern scale, inner layers, lapels, seams, pockets, button count/spacing, trim and visible insignia. It forbids borrowing garment colours/details from skin, hair or Makeup guides and directs face/neck lighting to match the garment. It requests a comparison with both full and close views within the same AI request. Output remains one generated portrait; no original-garment compositing or additional provider call is added.
+
+The detail image is appended after existing references so their indices remain stable, including Makeup. Unversioned queued jobs retain their existing prompt/reference bytes. Only English new-result cache keys change; charged submission identities and saved results remain unchanged. Thai and head-only requests do not receive the extra reference.
+
+Automated checks cover real male/female Natural and female Makeup pipeline composition, final reference indexing, unchanged full garment bytes, request counts, exact synthetic material colour, old-request references and recovery/cache boundaries. These checks use inert providers; actual generated clothing fidelity needs visual review of a new AI result and cannot be guaranteed pixel-identical.
