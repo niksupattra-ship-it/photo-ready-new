@@ -381,7 +381,7 @@ test('English Studio shows two neat free hairs before Diamond per gender; Diamon
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const payments=await readFile(new URL('../payment-store.js',import.meta.url),'utf8');
  assert.match(payments,/usd_premium_expires_at=clock_timestamp\(\)\+interval '30 days'/,'Use existing server 30-day validity, no invented plan');
- assert.match(main,/englishPreviewEnabled\(\)\?englishStudioDiamondActive\(knownWalletData\):rights\.premiumDownloadRemaining>0/,'English uses 30-day purchase, Thai keeps own rights');
+ assert.match(main,/englishPreviewEnabled\(\)\?englishStudioDiamondActive\(knownWalletData\):\(rights\.premiumDownloadRemaining>0\|\|rights\.generationRemaining>0\)/,'English uses 30-day purchase, Thai keeps own rights');
  assert.match(main,/englishPreviewEnabled\(\)\?orderEnglishStudioHair\(ENGLISH_MALE_HAIR_CATALOG,'male'\):MALE_HAIR_OPTIONS/,'Only English hair gets reordered');
  assert.match(main,/englishPreviewEnabled\(\)\?orderEnglishStudioHair\(ENGLISH_FEMALE_HAIR_CATALOG,'female'\):STUDIO_FEMALE_HAIR_OPTIONS/);
  assert.match(studio,/const premiumHairAllowed=englishFlow\?premiumHairCreditAvailable===true:/,'Thai purchase rights untouched');
@@ -406,7 +406,7 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(snapshot,/ctx\.fillText\('IDพร้อม',0,0\)/,'Use the same watermark style as download checkout');
  assert.match(snapshot,/onRequestUnlock\?\.\(\{reason:'diamond-hair',hairId,preview,jobId:/,'Use existing checkout callback with the clicked image');
  assert.doesNotMatch(snapshot,/void applyHair|onChangeHair|processPhoto\(|onProcessPhoto\(/,'Preview capture must never call AI');
- assert.match(choose,/if\(englishFlow&&englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
+ assert.match(choose,/if\(englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
  assert.match(choose,/if\(!englishFlow\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'Thai Diamond hair opens checkout');
  assert.match(choose,/if\(isPremiumHair\(id\)&&!premiumHairAllowed&&!canRestoreHair\(id,hairGender,easyFaceFinish\)\)\{openDiamondHairOffer\(id\);return\}/,'English hair picker opens checkout without generation');
  assert.match(studio,/if\(hair&&isPremiumHair\(hair\)&&!premiumHairAllowed&&!canRestoreHair\(hair,gender,finish\)\)\{openDiamondHairOffer\(hair\);return\}/,'Final English Create retains Diamond safeguard');

@@ -80,7 +80,7 @@ test('Thai female picker starts with the three requested free cuts, and hides on
  const [main,studio,easy]=await Promise.all(['../src/main.jsx','../src/studio-editor.jsx','../src/easy-mode.jsx'].map(p=>readFile(new URL(p,import.meta.url),'utf8')));
  assert.match(main,/const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS/);
  assert.match(studio,/!THAI_FREE_FEMALE_HAIR_IDS\.includes\(id\)/);
- assert.match(studio,/\{\(englishFlow\|\|hairGender!=='female'\)&&<button className=\{'studio-none-choice'/);
+ assert.match(studio,/\{\(englishFlow\|\|englishInlineAi\|\|hairGender!=='female'\)&&<button className=\{'studio-none-choice'/);
  assert.match(easy,/\{\(englishPreviewEnabled\(\)\|\|gender!=='female'\)&&<button type="button" className=\{"easy-no-hair"/);
  assert.match(studio,/selectedHair=\{selectedHair\} templates=/);
 });

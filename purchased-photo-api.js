@@ -42,7 +42,7 @@ export function registerPurchasedPhotoApi(app,{store,policy,getJobContext=async(
     }
    }catch(error){if(error.status!==409)throw error}
   }
-  const metadata=['femaleFinishSingleVersion','alternateFinish','alternateFinishStatus','source_only','hairId','portraitMode','portraitComposition','englishStudioFinishVersion','femaleEyeStyle','studioSkinVersion','naturalFinishVersion','neckOutfitReferencePath','outfitReferencePath','keepCurrentHair','hairReferenceVersion'];
+  const metadata=['femaleFinishSingleVersion','alternateFinish','alternateFinishStatus','source_only','hairId','portraitMode','portraitComposition','thaiOutfitAiVersion','englishStudioFinishVersion','femaleEyeStyle','studioSkinVersion','naturalFinishVersion','neckOutfitReferencePath','outfitReferencePath','keepCurrentHair','hairReferenceVersion'];
   for(const id of jobIds){
    const context=await getJobContext(id,wallet);
    if(context?.status!=='completed'||!context.result?.length)continue;

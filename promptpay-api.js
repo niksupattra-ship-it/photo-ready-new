@@ -4,10 +4,10 @@ import {verifyPaymentAmount,settleCheckout} from './stripe-payment-validation.js
 import {promptpayIntentStore} from './promptpay-intent-store.js';
 const FLOW='idprom_promptpay_v1';
 // Both basic prices remain recognizable for pending historical payments.
-const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1']);
+const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2']);
 // Old unbound premium reservations used this description with their Stripe key.
 const LEGACY_PREMIUM_DESCRIPTION='IDพร้อม — ดาวน์โหลดงานนี้ พร้อมปลดล็อกทรงผมหญิงทั้งหมด';
-const publicPackageId=id=>id==='download_159_hair_v1'?'159':id==='download_89_v1'?'89':'119';
+const publicPackageId=id=>['download_159_hair_v1','download_159_ai10_v2'].includes(id)?'159':id==='download_89_v1'?'89':'119';
 const keyFor=value=>crypto.createHash('sha256').update(value).digest('hex');
 const warnReconciliation=error=>console.warn('IDPROM payment reconciliation pending',String(error?.code||'storage_unavailable').replace(/[^A-Za-z0-9_:-]/g,'').slice(0,40));
 async function afterGrant(out,run){
@@ -27,7 +27,7 @@ export async function reconcileDuplicatePayment(out,{receiptId,paymentIntentId,a
 export async function settlePromptpay(intent,creditPaid,options={}){
  if(intent?.status!=='succeeded'||intent.metadata?.flow!==FLOW)throw Error('payment_not_paid');
  const {wallet_id:walletId,package_id:packageId,job_id:jobId=''}=intent.metadata;
- if(!walletId||!/^pi_[A-Za-z0-9]+$/.test(intent.id||'')||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1','download_159_hair_v1'].includes(packageId))throw Error('invalid_payment_metadata');
+ if(!walletId||!/^pi_[A-Za-z0-9]+$/.test(intent.id||'')||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2'].includes(packageId))throw Error('invalid_payment_metadata');
  const offer=packageFor(packageId);
  verifyPaymentAmount(intent,offer);if(offer.requiresImage&&!jobId)throw Error('image_required');
  const out=await creditPaid(walletId,intent.id,packageId,jobId);
@@ -39,7 +39,7 @@ function details(intent){const qr=intent.status==='requires_action'?intent.next_
 export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked=async()=>false,isPremium=async()=>false,scopeForJob=async(w,id)=>'job:'+id,walletRights=async()=>({}),intentStore=promptpayIntentStore,recordDownloadRefund,pendingDownloadRefunds=async()=>[],appUrl=''}={}){
  let reconciliationFlight=null;
  const settlementOptions={stripePost,stripeGet,recordDownloadRefund,onSettlement:intent=>reconcileSiblings(intent.metadata.wallet_id,intent.metadata.job_id,intent.id)};
- const covered=async(wid,job,offer)=>offer==='download_159_hair_v1'?isPremium(wid,job):isUnlocked(wid,job);
+ const covered=async(wid,job,offer)=>offer==='download_159_ai10_v2'?false:offer==='download_159_hair_v1'?isPremium(wid,job):isUnlocked(wid,job);
  const closeGranted=async(row,id,out)=>!row||out.reconciliationPending?out:afterGrant(out,()=>intentStore.close(row.id,id));
  const owned=async(req)=>{const id=String(req.params.id||'');if(!/^pi_[A-Za-z0-9]+$/.test(id))throw Error('invalid_payment_id');const intent=await stripeGet('payment_intents/'+id);if(!req.accountUser||intent.metadata?.wallet_id!==req.accountUser.wallet_id||intent.metadata?.flow!==FLOW)throw Error('payment_not_owned');return intent};
  const cancel=async intent=>{

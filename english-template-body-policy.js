@@ -1,3 +1,4 @@
+import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 export const ENGLISH_TEMPLATE_BODY_FINISH_VERSION='en-natural-head-neck-v9';
 // Only NEW English female creations use the male-matched, compact proportions.
 // Keep v9 unchanged so queued and purchased v9 portraits remain reproducible.
@@ -10,6 +11,6 @@ export const isEnglishTemplateBodyFinish=version=>[ENGLISH_FEMALE_BALANCED_PROPO
 // The current Flash model caps native output at 4,624,220 pixels. Keep an exact
 // 3:4 frame with 32-pixel dimensions below that cap; do not retry an invalid size.
 export const ENGLISH_TEMPLATE_BODY_SIZE='1824x2432';
-export const isEnglishTemplateBody=fields=>fields?.interfaceLanguage==='en'&&fields.portraitComposition==='en-outfit-body-v1'&&isEnglishTemplateBodyFinish(fields.englishStudioFinishVersion);
+export const isEnglishTemplateBody=fields=>(fields?.interfaceLanguage==='en'||isThaiOutfitAi(fields))&&fields.portraitComposition==='en-outfit-body-v1'&&isEnglishTemplateBodyFinish(fields.englishStudioFinishVersion);
 
-export const usesEnglishIdentityLayout=fields=>fields?.interfaceLanguage==='en'&&fields.portraitComposition==='en-outfit-body-v1'&&[ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,'en-body-proportion-lock-v8','en-outfit-proportional-head-v7','en-fixed-face-scale-pair-v6'].includes(fields.englishStudioFinishVersion);
+export const usesEnglishIdentityLayout=fields=>(fields?.interfaceLanguage==='en'||isThaiOutfitAi(fields))&&fields.portraitComposition==='en-outfit-body-v1'&&[ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,'en-body-proportion-lock-v8','en-outfit-proportional-head-v7','en-fixed-face-scale-pair-v6'].includes(fields.englishStudioFinishVersion);

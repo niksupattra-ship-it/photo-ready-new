@@ -72,8 +72,8 @@ const route=async(method,path,{wallet='walletA',body={},attempt='attempt_grouped
  const res={status(value){status=value;return this},set(){return this},json(value){data=value;return this},send(value){data=value;return this},sendStatus(value){status=value;return this}};
  await routes.get(method+' '+path)(req,res);return {status,data};
 };
-const create=(jobId,{wallet='walletA',packageId='89',attempt='attempt_'+jobId+'_0001'}={})=>route('POST','/api/payments/promptpay',{wallet,body:{jobId,packageId},attempt});
-const checkout=(jobId,{wallet='walletA',packageId='89',attempt='attempt_checkout_'+jobId+'_0001'}={})=>route('POST','/api/payments/checkout',{wallet,body:{jobId,packageId},attempt});
+const create=(jobId,{wallet='walletA',packageId='89',attempt='attempt_'+jobId+'_0001'}={})=>route('POST','/api/payments/promptpay',{wallet,body:{jobId,packageId:packageId==='159'?'download_159_hair_v1':packageId},attempt});
+const checkout=(jobId,{wallet='walletA',packageId='89',attempt='attempt_checkout_'+jobId+'_0001'}={})=>route('POST','/api/payments/checkout',{wallet,body:{jobId,packageId:packageId==='159'?'download_159_hair_v1':packageId},attempt});
 const poll=(id,wallet='walletA')=>route('GET','/api/payments/promptpay/:id',{wallet,id});
 const cancel=(id,wallet='walletA')=>route('POST','/api/payments/promptpay/:id/cancel',{wallet,id});
 const pay=id=>{const intent=intents.get(id);intent.status='succeeded';intent.amount_received=intent.amount};
@@ -404,6 +404,16 @@ try{
   const reads=[],worker=registerPromptpayApi({post(){},get(){}},{...apiOptions,stripeGet:async endpoint=>{reads.push(endpoint);if(blocked.has(endpoint.split('/').at(-1)))throw Object.assign(Error('fixture provider unavailable'),{code:'TEMPORARY'});return stripeGet(endpoint)}});
   await Promise.all([worker.retryReconciliations(),worker.retryReconciliations()]);assert.equal(reads.length,10);assert.equal(await policy.allowed(paid.g.wallet,paid.g.jobs[0]),false);
   const posts=gatewayCalls.length;await worker.retryReconciliations();assert.equal(reads.length,20);assert.equal(await policy.allowed(paid.g.wallet,paid.g.jobs[1]),true);assert.equal(gatewayCalls.length,posts);assert.equal(new Set(reads).size,13);
+ });
+ await check('current 159 keeps download entitlement and grants ten AI uses once, with repeat purchases allowed',async()=>{
+  const g=await group('new159ai','ai-buyer');
+  const buy=attempt=>route('POST','/api/payments/promptpay',{wallet:g.wallet,body:{jobId:g.jobs[0],packageId:'159'},attempt});
+  const first=await buy('new_ai_purchase_attempt_001');assert.equal(first.status,200);
+  const intent=intents.get(first.data.paymentIntentId);assert.equal(intent.metadata.package_id,'download_159_ai10_v2');assert.equal(intent.amount,15900);
+  pay(intent.id);assert.equal((await poll(intent.id,g.wallet)).data.ok,true);await poll(intent.id,g.wallet);
+  assert.equal((await payment.getWallet(g.wallet)).processRemaining,10);assert.equal(await policy.allowed(g.wallet,g.jobs[0]),true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[0]),true);
+  const second=await buy('new_ai_purchase_attempt_002');assert.equal(second.status,200);pay(second.data.paymentIntentId);assert.equal((await poll(second.data.paymentIntentId,g.wallet)).data.ok,true);
+  assert.equal((await payment.getWallet(g.wallet)).processRemaining,20);
  });
  const results={passed:cases.length,cases,concurrentTrace,fixtureIntentCount:intents.size,scope:'Actual grouped PromptPay API, reservation SQL, download-policy SQL and payment grants in isolated PGlite; inert provider fixtures only',limits:'PGlite has one connection; a serialized connection adapter plus paused gateway models transaction interleavings and provider idempotency, not native PostgreSQL multi-process lock execution'};
  if(process.env.GROUPED_PROMPTPAY_RESULTS){await mkdir(dirname(process.env.GROUPED_PROMPTPAY_RESULTS),{recursive:true});await writeFile(process.env.GROUPED_PROMPTPAY_RESULTS,JSON.stringify(results,null,2)+'\n')}
