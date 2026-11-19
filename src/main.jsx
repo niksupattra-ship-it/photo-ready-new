@@ -1,3 +1,4 @@
+import {ENGLISH_CIVIL_SERVICE_OUTFIT} from '../english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION} from '../english-outfit-fidelity-version.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishTemplateBodyFinishForGender,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,isEnglishTemplateBodyFinish} from '../english-template-body-policy.js';
 import {AutoHairTile} from './auto-hair-tile.jsx';
@@ -3544,6 +3545,7 @@ const JOB_UNIFORMS=[
  {"id":"male-job-charcoal-gray-suit-burgundy-tie","title":"สูทชายสีเทาถ่าน เสื้อเชิ้ตขาว เนกไทแดงไวน์","titleEn":"Men charcoal gray suit with burgundy tie and white shirt","img":"/assets/job-uniforms/male-job-charcoal-gray-suit-burgundy-tie.webp","template":"/assets/job-uniforms/male-job-charcoal-gray-suit-burgundy-tie.webp","cat":"job","gender":"male","searchKeywords":"สมัครงาน job application charcoal dark gray grey suit maroon burgundy wine tie white shirt สูทชาย สีเทาเข้ม เทาถ่าน เนกไทแดงไวน์ เชิ้ตขาว"},
  {"id":"male-job-midnight-black-suit-textured-silver-tie","title":"สูทชายสีดำเข้ม เสื้อเชิ้ตขาว เนกไทเงินลายทอ","titleEn":"Men midnight black suit with textured silver tie","img":"/assets/job-uniforms/male-job-midnight-black-suit-textured-silver-tie.webp","template":"/assets/job-uniforms/male-job-midnight-black-suit-textured-silver-tie.webp","cat":"job","gender":"male","searchKeywords":"สมัครงาน job application black midnight navy suit white shirt silver textured woven tie สูทชาย สีดำเข้ม เนกไทสีเงินลายทอ เชิ้ตขาว"},
 ];
+if(englishPreviewEnabled())JOB_UNIFORMS.push(ENGLISH_CIVIL_SERVICE_OUTFIT);
 
 const STUDENT_UNIFORMS=[
  {id:'student-female-01',title:'นักศึกษาหญิง แบบ 1',img:'/assets/student-uniforms/previews/female-01.jpg',template:'/assets/student-uniforms/female-01.png',cat:'student',gender:'female'},

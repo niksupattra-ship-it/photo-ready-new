@@ -1,3 +1,4 @@
+import {ENGLISH_CIVIL_SERVICE_TEMPLATE} from './english-civil-service-outfit.js';
 import {englishProfessionalDefaultHair,ENGLISH_AUTO_FEMALE_EDGE_POLICY} from './english-auto-hair.js';
 export const ENGLISH_HEAD_SCALE=0.90;
 export const ENGLISH_BODY_OUTPUT_SIZE='1728x2304';
@@ -10,7 +11,7 @@ export const ENGLISH_ANATOMY_CAMERA_POLICY=`FINAL ANATOMY AND CAMERA LOCK — EN
 2. NECK LENGTH AND COLLAR ANCHOR. Preserve the composition guide’s current neck width, neck length and chin-to-upper-collar gap. The neck and clothed body stay at their existing scale when the whole head is reduced. Seat the smaller head on that same upright supporting neck without increasing or decreasing the gap; do not recompute neck length from the reduced face height. Measure to the upper collar sides, never to a V point or first button. An open collar or deep V reveals upper chest, not extra neck. Keep the existing broad support with no thin stalk, pinched middle or elongated column. Do not lift the shoulders, distort the collar, hide the chin or compress the face. Maintain a continuous natural jaw-to-neck connection. Preserve the same upright pose and level shoulders.
 3. BALANCE. Align the head centre, chin, neck centre and garment centreline vertically. Keep shoulders level and naturally broad, the torso at full reference width and the head proportional to it. The guide’s level eye markers and vertical nose axis describe pose only; the original person supplies every real facial feature.
 4. CAMERA AND FRAME. Use a full-frame 50 mm lens at eye level from approximately 1.8–2.5 metres. Fit the complete outfit and hair crown using camera framing and modest headroom. Never stretch neck or torso to fill the frame. Before returning, check upright head, compact neck, full shoulders and balanced head-to-body scale together. Render one continuous realistic photograph, without face slimming, local warps, pasted panels or copied mannequin features.`;
-export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.(?:png|webp)$/.test(path))}
+export function isEnglishBodyOutfitPath(path){return typeof path==='string'&&(path===ENGLISH_CIVIL_SERVICE_TEMPLATE||/^\/assets\/job-uniforms\/[A-Za-z0-9_-]+\.(?:png|webp)$/.test(path))}
 export const ENGLISH_BODY_PORTRAIT_VERSION='en-outfit-body-v1';
 export function isEnglishBodyPortrait(fields={}){
  return fields.interfaceLanguage==='en'&&fields.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
