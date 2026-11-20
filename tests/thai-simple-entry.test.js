@@ -34,3 +34,29 @@ test('Original Thai guide keeps an independent canonical and sitemap entry',asyn
  assert(sitemap.includes('<loc>https://idpromth.com/id-photo/</loc>'));
  assert(server.includes("registerEnglishLanding(app"),'English remains on its independent public route');
 });
+
+test('Thai mobile uses separate live pages for selection, processing, results and corrections',async()=>{
+ const source=await read('src/thai-mobile-journey.jsx');
+ const easy=await read('src/easy-mode.jsx');
+ assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'));
+ assert(easy.includes('!englishPreviewEnabled()&&mobile&&(sourcePreview||hasResult)&&templates.length'));
+ for(const part of ['กำลังสร้างรูป','เลือกแบบที่ต้องการ','เปลี่ยนทรงผม','เปลี่ยนชุด','เครื่องหมาย','ไปชำระเงิน','สร้างรูปด้วย AI'])assert(source.includes(part),part);
+ assert(source.includes('onGenerateHair?.(draftHair)'),'New AI generation still uses guarded original callback');
+ assert(source.includes('onConfirmHair?.()'),'Changing hair still requires confirmation');
+ assert(source.includes('onDownload}>↓ รับรูปนี้'),'Payment still opens through original rights/export callback');
+ assert(source.includes('onStudio}>⚙ ปรับแต่งเอง'),'Detailed editor remains available');
+ assert(source.includes('onSuit?.(t)'),'Suit selection retains original native asset behavior');
+});
+
+test('Thai offer, real PromptPay, verified receipt and PNG/PDF keep connected handlers',async()=>{
+ const offer=await read('src/package-offers.jsx'),payment=await read('src/promptpay-panel.jsx');
+ const receipt=await read('src/purchase-delivery.jsx'),download=await read('src/english-download.jsx');
+ assert(offer.includes('idprom-thai-checkout-next'));
+ assert(offer.includes('onClick={()=>choose(selected)}'));
+ assert(offer.includes("startCheckout(price)"),'Offer never simulates payment');
+ assert(payment.includes("onPaid(data,payment)"),'Paid state comes from validated payment status');
+ assert(payment.includes("payment.qrImage"),'Real QR must come from payment provider');
+ assert(receipt.includes('paidSuccess={true}'));
+ assert(download.includes('paidSuccess&&!en'),'Only validated Thai receipt has successful payment title');
+ assert(download.includes('onAuthorize')&&download.includes('prepareEnglishDownload'),'Actual PNG/PDF rights checks intact');
+});
