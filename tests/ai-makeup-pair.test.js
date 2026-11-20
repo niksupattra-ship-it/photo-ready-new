@@ -69,8 +69,8 @@ test('Thai AI makeup uses one soft satin, brighter and even photographic finish,
   assert(sent.prompt.includes(AI_MAKEUP_PROMPT));
   assert(sent.prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY));
   assert.equal(sent.prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
-  assert.match(sent.prompt,/soft translucent peach-pink blush/);
-  assert.match(sent.prompt,/translucent coral-pink gloss tint/);
+  assert.match(sent.prompt,/soft translucent nude-rose pink blush/);
+  assert.match(sent.prompt,/translucent pink-nude rose gloss tint/);
   assert.match(sent.prompt,/facial proportions, asymmetry, age structure/);
   assert.match(sent.prompt,/natural undertone and recognisable complexion character/i);
   assert.match(sent.prompt,/face, ears and neck one continuous complexion and light field/);

@@ -1,3 +1,4 @@
+import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
@@ -82,9 +83,9 @@ function assertRetouch(prompt){
  assert.match(prompt,/ears.*neck/i,'Skin and light remain continuous through ears and neck');
  assert.match(prompt,/undertone/i);assert.match(prompt,/identity/i);
  assert.match(prompt,/no fixed EV increment/,'Illumination adapts to each source instead of a forced exposure lift');
- assert.match(prompt,/soft translucent peach-pink blush broadly through the upper cheeks/);
- assert.match(prompt,/soft warm-brown edge along the existing eyelash roots/);
- assert.match(prompt,/translucent coral-pink gloss tint/,'The same coral-pink lip gloss is used by every route');
+ assert.match(prompt,/soft translucent nude-rose pink blush broadly through the upper cheeks/);
+ assert.match(prompt,/soft neutral-brown edge along the existing eyelash roots/);
+ assert.match(prompt,/translucent pink-nude rose gloss tint/,'The same pink-nude rose lip gloss is used by every route');
  assert.match(prompt,/short or gathered cuts and genuine continuous lengths for bob or long cuts/);
  assert.match(prompt,/brows/i);assert.match(prompt,/lip/i);assert.match(prompt,/hair/i);assert.match(prompt,/outfit|garment/i);
  assert.doesNotMatch(prompt,/NATURAL CLEAR-SKIN BASE — BOTH NATURAL AND MAKEUP|Subtly clean up small active pimples|fine uneven pores/,'Natural-only skin limits are not sent in Makeup appearance');
@@ -119,7 +120,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v9-soft-satin-even-brighter-no-mask$/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v10-pink-nude-neutral-consistent-tone$/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -208,8 +209,30 @@ test('style guide delegates reduced skin sheen and brightening to the one Makeup
  assert.match(guide,/not a skin-tone target or the cosmetic palette/);
  assert.match(guide,/governed exclusively by the final Makeup specification/);
  assert.match(guide,/fine texture is not a requirement to reproduce temporary acne detail/);
- assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/translucent coral-pink gloss tint/);
- assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/soft translucent peach-pink blush/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/translucent pink-nude rose gloss tint/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/soft translucent nude-rose pink blush/);
  assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/This lower-sheen instruction applies to SKIN only/);
  assert.match(guide,/soft satin skin, reduced shine, even brighter illumination/);
+});
+
+
+test('different replacement hairstyles keep the selected Makeup finish and the same pink-nude/neutral skin authority from the original upload',async()=>{
+ const sourceHash=digest(natural),specifications=[];
+ for(const id of ['seedream-14','seedream-26']){
+  const fields={portraitMode:'female',femaleEyeStyle:'makeup',hairId:id,hairReferenceVersion:HAIR_REFERENCE_VERSION,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,faceIdentityBox:JSON.stringify([.3,.18,.7,.65])};
+  const requests=[];
+  await processProductionPortrait({input:{buffer:natural,mimetype:'image/png'},fields,root,key:'inert-pink-nude',requestPortrait:async request=>{requests.push(request);return {png:aiMatte}},removeBackground:async()=>aiMatte});
+  assert.equal(fields.femaleEyeStyle,'makeup');assert.equal(digest(natural),sourceHash);assert.equal(requests.length,1);
+  const {prompt,mask}=requests[0];assert.equal(mask,undefined);
+  assert.equal(prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
+  assert.match(prompt,/SAME SOURCE, SAME SKIN TARGET/);
+  assert.match(prompt,/Never infer complexion or makeup from the hairstyle donor/);
+  assert.match(prompt,/same modest brightness lift and low-sheen finish/);
+  assert.match(prompt,/soft translucent nude-rose pink blush/);
+  assert.match(prompt,/translucent pink-nude rose gloss tint/);
+  assert.match(prompt,/No peach, coral, apricot, orange/);
+  assert.doesNotMatch(prompt,/soft translucent peach-pink blush|translucent coral-pink gloss tint|sheer warm peach-beige makeup/);
+  specifications.push(prompt.slice(prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY),prompt.indexOf(MAKEUP_STUDIO_RETOUCH_POLICY)+MAKEUP_STUDIO_RETOUCH_POLICY.length));
+ }
+ assert.equal(specifications[0],specifications[1]);
 });

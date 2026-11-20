@@ -90,8 +90,8 @@ test('New single-pass Natural and Makeup each make exactly ONE provider request 
    assert(got.calls[0].prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY),'Makeup gets the same complete reference finish as a Natural-to-Makeup edit');
    assert.equal(got.calls[0].prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1);
    assert.match(got.calls[0].prompt,/COMPLEXION — CONTINUOUS STUDIO RETOUCH BEFORE COSMETIC COLOUR/,'Makeup repairs skin before adding colour');
-   assert.match(got.calls[0].prompt,/ONE COHERENT COSMETIC PALETTE/);
-   assert.match(got.calls[0].prompt,/soft translucent peach-pink blush broadly through the upper cheeks/);
+   assert.match(got.calls[0].prompt,/ONE COHERENT PINK-NUDE COSMETIC PALETTE/);
+   assert.match(got.calls[0].prompt,/soft translucent nude-rose pink blush broadly through the upper cheeks/);
    assert.match(got.calls[0].prompt,/without a visible boundary or circular centre/,'No saturated circular blush');
    assert.match(got.calls[0].prompt,/No preliminary Natural generation, additional provider request, face\/skin mask/,'AI-only finished pixels');
    assert.match(got.calls[0].prompt,/same person's recognisable identity, facial proportions/);
@@ -139,7 +139,7 @@ test('AI-only diffuse blush retains Natural colour, identity and previous one-pa
  for(const text of [makeup,english]){
   assert.match(text,/blush broadly through the upper cheeks/,'Blush stays on cheek skin');
   assert.match(text,/fading into the outer cheek and temple/,'Blush diffuses toward face contour');
-  assert.match(text,/soft translucent peach-pink blush/,'Blush remains restrained');
+  assert.match(text,/soft translucent nude-rose pink blush/,'Blush remains restrained');
   assert.match(text,/without a visible boundary or circular centre/,'No concentrated cheek patch');
   assert.match(text,/No isolated blurred islands, concealer circles, stamped patches, facial plate or jaw\/neck seam/,'Skin must not become an opaque face layer');
  }
