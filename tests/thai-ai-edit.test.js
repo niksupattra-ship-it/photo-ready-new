@@ -83,24 +83,26 @@ test('new Thai light-colour garment and rear-hair priorities apply only to Thai 
  assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"),'Frontend sends the Thai-only version');
 });
 
-test('Thai Studio outfit cards have independent PNG and AI actions without altering English',async()=>{
+test('Thai Studio outfit thumbnail places PNG and one magic-wand icon explicitly starts AI without altering English',async()=>{
  const studio=await readFile(root+'src/studio-editor.jsx','utf8');
  const css=await readFile(root+'src/studio-redesign.css','utf8');
- assert(studio.includes('className="thai-outfit-card"'),'Thai cards show two actions beneath the selected suit');
- assert(studio.includes('className="thai-outfit-png"'),'Dedicated Thai PNG action exists');
- assert(studio.includes('className="thai-outfit-ai"'),'Dedicated Thai AI action exists');
- assert(studio.includes('>วาง PNG</button>'));
- assert(studio.includes('>สร้างด้วย AI</button>'));
- assert(studio.includes("selectAsset('suit',o,{manualOverride:true})"),'PNG action uses non-AI native overlay');
- assert(studio.includes("onClick={()=>void createThaiOutfitAi(o)}"),'AI request is explicit');
- assert(studio.includes("const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride)"),'English PNG policy preserved while Thai PNG does not invoke body AI');
- assert(studio.includes("else if(!aiSetup&&!manualSuit)setBodyOutfitRequest"),'No implicit AI after PNG or during explicit AI setup');
- assert(studio.includes("if(isFreeFemaleHair(chosenHair)&&!firstGeneration&&!options.outfitAiCreate)"),'Only the explicit Thai outfit AI request bypasses the free-hair change notice');
- assert(studio.includes("await selectAsset('suit',option,{aiSetup:true})"),'AI creates from the exact chosen garment');
- assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(mode),portraitMode:mode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'One AI processing call after suit preparation');
- assert(studio.includes('className="english-outfit-card">{card}<button type="button" className="english-outfit-ai"'),'English cards retain their original AI flow');
- assert(css.includes('.thai-outfit-actions button'),'Both new Thai buttons are styled');
- assert(!css.includes('.english-outfit-card'),'Thai CSS cannot restyle English cards');
+ assert(studio.includes('className="thai-outfit-card"'),'Thai suit cards remain visible');
+ assert(studio.includes('className="thai-outfit-ai"'),'Thai AI icon action exists');
+ assert(!studio.includes('className="thai-outfit-png"'),'Redundant PNG button must be absent');
+ assert(!studio.includes('>วาง PNG</button>'),'There must be no visible PNG text button');
+ assert(!studio.includes('>สร้างด้วย AI</button>'),'AI button is icon-only, not a text button');
+ assert(studio.includes('title="สร้างด้วย AI"'),'Magic wand button has a discoverable title');
+ assert(studio.includes("aria-label={'สร้างชุดด้วย AI '+"),'Magic wand remains accessible to screen readers');
+ assert(studio.includes('<svg viewBox="0 0 24 24" width="19" height="19"'),'AI icon renders as an inline SVG');
+ assert(studio.includes("void selectAsset(visiblePicker,o,{manualOverride:visiblePicker==='suit'&&!englishFlow})"),'Clicking the thumbnail still places native PNG without AI');
+ assert(studio.includes("onClick={()=>void createThaiOutfitAi(o)}"),'AI generation remains an independent explicit click');
+ assert(studio.includes("const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride)"),'English PNG handling stays intact');
+ assert(studio.includes("else if(!aiSetup&&!manualSuit)setBodyOutfitRequest"),'Native PNG cannot auto-submit an AI request');
+ assert(studio.includes("await selectAsset('suit',option,{aiSetup:true})"),'Explicit AI uses the chosen outfit');
+ assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(mode),portraitMode:mode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'AI call is dispatched only from explicit creation');
+ assert(studio.includes('className="english-outfit-card">{card}<button type="button" className="english-outfit-ai"'),'English outfit card and behavior unchanged');
+ assert(css.includes('.thai-outfit-actions .thai-outfit-ai svg'),'Icon has its own size without touching other UI');
+ assert(!css.includes('.english-outfit-card'),'Thai styles must not modify English cards');
 });
 
 test('new checkout restores original prices and sold AI10 receipt terms remain frozen',()=>{
