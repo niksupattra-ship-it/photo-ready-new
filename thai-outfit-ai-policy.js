@@ -12,12 +12,14 @@ export function thaiOutfitGenerationFields(fields={}){
  
 // Thai-only quality revision. The underlying English rendering prompts, assets,
 // entitlement rules and output path remain byte-for-byte unchanged.
-export const THAI_OUTFIT_APPEARANCE_VERSION='th-full-outfit-native-front-hair-shield-v3';
+export const THAI_OUTFIT_APPEARANCE_VERSION='th-full-outfit-shoulder-aware-neck-safe-v4';
+export const THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION='th-full-outfit-native-front-hair-shield-v3';
 export const THAI_OUTFIT_APPEARANCE_PREVIOUS='th-full-outfit-colour-rear-hair-v2';
 // Old purchased v2 jobs must still be readable, but only new v3 jobs receive
 // the native front-outfit occlusion pass. The English route never opts in.
-export const isThaiOutfitAppearance=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS].includes(fields?.thaiOutfitAppearanceVersion);
-export const requiresThaiNativeFrontShield=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_VERSION;
+export const isThaiOutfitAppearance=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS].includes(fields?.thaiOutfitAppearanceVersion);
+export const requiresThaiNativeFrontShield=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION].includes(fields?.thaiOutfitAppearanceVersion);
+export const usesThaiShoulderAwareShield=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_VERSION;
 export function thaiOutfitAppearanceInstruction({outfitIndex,detailIndex}={}){
  if(!Number.isInteger(outfitIndex)||outfitIndex<1||!Number.isInteger(detailIndex)||detailIndex<=outfitIndex)throw Error('Missing original garment reference for Thai colour protection');
  return `
