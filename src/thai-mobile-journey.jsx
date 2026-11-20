@@ -90,6 +90,7 @@ export function ThaiMobileJourney({
     {!!notice&&<p className="thai-mobile-alert" role="alert">{notice}</p>}<div className="thai-mobile-upload-preview">{sourcePreview&&<img src={sourcePreview} alt="รูปใบหน้าที่อัปโหลด" />}<button type="button" onClick={onUpload} aria-label="เปลี่ยนรูป">×</button></div>
     <button type="button" className="thai-mobile-primary" onClick={()=>setSection('choose')}>ถัดไป →</button>
    </section>:processing?<section className="thai-mobile-processing" role="status" aria-live="polite">
+    <div className="thai-mobile-step-overline">ขั้นตอน 4 / 8</div>
     <div className="thai-mobile-processing-wheel" aria-hidden="true"/>
     <h1>กำลังสร้างรูป...</h1>
     <p>AI กำลังประมวลผลรูปของคุณ</p>
