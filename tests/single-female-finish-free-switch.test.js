@@ -258,8 +258,8 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(studio,/const confirmThaiHair=/,'Thai must offer a separate create button');
  assert.match(studio,/finishChangePending=\{easyFinishPending\}/,'Thai finish is drafted for the next confirmed generation');
  assert.match(easy,/\['type','hair','suit','background'\]/,'Hair is chosen before submitting AI');
- assert.match(studio,/onCreate=\{confirmThaiHair\}/,'Thai Full Studio must place the create button directly over the photo');
- assert.match(studio,/createLabel="สร้างภาพ" cancelLabel="ยกเลิก"/,'Thai on-photo actions must show localized Create and Cancel');
+ assert.match(studio,/onCreate=\{thaiOutfitAiDraft\?\(\)=>\{void confirmThaiOutfitAi\(\)\}:confirmThaiHair\}/,'Thai Full Studio uses the same on-image Create button for both workflows');
+ assert.match(studio,/createLabel=\{thaiOutfitAiDraft\?'สร้างชุดด้วย AI':'สร้างภาพ'\} cancelLabel="ยกเลิก"/,'Thai on-photo actions have localized Create and Cancel');
  assert.doesNotMatch(studio,/studio-hair-confirm-button/,'Thai Full Studio must not use the old below-picker confirmation');
  assert.match(studio,/femaleEyeStyle:finish/,'Changing hair must preserve the most recently chosen makeup finish');
  assert.match(studio,/setThaiPendingHair\(chosen\)/);
