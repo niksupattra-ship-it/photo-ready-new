@@ -292,6 +292,15 @@ export async function reserveEnglishDailyAiOutfit(walletId){
 
 // Separate Thai full-outfit AI allowance; hairstyle/ordinary Thai portraits do not spend it.
 const THAI_DAILY_OUTFIT_AI_LIMIT=2;
+export async function thaiDailyOutfitAiAccess(walletId){
+ if(!walletId)return {allowed:false,remaining:0};
+ await ready();
+ const {rows}=await pool.query(`SELECT COUNT(*)::int AS used FROM credit_usage
+  WHERE wallet_id=$1 AND kind='thai-daily-outfit-ai' AND status IN ('reserved','completed')
+  AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date`,[walletId]);
+ const remaining=Math.max(0,THAI_DAILY_OUTFIT_AI_LIMIT-Number(rows[0]?.used||0));
+ return {allowed:remaining>0,remaining};
+}
 export async function reserveThaiDailyOutfitAi(walletId){
  if(!walletId)return null;
  await ready();
