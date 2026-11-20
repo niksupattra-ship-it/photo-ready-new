@@ -1385,6 +1385,21 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     options={...options,manualOutfitFallback:true};
    }
   }
+  // The AI result has a single baked-in garment, so there may be no separate
+  // suit layer. When the daily allowance is exhausted, restore the exact
+  // selected native PNG as a real editable layer before replacing the head.
+  if(!englishFlow&&options.manualOutfitFallback){
+   const existingSuit=state.current.find(l=>layerKind(l)==='suit');
+   const headTemplate=oldHead?.generatedOutfitTemplate;
+   const templatePath=existingSuit?.templatePath||placementRef.current?.templatePath||headTemplate;
+   if(!existingSuit){
+    const template=templates.find(t=>t.template===templatePath);
+    if(!template){setStatus('ไม่พบแบบชุดเดิมสำหรับแสดงพร้อมทรงผม กรุณาเลือกชุดอีกครั้ง');return}
+    await selectAsset('suit',template,{manualOverride:true});
+    const added=state.current.find(l=>layerKind(l)==='suit'&&l.templatePath===templatePath);
+    if(!added){setStatus('แสดงชุดเดิมไม่สำเร็จ กรุณาเลือกชุดอีกครั้ง');return}
+   }
+  }
   retryProcessOptionsRef.current=options;
   setPortraitProcessError(null);processRequestRef.current=true;
   // A recoverable, server-completed image has already reserved its original
@@ -1407,6 +1422,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(head.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){const p=result.placement,frame={x:p.uX,y:p.uY,w:p.uW,h:p.uH};next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,visible:true}:l);}
    const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
    if(options.manualOutfitFallback&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)next=next.map(l=>layerKind(l)==='suit'?{...l,visible:true}:l);
+   if(options.manualOutfitFallback&&!next.some(l=>layerKind(l)==='suit'))throw Error('ไม่พบชุดสำหรับแสดงผลแบบแก้ไขเอง');
    if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    startedHydratingResult=true;
    let hydrated=await hydrate(next);
