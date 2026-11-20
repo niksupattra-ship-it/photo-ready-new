@@ -62,3 +62,15 @@
 /* One concise resolution value sits immediately above the PNG / PDF preview. */
 .en-download-preview-pixels{display:block;align-self:stretch;text-align:center;margin:0 0 10px;color:#6736d7;font-size:14px;font-weight:700;line-height:1.35;font-variant-numeric:tabular-nums}
 @media(max-width:600px){.en-download-preview-pixels{font-size:14px;margin:0 0 9px;line-height:1.25}}
+
+/* Thai verified paid receipt, final screen of mobile photo journey. */
+.idprom-receipt-check{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#25a977;color:white;font-size:17px;margin-right:7px;vertical-align:middle}
+@media(max-width:600px){
+ html[lang=th] .en-download-overlay{background:#261b4866;padding:8px}
+ html[lang=th] .en-download{width:min(396px,100%);border-radius:19px;border-color:#e8ddf6}
+ html[lang=th] .en-download header{min-height:64px}
+ html[lang=th] .en-download header h1{font-size:20px!important;font-weight:850;color:#2e2141}
+ html[lang=th] .en-download .en-download-preview{background:#f4effb;border-radius:12px}
+ html[lang=th] .en-download .en-download-formats button[aria-pressed=true]{background:#7440cb;color:white;border-color:#7440cb}
+ html[lang=th] .en-download .en-download-primary{background:linear-gradient(110deg,#a151eb,#6a31bf);color:white;border:0;font-weight:800;font-size:15px;border-radius:11px}
+}
