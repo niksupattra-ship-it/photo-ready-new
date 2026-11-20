@@ -171,7 +171,7 @@ export function paintScene(ctx,layers,assets,activeId=null,damage=null){
  if(damage){ctx.beginPath();ctx.rect(damage.x,damage.y,damage.w,damage.h);ctx.clip()}
  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);ctx.drawImage(cache.under,0,0);ctx.drawImage(cache.active,0,0);ctx.drawImage(cache.over,0,0);ctx.restore();
 }
-export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initialLayers,initialEasy=false,initialGender=null,accountScope='',downloadUnlockSignal=null,initialDownloadChoice=null,initialDownloadOpen=false,onSelectSuit,onMeasureSuitFace,onPrepareEnglishOutfitClip,onBalanceHead,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,premiumHairCreditAvailable=false,trialHairRemaining=0,onChangeHair,onLocalPortraitFinish,onRestorePortraitFinish,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onPrepareSourceDownload,onBeforeProcess,onReadProcessBalance,onCheckEnglishOutfitAi,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],paidWarningOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,onPurchasedEdit,forceFullStudioRevision=0,onPurchasedEditorReady,memberMenu=null,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onUseDownloadCredit,onOpenRights,onRequestUnlock,onClose}){
+export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initialLayers,initialEasy=false,initialGender=null,accountScope='',downloadUnlockSignal=null,initialDownloadChoice=null,initialDownloadOpen=false,onSelectSuit,onMeasureSuitFace,onPrepareEnglishOutfitClip,onBalanceHead,onLogout,onNewSource,templates=[],collarPins=[],chestPins=[],ribbons=[],backgrounds=[],maleHair=[],femaleHair=[],paidHairAccess=false,premiumHairCreditAvailable=false,trialHairRemaining=0,onChangeHair,onLocalPortraitFinish,onRestorePortraitFinish,onHairAiAccess,onPrepareHairOverlay,canReuseHair=()=>false,onMakeup,placement,onProcessPhoto,onPrepareSourceDownload,onBeforeProcess,onReadProcessBalance,onCheckEnglishOutfitAi,onCheckThaiOutfitAi,processing=false,processProgress={},onCancelProcess,onFinishProcess,isProcessCancelled=()=>false,processRemaining=0,paidRemaining,trialRemaining,trialUnlocked=false,hasCredits=trialUnlocked,allOptionsAvailable=false,paidOutputIds=[],paidWarningOutputIds=[],editableOutputIds=[],fullCatalog=false,freeTemplatePaths=[],purchaseSnapshotRef,initialSourcePhoto=null,editingPurchasedImage=false,savedWorkUnlocked=false,onSaveWork,onPurchasedEdit,forceFullStudioRevision=0,onPurchasedEditorReady,memberMenu=null,accountSaveNotice,onOpenProject,onOpenSavedWorks,onVerifyOutput,onUseDownloadCredit,onOpenRights,onRequestUnlock,onClose}){
  const englishFlow=englishPreviewEnabled();
  const [easyMode,setEasyMode]=useState(initialEasy&&!englishFlow);
  // Reopening a purchased photo must always select the full Studio even when
@@ -1342,6 +1342,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{return !onBeforeProcess||await onBeforeProcess()}
   finally{setCheckingCredits(false);setAssetBusy(false)}
  };
+ const thaiManualAfterOutfitQuota=async()=>{
+  if(englishFlow||!onCheckThaiOutfitAi)return false;
+  // Never send an uncontrolled full-outfit generation when eligibility cannot be read.
+  try{return (await onCheckThaiOutfitAi())?.allowed!==true}
+  catch{return true}
+ };
  const processPhoto=async(options={})=>{
   if(englishFlow&&!options.explicitCreate){setEnglishStep('setup');return}
   if(processRequestRef.current||!sourcePhoto||processActive||assetBusy||!ready||!onProcessPhoto)return;
@@ -1358,6 +1364,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!requested){setHairGender(chosenPortraitMode);setProcessHairPending(true);setPicker('hair');setTouchLayersOpen(false);setTouchMore(false);setTouchMenu(false);setToolRailOpen(true);return}
   if(!oldHead&&!state.current.some(l=>l.id===sourceLayerRef.current)&&state.current.length>=20){setStatus('เลเยอร์เต็ม 20 เลเยอร์แล้ว');return}if(oldHead?.locked&&!newSourcePending){setStatus('ปลดล็อกเลเยอร์หัวก่อนประมวลผล');return}
   if(oldHead&&!options.continueWithoutSave&&(hasCredits||trialUnlocked)){setHistoryNotice({kind:'reprocess'});return}
+  if(!englishFlow&&!options.recoverExistingJob&&!options.manualOutfitFallback){
+   const manual=await thaiManualAfterOutfitQuota();
+   if(manual){
+    if(options.outfitAiCreate){setStatus('ใช้สิทธิ์เปลี่ยนชุดด้วย AI ครบ 2 ครั้งวันนี้แล้ว · ยังแก้ไขเองและใช้ทรงผมฟรีได้');return}
+    options={...options,manualOutfitFallback:true};
+   }
+  }
   retryProcessOptionsRef.current=options;
   setPortraitProcessError(null);processRequestRef.current=true;
   // A recoverable, server-completed image has already reserved its original
@@ -1368,7 +1381,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   setProcessHairPending(false);setPicker(false);setHairNotice(false);
   const previous=historySnapshot(),suit=previous.find(l=>layerKind(l)==='suit');if(touch){setPicker(false);setTouchMore(false);setTouchMenu(false);setTouchOpen(false)}setHairConfirmed(false);setProcessingPhoto(true);setStatus(PHOTO_EDITING_TITLE);
   let stagedResult,startedHydratingResult=false;
-  const generationOptions={...options.generationOptions};
+  const generationOptions={...options.generationOptions,...(options.manualOutfitFallback?{manualOutfitFallback:true}:{})};
   if(!firstGeneration&&oldHead?.jobId){
    generationOptions.sourceJobId=oldHead.jobId;
    if(oldHead.portraitMode===chosenPortraitMode&&!generationOptions.keepCurrentHair&&(oldHead.hairId||'')!==chosenHair)generationOptions.creditKind='hairstyle';
@@ -1379,6 +1392,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
    if(head.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){const p=result.placement,frame={x:p.uX,y:p.uY,w:p.uW,h:p.uH};next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,visible:true}:l);}
    const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
+   if(options.manualOutfitFallback&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)next=next.map(l=>layerKind(l)==='suit'?{...l,visible:true}:l);
    if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    startedHydratingResult=true;
    let hydrated=await hydrate(next);
@@ -1603,6 +1617,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const finish=mode==='female'?'makeup':'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
   if(head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setThaiPendingHair(null);setTool('move');return}
+  // A previously generated full outfit must switch to the editable native
+  // outfit/head workflow once the Thai outfit quota is exhausted.
+  if(!englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&await thaiManualAfterOutfitQuota()){
+   await processPhoto({hairId:id,portraitMode:mode,continueWithoutSave:true,manualOutfitFallback:true});
+   return;
+  }
   flushTransforms();const previous=historySnapshot();
   const placedHead=previous.find(l=>l.id===head.id)||head;
   const placedFreeHair=freeHair?(previous.find(l=>l.id===freeHair.id)||freeHair):null;
