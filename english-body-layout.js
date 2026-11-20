@@ -25,7 +25,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false}={}){
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
  const {data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true});
@@ -69,5 +69,12 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
   overlays.push({input:photo,left:Math.max(0,Math.round(cx-width/2)),top:Math.max(0,Math.round(chin-height))});
  }
  overlays.push({input:visible,left:Math.max(0,gx),top:Math.max(0,gy)});
- return sharp(shape).composite(overlays).png().toBuffer();
+ const composition=await sharp(shape).composite(overlays).png().toBuffer();
+ if(!returnNativeForeground)return composition;
+ // Thai-only optional output. Use the EXACT same garment crop, scale and
+ // translation as the AI's Image 1 guide, without changing English output.
+ const nativeForeground=await sharp({create:{width:W,height:H,channels:4,background:{r:0,g:0,b:0,alpha:0}}})
+  .composite([{input:visible,left:Math.max(0,gx),top:Math.max(0,gy)}]).png().toBuffer();
+ return {composition,nativeForeground,shoulderTopY:y+uniform.bounds.t*scale,collarTopY:collar,centerX:cx,shoulderSpan:span*scale};
+
 }
