@@ -55,7 +55,7 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
  for(const path of ['/assets/job-uniforms/female-job-white.png','/assets/student-uniforms/female-01.png','/assets/government-uniforms/female-operational.png','/assets/gown-uniforms/female-01.png'])assert(isThaiOutfitPath(path),path);
 });
 
-test('Thai v6 uses English full-image delivery with only a rear-hair generation directive and no post-render mask',async()=>{
+test('new Thai AI uniform is pixel-input and prompt identical to English',async()=>{
  const template='/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png';
  const core={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',neckOutfitReferencePath:template,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
  const thai={...core,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
@@ -63,33 +63,28 @@ test('Thai v6 uses English full-image delivery with only a rear-hair generation 
  assert.doesNotThrow(()=>validateProductionPortrait(input,thai));
  assert.throws(()=>validateProductionPortrait(input,{...thai,thaiOutfitAppearanceVersion:'unknown'}));
  assert.throws(()=>validateProductionPortrait(input,{...english,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION}));
- assert.match(thaiOutfitAppearanceInstruction({outfitIndex:3,detailIndex:5}),/BEHIND the corresponding ears, neck and SHOULDERS/);
- const prompts=[];
+ const calls=[];
  for(const fields of [thai,english]){
-  const calls=[];
-  const out=await processProductionPortrait({input,fields,root,key:'test',removeBackground:async()=>result,requestPortrait:async request=>{calls.push(request);return {png:result}}});
-  assert.equal(calls.length,1,'No second AI call for colour or hair positioning');
-  assert(out.length);
-  prompts.push(calls[0].prompt);
+  const requests=[];
+  const out=await processProductionPortrait({input,fields,root,key:'same',removeBackground:async()=>result,requestPortrait:async request=>{requests.push(request);return {png:result}}});
+  assert.equal(requests.length,1,'Only one whole-garment generation');
+  assert(out.length);calls.push(requests[0]);
  }
- assert.doesNotMatch(prompts[0],/THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/,'New Thai generation must not use the retired postprocessing-era final prompt');
- assert.match(prompts[0],/REAR HAIR AND NATIVE OUTFIT VISIBILITY/);
- assert.match(prompts[0],/BEHIND BOTH shoulders and behind the suit/);
- assert.match(prompts[0],/Copy the selected outfit's native colour/);
- assert.match(prompts[0],/FINAL SELECTED OUTFIT COLOUR AND DETAIL AUTHORITY/);
- assert.doesNotMatch(prompts[1],/REAR HAIR AND NATIVE OUTFIT VISIBILITY|THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/,'English prompt is unchanged');
+ assert.equal(calls[0].prompt,calls[1].prompt,'Exactly the same prompt');
+ assert.equal(calls[0].size,calls[1].size,'Exactly the same output dimensions');
+ assert.equal(calls[0].portraitMime,calls[1].portraitMime);
+ assert.deepEqual(calls[0].portrait,calls[1].portrait,'Same composition reference pixels');
+ assert.deepEqual(calls[0].outfit,calls[1].outfit,'Same native outfit pixels');
  assert.equal(usesThaiHistoricOutfitPrompt(thai),false);
- assert.equal(usesThaiEnglishParityOutfit(thai),true);
- assert.equal(usesThaiEnglishParityOutfit(english),false);
- assert.equal(requiresThaiNativeFrontShield(thai),false,'New Thai results must not be postcomposited');
+ assert.equal(usesThaiEnglishParityOutfit(thai),false,'No Thai-only prompt addition');
+ assert.equal(requiresThaiNativeFrontShield(thai),false,'No post-render clothing overlay');
  const previousV5={...thai,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_OLD_NECK_V5};
- assert.equal(requiresThaiNativeFrontShield(previousV5),true,'Old completed/pending requests retain their legacy behavior');
+ assert.equal(requiresThaiNativeFrontShield(previousV5),true,'Historical jobs unchanged');
  assert.equal(usesThaiHistoricOutfitPrompt(previousV5),true);
- assert.equal(usesThaiEnglishParityOutfit(previousV5),false);
- assert.equal(thai.interfaceLanguage,'th','Internal rendering must not mutate the Thai credit locale');
+ assert.equal(thai.interfaceLanguage,'th','Thai rights stay Thai');
  const main=await readFile(root+'src/main.jsx','utf8');
- assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'),'Thai-only new cache and recovery version');
- assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"),'Frontend sends the Thai-only version');
+ assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'));
+ assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"));
 });
 
 test('Thai native uniform reliably occludes hair over both jacket fronts and clips hanging outer hair without touching face',async()=>{
