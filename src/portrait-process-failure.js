@@ -20,7 +20,7 @@ export function describePortraitFailure(error,english=false){
   return make('quality_check','The AI result needs another attempt','The generated result did not pass the face, hairstyle or cutout check. The previous photo is preserved.','ผลลัพธ์ AI ยังไม่ผ่านการตรวจ','รูปที่สร้างยังไม่ตรงเงื่อนไขใบหน้า ทรงผม หรือขอบภาพ ระบบเก็บรูปเดิมไว้');
  }
  if(code==='PORTRAIT_MODEL_UNAVAILABLE'||code==='PORTRAIT_MODEL_TIMEOUT'||stage==='prepare_model'){
-  return make('model_initialization','Could not prepare photo tools','The face-analysis tools could not load. Check your connection and try again. No new generation was submitted at this stage.','โหลดเครื่องมือตรวจใบหน้าไม่สำเร็จ','ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง ขั้นตอนนี้ยังไม่ได้ส่งงานสร้างภาพใหม่');
+  return make('model_initialization','Photo tools could not start','The face-analysis tools did not finish loading. Tap Retry to prepare them again; no new AI generation was submitted.','เตรียมเครื่องมือตรวจใบหน้าไม่สำเร็จ','ระบบยังโหลดเครื่องมือตรวจใบหน้าไม่ครบ กด “ลองอีกครั้ง” เพื่อเตรียมใหม่ ขั้นตอนนี้ยังไม่ได้ส่งงานสร้างภาพและยังไม่ใช้สิทธิ์');
  }
  if(status===429||code==='ACTIVE_AI_JOB'){
   return make('active_ai_job','A photo is already processing','Finish or cancel the previous AI job before starting another.','มีงาน AI กำลังประมวลผล','รอให้งานเดิมเสร็จหรือยกเลิกก่อน แล้วจึงสร้างภาพใหม่');
