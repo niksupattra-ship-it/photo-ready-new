@@ -20,7 +20,7 @@ let passed=0;
  const env={getLandmarker:async()=>({}),getPersonSegmenter:async()=>{segmented++;throw Error('unused model offline')},loadImage:async()=>({})};
  const warm=Function('env',`with(env){${main.slice(a,b)};return warmPortraitResources}`)(env);
  await warm(new Blob(),null,{requiresSegmentation:false});assert.equal(segmented,0);
- await assert.rejects(warm(new Blob()),e=>e.code==='PORTRAIT_MODEL_UNAVAILABLE');assert.equal(segmented,1);passed++;
+ await assert.rejects(warm(new Blob()),e=>e.code==='PORTRAIT_MODEL_UNAVAILABLE');assert.equal(segmented,2,'Failed segmentation gets one deliberate retry before AI');passed++;
 }
 for(const hair of ['original','seedream-41']){
  const error=Object.assign(Error('model unavailable'),{code:'PORTRAIT_MODEL_TIMEOUT'});
