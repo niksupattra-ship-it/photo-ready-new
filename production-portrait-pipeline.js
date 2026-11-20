@@ -345,8 +345,8 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  // Last hair-only authority after cosmetics and hairstyle/default instructions.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
- prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:englishBody,keepCurrentHair:fields.keepCurrentHair==='1',referenceBoard:compactHairBoard});
  if(singlePass&&fields.femaleEyeStyle==='makeup'&&selected.gender==='female')prompt+='\n'+FINAL_SELECTED_MAKEUP_DELIVERY_AUDIT;
+ prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:englishBody,keepCurrentHair:fields.keepCurrentHair==='1',referenceBoard:compactHairBoard});
  await onStage('generation');
  let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:completeNeck&&generationInput.neckCanvasSize||'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
