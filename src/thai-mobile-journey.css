@@ -50,3 +50,64 @@
 @media(min-width:700px){.thai-mobile-flow{position:fixed}.thai-mobile-main{padding-top:26px}.thai-mobile-photo{width:325px}}
 @media(max-width:360px){.thai-mobile-main{padding:14px 12px}.thai-mobile-tile-row{grid-auto-columns:minmax(89px,calc((100% - 12px)/3));gap:6px}}
 @media(prefers-reduced-motion:reduce){.thai-mobile-processing-wheel{animation:none}}
+
+/* Shared layout used by BOTH desktop and mobile, based on the eight uploaded references. */
+.thai-mobile-flow{background:radial-gradient(ellipse at 50% 100%,#f0ebfb 0%,#fdfcff 68%);overflow-y:auto}
+.thai-mobile-main{max-width:1000px;padding:24px 24px 48px}
+.thai-mobile-header{padding-left:max(22px,calc((100vw - 1150px)/2));padding-right:max(22px,calc((100vw - 1150px)/2));box-shadow:0 1px 0 #ebe7f3}
+.thai-mobile-select,.thai-mobile-upload-review,.thai-mobile-result{background:rgba(255,255,255,.96);border:1px solid #ece6f5;border-radius:22px;padding:22px 27px;box-shadow:0 16px 45px #3420490b}
+.thai-mobile-step-overline{text-align:center;font-size:12px;font-weight:800;letter-spacing:.05em;color:#844bd1;text-transform:uppercase;margin:0 0 8px}
+.thai-mobile-select>h1,.thai-mobile-result>h1{font-size:26px!important;margin:0 0 18px}
+.thai-mobile-selection-grid{display:grid;grid-template-columns:minmax(240px,340px) minmax(0,1fr);gap:32px;align-items:start}
+.thai-mobile-style-preview{background:#f5f0fd;border:1px solid #ece4f6;border-radius:17px;padding:20px;text-align:center;position:sticky;top:95px;align-self:start}
+.thai-mobile-style-preview img{width:min(100%,230px);aspect-ratio:3/4;object-fit:contain;background:#dde5f1;border:5px solid #fff;border-radius:13px;box-shadow:0 6px 22px #22184918}
+.thai-mobile-style-preview p{font-size:16px;color:#3b2b59;font-weight:800;margin:12px 0 6px}
+.thai-mobile-style-preview small{color:#73678a;line-height:1.5}
+.thai-mobile-selection-controls{min-width:0}
+.thai-mobile-selection-controls>h2:first-child{margin-top:3px!important}
+.thai-mobile-selection-controls .thai-mobile-tile-row{grid-auto-columns:minmax(108px,calc((100% - 20px)/3));gap:10px}
+.thai-mobile-selection-controls .thai-mobile-tile-row img{height:104px}
+.thai-mobile-selection-controls .thai-mobile-hair-row img{height:96px}
+.thai-mobile-suit-categories button{transition:background .12s ease}
+.thai-mobile-more{display:block;margin:6px auto 10px;padding:9px 14px;border:1px solid #e2d4f1;background:#faf7ff;border-radius:999px;color:#7546ac;font-size:12px;font-weight:750;cursor:pointer}
+.thai-mobile-upload-review{max-width:480px;margin:0 auto;text-align:center;padding:28px 28px 34px}
+.thai-mobile-upload-drop{min-height:175px;border:2px dashed #a988d9;border-radius:16px;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;background:#faf7ff;color:#473067;padding:20px;cursor:pointer}
+.thai-mobile-upload-icon{font-size:36px;color:#7b43ce;line-height:1}
+.thai-mobile-upload-drop strong{font-size:14px}
+.thai-mobile-upload-drop small{font-size:12px;color:#776a8c}
+.thai-mobile-upload-preview{margin:22px auto 18px;width:148px;height:188px;position:relative;border-radius:12px;background:#ece8f3}
+.thai-mobile-upload-preview img{width:100%;height:100%;object-fit:contain;border-radius:12px}
+.thai-mobile-upload-preview button{position:absolute;right:-11px;top:-10px;width:30px;height:30px;border:1px solid #dad4e7;border-radius:50%;background:white;color:#644083;font:inherit;font-size:22px;line-height:1;cursor:pointer}
+.thai-mobile-upload-review .thai-mobile-primary{max-width:370px;margin-top:20px}
+.thai-mobile-result-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,440px);gap:34px;align-items:center;justify-content:center}
+.thai-mobile-result-grid>.thai-mobile-photo{width:min(100%,380px);margin:0 auto}
+.thai-mobile-result-controls{width:100%;min-width:0}
+.thai-mobile-result-controls h2{margin-top:0!important}
+.thai-mobile-hair-gallery{max-width:440px}
+.thai-mobile-hair-gallery button{border-color:#e0d9ec;background:#f5f0ff}
+.thai-mobile-result .thai-mobile-primary{min-height:55px}
+.thai-mobile-result-actions button{min-height:52px}
+.thai-mobile-processing{min-height:calc(100dvh - 170px);max-width:480px;margin:0 auto;background:transparent}
+@media(max-width:720px){
+ .thai-mobile-header{padding-left:17px;padding-right:17px}
+ .thai-mobile-flow{background:#fff}
+ .thai-mobile-main{width:100%;max-width:500px;padding:16px 17px 28px}
+ .thai-mobile-select,.thai-mobile-result,.thai-mobile-upload-review{padding:0;border:0;border-radius:0;box-shadow:none;background:transparent}
+ .thai-mobile-selection-grid,.thai-mobile-result-grid{display:block}
+ .thai-mobile-style-preview{display:none}
+ .thai-mobile-select>h1,.thai-mobile-result>h1{font-size:22px!important;margin:0 0 15px}
+ .thai-mobile-selection-controls .thai-mobile-tile-row{grid-auto-columns:minmax(96px,calc((100% - 16px)/3));gap:8px}
+ .thai-mobile-selection-controls .thai-mobile-tile-row img{height:94px}
+ .thai-mobile-selection-controls .thai-mobile-hair-row img{height:82px}
+ .thai-mobile-upload-review{max-width:100%}
+ .thai-mobile-upload-drop{min-height:172px}
+ .thai-mobile-result-grid>.thai-mobile-photo{width:min(100%,360px)}
+ .thai-mobile-result-controls{margin:0 auto;max-width:390px}
+ .thai-mobile-hair-gallery{margin:12px auto}
+ .thai-mobile-result-actions{gap:9px}
+}
+@media(min-width:721px) and (max-width:980px){
+ .thai-mobile-selection-grid{grid-template-columns:minmax(200px,300px) minmax(0,1fr);gap:20px}
+ .thai-mobile-result-grid{grid-template-columns:minmax(0,350px) minmax(0,390px);gap:18px}
+ .thai-mobile-selection-controls .thai-mobile-tile-row{grid-auto-columns:minmax(100px,calc((100% - 16px)/3));gap:8px}
+}
