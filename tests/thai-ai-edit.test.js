@@ -136,7 +136,7 @@ test('Thai v4 protects the actual sloping shoulder edge and neck opening without
  const now=await inspect(fixed),old=await inspect(legacy);
  assert.deepEqual(now(100,110),black,'Hair above the shoulders remains original');
  assert.deepEqual(now(100,145),black,'Hair is not horizontally cut before the LOCAL centre collar begins');
- assert.equal(old(100,145)[3],0,'v3 had incorrectly erased this hair with global shoulder clipping');
+ assert.equal(old(94,145)[3],0,'v3 had incorrectly erased hair outside its too-narrow neck exemption with global shoulder clipping');
  assert.deepEqual(now(100,220),white,'Below the local collar, the actual uniform covers forward hair');
  assert.deepEqual(now(165,220),white,'Both shoulders are opaque and hair-free');
  assert.deepEqual(now(120,160),skin,'Cyan template seam is never pasted over the neck skin');
