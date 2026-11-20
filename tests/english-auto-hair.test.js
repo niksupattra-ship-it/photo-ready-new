@@ -84,7 +84,7 @@ test('Thai hairstyle 16 is free while withdrawn hairstyle 26 is absent from the 
  assert.equal(added?.hidden,undefined,'Braided half-up photo remains visible as a free choice');
  assert.equal(withdrawn?.hidden,true,'Withdrawn photo remains only for historical job recovery');
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
- assert.match(main,/PRODUCTION_HAIR_CATALOG\\.filter\\(h=>h\\.gender==='female'&&!h\\.hidden/,'All Thai UI hairstyles exclude hidden catalog entries');
+ assert(main.includes("const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden"),'All Thai UI hairstyles exclude hidden catalog entries');
 });
 
 test('Thai female picker starts with the three requested free cuts, and hides only female Thai auto tile',async()=>{
