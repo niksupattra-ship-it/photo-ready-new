@@ -38,7 +38,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,reserveThaiDailyOutfitAi,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,reserveThaiDailyOutfitAi,thaiDailyOutfitAiAccess,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobEditContext,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
@@ -425,6 +425,14 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
  }
 });
 
+// Read-only Thai AI outfit quota; regular hairstyle and manual PNG routes never spend it.
+app.get('/api/thai-outfit-ai/access',async(req,res)=>{
+ try{
+  const wid=walletId(req);
+  if(!wid)return res.status(403).set('Cache-Control','no-store').json({allowed:false,remaining:0});
+  return res.set('Cache-Control','private, no-store').json(await thaiDailyOutfitAiAccess(wid));
+ }catch(error){console.warn('Thai outfit quota unavailable',error.code||'unavailable');return res.status(503).set('Cache-Control','no-store').json({allowed:false,remaining:0})}
+});
 // English AI outfit eligibility is read-only. The PNG path never calls this.
 app.get('/api/english-ai-outfit/access',async(req,res)=>{
  try{
