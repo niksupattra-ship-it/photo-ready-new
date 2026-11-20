@@ -348,3 +348,36 @@ test('Thai native suit placement never distorts the catalog garment, including r
  assert(studio.includes("!englishFlow&&layerKind(base)==='suit'&&('squeezeX' in patch||'squeezeY' in patch)"),'Thai suit cannot be squeezed by sliders');
  assert(studio.includes("&&!(manualSuit&&!englishFlow)"),'Re-selecting the same Thai suit repairs its stale frame');
 });
+
+
+test('Thai government insignia menu uses the finished portrait and refuses uncertain placement',async()=>{
+ const {detectWhiteGovernmentJacket,isGovernmentUniform,governmentInsigniaPreset}=await import('../src/government-insignia-fit.js');
+ const w=600,h=800,data=new Uint8ClampedArray(w*h*4);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=(y*w+x)*4;
+  data[i]=65;data[i+1]=162;data[i+2]=218;data[i+3]=255;
+  const top=Math.floor(h*.43);
+  const spread=(y-top)/Math.max(1,h-top);
+  if(y>=top&&x>w*(.27-.13*spread)&&x<w*(.73+.13*spread)){
+   data[i]=242;data[i+1]=242;data[i+2]=246;
+  }
+ }
+ const found=detectWhiteGovernmentJacket({width:w,height:h,data});
+ assert(found,'Actual garment pixels determine the automatic frame');
+ assert(found.frame.w>260&&found.frame.w<570);
+ assert(found.frame.y>h*.30&&found.frame.y<h*.60);
+ const presets=governmentInsigniaPreset(found.frame,'female');
+ assert(presets.collar.left<presets.collar.right);
+ assert(presets.ribbon.x>.5&&presets.ribbon.x<1);
+ assert(isGovernmentUniform('/assets/government-uniforms/female-academic.png'));
+ assert(!isGovernmentUniform('/assets/job-uniforms/suit.png'));
+ data.fill(255);
+ assert.equal(detectWhiteGovernmentJacket({width:w,height:h,data}),null,'A white backdrop does not provide reliable anchors');
+ const editor=await readFile(root+'src/studio-editor.jsx','utf8'),easy=await readFile(root+'src/easy-mode.jsx','utf8');
+ assert(editor.includes('governmentAutoPlace:true'));
+ assert(editor.includes('measureGovernmentInsigniaFrame'));
+ assert(editor.includes('if(autoInsignia&&!measuredFrame)'));
+ assert(editor.includes('governmentResult&&touch&&!easyMode'));
+ assert(easy.includes('governmentResult&&hasResult&&<button type="button"'));
+ assert(!editor.includes('onChoose={(kind,option)=>void processPhoto('),'Insignia choices never trigger AI');
+});
