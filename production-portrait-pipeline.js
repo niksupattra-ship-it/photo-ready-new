@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -508,7 +508,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   return sharp(originalOutfit).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  })();
  const hairTask=(async()=>{
-  if(isThaiOutfitAi(fields)&&keepCurrentHair&&!currentHair)return sharp(input.buffer).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+  if(isThaiOutfitAi(fields)&&fields.thaiOutfitAppearanceVersion!=='th-full-outfit-english-renderer-v6'&&keepCurrentHair&&!currentHair)return sharp(input.buffer).rotate().resize({width:1024,height:1536,fit:'inside',withoutEnlargement:true}).png().toBuffer();
   if(keepCurrentHair&&currentHair)return sharp(currentHair,{limitInputPixels:33554432}).resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).flatten({background:'#356bd8'}).png().toBuffer();
   if(!chosen)return null;
   if(chosen.id.startsWith('seedream-')&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION)return loadCatalogueHairGuide(chosen.id,root);
@@ -568,7 +568,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(outfitDetailReference)prompt+=englishOutfitFidelityInstruction(outfitIndex,outfitDetailIndex);
  // Thai-only final priority: make the selected native garment colour the authority
  // and move genuine long hair behind the shoulders, never across the jacket.
- if(isThaiOutfitAppearance(fields))prompt+=thaiOutfitAppearanceInstruction({outfitIndex,detailIndex:outfitDetailIndex});
+ if(usesThaiHistoricOutfitPrompt(fields))prompt+=thaiOutfitAppearanceInstruction({outfitIndex,detailIndex:outfitDetailIndex});
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
