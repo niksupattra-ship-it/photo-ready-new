@@ -60,3 +60,21 @@ test('Thai offer, real PromptPay, verified receipt and PNG/PDF keep connected ha
  assert(download.includes('paidSuccess&&!en'),'Only validated Thai receipt has successful payment title');
  assert(download.includes('onAuthorize')&&download.includes('prepareEnglishDownload'),'Actual PNG/PDF rights checks intact');
 });
+
+
+test('completed Thai mobile AI stays on the redesigned result page instead of returning to full Studio',async()=>{
+ const studio=await read('src/studio-editor.jsx');
+ const mobile=await read('src/thai-mobile-journey.jsx');
+ assert.match(studio,/else if\(easyMode\)\{if\(!touch\)setEasyMode\(false\);setPicker\(false\)\}/,
+  'A successfully completed Thai mobile job must keep EasyMode mounted');
+ assert.match(studio,/const easyUi=<>\{easyMode\?<EasyMode/,
+  'The result screen remains reachable through EasyMode');
+ assert.match(mobile,/hasResult\?<div className="thai-mobile-photo">/,
+  'Completed image is rendered on the new mobile result page');
+ assert.match(mobile,/section==='result'\?<\>/,
+  'Result action menu is visible on the same page');
+ assert.match(mobile,/onClick=\{onDownload\}/,
+  'The receive-photo action retains the real download and checkout gate');
+ assert.match(studio,/onStudio=\{\(\)=>\{setEasyMode\(false\)/,
+  'Only explicit user request opens detailed Studio');
+});
