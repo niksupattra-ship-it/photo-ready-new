@@ -35,11 +35,11 @@ test('Original Thai guide keeps an independent canonical and sitemap entry',asyn
  assert(server.includes("registerEnglishLanding(app"),'English remains on its independent public route');
 });
 
-test('Thai mobile uses separate live pages for selection, processing, results and corrections',async()=>{
+test('Thai desktop and mobile share real eight-stage pages for selection, processing, results and corrections',async()=>{
  const source=await read('src/thai-mobile-journey.jsx');
  const easy=await read('src/easy-mode.jsx');
  assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'));
- assert(easy.includes('!englishPreviewEnabled()&&mobile&&(sourcePreview||hasResult)&&templates.length'));
+ assert(easy.includes('!englishPreviewEnabled()&&(sourcePreview||hasResult)&&templates.length'));
  for(const part of ['กำลังสร้างรูป','เลือกแบบที่ต้องการ','เปลี่ยนทรงผม','เปลี่ยนชุด','เครื่องหมาย','ไปชำระเงิน','สร้างรูปด้วย AI'])assert(source.includes(part),part);
  assert(source.includes('onGenerateHair?.(draftHair)'),'New AI generation still uses guarded original callback');
  assert(source.includes('onConfirmHair?.()'),'Changing hair still requires confirmation');
@@ -62,10 +62,10 @@ test('Thai offer, real PromptPay, verified receipt and PNG/PDF keep connected ha
 });
 
 
-test('completed Thai mobile AI stays on the redesigned result page instead of returning to full Studio',async()=>{
+test('completed Thai AI on mobile and desktop stays on redesigned result unless Studio is explicitly requested',async()=>{
  const studio=await read('src/studio-editor.jsx');
  const mobile=await read('src/thai-mobile-journey.jsx');
- assert.match(studio,/else if\(easyMode\)\{if\(!touch\)setEasyMode\(false\);setPicker\(false\)\}/,
+ assert.match(studio,/else if\(easyMode\)\{setPicker\(false\)\}/,
   'A successfully completed Thai mobile job must keep EasyMode mounted');
  assert.match(studio,/const easyUi=<>\{easyMode\?<EasyMode/,
   'The result screen remains reachable through EasyMode');
@@ -77,4 +77,14 @@ test('completed Thai mobile AI stays on the redesigned result page instead of re
   'The receive-photo action retains the real download and checkout gate');
  assert.match(studio,/onStudio=\{\(\)=>\{setEasyMode\(false\)/,
   'Only explicit user request opens detailed Studio');
+});
+
+test('approved mockup is responsive on desktop and mobile, and upload gets a review step',async()=>{
+ const ui=await read('src/thai-mobile-journey.jsx'),css=await read('src/thai-mobile-journey.css');
+ const home=await read('src/idprom-simple-home.jsx'),homeCss=await read('src/idprom-simple-flow.css');
+ for(const phrase of ['thai-mobile-upload-review','thai-mobile-selection-grid','thai-mobile-result-grid','thai-mobile-step-overline','thai-mobile-hair-gallery'])assert(ui.includes(phrase),phrase);
+ assert(css.includes('grid-template-columns:minmax(240px,340px) minmax(0,1fr)'),'Desktop selection is a split page');
+ assert(css.includes('@media(max-width:720px)'),'Mobile selection stacks without an unreadable desktop layout');
+ assert(home.includes('idprom-simple-hero')&&home.includes('รับไฟล์ทันทีหลังชำระเงินสำเร็จ'));
+ assert(homeCss.includes('.idprom-simple-hero{display:grid'),'Desktop opening page is first-class, not old Studio');
 });
