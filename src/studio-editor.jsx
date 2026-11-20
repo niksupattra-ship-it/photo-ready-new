@@ -1173,7 +1173,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }finally{if(suitRequestRef.current===request)endSuitPreview(request)}
  };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false}={})=>{
-  const manualSuit=kind==='suit'&&!aiSetup&&(englishFlow||manualOverride);
+  const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride);
   // Clicking an outfit thumbnail places its native PNG. AI is separately explicit.
   if(manualSuit)setEnglishInlineAi(null);
   if(!ready||processActive||comparing||(assetBusy&&!(kind==='suit'&&suitRequestRef.current?.kind==='suit'&&suitRequestRef.current.phase==='loading')))return;
