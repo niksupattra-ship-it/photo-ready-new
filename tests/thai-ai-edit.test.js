@@ -107,5 +107,5 @@ test('Thai combined outfit PNG changes never schedule an implicit generation and
  assert.match(ed,/generationOptions:\{thaiOutfitAi:!englishFlow,keepCurrentHair/);
  assert.match(main,/const thaiFullOutfit=!englishPreviewEnabled\(\)&&editCache\.current\.master\?\.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/);
  assert.match(main,/\.\.\.\(thaiFullOutfit\?\{thaiOutfitAi:true\}:\{\}\)/);
- assert.match(ed,/!localFinish&&replacement\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION\)next=replaceFullBodyPortraitLayers\(previous,finishedReplacement,layerKind\)/);
+ assert.match(ed,/!englishFlow&&!localFinish&&replacement\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/);
 });
