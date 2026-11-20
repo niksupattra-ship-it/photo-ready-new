@@ -93,7 +93,7 @@ test('Thai Studio outfit cards have independent PNG and AI actions without alter
  assert(studio.includes('>สร้างด้วย AI</button>'));
  assert(studio.includes("selectAsset('suit',o,{manualOverride:true})"),'PNG action uses non-AI native overlay');
  assert(studio.includes("onClick={()=>void createThaiOutfitAi(o)}"),'AI request is explicit');
- assert(studio.includes("const manualSuit=kind==='suit'&&!aiSetup&&(englishFlow||manualOverride)"),'Thai PNG overlay does not invoke body AI');
+ assert(studio.includes("const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride)"),'English PNG policy preserved while Thai PNG does not invoke body AI');
  assert(studio.includes("else if(!aiSetup&&!manualSuit)setBodyOutfitRequest"),'No implicit AI after PNG or during explicit AI setup');
  assert(studio.includes("if(isFreeFemaleHair(chosenHair)&&!firstGeneration&&!options.outfitAiCreate)"),'Only the explicit Thai outfit AI request bypasses the free-hair change notice');
  assert(studio.includes("await selectAsset('suit',option,{aiSetup:true})"),'AI creates from the exact chosen garment');
