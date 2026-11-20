@@ -598,6 +598,20 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    pendingHairProcessRef.current={hairId:selection.hairId,portraitMode:selection.portraitMode};
    void processPhoto({hairId:selection.hairId,portraitMode:selection.portraitMode,continueWithoutSave:true});
   }else if(isFreeFemaleHair(selection.hairId)){
+   // A free PNG hair choice on a completed AI outfit must first restore the
+   // editable head/native suit result after the outfit quota is exhausted.
+   if(activeHead.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
+    void (async()=>{
+     if(await thaiManualAfterOutfitQuota()){
+      await processPhoto({hairId:activeHead.hairId||firstGenerationHairFor(selection.portraitMode),portraitMode:selection.portraitMode,continueWithoutSave:true,manualOutfitFallback:true});
+      const updated=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
+      if(updated&&updated.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)await applyFreeHair(selection.hairId);
+      return;
+     }
+     await applyFreeHair(selection.hairId);
+    })().catch(e=>appearanceFailure('hair',e.message||'แสดงทรงผมไม่สำเร็จ'));
+    return;
+   }
    if(finishChanged){
     // The cosmetic variation is a single provider call. A free PNG hair
     // overlay is placed locally afterward without another image generation.
