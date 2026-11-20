@@ -2301,3 +2301,84 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
   border-color:var(--studio-violet);
   color:var(--studio-violet-dark);
 }
+
+
+/* Shared Studio and Easy popup palette: never inherit the legacy dark modal. */
+/* .idstudio also wraps the Thai eight-step Easy flow, where studio-redesign is absent. */
+.idstudio .studio-processing-overlay {
+  background:rgba(56,30,96,.25);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+}
+.idstudio .studio-processing-overlay .studio-processing-card {
+  background:#fff;
+  color:#2e1e4a;
+  border:1px solid #dfd1f5;
+  border-radius:20px;
+  box-shadow:0 16px 50px rgba(56,30,96,.22);
+}
+.idstudio .studio-processing-overlay .studio-processing-card h2 {
+  color:#32165c;
+  font-weight:800;
+  line-height:1.4;
+}
+.idstudio .studio-processing-overlay .studio-processing-card p {
+  color:#655577;
+  line-height:1.65;
+}
+.idstudio .studio-processing-overlay .studio-processing-card .studio-error-diagnostic {
+  display:inline-block;
+  padding:8px 12px;
+  margin-top:13px;
+  border:1px solid #e7dcf7;
+  border-radius:10px;
+  background:#f8f4ff;
+  color:#71578c;
+  font-size:12px;
+}
+.idstudio .studio-processing-overlay .studio-processing-card progress,
+.idstudio .studio-processing-overlay .studio-processing-card input[type="range"] {
+  accent-color:#7543d7;
+}
+.idstudio .studio-processing-overlay .studio-processing-spinner {
+  border-color:#e8def7;
+  border-top-color:#7543d7;
+}
+.idstudio .studio-processing-overlay .studio-processing-card button {
+  background:#f7f2ff;
+  color:#5d2cb1;
+  border:1px solid #bfa5ec;
+  border-radius:11px;
+  font-weight:700;
+  min-height:42px;
+}
+.idstudio .studio-processing-overlay .studio-processing-card button:hover:not(:disabled) {
+  background:#ede2ff;
+  border-color:#7543d7;
+}
+.idstudio .studio-processing-overlay .studio-processing-card button:focus-visible {
+  outline:2px solid #7543d7;
+  outline-offset:3px;
+}
+.idstudio .studio-process-error-overlay .studio-process-error-card > div > button:first-child:not(:last-child) {
+  background:#7543d7;
+  color:#fff;
+  border-color:#7543d7;
+}
+.idstudio .studio-process-error-overlay .studio-process-error-card > div > button:first-child:not(:last-child):hover:not(:disabled) {
+  background:#6736c6;
+  color:#fff;
+}
+.idstudio.studio-redesign .studio-processing-overlay.studio-wait-overlay {
+  background:rgba(56,30,96,.24);
+}
+.idstudio.studio-redesign .studio-processing-card.studio-wait-card {
+  border-color:#e1d5f6;
+  color:#32165c;
+}
+.idstudio.studio-redesign .studio-wait-card h2 {
+  color:#32165c;
+}
+.idstudio.studio-redesign .studio-wait-card .idprom-processing-stage {
+  color:#6f6083;
+}
