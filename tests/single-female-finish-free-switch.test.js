@@ -419,7 +419,7 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(styles,/\.en-diamond-photo-preview img/,'English preview remains visible on desktop and mobile');
 });
 
-test('reference Makeup complexion is continuous and softly dewy without a mask or extra processing',()=>{
+test('Makeup complexion is softly satin, brighter and shadow-evened without a mask or extra processing',()=>{
  const makeup=onePassSkinQualityPriority('makeup',false);
  const englishMakeup=onePassSkinQualityPriority('makeup',true);
  const natural=onePassSkinQualityPriority('natural',false);
@@ -430,11 +430,14 @@ test('reference Makeup complexion is continuous and softly dewy without a mask o
   assert.match(prompt,/Check again for acne marks, melasma, freckles, uneven pigmentation and visible superficial wrinkles or fine lines/);
   assert.match(prompt,/active pimples, acne bumps, acne-red\/brown dots/);
   assert.match(prompt,/throughout the forehead, temples, both cheeks to their outer edges/);
-  assert.match(prompt,/LIGHT AND SURFACE — BROAD SOFTBOX, DEWY PHOTOGRAPHIC REFLECTIONS/);
+  assert.match(prompt,/LIGHT AND SURFACE — BROAD SOFTBOX, SOFT SATIN AND EVEN BRIGHTNESS/);
   assert.match(prompt,/across the whole face, ears and visible neck/);
   assert.match(prompt,/No preliminary Natural generation, additional provider request, face\/skin mask/);
   assert.match(prompt,/SAME requested AI generation\/edit/);
-  assert.match(prompt,/authentic pigment depth and undertone/);
+  assert.match(prompt,/natural undertone and recognisable complexion character/);
+  assert.match(prompt,/Reduce oily\/wet-looking skin shine/);
+  assert.match(prompt,/modest additional lift toward a slightly fairer/);
+  assert.match(prompt,/grey under-eye patches/);
  }
  assert.doesNotMatch(natural,/FINAL MAKEUP STUDIO-RETOUCH AUTHORITY/,'Natural keeps its separate no-makeup skin rules');
  assert.match(natural,/NO ADDED MAKEUP/);

@@ -58,7 +58,7 @@ test('production pipeline finishes both images before delivery and fails the job
   assert.equal(makeupCalls,1);
  }
 });
-test('Thai AI makeup uses one reference dewy photographic finish, preserves the Natural scene and keeps old jobs valid',async()=>{
+test('Thai AI makeup uses one soft satin, brighter and even photographic finish, preserves the Natural scene and keeps old jobs valid',async()=>{
  const {AI_MAKEUP_PAIR_VERSION,isAiMakeupPairVersion}=await import('../ai-makeup-pair-policy.js');
  assert.equal(AI_MAKEUP_PAIR_VERSION,'ai-makeup-pair-v15-soft-rose-studio-natural-tone');
  assert(isAiMakeupPairVersion('ai-makeup-pair-v14-even-bright-fair-skin'),'queued previous-version jobs remain valid');
@@ -72,8 +72,8 @@ test('Thai AI makeup uses one reference dewy photographic finish, preserves the 
   assert.match(sent.prompt,/soft translucent peach-pink blush/);
   assert.match(sent.prompt,/translucent coral-pink gloss tint/);
   assert.match(sent.prompt,/facial proportions, asymmetry, age structure/);
-  assert.match(sent.prompt,/authentic pigment depth and undertone/i);
-  assert.match(sent.prompt,/Face, ears and neck must look continuous/);
+  assert.match(sent.prompt,/natural undertone and recognisable complexion character/i);
+  assert.match(sent.prompt,/face, ears and neck one continuous complexion and light field/);
   assert.match(sent.prompt,/do not apply an image-wide exposure or white-balance change to hair, clothing or background/);
   assert.match(sent.prompt,/THAI FINISHED-PORTRAIT GEOMETRY LOCK/);
   if(preserveOutfit)assert.match(sent.prompt,/Preserve fabric weave, pattern direction and scale/);

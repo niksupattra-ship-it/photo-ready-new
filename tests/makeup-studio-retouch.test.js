@@ -52,7 +52,13 @@ function assertRetouch(prompt){
  assert(prompt.endsWith(MAKEUP_STUDIO_RETOUCH_POLICY),'One canonical appearance specification follows the route context');
  assert.equal(prompt.split(MAKEUP_STUDIO_RETOUCH_POLICY).length-1,1,'Canonical appearance occurs exactly once');
  assert.equal(prompt.split('FINAL MAKEUP STUDIO-RETOUCH AUTHORITY').length-1,1);
- assert.match(prompt,/visible but controlled dewy reflections on the forehead, nose bridge and tip, upper cheekbones and chin/,'The selected reference uses dewy reflections, rather than matte-only powder');
+ assert.match(prompt,/Reduce oily\/wet-looking skin shine to a soft satin finish/,'Skin sheen is reduced without changing lip gloss');
+ assert.match(prompt,/small, broad, low-intensity diffuse highlights/);
+ assert.match(prompt,/modest additional lift toward a slightly fairer/);
+ assert.match(prompt,/below both eyes, at the temples, alongside the nose/);
+ assert.match(prompt,/no fixed EV increment/);
+ assert.match(prompt,/skin segmentation mask/);
+ assert.doesNotMatch(prompt,/Render visible but controlled dewy|Do not suppress the requested sheen|No whitening,/);
  assert.match(prompt,/wrinkles/i);assert.match(prompt,/acne/i);
  assert.match(prompt,/microtexture/i,'Clean photographic texture remains');
  assert.match(prompt,/FINAL PORTRAIT CHECK — SELECTED MAKEUP ONLY/);
@@ -61,7 +67,7 @@ function assertRetouch(prompt){
  assert.match(prompt,/Temporary acne detail in the source photograph is not a required identity feature/);
  assert.match(prompt,/without erasing identifying moles, anatomical folds or changing the apparent age/);
  assert.match(prompt,/protect the requested finished appearance, not the original unedited skin surface/);
- assert.match(prompt,/Retain identifying moles, natural complexion and undertone/);
+ assert.match(prompt,/Retain identifying moles, natural undertone and recognisable complexion character/);
  assert.doesNotMatch(prompt,/Keep genuine identifying moles and distinctive freckles|Retain identifying moles, freckles|retaining each brow's natural anchors, arch and asymmetry/,'No older freckle or asymmetric-cosmetic preservation instruction competes with the requested look');
  assert.match(prompt,/remove visible active pimples.*melasma patches, freckles and uneven pigmentation/);
  assert.match(prompt,/Retouch away visible superficial skin wrinkles, fine lines/);
@@ -113,7 +119,7 @@ test('English head/template default and explicit Natural builders retain release
 });
 
 test('both direct Makeup appearance variants use one reference finish without Natural constraints or old cosmetic palettes',()=>{
- assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v7-/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_VERSION,/^makeup-studio-retouch-v9-soft-satin-even-brighter-no-mask$/);
  for(const english of [false,true]){
   const prompt=onePassSkinQualityPriority('makeup',english);assertRetouch(prompt);
   assert(!prompt.includes('Use exactly the same corrected, realistic skin as Natural.'));
@@ -197,12 +203,13 @@ test('Makeup light guide is a fixed JPEG appended after existing references with
  assert.match(makeupStudioReferenceInstruction(next.image.length),/only|ONLY/);
 });
 
-test('dewy style guide delegates cosmetics and reflections to the one Makeup authority',()=>{
+test('style guide delegates reduced skin sheen and brightening to the one Makeup authority',()=>{
  const guide=makeupStudioReferenceInstruction(2);
- assert.match(guide,/NOT a matte\/satin-only finish or the cosmetic palette/);
+ assert.match(guide,/not a skin-tone target or the cosmetic palette/);
  assert.match(guide,/governed exclusively by the final Makeup specification/);
  assert.match(guide,/fine texture is not a requirement to reproduce temporary acne detail/);
  assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/translucent coral-pink gloss tint/);
  assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/soft translucent peach-pink blush/);
- assert.doesNotMatch(MAKEUP_STUDIO_RETOUCH_POLICY,/Finish with gentle luminous satin and a restrained broad sheen/);
+ assert.match(MAKEUP_STUDIO_RETOUCH_POLICY,/This lower-sheen instruction applies to SKIN only/);
+ assert.match(guide,/soft satin skin, reduced shine, even brighter illumination/);
 });
