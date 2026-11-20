@@ -15,6 +15,13 @@ export function warmSuitPreview(template){
  const request=decodedStudioImage(source).then(image=>{ready.set(template,image);while(ready.size>LIMIT)ready.delete(ready.keys().next().value);return image}).finally(()=>pending.delete(template));
  pending.set(template,request);return request;
 }
+// Keep the displayed frame at the actual native PNG's width:height ratio.
+// A previous garment's frame controls placement WIDTH, never stretches the new pixels.
+export function nativeSuitAspectFrame(frame,image){
+ const width=image?.naturalWidth||image?.width,height=image?.naturalHeight||image?.height;
+ if(!frame||![frame.x,frame.y,frame.w,frame.h,width,height].every(Number.isFinite)||frame.w<=0||frame.h<=0||width<=0||height<=0)throw Error('ขนาดภาพชุดไม่ถูกต้อง');
+ return {...frame,h:frame.w*height/width};
+}
 export function createSuitDisplayPreview(target,option,image,placement){
  const frame=target?.sourceFrame||target?.collarFrame||(placement?{x:placement.uX/placement.W*900,y:placement.uY/placement.H*1200,w:placement.uW/placement.W*900,h:placement.uH/placement.H*1200}:{x:0,y:0,w:900,h:1200});
  const width=image.naturalWidth||image.width,height=image.naturalHeight||image.height;
