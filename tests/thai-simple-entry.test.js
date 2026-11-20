@@ -134,7 +134,7 @@ test('after paid QR success, new photo is available only for an archived receipt
 
 test('mobile face-model preflight stays sequential and fails closed before AI submission',async()=>{
  const main=await read('src/main.jsx');
- const a=main.indexOf('function warmPortraitResources('),b=main.indexOf('\\nfunction interp(',a);
+ const a=main.indexOf('function warmPortraitResources('),b=main.indexOf('\nfunction interp(',a);
  assert(a>=0&&b>a);
  const make=env=>Function('env',`with(env){${main.slice(a,b)};return warmPortraitResources}`)(env);
  let order=[];
