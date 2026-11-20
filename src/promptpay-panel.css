@@ -71,3 +71,17 @@
 .idprom-qr-panel:has(.idprom-qr-image)>.idprom-qr-save{grid-column:1;grid-row:4}
 .idprom-qr-panel .idprom-qr-help{font-size:12px;line-height:1.6;background:#f3f2f9;color:#5e6680;padding:10px;border-radius:8px}
 .idprom-qr-help ol{margin:8px 0 0;padding-left:18px}.idprom-qr-help li{margin:5px 0}.idprom-qr-panel .idprom-qr-save{background:#7044ed!important}.idprom-qr-panel .idprom-qr-amount{color:#7044ed}.idprom-qr-panel .idprom-qr-status{width:100%;background:#fff4d3;border-radius:6px;padding:8px;color:#a26418}.idprom-qr-panel .idprom-qr-check{color:#7044ed!important;background:#f5f1ff!important;border-color:#e2d9ff!important}
+
+/* Thai payment page 7: retain real PromptPay QR settlement and recovery. */
+@media(max-width:640px){
+ .credit-modal.package-pro-modal.idprom-qr-modal{width:min(396px,calc(100vw - 16px));max-height:calc(100dvh - 16px);border-radius:21px;padding:22px 17px;background:#fff}
+ .idprom-qr-modal .checkout-flow-steps{font-size:11px;color:#837695;gap:7px;padding:6px 0 14px}
+ .idprom-qr-modal .checkout-flow-steps [data-active=true]{color:#8241d7;font-weight:800}
+ .idprom-qr-modal .purchase-summary{background:#f6f3fb;border-radius:12px;border:0;margin:0 0 15px;padding:12px;color:#302344}
+ .idprom-qr-modal .idprom-qr-panel h2{font-size:21px!important;color:#27173d;margin:7px 0!important}
+ .idprom-qr-modal .idprom-qr-panel .idprom-qr-amount{color:#6c2cbe;font-size:29px;font-weight:900}
+ .idprom-qr-modal .idprom-qr-panel .idprom-qr-image{width:min(57vw,232px);height:min(57vw,232px);border:8px solid white;border-radius:8px;box-shadow:0 0 0 1px #e9e2f3}
+ .idprom-qr-modal .idprom-qr-panel .idprom-qr-save{background:linear-gradient(100deg,#9647e7,#6f31c8)!important;border-radius:11px!important;min-height:46px!important;font-weight:800}
+ .idprom-qr-modal .idprom-qr-panel .idprom-qr-check{color:#60358b!important;background:#f7f2ff!important;border-color:#d2c1eb!important}
+ .idprom-qr-modal .idprom-qr-panel .idprom-qr-stay-notice{border-radius:11px;background:#f1ebfb;color:#65507f}
+}
