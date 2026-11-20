@@ -100,3 +100,14 @@ test('receive photo opens the real package screen before file sizing for unpaid 
  assert(main.includes('const requestDownloadUnlock='),'Unpaid rights invoke real package checkout');
  assert(main.includes('setBuyOpen(true)'),'The real payment modal opens');
 });
+
+test('Thai upload review supports actual desktop file drop without bypassing original protections',async()=>{
+ const ui=await read('src/thai-mobile-journey.jsx');
+ const easy=await read('src/easy-mode.jsx');
+ const studio=await read('src/studio-editor.jsx');
+ assert(ui.includes("onDrop={e=>{e.preventDefault();e.stopPropagation()"));
+ assert(ui.includes("onSourceFile?.(file)"));
+ assert(easy.includes('onSourceFile={onSourceFile}'));
+ assert(studio.includes('onSourceFile={file=>{void addSourcePhoto(file)}}'));
+ assert(studio.includes('currentWorkIsPaid()')&&studio.includes('showSourceWarning(file)'),'Original source-replacement paid guard remains');
+});
