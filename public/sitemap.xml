@@ -10,6 +10,12 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://idpromth.com/"/>
   </url>
   <url>
+    <loc>https://idpromth.com/id-photo/</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://idpromth.com/en/</loc>
     <lastmod>2026-11-16</lastmod>
     <changefreq>weekly</changefreq>
