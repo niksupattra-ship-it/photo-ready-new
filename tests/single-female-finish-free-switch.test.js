@@ -169,72 +169,40 @@ test('Easy Mode create label stays compact for male and female while original cl
  assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\)/,'New Create is gated by the staged finish, hair, outfit and source');
  assert.match(easy,/tab!==wizardTabs\[wizardTabs.length-1\]/,'New Create is only on the final background step');
 });
-test('Hair-first and Makeup-first selections require explicit completion before one AI Create (Thai and English)',async()=>{
+test('female Makeup is selected automatically in Thai and English without finish dialogs or extra AI requests',async()=>{
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
  const english=await readFile(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');
- const thaiHair=studio.slice(studio.indexOf(' const chooseHair=id=>'),studio.indexOf(' const confirmThaiHair=()=>'));
- const thaiFinish=studio.slice(studio.indexOf(' const selectPortraitFinish=style=>'),studio.indexOf(' const commitMakeupSource=async'));
- const thaiCreate=studio.slice(studio.indexOf(' const confirmThaiHair=()=>'),studio.indexOf(' const cancelThaiHair=()=>'));
- assert.match(thaiHair,/setThaiChoiceFlow\(\{origin:'hair',step:'finish'\}\)/,'Choosing hair opens Makeup next');
- assert.match(thaiHair,/setThaiHairFinishChoice\(chosen\)/,'Hair-first opens the existing face image chooser');
- assert.match(thaiHair,/setThaiChoiceFlow\(\{origin:'finish',step:'ready'\}\)/,'Hair after Makeup completes both choices');
- assert.match(thaiHair,/setThaiChoiceFlow\(\{origin:'hair',step:'ready'\}\)/,'Makeup after Hair completes both choices');
- assert.doesNotMatch(thaiHair,/void applyHair\(chosen\.hairId|void processPhoto\(\{hairId:choice/,'Changing draft options cannot call AI');
- assert.match(thaiFinish,/setThaiChoiceFlow\(\{origin:'finish',step:'hair'\}\)/,'Choosing Makeup opens hairstyles next');
- assert.doesNotMatch(thaiFinish,/void applyHair\(/,'Cosmetic choice only stages a draft');
- assert.match(thaiCreate,/thaiChoiceFlow\?\.step!=='ready'/,'Create refuses incomplete selections');
- assert.match(thaiCreate,/if\(!currentSuit\)return/,'Create refuses missing outfit');
- assert.match(studio,/thaiPendingHair&&\(!thaiChoiceFlow\|\|thaiChoiceFlow\.step==='ready'\)&&Boolean\(currentSuit\)/,'Existing Create button appears only when Hair, Makeup and outfit ready');
- assert.match(studio,/englishInlineAi\.choiceStep==='ready'&&Boolean\(englishInlineAi\.outfit\)/,'English on-image Create waits for both selections and outfit');
- assert.match(studio,/id="english-inline-makeup-title"/,'English hair-first presents a Makeup selection dialog');
- assert.match(studio,/choiceStep:'hair',choiceOrigin:'finish'/,'English Makeup-first opens Hair picker');
- assert.match(studio,/choiceStep:hairGender==='female'\?'finish':'ready'/,'English hair-first opens Makeup');
- assert.match(studio,/setThaiChoiceFlow\(\{origin:'finish',step:'hair'\}\);pendingHairProcessRef\.current=null/,'Initial Thai Studio Makeup-first does not pre-approve a haircut');
- assert.match(studio,/onCreate=\{confirmThaiHair\}/,'User must explicitly press the existing Create button');
- assert.match(studio,/if\(activeHead&&!finishChanged&&/,'Already visible exact image does not call provider');
- assert.match(studio,/if\(mode==='female'\)setEasyFaceFinish\(finish\)/,'Completed AI output matches selected finish');
- assert.match(studio,/const easyFinishPending=Boolean/,'Easy Mode stages changes');
- assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\)/,'Easy Mode Create requires all prior selections');
- assert.match(easy,/const createWizardPhoto=\(\)=>\{if\(!wizardCreateReady\|\|tab!==wizardTabs\[wizardTabs.length-1\]\)return;/,'Create refuses to skip background step');
- assert.match(easy,/if\(hasResult\|\|thaiHairConfirmation\)onHair\(h\.id\)/,'First Easy Mode hairstyle choice is recorded, not ignored');
- assert.match(easy,/onSelect=\{style=>\{onSelectFaceFinish\?\.\(style\);setFinishChosen\(true\);setChoice\(''\);if\(wizardOpen\)setTab\(wizardTabs\[1\]\)/,'Easy Mode Makeup-first opens Thai Hair or English Suit as appropriate');
- assert.match(english,/setChoiceFlow\(previous=>previous\?\.first==='finish'&&previous\.step==='hair'/,'English Makeup-first -> Hair completion');
- assert.match(english,/setChoiceFlow\(previous=>previous\?\.first==='hair'&&previous\.step==='finish'/,'English Hair-first -> Makeup completion');
- assert.match(english,/scrollIntoView/,'English automatically focuses the second choice');
- assert.match(english,/choiceFlow\?\.step==='ready'/,'English creation waits for both choices');
- assert.doesNotMatch(studio,/const backThaiChoice=\(\)=>/,'No new Back/Redo buttons; existing Studio Undo/Redo must remain');
+ const makeup=await readFile(new URL('../src/studio-makeup.jsx',import.meta.url),'utf8');
+ assert.match(studio,/const chosenFinish=hairGender==='female'\\?'makeup':'natural'/);
+ assert.match(studio,/finish=gender==='female'\\?'makeup':'natural';/);
+ assert.match(studio,/sourcePhoto\\.idpromFemaleEyeStyle=chosenPortraitMode==='female'\\?'makeup':'natural'/);
+ assert.match(studio,/canSelectPortraitFinish=\\{false\\}/);
+ assert.doesNotMatch(studio,/<FemaleFaceCompare/);
+ assert.doesNotMatch(studio,/id="english-inline-makeup-title"/);
+ assert.doesNotMatch(studio,/id="thai-hair-finish-title"/);
+ assert.match(studio,/setThaiChoiceFlow\\(hairGender==='female'\\?\\{origin:'hair',step:'ready'\\}:null\\)/);
+ assert.match(studio,/onCreate=\\{confirmThaiHair\\}/,'Create still requires an explicit tap');
+ assert.match(easy,/const typeReady=Boolean\\(photoTypeSelected\\)/);
+ assert.doesNotMatch(easy,/<FemaleFaceCompare/);
+ assert.doesNotMatch(easy,/setFinishChosen/);
+ assert.match(english,/const finish=gender==='female'\\?'makeup':'natural'/);
+ assert.doesNotMatch(english,/No makeup|chooseFinish|english-flow-looks/);
+ assert.match(english,/onCreate\\(\\{outfit,hair:allowHairChoice\\?hair:''/);
+ assert.match(makeup,/canSelectPortraitFinish&&typeof onPortraitFinishSelect/,'Legacy UI stays gated so saved jobs remain compatible');
 });
-test('Easy Mode uses a guided selection order for both genders without skipping steps or adding AI calls',async()=>{
+test('Easy Mode keeps photo-type, hair, outfit and background steps without a Makeup choice',async()=>{
  const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
- const css=await readFile(new URL('../src/easy-mode.css',import.meta.url),'utf8');
- assert.match(easy,/englishPreviewEnabled\(\)\?\['type','suit','background'\]:thaiHairConfirmation\?\['type','hair','suit','background'\]/,
-  'English Auto Hair skips hair picker; Thai Easy must expose it');
- assert.match(easy,/guidedSource\.current=sourcePreview;setTab\('type'\);setWizard\(true\)/,'New image opens the first step, not hidden Hair');
- assert.match(easy,/const typeReady=Boolean\(photoTypeSelected&&\(gender!=='female'\|\|finishChosen\)\)/,
-  'Female users must choose Natural or Makeup; male photo type has no makeup step');
- assert.match(easy,/const wizardNextAllowed=ready&&!busy&&\(tab==='type'\?typeReady:tab==='hair'\?hairReady:tab==='suit'\?suitReady:true\)/,
-  'Next is blocked until the current required step is completed');
- assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\)/,
-  'Create is disabled for incomplete choices');
- assert.match(easy,/tab!==wizardTabs\[wizardTabs.length-1\]/,'Only background offers Create');
- assert.match(easy,/if\(thaiHairConfirmation\)onGenerateHair\?\.\(choice\|\|selectedHair\|\|''\);\s*else onHair\?\.\(\)/,
-  'Thai staged hair and English auto-hair submit exactly one original callback');
- assert.match(easy,/setTab\('type'\);setWizard\(true\);setCollapsed\(false\)/,
-  'A dismissed wizard resumes from guided selections instead of generating');
- assert.match(easy,/label:'ชนิดรูป',kind:'type'/,'The progress bar includes the actual photo-type step');
- assert.match(easy,/\.\.\.\(thaiHairConfirmation\?\[\{label:'ทรงผม'/,
-  'Only Thai progress bars include a hair-selection stage');
- assert.match(easy,/onSelectFaceFinish\?\.\(style\);setFinishChosen\(true\)/,
-  'Makeup selection completes the first step before continuing');
- assert.match(studio,/if\(!englishFlow\)\{setThaiChoiceFlow\(\{origin:'finish',step:'hair'\}\);setPicker\('hair'\)\}else\{setThaiChoiceFlow\(null\)\}/,
-  'English makeup no longer leaves a hidden Thai hair-step requirement');
- assert.match(studio,/if\(!englishFlow&&hairGender==='female'&&thaiChoiceFlow\?\.step!=='ready'\)return/,
-  'Thai explicitly completes Hair + Makeup; English auto hair is not blocked');
- assert.match(css,/Guided Easy Mode may show six stages in Thai/,'Mobile step row adapts to all steps');
- assert.doesNotMatch(easy,/!hasResult&&thaiHairConfirmation&&choicesReady&&currentSuit\?\s*<button/,
-  'Old early Create shortcut must not return');
+ assert.match(easy,/englishPreviewEnabled\\(\\)\\?\\['type','suit','background'\\]:thaiHairConfirmation\\?\\['type','hair','suit','background'\\]/);
+ assert.match(easy,/guidedSource\\.current=sourcePreview;setTab\\('type'\\);setWizard\\(true\\)/);
+ assert.match(easy,/const typeReady=Boolean\\(photoTypeSelected\\)/);
+ assert.match(easy,/const wizardNextAllowed=ready&&!busy&&\\(tab==='type'\\?typeReady:tab==='hair'\\?hairReady:tab==='suit'\\?suitReady:true\\)/);
+ assert.match(easy,/const wizardCreateReady=Boolean\\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\\)/);
+ assert.match(easy,/tab!==wizardTabs\\[wizardTabs.length-1\\]/);
+ assert.match(easy,/if\\(thaiHairConfirmation\\)onGenerateHair\\?\\.\\(choice\\|\\|selectedHair\\|\\|''\\)/);
+ assert.match(studio,/if\\(!englishFlow&&hairGender==='female'&&thaiChoiceFlow\\?\\.step!=='ready'\\)return/);
+ assert.match(studio,/const chosenFinish=hairGender==='female'\\?'makeup':'natural'/);
 });
 test('Natural to Makeup edits the completed Natural image with the shared reference finish once',async()=>{
  const selected=fields('th','natural','one');
@@ -354,7 +322,7 @@ test('English homepage and Easy Mode use AI automatic hair for both men and wome
  const english=await readFile(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');
  assert.match(studio,/allowHairChoice=\{false\} initialGender=/,'English landing wizard does not offer manual hair options');
  assert.match(english,/hair:allowHairChoice\?hair:''/,'Woman and man both send AI-selected default hair');
- assert.match(english,/gender==='female'&&<fieldset/,'Makeup choices appear only for women');
+ assert.match(english,/const finish=gender==='female'\\?'makeup':'natural'/,'Female receives automatic Makeup');
  assert.match(easy,/const wizardTabs=englishPreviewEnabled\(\)\?\['type','suit','background'\]/,'English Easy Mode skips hair step');
  assert.match(easy,/hasResult&&!englishPreviewEnabled\(\)&&<button className=\{tab==='hair'/,'Hair picker tab hidden in English Easy Mode');
  assert.match(main,/\{!englishPreviewEnabled\(\)&&<button type="button" data-hair-guide="male-hair"/,'Old English homepage does not expose male hair controls');
