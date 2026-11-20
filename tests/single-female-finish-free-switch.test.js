@@ -182,7 +182,7 @@ test('female Makeup is selected automatically in Thai and English without finish
  assert.doesNotMatch(studio,/id="english-inline-makeup-title"/);
  assert.doesNotMatch(studio,/id="thai-hair-finish-title"/);
  assert.match(studio,/setThaiChoiceFlow\(hairGender==='female'\?\{origin:'hair',step:'ready'\}:null\)/);
- assert.match(studio,/onCreate=\{confirmThaiHair\}/,'Create still requires an explicit tap');
+ assert.match(studio,/onCreate=\{thaiOutfitAiDraft\?\(\)=>\{void confirmThaiOutfitAi\(\)\}:confirmThaiHair\}/,'Both Thai standard hair and outfit flows require an explicit Create tap');
  assert.match(easy,/const typeReady=Boolean\(photoTypeSelected\)/);
  assert.doesNotMatch(easy,/<FemaleFaceCompare/);
  assert.doesNotMatch(easy,/setFinishChosen/);
