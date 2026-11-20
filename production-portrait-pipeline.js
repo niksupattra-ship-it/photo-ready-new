@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,requiresThaiNativeFrontShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -379,6 +379,47 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  return transparent;
 }
+// Thai-only post-generation guarantee: replace the FRONT of the generated
+// uniform with the exact PNG used by the AI layout, and remove all hair-shaped
+// foreground protrusions outside that uniform below its shoulder line.
+// Above the shoulder line (face, original hairstyle, ears, skin), NO pixels
+// are edited. This is deterministic and makes NO additional AI/provider calls.
+export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,shoulderTopY,collarTopY,centerX,shoulderSpan}={}){
+ if(!Buffer.isBuffer(nativeForeground))throw Error('Thai uniform foreground missing');
+ const {data:source,info}=await sharp(portrait).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ if(info.channels!==4||!info.width||!info.height)throw Error('Invalid Thai portrait pixels');
+ const W=info.width,H=info.height;
+ const garmentMeta=await sharp(nativeForeground).metadata();
+ if(!garmentMeta.width||!garmentMeta.height)throw Error('Invalid native uniform pixels');
+ const native=await sharp(nativeForeground).resize(W,H,{fit:'fill',kernel:'lanczos3'}).ensureAlpha().raw().toBuffer();
+ const image=Buffer.from(source),geometryScaleY=H/garmentMeta.height,geometryScaleX=W/garmentMeta.width;
+ const shoulder=Math.max(0,Math.min(H,Math.floor(shoulderTopY*geometryScaleY)));
+ const collar=collarTopY*geometryScaleY,centre=centerX*geometryScaleX;
+ const spanX=shoulderSpan*geometryScaleX,spanY=shoulderSpan*geometryScaleY;
+ if(![shoulder,collar,centre,spanX,spanY].every(Number.isFinite)||spanX<8||spanY<8)throw Error('Invalid native uniform placement geometry');
+ const safeNeckHalf=spanX*.145,neckBottom=collar+spanY*.27;
+ let nativePixels=0,cleared=0;
+ for(let y=shoulder;y<H;y++){
+  const neckOpening=y<=neckBottom;
+  for(let x=0;x<W;x++){
+   const i=(y*W+x)*4,alpha=native[i+3];
+   if(alpha){
+    // Use the unchanged asset pixels, including its native transparent
+    // antialiasing. Any generated black hair in front disappears here.
+    image[i]=native[i];image[i+1]=native[i+1];image[i+2]=native[i+2];image[i+3]=alpha;
+    nativePixels++;
+   }else if(!(neckOpening&&Math.abs(x-centre)<=safeNeckHalf)){
+    // Long hair beyond the *outer* garment silhouette is not the back of
+    // the outfit; drop it rather than showing dangling front-side locks.
+    if(image[i+3])cleared++;
+    image[i+3]=0;
+   }
+  }
+ }
+ if(nativePixels<Math.max(64,W*H*.03))throw Error('Native uniform foreground coverage is unexpectedly small');
+ return sharp(image,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
+}
+
 async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
  const headOnly=isEnglishHeadPortrait(fields);
  const templateBody=isEnglishTemplateBody(fields);
@@ -430,7 +471,12 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const legacyV8Profile=templateBody&&fields.englishStudioFinishVersion==='en-body-proportion-lock-v8'?{identityHeadScale:.84,chinToCollar:.045,neckToShoulder:.24,chestToShoulder:.42}:null;
  const layoutProfile=newEnglishProfile||legacyV8Profile;
  const identityHeadScale=fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
- const compositionReference=headOnly?null:await createEnglishBodyLayout(outfit,identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined),outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
+ const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
+ const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined;
+ const layoutResult=headOnly?null:await createEnglishBodyLayout(outfit,frontShield?{...(layoutOptions||{}),returnNativeForeground:true}:layoutOptions);
+ const compositionReference=frontShield?layoutResult.composition:layoutResult;
+ const nativeFrontGeometry=frontShield?layoutResult:null;
+ const outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  const makeupFinish=singlePass&&fields.femaleEyeStyle==='makeup';
  let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
@@ -459,17 +505,18 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
+ const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry):transparent;
  if(selectedSingleMakeup&&!singlePass){
   await onStage('makeup');
-  return createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
+  return createAiMakeupVariant(delivered,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
  }
  if(selected.gender==='female'&&isAiMakeupPairVersion(fields.femaleFinishPair)){
   await onStage('makeup');
-  const makeup=await createAiMakeupVariant(transparent,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
+  const makeup=await createAiMakeupVariant(delivered,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
   if(typeof onMakeupVariant!=='function')throw Error('Paired makeup storage is unavailable.');
   await onMakeupVariant(makeup);
  }
- return transparent;
+ return delivered;
 }
 async function preserveEnglishPortraitMatte(input){
  // Only English RGB at blue-contaminated silhouette pixels is corrected.
