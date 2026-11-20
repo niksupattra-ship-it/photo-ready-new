@@ -7,6 +7,7 @@ import {hairPickerPreview} from './hair-picker-preview.js';
 import {backgroundPickerPreview} from './background-picker-preview.js';
 import {EasyPreviewImage} from './easy-preview-image.jsx';
 import {IdpromSimpleHome} from './idprom-simple-home.jsx';
+import {ThaiMobileJourney} from './thai-mobile-journey.jsx';
 import './idprom-simple-flow.css';
 import {easyPreviewWarmer} from './easy-preview-warmup.js';
 import {outfitChoicePreview,outfitPickerPreview,isJobOutfit} from './outfit-choice-preview.js';
@@ -118,6 +119,7 @@ export function EasyMode({adjustments,insignia,governmentResult=false,canvasRef,
 
  // Homepage presentation is separate from the mounted editor and its wizard.
  // The same upload callback still opens the native file chooser directly.
+ if(!englishPreviewEnabled()&&mobile&&(sourcePreview||hasResult)&&templates.length)return <ThaiMobileJourney sourcePreview={sourcePreview} canvasRef={canvasRef} renderVersion={renderVersion} hasResult={hasResult} watermarked={watermarked} processing={processing} progress={progress} busy={busy} ready={ready} status={status} gender={gender} photoTypeSelected={photoTypeSelected} onSelectPhotoType={onSelectPhotoType} templates={templates} currentSuit={currentSuit} onSuit={onSuit} suitLoading={suitLoading} suitPolicy={suitPolicy} suitChoiceLimit={suitChoiceLimit} hairs={hairs} selectedHair={selectedHair} onHair={onHair} onGenerateHair={onGenerateHair} onConfirmHair={onConfirmHair} choicesReady={choicesReady} faceFinish={faceFinish} onSelectFaceFinish={onSelectFaceFinish} governmentResult={governmentResult} insignia={insignia} onDownload={onDownload} onStudio={onStudio} onUpload={onUpload} onCancelProcess={onCancelProcess} memberMenu={memberMenu}/>;
  if(!englishPreviewEnabled()&&!hasResult&&!templates.length)return <IdpromSimpleHome onUpload={onUpload} loading={busy||processing} sourcePreview={sourcePreview} status={status}/>;
  if(!sourcePreview&&!hasResult&&!templates.length)return <div onPointerDown={outsidePanel} className="easy-mode easy-landing-page">
   <header className="easy-header"><button className="easy-brand" onClick={onHome} aria-label="กลับหน้าหลัก">IDพร้อม<span>+</span></button><div className="easy-header-actions">{memberMenu}<button className="easy-studio" onPointerEnter={onStudioIntent} onFocus={onStudioIntent} onPointerDown={onStudioIntent} onClick={onStudio} disabled={busy}>{studioOpening?'กำลังเปิด…':studioOpenError?'ลองอีกครั้ง':'เข้า Studio ↗'}</button></div></header>
