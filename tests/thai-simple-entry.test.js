@@ -111,3 +111,12 @@ test('Thai upload review supports actual desktop file drop without bypassing ori
  assert(studio.includes('onSourceFile={file=>{void addSourcePhoto(file)}}'));
  assert(studio.includes('currentWorkIsPaid()')&&studio.includes('showSourceWarning(file)'),'Original source-replacement paid guard remains');
 });
+
+test('after paid QR success, new photo is available only for an archived receipt',async()=>{
+ const receipt=await read('src/purchase-delivery.jsx'),download=await read('src/english-download.jsx'),main=await read('src/main.jsx');
+ assert(receipt.includes('receipt.archive?.id&&!receipt.archiving&&!receipt.preparing?onNewPhoto:null'),'Do not discard a receipt while saving purchased work');
+ assert(download.includes('paidSuccess&&!en&&onNewPhoto'),'New photo action is only on paid Thai success');
+ assert(download.includes('onClick={onNewPhoto}>เริ่มทำรูปใหม่'));
+ assert(main.includes("if(!entry?.archive?.id||entry.archiving||entry.preparing)return"),'Server archive must be confirmed before leaving receipt');
+ assert(main.includes("setStudioData(null);setScreen('home')"),'Start new photo returns to redesigned entry');
+});
