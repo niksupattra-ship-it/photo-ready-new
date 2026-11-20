@@ -1,0 +1,26 @@
+.idprom-government-insignia{font:inherit;color:#25213f;background:#fff;border:1px solid #e7ddf8;border-radius:18px;padding:14px;box-shadow:0 6px 18px #2f184612;max-width:100%;box-sizing:border-box}
+.idprom-government-insignia-head{display:flex;justify-content:space-between;align-items:start;gap:12px;margin:0 0 12px}
+.idprom-government-insignia-head h3{font-size:17px;line-height:1.35;margin:0 0 3px;color:#302059}
+.idprom-government-insignia-head p{font-size:12px;line-height:1.5;margin:0;color:#686078}
+.idprom-government-insignia-head>button{flex:none;border:0;background:#f2eff9;border-radius:50%;font-size:23px;width:32px;height:32px;color:#513a79;cursor:pointer}
+.idprom-government-insignia-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:0 0 12px}
+.idprom-government-insignia-tabs button{font:inherit;font-weight:600;font-size:12px;border:1px solid #dfd5ee;background:#f7f5fc;border-radius:9px;padding:10px 1px;color:#645678;cursor:pointer;min-width:0}
+.idprom-government-insignia-tabs button.selected{background:#7547ce;color:#fff;border-color:#7547ce}
+.idprom-government-insignia-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:min(38vh,330px);overflow:auto;overscroll-behavior:contain;padding:2px}
+.idprom-government-insignia-options button{font:inherit;font-size:11px;color:#34294c;line-height:1.3;min-width:0;min-height:104px;background:#fff;border:1px solid #ded5ee;border-radius:12px;padding:7px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;word-break:break-word}
+.idprom-government-insignia-options button.selected{border:2px solid #7547ce;background:#f3eeff}
+.idprom-government-insignia-options button:disabled{opacity:.6;cursor:wait}
+.idprom-government-option-images{display:flex;justify-content:center;align-items:center;height:57px;width:100%;gap:3px}
+.idprom-government-option-images img{max-width:75%;max-height:56px;object-fit:contain;flex-shrink:1}
+.idprom-government-option-images img:nth-child(2){max-width:43%}
+.idprom-government-empty{font-size:36px;font-weight:300;color:#ad9dca}
+.idprom-government-insignia-note{background:#fbf8ed;border-radius:11px;color:#645025;font-size:12px;line-height:1.55;padding:12px;margin:8px 0}
+.idprom-government-insignia-note strong{display:block;margin-bottom:5px}
+.idprom-government-insignia-note p{margin:0}
+.idprom-government-insignia-help{font-size:11px;color:#736987;line-height:1.5;margin:10px 0 0}
+.idprom-government-insignia-done{display:block;width:100%;background:#7547ce;border:0;color:#fff;font:inherit;font-size:13px;font-weight:700;border-radius:10px;padding:11px;margin-top:10px;cursor:pointer}
+.idprom-government-insignia-launch{display:block;width:100%;background:#f1eaff;border:1px solid #9973e2;color:#5c34af;border-radius:12px;font:inherit;font-weight:700;font-size:14px;padding:12px 14px;cursor:pointer}
+.idprom-government-insignia-floating{position:fixed;bottom:max(78px,env(safe-area-inset-bottom));right:12px;z-index:400;max-width:390px;width:min(390px,calc(100vw - 24px));pointer-events:auto}
+.idprom-government-insignia-floating .idprom-government-insignia-launch{box-shadow:0 6px 22px #24113d30;background:#7644d6;color:white}
+.idprom-government-insignia-floating .idprom-government-insignia{max-height:75vh;overflow:auto;margin-bottom:8px;box-shadow:0 12px 32px #24113d35}
+@media(max-width:600px){.idprom-government-insignia-options{grid-template-columns:repeat(3,minmax(0,1fr));max-height:30vh}.idprom-government-insignia-floating{bottom:max(72px,env(safe-area-inset-bottom))}.idprom-government-insignia-head h3{font-size:16px}}
