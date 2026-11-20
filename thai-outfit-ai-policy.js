@@ -26,6 +26,15 @@ export const requiresThaiNativeFrontShield=fields=>isThaiOutfitAi(fields)&&[THAI
 export const usesThaiShoulderAwareShield=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION].includes(fields?.thaiOutfitAppearanceVersion);
 export const usesThaiNecklineProtectedShield=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_OLD_NECK_V5;
 export const usesThaiHistoricOutfitPrompt=fields=>isThaiOutfitAppearance(fields)&&fields?.thaiOutfitAppearanceVersion!==THAI_OUTFIT_APPEARANCE_VERSION;
+
+export const usesThaiEnglishParityOutfit=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_VERSION;
+// Same renderer, native visual references, matting and output as English.
+// This narrow hair instruction changes only the physical placement of long
+// hair relative to the selected opaque clothes during the ONE AI generation.
+export const thaiEnglishParityRearHairInstruction=()=>`
+REAR HAIR AND NATIVE OUTFIT VISIBILITY: Keep the actual selected hairstyle intact above the shoulders, including the original chosen part, fringe, braid, volume and connected length. If it is long, route every continuation BEHIND BOTH shoulders and behind the suit; no hair crosses, rests on, or protrudes across either epaulette, lapel, collar, shirt, button, sleeve, arm or front jacket panel. Keep the complete left and right shoulder board/insignia visually unobstructed. Do not crop the hair horizontally or shorten it; let any long lengths descend NATURALLY behind the solid outfit, becoming hidden by its opaque cloth. Resolve hair placement within the original single complete AI render; the final image receives NO outfit replacement layer, clipping mask, hair eraser or neck retouch. Preserve the natural chin-to-neck and neck-to-collar join from the English full-outfit guide. Copy the selected outfit's native colour, fabric, epaulettes and collar exactly.
+`;
+
 export function thaiOutfitAppearanceInstruction({outfitIndex,detailIndex}={}){
  if(!Number.isInteger(outfitIndex)||outfitIndex<1||!Number.isInteger(detailIndex)||detailIndex<=outfitIndex)throw Error('Missing original garment reference for Thai colour protection');
  return `
