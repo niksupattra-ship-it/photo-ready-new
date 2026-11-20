@@ -38,7 +38,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,thaiAiEditAccess,reserveThaiAiEdit,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobEditContext,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
@@ -272,16 +272,15 @@ async function requireCredit(req,res,kind){
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
    const englishRequest=req.body?.interfaceLanguage==='en';
    const englishWallet=englishRequest?await getWallet(wid):null;
-   const thaiWallet=!englishRequest?await getWallet(wid):null;
    // English Studio's two free styles per gender are different from Thai's.
    // Use the SAME source of truth as the English picker, including subsequent
    // changes to a completed portrait. Do not run the Thai premium-hair check.
    if(englishRequest&&chosen&&!isEnglishStudioFreeHair(chosen.id,chosen.gender)&&!englishWallet?.usdPremiumActive){
     res.status(403).json({error:'premium_hair_required',message:'Choose a 30-day package to unlock Diamond hairstyles.'});return null;
    }
-   if(!englishRequest&&Number(thaiWallet?.generationRemaining||0)+Number(thaiWallet?.hairRemaining||0)<=0&&chosen&&((chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   if(!englishRequest&&chosen&&((chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
    // Purchased English Premium continues using its existing 20-credit cycle.
-   const premiumWallet=englishWallet||thaiWallet||await getWallet(wid);
+   const premiumWallet=englishWallet||await getWallet(wid);
    if(premiumWallet?.usdPremiumPurchased){
     if(req.accountUser?.wallet_id!==wid){res.status(401).json({error:'auth_required',message:'Sign in to access your Premium AI generations.'});return null}
     const credit=await reserveUsdPremiumCredit(wid,kind);
@@ -294,9 +293,7 @@ async function requireCredit(req,res,kind){
     if(!daily){res.status(402).json({error:'english_ai_daily_limit'});return null}
     return daily;
    }
-   const thaiCredit=await reserveThaiAiEdit(wid,kind);
-   if(!thaiCredit){res.status(402).json({error:'thai_ai_daily_limit',message:'ใช้ฟรีครบ 2 ครั้งของวันนี้แล้ว เลือกโปร 159 บาทเพื่อแก้ไขด้วย AI เพิ่ม 10 ครั้ง'});return null}
-   return thaiCredit;
+   return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
   }
   res.status(403).json({error:'unsupported_generation'});return null;
 }
@@ -421,19 +418,11 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
  }
 });
 
-app.get('/api/thai-ai-edit/access',async(req,res)=>{
- try{
-  const wid=walletId(req);res.set('Cache-Control','private, no-store');
-  if(isPrivateOwner(req,wid))return res.json({allowed:true,unlimited:true,remaining:null});
-  return res.json(await thaiAiEditAccess(wid));
- }catch(error){return res.status(503).set('Cache-Control','no-store').json({allowed:false})}
-});
 // English AI outfit eligibility is read-only. The PNG path never calls this.
 app.get('/api/english-ai-outfit/access',async(req,res)=>{
  try{
   const wid=walletId(req);
   if(!wid)return res.status(403).set('Cache-Control','no-store').json({allowed:false,remaining:0});
-  if(isPrivateOwner(req,wid))return res.set('Cache-Control','private, no-store').json({allowed:true,unlimited:true,remaining:null});
   return res.set('Cache-Control','private, no-store').json(await englishDailyAiOutfitAccess(wid));
  }catch(error){console.warn('English outfit eligibility unavailable',error.code||'unavailable');return res.status(503).set('Cache-Control','no-store').json({allowed:false})}
 });

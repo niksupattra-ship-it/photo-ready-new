@@ -15,7 +15,7 @@ const root=new URL('..',import.meta.url).pathname;
 const input={buffer:await sharp({create:{width:120,height:160,channels:4,background:'#b38a72'}}).png().toBuffer(),mimetype:'image/png'};
 const result=await sharp({create:{width:120,height:160,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:120,channels:4,background:'#b38a72'}}).png().toBuffer(),left:20,top:20}]).png().toBuffer();
 
-test('Thai AI creates a native complete portrait for every outfit category in one request',async()=>{
+test('historical Thai outfit-AI jobs remain renderable after the pricing rollback',async()=>{
  const options=[['female','/assets/government-uniforms/female-operational.png','makeup'],['female','/assets/student-uniforms/female-01.png','natural'],['male','/assets/job-uniforms/male-job-blue-navy-tie.png','natural']];
  const main=await readFile(root+'src/main.jsx','utf8');
  const gown=main.match(/template:'(\/assets\/gown-uniforms\/[^']+)'/);assert(gown);
@@ -33,10 +33,13 @@ test('Thai AI creates a native complete portrait for every outfit category in on
  assert(!isThaiOutfitPath('/assets/gown-uniforms/../../secret.png'));
 });
 
-test('159 offer keeps downloads, grants a single shared ten-use pool, and old receipt terms stay frozen',()=>{
- const fresh=checkoutPackage('159');assert.equal(fresh.id,'download_159_ai10_v2');assert.equal(fresh.price,159);assert.equal(fresh.g+fresh.h,10);assert.equal(fresh.requiresImage,true);assert.equal(fresh.fullEdit,true);
+test('new checkout restores original prices and sold AI10 receipt terms remain frozen',()=>{
+ const basic=checkoutPackage('89'),fresh=checkoutPackage('159');
+ assert.equal(basic.id,'download_89_v1');assert.equal(basic.price,89);
+ assert.equal(fresh.id,'download_159_hair_v1');assert.equal(fresh.price,159);assert.equal(fresh.g+fresh.h,0);assert.equal(fresh.requiresImage,true);assert.equal(fresh.fullEdit,true);
+ assert.equal(packageFor('download_159_ai10_v2').g,10);
  assert.equal(packageFor('download_159_hair_v1').g,0);
- assert.equal(checkoutPackage('download_159_hair_v1').id,'download_159_hair_v1');
+ assert.throws(()=>checkoutPackage('download_159_ai10_v2'));
 });
 
 test('unlimited owner uses only the authenticated identity bound to the request wallet',()=>{
@@ -62,7 +65,7 @@ function fakeCredits(paid=0){
  const reserve=Function('pool','ready','crypto','remaining','THAI_DAILY_AI_LIMIT',reserveSource+';return reserveThaiAiEdit')(pool,async()=>{},crypto,remaining,2);
  return {reserve,wallet,usage,get locked(){return locked}};
 }
-test('concurrent Thai outfit/hair requests share exactly two free slots then the same ten paid credits',async()=>{
+test('historical Thai reservations retain their shared pool and two-slot accounting for safe settlement/refunds',async()=>{
  const state=fakeCredits(10);
  const runs=await Promise.all(Array.from({length:14},(_,i)=>state.reserve('wallet',i%2?'hairstyle':'ai-finish')));
  assert.equal(runs.filter(Boolean).length,12);
@@ -100,12 +103,20 @@ test('Studio suit permission subscription is stable during parent progress rende
  assert.doesNotMatch(effect,/\[outputKey,restrictedTrial,onSelectSuit/);
  assert.match(effect,/!cancelled&&outputScopeRef\.current===accountScope/);
 });
-test('Thai combined outfit PNG changes never schedule an implicit generation and explicit hair changes retain body composition',async()=>{
- const ed=await readFile(root+'src/studio-editor.jsx','utf8'),main=await readFile(root+'src/main.jsx','utf8');
- assert.doesNotMatch(ed,/setBodyOutfitRequest|\[bodyOutfitRequest,/);
- assert.match(ed,/!englishFlow&&kind==='suit'&&!aiSetup&&outputHeads\(state\.current\)\.some\(l=>l\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION\)/);
- assert.match(ed,/generationOptions:\{thaiOutfitAi:!englishFlow,keepCurrentHair/);
- assert.match(main,/const thaiFullOutfit=!englishPreviewEnabled\(\)&&editCache\.current\.master\?\.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/);
- assert.match(main,/\.\.\.\(thaiFullOutfit\?\{thaiOutfitAi:true\}:\{\}\)/);
- assert.match(ed,/!englishFlow&&!localFinish&&replacement\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/);
+test('Thai frontend and regular usage restore the pre-AI-bundle behavior',async()=>{
+ const [ed,main,easy,offers,server]=await Promise.all(['src/studio-editor.jsx','src/main.jsx','src/easy-mode.jsx','src/package-offers.jsx','server.js'].map(p=>readFile(root+p,'utf8')));
+ assert.match(offers,/price:'159',name:'รับรูปนี้ \+ ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผม'/);
+ assert.match(offers,/price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'/);
+ assert.doesNotMatch(offers,/AI 10 ครั้ง/);
+ assert.doesNotMatch(ed,/onSuitAi|studio-ai-trial-note|thaiOutfitAi:!englishFlow/);
+ assert.doesNotMatch(easy,/initialOutfitAi|onSuitAi/);
+ assert.doesNotMatch(main,/onCheckEnglishOutfitAi=\{async\(\)=>\{[^\n]*thai-ai-edit/);
+ assert.doesNotMatch(server,/reserveThaiAiEdit|thai_ai_daily_limit|\/api\/thai-ai-edit\/access/);
+});
+test('ordinary Thai generation is not subject to the removed two-per-day quota or the AI10 pool',async()=>{
+ const server=await readFile(root+'server.js','utf8'),a=server.indexOf('async function requireCredit(req,res,kind){'),b=server.indexOf('\nconst upload=multer(',a);
+ const deps={crypto,walletId:()=> 'wallet',isPrivateOwner:()=>false,downloadHairAllowed:()=>true,PRODUCTION_HAIR_CATALOG:[{id:'seedream-14',gender:'female'}],THAI_FREE_FEMALE_HAIR_IDS:['seedream-14'],getWallet:async()=>({usdPremiumPurchased:false}),accountPolicy:()=>{throw Error('Basic Thai hair must not require Premium')},reserveThaiAiEdit:()=>{throw Error('Removed daily quota must not be used')}};
+ const run=Function('deps','with(deps){'+server.slice(a,b)+';return requireCredit}')(deps);
+ const req={body:{hairId:'seedream-14',interfaceLanguage:'th'},get:()=>''},res={status(){throw Error('Thai basic request rejected')}};
+ for(let i=0;i<8;i++){const out=await run(req,res,i%2?'hairstyle':'ai-finish');assert(out.usageId.startsWith('free_'));assert.equal(out.trialPreview,true);assert.equal(out.generationRemaining,0)}
 });

@@ -166,7 +166,7 @@ test('Easy Mode create label stays compact for male and female while original cl
  assert.match(easy,/onClick=\{\(\)=>onConfirmHair\?\.\(\)\}>สร้างรูป<\/button>/);
  assert.match(easy,/if\(thaiHairConfirmation\)onGenerateHair\?\.\(choice\|\|selectedHair\|\|''\)/,'Thai final step passes the staged hair to one AI request');
  assert.match(easy,/disabled=\{busy\|\|!ready\|\|!currentSuit\|\|!choicesReady\}/,'Keep post-result confirmation button constraints');
- assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&\(initialOutfitAi\?outfitAiStep==='ready':typeReady&&hairReady&&suitReady\)\)/,'New Create is gated by the staged finish, hair, outfit and source');
+ assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\)/,'New Create is gated by the staged finish, hair, outfit and source');
  assert.match(easy,/tab!==wizardTabs\[wizardTabs.length-1\]/,'New Create is only on the final background step');
 });
 test('Hair-first and Makeup-first selections require explicit completion before one AI Create (Thai and English)',async()=>{
@@ -195,8 +195,8 @@ test('Hair-first and Makeup-first selections require explicit completion before 
  assert.match(studio,/if\(activeHead&&!finishChanged&&/,'Already visible exact image does not call provider');
  assert.match(studio,/if\(mode==='female'\)setEasyFaceFinish\(finish\)/,'Completed AI output matches selected finish');
  assert.match(studio,/const easyFinishPending=Boolean/,'Easy Mode stages changes');
- assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&\(initialOutfitAi\?outfitAiStep==='ready':typeReady&&hairReady&&suitReady\)\)/,'Easy Mode Create requires all prior selections');
- assert.match(easy,/const createWizardPhoto=\(\)=>\{if\(!wizardCreateReady\|\|tab!==wizardTabs\[wizardTabs.length-1\]\)return;/,'Create waits for the last configured selection step');
+ assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\)/,'Easy Mode Create requires all prior selections');
+ assert.match(easy,/const createWizardPhoto=\(\)=>\{if\(!wizardCreateReady\|\|tab!==wizardTabs\[wizardTabs.length-1\]\)return;/,'Create refuses to skip background step');
  assert.match(easy,/if\(hasResult\|\|thaiHairConfirmation\)onHair\(h\.id\)/,'First Easy Mode hairstyle choice is recorded, not ignored');
  assert.match(easy,/onSelect=\{style=>\{onSelectFaceFinish\?\.\(style\);setFinishChosen\(true\);setChoice\(''\);if\(wizardOpen\)setTab\(wizardTabs\[1\]\)/,'Easy Mode Makeup-first opens Thai Hair or English Suit as appropriate');
  assert.match(english,/setChoiceFlow\(previous=>previous\?\.first==='finish'&&previous\.step==='hair'/,'English Makeup-first -> Hair completion');
@@ -211,17 +211,17 @@ test('Easy Mode uses a guided selection order for both genders without skipping 
  const css=await readFile(new URL('../src/easy-mode.css',import.meta.url),'utf8');
  assert.match(easy,/englishPreviewEnabled\(\)\?\['type','suit','background'\]:thaiHairConfirmation\?\['type','hair','suit','background'\]/,
   'English Auto Hair skips hair picker; Thai Easy must expose it');
- assert.match(easy,/guidedSource\.current=sourcePreview;setTab\(initialOutfitAi\?'suit':'type'\);setWizard\(true\)/,'New image opens the first step, not hidden Hair');
+ assert.match(easy,/guidedSource\.current=sourcePreview;setTab\('type'\);setWizard\(true\)/,'New image opens the first step, not hidden Hair');
  assert.match(easy,/const typeReady=Boolean\(photoTypeSelected&&\(gender!=='female'\|\|finishChosen\)\)/,
   'Female users must choose Natural or Makeup; male photo type has no makeup step');
- assert.match(easy,/const wizardNextAllowed=ready&&!busy&&\(initialOutfitAi\?Boolean\(outfitAiStep\):tab==='type'\?typeReady:tab==='hair'\?hairReady:tab==='suit'\?suitReady:true\)/,
+ assert.match(easy,/const wizardNextAllowed=ready&&!busy&&\(tab==='type'\?typeReady:tab==='hair'\?hairReady:tab==='suit'\?suitReady:true\)/,
   'Next is blocked until the current required step is completed');
- assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&\(initialOutfitAi\?outfitAiStep==='ready':typeReady&&hairReady&&suitReady\)\)/,
+ assert.match(easy,/const wizardCreateReady=Boolean\(sourcePreview&&ready&&!busy&&typeReady&&hairReady&&suitReady\)/,
   'Create is disabled for incomplete choices');
- assert.match(easy,/tab!==wizardTabs\[wizardTabs.length-1\]/,'Only the final configured step offers Create');
+ assert.match(easy,/tab!==wizardTabs\[wizardTabs.length-1\]/,'Only background offers Create');
  assert.match(easy,/if\(thaiHairConfirmation\)onGenerateHair\?\.\(choice\|\|selectedHair\|\|''\);\s*else onHair\?\.\(\)/,
   'Thai staged hair and English auto-hair submit exactly one original callback');
- assert.match(easy,/setTab\(initialOutfitAi\?\(outfitAiStep\?'hair':'suit'\):'type'\);setWizard\(true\);setCollapsed\(false\)/,
+ assert.match(easy,/setTab\('type'\);setWizard\(true\);setCollapsed\(false\)/,
   'A dismissed wizard resumes from guided selections instead of generating');
  assert.match(easy,/label:'ชนิดรูป',kind:'type'/,'The progress bar includes the actual photo-type step');
  assert.match(easy,/\.\.\.\(thaiHairConfirmation\?\[\{label:'ทรงผม'/,
@@ -342,7 +342,7 @@ test('English-only Studio remembers homepage gender and always reselects it for 
  const source=studio.slice(studio.indexOf(' const addSourcePhoto=async '),studio.indexOf(' useEffect(()=>{if(!initialSourcePhoto'));
  assert.match(source,/if\(englishFlow\)apiFile\.idpromPortraitMode=null/,'New Studio upload cannot inherit the previous image sex');
  assert.match(source,/else if\(englishFlow\)\{setPicker\(false\);setPortraitChoiceOpen\(true\)/,'Every Studio replacement opens a sex modal before creation');
- assert.match(source,/setEnglishInlineAi\(null\);setEnglishDraft\(null\);setEnglishRoute\(null\);setEnglishStep\(null\);/,'A new upload clears staged AI choices in both locales');
+ assert.match(source,/if\(englishFlow\)\{setEnglishInlineAi\(null\);setEnglishDraft\(null\);setEnglishRoute\(null\);setEnglishStep\(null\)\}/,'English setup is suspended under the gender modal');
  assert.match(studio,/englishFlow\?'Choose the photo type':'กรุณาเลือกชนิดรูป'/,'Modal is localized in English without changing Thai copy');
  assert.match(studio,/if\(englishFlow\)\{trackPhotoType\(mode,'select'\);if\(sourcePhoto\)\{sourcePhoto\.idpromPortraitMode=mode/,'Chosen gender binds to the new uploaded photo');
  assert.match(studio,/setEnglishStep\('choose'\);setEnglishRoute\(null\);setStatus\(''\);return/,'Choosing gender shows existing English AI/manual setup, no processing yet');
@@ -355,7 +355,7 @@ test('English homepage and Easy Mode use AI automatic hair for both men and wome
  assert.match(studio,/allowHairChoice=\{false\} initialGender=/,'English landing wizard does not offer manual hair options');
  assert.match(english,/hair:allowHairChoice\?hair:''/,'Woman and man both send AI-selected default hair');
  assert.match(english,/gender==='female'&&<fieldset/,'Makeup choices appear only for women');
- assert.match(easy,/const wizardTabs=initialOutfitAi\?\['suit','hair'\]:englishPreviewEnabled\(\)\?\['type','suit','background'\]/,'English Easy Mode skips hair step');
+ assert.match(easy,/const wizardTabs=englishPreviewEnabled\(\)\?\['type','suit','background'\]/,'English Easy Mode skips hair step');
  assert.match(easy,/hasResult&&!englishPreviewEnabled\(\)&&<button className=\{tab==='hair'/,'Hair picker tab hidden in English Easy Mode');
  assert.match(main,/\{!englishPreviewEnabled\(\)&&<button type="button" data-hair-guide="male-hair"/,'Old English homepage does not expose male hair controls');
  assert.match(main,/\{!englishPreviewEnabled\(\)&&<button type="button" data-hair-guide="female-hair"/,'Old English homepage does not expose female hair controls');
@@ -381,7 +381,7 @@ test('English Studio shows two neat free hairs before Diamond per gender; Diamon
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const payments=await readFile(new URL('../payment-store.js',import.meta.url),'utf8');
  assert.match(payments,/usd_premium_expires_at=clock_timestamp\(\)\+interval '30 days'/,'Use existing server 30-day validity, no invented plan');
- assert.match(main,/englishPreviewEnabled\(\)\?englishStudioDiamondActive\(knownWalletData\):\(rights\.premiumDownloadRemaining>0\|\|rights\.generationRemaining>0\)/,'English uses 30-day purchase, Thai keeps own rights');
+ assert.match(main,/englishPreviewEnabled\(\)\?englishStudioDiamondActive\(knownWalletData\):rights\.premiumDownloadRemaining>0/,'English uses 30-day purchase, Thai keeps own rights');
  assert.match(main,/englishPreviewEnabled\(\)\?orderEnglishStudioHair\(ENGLISH_MALE_HAIR_CATALOG,'male'\):MALE_HAIR_OPTIONS/,'Only English hair gets reordered');
  assert.match(main,/englishPreviewEnabled\(\)\?orderEnglishStudioHair\(ENGLISH_FEMALE_HAIR_CATALOG,'female'\):STUDIO_FEMALE_HAIR_OPTIONS/);
  assert.match(studio,/const premiumHairAllowed=englishFlow\?premiumHairCreditAvailable===true:/,'Thai purchase rights untouched');
@@ -406,7 +406,7 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(snapshot,/ctx\.fillText\('IDพร้อม',0,0\)/,'Use the same watermark style as download checkout');
  assert.match(snapshot,/onRequestUnlock\?\.\(\{reason:'diamond-hair',hairId,preview,jobId:/,'Use existing checkout callback with the clicked image');
  assert.doesNotMatch(snapshot,/void applyHair|onChangeHair|processPhoto\(|onProcessPhoto\(/,'Preview capture must never call AI');
- assert.match(choose,/if\(englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
+ assert.match(choose,/if\(englishFlow&&englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
  assert.match(choose,/if\(!englishFlow\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'Thai Diamond hair opens checkout');
  assert.match(choose,/if\(isPremiumHair\(id\)&&!premiumHairAllowed&&!canRestoreHair\(id,hairGender,easyFaceFinish\)\)\{openDiamondHairOffer\(id\);return\}/,'English hair picker opens checkout without generation');
  assert.match(studio,/if\(hair&&isPremiumHair\(hair\)&&!premiumHairAllowed&&!canRestoreHair\(hair,gender,finish\)\)\{openDiamondHairOffer\(hair\);return\}/,'Final English Create retains Diamond safeguard');

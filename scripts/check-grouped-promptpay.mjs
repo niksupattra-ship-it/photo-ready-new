@@ -405,15 +405,22 @@ try{
   await Promise.all([worker.retryReconciliations(),worker.retryReconciliations()]);assert.equal(reads.length,10);assert.equal(await policy.allowed(paid.g.wallet,paid.g.jobs[0]),false);
   const posts=gatewayCalls.length;await worker.retryReconciliations();assert.equal(reads.length,20);assert.equal(await policy.allowed(paid.g.wallet,paid.g.jobs[1]),true);assert.equal(gatewayCalls.length,posts);assert.equal(new Set(reads).size,13);
  });
- await check('current 159 keeps download entitlement and grants ten AI uses once, with repeat purchases allowed',async()=>{
-  const g=await group('new159ai','ai-buyer');
-  const buy=attempt=>route('POST','/api/payments/promptpay',{wallet:g.wallet,body:{jobId:g.jobs[0],packageId:'159'},attempt});
-  const first=await buy('new_ai_purchase_attempt_001');assert.equal(first.status,200);
-  const intent=intents.get(first.data.paymentIntentId);assert.equal(intent.metadata.package_id,'download_159_ai10_v2');assert.equal(intent.amount,15900);
+ await check('restored current159 grants the original photo/hair rights without a ten-use bundle',async()=>{
+  const g=await group('restored159','old-offer-buyer');
+  const first=await route('POST','/api/payments/promptpay',{wallet:g.wallet,body:{jobId:g.jobs[0],packageId:'159'},attempt:'restored_offer_attempt_001'});assert.equal(first.status,200);
+  const intent=intents.get(first.data.paymentIntentId);assert.equal(intent.metadata.package_id,'download_159_hair_v1');assert.equal(intent.amount,15900);
   pay(intent.id);assert.equal((await poll(intent.id,g.wallet)).data.ok,true);await poll(intent.id,g.wallet);
-  assert.equal((await payment.getWallet(g.wallet)).processRemaining,10);assert.equal(await policy.allowed(g.wallet,g.jobs[0]),true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[0]),true);
-  const second=await buy('new_ai_purchase_attempt_002');assert.equal(second.status,200);pay(second.data.paymentIntentId);assert.equal((await poll(second.data.paymentIntentId,g.wallet)).data.ok,true);
-  assert.equal((await payment.getWallet(g.wallet)).processRemaining,20);
+  assert.equal((await payment.getWallet(g.wallet)).processRemaining,0);assert.equal(await policy.allowed(g.wallet,g.jobs[0]),true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[0]),true);
+  assert.equal((await policy.suits(g.wallet,g.jobs[0],['/suit/1'])).limit,5);
+ });
+ await check('frozen AI10 payment intents still grant their purchased credits exactly once after rollback',async()=>{
+  const g=await group('frozen159ai','ai-buyer');
+  for(let i=0;i<2;i++){
+   const intent=makeIntent({walletId:g.wallet,jobId:g.jobs[0],packageId:'download_159_ai10_v2'});intents.set(intent.id,intent);pay(intent.id);
+   assert.equal((await poll(intent.id,g.wallet)).data.ok,true);await poll(intent.id,g.wallet);
+   assert.equal((await payment.getWallet(g.wallet)).processRemaining,10*(i+1));
+   assert.equal(await policy.allowed(g.wallet,g.jobs[0]),true);assert.equal(await policy.premiumHair(g.wallet,g.jobs[0]),true);
+  }
  });
  const results={passed:cases.length,cases,concurrentTrace,fixtureIntentCount:intents.size,scope:'Actual grouped PromptPay API, reservation SQL, download-policy SQL and payment grants in isolated PGlite; inert provider fixtures only',limits:'PGlite has one connection; a serialized connection adapter plus paused gateway models transaction interleavings and provider idempotency, not native PostgreSQL multi-process lock execution'};
  if(process.env.GROUPED_PROMPTPAY_RESULTS){await mkdir(dirname(process.env.GROUPED_PROMPTPAY_RESULTS),{recursive:true});await writeFile(process.env.GROUPED_PROMPTPAY_RESULTS,JSON.stringify(results,null,2)+'\n')}
