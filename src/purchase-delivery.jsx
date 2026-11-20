@@ -46,7 +46,7 @@ export function PurchaseReceipt(props){return <EnglishPurchaseReceipt {...props}
 function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownload}){
  const surface=useRef(null);
  useEffect(()=>{if(receipt.autoDownloadKey)onAutomaticDownload?.(receipt,surface.current)},[receipt.receiptKey,receipt.autoDownloadKey]);
- return <EnglishDownload blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} pixelScale={receipt.pixelScale||2} surfaceRef={surface} onClose={onClose} onDownload={async(file,choice)=>{
+ return <EnglishDownload paidSuccess={true} blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} pixelScale={receipt.pixelScale||2} surfaceRef={surface} onClose={onClose} onDownload={async(file,choice)=>{
   if(!surface.current?.isConnected)throw Error('Reopen Download to save this photo.');
   const extension=file.type==='application/pdf'?'pdf':file.type==='image/jpeg'?'jpg':'png';
   const name='IDPROM-'+choice.sizeId+(extension==='pdf'?(interfaceLocale()==='th-TH'?'-A4':'-Letter'):'')+'.'+extension;
