@@ -2227,3 +2227,77 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
  .idstudio .studio-picker-drawer .studio-catalog-grid .thai-outfit-card > button:first-child > span{height:70px}
  .idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai{height:32px;min-height:32px;width:34px}
 }
+/* Light violet selection surfaces: Thai/English Studio, desktop and touch. */
+/* Keep selection surfaces light; do not change photo, canvas, generation or payment behavior. */
+.idstudio.studio-redesign .studio-selection .studio-catalog-tabs,
+.idstudio.studio-redesign .studio-top-choices,
+.idstudio.studio-redesign .studio-panel-switch,
+.idstudio.studio-redesign.studio-touch .studio-touch-menu {
+  background:#fff;
+  border-color:#e7dcfa;
+  color:var(--studio-ink);
+}
+.idstudio.studio-redesign .studio-selection .studio-section-title {
+  color:var(--studio-violet-dark);
+  border-bottom-color:#e7dcfa;
+}
+/* The gender and finish-choice dialogs previously inherited near-black panels. */
+.idstudio.studio-redesign .studio-processing-card.studio-portrait-choice-card,
+.idstudio.studio-redesign .studio-processing-card.studio-finish-choice-card {
+  background:#fff;
+  color:var(--studio-ink);
+  border:1px solid #e5d9f9;
+  box-shadow:0 18px 52px #4d2c9820;
+}
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-button,
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option {
+  background:#fff;
+  color:var(--studio-ink);
+  border:1.5px solid #ded1f5;
+  box-shadow:0 3px 12px #6846a410;
+}
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-button:hover:not(:disabled),
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option:hover:not(:disabled) {
+  background:#f5efff;
+  border-color:var(--studio-violet);
+  box-shadow:0 5px 18px #7044ed1c;
+}
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-button:active,
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option:active,
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-button.active,
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option.active {
+  background:var(--studio-lavender);
+  border-color:var(--studio-violet);
+  color:var(--studio-violet-dark);
+}
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-label {
+  background:#fff;
+  color:var(--studio-ink);
+}
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option:hover .studio-finish-choice-label,
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option.active .studio-finish-choice-label {
+  background:#f5efff;
+  color:var(--studio-violet-dark);
+}
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-icon {
+  background:#f0eaff;
+  color:var(--studio-violet);
+}
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-arrow {
+  stroke:var(--studio-violet);
+}
+/* A light lavender scrim keeps the selection dialogs readable without the old black look. */
+.idstudio.studio-redesign .studio-processing-overlay:has(.studio-portrait-choice-card),
+.idstudio.studio-redesign .studio-processing-overlay:has(.studio-finish-choice-card) {
+  background:#ece6f5b8;
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+}
+/* Shared active choice styling: white/lavender surfaces, violet outlines. */
+.idstudio.studio-redesign .studio-selection .studio-catalog-tabs button.active,
+.idstudio.studio-redesign .studio-portrait-choice-card .studio-portrait-choice-button[aria-pressed="true"],
+.idstudio.studio-redesign .studio-finish-choice-card .studio-finish-choice-option[aria-pressed="true"] {
+  background:var(--studio-lavender);
+  border-color:var(--studio-violet);
+  color:var(--studio-violet-dark);
+}
