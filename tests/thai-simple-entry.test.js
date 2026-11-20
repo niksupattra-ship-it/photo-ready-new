@@ -130,3 +130,42 @@ test('after paid QR success, new photo is available only for an archived receipt
  assert(main.includes("if(!entry?.archive?.id||entry.archiving||entry.preparing)return"),'Server archive must be confirmed before leaving receipt');
  assert(main.includes("setStudioData(null);setScreen('home')"),'Start new photo returns to redesigned entry');
 });
+
+
+test('mobile face-model preflight stays sequential and fails closed before AI submission',async()=>{
+ const main=await read('src/main.jsx');
+ const a=main.indexOf('function warmPortraitResources('),b=main.indexOf('\\nfunction interp(',a);
+ assert(a>=0&&b>a);
+ const make=env=>Function('env',`with(env){${main.slice(a,b)};return warmPortraitResources}`)(env);
+ let order=[];
+ const warm=make({
+  getLandmarker:async()=>{order.push('face');return {ready:true}},
+  getPersonSegmenter:async()=>{order.push('segment');return {ready:true}},
+  loadImage:async()=>{}
+ });
+ await warm(new Blob(),null,{requiresSegmentation:true,english:true});
+ assert.deepEqual(order,['face','segment'],'Do not concurrently initialize both WASM models on mobile');
+ order=[];await warm(new Blob(),null,{requiresSegmentation:false,english:true});
+ assert.deepEqual(order,['face'],'Unused segmentation model must not block whole-outfit AI');
+ let failures=0;
+ const failed=make({
+  getLandmarker:async()=>{failures++;throw Error('temporary wasm unavailable')},
+  getPersonSegmenter:async()=>{throw Error('must not start segmentation')},
+  loadImage:async()=>{}
+ });
+ await assert.rejects(failed(new Blob(),null,{requiresSegmentation:false,english:true}),
+  e=>e.code==='PORTRAIT_MODEL_UNAVAILABLE'&&e.stage==='prepare_model');
+ assert.equal(failures,2,'Retry once only, never silently submit an unchecked result');
+});
+
+test('shared Easy and Studio error dialogs use white-purple colors and provide model retry',async()=>{
+ const css=await read('src/studio-redesign.css');
+ const editor=await read('src/studio-editor.jsx');
+ const failure=await read('src/portrait-process-failure.js');
+ assert(css.includes('Shared Studio and Easy popup palette'));
+ assert(css.includes('.idstudio .studio-processing-overlay .studio-processing-card'));
+ assert(css.includes('background:#fff;')&&css.includes('border:1px solid #dfd1f5;'));
+ assert(editor.includes('studio-process-error-card'));
+ assert(editor.includes("'model_initialization','recover_result'"),'The model failure must offer a safe retry action');
+ assert(failure.includes('กด “ลองอีกครั้ง”'));
+});
