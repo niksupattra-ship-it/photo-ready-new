@@ -43,10 +43,10 @@ function LegacyPurchaseReceipt({receipt,onClose,onRetry,onPrepareSize,onHistory,
  return <AccountFlowDialog label="รับรูป" onClose={onClose}><div className="purchase-surface"><section ref={surface} className="purchase-page purchase-receipt purchase-receipt-size"><header className="purchase-receipt-header"><strong>IDพร้อม <em>Studio</em></strong><h1><span aria-hidden="true">✓</span> {receipt.paid?'ชำระเงินสำเร็จ':'รูปพร้อมดาวน์โหลด'}</h1><button onClick={onClose} aria-label="ปิดหน้ารับรูป">×</button></header><PhotoSizeEditor embedded blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} sizes={receipt.sizes} pixelScale={receipt.pixelScale||2} onChange={setSelectedCrop} actions={actions}/><footer className="purchase-receipt-footer"><button className="purchase-link" onClick={onHistory}>ดูรูปที่ซื้อแล้ว · เก็บไฟล์รับรูป 7 วัน</button><button className="purchase-link" onClick={onClose}>กลับไปแต่งรูป</button></footer></section></div></AccountFlowDialog>;
 }
 export function PurchaseReceipt(props){return <EnglishPurchaseReceipt {...props}/>}
-function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownload}){
+function EnglishPurchaseReceipt({receipt,onClose,onPrepareSize,onAutomaticDownload,onNewPhoto}){
  const surface=useRef(null);
  useEffect(()=>{if(receipt.autoDownloadKey)onAutomaticDownload?.(receipt,surface.current)},[receipt.receiptKey,receipt.autoDownloadKey]);
- return <EnglishDownload paidSuccess={true} blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} pixelScale={receipt.pixelScale||2} surfaceRef={surface} onClose={onClose} onDownload={async(file,choice)=>{
+ return <EnglishDownload paidSuccess={true} onNewPhoto={receipt.archive?.id&&!receipt.archiving&&!receipt.preparing?onNewPhoto:null} blob={receipt.sourceBlob||receipt.blob} value={receipt.crop||DEFAULT_PHOTO_CROP} pixelScale={receipt.pixelScale||2} surfaceRef={surface} onClose={onClose} onDownload={async(file,choice)=>{
   if(!surface.current?.isConnected)throw Error('Reopen Download to save this photo.');
   const extension=file.type==='application/pdf'?'pdf':file.type==='image/jpeg'?'jpg':'png';
   const name='IDPROM-'+choice.sizeId+(extension==='pdf'?(interfaceLocale()==='th-TH'?'-A4':'-Letter'):'')+'.'+extension;
