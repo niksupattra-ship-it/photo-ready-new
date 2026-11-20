@@ -202,32 +202,22 @@ test('Thai v6 bypasses all native post-mask layers while v3-v5 archived jobs rem
  assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'),'Thai cache version invalidates buggy old previews');
 });
 
-test('Thai Studio outfit thumbnail places PNG and one magic-wand icon explicitly starts AI without altering English',async()=>{
+test('Thai outfit uses the exact English mobile card and explicit AI creation flow',async()=>{
  const studio=await readFile(root+'src/studio-editor.jsx','utf8');
- const css=await readFile(root+'src/studio-redesign.css','utf8');
- assert(studio.includes('className="thai-outfit-card"'),'Thai suit cards remain visible');
- assert(studio.includes('className="thai-outfit-ai"'),'Thai AI icon action exists');
- assert(!studio.includes('className="thai-outfit-png"'),'Redundant PNG button must be absent');
- assert(!studio.includes('>วาง PNG</button>'),'There must be no visible PNG text button');
- assert(!studio.includes('>สร้างด้วย AI</button>'),'AI button is icon-only, not a text button');
- assert(studio.includes('title="สร้างด้วย AI"'),'Magic wand button has a discoverable title');
- assert(studio.includes("aria-label={'สร้างชุดด้วย AI '+"),'Magic wand remains accessible to screen readers');
- assert(studio.includes('<svg viewBox="0 0 24 24" width="19" height="19"'),'AI icon renders as an inline SVG');
- assert(studio.includes("void selectAsset(visiblePicker,o,{manualOverride:visiblePicker==='suit'&&!englishFlow})"),'Clicking the thumbnail still places native PNG without AI');
- assert(studio.includes("onClick={()=>void createThaiOutfitAi(o)}"),'AI generation remains an independent explicit click');
- assert(studio.includes("const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride)"),'English PNG handling stays intact');
- assert(studio.includes("else if(!aiSetup&&!manualSuit)setBodyOutfitRequest"),'Native PNG cannot auto-submit an AI request');
- assert(studio.includes("await selectAsset('suit',outfit,{aiSetup:true})"),'Explicit AI uses the chosen outfit at confirmation');
- assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'AI call is dispatched only from explicit Create');
- assert(studio.includes("const createThaiOutfitAi=option=>"),'Wand prepares a draft without a provider request');
- assert(studio.includes("setThaiChoiceFlow(mode==='female'?{origin:'hair',step:'hair'}"),'Thai uses English hairstyle-before-create stage');
- assert(studio.includes('const confirmThaiOutfitAi=async()=>'),'Thai has an explicit Create confirmation');
- assert(studio.includes("onCreate={thaiOutfitAiDraft?()=>{void confirmThaiOutfitAi()}:confirmThaiHair}"),'Thai Create calls the staged AI action');
- assert(studio.includes("Boolean(thaiOutfitAiDraft?.outfit||currentSuit)"),'No prior suit selection is required to use AI');
- assert(studio.includes("setThaiOutfitAiDraft(null);setThaiPendingHair(null);setThaiChoiceFlow(null)"),'Cancelling PNG selection removes the pending AI draft');
- assert(studio.includes('className="english-outfit-card">{card}<button type="button" className="english-outfit-ai"'),'English outfit card and behavior unchanged');
- assert(css.includes('.thai-outfit-actions .thai-outfit-ai svg'),'Icon has its own size without touching other UI');
- assert(!css.includes('.english-outfit-card'),'Thai styles must not modify English cards');
+ const englishCss=await readFile(root+'src/english-portrait-flow.css','utf8');
+ assert(studio.includes('return visiblePicker===\'suit\'?<div key={o.id||i} className="english-outfit-card">'),'Same outfit card for both locales');
+ assert(studio.includes('className="english-outfit-ai"'),'Same AI button style and position for both locales');
+ assert(studio.includes("englishFlow?'Edit with AI':'ใส่ชุดด้วย AI'"),'Only button language changes');
+ assert(studio.includes('onClick={()=>englishFlow?startOutfitAi(o):createThaiOutfitAi(o)}'),'Separate authorization, shared card');
+ assert(!studio.includes('thai-mobile-ai-guide'),'No oversized Thai instructions above outfits');
+ assert(!studio.includes('thai-mobile-ai-main-action'),'No duplicate AI call-to-action');
+ assert(!studio.includes('thai-mobile-ai-next'),'No extra instructional block');
+ assert(englishCss.includes('.english-outfit-card .english-outfit-ai'),'The mobile AI control uses existing English styling');
+ assert(studio.includes("void selectAsset(visiblePicker,o,{manualOverride:visiblePicker==='suit'&&!englishFlow})"),'Tapping garment only selects the PNG');
+ assert(studio.includes('const createThaiOutfitAi=option=>'),'Thai AI choice opens the hair step, not provider immediately');
+ assert(studio.includes('const confirmThaiOutfitAi=async()=>'),'Explicit confirmation is still required');
+ assert(studio.includes("await selectAsset('suit',outfit,{aiSetup:true})"),'Chosen suit preserved');
+ assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'Confirm starts AI once');
 });
 
 test('Thai PNG suit reinsert restores identical frame and user transform instead of stretching from portrait placement',async()=>{
