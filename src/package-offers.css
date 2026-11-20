@@ -182,3 +182,5 @@
  .package-choice-modal:has(.paired-offers) .offer-image-scope{border:0;background:#faf8ff;color:#776a8e;font-weight:500;font-size:11px;margin:9px 0 0;padding:8px}
  .package-choice-modal:has(.paired-offers) .offer-usage-terms,.package-choice-modal:has(.paired-offers) .offer-payment-method{margin-top:8px}
 }
+
+@media(min-width:641px){.idprom-thai-package-cta{display:none}}
