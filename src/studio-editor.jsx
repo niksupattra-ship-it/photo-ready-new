@@ -1044,7 +1044,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   return fitStudioSuit({layers:next,previousSuit:suit,nextSuit:unbaked,headSource:head.warpSource||sharedStudioSkinSource(head)||head.source,headMask:head.mask,measureFace:onMeasureSuitFace,preservePlacement:true});
  };
  const endSuitPreview=request=>{if(!request||suitRequestRef.current!==request)return;request.cancel();suitRequestRef.current=null;request.preview?.release();setSuitSelecting(false);drawNow()};
- const beginSuitPreview=(option,target)=>{
+ const beginSuitPreview=(option,target,restoredSuit=null)=>{
   // Use the same native PNG preview path as Thai: do not compute a
   // head-relative position, garment scale or translation for English.
   const previous=suitRequestRef.current,retained=previous?.kind==='suit'?previous.preview:null;
@@ -1052,7 +1052,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const request=createSuitPreviewRequest();request.preview=retained;request.kind='suit';request.template=option.template;suitRequestRef.current=request;setSuitSelecting(option.id||option.template);
   const show=image=>{
    if(!image||!mounted.current||suitRequestRef.current!==request||request.phase!=='loading')return;
-   const previous=request.preview,preview=createSuitDisplayPreview(target,option,image,placementRef.current);
+   const previous=request.preview,preview=createSuitDisplayPreview(target||restoredSuit,option,image,placementRef.current);
    request.preview=preview;drawNow();previous?.release();
   };
   const display=image=>{try{show(image)}catch{}};
@@ -1122,7 +1122,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const quickSuitSelection=async({option,target,fitHead,manualSuit,restoredSuit=null})=>{
   const thumbnail=suitPreviewSource(option.template);
   if(!thumbnail)return false;
-  const request=beginSuitPreview(option,target);
+  const request=beginSuitPreview(option,target,restoredSuit);
   try{
    await request.wait(request.firstPaint);
    const placement=placementRef.current;
@@ -1213,7 +1213,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(kind==='suit'&&option&&!combinedBody&&!repairSuitFit&&suitPreviewSource(option.template)){
    if(await quickSuitSelection({option,target,fitHead,manualSuit,restoredSuit}))return;
   }
-  let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target):null;
+  let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target,restoredSuit):null;
   const blockingSelection=!request&&!(kind==='suit'&&!option);
   if(blockingSelection)setAssetBusy(true);
   try{
