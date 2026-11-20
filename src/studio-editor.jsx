@@ -1416,14 +1416,21 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(oldHead.portraitMode===chosenPortraitMode&&!generationOptions.keepCurrentHair&&(oldHead.hairId||'')!==chosenHair)generationOptions.creditKind='hairstyle';
   }else{delete generationOptions.sourceJobId;delete generationOptions.creditKind;}
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode,undefined,generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};
-   if(englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&chosenPortraitMode==='female'&&!chosenHair&&!options.generationOptions?.keepCurrentHair)head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION;const anchor=oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
+   if(englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&chosenPortraitMode==='female'&&!chosenHair&&!options.generationOptions?.keepCurrentHair)head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION;const anchor=options.manualOutfitFallback&&oldHead?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?suit:oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));
    if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
    if(head.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){const p=result.placement,frame={x:p.uX,y:p.uY,w:p.uW,h:p.uH};next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,visible:true}:l);}
    const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
-   if(options.manualOutfitFallback&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)next=next.map(l=>layerKind(l)==='suit'?{...l,visible:true}:l);
-   if(options.manualOutfitFallback&&!next.some(l=>layerKind(l)==='suit'))throw Error('ไม่พบชุดสำหรับแสดงผลแบบแก้ไขเอง');
-   if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
+   if(options.manualOutfitFallback&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION){
+    next=next.map(l=>layerKind(l)==='suit'?{...l,visible:true}:l);
+    const nativeSuit=next.find(l=>layerKind(l)==='suit');
+    if(!nativeSuit)throw Error('ไม่พบชุดสำหรับแสดงผลแบบแก้ไขเอง');
+    if(typeof onMeasureSuitFace!=='function')throw Error('ระบบจัดสัดส่วนหัวและชุดยังไม่พร้อม');
+    // Body-AI and head-only artwork use incompatible placement frames.
+    // Re-measure THIS generated face against THIS garment's opaque shoulders.
+    // Only the head is scaled uniformly; the garment pixels are never warped.
+    next=await fitStudioSuit({layers:next,previousSuit:nativeSuit,nextSuit:nativeSuit,headSource:head.source,measureFace:onMeasureSuitFace});
+   }else if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    startedHydratingResult=true;
    let hydrated=await hydrate(next);
    if(!hydrated&&!isProcessCancelled()){
