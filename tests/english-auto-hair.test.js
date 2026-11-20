@@ -66,6 +66,7 @@ test('Thai first-generation female reference is the visible free centre-parted c
  assert.doesNotMatch(englishFlow,/firstGenerationHairFor/);
  assert.match(englishFlow,/onCreate\(\{outfit,hair:allowHairChoice\?hair:''[,}]/,'Hidden English auto-choice UI submits no forced catalogue hairstyle');
  assert.doesNotMatch(studio,/if\(!existing\)hair=firstGenerationHairFor\(gender\)/);
+ assert.match(studio,/if\(!id&&hairGender==='female'&&!englishFlow\)id=firstGenerationHairFor\('female'\)/);
  assert.match(studio,/head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION/);
  assert.match(studio,/existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION/);
  const easyHandler=studio.slice(studio.indexOf(' const processEasyPhoto='),studio.indexOf('\n',studio.indexOf(' const processEasyPhoto=')));

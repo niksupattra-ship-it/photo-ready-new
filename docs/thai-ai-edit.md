@@ -13,11 +13,3 @@ Validation uses inert AI providers, real Chromium UI flows, and isolated Postgre
 ## Studio processing stability
 
 Background suit entitlement synchronization is keyed to the actual account, output, selected suit, entitlement revision and processing state rather than a changing callback on every progress render. The check is suspended during generation; explicit export and selection checks still use the server. After a Thai full-outfit AI result, PNG suit selections remain manual and no longer queue an implicit AI job. Explicit hair/finish changes retain full-outfit composition and reuse the existing same-job finish rules where eligible. Credit reservation, package prices and provider prompts are unchanged. These regression tests do not confirm live image delivery.
-
-## English full-outfit preparation parity
-
-New Thai full-outfit jobs send `th-en-outfit-preparation-parity-v1` while retaining their Thai credit-authority locale and existing charged submission identity. The client uses the same full-outfit model warm-up, segmentation decision, finish/framing cache revisions, generation fields and native-output completion path as English. Earlier Thai keep-upload requests added an extra full-upload hair reference that English did not send; the new opt-in version uses exactly the English reference path. Unversioned pending jobs retain their original references.
-
-Tests now compare actual browser form construction through the production renderer, as well as twelve male/female, Natural/Makeup and hairstyle/current-hair combinations. For identical source, outfit and choices, the base head/body board, provider prompt, reference bytes and output size must match English. No preset head shrink, extra AI call or automatic local head warp is added. Generated PNGs retain their native dimensions and bytes through completion.
-
-The server returns its stored preparation version. It is preserved on completed layers and saved metadata, so explicitly pressing Create for an old Thai result can generate through the new preparation rather than silently reusing the old result. Current-version results still reuse without another request. Previously purchased/queued results are not relabeled, automatically regenerated or automatically charged. Live AI appearance is not proven by inert-provider tests.
