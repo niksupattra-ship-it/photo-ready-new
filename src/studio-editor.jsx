@@ -679,6 +679,18 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const historyAssets=useRef(new WeakMap());
  const sourcePhotoRef=useRef(sourcePhoto);sourcePhotoRef.current=sourcePhoto;
  const hairStyleMemory=useRef(createHairStyleMemory());
+ // Thai PNG re-placement must reuse its exact previous geometric frame and
+ // transform. Never recompute it from a full-body AI portrait's placement.
+ const removedThaiSuitRef=useRef(null);
+ const saveRemovedThaiSuit=layer=>{
+  if(englishFlow||layerKind(layer)!=='suit'||!layer.templatePath)return;
+  const frame=layer.sourceFrame||layer.collarFrame;
+  if(!frame||![frame.x,frame.y,frame.w,frame.h].every(Number.isFinite)||frame.w<=0||frame.h<=0)return;
+  removedThaiSuitRef.current={templatePath:layer.templatePath,sourceFrame:{...frame},collarFrame:{...(layer.collarFrame||frame)},
+   x:layer.x??0,y:layer.y??0,scale:layer.scale??1,rotation:layer.rotation??0,
+   squeezeX:layer.squeezeX??1,squeezeY:layer.squeezeY??1,opacity:layer.opacity??1};
+ };
+ useEffect(()=>{removedThaiSuitRef.current=null},[sourcePhoto]);
  const youcamHairMemory=useRef(new Map());
  const historySnapshot=()=>{const map=new Map(),next=state.current.map(l=>{
   const a=assets.current.get(l.id);if(!a)return {...l};
@@ -705,7 +717,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   setHistoryNotice(null);
  };
  const remember=e=>{if(assetBusy)return;if(e?.type==='pointerdown'&&!isPrimaryEditingPointer(e))return;flushTransforms();undo.current.push(historySnapshot());if(undo.current.length>15){undo.current.shift();historyTruncatedRef.current=true;historyBoundaryNoticeRef.current=false;}redo.current=[];setRevision(v=>v+1)};
- const deleteLayer=id=>{if(!ready||assetBusy||processActive||comparing||!state.current.some(l=>l.id===id))return;remember();const next=state.current.filter(l=>l.id!==id&&l.hairHeadId!==id);state.current=next;setLayers(next);if(selectedRef.current===id){setSelected(null);setCursor(null);setLayerGuide(false)}setStatus('ลบเลเยอร์แล้ว · กดย้อนกลับเพื่อคืน')};
+ const deleteLayer=id=>{if(!ready||assetBusy||processActive||comparing||!state.current.some(l=>l.id===id))return;remember();const removed=state.current.find(l=>l.id===id);if(removed)saveRemovedThaiSuit(removed);const next=state.current.filter(l=>l.id!==id&&l.hairHeadId!==id);state.current=next;setLayers(next);if(selectedRef.current===id){setSelected(null);setCursor(null);setLayerGuide(false)}setStatus('ลบเลเยอร์แล้ว · กดย้อนกลับเพื่อคืน')};
  const hydratingRef=useRef(false);
  const lastHydrateErrorRef=useRef(null);
  async function hydrate(next,unchangedIds=null,canCommit=()=>true){lastHydrateErrorRef.current=null;flushTransforms();next=syncHairAttachments(next);if(trialUnlocked)next=next.map(l=>({...l,restrictedTrial:false,outputUnlocked:true}));const token=++loading.current;hydratingRef.current=true;if(!assets.current.size)setReady(false);const map=new Map();try{
@@ -1107,21 +1119,21 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   timer=setTimeout(refine,180);
   return()=>{cancelled=true;clearTimeout(timer)};
  },[ready,processActive,blockingAssetBusy,Boolean(suitSelecting),currentSuit,revision,accountScope,layers]);
- const quickSuitSelection=async({option,target,fitHead,manualSuit})=>{
+ const quickSuitSelection=async({option,target,fitHead,manualSuit,restoredSuit=null})=>{
   const thumbnail=suitPreviewSource(option.template);
   if(!thumbnail)return false;
   const request=beginSuitPreview(option,target);
   try{
    await request.wait(request.firstPaint);
    const placement=placementRef.current;
-   const frame=target?.sourceFrame||target?.collarFrame||(placement?{x:placement.uX/placement.W*W,y:placement.uY/placement.H*H,w:placement.uW/placement.W*W,h:placement.uH/placement.H*H}:{x:0,y:0,w:W,h:H});
+   const frame=target?.sourceFrame||target?.collarFrame||restoredSuit?.sourceFrame||restoredSuit?.collarFrame||(placement?{x:placement.uX/placement.W*W,y:placement.uY/placement.H*H,w:placement.uW/placement.W*W,h:placement.uH/placement.H*H}:{x:0,y:0,w:W,h:H});
    const quick=await request.wait(nativeAsset('suit',{template:thumbnail},frame,null));
    if(suitRequestRef.current!==request)return true;
    flushTransforms();
    const previous=historySnapshot();
    const base=target||fresh({name:'ชุด',kind:'suit',source:quick.source});
-   const created={...base,kind:'suit',name:'ชุด',source:quick.source.toDataURL('image/png'),
-    sourceFrame:target?.sourceFrame||frame,collarFrame:target?.collarFrame||frame,
+   const created={...base,...(restoredSuit||{}),kind:'suit',name:'ชุด',source:quick.source.toDataURL('image/png'),
+    sourceFrame:target?.sourceFrame||restoredSuit?.sourceFrame||frame,collarFrame:target?.collarFrame||restoredSuit?.collarFrame||frame,
     neckWidth:0,neckHeight:0,mask:null,warpSource:null,warpBaseMask:null,
     eraseRestoreSource:null,warpRestoreBase:null,collarParts:null,
     visible:true,assetId:option.id,templatePath:option.template,suitPreviewOnly:true,
@@ -1185,6 +1197,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(kind==='suit')trackUniformSelection(option,'select',option?'new':'remove');
   if(kind==='suit'&&option&&!englishFlow&&!canUseAllSuits&&!freeTemplatePaths.includes(option.template)){onRequestUnlock?.();setStatus('กรุณาตรวจสอบสิทธิ์ก่อนเลือกชุดนี้');return;}
   const target=state.current.find(l=>layerKind(l)===kind);
+  const restoredSuit=kind==='suit'&&manualSuit&&!target&&!englishFlow&&option?.template===removedThaiSuitRef.current?.templatePath?removedThaiSuitRef.current:null;
   if(target?.locked){setStatus('ปลดล็อกเลเยอร์ '+ASSET_NAMES[kind]+' ก่อนเปลี่ยน');return}
   const bodyHead=outputHeads(state.current).find(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
   const repairSuitFit=Boolean(manualSuit&&target?.manualOutfitFitVersion!==ENGLISH_MANUAL_OUTFIT_VERSION)||Boolean(!manualSuit&&bodyHead&&option&&bodyHead.generatedOutfitTemplate!==option.template)||Boolean(target?.autoSuitFitVersion&&target.autoSuitFitVersion!==STUDIO_SUIT_FIT_VERSION)||state.current.some(l=>l.kind==='neck-fit');
@@ -1198,7 +1211,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   // Complex body-generated outfits and legacy repair paths retain the proven
   // full-resolution selection pipeline without changing their behavior.
   if(kind==='suit'&&option&&!combinedBody&&!repairSuitFit&&suitPreviewSource(option.template)){
-   if(await quickSuitSelection({option,target,fitHead,manualSuit}))return;
+   if(await quickSuitSelection({option,target,fitHead,manualSuit,restoredSuit}))return;
   }
   let request=kind==='suit'&&option&&(!combinedBody||manualSuit)?beginSuitPreview(option,target):null;
   const blockingSelection=!request&&!(kind==='suit'&&!option);
@@ -1206,18 +1219,18 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{
    if(request)await request.wait(request.firstPaint);
    flushTransforms();const previous=historySnapshot();let next,fitWarning='';
-   if(!option){next=previous.filter(l=>l.id!==target?.id);if(manualSuit)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);}
+   if(!option){if(target)saveRemovedThaiSuit(target);next=previous.filter(l=>l.id!==target?.id);if(manualSuit)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);}
    else{
     const suit=previous.find(l=>layerKind(l)==='suit');
     const p=placementRef.current;let collarParts=null;
     const defaultFrame=p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H};
-    const frame=kind==='suit'?(suit?.sourceFrame||suit?.collarFrame||defaultFrame):(suit?.collarFrame||suit?.sourceFrame||defaultFrame);
+    const frame=kind==='suit'?(suit?.sourceFrame||suit?.collarFrame||restoredSuit?.sourceFrame||restoredSuit?.collarFrame||defaultFrame):(suit?.collarFrame||suit?.sourceFrame||defaultFrame);
     const path=suit?.templatePath||p?.templatePath||'';
     const female=/female-/.test(path),base=STUDIO_ACCESSORY_PLACEMENT[female?'female':'male'];
     const preset={...base,collar:{...base.collar,width:base.collar.width*(female?.9*.85*1.08*1.09:1)*.8,y:base.collar.y-4/frame.h,left:base.collar.left+(female?.025-2/frame.w:14/frame.w),right:base.collar.right-(female?.025-2/frame.w:14/frame.w)},chest:{...base.chest,width:base.chest.width*(female?1:.85),x:base.chest.x+(female?.035:49/frame.w),y:base.chest.y-(female?0:.02)},ribbon:{...base.ribbon,x:base.ribbon.x-(female?.055:3/frame.w),width:base.ribbon.width*(female?.95:1),top:base.ribbon.top-(female?0:.02)}};
     if(['collar','chest','ribbon'].includes(kind)){request=beginInsigniaPreview(kind,option,target,suit,frame,preset);await request.wait(request.firstPaint)}
     const loading=nativeAsset(kind,option,frame,preset),native=request?await request.wait(loading):await loading;collarParts=native.collarParts;
-    const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),kind,source:native.source,sourceFrame:kind==='suit'?(target?.sourceFrame||native.sourceFrame):native.sourceFrame,collarFrame:kind==='suit'?(target?.collarFrame||frame):target?.collarFrame,neckWidth:kind==='suit'?0:target?.neckWidth,neckHeight:kind==='suit'?0:target?.neckHeight,collarParts,collarLeftX:target?.collarLeftX||0,collarRightX:target?.collarRightX||0,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,visible:true,assetId:option.id,templatePath:kind==='suit'?option.template:target?.templatePath};
+    const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),...(kind==='suit'&&restoredSuit?restoredSuit:{}),kind,source:native.source,sourceFrame:kind==='suit'?(target?.sourceFrame||restoredSuit?.sourceFrame||native.sourceFrame):native.sourceFrame,collarFrame:kind==='suit'?(target?.collarFrame||restoredSuit?.collarFrame||frame):target?.collarFrame,neckWidth:kind==='suit'?0:target?.neckWidth,neckHeight:kind==='suit'?0:target?.neckHeight,collarParts,collarLeftX:target?.collarLeftX||0,collarRightX:target?.collarRightX||0,mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null,visible:true,assetId:option.id,templatePath:kind==='suit'?option.template:target?.templatePath};
     if(manualSuit){
      // English manual PNG overlay now follows the exact native Thai placement:
      // sourceFrame/collarFrame and x/y/scale from the existing suit or shared
