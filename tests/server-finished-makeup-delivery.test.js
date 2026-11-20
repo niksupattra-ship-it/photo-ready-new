@@ -41,7 +41,7 @@ test('single Natural and legacy paired base still use their normal local pipelin
 test('new Studio path skips ONLY completed single Makeup and never requests a new paid AI job',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const source=await readFile(new URL('../src/shared-studio-skin.js',import.meta.url),'utf8');
- const start=main.indexOf('const cached=await portraitResultCache.get(key,async()=>{');
+ const start=main.indexOf('const cached=await portraitResultCache.get(garmentBoundaryKey,async()=>{');
  const finish=main.indexOf('const finishRequested=async base=>',start);
  assert(start>=0&&finish>start,'the real result delivery path must be present');
  const pipeline=main.slice(start,finish);

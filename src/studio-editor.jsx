@@ -1,3 +1,4 @@
+import {replaceFullBodyPortraitLayers} from './full-body-portrait-layers.js';
 import {THAI_OUTFIT_PARITY_VERSION} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
 import {AutoHairTile} from './auto-hair-tile.jsx';
@@ -523,10 +524,11 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    return;
   }
   const pendingNewPhoto=processHairPending||state.current.some(l=>l.id===sourceLayerRef.current)||!state.current.some(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
-  if(isFreeFemaleHair(id)&&!pendingNewPhoto){trackHairSelection(id,'select','free');void applyFreeHair(id);return}
-  if(isPremiumHair(id)&&!premiumHairAllowed&&!canRestoreHair(id,hairGender,easyFaceFinish)){openDiamondHairOffer(id);return}
   const localHead=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
-  if(!id&&hairGender==='female'&&localHead?.freeHairBaseOriginal===true){trackHairSelection(id,'select','original');void applyFreeHair(id);return}
+  const fullOutfitPortrait=localHead?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
+  if(isFreeFemaleHair(id)&&!pendingNewPhoto&&!fullOutfitPortrait){trackHairSelection(id,'select','free');void applyFreeHair(id);return}
+  if(isPremiumHair(id)&&!premiumHairAllowed&&!canRestoreHair(id,hairGender,easyFaceFinish)){openDiamondHairOffer(id);return}
+  if(!id&&hairGender==='female'&&!fullOutfitPortrait&&localHead?.freeHairBaseOriginal===true){trackHairSelection(id,'select','original');void applyFreeHair(id);return}
   {const outfit=templates.find(t=>t.template===currentSuit);if(outfit&&await startOutfitAi(outfit)){setEnglishInlineAi(d=>({...d,hair:id||'',choiceStep:hairGender==='female'?'finish':'ready',choiceOrigin:'hair'}));setEnglishDraft(d=>({...d,hair:id||''}));setSelectedHair(id||'')}return}
 
  };
@@ -1292,7 +1294,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const firstGeneration=!oldHead||newSourcePending;
   const requested=Object.prototype.hasOwnProperty.call(options,'hairId')?options:(pendingHairProcessRef.current||(firstGeneration&&['female','male'].includes(chosenPortraitMode)?{hairId:firstGenerationHairFor(chosenPortraitMode),portraitMode:chosenPortraitMode}:null));
   const chosenHair=requested?.hairId||'';
-  if(isFreeFemaleHair(chosenHair)&&!firstGeneration){showFreeHairNotice();return}
+  if(isFreeFemaleHair(chosenHair)&&!firstGeneration&&!options.generationOptions?.thaiOutfitAi){showFreeHairNotice();return}
   if(!['female','male'].includes(chosenPortraitMode)){setPortraitChoiceOpen(true);return}
   if(chosenPortraitMode==='female'&&!['natural','makeup','korean-rosy-v1','soft-rosy-v1'].includes(sourcePhoto.idpromFemaleEyeStyle)){setFemaleFinishChoiceOpen(true);return}
   if(!requested){setHairGender(chosenPortraitMode);setProcessHairPending(true);setPicker('hair');setTouchLayersOpen(false);setTouchMore(false);setTouchMenu(false);setToolRailOpen(true);return}
@@ -1316,9 +1318,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode,undefined,generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};
    if(englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&chosenPortraitMode==='female'&&!chosenHair&&!options.generationOptions?.keepCurrentHair)head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION;const anchor=oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));
-   if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
+   if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=replaceFullBodyPortraitLayers(previous,head,layerKind);
    if(head.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){const p=result.placement,frame={x:p.uX,y:p.uY,w:p.uW,h:p.uH};next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,visible:true}:l);}
-   const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
+   const i=next.findIndex(l=>layerKind(l)==='suit');if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)next.splice(i<0?next.length:i,0,head);
    if(head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    startedHydratingResult=true;
    let hydrated=await hydrate(next);
@@ -1533,7 +1535,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
    assertAppearanceCurrent();
    let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
-   if(!englishFlow&&!localFinish&&replacement.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
+   if(!localFinish&&replacement.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=replaceFullBodyPortraitLayers(previous,finishedReplacement,layerKind);
    if(finishedReplacement.makeupStyles?.look)next=next.map(l=>l.id===head.id?{...l,processedOriginalSource:result.layer.source}:l);
    // Free hairstyles remain local PNG overlays when the underlying finish changes.
    // Fit them to the new native head before committing either set of pixels.
