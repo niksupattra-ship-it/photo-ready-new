@@ -96,6 +96,7 @@ export const PRODUCTION_HAIR_CATALOG=[
   {
     "id": "seedream-26",
     "gender": "female",
+    "hidden": true,
     "name": "ทรงผม 26",
     "file": "26.png",
     "src": "/assets/seedream-hairstyles/previews/26.webp"
@@ -263,7 +264,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
 // Keep the old hidden reference in the catalog for previously saved work.
-export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-26','seedream-27']);
+export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-27']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
