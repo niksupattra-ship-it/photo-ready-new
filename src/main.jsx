@@ -2892,7 +2892,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const assertCurrentOperation=()=>{assertProcessActive(operation);if(activeProcessOperation!==operation)throw cancelledProcessError()};
  const template=options.templatePath||options.jobContext?.uniformTemplate||'';
  const gender=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
- const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(template);
+ const thaiWholeOutfit=!englishPreviewEnabled()&&!options.manualOutfitFallback&&isThaiOutfitPath(template);
  options={...options,portraitMode:gender,requiresSegmentation:!(englishPreviewEnabled()||thaiWholeOutfit),femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
  const requestedFinish=options.femaleEyeStyle;
  // New jobs produce the selected finish, not an automatic Natural+Makeup pair.
