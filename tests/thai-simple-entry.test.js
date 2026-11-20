@@ -41,12 +41,22 @@ test('Thai desktop and mobile share real eight-stage pages for selection, proces
  const easy=await read('src/easy-mode.jsx');
  assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'));
  assert(easy.includes('!englishPreviewEnabled()&&(sourcePreview||hasResult)&&templates.length'));
- for(const part of ['กำลังสร้างรูป','เลือกแบบที่ต้องการ','เปลี่ยนทรงผม','เปลี่ยนชุด','เครื่องหมาย','ไปชำระเงิน','สร้างรูปด้วย AI'])assert(source.includes(part),part);
+ for(const part of ['กำลังสร้างรูป','เลือกแบบที่ต้องการ','เปลี่ยนทรงผม','เปลี่ยนชุด','เครื่องหมาย','รับรูปไม่มีลายน้ำ','สร้างรูปด้วย AI'])assert(source.includes(part),part);
  assert(source.includes('onGenerateHair?.(draftHair)'),'New AI generation still uses guarded original callback');
  assert(source.includes('onConfirmHair?.()'),'Changing hair still requires confirmation');
- assert(source.includes('onDownload}>↓ รับรูปนี้'),'Payment still opens through original rights/export callback');
- assert(source.includes('onStudio}>⚙ ปรับแต่งเอง'),'Detailed editor remains available');
+ assert(source.includes('onClick={onDownload}')&&source.includes('รับรูปไม่มีลายน้ำ'),'Receive-photo button still calls the original protected checkout/download callback');
+ assert(source.includes('onStudio?.()')&&source.includes('เปิด Studio'),'Detailed editor remains available in the result-page menu');
  assert(source.includes('onSuit?.(t)'),'Suit selection retains original native asset behavior');
+});
+
+test('Thai completed result matches approved photo-first mockup without replacing working actions',async()=>{
+ const result=await read('src/thai-mobile-journey.jsx');
+ const theme=await read('src/thai-mobile-journey.css');
+ for(const section of ['thai-mobile-flow-ready','thai-mobile-result-heading','thai-mobile-result-photo-card','thai-mobile-result-photo-summary','thai-mobile-result-success','thai-mobile-result-hair-choices','thai-mobile-result-reassurance'])assert(result.includes(section),section);
+ assert(result.includes('onClick={onDownload}')&&result.includes('รับรูปไม่มีลายน้ำ'),'Main receive button retains real checkout/download');
+ assert(result.includes("setSection('hair')")&&result.includes("setSection('suit')"),'Both corrections remain available on the finished photo');
+ assert(result.includes('onStudio?.()'),'Detailed editor remains reachable');
+ assert(theme.includes('Approved Thai result mockup')&&theme.includes('linear-gradient(115deg,#8738d6'),'The completed result has its own brand-purple styling');
 });
 
 test('Thai offer, real PromptPay, verified receipt and PNG/PDF keep connected handlers',async()=>{
