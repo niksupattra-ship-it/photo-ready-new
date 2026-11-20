@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import {processProductionPortrait,validateProductionPortrait,shieldThaiNativeUniformFront} from '../production-portrait-pipeline.js';
-import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS,requiresThaiNativeFrontShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction} from '../thai-outfit-ai-policy.js';
+import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -109,16 +109,55 @@ test('Thai native uniform reliably occludes hair over both jacket fronts and cli
  assert.equal(info.width,W);
 });
 
-test('Thai v3 garment occlusion is limited to new Thai requests; v2 stored jobs and English are unchanged',async()=>{
+test('Thai v4 protects the actual sloping shoulder edge and neck opening without cyan seams or flat-cut hair',async()=>{
+ const W=240,H=320;
+ const skin=[199,134,114,255],black=[5,6,8,255],white=[247,246,242,255];
+ const stripe=async(width,height,colour)=>sharp({create:{width,height,channels:4,background:colour}}).png().toBuffer();
+ const source=await sharp({create:{width:W,height:H,channels:4,background:'#c78672'}}).png().toBuffer();
+ const original=await sharp(source).composite([
+  {input:await stripe(14,160,'#050608'),left:93,top:100},
+  {input:await stripe(12,160,'#050608'),left:150,top:100},
+  {input:await stripe(10,160,'#050608'),left:10,top:100}
+ ]).png().toBuffer();
+ const native=await sharp({create:{width:W,height:H,channels:4,background:{r:0,g:0,b:0,alpha:0}}})
+  .composite([
+   {input:await stripe(50,200,'#f7f6f2'),left:30,top:120},
+   {input:await stripe(50,200,'#f7f6f2'),left:160,top:120},
+   {input:await stripe(80,148,'#f7f6f2'),left:80,top:172},
+   {input:await stripe(40,8,'#32cfff'),left:100,top:156}
+  ]).png().toBuffer();
+ const layout={nativeForeground:native,shoulderTopY:120,collarTopY:167,centerX:120,shoulderSpan:176};
+ const fixed=await shieldThaiNativeUniformFront(original,layout);
+ const legacy=await shieldThaiNativeUniformFront(original,layout,{legacy:true});
+ const inspect=async img=>{
+  const {data}=await sharp(img).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  return (x,y)=>[...data.subarray((y*W+x)*4,(y*W+x)*4+4)];
+ };
+ const now=await inspect(fixed),old=await inspect(legacy);
+ assert.deepEqual(now(100,110),black,'Hair above the shoulders remains original');
+ assert.deepEqual(now(100,145),black,'Hair is not horizontally cut before the LOCAL centre collar begins');
+ assert.equal(old(100,145)[3],0,'v3 had incorrectly erased this hair with global shoulder clipping');
+ assert.deepEqual(now(100,220),white,'Below the local collar, the actual uniform covers forward hair');
+ assert.deepEqual(now(165,220),white,'Both shoulders are opaque and hair-free');
+ assert.deepEqual(now(120,160),skin,'Cyan template seam is never pasted over the neck skin');
+ assert.deepEqual(now(120,80),skin,'Face stays pixel-identical');
+ assert.equal(now(15,230)[3],0,'Outer stray hair beneath shoulder gradually disappears');
+ assert.equal(now(15,140)[3]>0,true,'Outer hair is not cut at one global shoulder level');
+});
+
+test('Thai shoulder-aware v4 fixes newly generated images; historical v3/v2 and English remain compatible',async()=>{
  const core={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
  const updated={...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
  const legacy={...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS};
  assert.equal(requiresThaiNativeFrontShield(updated),true);
  assert.equal(requiresThaiNativeFrontShield(legacy),false);
+ assert.equal(requiresThaiNativeFrontShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION}),true,'Queued v3 uses its original legacy clipping');
+ assert.equal(usesThaiShoulderAwareShield(updated),true);
+ assert.equal(usesThaiShoulderAwareShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION}),false);
  assert.equal(requiresThaiNativeFrontShield({thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,interfaceLanguage:'en'}),false);
  const source=await readFile(root+'production-portrait-pipeline.js','utf8');
  assert(source.includes('const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly'));
- assert(source.includes('const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry):transparent'));
+ assert(source.includes('const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry,{legacy:!usesThaiShoulderAwareShield(fields)}):transparent'));
  const layout=await readFile(root+'english-body-layout.js','utf8');
  assert(layout.includes('if(!returnNativeForeground)return composition'),'All English output remains original one-pass composition');
  const main=await readFile(root+'src/main.jsx','utf8');
