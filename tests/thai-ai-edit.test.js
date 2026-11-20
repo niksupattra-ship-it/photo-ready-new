@@ -235,6 +235,23 @@ test('Thai Studio outfit thumbnail places PNG and one magic-wand icon explicitly
  assert(!css.includes('.english-outfit-card'),'Thai styles must not modify English cards');
 });
 
+test('Thai PNG suit reinsert restores identical frame and user transform instead of stretching from portrait placement',async()=>{
+ const studio=await readFile(root+'src/studio-editor.jsx','utf8');
+ assert(studio.includes('const removedThaiSuitRef=useRef(null)'), 'Keep the prior outfit frame for the same photo');
+ assert(studio.includes("if(englishFlow||layerKind(layer)!=='suit'||!layer.templatePath)return"),'Only Thai suit layers are cached');
+ assert(studio.includes('if(removed)saveRemovedThaiSuit(removed)'), 'Deleting a suit saves its exact pose');
+ assert(studio.includes('if(target)saveRemovedThaiSuit(target)'), 'Removing a suit through the picker also saves pose');
+ assert(studio.includes("option?.template===removedThaiSuitRef.current?.templatePath"), 'Restore only when the exact removed outfit is selected again');
+ assert(studio.includes('sourceFrame:{...frame},collarFrame:{...(layer.collarFrame||frame)}'), 'Save frame rather than recalculating from AI portrait placement');
+ assert(studio.includes('x:layer.x??0,y:layer.y??0,scale:layer.scale??1,rotation:layer.rotation??0'), 'Save exact existing transform');
+ assert(studio.includes('restoredSuit?.sourceFrame||restoredSuit?.collarFrame||defaultFrame'), 'Native reinsert uses prior geometry first');
+ assert(studio.includes('createSuitDisplayPreview(target||restoredSuit,option,image,placementRef.current)'), 'Instant preview cannot flash stretched garment');
+ assert(studio.includes("await quickSuitSelection({option,target,fitHead,manualSuit,restoredSuit})"), 'Thumbnail path also preserves outfit frame');
+ assert(studio.includes("...(kind==='suit'&&restoredSuit?restoredSuit:{})"), 'Native path restores previous scale and position');
+ assert(studio.includes('useEffect(()=>{removedThaiSuitRef.current=null},[sourcePhoto])'), 'Never leak suit placement to another uploaded photo');
+ assert(studio.includes("const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride)"), 'Existing English and Thai manual actions remain intact');
+});
+
 test('new checkout restores original prices and sold AI10 receipt terms remain frozen',()=>{
  const basic=checkoutPackage('89'),fresh=checkoutPackage('159');
  assert.equal(basic.id,'download_89_v1');assert.equal(basic.price,89);
