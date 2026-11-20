@@ -779,6 +779,16 @@ app.use((err,req,res,next)=>{
 app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
 // Serve an indexable English landing at /en/ with the same built app and APIs.
 // All Thai pages and Stripe endpoints continue to use their existing routes.
+// Keep the original Thai photo-information/catalogue page indexable at its own URL.
+app.get(['/id-photo','/id-photo/'],async(_req,res)=>{
+ try{
+  const base=await readFile(path.join(dir,'dist','index.html'),'utf8');
+  const html=base
+   .replace('<link rel="canonical" href="https://idpromth.com/">','<link rel="canonical" href="https://idpromth.com/id-photo/">')
+   .replace('<meta property="og:url" content="https://idpromth.com/">','<meta property="og:url" content="https://idpromth.com/id-photo/">');
+  res.set({'Cache-Control':'no-cache','Content-Language':'th'}).type('html').send(html);
+ }catch(error){console.error('Thai guide unavailable:',error.message);res.status(503).send('Temporary guide unavailable')}
+});
 registerEnglishLanding(app,{loadIndex:()=>readFile(path.join(dir,'dist','index.html'),'utf8')});
 app.use(express.static(path.join(dir,"dist"),{setHeaders:publicAssetHeaders}));
 // Unknown English guide URLs must not masquerade as an indexable Thai app page.
