@@ -290,6 +290,30 @@ export async function reserveEnglishDailyAiOutfit(walletId){
  }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
 }
 
+// Separate Thai full-outfit AI allowance; hairstyle/ordinary Thai portraits do not spend it.
+const THAI_DAILY_OUTFIT_AI_LIMIT=2;
+export async function reserveThaiDailyOutfitAi(walletId){
+ if(!walletId)return null;
+ await ready();
+ const c=await pool.connect();
+ try{
+  await c.query('BEGIN');
+  // Lock the wallet before counting so parallel tabs cannot exceed the limit.
+  const wallet=await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[walletId]);
+  if(!wallet.rowCount){await c.query('ROLLBACK');return null}
+  const {rows}=await c.query(`SELECT COUNT(*)::int AS used FROM credit_usage
+   WHERE wallet_id=$1 AND kind='thai-daily-outfit-ai' AND status IN ('reserved','completed')
+   AND (created_at AT TIME ZONE 'Asia/Bangkok')::date=(clock_timestamp() AT TIME ZONE 'Asia/Bangkok')::date`,[walletId]);
+  const used=Number(rows[0]?.used||0);
+  if(used>=THAI_DAILY_OUTFIT_AI_LIMIT){await c.query('ROLLBACK');return null}
+  const id='free_'+crypto.randomBytes(18).toString('hex');
+  await c.query(`INSERT INTO credit_usage(id,wallet_id,kind,status,credit_column,full_edit_output,created_at)
+   VALUES($1,$2,'thai-daily-outfit-ai','reserved','thai-daily-outfit-ai',false,clock_timestamp())`,[id,walletId]);
+  await c.query('COMMIT');
+  return {usageId:id,trialPreview:true,freeGeneration:true,remaining:THAI_DAILY_OUTFIT_AI_LIMIT-used-1,generationRemaining:0,hairRemaining:0};
+ }catch(error){await c.query('ROLLBACK');throw error}finally{c.release()}
+}
+
 const THAI_DAILY_AI_LIMIT=2;
 export async function thaiAiEditAccess(walletId){
  if(!walletId)return {allowed:false,remaining:0,dailyRemaining:0,paidRemaining:0};
@@ -340,7 +364,7 @@ export async function refundCredit(usageId){
   await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[owner.rows[0].wallet_id]);
   const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output,usd_premium_cycle FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);
   if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}
-  if(['english-daily-ai-outfit','thai-daily-ai-edit'].includes(u.rows[0].kind)){
+  if(['english-daily-ai-outfit','thai-daily-ai-edit','thai-daily-outfit-ai'].includes(u.rows[0].kind)){
    // A failed free AI request releases its slot without adding any paid credit.
    await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
    await c.query('COMMIT');return true;
