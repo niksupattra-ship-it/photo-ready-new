@@ -1074,9 +1074,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  useEffect(()=>()=>{const request=suitRequestRef.current;request?.cancel();request?.preview?.release();suitRequestRef.current=null},[]);
  const [bodyOutfitRequest,setBodyOutfitRequest]=useState(null);
  // A small garment preview is an editable layer, not a waiting overlay.
- // High-resolution PNG is substituted only when needed for export or pixel
- // edits. The template path, frame and transform are identical in both modes.
- const nativeSuitUpgradeRef=useRef(null);
+ // Refine it to the native PNG once placement is idle; export/pixel tools
+ // also require the native source. Both modes keep the same frame/transform.
+ const nativeSuitUpgradeRef=useRef(null),suitAutoFitPendingRef=useRef(null);
  const promotePreviewSuit=async()=>{
   flushTransforms();
   const pending=state.current.find(l=>layerKind(l)==='suit'&&l.suitPreviewOnly&&l.templatePath);
@@ -1091,7 +1091,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const before=state.current,snapshot=historySnapshot();
    const next=snapshot.map(l=>l.id===pending.id?{...l,source:high.source,suitPreviewOnly:false}:l);
    const unchanged=new Set(next.filter(l=>l.id!==pending.id).map(l=>l.id));
-   const safe=()=>state.current===before&&!pendingTransforms.current.size&&!gesture.current;
+   const safe=()=>mounted.current&&state.current===before&&!pendingTransforms.current.size&&!gesture.current;
    const promoted=await hydrate(next,unchanged,safe);
    if(promoted){setRevision(v=>v+1);setStatus('ชุดความละเอียดสูงพร้อมแล้ว')}
    return promoted;
@@ -1099,6 +1099,22 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   nativeSuitUpgradeRef.current={key,promise};
   try{return await promise}finally{if(nativeSuitUpgradeRef.current?.promise===promise)nativeSuitUpgradeRef.current=null}
  };
+ // Keep selection instant, then replace only the thumbnail pixels. Wait for
+ // drag/fit to finish so a late decode never moves the customer's work.
+ useEffect(()=>{
+  if(!ready||processActive||blockingAssetBusy||suitSelecting||!layers.some(l=>layerKind(l)==='suit'&&l.suitPreviewOnly&&l.templatePath))return;
+  let cancelled=false,timer,retries=0;
+  const refine=async()=>{
+   if(cancelled||!mounted.current)return;
+   if(gesture.current||pendingTransforms.current.size||suitAutoFitPendingRef.current){timer=setTimeout(refine,180);return}
+   try{
+    const ok=await promotePreviewSuit();
+    if(!ok&&retries++<1&&!cancelled&&mounted.current&&state.current.some(l=>layerKind(l)==='suit'&&l.suitPreviewOnly))timer=setTimeout(refine,180);
+   }catch(error){console.warn('Native suit refinement deferred; preview remains editable',error?.message)}
+  };
+  timer=setTimeout(refine,180);
+  return()=>{cancelled=true;clearTimeout(timer)};
+ },[ready,processActive,blockingAssetBusy,Boolean(suitSelecting),currentSuit,revision,accountScope,layers]);
  const quickSuitSelection=async({option,target,fitHead,manualSuit})=>{
   const thumbnail=suitPreviewSource(option.template);
   if(!thumbnail)return false;
@@ -1140,7 +1156,8 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    // If the customer has already moved a layer, never jump their work later.
    if(fitHead&&typeof onMeasureSuitFace==='function'){
     const stable=state.current,headAsset=assets.current.get(fitHead.id);
-    if(headAsset)void fitStudioSuit({
+    const fitToken={id:created.id,template:option.template};
+    if(headAsset){suitAutoFitPendingRef.current=fitToken;void fitStudioSuit({
      layers:stable,previousSuit:target,nextSuit:created,
      headSource:headAsset.warped||sharedStudioSkinSource(fitHead)||headAsset.original,
      headMask:headAsset.mask,measureFace:onMeasureSuitFace
@@ -1152,7 +1169,8 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
       return prior&&['source','mask','warpSource','warpBaseMask','eraseRestoreSource','warpRestoreBase','collarParts'].every(key=>l[key]===prior[key]);
      }).map(l=>l.id));
      if(await hydrate(fitted,changedIds,safe)){setRevision(v=>v+1)}
-    }).catch(error=>console.warn('Optional suit fit skipped',error?.message));
+    }).catch(error=>console.warn('Optional suit fit skipped',error?.message)).finally(()=>{if(suitAutoFitPendingRef.current===fitToken)suitAutoFitPendingRef.current=null});}
+
    }
    return true;
   }catch(error){
