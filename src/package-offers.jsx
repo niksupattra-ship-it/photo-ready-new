@@ -84,6 +84,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
    <p><span aria-hidden="true">✓</span> ไฟล์ความละเอียดสูง · ไม่มีลายน้ำ · PNG / PDF</p>
    <button type="button" className="idprom-thai-checkout-next" disabled={disabled} onClick={()=>choose(selected)}>{payBusy?'กำลังเตรียม…':`ดำเนินการต่อ · ฿${selected}`}</button>
   </div>
+  {onOpenCode&&<button type="button" className="idprom-thai-offer-code-link" disabled={payBusy} onClick={onOpenCode}>มีโค้ดส่วนลด? ใส่โค้ด</button>}
   <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาปรับแต่งรูปให้พร้อมดาวน์โหลดก่อนชำระเงิน</span>}</div>
   {isAuthenticated&&credits>0&&<div className="ready-credit"><span>สิทธิ์คงเหลือ {credits} งาน</span><button type="button" disabled={disabled} onClick={()=>onUseCredit({premium:usePremium})}>ใช้ 1 สิทธิ์{usePremium?'โปร 159':''}รับรูปนี้</button></div>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
