@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -493,6 +493,7 @@ export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,sh
 async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
  const headOnly=isEnglishHeadPortrait(fields);
  const templateBody=isEnglishTemplateBody(fields);
+ const thaiSingleAi=usesThaiSingleAiOutfit(fields);
  const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
  const keepCurrentHair=fields.keepCurrentHair==='1';
  if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
@@ -530,7 +531,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   chosen&&!keepCurrentHair?englishSelectedHairReference({selected:chosen,hair,root}):Promise.resolve(hair||autoFemaleHairSource),
   fit?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
  ]);
- const identityLayout=usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
+ const identityLayout=!thaiSingleAi&&usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
  const identityReference=identityLayout?null:identity;
  // Only NEW English female v2 jobs receive the better-proportioned head.
  // Existing v1 female, v9 female and all male jobs use their original guide.
@@ -543,13 +544,16 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const identityHeadScale=fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
  const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
  const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined;
- const layoutResult=headOnly?null:await createEnglishBodyLayout(outfit,frontShield?{...(layoutOptions||{}),returnNativeForeground:true}:layoutOptions);
+ // Thai v7 generates a single coherent garment/neck directly from the
+ // immutable uploaded photo and a separate outfit reference. No pre-AI
+ // composition of a surrogate neck, copied face, or PNG clothing is sent.
+ const layoutResult=headOnly||thaiSingleAi?null:await createEnglishBodyLayout(outfit,frontShield?{...(layoutOptions||{}),returnNativeForeground:true}:layoutOptions);
  const compositionReference=frontShield?layoutResult.composition:layoutResult;
  const nativeFrontGeometry=frontShield?layoutResult:null;
  const outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  const makeupFinish=singlePass&&fields.femaleEyeStyle==='makeup';
- let prompt=templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ let prompt=thaiSingleAi?englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:null,naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY}):templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  const outfitDetailReference=!headOnly&&fields.englishOutfitFidelityVersion===ENGLISH_OUTFIT_FIDELITY_VERSION?await createEnglishOutfitDetailReference(originalOutfit):null;
  const makeupStudioReference=makeupFinish?await loadMakeupStudioReference(root):null;
  if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference].filter(Boolean).length);
@@ -570,9 +574,15 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // and move genuine long hair behind the shoulders, never across the jacket.
  if(usesThaiHistoricOutfitPrompt(fields))prompt+=thaiOutfitAppearanceInstruction({outfitIndex,detailIndex:outfitDetailIndex});
  if(usesThaiEnglishParityOutfit(fields))prompt+=thaiEnglishParityRearHairInstruction();
+ if(thaiSingleAi)prompt+=`
+ THAI FULL-OUTFIT V7 — ONE GENERATED GARMENT, NO SURROGATE COLLAR:
+ Image 1 is the uploaded PERSON, not a composited body or outfit. It supplies facial identity, expression and natural head/skin detail ONLY. Any shirt, collar, necktie, jacket, insignia or garment visible in Image 1 belongs to the OLD clothing and must be completely replaced below the chin; none may remain as an underlayer, double seam or extra collar.
+ Image ${outfitIndex} is the sole authority for the NEW outfit. Render its jacket, shoulder boards, inner shirt collar, shirt front and necktie together as ONE continuous physical garment on the same person. Only the single shirt collar in that reference may meet the base of the natural neck; only one tie knot and one pair of lapels. Do not retain, duplicate, stack, shadow-trace or echo old necklines or lapels from Image 1 or other references. The selected new shirt collar must be the only visible shirt collar. Keep the uploaded person's face unchanged and seat a natural neck into this one garment. The hair stays behind the opaque clothing.
+ Generate the COMPLETE portrait in this SINGLE AI call. Do not output separate neck, face, clothing layers, a composite, a mask or a repair instruction.
+ `;
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
  await onStage('generation');
- const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
