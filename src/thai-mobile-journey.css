@@ -111,3 +111,89 @@
  .thai-mobile-result-grid{grid-template-columns:minmax(0,350px) minmax(0,390px);gap:18px}
  .thai-mobile-selection-controls .thai-mobile-tile-row{grid-auto-columns:minmax(100px,calc((100% - 16px)/3));gap:8px}
 }
+
+
+/* Thai selection page: outrank the legacy .idstudio button dark theme. */
+/*
+ * ThaiMobileJourney is mounted inside .idstudio while Easy mode is active.
+ * The generic `.idstudio button` rule has the same or higher specificity than
+ * the unscoped journey button rules, and was making the cards charcoal.
+ * Keep this scoped to the journey so the original Studio stays unaffected.
+ */
+.idstudio .thai-mobile-flow .thai-mobile-segment > button,
+.idstudio .thai-mobile-flow .thai-mobile-suit-categories > button,
+.idstudio .thai-mobile-flow .thai-mobile-tile-row > button,
+.idstudio .thai-mobile-flow .thai-mobile-hair-gallery > button,
+.idstudio .thai-mobile-flow .thai-mobile-result-actions > button,
+.idstudio .thai-mobile-flow button.thai-mobile-more {
+  background:#fff;
+  color:#332346;
+  border:1.5px solid #e1d2f4;
+  box-shadow:none;
+}
+.idstudio .thai-mobile-flow .thai-mobile-segment > button:hover:not(:disabled),
+.idstudio .thai-mobile-flow .thai-mobile-suit-categories > button:hover:not(:disabled),
+.idstudio .thai-mobile-flow .thai-mobile-tile-row > button:hover:not(:disabled),
+.idstudio .thai-mobile-flow .thai-mobile-hair-gallery > button:hover:not(:disabled),
+.idstudio .thai-mobile-flow button.thai-mobile-more:hover:not(:disabled) {
+  background:#f8f3ff;
+  border-color:#aa82e4;
+}
+.idstudio .thai-mobile-flow .thai-mobile-segment > button.selected,
+.idstudio .thai-mobile-flow .thai-mobile-segment > button[aria-pressed="true"],
+.idstudio .thai-mobile-flow .thai-mobile-suit-categories > button.selected {
+  background:#7543d7;
+  color:#fff;
+  border-color:#7543d7;
+  box-shadow:0 3px 10px #7543d727;
+}
+.idstudio .thai-mobile-flow .thai-mobile-segment > button.selected:hover:not(:disabled),
+.idstudio .thai-mobile-flow .thai-mobile-suit-categories > button.selected:hover:not(:disabled) {
+  background:#6632c7;
+  border-color:#6632c7;
+}
+.idstudio .thai-mobile-flow .thai-mobile-tile-row > button.selected {
+  background:#f3eaff;
+  color:#51258d;
+  border:2px solid #7543d7;
+  box-shadow:0 0 0 1px #7543d71c inset;
+}
+.idstudio .thai-mobile-flow .thai-mobile-tile-row > button.selected:hover:not(:disabled) {
+  background:#ede0ff;
+  border-color:#7543d7;
+}
+.idstudio .thai-mobile-flow button.thai-mobile-more {
+  background:#fbf9ff;
+  color:#6635b4;
+  border:1px solid #d7c3f2;
+}
+.idstudio .thai-mobile-flow button.thai-mobile-primary {
+  background:linear-gradient(120deg,#9550eb,#7036cd);
+  color:#fff;
+  border:1px solid transparent;
+}
+.idstudio .thai-mobile-flow button.thai-mobile-primary:hover:not(:disabled) {
+  background:linear-gradient(120deg,#8740e4,#652bc3);
+  color:#fff;
+}
+.idstudio .thai-mobile-flow button.thai-mobile-primary:disabled {
+  background:#c4b3dc;
+  color:#fff;
+}
+.idstudio .thai-mobile-flow button.thai-mobile-plain {
+  background:transparent;
+  color:#6635b4;
+  border:0;
+}
+.idstudio .thai-mobile-flow .thai-mobile-upload-preview > button {
+  background:#fff;
+  color:#6635b4;
+  border:1px solid #dad0eb;
+}
+.idstudio .thai-mobile-flow .thai-mobile-tile-row > button:focus-visible,
+.idstudio .thai-mobile-flow .thai-mobile-segment > button:focus-visible,
+.idstudio .thai-mobile-flow .thai-mobile-suit-categories > button:focus-visible,
+.idstudio .thai-mobile-flow button.thai-mobile-more:focus-visible {
+  outline:2px solid #7543d7;
+  outline-offset:2px;
+}
