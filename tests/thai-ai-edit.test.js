@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import {processProductionPortrait,validateProductionPortrait,shieldThaiNativeUniformFront} from '../production-portrait-pipeline.js';
-import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction} from '../thai-outfit-ai-policy.js';
+import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -55,7 +55,7 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
  for(const path of ['/assets/job-uniforms/female-job-white.png','/assets/student-uniforms/female-01.png','/assets/government-uniforms/female-operational.png','/assets/gown-uniforms/female-01.png'])assert(isThaiOutfitPath(path),path);
 });
 
-test('new Thai light-colour garment and rear-hair priorities apply only to Thai full-outfit images',async()=>{
+test('Thai v6 uses English full-image delivery with only a rear-hair generation directive and no post-render mask',async()=>{
  const template='/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png';
  const core={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',neckOutfitReferencePath:template,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
  const thai={...core,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
@@ -72,11 +72,20 @@ test('new Thai light-colour garment and rear-hair priorities apply only to Thai 
   assert(out.length);
   prompts.push(calls[0].prompt);
  }
- assert.match(prompts[0],/THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/);
- assert.match(prompts[0],/MUST NOT be painted in front of any outfit fabric/);
- assert.match(prompts[0],/Do NOT turn a light pastel-pink tweed into dusty rose/);
+ assert.doesNotMatch(prompts[0],/THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/,'New Thai generation must not use the retired postprocessing-era final prompt');
+ assert.match(prompts[0],/REAR HAIR AND NATIVE OUTFIT VISIBILITY/);
+ assert.match(prompts[0],/BEHIND BOTH shoulders and behind the suit/);
+ assert.match(prompts[0],/Copy the selected outfit's native colour/);
  assert.match(prompts[0],/FINAL SELECTED OUTFIT COLOUR AND DETAIL AUTHORITY/);
- assert.doesNotMatch(prompts[1],/THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/,'English prompt is unchanged');
+ assert.doesNotMatch(prompts[1],/REAR HAIR AND NATIVE OUTFIT VISIBILITY|THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/,'English prompt is unchanged');
+ assert.equal(usesThaiHistoricOutfitPrompt(thai),false);
+ assert.equal(usesThaiEnglishParityOutfit(thai),true);
+ assert.equal(usesThaiEnglishParityOutfit(english),false);
+ assert.equal(requiresThaiNativeFrontShield(thai),false,'New Thai results must not be postcomposited');
+ const previousV5={...thai,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_OLD_NECK_V5};
+ assert.equal(requiresThaiNativeFrontShield(previousV5),true,'Old completed/pending requests retain their legacy behavior');
+ assert.equal(usesThaiHistoricOutfitPrompt(previousV5),true);
+ assert.equal(usesThaiEnglishParityOutfit(previousV5),false);
  assert.equal(thai.interfaceLanguage,'th','Internal rendering must not mutate the Thai credit locale');
  const main=await readFile(root+'src/main.jsx','utf8');
  assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'),'Thai-only new cache and recovery version');
@@ -176,16 +185,17 @@ test('Thai v5 leaves neck skin, native-collar seam and tie pixels unmodified whi
  assert.deepEqual(sample(b,120,75),skin,'Face stays exactly the same');
 });
 
-test('Thai shoulder-aware v4 fixes newly generated images; historical v3/v2 and English remain compatible',async()=>{
+test('Thai v6 bypasses all native post-mask layers while v3-v5 archived jobs remain readable',async()=>{
  const core={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
  const updated={...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
  const legacy={...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS};
- assert.equal(requiresThaiNativeFrontShield(updated),true);
+ assert.equal(requiresThaiNativeFrontShield(updated),false,'New Thai v6 does not paste any suit or cut hair');
  assert.equal(requiresThaiNativeFrontShield(legacy),false);
  assert.equal(requiresThaiNativeFrontShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION}),true,'Queued v3 uses its original legacy clipping');
- assert.equal(usesThaiShoulderAwareShield(updated),true);
- assert.equal(usesThaiNecklineProtectedShield(updated),true);
+ assert.equal(usesThaiShoulderAwareShield(updated),false);
+ assert.equal(usesThaiNecklineProtectedShield(updated),false);
  assert.equal(usesThaiNecklineProtectedShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION}),false);
+ assert.equal(usesThaiNecklineProtectedShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_OLD_NECK_V5}),true);
  assert.equal(usesThaiShoulderAwareShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION}),false);
  assert.equal(requiresThaiNativeFrontShield({thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,interfaceLanguage:'en'}),false);
  const source=await readFile(root+'production-portrait-pipeline.js','utf8');
@@ -212,8 +222,14 @@ test('Thai Studio outfit thumbnail places PNG and one magic-wand icon explicitly
  assert(studio.includes("onClick={()=>void createThaiOutfitAi(o)}"),'AI generation remains an independent explicit click');
  assert(studio.includes("const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride)"),'English PNG handling stays intact');
  assert(studio.includes("else if(!aiSetup&&!manualSuit)setBodyOutfitRequest"),'Native PNG cannot auto-submit an AI request');
- assert(studio.includes("await selectAsset('suit',option,{aiSetup:true})"),'Explicit AI uses the chosen outfit');
- assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(mode),portraitMode:mode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'AI call is dispatched only from explicit creation');
+ assert(studio.includes("await selectAsset('suit',outfit,{aiSetup:true})"),'Explicit AI uses the chosen outfit at confirmation');
+ assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'AI call is dispatched only from explicit Create');
+ assert(studio.includes("const createThaiOutfitAi=option=>"),'Wand prepares a draft without a provider request');
+ assert(studio.includes("setThaiChoiceFlow(mode==='female'?{origin:'hair',step:'hair'}"),'Thai uses English hairstyle-before-create stage');
+ assert(studio.includes('const confirmThaiOutfitAi=async()=>'),'Thai has an explicit Create confirmation');
+ assert(studio.includes("onCreate={thaiOutfitAiDraft?()=>{void confirmThaiOutfitAi()}:confirmThaiHair}"),'Thai Create calls the staged AI action');
+ assert(studio.includes("Boolean(thaiOutfitAiDraft?.outfit||currentSuit)"),'No prior suit selection is required to use AI');
+ assert(studio.includes("setThaiOutfitAiDraft(null);setThaiPendingHair(null);setThaiChoiceFlow(null)"),'Cancelling PNG selection removes the pending AI draft');
  assert(studio.includes('className="english-outfit-card">{card}<button type="button" className="english-outfit-ai"'),'English outfit card and behavior unchanged');
  assert(css.includes('.thai-outfit-actions .thai-outfit-ai svg'),'Icon has its own size without touching other UI');
  assert(!css.includes('.english-outfit-card'),'Thai styles must not modify English cards');
