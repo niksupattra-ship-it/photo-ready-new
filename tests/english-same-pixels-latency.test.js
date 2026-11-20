@@ -63,7 +63,7 @@ test('Thai processing, image dimensions and original Makeup generation instructi
  const app=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
  assert.match(pipeline,/if\(usesEnglishStudioFinish\(fields\)\|\|isEnglishHeadPortrait\(fields\)\)return processEnglishStudioPortrait/);
- assert.match(pipeline,/const delivered=frontShield\?await shieldThaiNativeUniformFront\(transparent,nativeFrontGeometry,\{legacy:!usesThaiShoulderAwareShield\(fields\)\}\):transparent/);
+ assert.match(pipeline,/const delivered=frontShield\?await shieldThaiNativeUniformFront\(transparent,nativeFrontGeometry,\{legacy:!usesThaiShoulderAwareShield\(fields\),necklineProtected:usesThaiNecklineProtectedShield\(fields\)\}\):transparent/);
   assert.match(pipeline,/await createAiMakeupVariant\(delivered,\{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody\}\)/,'English branch receives identical transparent pixels');
  assert.match(pipeline,/const \[outfit,hair,autoFemaleHairSource,identity\]=await Promise\.all\(\[outfitTask,hairTask,autoHairTask,identityTask\]\)/);
  assert.match(app,/if\(!english\)void Promise\.allSettled/);
