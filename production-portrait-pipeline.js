@@ -449,7 +449,6 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:true,keepCurrentHair,referenceBoard:chosen?.interfaceLanguage==='en'&&!keepCurrentHair});
  if(outfitDetailReference)prompt+=englishOutfitFidelityInstruction(outfitIndex,2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference,makeupStudioReference].filter(Boolean).length);
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
- if(makeupFinish)prompt+='\n'+FINAL_SELECTED_MAKEUP_DELIVERY_AUDIT;
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
