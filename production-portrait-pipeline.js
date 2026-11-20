@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -382,7 +382,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
 // Thai-only postprocessing. The old v3 algorithm is retained for recovery of
 // already submitted jobs; new v4 jobs follow the actual shoulder silhouette
 // rather than erasing *every* pixel below a horizontal y coordinate.
-export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,shoulderTopY,collarTopY,centerX,shoulderSpan}={}, {legacy=false}={}){
+export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,shoulderTopY,collarTopY,centerX,shoulderSpan}={}, {legacy=false,necklineProtected=false}={}){
  if(!Buffer.isBuffer(nativeForeground))throw Error('Thai uniform foreground missing');
  const {data:source,info}=await sharp(portrait).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  if(info.channels!==4||!info.width||!info.height)throw Error('Invalid Thai portrait pixels');
@@ -396,7 +396,45 @@ export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,sh
  const spanX=shoulderSpan*geometryScaleX,spanY=shoulderSpan*geometryScaleY;
  if(![shoulder,collar,centre,spanX,spanY].every(Number.isFinite)||spanX<8||spanY<8)throw Error('Invalid native uniform placement geometry');
  let nativePixels=0;
- if(legacy){
+ if(necklineProtected){
+  // V5: A native garment asset is an authority for jacket sides, NOT for
+  // the skin, shirt collar or knot of the tie. Keep the complete original
+  // AI neckline/collar/chest pixels; feather the boundary smoothly into
+  // native fabric on the left/right. Never use a global horizontal hair cut.
+  const clamp01=n=>Math.max(0,Math.min(1,n));
+  const protectedHalf=spanX*.255;
+  const protectedBottom=collar+spanY*.36;
+  const featherX=Math.max(6,Math.round(spanX*.065));
+  const featherY=Math.max(6,Math.round(spanY*.065));
+  const fadeLength=Math.max(10,Math.round(spanY*.09));
+  const columnTop=new Int32Array(W).fill(H);
+  for(let x=0;x<W;x++)for(let y=shoulder;y<H;y++){
+   if(native[(y*W+x)*4+3]>=128){columnTop[x]=y;break}
+  }
+  for(let y=shoulder;y<H;y++)for(let x=0;x<W;x++){
+   const i=(y*W+x)*4,dx=Math.abs(x-centre),alpha=native[i+3]/255;
+   // Product of both smooth coverages avoids L-shaped cuts; all pixels in
+   // the central collar and neckline stay EXACTLY as the AI generated them.
+   const protectX=clamp01((protectedHalf+featherX-dx)/featherX);
+   const protectY=clamp01((protectedBottom+featherY-y)/featherY);
+   const keepNeck=protectX*protectY;
+   const cover=alpha*(1-keepNeck);
+   if(cover>0){
+    const srcAlpha=image[i+3]/255,outAlpha=cover+srcAlpha*(1-cover);
+    for(let k=0;k<3;k++)image[i+k]=outAlpha>0?Math.round((native[i+k]*cover+image[i+k]*srcAlpha*(1-cover))/outAlpha):0;
+    image[i+3]=Math.round(outAlpha*255);
+    nativePixels++;
+   }else if(keepNeck<1&&alpha===0){
+    // Only side-of-garment strands are gradually faded below their own
+    // shoulder boundary, not cut at the shoulderTopY guide.
+    const edge=columnTop[x]<H?columnTop[x]:Math.max(shoulder+spanY*.14,collar+spanY*.05);
+    if(y>=edge){
+     const fade=clamp01((y-edge)/fadeLength)*(1-keepNeck);
+     image[i+3]=Math.round(image[i+3]*(1-fade));
+    }
+   }
+  }
+ }else if(legacy){
   // Preserve the exact v3 procedure for historical queued/recoverable jobs.
   const safeNeckHalf=spanX*.145,neckBottom=collar+spanY*.27;
   for(let y=shoulder;y<H;y++){
@@ -537,7 +575,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
- const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry,{legacy:!usesThaiShoulderAwareShield(fields)}):transparent;
+ const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry,{legacy:!usesThaiShoulderAwareShield(fields),necklineProtected:usesThaiNecklineProtectedShield(fields)}):transparent;
  if(selectedSingleMakeup&&!singlePass){
   await onStage('makeup');
   return createAiMakeupVariant(delivered,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
