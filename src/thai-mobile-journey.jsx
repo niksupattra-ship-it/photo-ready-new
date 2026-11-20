@@ -75,7 +75,7 @@ export function ThaiMobileJourney({
  const optionImg=t=>outfitChoicePreview(t,t?.preview||t?.src||t?.template);
  return <div className="thai-mobile-flow">
   <header className="thai-mobile-header">
-   <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true">▣</span><span>ID PROM TH</span></div>
+   <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span>ID PROM TH</span></div>
    <div className="thai-mobile-member">{memberMenu}</div>
   </header>
   <main className="thai-mobile-main">
