@@ -13,7 +13,7 @@ export function ThaiMobileJourney({
  templates=[],currentSuit='',onSuit,suitLoading=false,suitPolicy={},suitChoiceLimit=3,
  hairs=[],selectedHair='',onHair,onGenerateHair,onConfirmHair,choicesReady=true,
  faceFinish='natural',onSelectFaceFinish,governmentResult=false,insignia,
- onDownload,onStudio,onUpload,onCancelProcess,memberMenu
+ onDownload,onStudio,onUpload,onSourceFile,onCancelProcess,memberMenu
 }){
  const canvas=useRef(null);
  const [section,setSection]=useState(()=>hasResult?'result':sourcePreview?'upload-review':'choose');
@@ -82,12 +82,12 @@ export function ThaiMobileJourney({
    {!processing&&!hasResult&&section==='upload-review'?<section className="thai-mobile-upload-review" aria-label="ตรวจสอบรูปที่เลือก">
     <div className="thai-mobile-step-overline">ขั้นตอน 2 / 8</div>
     <h1>อัปโหลดรูปของคุณ</h1>
-    <div className="thai-mobile-upload-drop" onClick={onUpload} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')onUpload?.()}}>
+    <div className="thai-mobile-upload-drop" onClick={onUpload} onDragOver={e=>{e.preventDefault()}} onDrop={e=>{e.preventDefault();e.stopPropagation();const file=e.dataTransfer?.files?.[0];if(file&&file.type.startsWith('image/'))onSourceFile?.(file);else setNotice('กรุณาเลือกไฟล์รูปภาพ JPG หรือ PNG')}} role="button" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')onUpload?.()}}>
      <span className="thai-mobile-upload-icon" aria-hidden="true">☁</span>
      <strong>ลากไฟล์มาวาง หรือกดเลือกรูปใหม่</strong>
      <small>รองรับ JPG, PNG และภาพจากมือถือ</small>
     </div>
-    <div className="thai-mobile-upload-preview">{sourcePreview&&<img src={sourcePreview} alt="รูปใบหน้าที่อัปโหลด" />}<button type="button" onClick={onUpload} aria-label="เปลี่ยนรูป">×</button></div>
+    {!!notice&&<p className="thai-mobile-alert" role="alert">{notice}</p>}<div className="thai-mobile-upload-preview">{sourcePreview&&<img src={sourcePreview} alt="รูปใบหน้าที่อัปโหลด" />}<button type="button" onClick={onUpload} aria-label="เปลี่ยนรูป">×</button></div>
     <button type="button" className="thai-mobile-primary" onClick={()=>setSection('choose')}>ถัดไป →</button>
    </section>:processing?<section className="thai-mobile-processing" role="status" aria-live="polite">
     <div className="thai-mobile-processing-wheel" aria-hidden="true"/>
