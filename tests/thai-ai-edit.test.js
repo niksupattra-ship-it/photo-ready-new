@@ -33,22 +33,24 @@ test('historical Thai outfit-AI jobs remain renderable after the pricing rollbac
  assert(!isThaiOutfitPath('/assets/gown-uniforms/../../secret.png'));
 });
 
-test('new Thai Studio jobs use the same full-outfit AI renderer without English locale or English credits',async()=>{
+test('new Thai Studio jobs use the existing full-outfit AI renderer without English locale or credits',async()=>{
  const main=await readFile(root+'src/main.jsx','utf8');
  const studio=await readFile(root+'src/studio-editor.jsx','utf8');
  const server=await readFile(root+'server.js','utf8');
- assert.match(main,/const thaiWholeOutfit=!englishPreviewEnabled\\(\\)&&isThaiOutfitPath\\(template\\)/);
- assert.match(main,/const bodyPortrait=englishPreviewEnabled\\(\\)\\|\\|thaiWholeOutfit/);
- assert.match(main,/if\\(englishPreviewEnabled\\(\\)\\|\\|thaiWholeOutfit\\)\\{/);
- assert.match(main,/else fd\\.append\\('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION\\)/);
- assert.match(main,/if\\(englishPreviewEnabled\\(\\)\\)fd\\.append\\('interfaceLanguage','en'\\)/);
- assert.match(main,/fd\\.append\\('englishOutfitFidelityVersion',ENGLISH_OUTFIT_FIDELITY_VERSION\\)/);
- assert.match(main,/fd\\.append\\('englishStudioFinishVersion',englishTemplateBodyFinishForGender\\(portraitMode\\)\\)/);
- assert.match(main,/fd\\.append\\('neckOutfitReferencePath',neckOutfit\\)/);
- assert.match(main,/editCache\\.current\\.master\\?\\.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION/,'Thai body jobs use English full-portrait hairstyle reprocessing');
- assert.match(studio,/if\\(head\\.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION\\)next=/,'Thai full-outfit result hides its placeholder PNG instead of double-drawing it');
- assert.match(server,/const englishRequest=req\\.body\\?\\.interfaceLanguage==='en'/,'credit check still uses original Thai locale');
- assert.doesNotMatch(main,/else fd\\.append\\('interfaceLanguage','en'\\)/,'Thai requests may not acquire English USD policy');
+ for(const expected of [
+  "const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(template)",
+  "const bodyPortrait=englishPreviewEnabled()||thaiWholeOutfit",
+  "if(englishPreviewEnabled()||thaiWholeOutfit){",
+  "else fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION)",
+  "if(englishPreviewEnabled())fd.append('interfaceLanguage','en')",
+  "fd.append('englishOutfitFidelityVersion',ENGLISH_OUTFIT_FIDELITY_VERSION)",
+  "fd.append('englishStudioFinishVersion',englishTemplateBodyFinishForGender(portraitMode))",
+  "fd.append('neckOutfitReferencePath',neckOutfit)",
+  "editCache.current.master?.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION"
+ ])assert(main.includes(expected),'Missing Thai-only AI path: '+expected);
+ assert(studio.includes('if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next='),'A full-outfit output hides the placeholder suit');
+ assert(server.includes("const englishRequest=req.body?.interfaceLanguage==='en'"),'English credit policy remains language-specific');
+ assert(!main.includes("else fd.append('interfaceLanguage','en')"),'Thai must not enter English credit rules');
  for(const path of ['/assets/job-uniforms/female-job-white.png','/assets/student-uniforms/female-01.png','/assets/government-uniforms/female-operational.png','/assets/gown-uniforms/female-01.png'])assert(isThaiOutfitPath(path),path);
 });
 
