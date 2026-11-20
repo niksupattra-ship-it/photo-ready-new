@@ -69,7 +69,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
  const showMessage=payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(p=>payMsg.startsWith(p));
  const choose=price=>{setSelected(price);if(price==='159'&&usePremium)onUseCredit({premium:true});else startCheckout(price)};
  return <div className="idprom-ready-offer paired-offers">
-  <header className="offer-step"><span aria-hidden="true">2</span><h2>รับรูปไม่มีลายน้ำ</h2></header>
+  <header className="offer-step"><span aria-hidden="true">6</span><h2>เลือกรูปแบบรับภาพ</h2></header>
   <div className="offer-choice-layout">
    <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
@@ -79,6 +79,10 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
      {offer.price==='89'&&<button type="button" className="single-photo-back" disabled={disabled} onClick={()=>onBackToPhoto?.('89')}>← ย้อนกลับไปแก้ไขรูปนี้</button>}
     </section>)}
    </div>
+  </div>
+  <div className="idprom-thai-package-cta">
+   <p><span aria-hidden="true">✓</span> ไฟล์ความละเอียดสูง · ไม่มีลายน้ำ · PNG / PDF</p>
+   <button type="button" className="idprom-thai-checkout-next" disabled={disabled} onClick={()=>choose(selected)}>{payBusy?'กำลังเตรียม…':`ดำเนินการต่อ · ฿${selected}`}</button>
   </div>
   <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาปรับแต่งรูปให้พร้อมดาวน์โหลดก่อนชำระเงิน</span>}</div>
   {isAuthenticated&&credits>0&&<div className="ready-credit"><span>สิทธิ์คงเหลือ {credits} งาน</span><button type="button" disabled={disabled} onClick={()=>onUseCredit({premium:usePremium})}>ใช้ 1 สิทธิ์{usePremium?'โปร 159':''}รับรูปนี้</button></div>}
