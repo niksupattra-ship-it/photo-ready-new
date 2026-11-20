@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,requiresThaiNativeFrontShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -379,12 +379,10 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  }
  return transparent;
 }
-// Thai-only post-generation guarantee: replace the FRONT of the generated
-// uniform with the exact PNG used by the AI layout, and remove all hair-shaped
-// foreground protrusions outside that uniform below its shoulder line.
-// Above the shoulder line (face, original hairstyle, ears, skin), NO pixels
-// are edited. This is deterministic and makes NO additional AI/provider calls.
-export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,shoulderTopY,collarTopY,centerX,shoulderSpan}={}){
+// Thai-only postprocessing. The old v3 algorithm is retained for recovery of
+// already submitted jobs; new v4 jobs follow the actual shoulder silhouette
+// rather than erasing *every* pixel below a horizontal y coordinate.
+export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,shoulderTopY,collarTopY,centerX,shoulderSpan}={}, {legacy=false}={}){
  if(!Buffer.isBuffer(nativeForeground))throw Error('Thai uniform foreground missing');
  const {data:source,info}=await sharp(portrait).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  if(info.channels!==4||!info.width||!info.height)throw Error('Invalid Thai portrait pixels');
@@ -397,22 +395,56 @@ export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,sh
  const collar=collarTopY*geometryScaleY,centre=centerX*geometryScaleX;
  const spanX=shoulderSpan*geometryScaleX,spanY=shoulderSpan*geometryScaleY;
  if(![shoulder,collar,centre,spanX,spanY].every(Number.isFinite)||spanX<8||spanY<8)throw Error('Invalid native uniform placement geometry');
- const safeNeckHalf=spanX*.145,neckBottom=collar+spanY*.27;
- let nativePixels=0,cleared=0;
- for(let y=shoulder;y<H;y++){
-  const neckOpening=y<=neckBottom;
-  for(let x=0;x<W;x++){
+ let nativePixels=0;
+ if(legacy){
+  // Preserve the exact v3 procedure for historical queued/recoverable jobs.
+  const safeNeckHalf=spanX*.145,neckBottom=collar+spanY*.27;
+  for(let y=shoulder;y<H;y++){
+   const neckOpening=y<=neckBottom;
+   for(let x=0;x<W;x++){
+    const i=(y*W+x)*4,alpha=native[i+3];
+    if(alpha){
+     image[i]=native[i];image[i+1]=native[i+1];image[i+2]=native[i+2];image[i+3]=alpha;
+     nativePixels++;
+    }else if(!(neckOpening&&Math.abs(x-centre)<=safeNeckHalf))image[i+3]=0;
+   }
+  }
+ }else{
+  // Detect each column's OWN first opaque garment pixel: epaulettes and lapels
+  // have sloping boundaries. Never decapitate a long hairstyle at one global y.
+  const columnTop=new Int32Array(W).fill(H);
+  for(let x=0;x<W;x++)for(let y=shoulder;y<H;y++){
+   if(native[(y*W+x)*4+3]>=128){columnTop[x]=y;break}
+  }
+  const neckHalf=spanX*.20;
+  const neckBottom=collar+spanY*.16;
+  const seamFeather=Math.max(4,Math.round(spanY*.035));
+  const outerFade=Math.max(8,Math.round(spanY*.07));
+  for(let y=shoulder;y<H;y++)for(let x=0;x<W;x++){
    const i=(y*W+x)*4,alpha=native[i+3];
-   if(alpha){
-    // Use the unchanged asset pixels, including its native transparent
-    // antialiasing. Any generated black hair in front disappears here.
-    image[i]=native[i];image[i+1]=native[i+1];image[i+2]=native[i+2];image[i+3]=alpha;
+   const dx=Math.abs(x-centre);
+   // Keep the AI's natural neck, under-chin skin and collar opening. The
+   // template may contain a cyan/blue cutout guide along that edge, which must
+   // NEVER be pasted onto skin. Feather the protection boundary, not the face.
+   const insideX=(neckHalf-dx)/seamFeather;
+   const insideY=(neckBottom-y)/seamFeather;
+   const neckProtection=Math.max(0,Math.min(1,Math.min(insideX,insideY)));
+   const cover=alpha/255*(1-neckProtection);
+   if(cover>0){
+    const srcAlpha=image[i+3]/255,outAlpha=cover+srcAlpha*(1-cover);
+    for(let k=0;k<3;k++)image[i+k]=outAlpha>0?Math.round((native[i+k]*cover+image[i+k]*srcAlpha*(1-cover))/outAlpha):0;
+    image[i+3]=Math.round(outAlpha*255);
     nativePixels++;
-   }else if(!(neckOpening&&Math.abs(x-centre)<=safeNeckHalf)){
-    // Long hair beyond the *outer* garment silhouette is not the back of
-    // the outfit; drop it rather than showing dangling front-side locks.
-    if(image[i+3])cleared++;
-    image[i+3]=0;
+   }else if(neckProtection<1){
+    const top=columnTop[x];
+    // Outside the garment, taper stray hair gradually once the local
+    // shoulder edge has arrived. In columns with actual garment, preserve
+    // hair UNTIL that shoulder edge instead of chopping it off earlier.
+    const outside=top<H?top:Math.max(shoulder+spanY*.14,collar+spanY*.05);
+    if(y>=outside){
+     const fade=Math.max(0,Math.min(1,(y-outside)/outerFade));
+     image[i+3]=Math.round(image[i+3]*(1-fade*(1-neckProtection)));
+    }
    }
   }
  }
@@ -505,7 +537,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
- const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry):transparent;
+ const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry,{legacy:!usesThaiShoulderAwareShield(fields)}):transparent;
  if(selectedSingleMakeup&&!singlePass){
   await onStage('makeup');
   return createAiMakeupVariant(delivered,{key,requestPortrait,preserveOutfit:!headOnly,englishReferenceFinish:!headOnly&&!templateBody,englishHeadFinish:headOnly,englishTemplateFinish:templateBody});
