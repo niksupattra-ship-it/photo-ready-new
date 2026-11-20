@@ -394,10 +394,26 @@ function warmPortraitResources(sourceBlob,templatePath,{requiresSegmentation=tru
  // A deployment or intermittent CDN load may interrupt the first model fetch.
  // Retry initialization once before any paid AI job is submitted: no duplicate
  // generation and no credits reserved during this preflight.
- const initialize=()=>Promise.all([getLandmarker(),...(requiresSegmentation?[getPersonSegmenter()]:[])]);
+ // Mobile WebAssembly can run out of resources when face and segmentation
+ // models initialize at once. Load the required face model first; only then
+ // prepare segmentation when that particular output actually needs it.
+ // This is still a hard pre-submit gate: failed checks never use an AI credit.
+ const initialize=async()=>{
+  const face=await getLandmarker();
+  if(requiresSegmentation)await getPersonSegmenter();
+  return face;
+ };
  return initialize().catch(async firstError=>{
+  // Give a rejected import/model promise time to reset before its one retry.
+  // Rapidly repeating the same failing initialization does not recover a
+  // temporary Android fetch/WASM or resource-pressure error.
+  await new Promise(resolve=>setTimeout(resolve,500));
   try{return await initialize()}catch(cause){
-   throw Object.assign(Error('เตรียมระบบตรวจใบหน้าไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองอีกครั้ง'),{
+   console.warn('portrait_preflight_unavailable',{
+    first:String(firstError?.code||firstError?.name||'load_error').slice(0,60),
+    last:String(cause?.code||cause?.name||'load_error').slice(0,60)
+   });
+   throw Object.assign(Error('เตรียมเครื่องมือตรวจใบหน้าไม่สำเร็จ กรุณาลองอีกครั้ง'),{
     code:'PORTRAIT_MODEL_UNAVAILABLE',stage:'prepare_model',cause,initialCause:firstError
    });
   }
