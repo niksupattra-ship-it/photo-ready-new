@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
-import {THAI_OUTFIT_AI_VERSION,isThaiOutfitPath} from '../thai-outfit-ai-policy.js';
+import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,isThaiOutfitPath,thaiOutfitAppearanceInstruction} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -41,7 +41,8 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
   "const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(template)",
   "const bodyPortrait=englishPreviewEnabled()||thaiWholeOutfit",
   "if(englishPreviewEnabled()||thaiWholeOutfit){",
-  "else fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION)",
+  "fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION)",
+  "fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)",
   "if(englishPreviewEnabled())fd.append('interfaceLanguage','en')",
   "fd.append('englishOutfitFidelityVersion',ENGLISH_OUTFIT_FIDELITY_VERSION)",
   "fd.append('englishStudioFinishVersion',englishTemplateBodyFinishForGender(portraitMode))",
@@ -52,6 +53,34 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
  assert(server.includes("const englishRequest=req.body?.interfaceLanguage==='en'"),'English credit policy remains language-specific');
  assert(!main.includes("else fd.append('interfaceLanguage','en')"),'Thai must not enter English credit rules');
  for(const path of ['/assets/job-uniforms/female-job-white.png','/assets/student-uniforms/female-01.png','/assets/government-uniforms/female-operational.png','/assets/gown-uniforms/female-01.png'])assert(isThaiOutfitPath(path),path);
+});
+
+test('new Thai light-colour garment and rear-hair priorities apply only to Thai full-outfit images',async()=>{
+ const template='/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png';
+ const core={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',neckOutfitReferencePath:template,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
+ const thai={...core,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
+ const english={...core,interfaceLanguage:'en'};
+ assert.doesNotThrow(()=>validateProductionPortrait(input,thai));
+ assert.throws(()=>validateProductionPortrait(input,{...thai,thaiOutfitAppearanceVersion:'unknown'}));
+ assert.throws(()=>validateProductionPortrait(input,{...english,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION}));
+ assert.match(thaiOutfitAppearanceInstruction({outfitIndex:3,detailIndex:5}),/BEHIND the corresponding ears, neck and SHOULDERS/);
+ const prompts=[];
+ for(const fields of [thai,english]){
+  const calls=[];
+  const out=await processProductionPortrait({input,fields,root,key:'test',removeBackground:async()=>result,requestPortrait:async request=>{calls.push(request);return {png:result}}});
+  assert.equal(calls.length,1,'No second AI call for colour or hair positioning');
+  assert(out.length);
+  prompts.push(calls[0].prompt);
+ }
+ assert.match(prompts[0],/THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/);
+ assert.match(prompts[0],/MUST NOT be painted in front of any outfit fabric/);
+ assert.match(prompts[0],/Do NOT turn a light pastel-pink tweed into dusty rose/);
+ assert.match(prompts[0],/FINAL SELECTED OUTFIT COLOUR AND DETAIL AUTHORITY/);
+ assert.doesNotMatch(prompts[1],/THAI FULL-OUTFIT FINAL REFERENCE PRIORITY/,'English prompt is unchanged');
+ assert.equal(thai.interfaceLanguage,'th','Internal rendering must not mutate the Thai credit locale');
+ const main=await readFile(root+'src/main.jsx','utf8');
+ assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'),'Thai-only new cache and recovery version');
+ assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"),'Frontend sends the Thai-only version');
 });
 
 test('new checkout restores original prices and sold AI10 receipt terms remain frozen',()=>{
