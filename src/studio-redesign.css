@@ -2192,3 +2192,38 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
  .idstudio.studio-redesign .studio-processing-card.studio-wait-card{padding:25px 20px}
  .idstudio.studio-redesign .studio-wait-card .idprom-process-indicator{width:94px;height:94px}
 }
+
+
+/* Thai Studio only: the outfit preview and its TWO explicit actions are
+   separate controls. The English outfit cards and their layout are untouched. */
+.idstudio .studio-picker-drawer .studio-catalog-grid > .thai-outfit-card{
+ display:flex;flex:0 0 118px;flex-direction:column;gap:5px;
+ min-width:0;scroll-snap-align:start;
+}
+.idstudio .studio-picker-drawer .studio-catalog-grid .thai-outfit-card > button:first-child{
+ display:block;flex:none;width:100%;height:auto;min-height:0;
+ padding:4px;border-radius:9px;overflow:hidden;
+}
+.idstudio .studio-picker-drawer .studio-catalog-grid .thai-outfit-card > button:first-child > span{
+ display:flex;width:100%;height:94px;align-items:center;justify-content:center;
+ overflow:hidden;border-radius:7px;
+}
+.idstudio .studio-picker-drawer .thai-outfit-actions{
+ display:flex;flex-direction:column;gap:4px;
+}
+.idstudio .studio-picker-drawer .thai-outfit-actions button{
+ display:block;width:100%;min-height:29px;margin:0;padding:5px 3px;
+ border:1px solid #d5c8ee;border-radius:7px;
+ background:#f7f3ff;color:#38245b;
+ font-size:11px;font-weight:650;line-height:1.25;
+}
+.idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai{
+ background:#7543ed;color:#fff;border-color:#7543ed;
+}
+.idstudio .studio-picker-drawer .thai-outfit-actions button:disabled{opacity:.5;cursor:not-allowed}
+.idstudio .studio-picker-drawer .thai-outfit-actions button:focus-visible{outline:2px solid #7543ed;outline-offset:2px}
+@media(max-width:640px){
+ .idstudio .studio-picker-drawer .studio-catalog-grid > .thai-outfit-card{flex-basis:106px}
+ .idstudio .studio-picker-drawer .studio-catalog-grid .thai-outfit-card > button:first-child > span{height:70px}
+ .idstudio .studio-picker-drawer .thai-outfit-actions button{min-height:30px;font-size:10px}
+}
