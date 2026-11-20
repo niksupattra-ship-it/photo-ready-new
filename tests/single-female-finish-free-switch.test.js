@@ -191,10 +191,11 @@ test('female Makeup is selected automatically in Thai and English without finish
  assert.match(english,/onCreate\(\{outfit,hair:allowHairChoice\?hair:''/);
  assert.match(makeup,/canSelectPortraitFinish&&typeof onPortraitFinishSelect/,'Legacy UI stays gated so saved jobs remain compatible');
 });
-test('Easy Mode keeps photo-type, hair, outfit and background steps without a Makeup choice',async()=>{
+test('Thai Easy Mode has short type, outfit, hair steps with a deliberate makeup choice',async()=>{
  const easy=await readFile(new URL('../src/easy-mode.jsx',import.meta.url),'utf8');
  const studio=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
- assert.match(easy,/englishPreviewEnabled\(\)\?\['type','suit','background'\]:thaiHairConfirmation\?\['type','hair','suit','background'\]/);
+ assert.match(easy,/englishPreviewEnabled\(\)\?\['type','suit','background'\]:thaiHairConfirmation\?\['type','suit','hair'\]/);
+ assert.match(easy,/idprom-thai-finish-choice/,'Natural/Makeup is selectable before submitting Thai AI');
  assert.match(easy,/guidedSource\.current=sourcePreview;setTab\('type'\);setWizard\(true\)/);
  assert.match(easy,/const typeReady=Boolean\(photoTypeSelected\)/);
  assert.match(easy,/const wizardNextAllowed=ready&&!busy&&\(tab==='type'\?typeReady:tab==='hair'\?hairReady:tab==='suit'\?suitReady:true\)/);
@@ -257,7 +258,7 @@ test('server alternate generation cannot take user-supplied new photos, wardrobe
  assert.match(main,/requestFreeFemaleAlternate\(options\.sourceJobId/);
  assert.match(studio,/const confirmThaiHair=/,'Thai must offer a separate create button');
  assert.match(studio,/finishChangePending=\{easyFinishPending\}/,'Thai finish is drafted for the next confirmed generation');
- assert.match(easy,/\['type','hair','suit','background'\]/,'Hair is chosen before submitting AI');
+ assert.match(easy,/\['type','suit','hair'\]/,'Hair is chosen before submitting AI, after outfit');
  assert.match(studio,/onCreate=\{thaiOutfitAiDraft\?\(\)=>\{void confirmThaiOutfitAi\(\)\}:confirmThaiHair\}/,'Thai Full Studio uses the same on-image Create button for both workflows');
  assert.match(studio,/createLabel=\{thaiOutfitAiDraft\?'สร้างชุดด้วย AI':'สร้างภาพ'\} cancelLabel="ยกเลิก"/,'Thai on-photo actions have localized Create and Cancel');
  assert.doesNotMatch(studio,/studio-hair-confirm-button/,'Thai Full Studio must not use the old below-picker confirmation');
