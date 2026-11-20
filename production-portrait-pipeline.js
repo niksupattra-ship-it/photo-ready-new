@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -569,6 +569,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // Thai-only final priority: make the selected native garment colour the authority
  // and move genuine long hair behind the shoulders, never across the jacket.
  if(usesThaiHistoricOutfitPrompt(fields))prompt+=thaiOutfitAppearanceInstruction({outfitIndex,detailIndex:outfitDetailIndex});
+ if(usesThaiEnglishParityOutfit(fields))prompt+=thaiEnglishParityRearHairInstruction();
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
