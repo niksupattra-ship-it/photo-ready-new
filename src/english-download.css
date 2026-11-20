@@ -74,3 +74,7 @@
  html[lang=th] .en-download .en-download-formats button[aria-pressed=true]{background:#7440cb;color:white;border-color:#7440cb}
  html[lang=th] .en-download .en-download-primary{background:linear-gradient(110deg,#a151eb,#6a31bf);color:white;border:0;font-weight:800;font-size:15px;border-radius:11px}
 }
+
+/* Step 08: offer a new job only after the purchased image was archived. */
+.en-download .idprom-download-new-photo{display:block;width:100%;min-height:43px;margin-top:9px;border:1.5px solid #9877d5;background:#fff;color:#6539a6;border-radius:11px;font:inherit;font-size:14px;font-weight:750;cursor:pointer}
+.en-download .idprom-download-new-photo:disabled{opacity:.55;cursor:default}
