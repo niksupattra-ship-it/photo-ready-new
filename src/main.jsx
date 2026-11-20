@@ -8,6 +8,7 @@ import {englishHairFitEvidence} from './english-hair-fit.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
 import {englishHeadCutoutAlpha,englishNeckClipAlpha} from './english-head-cutout.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
+import {THAI_OUTFIT_AI_VERSION,isThaiOutfitPath} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_AUTO_HAIR_VERSION} from '../english-auto-hair.js';
 import {THAI_NECK_BACKING_VERSION} from '../thai-neck-backing-policy.js';
 import {rememberDownloadChoice} from './download-choice.js';
@@ -2891,7 +2892,8 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const assertCurrentOperation=()=>{assertProcessActive(operation);if(activeProcessOperation!==operation)throw cancelledProcessError()};
  const template=options.templatePath||options.jobContext?.uniformTemplate||'';
  const gender=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
- options={...options,portraitMode:gender,requiresSegmentation:!englishPreviewEnabled(),femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
+ const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(template);
+ options={...options,portraitMode:gender,requiresSegmentation:!(englishPreviewEnabled()||thaiWholeOutfit),femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
  const requestedFinish=options.femaleEyeStyle;
  // New jobs produce the selected finish, not an automatic Natural+Makeup pair.
  // Every new generation starts from the upload; never inherit a generated finish.
@@ -2900,14 +2902,14 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(englishPreviewEnabled()&&gender==='female'&&template===ENGLISH_CIVIL_SERVICE_TEMPLATE?[ENGLISH_CIVIL_SERVICE_FABRIC_VERSION]:[]),gender==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',...(gender==='female'&&options.femaleEyeStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),englishPreviewEnabled()?ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender)+':'+(gender==='female'&&(!hairId||hairId==='original')&&!options.keepCurrentHair?ENGLISH_AUTO_HAIR_VERSION:'en-western-business-auto-hair-v1'):gender==='female'?'head-only:'+THAI_NECK_BACKING_VERSION:'head-only',gender==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',options.keepCurrentHair?'keep-current-hair:'+String(options.preserveHairJobId||'input'):'catalogue-hair',AI_MAKEUP_PAIR_VERSION,...(englishPreviewEnabled()?[ENGLISH_MAKEUP_LIGHT_LOCK_VERSION]:[]),makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,template,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
+ const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(englishPreviewEnabled()&&gender==='female'&&template===ENGLISH_CIVIL_SERVICE_TEMPLATE?[ENGLISH_CIVIL_SERVICE_FABRIC_VERSION]:[]),gender==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',...(gender==='female'&&options.femaleEyeStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),englishPreviewEnabled()?ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender)+':'+(gender==='female'&&(!hairId||hairId==='original')&&!options.keepCurrentHair?ENGLISH_AUTO_HAIR_VERSION:'en-western-business-auto-hair-v1'):thaiWholeOutfit?THAI_OUTFIT_AI_VERSION+':'+ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender):gender==='female'?'head-only:'+THAI_NECK_BACKING_VERSION:'head-only',gender==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',options.keepCurrentHair?'keep-current-hair:'+String(options.preserveHairJobId||'input'):'catalogue-hair',AI_MAKEUP_PAIR_VERSION,...(englishPreviewEnabled()?[ENGLISH_MAKEUP_LIGHT_LOCK_VERSION]:[]),makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,template,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
  if(options.creditKind==='hairstyle'&&gender!=='female')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
   assertCurrentOperation();
   let result=await aiFinishPortraitUncached(originalFile,hairId,options,neckline);
   assertCurrentOperation();
-  const bodyPortrait=englishPreviewEnabled();
+  const bodyPortrait=englishPreviewEnabled()||thaiWholeOutfit;
   if(bodyPortrait){if(result.idpromPortraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){result=await cleanEnglishHeadPair(result);result.idpromEnglishFramingVersion=ENGLISH_HEAD_PLACEMENT_VERSION}else{result.idpromPortraitComposition=ENGLISH_BODY_PORTRAIT_VERSION;result.idpromEnglishFramingVersion=isEnglishTemplateBodyFinish(result.idpromEnglishStudioFinishVersion)?ENGLISH_TEMPLATE_BODY_FRAMING_VERSION:ENGLISH_BODY_FRAMING_VERSION}assertCurrentOperation();}
   assertCurrentOperation();
   const cleaned=bodyPortrait?result:await cleanPortraitClothing(result);
@@ -3093,7 +3095,8 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  }
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
- const submissionKey=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,options.portraitMode==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':'th']);
+ const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(options.templatePath||options.jobContext?.uniformTemplate||'');
+ const submissionKey=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,options.portraitMode==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':thaiWholeOutfit?THAI_OUTFIT_AI_VERSION:'th']);
  const sourceDigest=await resultSourceDigest(originalFile);
  const ownerScope=walletScope(authToken(),currentWalletId());
  const priorJob=readActiveAiJob();
@@ -3119,7 +3122,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  const submissionId=pendingPortraitSubmission?.source===originalFile&&pendingPortraitSubmission.key===submissionKey&&/^[a-f0-9]{32}$/.test(pendingPortraitSubmission.id)
   ?pendingPortraitSubmission.id:crypto.randomUUID().replaceAll('-','');
  pendingPortraitSubmission={source:originalFile,key:submissionKey,id:submissionId};
- if(!alreadyOwned)await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()});
+ if(!alreadyOwned)await warmPortraitResources(originalFile,options.templatePath||options.jobContext?.uniformTemplate,{requiresSegmentation:options.requiresSegmentation,english:englishPreviewEnabled()||thaiWholeOutfit});
  assertProcessActive(operation);
  const selected=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId);
  const portraitMode=selected?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female',originalAi=portraitMode==='female';
@@ -3139,10 +3142,13 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  fd.append('femaleEyeStyle',portraitFinishChoice(options.femaleEyeStyle));
  const neckOutfit=options.templatePath||options.jobContext?.uniformTemplate;
  if(neckOutfit)fd.append('neckOutfitReferencePath',neckOutfit);
- if(englishPreviewEnabled()){
+ if(englishPreviewEnabled()||thaiWholeOutfit){
   fd.append('englishOutfitFidelityVersion',ENGLISH_OUTFIT_FIDELITY_VERSION);
   if(portraitMode==='female'&&neckOutfit===ENGLISH_CIVIL_SERVICE_TEMPLATE)fd.append('englishCivilServiceFabricVersion',ENGLISH_CIVIL_SERVICE_FABRIC_VERSION);
-  fd.append('interfaceLanguage','en');fd.append('portraitComposition',ENGLISH_BODY_PORTRAIT_VERSION);fd.append('englishStudioFinishVersion',englishTemplateBodyFinishForGender(portraitMode));
+  // Rendering is shared, but the server still authorizes a Thai request as Thai.
+  if(englishPreviewEnabled())fd.append('interfaceLanguage','en');
+  else fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION);
+  fd.append('portraitComposition',ENGLISH_BODY_PORTRAIT_VERSION);fd.append('englishStudioFinishVersion',englishTemplateBodyFinishForGender(portraitMode));
   if(options.keepCurrentHair){fd.append('keepCurrentHair','1');if(options.preserveHairJobId)fd.append('preserveHairJobId',options.preserveHairJobId);}
   else if(selected){const fit=await measureEnglishHairPlacement(aiInput);assertProcessActive(operation);if(fit)fd.append('englishHairFit',JSON.stringify(fit));}
  }
@@ -3156,7 +3162,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  else if(!originalAi&&((originalFile.idpromStudioSourceReplacement===true&&selected)||(portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)))){
   fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput,{protectFeatures:portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)})));assertProcessActive(operation);
  }
- if(originalAi&&!englishPreviewEnabled())fd.append('thaiNeckBackingVersion',THAI_NECK_BACKING_VERSION);
+ if(originalAi&&!englishPreviewEnabled()&&!thaiWholeOutfit)fd.append('thaiNeckBackingVersion',THAI_NECK_BACKING_VERSION);
  if(originalAi){fd.append('studioSkinVersion',ORIGINAL_PORTRAIT_AI_VERSION);if(portraitFinishChoice(options.femaleEyeStyle)==='natural')fd.append('naturalFinishVersion',NATURAL_STUDIO_SKIN_VERSION);}
  fd.append('portraitMode',portraitMode);
  if(neckline)fd.append('necklineProfile',JSON.stringify(neckline));
@@ -3212,7 +3218,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  if(typeof info.trialPreview==='boolean')result.idpromTrial=info.trialPreview;
  // A resumed, already-paid job keeps the version returned by its own server record.
  // Never relabel the pixels of an older completed female v9 portrait as v1.
- if(englishPreviewEnabled()&&!result.idpromEnglishStudioFinishVersion)result.idpromEnglishStudioFinishVersion=englishTemplateBodyFinishForGender(portraitMode);if(selected)result.idpromHairReferenceVersion=HAIR_REFERENCE_VERSION;if((PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female')==='female'&&(!hasOriginalPortraitAiFinish(result,portraitFinishChoice(options.femaleEyeStyle))||(portraitFinishChoice(options.femaleEyeStyle)==='natural'&&result.idpromNaturalStudioSkinVersion!==NATURAL_STUDIO_SKIN_VERSION)))throw Error('ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');return result;
+ if((englishPreviewEnabled()||thaiWholeOutfit)&&!result.idpromEnglishStudioFinishVersion)result.idpromEnglishStudioFinishVersion=englishTemplateBodyFinishForGender(portraitMode);if(selected)result.idpromHairReferenceVersion=HAIR_REFERENCE_VERSION;if((PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||'female')==='female'&&(!hasOriginalPortraitAiFinish(result,portraitFinishChoice(options.femaleEyeStyle))||(portraitFinishChoice(options.femaleEyeStyle)==='natural'&&result.idpromNaturalStudioSkinVersion!==NATURAL_STUDIO_SKIN_VERSION)))throw Error('ระบบปรับผิวกำลังอัปเดต กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');return result;
 }
 
 // V206: provider edit masks are not a pixel-identity guarantee. Restore the
