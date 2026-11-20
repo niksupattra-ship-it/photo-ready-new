@@ -152,7 +152,7 @@ export async function settleAiJobDelivery(id,walletId,action){
     }
    }
    else if(trial)await c.query('DELETE FROM trial_previews WHERE id=$1',[j.usage_id]);
-   else if(u.kind==='english-daily-ai-outfit'){
+   else if(['english-daily-ai-outfit','thai-daily-outfit-ai'].includes(u.kind)){
     // Daily free slots have no paid balance to restore. Match refundCredit:
     // release this reservation without minting a legacy generation credit.
     await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[j.usage_id]);
