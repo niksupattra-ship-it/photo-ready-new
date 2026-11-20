@@ -364,7 +364,12 @@ export async function refundCredit(usageId){
   await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[owner.rows[0].wallet_id]);
   const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output,usd_premium_cycle FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);
   if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}
-  if(['english-daily-ai-outfit','thai-daily-ai-edit','thai-daily-outfit-ai'].includes(u.rows[0].kind)){
+  if(u.rows[0].kind==='thai-daily-outfit-ai'){
+    // Thai outfit slots are isolated from ordinary portrait and hair credits.
+    await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
+    await c.query('COMMIT');return true;
+   }
+   if(['english-daily-ai-outfit','thai-daily-ai-edit'].includes(u.rows[0].kind)){
    // A failed free AI request releases its slot without adding any paid credit.
    await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
    await c.query('COMMIT');return true;
