@@ -324,3 +324,27 @@ test('ordinary Thai generation is not subject to the removed two-per-day quota o
  const req={body:{hairId:'seedream-14',interfaceLanguage:'th'},get:()=>''},res={status(){throw Error('Thai basic request rejected')}};
  for(let i=0;i<8;i++){const out=await run(req,res,i%2?'hairstyle':'ai-finish');assert(out.usageId.startsWith('free_'));assert.equal(out.trialPreview,true);assert.equal(out.generationRemaining,0)}
 });
+
+
+test('Thai native suit placement never distorts the catalog garment, including replacing the same suit',async()=>{
+ const preview=await readFile(root+'src/studio-suit-preview.js','utf8');
+ const begin=preview.indexOf('export function nativeSuitAspectFrame(');
+ const end=preview.indexOf('export function createSuitDisplayPreview(',begin);
+ assert(begin>=0&&end>begin,'Native aspect helper exists');
+ const compute=Function(preview.slice(begin,end).replace('export function','function')+';return nativeSuitAspectFrame')();
+ for(const [w,h] of [[300,720],[1000,720],[720,1340],[900,1200]]){
+  const from={x:-10,y:300,w:900,h:1200};
+  const result=compute(from,{width:w,height:h});
+  assert.equal(result.w,900,'Garment does not shrink or enlarge in width');
+  assert.equal(result.h,result.w*h/w,'Garment height follows its own pixels, not the previous suit');
+  assert.equal(result.x,from.x);assert.equal(result.y,from.y);
+ }
+ const studio=await readFile(root+'src/studio-editor.jsx','utf8');
+ assert(studio.includes('nativeSuitAspectFrame(frame,quick.source)'),'Preview selection uses new PNG ratio');
+ assert(studio.includes('nativeSuitAspectFrame(l.sourceFrame,high.source)'),'Native upgrade uses original PNG ratio');
+ assert(studio.includes("kind==='suit'&&!englishFlow?nativeSuitAspectFrame("),'Fallback selection uses original ratio');
+ assert(studio.includes("...(manualSuit&&!englishFlow)")===false,'No independent suit scale override');
+ assert(studio.includes("!singleCollarSide&&(englishFlow||layerKind(current)!=='suit')"),'Thai suit has no side squeeze handles');
+ assert(studio.includes("!englishFlow&&layerKind(base)==='suit'&&('squeezeX' in patch||'squeezeY' in patch)"),'Thai suit cannot be squeezed by sliders');
+ assert(studio.includes("&&!(manualSuit&&!englishFlow)"),'Re-selecting the same Thai suit repairs its stale frame');
+});
