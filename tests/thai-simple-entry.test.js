@@ -23,7 +23,8 @@ test('Thai finished photo offers hair, suit, government badges, and original pai
  assert(easy.includes("onClick={()=>openTab('suit')}"));
  assert(easy.includes("governmentResult&&<button type=\"button\""));
  assert(easy.includes("setAdjustOpen(englishPreviewEnabled())"),'Thai mobile must not pop open sliders after AI');
- assert(studio.includes("onDownload={()=>exportImage('image/png')}"),'Reuse existing checkout rights and download');
+ assert(studio.includes("onDownload={receiveSimplePhoto}"),'Approved Thai receive button checks purchase rights first');
+ assert(studio.includes("const authorized=await allowOutput(")&&studio.includes("if(authorized)void exportImage('image/png')"),'Paid users still get the original protected file export');
  assert(studio.includes("governmentAutoPlace:true"),'Existing insignia overlay remains linked');
 });
 
@@ -87,4 +88,15 @@ test('approved mockup is responsive on desktop and mobile, and upload gets a rev
  assert(css.includes('@media(max-width:720px)'),'Mobile selection stacks without an unreadable desktop layout');
  assert(home.includes('idprom-simple-hero')&&home.includes('รับไฟล์ทันทีหลังชำระเงินสำเร็จ'));
  assert(homeCss.includes('.idprom-simple-hero{display:grid'),'Desktop opening page is first-class, not old Studio');
+});
+
+test('receive photo opens the real package screen before file sizing for unpaid outputs',async()=>{
+ const studio=await read('src/studio-editor.jsx');
+ const main=await read('src/main.jsx');
+ assert(studio.includes('const receiveSimplePhoto=async()=>'));
+ assert(studio.includes('const authorized=await allowOutput('));
+ assert(studio.includes("onCheckoutPreview({jobId:heads[0].jobId"),'Checkout preview matches the visible finished photo');
+ assert(studio.includes('if(authorized)void exportImage('),'Already purchased output still downloads normally');
+ assert(main.includes('const requestDownloadUnlock='),'Unpaid rights invoke real package checkout');
+ assert(main.includes('setBuyOpen(true)'),'The real payment modal opens');
 });
