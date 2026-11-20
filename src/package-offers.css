@@ -183,4 +183,37 @@
  .package-choice-modal:has(.paired-offers) .offer-usage-terms,.package-choice-modal:has(.paired-offers) .offer-payment-method{margin-top:8px}
 }
 
-@media(min-width:641px){.idprom-thai-package-cta{display:none}}
+
+
+/* Thai screen 06: same two choices and ONE real checkout action on every device. */
+.paired-offers .offer-pair{display:grid;grid-template-columns:1fr;gap:12px}
+.paired-offers .offer-card{border:1.5px solid #d9d0e6;border-radius:13px;background:#fff;padding:17px;position:relative}
+.paired-offers .offer-card.selected{border:2px solid #793bd2;background:linear-gradient(100deg,#f5efff,#fff);box-shadow:0 2px 11px #6332ac14}
+.paired-offers .offer-card .ready-pay{display:none!important}
+.paired-offers .offer-choice-label{display:flex;align-items:center;gap:12px;cursor:pointer}
+.paired-offers .offer-choice-label input{accent-color:#7838cb;width:21px;height:21px;flex:none}
+.paired-offers .offer-name{font-size:16px;font-weight:850;color:#342244}
+.paired-offers .offer-price{color:#7534c6;font-size:26px;font-weight:900}
+.paired-offers .offer-features{color:#6c617b;font-size:12px}
+.paired-offers .idprom-thai-package-cta{margin:18px auto 0;max-width:460px}
+.paired-offers .idprom-thai-package-cta p{background:#f6f2fc;color:#554568;border-radius:12px;padding:16px;font-size:13px;line-height:1.65}
+.paired-offers .idprom-thai-package-cta p span{font-weight:900;color:#159663}
+.paired-offers .idprom-thai-checkout-next{display:block;width:100%;min-height:54px;border:0;border-radius:13px;background:linear-gradient(105deg,#9649e1,#6932bd);color:#fff;font-weight:800;font-size:16px;cursor:pointer}
+.paired-offers .idprom-thai-checkout-next:disabled{opacity:.55;cursor:default}
+.paired-offers .idprom-thai-offer-code-link{display:block;background:transparent;border:0;color:#7036bd;text-decoration:underline;font-size:13px;margin:12px auto 0;cursor:pointer}
+.paired-offers .offer-image-scope{font-size:11px;text-align:center;margin:8px auto}
+@media(min-width:641px){
+ .package-choice-modal:has(.paired-offers){width:min(770px,calc(100vw - 44px));max-height:calc(100dvh - 54px);overflow-y:auto;border-radius:22px;padding:20px 24px}
+ .paired-offers .offer-step{justify-content:center;border-bottom:1px solid #ece5f4;margin-bottom:22px}
+ .paired-offers .offer-step>span{display:none}
+ .paired-offers .offer-step h2{font-size:24px;color:#292035}
+ .paired-offers .offer-choice-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:23px;align-items:start}
+ .paired-offers .offer-preview{display:block;max-width:190px;margin:0}
+ .paired-offers .offer-preview img{width:100%;height:auto;max-height:280px;object-fit:contain;border-radius:12px}
+ .paired-offers .idprom-thai-package-cta{max-width:100%;padding-left:213px}
+ .paired-offers .offer-usage-terms,.paired-offers .offer-payment-method{margin-left:213px}
+}
+@media(max-width:640px){
+ .package-choice-modal:has(.paired-offers) .idprom-thai-package-cta{margin-top:14px}
+ .package-choice-modal:has(.paired-offers) .idprom-thai-offer-code-link{margin:12px auto 0}
+}
