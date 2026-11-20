@@ -23,6 +23,7 @@ export function ThaiMobileJourney({
  const [notice,setNotice]=useState('');
  const [changedHair,setChangedHair]=useState(false);
  const resultRef=useRef(false);
+ const wasProcessing=useRef(false);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
   if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setNotice('');setSection('choose')}
@@ -32,6 +33,7 @@ export function ThaiMobileJourney({
   if(!hasResult&&resultRef.current){setSection('choose')}
   resultRef.current=hasResult;
  },[hasResult]);
+ useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setSection('result');setChangedHair(false);setNotice('')}wasProcessing.current=processing},[processing,hasResult]);
  useEffect(()=>{
   const src=canvasRef?.current,dst=canvas.current;
   if(!src||!dst||!hasResult)return;
@@ -109,8 +111,8 @@ export function ThaiMobileJourney({
      </button>)}
     </div>
     {gender==='female'&&<><h2>การแต่งหน้า</h2><div className="thai-mobile-segment">
-     <button className={faceFinish==='natural'?'selected':''} type="button" onClick={()=>onSelectFaceFinish?.('natural')}>ธรรมชาติ</button>
-     <button className={faceFinish!=='natural'?'selected':''} type="button" onClick={()=>onSelectFaceFinish?.('makeup')}>แต่งหน้าอ่อน</button>
+     <button className={faceFinish==='natural'?'selected':''} type="button" onClick={()=>{onSelectFaceFinish?.('natural');if(draftHair)onHair?.(draftHair)}}>ธรรมชาติ</button>
+     <button className={faceFinish!=='natural'?'selected':''} type="button" onClick={()=>{onSelectFaceFinish?.('makeup');if(draftHair)onHair?.(draftHair)}}>แต่งหน้าอ่อน</button>
     </div></>}
     <div className="thai-mobile-select-summary">เลือกชุดและทรงผมให้เรียบร้อย แล้วกดสร้างรูปครั้งเดียว</div>
     {!!notice&&<p className="thai-mobile-alert" role="alert">{notice}</p>}
