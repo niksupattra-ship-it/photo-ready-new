@@ -44,6 +44,5 @@ test('an explicit new Makeup result/style uses the new retouch version, once, in
 });
 test('pending charged-job identity is unchanged so a prompt update cannot create another recovery charge',()=>{
  const submission=main.split('\n').find(line=>line.includes('const submissionKey=JSON.stringify(')).trim();
- assert.equal(hash(submission.replace("options.thaiOutfitAi?THAI_OUTFIT_AI_VERSION:'th'","'th'")),'9d32879585bf383d023b00559983c6239ce51bebd0a20e6946eca0dd87e03ab0');
- assert(submission.includes('options.thaiOutfitAi?THAI_OUTFIT_AI_VERSION'));
+ assert.equal(hash(submission),'9d32879585bf383d023b00559983c6239ce51bebd0a20e6946eca0dd87e03ab0');
 });
