@@ -14,24 +14,25 @@ export function thaiOutfitGenerationFields(fields={}){
 // entitlement rules and output path remain byte-for-byte unchanged.
 // New Thai generations use the EXACT English full-outfit renderer: no post-AI
 // native PNG replacement, no alpha clipping, no extra Thai prompt priority.
-export const THAI_OUTFIT_APPEARANCE_VERSION='th-full-outfit-single-ai-v7';
+export const THAI_OUTFIT_APPEARANCE_VERSION='th-full-outfit-english-parity-v8';
+export const THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7='th-full-outfit-single-ai-v7';
 export const THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6='th-full-outfit-english-renderer-v6';
 // Only NEW Thai full-outfit jobs bypass the old precomposited face/neck/PNG
 // guide. Historical jobs retain their original prompt and replay semantics.
-export const usesThaiSingleAiOutfit=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_VERSION;
+export const usesThaiSingleAiOutfit=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7;
 export const THAI_OUTFIT_APPEARANCE_OLD_NECK_V5='th-full-outfit-neckline-protected-v5';
 export const THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION='th-full-outfit-shoulder-aware-neck-safe-v4';
 export const THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION='th-full-outfit-native-front-hair-shield-v3';
 export const THAI_OUTFIT_APPEARANCE_PREVIOUS='th-full-outfit-colour-rear-hair-v2';
 // Old purchased v2 jobs must still be readable, but only new v3 jobs receive
 // the native front-outfit occlusion pass. The English route never opts in.
-export const isThaiOutfitAppearance=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS].includes(fields?.thaiOutfitAppearanceVersion);
+export const isThaiOutfitAppearance=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS].includes(fields?.thaiOutfitAppearanceVersion);
 export const requiresThaiNativeFrontShield=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION].includes(fields?.thaiOutfitAppearanceVersion);
 export const usesThaiShoulderAwareShield=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION].includes(fields?.thaiOutfitAppearanceVersion);
 export const usesThaiNecklineProtectedShield=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_OLD_NECK_V5;
-export const usesThaiHistoricOutfitPrompt=fields=>isThaiOutfitAppearance(fields)&&![THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
+export const usesThaiHistoricOutfitPrompt=fields=>isThaiOutfitAppearance(fields)&&![THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
 
-export const usesThaiEnglishParityOutfit=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
+export const usesThaiEnglishParityOutfit=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
 // Same renderer, native visual references, matting and output as English.
 // This narrow hair instruction changes only the physical placement of long
 // hair relative to the selected opaque clothes during the ONE AI generation.
