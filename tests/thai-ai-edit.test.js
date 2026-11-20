@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
-import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
-import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,isThaiOutfitPath,thaiOutfitAppearanceInstruction} from '../thai-outfit-ai-policy.js';
+import {processProductionPortrait,validateProductionPortrait,shieldThaiNativeUniformFront} from '../production-portrait-pipeline.js';
+import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS,requiresThaiNativeFrontShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -81,6 +81,48 @@ test('new Thai light-colour garment and rear-hair priorities apply only to Thai 
  const main=await readFile(root+'src/main.jsx','utf8');
  assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'),'Thai-only new cache and recovery version');
  assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"),'Frontend sends the Thai-only version');
+});
+
+test('Thai native uniform reliably occludes hair over both jacket fronts and clips hanging outer hair without touching face',async()=>{
+ const W=240,H=320;
+ // The artificial AI result has black hair on BOTH white jacket panels,
+ // black hair outside the garment and a red-brown face above the shoulders.
+ const original=await sharp({create:{width:W,height:H,channels:4,background:'#c78672'}}).png().toBuffer();
+ const stripe=await sharp({create:{width:16,height:190,channels:4,background:'#050608'}}).png().toBuffer();
+ const tainted=await sharp(original).composite([
+  {input:stripe,left:62,top:125},{input:stripe,left:160,top:125},{input:stripe,left:14,top:125}
+ ]).png().toBuffer();
+ // Native transparent outfit with an open neckline at the top.
+ const front=await sharp({create:{width:W,height:H,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([
+  {input:await sharp({create:{width:176,height:205,channels:4,background:'#f7f6f2'}}).png().toBuffer(),left:32,top:115}
+ ]).png().toBuffer();
+ const geometry={nativeForeground:front,shoulderTopY:115,collarTopY:150,centerX:120,shoulderSpan:176};
+ const returned=await shieldThaiNativeUniformFront(tainted,geometry);
+ const {data,info}=await sharp(returned).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const pixel=(x,y)=>[...data.subarray((y*W+x)*4,(y*W+x)*4+4)];
+ assert.deepEqual(pixel(60,70),[199,134,114,255],'Face and skin above shoulder level remain unchanged');
+ assert.deepEqual(pixel(70,220),[247,246,242,255],'Left hair is fully covered by the real outfit pixels');
+ assert.deepEqual(pixel(166,220),[247,246,242,255],'Right hair is fully covered by the real outfit pixels');
+ assert.equal(pixel(18,220)[3],0,'Hair protruding outside the uniform silhouette is removed');
+ assert.deepEqual(pixel(120,220),[247,246,242,255],'Original shirt and central garment remain visible');
+ assert.deepEqual(pixel(70,110),[199,134,114,255],'Nothing above shoulder line is edited');
+ assert.equal(info.width,W);
+});
+
+test('Thai v3 garment occlusion is limited to new Thai requests; v2 stored jobs and English are unchanged',async()=>{
+ const core={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
+ const updated={...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
+ const legacy={...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS};
+ assert.equal(requiresThaiNativeFrontShield(updated),true);
+ assert.equal(requiresThaiNativeFrontShield(legacy),false);
+ assert.equal(requiresThaiNativeFrontShield({thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,interfaceLanguage:'en'}),false);
+ const source=await readFile(root+'production-portrait-pipeline.js','utf8');
+ assert(source.includes('const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly'));
+ assert(source.includes('const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry):transparent'));
+ const layout=await readFile(root+'english-body-layout.js','utf8');
+ assert(layout.includes('if(!returnNativeForeground)return composition'),'All English output remains original one-pass composition');
+ const main=await readFile(root+'src/main.jsx','utf8');
+ assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION]:[])'),'Thai cache version invalidates buggy old previews');
 });
 
 test('Thai Studio outfit thumbnail places PNG and one magic-wand icon explicitly starts AI without altering English',async()=>{
