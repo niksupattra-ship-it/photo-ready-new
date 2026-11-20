@@ -471,9 +471,10 @@ test('both genders receive a last AI-only clean-nape rule without changing cosme
   if(got===femaleThai){
    assert(prompt.includes(boundary),'Selected Makeup preserves the exact hair boundary');
    assert.match(prompt,/FINAL SELECTED MAKEUP \+ HAIR DELIVERY AUDIT/);
-   assert(prompt.indexOf(boundary)<prompt.indexOf('FINAL SELECTED MAKEUP + HAIR DELIVERY AUDIT'),'Final selected Makeup audit must follow the clean-nape rule');
+   assert(prompt.indexOf('FINAL SELECTED MAKEUP + HAIR DELIVERY AUDIT')<prompt.indexOf(boundary),'Makeup review precedes the final clean-nape rule');
    assert.match(prompt,/dark-circle colour bands|dark-circle bands/);
-  }else assert(prompt.endsWith(boundary),'Natural and male hair boundaries remain last');
+  }
+  assert(prompt.endsWith(boundary),'Hair boundary remains the last output authority for all finishes');
   assert.equal(got.calls[0].prompt.match(/FINAL SELECTED HAIR BOUNDARY AUTHORITY/g)?.length,1);
  }
  const catalog=await readFile(new URL('../hairstyle-catalog.js',import.meta.url),'utf8');
