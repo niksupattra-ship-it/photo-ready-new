@@ -79,3 +79,44 @@
  .idstudio .easy-mode.idprom-thai-flow .idprom-simple-result-heading strong{font-size:17px;color:#2d1b4d}
  .idstudio .easy-mode.idprom-thai-flow .idprom-simple-result-heading span{font-size:12px;color:#6e6381}
 }
+
+/* Reference 01–02 shared desktop + mobile welcome and upload design. */
+.idprom-simple-home{background:radial-gradient(ellipse at 50% 100%,#f0eafb,#fbfaff 75%)}
+.idprom-simple-content{max-width:1100px;width:min(calc(100% - 28px),1100px);padding:48px 25px 36px}
+.idprom-simple-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,480px);grid-template-areas:"intro portrait" "actions portrait";column-gap:45px;row-gap:8px;align-items:center;min-height:620px}
+.idprom-simple-intro{grid-area:intro;text-align:left;align-self:end;padding-left:20px}
+.idprom-simple-photo-stack{grid-area:portrait;width:min(100%,450px);height:430px;margin:0 auto;align-self:center}
+.idprom-simple-photo-stack .idprom-photo-center{width:248px;height:340px;top:25px}
+.idprom-simple-photo-stack .idprom-photo-left{width:185px;height:260px;left:7px;top:70px}
+.idprom-simple-photo-stack .idprom-photo-right{width:185px;height:260px;right:7px;top:70px}
+.idprom-simple-actions{grid-area:actions;align-self:start;text-align:left;padding-left:20px}
+.idprom-simple-content .idprom-simple-hero h1{font-size:clamp(35px,4vw,56px);line-height:1.2;margin-bottom:16px}
+.idprom-simple-hero .idprom-simple-lead{max-width:450px;margin:0;font-size:clamp(17px,2vw,22px);line-height:1.5}
+.idprom-simple-hero .idprom-simple-benefits{margin:0 0 28px;width:100%;font-size:16px;gap:13px}
+.idprom-simple-hero .idprom-simple-primary{max-width:440px;font-size:18px!important}
+.idprom-simple-hero .idprom-simple-reassure{text-align:center;max-width:440px;margin:12px 0}
+@media(max-width:720px){
+ .idprom-simple-content{width:100%;max-width:450px;padding:19px 22px 28px}
+ .idprom-simple-hero{display:flex;flex-direction:column;gap:0;min-height:0}
+ .idprom-simple-intro{width:100%;padding:0;text-align:center;align-self:auto}
+ .idprom-simple-hero .idprom-simple-content h1,.idprom-simple-content .idprom-simple-hero h1{font-size:31px;line-height:1.23;margin:3px 0 13px}
+ .idprom-simple-hero .idprom-simple-lead{margin:0 auto 12px;max-width:320px;font-size:16px}
+ .idprom-simple-photo-stack{width:min(100%,320px);height:250px;align-self:center;margin:0 auto 10px}
+ .idprom-simple-photo-stack .idprom-photo-center{width:158px;height:220px;top:4px}
+ .idprom-simple-photo-stack .idprom-photo-left{width:124px;height:173px;left:3px;top:35px}
+ .idprom-simple-photo-stack .idprom-photo-right{width:124px;height:173px;right:3px;top:35px}
+ .idprom-simple-actions{padding:0;width:100%;align-self:auto;text-align:center}
+ .idprom-simple-hero .idprom-simple-benefits{width:fit-content;margin:0 auto 24px;gap:11px;font-size:13px;text-align:left}
+ .idprom-simple-hero .idprom-simple-primary{font-size:17px!important;max-width:100%}
+ .idprom-simple-hero .idprom-simple-reassure{text-align:center;margin:11px auto}
+ .idprom-simple-header{box-shadow:none}
+}
+@media(min-width:721px) and (max-width:960px){
+ .idprom-simple-content{padding:32px 25px}
+ .idprom-simple-hero{column-gap:20px;grid-template-columns:minmax(0,1fr) minmax(280px,390px)}
+ .idprom-simple-photo-stack{width:375px;height:340px}
+ .idprom-simple-photo-stack .idprom-photo-center{width:200px;height:280px;top:15px}
+ .idprom-simple-photo-stack .idprom-photo-left,.idprom-simple-photo-stack .idprom-photo-right{width:148px;height:214px;top:53px}
+ .idprom-simple-intro,.idprom-simple-actions{padding-left:0}
+ .idprom-simple-hero .idprom-simple-benefits{font-size:14px}
+}
