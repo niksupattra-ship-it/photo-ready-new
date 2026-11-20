@@ -2227,3 +2227,38 @@ body:has(.idstudio.studio-redesign) .idprom-account-row:hover {
  .idstudio .studio-picker-drawer .studio-catalog-grid .thai-outfit-card > button:first-child > span{height:70px}
  .idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai{height:32px;min-height:32px;width:34px}
 }
+
+
+/* Thai full-outfit AI discovery: actions remain legible on mobile drawer. */
+.idstudio .studio-picker-drawer .thai-mobile-ai-guide{
+ display:grid;gap:7px;padding:10px 12px;margin:0 0 9px;
+ border:1px solid #ddd4fc;border-radius:12px;background:#f5f0ff;color:#24184d;
+}
+.idstudio .studio-picker-drawer .thai-mobile-ai-guide-row{
+ display:flex;gap:6px;align-items:center;justify-content:space-between;font-size:13px;
+}
+.idstudio .studio-picker-drawer .thai-mobile-ai-guide-row span{font-size:11px;color:#6748a7}
+.idstudio .studio-picker-drawer .thai-mobile-ai-guide-steps{font-size:12px;line-height:1.4}
+.idstudio .studio-picker-drawer .thai-mobile-ai-main-action{
+ width:100%;min-height:43px;padding:9px 12px;border:0;border-radius:9px;
+ background:#7543ed;color:#fff;font-size:14px;font-weight:700;
+}
+.idstudio .studio-picker-drawer .thai-mobile-ai-main-action:disabled{opacity:.52}
+.idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai{
+ gap:4px;width:100%;min-height:37px;height:auto;padding:5px 6px;
+ font-size:11px;font-weight:700;white-space:nowrap;
+}
+.idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai svg{width:16px;height:16px}
+.idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai span{
+ display:inline;flex:none;width:auto;height:auto;background:none;color:inherit;
+ font-size:inherit;line-height:1.2;
+}
+.idstudio .studio-picker-drawer .thai-mobile-ai-next{
+ display:grid;gap:3px;margin:4px 0 8px;padding:9px 12px;
+ border-radius:10px;background:#f5f0ff;color:#24184d;font-size:12px;line-height:1.45;
+}
+@media(max-width:640px){
+ .idstudio .studio-picker-drawer .studio-catalog-grid > .thai-outfit-card{flex-basis:114px}
+ .idstudio .studio-picker-drawer .thai-outfit-actions .thai-outfit-ai{min-height:40px;height:auto;width:100%}
+ .idstudio.studio-touch .studio-picker-drawer:has(.thai-mobile-ai-guide){max-height:58dvh;overflow-y:auto}
+}
