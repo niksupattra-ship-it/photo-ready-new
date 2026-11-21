@@ -344,3 +344,32 @@ test('Thai upload is one central action and Step 2 enforces gender, hair, outfit
  const studio=await read('src/studio-editor.jsx');
  assert(studio.includes('onSelectPhotoType={selectEasyPhotoType}')&&studio.includes('setEasyPhotoTypeSelected(false)'),'Original gender state is connected and reset on new photo');
 });
+
+test('Thai Step 2 circular background choices use original Studio export layer with no extra AI call',async()=>{
+ const flow=await read('src/thai-mobile-journey.jsx');
+ const easy=await read('src/easy-mode.jsx');
+ const studio=await read('src/studio-editor.jsx');
+ const css=await read('src/thai-mobile-journey.css');
+ const options=await read('src/main.jsx');
+ assert(options.includes("const BACKGROUND_OPTIONS=[{id:'default'"),'Existing available photo background catalogue is reused');
+ assert(flow.includes("backgrounds=[],currentBackground='',onBackground"),'Existing background props are attached to Thai Step 2');
+ assert(easy.includes('backgrounds={backgrounds} currentBackground={currentBackground} onBackground={onBackground}'),'The Easy view forwards real Studio background choices');
+ assert(studio.includes("onBackground={option=>selectAsset('background',option)}"),'The background swatches use the existing native background layer and export workflow');
+ const choice=flow.slice(flow.indexOf('thai-mobile-choice-gender'),flow.indexOf('thai-mobile-choice-footer'));
+ assert(choice.includes('thai-mobile-choice-background-panel'),'Background follows existing gender, hair and outfit controls');
+ assert(choice.indexOf('thai-mobile-choice-outfit-panel')<choice.indexOf('thai-mobile-choice-background-panel'),'Background is beneath outfit, not before it');
+ assert(choice.includes('backgrounds.filter(b=>bgPalette[b.id])'),'Use only grounded palette colours and original asset references');
+ assert(choice.includes('role="group" aria-label="สีพื้นหลังสำหรับรูปที่สร้าง"'),'Accessible compact swatch group');
+ assert(choice.includes('aria-pressed={(draftBackground||currentBackground)===b.id}'),'Currently selected background is visibly announced');
+ assert(choice.includes('disabled={!outfitReady||busy||suitLoading}'),'Do not skip gender, hair, or outfit sequence');
+ assert(flow.includes('const pickBackground=option=>'),'Swatch selection is guarded');
+ assert(flow.includes('onBackground?.(option)'),'Colour selection reaches the real native compositing layer');
+ assert(flow.includes("setChosenOutfitTemplate('');setDraftBackground('')"),'Replacing a photo clears outdated palette selection');
+ assert(flow.includes("setDraftBackground('');"),'Gender change also clears previous colour selection');
+ assert(!choice.includes('type="color"'),'The mobile card is small preset circles, not a large colour tool');
+ assert(css.includes('thai-mobile-choice-background-dot')&&css.includes('border-radius:50%'),'Swatches are small circles');
+ assert(css.includes('@media(max-width:720px)'),'Swatches remain accessible on phone');
+ const process=studio.slice(studio.indexOf('const processPhoto=async('),studio.indexOf('const openEnglishManual=',studio.indexOf('const processPhoto=async(')));
+ assert(process.includes("let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current"),'New AI generations retain existing background layers from the user selection');
+ assert(!flow.slice(flow.indexOf('const pickBackground=option=>'),flow.indexOf('const selectGender=v=>')).includes('onGenerateHair'),'Colour selection does not charge for an AI call');
+});
