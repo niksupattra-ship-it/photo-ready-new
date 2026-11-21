@@ -169,3 +169,32 @@ test('shared Easy and Studio error dialogs use white-purple colors and provide m
  assert(editor.includes("'model_initialization','recover_result'"),'The model failure must offer a safe retry action');
  assert(failure.includes('กด “ลองอีกครั้ง”'));
 });
+
+
+test('Thai Step 2 matches approved photo-first desktop and mobile mockup without changes elsewhere',async()=>{
+ const ui=await read('src/thai-mobile-journey.jsx');
+ const css=await read('src/thai-mobile-journey.css');
+ const easy=await read('src/easy-mode.jsx');
+ const selectStart=ui.indexOf('!hasResult?<section className="thai-mobile-select thai-mobile-choice"');
+ const resultStart=ui.indexOf("</section>:<section className={'thai-mobile-result'",selectStart);
+ assert(selectStart>0&&resultStart>selectStart,'The redesigned selection must be scoped to the pre-result page');
+ const select=ui.slice(selectStart,resultStart);
+ assert(ui.includes("useState(()=>hasResult?'result':'choose')"),'An uploaded photo should enter the approved Step 2 directly');
+ assert(ui.includes("setSection('choose')}"),'Replacing the photo must also return to Step 2');
+ for(const part of ['thai-mobile-choice-steps','thai-mobile-choice-photo-wrap','thai-mobile-choice-hair-panel','thai-mobile-choice-outfit-panel','thai-mobile-choice-create','thai-mobile-choice-caption'])
+  assert(select.includes(part),part);
+ assert(select.indexOf('thai-mobile-choice-photo-wrap')<select.indexOf('thai-mobile-choice-hair-panel'),'Original photo must appear first');
+ assert(select.indexOf('thai-mobile-choice-hair-panel')<select.indexOf('thai-mobile-choice-outfit-panel'),'Hair precedes outfit');
+ assert(!select.includes('การแต่งหน้า')&&!select.includes('onSelectFaceFinish'),'Makeup is automatic and has no selector on Step 2');
+ assert(select.includes("onClick={()=>chooseHair(h)}"),'Real hairstyle choice callback is preserved');
+ assert(select.includes('onClick={()=>chooseSuit(t)}'),'Original native suit click remains');
+ assert(select.includes('onClick={create}'),'Single AI submission remains the original callback');
+ assert(select.includes('onClick={onUpload}'),'User can still replace the original image');
+ assert(css.includes('Thai-only selection page: approved photo-first Step 2 mockup'),'New CSS rules are scoped');
+ assert(css.includes('.thai-mobile-flow-choice .thai-mobile-selection-grid.thai-mobile-choice-grid'));
+ assert(css.includes('@media(max-width:720px)'));
+ assert(css.includes('flex-direction:column;gap:15px'),'Mobile Step 2 shows photo above the option cards');
+ assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'),'Both desktop and mobile still use the same connected component');
+ assert(ui.includes("resultReadyPage?<div className=\"thai-mobile-result-heading\""),'Result page remains its established design');
+ assert(ui.includes('onClick={onDownload}'),'Purchase and download action is unchanged');
+});
