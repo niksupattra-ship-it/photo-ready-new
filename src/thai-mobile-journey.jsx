@@ -36,6 +36,11 @@ export function ThaiMobileJourney({
  const actionAwaitingRef=useRef(null);
  const resultRef=useRef(false);
  const wasProcessing=useRef(false);
+ const insigniaAutoOpened=useRef(false);
+ useEffect(()=>{
+  if(!hasResult){insigniaAutoOpened.current=false;return}
+  if(governmentResult&&resultInsignia&&!compactResult&&!insigniaAutoOpened.current){insigniaAutoOpened.current=true;setResultInsigniaOpen(true)}
+ },[hasResult,governmentResult,resultInsignia,compactResult]);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
   if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setDraftBackground('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setResultHairOpen(false);setSection('choose')}
@@ -45,7 +50,7 @@ export function ThaiMobileJourney({
   if(!hasResult&&resultRef.current){setResultInsigniaOpen(false);setResultHairOpen(false);setSection('choose')}
   resultRef.current=hasResult;
  },[hasResult]);
- useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setSection('result');setResultHairOpen(false);setChangedHair(false);setNotice('');actionAwaitingRef.current=null}wasProcessing.current=processing},[processing,hasResult]);
+ useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setSection('result');setResultHairOpen(false);setChangedHair(false);setNotice('');if(governmentResult&&!compactResult)setResultInsigniaOpen(true);actionAwaitingRef.current=null}wasProcessing.current=processing},[processing,hasResult,governmentResult,compactResult]);
  useEffect(()=>{if(actionAwaitingRef.current==='hair'&&hasResult&&!processing){actionAwaitingRef.current=null;setResultHairOpen(false);setChangedHair(false);setSection('result')}},[renderVersion]);
  useEffect(()=>{
   const src=canvasRef?.current,dst=canvas.current;

@@ -24,3 +24,26 @@ test('third neckline panel preserves both selected-outfit colour/rank detail pan
  assert.deepEqual(await readFile(root+'public/assets/government-uniforms/female-operational.png'),source,'Native original remains unchanged');
  await assert.rejects(addThaiCollarlessReference(null,root));
 });
+test('real garment v2 preserves alpha and every visible pixel outside local inner-collar edit, including original insignia',async()=>{
+ const {collarlessTemplatePath}=await import('../thai-collarless-version.js');
+ const {thaiCollarlessOutfitPath}=await import('../thai-collarless-neckline.js');
+ for(const name of ['operational','academic','senior','government-employee']){
+  const file=`/assets/government-uniforms/female-${name}.png`,derived=collarlessTemplatePath(file);
+  assert.equal(thaiCollarlessOutfitPath({...base,neckOutfitReferencePath:file},file),derived);
+  assert.equal(thaiCollarlessOutfitPath({...base,thaiOutfitAiVersion:undefined},file),file);
+  const a=await sharp(root+'public'+file).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  const b=await sharp(root+'public'+derived).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  assert.equal(a.info.width,b.info.width);assert.equal(a.info.height,b.info.height);
+  let alphaChanges=0,outsideChanges=0,insideChanges=0;
+  for(let y=0;y<a.info.height;y++)for(let x=0;x<a.info.width;x++){
+   const i=(y*a.info.width+x)*4;if(a.data[i+3]!==b.data[i+3])alphaChanges++;
+   if(!a.data[i+3])continue;
+   const changed=[0,1,2].some(c=>a.data[i+c]!==b.data[i+c]);
+   if(changed){if(x<710||x>=1340||y<180||y>=941)outsideChanges++;else insideChanges++;}
+  }
+  assert.equal(alphaChanges,0,name+' alpha');assert.equal(outsideChanges,0,name+' real insignia and cloth');assert(insideChanges>10000);
+  const details=await createEnglishOutfitDetailReference(await readFile(root+'public'+derived));
+  const extended=await addThaiCollarlessReference(details,'/nonexistent-no-generated-guide',await readFile(root+'public'+derived));
+  assert.equal((await sharp(extended).metadata()).width,2304);
+ }
+});

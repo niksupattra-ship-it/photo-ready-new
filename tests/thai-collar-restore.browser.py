@@ -8,7 +8,7 @@ with sync_playwright() as pw:
   p=browser.new_page(viewport={'width':width,'height':1050},has_touch=width<600);errors=[]
   p.on('pageerror',lambda e:errors.append(str(e)));p.route('**/api/**',lambda r:r.abort())
   p.goto(BASE+'/scripts/fixtures/government-result-insignia.html?fullbody=1&staleNeck=1')
-  expect(p.get_by_role('button',name='◈ เพิ่มเครื่องหมายข้าราชการ',exact=True)).to_be_enabled(timeout=30000)
+  expect(p.get_by_role('navigation',name='เครื่องมือรูปที่เสร็จแล้ว').get_by_role('button',name='เครื่องหมาย',exact=True) if width<=720 else p.get_by_role('button',name='◈ ปิดเครื่องหมาย',exact=True)).to_be_enabled(timeout=30000)
   p.wait_for_function('insigniaFixture.snapshot()?.layers.some(l=>l.kind==="head")')
   assert p.evaluate('!insigniaFixture.snapshot().layers.some(l=>l.kind==="neck-fit")')
   assert p.evaluate('insigniaFixture.snapshot().layers.some(l=>l.kind==="head"&&l.portraitComposition==="en-outfit-body-v1")')

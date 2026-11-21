@@ -2,12 +2,16 @@ import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
-import {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
+import {THAI_COLLARLESS_VERSION,THAI_COLLARLESS_PREVIOUS_VERSION,collarlessTemplatePath} from './thai-collarless-version.js';
 export {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
-export const usesThaiCollarlessNeckline=fields=>isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&fields.portraitMode==='female'&&/^\/assets\/government-uniforms\/female-(operational|academic|senior|government-employee)\.png$/.test(fields.neckOutfitReferencePath||'');
-export async function addThaiCollarlessReference(details,root){
+export const usesThaiCollarlessNeckline=fields=>isThaiOutfitAi(fields)&&[THAI_COLLARLESS_VERSION,THAI_COLLARLESS_PREVIOUS_VERSION].includes(fields.thaiCollarlessVersion)&&fields.portraitMode==='female'&&/^\/assets\/government-uniforms\/female-(operational|academic|senior|government-employee)\.png$/.test(fields.neckOutfitReferencePath||'');
+export const usesThaiCollarlessPrimary=fields=>usesThaiCollarlessNeckline(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION;
+export function thaiCollarlessOutfitPath(fields,originalPath){return usesThaiCollarlessPrimary(fields)?collarlessTemplatePath(originalPath)||originalPath:originalPath}
+export function thaiCollarlessPrimaryInstruction(outfitIndex,detailIndex){return `\nCOLLARLESS PRIMARY OUTFIT — ALL GARMENT REFERENCES AGREE:
+Image ${outfitIndex}, the body layout and BOTH detail crops in Image ${detailIndex} all show the selected outfit WITHOUT an inner pointed shirt collar. Reproduce that exact collarless inner-shirt construction. Plain white inner-shirt fabric continues beside the black tie knot with no collar points, no raised collar band and no repeated white outline. Keep ONLY the outer jacket lapels, the selected black tie, cloth, shoulder boards and all selected insignia. Do not invent a conventional shirt collar from the uploaded person or hairstyle/makeup photographs. REMOVE both pointed shirt-collar flaps. The third neckline panel, cropped from the same real selected garment, only reinforces the same construction; it does not replace the selected rank, face, tie or body. Complete the faithful outfit inside this one original generation.`}
+export async function addThaiCollarlessReference(details,root,realOutfit=null){
  if(!details?.length)throw Error('missing_selected_outfit_detail');
- const guide=await readFile(path.join(root,'public/assets/government-insignia/collarless-neckline-v1.webp'));
+ const guide=realOutfit?await sharp(realOutfit).extract({left:650,top:280,width:750,height:620}).png().toBuffer():await readFile(path.join(root,'public/assets/government-insignia/collarless-neckline-v1.webp'));
  const panel=await sharp(guide).resize(768,768,{fit:'contain',background:{r:0,g:0,b:0,alpha:0}}).png().toBuffer();
  return sharp({create:{width:2304,height:768,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:details,left:0,top:0},{input:panel,left:1536,top:0}]).png().toBuffer();
 }
