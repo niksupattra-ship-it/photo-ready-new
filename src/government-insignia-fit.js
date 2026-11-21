@@ -373,3 +373,94 @@ export function balanceEasyGovernmentBadgeSizes(fit){
  ribbon.x=clamp(ribbon.x,.53+ribbon.width/2,.985-ribbon.width/2);
  return {...fit,preset:{...p,collar,chest,ribbon},needsReview:true};
 }
+
+
+// Reference portrait is used only for dimensionless landmark ratios.
+// In its 1056px-wide reference, the shoulder span is about 930px.
+// Each new finished photograph supplies its OWN visible shoulder geometry.
+export const GOVERNMENT_REFERENCE_GEOMETRY=Object.freeze({
+ collar:{left:.299,right:.711,down:.084,width:.055},
+ chest:{x:.198,down:.315,width:.074},
+ ribbon:{x:.806,down:.288,width:.230}
+});
+export function measureGovernmentShoulderGeometry(image){
+ const {width:w,height:h,data}=image||{};
+ if(!Number.isFinite(w)||!Number.isFinite(h)||w<160||h<200||
+    !data||data.length<w*h*4)return null;
+ const pale=(x,y)=>{
+  x=Math.round(x);y=Math.round(y);
+  if(x<0||x>=w||y<0||y>=h)return false;
+  const k=(y*w+x)*4,r=data[k],g=data[k+1],b=data[k+2];
+  return data[k+3]>190 && r>166 && g>166 && b>166 &&
+   Math.max(r,g,b)-Math.min(r,g,b)<55;
+ };
+ // The shoulder line is the earliest broad, symmetric stretch of garment.
+ // Search only the torso band so pale foreheads and pale backgrounds do not
+ // masquerade as the uniform.
+ const rows=[];
+ const step=Math.max(2,Math.floor(h/320));
+ for(let y=Math.round(h*.38);y<Math.round(h*.78);y+=step){
+  const bands=[];
+  let start=-1;
+  for(let x=Math.round(w*.03);x<=Math.round(w*.97);x+=2){
+   const yes=[-3,0,3].filter(d=>pale(x,y+d)).length>=2;
+   if(yes&&start<0)start=x;
+   if((!yes||x>=w*.97)&&start>=0){
+    if(x-start>w*.035)bands.push([start,x]);
+    start=-1;
+   }
+  }
+  if(!bands.length)continue;
+  const left=Math.min(...bands.map(a=>a[0]));
+  const right=Math.max(...bands.map(a=>a[1]));
+  const span=right-left;
+  const mid=(left+right)/2;
+  if(span<w*.48||span>w*.95||Math.abs(mid-w/2)>w*.12)continue;
+  rows.push({y,left,right,span});
+ }
+ if(rows.length<5)return null;
+ // The shoulder width is estimated near the first stable broad jacket rows,
+ // not at the bottom where sleeves swell to the edges.
+ const top=rows.find((r,i)=>i+2<rows.length&&
+  rows.slice(i,i+3).every(q=>q.span>=r.span*.84&&q.span<=r.span*1.28));
+ if(!top)return null;
+ const near=rows.filter(r=>r.y>=top.y&&r.y<=top.y+h*.065);
+ if(!near.length)return null;
+ const ordered=near.map(r=>r.span).sort((a,b)=>a-b);
+ const span=ordered[Math.floor(ordered.length/2)];
+ const center=near.map(r=>(r.left+r.right)/2).sort((a,b)=>a-b);
+ const cx=center[Math.floor(center.length/2)];
+ const left=cx-span/2,right=cx+span/2;
+ if(left<0||right>w)return null;
+ return {left,right,top:top.y,width:span,confidence:'shoulder-pixels'};
+}
+export function governmentReferenceLandmarkFit(image,gender='female',templatePath=''){
+ const g=measureGovernmentShoulderGeometry(image);
+ if(!g)return null;
+ const h=image.height,w=image.width;
+ const ref=GOVERNMENT_REFERENCE_GEOMETRY;
+ const frame={x:g.left,y:g.top,w:g.width,h:h-g.top};
+ const posX=value=>(g.width*value)/frame.w;
+ const posY=value=>(g.width*value)/frame.h;
+ const collar={
+  left:posX(ref.collar.left),right:posX(ref.collar.right),
+  y:posY(ref.collar.down),width:ref.collar.width
+ };
+ const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width};
+ const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};
+ // Use shoulder width, not total photo width, for ALL accessory sizes.
+ // The same reference ratios work for close-up and wide-cropped portraits.
+ const bounds=(x,size,left,right)=>clamp(x,left+size/2,right-size/2);
+ chest.x=bounds(chest.x,chest.width,.035,.47);
+ ribbon.x=bounds(ribbon.x,ribbon.width,.535,.985);
+ if([collar.y,chest.y,ribbon.top].some(v=>v<0||v>.92))return null;
+ const pixel=(x,y)=>({x:frame.x+frame.w*x,y:frame.y+frame.h*y});
+ const points=[pixel(collar.left,collar.y),pixel(collar.right,collar.y),
+  pixel(chest.x,chest.y),pixel(ribbon.x,ribbon.top)];
+ // If the predicted locations miss the garment, do not pretend accuracy.
+ const valid=points.every(p=>p.x>0&&p.x<w&&p.y>0&&p.y<h);
+ if(!valid)return null;
+ return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
+  needsReview:true,collarType:easyGovernmentCollarType(templatePath,gender),
+  measuredShoulder:g,referenceGeometryVersion:'reference-shoulder-v1'};
+}
