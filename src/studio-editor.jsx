@@ -1,3 +1,4 @@
+import {withoutObsoleteThaiNeckBridges} from './thai-collar-layers.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
 import {AutoHairTile} from './auto-hair-tile.jsx';
 import {ProcessingIndicator} from './processing-indicator.jsx';
@@ -743,7 +744,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const deleteLayer=id=>{if(!ready||assetBusy||processActive||comparing||!state.current.some(l=>l.id===id))return;remember();const removed=state.current.find(l=>l.id===id);if(removed)saveRemovedThaiSuit(removed);const next=state.current.filter(l=>l.id!==id&&l.hairHeadId!==id);state.current=next;setLayers(next);if(selectedRef.current===id){setSelected(null);setCursor(null);setLayerGuide(false)}setStatus('ลบเลเยอร์แล้ว · กดย้อนกลับเพื่อคืน')};
  const hydratingRef=useRef(false);
  const lastHydrateErrorRef=useRef(null);
- async function hydrate(next,unchangedIds=null,canCommit=()=>true){lastHydrateErrorRef.current=null;flushTransforms();next=syncHairAttachments(next);if(trialUnlocked)next=next.map(l=>({...l,restrictedTrial:false,outputUnlocked:true}));const token=++loading.current;hydratingRef.current=true;if(!assets.current.size)setReady(false);const map=new Map();try{
+ async function hydrate(next,unchangedIds=null,canCommit=()=>true){lastHydrateErrorRef.current=null;flushTransforms();next=syncHairAttachments(next);if(!englishFlow)next=withoutObsoleteThaiNeckBridges(next);if(trialUnlocked)next=next.map(l=>({...l,restrictedTrial:false,outputUnlocked:true}));const token=++loading.current;hydratingRef.current=true;if(!assets.current.size)setReady(false);const map=new Map();try{
   // Decoding every source sequentially makes reopening a purchased image wait
   // for each layer one by one. Decode up to three independent layers at once
   // while preserving the atomic commit after ALL layers have loaded.
