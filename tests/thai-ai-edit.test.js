@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import {processProductionPortrait,validateProductionPortrait,shieldThaiNativeUniformFront} from '../production-portrait-pipeline.js';
-import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit} from '../thai-outfit-ai-policy.js';
+import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V9,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -55,14 +55,16 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
  for(const path of ['/assets/job-uniforms/female-job-white.png','/assets/student-uniforms/female-01.png','/assets/government-uniforms/female-operational.png','/assets/gown-uniforms/female-01.png'])assert(isThaiOutfitPath(path),path);
 });
 
-test('archived Thai v8 stays identical to English while new v9 uses Thai-only fixed head reference',async()=>{
+test('archived Thai v8 and v9 stay valid while new v10 has compact head and identity authority',async()=>{
  const template='/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png';
  const core={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',neckOutfitReferencePath:template,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
  const thai={...core,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
  const english={...core,interfaceLanguage:'en'};
  const archivedThai={...thai,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS_V8};
+ const archivedV9={...thai,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS_V9};
  assert.doesNotThrow(()=>validateProductionPortrait(input,thai));
  assert.doesNotThrow(()=>validateProductionPortrait(input,archivedThai));
+ assert.doesNotThrow(()=>validateProductionPortrait(input,archivedV9));
  assert.throws(()=>validateProductionPortrait(input,{...thai,thaiOutfitAppearanceVersion:'unknown'}));
  assert.throws(()=>validateProductionPortrait(input,{...english,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION}));
  const calls=[];
@@ -80,19 +82,30 @@ test('archived Thai v8 stays identical to English while new v9 uses Thai-only fi
  assert.equal(usesThaiHistoricOutfitPrompt(thai),false);
  const calibratedCalls=[];
  const newOutput=await processProductionPortrait({
-  input,fields:thai,root,key:'thai-calibrated-v9',
+  input,fields:thai,root,key:'thai-compact-v10',
   removeBackground:async()=>result,
   requestPortrait:async p=>{calibratedCalls.push(p);return {png:result}}
  });
  assert(newOutput.length);
- assert.equal(calibratedCalls.length,1,'Thai v9 uses the same one AI generation');
+ assert.equal(calibratedCalls.length,1,'Thai v10 uses the same one AI generation');
  assert.equal(calibratedCalls[0].size,calls[0].size);
  assert.deepEqual(calibratedCalls[0].outfit,calls[0].outfit,'Original suit pixels must never change');
  assert.notDeepEqual(calibratedCalls[0].portrait,calls[0].portrait,'New Thai guide must actually be calibrated');
- assert.match(calibratedCalls[0].prompt,/THAI FIXED-CAMERA PORTRAIT V9/);
- assert.doesNotMatch(calibratedCalls[0].prompt,/ENGLISH FEMALE V2 — BALANCED HEAD\/BODY/,'Thai v9 must not include a conflicting English head-size target');
+ assert.match(calibratedCalls[0].prompt,/THAI COMPACT PROPORTION V10/);
+ assert.match(calibratedCalls[0].prompt,/THAI IDENTITY LOCK/);
+ assert.match(calibratedCalls[0].prompt,/NEVER enlarge eyes, narrow nose/);
+ assert.doesNotMatch(calibratedCalls[0].prompt,/ENGLISH FEMALE V2 — BALANCED HEAD\/BODY/,'Thai v10 must not include a conflicting English head-size target');
  assert(!calibratedCalls[0].prompt.includes('older small-head'), 'No conflicting legacy target');
  assert.equal(usesThaiHistoricOutfitPrompt(archivedThai),false,'v8 job replay must not gain old historical prompt');
+ assert.equal(usesThaiHistoricOutfitPrompt(archivedV9),false,'v9 job replay must not gain old historical prompt');
+ const archivedV9Calls=[];
+ await processProductionPortrait({input,fields:archivedV9,root,key:'archived-v9',
+  removeBackground:async()=>result,requestPortrait:async p=>{archivedV9Calls.push(p);return {png:result}}});
+ assert.equal(archivedV9Calls.length,1);
+ assert.match(archivedV9Calls[0].prompt,/THAI FIXED-CAMERA PORTRAIT V9/);
+ assert.doesNotMatch(archivedV9Calls[0].prompt,/THAI IDENTITY LOCK|THAI COMPACT PROPORTION V10/);
+ assert.notDeepEqual(archivedV9Calls[0].portrait,calibratedCalls[0].portrait);
+
 
  assert.equal(usesThaiEnglishParityOutfit(thai),false,'No Thai-only prompt addition');
  assert.equal(requiresThaiNativeFrontShield(thai),false,'No post-render clothing overlay');
@@ -106,7 +119,7 @@ test('archived Thai v8 stays identical to English while new v9 uses Thai-only fi
 });
 
 
-test('Thai v9 fixed head guide accepts variable source face crops without stretching or resizing suit',async()=>{
+test('Thai v10 fixed head guide accepts variable face crops while keeping garment pixels identical',async()=>{
  const {createEnglishBodyLayout}=await import('../english-body-layout.js');
  const {thaiOutfitCalibratedProfile}=await import('../thai-outfit-ai-policy.js');
  const outfit=await readFile(root+'public/assets/government-uniforms/female-operational.png');
@@ -136,8 +149,17 @@ test('Thai v9 fixed head guide accepts variable source face crops without stretc
   assert.deepEqual(a.data.subarray(start),other.data.subarray(start),'Native suit pixels and its framing are identical across source aspects');
  }
  const male=thaiOutfitCalibratedProfile('male');
- assert(profile.identityHeadScale*profile.headWidthToShoulder>.33&&profile.identityHeadScale*profile.headWidthToShoulder<.37);
- assert(male.identityHeadScale*male.headWidthToShoulder>.30&&male.identityHeadScale*male.headWidthToShoulder<.34);
+ assert.equal(profile.identityHeadScale,.86);
+ assert.equal(profile.headWidthToShoulder,.34);
+ assert.equal(profile.headHeightToShoulder,.52);
+ assert.equal(male.identityHeadScale,.84);
+ assert.equal(male.headWidthToShoulder,.32);
+ assert.equal(male.headHeightToShoulder,.51);
+ const legacyFemale=thaiOutfitCalibratedProfile('female',THAI_OUTFIT_APPEARANCE_PREVIOUS_V9);
+ const legacyMale=thaiOutfitCalibratedProfile('male',THAI_OUTFIT_APPEARANCE_PREVIOUS_V9);
+ assert.deepEqual(legacyFemale,{identityHeadScale:.92,headWidthToShoulder:.39,headHeightToShoulder:.56,chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46});
+ assert.deepEqual(legacyMale,{identityHeadScale:.89,headWidthToShoulder:.35,headHeightToShoulder:.55,chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46});
+ assert(profile.identityHeadScale*profile.headWidthToShoulder<legacyFemale.identityHeadScale*legacyFemale.headWidthToShoulder,'Head target really is smaller than v9');
 });
 test('Thai native uniform reliably occludes hair over both jacket fronts and clips hanging outer hair without touching face',async()=>{
  const W=240,H=320;
