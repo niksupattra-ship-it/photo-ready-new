@@ -233,7 +233,7 @@ test('Thai finished photo only offers hairstyle and new photo; replacement enter
  const result=ui.slice(resultStart);
  const controls=result.slice(result.indexOf("section==='result'?<>"),result.indexOf("section==='hair'?<>"));
  assert(resultStart>0&&controls.length>0,'Real result actions exist');
- for(const label of ['ดาวน์โหลดรูป','เปลี่ยนทรงผม'])assert(controls.includes(label),label);
+ assert(controls.includes('ดาวน์โหลดรูป'));assert(!controls.includes('> เปลี่ยนทรงผม</button>'),'No duplicate desktop change-hair button');assert(ui.includes('!compactResult&&resultHairChoices'),'Desktop hair thumbnails remain the entry point');
  assert(ui.includes('aria-label="เปลี่ยนรูปใหม่"'),'Photo footer exposes accessible replacement icon');
  assert(!controls.includes('เปลี่ยนชุด'),'Changing outfits is unavailable after generation');
  assert(controls.includes('governmentResult&&resultInsignia'),'Insignia button appears only for government uniforms');
