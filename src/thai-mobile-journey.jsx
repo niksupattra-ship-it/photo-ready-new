@@ -114,10 +114,6 @@ export function ThaiMobileJourney({
      </div>
      <h1>กำลังสร้างรูป...</h1>
      <p className="thai-mobile-processing-subtitle">AI กำลังประมวลผลรูปของคุณ</p>
-     <div className="thai-mobile-processing-meter" aria-hidden="true">
-      <div className="thai-mobile-processing-meter-track"><span style={{width:shownProgress+'%'}}/></div>
-      <strong>{shownProgress}%</strong>
-     </div>
      <p className="thai-mobile-processing-note"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5 20 6v5.8c0 5.4-3.1 8.6-8 10-4.9-1.4-8-4.6-8-10V6Z"/><path d="m8.7 12.2 2.2 2.1 4.6-4.7"/></svg><span>ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ</span></p>
      {onCancelProcess&&<button type="button" className="thai-mobile-processing-cancel" onClick={onCancelProcess}>ยกเลิก</button>}
     </div>
