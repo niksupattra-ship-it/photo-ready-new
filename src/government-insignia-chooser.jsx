@@ -3,7 +3,7 @@ import './government-insignia-chooser.css';
 
 // This panel uses the existing Studio asset library and its undo/export path.
 // It never creates an AI job or chooses a civil-service rank for the customer.
-export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[],selected={},busy=false,onChoose,onClose,quickResult=false}){
+export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[],selected={},busy=false,onChoose,onClose,quickResult=false,placementReview=false}){
  const [tab,setTab]=useState('collar');
  const tabs=[['collar','ปกคอ'],['chest','เข็มติดอก'],['ribbon','แพรแถบ'],...(!quickResult?[['shoulder','บ่า']]:[])];
  const options=tab==='collar'?collarPins:tab==='chest'?chestPins:tab==='ribbon'?ribbons:[];
@@ -34,6 +34,7 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
    {!options.length&&<p className="idprom-government-insignia-note">ไม่มีเครื่องหมายในหมวดนี้</p>}
    {!quickResult&&<p className="idprom-government-insignia-help">เลือกแล้วแสดงบนภาพทันที ไม่เรียก AI ใหม่ · ตรวจชนิดเครื่องหมายและสิทธิ์ที่ได้รับจริงก่อนดาวน์โหลด</p>}
   </>}
+  {quickResult&&placementReview&&<p className="idprom-government-insignia-help" role="status">ระบบยังระบุตำแหน่งจากชุดนี้ได้ไม่ชัด ตรวจตำแหน่งบนรูปแล้วลากเครื่องหมายปรับก่อนรับรูป</p>}
   {onClose&&<button className="idprom-government-insignia-done" type="button" onClick={onClose}>เสร็จแล้ว · กลับไปดูรูป</button>}
  </section>;
 }

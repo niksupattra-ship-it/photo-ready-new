@@ -665,3 +665,76 @@ test('Thai V12 adds face-shape lock only for new jobs; archived V11 and English 
  const source=await readFile(root+'src/main.jsx','utf8');
  assert(source.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"));
 });
+
+test('Easy finished-photo insignia detection draws the actual portrait BEFORE sampling pixels',async()=>{
+ const editor=await readFile(root+'src/studio-editor.jsx','utf8');
+ const start=editor.indexOf('const measureEasyGovernmentInsigniaFit=()=>{');
+ const end=editor.indexOf('const selectAsset=async(',start);
+ assert(start>=0&&end>start,'Result-only anchor reader must exist');
+ const body=editor.slice(start,end);
+ assert(body.includes('if(!assets.current.get(head.id))'),'No detector result from a missing portrait');
+ assert(body.includes('paintLayers(ctx,[head],assets.current,state.current)'),'Actual completed photo must be painted before any image scan');
+ assert(body.indexOf('paintLayers(ctx,[head],assets.current,state.current)')<
+  body.indexOf('ctx.getImageData(0,0,W,H)'),'Never analyze a blank canvas');
+ assert(body.includes('head.generatedOutfitTemplate||suit?.templatePath'),'Use chosen uniform template to identify the collar type');
+ assert(body.includes('easyGovernmentPhotoFallback(W,H,gender,selectedTemplate)'),'Confidence-marked fallback is editable');
+ assert(body.includes('easyGovernmentInsigniaFitRef.current={key:cacheKey,fit}'),'Reusing a symbol on same photo cannot shift its anchors');
+ // Studio's own unchanged strict scanner is deliberately independent.
+ const studio=editor.slice(editor.indexOf('const measureGovernmentInsigniaFrame=()=>{'),start);
+ assert(studio.includes('return detectWhiteGovernmentJacket('));
+ assert(!studio.includes('easyGovernmentPhotoFallback'));
+});
+
+test('Easy government insignia uses garment-specific standing collar, blazer lapel or shirt collar',async()=>{
+ const {easyGovernmentCollarType,easyGovernmentReferencePreset,easyGovernmentPhotoFallback}=await import('../src/government-insignia-fit.js');
+ const stand='/assets/government-uniforms/male-government-employee.png';
+ const tie='/assets/government-uniforms/male-formal-tie-suit.png';
+ const shirt='/assets/government-uniforms/female-white-shirt.png';
+ const blazer='/assets/government-uniforms/female-operational.png';
+ assert.equal(easyGovernmentCollarType(stand,'male'),'stand');
+ assert.equal(easyGovernmentCollarType(tie,'male'),'lapel');
+ assert.equal(easyGovernmentCollarType(shirt,'female'),'shirt');
+ assert.equal(easyGovernmentCollarType(blazer,'female'),'lapel');
+ const frame={x:100,y:550,w:710,h:650};
+ const m=easyGovernmentReferencePreset(frame,'male',stand);
+ const mTie=easyGovernmentReferencePreset(frame,'male',tie);
+ const woman=easyGovernmentReferencePreset(frame,'female',blazer);
+ const shirtCollar=easyGovernmentReferencePreset(frame,'female',shirt);
+ assert(m.collar.right-m.collar.left<.16,'Standing collar pins near button placket');
+ assert(mTie.collar.right-mTie.collar.left>.32,'Tie-suit collar emblems on lapels');
+ assert(woman.collar.right-woman.collar.left>.43,'Female blazer emblems on outer lapels');
+ assert(shirtCollar.collar.right-shirtCollar.collar.left<.30,'White shirt collar is not a blazer lapel');
+ for(const preset of [m,mTie,woman,shirtCollar]){
+  assert(preset.collar.width>=.05&&preset.collar.width<=.085);
+  assert(preset.chest.width>=.07&&preset.ribbon.width>=.20,'Native symbol size preserved');
+ }
+ const safe=easyGovernmentPhotoFallback(900,1200,'male',tie);
+ assert.equal(safe.needsReview,true,'A percentage-only fallback must never be called verified');
+ assert(safe.preset.collar.right-safe.preset.collar.left>.3);
+});
+
+test('Easy placement is measured from real clothing, honours translated jackets and keeps corrections when insignia choice changes',async()=>{
+ const {easyGovernmentInsigniaFit}=await import('../src/government-insignia-fit.js');
+ const makeJacket=offset=>{
+  const w=600,h=800,data=new Uint8ClampedArray(w*h*4);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+   const i=(y*w+x)*4,spread=Math.max(0,(y-h*.44)/(h*.56));
+   const white=y>=h*.44&&x>w*(.30-.13*spread)+offset&&x<w*(.71+.13*spread)+offset;
+   data[i]=white?243:44;data[i+1]=white?242:142;data[i+2]=white?240:220;data[i+3]=255;
+  }
+  return {width:w,height:h,data};
+ };
+ const left=easyGovernmentInsigniaFit(makeJacket(-15),'female','/assets/government-uniforms/female-operational.png');
+ const right=easyGovernmentInsigniaFit(makeJacket(15),'female','/assets/government-uniforms/female-operational.png');
+ assert(left&&right,'Both shifted white jackets must be measurable');
+ const locate=(fit,kind)=>fit.frame.x+fit.frame.w*fit.preset[kind].x;
+ assert(locate(right,'chest')>locate(left,'chest')+10,'The chest badge must follow the ACTUAL jacket translation');
+ assert(locate(right,'ribbon')>locate(left,'ribbon')+10,'Ribbons must follow actual garment geometry');
+ const editor=await readFile(root+'src/studio-editor.jsx','utf8');
+ assert(editor.includes('setEasyInsigniaNeedsReview(Boolean(easyFit?.needsReview))'),'Show low-confidence guidance');
+ assert(editor.includes('easyInsigniaManualPlacement:true'),'Dragging marks the actual correction');
+ assert(editor.includes('target?.easyInsigniaManualPlacement'),'Selecting a new badge preserves manual adjustments');
+ assert(editor.includes('const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null'));
+ const chooser=await readFile(root+'src/government-insignia-chooser.jsx','utf8');
+ assert(chooser.includes('quickResult&&placementReview'),'Uncertain placements warn user rather than claiming auto-perfect accuracy');
+});

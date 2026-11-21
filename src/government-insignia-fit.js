@@ -85,20 +85,30 @@ export function governmentInsigniaPreset(frame,gender='female'){
 // collar badges sit near the button placket; FEMALE lapel badges sit on the
 // outer lapels. Positions are fractions of the measured jacket frame, not
 // arbitrary fixed 900x1200 canvas coordinates.
-export function easyGovernmentReferencePreset(frame,gender='female'){
+export function easyGovernmentCollarType(templatePath='',gender='female'){
+ // Match the actual shirt / standing collar / lapel garment selected in the catalogue.
+ const path=String(templatePath||'').toLowerCase();
+ if(/(?:formal-tie-suit|navy-suit|open-collar-suit)/.test(path))return 'lapel';
+ if(/(?:white-shirt)/.test(path))return 'shirt';
+ return gender==='female'?'lapel':'stand';
+}
+export function easyGovernmentReferencePreset(frame,gender='female',templatePath=''){
  if(!frame||!Number.isFinite(frame.w)||frame.w<=0)throw Error('missing_government_frame');
- return gender==='male'
-  ?{collar:{left:.435,right:.568,y:.045,width:.078},
-    chest:{x:.226,y:.349,width:.090},
-    ribbon:{x:.781,top:.304,width:.271}}
-  :{collar:{left:.263,right:.744,y:.045,width:.071},
-    chest:{x:.153,y:.360,width:.090},
-    ribbon:{x:.845,top:.323,width:.265}};
+ const type=easyGovernmentCollarType(templatePath,gender);
+ const male=gender==='male';
+ const collar=type==='stand'?{left:.435,right:.568,y:.045,width:.078}
+  :type==='shirt'?{left:.367,right:.633,y:.065,width:.064}
+  :{left:male?.307:.263,right:male?.693:.744,y:.045,width:male?.067:.071};
+ return {
+  collar,
+  chest:male?{x:.226,y:.349,width:.090}:{x:.153,y:.360,width:.090},
+  ribbon:male?{x:.781,top:.304,width:.271}:{x:.845,top:.323,width:.265}
+ };
 }
 // If white-on-white clothing prevents garment segmentation, start from
 // the exact reference's normalized photographed layout. Drag adjustment
 // remains available. No new AI work or permanent outfit alterations.
-export function easyGovernmentPhotoFallback(width=900,height=1200,gender='female'){
+export function easyGovernmentPhotoFallback(width=900,height=1200,gender='female',templatePath=''){
  const frame={x:0,y:0,w:width,h:height};
  const preset=gender==='male'
   ?{collar:{left:.448,right:.551,y:.551,width:.060},
@@ -107,17 +117,20 @@ export function easyGovernmentPhotoFallback(width=900,height=1200,gender='female
   :{collar:{left:.315,right:.687,y:.554,width:.055},
     chest:{x:.230,y:.701,width:.070},
     ribbon:{x:.765,top:.684,width:.205}};
- return {frame,preset,confidence:'photo-reference-fallback'};
+ const type=easyGovernmentCollarType(templatePath,gender);
+ if(type==='lapel'&&gender==='male')preset.collar={left:.325,right:.675,y:.554,width:.055};
+ if(type==='shirt')preset.collar={left:.370,right:.630,y:.554,width:.052};
+ return {frame,preset,confidence:'photo-reference-fallback',needsReview:true};
 }
 
 // Result-photo Easy Mode only. Keep the old Studio preset untouched.
 // Each candidate position is gently snapped to actual light jacket FABRIC in
 // the finished canvas. Do not move the official artwork or stretch its pixels.
-export function easyGovernmentInsigniaFit(image,gender='female'){
+export function easyGovernmentInsigniaFit(image,gender='female',templatePath=''){
  const detected=detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite:true});
  if(!detected)return null;
  const frame=detected.frame;
- const preset=easyGovernmentReferencePreset(frame,gender);
+ const preset=easyGovernmentReferencePreset(frame,gender,templatePath);
  const {width,height,data}=image;
  const white=(x,y)=>{
   x=Math.round(x);y=Math.round(y);
@@ -165,5 +178,13 @@ export function easyGovernmentInsigniaFit(image,gender='female'){
   chest:{...preset.chest,x:chest.x,y:chest.y},
   ribbon:{...preset.ribbon,x:ribbon.x,top:clamp(ribbon.y-ribbonProbe,.05,.90)}
  };
- return {frame,preset:refined,confidence:detected.confidence};
+ const px=(x,y)=>support(frame.x+frame.w*x,frame.y+frame.h*y);
+ // If at least one of the inferred garment anchors has no visible fabric,
+ // do not describe the placement as certain.
+ const needsReview=[px(refined.collar.left,refined.collar.y),
+  px(refined.collar.right,refined.collar.y),
+  px(refined.chest.x,refined.chest.y),
+  px(refined.ribbon.x,refined.ribbon.top+ribbonProbe)].some(score=>score<.45);
+ return {frame,preset:refined,confidence:needsReview?'manual-review':detected.confidence,
+  needsReview,collarType:easyGovernmentCollarType(templatePath,gender)};
 }

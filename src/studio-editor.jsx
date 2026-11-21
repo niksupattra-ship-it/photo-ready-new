@@ -1234,6 +1234,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }catch{return null}finally{sampled.width=sampled.height=1}
  };
  const easyGovernmentInsigniaFitRef=useRef(null);
+ const [easyInsigniaNeedsReview,setEasyInsigniaNeedsReview]=useState(false);
  const measureEasyGovernmentInsigniaFit=()=>{
   // The result is tied to this exact generated photo and outfit. Switching
   // insignia must not re-measure a scene that already has badges drawn on it.
@@ -1246,11 +1247,22 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(easyGovernmentInsigniaFitRef.current?.key===cacheKey)return easyGovernmentInsigniaFitRef.current.fit;
   const sampled=canvas();
   let fit=null;
+  const gender=head.portraitMode||hairGender;
+  const selectedTemplate=head.generatedOutfitTemplate||suit?.templatePath||governmentTemplate||'';
   try{
+   // CRITICAL: the previous implementation sampled a brand-new BLANK canvas.
+   // Draw ONLY the actual finished AI portrait to measure its white garment.
+   // Excluding placed insignia prevents subsequent selections from drifting.
+   const ctx=sampled.getContext('2d',{willReadFrequently:true});
+   if(!assets.current.get(head.id))throw Error('portrait_asset_unavailable');
+   paintLayers(ctx,[head],assets.current,state.current);
    fit=easyGovernmentInsigniaFit(
-    sampled.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H),
-    head.portraitMode||hairGender)||easyGovernmentPhotoFallback(W,H,head.portraitMode||hairGender);
-  }catch{fit=null}finally{sampled.width=sampled.height=1}
+    ctx.getImageData(0,0,W,H),gender,selectedTemplate);
+  }catch(error){console.warn('Easy government garment anchors unavailable',error?.message)}
+  finally{sampled.width=sampled.height=1}
+  // Safe editable fallback: explicitly mark a position as needing review,
+  // rather than claiming that a fixed coordinate is detected from the image.
+  if(!fit)fit=easyGovernmentPhotoFallback(W,H,gender,selectedTemplate);
   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit};
   return fit;
  };
@@ -1295,6 +1307,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     const defaultFrame=p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H};
     const autoInsignia=(governmentAutoPlace||resultInsigniaDirect)&&governmentResult&&option&&['collar','chest','ribbon'].includes(kind);
     const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null;
+    if(autoInsignia&&resultInsigniaDirect)setEasyInsigniaNeedsReview(Boolean(easyFit?.needsReview));
     const measuredFrame=easyFit?.frame||(autoInsignia&&!resultInsigniaDirect?measureGovernmentInsigniaFrame():null);
     if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect){setStatus('ยังตรวจตำแหน่งเครื่องหมายจากชุดในรูปนี้ได้ไม่มั่นใจ กรุณาปรับตำแหน่งใน Studio');return}
     const frame=measuredFrame||(kind==='suit'?(suit?.sourceFrame||suit?.collarFrame||restoredSuit?.sourceFrame||restoredSuit?.collarFrame||defaultFrame):(suit?.collarFrame||suit?.sourceFrame||defaultFrame));
@@ -1319,7 +1332,21 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(kind==='background')Object.assign(created,{x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,opacity:1});
     if(['collar','chest','ribbon'].includes(kind))Object.assign(created,{x:suit?.x||0,y:suit?.y||0,scale:suit?.scale||1,rotation:suit?.rotation||0,opacity:1,collarLeftX:0,collarRightX:0,collarLeftY:0,collarRightY:0});
     if(kind==='collar')Object.assign(created,{collarLeftScale:1,collarRightScale:1,collarLeftRotation:0,collarRightRotation:0});
-    if(measuredFrame)Object.assign(created,{x:0,y:0,scale:1,rotation:0,squeezeX:1,squeezeY:1,collarLeftX:0,collarLeftY:0,collarRightX:0,collarRightY:0});
+    if(measuredFrame){
+     // Preserve a correction the user actually dragged in Easy Mode if they
+     // swap one rank/insignia for another of the same category.
+     const manuallyAdjusted=Boolean(resultInsigniaDirect&&target?.easyInsigniaManualPlacement);
+     Object.assign(created,manuallyAdjusted?{
+      x:target.x||0,y:target.y||0,scale:target.scale||1,rotation:target.rotation||0,
+      squeezeX:1,squeezeY:1,collarLeftX:target.collarLeftX||0,
+      collarLeftY:target.collarLeftY||0,collarRightX:target.collarRightX||0,
+      collarRightY:target.collarRightY||0,
+      collarLeftScale:target.collarLeftScale||1,collarRightScale:target.collarRightScale||1,
+      easyInsigniaManualPlacement:true
+     }:{x:0,y:0,scale:1,rotation:0,squeezeX:1,squeezeY:1,
+      collarLeftX:0,collarLeftY:0,collarRightX:0,collarRightY:0,
+      collarLeftScale:1,collarRightScale:1,easyInsigniaManualPlacement:false});
+    }
     next=target?previous.map(l=>l.id===target.id?created:l):kind==='background'?[created,...previous]:[...previous,created];
     // English PNG-overlay mode is NON-DESTRUCTIVE. Keep the complete original
     // AI photograph, including the clothes it already contains. Never clip it.
@@ -1959,7 +1986,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  // The finished-photo controls edit the EXACT Studio asset layer, so undo,
  // saved work and purchased PNG/PDF receive the same placement.
  const resultInsigniaUi=governmentResult&&insigniaForLanguage()
-  ?<GovernmentInsigniaChooser quickResult collarPins={collarPins} chestPins={chestPins} ribbons={ribbons}
+  ?<GovernmentInsigniaChooser quickResult placementReview={easyInsigniaNeedsReview} collarPins={collarPins} chestPins={chestPins} ribbons={ribbons}
    selected={Object.fromEntries(['collar','chest','ribbon'].map(kind=>[kind,layers.find(l=>layerKind(l)===kind)?.assetId||null]))}
    busy={!ready||blockingAssetBusy||processActive}
    onChoose={(kind,option)=>void selectAsset(kind,option,{resultInsigniaDirect:true})}/>
@@ -2000,13 +2027,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    const origin=sceneToLayer(layer,{x:450,y:600});
    const shifted=sceneToLayer(layer,{x:450+dx,y:600+dy});
    const x='collar'+side+'X',y='collar'+side+'Y',size='collar'+side+'Scale';
-   updated={...layer,[x]:Math.max(-900,Math.min(900,(layer[x]||0)+shifted.x-origin.x)),
+   updated={...layer,easyInsigniaManualPlacement:true,[x]:Math.max(-900,Math.min(900,(layer[x]||0)+shifted.x-origin.x)),
     [y]:Math.max(-1200,Math.min(1200,(layer[y]||0)+shifted.y-origin.y)),
     [size]:Math.max(.2,Math.min(3.5,(layer[size]??1)*ratio))};
   }else{
    const nextScale=Math.max(.2,Math.min(3.5,(layer.scale||1)*ratio));
    const rescaled=Math.abs(nextScale-(layer.scale||1))>.0001?scaleAroundCenter(layer,nextScale):{x:layer.x||0,y:layer.y||0};
-   updated={...layer,scale:nextScale,
+   updated={...layer,easyInsigniaManualPlacement:true,scale:nextScale,
     x:Math.max(-W,Math.min(W,(rescaled.x??layer.x??0)+dx)),
     y:Math.max(-H,Math.min(H,(rescaled.y??layer.y??0)+dy))};
   }
