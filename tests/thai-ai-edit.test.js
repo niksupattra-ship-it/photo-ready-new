@@ -519,9 +519,10 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const fit=easyGovernmentInsigniaFit(image,'female');
  assert(fit,'A clear white government jacket must yield a measured fit');
  const native=easyGovernmentReferencePreset(fit.frame,'female');
- assert.equal(fit.preset.collar.width,native.collar.width,'No resizing the actual pin');
- assert.equal(fit.preset.chest.width,native.chest.width,'No resizing the chest badge');
- assert.equal(fit.preset.ribbon.width,native.ribbon.width,'No resizing the ribbon');
+ assert(fit.preset.collar.width<native.collar.width,'A measured collar pin must be appropriately smaller');
+ assert(fit.preset.chest.width<native.chest.width,'Chest badge must fit the visible upper chest');
+ assert(fit.preset.ribbon.width<native.ribbon.width,'Ribbon must fit the breast panel rather than lower-jacket width');
+ assert(fit.preset.ribbon.width<=.19001&&fit.preset.chest.width<=.07601);
  assert(fit.preset.collar.left<.5&&fit.preset.collar.right>.5,'Paired collar badges must be on their own sides');
  assert(fit.preset.chest.x<.5&&fit.preset.ribbon.x>.5,'Chest pin and ribbon cannot be swapped');
  const inside=(ax,ay)=>{
@@ -543,7 +544,7 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const correctedX=Math.round(corrected.frame.x+corrected.frame.w*corrected.preset.chest.x);
  const correctedY=Math.round(corrected.frame.y+corrected.frame.h*corrected.preset.chest.y);
  assert(correctedX!==initialChest.x||correctedY!==initialChest.y,'A badge must not remain on a non-fabric spot');
- assert(corrected.preset.chest.width===fit.preset.chest.width,'Reposition never changes official symbol proportions');
+ assert(corrected.preset.chest.width<=.07601,'Reposition retains the visible upper-chest size cap');
  const correctedOffset=Math.hypot(correctedX-initialChest.x,correctedY-initialChest.y);
  assert(correctedOffset<60,'Refine locally; do not let a misplaced hit jump across the garment');
  const editor=await readFile(root+'src/studio-editor.jsx','utf8');
@@ -760,4 +761,62 @@ test('Easy government picker renders ONE collar symbol using already built small
   assert.equal(file.toString('ascii',0,4),'RIFF','Preview is real WebP: '+path);
   assert(file.length<35000,'Preview must stay small: '+path);
  }
+});
+
+test('all Thai Easy government outfits adapt insignia sizes to narrow, broad and translated upper torsos',async()=>{
+ const {
+  easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,easyGovernmentReferencePreset,
+  governmentInsigniaPreset,detectWhiteGovernmentJacket
+ }=await import('../src/government-insignia-fit.js');
+ const create=(left,right,shift=0,tie=true)=>{
+  const width=600,height=800,data=new Uint8ClampedArray(width*height*4);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+   const i=(y*width+x)*4,progress=Math.max(0,(y-height*.42)/(height*.58));
+   let fabric=y>=height*.42&&x>left+shift-30*progress&&x<right+shift+30*progress;
+   if(tie&&x>300+shift-12&&x<300+shift+12&&y<height*.69)fabric=false;
+   data[i]=fabric?241:44;data[i+1]=fabric?239:130;data[i+2]=fabric?238:220;data[i+3]=255;
+  }
+  return {width,height,data};
+ };
+ const cases=[
+  {name:'female blazer broad',img:create(135,465),gender:'female',path:'/assets/government-uniforms/female-operational.png'},
+  {name:'female blazer narrow',img:create(205,399),gender:'female',path:'/assets/government-uniforms/female-senior.png'},
+  {name:'female shirt narrow',img:create(205,399),gender:'female',path:'/assets/government-uniforms/female-white-shirt.png'},
+  {name:'male standing collar',img:create(140,465),gender:'male',path:'/assets/government-uniforms/male-government-employee.png'},
+  {name:'male formal lapel',img:create(160,460),gender:'male',path:'/assets/government-uniforms/male-formal-tie-suit.png'},
+  {name:'translated woman',img:create(145,442,24),gender:'female',path:'/assets/government-uniforms/female-government-employee.png'}
+ ];
+ const results=[];
+ for(const example of cases){
+  const fit=easyGovernmentInsigniaFit(example.img,example.gender,example.path);
+  assert(fit,example.name+' should be detected even when the torso is narrow');
+  const prior=easyGovernmentReferencePreset(fit.frame,example.gender,example.path);
+  assert(fit.preset.collar.width<=.058001,'Collar size limit: '+example.name);
+  assert(fit.preset.chest.width<=.076001,'Chest badge size limit: '+example.name);
+  assert(fit.preset.ribbon.width<=.190001,'Ribbon size limit: '+example.name);
+  assert(fit.preset.ribbon.width<prior.ribbon.width,'Do not use the oversized legacy width: '+example.name);
+  assert(fit.preset.ribbon.x>fit.preset.ribbon.width/2+.5,'Ribbon stays on correct right half');
+  assert(fit.preset.ribbon.x+fit.preset.ribbon.width/2<.95,'Ribbon must not reach outer shoulder seam');
+  assert(fit.preset.chest.x-fit.preset.chest.width/2>.04,'Chest badge must fit left side');
+  assert(fit.preset.collar.left+fit.preset.collar.width/2<.50,'Collar-left pin stays separate');
+  assert(fit.preset.collar.right-fit.preset.collar.width/2>.50,'Collar-right pin stays separate');
+  results.push({name:example.name,frame:fit.frame.w,ribbon:fit.frame.w*fit.preset.ribbon.width});
+ }
+ const broad=results.find(x=>x.name==='female blazer broad');
+ const narrow=results.find(x=>x.name==='female blazer narrow');
+ assert(narrow.ribbon<broad.ribbon*.80,'A narrow body must have a genuinely smaller ribbon in scene pixels');
+ assert(narrow.frame<broad.frame,'Narrow torso detection must not force legacy oversized min-width');
+ const fallback=easyGovernmentPhotoFallback(900,1200,'female');
+ assert(fallback.needsReview,'Undetected garment cannot claim perfect positioning');
+ assert(fallback.preset.ribbon.width<=.120001);
+ assert(fallback.preset.chest.width<=.046001);
+ assert(fallback.preset.collar.width<=.038001);
+ const standing=governmentInsigniaPreset({x:150,y:450,w:570,h:750},'male');
+ assert.equal(standing.collar.width,.071,'Studio remains unchanged');
+ const sample=create(205,399);
+ assert.equal(detectWhiteGovernmentJacket(sample),null,'Studio still rejects narrow jacket by its original detector');
+ assert(easyGovernmentInsigniaFit(sample,'female'),'Only Easy Mode accepts narrow government coats');
+ const assetCode=await readFile(root+'src/studio-source.js','utf8');
+ assert(assetCode.includes('w=frame.w*v.width,h=w*c.height/c.width'),'Native artwork must retain its exact pixel aspect');
+ assert(assetCode.includes('const frames=[left,right].map'),'Native collar pin pair remains separate');
 });

@@ -5,7 +5,7 @@ export function isGovernmentUniform(template='',category=''){
  return category==='government'||/\/government-uniforms\//i.test(String(template));
 }
 const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
-export function detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite=false}={}){
+export function detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite=false,allowNarrowJacket=false}={}){
  const width=image?.width,height=image?.height,data=image?.data;
  if(!Number.isFinite(width)||!Number.isFinite(height)||width<160||height<200||!data||data.length<width*height*4)return null;
  const white=(x,y)=>{
@@ -43,7 +43,7 @@ export function detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite=false}={}
  if(candidates.length<width*.21/3)return null;
  const left=candidates[Math.floor(candidates.length*.055)],right=candidates[Math.floor(candidates.length*.945)];
  const span=right-left;
- if(span<width*.43||span>width*.94||left<width*.025||right>width*.975)return null;
+ if(span<width*(allowNarrowJacket?.31:.43)||span>width*.94||left<width*.025||right>width*.975)return null;
  // Find where the actual jacket starts at two shoulder-region columns.
  const findTop=(cx)=>{
   for(let y=Math.floor(height*.36);y<Math.floor(height*.70);y+=3){
@@ -62,7 +62,7 @@ export function detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite=false}={}
  const frame={
   x:clamp(left-width*.012,0,width*.4),
   y:clamp(top-height*.012,height*.29,height*.72),
-  w:clamp(span+width*.024,width*.43,width*.95),
+  w:clamp(span+width*.024,width*(allowNarrowJacket?.31:.43),width*.95),
   h:height-clamp(top-height*.012,height*.29,height*.72)
  };
  if(frame.x+frame.w>width)frame.w=width-frame.x;
@@ -120,14 +120,77 @@ export function easyGovernmentPhotoFallback(width=900,height=1200,gender='female
  const type=easyGovernmentCollarType(templatePath,gender);
  if(type==='lapel'&&gender==='male')preset.collar={left:.325,right:.675,y:.554,width:.055};
  if(type==='shirt')preset.collar={left:.370,right:.630,y:.554,width:.052};
+ // No valid outfit segmentation: conservative small symbols, flagged for review.
+ preset.collar.width=Math.min(preset.collar.width,.038);
+ preset.chest.width=Math.min(preset.chest.width,.046);
+ preset.ribbon.width=Math.min(preset.ribbon.width,.120);
  return {frame,preset,confidence:'photo-reference-fallback',needsReview:true};
+}
+
+
+// Easy Mode only: fit each emblem to the visible UPPER TORSO half-panel,
+// not the broader lower-jacket bounding box. Studio presets remain unchanged.
+// The genuine PNG is scaled uniformly by nativeAsset, never warped.
+export function easyGovernmentFitBadgeSizes(image,frame,preset,gender='female',templatePath=''){
+ const type=easyGovernmentCollarType(templatePath,gender);
+ const fw=frame.w;
+ const output={collar:{...preset.collar},chest:{...preset.chest},ribbon:{...preset.ribbon}};
+ output.collar.width=Math.min(output.collar.width,
+  type==='lapel'?.052:type==='shirt'?.049:.058,
+  Math.max(.028,(output.collar.right-output.collar.left)*.27));
+ const w=image?.width,h=image?.height,data=image?.data;
+ const valid=Number.isFinite(w)&&Number.isFinite(h)&&w>=160&&h>=200&&data&&data.length>=w*h*4;
+ const light=(x,y)=>{
+  x=Math.round(x);y=Math.round(y);
+  if(x<0||y<0||x>=w||y>=h)return false;
+  const i=(y*w+x)*4,r=data[i],g=data[i+1],b=data[i+2],a=data[i+3];
+  return a>=170&&r>173&&g>173&&b>173&&Math.max(r,g,b)-Math.min(r,g,b)<41;
+ };
+ const lane=(side,yRatio)=>{
+  const geometric=side==='left'?{min:.085,max:.455}:{min:.535,max:.925};
+  if(!valid)return {...geometric,measured:false};
+  const lo=side==='left'?.025:.515,hi=side==='left'?.485:.975;
+  const x0=Math.max(0,Math.round(frame.x+fw*lo));
+  const x1=Math.min(w-1,Math.round(frame.x+fw*hi));
+  const y=Math.round(frame.y+frame.h*yRatio),dy=Math.max(2,Math.round(h*.004));
+  let best=null,run=null;
+  const flush=()=>{
+   if(!run)return;
+   const length=run.end-run.start;
+   if(length>=fw*.11&&(!best||length>best.end-best.start))best={...run};
+   run=null;
+  };
+  for(let x=x0;x<=x1;x+=2){
+   let hits=0;for(const py of [y-dy,y,y+dy])if(light(x,py))hits++;
+   if(hits>=2){if(!run)run={start:x,end:x};else run.end=x}
+   else flush();
+  }
+  flush();
+  if(!best)return {...geometric,measured:false};
+  const padding=Math.max(3,fw*.025);
+  const min=(best.start+padding-frame.x)/fw,max=(best.end-padding-frame.x)/fw;
+  if(max-min<.14)return {...geometric,measured:false};
+  return {min:Math.max(geometric.min,min),max:Math.min(geometric.max,max),measured:true};
+ };
+ const left=lane('left',output.chest.y),right=lane('right',output.ribbon.top+.028);
+ const bound=(item,slot,maximum,usable,ribbon=false)=>{
+  const available=Math.max(.09,slot.max-slot.min);
+  const width=Math.max(.020,Math.min(item.width,maximum,available*usable));
+  const min=slot.min+width/2,max=slot.max-width/2;
+  // Do not sit on the outer seam even if the default location is far right.
+  const desired=ribbon?Math.min(item.x,slot.min+available*.59):item.x;
+  return {...item,width,x:max>=min?clamp(desired,min,max):(slot.min+slot.max)/2};
+ };
+ output.chest=bound(output.chest,left,.076,.27);
+ output.ribbon=bound(output.ribbon,right,.190,.54,true);
+ return {preset:output,needsReview:!left.measured||!right.measured,lanes:{left,right}};
 }
 
 // Result-photo Easy Mode only. Keep the old Studio preset untouched.
 // Each candidate position is gently snapped to actual light jacket FABRIC in
 // the finished canvas. Do not move the official artwork or stretch its pixels.
 export function easyGovernmentInsigniaFit(image,gender='female',templatePath=''){
- const detected=detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite:true});
+ const detected=detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite:true,allowNarrowJacket:true});
  if(!detected)return null;
  const frame=detected.frame;
  const preset=easyGovernmentReferencePreset(frame,gender,templatePath);
@@ -178,13 +241,15 @@ export function easyGovernmentInsigniaFit(image,gender='female',templatePath='')
   chest:{...preset.chest,x:chest.x,y:chest.y},
   ribbon:{...preset.ribbon,x:ribbon.x,top:clamp(ribbon.y-ribbonProbe,.05,.90)}
  };
+ const sized=easyGovernmentFitBadgeSizes(image,frame,refined,gender,templatePath);
+ const bounded=sized.preset;
  const px=(x,y)=>support(frame.x+frame.w*x,frame.y+frame.h*y);
  // If at least one of the inferred garment anchors has no visible fabric,
  // do not describe the placement as certain.
- const needsReview=[px(refined.collar.left,refined.collar.y),
-  px(refined.collar.right,refined.collar.y),
-  px(refined.chest.x,refined.chest.y),
-  px(refined.ribbon.x,refined.ribbon.top+ribbonProbe)].some(score=>score<.45);
- return {frame,preset:refined,confidence:needsReview?'manual-review':detected.confidence,
+ const needsReview=sized.needsReview||[px(bounded.collar.left,bounded.collar.y),
+  px(bounded.collar.right,bounded.collar.y),
+  px(bounded.chest.x,bounded.chest.y),
+  px(bounded.ribbon.x,bounded.ribbon.top+ribbonProbe)].some(score=>score<.45);
+ return {frame,preset:bounded,confidence:needsReview?'manual-review':detected.confidence,
   needsReview,collarType:easyGovernmentCollarType(templatePath,gender)};
 }
