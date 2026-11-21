@@ -15,7 +15,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   const candidates=[...handles].reverse();
   return candidates.find(({box})=>{
    if(!box)return false;
-   const margin=21;return p.x>=box.x-margin&&p.y>=box.y-margin&&p.x<=box.x+box.w+margin&&p.y<=box.y+box.h+margin;
+   const margin=39;return p.x>=box.x-margin&&p.y>=box.y-margin&&p.x<=box.x+box.w+margin&&p.y<=box.y+box.h+margin;
   })||null;
  };
  const step=()=>{
@@ -28,10 +28,14 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   if(busy)return;
   const p=locate(e);if(!p)return;
   const selected=gesture.current;
-  const target=selected?handles.find(h=>(h.id||h.kind)===selected.id):hit(p);
+  // The corner grip extends beyond a small pin's image box, especially on
+  // mobile. Resolve its owning marker first rather than rejecting the touch.
+  const grip=e.target.closest?.('[data-insignia-resize]');
+  const owningId=grip?.closest?.('[data-kind]')?.dataset.kind;
+  const target=selected?handles.find(h=>(h.id||h.kind)===selected.id):
+   owningId?handles.find(h=>(h.id||h.kind)===owningId):hit(p);
   if(!target)return;
   if(!gesture.current){
-   const grip=e.target.closest?.('[data-insignia-resize]');
    const mode=grip?'resize':'move';
    gesture.current={id:target.id||target.kind,mode,last:null};
    setActive(target.id||target.kind);onStart?.(target.id||target.kind);
