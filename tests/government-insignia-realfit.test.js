@@ -84,7 +84,7 @@ test('Thai Easy accommodates different torso sizes while never scaling the offic
  }
  assert(fitted[1].frame.w*fitted[1].preset.ribbon.width<
   fitted[0].frame.w*fitted[0].preset.ribbon.width*.80,
-  'Narrow torso's physical ribbon pixels must be smaller than a broad torso's');
+  'Narrow torso ribbon pixels must be smaller than a broad torso');
  const assetSource=await readFile(resolve(root,'src/studio-source.js'),'utf8');
  assert(assetSource.includes('h=w*c.height/c.width'),
   'Pin and ribbon assets must retain intrinsic pixel aspect ratio');
