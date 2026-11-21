@@ -65,7 +65,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
-import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement} from './government-insignia-fit.js';
+import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes} from './government-insignia-fit.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
 import {TouchParts,TouchAdjust,partName} from './studio-touch.jsx';
 import {StudioChoiceIcon,StudioToolIcon,StudioHistoryIcon} from './studio-icons.jsx';
@@ -1253,8 +1253,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   // visibly composited. The head-only pixel scan cannot locate PNG seams.
   const templateFit=governmentPngTemplatePlacement(suit,gender);
   if(templateFit){
-   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit:templateFit};
-   return templateFit;
+   const balancedTemplateFit=balanceEasyGovernmentBadgeSizes(templateFit);
+   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit:balancedTemplateFit};
+   return balancedTemplateFit;
   }
   try{
    // CRITICAL: the previous implementation sampled a brand-new BLANK canvas.
@@ -1270,6 +1271,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   // Safe editable fallback: explicitly mark a position as needing review,
   // rather than claiming that a fixed coordinate is detected from the image.
   if(!fit)fit=easyGovernmentPhotoFallback(W,H,gender,selectedTemplate);
+  fit=balanceEasyGovernmentBadgeSizes(fit);
   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit};
   return fit;
  };
