@@ -1,0 +1,9 @@
+# Requested collarless inner shirt on Thai female government portraits
+
+The customer explicitly requested removal of the pointed inner shirt collar, retaining the outer jacket lapels, tie and insignia. This is a deliberate neckline style change, not removal of a duplicate compositing layer.
+
+New Thai requests opt into `thai-female-no-inner-collar-v1`. Only the four female government uniforms use it. Add a third panel to the existing outfit-detail reference showing the collarless neckline; the two original selected-outfit panels continue to control colour, rank, shoulder boards and construction elsewhere. A final scoped instruction explicitly supersedes the obsolete inner collar in the original template/layout, preserves plain inner-shirt fabric and the original tie/outer jacket, and keeps the real-face authority last. The generated guide supplies neckline construction only and never rank, face or skin.
+
+Guide provenance: image-generation edit of the native female-operational PNG, refined as a neckline-only crop with the pointed inner collar removed. Native catalogue PNGs and historic completed images remain unchanged. It is a conditioning guide, never pasted onto a customer output. No mask, face edit, output compositing pass, extra provider request, price or credit change is introduced. Existing/English/male/other outfits do not opt in. Customer images must be newly generated after the updated client loads; old completed images cannot lose embedded garment pixels by refreshing.
+
+Tests cover all four scoped paths, excluded routes, detail-panel dimensions, original opaque garment colours/alpha, the actual required Makeup audit, one provider call per job, image-index/call-count compatibility and untouched original assets. Tests use an inert provider and do not claim a live generated customer outcome. The provider still returns one coherent portrait through the existing matting/export path.

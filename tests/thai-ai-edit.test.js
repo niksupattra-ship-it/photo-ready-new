@@ -130,7 +130,7 @@ test('archived Thai v8/v9/v10 remain valid while V11 uses per-face adaptive guid
  assert.equal(usesThaiHistoricOutfitPrompt(previousV5),true);
  assert.equal(thai.interfaceLanguage,'th','Thai rights stay Thai');
  const main=await readFile(root+'src/main.jsx','utf8');
- assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION]:[])'));
+ assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[])'));
  assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"));
 });
 
@@ -317,7 +317,7 @@ test('Thai v6 bypasses all native post-mask layers while v3-v5 archived jobs rem
  const layout=await readFile(root+'english-body-layout.js','utf8');
  assert(layout.includes('if(!returnNativeForeground)return composition'),'All English output remains original one-pass composition');
  const main=await readFile(root+'src/main.jsx','utf8');
- assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION]:[])'),'Thai cache version invalidates buggy old previews');
+ assert(main.includes('...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[])'),'Thai cache version invalidates buggy old previews');
 });
 
 test('Thai outfit uses the exact English mobile card and explicit AI creation flow',async()=>{
