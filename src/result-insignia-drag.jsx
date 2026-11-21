@@ -28,13 +28,13 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   if(busy)return;
   const p=locate(e);if(!p)return;
   const selected=gesture.current;
-  const target=selected?handles.find(h=>h.kind===selected.kind):hit(p);
+  const target=selected?handles.find(h=>(h.id||h.kind)===selected.id):hit(p);
   if(!target)return;
   if(!gesture.current){
    const grip=e.target.closest?.('[data-insignia-resize]');
    const mode=grip?'resize':'move';
-   gesture.current={kind:target.kind,mode,last:null};
-   setActive(target.kind);onStart?.(target.kind);
+   gesture.current={id:target.id||target.kind,mode,last:null};
+   setActive(target.id||target.kind);onStart?.(target.id||target.kind);
   }
   e.preventDefault();e.stopPropagation();
   pointers.current.set(e.pointerId,p);
@@ -53,7 +53,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
    :g.mode==='resize'?clamp(1+((after.center.x-before.center.x)+(after.center.y-before.center.y))*0.009,.7,1.3):1;
   const dx=multi||g.mode==='move'?after.center.x-before.center.x:0;
   const dy=multi||g.mode==='move'?after.center.y-before.center.y:0;
-  if(Math.abs(dx)+Math.abs(dy)>.01||Math.abs(scaleRatio-1)>.001)onTransform?.(g.kind,{dx,dy,scaleRatio});
+  if(Math.abs(dx)+Math.abs(dy)>.01||Math.abs(scaleRatio-1)>.001)onTransform?.(g.id,{dx,dy,scaleRatio});
   g.last=after;
  };
  const finish=e=>{
@@ -61,22 +61,22 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   e.stopPropagation();pointers.current.delete(e.pointerId);
   try{e.currentTarget.releasePointerCapture?.(e.pointerId)}catch{}
   if(pointers.current.size)gesture.current.last=step();
-  else{const g=gesture.current;gesture.current=null;if(g)onEnd?.(g.kind)}
+  else{const g=gesture.current;gesture.current=null;if(g)onEnd?.(g.id)}
  };
  const cancel=()=>{
-  if(gesture.current){const g=gesture.current;gesture.current=null;pointers.current.clear();onEnd?.(g.kind)}
+  if(gesture.current){const g=gesture.current;gesture.current=null;pointers.current.clear();onEnd?.(g.id)}
  };
  if(!handles.length)return null;
  return <div className="thai-result-insignia-interaction" ref={area}
    aria-label="ลากเครื่องหมายบนรูป หรือจับมุมเพื่อย่อขยาย"
    onPointerDown={begin} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish}
    onLostPointerCapture={e=>{if(pointers.current.has(e.pointerId))finish(e)}}>
-   {handles.map(({kind,box})=>{
+   {handles.map(({kind,id,box})=>{
     const left=clamp(box.x/W*100,0,100),top=clamp(box.y/H*100,0,100);
     const width=clamp(box.w/W*100,1,100-left),height=clamp(box.h/H*100,1,100-top);
-    return <div key={kind} className={'thai-result-insignia-handle'+(active===kind?' active':'')}
-      data-kind={kind} style={{left:left+'%',top:top+'%',width:width+'%',height:height+'%'}}>
-      {active===kind&&<span className="thai-result-insignia-grip" data-insignia-resize="true" role="img" aria-label="ลากเพื่อย่อขยายเครื่องหมาย">↘</span>}
+    return <div key={id||kind} className={'thai-result-insignia-handle'+(active===(id||kind)?' active':'')}
+      data-kind={id||kind} style={{left:left+'%',top:top+'%',width:width+'%',height:height+'%'}}>
+      {active===(id||kind)&&<span className="thai-result-insignia-grip" data-insignia-resize="true" role="img" aria-label="ลากเพื่อย่อขยายเครื่องหมาย">↘</span>}
     </div>;
    })}
  </div>;
