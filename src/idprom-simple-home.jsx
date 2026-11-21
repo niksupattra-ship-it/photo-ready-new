@@ -31,10 +31,14 @@ export function IdpromSimpleHome({onUpload,loading=false,sourcePreview=null,stat
     <section className="idprom-simple-upload-step" aria-label="อัปโหลดรูปของคุณ">
      <button className="idprom-simple-upload-back" type="button" onClick={()=>setPage('welcome')} aria-label="กลับหน้าแรก">‹</button>
      <h1>อัปโหลดรูปของคุณ</h1>
-     <button type="button" onClick={onUpload} disabled={loading} className="idprom-simple-upload-card" aria-label="เพิ่มรูป">
-      <span className="idprom-upload-glyph" aria-hidden="true">↑</span>
-      <strong>เพิ่มรูป</strong>
-     </button>
+     <div className="idprom-simple-upload-card" aria-label="เพิ่มรูป">
+      <span className="idprom-upload-glyph" aria-hidden="true">
+       <svg viewBox="0 0 24 24" width="27" height="27" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.4 17.5H6a4 4 0 0 1-.2-8 6.3 6.3 0 0 1 12.1 0 4.2 4.2 0 0 1 .6 8h-.7"/><path d="M12 19V10m-3.5 3.5L12 10l3.5 3.5"/></svg>
+      </span>
+      <h2>เพิ่มรูป</h2>
+      <button type="button" onClick={onUpload} disabled={loading} className="idprom-simple-upload-submit">อัปโหลดรูป</button>
+      <p className="idprom-simple-upload-hint">ใช้รูปหน้าตรง ใบหน้าชัดเจน</p>
+     </div>
     </section>
    </>}
    {!!status&&<p className="idprom-simple-error" role="alert">{status}</p>}
