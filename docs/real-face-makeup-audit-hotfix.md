@@ -1,0 +1,7 @@
+# Real-face Makeup audit compatibility fix
+
+The previous real-face change normalized conflicting Makeup clauses before provider submission. The live `createMakeupRequestAudit(..., {requirePolicy:true})` still searched for the entire unmodified Makeup policy as a byte-identical substring. Normalized requests therefore raised `MAKEUP_POLICY_MISMATCH` before reaching Seedream. Earlier production tests supplied a direct inert provider and missed this audit boundary.
+
+Export the existing pure normalization and use it as the audit's expected new canonical policy, selected by an internal version metadata field on the server-built request. Require exactly one corresponding policy and the final original-face authority, reject missing, duplicate, mixed, unknown/unversioned adapted policies before a provider call. Retain the original canonical policy for archived and English requests. Keep the existing snapshot contract. Transport destructuring omits the internal version, so the provider payload stays supported.
+
+A new regression runs female Makeup initial/reprocessing contexts through `processProductionPortrait` and the actual required audit with an inert provider. It checks successful one-call delivery and eye-preservation wording, while negative cases verify the existing guard remains active. No paid AI request, automatic retry, image repaint, rights or credit change is made. The independent mobile inline-picker work remains outside this hotfix.

@@ -23,5 +23,5 @@ test('request and both cache identities carry the new revision without changing 
  assert(main.includes("fd.append('thaiRealFaceVersion',THAI_REAL_FACE_VERSION)"));
  assert.equal((main.match(/thaiWholeOutfit\?\[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION\]/g)||[]).length,2);
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
- assert(pipeline.indexOf('prompt=applyThaiRealFacePolicy(prompt,fields)')<pipeline.indexOf('const result=await requestPortrait({key,prompt,size:templateBody?'));
+ assert(pipeline.indexOf('prompt=applyThaiRealFacePolicy(prompt,fields)')<pipeline.indexOf('const result=await requestPortrait({key,prompt,'));
 });
