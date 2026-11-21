@@ -28,17 +28,14 @@ export function IdpromSimpleHome({onUpload,loading=false,sourcePreview=null,stat
     <button className="idprom-simple-primary" type="button" onClick={()=>setPage('upload')}>เริ่มทำรูปเลย <span aria-hidden="true">→</span></button>
     <p className="idprom-simple-reassure">รักษาใบหน้าเดิม · รับไฟล์ PNG / PDF</p></div></div>
    </>:<>
-    <div className="idprom-simple-page-heading"><button type="button" onClick={()=>setPage('welcome')} aria-label="กลับ">‹</button><span>ขั้นตอน 1 / เพิ่มรูป</span></div>
-    <h1>อัปโหลดรูปของคุณ</h1>
-    <p className="idprom-simple-lead">เลือกรูปหน้าตรง ใบหน้าชัดเจน แล้วเลือกชุดและทรงผมต่อ</p>
-    <div className="idprom-simple-upload-card">
-     <span className="idprom-upload-glyph" aria-hidden="true">↑</span>
-     <strong>เพิ่มรูปใบหน้า</strong>
-     <p>รองรับไฟล์ JPG, PNG และรูปจากมือถือ</p>
-     <button type="button" onClick={onUpload} className="idprom-simple-secondary">เลือกรูปจากเครื่อง</button>
-    </div>
-    <p className="idprom-simple-tip">ไม่จำเป็นต้องใส่ชุดที่ต้องการในรูปต้นฉบับ</p>
-    <button type="button" className="idprom-simple-primary" onClick={onUpload}>เลือกรูปและไปต่อ <span aria-hidden="true">→</span></button>
+    <section className="idprom-simple-upload-step" aria-label="อัปโหลดรูปของคุณ">
+     <button className="idprom-simple-upload-back" type="button" onClick={()=>setPage('welcome')} aria-label="กลับหน้าแรก">‹</button>
+     <h1>อัปโหลดรูปของคุณ</h1>
+     <button type="button" onClick={onUpload} disabled={loading} className="idprom-simple-upload-card" aria-label="เพิ่มรูป">
+      <span className="idprom-upload-glyph" aria-hidden="true">↑</span>
+      <strong>เพิ่มรูป</strong>
+     </button>
+    </section>
    </>}
    {!!status&&<p className="idprom-simple-error" role="alert">{status}</p>}
   </main>
