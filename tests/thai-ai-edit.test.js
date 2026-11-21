@@ -43,6 +43,7 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
   "if(englishPreviewEnabled()||thaiWholeOutfit){",
   "fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION)",
   "fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)",
+  "fd.append('thaiAdaptiveFaceGeometry',JSON.stringify(measured.geometry))",
   "if(englishPreviewEnabled())fd.append('interfaceLanguage','en')",
   "fd.append('englishOutfitFidelityVersion',ENGLISH_OUTFIT_FIDELITY_VERSION)",
   "fd.append('englishStudioFinishVersion',englishTemplateBodyFinishForGender(portraitMode))",
@@ -139,12 +140,14 @@ test('Thai V11 adaptive head guide preserves native suit across different crop d
  const {thaiAdaptiveHeadProfile}=await import('../thai-adaptive-proportion.js');
  const outfit=await readFile(root+'public/assets/government-uniforms/female-operational.png');
  const shape={version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53};
- const profile=thaiAdaptiveHeadProfile('female',shape,1.50),compositions=[];
- const sizes=[[100,100],[95,170],[170,95],[120,155]];
+ const compositions=[];
+ const sizes=[[100,110],[95,170],[120,155],[100,185]];
  for(const [width,height] of sizes){
   const identity=await sharp({create:{width,height,channels:3,background:'#c58554'}}).png().toBuffer();
+  const profile=thaiAdaptiveHeadProfile('female',shape,height/width);
   const composition=await createEnglishBodyLayout(outfit,{
-   profile,headScale:profile.identityHeadScale,identity,canvasWidth:1824,fixedIdentityEnvelope:true
+   profile,headScale:profile.identityHeadScale,identity,canvasWidth:1824,
+   fixedIdentityEnvelope:true,stableGarmentFrame:true
   });
   const {data,info}=await sharp(composition).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   assert.equal(info.width,1824);assert.equal(info.height,2432);
@@ -158,12 +161,14 @@ test('Thai V11 adaptive head guide preserves native suit across different crop d
   assert(right>left&&bottom>top,'Guide must retain the real face pixels at each input aspect');
   const faceAspect=(bottom-top+2)/(right-left+2),sourceAspect=height/width;
   assert(Math.abs(faceAspect/sourceAspect-1)<.09,'Never distort intrinsic source face proportions');
-  compositions.push({data,info});
+  compositions.push({data,info,faceWidth:right-left+2});
  }
  const a=compositions[0],start=Math.floor(a.info.height*.68)*a.info.width*4;
  for(const other of compositions.slice(1)){
-  assert.deepEqual(a.data.subarray(start),other.data.subarray(start),'Native suit pixels and its framing are identical across source aspects');
+  assert.deepEqual(a.data.subarray(start),other.data.subarray(start),'Native suit pixels and framing stay identical for every face aspect');
+  assert(Math.abs(other.faceWidth/a.faceWidth-1)<.065,'Tall face crop must not silently shrink the head width');
  }
+ const profile=thaiAdaptiveHeadProfile('female',shape,1.50);
  const male=thaiAdaptiveHeadProfile('male',shape,1.50);
  assert.equal(profile.identityHeadScale,.94);
  assert(profile.identityHeadScale*profile.headWidthToShoulder>.32);
@@ -172,6 +177,34 @@ test('Thai V11 adaptive head guide preserves native suit across different crop d
  assert(male.identityHeadScale*male.headWidthToShoulder<.37);
  assert(profile.headHeightToShoulder>profile.headWidthToShoulder*1.48,'Natural crop aspect sets head-guide height');
 });
+
+test('Thai V11 landmarks ignore source canvas crop and choose a bounded per-person head guide',async()=>{
+ const {measureThaiAdaptiveFace,parseThaiAdaptiveFace,thaiAdaptiveHeadProfile}=await import('../thai-adaptive-proportion.js');
+ const coordinates={33:[-24,-18],263:[24,-18],234:[-45,0],454:[45,0],172:[-35,25],397:[35,25],10:[0,-67],152:[0,68]};
+ const scaled=(width,height,zoom)=>{
+  const landmarks=Array.from({length:468},()=>({x:.5,y:.5}));
+  for(const [id,[x,y]] of Object.entries(coordinates)){
+   landmarks[Number(id)]={x:(width/2+x*zoom)/width,y:(height/2+y*zoom)/height};
+  }
+  return measureThaiAdaptiveFace(landmarks,width,height);
+ };
+ const reference=scaled(500,600,1);
+ assert.deepEqual(scaled(900,950,2),reference,'Camera zoom must not become physical head size');
+ assert.deepEqual(scaled(350,600,.8),reference,'Changing blank margins must not become head size');
+ assert.equal(reference.version,1);
+ assert.throws(()=>parseThaiAdaptiveFace('{"version":1,"faceAspect":99,"jawRatio":.7,"eyeRatio":.5}',{required:true}));
+ const broad=thaiAdaptiveHeadProfile('female',{version:1,faceAspect:1.20,jawRatio:.91,eyeRatio:.58},1.25);
+ const narrow=thaiAdaptiveHeadProfile('female',{version:1,faceAspect:1.83,jawRatio:.61,eyeRatio:.48},1.87);
+ assert.notEqual(broad.headWidthToShoulder,narrow.headWidthToShoulder,'Measurements must change the head guide, unlike V9/V10');
+ assert(broad.headWidthToShoulder*broad.identityHeadScale>.32);
+ assert(narrow.headWidthToShoulder*narrow.identityHeadScale<.37);
+ assert(narrow.headHeightToShoulder>broad.headHeightToShoulder,'A long face gets a taller envelope, not a shrunken face');
+ const client=await readFile(root+'src/main.jsx','utf8');
+ assert(client.includes('measureThaiAdaptiveFace(face,W,H)'), 'One source landmark analysis also measures V11');
+ assert(client.includes("fd.append('thaiAdaptiveFaceGeometry',JSON.stringify(measured.geometry))"));
+ assert(client.includes('Thai V11: a non-generative check of original vs completed face geometry'));
+});
+
 test('Thai native uniform reliably occludes hair over both jacket fronts and clips hanging outer hair without touching face',async()=>{
  const W=240,H=320;
  // The artificial AI result has black hair on BOTH white jacket panels,
