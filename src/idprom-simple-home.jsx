@@ -16,9 +16,9 @@ export function IdpromSimpleHome({onUpload,loading=false,sourcePreview=null,stat
     <h1>กำลังเตรียมรูปของคุณ</h1>
     <p>ระบบจะพาไปเลือกชุดและทรงผมโดยอัตโนมัติ</p>
    </section>:page==='welcome'?<>
-    <div className="idprom-simple-hero"><div className="idprom-simple-intro"><div className="idprom-simple-overline">รูปติดบัตรพร้อมใช้ ไม่ต้องแต่งเอง</div>
-    <h1>สร้างรูปติดบัตร<br/>ด้วย AI</h1>
-    <p className="idprom-simple-lead">ได้หลายทรงผม หลายชุด จนกว่าจะพอใจ</p></div>
+    <div className="idprom-simple-hero"><div className="idprom-simple-intro">
+    <h1>สร้างรูปติดบัตรง่าย ๆ<br/>เหมือนถ่ายที่ร้าน</h1>
+    </div>
     <div className="idprom-simple-photo-stack" aria-label="ตัวอย่างรูปที่สร้างได้">
      <img className="idprom-photo-left" src="/assets/home-previews/easy-government-v20261030.webp" alt="ตัวอย่างชุดข้าราชการ" loading="eager"/>
      <img className="idprom-photo-right" src="/assets/home-previews/easy-original-v20261031.webp" alt="รูปตัวอย่างก่อนแต่ง" loading="eager"/>
