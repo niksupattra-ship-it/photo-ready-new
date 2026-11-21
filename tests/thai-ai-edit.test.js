@@ -637,7 +637,7 @@ test('Thai V12 adds face-shape lock only for new jobs; archived V11 and English 
  const original={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,
   englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,
   portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',
-  neckOutfitReferencePath:'/assets/job-uniforms/female-job-white.png',
+  neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',
   faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,
   singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,
   femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,
