@@ -57,7 +57,7 @@ with sync_playwright() as pw:
    page.route('**/api/**',lambda r:(api.append(r.request.url),r.abort()))
    fullbody=composition.startswith('photo-')
    page.goto(f'{BASE}/scripts/fixtures/government-result-insignia.html?gender={gender}&composition={composition.removeprefix("photo-")}&fullbody={int(fullbody)}')
-   launch=page.get_by_role('button',name='◈ เพิ่มเครื่องหมายข้าราชการ',exact=True)
+   launch=page.get_by_role('navigation',name='เครื่องมือรูปที่เสร็จแล้ว').get_by_role('button',name='เครื่องหมาย',exact=True) if width<=720 else page.get_by_role('button',name='◈ เพิ่มเครื่องหมายข้าราชการ',exact=True)
    expect(launch).to_be_enabled(timeout=30000);launch.click()
    pick(page,'ปกคอ','มท.','collar','garuda-pair')
    expect(page.locator('.thai-result-insignia-handle')).to_have_count(2)
