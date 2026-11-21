@@ -2975,6 +2975,23 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   else if(operation?.serverCompleted)error.idpromRecoverableJob=true;
   portraitResultCache.delete(key);throw error;
  }
+ // Thai V11: a non-generative check of original vs completed face geometry.
+ // Ambiguous or different landmarks are marked for human review, NOT silently
+ // auto-regenerated, warped, deleted or billed for another AI call.
+ if(thaiWholeOutfit&&cached.value.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
+  try{
+   const originalMetrics=await portraitFaceMetrics(originalFile);
+   const resultMetrics=await portraitFaceMetrics(cached.value);
+   const review=compareFaceProportions(originalMetrics,resultMetrics);
+   if(!review.ok){
+    cached.value.idpromQualityReviewNeeded=true;
+    console.warn('Thai adaptive portrait: review original face geometry before download',review.reason);
+   }
+  }catch(error){
+   cached.value.idpromQualityReviewNeeded=true;
+   console.warn('Thai adaptive portrait: geometry verification unavailable; retaining completed image');
+  }
+ }
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  const finishRequested=async base=>{
