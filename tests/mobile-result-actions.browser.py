@@ -39,4 +39,15 @@ with sync_playwright() as pw:
   p.get_by_role('button',name='เลือกเข็มปกคอ มท.',exact=True).click()
   p.wait_for_function('insigniaLayers().some(l=>l.kind==="collar"&&l.assetId==="garuda-pair")')
   assert p.evaluate('insigniaFixture.aiCalls===0&&insigniaFixture.paymentCalls===0');p.close()
- print(json.dumps({'cases':8,'mobileActionsAndStudioWithoutFloatingOverlay':'passed'}));b.close()
+ for width in [900,1440]:
+  for government in [0,1]:
+   p=b.new_page(viewport={'width':width,'height':1000});p.goto(f'{BASE}/scripts/fixtures/mobile-result-actions.html?government={government}')
+   download=p.get_by_role('button',name='ดาวน์โหลดรูป',exact=True);studio=p.get_by_role('button',name='ปรับแต่งในสตูดิโอ',exact=True)
+   expect(download).to_be_enabled();expect(studio).to_be_enabled();expect(p.get_by_role('button',name='เปลี่ยนทรงผม',exact=True)).to_have_count(0)
+   assert download.bounding_box()['y']<studio.bounding_box()['y'],'Studio is below Download on desktop'
+   if government:
+    insignia=p.get_by_role('button',name='◈ เพิ่มเครื่องหมายข้าราชการ',exact=True);expect(insignia).to_be_visible();assert insignia.bounding_box()['y']<download.bounding_box()['y'];insignia.click();expect(p.get_by_test_id('insignia-picker')).to_be_visible()
+   download.click();studio.click();assert p.evaluate('resultActions.download===1&&resultActions.studio===1')
+   gallery=p.get_by_label('ลองเปลี่ยนทรงผม');expect(gallery).to_be_visible();expect(gallery.locator('button')).to_have_count(3)
+   gallery.get_by_role('button',name='ทรง 2',exact=True).click();p.get_by_role('button',name='สร้างรูปทรงนี้',exact=True).click();assert p.evaluate('resultActions.confirm===1&&resultActions.hair[0]==="hair-1"');p.close()
+ print(json.dumps({'cases':12,'mobileUnchangedAndDesktopReordered':'passed'}));b.close()
