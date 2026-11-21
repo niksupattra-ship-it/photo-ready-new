@@ -827,3 +827,9 @@
 @media(max-width:720px){
  .idstudio .thai-mobile-flow-ready .thai-mobile-result-tool-slot .thai-mobile-result-hair-choices > button{width:100%}
 }
+
+/* Result photo footer is a guarded replace-photo action, without captions. */
+.thai-mobile-result-photo-summary{display:flex;align-items:center;justify-content:center;padding:5px 10px}
+.idstudio .thai-mobile-flow .thai-mobile-result-replace-photo{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;padding:8px;border:0;border-radius:50%;background:transparent;color:#6031aa;box-shadow:none}
+.thai-mobile-result-replace-photo svg{display:block;width:27px;height:27px}
+.idstudio .thai-mobile-flow .thai-mobile-result-tool-heading button{display:flex;align-items:center;justify-content:center;min-width:40px;font-size:24px;line-height:1;padding:4px 8px}

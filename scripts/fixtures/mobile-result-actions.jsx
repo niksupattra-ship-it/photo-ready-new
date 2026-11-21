@@ -6,6 +6,6 @@ import '../../src/studio-editor.css';
 const government=new URLSearchParams(location.search).get('government')!=='0';
 const canvas=document.createElement('canvas');canvas.width=900;canvas.height=1200;
 const im=new Image();im.src='/assets/government-uniforms/female-operational-example.jpg';await im.decode();canvas.getContext('2d').drawImage(im,0,0,900,1200);
-window.resultActions={download:0,studio:0,confirm:0,hair:[]};
+window.resultActions={download:0,studio:0,upload:0,confirm:0,hair:[]};
 const hairs=Array.from({length:6},(_,i)=>({id:'hair-'+i,name:'ทรง '+(i+1),src:'/assets/face-finish/makeup.webp'}));
-createRoot(document.getElementById('root')).render(<div className="idstudio"><ThaiMobileJourney hasResult ready canvasRef={{current:canvas}} governmentResult={government} resultInsignia={<div data-testid="insignia-picker">เลือกเครื่องหมาย</div>} hairs={hairs} selectedHair="hair-0" onHair={id=>resultActions.hair.push(id)} onConfirmHair={()=>resultActions.confirm++} onDownload={()=>resultActions.download++} onStudio={()=>resultActions.studio++}/></div>);
+createRoot(document.getElementById('root')).render(<div className="idstudio"><ThaiMobileJourney hasResult ready canvasRef={{current:canvas}} governmentResult={government} resultInsignia={<div data-testid="insignia-picker">เลือกเครื่องหมาย</div>} hairs={hairs} selectedHair="hair-0" onHair={id=>resultActions.hair.push(id)} onConfirmHair={()=>resultActions.confirm++} onDownload={()=>resultActions.download++} onStudio={()=>resultActions.studio++} onUpload={()=>resultActions.upload++}/></div>);
