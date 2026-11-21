@@ -519,10 +519,10 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const fit=easyGovernmentInsigniaFit(image,'female');
  assert(fit,'A clear white government jacket must yield a measured fit');
  const native=easyGovernmentReferencePreset(fit.frame,'female');
- assert(fit.preset.collar.width<native.collar.width,'A measured collar pin must be appropriately smaller');
- assert(fit.preset.chest.width<native.chest.width,'Chest badge must fit the visible upper chest');
- assert(fit.preset.ribbon.width<native.ribbon.width,'Ribbon must fit the breast panel rather than lower-jacket width');
- assert(fit.preset.ribbon.width<=.19001&&fit.preset.chest.width<=.07601);
+ assert(fit.preset.collar.width<=native.collar.width,'The collar pin must fit the reference proportion');
+ assert(fit.preset.chest.width<=native.chest.width,'Chest badge fits the visible upper chest');
+ assert(fit.preset.ribbon.width<=native.ribbon.width,'Ribbon fits the original approved panel');
+ assert(fit.preset.ribbon.width>=.245&&fit.preset.ribbon.width<=.276001&&fit.preset.chest.width<=.08601);
  assert(fit.preset.collar.left<.5&&fit.preset.collar.right>.5,'Paired collar badges must be on their own sides');
  assert(fit.preset.chest.x<.5&&fit.preset.ribbon.x>.5,'Chest pin and ribbon cannot be swapped');
  const inside=(ax,ay)=>{
@@ -544,7 +544,7 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const correctedX=Math.round(corrected.frame.x+corrected.frame.w*corrected.preset.chest.x);
  const correctedY=Math.round(corrected.frame.y+corrected.frame.h*corrected.preset.chest.y);
  assert(correctedX!==initialChest.x||correctedY!==initialChest.y,'A badge must not remain on a non-fabric spot');
- assert(corrected.preset.chest.width<=.07601,'Reposition retains the visible upper-chest size cap');
+ assert(corrected.preset.chest.width<=.08601,'Reposition retains the visible upper-chest size cap');
  const correctedOffset=Math.hypot(correctedX-initialChest.x,correctedY-initialChest.y);
  assert(correctedOffset<60,'Refine locally; do not let a misplaced hit jump across the garment');
  const editor=await readFile(root+'src/studio-editor.jsx','utf8');
@@ -791,12 +791,12 @@ test('all Thai Easy government outfits adapt insignia sizes to narrow, broad and
   const fit=easyGovernmentInsigniaFit(example.img,example.gender,example.path);
   assert(fit,example.name+' should be detected even when the torso is narrow');
   const prior=easyGovernmentReferencePreset(fit.frame,example.gender,example.path);
-  assert(fit.preset.collar.width<=.058001,'Collar size limit: '+example.name);
-  assert(fit.preset.chest.width<=.076001,'Chest badge size limit: '+example.name);
-  assert(fit.preset.ribbon.width<=.190001,'Ribbon size limit: '+example.name);
-  assert(fit.preset.ribbon.width<prior.ribbon.width,'Do not use the oversized legacy width: '+example.name);
+  assert(fit.preset.collar.width<=.073001,'Collar size limit: '+example.name);
+  assert(fit.preset.chest.width<=.086001,'Chest badge size limit: '+example.name);
+  assert(fit.preset.ribbon.width<=.276001,'Ribbon size limit: '+example.name);
+  assert(fit.preset.ribbon.width>=.235&&fit.preset.ribbon.width<=prior.ribbon.width,'Readable ribbon without overflowing: '+example.name);
   assert(fit.preset.ribbon.x>fit.preset.ribbon.width/2+.5,'Ribbon stays on correct right half');
-  assert(fit.preset.ribbon.x+fit.preset.ribbon.width/2<.95,'Ribbon must not reach outer shoulder seam');
+  assert(fit.preset.ribbon.x+fit.preset.ribbon.width/2<.99,'Ribbon must not reach outer shoulder seam');
   assert(fit.preset.chest.x-fit.preset.chest.width/2>.04,'Chest badge must fit left side');
   assert(fit.preset.collar.left+fit.preset.collar.width/2<.50,'Collar-left pin stays separate');
   assert(fit.preset.collar.right-fit.preset.collar.width/2>.50,'Collar-right pin stays separate');
@@ -808,9 +808,9 @@ test('all Thai Easy government outfits adapt insignia sizes to narrow, broad and
  assert(narrow.frame<broad.frame,'Narrow torso detection must not force legacy oversized min-width');
  const fallback=easyGovernmentPhotoFallback(900,1200,'female');
  assert(fallback.needsReview,'Undetected garment cannot claim perfect positioning');
- assert(fallback.preset.ribbon.width<=.120001);
- assert(fallback.preset.chest.width<=.046001);
- assert(fallback.preset.collar.width<=.038001);
+ assert(fallback.preset.ribbon.width>=.200&&fallback.preset.ribbon.width<=.205001);
+ assert(fallback.preset.chest.width<=.073001);
+ assert(fallback.preset.collar.width<=.059001);
  const standing=governmentInsigniaPreset({x:150,y:450,w:570,h:750},'male');
  assert.equal(standing.collar.width,.071,'Studio remains unchanged');
  const sample=create(205,399);

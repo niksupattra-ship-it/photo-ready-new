@@ -96,13 +96,17 @@ export function easyGovernmentReferencePreset(frame,gender='female',templatePath
  if(!frame||!Number.isFinite(frame.w)||frame.w<=0)throw Error('missing_government_frame');
  const type=easyGovernmentCollarType(templatePath,gender);
  const male=gender==='male';
- const collar=type==='stand'?{left:.435,right:.568,y:.045,width:.078}
-  :type==='shirt'?{left:.367,right:.633,y:.065,width:.064}
-  :{left:male?.307:.263,right:male?.693:.744,y:.045,width:male?.067:.071};
+ // Calibrated against the approved reference portrait, using the detected
+ // jacket frame. Example female lapel: left (.265,.053), right (.742,.053),
+ // chest (.149,.369) and ribbon centre (.845,.327). The ribbon is deliberately
+ // NOT capped to the obsolete 19%-of-frame width.
+ const collar=type==='stand'?{left:.435,right:.568,y:.052,width:.070}
+  :type==='shirt'?{left:.367,right:.633,y:.073,width:.061}
+  :{left:male?.307:.265,right:male?.693:.742,y:.053,width:male?.068:.073};
  return {
   collar,
-  chest:male?{x:.226,y:.349,width:.090}:{x:.153,y:.360,width:.090},
-  ribbon:male?{x:.781,top:.304,width:.271}:{x:.845,top:.323,width:.265}
+  chest:male?{x:.226,y:.349,width:.083}:{x:.149,y:.369,width:.078},
+  ribbon:male?{x:.781,top:.304,width:.260}:{x:.845,top:.327,width:.260}
  };
 }
 // If white-on-white clothing prevents garment segmentation, start from
@@ -120,10 +124,12 @@ export function easyGovernmentPhotoFallback(width=900,height=1200,gender='female
  const type=easyGovernmentCollarType(templatePath,gender);
  if(type==='lapel'&&gender==='male')preset.collar={left:.325,right:.675,y:.554,width:.055};
  if(type==='shirt')preset.collar={left:.370,right:.630,y:.554,width:.052};
- // No valid outfit segmentation: conservative small symbols, flagged for review.
- preset.collar.width=Math.min(preset.collar.width,.038);
- preset.chest.width=Math.min(preset.chest.width,.046);
- preset.ribbon.width=Math.min(preset.ribbon.width,.120);
+ // With no measured jacket, preserve the approval reference's natural
+ // proportions rather than shrinking the ribbon to 12% and the pins to 3.8%.
+ // These are still editable and always flagged for review.
+ preset.collar.width=Math.min(preset.collar.width,.059);
+ preset.chest.width=Math.min(preset.chest.width,.073);
+ preset.ribbon.width=Math.min(preset.ribbon.width,.205);
  return {frame,preset,confidence:'photo-reference-fallback',needsReview:true};
 }
 
@@ -135,9 +141,12 @@ export function easyGovernmentFitBadgeSizes(image,frame,preset,gender='female',t
  const type=easyGovernmentCollarType(templatePath,gender);
  const fw=frame.w;
  const output={collar:{...preset.collar},chest:{...preset.chest},ribbon:{...preset.ribbon}};
+ // Uniform artwork must remain proportionate to shoulder/chest anatomy.
+ // Restrict overlapping male standing-collar pins by gap, NOT to a fraction
+ // that makes both pins tiny; female lapel pins use the approved badge width.
  output.collar.width=Math.min(output.collar.width,
-  type==='lapel'?.052:type==='shirt'?.049:.058,
-  Math.max(.028,(output.collar.right-output.collar.left)*.27));
+  type==='lapel'?.073:type==='shirt'?.061:.069,
+  Math.max(.035,(output.collar.right-output.collar.left)*.48));
  const w=image?.width,h=image?.height,data=image?.data;
  const valid=Number.isFinite(w)&&Number.isFinite(h)&&w>=160&&h>=200&&data&&data.length>=w*h*4;
  const light=(x,y)=>{
@@ -147,9 +156,11 @@ export function easyGovernmentFitBadgeSizes(image,frame,preset,gender='female',t
   return a>=170&&r>173&&g>173&&b>173&&Math.max(r,g,b)-Math.min(r,g,b)<41;
  };
  const lane=(side,yRatio)=>{
-  const geometric=side==='left'?{min:.085,max:.455}:{min:.535,max:.925};
+  // These are measured upper-front torso panels. The approved two-row
+  // ribbon reaches near the outside edge of the right breast, not the centre.
+  const geometric=side==='left'?{min:.075,max:.465}:{min:.525,max:.985};
   if(!valid)return {...geometric,measured:false};
-  const lo=side==='left'?.025:.515,hi=side==='left'?.485:.975;
+  const lo=side==='left'?.025:.515,hi=side==='left'?.485:.995;
   const x0=Math.max(0,Math.round(frame.x+fw*lo));
   const x1=Math.min(w-1,Math.round(frame.x+fw*hi));
   const y=Math.round(frame.y+frame.h*yRatio),dy=Math.max(2,Math.round(h*.004));
@@ -173,16 +184,16 @@ export function easyGovernmentFitBadgeSizes(image,frame,preset,gender='female',t
   return {min:Math.max(geometric.min,min),max:Math.min(geometric.max,max),measured:true};
  };
  const left=lane('left',output.chest.y),right=lane('right',output.ribbon.top+.028);
- const bound=(item,slot,maximum,usable,ribbon=false)=>{
+ const bound=(item,slot,maximum,usable)=>{
   const available=Math.max(.09,slot.max-slot.min);
-  const width=Math.max(.020,Math.min(item.width,maximum,available*usable));
+  const width=Math.max(.024,Math.min(item.width,maximum,available*usable));
   const min=slot.min+width/2,max=slot.max-width/2;
-  // Do not sit on the outer seam even if the default location is far right.
-  const desired=ribbon?Math.min(item.x,slot.min+available*.59):item.x;
-  return {...item,width,x:max>=min?clamp(desired,min,max):(slot.min+slot.max)/2};
+  // Keep the horizontal centre calibrated to the visible garment.
+  // Change it only if a badge would actually cross an upper-chest boundary.
+  return {...item,width,x:max>=min?clamp(item.x,min,max):(slot.min+slot.max)/2};
  };
- output.chest=bound(output.chest,left,.076,.27);
- output.ribbon=bound(output.ribbon,right,.190,.54,true);
+ output.chest=bound(output.chest,left,.086,.32);
+ output.ribbon=bound(output.ribbon,right,.276,.76);
  return {preset:output,needsReview:!left.measured||!right.measured,lanes:{left,right}};
 }
 
@@ -229,8 +240,48 @@ export function easyGovernmentInsigniaFit(image,gender='female',templatePath='')
   return {x:clamp((best.x-frame.x)/frame.w,.05,.95),
    y:clamp((best.y-frame.y)/frame.h,.05,.90)};
  };
- const left=choose(preset.collar.left,preset.collar.y,'left');
- const right=choose(preset.collar.right,preset.collar.y,'right');
+ // Check the FULL collar-pin footprint, not only a bright centre pixel.
+ // A pale lapel seam can pass under the pin while centre-only colour testing
+ // still reports white. Prefer a nearby flat-fabric patch in that case.
+ const clearCollar=(place,side)=>{
+  if(easyGovernmentCollarType(templatePath,gender)==='stand')return place;
+  const emblemWidth=frame.w*(gender==='female'?.069:.066);
+  const sample=(px,py)=>{
+   let ok=0,edges=0,total=0;
+   const quarter=Math.max(3,emblemWidth*.29);
+   for(const u of [-1,-.5,0,.5,1])for(const v of [-1,-.5,0,.5,1]){
+    const x=Math.round(px+u*quarter),y=Math.round(py+v*quarter);
+    if(x<5||y<5||x>=width-5||y>=height-5)continue;
+    total++;
+    if(white(x,y))ok++;
+    const k=(y*width+x)*4,a=data[k]+data[k+1]+data[k+2];
+    const h=(y*width+x+3)*4,b=data[h]+data[h+1]+data[h+2];
+    const j=((y+3)*width+x)*4,c=data[j]+data[j+1]+data[j+2];
+    if(Math.abs(a-b)>48||Math.abs(a-c)>48)edges++;
+   }
+   return total?{clean:ok/total,edge:edges/total}:{clean:0,edge:1};
+  };
+  const ox=frame.x+frame.w*place.x,oy=frame.y+frame.h*place.y;
+  const initial=sample(ox,oy);
+  if(initial.clean>=.91&&initial.edge<=.10)return place;
+  const maxDx=frame.w*.055,maxDy=frame.h*.057;
+  let best={x:place.x,y:place.y,score:(1-initial.clean)*4+initial.edge*3};
+  for(let dx=-maxDx;dx<=maxDx;dx+=Math.max(3,frame.w*.009)){
+   for(let dy=-maxDy;dy<=maxDy;dy+=Math.max(3,frame.h*.009)){
+    const x=ox+dx,y=oy+dy;
+    if(side==='left'&&(x-frame.x)/frame.w>.43)continue;
+    if(side==='right'&&(x-frame.x)/frame.w<.57)continue;
+    const quality=sample(x,y);
+    if(quality.clean<.75)continue;
+    const distance=(dx/maxDx)**2+(dy/maxDy)**2;
+    const score=(1-quality.clean)*4+quality.edge*3+distance*.30;
+    if(score<best.score-.015)best={x:(x-frame.x)/frame.w,y:(y-frame.y)/frame.h,score};
+   }
+  }
+  return {x:clamp(best.x,.05,.95),y:clamp(best.y,.025,.24)};
+ };
+ const left=clearCollar(choose(preset.collar.left,preset.collar.y,'left'),'left');
+ const right=clearCollar(choose(preset.collar.right,preset.collar.y,'right'),'right');
  const chest=choose(preset.chest.x,preset.chest.y,'left');
  // Ribbon placement is TOP-aligned in nativeAsset; sample near its top edge,
  // then compensate for the probe offset without altering original ribbon size.
