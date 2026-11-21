@@ -54,6 +54,7 @@ import {packSavedProjectTransfer,unpackSavedProjectTransfer,getSavedWorkRequestS
 import {encodeSavedWorkRequest} from './saved-work-request.js';
 import {decodedStudioImage} from './studio-image-cache.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
+import {createStudioPortraitHairHistory} from './studio-portrait-hair-history.js';
 import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,isTrialHairAllowed,HAIR_DESIGN_VERSION,selectedHairDesign} from '../hairstyle-catalog.js';
 import {ENGLISH_FEMALE_HAIR_CATALOG} from '../english-female-hair-catalog.js';
 import {ENGLISH_MALE_HAIR_CATALOG} from '../english-male-hair-catalog.js';
@@ -4944,6 +4945,7 @@ function App(){
  const firstUploadedPhotoRef=useRef(null);
  const initialFemaleMakeupRef=useRef(null);
  const hairResultCacheRef=useRef(new Map()),processedStudioHistoryRef=useRef(new Map()),hairRequestRef=useRef(false);
+ const fullPortraitHairHistoryRef=useRef(createStudioPortraitHairHistory());
  const [hairGenerating,setHairGenerating]=useState(false);
  const preparedHairBaseRef=useRef(null),lastHairDonorRef=useRef(null),cleanHairBaseRef=useRef(null),initialStyledHairRef=useRef(null);
  const[optionTool,setOptionTool]=useState(null);
@@ -5515,7 +5517,21 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   }
   return entry?.confirmed&&(hairResultMode(id,portraitMode)!=='female'||(sharedStudioSkinSource(entry.master)||hasOriginalPortraitAiFinish(entry.master,portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle))))&&entry.sourcePhoto===firstUploadedPhotoRef.current&&entry.scope===hairResultScope()&&!(activeProcessOperation?.cancelled&&entry.jobId===activeProcessOperation.jobId)?entry:null;
  };
- const canReuseHair=(id,portraitMode,femaleEyeStyle)=>Boolean(cachedHairResult(id,portraitMode,femaleEyeStyle));
+ const cachedFullPortraitResult=(id,portraitMode,femaleEyeStyle,template)=>{
+  const source=firstUploadedPhotoRef.current,mode=hairResultMode(id,portraitMode);
+  const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
+  return fullPortraitHairHistoryRef.current.find({
+   source,scope:hairResultScope(),template:template||editCache.current?.lock?.templatePath||activeUniformTemplate||'',
+   mode,hair:id||'',finish,version:hairResultKey(id,mode,finish,template)
+  });
+ };
+ const canReuseHair=(id,portraitMode,femaleEyeStyle,template)=>{
+  // A baked-in outfit must reuse the EXACT old outfit+hair+finish, not a
+  // head-only hairstyle with a similar name or a different uniform.
+  const full=editCache.current?.master?.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
+  return Boolean(cachedFullPortraitResult(id,portraitMode,femaleEyeStyle,template)||
+   (!full&&cachedHairResult(id,portraitMode,femaleEyeStyle,template)));
+ };
  const changeHair=async id=>changeHairForStudio(id);
  const fitChangedHairMaster=async(master,previous)=>{
   const base=sharedStudioSkinSource(master);if(base&&base===sharedStudioSkinSource(previous.master))return previous.lock;
@@ -5967,23 +5983,35 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   try{
    const selectedFinish=portraitFinishChoice(requestedFinish,file.idpromFemaleEyeStyle);
    const femaleEyeStyle=portraitMode==='female'&&selectedFinish!=='natural'?'makeup':selectedFinish;
-   const generate=()=>aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
-   let aiHead;
-   try{aiHead=await generate()}
-   catch(error){
-    // Once AI has finished, retry one LOCAL postprocessing or network error
-    // using its exact existing server job. Quality rejection/cancellation is
-    // never retried as a successful image.
-    const transient=Boolean(operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled);
-    if(!transient)throw error;
-    console.warn('AI output was already generated; automatically recovering the same job',operation.jobId);
-    portraitResultCache.clear();
-    await waitForPortraitOperation(700,operation);
-    aiHead=await generate();
+   // Only an already accepted SAME-upload/SAME-outfit/SAME-hair/SAME-finish
+   // may bypass AI. Never apply an older customer's face or an unconfirmed job.
+   const cached=generationOptions.creditKind==='hairstyle'&&file===firstUploadedPhotoRef.current
+    ?cachedFullPortraitResult(selectedHair,portraitMode,femaleEyeStyle,template):null;
+   let cachedRights=null,aiHead,master;
+   if(cached){
+    cachedRights=await verifyOutputRights(cached.jobId);
+    if(cachedRights.checked===false)throw Error(cachedRights.message||'ตรวจสอบสิทธิ์รูปเดิมไม่สำเร็จ');
+    aiHead={idpromJobId:cached.jobId,idpromTrial:!cachedRights.unlocked,
+     idpromFullEdit:Boolean(cachedRights.fullEdit),
+     idpromFemaleFinishSingleVersion:cached.femaleFinishSingleVersion,
+     idpromQualityReviewNeeded:cached.qualityReviewNeeded,idpromReused:true};
+    master=cached.master;
+   }else{
+    const generate=()=>aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
+    try{aiHead=await generate()}
+    catch(error){
+     // Recover the same server job only when AI finished successfully.
+     const transient=Boolean(operation?.serverCompleted&&!operation.qualityRejected&&!operation.cancelled);
+     if(!transient)throw error;
+     console.warn('AI output was already generated; automatically recovering the same job',operation.jobId);
+     portraitResultCache.clear();
+     await waitForPortraitOperation(700,operation);
+     aiHead=await generate();
+    }
+    master=await finishFirstPortraitMaster(aiHead);
    }
    failureStage='compose';
-   const master=await finishFirstPortraitMaster(aiHead);
-   const composed=await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
+   const composed=cached?{lock:cached.lock}:await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    assertProcessActive();
@@ -6008,11 +6036,22 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     preparedHairBaseRef.current=null;lastHairDonorRef.current=null;
     cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
     studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');
-    const entry=rememberHairResult(selectedHair,master,portraitMode);entry.confirmed=true;
+    const entry=rememberHairResult(selectedHair,master,portraitMode,femaleEyeStyle,template);entry.confirmed=true;
+    // Store ONLY after successful hydration + commit, including the real job
+    // identity. New photos/accounts/outfits cannot match this cache entry.
+    fullPortraitHairHistoryRef.current.remember({
+     source:file,scope:hairResultScope(),template,mode:portraitMode,
+     hair:selectedHair||'',finish:femaleEyeStyle,
+     version:hairResultKey(selectedHair,portraitMode,femaleEyeStyle,template),
+     master,lock:composed.lock,jobId,isTrial,
+     fullEdit:Boolean(aiHead.idpromFullEdit),
+     femaleFinishSingleVersion:aiHead.idpromFemaleFinishSingleVersion,
+     qualityReviewNeeded:Boolean(aiHead.idpromQualityReviewNeeded)
+    });
     studioPhotoTransactionRef.current=false;
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
-   return {layer:head,placement:composed.lock,reused:aiHead.idpromReused===true,commit,rollback};
+   return {layer:head,placement:composed.lock,reused:Boolean(cached||aiHead.idpromReused),commit,rollback};
   }catch(error){if(error.code!=='USER_CANCELLED'){
    error.idpromProcessStage=error.idpromProcessStage||error.stage||(operation?.serverCompleted&&failureStage==='generation'?'local_finish':failureStage);
    if(operation?.serverCompleted&&!operation.settled&&!operation.qualityRejected)error.idpromRecoverableJob=true;

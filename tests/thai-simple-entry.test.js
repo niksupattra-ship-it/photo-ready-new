@@ -432,3 +432,48 @@ test('Thai Easy Mode insignia is easy to touch, moves instead of resizing under 
  const studio=await read('src/studio-editor.jsx');
  assert(studio.includes('const resultInsigniaTransform=(id,{dx=0,dy=0,scaleRatio=1}={})=>'),'Existing layer transformation stays unchanged');
 });
+
+test('same uploaded portrait + exact outfit/hair/finish restores accepted full AI result without a second generation',async()=>{
+ const {createStudioPortraitHairHistory}=await import('../src/studio-portrait-hair-history.js');
+ const cache=createStudioPortraitHairHistory(3);
+ const firstPhoto=new Blob(['original customer A'],{type:'image/png'});
+ const secondPhoto=new Blob(['original customer A'],{type:'image/png'});
+ const base={source:firstPhoto,scope:'wallet-A',template:'/suits/navy.png',
+  mode:'female',hair:'seedream-14',finish:'makeup',version:'hair-prompt-v1'};
+ const item={...base,master:new Blob(['original successful AI result']),lock:{templatePath:base.template},
+  jobId:'job-original-14',isTrial:true};
+ assert.equal(cache.find(base),null,'Unfinished generation cannot be reused');
+ assert(cache.remember(item));
+ assert.equal(cache.find(base)?.jobId,'job-original-14');
+ assert.equal(cache.find({...base,source:secondPhoto}),null,'Even identical bytes from a different upload cannot leak old pixels');
+ assert.equal(cache.find({...base,scope:'wallet-B'}),null,'No reuse across accounts');
+ assert.equal(cache.find({...base,template:'/suits/white.png'}),null,'Another outfit is a new combination');
+ assert.equal(cache.find({...base,hair:'seedream-16'}),null,'Another hairstyle is a new combination');
+ assert.equal(cache.find({...base,finish:'natural'}),null,'Another makeup choice is a new combination');
+ assert.equal(cache.find({...base,version:'hair-prompt-v2'}),null,'Changed generation policy invalidates old result');
+ const newStyle={...base,hair:'seedream-16'};
+ cache.remember({...item,...newStyle,jobId:'job-new-16'});
+ assert.equal(cache.find(base)?.jobId,'job-original-14','Returning to previous hairstyle restores its original successful AI job');
+ assert.equal(cache.find(newStyle)?.jobId,'job-new-16');
+ cache.clear();
+ assert.equal(cache.find(base),null,'Switching uploads clears stored results');
+});
+
+test('Thai full-outfit haircut returns a confirmed cached result before credits or AI on exact reselection',async()=>{
+ const main=await read('src/main.jsx'),studio=await read('src/studio-editor.jsx');
+ const start=main.indexOf('const processStudioPhoto=async('),end=main.indexOf('const applyStudioMakeup=async(',start);
+ assert(start>=0&&end>start);
+ const code=main.slice(start,end);
+ assert(code.includes("generationOptions.creditKind==='hairstyle'&&file===firstUploadedPhotoRef.current"));
+ assert(code.includes('cachedFullPortraitResult(selectedHair,portraitMode,femaleEyeStyle,template)'));
+ assert(code.includes('if(cached){')&&code.includes('master=cached.master;'));
+ assert(code.includes('}else{')&&code.includes('aiHead=await generate()'),'Only cache misses start the original AI job');
+ assert(code.includes('cached?{lock:cached.lock}:await composePortrait'));
+ assert(code.indexOf('fullPortraitHairHistoryRef.current.remember(')>code.indexOf('const commit=()=>'),'Cache must be saved only inside accepted-result commit');
+ assert(code.includes('const entry=rememberHairResult'));
+ assert(main.includes("source,scope:hairResultScope(),template:template||editCache.current?.lock?.templatePath"),'Only the exact original photo, account and outfit can restore');
+ assert(studio.includes('const cachedSelectedResult=!firstGeneration&&!newSourcePending'));
+ assert(studio.includes('&&!cachedSelectedResult){'),'Do not invoke quota fallback for cached combinations');
+ assert(studio.includes('!options.recoverExistingJob&&!cachedSelectedResult'),'Do not charge or block a cached result because credits are exhausted');
+ assert(studio.includes("||cachedSelectedResult))generationOptions.creditKind='hairstyle'"),'Request must enter cache-aware pathway');
+});
