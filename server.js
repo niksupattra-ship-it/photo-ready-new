@@ -1,3 +1,4 @@
+import {PORTRAIT_UPLOAD_LIMITS} from './portrait-upload-limits.js';
 import {loadCurrentHairReference} from './english-current-hair.js';
 import {correctEnglishProportions,validateEnglishProportionMetrics} from './english-proportion-correction.js';
 import {createBundledModnetSession,MODNET_MODEL_SHA256} from './modnet-model.js';
@@ -307,7 +308,7 @@ async function requireCredit(req,res,kind){
 
 const upload=multer({
   storage:multer.memoryStorage(),
-  limits:{fileSize:20*1024*1024,files:2,fields:20,parts:24}
+  limits:PORTRAIT_UPLOAD_LIMITS
 });
 registerYoucamHairApi(app,{upload,dir,walletId,getWallet,hasPrivateTrial,getAiJobResult,reserveUsdPremiumCredit,commitCredit,refundCredit});
 registerSourceDownloadApi(app,{upload,walletId,ensureWallet,metadata:buffer=>sharp(buffer).metadata(),createSourceDownloadJob,downloadPolicy});
