@@ -2,6 +2,10 @@ import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './englis
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
+ // Thai standards are text-only AI presets. Existing images serve as menu previews, not donors.
+ {id:'standard-female-half-up',gender:'female',name:'รวบครึ่งศีรษะ · ปล่อยหลัง',src:'/assets/seedream-hairstyles/previews/16.webp',promptOnly:true},
+ {id:'standard-female-gathered',gender:'female',name:'แสกกลาง · รวบเก็บ',src:'/assets/seedream-hairstyles/previews/27.webp',promptOnly:true},
+ {id:'standard-female-straight',gender:'female',name:'ผมตรง · แสกกลางเห็นหู',src:'/assets/seedream-hairstyles/previews/14.webp',promptOnly:true},
   {
     "id": "seedream-40",
     "gender": "female",
@@ -269,6 +273,11 @@ export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
+const STANDARD_FEMALE_HAIR_DESIGNS=Object.freeze({
+ 'standard-female-half-up':['long','low-profile centre-parted half-up hair: smooth upper side sections gathered gently toward the back of the head, sleek straight long rear lengths resting BEHIND both shoulders, fully visible ears, clean exposed forehead, zero puffy height or top bun'],
+ 'standard-female-gathered':['gathered','smooth centre-parted neatly gathered hair, pulled flat and equally back from both temples, ears fully visible, all ends concealed behind the upper back of the skull; no visible bun or loose rear lengths'],
+ 'standard-female-straight':['long','long smooth straight hair with precise centre part and natural low crown, evenly framed left/right hairline, both upper sides tucked behind clearly visible ears, with straight lengths behind both shoulders; no curtain bangs or frontal strands'],
+});
 const compact={
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
@@ -314,10 +323,18 @@ export function selectedHairDesign(selected){
  if(!selected?.id)return null;
  if(selected.interfaceLanguage==='en')return {kind:selected.kind,description:selected.description};
  const freeDesigns={'hair-21':['gathered','smooth side-parted hair gathered close to the head'],'hair-25':['short','short side-swept pixie with the same fringe and silhouette as the reference'],'hair-26':['gathered','centre-parted hair with a flat braid across the crown, gathered close to the head']};
- const pair=compact[selected.id]||freeDesigns[selected.id];
+ const pair=STANDARD_FEMALE_HAIR_DESIGNS[selected.id]||compact[selected.id]||freeDesigns[selected.id];
  return pair?{kind:pair[0],description:pair[1],...(selected.id==='seedream-20'?{faceFraming:true}:{})}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
+ if(selected?.promptOnly){
+  const design=selectedHairDesign(selected);
+  if(!design)return '';
+  return `STANDARD FEMALE HAIR ${selected.id}: The selected built-in text preset is the ONLY hairstyle design authority; NO other model/hairstyle reference photo is supplied. SPECIFIC DESIGN: ${design.description}. Use the customer's original upload as the sole source of face, real skull, forehead, natural hairline, ears, jaw and identity. Replace only the old hairstyle with this precise standard style in the existing single AI generation.
+LOW HEAD HEIGHT: Crown lies close to the original skull at its native height, with natural fine hair strands and modest volume. Do not raise the crown, inflate the top, add a quiff, bouffant, backcombing, wig dome, topknot, bun or extra scalp height. Never change head-to-neck or face proportions, original eye/ear positions, forehead size, expression or face geometry.
+CENTRE PART + BALANCED FRAMING: Align the part to the original face midline, with similar scalp hair coverage at the left/right temples and no loose cheek/ear strands. Hair styling is symmetrical, NOT facial retouching: preserve the person's own natural asymmetrical facial features, eyes, nose, lips, ears, jaw/chin and true hairline without mirroring or reshaping. Keep BOTH ears open, with no new earrings or strands crossing the face.
+${design.kind==='gathered'?'Collect every length invisibly at the back of the head above the nape; leave both neck sides completely free of hair, no visible low bun, tail or dark side patches.':'Keep the connected long hair BEHIND the shoulders and away from shirt, suit, collar and chest; no front drapes or extra invented sections.'} Keep the original face, makeup/Natural choice, skin, neck geometry, background, outfit and framing intact. No face transfer from any catalogue thumbnail, no new processing stage and no second AI request.`;
+ }
  if(selected?.interfaceLanguage==='en'&&selected.gender==='male')return englishMaleHairInstruction(selected);
  if(selected?.interfaceLanguage==='en')return englishFemaleHairInstruction(selected);
  const design=selectedHairDesign(selected);if(!design)return '';
