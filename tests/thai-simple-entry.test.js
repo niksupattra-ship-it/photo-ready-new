@@ -41,7 +41,7 @@ test('Thai desktop and mobile share real eight-stage pages for selection, proces
  const easy=await read('src/easy-mode.jsx');
  assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'));
  assert(easy.includes('!englishPreviewEnabled()&&(sourcePreview||hasResult)&&templates.length'));
- for(const part of ['กำลังสร้างรูป','เลือกแบบที่ต้องการ','เปลี่ยนทรงผม','เปลี่ยนชุด','เครื่องหมาย','รับรูปไม่มีลายน้ำ','สร้างรูปด้วย AI'])assert(source.includes(part),part);
+ for(const part of ['กำลังสร้างรูป','ปรับแต่งและสร้างรูป','เปลี่ยนทรงผม','เปลี่ยนชุด','เครื่องหมาย','รับรูปไม่มีลายน้ำ','สร้างรูป'])assert(source.includes(part),part);
  assert(source.includes('onGenerateHair?.(draftHair)'),'New AI generation still uses guarded original callback');
  assert(source.includes('onConfirmHair?.()'),'Changing hair still requires confirmation');
  assert(source.includes('onClick={onDownload}')&&source.includes('รับรูปไม่มีลายน้ำ'),'Receive-photo button still calls the original protected checkout/download callback');
