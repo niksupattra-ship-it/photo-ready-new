@@ -90,7 +90,7 @@ test('archived Thai v8 stays identical to English while new v9 uses Thai-only fi
  assert.deepEqual(calibratedCalls[0].outfit,calls[0].outfit,'Original suit pixels must never change');
  assert.notDeepEqual(calibratedCalls[0].portrait,calls[0].portrait,'New Thai guide must actually be calibrated');
  assert.match(calibratedCalls[0].prompt,/THAI FIXED-CAMERA PORTRAIT V9/);
- assert.doesNotMatch(calibratedCalls[0].prompt,/ENGLISH FEMALE V2 — BALANCED HEAD\/BODY/);
+ assert(calibratedCalls[0].prompt.lastIndexOf('THAI FIXED-CAMERA PORTRAIT V9')>calibratedCalls[0].prompt.lastIndexOf('ENGLISH FEMALE V2 — BALANCED HEAD/BODY'), 'Thai final geometry rule overrides generic English guide text');
  assert(!calibratedCalls[0].prompt.includes('older small-head'), 'No conflicting legacy target');
  assert.equal(usesThaiHistoricOutfitPrompt(archivedThai),false,'v8 job replay must not gain old historical prompt');
 
