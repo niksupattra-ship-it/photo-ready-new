@@ -235,7 +235,7 @@ export function ThaiMobileJourney({
     {section==='result'?<>
      <div className="thai-mobile-result-success"><span className="thai-mobile-result-success-check" aria-hidden="true">✓</span><strong>รูปของคุณพร้อมแล้ว</strong></div>
      <button type="button" className="thai-mobile-result-studio" disabled={!ready||busy} onClick={onStudio}><span aria-hidden="true">⚙</span> ปรับแต่งในสตูดิโอ</button>
-     <button type="button" className="thai-mobile-primary thai-mobile-result-download" disabled={!ready||busy} onClick={onDownload}><span aria-hidden="true">↓</span> รับรูปไม่มีลายน้ำ</button>
+     <button type="button" className="thai-mobile-primary thai-mobile-result-download" disabled={!ready||busy} onClick={onDownload}><span aria-hidden="true">↓</span> ดาวน์โหลดรูป</button>
      <div className="thai-mobile-result-actions">
       <button type="button" onClick={()=>{setDraftHair(selectedHair||'');setChangedHair(false);setSection('hair')}}><span aria-hidden="true">✂</span> เปลี่ยนทรงผม</button>
       <button type="button" disabled={busy||!ready} onClick={onUpload}><span aria-hidden="true">↻</span> เปลี่ยนรูปใหม่</button>
@@ -246,7 +246,6 @@ export function ThaiMobileJourney({
        {resultInsignia}
       </div>}
      </div>}
-     <div className="thai-mobile-result-reassurance"><span aria-hidden="true">✧</span> พอใจแล้วรับรูปได้เลย</div>
     </>:section==='hair'?<>
      <h2>ลองทรงผมอื่นได้ โดยไม่ต้องเพิ่มรูปใหม่</h2>
      <div className="thai-mobile-tile-row thai-mobile-hair-row">
