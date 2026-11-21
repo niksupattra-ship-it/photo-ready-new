@@ -549,7 +549,7 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const editor=await readFile(root+'src/studio-editor.jsx','utf8');
  assert(editor.includes('const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null'));
  assert(editor.includes('const preset=easyFit?.preset||('),'Only Easy result placement uses the new correction');
- assert(editor.includes('||easyGovernmentPhotoFallback(W,H,head.portraitMode||hairGender)'),'Photo-reference fallback stays exclusive to Easy Mode');
+ assert(editor.includes('fit=easyGovernmentPhotoFallback(W,H,gender,selectedTemplate)'),'Editable photo-reference fallback stays exclusive to Easy Mode');
  assert(editor.includes('easyGovernmentInsigniaFitRef.current?.key===cacheKey'),'Changing insignia cannot drift its anchors by measuring old badge pixels');
  assert(editor.includes('if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect)'),'Original Studio fail-closed path remains untouched');
  const blank=new Uint8ClampedArray(data.length);blank.fill(255);
