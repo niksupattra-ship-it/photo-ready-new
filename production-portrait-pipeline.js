@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction,usesThaiIdentityLockedHead,thaiIdentityLockInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -541,7 +541,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const legacyV9=templateBody&&fields.englishStudioFinishVersion===ENGLISH_TEMPLATE_BODY_FINISH_VERSION;
  const newEnglishProfile=balancedFemale?ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE:matchedFemale?ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE:legacyV9?(selected.gender==='male'?ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE:ENGLISH_TEMPLATE_PROPORTION_PROFILE):null;
  const legacyV8Profile=templateBody&&fields.englishStudioFinishVersion==='en-body-proportion-lock-v8'?{identityHeadScale:.84,chinToCollar:.045,neckToShoulder:.24,chestToShoulder:.42}:null;
- const layoutProfile=thaiCalibrated?thaiOutfitCalibratedProfile(selected.gender):newEnglishProfile||legacyV8Profile;
+ const layoutProfile=thaiCalibrated?thaiOutfitCalibratedProfile(selected.gender,fields.thaiOutfitAppearanceVersion):newEnglishProfile||legacyV8Profile;
  const identityHeadScale=thaiCalibrated?layoutProfile.identityHeadScale:fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
  const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
  const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,...(thaiCalibrated?{fixedIdentityEnvelope:true}:{})}:layoutProfile?{profile:layoutProfile}:undefined;
@@ -577,7 +577,8 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(usesThaiEnglishParityOutfit(fields))prompt+=thaiEnglishParityRearHairInstruction();
  // Thai v9 adjusts the composition guide, not generated pixels. An additional
  // final camera instruction keeps source selfie zoom from overriding the guide.
- if(thaiCalibrated)prompt+=thaiCalibratedHeadInstruction(selected.gender);
+ if(thaiCalibrated)prompt+=thaiCalibratedHeadInstruction(selected.gender,fields.thaiOutfitAppearanceVersion);
+ if(usesThaiIdentityLockedHead(fields))prompt+=thaiIdentityLockInstruction();
  if(thaiSingleAi)prompt+=`
  THAI FULL-OUTFIT V8 — REAL-SOURCE GEOMETRY, ONE GARMENT:
  No mannequin, composited head, scale template or separate neck photo was supplied. Any instruction above asking to copy or shrink an unseen composition guide is inapplicable. Infer a real frontal head, neck, shoulder and torso from the ORIGINAL person's identity and the selected garment; do not carry over the uploaded image's crop size or selfie perspective. The generated portrait must keep the entire real face, natural hair crown, both full shoulders and the selected garment to its lower edge, all at one camera distance.
