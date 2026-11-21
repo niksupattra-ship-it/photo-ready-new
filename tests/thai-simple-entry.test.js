@@ -269,6 +269,13 @@ test('Thai government result edits only native insignia layers directly on pictu
  assert(drag.includes('onPointerCancel={finish}')&&drag.includes('onLostPointerCapture='),'Gesture cancellation is accounted for');
  assert(drag.includes("data-insignia-resize"),'Resize grip is on the image');
  assert(drag.includes('after.dist/before.dist'),'Pinch to resize works without sliders');
+ assert(drag.includes("['nw','ne','se','sw'].map("),'All four Studio-style corner resize controls are present');
+ assert(drag.includes('studioDistance(after.center)/studioDistance(before.center)'),'Drag scaling follows Studio-style radial distance from the asset center');
+ assert(drag.includes('g.center'),'Scale keeps the selected insignia center fixed');
+ assert(!drag.includes('>↘</span>'),'Oversized purple diagonal resize bubble is removed');
+ assert(css.includes('.thai-result-insignia-studio-dot')&&css.includes('#a8fff1'),'Selection uses Studio aqua dots');
+ assert(css.includes('.thai-result-insignia-corner-nw')&&css.includes('.thai-result-insignia-corner-se'),'All four corner grips have hit areas');
+ assert(css.includes('border:1.5px solid transparent'),'Unselected assets have no distracting outlines');
  assert(css.includes('touch-action:none')&&css.includes('thai-result-insignia-grip'),'Handles render above actual photo on mobile');
  assert(!drag.includes('type="range"')&&!css.includes('input[type="range"]'),'No insignia adjustment slider is introduced');
  assert(chooser.includes('quickResult')&&chooser.includes("...(!quickResult?[['shoulder','บ่า']]:[])"),'Quick picker only shows actual insignia, no garment badges');
