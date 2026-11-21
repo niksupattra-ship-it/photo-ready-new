@@ -52,7 +52,7 @@ test('Thai desktop and mobile share real eight-stage pages for selection, proces
 test('Thai completed result matches approved photo-first mockup without replacing working actions',async()=>{
  const result=await read('src/thai-mobile-journey.jsx');
  const theme=await read('src/thai-mobile-journey.css');
- for(const section of ['thai-mobile-flow-ready','thai-mobile-result-heading','thai-mobile-result-photo-card','thai-mobile-result-photo-summary','thai-mobile-result-success','thai-mobile-result-hair-choices','thai-mobile-result-studio'])assert(result.includes(section),section);
+ for(const section of ['thai-mobile-flow-ready','thai-mobile-result-photo-card','thai-mobile-result-photo-summary','thai-mobile-result-success','thai-mobile-result-hair-choices','thai-mobile-result-studio'])assert(result.includes(section),section);
  assert(result.includes('onClick={onDownload}')&&result.includes('ดาวน์โหลดรูป'),'Main receive button retains real checkout/download');
  assert(result.includes("setSection('hair')")&&!result.includes("setSection('suit')"),'Only hairstyle correction is available on this finished screen');
  assert(result.includes('เปลี่ยนรูปใหม่')&&result.includes('onClick={onUpload}'),'Replacing photo uses real guarded upload');
@@ -195,7 +195,7 @@ test('Thai Step 2 matches approved photo-first desktop and mobile mockup without
  assert(css.includes('@media(max-width:720px)'));
  assert(css.includes('flex-direction:column;gap:15px'),'Mobile Step 2 shows photo above the option cards');
  assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'),'Both desktop and mobile still use the same connected component');
- assert(ui.includes("resultReadyPage?<div className=\"thai-mobile-result-heading\""),'Result page remains its established design');
+ assert(!ui.includes('className="thai-mobile-result-heading"'),'Completed result omits the top back arrow and heading');
  assert(ui.includes('onClick={onDownload}'),'Purchase and download action is unchanged');
 });
 
@@ -233,13 +233,14 @@ test('Thai finished photo only offers hairstyle and new photo; replacement enter
  const result=ui.slice(resultStart);
  const controls=result.slice(result.indexOf("section==='result'?<>"),result.indexOf("section==='hair'?<>"));
  assert(resultStart>0&&controls.length>0,'Real result actions exist');
- for(const label of ['ดาวน์โหลดรูป','เปลี่ยนทรงผม','เปลี่ยนรูปใหม่'])assert(controls.includes(label),label);
+ for(const label of ['ดาวน์โหลดรูป','เปลี่ยนทรงผม'])assert(controls.includes(label),label);
+ assert(ui.includes('aria-label="เปลี่ยนรูปใหม่"'),'Photo footer exposes accessible replacement icon');
  assert(!controls.includes('เปลี่ยนชุด'),'Changing outfits is unavailable after generation');
  assert(controls.includes('governmentResult&&resultInsignia'),'Insignia button appears only for government uniforms');
  assert(!result.includes("setSection('suit')")&&!result.includes("setSection('insignia')"),'No alternate result edit route');
  assert(!ui.includes('thai-mobile-result-menu-trigger'),'Studio shortcuts are hidden from simplified result');
- assert(ui.includes('aria-label="กลับไปเลือกทรงผม"'),'Back arrow cannot return to outfit picker from result');
- assert(controls.includes('onClick={onUpload}'),'The actual upload handler opens new photo selection');
+ assert(!ui.includes('aria-label="กลับไปเลือกทรงผม"'),'No top back arrow on completed result');
+ assert(result.includes('onClick={onUpload}'),'The actual upload handler opens new photo selection from the photo footer');
  assert(ui.includes("if(srcRef.current!==sourcePreview)")&&ui.includes("setSection('choose')"),'Successful new source resets to Step 2');
  assert(ui.includes('thai-mobile-choice-outfit-panel')&&ui.includes('thai-mobile-choice-hair-panel'),'Step 2 still offers suit and hairstyle');
  assert(easy.includes('onUpload={onUpload}'),'The Easy screen forwards the upload callback');
