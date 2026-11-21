@@ -1,4 +1,5 @@
 import React from 'react';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
 import {createRoot} from 'react-dom/client';
 import {StudioEditor} from '../../src/studio-editor.jsx';
 import '../../src/style.css';
@@ -10,6 +11,7 @@ const query=new URLSearchParams(location.search);
 const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
 const studio=query.get('studio')==='1';
+const fullbody=query.get('fullbody')==='1';
 const template='/assets/government-uniforms/'+(gender==='male'?'male-government-employee':'female-operational')+'.png';
 const load=src=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src});
 const make=()=>Object.assign(document.createElement('canvas'),{width:900,height:1200});
@@ -23,6 +25,7 @@ const neckBottom=frame.y+frame.h*.20,headBottom=neckBottom-headWidth*.19;
 h.fillStyle='#cda58a';h.fillRect(450-headWidth*.20,headBottom-headWidth*.15,headWidth*.4,headWidth*.4);
 h.beginPath();h.ellipse(450,headBottom-headHeight/2,headWidth/2,headHeight/2,0,0,Math.PI*2);h.fill();
 h.fillStyle='#322827';h.beginPath();h.ellipse(450,headBottom-headHeight*.87,headWidth*.51,headWidth*.3,0,Math.PI,Math.PI*2);h.fill();
+if(fullbody)h.drawImage(suit,frame.x,frame.y,frame.w,frame.h);
 const nativeSuit=document.createElement('canvas');nativeSuit.width=suit.naturalWidth;nativeSuit.height=suit.naturalHeight;nativeSuit.getContext('2d').drawImage(suit,0,0);
 const snapshotRef={current:null};
 window.insigniaFixture={gender,narrow,studio,template,frame,aiCalls:0,paymentCalls:0,exports:[],snapshot:()=>snapshotRef.current?.()};
@@ -53,8 +56,8 @@ const templateInfo={id:'government-fixture',name:'ชุดข้าราชก
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!studio}
  initialLayers={[
   {name:'พื้นหลัง',kind:'background',source:blue.toDataURL()},
-  {name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:false},
-  {name:'ชุด',kind:'suit',source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id}
+  {name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:false,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})},
+  {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id}
  ]}
  templates={[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
  collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]} maleHair={[]} femaleHair={[]}

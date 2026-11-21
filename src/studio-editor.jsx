@@ -65,7 +65,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
-import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,governmentReferenceLandmarkFit} from './government-insignia-fit.js';
+import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,governmentReferenceLandmarkFit,easyGovernmentNativeReferenceFit} from './government-insignia-fit.js';
 import {governmentResultInsigniaSignature,sameGovernmentResultInsigniaSignature} from './government-result-insignia-cache.js';
 import {governmentResultManualInsigniaPlacement} from './government-result-insignia-placement.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
@@ -1259,7 +1259,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!garmentAsset)throw Error('government_garment_unavailable');
    paintLayers(ctx,[garment],assets.current,state.current);
    const pixels=ctx.getImageData(0,0,W,H);
-   fit=governmentReferenceLandmarkFit(pixels,gender,selectedTemplate);
+   fit=easyGovernmentNativeReferenceFit(suit,gender,W,H)||governmentReferenceLandmarkFit(pixels,gender,selectedTemplate);
   }catch(error){console.warn('Government shoulder geometry unavailable',error?.message)}
   finally{sampled.width=sampled.height=1}
   // Retain an editable native-template fallback when image segmentation
