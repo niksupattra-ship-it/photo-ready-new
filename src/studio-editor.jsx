@@ -65,7 +65,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
-import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit} from './government-insignia-fit.js';
+import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback} from './government-insignia-fit.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
 import {TouchParts,TouchAdjust,partName} from './studio-touch.jsx';
 import {StudioChoiceIcon,StudioToolIcon,StudioHistoryIcon} from './studio-icons.jsx';
@@ -1249,7 +1249,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{
    fit=easyGovernmentInsigniaFit(
     sampled.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H),
-    head.portraitMode||hairGender);
+    head.portraitMode||hairGender)||easyGovernmentPhotoFallback(W,H,head.portraitMode||hairGender);
   }catch{fit=null}finally{sampled.width=sampled.height=1}
   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit};
   return fit;

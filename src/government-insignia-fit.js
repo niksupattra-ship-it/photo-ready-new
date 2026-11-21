@@ -5,7 +5,7 @@ export function isGovernmentUniform(template='',category=''){
  return category==='government'||/\/government-uniforms\//i.test(String(template));
 }
 const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
-export function detectWhiteGovernmentJacket(image){
+export function detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite=false}={}){
  const width=image?.width,height=image?.height,data=image?.data;
  if(!Number.isFinite(width)||!Number.isFinite(height)||width<160||height<200||!data||data.length<width*height*4)return null;
  const white=(x,y)=>{
@@ -21,7 +21,19 @@ export function detectWhiteGovernmentJacket(image){
    borderTotal++;if(white(x,y))borderHits++;
   }
  }
- if(borderHits>borderTotal*.27)return null;
+ if(borderHits>borderTotal*.27){
+  // Full-size government jackets legitimately reach the bottom corners of
+  // the example photo. Only Easy Mode tolerates those lower white edges.
+  // Still reject a flat white background with no separable jacket.
+  if(!allowLowerEdgeWhite)return null;
+  let upperWhite=0,upperTotal=0;
+  for(let y=Math.floor(height*.16);y<height*.36;y+=Math.max(6,Math.floor(height/30))){
+   for(const x of [Math.floor(width*.03),Math.floor(width*.10),Math.floor(width*.90),Math.floor(width*.97)]){
+    upperTotal++;if(white(x,y))upperWhite++;
+   }
+  }
+  if(upperWhite>upperTotal*.25)return null;
+ }
  const rowY=[.65,.69,.73,.77,.81,.85].map(v=>Math.floor(height*v));
  const candidates=[];
  for(let x=Math.floor(width*.08);x<width*.92;x+=3){
@@ -69,13 +81,43 @@ export function governmentInsigniaPreset(frame,gender='female'){
 }
 
 // Result-photo Easy Mode only. Keep the old Studio preset untouched.
+// Based on the two supplied government-uniform portraits. The MALE standing
+// collar badges sit near the button placket; FEMALE lapel badges sit on the
+// outer lapels. Positions are fractions of the measured jacket frame, not
+// arbitrary fixed 900x1200 canvas coordinates.
+export function easyGovernmentReferencePreset(frame,gender='female'){
+ if(!frame||!Number.isFinite(frame.w)||frame.w<=0)throw Error('missing_government_frame');
+ return gender==='male'
+  ?{collar:{left:.435,right:.568,y:.045,width:.078},
+    chest:{x:.226,y:.349,width:.090},
+    ribbon:{x:.781,top:.304,width:.271}}
+  :{collar:{left:.263,right:.744,y:.045,width:.071},
+    chest:{x:.153,y:.360,width:.090},
+    ribbon:{x:.845,top:.323,width:.265}};
+}
+// If white-on-white clothing prevents garment segmentation, start from
+// the exact reference's normalized photographed layout. Drag adjustment
+// remains available. No new AI work or permanent outfit alterations.
+export function easyGovernmentPhotoFallback(width=900,height=1200,gender='female'){
+ const frame={x:0,y:0,w:width,h:height};
+ const preset=gender==='male'
+  ?{collar:{left:.448,right:.551,y:.551,width:.060},
+    chest:{x:.286,y:.695,width:.070},
+    ribbon:{x:.716,top:.672,width:.210}}
+  :{collar:{left:.315,right:.687,y:.554,width:.055},
+    chest:{x:.230,y:.701,width:.070},
+    ribbon:{x:.765,top:.684,width:.205}};
+ return {frame,preset,confidence:'photo-reference-fallback'};
+}
+
+// Result-photo Easy Mode only. Keep the old Studio preset untouched.
 // Each candidate position is gently snapped to actual light jacket FABRIC in
 // the finished canvas. Do not move the official artwork or stretch its pixels.
 export function easyGovernmentInsigniaFit(image,gender='female'){
- const detected=detectWhiteGovernmentJacket(image);
+ const detected=detectWhiteGovernmentJacket(image,{allowLowerEdgeWhite:true});
  if(!detected)return null;
  const frame=detected.frame;
- const preset=governmentInsigniaPreset(frame,gender);
+ const preset=easyGovernmentReferencePreset(frame,gender);
  const {width,height,data}=image;
  const white=(x,y)=>{
   x=Math.round(x);y=Math.round(y);

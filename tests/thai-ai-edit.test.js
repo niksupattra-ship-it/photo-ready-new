@@ -504,7 +504,7 @@ test('Thai government insignia menu uses the finished portrait and refuses uncer
 // Easy Mode aligns each badge to detected real white fabric; the underlying
 // Studio's public gender preset stays byte-for-byte stable.
 test('Easy result insignia pins align to measured jacket, preserve native proportions and cache the first fit',async()=>{
- const {easyGovernmentInsigniaFit,governmentInsigniaPreset}=await import('../src/government-insignia-fit.js');
+ const {easyGovernmentInsigniaFit,easyGovernmentReferencePreset,governmentInsigniaPreset}=await import('../src/government-insignia-fit.js');
  const w=600,h=800,data=new Uint8ClampedArray(w*h*4);
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
   const i=(y*w+x)*4;
@@ -518,7 +518,7 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const image={width:w,height:h,data};
  const fit=easyGovernmentInsigniaFit(image,'female');
  assert(fit,'A clear white government jacket must yield a measured fit');
- const native=governmentInsigniaPreset(fit.frame,'female');
+ const native=easyGovernmentReferencePreset(fit.frame,'female');
  assert.equal(fit.preset.collar.width,native.collar.width,'No resizing the actual pin');
  assert.equal(fit.preset.chest.width,native.chest.width,'No resizing the chest badge');
  assert.equal(fit.preset.ribbon.width,native.ribbon.width,'No resizing the ribbon');
@@ -549,8 +549,66 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  const editor=await readFile(root+'src/studio-editor.jsx','utf8');
  assert(editor.includes('const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null'));
  assert(editor.includes('const preset=easyFit?.preset||('),'Only Easy result placement uses the new correction');
+ assert(editor.includes('||easyGovernmentPhotoFallback(W,H,head.portraitMode||hairGender)'),'Photo-reference fallback stays exclusive to Easy Mode');
  assert(editor.includes('easyGovernmentInsigniaFitRef.current?.key===cacheKey'),'Changing insignia cannot drift its anchors by measuring old badge pixels');
  assert(editor.includes('if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect)'),'Original Studio fail-closed path remains untouched');
  const blank=new Uint8ClampedArray(data.length);blank.fill(255);
  assert.equal(easyGovernmentInsigniaFit({width:w,height:h,data:blank},'female'),null,'Never claim to see a uniform in a solid white backdrop');
+});
+
+test('Easy government reference male standing-collar and female lapel placements match supplied photo coordinates',async()=>{
+ const {easyGovernmentReferencePreset,easyGovernmentPhotoFallback,governmentInsigniaPreset}=await import('../src/government-insignia-fit.js');
+ // The supplied portraits are 1504×2047, scaled to the same 900×1200 photo
+ // coordinate system. The measured photo jacket occupies this reference frame.
+ const frame={x:100.2,y:639.6,w:696.6,h:560.4},W=900,H=1200;
+ const male=easyGovernmentReferencePreset(frame,'male');
+ const female=easyGovernmentReferencePreset(frame,'female');
+ const point=(x,y)=>({x:(frame.x+frame.w*x)/W,y:(frame.y+frame.h*y)/H});
+ const check=(actual,expected,tolerance=.018)=>{
+  assert(Math.abs(actual-expected)<tolerance,'Reference coordinate '+actual+' differs from expected '+expected);
+ };
+ const ml=point(male.collar.left,male.collar.y),mr=point(male.collar.right,male.collar.y);
+ const fl=point(female.collar.left,female.collar.y),fr=point(female.collar.right,female.collar.y);
+ check(ml.x,.448);check(mr.x,.551);check(ml.y,.554,.012);
+ check(fl.x,.315);check(fr.x,.687);check(fl.y,.554,.012);
+ assert((female.collar.right-female.collar.left)>(male.collar.right-male.collar.left)*3.5,
+   'Female collar emblems must be far apart on lapels; male symbols near centre');
+ const maleChest=point(male.chest.x,male.chest.y),femaleChest=point(female.chest.x,female.chest.y);
+ check(maleChest.x,.286);check(maleChest.y,.695);
+ check(femaleChest.x,.23);check(femaleChest.y,.701);
+ const mribbon=point(male.ribbon.x,male.ribbon.top),fribbon=point(female.ribbon.x,female.ribbon.top);
+ check(mribbon.x,.716);check(mribbon.y,.672);
+ check(fribbon.x,.765);check(fribbon.y,.684);
+ check(male.ribbon.width*frame.w/W,.21,.018);check(female.ribbon.width*frame.w/W,.205,.018);
+ assert(male.collar.width*frame.w/W<.09&&female.collar.width*frame.w/W<.09,'No oversized collar pins');
+ const oldMale=governmentInsigniaPreset(frame,'male');
+ assert(oldMale.collar.y!==male.collar.y,'The unrelated Studio preset is not rewritten');
+ const fallback=easyGovernmentPhotoFallback(W,H,'female');
+ check(fallback.preset.collar.left,.315,.001);check(fallback.preset.chest.y,.701,.001);
+ check(fallback.preset.ribbon.top,.684,.001);
+});
+test('Easy white-hem jacket reference can be measured without permitting a fully white background',async()=>{
+ const {detectWhiteGovernmentJacket,easyGovernmentInsigniaFit}=await import('../src/government-insignia-fit.js');
+ const w=600,h=800,data=new Uint8ClampedArray(w*h*4);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const k=(y*w+x)*4,spread=Math.max(0,(y-h*.42)/(h*.58));
+  const white=y>=h*.42&&x>w*(.29-.30*spread)&&x<w*(.72+.30*spread);
+  data[k]=white?242:32;data[k+1]=white?241:135;data[k+2]=white?239:225;data[k+3]=255;
+ }
+ // Simulate a wide white hem touching both lower side borders, just as
+ // the supplied full-length white service jackets do in their photos.
+ for(let y=Math.floor(h*.69);y<Math.floor(h*.90);y++){
+  for(let x=0;x<Math.floor(w*.045);x++){
+   for(const xx of [x,w-1-x]){
+    const i=(y*w+xx)*4;data[i]=242;data[i+1]=241;data[i+2]=239;
+   }
+  }
+ }
+ const img={width:w,height:h,data};
+ assert.equal(detectWhiteGovernmentJacket(img),null,'Studio must keep its strict edge-confidence gate');
+ const fit=easyGovernmentInsigniaFit(img,'male');
+ assert(fit,'Easy Mode must still anchor insignia when the white jacket reaches lower photo edges');
+ assert(fit.preset.collar.left<fit.preset.collar.right);
+ const allWhite=new Uint8ClampedArray(w*h*4).fill(255);
+ assert.equal(easyGovernmentInsigniaFit({width:w,height:h,data:allWhite},'male'),null,'Entire white backgrounds remain indeterminate');
 });
