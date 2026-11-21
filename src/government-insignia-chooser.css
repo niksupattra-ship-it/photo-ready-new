@@ -24,3 +24,8 @@
 .idprom-government-insignia-floating .idprom-government-insignia-launch{box-shadow:0 6px 22px #24113d30;background:#7644d6;color:white}
 .idprom-government-insignia-floating .idprom-government-insignia{max-height:75vh;overflow:auto;margin-bottom:8px;box-shadow:0 12px 32px #24113d35}
 @media(max-width:600px){.idprom-government-insignia-options{grid-template-columns:repeat(3,minmax(0,1fr));max-height:30vh}.idprom-government-insignia-floating{bottom:max(72px,env(safe-area-inset-bottom))}.idprom-government-insignia-head h3{font-size:16px}}
+
+/* Finished-photo Easy Mode: lightweight one-icon picker. Studio stays paired. */
+.idprom-government-insignia--quick .idprom-government-option-images{height:55px;overflow:hidden}
+.idprom-government-insignia--quick .idprom-government-option-images img{display:block;width:56px;height:55px;max-width:100%;max-height:55px;object-fit:contain;flex:none}
+.idprom-government-insignia--quick .idprom-government-insignia-options button{min-height:94px;gap:4px}

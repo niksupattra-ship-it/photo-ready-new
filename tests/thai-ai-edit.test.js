@@ -738,3 +738,26 @@ test('Easy placement is measured from real clothing, honours translated jackets 
  const chooser=await readFile(root+'src/government-insignia-chooser.jsx','utf8');
  assert(chooser.includes('quickResult&&placementReview'),'Uncertain placements warn user rather than claiming auto-perfect accuracy');
 });
+
+test('Easy government picker renders ONE collar symbol using already built small WebP previews',async()=>{
+ const fs=await import('node:fs/promises');
+ const chooser=await fs.readFile(root+'src/government-insignia-chooser.jsx','utf8');
+ const css=await fs.readFile(root+'src/government-insignia-chooser.css','utf8');
+ const source=await fs.readFile(root+'src/main.jsx','utf8');
+ const thumbnails=JSON.parse(await fs.readFile(root+'src/studio-thumbnail-map.json','utf8'));
+ assert(chooser.includes("import thumbnailMap from './studio-thumbnail-map.json'"));
+ assert(chooser.includes('thumbnailMap[previewImage(option)]||previewImage(option)'),'Prebuilt WebP rather than full-size PNG');
+ assert(chooser.includes("!quickResult&&tab==='collar'&&option.right"),'Easy shows one pin, full Studio retains two');
+ assert(chooser.includes("loading={quickResult&&i<6?'eager':'lazy'}"),'Visible options load immediately');
+ assert(chooser.includes("fetchPriority={quickResult&&i<3?'high':'auto'}"),'First visible images receive priority');
+ assert(chooser.includes("onChoose(tab,option)"),'Picking the single icon still places its original paired insignia');
+ assert(css.includes('.idprom-government-insignia--quick .idprom-government-option-images img'),'Small thumbnails only in Easy');
+ const required=[...source.matchAll(/(?:left|right|src):'(\/assets\/(?:government-insignia|ribbons)\/[^']+)'/g)].map(x=>x[1]);
+ assert(required.length>30,'Government pin and ribbon options must exist');
+ for(const path of new Set(required)){
+  assert(thumbnails[path]&&thumbnails[path].endsWith('.webp'),'Missing thumbnail for '+path);
+  const file=await fs.readFile(root+'public'+thumbnails[path]);
+  assert.equal(file.toString('ascii',0,4),'RIFF','Preview is real WebP: '+path);
+  assert(file.length<35000,'Preview must stay small: '+path);
+ }
+});

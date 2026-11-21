@@ -1,4 +1,5 @@
 import React,{useState} from 'react';
+import thumbnailMap from './studio-thumbnail-map.json';
 import './government-insignia-chooser.css';
 
 // This panel uses the existing Studio asset library and its undo/export path.
@@ -7,7 +8,11 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
  const [tab,setTab]=useState('collar');
  const tabs=[['collar','ปกคอ'],['chest','เข็มติดอก'],['ribbon','แพรแถบ'],...(!quickResult?[['shoulder','บ่า']]:[])];
  const options=tab==='collar'?collarPins:tab==='chest'?chestPins:tab==='ribbon'?ribbons:[];
- return <section className="idprom-government-insignia" aria-label="เลือกเครื่องหมายชุดข้าราชการ">
+ // Use prebuilt small WebP menu images. Preserve the original PNG files
+ // and paired left/right images for actual placement and full Studio.
+ const previewImage=option=>option.left||option.src||option.preview;
+ const quickPreview=option=>thumbnailMap[previewImage(option)]||previewImage(option);
+ return <section className={'idprom-government-insignia'+(quickResult?' idprom-government-insignia--quick':'')} aria-label="เลือกเครื่องหมายชุดข้าราชการ">
   {!quickResult&&<header className="idprom-government-insignia-head">
    <div><h3>เครื่องหมายข้าราชการ</h3><p>แตะเครื่องหมายที่ต้องการ ระบบจะจัดวางบนรูปที่สร้างแล้ว</p></div>
    {onClose&&<button type="button" onClick={onClose} aria-label="ปิดเครื่องหมาย">×</button>}
@@ -23,10 +28,14 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
     <button type="button" className={!selected[tab]?'selected':''} disabled={busy} onClick={()=>onChoose(tab,null)}>
      <span className="idprom-government-empty" aria-hidden="true">∅</span><span>ไม่ติด</span>
     </button>
-    {options.map(option=><button type="button" key={option.id||option.src||option.left} className={selected[tab]===option.id?'selected':''} disabled={busy} aria-pressed={selected[tab]===option.id} onClick={()=>onChoose(tab,option)}>
+    {options.map((option,i)=><button type="button" key={option.id||option.src||option.left} className={selected[tab]===option.id?'selected':''} disabled={busy} aria-pressed={selected[tab]===option.id} onClick={()=>onChoose(tab,option)}>
      <span className="idprom-government-option-images">
-      <img src={option.left||option.src||option.preview} loading="lazy" decoding="async" alt=""/>
-      {tab==='collar'&&option.right&&<img src={option.right} loading="lazy" decoding="async" alt=""/>}
+      <img src={quickResult?quickPreview(option):previewImage(option)}
+       loading={quickResult&&i<6?'eager':'lazy'}
+       fetchPriority={quickResult&&i<3?'high':'auto'}
+       width="56" height="56" decoding="async" alt=""
+       onError={quickResult?e=>{const fallback=previewImage(option);if(e.currentTarget.dataset.fallback)return;e.currentTarget.dataset.fallback='1';e.currentTarget.src=fallback}:undefined}/>
+      {!quickResult&&tab==='collar'&&option.right&&<img src={option.right} loading="lazy" decoding="async" alt=""/>}
      </span>
      <span>{option.name||option.title||'เครื่องหมาย'}</span>
     </button>)}
