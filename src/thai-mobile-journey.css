@@ -767,3 +767,14 @@
  .thai-mobile-flow-choice .thai-mobile-choice-background-dot{width:28px;height:28px}
  .thai-mobile-flow-choice .thai-mobile-choice-background-name{font-size:9.5px}
 }
+
+/* Direct Studio access on the completed Thai photo, above checkout/download. */
+.idstudio .thai-mobile-flow-ready .thai-mobile-result-studio{
+ display:block;width:100%;min-height:52px;margin:0 0 10px;
+ border:1.5px solid #8242ca;border-radius:12px;background:#fff;
+ color:#6934ad;font:inherit;font-weight:800;font-size:16px;
+ cursor:pointer;text-align:center;
+}
+.idstudio .thai-mobile-flow-ready .thai-mobile-result-studio:disabled{
+ opacity:.55;cursor:not-allowed;
+}
