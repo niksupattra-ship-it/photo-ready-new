@@ -334,3 +334,244 @@
  .thai-mobile-result-reassurance{padding:13px 10px}
  .thai-mobile-result-hair-choices{max-width:330px}
 }
+
+/* Thai-only selection page: approved photo-first Step 2 mockup, desktop + mobile. */
+/* Only active after an upload, while choosing hair/outfit. Other pages keep their CSS. */
+.thai-mobile-flow-choice{
+ background:radial-gradient(ellipse at 25% 100%,#eee7fa 0%,#fcfaff 68%);
+ color:#281847;
+}
+.thai-mobile-flow-choice .thai-mobile-header{
+ background:#fff;border-bottom:1px solid #efe7f7;
+ box-shadow:0 2px 16px #3d237710;
+}
+.thai-mobile-flow-choice .thai-mobile-brand{
+ color:#32145d;font-weight:850;gap:10px;
+}
+.thai-mobile-flow-choice .thai-mobile-brand > span:last-child{
+ display:flex;flex-direction:column;gap:2px;line-height:1;
+}
+.thai-mobile-flow-choice .thai-mobile-brand strong{font-size:20px;letter-spacing:-.4px}
+.thai-mobile-flow-choice .thai-mobile-brand small{font-size:10px;letter-spacing:.12em;font-weight:650;color:inherit}
+.thai-mobile-flow-choice .thai-mobile-camera{
+ width:36px;height:36px;background:transparent;color:#6325b5;border:0;
+}
+.thai-mobile-flow-choice .thai-mobile-camera svg{width:34px;height:34px}
+.thai-mobile-flow-choice .thai-mobile-main{max-width:1130px;padding:25px 25px 48px}
+.thai-mobile-flow-choice .thai-mobile-select.thai-mobile-choice{
+ background:transparent;border:0;box-shadow:none;border-radius:0;padding:0;margin:0;
+}
+.thai-mobile-choice-steps{
+ display:grid;grid-template-columns:minmax(76px,1fr) minmax(24px,1fr) minmax(118px,1.6fr) minmax(24px,1fr) minmax(76px,1fr);
+ align-items:start;gap:8px;max-width:750px;margin:0 auto 25px;
+}
+.thai-mobile-choice-step{
+ display:flex;flex-direction:column;align-items:center;gap:7px;
+ text-align:center;color:#77698e;font-size:14px;font-weight:750;line-height:1.35;
+}
+.thai-mobile-choice-step-marker{
+ width:44px;height:44px;border:2px solid #d6cae9;border-radius:50%;
+ display:grid;place-items:center;background:#fff;color:#aa94ca;font-weight:850;font-size:21px;
+}
+.thai-mobile-choice-step.completed .thai-mobile-choice-step-marker,
+.thai-mobile-choice-step.current .thai-mobile-choice-step-marker{
+ background:linear-gradient(145deg,#a333ed,#6421c1);color:#fff;border-color:transparent;
+ box-shadow:0 3px 12px #6e28c829;
+}
+.thai-mobile-choice-step.completed,.thai-mobile-choice-step.current{color:#361365}
+.thai-mobile-choice-step.current{font-weight:850}
+.thai-mobile-choice-line{
+ margin-top:21px;height:2px;width:100%;background:#d8ccea;border-radius:9px;
+}
+.thai-mobile-choice-line.active{background:#923ce4}
+.thai-mobile-choice-card{
+ background:#fff;border:1px solid #ede6f8;border-radius:26px;
+ box-shadow:0 12px 36px #3c1c7715;
+ padding:25px 25px 26px;
+}
+.thai-mobile-flow-choice .thai-mobile-selection-grid.thai-mobile-choice-grid{
+ display:grid;grid-template-columns:minmax(260px,365px) minmax(0,1fr);
+ align-items:start;gap:26px;
+}
+.thai-mobile-choice-preview{
+ background:#f8f4ff;border:1px solid #e7dcfa;border-radius:21px;padding:12px;
+ min-width:0;position:sticky;top:88px;text-align:center;
+}
+.thai-mobile-choice-photo-wrap{
+ width:100%;aspect-ratio:3/4;background:linear-gradient(150deg,#4394ed,#147adc);
+ border-radius:16px;overflow:hidden;position:relative;display:grid;place-items:center;
+}
+.thai-mobile-choice-photo-wrap > img{
+ width:100%;height:100%;object-fit:contain;display:block;
+}
+.thai-mobile-choice-photo-placeholder{color:#fff;font-size:14px;font-weight:700}
+.thai-mobile-choice-photo-label{
+ position:absolute;top:13px;left:13px;background:#f7f5ffed;color:#43226e;
+ padding:7px 12px;border-radius:999px;font-size:12px;font-weight:800;
+ pointer-events:none;
+}
+.thai-mobile-choice-photo-actions{
+ display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px;
+}
+.thai-mobile-choice-current-photo{
+ border:1px solid #e6d9f6;background:#fff;color:#644784;border-radius:11px;
+ display:grid;place-items:center;min-height:42px;font-size:12px;font-weight:700;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-photo-actions > button{
+ background:linear-gradient(120deg,#9340df,#6b24c4);color:#fff;
+ border:0;border-radius:11px;min-height:42px;font-size:12px;font-weight:800;
+ cursor:pointer;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-photo-actions > button:hover:not(:disabled){background:#6826bd}
+.thai-mobile-choice-preview-help{font-size:11px;color:#7a698e;margin:10px 3px 2px;line-height:1.45}
+.thai-mobile-choice-controls{display:flex;flex-direction:column;gap:17px;min-width:0}
+.thai-mobile-choice-panel{
+ border:1px solid #ebe1f9;border-radius:20px;
+ padding:14px 15px 13px;background:linear-gradient(125deg,#fbf8ff,#f5effe);
+ min-width:0;
+}
+.thai-mobile-choice-panel-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:9px;margin-bottom:12px;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-panel h2,
+.thai-mobile-flow-choice .thai-mobile-choice-panel-heading h2{
+ margin:0!important;color:#30165d;font-weight:850;font-size:19px!important;
+ display:flex;align-items:center;gap:8px;text-align:left;
+}
+.thai-mobile-choice-panel-heading h2 > span{font-size:24px;line-height:1;color:#522593}
+.idstudio .thai-mobile-flow-choice button.thai-mobile-choice-view-all{
+ background:transparent;border:0;color:#7d2fd0;font-size:12px;font-weight:800;
+ padding:6px 2px;min-height:30px;cursor:pointer;white-space:nowrap;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-tiles{
+ display:grid;grid-auto-flow:column;grid-auto-columns:minmax(83px,calc((100% - 27px)/4));
+ gap:9px;overflow-x:auto;scrollbar-width:thin;padding:2px 2px 5px;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-tiles > button{
+ min-width:0;background:#fff;border:1.5px solid #e4d6f4;color:#3f2867;
+ border-radius:12px;padding:6px 5px 8px;gap:6px;box-shadow:0 2px 6px #3f24740b;
+ position:relative;cursor:pointer;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-tiles > button.selected{
+ background:#f7f0ff;border:2px solid #832bd7;color:#552299;
+ box-shadow:0 1px 7px #732dce1f;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-tiles > button:focus-visible{
+ outline:2px solid #7934ce;outline-offset:2px;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-tiles img{
+ height:96px;width:100%;object-fit:contain;border-radius:8px;
+ background:#fff;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-tiles > button > span{
+ min-height:27px;max-width:100%;font-size:11px;font-weight:700;line-height:1.3;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-tiles .thai-mobile-tile-check{
+ right:2px;top:2px;height:22px;width:22px;background:#7f31d1;
+ border:2px solid #fff;box-shadow:0 1px 7px #40206530;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-diamond{
+ position:absolute;left:5px;top:4px;color:#b53fd9;
+ font-size:13px;text-shadow:0 1px #fff;
+}
+.thai-mobile-flow-choice .thai-mobile-suit-categories{
+ display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;
+ margin:2px 0 13px;padding:2px 1px;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-suit-categories > button{
+ background:#fff;border:1px solid #eee5f8;color:#4d3372;
+ min-height:34px;padding:7px 11px;font-size:12px;line-height:1;white-space:nowrap;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-suit-categories > button.selected{
+ color:#fff;background:linear-gradient(110deg,#9441df,#6524c1);
+ border-color:#6524c1;box-shadow:0 2px 8px #752dcb29;
+}
+.idstudio .thai-mobile-flow-choice button.thai-mobile-choice-outfit-more{
+ background:transparent;border:0;color:#7229c2;font-size:12px;font-weight:750;
+ display:block;margin:10px auto 0;cursor:pointer;
+}
+.thai-mobile-choice-footer{max-width:550px;margin:24px auto 0;text-align:center}
+.idstudio .thai-mobile-flow-choice button.thai-mobile-primary.thai-mobile-choice-create{
+ background:linear-gradient(105deg,#ab2bf1,#6a20ca);border:0;
+ min-height:62px;color:#fff;border-radius:999px;
+ font-size:21px;font-weight:850;margin:0 auto;
+ box-shadow:0 7px 18px #7331c439;
+}
+.idstudio .thai-mobile-flow-choice button.thai-mobile-primary.thai-mobile-choice-create:disabled{
+ background:#cdb9e6;color:#fff;box-shadow:none;
+}
+.thai-mobile-choice-create > span{font-size:26px;margin-right:9px;vertical-align:middle}
+.thai-mobile-choice-caption{
+ margin:14px 0 0;color:#614a89;display:flex;
+ justify-content:center;align-items:center;gap:8px;
+ font-size:12px;font-weight:650;line-height:1.5;
+}
+.thai-mobile-choice-caption > span{font-size:20px;color:#8562bd}
+/* The screenshot's mobile view puts the original photo FIRST, then hair and
+   outfit cards, with no makeup selector. This is a layout-only change. */
+@media(max-width:720px){
+ .thai-mobile-flow-choice{background:#fff}
+ .thai-mobile-flow-choice .thai-mobile-header{
+  background:linear-gradient(110deg,#9133df,#6322c5);
+  border:0;box-shadow:0 5px 15px #46208025;
+ }
+ .thai-mobile-flow-choice .thai-mobile-brand,
+ .thai-mobile-flow-choice .thai-mobile-camera{color:#fff}
+ .thai-mobile-flow-choice .thai-mobile-main{
+  padding:14px 13px 35px;width:100%;max-width:550px;
+ }
+ .thai-mobile-flow-choice .thai-mobile-select.thai-mobile-choice{
+  background:transparent;border:0;padding:0;margin:0;box-shadow:none;
+ }
+ .thai-mobile-choice-steps{
+  margin:0 auto 16px;gap:3px;
+  grid-template-columns:minmax(56px,1fr) minmax(15px,.42fr) minmax(117px,1.7fr) minmax(15px,.42fr) minmax(67px,1fr);
+ }
+ .thai-mobile-choice-step{font-size:11px;gap:5px;line-height:1.25}
+ .thai-mobile-choice-step-marker{height:32px;width:32px;font-size:16px}
+ .thai-mobile-choice-line{margin-top:15px}
+ .thai-mobile-choice-card{padding:11px 10px 17px;border-radius:23px}
+ .thai-mobile-flow-choice .thai-mobile-selection-grid.thai-mobile-choice-grid{display:flex;flex-direction:column;gap:15px}
+ .thai-mobile-choice-preview{
+  width:100%;position:static;border-radius:19px;padding:10px;
+ }
+ .thai-mobile-choice-photo-wrap{
+  aspect-ratio:3/4;max-height:52vh;
+ }
+ .thai-mobile-choice-photo-label{left:12px;top:12px}
+ .thai-mobile-choice-photo-actions{margin-top:9px}
+ .thai-mobile-choice-current-photo,
+ .idstudio .thai-mobile-flow-choice .thai-mobile-choice-photo-actions > button{
+  min-height:39px;font-size:12px;
+ }
+ .thai-mobile-choice-controls{width:100%;gap:13px}
+ .thai-mobile-choice-panel{padding:12px 11px;border-radius:17px}
+ .thai-mobile-flow-choice .thai-mobile-choice-panel h2,
+ .thai-mobile-flow-choice .thai-mobile-choice-panel-heading h2{font-size:17px!important}
+ .thai-mobile-choice-panel-heading h2 > span{font-size:21px}
+ .thai-mobile-flow-choice .thai-mobile-choice-tiles{
+  grid-auto-columns:minmax(82px,calc((100% - 21px)/4));gap:7px;
+ }
+ .thai-mobile-flow-choice .thai-mobile-choice-tiles img{height:83px}
+ .thai-mobile-flow-choice .thai-mobile-choice-tiles > button > span{font-size:10px}
+ .idstudio .thai-mobile-flow-choice .thai-mobile-suit-categories > button{
+  min-height:32px;font-size:11px;padding:7px 9px;
+ }
+ .thai-mobile-choice-footer{margin-top:18px}
+ .idstudio .thai-mobile-flow-choice button.thai-mobile-primary.thai-mobile-choice-create{
+  min-height:55px;font-size:18px;
+ }
+ .thai-mobile-choice-caption{font-size:11px;margin-top:11px}
+}
+@media(max-width:390px){
+ .thai-mobile-flow-choice .thai-mobile-choice-tiles{grid-auto-columns:minmax(76px,calc((100% - 18px)/3.6))}
+ .thai-mobile-choice-step.current{font-size:10.5px}
+}
+@media(min-width:721px) and (max-width:980px){
+ .thai-mobile-flow-choice .thai-mobile-selection-grid.thai-mobile-choice-grid{
+  grid-template-columns:minmax(230px,310px) minmax(0,1fr);gap:20px;
+ }
+ .thai-mobile-choice-card{padding:18px}
+ .thai-mobile-flow-choice .thai-mobile-choice-tiles{grid-auto-columns:minmax(78px,calc((100% - 24px)/4));gap:8px}
+}
