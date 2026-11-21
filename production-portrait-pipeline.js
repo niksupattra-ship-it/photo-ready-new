@@ -558,7 +558,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   :newEnglishProfile||legacyV8Profile;
  const identityHeadScale=(thaiCalibrated||thaiAdaptive)?layoutProfile.identityHeadScale:fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
  const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
- const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,...(thaiCalibrated||thaiAdaptive?{fixedIdentityEnvelope:true}:{})}:layoutProfile?{profile:layoutProfile}:undefined;
+ const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,...(thaiCalibrated||thaiAdaptive?{fixedIdentityEnvelope:true}:{}),...(thaiAdaptive?{stableGarmentFrame:true}:{})}:layoutProfile?{profile:layoutProfile}:undefined;
  // Thai v7 generates a single coherent garment/neck directly from the
  // immutable uploaded photo and a separate outfit reference. No pre-AI
  // composition of a surrogate neck, copied face, or PNG clothing is sent.
