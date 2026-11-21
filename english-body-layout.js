@@ -25,7 +25,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false}={}){
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
  const {data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true});
@@ -46,7 +46,14 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  const left=Math.min(uniform.bounds.l,uniform.centerX-referenceHeadWidth/2),right=Math.max(uniform.bounds.r+1,uniform.centerX+referenceHeadWidth/2);
  // Reserve headroom for the larger v9 skull and the selected hairstyle without
  // stretching the garment; older English guides preserve their original frame.
- const top=Math.min(chinY-(profile?.headWidthToShoulder?Math.max(referenceHeadHeight,headHeight+span*.055):referenceHeadHeight),uniform.bounds.t),bottom=uniform.bounds.b+1;
+ // V11 only: keep the entire native outfit at the SAME canvas scale for every
+ // measured face shape. Reserving stable headroom relative to this template
+ // prevents a long face from silently shrinking the suit or moving shoulders.
+ // Enough room is reserved for the largest supported natural face crop.
+ const top=stableGarmentFrame
+  ?Math.min(uniform.collarTopY-span*.875,uniform.bounds.t)
+  :Math.min(chinY-(profile?.headWidthToShoulder?Math.max(referenceHeadHeight,headHeight+span*.055):referenceHeadHeight),uniform.bounds.t);
+ const bottom=uniform.bounds.b+1;
  const W=canvasWidth,H=canvasWidth*4/3,pad=canvasWidth/32,scale=Math.min((W-2*pad)/(right-left),(H-2*pad)/(bottom-top));
  const x=(W-(right-left)*scale)/2-left*scale,y=H-pad-bottom*scale;
  const cx=x+uniform.centerX*scale,headY=y+headTop*scale,chin=y+chinY*scale,collar=y+uniform.collarTopY*scale;
