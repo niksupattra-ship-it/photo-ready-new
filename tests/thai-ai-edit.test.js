@@ -494,7 +494,8 @@ test('Thai government insignia menu uses the finished portrait and refuses uncer
  const editor=await readFile(root+'src/studio-editor.jsx','utf8'),easy=await readFile(root+'src/easy-mode.jsx','utf8');
  assert(editor.includes('governmentAutoPlace:true'));
  assert(editor.includes('measureGovernmentInsigniaFrame'));
- assert(editor.includes('if(autoInsignia&&!measuredFrame)'));
+ assert(editor.includes('if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect)'),'Studio auto placement still fails closed for uncertain jacket measurements');
+ assert(editor.includes('resultInsigniaDirect:true'),'The result-only tool allows user-controlled manual placement when auto detection is uncertain');
  assert(editor.includes('governmentResult&&touch&&!easyMode'));
  assert(easy.includes('governmentResult&&hasResult&&<button type="button"'));
  assert(!editor.includes('onChoose={(kind,option)=>void processPhoto('),'Insignia choices never trigger AI');
