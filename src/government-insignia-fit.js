@@ -67,3 +67,61 @@ export function governmentInsigniaPreset(frame,gender='female'){
   ribbon:{x:female?.77:.76,top:.51,width:.235}
  };
 }
+
+// Result-photo Easy Mode only. Keep the old Studio preset untouched.
+// Each candidate position is gently snapped to actual light jacket FABRIC in
+// the finished canvas. Do not move the official artwork or stretch its pixels.
+export function easyGovernmentInsigniaFit(image,gender='female'){
+ const detected=detectWhiteGovernmentJacket(image);
+ if(!detected)return null;
+ const frame=detected.frame;
+ const preset=governmentInsigniaPreset(frame,gender);
+ const {width,height,data}=image;
+ const white=(x,y)=>{
+  x=Math.round(x);y=Math.round(y);
+  if(x<0||y<0||x>=width||y>=height)return false;
+  const k=(y*width+x)*4,r=data[k],g=data[k+1],b=data[k+2],a=data[k+3];
+  return a>=170&&r>173&&g>173&&b>173&&Math.max(r,g,b)-Math.min(r,g,b)<41;
+ };
+ const sampleRadius=Math.max(2,Math.min(5,Math.round(width*.004)));
+ const support=(x,y)=>{
+  let hits=0;
+  for(const dx of [-sampleRadius,0,sampleRadius])for(const dy of [-sampleRadius,0,sampleRadius])
+   if(white(x+dx,y+dy))hits++;
+  return hits/9;
+ };
+ const choose=(ax,ay,side)=>{
+  const ox=frame.x+frame.w*ax,oy=frame.y+frame.h*ay;
+  // An existing correctly positioned badge stays exactly in place.
+  if(support(ox,oy)>=.65)return {x:ax,y:ay};
+  const rx=Math.min(width*.065,frame.w*.12),ry=Math.min(height*.05,frame.h*.12);
+  const step=Math.max(2,Math.round(width/270));
+  let best=null;
+  for(let dy=-ry;dy<=ry;dy+=step)for(let dx=-rx;dx<=rx;dx+=step){
+   if((dx/rx)**2+(dy/ry)**2>1)continue;
+   const x=ox+dx,y=oy+dy;
+   if(side==='left'&&x>frame.x+frame.w*.47)continue;
+   if(side==='right'&&x<frame.x+frame.w*.53)continue;
+   const ratio=support(x,y);
+   if(ratio<.77)continue;
+   const score=(dx/rx)**2+(dy/ry)**2+(1-ratio)*.12;
+   if(!best||score<best.score)best={x,y,score};
+  }
+  if(!best)return {x:ax,y:ay};
+  return {x:clamp((best.x-frame.x)/frame.w,.05,.95),
+   y:clamp((best.y-frame.y)/frame.h,.05,.90)};
+ };
+ const left=choose(preset.collar.left,preset.collar.y,'left');
+ const right=choose(preset.collar.right,preset.collar.y,'right');
+ const chest=choose(preset.chest.x,preset.chest.y,'left');
+ // Ribbon placement is TOP-aligned in nativeAsset; sample near its top edge,
+ // then compensate for the probe offset without altering original ribbon size.
+ const ribbonProbe=.025;
+ const ribbon=choose(preset.ribbon.x,preset.ribbon.top+ribbonProbe,'right');
+ const refined={
+  collar:{...preset.collar,left:left.x,right:right.x,y:clamp((left.y+right.y)/2,.05,.9)},
+  chest:{...preset.chest,x:chest.x,y:chest.y},
+  ribbon:{...preset.ribbon,x:ribbon.x,top:clamp(ribbon.y-ribbonProbe,.05,.90)}
+ };
+ return {frame,preset:refined,confidence:detected.confidence};
+}

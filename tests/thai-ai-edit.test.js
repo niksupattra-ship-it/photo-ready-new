@@ -500,3 +500,57 @@ test('Thai government insignia menu uses the finished portrait and refuses uncer
  assert(easy.includes('governmentResult&&hasResult&&<button type="button"'));
  assert(!editor.includes('onChoose={(kind,option)=>void processPhoto('),'Insignia choices never trigger AI');
 });
+
+// Easy Mode aligns each badge to detected real white fabric; the underlying
+// Studio's public gender preset stays byte-for-byte stable.
+test('Easy result insignia pins align to measured jacket, preserve native proportions and cache the first fit',async()=>{
+ const {easyGovernmentInsigniaFit,governmentInsigniaPreset}=await import('../src/government-insignia-fit.js');
+ const w=600,h=800,data=new Uint8ClampedArray(w*h*4);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  const i=(y*w+x)*4;
+  data[i]=40;data[i+1]=140;data[i+2]=204;data[i+3]=255;
+  // A natural white jacket, wider at the bottom and shifted right.
+  const top=h*.42,spread=Math.max(0,(y-top)/(h-top));
+  if(y>=top&&x>w*(.30-.16*spread)&&x<w*(.72+.16*spread)){
+   data[i]=243;data[i+1]=241;data[i+2]=239;
+  }
+ }
+ const image={width:w,height:h,data};
+ const fit=easyGovernmentInsigniaFit(image,'female');
+ assert(fit,'A clear white government jacket must yield a measured fit');
+ const native=governmentInsigniaPreset(fit.frame,'female');
+ assert.equal(fit.preset.collar.width,native.collar.width,'No resizing the actual pin');
+ assert.equal(fit.preset.chest.width,native.chest.width,'No resizing the chest badge');
+ assert.equal(fit.preset.ribbon.width,native.ribbon.width,'No resizing the ribbon');
+ assert(fit.preset.collar.left<.5&&fit.preset.collar.right>.5,'Paired collar badges must be on their own sides');
+ assert(fit.preset.chest.x<.5&&fit.preset.ribbon.x>.5,'Chest pin and ribbon cannot be swapped');
+ const inside=(ax,ay)=>{
+  const x=Math.round(fit.frame.x+fit.frame.w*ax),y=Math.round(fit.frame.y+fit.frame.h*ay),i=(y*w+x)*4;
+  return x>=0&&y>=0&&x<w&&y<h&&data[i]>170&&data[i+1]>170&&data[i+2]>170;
+ };
+ assert(inside(fit.preset.chest.x,fit.preset.chest.y),'Chest badge on the real garment');
+ assert(inside(fit.preset.ribbon.x,fit.preset.ribbon.top+.025),'Ribbon on the real garment');
+ // A dark patch covering the default location forces Easy Mode to search
+ // for nearby visible fabric, not leave a badge outside the jacket.
+ const initialChest={x:Math.round(fit.frame.x+fit.frame.w*fit.preset.chest.x),
+  y:Math.round(fit.frame.y+fit.frame.h*fit.preset.chest.y)};
+ for(let y=initialChest.y-12;y<=initialChest.y+12;y++)for(let x=initialChest.x-13;x<=initialChest.x+13;x++){
+  const index=(y*w+x)*4;
+  data[index]=20;data[index+1]=75;data[index+2]=110;
+ }
+ const corrected=easyGovernmentInsigniaFit(image,'female');
+ assert(corrected,'The clear garment still must be detected');
+ const correctedX=Math.round(corrected.frame.x+corrected.frame.w*corrected.preset.chest.x);
+ const correctedY=Math.round(corrected.frame.y+corrected.frame.h*corrected.preset.chest.y);
+ assert(correctedX!==initialChest.x||correctedY!==initialChest.y,'A badge must not remain on a non-fabric spot');
+ assert(corrected.preset.chest.width===fit.preset.chest.width,'Reposition never changes official symbol proportions');
+ const correctedOffset=Math.hypot(correctedX-initialChest.x,correctedY-initialChest.y);
+ assert(correctedOffset<60,'Refine locally; do not let a misplaced hit jump across the garment');
+ const editor=await readFile(root+'src/studio-editor.jsx','utf8');
+ assert(editor.includes('const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null'));
+ assert(editor.includes('const preset=easyFit?.preset||('),'Only Easy result placement uses the new correction');
+ assert(editor.includes('easyGovernmentInsigniaFitRef.current?.key===cacheKey'),'Changing insignia cannot drift its anchors by measuring old badge pixels');
+ assert(editor.includes('if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect)'),'Original Studio fail-closed path remains untouched');
+ const blank=new Uint8ClampedArray(data.length);blank.fill(255);
+ assert.equal(easyGovernmentInsigniaFit({width:w,height:h,data:blank},'female'),null,'Never claim to see a uniform in a solid white backdrop');
+});

@@ -65,7 +65,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
-import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset} from './government-insignia-fit.js';
+import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit} from './government-insignia-fit.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
 import {TouchParts,TouchAdjust,partName} from './studio-touch.jsx';
 import {StudioChoiceIcon,StudioToolIcon,StudioHistoryIcon} from './studio-icons.jsx';
@@ -1233,6 +1233,27 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    return detectWhiteGovernmentJacket(sampled.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H))?.frame||null;
   }catch{return null}finally{sampled.width=sampled.height=1}
  };
+ const easyGovernmentInsigniaFitRef=useRef(null);
+ const measureEasyGovernmentInsigniaFit=()=>{
+  // The result is tied to this exact generated photo and outfit. Switching
+  // insignia must not re-measure a scene that already has badges drawn on it.
+  const head=governmentImageHead;
+  if(!head)return null;
+  const suit=state.current.find(l=>layerKind(l)==='suit'&&l.visible);
+  const cacheKey=JSON.stringify([head.id,head.jobId,head.hairId,head.source?.length,
+   head.generatedOutfitTemplate,suit?.id,suit?.templatePath,
+   suit?.sourceFrame,suit?.x,suit?.y,suit?.scale,hairGender]);
+  if(easyGovernmentInsigniaFitRef.current?.key===cacheKey)return easyGovernmentInsigniaFitRef.current.fit;
+  const sampled=canvas();
+  let fit=null;
+  try{
+   fit=easyGovernmentInsigniaFit(
+    sampled.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H),
+    head.portraitMode||hairGender);
+  }catch{fit=null}finally{sampled.width=sampled.height=1}
+  easyGovernmentInsigniaFitRef.current={key:cacheKey,fit};
+  return fit;
+ };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false,governmentAutoPlace=false,resultInsigniaDirect=false}={})=>{
   const manualSuit=englishFlow&&kind==='suit'&&!aiSetup||(!englishFlow&&kind==='suit'&&!aiSetup&&manualOverride);
   // Clicking an outfit thumbnail places its native PNG. AI is separately explicit.
@@ -1273,12 +1294,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     const p=placementRef.current;let collarParts=null;
     const defaultFrame=p?{x:p.uX/p.W*W,y:p.uY/p.H*H,w:p.uW/p.W*W,h:p.uH/p.H*H}:{x:0,y:0,w:W,h:H};
     const autoInsignia=(governmentAutoPlace||resultInsigniaDirect)&&governmentResult&&option&&['collar','chest','ribbon'].includes(kind);
-    const measuredFrame=autoInsignia?measureGovernmentInsigniaFrame():null;
+    const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null;
+    const measuredFrame=easyFit?.frame||(autoInsignia&&!resultInsigniaDirect?measureGovernmentInsigniaFrame():null);
     if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect){setStatus('ยังตรวจตำแหน่งเครื่องหมายจากชุดในรูปนี้ได้ไม่มั่นใจ กรุณาปรับตำแหน่งใน Studio');return}
     const frame=measuredFrame||(kind==='suit'?(suit?.sourceFrame||suit?.collarFrame||restoredSuit?.sourceFrame||restoredSuit?.collarFrame||defaultFrame):(suit?.collarFrame||suit?.sourceFrame||defaultFrame));
     const path=suit?.templatePath||p?.templatePath||'';
     const female=/female-/.test(path),base=STUDIO_ACCESSORY_PLACEMENT[female?'female':'male'];
-    const preset=measuredFrame?governmentInsigniaPreset(measuredFrame,governmentImageHead?.portraitMode||hairGender):{...base,collar:{...base.collar,width:base.collar.width*(female?.9*.85*1.08*1.09:1)*.8,y:base.collar.y-4/frame.h,left:base.collar.left+(female?.025-2/frame.w:14/frame.w),right:base.collar.right-(female?.025-2/frame.w:14/frame.w)},chest:{...base.chest,width:base.chest.width*(female?1:.85),x:base.chest.x+(female?.035:49/frame.w),y:base.chest.y-(female?0:.02)},ribbon:{...base.ribbon,x:base.ribbon.x-(female?.055:3/frame.w),width:base.ribbon.width*(female?.95:1),top:base.ribbon.top-(female?0:.02)}};
+    const preset=easyFit?.preset||(measuredFrame?governmentInsigniaPreset(measuredFrame,governmentImageHead?.portraitMode||hairGender):{...base,collar:{...base.collar,width:base.collar.width*(female?.9*.85*1.08*1.09:1)*.8,y:base.collar.y-4/frame.h,left:base.collar.left+(female?.025-2/frame.w:14/frame.w),right:base.collar.right-(female?.025-2/frame.w:14/frame.w)},chest:{...base.chest,width:base.chest.width*(female?1:.85),x:base.chest.x+(female?.035:49/frame.w),y:base.chest.y-(female?0:.02)},ribbon:{...base.ribbon,x:base.ribbon.x-(female?.055:3/frame.w),width:base.ribbon.width*(female?.95:1),top:base.ribbon.top-(female?0:.02)}});
     if(['collar','chest','ribbon'].includes(kind)){request=beginInsigniaPreview(kind,option,target,measuredFrame?null:suit,frame,preset);await request.wait(request.firstPaint)}
     const loading=nativeAsset(kind,option,frame,preset),native=request?await request.wait(loading):await loading;collarParts=native.collarParts;
     const nativeSuitFrame=kind==='suit'&&!englishFlow?nativeSuitAspectFrame(suit?.sourceFrame||restoredSuit?.sourceFrame||native.sourceFrame,native.source):null;
