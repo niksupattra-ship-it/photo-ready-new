@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {dirname,resolve} from 'node:path';
 import {
  easyGovernmentReferencePreset,easyGovernmentPhotoFallback,easyGovernmentInsigniaFit,
- governmentInsigniaPreset,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes
+ governmentInsigniaPreset,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,GOVERNMENT_TEMPLATE_ANCHORS
 } from '../src/government-insignia-fit.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -118,4 +118,27 @@ test('Thai Easy selected accessory scales independently and remains inside chest
  assert(p.ribbon.x+p.ribbon.width/2<=.985001);
  assert(p.chest.x+p.chest.width/2<=.460001);
  assert(balanceEasyGovernmentBadgeSizes(source).needsReview);
+});
+
+test('Every native Thai government garment has an explicit template coordinate profile',()=>{
+ const required=[
+  'female-operational','female-senior','female-academic',
+  'female-government-employee','male-government-employee',
+  'interior-01','interior-02','interior-03'
+ ];
+ for(const name of required){
+  const path='/assets/government-uniforms/'+name+'.png';
+  assert(GOVERNMENT_TEMPLATE_ANCHORS[path],name+' missing registered anchors');
+  const fitted=governmentPngTemplatePlacement({
+   templatePath:path,visible:true,sourceFrame:{x:150,y:310,w:570,h:810}
+  },name.startsWith('female')?'female':'male');
+  assert(fitted,'failed registered template '+name);
+  assert(fitted.preset.collar.y>=.27 && fitted.preset.collar.y<=.31,
+   'Collar pin must use actual PNG coordinates, not old 0.105 photo-frame value');
+  assert(fitted.preset.ribbon.width>=.28,'Ribbon must remain full-sized');
+  assert(fitted.preset.chest.width>=.105,'Chest badge must remain legible');
+  assert(fitted.preset.collar.width<=.05,'Collar pin must not be oversized');
+  assert.deepEqual(balanceEasyGovernmentBadgeSizes(fitted).preset,fitted.preset,
+   'Registered source must never get a second percentage-size adjustment');
+ }
 });
