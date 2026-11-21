@@ -105,7 +105,7 @@ test('Native government PNG anchors are stable across photos and do not scan bac
  assert.equal(governmentPngTemplatePlacement({...suit,visible:false},'female'),null);
  assert.equal(governmentPngTemplatePlacement({...suit,warpSource:'edited'},'female'),null);
  assert.equal(governmentPngTemplatePlacement(makeSuit('/assets/job-uniforms/female-formal-suit.png'),'female'),null);
- const male=governmentPngTemplatePlacement(makeSuit('/assets/government-uniforms/male-operational.png'),'male');
+ const male=governmentPngTemplatePlacement(makeSuit('/assets/government-uniforms/male-government-employee.png'),'male');
  assert(male.preset.collar.right-male.preset.collar.left<.2);
 });
 
