@@ -1,3 +1,4 @@
+import {applyThaiRealFacePolicy} from './thai-real-face-policy.js';
 import {usesThaiSingleCollar,thaiSingleCollarInstruction} from './thai-single-collar-policy.js';
 import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction,usesThaiIdentityLockedHead,thaiIdentityLockInstruction,usesThaiAdaptiveHead,usesThaiFaceShapeLock,thaiFaceShapeLockInstruction} from './thai-outfit-ai-policy.js';
 import {parseThaiAdaptiveFace,thaiAdaptiveHeadProfile,thaiAdaptiveProportionInstruction} from './thai-adaptive-proportion.js';
@@ -615,6 +616,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  Generate the COMPLETE portrait in this SINGLE AI call. Do not output separate neck, face, clothing layers, a composite, a mask or a repair instruction.
  `;
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
+ prompt=applyThaiRealFacePolicy(prompt,fields);
  await onStage('generation');
  const result=await requestPortrait({key,prompt,size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
