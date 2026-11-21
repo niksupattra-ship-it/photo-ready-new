@@ -263,7 +263,7 @@ test('Thai government result edits only native insignia layers directly on pictu
  assert(ui.includes("resultInsigniaOpen&&<ResultInsigniaDrag"),'Drag overlay is not present outside insignia editing');
  assert(ui.includes('handles={insigniaHandles}')&&ui.includes('onTransform={onInsigniaTransform}'));
  assert(ui.includes('thai-mobile-result-insignia-panel'),'The chooser displays only in result edit mode');
- assert(ui.includes('{resultInsigniaOpen&&<div className="thai-mobile-result-insignia-panel"'),'Insignia list mounts just below the button inside the same wrapper');
+ assert(ui.includes('thai-mobile-result-tool-slot')&&ui.includes('ย้อนกลับไปแถวเครื่องมือ'),'Mobile picker replaces the original action slot with a return button');
  assert(!ui.includes('thai-result-insignia-guide'),'Remove redundant explanatory text below chooser');
  assert(chooser.includes('{!quickResult&&<header className="idprom-government-insignia-head"'),'Quick result hides title and top description, while Studio chooser retains them');
  assert(chooser.includes("{!quickResult&&<p className=\"idprom-government-insignia-help\""),'Quick result shows only actual insignia tabs and options');

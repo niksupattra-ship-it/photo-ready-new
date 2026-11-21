@@ -110,6 +110,12 @@ export function ThaiMobileJourney({
  const selectedHairOptions=hairs.filter(h=>!h.disabled||h.locked);
  const displayHairOptions=selectedHairOptions.slice(0,moreHair?selectedHairOptions.length:6);
  const displayOutfitOptions=outfits.slice(0,moreSuits?24:4);
+ const resultHairChoices=(
+     <div className={"thai-mobile-hair-gallery thai-mobile-result-hair-choices"+(resultHairOpen?" is-open":"")} aria-label="ลองเปลี่ยนทรงผม">
+      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);if(!compactResult)setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
+      {compactResult&&changedHair&&<button type="button" className="mobile-hair-create" disabled={!ready||busy||!choicesReady} onClick={()=>{setNotice('');actionAwaitingRef.current='hair';onConfirmHair?.()}}>สร้างรูปทรงนี้</button>}
+     </div>
+ );
  return <div className={'thai-mobile-flow'+(resultReadyPage?' thai-mobile-flow-ready':'')+(choicePage?' thai-mobile-flow-choice':'')+(processingPage?' thai-mobile-flow-processing':'')}>
   <header className="thai-mobile-header">
    <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span>{resultReadyPage||choicePage||processingPage?<><strong>IDพร้อม</strong><small>AI ID PHOTO</small></>:'ID PROM TH'}</span></div>
@@ -231,19 +237,23 @@ export function ThaiMobileJourney({
       </div>
       <div className="thai-mobile-result-photo-summary">{shownSuitLabel} · {shownHair?.name||'ทรงผมที่เลือก'}</div>
      </div>
-     <div className={"thai-mobile-hair-gallery thai-mobile-result-hair-choices"+(resultHairOpen?" is-open":"")} aria-label="ลองเปลี่ยนทรงผม">
-      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);if(!compactResult)setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
-      {compactResult&&changedHair&&<button type="button" className="mobile-hair-create" disabled={!ready||busy||!choicesReady} onClick={()=>{setNotice('');actionAwaitingRef.current='hair';onConfirmHair?.()}}>สร้างรูปทรงนี้</button>}
-     </div>
+     {!compactResult&&resultHairChoices}
     </div>:preview}
     <div className="thai-mobile-result-controls">
     {section==='result'?<>
+     {compactResult&&<div className="thai-mobile-result-tool-slot">
+      {resultHairOpen||resultInsigniaOpen?<section className="thai-mobile-result-tool-panel" aria-label={resultHairOpen?'เลือกทรงผม':'เลือกเครื่องหมาย'}>
+       <header className="thai-mobile-result-tool-heading"><button type="button" aria-label="ย้อนกลับไปแถวเครื่องมือ" disabled={busy} onClick={()=>{setResultHairOpen(false);setResultInsigniaOpen(false)}}>← ย้อนกลับ</button><strong>{resultHairOpen?'ทรงผม':'เครื่องหมาย'}</strong></header>
+       {resultHairOpen?resultHairChoices:<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">{resultInsignia}</div>}
+      </section>:<>
      <nav className="thai-mobile-result-icon-row" aria-label="เครื่องมือรูปที่เสร็จแล้ว" style={{'--result-action-count':governmentResult&&resultInsignia?4:3}}>
       <button type="button" disabled={!ready||busy} aria-expanded={resultHairOpen} onClick={()=>{setResultHairOpen(v=>!v);setResultInsigniaOpen(false)}}><StudioChoiceIcon kind="hair"/><small>ทรงผม</small></button>
       {governmentResult&&resultInsignia&&<button type="button" disabled={!ready||busy} aria-expanded={resultInsigniaOpen} onClick={()=>{setResultInsigniaOpen(v=>!v);setResultHairOpen(false)}}><StudioChoiceIcon kind="chest"/><small>เครื่องหมาย</small></button>}
       <button type="button" disabled={!ready||busy} onClick={onDownload}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><small>ดาวน์โหลด</small></button>
       <button type="button" disabled={!ready||busy} onClick={onStudio}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2" fill="white"/><circle cx="16" cy="12" r="2" fill="white"/><circle cx="9" cy="18" r="2" fill="white"/></svg><small>ปรับในสตู</small></button>
      </nav>
+      </>}
+     </div>}
      <div className="thai-mobile-result-success"><span className="thai-mobile-result-success-check" aria-hidden="true">✓</span><strong>รูปของคุณพร้อมแล้ว</strong></div>
      <button type="button" className="thai-mobile-result-studio" disabled={!ready||busy} onClick={onStudio}><span aria-hidden="true">⚙</span> ปรับแต่งในสตูดิโอ</button>
      <button type="button" className="thai-mobile-primary thai-mobile-result-download" disabled={!ready||busy} onClick={onDownload}><span aria-hidden="true">↓</span> ดาวน์โหลดรูป</button>
@@ -253,7 +263,7 @@ export function ThaiMobileJourney({
      </div>
      {governmentResult&&resultInsignia&&<div className="thai-mobile-result-insignia-inline">
       <button type="button" className={'thai-mobile-result-insignia-launch'+(resultInsigniaOpen?' active':'')} aria-expanded={resultInsigniaOpen} disabled={!ready||busy} onClick={()=>setResultInsigniaOpen(v=>!v)}>◈ {resultInsigniaOpen?'ปิดเครื่องหมาย':'เพิ่มเครื่องหมายข้าราชการ'}</button>
-      {resultInsigniaOpen&&<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">
+      {resultInsigniaOpen&&!compactResult&&<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">
        {resultInsignia}
       </div>}
      </div>}
