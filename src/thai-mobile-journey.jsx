@@ -208,10 +208,11 @@ export function ThaiMobileJourney({
       <button type="button" onClick={()=>{setDraftHair(selectedHair||'');setChangedHair(false);setSection('hair')}}><span aria-hidden="true">✂</span> เปลี่ยนทรงผม</button>
       <button type="button" disabled={busy||!ready} onClick={onUpload}><span aria-hidden="true">↻</span> เปลี่ยนรูปใหม่</button>
      </div>
-     {governmentResult&&resultInsignia&&<button type="button" className={'thai-mobile-result-insignia-launch'+(resultInsigniaOpen?' active':'')} aria-expanded={resultInsigniaOpen} disabled={!ready||busy} onClick={()=>setResultInsigniaOpen(v=>!v)}>◈ {resultInsigniaOpen?'ปิดเครื่องหมาย':'เพิ่มเครื่องหมายข้าราชการ'}</button>}
-     {governmentResult&&resultInsigniaOpen&&resultInsignia&&<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">
-      {resultInsignia}
-      <p className="thai-result-insignia-guide">ลากเครื่องหมายบนรูปเพื่อขยับ · จับจุดมุมเพื่อย่อหรือขยาย</p>
+     {governmentResult&&resultInsignia&&<div className="thai-mobile-result-insignia-inline">
+      <button type="button" className={'thai-mobile-result-insignia-launch'+(resultInsigniaOpen?' active':'')} aria-expanded={resultInsigniaOpen} disabled={!ready||busy} onClick={()=>setResultInsigniaOpen(v=>!v)}>◈ {resultInsigniaOpen?'ปิดเครื่องหมาย':'เพิ่มเครื่องหมายข้าราชการ'}</button>
+      {resultInsigniaOpen&&<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">
+       {resultInsignia}
+      </div>}
      </div>}
      <div className="thai-mobile-result-reassurance"><span aria-hidden="true">✧</span> พอใจแล้วรับรูปได้เลย</div>
     </>:section==='hair'?<>
