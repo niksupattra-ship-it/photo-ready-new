@@ -63,6 +63,8 @@ export function ThaiMobileJourney({
  const shownSuitLabel=shownSuitCategory==='สมัครงาน'?'ชุดสมัครงาน':shownSuitCategory;
  const resultReadyPage=Boolean(hasResult&&section==='result');
  const choicePage=Boolean(!hasResult&&section==='choose'&&!processing);
+ const processingPage=Boolean(processing);
+ const shownProgress=Number.isFinite(progress)?Math.min(99,Math.max(0,Math.floor(progress))):0;
  const outfits=inCategory.length?inCategory:eligible.filter(t=>getCategory(t)==='สมัครงาน');
  const canSubmit=Boolean(sourcePreview&&photoTypeSelected&&currentSuit&&draftHair&&ready&&!busy&&!suitLoading&&choicesReady);
  const chooseHair=h=>{if(!h)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
@@ -82,9 +84,9 @@ export function ThaiMobileJourney({
  const selectedHairOptions=hairs.filter(h=>!h.disabled||h.locked);
  const displayHairOptions=selectedHairOptions.slice(0,moreHair?24:4);
  const displayOutfitOptions=outfits.slice(0,moreSuits?24:4);
- return <div className={'thai-mobile-flow'+(resultReadyPage?' thai-mobile-flow-ready':'')+(choicePage?' thai-mobile-flow-choice':'')}>
+ return <div className={'thai-mobile-flow'+(resultReadyPage?' thai-mobile-flow-ready':'')+(choicePage?' thai-mobile-flow-choice':'')+(processingPage?' thai-mobile-flow-processing':'')}>
   <header className="thai-mobile-header">
-   <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span>{resultReadyPage||choicePage?<><strong>IDพร้อม</strong><small>AI ID PHOTO</small></>:'ID PROM TH'}</span></div>
+   <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span>{resultReadyPage||choicePage||processingPage?<><strong>IDพร้อม</strong><small>AI ID PHOTO</small></>:'ID PROM TH'}</span></div>
    <div className="thai-mobile-member">
     {resultReadyPage&&<div className="thai-mobile-result-menu-wrap">
      <button type="button" className="thai-mobile-result-menu-trigger" aria-label="เมนูเพิ่มเติม" aria-expanded={resultMenuOpen} onClick={()=>setResultMenuOpen(v=>!v)}>☰</button>
@@ -107,14 +109,21 @@ export function ThaiMobileJourney({
     </div>
     {!!notice&&<p className="thai-mobile-alert" role="alert">{notice}</p>}<div className="thai-mobile-upload-preview">{sourcePreview&&<img src={sourcePreview} alt="รูปใบหน้าที่อัปโหลด" />}<button type="button" onClick={onUpload} aria-label="เปลี่ยนรูป">×</button></div>
     <button type="button" className="thai-mobile-primary" onClick={()=>setSection('choose')}>ถัดไป →</button>
-   </section>:processing?<section className="thai-mobile-processing" role="status" aria-live="polite">
-    <div className="thai-mobile-step-overline">ขั้นตอน 4 / 8</div>
-    <div className="thai-mobile-processing-wheel" aria-hidden="true"/>
-    <h1>กำลังสร้างรูป...</h1>
-    <p>AI กำลังประมวลผลรูปของคุณ</p>
-    <p className="thai-mobile-processing-progress">{Number.isFinite(progress)?Math.min(99,Math.max(0,Math.floor(progress)))+'%':''}</p>
-    <p className="thai-mobile-processing-note">ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ</p>
-    {onCancelProcess&&<button type="button" className="thai-mobile-plain" onClick={onCancelProcess}>ยกเลิก</button>}
+   </section>:processing?<section className="thai-mobile-processing" role="status" aria-live="polite" aria-label="กำลังสร้างรูป">
+    <div className="thai-mobile-processing-card">
+     <div className="thai-mobile-processing-step">ขั้นตอน 4 / 8</div>
+     <div className="thai-mobile-processing-ring" role="progressbar" aria-label="ความคืบหน้าการสร้างรูป" aria-valuemin={0} aria-valuemax={100} aria-valuenow={shownProgress} style={{'--thai-processing-percent':shownProgress+'%'}}>
+      <span>{shownProgress}%</span>
+     </div>
+     <h1>กำลังสร้างรูป...</h1>
+     <p className="thai-mobile-processing-subtitle">AI กำลังประมวลผลรูปของคุณ</p>
+     <div className="thai-mobile-processing-meter" aria-hidden="true">
+      <div className="thai-mobile-processing-meter-track"><span style={{width:shownProgress+'%'}}/></div>
+      <strong>{shownProgress}%</strong>
+     </div>
+     <p className="thai-mobile-processing-note"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5 20 6v5.8c0 5.4-3.1 8.6-8 10-4.9-1.4-8-4.6-8-10V6Z"/><path d="m8.7 12.2 2.2 2.1 4.6-4.7"/></svg><span>ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ</span></p>
+     {onCancelProcess&&<button type="button" className="thai-mobile-processing-cancel" onClick={onCancelProcess}>ยกเลิก</button>}
+    </div>
    </section>:!hasResult?<section className="thai-mobile-select thai-mobile-choice" aria-label="ปรับแต่งและสร้างรูป">
     <nav className="thai-mobile-choice-steps" aria-label="ขั้นตอนการสร้างรูป">
      <div className="thai-mobile-choice-step completed"><span className="thai-mobile-choice-step-marker">✓</span><span>เพิ่มรูป</span></div>
