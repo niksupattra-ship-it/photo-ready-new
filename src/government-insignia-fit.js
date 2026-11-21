@@ -311,29 +311,49 @@ export function easyGovernmentInsigniaFit(image,gender='female',templatePath='')
 // shares the suit's scene transform (x/y/scale/rotation).
 // These initial per-collar profiles are intentionally flagged for review until
 // each source template is approved against an actual reference image.
+// Each garment is registered once in the original template coordinates.
+// Unlike the photographed-jacket fallback, this uses the native PNG layout,
+// including the collar and torso offsets present in the asset itself.
+// Normalized widths are of visible, alpha-cropped accessory art.
+export const GOVERNMENT_TEMPLATE_ANCHORS=Object.freeze({
+ '/assets/government-uniforms/female-operational.png':{
+  collar:{left:.299,right:.697,y:.293,width:.047},
+  chest:{x:.197,y:.546,width:.112},ribbon:{x:.809,top:.518,width:.290}},
+ '/assets/government-uniforms/female-senior.png':{
+  collar:{left:.299,right:.697,y:.293,width:.047},
+  chest:{x:.197,y:.546,width:.112},ribbon:{x:.809,top:.518,width:.290}},
+ '/assets/government-uniforms/female-academic.png':{
+  collar:{left:.299,right:.697,y:.293,width:.047},
+  chest:{x:.197,y:.546,width:.112},ribbon:{x:.809,top:.518,width:.290}},
+ '/assets/government-uniforms/female-government-employee.png':{
+  collar:{left:.299,right:.697,y:.293,width:.047},
+  chest:{x:.197,y:.546,width:.112},ribbon:{x:.809,top:.518,width:.290}},
+ '/assets/government-uniforms/male-government-employee.png':{
+  collar:{left:.436,right:.552,y:.290,width:.048},
+  chest:{x:.240,y:.535,width:.112},ribbon:{x:.737,top:.518,width:.290}},
+ '/assets/government-uniforms/interior-01.png':{
+  collar:{left:.436,right:.552,y:.290,width:.048},
+  chest:{x:.240,y:.535,width:.112},ribbon:{x:.737,top:.518,width:.290}},
+ '/assets/government-uniforms/interior-02.png':{
+  collar:{left:.436,right:.552,y:.290,width:.048},
+  chest:{x:.240,y:.535,width:.112},ribbon:{x:.737,top:.518,width:.290}},
+ '/assets/government-uniforms/interior-03.png':{
+  collar:{left:.436,right:.552,y:.290,width:.048},
+  chest:{x:.240,y:.535,width:.112},ribbon:{x:.737,top:.518,width:.290}}
+});
 export function governmentPngTemplatePlacement(suit,gender='female'){
- const path=String(suit?.templatePath||'');
- if(!isGovernmentUniform(path)||!suit?.visible||suit?.warpSource||suit?.suitPreviewOnly)return null;
+ const path=String(suit?.templatePath||'').split('?')[0];
+ const anchors=GOVERNMENT_TEMPLATE_ANCHORS[path];
+ if(!anchors||!suit?.visible||suit?.warpSource||suit?.suitPreviewOnly)return null;
  const frame=suit.collarFrame||suit.sourceFrame;
  if(!frame||![frame.x,frame.y,frame.w,frame.h].every(Number.isFinite)||frame.w<=0||frame.h<=0)return null;
- const type=easyGovernmentCollarType(path,gender);
- const preset=easyGovernmentReferencePreset(frame,gender,path);
- // The template coordinate system is independent of the photo's pixels.
- // A collar pair is left/right symmetric only for standing collars.
- if(type==='stand'){
-  preset.collar.left=.435;preset.collar.right=.565;
-  preset.collar.y=.075;preset.collar.width=.062;
- }else if(type==='lapel'){
-  preset.collar.left=gender==='female'?.265:.307;
-  preset.collar.right=gender==='female'?.742:.693;
-  preset.collar.y=.105;preset.collar.width=.067;
- }
- // Keep badge footprints inside both respective torso panels.
- preset.chest.x=Math.max(.12,Math.min(.36,preset.chest.x));
- preset.ribbon.x=Math.min(.84,Math.max(.68,preset.ribbon.x));
- preset.ribbon.width=Math.min(preset.ribbon.width,2*(.98-preset.ribbon.x));
+ const preset={collar:{...anchors.collar},chest:{...anchors.chest},ribbon:{...anchors.ribbon}};
+ // Preserve the artwork proportions and prevent outer-edge overrun.
+ preset.ribbon.x=clamp(preset.ribbon.x,.52+preset.ribbon.width/2,.99-preset.ribbon.width/2);
+ preset.chest.x=clamp(preset.chest.x,.01+preset.chest.width/2,.48-preset.chest.width/2);
  return {frame:{...frame},preset,confidence:'png-template-anchor',
-  needsReview:true,collarType:type,templatePath:path};
+  calibratedTemplate:path,needsReview:true,
+  collarType:easyGovernmentCollarType(path,gender),templatePath:path};
 }
 
 // Correct the opposite-sized accessories in finished Thai government results.
@@ -341,7 +361,7 @@ export function governmentPngTemplatePlacement(suit,gender='female'){
 // selected insignia overlays, never bakes/stretchs the underlying uniform.
 export function balanceEasyGovernmentBadgeSizes(fit){
  if(!fit?.frame||!fit?.preset)return fit;
- const p=fit.preset;
+ // Registered garment positions already use independently sized native PNG art.\n if(fit.calibratedTemplate)return fit;\n const p=fit.preset;
  const collar={...p.collar,width:clamp(p.collar.width*.67,.031,.050)};
  const chest={...p.chest,width:clamp(p.chest.width*1.45,.092,.116)};
  const ribbon={...p.ribbon,width:clamp(p.ribbon.width*1.47,.285,.335)};
