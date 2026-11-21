@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {dirname,resolve} from 'node:path';
 import {
  easyGovernmentReferencePreset,easyGovernmentPhotoFallback,easyGovernmentInsigniaFit,
- governmentInsigniaPreset,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,GOVERNMENT_TEMPLATE_ANCHORS
+ governmentInsigniaPreset,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,GOVERNMENT_TEMPLATE_ANCHORS,governmentReferenceLandmarkFit,measureGovernmentShoulderGeometry
 } from '../src/government-insignia-fit.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -141,4 +141,26 @@ test('Every native Thai government garment has an explicit template coordinate p
   assert.deepEqual(balanceEasyGovernmentBadgeSizes(fitted).preset,fitted.preset,
    'Registered source must never get a second percentage-size adjustment');
  }
+});
+
+test('Reference ratios are mapped from each new photo shoulder width rather than full canvas width',()=>{
+ const broad=syntheticJacket(85,515);
+ const narrow=syntheticJacket(190,410);
+ const a=governmentReferenceLandmarkFit(broad,'female','/assets/government-uniforms/female-operational.png');
+ const b=governmentReferenceLandmarkFit(narrow,'female','/assets/government-uniforms/female-operational.png');
+ assert(a&&b,'shoulders are detected in both images');
+ assert(a.measuredShoulder.width>b.measuredShoulder.width*1.45);
+ const size=fit=>fit.frame.w*fit.preset.ribbon.width;
+ assert(size(a)>size(b)*1.45,'larger shoulders must receive proportionally larger ribbon');
+ const chest=fit=>fit.frame.x+fit.frame.w*fit.preset.chest.x;
+ assert(chest(a)!==chest(b),'chest location is recomputed rather than copied');
+ assert(Math.abs(a.preset.collar.width-b.preset.collar.width)<1e-9,
+  'normalized collar reference width stays identical');
+ assert(a.preset.ribbon.top>a.preset.collar.y);
+ assert.equal(a.referenceGeometryVersion,'reference-shoulder-v1');
+});
+test('Avoid guessed reference geometry on blank or unsupported photos',()=>{
+ const blank={width:600,height:800,data:new Uint8ClampedArray(600*800*4)};
+ assert.equal(measureGovernmentShoulderGeometry(blank),null);
+ assert.equal(governmentReferenceLandmarkFit(blank),null);
 });
