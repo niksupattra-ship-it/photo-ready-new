@@ -2,11 +2,11 @@ import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {PRODUCTION_HAIR_CATALOG} from '../hairstyle-catalog.js';
 import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';
-const visibleCatalogue=PRODUCTION_HAIR_CATALOG.filter(item=>!item.hidden);
+const visibleCatalogue=PRODUCTION_HAIR_CATALOG.filter(item=>!item.hidden&&!item.promptOnly);
 const root=new URL('..',import.meta.url),directory=new URL('public/assets/catalogue-hair-guides/v1/',root),manifest=JSON.parse(await readFile(new URL('manifest.json',directory),'utf8')),hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 // Retired menu choices retain their verified hair guide so old purchased jobs
 // can be recovered. Verify ALL existing manifest entries, not just visible tiles.
-const checkedCatalogue=PRODUCTION_HAIR_CATALOG.filter(item=>!item.hidden||Object.hasOwn(manifest.entries,item.id));
+const checkedCatalogue=PRODUCTION_HAIR_CATALOG.filter(item=>!item.promptOnly&&(!item.hidden||Object.hasOwn(manifest.entries,item.id)));
 if(manifest.version!==HAIR_REFERENCE_VERSION||Object.keys(manifest.entries).length!==checkedCatalogue.length)throw Error('Catalogue hair guide version/count mismatch');
 await Promise.all(checkedCatalogue.map(async item=>{
  const entry=manifest.entries[item.id];if(!entry||entry.preview!==item.src)throw Error('Missing picker hair mapping: '+item.id);

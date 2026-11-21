@@ -66,6 +66,12 @@ test('new boundary version invalidates generation caches without relabeling stor
 test('explicit selected hairstyles replace all source hairstyle evidence with the selected guide',()=>{
  for(const selected of [...PRODUCTION_HAIR_CATALOG,...FREE_FEMALE_HAIR_OPTIONS]){
   const prompt=selectedHairBoundaryInstruction(selected);
+  if(selected.promptOnly){
+   assert.match(prompt,/STANDARD TEXT-ONLY HAIRSTYLE/);
+   assert.match(prompt,/built-in description exclusively/);
+   assert.match(prompt,/No donor hairstyle guide is supplied/);
+   continue;
+  }
   assert.match(prompt,/EXPLICIT SELECTED HAIRSTYLE ONLY — FULL REPLACEMENT, NOT AN OVERLAY/);
   assert.match(prompt,/Remove the ENTIRE original hairstyle, even where it overlaps the chosen design/);
   assert.match(prompt,/sole hairstyle design authority/);
@@ -84,4 +90,21 @@ test('explicit compact cuts receive a final output gate with clear sides of the 
   assert.doesNotMatch(prompt,/In current-hair\/AI-Picks mode use the referenced cut itself/);
  }
  assert.doesNotMatch(selectedHairBoundaryInstruction(productionHair('seedream-44')),/OUTPUT GATE — CLEAN NECK/);
+});
+
+test('three standard female presets have low crowns and original-face instruction',async()=>{
+ const {selectedHairInstruction,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-27']);
+ const ids=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
+ for(const id of ids){
+  const style=productionHair(id),prompt=selectedHairInstruction(style);
+  assert.equal(style.promptOnly,true);
+  assert.equal(style.gender,'female');
+  assert.match(prompt,/LOW HEAD HEIGHT/);
+  assert.match(prompt,/NO other model\/hairstyle reference photo/);
+  assert.match(prompt,/preserve the person's own natural asymmetrical facial features/);
+  assert.match(selectedHairBoundaryInstruction(style),/uploaded person remains the only authority for face/);
+ }
+ assert.equal(selectedHairDesign(productionHair(ids[1])).kind,'gathered');
+ for(const id of [ids[0],ids[2]])assert.equal(selectedHairDesign(productionHair(id)).kind,'long');
 });
