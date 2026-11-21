@@ -1,4 +1,5 @@
-import React,{useRef,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
+import {easyInsigniaHit,easyInsigniaGestureMode} from './result-insignia-hit.js';
 import './result-insignia-drag.css';
 
 // Edit handles stay inside the finished image, but every change is committed
@@ -8,15 +9,31 @@ const W=900,H=1200,clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=false}){
  const area=useRef(null),pointers=useRef(new Map()),gesture=useRef(null);
+ const pending=useRef(null),frameId=useRef(null),transformRef=useRef(onTransform);
+ transformRef.current=onTransform;
  const [active,setActive]=useState(null);
+ // Keep the actual layer transforms, but draw no more than once per screen frame.
+ const flush=()=>{
+  if(frameId.current!==null){cancelAnimationFrame(frameId.current);frameId.current=null}
+  const batch=pending.current;pending.current=null;
+  if(batch)transformRef.current?.(batch.id,{dx:batch.dx,dy:batch.dy,scaleRatio:batch.scaleRatio});
+ };
+ const schedule=(id,{dx,dy,scaleRatio})=>{
+  if(pending.current&&pending.current.id!==id)flush();
+  if(!pending.current)pending.current={id,dx:0,dy:0,scaleRatio:1};
+  pending.current.dx+=dx;pending.current.dy+=dy;pending.current.scaleRatio*=scaleRatio;
+  if(frameId.current===null)frameId.current=requestAnimationFrame(()=>{
+   frameId.current=null;
+   const batch=pending.current;pending.current=null;
+   if(batch)transformRef.current?.(batch.id,{dx:batch.dx,dy:batch.dy,scaleRatio:batch.scaleRatio});
+  });
+ };
+ useEffect(()=>()=>{if(frameId.current!==null)cancelAnimationFrame(frameId.current)},[]);
  const rect=()=>area.current?.getBoundingClientRect();
  const locate=e=>{const r=rect();return r?{x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H}:null};
  const hit=p=>{
-  const candidates=[...handles].reverse();
-  return candidates.find(({box})=>{
-   if(!box)return false;
-   const margin=39;return p.x>=box.x-margin&&p.y>=box.y-margin&&p.x<=box.x+box.w+margin&&p.y<=box.y+box.h+margin;
-  })||null;
+  const r=rect();
+  return easyInsigniaHit(handles,p,r?.width,r?.height);
  };
  const step=()=>{
   const g=gesture.current;if(!g||!pointers.current.size)return null;
@@ -36,7 +53,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
    owningId?handles.find(h=>(h.id||h.kind)===owningId):hit(p);
   if(!target)return;
   if(!gesture.current){
-   const mode=grip?'resize':'move';
+   const mode=easyInsigniaGestureMode(Boolean(grip),p,target.box);
    gesture.current={id:target.id||target.kind,mode,last:null,center:{
     x:target.box.x+target.box.w/2,y:target.box.y+target.box.h/2
    }};
@@ -44,7 +61,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   }
   e.preventDefault();e.stopPropagation();
   pointers.current.set(e.pointerId,p);
-  e.currentTarget.setPointerCapture?.(e.pointerId);
+  try{e.currentTarget.setPointerCapture?.(e.pointerId)}catch{ /* Older touch engines. */ }
   gesture.current.last=step();
  };
  const move=e=>{
@@ -64,7 +81,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
     ?clamp(studioDistance(after.center)/studioDistance(before.center),.7,1.3):1;
   const dx=multi||g.mode==='move'?after.center.x-before.center.x:0;
   const dy=multi||g.mode==='move'?after.center.y-before.center.y:0;
-  if(Math.abs(dx)+Math.abs(dy)>.01||Math.abs(scaleRatio-1)>.001)onTransform?.(g.id,{dx,dy,scaleRatio});
+  if(Math.abs(dx)+Math.abs(dy)>.01||Math.abs(scaleRatio-1)>.001)schedule(g.id,{dx,dy,scaleRatio});
   g.last=after;
  };
  const finish=e=>{
@@ -72,10 +89,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   e.stopPropagation();pointers.current.delete(e.pointerId);
   try{e.currentTarget.releasePointerCapture?.(e.pointerId)}catch{}
   if(pointers.current.size)gesture.current.last=step();
-  else{const g=gesture.current;gesture.current=null;if(g)onEnd?.(g.id)}
- };
- const cancel=()=>{
-  if(gesture.current){const g=gesture.current;gesture.current=null;pointers.current.clear();onEnd?.(g.id)}
+  else{const g=gesture.current;flush();gesture.current=null;if(g)onEnd?.(g.id)}
  };
  if(!handles.length)return null;
  return <div className="thai-result-insignia-interaction" ref={area}

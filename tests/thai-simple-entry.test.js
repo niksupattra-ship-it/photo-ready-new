@@ -412,3 +412,23 @@ test('new free style 2 is the existing website asset and both Thai access gates 
  assert(!studio.includes("h.id?.startsWith('standard-female-')"));
  assert(!mobile.includes('thai-standard-hair-preview'));
 });
+
+test('Thai Easy Mode insignia is easy to touch, moves instead of resizing under overlapping grips and commits the final drag',async()=>{
+ const {easyInsigniaHit,easyInsigniaGestureMode}=await import('../src/result-insignia-hit.js');
+ const handles=[
+  {id:'collar-left',box:{x:195,y:280,w:33,h:22}},
+  {id:'collar-right',box:{x:330,y:280,w:33,h:22}}
+ ];
+ assert.equal(easyInsigniaHit(handles,{x:213,y:291},300,400)?.id,'collar-left');
+ assert.equal(easyInsigniaHit(handles,{x:344,y:290},300,400)?.id,'collar-right');
+ assert.equal(easyInsigniaHit(handles,{x:700,y:700},300,400),null,'Remote touch must not select any marker');
+ assert.equal(easyInsigniaGestureMode(true,{x:213,y:291},handles[0].box),'move','Touching badge body always moves');
+ assert.equal(easyInsigniaGestureMode(true,{x:184,y:273},handles[0].box),'resize','Touching outside corner still resizes');
+ const drag=await read('src/result-insignia-drag.jsx'),ui=await read('src/thai-mobile-journey.jsx');
+ assert(drag.includes("from './result-insignia-hit.js'"));
+ assert(drag.includes('schedule(g.id,{dx,dy,scaleRatio})'),'Pointer events must be combined into display-frame updates');
+ assert(drag.includes('flush();gesture.current=null'),'Release applies last movement before save');
+ assert(ui.includes('<ResultInsigniaDrag handles={insigniaHandles}'),'Only Easy result photo uses this component');
+ const studio=await read('src/studio-editor.jsx');
+ assert(studio.includes('const resultInsigniaTransform=(id,{dx=0,dy=0,scaleRatio=1}={})=>'),'Existing layer transformation stays unchanged');
+});
