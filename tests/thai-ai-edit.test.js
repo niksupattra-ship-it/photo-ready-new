@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import crypto from 'node:crypto';
 import sharp from 'sharp';
 import {processProductionPortrait,validateProductionPortrait,shieldThaiNativeUniformFront} from '../production-portrait-pipeline.js';
-import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit} from '../thai-outfit-ai-policy.js';
+import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_PREVIOUS,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,isThaiOutfitPath,thaiOutfitAppearanceInstruction,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
@@ -55,16 +55,18 @@ test('new Thai Studio jobs use the existing full-outfit AI renderer without Engl
  for(const path of ['/assets/job-uniforms/female-job-white.png','/assets/student-uniforms/female-01.png','/assets/government-uniforms/female-operational.png','/assets/gown-uniforms/female-01.png'])assert(isThaiOutfitPath(path),path);
 });
 
-test('new Thai AI uniform is pixel-input and prompt identical to English',async()=>{
+test('archived Thai v8 stays identical to English while new v9 uses Thai-only fixed head reference',async()=>{
  const template='/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png';
  const core={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',neckOutfitReferencePath:template,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
  const thai={...core,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
  const english={...core,interfaceLanguage:'en'};
+ const archivedThai={...thai,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS_V8};
  assert.doesNotThrow(()=>validateProductionPortrait(input,thai));
+ assert.doesNotThrow(()=>validateProductionPortrait(input,archivedThai));
  assert.throws(()=>validateProductionPortrait(input,{...thai,thaiOutfitAppearanceVersion:'unknown'}));
  assert.throws(()=>validateProductionPortrait(input,{...english,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION}));
  const calls=[];
- for(const fields of [thai,english]){
+ for(const fields of [archivedThai,english]){
   const requests=[];
   const out=await processProductionPortrait({input,fields,root,key:'same',removeBackground:async()=>result,requestPortrait:async request=>{requests.push(request);return {png:result}}});
   assert.equal(requests.length,1,'Only one whole-garment generation');
@@ -76,6 +78,22 @@ test('new Thai AI uniform is pixel-input and prompt identical to English',async(
  assert.deepEqual(calls[0].portrait,calls[1].portrait,'Same composition reference pixels');
  assert.deepEqual(calls[0].outfit,calls[1].outfit,'Same native outfit pixels');
  assert.equal(usesThaiHistoricOutfitPrompt(thai),false);
+ const calibratedCalls=[];
+ const newOutput=await processProductionPortrait({
+  input,fields:thai,root,key:'thai-calibrated-v9',
+  removeBackground:async()=>result,
+  requestPortrait:async p=>{calibratedCalls.push(p);return {png:result}}
+ });
+ assert(newOutput.length);
+ assert.equal(calibratedCalls.length,1,'Thai v9 uses the same one AI generation');
+ assert.equal(calibratedCalls[0].size,calls[0].size);
+ assert.deepEqual(calibratedCalls[0].outfit,calls[0].outfit,'Original suit pixels must never change');
+ assert.notDeepEqual(calibratedCalls[0].portrait,calls[0].portrait,'New Thai guide must actually be calibrated');
+ assert.match(calibratedCalls[0].prompt,/THAI FIXED-CAMERA PORTRAIT V9/);
+ assert.doesNotMatch(calibratedCalls[0].prompt,/ENGLISH FEMALE V2 — BALANCED HEAD\/BODY/);
+ assert(!calibratedCalls[0].prompt.includes('older small-head'), 'No conflicting legacy target');
+ assert.equal(usesThaiHistoricOutfitPrompt(archivedThai),false,'v8 job replay must not gain old historical prompt');
+
  assert.equal(usesThaiEnglishParityOutfit(thai),false,'No Thai-only prompt addition');
  assert.equal(requiresThaiNativeFrontShield(thai),false,'No post-render clothing overlay');
  const previousV5={...thai,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_OLD_NECK_V5};
@@ -87,6 +105,40 @@ test('new Thai AI uniform is pixel-input and prompt identical to English',async(
  assert(main.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"));
 });
 
+
+test('Thai v9 fixed head guide accepts variable source face crops without stretching or resizing suit',async()=>{
+ const {createEnglishBodyLayout}=await import('../english-body-layout.js');
+ const {thaiOutfitCalibratedProfile}=await import('../thai-outfit-ai-policy.js');
+ const outfit=await readFile(root+'public/assets/government-uniforms/female-operational.png');
+ const profile=thaiOutfitCalibratedProfile('female'),compositions=[];
+ const sizes=[[100,100],[95,170],[170,95],[120,155]];
+ for(const [width,height] of sizes){
+  const identity=await sharp({create:{width,height,channels:3,background:'#c58554'}}).png().toBuffer();
+  const composition=await createEnglishBodyLayout(outfit,{
+   profile,headScale:profile.identityHeadScale,identity,canvasWidth:1824,fixedIdentityEnvelope:true
+  });
+  const {data,info}=await sharp(composition).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  assert.equal(info.width,1824);assert.equal(info.height,2432);
+  let left=info.width,right=-1,top=info.height,bottom=-1;
+  // The source identity colour is absent from the neutral guide and actual suit.
+  for(let y=0;y<info.height*.55;y+=2)for(let x=0;x<info.width;x+=2){
+   const at=(y*info.width+x)*4;
+   if(Math.abs(data[at]-197)>4||Math.abs(data[at+1]-133)>4||Math.abs(data[at+2]-84)>4||data[at+3]<245)continue;
+   left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
+  }
+  assert(right>left&&bottom>top,'Guide must retain the real face pixels at each input aspect');
+  const faceAspect=(bottom-top+2)/(right-left+2),sourceAspect=height/width;
+  assert(Math.abs(faceAspect/sourceAspect-1)<.09,'Never distort intrinsic source face proportions');
+  compositions.push({data,info});
+ }
+ const a=compositions[0],start=Math.floor(a.info.height*.68)*a.info.width*4;
+ for(const other of compositions.slice(1)){
+  assert.deepEqual(a.data.subarray(start),other.data.subarray(start),'Native suit pixels and its framing are identical across source aspects');
+ }
+ const male=thaiOutfitCalibratedProfile('male');
+ assert(profile.identityHeadScale*profile.headWidthToShoulder>.33&&profile.identityHeadScale*profile.headWidthToShoulder<.37);
+ assert(male.identityHeadScale*male.headWidthToShoulder>.30&&male.identityHeadScale*male.headWidthToShoulder<.34);
+});
 test('Thai native uniform reliably occludes hair over both jacket fronts and clips hanging outer hair without touching face',async()=>{
  const W=240,H=320;
  // The artificial AI result has black hair on BOTH white jacket panels,
