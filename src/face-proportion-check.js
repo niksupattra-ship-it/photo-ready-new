@@ -23,3 +23,23 @@ export function compareFaceProportions(original,generated){
  }
  return {ok:Object.keys(limits).every(key=>changes[key]<=limits[key]),reason:'proportions',changes};
 }
+
+// Strict geometry check for NEW Thai V12 full-outfit jobs only.
+// Ratios are normalized by interpupillary scale so uniform head
+// resizing/translation cannot itself be mistaken for slimming.
+export function compareThaiFaceShape(original,generated){
+ if(!original||!generated)return {ok:false,reason:'unmeasurable'};
+ const limits={faceWidth:.065,jawWidth:.065,eyeToChin:.065,eyeToNose:.085,eyeToMouth:.085};
+ const changes={};
+ for(const [name,limit] of Object.entries(limits)){
+  const a=original[name],b=generated[name];
+  if(![a,b].every(v=>Number.isFinite(v)&&v>.05))return {ok:false,reason:'unmeasurable'};
+  changes[name]=Math.abs(b/a-1);
+ }
+ const initialAspect=original.eyeToChin/original.faceWidth,finalAspect=generated.eyeToChin/generated.faceWidth;
+ const originalJaw=original.jawWidth/original.faceWidth,finalJaw=generated.jawWidth/generated.faceWidth;
+ const aspectDelta=Math.abs(finalAspect/initialAspect-1),jawRatioDelta=Math.abs(finalJaw/originalJaw-1);
+ if(![aspectDelta,jawRatioDelta].every(Number.isFinite))return {ok:false,reason:'unmeasurable'};
+ const ok=Object.entries(limits).every(([name,limit])=>changes[name]<=limit)&&aspectDelta<=.065&&jawRatioDelta<=.065;
+ return {ok,reason:ok?'preserved':'face_geometry_changed',changes,aspectDelta,jawRatioDelta};
+}

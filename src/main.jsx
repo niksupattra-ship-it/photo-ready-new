@@ -117,7 +117,7 @@ import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
 import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
-import {faceProportions,compareFaceProportions} from './face-proportion-check.js';
+import {faceProportions,compareFaceProportions,compareThaiFaceShape} from './face-proportion-check.js';
 import {portraitProtectedFeatures} from './portrait-feature-check.js';
 import {createPortraitFaceCache} from './portrait-analysis-cache.js';
 import {PackageOffers} from './package-offers.jsx';
@@ -2961,10 +2961,30 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   assertCurrentOperation();
   return finished;
  });
- // Female AI finishes preserve geometry through the original-upload prompts.
- // Source/output landmark ratios are estimates, not a delivery gate: changes
- // in pose, crop and cosmetic contrast must not discard a completed image.
- try{if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))await checkPortraitProportions(originalFile,cached.value);await checkPortraitCompletion(originalFile,cached.value,hairId);assertCurrentOperation()}catch(error){
+ // New Thai full-outfit images must preserve the original cheek/jaw width and
+ // face aspect. Reject definitive measurable distortions; do not re-call AI.
+ // When landmark measurement fails, keep the existing review-only fallback.
+ try{
+  if(thaiWholeOutfit&&cached.value.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
+   try{
+    const original=await portraitFaceMetrics(originalFile);
+    const generated=await portraitFaceMetrics(cached.value);
+    const faceLock=compareThaiFaceShape(original,generated);
+    if(faceLock.reason==='unmeasurable')cached.value.idpromQualityReviewNeeded=true;
+    else if(!faceLock.ok){
+     const error=Error('AI ปรับโครงหน้าต่างจากรูปต้นฉบับ · เก็บรูปเดิมไว้');
+     error.code='face_proportion_changed';throw error;
+    }
+   }catch(error){
+    if(error?.code==='face_proportion_changed')throw error;
+    cached.value.idpromQualityReviewNeeded=true;
+   }
+  }
+  if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))
+   await checkPortraitProportions(originalFile,cached.value);
+  await checkPortraitCompletion(originalFile,cached.value,hairId);
+  assertCurrentOperation();
+ }catch(error){
   if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
   console.warn('Portrait quality check stopped delivery:',error?.code||'unknown',String(error?.message||''));
   // Only definite image-quality failures may cancel and refund this job.

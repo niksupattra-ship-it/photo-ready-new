@@ -20,9 +20,22 @@ export const THAI_OUTFIT_APPEARANCE_PREVIOUS_V8='th-full-outfit-english-parity-v
 export const THAI_OUTFIT_APPEARANCE_PREVIOUS_V9='th-full-outfit-fixed-head-guide-v9';
 // New Thai work only. Previously completed v9 and all English jobs are unchanged.
 export const THAI_OUTFIT_APPEARANCE_PREVIOUS_V10='th-full-outfit-compact-identity-v10';
-// New Thai requests use source-face-specific geometry. V10 and earlier are archived.
-export const THAI_OUTFIT_APPEARANCE_VERSION='th-full-outfit-adaptive-geometry-v11';
-export const usesThaiAdaptiveHead=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_VERSION;
+// Keep every finished V11 job on its original request contract.
+export const THAI_OUTFIT_APPEARANCE_PREVIOUS_V11='th-full-outfit-adaptive-geometry-v11';
+// New V12 jobs: preserve the original cheeks, jaw, chin and face dimensions.
+export const THAI_OUTFIT_APPEARANCE_VERSION='th-full-outfit-face-shape-lock-v12';
+export const usesThaiAdaptiveHead=fields=>isThaiOutfitAi(fields)&&
+ [THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V11].includes(fields?.thaiOutfitAppearanceVersion);
+export const usesThaiFaceShapeLock=fields=>isThaiOutfitAi(fields)&&
+ fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_VERSION;
+export const thaiFaceShapeLockInstruction=()=>`
+THAI FACE SHAPE LOCK V12 — HIGHEST-PRIORITY ORIGINAL FACE GEOMETRY:
+Image 1's original uploaded person is the ONE immutable identity and facial-anatomy source. Keep the original natural fullness of BOTH cheeks, their outer contour and cheekbone breadth, the actual masseter/jaw breadth and angle, the soft jawline, real chin shape and width, temple width and natural left/right asymmetry. A naturally broad, full, or round face MUST REMAIN equally broad, full, or round after processing.
+NEVER slim, narrow, sculpt, snatch, de-puff, pinch, taper or sharpen cheeks, jaw, chin or face. NEVER use V-line beauty filters, facial fat removal, smaller chin, lifted/hollowed cheeks or a thinner lower face. Do not reduce facial width compared with its eye spacing or lengthen the mouth-to-chin/eye-to-chin distances.
+Preserve the exact face width-to-height ratio, cheek-to-jaw-width ratio, eye/nose/mouth spacing, original forehead/temple shape and non-symmetrical facial identity. No independent horizontal squeeze or vertical stretch, no non-uniform scale, liquify, warp, perspective slimming or feature relocation. Makeup/Natural may modify colour, light and superficial blemishes only; they must not change anatomical volume or the face silhouette.
+Treat the chosen garment and required camera framing as separate from face geometry. Move and scale the ENTIRE head uniformly to fit the garment and collar, without stretching, squashing or re-synthesizing the intrinsic face; never manipulate the face to meet an ideal face-to-shoulder ratio. If any other body/head-size target conflicts, preserve the person's original facial proportions first.
+Produce this exact real face, not a beautified/thinner version. No extra AI request, face swap, pasted features or secondary retouch.
+`;
 export const thaiOutfitCalibratedProfile=(gender,version=THAI_OUTFIT_APPEARANCE_VERSION)=>Object.freeze(
  version===THAI_OUTFIT_APPEARANCE_PREVIOUS_V9
  ?(gender==='male'
@@ -33,7 +46,7 @@ export const thaiOutfitCalibratedProfile=(gender,version=THAI_OUTFIT_APPEARANCE_
   :{identityHeadScale:.86,headWidthToShoulder:.34,headHeightToShoulder:.52,chinToCollar:.018,neckToShoulder:.245,chestToShoulder:.46})
 );
 export const usesThaiCalibratedHead=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_PREVIOUS_V10,THAI_OUTFIT_APPEARANCE_PREVIOUS_V9].includes(fields?.thaiOutfitAppearanceVersion);
-export const usesThaiIdentityLockedHead=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V10].includes(fields?.thaiOutfitAppearanceVersion);
+export const usesThaiIdentityLockedHead=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V11,THAI_OUTFIT_APPEARANCE_PREVIOUS_V10].includes(fields?.thaiOutfitAppearanceVersion);
 const thaiV9HeadInstruction=gender=>`
 THAI FIXED-CAMERA PORTRAIT V9 — FINAL HEAD / SHOULDER GEOMETRY AUTHORITY:
 Image 1 already shows this customer's real face uniformly fitted inside a FIXED head envelope anchored to the selected garment. Its overall head size, cheek width and crown-to-chin height are controlled by the same fixed outfit shoulder span, regardless of whether the original upload was a close selfie, full-body picture, narrow portrait, or wide crop. Use the chosen original face ONLY for identity, feature proportions and expression, never to infer output zoom, body size, skull size or camera distance.
@@ -66,11 +79,11 @@ export const THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION='th-full-outfit-native
 export const THAI_OUTFIT_APPEARANCE_PREVIOUS='th-full-outfit-colour-rear-hair-v2';
 // Old purchased v2 jobs must still be readable, but only new v3 jobs receive
 // the native front-outfit occlusion pass. The English route never opts in.
-export const isThaiOutfitAppearance=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V10,THAI_OUTFIT_APPEARANCE_PREVIOUS_V9,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS].includes(fields?.thaiOutfitAppearanceVersion);
+export const isThaiOutfitAppearance=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V11,THAI_OUTFIT_APPEARANCE_PREVIOUS_V10,THAI_OUTFIT_APPEARANCE_PREVIOUS_V9,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6,THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS].includes(fields?.thaiOutfitAppearanceVersion);
 export const requiresThaiNativeFrontShield=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION,THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION].includes(fields?.thaiOutfitAppearanceVersion);
 export const usesThaiShoulderAwareShield=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_OLD_NECK_V5,THAI_OUTFIT_APPEARANCE_OLD_NECK_VERSION].includes(fields?.thaiOutfitAppearanceVersion);
 export const usesThaiNecklineProtectedShield=fields=>isThaiOutfitAi(fields)&&fields?.thaiOutfitAppearanceVersion===THAI_OUTFIT_APPEARANCE_OLD_NECK_V5;
-export const usesThaiHistoricOutfitPrompt=fields=>isThaiOutfitAppearance(fields)&&![THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V10,THAI_OUTFIT_APPEARANCE_PREVIOUS_V9,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
+export const usesThaiHistoricOutfitPrompt=fields=>isThaiOutfitAppearance(fields)&&![THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V11,THAI_OUTFIT_APPEARANCE_PREVIOUS_V10,THAI_OUTFIT_APPEARANCE_PREVIOUS_V9,THAI_OUTFIT_APPEARANCE_PREVIOUS_V8,THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
 
 export const usesThaiEnglishParityOutfit=fields=>isThaiOutfitAi(fields)&&[THAI_OUTFIT_APPEARANCE_SINGLE_AI_V7,THAI_OUTFIT_APPEARANCE_OLD_ENGLISH_RENDERER_V6].includes(fields?.thaiOutfitAppearanceVersion);
 // Same renderer, native visual references, matting and output as English.

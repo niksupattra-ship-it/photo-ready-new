@@ -612,3 +612,55 @@ test('Easy white-hem jacket reference can be measured without permitting a fully
  const allWhite=new Uint8ClampedArray(w*h*4).fill(255);
  assert.equal(easyGovernmentInsigniaFit({width:w,height:h,data:allWhite},'male'),null,'Entire white backgrounds remain indeterminate');
 });
+
+test('Thai V12 keeps round/full cheeks, jaw width and face length; rejects narrowing or stretching',async()=>{
+ const {compareThaiFaceShape}=await import('../src/face-proportion-check.js');
+ const src={faceWidth:.78,jawWidth:.57,eyeToChin:.94,eyeToNose:.43,eyeToMouth:.69};
+ assert.equal(compareThaiFaceShape(src,{...src}).ok,true);
+ assert.equal(compareThaiFaceShape(src,{...src,faceWidth:.72}).ok,false,'Face narrowing detected');
+ assert.equal(compareThaiFaceShape(src,{...src,jawWidth:.51}).ok,false,'Jaw thinning detected');
+ assert.equal(compareThaiFaceShape(src,{...src,eyeToChin:1.04}).ok,false,'Vertical face stretch detected');
+ const stable={...src,faceWidth:.774,jawWidth:.565,eyeToChin:.939};
+ assert.equal(compareThaiFaceShape(src,stable).ok,true,'Small measurement noise remains safe');
+ assert.equal(compareThaiFaceShape(src,null).reason,'unmeasurable','No manufactured face geometry');
+ const app=await readFile(root+'src/main.jsx','utf8');
+ assert(app.includes('compareThaiFaceShape(original,generated)'),'Delivered Thai AI image must be checked');
+ assert(app.includes("error.code='face_proportion_changed';throw error"),'Reject measurable face slimming before acceptance');
+ assert(app.includes('cached.value.idpromQualityReviewNeeded=true'),'Unmeasurable photo must not be silently marked verified');
+});
+
+test('Thai V12 adds face-shape lock only for new jobs; archived V11 and English retain their prompts',async()=>{
+ const {
+  THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_APPEARANCE_PREVIOUS_V11,
+  THAI_OUTFIT_AI_VERSION,usesThaiFaceShapeLock
+ }=await import('../thai-outfit-ai-policy.js');
+ const original={portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,
+  englishOutfitFidelityVersion:(await import('../english-outfit-fidelity-version.js')).ENGLISH_OUTFIT_FIDELITY_VERSION,
+  portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',
+  neckOutfitReferencePath:'/assets/job-uniforms/female-job-white.png',
+  faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,
+  singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,
+  femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,
+  thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53})};
+ const v12={...original,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
+ const v11={...v12,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS_V11};
+ const english={...original,interfaceLanguage:'en'};
+ assert.equal(usesThaiFaceShapeLock(v12),true);
+ assert.equal(usesThaiFaceShapeLock(v11),false);
+ assert.equal(usesThaiFaceShapeLock(english),false);
+ assert.doesNotThrow(()=>validateProductionPortrait(input,v12));
+ assert.doesNotThrow(()=>validateProductionPortrait(input,v11));
+ const requests=[];
+ for(const fields of [v12,v11,english]){
+  await processProductionPortrait({input,fields,root,key:'geometry-'+fields.interfaceLanguage+':'+(fields.thaiOutfitAppearanceVersion||'en'),
+   removeBackground:async()=>result,
+   requestPortrait:async args=>{requests.push(args);return {png:result}}});
+ }
+ assert.equal(requests.length,3,'Each variant uses exactly one existing AI provider call');
+ assert.match(requests[0].prompt,/THAI FACE SHAPE LOCK V12/);
+ assert.match(requests[0].prompt,/NEVER slim, narrow, sculpt/);
+ assert.doesNotMatch(requests[1].prompt,/THAI FACE SHAPE LOCK V12/,'Old purchased/queued V11 results must not be rewritten');
+ assert.doesNotMatch(requests[2].prompt,/THAI FACE SHAPE LOCK V12/,'English requests must remain untouched');
+ const source=await readFile(root+'src/main.jsx','utf8');
+ assert(source.includes("fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION)"));
+});
