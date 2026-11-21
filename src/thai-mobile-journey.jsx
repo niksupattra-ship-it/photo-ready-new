@@ -21,6 +21,7 @@ export function ThaiMobileJourney({
  const [category,setCategory]=useState('สมัครงาน');
  const [draftHair,setDraftHair]=useState('');
  const [selectedStyle,setSelectedStyle]=useState(false);
+ const [outfitChosen,setOutfitChosen]=useState(false);
  const [notice,setNotice]=useState('');
  const [changedHair,setChangedHair]=useState(false);
  const [resultInsigniaOpen,setResultInsigniaOpen]=useState(false);
@@ -30,7 +31,7 @@ export function ThaiMobileJourney({
  const wasProcessing=useRef(false);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
-  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
+  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
  },[sourcePreview]);
  useEffect(()=>{
   if(hasResult&&!resultRef.current){setSection('result');setChangedHair(false);setNotice('')}
@@ -67,13 +68,21 @@ export function ThaiMobileJourney({
  const processingPage=Boolean(processing);
  const shownProgress=Number.isFinite(progress)?Math.min(99,Math.max(0,Math.floor(progress))):0;
  const outfits=inCategory.length?inCategory:eligible.filter(t=>getCategory(t)==='สมัครงาน');
- const canSubmit=Boolean(sourcePreview&&photoTypeSelected&&currentSuit&&draftHair&&ready&&!busy&&!suitLoading&&choicesReady);
- const chooseHair=h=>{if(!h)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
- const chooseSuit=t=>{setNotice('');onSuit?.(t)};
+ const hairUnlocked=Boolean(photoTypeSelected);
+ const suitUnlocked=Boolean(photoTypeSelected&&selectedStyle&&draftHair);
+ const canSubmit=Boolean(sourcePreview&&photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&currentSuit&&ready&&!busy&&!suitLoading&&choicesReady);
+ const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
+ const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setNotice('');onSuit?.(t)};
+ const selectGender=v=>{
+  if(busy||!['female','male'].includes(v))return;
+  setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);
+  setMoreHair(false);setMoreSuits(false);setNotice('');
+  onSelectPhotoType?.(v);
+ };
  const create=()=>{
   if(!photoTypeSelected){setNotice('กรุณาเลือกหญิงหรือชายก่อนสร้าง');return}
-  if(!currentSuit){setNotice('กรุณาเลือกชุดก่อนสร้าง');return}
-  if(!draftHair){setNotice('กรุณาเลือกทรงผมก่อนสร้าง');return}
+  if(!selectedStyle||!draftHair){setNotice('กรุณาเลือกทรงผมก่อนสร้าง');return}
+  if(!outfitChosen||!currentSuit){setNotice('กรุณาเลือกชุดก่อนสร้าง');return}
   if(!choicesReady){setNotice('กำลังบันทึกตัวเลือก กรุณากดสร้างอีกครั้ง');return}
   if(!ready||busy||suitLoading)return;
   setNotice('');
@@ -139,18 +148,18 @@ export function ThaiMobileJourney({
        <p className="thai-mobile-choice-preview-help">รูปหลังปรับแต่งจะแสดงเมื่อสร้างเสร็จ</p>
       </aside>
       <div className="thai-mobile-selection-controls thai-mobile-choice-controls">
-       {!photoTypeSelected&&<div className="thai-mobile-choice-panel thai-mobile-choice-gender">
+       <div className="thai-mobile-choice-panel thai-mobile-choice-gender">
         <h2>เลือกเพศ</h2>
         <div className="thai-mobile-segment">
-         {['female','male'].map((v,i)=><button key={v} type="button" className={photoTypeSelected&&gender===v?'selected':''} aria-pressed={photoTypeSelected&&gender===v} disabled={busy} onClick={()=>{setDraftHair('');setSelectedStyle(false);onSelectPhotoType?.(v)}}>{i===0?'หญิง':'ชาย'}</button>)}
+         {['female','male'].map((v,i)=><button key={v} type="button" className={photoTypeSelected&&gender===v?'selected':''} aria-pressed={photoTypeSelected&&gender===v} disabled={busy} onClick={()=>selectGender(v)}>{i===0?'หญิง':'ชาย'}</button>)}
         </div>
-       </div>}
-       <section className="thai-mobile-choice-panel thai-mobile-choice-hair-panel" aria-label="เลือกทรงผม">
+       </div>
+       <section className={'thai-mobile-choice-panel thai-mobile-choice-hair-panel'+(!hairUnlocked?' thai-mobile-choice-locked':'')} aria-label="เลือกทรงผม" aria-disabled={!hairUnlocked}>
         <div className="thai-mobile-choice-panel-heading"><h2><span aria-hidden="true">✂</span> ทรงผม</h2>
-         {selectedHairOptions.length>4&&<button type="button" className="thai-mobile-choice-view-all" onClick={()=>setMoreHair(v=>!v)}>{moreHair?'แสดงน้อยลง':'ดูทั้งหมด ›'}</button>}
+         {selectedHairOptions.length>4&&<button type="button" className="thai-mobile-choice-view-all" disabled={!hairUnlocked||busy} onClick={()=>setMoreHair(v=>!v)}>{moreHair?'แสดงน้อยลง':'ดูทั้งหมด ›'}</button>}
         </div>
         <div className="thai-mobile-tile-row thai-mobile-hair-row thai-mobile-choice-tiles">
-         {displayHairOptions.map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} aria-pressed={draftHair===h.id} disabled={busy} onClick={()=>chooseHair(h)}>
+         {displayHairOptions.map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} aria-pressed={draftHair===h.id} disabled={busy||!hairUnlocked} onClick={()=>chooseHair(h)}>
           <EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/>
           <span>{h.name||'ทรงผม'}</span>
           {h.locked&&<small className="thai-mobile-choice-diamond">◆</small>}
@@ -158,26 +167,26 @@ export function ThaiMobileJourney({
          </button>)}
         </div>
        </section>
-       <section className="thai-mobile-choice-panel thai-mobile-choice-outfit-panel" aria-label="เลือกชุด">
+       <section className={'thai-mobile-choice-panel thai-mobile-choice-outfit-panel'+(!suitUnlocked?' thai-mobile-choice-locked':'')} aria-label="เลือกชุด" aria-disabled={!suitUnlocked}>
         <div className="thai-mobile-choice-panel-heading"><h2><span aria-hidden="true">♧</span> ชุด</h2></div>
         <div className="thai-mobile-suit-categories" role="group" aria-label="หมวดชุด">
-         {categories.map(v=><button key={v} type="button" className={category===v?'selected':''} aria-pressed={category===v} onClick={()=>{setCategory(v);setMoreSuits(false)}}>{v}</button>)}
+         {categories.map(v=><button key={v} type="button" className={category===v?'selected':''} aria-pressed={category===v} disabled={!suitUnlocked||busy} onClick={()=>{if(!suitUnlocked)return;setCategory(v);setMoreSuits(false)}}>{v}</button>)}
         </div>
         <div className="thai-mobile-tile-row thai-mobile-suit-row thai-mobile-choice-tiles">
-         {displayOutfitOptions.map(t=><button key={t.id||t.template} type="button" className={currentSuit===t.template?'selected':''} aria-pressed={currentSuit===t.template} disabled={busy||suitLoading||Boolean(suitPolicy?.limited&&(suitPolicy.choices||[]).length>=suitChoiceLimit&&!(suitPolicy.choices||[]).includes(t.template))} onClick={()=>chooseSuit(t)}>
+         {displayOutfitOptions.map(t=><button key={t.id||t.template} type="button" className={outfitChosen&&currentSuit===t.template?'selected':''} aria-pressed={outfitChosen&&currentSuit===t.template} disabled={busy||!suitUnlocked||suitLoading||Boolean(suitPolicy?.limited&&(suitPolicy.choices||[]).length>=suitChoiceLimit&&!(suitPolicy.choices||[]).includes(t.template))} onClick={()=>chooseSuit(t)}>
           <EasyPreviewImage source={optionImg(t)} preview={outfitPickerPreview(t,t.preview||t.src||t.template)}/>
           <span>{t.name||t.title||'ชุด'}</span>
-          {currentSuit===t.template&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}
+          {outfitChosen&&currentSuit===t.template&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}
          </button>)}
         </div>
-        {outfits.length>4&&<button type="button" className="thai-mobile-choice-outfit-more" onClick={()=>setMoreSuits(v=>!v)}>{moreSuits?'ดูชุดน้อยลง':'ดูชุดเพิ่มเติม ('+outfits.length+')'}</button>}
+        {outfits.length>4&&<button type="button" className="thai-mobile-choice-outfit-more" disabled={!suitUnlocked||busy} onClick={()=>setMoreSuits(v=>!v)}>{moreSuits?'ดูชุดน้อยลง':'ดูชุดเพิ่มเติม ('+outfits.length+')'}</button>}
         {suitLoading&&<p className="thai-mobile-hint">กำลังแสดงชุดที่เลือก...</p>}
        </section>
       </div>
      </div>
      <div className="thai-mobile-choice-footer">
       {!!notice&&<p className="thai-mobile-alert" role="alert">{notice}</p>}
-      <button className="thai-mobile-primary thai-mobile-choice-create" type="button" disabled={!canSubmit||!selectedStyle} onClick={create}><span aria-hidden="true">✦</span> สร้างรูป</button>
+      <button className="thai-mobile-primary thai-mobile-choice-create" type="button" disabled={!canSubmit} onClick={create}><span aria-hidden="true">✦</span> สร้างรูป</button>
       <p className="thai-mobile-choice-caption"><span aria-hidden="true">ⓘ</span> สร้างภาพด้วย AI เพียง 1 ครั้ง จากตัวเลือกที่เลือกไว้</p>
      </div>
     </div>
