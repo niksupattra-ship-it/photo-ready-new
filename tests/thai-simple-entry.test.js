@@ -276,7 +276,7 @@ test('Thai government result edits only native insignia layers directly on pictu
  assert(studio.includes("id==='collar-left'||id==='collar-right'"),'Collar pin transforms are independent of the other pin');
  assert(studio.includes("sceneToLayer(layer,{x:450+dx,y:600+dy})"),'Touch and mouse offsets use the original Studio affine transform');
  assert(drag.includes("owningId=grip?.closest?.('[data-kind]')"),'Resize grip outside a small pin outline stays touchable');
- assert(studio.includes('resultInsigniaTransform=(kind'),'The gestures modify actual native editor layers');
+ assert(studio.includes('resultInsigniaTransform=(id'),'The gestures modify actual native editor layers');
  assert(studio.includes('state.current=next;setLayers(next);setRevision(v=>v+1)'),'Export/source state gets gesture transforms');
  assert(studio.includes('flushTransforms();remember()'),'Edits are stored in Studio Undo');
  assert(studio.includes('resultInsigniaDirect)&&governmentResult'),'Only this result can use a manual fallback when auto-placement cannot measure the jacket');
