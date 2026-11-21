@@ -415,7 +415,7 @@ export function measureGovernmentShoulderGeometry(image){
   const right=Math.max(...bands.map(a=>a[1]));
   const span=right-left;
   const mid=(left+right)/2;
-  if(span<w*.48||span>w*.95||Math.abs(mid-w/2)>w*.12)continue;
+  if(span<w*.30||span>w*.95||Math.abs(mid-w/2)>w*.12)continue;
   rows.push({y,left,right,span});
  }
  if(rows.length<5)return null;
