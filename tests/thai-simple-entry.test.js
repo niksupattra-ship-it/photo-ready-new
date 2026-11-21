@@ -336,7 +336,8 @@ test('Thai upload is one central action and Step 2 enforces gender, hair, outfit
  assert(page.includes('disabled={!hairUnlocked||busy}'),'View-all hair option locked');
  assert(page.includes('disabled={!suitUnlocked||busy}'),'View-more outfit option locked');
  assert(ui.includes('outfitChosen&&currentSuit===t.template'),'A previously default outfit is not mistaken for an explicit new selection');
- assert(ui.includes('outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit&&ready'),'Create requires an explicitly chosen and actually applied outfit');
+ assert(ui.includes('const outfitReady=Boolean(photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit)'),'Create requires an explicitly chosen and actually applied outfit');
+ assert(ui.includes('sourcePreview&&outfitReady&&ready&&!busy'),'Create remains locked until outfit is ready');
  assert(ui.includes("setChosenOutfitTemplate(t.template)"),'Click stores the exact new suit, not the previous default');
  assert(ui.includes("chosenOutfitTemplate!==currentSuit"),'Guard prevents stale outfit from being submitted before applying a new suit');
  assert(ui.includes('disabled={!canSubmit} onClick={create}'),'Create is not clickable early');
