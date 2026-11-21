@@ -12,6 +12,8 @@ const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
 const studio=query.get('studio')==='1';
 const fullbody=query.get('fullbody')==='1';
+const staleNeck=query.get('staleNeck')==='1';
+const stalePatch=Object.assign(document.createElement('canvas'),{width:100,height:40});stalePatch.getContext('2d').fillStyle='#ff00ff';stalePatch.getContext('2d').fillRect(0,0,100,40);
 const template='/assets/government-uniforms/'+(gender==='male'?'male-government-employee':'female-operational')+'.png';
 const load=src=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src});
 const make=()=>Object.assign(document.createElement('canvas'),{width:900,height:1200});
@@ -56,8 +58,9 @@ const templateInfo={id:'government-fixture',name:'ชุดข้าราชก
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!studio}
  initialLayers={[
   {name:'พื้นหลัง',kind:'background',source:blue.toDataURL()},
-  {name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:false,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})},
-  {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id}
+  {id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:false,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})},
+  {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id},
+  ...(staleNeck?[{id:'stale-neck',name:'คอเก่า',kind:'neck-fit',hairHeadId:'fixture-head',source:stalePatch.toDataURL(),sourceFrame:{x:400,y:frame.y+frame.h*.18,w:100,h:40}}]:[])
  ]}
  templates={[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
  collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]} maleHair={[]} femaleHair={[]}

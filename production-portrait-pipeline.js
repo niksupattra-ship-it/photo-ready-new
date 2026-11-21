@@ -1,3 +1,4 @@
+import {usesThaiSingleCollar,thaiSingleCollarInstruction} from './thai-single-collar-policy.js';
 import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction,usesThaiIdentityLockedHead,thaiIdentityLockInstruction,usesThaiAdaptiveHead,usesThaiFaceShapeLock,thaiFaceShapeLockInstruction} from './thai-outfit-ai-policy.js';
 import {parseThaiAdaptiveFace,thaiAdaptiveHeadProfile,thaiAdaptiveProportionInstruction} from './thai-adaptive-proportion.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
@@ -602,6 +603,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(thaiAdaptive)prompt+=thaiAdaptiveProportionInstruction(layoutProfile,thaiFace);
  if(usesThaiIdentityLockedHead(fields))prompt+=thaiIdentityLockInstruction();
  if(usesThaiFaceShapeLock(fields))prompt+=thaiFaceShapeLockInstruction();
+ if(usesThaiSingleCollar(fields))prompt+=thaiSingleCollarInstruction(outfitIndex);
  if(thaiSingleAi)prompt+=`
  THAI FULL-OUTFIT V8 — REAL-SOURCE GEOMETRY, ONE GARMENT:
  No mannequin, composited head, scale template or separate neck photo was supplied. Any instruction above asking to copy or shrink an unseen composition guide is inapplicable. Infer a real frontal head, neck, shoulder and torso from the ORIGINAL person's identity and the selected garment; do not carry over the uploaded image's crop size or selfie perspective. The generated portrait must keep the entire real face, natural hair crown, both full shoulders and the selected garment to its lower edge, all at one camera distance.
