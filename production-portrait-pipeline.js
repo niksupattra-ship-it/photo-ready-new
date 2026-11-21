@@ -1,4 +1,4 @@
-import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit} from './thai-outfit-ai-policy.js';
+import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction} from './thai-outfit-ai-policy.js';
 import {ENGLISH_CIVIL_SERVICE_TEMPLATE,ENGLISH_CIVIL_SERVICE_FABRIC_VERSION,ENGLISH_CIVIL_SERVICE_FABRIC_POLICY} from './english-civil-service-outfit.js';
 import {ENGLISH_OUTFIT_FIDELITY_VERSION,createEnglishOutfitDetailReference,englishOutfitFidelityInstruction} from './english-outfit-fidelity.js';
 import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from './english-body-layout.js';
@@ -531,6 +531,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   chosen&&!keepCurrentHair?englishSelectedHairReference({selected:chosen,hair,root}):Promise.resolve(hair||autoFemaleHairSource),
   fit?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
  ]);
+ const thaiCalibrated=templateBody&&usesThaiCalibratedHead(fields);
  const identityLayout=!thaiSingleAi&&usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
  const identityReference=identityLayout?null:identity;
  // Only NEW English female v2 jobs receive the better-proportioned head.
@@ -540,10 +541,10 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const legacyV9=templateBody&&fields.englishStudioFinishVersion===ENGLISH_TEMPLATE_BODY_FINISH_VERSION;
  const newEnglishProfile=balancedFemale?ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE:matchedFemale?ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE:legacyV9?(selected.gender==='male'?ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE:ENGLISH_TEMPLATE_PROPORTION_PROFILE):null;
  const legacyV8Profile=templateBody&&fields.englishStudioFinishVersion==='en-body-proportion-lock-v8'?{identityHeadScale:.84,chinToCollar:.045,neckToShoulder:.24,chestToShoulder:.42}:null;
- const layoutProfile=newEnglishProfile||legacyV8Profile;
- const identityHeadScale=fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
+ const layoutProfile=thaiCalibrated?thaiOutfitCalibratedProfile(selected.gender):newEnglishProfile||legacyV8Profile;
+ const identityHeadScale=thaiCalibrated?layoutProfile.identityHeadScale:fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
  const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
- const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile}:layoutProfile?{profile:layoutProfile}:undefined;
+ const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,...(thaiCalibrated?{fixedIdentityEnvelope:true}:{})}:layoutProfile?{profile:layoutProfile}:undefined;
  // Thai v7 generates a single coherent garment/neck directly from the
  // immutable uploaded photo and a separate outfit reference. No pre-AI
  // composition of a surrogate neck, copied face, or PNG clothing is sent.
@@ -553,7 +554,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const outfitIndex=2+Number(Boolean(visualHairReference))+Number(Boolean(identityReference)),hairFitIndex=hairPlacementReference?outfitIndex+Number(!headOnly):null;
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  const makeupFinish=singlePass&&fields.femaleEyeStyle==='makeup';
- let prompt=thaiSingleAi?englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:null,naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY}):templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ let prompt=thaiSingleAi?englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:null,naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY}):templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile),maleBodyBalance:Boolean(legacyV9&&selected.gender==='male'),femaleBodyBalance:matchedFemale,femaleBalancedHead:balancedFemale,makeupFinish,thaiStandard:thaiCalibrated}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  const outfitDetailReference=!headOnly&&fields.englishOutfitFidelityVersion===ENGLISH_OUTFIT_FIDELITY_VERSION?await createEnglishOutfitDetailReference(originalOutfit):null;
  const makeupStudioReference=makeupFinish?await loadMakeupStudioReference(root):null;
  if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference].filter(Boolean).length);
@@ -574,6 +575,9 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // and move genuine long hair behind the shoulders, never across the jacket.
  if(usesThaiHistoricOutfitPrompt(fields))prompt+=thaiOutfitAppearanceInstruction({outfitIndex,detailIndex:outfitDetailIndex});
  if(usesThaiEnglishParityOutfit(fields))prompt+=thaiEnglishParityRearHairInstruction();
+ // Thai v9 adjusts the composition guide, not generated pixels. An additional
+ // final camera instruction keeps source selfie zoom from overriding the guide.
+ if(thaiCalibrated)prompt+=thaiCalibratedHeadInstruction(selected.gender);
  if(thaiSingleAi)prompt+=`
  THAI FULL-OUTFIT V8 — REAL-SOURCE GEOMETRY, ONE GARMENT:
  No mannequin, composited head, scale template or separate neck photo was supplied. Any instruction above asking to copy or shrink an unseen composition guide is inapplicable. Infer a real frontal head, neck, shoulder and torso from the ORIGINAL person's identity and the selected garment; do not carry over the uploaded image's crop size or selfie perspective. The generated portrait must keep the entire real face, natural hair crown, both full shoulders and the selected garment to its lower edge, all at one camera distance.
