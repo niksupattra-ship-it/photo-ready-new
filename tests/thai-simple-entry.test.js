@@ -198,3 +198,26 @@ test('Thai Step 2 matches approved photo-first desktop and mobile mockup without
  assert(ui.includes("resultReadyPage?<div className=\"thai-mobile-result-heading\""),'Result page remains its established design');
  assert(ui.includes('onClick={onDownload}'),'Purchase and download action is unchanged');
 });
+
+
+test('Thai Step 4 processing matches approved white-purple progress card with live percentage and unchanged cancel',async()=>{
+ const ui=await read('src/thai-mobile-journey.jsx');
+ const css=await read('src/thai-mobile-journey.css');
+ const processingStart=ui.indexOf('</section>:processing?<section className="thai-mobile-processing"');
+ const processingEnd=ui.indexOf('</section>:!hasResult?',processingStart);
+ assert(processingStart>0&&processingEnd>processingStart,'Step 4 is independently scoped between upload and selection');
+ const processing=ui.slice(processingStart,processingEnd);
+ for(const phrase of ['ขั้นตอน 4 / 8','กำลังสร้างรูป...','AI กำลังประมวลผลรูปของคุณ','ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ','thai-mobile-processing-card','thai-mobile-processing-ring','thai-mobile-processing-meter'])
+  assert(processing.includes(phrase),phrase);
+ assert(ui.includes("+(processingPage?' thai-mobile-flow-processing':'')"),'Only processing screen receives this theme');
+ assert(ui.includes("resultReadyPage||choicePage||processingPage"),'Processing header shows matching ID Prom Thai brand');
+ assert(ui.includes('const shownProgress=Number.isFinite(progress)?Math.min(99,Math.max(0,Math.floor(progress))):0;'),'UI uses real bounded progress, not a fake timer');
+ assert(processing.includes('aria-valuenow={shownProgress}')&&processing.includes('style={{width:shownProgress+'), 'Circular and linear progress use the same actual value');
+ assert(processing.includes('onClick={onCancelProcess}'),'Existing cancellation callback must not change');
+ assert(!processing.includes('setTimeout(')&&!processing.includes('onGenerateHair'),'Progress UI must never trigger another AI request');
+ assert(css.includes('Approved Thai Step 4 processing mockup'));
+ assert(css.includes('.thai-mobile-flow-processing .thai-mobile-processing-card'));
+ assert(css.includes('.idstudio .thai-mobile-flow-processing .thai-mobile-processing button.thai-mobile-processing-cancel'));
+ assert(css.includes('@media(max-width:720px)'),'New processing card must fit narrow screens');
+ assert(ui.includes('thai-mobile-choice-photo-wrap')&&ui.includes('thai-mobile-result-download'),'Choice and checkout/results screens remain available');
+});
