@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {dirname,resolve} from 'node:path';
 import {
  easyGovernmentReferencePreset,easyGovernmentPhotoFallback,easyGovernmentInsigniaFit,
- governmentInsigniaPreset
+ governmentInsigniaPreset,governmentPngTemplatePlacement
 } from '../src/government-insignia-fit.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -91,4 +91,20 @@ test('Thai Easy accommodates different torso sizes while never scaling the offic
  const editor=await readFile(resolve(root,'src/studio-editor.jsx'),'utf8');
  assert(editor.includes('const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null'),
   'Easy placement only; Studio reference unchanged');
+});
+
+test('Native government PNG anchors are stable across photos and do not scan background pixels',()=>{
+ const makeSuit=(path)=>({templatePath:path,visible:true,sourceFrame:{x:104,y:450,w:700,h:690},x:12,y:-6,scale:1.1,rotation:0});
+ const suit=makeSuit('/assets/government-uniforms/female-operational.png');
+ const p=governmentPngTemplatePlacement(suit,'female');
+ assert(p);
+ assert.equal(p.confidence,'png-template-anchor');
+ assert.equal(p.needsReview,true,'Unapproved source templates must not claim pixel-perfect fit');
+ assert.equal(p.frame.x,104);
+ assert(p.preset.ribbon.x+p.preset.ribbon.width/2<=.981);
+ assert.equal(governmentPngTemplatePlacement({...suit,visible:false},'female'),null);
+ assert.equal(governmentPngTemplatePlacement({...suit,warpSource:'edited'},'female'),null);
+ assert.equal(governmentPngTemplatePlacement(makeSuit('/assets/job-uniforms/female-formal-suit.png'),'female'),null);
+ const male=governmentPngTemplatePlacement(makeSuit('/assets/government-uniforms/male-operational.png'),'male');
+ assert(male.preset.collar.right-male.preset.collar.left<.2);
 });
