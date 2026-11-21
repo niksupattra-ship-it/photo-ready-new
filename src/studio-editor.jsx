@@ -1939,37 +1939,54 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const resultInsigniaHandles=governmentResult&&easyMode?layers.filter(l=>['collar','chest','ribbon'].includes(layerKind(l))&&l.visible&&!l.locked).flatMap(l=>{
   const asset=assets.current.get(l.id);
   if(!asset)return [];
-  const bounds=asset.parts&&!asset.warped?unionPinBounds(pinBoxes(l,asset).map(entry=>entry.box)):getBounds(asset,asset.warped||asset.original);
-  if(!bounds)return [];
-  const corners=[{x:bounds.x,y:bounds.y},{x:bounds.x+bounds.w,y:bounds.y},{x:bounds.x,y:bounds.y+bounds.h},{x:bounds.x+bounds.w,y:bounds.y+bounds.h}].map(p=>layerToScene(l,p));
-  const minX=Math.max(0,Math.min(...corners.map(p=>p.x))),maxX=Math.min(W,Math.max(...corners.map(p=>p.x)));
-  const minY=Math.max(0,Math.min(...corners.map(p=>p.y))),maxY=Math.min(H,Math.max(...corners.map(p=>p.y)));
-  if(maxX<=minX||maxY<=minY)return [];
-  return [{kind:layerKind(l),box:{x:minX,y:minY,w:maxX-minX,h:maxY-minY}}];
+  // Collar pins are individually editable, matching Studio's left/right
+  // native parts. The pair is never silently fused into one draggable block.
+  const boxes=asset.parts&&!asset.warped?pinBoxes(l,asset).map(entry=>({id:'collar-'+entry.side,bounds:entry.box}))
+   :[{id:layerKind(l),bounds:getBounds(asset,asset.warped||asset.original)}];
+  return boxes.flatMap(({id,bounds})=>{
+   if(!bounds)return [];
+   const corners=[{x:bounds.x,y:bounds.y},{x:bounds.x+bounds.w,y:bounds.y},{x:bounds.x,y:bounds.y+bounds.h},{x:bounds.x+bounds.w,y:bounds.y+bounds.h}].map(p=>layerToScene(l,p));
+   const minX=Math.max(0,Math.min(...corners.map(p=>p.x))),maxX=Math.min(W,Math.max(...corners.map(p=>p.x)));
+   const minY=Math.max(0,Math.min(...corners.map(p=>p.y))),maxY=Math.min(H,Math.max(...corners.map(p=>p.y)));
+   if(maxX<=minX||maxY<=minY)return [];
+   return [{id,kind:layerKind(l),box:{x:minX,y:minY,w:maxX-minX,h:maxY-minY}}];
+  });
  }):[];
- const resultInsigniaStart=kind=>{
+ const resultInsigniaKind=id=>id==='collar-left'||id==='collar-right'?'collar':id;
+ const resultInsigniaStart=id=>{
   if(!ready||blockingAssetBusy||processActive||!easyMode)return;
-  const layer=state.current.find(l=>layerKind(l)===kind&&l.visible&&!l.locked);
+  const layer=state.current.find(l=>layerKind(l)===resultInsigniaKind(id)&&l.visible&&!l.locked);
   if(!layer)return;
   flushTransforms();remember();
   selectedRef.current=layer.id;setSelected(layer.id);
  };
- const resultInsigniaTransform=(kind,{dx=0,dy=0,scaleRatio=1}={})=>{
+ const resultInsigniaTransform=(id,{dx=0,dy=0,scaleRatio=1}={})=>{
   if(!ready||blockingAssetBusy||processActive||!easyMode)return;
-  const layer=state.current.find(l=>layerKind(l)===kind&&l.visible&&!l.locked);
+  const layer=state.current.find(l=>layerKind(l)===resultInsigniaKind(id)&&l.visible&&!l.locked);
   if(!layer||![dx,dy,scaleRatio].every(Number.isFinite))return;
   const ratio=Math.max(.7,Math.min(1.3,scaleRatio));
-  const nextScale=Math.max(.2,Math.min(3.5,(layer.scale||1)*ratio));
-  const rescaled=Math.abs(nextScale-(layer.scale||1))>.0001?scaleAroundCenter(layer,nextScale):{x:layer.x||0,y:layer.y||0};
-  const updated={...layer,scale:nextScale,
-   x:Math.max(-W,Math.min(W,(rescaled.x??layer.x??0)+dx)),
-   y:Math.max(-H,Math.min(H,(rescaled.y??layer.y??0)+dy))};
+  let updated;
+  if(id==='collar-left'||id==='collar-right'){
+   // Convert scene displacement to local collar offsets exactly as Studio does.
+   const side=id==='collar-left'?'Left':'Right';
+   const origin=sceneToLayer(layer,{x:450,y:600});
+   const shifted=sceneToLayer(layer,{x:450+dx,y:600+dy});
+   const x='collar'+side+'X',y='collar'+side+'Y',size='collar'+side+'Scale';
+   updated={...layer,[x]:Math.max(-900,Math.min(900,(layer[x]||0)+shifted.x-origin.x)),
+    [y]:Math.max(-1200,Math.min(1200,(layer[y]||0)+shifted.y-origin.y)),
+    [size]:Math.max(.2,Math.min(3.5,(layer[size]??1)*ratio))};
+  }else{
+   const nextScale=Math.max(.2,Math.min(3.5,(layer.scale||1)*ratio));
+   const rescaled=Math.abs(nextScale-(layer.scale||1))>.0001?scaleAroundCenter(layer,nextScale):{x:layer.x||0,y:layer.y||0};
+   updated={...layer,scale:nextScale,
+    x:Math.max(-W,Math.min(W,(rescaled.x??layer.x??0)+dx)),
+    y:Math.max(-H,Math.min(H,(rescaled.y??layer.y??0)+dy))};
+  }
   const next=state.current.map(l=>l.id===layer.id?updated:l);
   state.current=next;setLayers(next);setRevision(v=>v+1);
   drawNow();
  };
  const resultInsigniaEnd=()=>{flushTransforms();setRevision(v=>v+1)};
-
  const easyInsignia=insigniaForLanguage()&&(governmentResult?governmentInsigniaUi:<section>{[['collar','เข็มปกคอ',collarPins],['chest','เข็มติดอก',chestPins],['ribbon','แพรแถบ',ribbons]].map(([kind,label,options])=><div key={kind}><h3>{label}</h3><div className="easy-rail"><button disabled={blockingAssetBusy||processActive} onClick={()=>selectAsset(kind,null)}>ไม่ติด</button>{options.map(o=><button key={o.id} disabled={blockingAssetBusy||processActive} onClick={()=>selectAsset(kind,o)}><CatalogPreview src={o.left||o.src||o.preview} assetKind={kind} assetOption={o}/><small>{o.name}</small></button>)}</div></div>)}</section>);
  const easyHasResult=outputHeads(layers).some(l=>l.kind!=='source-photo');
  const selectEasyPhotoType=mode=>{if(!sourcePhoto||easyHasResult||assetBusy||processActive||!['female','male'].includes(mode))return;trackPhotoType(mode,'select');setPortraitMode(mode);setHairGender(mode);setEasyPhotoTypeSelected(true);setEasyFaceFinish(mode==='female'?'makeup':'natural');setThaiChoiceFlow(null);setThaiPendingHair(null);setThaiHairFinishChoice(null);sourcePhoto.idpromFemaleEyeStyle=mode==='female'?'makeup':'natural';setPortraitChoiceOpen(false);setFemaleFinishChoiceOpen(false);setProcessHairPending(true);pendingHairProcessRef.current=null;setSelectedHair(firstGenerationHairFor(mode));setPicker(false);setStatus('เลือกชนิดรูปแล้ว · เลือกชุดและพื้นหลังได้เลย ระบบใช้ทรงผมเริ่มต้นอัตโนมัติ')};
