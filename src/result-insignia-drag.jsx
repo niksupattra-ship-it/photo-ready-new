@@ -37,7 +37,9 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   if(!target)return;
   if(!gesture.current){
    const mode=grip?'resize':'move';
-   gesture.current={id:target.id||target.kind,mode,last:null};
+   gesture.current={id:target.id||target.kind,mode,last:null,center:{
+    x:target.box.x+target.box.w/2,y:target.box.y+target.box.h/2
+   }};
    setActive(target.id||target.kind);onStart?.(target.id||target.kind);
   }
   e.preventDefault();e.stopPropagation();
@@ -53,8 +55,13 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   pointers.current.set(e.pointerId,p);
   const after=step();if(!before||!after){g.last=after;return}
   const multi=pointers.current.size>=2;
+  // Match Studio shape-scale: the selected corner changes the entire asset
+  // uniformly by its DISTANCE FROM THE ASSET CENTER. Dragging toward the
+  // center shrinks; dragging away enlarges (unlike the old diagonal arrow).
+  const studioDistance=p=>distance(p,g.center);
   const scaleRatio=multi&&before.dist>8?clamp(after.dist/before.dist,.65,1.5)
-   :g.mode==='resize'?clamp(1+((after.center.x-before.center.x)+(after.center.y-before.center.y))*0.009,.7,1.3):1;
+   :g.mode==='resize'&&studioDistance(before.center)>4
+    ?clamp(studioDistance(after.center)/studioDistance(before.center),.7,1.3):1;
   const dx=multi||g.mode==='move'?after.center.x-before.center.x:0;
   const dy=multi||g.mode==='move'?after.center.y-before.center.y:0;
   if(Math.abs(dx)+Math.abs(dy)>.01||Math.abs(scaleRatio-1)>.001)onTransform?.(g.id,{dx,dy,scaleRatio});
@@ -80,7 +87,19 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
     const width=clamp(box.w/W*100,1,100-left),height=clamp(box.h/H*100,1,100-top);
     return <div key={id||kind} className={'thai-result-insignia-handle'+(active===(id||kind)?' active':'')}
       data-kind={id||kind} style={{left:left+'%',top:top+'%',width:width+'%',height:height+'%'}}>
-      {active===(id||kind)&&<span className="thai-result-insignia-grip" data-insignia-resize="true" role="img" aria-label="ลากเพื่อย่อขยายเครื่องหมาย">↘</span>}
+      {active===(id||kind)&&['nw','ne','se','sw'].map((corner,index)=>
+       <span key={corner} className={'thai-result-insignia-grip thai-result-insignia-corner-'+corner}
+        data-insignia-resize={corner} role="button" tabIndex={0}
+        aria-label={'ปรับขนาดเครื่องหมายมุม '+(index+1)}
+        onKeyDown={e=>{
+         if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))return;
+         e.preventDefault();e.stopPropagation();
+         const pinId=id||kind,ratio=['ArrowUp','ArrowRight'].includes(e.key)?1.025:.975;
+         onStart?.(pinId);onTransform?.(pinId,{dx:0,dy:0,scaleRatio:ratio});onEnd?.(pinId);
+        }}>
+        <span className="thai-result-insignia-studio-dot" aria-hidden="true"/>
+       </span>
+      )}
     </div>;
    })}
  </div>;
