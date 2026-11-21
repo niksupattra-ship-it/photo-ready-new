@@ -394,9 +394,19 @@ export function measureGovernmentShoulderGeometry(image){
   return data[k+3]>190 && r>166 && g>166 && b>166 &&
    Math.max(r,g,b)-Math.min(r,g,b)<55;
  };
- // The shoulder line is the earliest broad, symmetric stretch of garment.
- // Search only the torso band so pale foreheads and pale backgrounds do not
- // masquerade as the uniform.
+ // White fabric cannot be separated from a flat white background by colour.
+ // Transparent template exteriors do not pass this check; opaque white-wall
+ // portraits use the existing editable template/photo fallback instead.
+ let upperWhite=0,upperTotal=0;
+ for(let y=Math.round(h*.16);y<h*.36;y+=Math.max(6,Math.floor(h/30))){
+  for(const x of [w*.03,w*.10,w*.90,w*.97]){
+   upperTotal++;if(pale(x,y))upperWhite++;
+  }
+ }
+ if(upperWhite>upperTotal*.25)return null;
+ // First collect the visible torso extents. A narrow collar is often the
+ // first stable white region, but is NOT the shoulder span: using it makes
+ // every accessory half-sized and pulls the pins onto the tie/neck.
  const rows=[];
  const step=Math.max(2,Math.floor(h/320));
  for(let y=Math.round(h*.38);y<Math.round(h*.78);y+=step){
@@ -416,15 +426,19 @@ export function measureGovernmentShoulderGeometry(image){
   const span=right-left;
   const mid=(left+right)/2;
   if(span<w*.30||span>w*.95||Math.abs(mid-w/2)>w*.12)continue;
+  const coverage=bands.reduce((sum,[a,b])=>sum+b-a,0);
+  if(coverage<span*.32)continue;
   rows.push({y,left,right,span});
  }
  if(rows.length<5)return null;
- // The shoulder width is estimated near the first stable broad jacket rows,
- // not at the bottom where sleeves swell to the edges.
- const top=rows.find((r,i)=>i+2<rows.length&&
-  rows.slice(i,i+3).every(q=>q.span>=r.span*.84&&q.span<=r.span*1.28));
- if(!top)return null;
- const near=rows.filter(r=>r.y>=top.y&&r.y<=top.y+h*.065);
+ const widths=rows.map(r=>r.span).sort((a,b)=>a-b);
+ const broad=widths[Math.floor((widths.length-1)*.90)];
+ const base=rows.find((r,i)=>r.span>=broad*.90&&i+2<rows.length&&
+  rows.slice(i,i+3).every(q=>q.y-r.y<=step*3&&q.span>=broad*.88&&q.span<=r.span*1.15));
+ if(!base)return null;
+ // Use the beginning of the broad torso band rather than the bottom where
+ // sleeves swell to the frame edges. This also works for a narrower crop.
+ const near=rows.filter(r=>r.y>=base.y&&r.y<=base.y+h*.035&&r.span>=broad*.88);
  if(!near.length)return null;
  const ordered=near.map(r=>r.span).sort((a,b)=>a-b);
  const span=ordered[Math.floor(ordered.length/2)];
@@ -432,13 +446,51 @@ export function measureGovernmentShoulderGeometry(image){
  const cx=center[Math.floor(center.length/2)];
  const left=cx-span/2,right=cx+span/2;
  if(left<0||right>w)return null;
- return {left,right,top:top.y,width:span,confidence:'shoulder-pixels'};
+ // Gold epaulettes obscure the outer white shoulder edge. Locate the
+ // shoulder origin independently on the two inner fabric panels, then use
+ // the full measured shoulder span for all reference distances and sizes.
+ const panelTop=fraction=>{
+  const samples=[];
+  for(const offset of [-.01,0,.01]){
+   const px=left+span*(fraction+offset);
+   for(let y=Math.max(Math.round(h*.35),base.y-Math.round(h*.14));y<=base.y;y+=step){
+    let hits=0;
+    for(const dx of [-4,0,4])for(const dy of [0,3,6])if(pale(px+dx,y+dy))hits++;
+    if(hits>=6){samples.push(y);break}
+   }
+  }
+  if(samples.length<2)return null;
+  samples.sort((a,b)=>a-b);return samples[Math.floor(samples.length/2)];
+ };
+ const topLeft=panelTop(.30),topRight=panelTop(.70);
+ if(topLeft===null||topRight===null||Math.abs(topLeft-topRight)>h*.10)return null;
+ const top=(topLeft+topRight)/2;
+ const widthSpread=(Math.max(...near.map(r=>r.span))-Math.min(...near.map(r=>r.span)))/span;
+ return {left,right,top,width:span,confidence:'shoulder-pixels',
+  stable:widthSpread<=.13&&Math.abs(topLeft-topRight)<=span*.035};
 }
 export function governmentReferenceLandmarkFit(image,gender='female',templatePath=''){
  const g=measureGovernmentShoulderGeometry(image);
  if(!g)return null;
  const h=image.height,w=image.width;
- const ref=GOVERNMENT_REFERENCE_GEOMETRY;
+ const type=easyGovernmentCollarType(templatePath,gender);
+ // A standing collar sits around the centre placket, not on the outer
+ // female lapels. Reference offsets are measured from the same shoulder
+ // origin and remain dimensionless across every resulting photo size.
+ const male=gender==='male';
+ const ref=type==='stand'?{
+  collar:{left:.440,right:.560,down:.028,width:.055},
+  chest:{x:.265,down:.245,width:.074},
+  ribbon:{x:.737,down:.230,width:.230}
+ }:type==='shirt'?{
+  collar:{left:.370,right:.630,down:.055,width:.052},
+  chest:{x:male?.265:.198,down:male?.245:.315,width:.074},
+  ribbon:{x:male?.737:.806,down:male?.230:.288,width:.230}
+ }:male?{
+  collar:{left:.325,right:.675,down:.084,width:.055},
+  chest:{x:.265,down:.245,width:.074},
+  ribbon:{x:.737,down:.230,width:.230}
+ }:GOVERNMENT_REFERENCE_GEOMETRY;
  const frame={x:g.left,y:g.top,w:g.width,h:h-g.top};
  const posX=value=>(g.width*value)/frame.w;
  const posY=value=>(g.width*value)/frame.h;
@@ -460,7 +512,29 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  // If the predicted locations miss the garment, do not pretend accuracy.
  const valid=points.every(p=>p.x>0&&p.x<w&&p.y>0&&p.y<h);
  if(!valid)return null;
+ // A registered uniform plus measured landmarks can be ready immediately
+ // only when the complete badge footprints are supported by light fabric.
+ // Gold badges already baked into an example, ambiguous folds and cropped
+ // positions remain editable/reviewable instead of claiming confidence.
+ const fabricSupport=(point,widthRatio,heightRatio,topAligned=false)=>{
+  const bw=g.width*widthRatio,bh=bw*heightRatio;
+  const cy=point.y+(topAligned?bh/2:0);
+  let hits=0,total=0;
+  for(const dx of [-.45,-.22,0,.22,.45])for(const dy of [-.45,-.22,0,.22,.45]){
+   const x=Math.round(point.x+dx*bw),y=Math.round(cy+dy*bh);total++;
+   if(x<0||x>=w||y<0||y>=h)continue;
+   const k=(y*w+x)*4,r=image.data[k],gg=image.data[k+1],b=image.data[k+2];
+   if(image.data[k+3]>190&&r>166&&gg>166&&b>166&&Math.max(r,gg,b)-Math.min(r,gg,b)<55)hits++;
+  }
+  return hits/total;
+ };
+ const support=[fabricSupport(points[0],collar.width,1.25),
+  fabricSupport(points[1],collar.width,1.25),
+  fabricSupport(points[2],chest.width,1.15),
+  fabricSupport(points[3],ribbon.width,.36,true)];
+ const known=Boolean(GOVERNMENT_TEMPLATE_ANCHORS[String(templatePath).split('?')[0]]);
+ const needsReview=!known||!g.stable||support.some(value=>value<.84);
  return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
-  needsReview:true,collarType:easyGovernmentCollarType(templatePath,gender),
+  needsReview,collarType:type,
   measuredShoulder:g,referenceGeometryVersion:'reference-shoulder-v1'};
 }

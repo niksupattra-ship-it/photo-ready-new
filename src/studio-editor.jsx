@@ -66,6 +66,8 @@ import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
 import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,governmentReferenceLandmarkFit} from './government-insignia-fit.js';
+import {governmentResultInsigniaSignature,sameGovernmentResultInsigniaSignature} from './government-result-insignia-cache.js';
+import {governmentResultManualInsigniaPlacement} from './government-result-insignia-placement.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
 import {TouchParts,TouchAdjust,partName} from './studio-touch.jsx';
 import {StudioChoiceIcon,StudioToolIcon,StudioHistoryIcon} from './studio-icons.jsx';
@@ -1090,13 +1092,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   request.firstPaint=displayed.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   return request;
  };
- const beginInsigniaPreview=(kind,option,target,suit,frame,preset)=>{
+ const beginInsigniaPreview=(kind,option,target,suit,frame,preset,preserveResultPlacement=false)=>{
   const previous=suitRequestRef.current;if(previous){previous.cancel();previous.preview?.release()}
   const request=createSuitPreviewRequest();suitRequestRef.current=request;setSuitSelecting(kind+':'+option.id);
   request.firstPaint=new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   void nativeAssetPreview(kind,option,frame,preset).then(native=>{
    if(!native)return;
-   const preview=createAssetDisplayPreview(kind,target,option,native,suit);
+   const preview=createAssetDisplayPreview(kind,target,option,native,suit,{preserveResultPlacement});
    if(!mounted.current||suitRequestRef.current!==request||request.phase!=='loading'){preview.release();return}
    request.preview=preview;drawNow();
   }).catch(()=>{});
@@ -1241,21 +1243,20 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const head=governmentImageHead;
   if(!head)return null;
   const suit=state.current.find(l=>layerKind(l)==='suit'&&l.visible);
-  const cacheKey=JSON.stringify([head.id,head.jobId,head.hairId,head.source?.length,
-   head.generatedOutfitTemplate,suit?.id,suit?.templatePath,
-   suit?.sourceFrame,suit?.x,suit?.y,suit?.scale,hairGender]);
-  if(easyGovernmentInsigniaFitRef.current?.key===cacheKey)return easyGovernmentInsigniaFitRef.current.fit;
-  const sampled=canvas();
-  let fit=null;
   const gender=head.portraitMode||hairGender;
   const selectedTemplate=head.generatedOutfitTemplate||suit?.templatePath||governmentTemplate||'';
+  const garment=suit?.visible&&assets.current.get(suit.id)?suit:head;
+  const garmentAsset=assets.current.get(garment.id);
+  const signature=governmentResultInsigniaSignature({head,suit,garment,gender,template:selectedTemplate,asset:garmentAsset});
+  if(sameGovernmentResultInsigniaSignature(easyGovernmentInsigniaFitRef.current?.signature,signature))return easyGovernmentInsigniaFitRef.current.fit;
+  const sampled=canvas();
+  let fit=null;
   // Always measure the finished photo first. The sample includes the garment
   // pixels, but never already-added badges, so changing badge selections
   // cannot change the garment landmarks.
   try{
    const ctx=sampled.getContext('2d',{willReadFrequently:true});
-   const garment=suit?.visible&&assets.current.get(suit.id)?suit:head;
-   if(!assets.current.get(garment.id))throw Error('government_garment_unavailable');
+   if(!garmentAsset)throw Error('government_garment_unavailable');
    paintLayers(ctx,[garment],assets.current,state.current);
    const pixels=ctx.getImageData(0,0,W,H);
    fit=governmentReferenceLandmarkFit(pixels,gender,selectedTemplate);
@@ -1268,7 +1269,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   // rather than claiming that a fixed coordinate is detected from the image.
   if(!fit)fit=easyGovernmentPhotoFallback(W,H,gender,selectedTemplate);
   if(fit?.referenceGeometryVersion!=='reference-shoulder-v1')fit=balanceEasyGovernmentBadgeSizes(fit);
-  easyGovernmentInsigniaFitRef.current={key:cacheKey,fit};
+  easyGovernmentInsigniaFitRef.current={signature,fit};
   return fit;
  };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false,governmentAutoPlace=false,resultInsigniaDirect=false}={})=>{
@@ -1319,7 +1320,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     const path=suit?.templatePath||p?.templatePath||'';
     const female=/female-/.test(path),base=STUDIO_ACCESSORY_PLACEMENT[female?'female':'male'];
     const preset=easyFit?.preset||(measuredFrame?governmentInsigniaPreset(measuredFrame,governmentImageHead?.portraitMode||hairGender):{...base,collar:{...base.collar,width:base.collar.width*(female?.9*.85*1.08*1.09:1)*.8,y:base.collar.y-4/frame.h,left:base.collar.left+(female?.025-2/frame.w:14/frame.w),right:base.collar.right-(female?.025-2/frame.w:14/frame.w)},chest:{...base.chest,width:base.chest.width*(female?1:.85),x:base.chest.x+(female?.035:49/frame.w),y:base.chest.y-(female?0:.02)},ribbon:{...base.ribbon,x:base.ribbon.x-(female?.055:3/frame.w),width:base.ribbon.width*(female?.95:1),top:base.ribbon.top-(female?0:.02)}});
-    if(['collar','chest','ribbon'].includes(kind)){request=beginInsigniaPreview(kind,option,target,measuredFrame?null:suit,frame,preset);await request.wait(request.firstPaint)}
+    if(['collar','chest','ribbon'].includes(kind)){request=beginInsigniaPreview(kind,option,target,measuredFrame?null:suit,frame,preset,resultInsigniaDirect);await request.wait(request.firstPaint)}
     const loading=nativeAsset(kind,option,frame,preset),native=request?await request.wait(loading):await loading;collarParts=native.collarParts;
     const nativeSuitFrame=kind==='suit'&&!englishFlow?nativeSuitAspectFrame(suit?.sourceFrame||restoredSuit?.sourceFrame||native.sourceFrame,native.source):null;
     const created={...(target||fresh({name:ASSET_NAMES[kind],source:native.source})),...(kind==='suit'&&restoredSuit?restoredSuit:{}),kind,source:native.source,sourceFrame:kind==='suit'?(nativeSuitFrame||target?.sourceFrame||restoredSuit?.sourceFrame||native.sourceFrame):native.sourceFrame,
@@ -1341,14 +1342,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
      // Preserve a correction the user actually dragged in Easy Mode if they
      // swap one rank/insignia for another of the same category.
      const manuallyAdjusted=Boolean(resultInsigniaDirect&&target?.easyInsigniaManualPlacement);
-     Object.assign(created,manuallyAdjusted?{
-      x:target.x||0,y:target.y||0,scale:target.scale||1,rotation:target.rotation||0,
-      squeezeX:1,squeezeY:1,collarLeftX:target.collarLeftX||0,
-      collarLeftY:target.collarLeftY||0,collarRightX:target.collarRightX||0,
-      collarRightY:target.collarRightY||0,
-      collarLeftScale:target.collarLeftScale||1,collarRightScale:target.collarRightScale||1,
-      easyInsigniaManualPlacement:true
-     }:{x:0,y:0,scale:1,rotation:0,squeezeX:1,squeezeY:1,
+     Object.assign(created,manuallyAdjusted?governmentResultManualInsigniaPlacement(target):{x:0,y:0,scale:1,rotation:0,squeezeX:1,squeezeY:1,
       collarLeftX:0,collarLeftY:0,collarRightX:0,collarRightY:0,
       collarLeftScale:1,collarRightScale:1,easyInsigniaManualPlacement:false});
     }

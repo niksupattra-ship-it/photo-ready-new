@@ -551,7 +551,7 @@ test('Easy result insignia pins align to measured jacket, preserve native propor
  assert(editor.includes('const easyFit=autoInsignia&&resultInsigniaDirect?measureEasyGovernmentInsigniaFit():null'));
  assert(editor.includes('const preset=easyFit?.preset||('),'Only Easy result placement uses the new correction');
  assert(editor.includes('fit=easyGovernmentPhotoFallback(W,H,gender,selectedTemplate)'),'Editable photo-reference fallback stays exclusive to Easy Mode');
- assert(editor.includes('easyGovernmentInsigniaFitRef.current?.key===cacheKey'),'Changing insignia cannot drift its anchors by measuring old badge pixels');
+ assert(editor.includes('sameGovernmentResultInsigniaSignature(easyGovernmentInsigniaFitRef.current?.signature,signature)'),'Unchanged garment pixels and geometry retain their anchors when changing insignia');
  assert(editor.includes('if(autoInsignia&&!measuredFrame&&!resultInsigniaDirect)'),'Original Studio fail-closed path remains untouched');
  const blank=new Uint8ClampedArray(data.length);blank.fill(255);
  assert.equal(easyGovernmentInsigniaFit({width:w,height:h,data:blank},'female'),null,'Never claim to see a uniform in a solid white backdrop');
@@ -673,13 +673,13 @@ test('Easy finished-photo insignia detection draws the actual portrait BEFORE sa
  const end=editor.indexOf('const selectAsset=async(',start);
  assert(start>=0&&end>start,'Result-only anchor reader must exist');
  const body=editor.slice(start,end);
- assert(body.includes("if(!assets.current.get(garment.id))"),'No detector result from a missing garment asset');
+ assert(body.includes('const garmentAsset=assets.current.get(garment.id)')&&body.includes('if(!garmentAsset)'),'No detector result from a missing garment asset');
  assert(body.includes('paintLayers(ctx,[garment],assets.current,state.current)'),'Actual completed photo must be painted before any image scan');
  assert(body.indexOf('paintLayers(ctx,[garment],assets.current,state.current)')<
   body.indexOf('ctx.getImageData(0,0,W,H)'),'Never analyze a blank canvas');
  assert(body.includes('head.generatedOutfitTemplate||suit?.templatePath'),'Use chosen uniform template to identify the collar type');
  assert(body.includes('governmentPngTemplatePlacement(suit,gender)')&&body.includes('easyGovernmentPhotoFallback(W,H,gender,selectedTemplate)'),'Low-confidence scan has editable fallbacks');
- assert(body.includes('easyGovernmentInsigniaFitRef.current={key:cacheKey,fit}'),'Reusing a symbol on same photo cannot shift its anchors');
+ assert(body.includes('easyGovernmentInsigniaFitRef.current={signature,fit}'),'Reusing a symbol on the same painted photo retains its measured anchors');
  // Studio's own unchanged strict scanner is deliberately independent.
  const studio=editor.slice(editor.indexOf('const measureGovernmentInsigniaFrame=()=>{'),start);
  assert(studio.includes('return detectWhiteGovernmentJacket('));
