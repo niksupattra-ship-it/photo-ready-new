@@ -5,14 +5,6 @@ import {hairPickerPreview} from './hair-picker-preview.js';
 import {ResultInsigniaDrag} from './result-insignia-drag.jsx';
 import './thai-mobile-journey.css';
 
-const ORIGINAL_FEMALE_PICKER_FACE='/assets/seedream-hairstyles/previews/14.webp';
-// Display-only: re-use the original website model face for all new presets.
-// These preview images never enter customer portrait generation.
-function HairExample({hair}){
- const shape=<EasyPreviewImage source={hair.src} preview={hairPickerPreview(hair.src)}/>;
- if(!hair.id?.startsWith('standard-female-'))return shape;
- return <span className="thai-standard-hair-preview">{shape}<EasyPreviewImage source={ORIGINAL_FEMALE_PICKER_FACE} preview={hairPickerPreview(ORIGINAL_FEMALE_PICKER_FACE)} className="thai-standard-hair-original-face"/></span>;
-}
 // Thai-only visual journey. All AI creation, access rights, checkout,
 // native PNG overlays and paid exports remain in the existing StudioEditor.
 export function ThaiMobileJourney({
@@ -178,7 +170,7 @@ export function ThaiMobileJourney({
         </div>
         <div className="thai-mobile-tile-row thai-mobile-hair-row thai-mobile-choice-tiles">
          {displayHairOptions.map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} aria-pressed={draftHair===h.id} disabled={busy||!hairUnlocked} onClick={()=>chooseHair(h)}>
-          <HairExample hair={h}/>
+          <EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/>
           <span>{h.name||'ทรงผม'}</span>
           {h.locked&&<small className="thai-mobile-choice-diamond">◆</small>}
           {draftHair===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}
@@ -236,7 +228,7 @@ export function ThaiMobileJourney({
       <div className="thai-mobile-result-photo-summary">{shownSuitLabel} · {shownHair?.name||'ทรงผมที่เลือก'}</div>
      </div>
      <div className="thai-mobile-hair-gallery thai-mobile-result-hair-choices" aria-label="ลองเปลี่ยนทรงผม">
-      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);setSection('hair')}}><HairExample hair={h}/><span>{h.name||'ทรงผม'}</span>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
+      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
      </div>
     </div>:preview}
     <div className="thai-mobile-result-controls">
@@ -258,7 +250,7 @@ export function ThaiMobileJourney({
      <h2>ลองทรงผมอื่นได้ โดยไม่ต้องเพิ่มรูปใหม่</h2>
      <div className="thai-mobile-tile-row thai-mobile-hair-row">
       {hairs.filter(h=>!h.disabled||h.locked).map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} disabled={busy} onClick={()=>chooseHair(h)}>
-       <HairExample hair={h}/><span>{h.name||'ทรงผม'}</span>{draftHair===h.id&&<b className="thai-mobile-tile-check">✓</b>}
+       <EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{draftHair===h.id&&<b className="thai-mobile-tile-check">✓</b>}
       </button>)}
      </div>
      <button type="button" className="thai-mobile-primary" disabled={!ready||busy||!changedHair||!choicesReady} onClick={()=>{setNotice('');actionAwaitingRef.current='hair';onConfirmHair?.()}}>สร้างรูปทรงนี้</button>

@@ -375,52 +375,40 @@ test('Thai Step 2 circular background choices use original Studio export layer w
  assert(!flow.slice(flow.indexOf('const pickBackground=option=>'),flow.indexOf('const selectGender=v=>')).includes('onGenerateHair'),'Colour selection does not charge for an AI call');
 });
 
-test('Thai hairstyle Step 2 immediately shows all three built-in standard women hairstyles after the free choices',async()=>{
- const main=await read('src/main.jsx'),ui=await read('src/thai-mobile-journey.jsx');
+test('Thai hairstyle picker replaces the old short free option with the existing female style 2 once',async()=>{
  const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
- const start=main.indexOf('const BASIC_MALE_HAIR_IDS='),end=main.indexOf('const JOB_UNIFORMS=[',start);
- assert(start>=0&&end>start,'Female hair menu must be the original Studio catalogue');
- const ordered=new Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_FEMALE_HAIR_IDS',main.slice(start,end)+'return STUDIO_FEMALE_HAIR_OPTIONS;')(PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS);
- const standardIds=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
- assert.deepEqual(ordered.slice(0,6).map(h=>h.id),THAI_FREE_FEMALE_HAIR_IDS);
- assert(standardIds.every(id=>ordered.some(h=>h.id===id&&h.promptOnly===true)),'All standard presets must be selectable');
- assert.match(ui,/selectedHairOptions\.slice\(0,moreHair\?selectedHairOptions\.length:6\)/,'All six primary hairstyles must be visible without expansion');
- assert.match(ui,/selectedHairOptions\.length>6/,'View all is offered only after visible options');
- assert.match(ui,/displayHairOptions\.map\(h=>/,'The actual choice panel renders that list');
- assert.match(ui,/onClick=\{\(\)=>chooseHair\(h\)\}/,'Each choice uses the existing click handler');
-});
-
-test('each Thai standard hairstyle has its own original preview, never the three older seedream thumbnails',async()=>{
- const {readFile:readBinary}=await import('node:fs/promises');
- const ids=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
- const expected=['half-up','gathered','straight'];
- const {PRODUCTION_HAIR_CATALOG}=await import('../hairstyle-catalog.js');
- const pics=[];
- for(let i=0;i<3;i++){
-  const style=PRODUCTION_HAIR_CATALOG.find(h=>h.id===ids[i]);
-  assert(style,'Missing standard hairstyle '+ids[i]);
-  assert.equal(style.promptOnly,true);
-  assert.equal(style.src,'/assets/standard-female-previews/'+expected[i]+'.webp');
-  const image=await readBinary(new URL('../public'+style.src,import.meta.url));
-  assert(image.length>600,style.id+' thumbnail not installed');
-  assert.equal(image.toString('ascii',0,4),'RIFF');
-  assert.equal(image.toString('ascii',8,12),'WEBP');
-  pics.push(image.toString('base64'));
+ const main=await read('src/main.jsx'),ui=await read('src/thai-mobile-journey.jsx');
+ const menuStart=main.indexOf('const BASIC_MALE_HAIR_IDS='),menuEnd=main.indexOf('const JOB_UNIFORMS=[',menuStart);
+ assert(menuStart>=0&&menuEnd>menuStart);
+ const ordered=new Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_FEMALE_HAIR_IDS',main.slice(menuStart,menuEnd)+'return STUDIO_FEMALE_HAIR_OPTIONS;')(PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS);
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-41']);
+ assert.deepEqual(ordered.slice(0,3).map(h=>h.id),THAI_FREE_FEMALE_HAIR_IDS);
+ assert.equal(ordered.filter(h=>h.id==='seedream-41').length,1,'Only one card for style 2');
+ assert(!ordered.some(h=>h.id==='seedream-27'),'Previously free short/gathered option is replaced in the picker');
+ for(const id of ['standard-female-half-up','standard-female-gathered','standard-female-straight']){
+  assert(!ordered.some(h=>h.id===id),'Removed style must not appear: '+id);
+  assert(!PRODUCTION_HAIR_CATALOG.some(h=>h.id===id),'Removed style must not remain in the selectable catalog');
  }
- assert.equal(new Set(pics).size,3,'All three thumbnails must look different');
- const pipeline=await read('production-portrait-pipeline.js');
- assert(pipeline.includes('const reference=chosen&&!pickerGuide&&!chosen.promptOnly?await readFile('),'The three photo thumbnails must never be passed to the AI as input images');
+ assert.match(main,/const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS/);
+ assert.match(ui,/displayHairOptions\.map\(h=>/);
+ assert.match(ui,/onClick=\{\(\)=>chooseHair\(h\)\}/);
+ assert(!ui.includes('HairExample')&&!ui.includes('ORIGINAL_FEMALE_PICKER_FACE'),'Old fake-face preview composite removed');
 });
-
-test('all standard Thai female hairstyles are free, use the original website preview model and never trigger Diamond',async()=>{
- const {THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
- const ids=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
- assert(ids.every(id=>THAI_FREE_FEMALE_HAIR_IDS.includes(id)));
+test('new free style 2 is the existing website asset and both Thai access gates accept it without Diamond',async()=>{
+ const {readFile:readBinary}=await import('node:fs/promises');
+ const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
+ const matching=PRODUCTION_HAIR_CATALOG.filter(h=>h.id==='seedream-41');
+ assert.equal(matching.length,1);
+ assert.equal(matching[0].name,'ทรงผมหญิง 2');
+ assert.equal(matching[0].src,'/assets/seedream-hairstyles/previews/41.webp');
+ const img=await readBinary(new URL('../public'+matching[0].src,import.meta.url));
+ assert(img.length>500);
+ assert.equal(img.toString('ascii',0,4),'RIFF');
+ assert.equal(img.toString('ascii',8,12),'WEBP');
+ assert(THAI_FREE_FEMALE_HAIR_IDS.includes(matching[0].id));
  const server=await read('server.js'),studio=await read('src/studio-editor.jsx'),mobile=await read('src/thai-mobile-journey.jsx');
- assert(server.includes("chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id)"),'Thai server premium entitlement gate must exempt all six');
- assert(studio.includes("femaleHair.some(h=>h.id===id)&&!THAI_FREE_FEMALE_HAIR_IDS.includes(id)"),'Studio and Step 2 must not show a premium badge on free styles');
- assert(mobile.includes("ORIGINAL_FEMALE_PICKER_FACE='/assets/seedream-hairstyles/previews/14.webp'"));
- assert(mobile.includes('function HairExample({hair})'));
- assert.equal((mobile.match(/<HairExample hair=\{h\}\/>/g)||[]).length,3,'Choice, result and hair-change previews use one original site face');
- assert(studio.includes("h.id?.startsWith('standard-female-')"),'Full Studio picker must use the same original website face');
+ assert(server.includes("chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id)"));
+ assert(studio.includes("femaleHair.some(h=>h.id===id)&&!THAI_FREE_FEMALE_HAIR_IDS.includes(id)"));
+ assert(!studio.includes("h.id?.startsWith('standard-female-')"));
+ assert(!mobile.includes('thai-standard-hair-preview'));
 });

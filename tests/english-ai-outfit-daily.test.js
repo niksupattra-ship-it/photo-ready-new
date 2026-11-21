@@ -75,7 +75,7 @@ test('actual credit handler accepts continuing English free hairstyle with daily
  const beforeThai=calls.thai;
  for(const id of THAI_FREE_FEMALE_HAIR_IDS)assert.equal((await check(id,'th')).status,200,id+' retains Thai basic access without premium');
  assert.equal(calls.thai,beforeThai,'Thai basic hair never requires Diamond entitlement');
- for(const id of ['seedream-42','seedream-40','seedream-41','female-default-reference','seedream-43'])assert.equal((await check(id,'th')).body?.error,'premium_hair_required',id+' is Thai Diamond');
+ for(const id of ['seedream-42','seedream-40','seedream-27','female-default-reference','seedream-43'])assert.equal((await check(id,'th')).body?.error,'premium_hair_required',id+' is Thai Diamond');
  premium=true;
  assert.equal((await check('seedream-42')).status,200,'active USD Premium can use English Diamond');
  assert.equal(calls.paid,1);

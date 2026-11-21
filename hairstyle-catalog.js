@@ -2,10 +2,6 @@ import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './englis
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
- // The three standards use their own photo thumbnails only in the picker. AI receives text rules, never these donor photographs.
- {id:'standard-female-half-up',gender:'female',name:'รวบครึ่ง · ปล่อยหลัง',src:'/assets/standard-female-previews/half-up.webp',promptOnly:true},
- {id:'standard-female-gathered',gender:'female',name:'แสกกลาง · รวบเก็บ',src:'/assets/standard-female-previews/gathered.webp',promptOnly:true},
- {id:'standard-female-straight',gender:'female',name:'ผมตรง · เห็นหู',src:'/assets/standard-female-previews/straight.webp',promptOnly:true},
   {
     "id": "seedream-40",
     "gender": "female",
@@ -268,18 +264,11 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
 // Keep the old hidden reference in the catalog for previously saved work.
-// Standard text-defined hairstyles are free to select like the original three basic cuts.
-export const THAI_STANDARD_FEMALE_HAIR_IDS=Object.freeze(['standard-female-half-up','standard-female-gathered','standard-female-straight']);
-export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-27',...THAI_STANDARD_FEMALE_HAIR_IDS]);
+export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-41']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
-const STANDARD_FEMALE_HAIR_DESIGNS=Object.freeze({
- 'standard-female-half-up':['long','low-profile centre-parted half-up hair: smooth upper side sections gathered gently toward the back of the head, sleek straight long rear lengths resting BEHIND both shoulders, fully visible ears, clean exposed forehead, zero puffy height or top bun'],
- 'standard-female-gathered':['gathered','smooth centre-parted neatly gathered hair, pulled flat and equally back from both temples, ears fully visible, all ends concealed behind the upper back of the skull; no visible bun or loose rear lengths'],
- 'standard-female-straight':['long','long smooth straight hair with precise centre part and natural low crown, evenly framed left/right hairline, both upper sides tucked behind clearly visible ears, with straight lengths behind both shoulders; no curtain bangs or frontal strands'],
-});
 const compact={
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
@@ -325,7 +314,7 @@ export function selectedHairDesign(selected){
  if(!selected?.id)return null;
  if(selected.interfaceLanguage==='en')return {kind:selected.kind,description:selected.description};
  const freeDesigns={'hair-21':['gathered','smooth side-parted hair gathered close to the head'],'hair-25':['short','short side-swept pixie with the same fringe and silhouette as the reference'],'hair-26':['gathered','centre-parted hair with a flat braid across the crown, gathered close to the head']};
- const pair=STANDARD_FEMALE_HAIR_DESIGNS[selected.id]||compact[selected.id]||freeDesigns[selected.id];
+ const pair=compact[selected.id]||freeDesigns[selected.id];
  return pair?{kind:pair[0],description:pair[1],...(selected.id==='seedream-20'?{faceFraming:true}:{})}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
