@@ -361,7 +361,9 @@ export function governmentPngTemplatePlacement(suit,gender='female'){
 // selected insignia overlays, never bakes/stretchs the underlying uniform.
 export function balanceEasyGovernmentBadgeSizes(fit){
  if(!fit?.frame||!fit?.preset)return fit;
- // Registered garment positions already use independently sized native PNG art.\n if(fit.calibratedTemplate)return fit;\n const p=fit.preset;
+ // Registered garment positions already use independently sized native PNG art.
+ if(fit.calibratedTemplate)return fit;
+ const p=fit.preset;
  const collar={...p.collar,width:clamp(p.collar.width*.67,.031,.050)};
  const chest={...p.chest,width:clamp(p.chest.width*1.45,.092,.116)};
  const ribbon={...p.ribbon,width:clamp(p.ribbon.width*1.47,.285,.335)};
