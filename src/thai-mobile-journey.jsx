@@ -22,6 +22,7 @@ export function ThaiMobileJourney({
  const [draftHair,setDraftHair]=useState('');
  const [selectedStyle,setSelectedStyle]=useState(false);
  const [outfitChosen,setOutfitChosen]=useState(false);
+ const [chosenOutfitTemplate,setChosenOutfitTemplate]=useState('');
  const [notice,setNotice]=useState('');
  const [changedHair,setChangedHair]=useState(false);
  const [resultInsigniaOpen,setResultInsigniaOpen]=useState(false);
@@ -31,7 +32,7 @@ export function ThaiMobileJourney({
  const wasProcessing=useRef(false);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
-  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
+  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
  },[sourcePreview]);
  useEffect(()=>{
   if(hasResult&&!resultRef.current){setSection('result');setChangedHair(false);setNotice('')}
@@ -70,19 +71,19 @@ export function ThaiMobileJourney({
  const outfits=inCategory.length?inCategory:eligible.filter(t=>getCategory(t)==='สมัครงาน');
  const hairUnlocked=Boolean(photoTypeSelected);
  const suitUnlocked=Boolean(photoTypeSelected&&selectedStyle&&draftHair);
- const canSubmit=Boolean(sourcePreview&&photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&currentSuit&&ready&&!busy&&!suitLoading&&choicesReady);
+ const canSubmit=Boolean(sourcePreview&&photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit&&ready&&!busy&&!suitLoading&&choicesReady);
  const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
- const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setNotice('');onSuit?.(t)};
+ const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setChosenOutfitTemplate(t.template);setNotice('');onSuit?.(t)};
  const selectGender=v=>{
   if(busy||!['female','male'].includes(v))return;
-  setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);
+  setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');
   setMoreHair(false);setMoreSuits(false);setNotice('');
   onSelectPhotoType?.(v);
  };
  const create=()=>{
   if(!photoTypeSelected){setNotice('กรุณาเลือกหญิงหรือชายก่อนสร้าง');return}
   if(!selectedStyle||!draftHair){setNotice('กรุณาเลือกทรงผมก่อนสร้าง');return}
-  if(!outfitChosen||!currentSuit){setNotice('กรุณาเลือกชุดก่อนสร้าง');return}
+  if(!outfitChosen||!currentSuit||chosenOutfitTemplate!==currentSuit){setNotice('กรุณาเลือกชุดก่อนสร้าง');return}
   if(!choicesReady){setNotice('กำลังบันทึกตัวเลือก กรุณากดสร้างอีกครั้ง');return}
   if(!ready||busy||suitLoading)return;
   setNotice('');
