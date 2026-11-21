@@ -379,9 +379,9 @@ export function balanceEasyGovernmentBadgeSizes(fit){
 // In its 1056px-wide reference, the shoulder span is about 930px.
 // Each new finished photograph supplies its OWN visible shoulder geometry.
 export const GOVERNMENT_REFERENCE_GEOMETRY=Object.freeze({
- collar:{left:.299,right:.711,down:.084,width:.055},
- chest:{x:.198,down:.315,width:.074},
- ribbon:{x:.806,down:.288,width:.230}
+ collar:{left:.2954,right:.6948,down:.0953,width:.0589},
+ chest:{x:.2005,down:.3179,width:.07365},
+ ribbon:{x:.7881,down:.2868,width:.2242}
 });
 export function measureGovernmentShoulderGeometry(image){
  const {width:w,height:h,data}=image||{};
@@ -537,4 +537,24 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
   needsReview,collarType:type,
   measuredShoulder:g,referenceGeometryVersion:'reference-shoulder-v1'};
+}
+
+// Easy finished-photo picker: the supplied white female jacket and reference
+// share this exact native garment. Register visible artwork bounds in that
+// garment's coordinates, rather than estimating a new size from fabric rows.
+export const EASY_FEMALE_REFERENCE_INSIGNIA=Object.freeze({
+ collar:Object.freeze({left:.316,right:.680,y:.285,width:.054}),
+ chest:Object.freeze({x:.230,y:.525,width:.067}),
+ ribbon:Object.freeze({x:.764,top:.491,width:.204})
+});
+export function easyGovernmentNativeReferenceFit(suit,gender='female',W=900,H=1200){
+ const path=String(suit?.templatePath||'').split('?')[0];
+ if(gender!=='female'||!/^\/assets\/government-uniforms\/female-(operational|senior|academic|government-employee)\.png$/.test(path)||
+  !suit?.visible||suit.warpSource||suit.suitPreviewOnly||suit.rotation||suit.neckWidth||suit.neckHeight||
+  (suit.squeezeX??1)!==1||(suit.squeezeY??1)!==1)return null;
+ const source=suit.collarFrame||suit.sourceFrame,scale=suit.scale??1;
+ if(!source||![source.x,source.y,source.w,source.h,scale,suit.x??0,suit.y??0].every(Number.isFinite)||source.w<=0||source.h<=0||scale<=0)return null;
+ const frame={x:W/2+(suit.x||0)+(source.x-W/2)*scale,y:H/2+(suit.y||0)+(source.y-H/2)*scale,w:source.w*scale,h:source.h*scale};
+ return {frame,preset:Object.fromEntries(Object.entries(EASY_FEMALE_REFERENCE_INSIGNIA).map(([k,v])=>[k,{...v}])),
+  needsReview:false,confidence:'native-reference-registered',referenceGeometryVersion:'native-female-reference-v2',calibratedTemplate:path,collarType:'lapel'};
 }

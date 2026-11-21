@@ -50,12 +50,13 @@ with sync_playwright() as pw:
  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
  cases=0
  for width in [1440,390]:
-  for gender,composition in [('female','wide'),('female','narrow'),('male','wide'),('male','narrow')]:
+  for gender,composition in [('female','wide'),('female','narrow'),('male','wide'),('male','narrow'),('female','photo-wide'),('female','photo-narrow')]:
    context=browser.new_context(viewport={'width':width,'height':1050},has_touch=width<600)
    page=context.new_page();errors=[];api=[]
    page.on('pageerror',lambda e:errors.append(str(e)))
    page.route('**/api/**',lambda r:(api.append(r.request.url),r.abort()))
-   page.goto(f'{BASE}/scripts/fixtures/government-result-insignia.html?gender={gender}&composition={composition}')
+   fullbody=composition.startswith('photo-')
+   page.goto(f'{BASE}/scripts/fixtures/government-result-insignia.html?gender={gender}&composition={composition.removeprefix("photo-")}&fullbody={int(fullbody)}')
    launch=page.get_by_role('button',name='◈ เพิ่มเครื่องหมายข้าราชการ',exact=True)
    expect(launch).to_be_enabled(timeout=30000);launch.click()
    pick(page,'ปกคอ','มท.','collar','garuda-pair')
@@ -88,6 +89,24 @@ with sync_playwright() as pw:
     f=alpha['frame']
     assert abs(f['w']/f['h']-alpha['width']/alpha['height'])<.001,'Native PNG aspect ratio must be retained'
     assert alpha.get('squeezeX',1)==1 and alpha.get('squeezeY',1)==1
+
+   if gender=='female':
+    # Reference 2: assert the FIRST selection before any move or resize.
+    # These are bounds on the painted original garment, not just state flags.
+    garment=page.evaluate('insigniaFixture.frame')
+    overlay=page.locator('.thai-result-insignia-interaction').bounding_box()
+    for identifier,x in [('collar-left',.316),('collar-right',.680)]:
+     box=handle_box(page,identifier)
+     center_x=(box['x']+box['width']/2-overlay['x'])/overlay['width']*900
+     center_y=(box['y']+box['height']/2-overlay['y'])/overlay['height']*1200
+     assert abs(center_x-(garment['x']+garment['w']*x))<(8 if fullbody else 3)
+     assert abs(center_y-(garment['y']+garment['h']*.285))<(10 if fullbody else 3)
+     assert abs(box['width']/overlay['width']*900-garment['w']*.054)<3
+    for kind,x,y,w in [('chest',.230,.525,.067),('ribbon',.764,.491,.204)]:
+     f=selected(page,kind)['sourceFrame']
+     assert abs(f['x']+f['w']/2-(garment['x']+garment['w']*x))<(8 if fullbody else 1)
+     assert abs(f['y']+(f['h']/2 if kind=='chest' else 0)-(garment['y']+garment['h']*y))<(10 if fullbody else 1)
+     assert abs(f['w']-garment['w']*w)<(4 if fullbody else 1)
 
    page.screenshot(path=str(OUTPUT/f'{gender}-{composition}-{width}-placed.png'),full_page=True)
 
