@@ -644,7 +644,8 @@ test('Thai V12 adds face-shape lock only for new jobs; archived V11 and English 
   thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53})};
  const v12={...original,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION};
  const v11={...v12,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_PREVIOUS_V11};
- const english={...original,interfaceLanguage:'en'};
+ const {thaiAdaptiveFaceGeometry,...englishOriginal}=original;
+ const english={...englishOriginal,interfaceLanguage:'en'};
  assert.equal(usesThaiFaceShapeLock(v12),true);
  assert.equal(usesThaiFaceShapeLock(v11),false);
  assert.equal(usesThaiFaceShapeLock(english),false);
