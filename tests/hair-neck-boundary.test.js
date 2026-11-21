@@ -94,8 +94,8 @@ test('explicit compact cuts receive a final output gate with clear sides of the 
 
 test('three standard female presets have low crowns and original-face instruction',async()=>{
  const {selectedHairInstruction,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
- assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-27']);
  const ids=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-27',...ids]);
  for(const id of ids){
   const style=productionHair(id),prompt=selectedHairInstruction(style);
   assert.equal(style.promptOnly,true);

@@ -268,7 +268,9 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
 // Keep the old hidden reference in the catalog for previously saved work.
-export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-27']);
+// Standard text-defined hairstyles are free to select like the original three basic cuts.
+export const THAI_STANDARD_FEMALE_HAIR_IDS=Object.freeze(['standard-female-half-up','standard-female-gathered','standard-female-straight']);
+export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-27',...THAI_STANDARD_FEMALE_HAIR_IDS]);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
 export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
 
