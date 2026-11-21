@@ -12,6 +12,7 @@ export function ThaiMobileJourney({
  processing=false,progress=0,busy=false,ready=true,status='',
  gender='female',photoTypeSelected=false,onSelectPhotoType,
  templates=[],currentSuit='',onSuit,suitLoading=false,suitPolicy={},suitChoiceLimit=3,
+ backgrounds=[],currentBackground='',onBackground,
  hairs=[],selectedHair='',onHair,onGenerateHair,onConfirmHair,choicesReady=true,
  faceFinish='natural',onSelectFaceFinish,governmentResult=false,insignia,resultInsignia,insigniaHandles=[],onInsigniaStart,onInsigniaTransform,onInsigniaEnd,
  onDownload,onStudio,onUpload,onSourceFile,onCancelProcess,memberMenu
@@ -23,6 +24,7 @@ export function ThaiMobileJourney({
  const [selectedStyle,setSelectedStyle]=useState(false);
  const [outfitChosen,setOutfitChosen]=useState(false);
  const [chosenOutfitTemplate,setChosenOutfitTemplate]=useState('');
+ const [draftBackground,setDraftBackground]=useState('');
  const [notice,setNotice]=useState('');
  const [changedHair,setChangedHair]=useState(false);
  const [resultInsigniaOpen,setResultInsigniaOpen]=useState(false);
@@ -32,7 +34,7 @@ export function ThaiMobileJourney({
  const wasProcessing=useRef(false);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
-  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
+  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setDraftBackground('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
  },[sourcePreview]);
  useEffect(()=>{
   if(hasResult&&!resultRef.current){setSection('result');setChangedHair(false);setNotice('')}
@@ -71,12 +73,19 @@ export function ThaiMobileJourney({
  const outfits=inCategory.length?inCategory:eligible.filter(t=>getCategory(t)==='สมัครงาน');
  const hairUnlocked=Boolean(photoTypeSelected);
  const suitUnlocked=Boolean(photoTypeSelected&&selectedStyle&&draftHair);
- const canSubmit=Boolean(sourcePreview&&photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit&&ready&&!busy&&!suitLoading&&choicesReady);
+ const outfitReady=Boolean(photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit);
+ const canSubmit=Boolean(sourcePreview&&outfitReady&&ready&&!busy&&!suitLoading&&choicesReady);
  const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
  const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setChosenOutfitTemplate(t.template);setNotice('');onSuit?.(t)};
+ const pickBackground=option=>{
+  if(!option||!outfitReady||busy||suitLoading)return;
+  setDraftBackground(option.id);setNotice('');onBackground?.(option);
+ };
+ const bgPalette={'default':'#8cbee9','light-blue':'#b9e5fb','deep-blue':'#2877d7','white':'#ffffff','periwinkle':'#b7b8ee'};
+
  const selectGender=v=>{
   if(busy||!['female','male'].includes(v))return;
-  setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');
+  setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setDraftBackground('');
   setMoreHair(false);setMoreSuits(false);setNotice('');
   onSelectPhotoType?.(v);
  };
@@ -182,6 +191,18 @@ export function ThaiMobileJourney({
         </div>
         {outfits.length>4&&<button type="button" className="thai-mobile-choice-outfit-more" disabled={!suitUnlocked||busy} onClick={()=>setMoreSuits(v=>!v)}>{moreSuits?'ดูชุดน้อยลง':'ดูชุดเพิ่มเติม ('+outfits.length+')'}</button>}
         {suitLoading&&<p className="thai-mobile-hint">กำลังแสดงชุดที่เลือก...</p>}
+       </section>
+       <section className={'thai-mobile-choice-panel thai-mobile-choice-background-panel'+(!outfitReady?' thai-mobile-choice-locked':'')} aria-label="เลือกสีพื้นหลัง" aria-disabled={!outfitReady}>
+        <div className="thai-mobile-choice-panel-heading"><h2>สีพื้นหลัง</h2></div>
+        <div className="thai-mobile-choice-background-colors" role="group" aria-label="สีพื้นหลังสำหรับรูปที่สร้าง">
+         {backgrounds.filter(b=>bgPalette[b.id]).map(b=><button key={b.id} type="button"
+           className={'thai-mobile-choice-background-option'+((draftBackground||currentBackground)===b.id?' selected':'')}
+           title={b.name} aria-label={b.name} aria-pressed={(draftBackground||currentBackground)===b.id}
+           disabled={!outfitReady||busy||suitLoading} onClick={()=>pickBackground(b)}>
+          <span className="thai-mobile-choice-background-dot" style={{backgroundColor:bgPalette[b.id]}} aria-hidden="true"/>
+          <span className="thai-mobile-choice-background-name">{b.name}</span>
+         </button>)}
+        </div>
        </section>
       </div>
      </div>
