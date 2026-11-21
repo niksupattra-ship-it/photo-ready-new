@@ -805,3 +805,25 @@
  .thai-mobile-result-icon-row svg,.thai-mobile-result-icon-row .studio-png-icon{width:28px;height:28px;object-fit:contain}
  .idstudio .thai-mobile-flow-ready .thai-mobile-result-hair-choices > button.mobile-hair-create{grid-column:1/-1;display:block;min-height:44px;padding:10px;border:0;border-radius:10px;background:#7634ce;color:white;font-weight:750}
 }
+
+/* The mobile result tools share one anchored slot; pickers replace its icons. */
+.thai-mobile-result-tool-slot{display:none}
+@media(max-width:720px){
+ .thai-mobile-result-ready-page .thai-mobile-result-controls{position:sticky;bottom:max(8px,env(safe-area-inset-bottom));z-index:20}
+ .thai-mobile-result-tool-slot{display:block;background:#fff;border-radius:14px;box-shadow:0 3px 18px #44206a18}
+ .thai-mobile-result-tool-panel{padding:8px;border:1px solid #e9def8;border-radius:14px;background:#fff}
+ .thai-mobile-result-tool-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;padding:0 4px}
+ .idstudio .thai-mobile-flow-ready .thai-mobile-result-tool-heading button{min-height:36px;border:0;border-radius:8px;background:#f1e9fc;color:#54259c;padding:6px 10px;font-size:12px;font-weight:700}
+ .thai-mobile-result-tool-heading strong{font-size:13px;color:#54259c}
+ .thai-mobile-result-ready-page .thai-mobile-result-tool-slot .thai-mobile-result-hair-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;max-width:none;gap:6px}
+ .thai-mobile-result-tool-slot .thai-mobile-result-insignia-panel{margin:0;border:0;padding:0}
+ .thai-mobile-result-tool-slot .idprom-government-insignia{padding:0;border:0;box-shadow:none;border-radius:0}
+ .thai-mobile-result-tool-slot .idprom-government-insignia-tabs{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:6px}
+ .thai-mobile-result-tool-slot .idprom-government-insignia-options{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;max-height:none;overscroll-behavior-x:contain;padding:2px}
+ .thai-mobile-result-tool-slot .idprom-government-insignia-options button{flex:0 0 76px;min-height:82px;padding:4px}
+ .thai-mobile-result-tool-slot .idprom-government-option-images{height:45px}
+ .thai-mobile-result-tool-slot .idprom-government-option-images img{height:44px;max-height:44px}
+}
+@media(max-width:720px){
+ .idstudio .thai-mobile-flow-ready .thai-mobile-result-tool-slot .thai-mobile-result-hair-choices > button{width:100%}
+}
