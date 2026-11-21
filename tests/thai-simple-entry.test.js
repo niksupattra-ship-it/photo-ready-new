@@ -298,3 +298,39 @@ test('Thai government result edits only native insignia layers directly on pictu
  assert(easy.includes('onInsigniaTransform={onInsigniaTransform}'),'Connected EasyMode forwards the real callbacks');
  assert(!ui.includes("setSection('insignia')"),'No separate adjustment screen is opened');
 });
+
+
+test('Thai upload is one central action and Step 2 enforces gender, hair, outfit sequence',async()=>{
+ const home=await read('src/idprom-simple-home.jsx');
+ const homeCss=await read('src/idprom-simple-flow.css');
+ const ui=await read('src/thai-mobile-journey.jsx');
+ const css=await read('src/thai-mobile-journey.css');
+ const upload=home.slice(home.indexOf('idprom-simple-upload-step'));
+ assert(upload.includes('<h1>อัปโหลดรูปของคุณ</h1>'));
+ assert(upload.includes('<strong>เพิ่มรูป</strong>'));
+ assert(upload.includes('onClick={onUpload}'),'Central upload uses actual file picker');
+ assert(!upload.includes('เลือกรูปและไปต่อ')&&!upload.includes('เลือกรูปจากเครื่อง'),'Duplicated upload buttons were removed');
+ assert(!upload.includes('เลือกรูปหน้าตรง ใบหน้าชัดเจน')&&!upload.includes('ไม่จำเป็นต้องใส่ชุด'),'Extra upload instructions were removed');
+ assert(homeCss.includes('.idprom-simple-upload-step > .idprom-simple-upload-card'),'Central upload is responsive without changing Welcome');
+ const page=ui.slice(ui.indexOf('thai-mobile-choice-gender'),ui.indexOf('thai-mobile-choice-footer'));
+ assert(page.includes("['female','male'].map"),'Gender selector always appears on Step 2');
+ assert(!page.includes('!photoTypeSelected&&<div className="thai-mobile-choice-panel thai-mobile-choice-gender"'),'Gender selector is not hidden after selection');
+ assert(page.includes('onClick={()=>selectGender(v)}'),'Changing gender resets downstream decisions');
+ assert(ui.includes('setDraftHair(\'\');setSelectedStyle(false);setOutfitChosen(false);'),'Changing gender must invalidate hair and outfit choices');
+ assert(ui.includes('const hairUnlocked=Boolean(photoTypeSelected)'));
+ assert(ui.includes('const suitUnlocked=Boolean(photoTypeSelected&&selectedStyle&&draftHair)'));
+ assert(ui.includes('const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return'),'Hair callback is guarded');
+ assert(ui.includes('const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return'),'Outfit callback is guarded');
+ assert(page.includes('aria-disabled={!hairUnlocked}')&&page.includes('aria-disabled={!suitUnlocked}'),'Locked panels are announced');
+ assert(page.includes('disabled={busy||!hairUnlocked}'),'Hair selection disabled before gender');
+ assert(page.includes('disabled={!suitUnlocked||busy}'),'Outfit categories disabled before hair');
+ assert(page.includes('disabled={busy||!suitUnlocked||suitLoading'),'Outfit options disabled before hair');
+ assert(page.includes('disabled={!hairUnlocked||busy}'),'View-all hair option locked');
+ assert(page.includes('disabled={!suitUnlocked||busy}'),'View-more outfit option locked');
+ assert(ui.includes('outfitChosen&&currentSuit===t.template'),'A previously default outfit is not mistaken for an explicit new selection');
+ assert(ui.includes('outfitChosen&&currentSuit&&ready'),'Create requires an explicitly picked outfit');
+ assert(ui.includes('disabled={!canSubmit} onClick={create}'),'Create is not clickable early');
+ assert(css.includes('thai-mobile-choice-locked')&&css.includes('cursor:not-allowed'),'Locked choices are visible but inactive');
+ const studio=await read('src/studio-editor.jsx');
+ assert(studio.includes('onSelectPhotoType={selectEasyPhotoType}')&&studio.includes('setEasyPhotoTypeSelected(false)'),'Original gender state is connected and reset on new photo');
+});
