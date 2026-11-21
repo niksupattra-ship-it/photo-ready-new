@@ -2,10 +2,10 @@ import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './englis
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
- // Thai standards are text-only AI presets. Existing images serve as menu previews, not donors.
- {id:'standard-female-half-up',gender:'female',name:'รวบครึ่งศีรษะ · ปล่อยหลัง',src:'/assets/seedream-hairstyles/previews/16.webp',promptOnly:true},
- {id:'standard-female-gathered',gender:'female',name:'แสกกลาง · รวบเก็บ',src:'/assets/seedream-hairstyles/previews/27.webp',promptOnly:true},
- {id:'standard-female-straight',gender:'female',name:'ผมตรง · แสกกลางเห็นหู',src:'/assets/seedream-hairstyles/previews/14.webp',promptOnly:true},
+ // The three standards use their own photo thumbnails only in the picker. AI receives text rules, never these donor photographs.
+ {id:'standard-female-half-up',gender:'female',name:'รวบครึ่ง · ปล่อยหลัง',src:'/assets/standard-female-previews/half-up.webp',promptOnly:true},
+ {id:'standard-female-gathered',gender:'female',name:'แสกกลาง · รวบเก็บ',src:'/assets/standard-female-previews/gathered.webp',promptOnly:true},
+ {id:'standard-female-straight',gender:'female',name:'ผมตรง · เห็นหู',src:'/assets/standard-female-previews/straight.webp',promptOnly:true},
   {
     "id": "seedream-40",
     "gender": "female",

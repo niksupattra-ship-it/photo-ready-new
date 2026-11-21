@@ -389,3 +389,25 @@ test('Thai hairstyle Step 2 immediately shows all three built-in standard women 
  assert.match(ui,/displayHairOptions\.map\(h=>/,'The actual choice panel renders that list');
  assert.match(ui,/onClick=\{\(\)=>chooseHair\(h\)\}/,'Each choice uses the existing click handler');
 });
+
+test('each Thai standard hairstyle has its own original preview, never the three older seedream thumbnails',async()=>{
+ const {readFile:readBinary}=await import('node:fs/promises');
+ const ids=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
+ const expected=['half-up','gathered','straight'];
+ const {PRODUCTION_HAIR_CATALOG}=await import('../hairstyle-catalog.js');
+ const pics=[];
+ for(let i=0;i<3;i++){
+  const style=PRODUCTION_HAIR_CATALOG.find(h=>h.id===ids[i]);
+  assert(style,'Missing standard hairstyle '+ids[i]);
+  assert.equal(style.promptOnly,true);
+  assert.equal(style.src,'/assets/standard-female-previews/'+expected[i]+'.webp');
+  const image=await readBinary(new URL('../public'+style.src,import.meta.url));
+  assert(image.length>600,style.id+' thumbnail not installed');
+  assert.equal(image.toString('ascii',0,4),'RIFF');
+  assert.equal(image.toString('ascii',8,12),'WEBP');
+  pics.push(image.toString('base64'));
+ }
+ assert.equal(new Set(pics).size,3,'All three thumbnails must look different');
+ const pipeline=await read('production-portrait-pipeline.js');
+ assert(pipeline.includes('const reference=chosen&&!pickerGuide&&!chosen.promptOnly?await readFile('),'The three photo thumbnails must never be passed to the AI as input images');
+});
