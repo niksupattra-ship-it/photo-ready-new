@@ -121,13 +121,14 @@
  .idprom-simple-hero .idprom-simple-benefits{font-size:14px}
 }
 
-/* Thai upload Step 1: one central Add Photo action, no lower duplicate CTA. */
+/* Thai Upload Step 1: visually matches the existing English upload card.
+   Change only this page; the Welcome screen and portrait pipeline are untouched. */
 .idprom-simple-upload-step{
  position:relative;display:flex;flex-direction:column;align-items:center;
- width:100%;min-height:min(69vh,670px);padding:20px 4px 30px;
+ width:100%;min-height:clamp(450px,68vh,640px);padding:20px 4px 30px;
 }
 .idprom-simple-upload-step > h1{
- margin:28px 0 42px;color:#30134f;
+ margin:32px 0 34px;color:#30134f;
  text-align:center;font-size:clamp(28px,3.4vw,38px);
 }
 .idprom-simple-home .idprom-simple-upload-back{
@@ -136,26 +137,44 @@
  background:#f3ecff;color:#5d28ad;font-size:26px;line-height:1;cursor:pointer;
 }
 .idprom-simple-home .idprom-simple-upload-step > .idprom-simple-upload-card{
- width:min(100%,1050px);min-height:285px;flex:1;max-height:390px;
- margin:0 auto;padding:30px 20px;gap:12px;
- border:2px dashed #ad88ed;border-radius:20px;
- background:#fbf8ff;color:#371961;
- cursor:pointer;transition:background-color .12s,border-color .12s;
+ width:min(100%,425px);height:auto;min-height:272px;max-height:none;
+ flex:0 0 auto;margin:0 auto;padding:30px 24px;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:0;border:1.5px dashed #b59aff;border-radius:18px;
+ background:#fff;color:#24143f;cursor:default;
+ box-shadow:none;transition:none;
 }
-.idprom-simple-home .idprom-simple-upload-step > .idprom-simple-upload-card:hover:not(:disabled){
- background:#f7f0ff;border-color:#8636d7;
+.idprom-simple-upload-step .idprom-upload-glyph{
+ width:48px;height:48px;flex:none;display:grid;place-items:center;
+ margin:0 auto 13px;border:0;border-radius:50%;
+ background:#f0e9ff;color:#7144e7;font-size:inherit;
 }
-.idprom-simple-home .idprom-simple-upload-step > .idprom-simple-upload-card:focus-visible{
- outline:3px solid #7733ca;outline-offset:3px;
+.idprom-simple-upload-step .idprom-simple-upload-card > h2{
+ font-size:21px;line-height:1.25;letter-spacing:-.2px;
+ font-weight:850;color:#1e1537;margin:0 auto 22px;
 }
-.idprom-simple-upload-step .idprom-simple-upload-card > strong{font-size:19px;font-weight:850}
-.idprom-simple-upload-step .idprom-simple-upload-card > .idprom-upload-glyph{
- width:66px;height:66px;border-color:#9766e0;
+.idprom-simple-home .idprom-simple-upload-submit{
+ display:block;width:100%;max-width:310px;min-height:47px;
+ margin:0 auto;padding:11px 18px;border:0;border-radius:12px;
+ background:#7040ef;color:#fff;font:inherit;
+ font-size:16px;font-weight:800;cursor:pointer;
+ box-shadow:0 5px 14px #5d35c220;
+}
+.idprom-simple-home .idprom-simple-upload-submit:hover:not(:disabled){background:#6535da}
+.idprom-simple-home .idprom-simple-upload-submit:focus-visible{
+ outline:3px solid #ac8aff;outline-offset:3px;
+}
+.idprom-simple-home .idprom-simple-upload-submit:disabled{
+ opacity:.55;cursor:not-allowed;
+}
+.idprom-simple-upload-step .idprom-simple-upload-hint{
+ max-width:310px;margin:12px auto 0;color:#75619a;
+ font-size:12px;line-height:1.5;text-align:center;
 }
 @media(max-width:720px){
- .idprom-simple-upload-step{min-height:68dvh;padding:12px 0 24px}
- .idprom-simple-upload-step > h1{margin:44px 0 28px;font-size:29px}
+ .idprom-simple-upload-step{min-height:64dvh;padding:13px 0 25px}
+ .idprom-simple-upload-step > h1{margin:45px 0 28px;font-size:29px}
  .idprom-simple-home .idprom-simple-upload-step > .idprom-simple-upload-card{
-  min-height:280px;max-height:420px;width:100%;
+  width:100%;max-width:425px;min-height:272px;padding:28px 22px;
  }
 }
