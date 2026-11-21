@@ -704,3 +704,28 @@
   margin-top:26px;min-width:180px;min-height:44px;font-size:16px;
  }
 }
+
+/* Thai selection Step 2: enforce gender → hairstyle → outfit → Create. */
+.thai-mobile-flow-choice .thai-mobile-choice-panel.thai-mobile-choice-locked{
+ opacity:.43;filter:saturate(.65);transition:opacity .15s ease;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-panel.thai-mobile-choice-locked button{
+ cursor:not-allowed!important;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-panel.thai-mobile-choice-gender{
+ opacity:1;filter:none;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-controls button:disabled{
+ pointer-events:none;cursor:not-allowed;box-shadow:none;
+}
+.thai-mobile-flow-choice .thai-mobile-choice-gender .thai-mobile-segment{
+ display:grid;grid-template-columns:1fr 1fr;gap:8px;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-gender .thai-mobile-segment button{
+ min-height:46px;background:#fff;border:1px solid #dbc7f1;
+ color:#39205b;border-radius:10px;font-weight:750;
+}
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-gender .thai-mobile-segment button.selected{
+ background:linear-gradient(115deg,#9240df,#6b25c3);
+ color:white;border-color:#7127cb;
+}
