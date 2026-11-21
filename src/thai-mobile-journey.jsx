@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {EasyPreviewImage} from './easy-preview-image.jsx';
 import {outfitChoicePreview,outfitPickerPreview} from './outfit-choice-preview.js';
 import {hairPickerPreview} from './hair-picker-preview.js';
+import {ResultInsigniaDrag} from './result-insignia-drag.jsx';
 import './thai-mobile-journey.css';
 
 // Thai-only visual journey. All AI creation, access rights, checkout,
@@ -12,7 +13,7 @@ export function ThaiMobileJourney({
  gender='female',photoTypeSelected=false,onSelectPhotoType,
  templates=[],currentSuit='',onSuit,suitLoading=false,suitPolicy={},suitChoiceLimit=3,
  hairs=[],selectedHair='',onHair,onGenerateHair,onConfirmHair,choicesReady=true,
- faceFinish='natural',onSelectFaceFinish,governmentResult=false,insignia,
+ faceFinish='natural',onSelectFaceFinish,governmentResult=false,insignia,resultInsignia,insigniaHandles=[],onInsigniaStart,onInsigniaTransform,onInsigniaEnd,
  onDownload,onStudio,onUpload,onSourceFile,onCancelProcess,memberMenu
 }){
  const canvas=useRef(null);
@@ -22,17 +23,18 @@ export function ThaiMobileJourney({
  const [selectedStyle,setSelectedStyle]=useState(false);
  const [notice,setNotice]=useState('');
  const [changedHair,setChangedHair]=useState(false);
+ const [resultInsigniaOpen,setResultInsigniaOpen]=useState(false);
  const [moreSuits,setMoreSuits]=useState(false),[moreHair,setMoreHair]=useState(false);
  const actionAwaitingRef=useRef(null);
  const resultRef=useRef(false);
  const wasProcessing=useRef(false);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
-  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setNotice('');setMoreSuits(false);setMoreHair(false);setSection('choose')}
+  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
  },[sourcePreview]);
  useEffect(()=>{
   if(hasResult&&!resultRef.current){setSection('result');setChangedHair(false);setNotice('')}
-  if(!hasResult&&resultRef.current){setSection('choose')}
+  if(!hasResult&&resultRef.current){setResultInsigniaOpen(false);setSection('choose')}
   resultRef.current=hasResult;
  },[hasResult]);
  useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setSection('result');setChangedHair(false);setNotice('');actionAwaitingRef.current=null}wasProcessing.current=processing},[processing,hasResult]);
@@ -77,7 +79,9 @@ export function ThaiMobileJourney({
   setNotice('');
   onGenerateHair?.(draftHair);
  };
- const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว"/>{watermarked&&<div className="thai-mobile-watermark" aria-label="รูปตัวอย่างมีลายน้ำ">ตัวอย่าง IDพร้อม · ตัวอย่าง</div>}</div>:
+ const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว"/>{watermarked&&<div className="thai-mobile-watermark" aria-label="รูปตัวอย่างมีลายน้ำ">ตัวอย่าง IDพร้อม · ตัวอย่าง</div>}
+  {governmentResult&&resultInsigniaOpen&&<ResultInsigniaDrag handles={insigniaHandles} busy={busy||!ready} onStart={onInsigniaStart} onTransform={onInsigniaTransform} onEnd={onInsigniaEnd}/>}
+ </div>:
   <div className="thai-mobile-photo thai-mobile-source">{sourcePreview?<img src={sourcePreview} alt="รูปต้นฉบับที่เลือก" />:<span>เพิ่มรูปเพื่อเริ่มทำ</span>}</div>;
  const optionImg=t=>outfitChoicePreview(t,t?.preview||t?.src||t?.template);
  const selectedHairOptions=hairs.filter(h=>!h.disabled||h.locked);
@@ -208,6 +212,11 @@ export function ThaiMobileJourney({
       <button type="button" onClick={()=>{setDraftHair(selectedHair||'');setChangedHair(false);setSection('hair')}}><span aria-hidden="true">✂</span> เปลี่ยนทรงผม</button>
       <button type="button" disabled={busy||!ready} onClick={onUpload}><span aria-hidden="true">↻</span> เปลี่ยนรูปใหม่</button>
      </div>
+     {governmentResult&&resultInsignia&&<button type="button" className={'thai-mobile-result-insignia-launch'+(resultInsigniaOpen?' active':'')} aria-expanded={resultInsigniaOpen} disabled={!ready||busy} onClick={()=>setResultInsigniaOpen(v=>!v)}>◈ {resultInsigniaOpen?'ปิดเครื่องหมาย':'เพิ่มเครื่องหมายข้าราชการ'}</button>}
+     {governmentResult&&resultInsigniaOpen&&resultInsignia&&<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">
+      {resultInsignia}
+      <p className="thai-result-insignia-guide">ลากเครื่องหมายบนรูปเพื่อขยับ · จับจุดมุมเพื่อย่อหรือขยาย</p>
+     </div>}
      <div className="thai-mobile-result-reassurance"><span aria-hidden="true">✧</span> พอใจแล้วรับรูปได้เลย</div>
     </>:section==='hair'?<>
      <h2>ลองทรงผมอื่นได้ โดยไม่ต้องเพิ่มรูปใหม่</h2>
