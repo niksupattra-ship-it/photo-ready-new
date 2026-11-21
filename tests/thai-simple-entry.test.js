@@ -232,7 +232,8 @@ test('Thai finished photo only offers hairstyle and new photo; replacement enter
  const controls=result.slice(result.indexOf("section==='result'?<>"),result.indexOf("section==='hair'?<>"));
  assert(resultStart>0&&controls.length>0,'Real result actions exist');
  for(const label of ['รับรูปไม่มีลายน้ำ','เปลี่ยนทรงผม','เปลี่ยนรูปใหม่'])assert(controls.includes(label),label);
- assert(!controls.includes('เปลี่ยนชุด')&&!controls.includes('เพิ่มเครื่องหมาย'),'No extra editing actions');
+ assert(!controls.includes('เปลี่ยนชุด'),'Changing outfits is unavailable after generation');
+ assert(controls.includes('governmentResult&&resultInsignia'),'Insignia button appears only for government uniforms');
  assert(!result.includes("setSection('suit')")&&!result.includes("setSection('insignia')"),'No alternate result edit route');
  assert(!ui.includes('thai-mobile-result-menu-trigger'),'Studio shortcuts are hidden from simplified result');
  assert(ui.includes('aria-label="กลับไปเลือกทรงผม"'),'Back arrow cannot return to outfit picker from result');
@@ -246,4 +247,35 @@ test('Thai finished photo only offers hairstyle and new photo; replacement enter
  assert(studio.includes('setEasyPhotoTypeSelected(false)'),'New photo requires original type and selection workflow');
  assert(controls.includes('onClick={onDownload}'),'Protected checkout and download remain');
  assert(result.includes('onConfirmHair?.()'),'Hair change still needs explicit confirmation');
+});
+
+
+test('Thai government result edits only native insignia layers directly on picture, desktop and touch',async()=>{
+ const ui=await read('src/thai-mobile-journey.jsx');
+ const drag=await read('src/result-insignia-drag.jsx');
+ const css=await read('src/result-insignia-drag.css');
+ const chooser=await read('src/government-insignia-chooser.jsx');
+ const easy=await read('src/easy-mode.jsx');
+ const studio=await read('src/studio-editor.jsx');
+ assert(ui.includes("governmentResult&&resultInsignia&&<button"),'Only government results show the launch button');
+ assert(ui.includes("resultInsigniaOpen&&<ResultInsigniaDrag"),'Drag overlay is not present outside insignia editing');
+ assert(ui.includes('handles={insigniaHandles}')&&ui.includes('onTransform={onInsigniaTransform}'));
+ assert(ui.includes('thai-mobile-result-insignia-panel'),'The chooser displays only in result edit mode');
+ assert(ui.includes('onClick={onDownload}'),'Real paid output path remains');
+ assert(ui.includes('เปลี่ยนทรงผม')&&ui.includes('เปลี่ยนรูปใหม่'),'Other requested result actions remain');
+ assert(drag.includes('onPointerDown={begin}')&&drag.includes('onPointerMove={move}'),'Touch and mouse pointer gestures share one interface');
+ assert(drag.includes('onPointerCancel={finish}')&&drag.includes('onLostPointerCapture='),'Gesture cancellation is accounted for');
+ assert(drag.includes("data-insignia-resize"),'Resize grip is on the image');
+ assert(drag.includes('after.dist/before.dist'),'Pinch to resize works without sliders');
+ assert(css.includes('touch-action:none')&&css.includes('thai-result-insignia-grip'),'Handles render above actual photo on mobile');
+ assert(!drag.includes('type="range"')&&!css.includes('input[type="range"]'),'No insignia adjustment slider is introduced');
+ assert(chooser.includes('quickResult')&&chooser.includes("...(!quickResult?[['shoulder','บ่า']]:[])"),'Quick picker only shows actual insignia, no garment badges');
+ assert(studio.includes('resultInsigniaDirect:true'),'Quick chooser creates the real Studio asset, not a fake overlay');
+ assert(studio.includes('resultInsigniaHandles=governmentResult&&easyMode?layers.filter'),'Only actual editable insignia receive handles');
+ assert(studio.includes('resultInsigniaTransform=(kind'),'The gestures modify actual native editor layers');
+ assert(studio.includes('state.current=next;setLayers(next);setRevision(v=>v+1)'),'Export/source state gets gesture transforms');
+ assert(studio.includes('flushTransforms();remember()'),'Edits are stored in Studio Undo');
+ assert(studio.includes('resultInsigniaDirect)&&governmentResult'),'Only this result can use a manual fallback when auto-placement cannot measure the jacket');
+ assert(easy.includes('onInsigniaTransform={onInsigniaTransform}'),'Connected EasyMode forwards the real callbacks');
+ assert(!ui.includes("setSection('insignia')"),'No separate adjustment screen is opened');
 });
