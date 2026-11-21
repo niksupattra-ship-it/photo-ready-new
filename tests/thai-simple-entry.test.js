@@ -259,10 +259,16 @@ test('Thai government result edits only native insignia layers directly on pictu
  const chooser=await read('src/government-insignia-chooser.jsx');
  const easy=await read('src/easy-mode.jsx');
  const studio=await read('src/studio-editor.jsx');
- assert(ui.includes("governmentResult&&resultInsignia&&<button"),'Only government results show the launch button');
+ assert(ui.includes('governmentResult&&resultInsignia&&<div className="thai-mobile-result-insignia-inline"'),'Only government results show the launch button and attached picker');
  assert(ui.includes("resultInsigniaOpen&&<ResultInsigniaDrag"),'Drag overlay is not present outside insignia editing');
  assert(ui.includes('handles={insigniaHandles}')&&ui.includes('onTransform={onInsigniaTransform}'));
  assert(ui.includes('thai-mobile-result-insignia-panel'),'The chooser displays only in result edit mode');
+ assert(ui.includes('{resultInsigniaOpen&&<div className="thai-mobile-result-insignia-panel"'),'Insignia list mounts just below the button inside the same wrapper');
+ assert(!ui.includes('thai-result-insignia-guide'),'Remove redundant explanatory text below chooser');
+ assert(chooser.includes('{!quickResult&&<header className="idprom-government-insignia-head"'),'Quick result hides title and top description, while Studio chooser retains them');
+ assert(chooser.includes("{!quickResult&&<p className=\"idprom-government-insignia-help\""),'Quick result shows only actual insignia tabs and options');
+ assert(css.includes('.thai-mobile-result-insignia-inline > .thai-mobile-result-insignia-panel'),'Picker is visually attached directly under button');
+ assert(css.includes('border-top:0;border-radius:0 0 14px 14px'),'No separated heading card or gap below action');
  assert(ui.includes('onClick={onDownload}'),'Real paid output path remains');
  assert(ui.includes('เปลี่ยนทรงผม')&&ui.includes('เปลี่ยนรูปใหม่'),'Other requested result actions remain');
  assert(drag.includes('onPointerDown={begin}')&&drag.includes('onPointerMove={move}'),'Touch and mouse pointer gestures share one interface');
