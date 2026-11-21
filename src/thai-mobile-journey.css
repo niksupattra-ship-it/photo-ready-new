@@ -649,23 +649,6 @@
 .thai-mobile-flow-processing .thai-mobile-processing .thai-mobile-processing-subtitle{
  margin:0;color:#6d6082;font-size:17px;line-height:1.55;
 }
-.thai-mobile-flow-processing .thai-mobile-processing-meter{
- width:100%;max-width:485px;display:flex;align-items:center;gap:15px;
- margin-top:30px;
-}
-.thai-mobile-flow-processing .thai-mobile-processing-meter-track{
- height:13px;flex:1;min-width:0;border-radius:999px;
- background:#ecdef9;overflow:hidden;
-}
-.thai-mobile-flow-processing .thai-mobile-processing-meter-track > span{
- display:block;height:100%;border-radius:inherit;
- background:linear-gradient(100deg,#a139e8,#7622c9);
- transition:width .3s ease;
-}
-.thai-mobile-flow-processing .thai-mobile-processing-meter > strong{
- flex:none;color:#6720b9;font-size:19px;font-weight:850;
- min-width:49px;text-align:right;font-variant-numeric:tabular-nums;
-}
 .thai-mobile-flow-processing .thai-mobile-processing .thai-mobile-processing-note{
  color:#75658e;display:flex;justify-content:center;align-items:center;
  gap:10px;max-width:500px;margin:25px 0 0;font-size:14px;line-height:1.55;
@@ -713,11 +696,6 @@
  .thai-mobile-flow-processing .thai-mobile-processing .thai-mobile-processing-subtitle{
   font-size:15px;
  }
- .thai-mobile-flow-processing .thai-mobile-processing-meter{
-  gap:12px;margin-top:26px;
- }
- .thai-mobile-flow-processing .thai-mobile-processing-meter-track{height:11px}
- .thai-mobile-flow-processing .thai-mobile-processing-meter > strong{font-size:17px;min-width:42px}
  .thai-mobile-flow-processing .thai-mobile-processing .thai-mobile-processing-note{
   font-size:13px;gap:8px;margin-top:23px;
  }
@@ -725,7 +703,4 @@
  .idstudio .thai-mobile-flow-processing .thai-mobile-processing button.thai-mobile-processing-cancel{
   margin-top:26px;min-width:180px;min-height:44px;font-size:16px;
  }
-}
-@media(prefers-reduced-motion:reduce){
- .thai-mobile-flow-processing .thai-mobile-processing-meter-track > span{transition:none}
 }
