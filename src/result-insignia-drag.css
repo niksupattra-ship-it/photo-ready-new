@@ -9,9 +9,8 @@
    No giant purple diagonal-arrow button and no adjustments slider. */
 .thai-result-insignia-handle{
  position:absolute;box-sizing:border-box;pointer-events:none;
- border:1.5px solid #62efe6;border-radius:5px;
- outline:1px solid rgba(21,45,54,.7);
- box-shadow:0 1px 5px rgba(16,51,63,.25);
+ border:1.5px solid transparent;border-radius:5px;
+ outline:none;box-shadow:none;
 }
 .thai-result-insignia-handle.active{
  border:2px solid #62efe6;
