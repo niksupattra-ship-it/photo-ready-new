@@ -335,3 +335,19 @@ export function governmentPngTemplatePlacement(suit,gender='female'){
  return {frame:{...frame},preset,confidence:'png-template-anchor',
   needsReview:true,collarType:type,templatePath:path};
 }
+
+// Correct the opposite-sized accessories in finished Thai government results.
+// The source PNGs retain their own artwork; this affects ONLY separately
+// selected insignia overlays, never bakes/stretchs the underlying uniform.
+export function balanceEasyGovernmentBadgeSizes(fit){
+ if(!fit?.frame||!fit?.preset)return fit;
+ const p=fit.preset;
+ const collar={...p.collar,width:clamp(p.collar.width*.67,.031,.050)};
+ const chest={...p.chest,width:clamp(p.chest.width*1.45,.092,.116)};
+ const ribbon={...p.ribbon,width:clamp(p.ribbon.width*1.47,.285,.335)};
+ // Keep each FULL badge footprint on its own half of the chest. Width
+ // remains uniform; no nonuniform scaling of the official source PNG.
+ chest.x=clamp(chest.x,.07+chest.width/2,.46-chest.width/2);
+ ribbon.x=clamp(ribbon.x,.53+ribbon.width/2,.985-ribbon.width/2);
+ return {...fit,preset:{...p,collar,chest,ribbon},needsReview:true};
+}
