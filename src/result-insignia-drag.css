@@ -70,3 +70,30 @@
  .thai-result-insignia-corner-se{bottom:-19px;right:-19px}
  .thai-result-insignia-corner-sw{bottom:-19px;left:-19px}
 }
+
+/* Finished-photo insignia list sits flush below its launch button; no duplicate title. */
+.thai-mobile-result-insignia-inline{
+ width:100%;min-width:0;align-self:stretch;
+ display:flex;flex-direction:column;gap:0;
+}
+.idstudio .thai-mobile-result-insignia-inline > .thai-mobile-result-insignia-launch{
+ width:100%;min-height:44px;margin:0;
+}
+.idstudio .thai-mobile-result-insignia-inline > .thai-mobile-result-insignia-launch.active{
+ border-radius:12px 12px 0 0;
+}
+.thai-mobile-result-insignia-inline > .thai-mobile-result-insignia-panel{
+ width:100%;max-width:100%;margin:0;
+ padding:5px 7px 8px;
+ border-top:0;border-radius:0 0 14px 14px;
+}
+.thai-mobile-result-insignia-inline .idprom-government-insignia{
+ margin:0;padding:5px 2px;
+}
+.thai-mobile-result-insignia-inline .idprom-government-insignia-tabs{
+ margin:0 0 8px;
+}
+@media(max-width:720px){
+ .thai-mobile-result-insignia-inline > .thai-mobile-result-insignia-panel{padding:4px 5px 7px}
+ .thai-mobile-result-insignia-inline .idprom-government-insignia{padding:3px 1px}
+}
