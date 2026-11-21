@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {dirname,resolve} from 'node:path';
 import {
  easyGovernmentReferencePreset,easyGovernmentPhotoFallback,easyGovernmentInsigniaFit,
- governmentInsigniaPreset,governmentPngTemplatePlacement
+ governmentInsigniaPreset,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes
 } from '../src/government-insignia-fit.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -107,4 +107,15 @@ test('Native government PNG anchors are stable across photos and do not scan bac
  assert.equal(governmentPngTemplatePlacement(makeSuit('/assets/job-uniforms/female-formal-suit.png'),'female'),null);
  const male=governmentPngTemplatePlacement(makeSuit('/assets/government-uniforms/male-operational.png'),'male');
  assert(male.preset.collar.right-male.preset.collar.left<.2);
+});
+
+test('Thai Easy selected accessory scales independently and remains inside chest bounds',()=>{
+ const source=easyGovernmentPhotoFallback(900,1200,'female');
+ const p=balanceEasyGovernmentBadgeSizes(source).preset;
+ assert(p.collar.width<source.preset.collar.width);
+ assert(p.chest.width>source.preset.chest.width);
+ assert(p.ribbon.width>source.preset.ribbon.width);
+ assert(p.ribbon.x+p.ribbon.width/2<=.985001);
+ assert(p.chest.x+p.chest.width/2<=.460001);
+ assert(balanceEasyGovernmentBadgeSizes(source).needsReview);
 });
