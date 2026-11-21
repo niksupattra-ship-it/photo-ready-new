@@ -65,7 +65,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
-import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes} from './government-insignia-fit.js';
+import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement,balanceEasyGovernmentBadgeSizes,governmentReferenceLandmarkFit} from './government-insignia-fit.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
 import {TouchParts,TouchAdjust,partName} from './studio-touch.jsx';
 import {StudioChoiceIcon,StudioToolIcon,StudioHistoryIcon} from './studio-icons.jsx';
@@ -1249,29 +1249,25 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   let fit=null;
   const gender=head.portraitMode||hairGender;
   const selectedTemplate=head.generatedOutfitTemplate||suit?.templatePath||governmentTemplate||'';
-  // Prefer the selected native garment's coordinate system whenever it is
-  // visibly composited. The head-only pixel scan cannot locate PNG seams.
-  const templateFit=governmentPngTemplatePlacement(suit,gender);
-  if(templateFit){
-   const balancedTemplateFit=balanceEasyGovernmentBadgeSizes(templateFit);
-   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit:balancedTemplateFit};
-   return balancedTemplateFit;
-  }
+  // Always measure the finished photo first. The sample includes the garment
+  // pixels, but never already-added badges, so changing badge selections
+  // cannot change the garment landmarks.
   try{
-   // CRITICAL: the previous implementation sampled a brand-new BLANK canvas.
-   // Draw ONLY the actual finished AI portrait to measure its white garment.
-   // Excluding placed insignia prevents subsequent selections from drifting.
    const ctx=sampled.getContext('2d',{willReadFrequently:true});
-   if(!assets.current.get(head.id))throw Error('portrait_asset_unavailable');
-   paintLayers(ctx,[head],assets.current,state.current);
-   fit=easyGovernmentInsigniaFit(
-    ctx.getImageData(0,0,W,H),gender,selectedTemplate);
-  }catch(error){console.warn('Easy government garment anchors unavailable',error?.message)}
+   const garment=suit?.visible&&assets.current.get(suit.id)?suit:head;
+   if(!assets.current.get(garment.id))throw Error('government_garment_unavailable');
+   paintLayers(ctx,[garment],assets.current,state.current);
+   const pixels=ctx.getImageData(0,0,W,H);
+   fit=governmentReferenceLandmarkFit(pixels,gender,selectedTemplate);
+  }catch(error){console.warn('Government shoulder geometry unavailable',error?.message)}
   finally{sampled.width=sampled.height=1}
+  // Retain an editable native-template fallback when image segmentation
+  // cannot reliably detect the shoulder geometry (e.g. white backgrounds).
+  if(!fit)fit=governmentPngTemplatePlacement(suit,gender);
   // Safe editable fallback: explicitly mark a position as needing review,
   // rather than claiming that a fixed coordinate is detected from the image.
   if(!fit)fit=easyGovernmentPhotoFallback(W,H,gender,selectedTemplate);
-  fit=balanceEasyGovernmentBadgeSizes(fit);
+  if(fit?.referenceGeometryVersion!=='reference-shoulder-v1')fit=balanceEasyGovernmentBadgeSizes(fit);
   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit};
   return fit;
  };
