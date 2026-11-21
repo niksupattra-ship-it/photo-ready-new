@@ -31,6 +31,9 @@ export function describePortraitFailure(error,english=false){
  if(status===401||status===403){
   return make('auth_required','Access verification needed','Sign in and check that your account can use this photo.','กรุณาตรวจสอบสิทธิ์','เข้าสู่ระบบและตรวจสอบสิทธิ์การใช้รูปนี้');
  }
+ if(status===413){
+  return make('upload_validation','Could not complete processing','The uploaded request exceeded an upload limit. Choose another photo or try again.','ประมวลผลไม่สำเร็จ','กรุณาตรวจสอบรูปหน้าตรงหรือเปลี่ยนรูป');
+ }
  if(stage==='submit_job'&&(code==='REQUEST_TIMEOUT'||/failed to fetch|networkerror|fetch failed|load failed|network request failed/i.test(message))){
   return make('upload','Photo upload interrupted','The photo could not be uploaded or its receipt could not be confirmed. Your previous photo is kept. Check the existing job before trying again.','ส่งรูปไม่สำเร็จ','การอัปโหลดหรือการยืนยันรับรูปสะดุด รูปเดิมยังอยู่ กรุณาตรวจสอบงานเดิมก่อนลองอีกครั้ง');
  }
@@ -58,5 +61,5 @@ export function describePortraitFailure(error,english=false){
  if(status>=500){
   return make('server','Photo service unavailable','The photo service encountered an error. Check the current job before trying again.','ระบบสร้างภาพขัดข้อง','ตรวจสอบสถานะงานเดิมก่อนลองอีกครั้ง');
  }
- return make('unknown','Could not complete processing','The previous photo has been kept. Try again; if the issue continues, report the error stage shown below.','ประมวลผลไม่สำเร็จ','รูปเดิมยังอยู่ ลองอีกครั้ง หากยังผิดพลาดให้แจ้งขั้นตอนข้อผิดพลาดที่แสดงด้านล่าง');
+ return make('unknown','Could not complete processing','The previous photo has been kept. Try again; if the issue continues, report the error stage shown below.','ประมวลผลไม่สำเร็จ','กรุณาตรวจสอบรูปหน้าตรงหรือเปลี่ยนรูป');
 }

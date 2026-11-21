@@ -1,5 +1,5 @@
-export const PROCESS_FAILURE_HINT='เปลี่ยนรูปใหม่หรือเลือกทรงผม';
-export const PROCESS_FAILURE_MESSAGE='ประมวลไม่สำเร็จ '+PROCESS_FAILURE_HINT;
+export const PROCESS_FAILURE_HINT='กรุณาตรวจสอบรูปหน้าตรงหรือเปลี่ยนรูป';
+export const PROCESS_FAILURE_MESSAGE='ประมวลผลไม่สำเร็จ '+PROCESS_FAILURE_HINT;
 export const TOOL_HELP={
  move:'ปรับตำแหน่งส่วนที่เลือก',
  transform:'ปรับขนาดและหมุนส่วนที่เลือก',
