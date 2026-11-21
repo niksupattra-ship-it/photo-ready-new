@@ -3,13 +3,13 @@ import './government-insignia-chooser.css';
 
 // This panel uses the existing Studio asset library and its undo/export path.
 // It never creates an AI job or chooses a civil-service rank for the customer.
-export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[],selected={},busy=false,onChoose,onClose}){
+export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[],selected={},busy=false,onChoose,onClose,quickResult=false}){
  const [tab,setTab]=useState('collar');
- const tabs=[['collar','ปกคอ'],['chest','เข็มติดอก'],['ribbon','แพรแถบ'],['shoulder','บ่า']];
+ const tabs=[['collar','ปกคอ'],['chest','เข็มติดอก'],['ribbon','แพรแถบ'],...(!quickResult?[['shoulder','บ่า']]:[])];
  const options=tab==='collar'?collarPins:tab==='chest'?chestPins:tab==='ribbon'?ribbons:[];
  return <section className="idprom-government-insignia" aria-label="เลือกเครื่องหมายชุดข้าราชการ">
   <header className="idprom-government-insignia-head">
-   <div><h3>เครื่องหมายข้าราชการ</h3><p>แตะเครื่องหมายที่ต้องการ ระบบจะจัดวางบนรูปที่สร้างแล้ว</p></div>
+   <div><h3>เครื่องหมายข้าราชการ</h3><p>{quickResult?'เลือกแล้วลากหรือย่อ–ขยายบนรูปได้เลย':'แตะเครื่องหมายที่ต้องการ ระบบจะจัดวางบนรูปที่สร้างแล้ว'}</p></div>
    {onClose&&<button type="button" onClick={onClose} aria-label="ปิดเครื่องหมาย">×</button>}
   </header>
   <nav className="idprom-government-insignia-tabs" aria-label="ประเภทเครื่องหมาย">
@@ -32,7 +32,7 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
     </button>)}
    </div>
    {!options.length&&<p className="idprom-government-insignia-note">ไม่มีเครื่องหมายในหมวดนี้</p>}
-   <p className="idprom-government-insignia-help">เลือกแล้วแสดงบนภาพทันที ไม่เรียก AI ใหม่ · ตรวจชนิดเครื่องหมายและสิทธิ์ที่ได้รับจริงก่อนดาวน์โหลด</p>
+   <p className="idprom-government-insignia-help">{quickResult?'ลากเครื่องหมายบนรูปเพื่อขยับ ใช้มุมเพื่อย่อ–ขยาย · ไม่เรียก AI ใหม่':'เลือกแล้วแสดงบนภาพทันที ไม่เรียก AI ใหม่ · ตรวจชนิดเครื่องหมายและสิทธิ์ที่ได้รับจริงก่อนดาวน์โหลด'}</p>
   </>}
   {onClose&&<button className="idprom-government-insignia-done" type="button" onClick={onClose}>เสร็จแล้ว · กลับไปดูรูป</button>}
  </section>;
