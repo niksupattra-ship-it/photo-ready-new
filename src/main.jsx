@@ -3173,7 +3173,15 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
   fd.append('singlePassPortraitVersion',SINGLE_PASS_PORTRAIT_VERSION);
  }
  if(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)&&options.templatePath)fd.append('outfitReferencePath',options.templatePath);
- if(selected){if(!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}
+ // Every NEW Thai full-outfit photo (women and men, regardless of hairstyle)
+ // needs a measured FACE identity envelope. Without it the server falls back
+ // to the original camera crop and head/body scale varies by upload.
+ if(thaiWholeOutfit){
+  if(selected&&!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);
+  fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));
+  assertProcessActive(operation);
+ }
+ else if(selected){if(!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}
  else if(originalAi){try{fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}catch(error){assertProcessActive(operation)}}
  else if(!originalAi&&((originalFile.idpromStudioSourceReplacement===true&&selected)||(portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)))){
   fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput,{protectFeatures:portraitMode==='female'&&['makeup','soft-rosy-v1'].includes(options.femaleEyeStyle)})));assertProcessActive(operation);
