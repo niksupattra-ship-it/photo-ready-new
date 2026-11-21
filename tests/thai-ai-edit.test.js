@@ -673,12 +673,12 @@ test('Easy finished-photo insignia detection draws the actual portrait BEFORE sa
  const end=editor.indexOf('const selectAsset=async(',start);
  assert(start>=0&&end>start,'Result-only anchor reader must exist');
  const body=editor.slice(start,end);
- assert(body.includes('if(!assets.current.get(head.id))'),'No detector result from a missing portrait');
- assert(body.includes('paintLayers(ctx,[head],assets.current,state.current)'),'Actual completed photo must be painted before any image scan');
- assert(body.indexOf('paintLayers(ctx,[head],assets.current,state.current)')<
+ assert(body.includes("if(!assets.current.get(garment.id))"),'No detector result from a missing garment asset');
+ assert(body.includes('paintLayers(ctx,[garment],assets.current,state.current)'),'Actual completed photo must be painted before any image scan');
+ assert(body.indexOf('paintLayers(ctx,[garment],assets.current,state.current)')<
   body.indexOf('ctx.getImageData(0,0,W,H)'),'Never analyze a blank canvas');
  assert(body.includes('head.generatedOutfitTemplate||suit?.templatePath'),'Use chosen uniform template to identify the collar type');
- assert(body.includes('easyGovernmentPhotoFallback(W,H,gender,selectedTemplate)'),'Confidence-marked fallback is editable');
+ assert(body.includes('governmentPngTemplatePlacement(suit,gender)')&&body.includes('easyGovernmentPhotoFallback(W,H,gender,selectedTemplate)'),'Low-confidence scan has editable fallbacks');
  assert(body.includes('easyGovernmentInsigniaFitRef.current={key:cacheKey,fit}'),'Reusing a symbol on same photo cannot shift its anchors');
  // Studio's own unchanged strict scanner is deliberately independent.
  const studio=editor.slice(editor.indexOf('const measureGovernmentInsigniaFrame=()=>{'),start);
