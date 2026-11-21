@@ -9,6 +9,7 @@ import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_P
 import {englishHeadCutoutAlpha,englishNeckClipAlpha} from './english-head-cutout.js';
 import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
 import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,isThaiOutfitPath} from '../thai-outfit-ai-policy.js';
+import {measureThaiAdaptiveFace} from '../thai-adaptive-proportion.js';
 import {ENGLISH_AUTO_HAIR_VERSION} from '../english-auto-hair.js';
 import {THAI_NECK_BACKING_VERSION} from '../thai-neck-backing-policy.js';
 import {rememberDownloadChoice} from './download-choice.js';
@@ -3034,7 +3035,7 @@ async function measuredHairRootTarget(blob){
   return calculateHairRootTarget({brow,foreheadTop});
  }finally{URL.revokeObjectURL(url)}
 }
-async function replacementFaceIdentityBox(blob,{protectFeatures=false}={}){
+async function replacementFaceIdentityBox(blob,{protectFeatures=false,returnEvidence=false}={}){
  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
  const face=await portraitFaceLandmarks(blob,image);
  const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
@@ -3043,7 +3044,9 @@ async function replacementFaceIdentityBox(blob,{protectFeatures=false}={}){
  const xs=ids.map(id=>face[id].x),ys=ids.map(id=>face[id].y);
  const box=[Math.max(0,Math.min(...xs)),Math.max(0,Math.min(...ys)),Math.min(1,Math.max(...xs)),Math.min(1,Math.max(...ys))];
  if((box[2]-box[0])*W<16||(box[3]-box[1])*H<16)throw Error('ใบหน้าในรูปใหม่เล็กเกินไป กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
- return box;
+ // V11 measurements come from exactly the same landmark analysis as the
+ // identity crop. No second model load, AI generation, or face pixel rewrite.
+ return returnEvidence?{box,geometry:measureThaiAdaptiveFace(face,W,H)}:box;
 }
 const englishHairPlacementCache=new WeakMap();
 function measureEnglishHairPlacement(blob){
@@ -3178,7 +3181,9 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // to the original camera crop and head/body scale varies by upload.
  if(thaiWholeOutfit){
   if(selected&&!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);
-  fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));
+  const measured=await replacementFaceIdentityBox(aiInput,{returnEvidence:true});
+  fd.append('faceIdentityBox',JSON.stringify(measured.box));
+  fd.append('thaiAdaptiveFaceGeometry',JSON.stringify(measured.geometry));
   assertProcessActive(operation);
  }
  else if(selected){if(!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}
