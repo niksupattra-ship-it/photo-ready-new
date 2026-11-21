@@ -41,10 +41,10 @@ test('Thai desktop and mobile share real eight-stage pages for selection, proces
  const easy=await read('src/easy-mode.jsx');
  assert(easy.includes('<ThaiMobileJourney sourcePreview={sourcePreview}'));
  assert(easy.includes('!englishPreviewEnabled()&&(sourcePreview||hasResult)&&templates.length'));
- for(const part of ['กำลังสร้างรูป','ปรับแต่งและสร้างรูป','เปลี่ยนทรงผม','เปลี่ยนรูปใหม่','รับรูปไม่มีลายน้ำ','สร้างรูป'])assert(source.includes(part),part);
+ for(const part of ['กำลังสร้างรูป','ปรับแต่งและสร้างรูป','เปลี่ยนทรงผม','เปลี่ยนรูปใหม่','ดาวน์โหลดรูป','สร้างรูป'])assert(source.includes(part),part);
  assert(source.includes('onGenerateHair?.(draftHair)'),'New AI generation still uses guarded original callback');
  assert(source.includes('onConfirmHair?.()'),'Changing hair still requires confirmation');
- assert(source.includes('onClick={onDownload}')&&source.includes('รับรูปไม่มีลายน้ำ'),'Receive-photo button still calls the original protected checkout/download callback');
+ assert(source.includes('onClick={onDownload}')&&source.includes('ดาวน์โหลดรูป'),'Receive-photo button still calls the original protected checkout/download callback');
  assert(source.includes('onClick={onUpload}'),'Finished result uses the existing guarded photo-picker callback');
  assert(source.includes('onSuit?.(t)'),'Suit selection retains original native asset behavior');
 });
@@ -52,8 +52,8 @@ test('Thai desktop and mobile share real eight-stage pages for selection, proces
 test('Thai completed result matches approved photo-first mockup without replacing working actions',async()=>{
  const result=await read('src/thai-mobile-journey.jsx');
  const theme=await read('src/thai-mobile-journey.css');
- for(const section of ['thai-mobile-flow-ready','thai-mobile-result-heading','thai-mobile-result-photo-card','thai-mobile-result-photo-summary','thai-mobile-result-success','thai-mobile-result-hair-choices','thai-mobile-result-reassurance'])assert(result.includes(section),section);
- assert(result.includes('onClick={onDownload}')&&result.includes('รับรูปไม่มีลายน้ำ'),'Main receive button retains real checkout/download');
+ for(const section of ['thai-mobile-flow-ready','thai-mobile-result-heading','thai-mobile-result-photo-card','thai-mobile-result-photo-summary','thai-mobile-result-success','thai-mobile-result-hair-choices','thai-mobile-result-studio'])assert(result.includes(section),section);
+ assert(result.includes('onClick={onDownload}')&&result.includes('ดาวน์โหลดรูป'),'Main receive button retains real checkout/download');
  assert(result.includes("setSection('hair')")&&!result.includes("setSection('suit')"),'Only hairstyle correction is available on this finished screen');
  assert(result.includes('เปลี่ยนรูปใหม่')&&result.includes('onClick={onUpload}'),'Replacing photo uses real guarded upload');
  assert(theme.includes('Approved Thai result mockup')&&theme.includes('linear-gradient(115deg,#8738d6'),'The completed result has its own brand-purple styling');
@@ -233,7 +233,7 @@ test('Thai finished photo only offers hairstyle and new photo; replacement enter
  const result=ui.slice(resultStart);
  const controls=result.slice(result.indexOf("section==='result'?<>"),result.indexOf("section==='hair'?<>"));
  assert(resultStart>0&&controls.length>0,'Real result actions exist');
- for(const label of ['รับรูปไม่มีลายน้ำ','เปลี่ยนทรงผม','เปลี่ยนรูปใหม่'])assert(controls.includes(label),label);
+ for(const label of ['ดาวน์โหลดรูป','เปลี่ยนทรงผม','เปลี่ยนรูปใหม่'])assert(controls.includes(label),label);
  assert(!controls.includes('เปลี่ยนชุด'),'Changing outfits is unavailable after generation');
  assert(controls.includes('governmentResult&&resultInsignia'),'Insignia button appears only for government uniforms');
  assert(!result.includes("setSection('suit')")&&!result.includes("setSection('insignia')"),'No alternate result edit route');
