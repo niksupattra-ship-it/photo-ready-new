@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {EasyPreviewImage} from './easy-preview-image.jsx';
 import {outfitChoicePreview,outfitPickerPreview} from './outfit-choice-preview.js';
 import {hairPickerPreview} from './hair-picker-preview.js';
+import {StudioChoiceIcon} from './studio-icons.jsx';
 import {ResultInsigniaDrag} from './result-insignia-drag.jsx';
 import './thai-mobile-journey.css';
 
@@ -18,6 +19,9 @@ export function ThaiMobileJourney({
  onDownload,onStudio,onUpload,onSourceFile,onCancelProcess,memberMenu
 }){
  const canvas=useRef(null);
+ const [compactResult,setCompactResult]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:720px)').matches);
+ useEffect(()=>{const mq=window.matchMedia('(max-width:720px)'),change=()=>setCompactResult(mq.matches);change();mq.addEventListener('change',change);return()=>mq.removeEventListener('change',change)},[]);
+ const [resultHairOpen,setResultHairOpen]=useState(false);
  const [section,setSection]=useState(()=>hasResult?'result':'choose');
  const [category,setCategory]=useState('สมัครงาน');
  const [draftHair,setDraftHair]=useState('');
@@ -34,15 +38,15 @@ export function ThaiMobileJourney({
  const wasProcessing=useRef(false);
  const srcRef=useRef(sourcePreview);
  useEffect(()=>{
-  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setDraftBackground('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setSection('choose')}
+  if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setDraftBackground('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setResultHairOpen(false);setSection('choose')}
  },[sourcePreview]);
  useEffect(()=>{
   if(hasResult&&!resultRef.current){setSection('result');setChangedHair(false);setNotice('')}
-  if(!hasResult&&resultRef.current){setResultInsigniaOpen(false);setSection('choose')}
+  if(!hasResult&&resultRef.current){setResultInsigniaOpen(false);setResultHairOpen(false);setSection('choose')}
   resultRef.current=hasResult;
  },[hasResult]);
- useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setSection('result');setChangedHair(false);setNotice('');actionAwaitingRef.current=null}wasProcessing.current=processing},[processing,hasResult]);
- useEffect(()=>{if(actionAwaitingRef.current==='hair'&&hasResult&&!processing){actionAwaitingRef.current=null;setChangedHair(false);setSection('result')}},[renderVersion]);
+ useEffect(()=>{if(wasProcessing.current&&!processing&&hasResult){setSection('result');setResultHairOpen(false);setChangedHair(false);setNotice('');actionAwaitingRef.current=null}wasProcessing.current=processing},[processing,hasResult]);
+ useEffect(()=>{if(actionAwaitingRef.current==='hair'&&hasResult&&!processing){actionAwaitingRef.current=null;setResultHairOpen(false);setChangedHair(false);setSection('result')}},[renderVersion]);
  useEffect(()=>{
   const src=canvasRef?.current,dst=canvas.current;
   if(!src||!dst||!hasResult)return;
@@ -227,12 +231,19 @@ export function ThaiMobileJourney({
       </div>
       <div className="thai-mobile-result-photo-summary">{shownSuitLabel} · {shownHair?.name||'ทรงผมที่เลือก'}</div>
      </div>
-     <div className="thai-mobile-hair-gallery thai-mobile-result-hair-choices" aria-label="ลองเปลี่ยนทรงผม">
-      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
+     <div className={"thai-mobile-hair-gallery thai-mobile-result-hair-choices"+(resultHairOpen?" is-open":"")} aria-label="ลองเปลี่ยนทรงผม">
+      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);if(!compactResult)setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
+      {compactResult&&changedHair&&<button type="button" className="mobile-hair-create" disabled={!ready||busy||!choicesReady} onClick={()=>{setNotice('');actionAwaitingRef.current='hair';onConfirmHair?.()}}>สร้างรูปทรงนี้</button>}
      </div>
     </div>:preview}
     <div className="thai-mobile-result-controls">
     {section==='result'?<>
+     <nav className="thai-mobile-result-icon-row" aria-label="เครื่องมือรูปที่เสร็จแล้ว" style={{'--result-action-count':governmentResult&&resultInsignia?4:3}}>
+      <button type="button" disabled={!ready||busy} aria-expanded={resultHairOpen} onClick={()=>{setResultHairOpen(v=>!v);setResultInsigniaOpen(false)}}><StudioChoiceIcon kind="hair"/><small>ทรงผม</small></button>
+      {governmentResult&&resultInsignia&&<button type="button" disabled={!ready||busy} aria-expanded={resultInsigniaOpen} onClick={()=>{setResultInsigniaOpen(v=>!v);setResultHairOpen(false)}}><StudioChoiceIcon kind="chest"/><small>เครื่องหมาย</small></button>}
+      <button type="button" disabled={!ready||busy} onClick={onDownload}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><small>ดาวน์โหลด</small></button>
+      <button type="button" disabled={!ready||busy} onClick={onStudio}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2" fill="white"/><circle cx="16" cy="12" r="2" fill="white"/><circle cx="9" cy="18" r="2" fill="white"/></svg><small>ปรับในสตู</small></button>
+     </nav>
      <div className="thai-mobile-result-success"><span className="thai-mobile-result-success-check" aria-hidden="true">✓</span><strong>รูปของคุณพร้อมแล้ว</strong></div>
      <button type="button" className="thai-mobile-result-studio" disabled={!ready||busy} onClick={onStudio}><span aria-hidden="true">⚙</span> ปรับแต่งในสตูดิโอ</button>
      <button type="button" className="thai-mobile-primary thai-mobile-result-download" disabled={!ready||busy} onClick={onDownload}><span aria-hidden="true">↓</span> ดาวน์โหลดรูป</button>
@@ -249,7 +260,7 @@ export function ThaiMobileJourney({
     </>:section==='hair'?<>
      <h2>ลองทรงผมอื่นได้ โดยไม่ต้องเพิ่มรูปใหม่</h2>
      <div className="thai-mobile-tile-row thai-mobile-hair-row">
-      {hairs.filter(h=>!h.disabled||h.locked).map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} disabled={busy} onClick={()=>chooseHair(h)}>
+      {hairs.filter(h=>!h.disabled||h.locked).slice(0,compactResult?3:undefined).map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} disabled={busy} onClick={()=>chooseHair(h)}>
        <EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/><span>{h.name||'ทรงผม'}</span>{draftHair===h.id&&<b className="thai-mobile-tile-check">✓</b>}
       </button>)}
      </div>

@@ -778,3 +778,30 @@
 .idstudio .thai-mobile-flow-ready .thai-mobile-result-studio:disabled{
  opacity:.55;cursor:not-allowed;
 }
+
+/* Completed Thai Easy photo: a single mobile action row; choices open on demand. */
+.thai-mobile-result-icon-row{display:none}
+@media(max-width:720px){
+ .thai-mobile-result-ready-page .thai-mobile-result-layout-ready{display:flex;flex-direction:column;gap:12px}
+ .thai-mobile-result-ready-page .thai-mobile-result-preview-column{display:contents}
+ .thai-mobile-result-ready-page .thai-mobile-result-photo-card{order:0}
+ .thai-mobile-result-ready-page .thai-mobile-result-controls{order:1;display:block}
+ .thai-mobile-result-ready-page .thai-mobile-result-hair-choices{order:2;display:none;margin:0 auto;width:100%}
+ .thai-mobile-result-ready-page .thai-mobile-result-hair-choices.is-open{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .thai-mobile-result-ready-page .thai-mobile-result-success,
+ .thai-mobile-result-ready-page .thai-mobile-result-studio,
+ .thai-mobile-result-ready-page .thai-mobile-result-download,
+ .thai-mobile-result-ready-page .thai-mobile-result-actions,
+ .thai-mobile-result-ready-page .thai-mobile-result-insignia-launch{display:none!important}
+ .thai-mobile-result-ready-page .thai-mobile-result-icon-row{display:grid;grid-template-columns:repeat(var(--result-action-count),minmax(0,1fr));gap:6px;margin:0;padding:8px 4px;background:#fff;border:1px solid #e9def8;border-radius:14px}
+ .idstudio .thai-mobile-flow-ready .thai-mobile-result-icon-row button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:66px;padding:6px 2px;border:0;border-radius:9px;background:transparent;color:#54259c;box-shadow:none}
+ .thai-mobile-result-icon-row button span{font-size:27px;line-height:1}
+ .thai-mobile-result-icon-row button small{font-size:12px;white-space:nowrap}
+ .thai-mobile-result-icon-row button[aria-expanded=true]{background:#f0e7fc}
+ .thai-mobile-result-ready-page .thai-mobile-result-insignia-inline{margin:0}
+}
+
+@media(max-width:720px){
+ .thai-mobile-result-icon-row svg,.thai-mobile-result-icon-row .studio-png-icon{width:28px;height:28px;object-fit:contain}
+ .idstudio .thai-mobile-flow-ready .thai-mobile-result-hair-choices > button.mobile-hair-create{grid-column:1/-1;display:block;min-height:44px;padding:10px;border:0;border-radius:10px;background:#7634ce;color:white;font-weight:750}
+}
