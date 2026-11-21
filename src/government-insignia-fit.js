@@ -304,3 +304,34 @@ export function easyGovernmentInsigniaFit(image,gender='female',templatePath='')
  return {frame,preset:bounded,confidence:needsReview?'manual-review':detected.confidence,
   needsReview,collarType:easyGovernmentCollarType(templatePath,gender)};
 }
+
+// A composited PNG uniform has its own stable geometry. Never infer its
+// anchors by scanning the AI face/portrait, whose jacket may be differently
+// cropped or may include an unrelated background. The native insignia layer
+// shares the suit's scene transform (x/y/scale/rotation).
+// These initial per-collar profiles are intentionally flagged for review until
+// each source template is approved against an actual reference image.
+export function governmentPngTemplatePlacement(suit,gender='female'){
+ const path=String(suit?.templatePath||'');
+ if(!isGovernmentUniform(path)||!suit?.visible||suit?.warpSource||suit?.suitPreviewOnly)return null;
+ const frame=suit.collarFrame||suit.sourceFrame;
+ if(!frame||![frame.x,frame.y,frame.w,frame.h].every(Number.isFinite)||frame.w<=0||frame.h<=0)return null;
+ const type=easyGovernmentCollarType(path,gender);
+ const preset=easyGovernmentReferencePreset(frame,gender,path);
+ // The template coordinate system is independent of the photo's pixels.
+ // A collar pair is left/right symmetric only for standing collars.
+ if(type==='stand'){
+  preset.collar.left=.435;preset.collar.right=.565;
+  preset.collar.y=.075;preset.collar.width=.062;
+ }else if(type==='lapel'){
+  preset.collar.left=gender==='female'?.265:.307;
+  preset.collar.right=gender==='female'?.742:.693;
+  preset.collar.y=.105;preset.collar.width=.067;
+ }
+ // Keep badge footprints inside both respective torso panels.
+ preset.chest.x=Math.max(.12,Math.min(.36,preset.chest.x));
+ preset.ribbon.x=Math.min(.84,Math.max(.68,preset.ribbon.x));
+ preset.ribbon.width=Math.min(preset.ribbon.width,2*(.98-preset.ribbon.x));
+ return {frame:{...frame},preset,confidence:'png-template-anchor',
+  needsReview:true,collarType:type,templatePath:path};
+}
