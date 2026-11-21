@@ -65,7 +65,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import './studio-editor.css'
 import './studio-redesign.css';
 import {STUDIO_ACCESSORY_PLACEMENT} from './studio-accessory-placement.js';
-import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback} from './government-insignia-fit.js';
+import {isGovernmentUniform,detectWhiteGovernmentJacket,governmentInsigniaPreset,easyGovernmentInsigniaFit,easyGovernmentPhotoFallback,governmentPngTemplatePlacement} from './government-insignia-fit.js';
 import {GovernmentInsigniaChooser} from './government-insignia-chooser.jsx';
 import {TouchParts,TouchAdjust,partName} from './studio-touch.jsx';
 import {StudioChoiceIcon,StudioToolIcon,StudioHistoryIcon} from './studio-icons.jsx';
@@ -1249,6 +1249,13 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   let fit=null;
   const gender=head.portraitMode||hairGender;
   const selectedTemplate=head.generatedOutfitTemplate||suit?.templatePath||governmentTemplate||'';
+  // Prefer the selected native garment's coordinate system whenever it is
+  // visibly composited. The head-only pixel scan cannot locate PNG seams.
+  const templateFit=governmentPngTemplatePlacement(suit,gender);
+  if(templateFit){
+   easyGovernmentInsigniaFitRef.current={key:cacheKey,fit:templateFit};
+   return templateFit;
+  }
   try{
    // CRITICAL: the previous implementation sampled a brand-new BLANK canvas.
    // Draw ONLY the actual finished AI portrait to measure its white garment.
