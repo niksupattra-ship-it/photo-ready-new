@@ -374,3 +374,18 @@ test('Thai Step 2 circular background choices use original Studio export layer w
  assert(process.includes("let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current"),'New AI generations retain existing background layers from the user selection');
  assert(!flow.slice(flow.indexOf('const pickBackground=option=>'),flow.indexOf('const selectGender=v=>')).includes('onGenerateHair'),'Colour selection does not charge for an AI call');
 });
+
+test('Thai hairstyle Step 2 immediately shows all three built-in standard women hairstyles after the free choices',async()=>{
+ const main=await read('src/main.jsx'),ui=await read('src/thai-mobile-journey.jsx');
+ const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
+ const start=main.indexOf('const BASIC_MALE_HAIR_IDS='),end=main.indexOf('const JOB_UNIFORMS=[',start);
+ assert(start>=0&&end>start,'Female hair menu must be the original Studio catalogue');
+ const ordered=new Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_FEMALE_HAIR_IDS',main.slice(start,end)+'return STUDIO_FEMALE_HAIR_OPTIONS;')(PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS);
+ const standardIds=['standard-female-half-up','standard-female-gathered','standard-female-straight'];
+ assert.deepEqual(ordered.slice(0,6).map(h=>h.id),[...THAI_FREE_FEMALE_HAIR_IDS,...standardIds]);
+ assert(standardIds.every(id=>ordered.some(h=>h.id===id&&h.promptOnly===true)),'All standard presets must be selectable');
+ assert.match(ui,/selectedHairOptions\.slice\(0,moreHair\?selectedHairOptions\.length:6\)/,'All six primary hairstyles must be visible without expansion');
+ assert.match(ui,/selectedHairOptions\.length>6/,'View all is offered only after visible options');
+ assert.match(ui,/displayHairOptions\.map\(h=>/,'The actual choice panel renders that list');
+ assert.match(ui,/onClick=\{\(\)=>chooseHair\(h\)\}/,'Each choice uses the existing click handler');
+});

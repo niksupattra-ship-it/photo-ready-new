@@ -104,7 +104,7 @@ export function ThaiMobileJourney({
   <div className="thai-mobile-photo thai-mobile-source">{sourcePreview?<img src={sourcePreview} alt="รูปต้นฉบับที่เลือก" />:<span>เพิ่มรูปเพื่อเริ่มทำ</span>}</div>;
  const optionImg=t=>outfitChoicePreview(t,t?.preview||t?.src||t?.template);
  const selectedHairOptions=hairs.filter(h=>!h.disabled||h.locked);
- const displayHairOptions=selectedHairOptions.slice(0,moreHair?24:4);
+ const displayHairOptions=selectedHairOptions.slice(0,moreHair?selectedHairOptions.length:6);
  const displayOutfitOptions=outfits.slice(0,moreSuits?24:4);
  return <div className={'thai-mobile-flow'+(resultReadyPage?' thai-mobile-flow-ready':'')+(choicePage?' thai-mobile-flow-choice':'')+(processingPage?' thai-mobile-flow-processing':'')}>
   <header className="thai-mobile-header">
@@ -166,7 +166,7 @@ export function ThaiMobileJourney({
        </div>
        <section className={'thai-mobile-choice-panel thai-mobile-choice-hair-panel'+(!hairUnlocked?' thai-mobile-choice-locked':'')} aria-label="เลือกทรงผม" aria-disabled={!hairUnlocked}>
         <div className="thai-mobile-choice-panel-heading"><h2><span aria-hidden="true">✂</span> ทรงผม</h2>
-         {selectedHairOptions.length>4&&<button type="button" className="thai-mobile-choice-view-all" disabled={!hairUnlocked||busy} onClick={()=>setMoreHair(v=>!v)}>{moreHair?'แสดงน้อยลง':'ดูทั้งหมด ›'}</button>}
+         {selectedHairOptions.length>6&&<button type="button" className="thai-mobile-choice-view-all" disabled={!hairUnlocked||busy} onClick={()=>setMoreHair(v=>!v)}>{moreHair?'แสดงน้อยลง':'ดูทั้งหมด ›'}</button>}
         </div>
         <div className="thai-mobile-tile-row thai-mobile-hair-row thai-mobile-choice-tiles">
          {displayHairOptions.map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} aria-pressed={draftHair===h.id} disabled={busy||!hairUnlocked} onClick={()=>chooseHair(h)}>
