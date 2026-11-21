@@ -207,12 +207,14 @@ test('Thai Step 4 processing matches approved white-purple progress card with li
  const processingEnd=ui.indexOf('</section>:!hasResult?',processingStart);
  assert(processingStart>0&&processingEnd>processingStart,'Step 4 is independently scoped between upload and selection');
  const processing=ui.slice(processingStart,processingEnd);
- for(const phrase of ['ขั้นตอน 4 / 8','กำลังสร้างรูป...','AI กำลังประมวลผลรูปของคุณ','ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ','thai-mobile-processing-card','thai-mobile-processing-ring','thai-mobile-processing-meter'])
+ for(const phrase of ['ขั้นตอน 4 / 8','กำลังสร้างรูป...','AI กำลังประมวลผลรูปของคุณ','ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ','thai-mobile-processing-card','thai-mobile-processing-ring'])
   assert(processing.includes(phrase),phrase);
  assert(ui.includes("+(processingPage?' thai-mobile-flow-processing':'')"),'Only processing screen receives this theme');
  assert(ui.includes("resultReadyPage||choicePage||processingPage"),'Processing header shows matching ID Prom Thai brand');
  assert(ui.includes('const shownProgress=Number.isFinite(progress)?Math.min(99,Math.max(0,Math.floor(progress))):0;'),'UI uses real bounded progress, not a fake timer');
- assert(processing.includes('aria-valuenow={shownProgress}')&&processing.includes('style={{width:shownProgress+'), 'Circular and linear progress use the same actual value');
+ assert(processing.includes('aria-valuenow={shownProgress}')&&processing.includes("'--thai-processing-percent':shownProgress+'%'"),'Only the circular progress uses live progress');
+ assert(!processing.includes('thai-mobile-processing-meter'),'Duplicate lower progress bar is removed');
+ assert(!css.includes('.thai-mobile-flow-processing .thai-mobile-processing-meter'),'Unused progress bar styling is removed');
  assert(processing.includes('onClick={onCancelProcess}'),'Existing cancellation callback must not change');
  assert(!processing.includes('setTimeout(')&&!processing.includes('onGenerateHair'),'Progress UI must never trigger another AI request');
  assert(css.includes('Approved Thai Step 4 processing mockup'));
