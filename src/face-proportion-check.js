@@ -43,3 +43,21 @@ export function compareThaiFaceShape(original,generated){
  const ok=Object.entries(limits).every(([name,limit])=>changes[name]<=limit)&&aspectDelta<=.065&&jawRatioDelta<=.065;
  return {ok,reason:ok?'preserved':'face_geometry_changed',changes,aspectDelta,jawRatioDelta};
 }
+
+// A single 2D landmark reading on a differently framed AI portrait can shift
+// by several percent without establishing a real change of identity.
+// Mild V12 deviations require review of the finished pixels, not automatic
+// cancellation of an otherwise completed AI job. Truly large geometric
+// deviations remain blocked.
+export function triageThaiFaceShape(original,generated){
+ const comparison=compareThaiFaceShape(original,generated);
+ if(comparison.ok)return {action:'accept',comparison};
+ if(comparison.reason==='unmeasurable')return {action:'review',comparison};
+ const scores=[...Object.values(comparison.changes||{}),
+  comparison.aspectDelta,comparison.jawRatioDelta];
+ if(scores.some(v=>!Number.isFinite(v)))return {action:'review',comparison};
+ const severe=scores.some(v=>v>.19) ||
+  (generated.faceWidth/original.faceWidth<.84) ||
+  (generated.jawWidth/original.jawWidth<.82);
+ return {action:severe?'reject':'review',comparison};
+}
