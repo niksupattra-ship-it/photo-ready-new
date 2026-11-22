@@ -1,3 +1,4 @@
+import {thaiRearHairReference,THAI_REAR_HAIR_FINAL_POLICY} from './thai-rear-hair-reference.js';
 import {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
 import {prepareThaiNecklineReference,usesCleanThaiNecklineReference,CLEAN_NECK_REFERENCE_POLICY} from './thai-neckline-reference.js';
 import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction} from './thai-collarless-neckline.js';
@@ -544,10 +545,11 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
    :originalIdentity;
  })();
  const [outfit,hair,autoFemaleHairSource,identity]=await Promise.all([outfitTask,hairTask,autoHairTask,identityTask]);
- const [visualHairReference,hairPlacementReference]=await Promise.all([
+ const [preparedVisualHairReference,hairPlacementReference]=await Promise.all([
   chosen&&!keepCurrentHair?(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION?thaiCompactHairReference({selected:chosen,hair,root}):englishSelectedHairReference({selected:chosen,hair,root})):Promise.resolve(hair||autoFemaleHairSource),
-  fit?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
+  fit&&!(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&selectedHairDesign(chosen)?.kind==='long')?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
  ]);
+ const visualHairReference=isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&!keepCurrentHair?await thaiRearHairReference({selected:chosen,hair:preparedVisualHairReference,root}):preparedVisualHairReference;
  const thaiCalibrated=templateBody&&usesThaiCalibratedHead(fields);
  const thaiAdaptive=templateBody&&usesThaiAdaptiveHead(fields);
  const thaiFace=thaiAdaptive?parseThaiAdaptiveFace(fields.thaiAdaptiveFaceGeometry,{required:true}):null;
@@ -631,6 +633,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   prompt+='\nFINAL COMPLETE GARMENT / SELECTED HAIR CONTRACT: Removing old source hair exposes the NEW selected garment, never a hole. Reconstruct both COMPLETE shoulders, shoulder boards, collar and jacket fabric beneath every removed hair section from the real outfit reference. Background must remain OUTSIDE the true garment silhouette; never paint a blue/background notch inside either shoulder, collar or epaulette. No transparent bite, missing fabric, cut-off shoulder board or hair-shaped hole. The hair reference board supplies hairstyle and its absence only; its blue background and reference clothing never replace any garment pixels. Finish this in the SAME generation, without a pasted garment, repair mask or second AI call.\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:false,referenceBoard:fields.hairReferenceVersion===HAIR_REFERENCE_VERSION&&['short','gathered'].includes(selectedHairDesign(chosen)?.kind)});
  }
 
+ if(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION)prompt+='\n'+THAI_REAR_HAIR_FINAL_POLICY;
  await onStage('generation');
  const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');

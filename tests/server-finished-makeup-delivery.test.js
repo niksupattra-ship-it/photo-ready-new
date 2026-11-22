@@ -120,9 +120,18 @@ test('real-face Makeup uses the actual required production audit before a single
  assert.match(calls[2].prompt,/FINAL COMPLETE GARMENT \/ SELECTED HAIR CONTRACT/);
  assert.match(calls[2].prompt,/never paint a blue\/background notch inside either shoulder/);
  assert.match(calls[2].prompt,/OUTPUT GATE — CLEAN NECK/);
+
+ const {thaiRearHairReference}=await import('../thai-rear-hair-reference.js');
+ for(const hairId of ['seedream-14','seedream-16']){
+  await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:{...fields,hairId,hairReferenceVersion:HAIR_REFERENCE_VERSION,englishHairFit:JSON.stringify({width:120,height:160,points:{leftEye:{x:.35,y:.3},rightEye:{x:.65,y:.3},forehead:{x:.5,y:.2},leftTemple:{x:.2,y:.3},rightTemple:{x:.8,y:.3},leftFace:{x:.2,y:.5},rightFace:{x:.8,y:.5},chin:{x:.5,y:.7}}})},root,key:'inert',requestPortrait:audit.requestPortrait,removeBackground:async()=>png});
+  const call=calls.at(-1),selected=productionHair(hairId);
+  assert.equal(call.hairPlacementReference,undefined,'No contradictory front-draped placement guide reaches the provider');
+  assert.deepEqual(call.hair,await thaiRearHairReference({selected,hair:await loadCatalogueHairGuide(hairId,root),root}));
+  assert(call.prompt.lastIndexOf('FINAL THAI GARMENT OCCLUSION AUTHORITY')>call.prompt.lastIndexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Rear placement must override conflicting endpoint retention');
+ }
  const adapted=applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,fields);
  for(const request of [{prompt:adapted},{prompt:adapted,thaiRealFaceVersion:'unknown'},{prompt:adapted+'\n'+adapted,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:adapted+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION}])await assert.rejects(audit.requestPortrait(request),{code:'MAKEUP_POLICY_MISMATCH'});
- assert.equal(calls.length,3,'Invalid policy must still be rejected before provider billing');
+ assert.equal(calls.length,5,'Invalid policy must still be rejected before provider billing');
  const {seedreamReviewPayload}=await import('../seedream-review-transport.js');
  assert(!('thaiRealFaceVersion' in seedreamReviewPayload(calls[0])),'Internal version is not sent as an unsupported provider field');
 });

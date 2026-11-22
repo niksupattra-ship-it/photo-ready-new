@@ -487,5 +487,5 @@ test('cached full-outfit hair bypasses quota fallback and all request paths reso
  const restored=main.slice(main.indexOf('const rememberRestoredHairResult='),main.indexOf('const restoreHairResultRights='));
  assert(restored.includes('fullPortraitHairHistoryRef.current.remember('),'Accepted initial/reopened full portrait is remembered before switching away');
  assert(restored.includes('template=head.generatedOutfitTemplate||editCache.current?.lock?.templatePath'));
- assert(main.includes("version:JSON.stringify([hairResultKey(id,mode,finish,template),THAI_COLLARLESS_VERSION,'complete-garment-compact-hair-v1'])"));
+ assert(main.includes("version:JSON.stringify([hairResultKey(id,mode,finish,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2'])"));
 });
