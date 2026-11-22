@@ -66,6 +66,7 @@ import {ENGLISH_MALE_HAIR_CATALOG} from '../english-male-hair-catalog.js';
 import {orderEnglishStudioHair,englishStudioDiamondActive} from './english-studio-hair-policy.js';
 import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';
 import {inspectGatheredPortraitHair} from './compact-hair-check.js';
+import {inspectThaiGatheredBun} from './thai-gathered-bun-check.js';
 import {FREE_FEMALE_HAIR_OPTIONS,isFreeFemaleHair} from './free-female-hair.js';
 import {withDeadline} from './async-deadline.js';
 import {cleanFemaleNeckRim} from './neck-edge-cleanup.js';
@@ -123,6 +124,8 @@ import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions,compareThaiFaceShape,triageThaiFaceShape} from './face-proportion-check.js';
+import {planThaiBodyFrame} from './thai-body-framing.js';
+import {eyeIdentityMetrics,compareThaiEyeIdentity} from './thai-eye-identity.js';
 import {portraitProtectedFeatures} from './portrait-feature-check.js';
 import {createPortraitFaceCache} from './portrait-analysis-cache.js';
 import {PackageOffers} from './package-offers.jsx';
@@ -265,6 +268,7 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
    }
    if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female')blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
    blob.idpromTrial=original.trial;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;
+   if(j.thaiRealFaceVersion)blob.idpromThaiRealFaceVersion=j.thaiRealFaceVersion;
    if(j.femaleFinishSingleVersion)blob.idpromFemaleFinishSingleVersion=j.femaleFinishSingleVersion;
    if(j.femaleEyeStyle==='makeup')blob.idpromMakeupPolicyVersion=j.makeupPolicyVersion||null;
    blob.idpromEnglishProportionCorrection=j.proportionCorrection;
@@ -544,7 +548,12 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
 
  if(headBlob.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
   const image=await decodedPortraitImage(headBlob),w=image.naturalWidth||image.width,h=image.naturalHeight||image.height;
-  const scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
+  let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
+  if(headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
+   const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
+   try{ctx.drawImage(image,0,0);const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h);scale=plan.scale;hX=plan.x;hY=plan.y;}
+   finally{native.width=native.height=1}
+  }
   return {blob:placementOnly?null:headBlob,lock:{W:900,H:1200,hX,hY,scale,headW:w,headH:h,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
  }
  const [bg,uniformImg]=await Promise.all([loadImage('/assets/background.jpg'),loadImage(templatePath)]);
@@ -1165,7 +1174,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    if(liveCanvas){const x=liveCanvas.getContext('2d');x.clearRect(0,0,liveCanvas.width,liveCanvas.height);x.drawImage(output,0,0,liveCanvas.width,liveCanvas.height)}
    return canvasPng(output);
   }
-  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,...(headMasterBlob.idpromEnglishStudioFinishVersion?{englishStudioFinishVersion:headMasterBlob.idpromEnglishStudioFinishVersion}:{}),...(headMasterBlob.idpromEnglishHeadBalanceVersion?{englishHeadBalanceVersion:headMasterBlob.idpromEnglishHeadBalanceVersion,englishHeadBalance:headMasterBlob.idpromEnglishHeadBalance}:{}),generatedOutfitTemplate:lock.templatePath,source:await blobDataURL(headMasterBlob),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
+  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,...(headMasterBlob.idpromThaiRealFaceVersion?{thaiRealFaceVersion:headMasterBlob.idpromThaiRealFaceVersion}:{}),...(headMasterBlob.idpromEnglishStudioFinishVersion?{englishStudioFinishVersion:headMasterBlob.idpromEnglishStudioFinishVersion}:{}),...(headMasterBlob.idpromEnglishHeadBalanceVersion?{englishHeadBalanceVersion:headMasterBlob.idpromEnglishHeadBalanceVersion,englishHeadBalance:headMasterBlob.idpromEnglishHeadBalance}:{}),generatedOutfitTemplate:lock.templatePath,source:await blobDataURL(headMasterBlob),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
   return studioLayers;
  }
  // V80 MASTER-RESOLUTION COMPOSITE:
@@ -2611,7 +2620,8 @@ async function portraitFaceMetrics(blob){
  const pending=(async()=>{
   const image=await decodedPortraitImage(blob);
   const face=await portraitFaceLandmarks(blob,image);
-  return faceProportions(face,image.naturalWidth,image.naturalHeight);
+  const proportions=faceProportions(face,image.naturalWidth,image.naturalHeight);
+  return proportions?{...proportions,eyeIdentity:eyeIdentityMetrics(face,image.naturalWidth,image.naturalHeight)}:null;
  })();
  faceMetricsCache.set(blob,pending);pending.catch(()=>faceMetricsCache.delete(blob));return pending;
 }
@@ -2686,6 +2696,16 @@ async function checkPortraitCompletion(originalFile,result,hairId){
     return;
    }
    throw Error('No clear face was found in the generated portrait.');
+  }
+  if(result.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION&&['short','gathered'].includes(selectedHairDesign(PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId))?.kind)){
+   try{
+    const compact=inspectThaiGatheredBun(await portraitCompletionEvidence(result,false));
+    if(compact.retained)throw Object.assign(Error('AI ยังสร้างมวยผมหรือผมก้อนข้างคอ · เก็บภาพเดิมไว้'),{code:'selected_hairstyle_mismatch'});
+    if(!compact.measurable)result.idpromQualityReviewNeeded=true;
+   }catch(error){
+    if(error?.code==='selected_hairstyle_mismatch')throw error;
+    result.idpromQualityReviewNeeded=true;
+   }
   }
   return; // Versioned English framing is fitted by its matching composition path.
  }
@@ -2908,6 +2928,7 @@ async function requestFreeFemaleAlternate(jobId,finish,hairId,templatePath,onSta
  if(job.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION)markOriginalPortraitAiFinish(blob,finish,job.studioSkinVersion);
  if(finish==='natural')blob.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  blob.idpromJobId=jobId;blob.idpromTrial=!rights.unlocked;blob.idpromFullEdit=rights.fullEdit;blob.idpromReused=true;
+ if(job.thaiRealFaceVersion)blob.idpromThaiRealFaceVersion=job.thaiRealFaceVersion;
  blob.idpromFemaleFinishSingleVersion=FEMALE_SINGLE_FINISH_VERSION;
  if(finish==='makeup'){
   blob.idpromMakeupPolicyVersion=job.femaleEyeStyle==='makeup'?job.makeupPolicyVersion||null:job.alternateMakeupPolicyVersion||null;
@@ -2983,6 +3004,13 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
     const generated=await portraitFaceMetrics(cached.value);
     const faceLock=compareThaiFaceShape(original,generated);
     const triage=triageThaiFaceShape(original,generated);
+    if(cached.value.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
+     const eyeLock=compareThaiEyeIdentity(original?.eyeIdentity,generated?.eyeIdentity);
+     if((!faceLock.ok&&faceLock.reason==='face_geometry_changed')||eyeLock.action==='reject'){
+      const error=Error('AI เปลี่ยนโครงหน้าหรือดวงตาจากต้นฉบับ · เก็บรูปเดิมไว้');error.code='face_proportion_changed';throw error;
+     }
+     if(eyeLock.action==='review')cached.value.idpromQualityReviewNeeded=true;
+    }
     if(triage.action==='review'){
      cached.value.idpromQualityReviewNeeded=true;
      console.warn('Thai face geometry needs human review',faceLock.reason);
@@ -6146,7 +6174,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;
   if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;
   master.idpromFemaleEyeStyle=finish;
-  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(head.portraitComposition)){master.idpromPortraitComposition=head.portraitComposition;master.idpromEnglishFramingVersion=head.portraitFramingVersion;delete master.idpromEnglishStudioFinishVersion;if(head.englishStudioFinishVersion)master.idpromEnglishStudioFinishVersion=head.englishStudioFinishVersion;for(const [field,key]of [['englishHeadBalanceVersion','idpromEnglishHeadBalanceVersion'],['englishHeadBalance','idpromEnglishHeadBalance']]){delete master[key];if(head[field])master[key]=head[field]}}
+  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(head.portraitComposition)){master.idpromPortraitComposition=head.portraitComposition;master.idpromEnglishFramingVersion=head.portraitFramingVersion;delete master.idpromEnglishStudioFinishVersion;if(head.englishStudioFinishVersion)master.idpromEnglishStudioFinishVersion=head.englishStudioFinishVersion;for(const [field,key]of [['thaiRealFaceVersion','idpromThaiRealFaceVersion'],['englishHeadBalanceVersion','idpromEnglishHeadBalanceVersion'],['englishHeadBalance','idpromEnglishHeadBalance']]){delete master[key];if(head[field])master[key]=head[field]}}
   delete master.idpromStudioCosmeticsVersion;delete master.idpromStudioMakeupVersion;delete master.idpromNaturalStudioSkinVersion;
   if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(head.studioMakeupVersion)master.idpromStudioMakeupVersion=head.studioMakeupVersion;
   if(finish==='natural')master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
