@@ -106,9 +106,23 @@ test('real-face Makeup uses the actual required production audit before a single
  assert.deepEqual(await sharp(calls[0].outfit).raw().toBuffer(),await sharp(expected).raw().toBuffer(),'Actual request uses the cleaned original neck-cutout reference');
  assert(calls.every(r=>r.prompt.includes('REAL GARMENT NECK CUTOUT — CLEAN REFERENCE V6')));
  assert.equal(calls.length,2);assert(calls.every(r=>r.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&r.prompt.includes('original catchlight pattern')));
+
+ const {HAIR_REFERENCE_VERSION}=await import('../catalogue-hair-policy.js');
+ const {productionHair}=await import('../hairstyle-catalog.js');
+ const {loadCatalogueHairGuide}=await import('../catalogue-hair-guide.js');
+ const {thaiCompactHairReference}=await import('../thai-compact-hair-reference.js');
+ const root=new URL('..',import.meta.url).pathname;
+ await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:{...fields,hairId:'seedream-41',hairReferenceVersion:HAIR_REFERENCE_VERSION,creditKind:'hairstyle',sourceJobId:'previous-completed-job'},root,key:'inert',requestPortrait:audit.requestPortrait,removeBackground:async()=>png});
+ assert.equal(calls.length,3,'Switching hair uses only one provider request');
+ const selected=productionHair('seedream-41');
+ const board=await thaiCompactHairReference({selected,hair:await loadCatalogueHairGuide(selected.id,root),root});
+ assert.deepEqual(calls[2].hair,board,'Actual full-garment provider receives photographic neck-side negative space');
+ assert.match(calls[2].prompt,/FINAL COMPLETE GARMENT \/ SELECTED HAIR CONTRACT/);
+ assert.match(calls[2].prompt,/never paint a blue\/background notch inside either shoulder/);
+ assert.match(calls[2].prompt,/OUTPUT GATE — CLEAN NECK/);
  const adapted=applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,fields);
  for(const request of [{prompt:adapted},{prompt:adapted,thaiRealFaceVersion:'unknown'},{prompt:adapted+'\n'+adapted,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:adapted+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION}])await assert.rejects(audit.requestPortrait(request),{code:'MAKEUP_POLICY_MISMATCH'});
- assert.equal(calls.length,2,'Invalid policy must still be rejected before provider billing');
+ assert.equal(calls.length,3,'Invalid policy must still be rejected before provider billing');
  const {seedreamReviewPayload}=await import('../seedream-review-transport.js');
  assert(!('thaiRealFaceVersion' in seedreamReviewPayload(calls[0])),'Internal version is not sent as an unsupported provider field');
 });

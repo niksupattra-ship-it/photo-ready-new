@@ -478,3 +478,14 @@ test('Thai full-outfit haircut returns a confirmed cached result before credits 
  assert(studio.includes('!options.recoverExistingJob&&!cachedSelectedResult'),'Do not charge or block a cached result because credits are exhausted');
  assert(studio.includes("||cachedSelectedResult))generationOptions.creditKind='hairstyle'"),'Request must enter cache-aware pathway');
 });
+
+
+test('cached full-outfit hair bypasses quota fallback and all request paths resolve the same garment',async()=>{
+ const studio=await read('src/studio-editor.jsx'),main=await read('src/main.jsx');
+ assert(studio.includes("!canRestoreHair(id,mode,finish)&&await thaiManualAfterOutfitQuota()"));
+ assert(studio.includes("await onChangeHair(id,mode,finish,state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head.generatedOutfitTemplate||'')"));
+ const restored=main.slice(main.indexOf('const rememberRestoredHairResult='),main.indexOf('const restoreHairResultRights='));
+ assert(restored.includes('fullPortraitHairHistoryRef.current.remember('),'Accepted initial/reopened full portrait is remembered before switching away');
+ assert(restored.includes('template=head.generatedOutfitTemplate||editCache.current?.lock?.templatePath'));
+ assert(main.includes("version:JSON.stringify([hairResultKey(id,mode,finish,template),THAI_COLLARLESS_VERSION,'complete-garment-compact-hair-v1'])"));
+});

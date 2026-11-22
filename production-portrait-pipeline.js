@@ -1,3 +1,4 @@
+import {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
 import {prepareThaiNecklineReference,usesCleanThaiNecklineReference,CLEAN_NECK_REFERENCE_POLICY} from './thai-neckline-reference.js';
 import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction} from './thai-collarless-neckline.js';
 import {applyThaiRealFacePolicy,usesThaiRealFace,THAI_REAL_FACE_VERSION} from './thai-real-face-policy.js';
@@ -40,7 +41,7 @@ import {HAIR_REFERENCE_VERSION,catalogueHairInstruction,PICKER_HAIR_PRIORITY,SOF
 import {englishSelectedHairReference} from './english-selected-hair.js';
 import {selectedHairBoundaryInstruction} from './hair-neck-boundary.js';
 import {compactHairIdentityCanvas,COMPACT_IDENTITY_CANVAS_INSTRUCTION} from './compact-hair-identity-canvas.js';
-import {thaiCompactHairReference} from './thai-compact-hair-reference.js';
+import {thaiCompactHairReference,THAI_COMPACT_HAIR_REFERENCE_CONTEXT} from './thai-compact-hair-reference.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
 import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './english-studio-finish.js';
@@ -544,7 +545,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  })();
  const [outfit,hair,autoFemaleHairSource,identity]=await Promise.all([outfitTask,hairTask,autoHairTask,identityTask]);
  const [visualHairReference,hairPlacementReference]=await Promise.all([
-  chosen&&!keepCurrentHair?englishSelectedHairReference({selected:chosen,hair,root}):Promise.resolve(hair||autoFemaleHairSource),
+  chosen&&!keepCurrentHair?(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&fields.hairReferenceVersion===HAIR_REFERENCE_VERSION?thaiCompactHairReference({selected:chosen,hair,root}):englishSelectedHairReference({selected:chosen,hair,root})):Promise.resolve(hair||autoFemaleHairSource),
   fit?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
  ]);
  const thaiCalibrated=templateBody&&usesThaiCalibratedHead(fields);
@@ -625,6 +626,11 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction(outfitIndex,outfitDetailIndex,collarless,usesThaiOriginalCollar(fields),usesThaiSingleSkinCollarSeam(fields));
  if(usesThaiSingleSkinCollarSeam(fields))prompt+=thaiSingleSkinCollarSeamInstruction();
  if(usesCleanThaiNecklineReference(fields))prompt+=CLEAN_NECK_REFERENCE_POLICY;
+ if(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&chosen&&!keepCurrentHair){
+  if(fields.hairReferenceVersion===HAIR_REFERENCE_VERSION&&['short','gathered'].includes(selectedHairDesign(chosen)?.kind))prompt+='\n'+THAI_COMPACT_HAIR_REFERENCE_CONTEXT;
+  prompt+='\nFINAL COMPLETE GARMENT / SELECTED HAIR CONTRACT: Removing old source hair exposes the NEW selected garment, never a hole. Reconstruct both COMPLETE shoulders, shoulder boards, collar and jacket fabric beneath every removed hair section from the real outfit reference. Background must remain OUTSIDE the true garment silhouette; never paint a blue/background notch inside either shoulder, collar or epaulette. No transparent bite, missing fabric, cut-off shoulder board or hair-shaped hole. The hair reference board supplies hairstyle and its absence only; its blue background and reference clothing never replace any garment pixels. Finish this in the SAME generation, without a pasted garment, repair mask or second AI call.\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:false,referenceBoard:fields.hairReferenceVersion===HAIR_REFERENCE_VERSION&&['short','gathered'].includes(selectedHairDesign(chosen)?.kind)});
+ }
+
  await onStage('generation');
  const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
