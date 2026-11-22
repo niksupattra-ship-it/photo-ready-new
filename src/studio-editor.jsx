@@ -1477,7 +1477,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow&&!options.recoverExistingJob&&!options.manualOutfitFallback&&!cachedSelectedResult){
    const manual=await thaiManualAfterOutfitQuota();
    if(manual){
-    if(options.outfitAiCreate){setStatus('ใช้สิทธิ์เปลี่ยนชุดด้วย AI ครบ 2 ครั้งวันนี้แล้ว · ยังแก้ไขเองและใช้ทรงผมฟรีได้');return}
+    if(options.outfitAiCreate){setStatus('ยังตรวจสอบสิทธิ์ทดลองใช้ฟรีไม่สำเร็จ · ยังแก้ไขเองและใช้ทรงผมฟรีได้');return}
     options={...options,manualOutfitFallback:true};
    }
   }
