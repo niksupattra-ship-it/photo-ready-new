@@ -335,7 +335,7 @@ test('Thai outfit uses the exact English mobile card and explicit AI creation fl
  assert(studio.includes('const createThaiOutfitAi=option=>'),'Thai AI choice opens the hair step, not provider immediately');
  assert(studio.includes('const confirmThaiOutfitAi=async()=>'),'Explicit confirmation is still required');
  assert(studio.includes("await selectAsset('suit',outfit,{aiSetup:true})"),'Chosen suit preserved');
- assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'Confirm starts AI once');
+ assert(studio.includes("await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode,!englishFlow),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true})"),'Confirm starts AI once');
 });
 
 test('Thai PNG suit reinsert restores identical frame and user transform instead of stretching from portrait placement',async()=>{
@@ -427,7 +427,7 @@ test('Studio suit permission subscription is stable during parent progress rende
 });
 test('Thai frontend and regular usage restore the pre-AI-bundle behavior',async()=>{
  const [ed,main,easy,offers,server]=await Promise.all(['src/studio-editor.jsx','src/main.jsx','src/easy-mode.jsx','src/package-offers.jsx','server.js'].map(p=>readFile(root+p,'utf8')));
- assert.match(offers,/price:'159',name:'รับรูปนี้ \+ ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผมและชุดหญิงเพิ่มเติม'/);
+ assert.match(offers,/price:'159',name:'รับรูปนี้ \+ ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผมและชุดสมัครงานเพิ่มเติม'/);
  assert.match(offers,/price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'/);
  assert.doesNotMatch(offers,/AI 10 ครั้ง/);
  assert.doesNotMatch(ed,/onSuitAi|studio-ai-trial-note|thaiOutfitAi:!englishFlow/);

@@ -5476,8 +5476,8 @@
       }
     },
     "seedream-35": {
-      "preview": "/assets/seedream-hairstyles/previews/35.webp",
-      "previewSha256": "e77f2bf4f6026e8e06b91723d50cf1d98c56f7269ecd1a01e3fbcb84a9bd0d0c",
+      "preview": "/assets/seedream-hairstyles/previews/35-restored.webp",
+      "previewSha256": "fe23220fffcf798d6bc8de6e272990c9e985477e6ecfae015369429036b6d0d4",
       "guideSha256": "babc0e18c3e6a85d6bde4c4d79f52dbf2ccaae1d97509a312f0a4ef002c07b54",
       "width": 400,
       "height": 400,
@@ -5711,7 +5711,8 @@
           "x": 0.583189845085144,
           "y": 0.3643430173397064
         }
-      }
+      },
+      "previewReview": "Restored original style 35; new catalogue-model thumbnail only. Original reviewed hair-only guide retained."
     },
     "seedream-28": {
       "preview": "/assets/seedream-hairstyles/previews/28.webp",
