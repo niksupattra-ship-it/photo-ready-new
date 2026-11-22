@@ -836,3 +836,20 @@ test('Thai full-outfit previews are unlimited, watermarked and never spend paid 
  for(let i=0;i<5;i++){const result=await run({body:{hairId:'seedream-14',interfaceLanguage:'th',thaiOutfitAiVersion:'th-full-outfit-ai-v1'},get:()=>''},{status(){throw Error('Unlimited preview rejected')}},'ai-finish');assert.equal(result.trialPreview,true)}
  assert(!server.includes('thai_outfit_ai_daily_limit'));
 });
+
+test('New Thai results lock natural chin-to-collar length and place long hair behind opaque jacket',async()=>{
+ const {THAI_REAR_HAIR_SHORT_NECK_VERSION,usesThaiRearHairShortNeck,thaiRearHairShortNeckInstruction}=await import('../thai-rear-hair-short-neck.js');
+ const {THAI_OUTFIT_AI_VERSION}=await import('../thai-outfit-ai-policy.js');
+ const fields={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiRearHairShortNeckVersion:THAI_REAR_HAIR_SHORT_NECK_VERSION};
+ assert.equal(usesThaiRearHairShortNeck(fields),true);
+ assert.equal(usesThaiRearHairShortNeck({...fields,thaiOutfitAiVersion:undefined}),false);
+ const rule=thaiRearHairShortNeckInstruction({gender:'female',hairKind:'long'});
+ for(const phrase of ['original chin','naturally short','BEHIND BOTH shoulders','OPAQUE cloth','front chest','Do not stretch or narrow the head','one tie knot'])assert.match(rule,new RegExp(phrase,'i'),phrase);
+ assert.match(thaiRearHairShortNeckInstruction({gender:'male',hairKind:'short'}),/do not invent extra hair lengths/i);
+ const main=await readFile(root+'src/main.jsx','utf8');
+ const pipeline=await readFile(root+'production-portrait-pipeline.js','utf8');
+ assert(main.includes("fd.append('thaiRearHairShortNeckVersion',THAI_REAR_HAIR_SHORT_NECK_VERSION)"));
+ assert.equal((main.match(/\.\.\.\(thaiWholeOutfit\?\[THAI_REAR_HAIR_SHORT_NECK_VERSION\]:\[\]\)/g)||[]).length,2,'both cache keys invalidate old finished photo');
+ assert(pipeline.includes('if(usesThaiRearHairShortNeck(fields))prompt+='));
+ assert(pipeline.indexOf('if(usesThaiRearHairShortNeck(fields))prompt+=')>pipeline.indexOf("prompt+='\\n'+THAI_REAR_HAIR_FINAL_POLICY"),'new priority must be truly last');
+});
