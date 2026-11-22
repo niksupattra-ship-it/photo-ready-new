@@ -1314,7 +1314,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const selectedTemplate=head.generatedOutfitTemplate||suit?.templatePath||governmentTemplate||'';
   const garment=suit?.visible&&assets.current.get(suit.id)?suit:head;
   const garmentAsset=assets.current.get(garment.id);
-  const details=garment===head?state.current.filter(l=>l.realUniformDetail&&l.hairHeadId===head.id&&l.visible!==false).map(layer=>({layer,asset:assets.current.get(layer.id)})):[];
+  const details=gender==='male'&&garment===head?state.current.filter(l=>l.realUniformDetail&&l.hairHeadId===head.id&&l.visible!==false).map(layer=>({layer,asset:assets.current.get(layer.id)})):[];
   const signature=governmentResultInsigniaSignature({head,suit,garment,gender,template:selectedTemplate,asset:garmentAsset,details});
   if(sameGovernmentResultInsigniaSignature(easyGovernmentInsigniaFitRef.current?.signature,signature))return easyGovernmentInsigniaFitRef.current.fit;
   const sampled=canvas();
