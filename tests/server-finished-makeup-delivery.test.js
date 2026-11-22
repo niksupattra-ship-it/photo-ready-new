@@ -126,9 +126,22 @@ test('real-face Makeup uses the actual required production audit before a single
   await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:{...fields,hairId,hairReferenceVersion:HAIR_REFERENCE_VERSION,englishHairFit:JSON.stringify({width:120,height:160,points:{leftEye:{x:.35,y:.3},rightEye:{x:.65,y:.3},forehead:{x:.5,y:.2},leftTemple:{x:.2,y:.3},rightTemple:{x:.8,y:.3},leftFace:{x:.2,y:.5},rightFace:{x:.8,y:.5},chin:{x:.5,y:.7}}})},root,key:'inert',requestPortrait:audit.requestPortrait,removeBackground:async()=>png});
   const call=calls.at(-1),selected=productionHair(hairId);
   assert.equal(call.hairPlacementReference,undefined,'No contradictory front-draped placement guide reaches the provider');
+  assert(call.prompt.lastIndexOf('FINAL NATURAL NECK / COLLAR COMPOSITION V3')>call.prompt.lastIndexOf('FINAL THAI GARMENT OCCLUSION AUTHORITY'));
+  assert.match(call.prompt,/TOP of the actual collar touching skin/);
+  assert.match(call.prompt,/never squeeze, shorten, widen or slim the face/);
   assert.deepEqual(call.hair,await thaiRearHairReference({selected,hair:await loadCatalogueHairGuide(hairId,root),root}));
   assert(call.prompt.lastIndexOf('FINAL THAI GARMENT OCCLUSION AUTHORITY')>call.prompt.lastIndexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Rear placement must override conflicting endpoint retention');
  }
+
+ const {ENGLISH_TEMPLATE_BODY_FINISH_VERSION}=await import('../english-template-body-policy.js');
+ const maleFields={...fields,portraitMode:'male',hairId:'original',femaleEyeStyle:'natural',englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,neckOutfitReferencePath:'/assets/job-uniforms/male-job-blue-navy-tie.png'};
+ for(const key of ['studioSkinVersion','singlePassPortraitVersion','femaleFinishSingleVersion'])delete maleFields[key];
+ const maleCalls=[];
+ await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:maleFields,root,key:'inert',requestPortrait:async request=>{maleCalls.push(request);return {png}},removeBackground:async()=>png});
+ assert.equal(maleCalls.length,1,'Neck proportion adjustment stays inside the original generation');
+ assert.match(maleCalls[0].prompt,/FINAL NATURAL NECK \/ COLLAR COMPOSITION V3/);
+ assert.match(maleCalls[0].prompt,/male portrait/);
+ assert.match(maleCalls[0].prompt,/not to the tie knot/);
  const adapted=applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,fields);
  for(const request of [{prompt:adapted},{prompt:adapted,thaiRealFaceVersion:'unknown'},{prompt:adapted+'\n'+adapted,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:adapted+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION}])await assert.rejects(audit.requestPortrait(request),{code:'MAKEUP_POLICY_MISMATCH'});
  assert.equal(calls.length,5,'Invalid policy must still be rejected before provider billing');
