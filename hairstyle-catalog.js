@@ -3,7 +3,7 @@ import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './englis
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
- {id:'thai-male-auto',gender:'male',name:'ผมชายอัตโนมัติ',promptOnly:true,autoHair:'english-male',src:'/assets/seedream-hairstyles/previews/thai-male-auto.webp'},
+ {id:'thai-male-auto',gender:'male',name:'ผมชายอัตโนมัติ',promptOnly:true,autoHair:'english-male',src:'/assets/seedream-hairstyles/previews/thai-male-auto-formal.webp'},
   {
     "id": "seedream-40",
     "gender": "female",

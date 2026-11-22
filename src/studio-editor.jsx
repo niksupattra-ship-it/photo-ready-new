@@ -1314,7 +1314,8 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const selectedTemplate=head.generatedOutfitTemplate||suit?.templatePath||governmentTemplate||'';
   const garment=suit?.visible&&assets.current.get(suit.id)?suit:head;
   const garmentAsset=assets.current.get(garment.id);
-  const signature=governmentResultInsigniaSignature({head,suit,garment,gender,template:selectedTemplate,asset:garmentAsset});
+  const details=garment===head?state.current.filter(l=>l.realUniformDetail&&l.hairHeadId===head.id&&l.visible!==false).map(layer=>({layer,asset:assets.current.get(layer.id)})):[];
+  const signature=governmentResultInsigniaSignature({head,suit,garment,gender,template:selectedTemplate,asset:garmentAsset,details});
   if(sameGovernmentResultInsigniaSignature(easyGovernmentInsigniaFitRef.current?.signature,signature))return easyGovernmentInsigniaFitRef.current.fit;
   const sampled=canvas();
   let fit=null;
@@ -1324,7 +1325,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{
    const ctx=sampled.getContext('2d',{willReadFrequently:true});
    if(!garmentAsset)throw Error('government_garment_unavailable');
-   paintLayers(ctx,[garment],assets.current,state.current);
+   paintLayers(ctx,[garment,...details.map(d=>d.layer)],assets.current,state.current);
    const pixels=ctx.getImageData(0,0,W,H);
    fit=easyGovernmentNativeReferenceFit(suit,gender,W,H)||governmentReferenceLandmarkFit(pixels,gender,selectedTemplate);
   }catch(error){console.warn('Government shoulder geometry unavailable',error?.message)}
