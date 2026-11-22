@@ -155,6 +155,25 @@ try{
   }
   await assert.rejects(policy.premiumHair('foreign','repair-hair'),e=>e.status===404);
  });
+ await check('89 free-hair restriction belongs only to the paid photo and yields to its AI10 upgrade',async()=>{
+  await query("ALTER TABLE ai_jobs ADD COLUMN fields jsonb NOT NULL DEFAULT '{}'::jsonb");
+  await query('CREATE TABLE thai_work_ai_grants(wallet_id text,work_id text)');
+  const work=await policy.beginWork('new',Buffer.from('basic89'));
+  await job('basic89');await policy.attach('new',work,'basic89');
+  await query("UPDATE ai_jobs SET fields=$1 WHERE id='basic89'",[{neckOutfitReferencePath:'/paid.png'}]);
+  await query("INSERT INTO paid_image_unlocks VALUES('new','basic89',true)");
+  await query("INSERT INTO download_payment_receipts VALUES('basic89-receipt','new',$1,'download_89_v1',false,'not_required')",[work]);
+  assert.deepEqual(await policy.basicThaiAiWork('new',work),{templates:['/paid.png']});
+  assert.equal(await policy.basicThaiAiWork('foreign',work),null);
+  assert.equal(await policy.basicThaiAiWork('new','another-photo'),null);
+  const before=await policy.beginWork('new',Buffer.from('unpaid-other-outfit'));
+  assert.equal(await policy.basicThaiAiWork('new',before),null);
+  await query("UPDATE download_payment_receipts SET refund_status='succeeded' WHERE session_id='basic89-receipt'");
+  assert.equal(await policy.basicThaiAiWork('new',work),null);
+  await query("UPDATE download_payment_receipts SET refund_status='not_required' WHERE session_id='basic89-receipt'");
+  await query("INSERT INTO thai_work_ai_grants VALUES('new',$1)",[work]);
+  assert.equal(await policy.basicThaiAiWork('new',work),null);
+ });
  await check('saved-work ownership, three-work quota, immutable 45 days and expired tombstones remain enforced',async()=>{
   const saved=await store.saveWork('retention','',project());const before=(await store.getWork('retention',saved.id));assert.equal(new Date(before.expires_at)-new Date(before.retention_started_at),45*86400000);
   await store.saveWork('retention',saved.id,project('legacy-job',{note:'edited'}));assert.equal(new Date((await store.getWork('retention',saved.id)).expires_at).getTime(),new Date(before.expires_at).getTime());

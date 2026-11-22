@@ -6,7 +6,7 @@ import {ServiceTermsLink} from './service-terms.jsx';
 function OfferDiamond(){return <svg className="offer-diamond" viewBox="0 0 40 34" aria-hidden="true" focusable="false"><path d="M2 11 10 2h20l8 9-18 21Z" fill="#58bdf1" stroke="#329bd3" strokeWidth="1.2" strokeLinejoin="round"/><path d="M2 11h36L20 32Z" fill="#299ddd"/><path d="m10 2 5 9h10l5-9Z" fill="#c3f2ff"/><path d="m15 11 5 21 5-21Z" fill="#87dbfa"/><path d="M2 11 10 2l5 9Zm23 0 5-9 8 9Z" fill="#6ed0f5"/><path d="m6 9 5-5h4" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>}
 
 const OFFERS=[
- {price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ'},
+ {price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ · เปลี่ยนทรงผมฟรีกับรูปนี้ · เปลี่ยนชุดด้วย PNG และปรับแต่งเอง'},
  {price:'159',name:'ใช้ AI 10 ครั้ง สำหรับรูปนี้',features:''}
 ];
 function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={},diamondHairOffer=false}){

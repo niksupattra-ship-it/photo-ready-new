@@ -9,6 +9,7 @@ import '../../src/style.css';
 // and insignia PNGs. The painted head is deliberately not a customer photograph.
 // Every authority/payment/provider callback is inert and recorded for assertions.
 const query=new URLSearchParams(location.search);
+const basic89=query.get('basic89')==='1';
 const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
 const studio=query.get('studio')==='1',unpaid=query.get('unpaid')==='1';
@@ -34,7 +35,7 @@ h.beginPath();h.ellipse(450,headBottom-headHeight/2,headWidth/2,headHeight/2,0,0
 h.fillStyle='#322827';h.beginPath();h.ellipse(450,headBottom-headHeight*.87,headWidth*.51,headWidth*.3,0,Math.PI,Math.PI*2);h.fill();
 if(fullbody)h.drawImage(suit,frame.x,frame.y,frame.w,frame.h);
 const nativeSuit=document.createElement('canvas');nativeSuit.width=suit.naturalWidth;nativeSuit.height=suit.naturalHeight;nativeSuit.getContext('2d').drawImage(suit,0,0);
-const originalFile=freshSuitTest?new File([await(await fetch(head.toDataURL())).blob()],'fixture-original.png',{type:'image/png'}):null;
+const originalFile=(freshSuitTest||basic89)?new File([await(await fetch(head.toDataURL())).blob()],'fixture-original.png',{type:'image/png'}):null;
 const snapshotRef={current:null};
 window.insigniaFixture={gender,narrow,studio,template,frame,aiCalls:0,paymentCalls:0,exports:[],snapshot:()=>snapshotRef.current?.()};
 window.insigniaLayers=()=>window.insigniaFixture.snapshot()?.layers.map(layer=>Object.fromEntries([
@@ -71,10 +72,11 @@ createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!s
  ]}
  templates={suitTest?suitTemplates:[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
  collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]}
- maleHair={freshSuitTest?[{id:'seedream-35',name:'ฟรีผมชาย',src:'/assets/seedream-hairstyles/previews/35-restored.webp'}]:[]}
- femaleHair={freshSuitTest?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
+ maleHair={(freshSuitTest||basic89)?[{id:'seedream-35',name:'ฟรีผมชาย',src:'/assets/seedream-hairstyles/previews/35-restored.webp'}]:[]}
+ femaleHair={(freshSuitTest||basic89)?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
  paidOutputIds={unpaid?[]:['fixture-government']} editableOutputIds={unpaid?[]:['fixture-government']} hasCredits={!unpaid} allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
- onVerifyOutput={async()=>({unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!unpaid&&(suitTest?(pro||workPro):true)})}
+ onChangeHair={basic89?async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_PROVIDER')}:undefined}
+ onVerifyOutput={async()=>({basicFreeHairOnly:basic89,unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!basic89&&!unpaid&&(suitTest?(pro||workPro):true)})}
  purchaseSnapshotRef={snapshotRef} onReceiveImage={async blob=>{window.insigniaFixture.exports.push({type:blob.type,size:blob.size,url:URL.createObjectURL(blob)});return {delivery:'fixture'}}}
  onBeforeProcess={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onProcessPhoto={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}

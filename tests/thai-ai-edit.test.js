@@ -428,7 +428,7 @@ test('Studio suit permission subscription is stable during parent progress rende
 test('Thai frontend and regular usage restore the pre-AI-bundle behavior',async()=>{
  const [ed,main,easy,offers,server]=await Promise.all(['src/studio-editor.jsx','src/main.jsx','src/easy-mode.jsx','src/package-offers.jsx','server.js'].map(p=>readFile(root+p,'utf8')));
  assert.match(offers,/price:'159',name:'ใช้ AI 10 ครั้ง สำหรับรูปนี้',features:''/);
- assert.match(offers,/price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ'/);
+ assert.match(offers,/price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ · เปลี่ยนทรงผมฟรีกับรูปนี้ · เปลี่ยนชุดด้วย PNG และปรับแต่งเอง'/);
  assert.match(offers,/OFFERS.filter\(offer=>studioMode\|\|offer.price==='89'\)/);
  assert.doesNotMatch(ed,/onSuitAi|studio-ai-trial-note|thaiOutfitAi:!englishFlow/);
  assert.doesNotMatch(easy,/initialOutfitAi|onSuitAi/);
