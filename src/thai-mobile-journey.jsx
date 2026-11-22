@@ -1,3 +1,4 @@
+import {FittedPreviewWatermark} from './preview-watermark.jsx';
 import {isJobOutfit} from './outfit-choice-preview.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {EasyPreviewImage} from './easy-preview-image.jsx';
@@ -105,7 +106,7 @@ export function ThaiMobileJourney({
   setNotice('');
   onGenerateHair?.(draftHair);
  };
- const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว"/>{watermarked&&<div className="thai-mobile-watermark" aria-label="รูปตัวอย่างมีลายน้ำ">ตัวอย่าง IDพร้อม · ตัวอย่าง</div>}
+ const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว"/>{watermarked&&<FittedPreviewWatermark/>}
   {governmentResult&&resultInsigniaOpen&&<ResultInsigniaDrag handles={insigniaHandles} busy={busy||!ready} onStart={onInsigniaStart} onTransform={onInsigniaTransform} onEnd={onInsigniaEnd}/>}
  </div>:
   <div className="thai-mobile-photo thai-mobile-source">{sourcePreview?<img src={sourcePreview} alt="รูปต้นฉบับที่เลือก" />:<span>เพิ่มรูปเพื่อเริ่มทำ</span>}</div>;

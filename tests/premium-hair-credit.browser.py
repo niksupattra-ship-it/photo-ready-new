@@ -72,7 +72,7 @@ class Case:
   else:p.locator('.paired-offers').wait_for();assert self.count()==n;p.keyboard.press('Escape')
  def run(self):
   p=self.p;self.setup();self.attempt();assert self.count()==1
-  assert p.locator('.easy-watermark'if self.mode=='easy'else'.studio-trial-watermark').count()==1,'unused credit cannot remove watermark'
+  assert p.locator('.idprom-preview-watermark[aria-label]'if self.mode=='easy'else'.studio-trial-watermark').count()==1,'unused credit cannot remove watermark'
   self.remaining=1;self.refresh();p.wait_for_function('window.__hairApp.creditAvailable===true');self.attempt();assert self.count()==2
   self.remaining=0;self.refresh();p.wait_for_function('window.__hairApp.creditAvailable===false&&window.__hairStudio.allowed===false');self.attempt(False)
   self.premium=True;self.refresh();p.wait_for_function('window.__hairStudio.allowed===true');self.attempt();assert self.count()==3
