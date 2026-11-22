@@ -1,11 +1,14 @@
+import {THAI_FREE_FEMALE_SUIT_IDS,orderThaiFemaleSuits,isThaiPremiumFemaleSuit} from '../../thai-female-suit-policy.js';
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {ThaiMobileJourney} from '../../src/thai-mobile-journey.jsx';
 import '../../src/style.css';
 import '../../src/studio-editor.css';
+const suitTest=new URLSearchParams(location.search).get('femaleSuits')==='1';
+const suitTemplates=orderThaiFemaleSuits(['female-job-taupe-cream-blouse',...THAI_FREE_FEMALE_SUIT_IDS].map((id,i)=>({id,name:id,template:'/assets/job-uniforms/'+id+'.png',preview:'/assets/job-uniforms/'+id+'.png',gender:'female',cat:'job',locked:isThaiPremiumFemaleSuit('/assets/job-uniforms/'+id+'.png')})));
 const government=new URLSearchParams(location.search).get('government')!=='0';
 const canvas=document.createElement('canvas');canvas.width=900;canvas.height=1200;
 const im=new Image();im.src='/assets/government-uniforms/female-operational-example.jpg';await im.decode();canvas.getContext('2d').drawImage(im,0,0,900,1200);
-window.resultActions={download:0,studio:0,upload:0,confirm:0,hair:[]};
+window.resultActions={download:0,studio:0,upload:0,confirm:0,hair:[],suits:[]};
 const hairs=Array.from({length:6},(_,i)=>({id:'hair-'+i,name:'ทรง '+(i+1),src:'/assets/face-finish/makeup.webp'}));
-createRoot(document.getElementById('root')).render(<div className="idstudio"><ThaiMobileJourney hasResult ready canvasRef={{current:canvas}} governmentResult={government} resultInsignia={<div data-testid="insignia-picker">เลือกเครื่องหมาย</div>} hairs={hairs} selectedHair="hair-0" onHair={id=>resultActions.hair.push(id)} onConfirmHair={()=>resultActions.confirm++} onDownload={()=>resultActions.download++} onStudio={()=>resultActions.studio++} onUpload={()=>resultActions.upload++}/></div>);
+createRoot(document.getElementById('root')).render(<div className="idstudio"><ThaiMobileJourney hasResult={!suitTest} photoTypeSelected={suitTest} templates={suitTest?suitTemplates:[]} onSuit={t=>resultActions.suits.push(t)} ready canvasRef={{current:canvas}} governmentResult={government} resultInsignia={<div data-testid="insignia-picker">เลือกเครื่องหมาย</div>} hairs={hairs} selectedHair="hair-0" onHair={id=>resultActions.hair.push(id)} onConfirmHair={()=>resultActions.confirm++} onDownload={()=>resultActions.download++} onStudio={()=>resultActions.studio++} onUpload={()=>resultActions.upload++}/></div>);

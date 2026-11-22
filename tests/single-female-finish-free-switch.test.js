@@ -368,12 +368,12 @@ test('Diamond hair in both locales opens existing Download packages with the act
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  const offers=await readFile(new URL('../src/package-offers.jsx',import.meta.url),'utf8');
  const styles=await readFile(new URL('../src/package-offers.css',import.meta.url),'utf8');
- const snapshot=studio.slice(studio.indexOf(' const openDiamondHairOffer=hairId=>'),studio.indexOf(' const chooseHair=id=>'));
+ const snapshot=studio.slice(studio.indexOf(' const openDiamondHairOffer=(hairId,suit=null)=>'),studio.indexOf(' const chooseHair=id=>'));
  const choose=studio.slice(studio.indexOf(' const chooseHair=id=>'),studio.indexOf(' const createThaiHairWithFinish=style=>'));
  assert.match(snapshot,/canvasRef\.current/,'Screenshot must come from the current displayed Studio canvas');
  assert.match(snapshot,/ctx\.drawImage\(current,0,0,thumb\.width,thumb\.height\)/,'Snapshot contains the on-screen photo, not the original upload');
  assert.match(snapshot,/ctx\.fillText\('IDพร้อม',0,0\)/,'Use the same watermark style as download checkout');
- assert.match(snapshot,/onRequestUnlock\?\.\(\{reason:'diamond-hair',hairId,preview,jobId:/,'Use existing checkout callback with the clicked image');
+ assert.match(snapshot,/onRequestUnlock\?\.\(\{reason:suit\?'diamond-suit':'diamond-hair',hairId,template:suit\?\.template,preview,jobId:/,'Use existing checkout callback with the clicked image');
  assert.doesNotMatch(snapshot,/void applyHair|onChangeHair|processPhoto\(|onProcessPhoto\(/,'Preview capture must never call AI');
  assert.match(choose,/if\(englishFlow&&englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
  assert.match(choose,/if\(!englishFlow\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'Thai Diamond hair opens checkout');
