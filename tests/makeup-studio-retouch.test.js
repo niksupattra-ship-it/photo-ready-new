@@ -1,3 +1,4 @@
+import {femaleHairLightnessInstruction} from '../hairstyle-fit-policy.js';
 import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -129,7 +130,7 @@ test('both direct Makeup appearance variants use one reference finish without Na
  }
 });
 
-test('actual Thai and English single-pass Makeup use the reference finish once while full Natural request bytes remain unchanged',async()=>{
+test('actual Thai and English single-pass Makeup use the reference finish once while Natural changes only by the requested hair lightness instruction',async()=>{
  for(const [name] of modes)for(const finish of ['natural','makeup']){
   const fields={portraitMode:'female',femaleEyeStyle:finish,studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,
    ...(englishFields[name]||{}),...(name.startsWith('English')?{neckOutfitReferencePath:'/assets/job-uniforms/female-job-ivory-bow-blouse.png'}:{})};
@@ -149,7 +150,9 @@ test('actual Thai and English single-pass Makeup use the reference finish once w
    assert.match(prompt,/Prior Natural\/no-cosmetics descriptions are inactive for this selected Makeup finish/);
    assert.doesNotMatch(prompt,/Earlier Natural\/no-cosmetics descriptions describe the base portrait only/);
   }else{
-   if(name==='Thai'||name==='English template')assert.equal(digest(prompt),naturalPipelineHashes[name==='Thai'?'th':'en'],'Full released Natural request is unchanged');
+   const hairLightness=femaleHairLightnessInstruction('female');
+   assert.equal(prompt.split(hairLightness).length-1,1,'Apply the additional 15% hair target exactly once');
+   if(name==='Thai'||name==='English template')assert.equal(digest(prompt.replace(hairLightness,'')),naturalPipelineHashes[name==='Thai'?'th':'en'],'All released Natural instructions outside the authorized hair lightness adjustment are unchanged');
    assert(!prompt.includes(MAKEUP_STUDIO_RETOUCH_POLICY));
    assert(!calls[0].makeupStudioReference,'Natural never adds the Makeup guide');
   }
