@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
-import {detectUniformDetails,matchUniformDetails,REAL_UNIFORM_DETAIL_TEMPLATES} from '../src/real-uniform-details.js';
+import {detectUniformDetails,matchUniformDetails,REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from '../src/real-uniform-details.js';
 import {replaceHairstyleLayer} from '../src/replace-hairstyle-layer.js';
 const root=new URL('..',import.meta.url);
 async function pixels(file){return sharp(await readFile(new URL('public/assets/government-uniforms/'+file,root))).resize({width:640}).ensureAlpha().raw().toBuffer({resolveWithObject:true}).then(({data,info})=>({data,width:info.width,height:info.height}))}
@@ -67,10 +67,24 @@ test('native detail auto-placement follows cached hairstyle changes even when th
  const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const start=editor.indexOf(' useEffect(()=>{\n  if(realDetailScope.current'),end=editor.indexOf(' const easyGovernmentInsigniaFitRef',start);
  let calls=0;
- const env={useEffect:cb=>cb(),realDetailScope:{current:'account'},accountScope:'account',realDetailEligible:true,ready:true,assetBusy:false,processActive:false,governmentTemplate:'/assets/government-uniforms/male-government-employee.png',governmentImageHead:{jobId:'cached-job',hairId:'thai-male-auto'},realDetailSeen:{current:null},applyRealUniformDetails:()=>{calls++}};
+ const env={realUniformDetailsVersionFor,useEffect:cb=>cb(),realDetailScope:{current:'account'},accountScope:'account',realDetailEligible:true,ready:true,assetBusy:false,processActive:false,governmentTemplate:'/assets/government-uniforms/male-government-employee.png',governmentImageHead:{jobId:'cached-job',hairId:'thai-male-auto'},realDetailSeen:{current:null},applyRealUniformDetails:()=>{calls++}};
  const effect=Function('env','with(env){'+editor.slice(start,end)+'}');
  effect(env);assert.equal(calls,1);
  effect(env);assert.equal(calls,1,'Undo native details does not immediately reapply');
  env.governmentImageHead={jobId:'cached-job',hairId:'seedream-36'};effect(env);assert.equal(calls,2,'Same-job cached hair needs its own boards/buttons');
- env.governmentImageHead={jobId:'cached-job',hairId:'thai-male-auto',realUniformDetailsVersion:'real-uniform-details-v1'};effect(env);assert.equal(calls,2,'Restored native layers are not pasted twice');
+ env.governmentImageHead={jobId:'cached-job',hairId:'thai-male-auto',realUniformDetailsVersion:realUniformDetailsVersionFor(env.governmentTemplate)};effect(env);assert.equal(calls,2,'Restored native layers are not pasted twice');
+});
+
+test('male native details retain the real board aspect and approved button diameter without copying AI bulk',async()=>{
+ const reference=detectUniformDetails(await pixels('male-government-employee.png')),portrait=detectUniformDetails(await pixels('male-operational-example.png'));
+ const before=structuredClone(portrait),parts=matchUniformDetails(reference,portrait,{maleReference:true});
+ const xs=portrait.boards.flatMap(b=>b.hull.map(p=>p.x)),span=Math.max(...xs)-Math.min(...xs);
+ assert.equal(parts.length,5);
+ for(const p of parts){
+  if(p.source.kind==='button'){assert.equal(p.target.w,span*.053);assert.equal(p.target.h,span*.053)}
+  else assert(Math.abs(p.target.w/p.target.h-p.source.w/p.source.h)<1e-10);
+ }
+ assert.deepEqual(portrait,before,'Read-only placement geometry never rewrites the native or AI photo');
+ assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/female-operational.png'),'real-uniform-details-v1');
+ assert.notEqual(realUniformDetailsVersionFor('/assets/government-uniforms/interior-01.png'),'real-uniform-details-v1');
 });

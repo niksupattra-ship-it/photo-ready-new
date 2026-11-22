@@ -1,6 +1,6 @@
 import {planThaiBodyFrame,fitThaiBodyScene} from './thai-body-framing.js';
 import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
-import {REAL_UNIFORM_DETAILS_VERSION,REAL_UNIFORM_DETAIL_TEMPLATES} from './real-uniform-details.js';
+import {REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
 import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
 import {withoutObsoleteThaiNeckBridges} from './thai-collar-layers.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
@@ -1272,14 +1272,15 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(automatic&&(head.mask||head.eraseRestoreSource))return;
   const template=head.generatedOutfitTemplate||governmentTemplate,key=JSON.stringify([accountScope,head.jobId,template]);
   if(automatic&&(editingPurchasedImage||savedWorkUnlocked)&&realDetailInitialJobs.current.has(head.jobId)&&!realDetailMemory.current.has(key))return;
-  if(automatic&&(head.realUniformDetailsVersion===REAL_UNIFORM_DETAILS_VERSION||realDetailSkip.current.has(key)))return;
+  const detailVersion=realUniformDetailsVersionFor(template);
+  if(automatic&&(head.realUniformDetailsVersion===detailVersion||realDetailSkip.current.has(key)))return;
   if(assets.current.get(head.id)?.warped||head.warpSource){if(!automatic)setStatus('ย้อนการบิดภาพก่อนวางรายละเอียดชุดจริง');return}
   const scope=outputScopeRef.current,previous=historySnapshot(),source=head.realUniformOriginalSource||head.source;
   const current=()=>mounted.current&&outputScopeRef.current===scope&&state.current.some(l=>l===head);
   const detailOperation={scope};realDetailBusy.current=detailOperation;realDetailSkip.current.add(key);setAssetBusy(true);
   try{
    let next;
-   if(head.realUniformDetailsVersion===REAL_UNIFORM_DETAILS_VERSION&&!automatic){
+   if(head.realUniformDetailsVersion&&!automatic){
     const cached=realDetailMemory.current.get(key);
     const restored=cached?.result.cleanedSource===head.source?source:await withDeadline(async()=>{const {restoreRealUniformDetails}=await import('./real-uniform-details-browser.js');return restoreRealUniformDetails({currentSource:head.source,originalSource:source,regions:head.realUniformDetailRegions})},{timeoutMs:12000});
     next=previous.filter(l=>!l.realUniformDetail||l.hairHeadId!==head.id).map(l=>l.id===head.id?{...l,source:restored,realUniformDetailsVersion:null,realUniformOriginalSource:null,realUniformDetailRegions:null}:l);
@@ -1296,7 +1297,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(kept.length+result.parts.length>20){setStatus('พื้นที่เลเยอร์เต็ม · เก็บภาพเดิมไว้');return}
     const f=head.sourceFrame||{x:0,y:0,w:W,h:H},pose=headPose(head);
     const details=result.parts.map(part=>fresh({name:part.name+' · ชุดจริง',kind:'uniform-detail',realUniformDetail:true,hairHeadId:head.id,hairHeadPose:pose,...pose,source:part.source,sourceFrame:{x:f.x+part.frame.x*f.w/result.width,y:f.y+part.frame.y*f.h/result.height,w:part.frame.w*f.w/result.width,h:part.frame.h*f.h/result.height}}));
-    next=kept.map(l=>l.id===head.id?{...l,source:result.cleanedSource,realUniformOriginalSource:surfaceURL(source),realUniformDetailsVersion:REAL_UNIFORM_DETAILS_VERSION,realUniformDetailRegions:result.regions}:l);
+    next=kept.map(l=>l.id===head.id?{...l,source:result.cleanedSource,realUniformOriginalSource:surfaceURL(source),realUniformDetailsVersion:detailVersion,realUniformDetailRegions:result.regions}:l);
     next.splice(next.findIndex(l=>l.id===head.id)+1,0,...details);
     realDetailMemory.current.set(key,{original:source,result});while(realDetailMemory.current.size>4)realDetailMemory.current.delete(realDetailMemory.current.keys().next().value);
    }
@@ -1313,7 +1314,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!realDetailEligible)realDetailSeen.current=null;
   if(realDetailEligible&&ready&&!assetBusy&&!processActive){
    const key=JSON.stringify([accountScope,governmentImageHead?.jobId,governmentTemplate,governmentImageHead?.hairId,governmentImageHead?.hairPolicyVersion]);
-   if(realDetailSeen.current!==key){realDetailSeen.current=key;if(!governmentImageHead?.realUniformDetailsVersion)void applyRealUniformDetails({automatic:true})}
+   if(realDetailSeen.current!==key){realDetailSeen.current=key;if(governmentImageHead?.realUniformDetailsVersion!==realUniformDetailsVersionFor(governmentTemplate))void applyRealUniformDetails({automatic:true})}
   }
  },[ready,assetBusy,processActive,realDetailEligible,governmentImageHead?.jobId,governmentImageHead?.source,governmentImageHead?.realUniformDetailsVersion,governmentTemplate,accountScope]);
  const easyGovernmentInsigniaFitRef=useRef(null);

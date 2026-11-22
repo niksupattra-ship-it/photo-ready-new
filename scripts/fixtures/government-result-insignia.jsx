@@ -61,7 +61,7 @@ window.insigniaPixelDifference=()=>{
 };
 const collarPins=[{id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},
  {id:'education-pair',name:'ศึกษาธิการ',left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'}];
-const chestPins=[{id:'pao',name:'อบจ.',src:'/assets/government-insignia/chest-pao.png'},{id:'sao',name:'อบต.',src:'/assets/government-insignia/chest-sao.png'}];
+const chestPins=[{id:'pao',name:'อบจ.',src:'/assets/government-insignia/chest-pao.png'},{id:'sao',name:'อบต.',sizeScale:1.42,src:'/assets/government-insignia/chest-sao.png'}];
 const ribbons=[{id:'2504-2514',name:'2504-2514',src:'/assets/ribbons/2504-2514.png'},{id:'2515',name:'2515',src:'/assets/ribbons/2515.png'}];
 const templateInfo={id:'government-fixture',name:'ชุดข้าราชการ',title:'ชุดข้าราชการ',cat:'government',gender,template,preview:template,img:template,group:'ข้าราชการ'};
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!studio}

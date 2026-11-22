@@ -1,4 +1,4 @@
-import {measureMaleStandingCollar} from './male-standing-collar.js';
+import {measureMaleStandingCollar,measureMaleChestLine} from './male-standing-collar.js';
 // The government insignia placement guide only runs on completed Thai photos.
 // Unlike the old gender-only preset, it measures the white jacket in the
 // actual rendered result. A low-confidence scan must not invent coordinates.
@@ -480,7 +480,7 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  // origin and remain dimensionless across every resulting photo size.
  const male=gender==='male';
  const ref=type==='stand'?{
-  collar:{left:.440,right:.560,down:.028,width:.055},
+  collar:{left:.4425,right:.5575,down:.028,width:.0664},
   chest:{x:.265,down:.245,width:.074},
   ribbon:{x:.737,down:.230,width:.230}
  }:type==='shirt'?{
@@ -509,6 +509,15 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  }
  const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width};
  const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};
+ const breast=standing?measureMaleChestLine(image,standing,g):null;
+ if(breast){
+  chest.y=(breast.y-frame.y)/frame.h;
+  chest.height=.075;
+  ribbon.centerY=chest.y;
+  // The top remains available to inspection/support and legacy callers.
+  ribbon.top=chest.y-(g.width*ribbon.width*.28/2)/frame.h;
+ }
+
  // Use shoulder width, not total photo width, for ALL accessory sizes.
  // The same reference ratios work for close-up and wide-cropped portraits.
  const bounds=(x,size,left,right)=>clamp(x,left+size/2,right-size/2);
@@ -542,10 +551,10 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   fabricSupport(points[2],chest.width,1.15),
   fabricSupport(points[3],ribbon.width,.36,true)];
  const known=Boolean(GOVERNMENT_TEMPLATE_ANCHORS[String(templatePath).split('?')[0]]);
- const needsReview=!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&!standing);
+ const needsReview=!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&(!standing||!breast));
  return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
   needsReview,collarType:type,
-  measuredShoulder:g,...(standing?{measuredStandingCollar:standing}:{}),referenceGeometryVersion:'reference-shoulder-v1'};
+  measuredShoulder:g,...(breast?{measuredChestLine:breast}:{}),...(standing?{measuredStandingCollar:standing}:{}),referenceGeometryVersion:'reference-shoulder-v1'};
 }
 
 // Easy finished-photo picker: the supplied white female jacket and reference

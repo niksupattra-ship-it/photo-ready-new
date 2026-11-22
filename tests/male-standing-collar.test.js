@@ -46,3 +46,14 @@ test('native buttons/boards participate in measurement cache invalidation, indep
  assert(!same(before,signature({...input,details:[]})));
  assert(!same(before,signature({...input,details:[{...input.details[0],layer:{...layer,y:12}}]})));
 });
+
+test('male breast badges follow the first two buttons at the approved common level across portrait sizes',async()=>{
+ for(const file of ['male-operational-example.png','male-government-employee-example.jpg'])for(const width of [500,900]){
+  const {data,info}=await sharp(new URL('../public/assets/government-uniforms/'+file,import.meta.url).pathname).resize({width}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  const fit=governmentReferenceLandmarkFit({data,width:info.width,height:info.height},'male','/assets/government-uniforms/male-government-employee.png'),line=fit.measuredChestLine;
+  assert(line,file);assert(Math.abs(line.y-(line.first+(line.second-line.first)*.56))<1e-8);
+  const {chest,ribbon,collar}=fit.preset;
+  assert.equal(chest.y,ribbon.centerY);assert.equal(chest.height,.075);assert.equal(collar.width,.0664);
+  assert(Math.abs(fit.frame.y+fit.frame.h*chest.y-line.y)<1e-8);
+ }
+});
