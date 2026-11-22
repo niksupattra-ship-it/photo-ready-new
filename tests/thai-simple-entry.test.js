@@ -483,7 +483,7 @@ test('Thai full-outfit haircut returns a confirmed cached result before credits 
 test('cached full-outfit hair bypasses quota fallback and all request paths resolve the same garment',async()=>{
  const studio=await read('src/studio-editor.jsx'),main=await read('src/main.jsx');
  assert(studio.includes("!canRestoreHair(id,mode,finish)&&await thaiManualAfterOutfitQuota()"));
- assert(studio.includes("await onChangeHair(id,mode,finish,state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head.generatedOutfitTemplate||'')"));
+ assert(studio.includes("await onChangeHair(id,mode,finish,state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head.generatedOutfitTemplate||'',{restoreOnly})"));
  const restored=main.slice(main.indexOf('const rememberRestoredHairResult='),main.indexOf('const restoreHairResultRights='));
  assert(restored.includes('fullPortraitHairHistoryRef.current.remember('),'Accepted initial/reopened full portrait is remembered before switching away');
  assert(restored.includes('template=head.generatedOutfitTemplate||editCache.current?.lock?.templatePath'));

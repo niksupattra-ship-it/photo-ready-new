@@ -3550,13 +3550,13 @@ const RIBBON_OPTIONS=[
 ];
 const CHEST_PIN_OPTIONS=[
  {id:'pao',name:'อบจ.',src:'/assets/government-insignia/chest-pao.png'},
- {id:'sao',name:'อบต.',src:'/assets/government-insignia/chest-sao.png'},
- {id:'municipality',name:'ทต.',src:'/assets/government-insignia/chest-municipality.png'},
+ {id:'sao',name:'อบต.',sizeScale:1.12,src:'/assets/government-insignia/chest-sao.png'},
+ {id:'municipality',name:'ทต.',sizeScale:1.12,src:'/assets/government-insignia/chest-municipality.png'},
  {id:'bma',name:'กทม.',src:'/assets/government-insignia/chest-bma.png'}
 ];
 const COLLAR_PIN_OPTIONS=[
  {id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},
- {id:'education-pair',name:'ศึกษาธิการ',left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'},
+ {id:'education-pair',name:'ศึกษาธิการ',sizeScale:.8,left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'},
  {id:'public-health-pair',name:'สาธารณสุข',left:'/assets/government-insignia/public-health-left.png',right:'/assets/government-insignia/public-health-right.png'},
  {id:'finance-pair',name:'การคลัง',left:'/assets/government-insignia/finance-left.png',right:'/assets/government-insignia/finance-right.png'},
  {id:'agriculture-pair',name:'เกษตร',left:'/assets/government-insignia/agriculture-left.png',right:'/assets/government-insignia/agriculture-right.png'},
@@ -5574,7 +5574,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   return fitHairMasterFrame(previous.lock,{width:oldImage.naturalWidth,height:oldImage.naturalHeight,face:oldFace},{width:newImage.naturalWidth,height:newImage.naturalHeight,face:newFace});
  };
  const changeHairForStudio=async (id,portraitMode,{studioOnly=false,femaleEyeStyle,sourceJobId,outfitReferencePath}={})=>{
-  if(cancellationStillUnwinding()){setMsg(pendingCancelMessage());return}
+  if(cancellationStillUnwinding()&&!cachedHairResult(id,portraitMode,femaleEyeStyle,outfitReferencePath)){setMsg(pendingCancelMessage());return}
   if(hairRequestRef.current||hairBusy||busy)return;
   if(!editCache.current)return;
   const firstUploadedPhoto=firstUploadedPhotoRef.current,requestScope=hairResultScope();
@@ -6007,9 +6007,14 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const studioSkinGeometryRef=useRef(null);
  const outputChangePending=()=>Boolean(studioPhotoTransactionRef.current||hairRequestRef.current||busy||hairBusy||hairGenerating||processProgress.active);
  const processStudioPhoto=async(file,template,selectedHair='',portraitMode,requestedFinish,generationOptions={})=>{
-  if(cancellationStillUnwinding())throw Error(pendingCancelMessage());
+  const acceptedCached=generationOptions.creditKind==='hairstyle'&&file===firstUploadedPhotoRef.current
+   ?cachedFullPortraitResult(selectedHair,portraitMode,portraitMode==='female'?(portraitFinishChoice(requestedFinish,file.idpromFemaleEyeStyle)==='natural'?'natural':'makeup'):'natural',template):null;
+  if(generationOptions.restoreOnly&&!acceptedCached)throw Error('ยังไม่มีภาพทรงนี้ที่สร้างสำเร็จ กรุณาเลือกสร้างรูปทรงนี้');
+  if(!acceptedCached&&cancellationStillUnwinding())throw Error(pendingCancelMessage());
   if(busy||hairBusy||studioPhotoTransactionRef.current)throw Error('กรุณารอการทำงานก่อนหน้าให้เสร็จ');
-  studioPhotoTransactionRef.current=true;setBusy(true);beginProgress();
+  studioPhotoTransactionRef.current=true;
+  if(acceptedCached)activeProcessOperation=createPortraitOperation({scope:portraitOperationScope(),headers:walletHeaders(),settled:true});
+  else {setBusy(true);beginProgress()}
   const operation=activeProcessOperation;let delivered=false,failureStage='generation';const processingStarted=Date.now();
   const rollback=()=>{if(delivered)return;studioPhotoTransactionRef.current=false};
   try{
@@ -6164,7 +6169,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    return {layer,reused:true,localFinish:true,commit:()=>{if(committed)return;if(rolledBack)throw Error('ยกเลิกการแต่งเมคอัพแล้ว');assertCurrent();if(!syncStudioPortraitFinish(layer,master))throw Error('บัญชีหรือรูปเปลี่ยนแล้ว กรุณาเลือกเมคอัพอีกครั้ง');studioSkinGeometryRef.current={source:head.studioSkinBaseSource,geometry};committed=true;studioPhotoTransactionRef.current=false},rollback};
   }catch(error){rollback();throw error}
  };
- const changeStudioHair=async(id,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
+ const changeStudioHair=async(id,portraitMode,femaleEyeStyle,outfitReferencePath,{restoreOnly=false}={})=>{
   if(studioPhotoTransactionRef.current||busy||hairBusy)throw Error('กรุณารอการทำงานก่อนหน้าให้เสร็จ');
   femaleEyeStyle=hairResultMode(id,portraitMode)==='female'?portraitFinishChoice(femaleEyeStyle,firstUploadedPhotoRef.current?.idpromFemaleEyeStyle):'natural';
   if(!editCache.current||!firstUploadedPhotoRef.current)throw Error('เพิ่มรูปต้นฉบับและประมวลผลใน Studio ก่อนเปลี่ยนทรงผม');
@@ -6173,8 +6178,9 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(englishPreviewEnabled()||editCache.current.master?.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
    const desiredTemplate=outfitReferencePath||editCache.current.lock.templatePath;
    const freeOppositeFinish=Boolean(portraitMode==='female'&&id===hairId&&desiredTemplate===editCache.current.lock.templatePath&&editCache.current.master?.idpromFemaleFinishSingleVersion===FEMALE_SINGLE_FINISH_VERSION&&femaleEyeStyle!==portraitFinishChoice(firstUploadedPhotoRef.current?.idpromFemaleEyeStyle));
-   return processStudioPhoto(firstUploadedPhotoRef.current,desiredTemplate,id,portraitMode,femaleEyeStyle,{creditKind:'hairstyle',sourceJobId:currentOutputJobRef.current,freeOppositeFinish});
+   return processStudioPhoto(firstUploadedPhotoRef.current,desiredTemplate,id,portraitMode,femaleEyeStyle,{creditKind:'hairstyle',sourceJobId:currentOutputJobRef.current,freeOppositeFinish,...(restoreOnly?{restoreOnly:true}:{})});
   }
+  if(restoreOnly&&!cachedHairResult(id,portraitMode,femaleEyeStyle,outfitReferencePath))throw Error('ยังไม่มีภาพทรงนี้ที่สร้างสำเร็จ กรุณาเลือกสร้างรูปทรงนี้');
   const previous={jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current};
   // Keep the accepted head's identity until Studio has hydrated and confirmed
   // this replacement. The generic job event must not publish a pending variant.

@@ -21,6 +21,7 @@ async function cropped(src){
 }
 async function buildNativeAsset(kind,option,frame,preset,maxDensity=2){
  if(kind==='suit'||kind==='background'){const im=await load(kind==='suit'?option.template:option.src);const source=make(im.naturalWidth||im.width,im.naturalHeight||im.height);source.getContext('2d').drawImage(im,0,0);return {source,sourceFrame:kind==='suit'?frame:{x:0,y:0,w:900,h:1200},collarParts:null}}
+ if(['chest','collar','ribbon'].includes(kind)&&Number.isFinite(option.sizeScale)&&option.sizeScale>0)preset={...preset,[kind]:{...preset[kind],width:preset[kind].width*option.sizeScale}};
  if(kind==='chest'||kind==='ribbon'){const c=await cropped(option.src),v=preset[kind],w=frame.w*v.width,h=w*c.height/c.width;return {source:c,sourceFrame:{x:frame.x+frame.w*v.x-w/2,y:frame.y+frame.h*(kind==='ribbon'?v.top:v.y)-(kind==='ribbon'?0:h/2),w,h},collarParts:null}}
  const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar,w=frame.w*v.width,y=frame.y+frame.h*v.y;
  const frames=[left,right].map((c,i)=>({x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:y-w*c.height/c.width/2,w,h:w*c.height/c.width}));
@@ -36,7 +37,7 @@ const preparedAssets=new Map(),MAX_PREPARED_BYTES=32*1024*1024;
 function trimPreparedAssets(){let bytes=0;for(const entry of preparedAssets.values())bytes+=entry.bytes;while(preparedAssets.size>6||bytes>MAX_PREPARED_BYTES){const key=preparedAssets.keys().next().value,entry=preparedAssets.get(key);bytes-=entry.bytes;preparedAssets.delete(key)}}
 export async function nativeAsset(kind,option,frame,preset){
  // Suit pixels do not depend on placement or accessory presets.
- const key=JSON.stringify(kind==='suit'?[kind,option.template]:[kind,option.template,option.src,option.left,option.right,frame,preset]);
+ const key=JSON.stringify(kind==='suit'?[kind,option.template]:[kind,option.template,option.src,option.left,option.right,option.sizeScale||1,frame,preset]);
  let entry=preparedAssets.get(key);
  if(entry){preparedAssets.delete(key);preparedAssets.set(key,entry)}else{
   entry={bytes:0,promise:null};entry.promise=buildNativeAsset(kind,option,frame,preset).then(result=>{const bytes=source=>source instanceof HTMLCanvasElement?source.width*source.height*4:2*(source?.length||0);entry.bytes=bytes(result.source)+bytes(result.collarParts?.left)+bytes(result.collarParts?.right);trimPreparedAssets();return result}).catch(error=>{if(preparedAssets.get(key)===entry)preparedAssets.delete(key);throw error});preparedAssets.set(key,entry);trimPreparedAssets();

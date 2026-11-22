@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {createPortraitOperation} from '../src/portrait-operation.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -50,18 +51,30 @@ test('full portrait A to B to A restores the accepted pixels and job without AI,
  const version='current-pipeline',lock={templatePath:template},a=new Blob(['complete shoulders A']),b=new Blob(['complete shoulders B']);
  const cachedFullPortraitResult=(hair,mode,finish,selectedTemplate)=>history.find({source:original,scope,template:selectedTemplate,mode,hair,finish,version:JSON.stringify([version,'collar-v6','complete-garment-rear-hair-v2'])});
  history.remember({source:original,scope,template,mode:'female',hair:'seedream-14',finish:'makeup',version:JSON.stringify([version,'collar-v6','complete-garment-rear-hair-v2']),master:a,lock,jobId:'job-A'});
- let requests=0,rendered=null;
- const env={cancellationStillUnwinding:()=>false,busy:false,hairBusy:false,studioPhotoTransactionRef:{current:false},setBusy(){},beginProgress(){},activeProcessOperation:{},portraitFinishChoice,firstUploadedPhotoRef:{current:original},cachedFullPortraitResult,verifyOutputRights:async()=>({checked:true,unlocked:false,fullEdit:false}),
+ let requests=0,rendered=null,unwinding=false;
+ const env={createPortraitOperation,portraitOperationScope:()=>scope,walletHeaders:()=>({}),cancellationStillUnwinding:()=>unwinding,busy:false,hairBusy:false,studioPhotoTransactionRef:{current:false},setBusy(){},beginProgress(){},activeProcessOperation:{},portraitFinishChoice,firstUploadedPhotoRef:{current:original},cachedFullPortraitResult,verifyOutputRights:async()=>({checked:true,unlocked:false,fullEdit:false}),
  aiFinishPortrait:async file=>{assert.equal(file,original);requests++;return Object.assign(b,{idpromJobId:'job-B',idpromTrial:true})},finishFirstPortraitMaster:async value=>value,composePortrait:async()=>({lock}),renderAdjustedFinal:async(master,...args)=>{rendered=master;args.at(-1).push({name:'หัว · คอ · ผม',source:'data:image/png;base64,eA=='})},backgroundRef:{current:''},assertProcessActive(){},HAIR_DESIGN_VERSION:'current',femaleFinishMetadata:()=>({}),
  setF(){},initialFemaleMakeupRef:{current:null},femaleFinishAnchor:()=>null,editCache:{current:{master:a,lock}},initialProcessedMasterRef:{current:a},currentOutputJobRef:{current:'job-A'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},setOutputJobId(){},setTrialPreview(){},setLiveCanvasVisible(){},liveAdjustRef:{current:{}},setHeadAdjust(){},liveCollarWarpRef:{current:0},setCollarWarp(){},liveCollarHeightRef:{current:0},setCollarHeight(){},liveNeckAdjustRef:{current:{}},setNeckAdjust(){},setPlacementLocked(){},lockedPlacementRef:{current:null},lockedMasterRef:{current:null},preparedHairBaseRef:{current:null},lastHairDonorRef:{current:null},cleanHairBaseRef:{current:null},initialStyledHairRef:{current:null},studioHairOriginRef:{current:''},setHairId(){},rememberHairResult:()=>({}),fullPortraitHairHistoryRef:{current:history},hairResultScope:()=>scope,hairResultKey:()=>version,THAI_COLLARLESS_VERSION:'collar-v6',window:{dispatchEvent(){}},CustomEvent:class{},setProgressStage(){},analyticsProcessFailure(){},SINGLE_PASS_PORTRAIT_VERSION:'single'};
  const process=extract(' const processStudioPhoto=async',' const applyStudioMakeup=','processStudioPhoto',env);
  const next=await process(original,template,'seedream-41','female','makeup',{creditKind:'hairstyle'});
  assert.equal(requests,1);assert.equal(rendered,b);assert.equal(env.currentOutputJobRef.current,'job-A','Pending results do not replace accepted state');next.commit();
  assert.equal(env.currentOutputJobRef.current,'job-B');
- const back=await process(original,template,'seedream-14','female','makeup',{creditKind:'hairstyle'});
+ unwinding=true;
+ const back=await process(original,template,'seedream-14','female','makeup',{creditKind:'hairstyle',restoreOnly:true});
  assert.equal(back.reused,true);assert.equal(requests,1);assert.equal(rendered,a,'Restore complete original garment pixels');back.commit();
  assert.equal(env.currentOutputJobRef.current,'job-A');
- const again=await process(original,template,'seedream-41','female','makeup',{creditKind:'hairstyle'});
+ const again=await process(original,template,'seedream-41','female','makeup',{creditKind:'hairstyle',restoreOnly:true});
  assert.equal(again.reused,true);assert.equal(requests,1);assert.equal(rendered,b);again.commit();
  assert.equal(env.currentOutputJobRef.current,'job-B');assert.equal(await original.text(),'unchanged upload');
+ await assert.rejects(process(original,template,'never-created','female','makeup',{creditKind:'hairstyle',restoreOnly:true}),/ยังไม่มีภาพทรงนี้/);assert.equal(requests,1,'Cache-only misses must never generate');
+});
+
+
+test('Thai finished-photo hair click restores immediately instead of creating a pending AI draft',()=>{
+ const editor=readFileSync(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const start=editor.indexOf(' const chooseHair=id=>{'),end=editor.indexOf('// Select the finish',start);
+ const calls=[],env={hairGender:'female',englishFlow:false,processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,processHairPending:false,state:{current:[{id:'head',kind:'head'}]},sourceLayerRef:{current:'upload'},layerKind:l=>l.kind,canRestoreHair:()=>true,easyFaceFinish:'makeup',setThaiPendingHair:v=>calls.push(['pending',v]),setThaiChoiceFlow(){},setThaiHairFinishChoice(){},applyHair:(...args)=>calls.push(['restore',...args])};
+ const choose=Function('env','with(env){'+editor.slice(start,end)+';return chooseHair}')(env);
+ choose('seedream-14');
+ assert.deepEqual(calls,[['pending',null],['restore','seedream-14',{restoreOnly:true}]]);
 });

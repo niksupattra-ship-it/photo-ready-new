@@ -82,7 +82,7 @@ export function ThaiMobileJourney({
  const suitUnlocked=Boolean(photoTypeSelected&&selectedStyle&&draftHair);
  const outfitReady=Boolean(photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit);
  const canSubmit=Boolean(sourcePreview&&outfitReady&&ready&&!busy&&!suitLoading&&choicesReady);
- const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
+ const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(!h.cached)};
  const chooseSuit=t=>{if(!t||t.locked||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setChosenOutfitTemplate(t.template);setNotice('');onSuit?.(t)};
  const pickBackground=option=>{
   if(!option||!outfitReady||busy||suitLoading)return;
@@ -115,7 +115,7 @@ export function ThaiMobileJourney({
  const displayOutfitOptions=outfits.slice(0,moreSuits?24:4);
  const resultHairChoices=(
      <div className={"thai-mobile-hair-gallery thai-mobile-result-hair-choices"+(resultHairOpen?" is-open":"")} aria-label="ลองเปลี่ยนทรงผม">
-      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-label={h.name||'ทรงผม'} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);if(!compactResult)setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
+      {hairs.filter(h=>!h.disabled||h.locked).slice(0,3).map(h=><button key={h.id} type="button" className={(selectedHair||draftHair)===h.id?'selected':''} aria-label={h.name||'ทรงผม'} aria-pressed={(selectedHair||draftHair)===h.id} onClick={()=>{chooseHair(h);if(!compactResult&&!h.cached)setSection('hair')}}><EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/>{(selectedHair||draftHair)===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}</button>)}
       {compactResult&&changedHair&&<button type="button" className="mobile-hair-create" disabled={!ready||busy||!choicesReady} onClick={()=>{setNotice('');actionAwaitingRef.current='hair';onConfirmHair?.()}}>สร้างรูปทรงนี้</button>}
      </div>
  );
