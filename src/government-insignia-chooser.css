@@ -29,3 +29,8 @@
 .idprom-government-insignia--quick .idprom-government-option-images{height:55px;overflow:hidden}
 .idprom-government-insignia--quick .idprom-government-option-images img{display:block;width:56px;height:55px;max-width:100%;max-height:55px;object-fit:contain;flex:none}
 .idprom-government-insignia--quick .idprom-government-insignia-options button{min-height:94px;gap:4px}
+
+.idprom-government-real-details{padding:14px;display:grid;gap:10px}
+.idprom-government-real-details button{padding:12px;border:1px solid #b99aef;border-radius:10px;background:#f2ebff;color:#593080;font:inherit;cursor:pointer}
+.idprom-government-real-details button:disabled{opacity:.55;cursor:wait}
+.idprom-government-real-details p{font-size:12px;line-height:1.5;margin:0;color:#695779}
