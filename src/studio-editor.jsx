@@ -1757,7 +1757,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setThaiPendingHair(null);setTool('move');return}
   // A previously generated full outfit must switch to the editable native
   // outfit/head workflow once the Thai outfit quota is exhausted.
-  if(!englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&await thaiManualAfterOutfitQuota()){
+  if(!englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&!canRestoreHair(id,mode,finish)&&await thaiManualAfterOutfitQuota()){
    await processPhoto({hairId:id,portraitMode:mode,continueWithoutSave:true,manualOutfitFallback:true});
    return;
   }
@@ -1780,7 +1780,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
   setAssetBusy(true);setStatus(reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   const result=stagedResult=localFinish?await onLocalPortraitFinish(cleanHead,finish,{isCurrent:localCurrent}):await onChangeHair(id,mode,finish,state.current.find(l=>layerKind(l)==='suit')?.templatePath||'');
+   const result=stagedResult=localFinish?await onLocalPortraitFinish(cleanHead,finish,{isCurrent:localCurrent}):await onChangeHair(id,mode,finish,state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head.generatedOutfitTemplate||'');
    reused=result?.reused===true;
    assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');

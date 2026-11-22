@@ -9,17 +9,17 @@ const extract=(start,end,name,env)=>{const a=code.indexOf(start),b=code.indexOf(
 test('English hairstyle callback passes the untouched first upload, selected outfit and previous job to first-processing pipeline',async()=>{
  for(const gender of ['female','male']){
   const original=new File(['original pixels'],'source.png',{type:'image/png'}),calls=[];
-  const env={studioPhotoTransactionRef:{current:false},busy:false,hairBusy:false,hairResultMode:()=>gender,portraitFinishChoice,firstUploadedPhotoRef:{current:original},editCache:{current:{lock:{templatePath:'/old-outfit.png'}}},englishPreviewEnabled:()=>true,currentOutputJobRef:{current:'accepted-job'},processStudioPhoto:async(...args)=>{calls.push(args);return 'pending-result'}};
+  const env={hairId:'',studioPhotoTransactionRef:{current:false},busy:false,hairBusy:false,hairResultMode:()=>gender,portraitFinishChoice,firstUploadedPhotoRef:{current:original},editCache:{current:{lock:{templatePath:'/old-outfit.png'}}},englishPreviewEnabled:()=>true,currentOutputJobRef:{current:'accepted-job'},processStudioPhoto:async(...args)=>{calls.push(args);return 'pending-result'}};
   const change=extract(' const changeStudioHair=async',' const LegacyPaidWarningUI=','changeStudioHair',env);
   assert.equal(await change('new-hair',gender,'makeup','/selected-outfit.png'),'pending-result');
   assert.equal(calls.length,1);assert.equal(calls[0][0],original);assert.equal(calls[0][1],'/selected-outfit.png');assert.equal(calls[0][2],'new-hair');assert.equal(calls[0][4],gender==='female'?'makeup':'natural');
-  assert.deepEqual(calls[0][5],{creditKind:'hairstyle',sourceJobId:'accepted-job'});assert.equal(await original.text(),'original pixels');
+  assert.deepEqual(calls[0][5],{creditKind:'hairstyle',sourceJobId:'accepted-job',freeOppositeFinish:false});assert.equal(await original.text(),'original pixels');
  }
 });
 
 function thaiFixture({cached=false,failed=false}={}){
  const original=Object.assign(new File(['original pixels'],'source.png',{type:'image/png'}),{idpromFemaleEyeStyle:'natural'}),master=Object.assign(new Blob(['new generated pixels']),{idpromJobId:'new-job'}),calls=[],entries=[],settlements=[];
- const env={createPortraitOperation,portraitOperationScope:()=> 'same-account-work',walletHeaders:()=>({'X-Wallet-Id':'owner-A'}),cancellationStillUnwinding:()=>false,pendingCancelMessage:()=>'',hairRequestRef:{current:false},hairBusy:false,busy:false,editCache:{current:{master:new Blob(['accepted pixels']),lock:{templatePath:'/selected-outfit.png'}}},firstUploadedPhotoRef:{current:original},hairResultScope:()=> 'same-account-work',hairResultMode:()=> 'female',portraitFinishChoice,cachedHairResult:()=>cached?{master,jobId:'cached-job'}:null,activeProcessOperation:{cancelled:false},liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},
+ const env={hairId:'',createPortraitOperation,portraitOperationScope:()=> 'same-account-work',walletHeaders:()=>({'X-Wallet-Id':'owner-A'}),cancellationStillUnwinding:()=>false,pendingCancelMessage:()=>'',hairRequestRef:{current:false},hairBusy:false,busy:false,editCache:{current:{master:new Blob(['accepted pixels']),lock:{templatePath:'/selected-outfit.png'}}},firstUploadedPhotoRef:{current:original},hairResultScope:()=> 'same-account-work',hairResultMode:()=> 'female',portraitFinishChoice,cachedHairResult:()=>cached?{master,jobId:'cached-job'}:null,activeProcessOperation:{cancelled:false},liveAdjustRef:{current:{}},liveCollarWarpRef:{current:0},liveCollarHeightRef:{current:0},liveNeckAdjustRef:{current:{}},
   setHairGenerating:value=>{env.generating=value},setHairBusy:value=>{env.hairBusy=value},beginProgress:()=>{env.begun=true},setMsg(){},setProgressStage(){},
   aiFinishPortrait:async(...args)=>{calls.push(args);if(failed)throw Object.assign(Error('provider failure'),{status:503});return master},finishFirstPortraitMaster:async value=>value,assertProcessActive:()=>{},fitChangedHairMaster:async()=>({templatePath:'/selected-outfit.png'}),sharedStudioSkinSource:()=>null,
   verifyOutputRights:async()=>({checked:true,unlocked:true,fullEdit:true}),finishProgress:async success=>settlements.push(success),beginOptionRender(){},currentOutputJobRef:{current:'accepted-job'},currentOutputTrialRef:{current:false},studioTrialRef:{current:false},setOutputJobId(){},setTrialPreview(){},setHairId(){},rememberHairResult:(...args)=>{const entry={args};entries.push(entry);return entry},PROCESS_FAILURE_MESSAGE:'failed'
@@ -41,4 +41,27 @@ test('failed hairstyle keeps previous output and original finish, clears busy fl
 });
 test('a late hairstyle cannot commit after a different source photo is selected',async()=>{
  const f=thaiFixture(),result=await f.run();f.env.firstUploadedPhotoRef.current=new File(['another person'],'source.png',{type:'image/png'});assert.throws(()=>result.commit(),/บัญชี รูปต้นฉบับ หรืองานเปลี่ยน/);assert.equal(f.env.currentOutputJobRef.current,'accepted-job');assert.equal(f.entries.length,0);
+});
+
+test('full portrait A to B to A restores the accepted pixels and job without AI, including after trial rights end',async()=>{
+ const {createStudioPortraitHairHistory}=await import('../src/studio-portrait-hair-history.js');
+ const original=new File(['unchanged upload'],'original.png',{type:'image/png'});
+ const history=createStudioPortraitHairHistory(),scope='same-wallet',template='/assets/government-uniforms/female-operational.png';
+ const version='current-pipeline',lock={templatePath:template},a=new Blob(['complete shoulders A']),b=new Blob(['complete shoulders B']);
+ const cachedFullPortraitResult=(hair,mode,finish,selectedTemplate)=>history.find({source:original,scope,template:selectedTemplate,mode,hair,finish,version:JSON.stringify([version,'collar-v6','complete-garment-compact-hair-v1'])});
+ history.remember({source:original,scope,template,mode:'female',hair:'seedream-14',finish:'makeup',version:JSON.stringify([version,'collar-v6','complete-garment-compact-hair-v1']),master:a,lock,jobId:'job-A'});
+ let requests=0,rendered=null;
+ const env={cancellationStillUnwinding:()=>false,busy:false,hairBusy:false,studioPhotoTransactionRef:{current:false},setBusy(){},beginProgress(){},activeProcessOperation:{},portraitFinishChoice,firstUploadedPhotoRef:{current:original},cachedFullPortraitResult,verifyOutputRights:async()=>({checked:true,unlocked:false,fullEdit:false}),
+ aiFinishPortrait:async file=>{assert.equal(file,original);requests++;return Object.assign(b,{idpromJobId:'job-B',idpromTrial:true})},finishFirstPortraitMaster:async value=>value,composePortrait:async()=>({lock}),renderAdjustedFinal:async(master,...args)=>{rendered=master;args.at(-1).push({name:'หัว · คอ · ผม',source:'data:image/png;base64,eA=='})},backgroundRef:{current:''},assertProcessActive(){},HAIR_DESIGN_VERSION:'current',femaleFinishMetadata:()=>({}),
+ setF(){},initialFemaleMakeupRef:{current:null},femaleFinishAnchor:()=>null,editCache:{current:{master:a,lock}},initialProcessedMasterRef:{current:a},currentOutputJobRef:{current:'job-A'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},setOutputJobId(){},setTrialPreview(){},setLiveCanvasVisible(){},liveAdjustRef:{current:{}},setHeadAdjust(){},liveCollarWarpRef:{current:0},setCollarWarp(){},liveCollarHeightRef:{current:0},setCollarHeight(){},liveNeckAdjustRef:{current:{}},setNeckAdjust(){},setPlacementLocked(){},lockedPlacementRef:{current:null},lockedMasterRef:{current:null},preparedHairBaseRef:{current:null},lastHairDonorRef:{current:null},cleanHairBaseRef:{current:null},initialStyledHairRef:{current:null},studioHairOriginRef:{current:''},setHairId(){},rememberHairResult:()=>({}),fullPortraitHairHistoryRef:{current:history},hairResultScope:()=>scope,hairResultKey:()=>version,THAI_COLLARLESS_VERSION:'collar-v6',window:{dispatchEvent(){}},CustomEvent:class{},setProgressStage(){},analyticsProcessFailure(){},SINGLE_PASS_PORTRAIT_VERSION:'single'};
+ const process=extract(' const processStudioPhoto=async',' const applyStudioMakeup=','processStudioPhoto',env);
+ const next=await process(original,template,'seedream-41','female','makeup',{creditKind:'hairstyle'});
+ assert.equal(requests,1);assert.equal(rendered,b);assert.equal(env.currentOutputJobRef.current,'job-A','Pending results do not replace accepted state');next.commit();
+ assert.equal(env.currentOutputJobRef.current,'job-B');
+ const back=await process(original,template,'seedream-14','female','makeup',{creditKind:'hairstyle'});
+ assert.equal(back.reused,true);assert.equal(requests,1);assert.equal(rendered,a,'Restore complete original garment pixels');back.commit();
+ assert.equal(env.currentOutputJobRef.current,'job-A');
+ const again=await process(original,template,'seedream-41','female','makeup',{creditKind:'hairstyle'});
+ assert.equal(again.reused,true);assert.equal(requests,1);assert.equal(rendered,b);again.commit();
+ assert.equal(env.currentOutputJobRef.current,'job-B');assert.equal(await original.text(),'unchanged upload');
 });
