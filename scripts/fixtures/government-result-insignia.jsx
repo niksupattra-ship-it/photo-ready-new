@@ -11,7 +11,7 @@ import '../../src/style.css';
 const query=new URLSearchParams(location.search);
 const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
-const studio=query.get('studio')==='1';
+const studio=query.get('studio')==='1',unpaid=query.get('unpaid')==='1';
 const suitTest=(query.get('femaleSuits')==='1'||query.get('maleSuits')==='1'),pro=query.get('pro')==='1';
 const femaleSuitTemplates=[{id:'female-job-taupe-cream-blouse',name:'ชุดโปร',template:'/assets/job-uniforms/female-job-taupe-cream-blouse.png',gender:'female',cat:'job',group:'สมัครงาน'},...THAI_FREE_FEMALE_SUIT_IDS.map((id,i)=>({id,name:'ฟรี '+(i+1),template:'/assets/job-uniforms/'+id+'.png',gender:'female',cat:'job',group:'สมัครงาน'}))];
 const fullbody=query.get('fullbody')==='1';
@@ -62,15 +62,15 @@ const templateInfo={id:'government-fixture',name:'ชุดข้าราชก
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!studio}
  initialLayers={[
   {name:'พื้นหลัง',kind:'background',source:blue.toDataURL()},
-  {id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:false,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})},
+  {id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:unpaid,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})},
   {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id},
   ...(staleNeck?[{id:'stale-neck',name:'คอเก่า',kind:'neck-fit',hairHeadId:'fixture-head',source:stalePatch.toDataURL(),sourceFrame:{x:400,y:frame.y+frame.h*.18,w:100,h:40}}]:[])
  ]}
  templates={suitTest?suitTemplates:[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
  collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]} maleHair={[]} femaleHair={[]}
- paidOutputIds={['fixture-government']} editableOutputIds={['fixture-government']} hasCredits allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
- onVerifyOutput={async()=>({unlocked:true,fullEdit:true,paidDownload:true,premiumHair:suitTest?pro:true})}
+ paidOutputIds={unpaid?[]:['fixture-government']} editableOutputIds={unpaid?[]:['fixture-government']} hasCredits={!unpaid} allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
+ onVerifyOutput={async()=>({unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!unpaid&&(suitTest?pro:true)})}
  purchaseSnapshotRef={snapshotRef} onReceiveImage={async blob=>{window.insigniaFixture.exports.push({type:blob.type,size:blob.size,url:URL.createObjectURL(blob)});return {delivery:'fixture'}}}
  onBeforeProcess={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onProcessPhoto={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
- onRequestUnlock={context=>{window.insigniaFixture.paymentCalls++;window.insigniaFixture.offer=context;if(!suitTest)throw Error('FIXTURE_NO_PAYMENT')}} onClose={()=>{}}/>);
+ onRequestUnlock={context=>{window.insigniaFixture.paymentCalls++;window.insigniaFixture.offer=context;if(!suitTest&&!unpaid)throw Error('FIXTURE_NO_PAYMENT')}} onClose={()=>{}}/>);

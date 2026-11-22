@@ -2074,9 +2074,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
      onCheckoutPreview({jobId:heads[0].jobId,preview:thumb.toDataURL('image/jpeg',.84)});
     }finally{thumb.width=1;thumb.height=1}
    }
-   const authorized=await allowOutput({errorTitle:'ตรวจสอบสิทธิ์ไม่สำเร็จ'});
-   if(authorized)void exportImage('image/png');
-  }catch(error){setStatus(error?.message||'ยังเปิดหน้าเลือกแพ็กเกจไม่ได้ กรุณาลองใหม่ ไม่ต้องชำระซ้ำ')}
+   // Open the existing PNG/PDF preparation first; its confirm action checks rights.
+   await exportImage('image/png');
+  }catch(error){setStatus(error?.message||'ยังเปิดหน้าเตรียมรูปไม่ได้ กรุณาลองใหม่')}
   finally{receiveSimplePhotoBusy.current=false}
  };
  const easyUi=<>{easyMode?<EasyMode adjustments={easyAdjust} insignia={easyInsignia} resultInsignia={resultInsigniaUi}
