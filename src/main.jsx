@@ -122,7 +122,7 @@ import {createAiResultCache,resultSourceDigest} from './ai-result-cache.js';
 import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
-import {faceProportions,compareFaceProportions,compareThaiFaceShape} from './face-proportion-check.js';
+import {faceProportions,compareFaceProportions,compareThaiFaceShape,triageThaiFaceShape} from './face-proportion-check.js';
 import {portraitProtectedFeatures} from './portrait-feature-check.js';
 import {createPortraitFaceCache} from './portrait-analysis-cache.js';
 import {PackageOffers} from './package-offers.jsx';
@@ -2679,7 +2679,14 @@ async function selectedHairEvidence(hairId){
 async function checkPortraitCompletion(originalFile,result,hairId){
  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(result.idpromPortraitComposition)){
   const image=await decodedPortraitImage(result),face=await portraitFaceLandmarks(result,image);
-  if(!face?.[152])throw Error('No clear face was found in the generated portrait.');
+  if(!face?.[152]){
+   if(!englishPreviewEnabled()){
+    result.idpromQualityReviewNeeded=true;
+    console.warn('Thai completed portrait face detection inconclusive; preserving image for review');
+    return;
+   }
+   throw Error('No clear face was found in the generated portrait.');
+  }
   return; // Versioned English framing is fitted by its matching composition path.
  }
  const requestedHair=Boolean(hairId&&hairId!=='original');
@@ -2975,8 +2982,11 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
     const original=await portraitFaceMetrics(originalFile);
     const generated=await portraitFaceMetrics(cached.value);
     const faceLock=compareThaiFaceShape(original,generated);
-    if(faceLock.reason==='unmeasurable')cached.value.idpromQualityReviewNeeded=true;
-    else if(!faceLock.ok){
+    const triage=triageThaiFaceShape(original,generated);
+    if(triage.action==='review'){
+     cached.value.idpromQualityReviewNeeded=true;
+     console.warn('Thai face geometry needs human review',faceLock.reason);
+    }else if(triage.action==='reject'){
      const error=Error('AI ปรับโครงหน้าต่างจากรูปต้นฉบับ · เก็บรูปเดิมไว้');
      error.code='face_proportion_changed';throw error;
     }
