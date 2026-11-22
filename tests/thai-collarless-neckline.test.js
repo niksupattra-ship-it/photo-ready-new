@@ -69,3 +69,15 @@ test('v4 restores the original shirt collar as one pair of leaves, keeps rear ha
  assert.match(prompt,/ORIGINAL SINGLE SHIRT COLLAR/);assert.match(prompt,/left and right pointed collar leaves/);assert.match(prompt,/not two stacked collars/);assert.match(prompt,/BEHIND BOTH SHOULDERS/);
  assert(!prompt.includes('REMOVE both pointed shirt-collar flaps'));assert(!prompt.includes('WITHOUT inner pointed collar'));
 });
+test('v5 fixes only the doubled edge touching neck skin and preserves the genuine shirt collar',async()=>{
+ const {usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiAiGarmentOnly}=await import('../thai-collarless-neckline.js');
+ const {THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION}=await import('../thai-collarless-version.js');
+ const fields={...base,thaiCollarlessVersion:THAI_COLLARLESS_VERSION};
+ for(const name of ['operational','academic','senior','government-employee'])assert(usesThaiSingleSkinCollarSeam({...fields,neckOutfitReferencePath:`/assets/government-uniforms/female-${name}.png`}));
+ for(const patch of [{thaiCollarlessVersion:THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION},{portraitMode:'male'},{thaiOutfitAiVersion:undefined},{neckOutfitReferencePath:'/assets/job-uniforms/female-formal-suit.png'}])assert(!usesThaiSingleSkinCollarSeam({...fields,...patch}));
+ const old={...fields,thaiCollarlessVersion:THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION};assert(usesThaiOriginalCollar(old));assert(usesThaiAiGarmentOnly(old));
+ const archived=thaiAiGarmentInstruction(3,5,false,true),current=thaiAiGarmentInstruction(3,5,false,true,true);
+ assert(archived.includes('including its folded band'));assert(!current.includes('including its folded band'));assert(current.includes('left and right pointed collar leaves'));
+ const text=thaiSingleSkinCollarSeamInstruction();assert.match(text,/immediately touching the neck skin/);assert.match(text,/not the shadows under/);assert.match(text,/ONE clean continuous seam/);assert.match(text,/Retain BOTH original pointed/);assert.match(text,/not a separately exposed light band/);assert.match(text,/do not.*whiten the whole garment/);assert(!text.includes('REMOVE both pointed'));
+ const pipeline=await readFile(root+'production-portrait-pipeline.js','utf8');assert(pipeline.indexOf('if(usesThaiSingleSkinCollarSeam(fields))prompt+=')>pipeline.indexOf('if(usesThaiAiGarmentOnly(fields))prompt+='));
+});

@@ -1,4 +1,4 @@
-import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar} from './thai-collarless-neckline.js';
+import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction} from './thai-collarless-neckline.js';
 import {applyThaiRealFacePolicy,usesThaiRealFace,THAI_REAL_FACE_VERSION} from './thai-real-face-policy.js';
 import {usesThaiSingleCollar,thaiSingleCollarInstruction} from './thai-single-collar-policy.js';
 import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction,usesThaiIdentityLockedHead,thaiIdentityLockInstruction,usesThaiAdaptiveHead,usesThaiFaceShapeLock,thaiFaceShapeLockInstruction} from './thai-outfit-ai-policy.js';
@@ -621,7 +621,8 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
  if(collarless&&!usesThaiAiGarmentOnly(fields))prompt+=usesThaiCollarlessPrimary(fields)?thaiCollarlessPrimaryInstruction(outfitIndex,outfitDetailIndex):thaiCollarlessInstruction(outfitIndex,outfitDetailIndex);
  prompt=applyThaiRealFacePolicy(prompt,fields);
- if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction(outfitIndex,outfitDetailIndex,collarless,usesThaiOriginalCollar(fields));
+ if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction(outfitIndex,outfitDetailIndex,collarless,usesThaiOriginalCollar(fields),usesThaiSingleSkinCollarSeam(fields));
+ if(usesThaiSingleSkinCollarSeam(fields))prompt+=thaiSingleSkinCollarSeamInstruction();
  await onStage('generation');
  const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
