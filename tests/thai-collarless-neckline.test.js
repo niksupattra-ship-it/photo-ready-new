@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,THAI_COLLARLESS_VERSION} from '../thai-collarless-neckline.js';
+import {THAI_AI_COLLARLESS_VERSION} from '../thai-collarless-version.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 import {createEnglishOutfitDetailReference} from '../english-outfit-fidelity.js';
 const root=new URL('..',import.meta.url).pathname;
-const base={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,portraitMode:'female',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
+const base={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiCollarlessVersion:THAI_AI_COLLARLESS_VERSION,portraitMode:'female',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
 test('collarless inner shirt is explicit new Thai female government styling, never English/archived/male/job outfits',()=>{
  for(const name of ['operational','academic','senior','government-employee'])assert(usesThaiCollarlessNeckline({...base,neckOutfitReferencePath:`/assets/government-uniforms/female-${name}.png`}));
  for(const patch of [{thaiOutfitAiVersion:undefined},{thaiCollarlessVersion:undefined},{thaiCollarlessVersion:'unknown'},{portraitMode:'male'},{neckOutfitReferencePath:'/assets/job-uniforms/female-formal-suit.png'}])assert(!usesThaiCollarlessNeckline({...base,...patch}));
@@ -57,4 +58,14 @@ test('new AI-only jobs use original real references and force rear hair over for
  const pipeline=await readFile(root+'production-portrait-pipeline.js','utf8'),native=await readFile(root+'src/studio-source.js','utf8');
  assert(!native.includes('collarlessTemplatePath'));assert(pipeline.includes('const frontShield=!usesThaiAiGarmentOnly(fields)&&requiresThaiNativeFrontShield(fields)'),'AI-only revision cannot enable a legacy garment mask');assert(pipeline.includes('collarless&&!usesThaiAiGarmentOnly(fields)'));
  assert(pipeline.indexOf('if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction')>pipeline.indexOf('prompt=applyThaiRealFacePolicy(prompt,fields);',pipeline.indexOf('const collarless=')));
+});
+
+test('v4 restores the original shirt collar as one pair of leaves, keeps rear hair and never enables collarless references',async()=>{
+ const {thaiAiGarmentInstruction,usesThaiAiGarmentOnly,thaiCollarlessOutfitPath,usesThaiOriginalCollar}=await import('../thai-collarless-neckline.js');
+ const fields={...base,thaiCollarlessVersion:THAI_COLLARLESS_VERSION};
+ assert(usesThaiAiGarmentOnly(fields));assert(!usesThaiCollarlessNeckline(fields));assert(usesThaiOriginalCollar(fields));assert(!usesThaiOriginalCollar({...fields,neckOutfitReferencePath:'/assets/gown-uniforms/example.png'}));assert(!usesThaiOriginalCollar(base));
+ assert.equal(thaiCollarlessOutfitPath(fields,fields.neckOutfitReferencePath),fields.neckOutfitReferencePath);
+ const prompt=thaiAiGarmentInstruction(3,5,false,true);
+ assert.match(prompt,/ORIGINAL SINGLE SHIRT COLLAR/);assert.match(prompt,/left and right pointed collar leaves/);assert.match(prompt,/not two stacked collars/);assert.match(prompt,/BEHIND BOTH SHOULDERS/);
+ assert(!prompt.includes('REMOVE both pointed shirt-collar flaps'));assert(!prompt.includes('WITHOUT inner pointed collar'));
 });
