@@ -853,3 +853,18 @@ test('New Thai results lock natural chin-to-collar length and place long hair be
  assert(pipeline.includes('if(usesThaiRearHairShortNeck(fields))prompt+='));
  assert(pipeline.indexOf('if(usesThaiRearHairShortNeck(fields))prompt+=')>pipeline.indexOf("prompt+='\\n'+THAI_REAR_HAIR_FINAL_POLICY"),'new priority must be truly last');
 });
+
+test('Inconclusive Thai face-shape landmarks retain finished image for review, but major distortion is blocked',async()=>{
+ const {triageThaiFaceShape}=await import('../src/face-proportion-check.js');
+ const original={faceWidth:.78,jawWidth:.57,eyeToChin:.94,eyeToNose:.43,eyeToMouth:.69};
+ assert.equal(triageThaiFaceShape(original,{...original}).action,'accept');
+ assert.equal(triageThaiFaceShape(original,{...original,faceWidth:.72}).action,'review');
+ assert.equal(triageThaiFaceShape(original,null).action,'review');
+ assert.equal(triageThaiFaceShape(original,{...original,faceWidth:.53}).action,'reject');
+ const app=await readFile(root+'src/main.jsx','utf8');
+ assert(app.includes('const triage=triageThaiFaceShape(original,generated)'));
+ assert(app.includes("triage.action==='review'"));
+ assert(app.includes("triage.action==='reject'"));
+ assert(app.includes("result.idpromQualityReviewNeeded=true;"),'Unmeasurable finished image retains review flag');
+ assert(app.includes("if(!englishPreviewEnabled()){"),'The inconclusive result exception must not apply to English photos');
+});
