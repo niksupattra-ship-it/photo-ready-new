@@ -45,6 +45,7 @@ test('actual new Thai full-outfit request ends with the face/eye, no-bun and ful
   assert.equal(calls.length,1);assert.equal(audit.snapshot().providerCalls,1);
   assert.match(calls[0].prompt,/FEMALE HAIR LIGHTNESS.*ADDITIONAL 15% REDUCTION/);
   assert.match(calls[0].prompt,/85% of the previous light-hair target/);
+  assert.match(calls[0].prompt,/CROWN HEIGHT — ANATOMICAL SCALP AUTHORITY/);
   assert.equal(calls[0].thaiRealFaceVersion,version);assert(calls[0].portrait?.length);assert(input.buffer.equals(png),'Untouched original identity bytes must not be rewritten');
   if(version===THAI_REAL_FACE_VERSION)assert(calls[0].prompt.endsWith(thaiFinalOriginalIdentity(request)));
   else assert(!calls[0].prompt.includes('THAI PHOTOGRAPHIC IDENTITY AND COMPLETE FRAME — FINAL V2 CONTRACT'));

@@ -49,7 +49,7 @@ test('all female styles share the additional 15% lighter styling target; men and
  assert.equal(FEMALE_HAIR_BULK_FACTOR,.85);
  for(const style of PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden)){
   const instruction=femaleHairLightnessInstruction(style.gender);
-  assert.match(instruction,/85%/);assert.match(instruction,/additional 15% lighter/);
+  assert.match(instruction,/85%/);assert.match(instruction,/CROWN HEIGHT — ANATOMICAL SCALP AUTHORITY/);assert.match(instruction,/thinner texture with the SAME tall outer crown does not satisfy/);assert.match(instruction,/never flatten below the natural scalp/);assert.match(instruction,/additional 15% lighter/);
   assert.match(instruction,/length and endpoints/);assert.match(instruction,/Never resize or reshape the skull, face, eyes, gaze/);
  }
  assert.equal(femaleHairLightnessInstruction('male'),'');
