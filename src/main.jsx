@@ -3575,8 +3575,8 @@ const COLLAR_PIN_OPTIONS=[
  {id:'nacc-pair',name:'ป.ป.ช.',left:'/assets/government-insignia/nacc-left.png',right:'/assets/government-insignia/nacc-right.png'}
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
-const BASIC_MALE_HAIR_IDS=['seedream-36','seedream-28'];
-const MALE_HAIR_OPTIONS=[...BASIC_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)).filter(Boolean),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.interfaceLanguage!=='en'&&h.id!=='seedream-35'&&!BASIC_MALE_HAIR_IDS.includes(h.id))];
+const BASIC_MALE_HAIR_IDS=['seedream-35','seedream-36','seedream-28'];
+const MALE_HAIR_OPTIONS=[...BASIC_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)).filter(Boolean),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.interfaceLanguage!=='en'&&!BASIC_MALE_HAIR_IDS.includes(h.id))];
 const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden&&h.interfaceLanguage!=='en');
 const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS;
 const PRIORITY_PREMIUM_FEMALE_HAIR_IDS=['seedream-23','seedream-25'];
@@ -4167,7 +4167,7 @@ function App(){
   }
   singlePhotoCheckoutScopeRef.current=null;
   if(qrPaymentRef.current&&(qrPaymentRef.current.walletId!==currentWalletId()||qrPaymentRef.current.jobId!==currentOutputJobRef.current))setQrPayment(null);
-  setPayMsg(context?.reason==='diamond-suit'?'เลือกโปร 159 บาทเพื่อปลดล็อกชุดหญิงเพิ่มเติม':context?.reason==='diamond-hair'
+  setPayMsg(context?.reason==='diamond-suit'?'เลือกโปร 159 บาทเพื่อปลดล็อกชุดสมัครงานเพิ่มเติม':context?.reason==='diamond-hair'
    ?(englishPreviewEnabled()?'Choose Premium to unlock this Diamond hairstyle.':'เลือกโปร 159 บาทเพื่อปลดล็อกทรงผมเพชรสำหรับงานนี้')
    :(englishPreviewEnabled()?'Choose a 30-day plan to unlock Diamond hairstyles and premium editing.':'สร้างและปรับแต่งฟรี ปลดล็อกงานนี้เพื่อดาวน์โหลดไม่มีลายน้ำ'));
   setBuyOpen(true);

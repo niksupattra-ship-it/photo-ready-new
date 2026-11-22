@@ -169,7 +169,7 @@ export const PRODUCTION_HAIR_CATALOG=[
     "gender": "male",
     "name": "ทรงผม 1",
     "file": "35.png",
-    "src": "/assets/seedream-hairstyles/previews/35.webp"
+    "src": "/assets/seedream-hairstyles/previews/35-restored.webp"
   },
   {
     "id": "seedream-28",
@@ -266,7 +266,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // Keep the old hidden reference in the catalog for previously saved work.
 export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-41']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
-export function firstGenerationHairFor(gender){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:''}
+export function firstGenerationHairFor(gender,thaiMale=false){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:gender==='male'&&thaiMale?'seedream-35':''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
 const compact={

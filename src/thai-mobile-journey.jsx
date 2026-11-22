@@ -1,3 +1,4 @@
+import {isJobOutfit} from './outfit-choice-preview.js';
 import React,{useEffect,useRef,useState} from 'react';
 import {EasyPreviewImage} from './easy-preview-image.jsx';
 import {outfitChoicePreview,outfitPickerPreview} from './outfit-choice-preview.js';
@@ -181,9 +182,8 @@ export function ThaiMobileJourney({
          {selectedHairOptions.length>6&&<button type="button" className="thai-mobile-choice-view-all" disabled={!hairUnlocked||busy} onClick={()=>setMoreHair(v=>!v)}>{moreHair?'แสดงน้อยลง':'ดูทั้งหมด ›'}</button>}
         </div>
         <div className="thai-mobile-tile-row thai-mobile-hair-row thai-mobile-choice-tiles">
-         {displayHairOptions.map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} aria-pressed={draftHair===h.id} disabled={busy||!hairUnlocked} onClick={()=>chooseHair(h)}>
+         {displayHairOptions.map(h=><button type="button" key={h.id} className={draftHair===h.id?'selected':''} aria-pressed={draftHair===h.id} aria-label={h.name||'ทรงผม'} disabled={busy||!hairUnlocked} onClick={()=>chooseHair(h)}>
           <EasyPreviewImage source={h.src} preview={hairPickerPreview(h.src)}/>
-          <span>{h.name||'ทรงผม'}</span>
           {h.locked&&<small className="thai-mobile-choice-diamond">◆</small>}
           {draftHair===h.id&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}
          </button>)}
@@ -195,9 +195,9 @@ export function ThaiMobileJourney({
          {categories.map(v=><button key={v} type="button" className={category===v?'selected':''} aria-pressed={category===v} disabled={!suitUnlocked||busy} onClick={()=>{if(!suitUnlocked)return;setCategory(v);setMoreSuits(false)}}>{v}</button>)}
         </div>
         <div className="thai-mobile-tile-row thai-mobile-suit-row thai-mobile-choice-tiles">
-         {displayOutfitOptions.map(t=><button key={t.id||t.template} type="button" className={outfitChosen&&currentSuit===t.template?'selected':''} aria-pressed={outfitChosen&&currentSuit===t.template} disabled={busy||!suitUnlocked||suitLoading||Boolean(suitPolicy?.limited&&(suitPolicy.choices||[]).length>=suitChoiceLimit&&!(suitPolicy.choices||[]).includes(t.template))} onClick={()=>chooseSuit(t)}>
+         {displayOutfitOptions.map(t=><button key={t.id||t.template} type="button" className={outfitChosen&&currentSuit===t.template?'selected':''} aria-label={t.name||t.title||'ชุด'} aria-pressed={outfitChosen&&currentSuit===t.template} disabled={busy||!suitUnlocked||suitLoading||Boolean(suitPolicy?.limited&&(suitPolicy.choices||[]).length>=suitChoiceLimit&&!(suitPolicy.choices||[]).includes(t.template))} onClick={()=>chooseSuit(t)}>
           <EasyPreviewImage source={optionImg(t)} preview={outfitPickerPreview(t,t.preview||t.src||t.template)}/>
-          <span>{t.name||t.title||'ชุด'}</span>{t.locked&&<small className="thai-mobile-choice-diamond" aria-label="สมัครโปรเพื่อปลดล็อกชุด">◆</small>}
+          {!isJobOutfit(t)&&<span>{t.name||t.title||'ชุด'}</span>}{t.locked&&<small className="thai-mobile-choice-diamond" aria-label="สมัครโปรเพื่อปลดล็อกชุด">◆</small>}
           {outfitChosen&&currentSuit===t.template&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}
          </button>)}
         </div>

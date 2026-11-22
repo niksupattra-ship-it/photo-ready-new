@@ -1,4 +1,4 @@
-import {isThaiPremiumFemaleSuit} from './thai-female-suit-policy.js';
+import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
 import {PORTRAIT_UPLOAD_LIMITS} from './portrait-upload-limits.js';
 import {loadCurrentHairReference} from './english-current-hair.js';
 import {correctEnglishProportions,validateEnglishProportionMetrics} from './english-proportion-correction.js';
@@ -274,14 +274,14 @@ async function requireCredit(req,res,kind){
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
    const englishRequest=req.body?.interfaceLanguage==='en';
    const englishWallet=englishRequest?await getWallet(wid):null;
-   if(!englishRequest&&req.body?.neckOutfitReferencePath&&isThaiPremiumFemaleSuit(req.body.neckOutfitReferencePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดหญิงเพิ่มเติม'});return null}
+   if(!englishRequest&&req.body?.neckOutfitReferencePath&&isThaiPremiumJobSuit(req.body.neckOutfitReferencePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดสมัครงานเพิ่มเติม'});return null}
    // English Studio's two free styles per gender are different from Thai's.
    // Use the SAME source of truth as the English picker, including subsequent
    // changes to a completed portrait. Do not run the Thai premium-hair check.
    if(englishRequest&&chosen&&!isEnglishStudioFreeHair(chosen.id,chosen.gender)&&!englishWallet?.usdPremiumActive){
     res.status(403).json({error:'premium_hair_required',message:'Choose a 30-day package to unlock Diamond hairstyles.'});return null;
    }
-   if(!englishRequest&&chosen&&((chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
+   if(!englishRequest&&chosen&&((chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id))||(chosen.gender==='male'&&![28,35,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
    // Thai complete-outfit previews are unlimited and remain watermarked.
    if(req.body?.thaiOutfitAiVersion==='th-full-outfit-ai-v1'&&!englishRequest){
     const daily=await reserveThaiDailyOutfitAi(wid);
@@ -737,7 +737,7 @@ app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-st
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});
  const wid=walletId(req),policy=accountPolicy(req);
- if(req.body?.interfaceLanguage!=='en'&&templates.some(isThaiPremiumFemaleSuit)&&!await policy.canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))&&!await policy.premiumHair(wid,req.params.id))return res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดหญิงเพิ่มเติม'});
+ if(req.body?.interfaceLanguage!=='en'&&templates.some(isThaiPremiumJobSuit)&&!await policy.canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))&&!await policy.premiumHair(wid,req.params.id))return res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดสมัครงานเพิ่มเติม'});
  res.json(await policy.suits(wid,req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
 }catch(e){res.status(e.status||503).json({message:e.message||'ตรวจสอบชุดไม่สำเร็จ กรุณาลองใหม่'})}});
 app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{

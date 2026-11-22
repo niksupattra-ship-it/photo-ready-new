@@ -1,4 +1,4 @@
-import {orderThaiFemaleSuits,isThaiPremiumFemaleSuit} from '../thai-female-suit-policy.js';
+import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
 import {withoutObsoleteThaiNeckBridges} from './thai-collar-layers.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
 import {AutoHairTile} from './auto-hair-tile.jsx';
@@ -488,7 +488,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  // Available pro159 credits permit hairstyle generation without spending a download.
  // A redeemed work keeps its own premium right after the balance reaches zero.
  const premiumHairAllowed=englishFlow?premiumHairCreditAvailable===true:(premiumHairCreditAvailable===true||outputHeads(layers).some(l=>verifiedJobs[l.jobId]?.premiumHair===true));
- const isPremiumHair=id=>englishFlow?isEnglishStudioDiamondHair(id,femaleHair.some(h=>h.id===id)?'female':'male'):(femaleHair.some(h=>h.id===id)&&!THAI_FREE_FEMALE_HAIR_IDS.includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-28','seedream-36'].includes(id));
+ const isPremiumHair=id=>englishFlow?isEnglishStudioDiamondHair(id,femaleHair.some(h=>h.id===id)?'female':'male'):(femaleHair.some(h=>h.id===id)&&!THAI_FREE_FEMALE_HAIR_IDS.includes(id))||(maleHair.some(h=>h.id===id)&&!['seedream-35','seedream-28','seedream-36'].includes(id));
  // Diamond selections open the SAME package dialog as Download. Capture the
  // ACTUAL editor canvas at the moment of the click, not the uploaded original,
  // a previously generated image, or the hairstyle catalogue thumbnail.
@@ -520,7 +520,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }catch{preview=paidWarningPreview()}
   onRequestUnlock?.({reason:suit?'diamond-suit':'diamond-hair',hairId,template:suit?.template,preview,jobId:outputHeads(state.current)[0]?.jobId||''});
  };
- const suitNeedsPro=option=>!englishFlow&&isThaiPremiumFemaleSuit(option?.template)&&!premiumHairAllowed;
+ const suitNeedsPro=option=>!englishFlow&&isThaiPremiumJobSuit(option?.template)&&!premiumHairAllowed;
  const chooseHair=id=>{
   // Legacy empty Thai female selections resolve to the visible first hairstyle.
   if(!id&&hairGender==='female'&&!englishFlow)id=firstGenerationHairFor('female');
@@ -616,7 +616,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(activeHead.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
     void (async()=>{
      if(await thaiManualAfterOutfitQuota()){
-      await processPhoto({hairId:activeHead.hairId||firstGenerationHairFor(selection.portraitMode),portraitMode:selection.portraitMode,continueWithoutSave:true,manualOutfitFallback:true});
+      await processPhoto({hairId:activeHead.hairId||firstGenerationHairFor(selection.portraitMode,!englishFlow),portraitMode:selection.portraitMode,continueWithoutSave:true,manualOutfitFallback:true});
       const updated=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
       if(updated&&updated.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)await applyFreeHair(selection.hairId);
       return;
@@ -1463,7 +1463,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const newSourcePending=state.current.some(l=>l.id===sourceLayerRef.current);
   const chosenPortraitMode=options.portraitMode||pendingHairProcessRef.current?.portraitMode||portraitMode;
   const firstGeneration=!oldHead||newSourcePending;
-  const requested=Object.prototype.hasOwnProperty.call(options,'hairId')?options:(pendingHairProcessRef.current||(firstGeneration&&['female','male'].includes(chosenPortraitMode)?{hairId:firstGenerationHairFor(chosenPortraitMode),portraitMode:chosenPortraitMode}:null));
+  const requested=Object.prototype.hasOwnProperty.call(options,'hairId')?options:(pendingHairProcessRef.current||(firstGeneration&&['female','male'].includes(chosenPortraitMode)?{hairId:firstGenerationHairFor(chosenPortraitMode,!englishFlow),portraitMode:chosenPortraitMode}:null));
   const chosenHair=requested?.hairId||'';
   if(isFreeFemaleHair(chosenHair)&&!firstGeneration&&!options.outfitAiCreate){showFreeHairNotice();return}
   if(!['female','male'].includes(chosenPortraitMode)){setPortraitChoiceOpen(true);return}
@@ -1658,7 +1658,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const hair=head?.portraitMode===mode?(head.hairId||''):hairGender===mode?(selectedHair||''):'';
   setThaiOutfitAiDraft({outfit:option,portraitMode:mode,hair});
   setHairGender(mode);setSelectedHair(hair);
-  setThaiPendingHair(mode==='male'?{hairId:hair||firstGenerationHairFor(mode),portraitMode:mode,first:!head}:null);
+  setThaiPendingHair(mode==='male'?{hairId:hair||firstGenerationHairFor(mode,!englishFlow),portraitMode:mode,first:!head}:null);
   setThaiChoiceFlow(mode==='female'?{origin:'hair',step:'hair'}:{origin:'hair',step:'ready'});
   setPicker('hair');setToolRailOpen(true);setTouchMenu(false);setTouchMore(false);
   setStatus('เลือกทรงผม แล้วกดสร้างภาพด้วย AI');
@@ -1674,7 +1674,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!mounted.current||state.current.find(l=>layerKind(l)==='suit')?.templatePath!==outfit.template)return;
   }
   setThaiOutfitAiDraft(null);setThaiPendingHair(null);setThaiChoiceFlow(null);
-  await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true});
+  await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode,!englishFlow),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true});
  };
  useEffect(()=>{
   if(englishFlow||!bodyOutfitRequest||assetBusy||processActive||!ready)return;
@@ -2049,9 +2049,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const resultInsigniaEnd=()=>{flushTransforms();setRevision(v=>v+1)};
  const easyInsignia=insigniaForLanguage()&&(governmentResult?governmentInsigniaUi:<section>{[['collar','เข็มปกคอ',collarPins],['chest','เข็มติดอก',chestPins],['ribbon','แพรแถบ',ribbons]].map(([kind,label,options])=><div key={kind}><h3>{label}</h3><div className="easy-rail"><button disabled={blockingAssetBusy||processActive} onClick={()=>selectAsset(kind,null)}>ไม่ติด</button>{options.map(o=><button key={o.id} disabled={blockingAssetBusy||processActive} onClick={()=>selectAsset(kind,o)}><CatalogPreview src={o.left||o.src||o.preview} assetKind={kind} assetOption={o}/><small>{o.name}</small></button>)}</div></div>)}</section>);
  const easyHasResult=outputHeads(layers).some(l=>l.kind!=='source-photo');
- const selectEasyPhotoType=mode=>{if(!sourcePhoto||easyHasResult||assetBusy||processActive||!['female','male'].includes(mode))return;trackPhotoType(mode,'select');setPortraitMode(mode);setHairGender(mode);setEasyPhotoTypeSelected(true);setEasyFaceFinish(mode==='female'?'makeup':'natural');setThaiChoiceFlow(null);setThaiPendingHair(null);setThaiHairFinishChoice(null);sourcePhoto.idpromFemaleEyeStyle=mode==='female'?'makeup':'natural';setPortraitChoiceOpen(false);setFemaleFinishChoiceOpen(false);setProcessHairPending(true);pendingHairProcessRef.current=null;setSelectedHair(firstGenerationHairFor(mode));setPicker(false);setStatus('เลือกชนิดรูปแล้ว · เลือกชุดและพื้นหลังได้เลย ระบบใช้ทรงผมเริ่มต้นอัตโนมัติ')};
+ const selectEasyPhotoType=mode=>{if(!sourcePhoto||easyHasResult||assetBusy||processActive||!['female','male'].includes(mode))return;trackPhotoType(mode,'select');setPortraitMode(mode);setHairGender(mode);setEasyPhotoTypeSelected(true);setEasyFaceFinish(mode==='female'?'makeup':'natural');setThaiChoiceFlow(null);setThaiPendingHair(null);setThaiHairFinishChoice(null);sourcePhoto.idpromFemaleEyeStyle=mode==='female'?'makeup':'natural';setPortraitChoiceOpen(false);setFemaleFinishChoiceOpen(false);setProcessHairPending(true);pendingHairProcessRef.current=null;setSelectedHair(firstGenerationHairFor(mode,!englishFlow));setPicker(false);setStatus('เลือกชนิดรูปแล้ว · เลือกชุดและพื้นหลังได้เลย ระบบใช้ทรงผมเริ่มต้นอัตโนมัติ')};
  const selectEasyFaceFinish=style=>{if(!sourcePhoto||hairGender!=='female'||!['natural','makeup','korean-rosy-v1','soft-rosy-v1'].includes(style))return;const selected=style==='natural'?'natural':'makeup';setEasyFaceFinish(selected);if(!easyHasResult)sourcePhoto.idpromFemaleEyeStyle=selected;setThaiPendingHair(null);setThaiHairFinishChoice(null);if(!englishFlow){setThaiChoiceFlow({origin:'finish',step:'hair'});setPicker('hair')}else{setThaiChoiceFlow(null)}setAppearanceError(null);setPortraitProcessError(null);setStatus('');setFemaleFinishChoiceOpen(false)};
- const processEasyPhoto=(selectedHairId='')=>{if(!englishFlow&&hairGender==='female'&&thaiChoiceFlow?.step!=='ready')return;const hairId=selectedHairId||firstGenerationHairFor(hairGender);if(hairId&&isPremiumHair(hairId)&&!premiumHairAllowed&&!canRestoreHair(hairId,hairGender,easyFaceFinish)){openDiamondHairOffer(hairId);return}if(!sourcePhoto||!easyPhotoTypeSelected){setStatus('กรุณาเลือกชนิดรูปก่อนประมวลผล');return}const suit=templates.find(t=>t.template===currentSuit);if(suit?.cat!=='gown'&&suit?.gender&&suit.gender!==hairGender){setStatus('กรุณาเลือกชุด'+(hairGender==='male'?'ผู้ชาย':'ผู้หญิง')+'ให้ตรงกับชนิดรูปก่อนประมวลผล');return}void processPhoto({hairId:hairId||'',portraitMode:hairGender,continueWithoutSave:true})};
+ const processEasyPhoto=(selectedHairId='')=>{if(!englishFlow&&hairGender==='female'&&thaiChoiceFlow?.step!=='ready')return;const hairId=selectedHairId||firstGenerationHairFor(hairGender,!englishFlow);if(hairId&&isPremiumHair(hairId)&&!premiumHairAllowed&&!canRestoreHair(hairId,hairGender,easyFaceFinish)){openDiamondHairOffer(hairId);return}if(!sourcePhoto||!easyPhotoTypeSelected){setStatus('กรุณาเลือกชนิดรูปก่อนประมวลผล');return}const suit=templates.find(t=>t.template===currentSuit);if(suit?.cat!=='gown'&&suit?.gender&&suit.gender!==hairGender){setStatus('กรุณาเลือกชุด'+(hairGender==='male'?'ผู้ชาย':'ผู้หญิง')+'ให้ตรงกับชนิดรูปก่อนประมวลผล');return}void processPhoto({hairId:hairId||'',portraitMode:hairGender,continueWithoutSave:true})};
  const easyFinishPending=false;
 
  // The approved Thai journey goes from the finished photo straight to the

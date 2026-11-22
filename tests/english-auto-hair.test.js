@@ -70,7 +70,7 @@ test('Thai first-generation female reference is the visible free centre-parted c
  assert.match(studio,/head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION/);
  assert.match(studio,/existing.englishAutoHairVersion===ENGLISH_AUTO_HAIR_VERSION/);
  const easyHandler=studio.slice(studio.indexOf(' const processEasyPhoto='),studio.indexOf('\n',studio.indexOf(' const processEasyPhoto=')));
- assert.match(easyHandler,/const hairId=selectedHairId\|\|firstGenerationHairFor\(hairGender\)/,'Thai Easy keeps its selected hairstyle before the existing default');
+ assert.match(easyHandler,/const hairId=selectedHairId\|\|firstGenerationHairFor\(hairGender,!englishFlow\)/,'Thai Easy keeps its selected hairstyle before the existing default');
  assert.match(pipeline,/selectedHairKind:keepCurrentHair\?null:chosen\?selectedHairDesign\(chosen\)\?\.kind:selected.gender==='male'\?'short':null/);
  assert.match(main,/gender==='female'&&\(!hairId\|\|hairId==='original'\)&&!options.keepCurrentHair\?ENGLISH_AUTO_HAIR_VERSION/);
 });
