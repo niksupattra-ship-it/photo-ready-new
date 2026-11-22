@@ -98,6 +98,7 @@ test('real-face Makeup uses the actual required production audit before a single
   assert(result.length);
  }
  assert.equal((await sharp(calls[0].outfitDetailReference).metadata()).width,1536);
+ assert(calls.every(r=>r.prompt.includes('FINAL SINGLE SKIN-TO-COLLAR SEAM V5')&&!r.prompt.includes('including its folded band')&&r.prompt.indexOf('FINAL SINGLE SKIN-TO-COLLAR SEAM V5')>r.prompt.indexOf('ORIGINAL SINGLE SHIRT COLLAR')));
  assert(calls.every(r=>r.prompt.includes('ORIGINAL SINGLE SHIRT COLLAR')&&!r.prompt.includes('REMOVE both pointed shirt-collar flaps')&&r.prompt.includes('FINAL THAI AI GARMENT AND REAR-HAIR PRIORITY V4')));
  const original=await sharp(new URL('../public/assets/government-uniforms/female-operational.png',import.meta.url).pathname).png().toBuffer();
  assert.deepEqual(await sharp(calls[0].outfit).raw().toBuffer(),await sharp(original).raw().toBuffer(),'Send original real garment pixels, never the locally retouched derivative');
