@@ -13,6 +13,7 @@ const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
 const studio=query.get('studio')==='1',unpaid=query.get('unpaid')==='1';
 const suitTest=(query.get('femaleSuits')==='1'||query.get('maleSuits')==='1'),pro=query.get('pro')==='1';
+const freshSuitTest=suitTest&&query.get('fresh')==='1',workPro=query.get('workPro')==='1';
 const femaleSuitTemplates=[{id:'female-job-taupe-cream-blouse',name:'ชุดโปร',template:'/assets/job-uniforms/female-job-taupe-cream-blouse.png',gender:'female',cat:'job',group:'สมัครงาน'},...THAI_FREE_FEMALE_SUIT_IDS.map((id,i)=>({id,name:'ฟรี '+(i+1),template:'/assets/job-uniforms/'+id+'.png',gender:'female',cat:'job',group:'สมัครงาน'}))];
 const fullbody=query.get('fullbody')==='1';
 const staleNeck=query.get('staleNeck')==='1';
@@ -33,6 +34,7 @@ h.beginPath();h.ellipse(450,headBottom-headHeight/2,headWidth/2,headHeight/2,0,0
 h.fillStyle='#322827';h.beginPath();h.ellipse(450,headBottom-headHeight*.87,headWidth*.51,headWidth*.3,0,Math.PI,Math.PI*2);h.fill();
 if(fullbody)h.drawImage(suit,frame.x,frame.y,frame.w,frame.h);
 const nativeSuit=document.createElement('canvas');nativeSuit.width=suit.naturalWidth;nativeSuit.height=suit.naturalHeight;nativeSuit.getContext('2d').drawImage(suit,0,0);
+const originalFile=freshSuitTest?new File([await(await fetch(head.toDataURL())).blob()],'fixture-original.png',{type:'image/png'}):null;
 const snapshotRef={current:null};
 window.insigniaFixture={gender,narrow,studio,template,frame,aiCalls:0,paymentCalls:0,exports:[],snapshot:()=>snapshotRef.current?.()};
 window.insigniaLayers=()=>window.insigniaFixture.snapshot()?.layers.map(layer=>Object.fromEntries([
@@ -60,16 +62,19 @@ const chestPins=[{id:'pao',name:'อบจ.',src:'/assets/government-insignia/ch
 const ribbons=[{id:'2504-2514',name:'2504-2514',src:'/assets/ribbons/2504-2514.png'},{id:'2515',name:'2515',src:'/assets/ribbons/2515.png'}];
 const templateInfo={id:'government-fixture',name:'ชุดข้าราชการ',title:'ชุดข้าราชการ',cat:'government',gender,template,preview:template,img:template,group:'ข้าราชการ'};
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!studio}
+ initialSourcePhoto={originalFile}
  initialLayers={[
   {name:'พื้นหลัง',kind:'background',source:blue.toDataURL()},
-  {id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:unpaid,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})},
+  ...(freshSuitTest?[{id:'fixture-original',name:'รูปต้นฉบับ',kind:'source-photo',source:head.toDataURL(),...(workPro?{jobId:'fixture-government'}:{})}]:[{id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:unpaid,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})}]),
   {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id},
   ...(staleNeck?[{id:'stale-neck',name:'คอเก่า',kind:'neck-fit',hairHeadId:'fixture-head',source:stalePatch.toDataURL(),sourceFrame:{x:400,y:frame.y+frame.h*.18,w:100,h:40}}]:[])
  ]}
  templates={suitTest?suitTemplates:[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
- collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]} maleHair={[]} femaleHair={[]}
+ collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]}
+ maleHair={freshSuitTest?[{id:'seedream-35',name:'ฟรีผมชาย',src:'/assets/seedream-hairstyles/previews/35-restored.webp'}]:[]}
+ femaleHair={freshSuitTest?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
  paidOutputIds={unpaid?[]:['fixture-government']} editableOutputIds={unpaid?[]:['fixture-government']} hasCredits={!unpaid} allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
- onVerifyOutput={async()=>({unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!unpaid&&(suitTest?pro:true)})}
+ onVerifyOutput={async()=>({unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!unpaid&&(suitTest?(pro||workPro):true)})}
  purchaseSnapshotRef={snapshotRef} onReceiveImage={async blob=>{window.insigniaFixture.exports.push({type:blob.type,size:blob.size,url:URL.createObjectURL(blob)});return {delivery:'fixture'}}}
  onBeforeProcess={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onProcessPhoto={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}

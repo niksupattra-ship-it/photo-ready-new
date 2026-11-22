@@ -833,3 +833,4 @@
 .idstudio .thai-mobile-flow .thai-mobile-result-replace-photo{display:flex;align-items:center;justify-content:center;width:44px;min-height:44px;padding:8px;border:0;border-radius:50%;background:transparent;color:#6031aa;box-shadow:none}
 .thai-mobile-result-replace-photo svg{display:block;width:27px;height:27px}
 .idstudio .thai-mobile-flow .thai-mobile-result-tool-heading button{display:flex;align-items:center;justify-content:center;min-width:40px;font-size:24px;line-height:1;padding:4px 8px}
+.thai-mobile-choice-outfit-panel .thai-mobile-choice-tiles button.unavailable:disabled{opacity:.42;filter:grayscale(.8);cursor:not-allowed}

@@ -71,7 +71,7 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
  return <div className="idprom-ready-offer paired-offers">
   <header className="offer-step"><span aria-hidden="true">6</span><h2>เลือกรูปแบบรับภาพ</h2></header>
   <div className="offer-choice-layout">
-   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}</figure>
+   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-selection">
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
     {OFFERS.filter(offer=>studioMode||offer.price==='89').map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
@@ -84,22 +84,11 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
     <div className="idprom-thai-package-cta">
      <button type="button" className="idprom-thai-checkout-next" disabled={disabled} onClick={()=>choose(selected)}>{payBusy?'กำลังเตรียม…':`ดำเนินการต่อ · ฿${selected}`}</button>
     </div>
-    {onOpenCode&&<button type="button" className="idprom-thai-offer-code-link" disabled={payBusy} onClick={onOpenCode}>มีโค้ดส่วนลด? ใส่โค้ด</button>}
    </div>
   </div>
   <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาปรับแต่งรูปให้พร้อมดาวน์โหลดก่อนชำระเงิน</span>}</div>
   {isAuthenticated&&credits>0&&<div className="ready-credit"><span>สิทธิ์คงเหลือ {credits} งาน</span><button type="button" disabled={disabled} onClick={()=>onUseCredit({premium:usePremium})}>ใช้ 1 สิทธิ์{usePremium?'โปร 159':''}รับรูปนี้</button></div>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
-  <details className="en-plan-terms offer-usage-terms"><summary>ขั้นตอนการใช้งานและเงื่อนไขแพ็กเกจ</summary><div>
-   <ol>
-    <li>อัปโหลดรูปหน้าตรง เลือกชุด ทรงผม และปรับแต่งภาพ</li>
-    <li>ตรวจภาพตัวอย่าง ใบหน้า ชุด พื้นหลัง และขนาดให้เรียบร้อยก่อนชำระเงิน</li>
-    <li>{studioMode?'เลือก 89 บาทเพื่อรับรูปนี้ หรือ 159 บาท: ใช้ AI 10 ครั้ง สำหรับรูปนี้':'เลือก 89 บาทเพื่อรับรูปนี้'}</li>
-    <li>เข้าสู่ระบบและชำระเงินหรือใช้สิทธิ์ที่มี แล้วเลือกดาวน์โหลด PNG หรือ PDF ไม่มีลายน้ำ</li>
-   </ol>
-   <p>แพ็กเกจสำหรับรูปนี้ กลับมาใช้งานรูปเดิมได้ภายใน 7 วัน</p>
-   <p>ตรวจสอบว่าไฟล์ดาวน์โหลดและเปิดได้ก่อนออกจากหน้าเว็บ อ่านรายละเอียดสิทธิ์และข้อกำหนดเพิ่มเติมด้านล่าง</p>
-  </div></details>
   <ServiceTermsLink/>
   <div className="offer-payment-method"><img src="/assets/payment/promptpay-logo.png" alt="ชำระเงินผ่านพร้อมเพย์"/></div>
  </div>;

@@ -78,6 +78,8 @@
 }
 
 .paired-offers .offer-payment-method{display:flex;justify-content:center;margin:12px 0 0}.paired-offers .offer-payment-method img{display:block;width:108px;height:auto;object-fit:contain}
+.paired-offers .offer-code-entry{display:block;margin:8px auto 0;min-height:40px;padding:8px 18px;border:1px solid #9566e8;border-radius:10px;background:#fff;color:#7138c5;font:inherit;font-weight:700;cursor:pointer}
+.paired-offers .offer-code-entry:disabled{opacity:.5;cursor:default}
 
 /* English USD package selection — native, accessible, live checkout actions. */
 .credit-modal.package-pro-modal.package-choice-modal:has(.en-plans){
@@ -157,7 +159,8 @@
  .package-choice-modal:has(.paired-offers) .offer-step>span{display:none}
  .package-choice-modal:has(.paired-offers) .offer-step h2{font-weight:800;color:#241935}
  .package-choice-modal:has(.paired-offers) .offer-choice-layout{display:block;margin:0}
- .package-choice-modal:has(.paired-offers) .offer-preview{display:none}
+ .package-choice-modal:has(.paired-offers) .offer-preview{display:block;max-width:106px;margin:0 auto 12px}
+ .package-choice-modal:has(.paired-offers) .offer-preview img{max-height:144px}
  .package-choice-modal:has(.paired-offers) .offer-pair{display:grid;grid-template-columns:1fr;gap:12px}
  .package-choice-modal:has(.paired-offers) .offer-card{position:relative;padding:15px 13px;border:1.5px solid #d6ccdf;border-radius:12px;min-height:0}
  .package-choice-modal:has(.paired-offers) .offer-card.selected{border-color:#8341d8;box-shadow:inset 0 0 0 1px #8341d8;background:#f9f5ff}
@@ -195,18 +198,16 @@
 .paired-offers .idprom-thai-package-cta{margin:12px 0 0}
 .paired-offers .idprom-thai-checkout-next{display:block;width:100%;min-height:54px;border:0;border-radius:13px;background:linear-gradient(105deg,#9649e1,#6932bd);color:#fff;font-weight:800;font-size:16px;cursor:pointer}
 .paired-offers .idprom-thai-checkout-next:disabled{opacity:.55;cursor:default}
-.paired-offers .idprom-thai-offer-code-link{display:block;background:transparent;border:0;color:#7036bd;text-decoration:underline;font-size:13px;margin:12px auto 0;cursor:pointer}
 .paired-offers .offer-image-scope{font-size:11px;text-align:center;margin:8px auto}
 @media(min-width:641px){
  .package-choice-modal:has(.paired-offers){width:min(770px,calc(100vw - 44px));max-height:calc(100dvh - 54px);overflow-y:auto;border-radius:22px;padding:20px 24px}
  .paired-offers .offer-step{justify-content:center;border-bottom:1px solid #ece5f4;margin-bottom:22px}
  .paired-offers .offer-step>span{display:none}
  .paired-offers .offer-step h2{font-size:24px;color:#292035}
- .paired-offers .offer-choice-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:23px;align-items:start}
- .paired-offers .offer-preview{display:block;max-width:190px;margin:0}
- .paired-offers .offer-preview img{width:100%;height:auto;max-height:280px;object-fit:contain;border-radius:12px}
+ .paired-offers .offer-choice-layout{display:grid;grid-template-columns:170px minmax(0,1fr);gap:20px;align-items:start}
+ .paired-offers .offer-preview{display:block;max-width:170px;margin:0}
+ .paired-offers .offer-preview img{width:100%;height:auto;max-height:240px;object-fit:contain;border-radius:12px}
 }
 @media(max-width:640px){
  .package-choice-modal:has(.paired-offers) .idprom-thai-package-cta{margin-top:14px}
- .package-choice-modal:has(.paired-offers) .idprom-thai-offer-code-link{margin:12px auto 0}
 }

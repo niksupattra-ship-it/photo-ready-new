@@ -83,7 +83,7 @@ export function ThaiMobileJourney({
  const outfitReady=Boolean(photoTypeSelected&&selectedStyle&&draftHair&&outfitChosen&&chosenOutfitTemplate===currentSuit&&currentSuit);
  const canSubmit=Boolean(sourcePreview&&outfitReady&&ready&&!busy&&!suitLoading&&choicesReady);
  const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(true)};
- const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return;if(t.locked){onSuit?.(t);return}setOutfitChosen(true);setChosenOutfitTemplate(t.template);setNotice('');onSuit?.(t)};
+ const chooseSuit=t=>{if(!t||t.locked||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setChosenOutfitTemplate(t.template);setNotice('');onSuit?.(t)};
  const pickBackground=option=>{
   if(!option||!outfitReady||busy||suitLoading)return;
   setDraftBackground(option.id);setNotice('');onBackground?.(option);
@@ -195,9 +195,9 @@ export function ThaiMobileJourney({
          {categories.map(v=><button key={v} type="button" className={category===v?'selected':''} aria-pressed={category===v} disabled={!suitUnlocked||busy} onClick={()=>{if(!suitUnlocked)return;setCategory(v);setMoreSuits(false)}}>{v}</button>)}
         </div>
         <div className="thai-mobile-tile-row thai-mobile-suit-row thai-mobile-choice-tiles">
-         {displayOutfitOptions.map(t=><button key={t.id||t.template} type="button" className={outfitChosen&&currentSuit===t.template?'selected':''} aria-label={t.name||t.title||'ชุด'} aria-pressed={outfitChosen&&currentSuit===t.template} disabled={busy||!suitUnlocked||suitLoading||Boolean(suitPolicy?.limited&&(suitPolicy.choices||[]).length>=suitChoiceLimit&&!(suitPolicy.choices||[]).includes(t.template))} onClick={()=>chooseSuit(t)}>
+         {displayOutfitOptions.map(t=><button key={t.id||t.template} type="button" className={(outfitChosen&&currentSuit===t.template?'selected ':'')+(t.locked?'unavailable':'')} aria-label={t.name||t.title||'ชุด'} aria-pressed={outfitChosen&&currentSuit===t.template} title={t.locked?'ต้องมีสิทธิ์โปร 159 เพื่อเลือกชุดนี้':undefined} disabled={Boolean(t.locked)||busy||!suitUnlocked||suitLoading||Boolean(suitPolicy?.limited&&(suitPolicy.choices||[]).length>=suitChoiceLimit&&!(suitPolicy.choices||[]).includes(t.template))} onClick={()=>chooseSuit(t)}>
           <EasyPreviewImage source={optionImg(t)} preview={outfitPickerPreview(t,t.preview||t.src||t.template)}/>
-          {!isJobOutfit(t)&&<span>{t.name||t.title||'ชุด'}</span>}{t.locked&&<small className="thai-mobile-choice-diamond" aria-label="สมัครโปรเพื่อปลดล็อกชุด">◆</small>}
+          {!isJobOutfit(t)&&<span>{t.name||t.title||'ชุด'}</span>}
           {outfitChosen&&currentSuit===t.template&&<b className="thai-mobile-tile-check" aria-hidden="true">✓</b>}
          </button>)}
         </div>

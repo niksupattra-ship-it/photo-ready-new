@@ -329,11 +329,11 @@ test('Thai upload is one central action and Step 2 enforces gender, hair, outfit
  assert(ui.includes('const hairUnlocked=Boolean(photoTypeSelected)'));
  assert(ui.includes('const suitUnlocked=Boolean(photoTypeSelected&&selectedStyle&&draftHair)'));
  assert(ui.includes('const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return'),'Hair callback is guarded');
- assert(ui.includes('const chooseSuit=t=>{if(!t||!suitUnlocked||busy||suitLoading)return'),'Outfit callback is guarded');
+ assert(ui.includes('const chooseSuit=t=>{if(!t||t.locked||!suitUnlocked||busy||suitLoading)return'),'Outfit callback rejects locked outfits and preserves step/busy guards');
  assert(page.includes('aria-disabled={!hairUnlocked}')&&page.includes('aria-disabled={!suitUnlocked}'),'Locked panels are announced');
  assert(page.includes('disabled={busy||!hairUnlocked}'),'Hair selection disabled before gender');
  assert(page.includes('disabled={!suitUnlocked||busy}'),'Outfit categories disabled before hair');
- assert(page.includes('disabled={busy||!suitUnlocked||suitLoading'),'Outfit options disabled before hair');
+ assert(page.includes('disabled={Boolean(t.locked)||busy||!suitUnlocked||suitLoading'),'Outfit options retain step/busy guards and reject unpaid choices');
  assert(page.includes('disabled={!hairUnlocked||busy}'),'View-all hair option locked');
  assert(page.includes('disabled={!suitUnlocked||busy}'),'View-more outfit option locked');
  assert(ui.includes('outfitChosen&&currentSuit===t.template'),'A previously default outfit is not mistaken for an explicit new selection');
