@@ -1,4 +1,5 @@
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
+import {basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE} from './thai-basic-ai-policy.js';
 import {PORTRAIT_UPLOAD_LIMITS} from './portrait-upload-limits.js';
 import {loadCurrentHairReference} from './english-current-hair.js';
 import {correctEnglishProportions,validateEnglishProportionMetrics} from './english-proportion-correction.js';
@@ -270,13 +271,25 @@ async function requireCredit(req,res,kind){
     return {usageId:'private_full_'+crypto.randomBytes(18).toString('hex'),trialPreview:false,generationRemaining:wallet.generationRemaining,hairRemaining:wallet.hairRemaining};
   }
   if(kind==='ai-finish'||kind==='hairstyle'){
+   // Legacy synchronous routes must recover the same paid source too, rather
+   // than bypass the per-photo package by omitting downloadWorkId.
+   const uploaded=req.files?.image?.[0]||req.file;
+   if(!req.body?.downloadWorkId&&uploaded?.buffer){
+    const work=await downloadPolicy.paidWorkForSource(wid,uploaded.buffer,req.files?.originalSource?.[0]?.buffer||null);
+    if(work){req.body||={};req.body.downloadWorkId=work}
+   }
    if(!downloadHairAllowed(req.body?.hairId)) {res.status(400).json({error:'invalid_hairstyle',message:'กรุณาเลือกทรงผมจากรายการปัจจุบัน'});return null}
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
    const englishRequest=req.body?.interfaceLanguage==='en';
    const englishWallet=englishRequest?await getWallet(wid):null;
-   if(!englishRequest&&req.body?.downloadWorkId){
+   if(req.body?.downloadWorkId){
     const bundle=await reserveThaiWorkAi(wid,req.body.downloadWorkId,'',req.accountUser?.wallet_id===wid);
     if(bundle.owned){if(bundle.credit)return bundle.credit;res.status(bundle.error==='auth_required'?401:402).json({error:bundle.error,message:bundle.error==='auth_required'?'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ AI ของรูปนี้':bundle.error==='thai_work_ai_expired'?'สิทธิ์ AI สำหรับรูปนี้หมดอายุแล้ว':'ใช้ AI สำหรับรูปนี้ครบแล้ว'});return null}
+    const basic=await downloadPolicy.basicThaiAiWork(wid,req.body.downloadWorkId);
+    if(basic){
+     if(!basicThaiHairRequestAllowed(req.body,kind,basic.templates)){res.status(403).json({error:'thai_basic_free_hair_only',message:THAI_BASIC_AI_MESSAGE});return null}
+     return {usageId:'free_'+crypto.randomBytes(18).toString('hex'),trialPreview:true,generationRemaining:0,hairRemaining:0};
+    }
    }
    if(!englishRequest&&req.body?.neckOutfitReferencePath&&isThaiPremiumJobSuit(req.body.neckOutfitReferencePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดสมัครงานเพิ่มเติม'});return null}
    // English Studio's two free styles per gender are different from Thai's.
@@ -498,7 +511,9 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
    current=Promise.resolve().then(async()=>{
     if(!process.env.ARK_API_KEY)throw Object.assign(Error('AI ใส่ชุดยังไม่พร้อม'),{status:503,publicMessage:'AI ใส่ชุดยังไม่พร้อม'});
     let paidUse=null;
-    if(!plan?.usdPremiumPurchased){const scope=await downloadPolicy.scopeForJob(wid,jobId),access=await reserveThaiWorkAi(wid,scope,'',req.accountUser?.wallet_id===wid);if(access.owned){if(!access.credit)throw Object.assign(Error(access.error),{status:access.error==='auth_required'?401:402});paidUse=access.credit}else if(isThaiPremiumJobSuit(templatePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,scope))throw Object.assign(Error('premium_suit_required'),{status:403})}
+    const scope=await downloadPolicy.scopeForJob(wid,jobId);
+    if(await downloadPolicy.basicThaiAiWork(wid,scope))throw Object.assign(Error('thai_basic_free_hair_only'),{status:403,publicMessage:THAI_BASIC_AI_MESSAGE});
+    if(!plan?.usdPremiumPurchased){const access=await reserveThaiWorkAi(wid,scope,'',req.accountUser?.wallet_id===wid);if(access.owned){if(!access.credit)throw Object.assign(Error(access.error),{status:access.error==='auth_required'?401:402});paidUse=access.credit}else if(isThaiPremiumJobSuit(templatePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,scope))throw Object.assign(Error('premium_suit_required'),{status:403})}
     if(plan?.usdPremiumPurchased){
      paidUse=await reserveUsdPremiumCredit(wid,'ai-finish');
      if(!paidUse.usageId)throw Object.assign(Error('credits_exhausted'),{status:402,publicMessage:'No Premium AI generations left. Manual outfit selection remains available.'});
@@ -639,7 +654,7 @@ async function runFemaleAlternateFinish(id){
   if(!claimed)return;
   const fields=claimed.fields||{},wid=claimed.wallet_id;
   finish=fields.alternateFinish;
-  if(fields.interfaceLanguage!=='en'){const access=await reserveThaiWorkAi(wid,fields.downloadWorkId,'finish:'+id+':'+finish);if(access.owned){if(!access.credit)throw Error(access.error);finishCredit=access.credit}}
+  if(fields.interfaceLanguage!=='en'){const access=await reserveThaiWorkAi(wid,fields.downloadWorkId,'finish:'+id+':'+finish);if(access.owned){if(!access.credit)throw Error(access.error);finishCredit=access.credit}else if(await downloadPolicy.basicThaiAiWork(wid,fields.downloadWorkId))throw Error('thai_basic_free_hair_only')}
   if(!['natural','makeup'].includes(finish)||fields.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('Invalid alternate finish');
   heartbeat=setInterval(()=>{void touchFemaleAlternateFinish(id).catch(()=>{})},30000);heartbeat.unref?.();
   let result;
@@ -741,7 +756,8 @@ app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-st
  const wid=walletId(req),policy=accountPolicy(req),options={savedWorkId:req.get('X-IDPROM-Saved-Work')||''},unlocked=await policy.allowed(wid,req.params.id,options);
  // Account-wide owner/private access is not a paid grant for this work.
  const paidDownload=await downloadPolicy.allowed(wid,req.params.id,options);
- res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id),paidDownload});
+ const basic=await downloadPolicy.basicThaiAiWork(wid,await downloadPolicy.scopeForJob(wid,req.params.id));
+ res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id),paidDownload,basicFreeHairOnly:Boolean(basic),basicAiOutfitTemplates:basic?.templates||[]});
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});

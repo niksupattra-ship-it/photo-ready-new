@@ -126,6 +126,18 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   return r.rows.length===ids.length&&r.rows.every(row=>row.status==='completed'&&row.unlocked);
  };
  return {ready,ownedJob,jobIds,legacyAllows,allowed,allowedJobs,premiumHair,premiumWork,
+  async basicThaiAiWork(wallet,work){
+   if(!wallet||!work)return null;await ready();
+   const receipt=await pool.query(`SELECT 1 FROM download_payment_receipts r WHERE r.wallet_id=$1 AND r.work_scope=$2
+    AND r.package_id='download_89_v1' AND NOT r.overlap AND r.refund_status='not_required'
+    AND NOT EXISTS(SELECT 1 FROM thai_work_ai_grants g WHERE g.wallet_id=$1 AND g.work_id=$2) LIMIT 1`,[wallet,work]);
+   if(!receipt.rowCount)return null;
+   const paid=await pool.query(`SELECT DISTINCT COALESCE(j.fields->>'neckOutfitReferencePath',j.fields->>'outfitReferencePath','') AS template
+    FROM paid_image_unlocks p JOIN ai_jobs j ON j.id=p.job_id AND j.wallet_id=p.wallet_id
+    LEFT JOIN download_work_jobs m ON m.job_id=j.id AND m.wallet_id=j.wallet_id
+    WHERE p.wallet_id=$1 AND (m.work_id=$2 OR 'job:'||j.id=$2) AND j.status='completed'`,[wallet,work]);
+   return {templates:paid.rows.map(r=>r.template)};
+  },
   async paidWorkForSource(wallet,image,originalSource=null){await ready();return (await paidSourceWork(wallet,image,originalSource))?.id||''},
   async scopeForJob(wallet,job){await ready();await ownedJob(wallet,job);const q=await pool.query('SELECT work_id FROM download_work_jobs WHERE wallet_id=$1 AND job_id=$2',[wallet,job]);return q.rows[0]?.work_id||'job:'+job},
   async suits(wallet,job,templates=[],savedWorkId=''){
