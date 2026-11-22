@@ -1,3 +1,4 @@
+import {FEMALE_HAIR_BULK_FACTOR,femaleHairLightnessInstruction} from '../hairstyle-fit-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -25,7 +26,7 @@ test('the actual Thai male first option uses the exact English automatic side-pa
  const choices=[{interfaceLanguage:'en',hairId:'original'},{thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),hairId:'thai-male-auto',hairReferenceVersion:'picker-hair-v1'}];
  for(const choice of choices){const calls=[];
   await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:{...base,...choice},root:new URL('..',import.meta.url).pathname,key:'inert',removeBackground:async()=>png,requestPortrait:async p=>{calls.push(p);return {png}}});
-  assert.equal(calls.length,1);assert.equal(calls[0].hair,null);assert(!calls[0].hairPlacementReference);assert(calls[0].prompt.includes(englishProfessionalDefaultHair('male')));assert(!calls[0].prompt.includes('SELECTED PICKER HAIR seedream-35'));
+  assert.equal(calls.length,1);assert(!calls[0].prompt.includes('FEMALE HAIR LIGHTNESS'));assert.equal(calls[0].hair,null);assert(!calls[0].hairPlacementReference);assert(calls[0].prompt.includes(englishProfessionalDefaultHair('male')));assert(!calls[0].prompt.includes('SELECTED PICKER HAIR seedream-35'));
  }
 });
 test('male preview is a photographic face thumbnail and every previous reference remains mapped to its original bytes',async()=>{
@@ -42,4 +43,15 @@ test('actual Thai menu puts the former second free style first among Diamond and
  assert.deepEqual(options.female.slice(0,4).map(h=>h.id),['seedream-14','seedream-42','seedream-79','seedream-16']);
  assert.deepEqual(options.male.slice(0,3).map(h=>h.id),THAI_FREE_MALE_HAIR_IDS);
  assert.equal(options.male.filter(h=>h.id==='thai-male-auto').length,1);assert(!options.male.some(h=>h.id==='seedream-35'));
+});
+
+test('all female styles share the additional 15% lighter styling target; men and retained accepted hair are unchanged',()=>{
+ assert.equal(FEMALE_HAIR_BULK_FACTOR,.85);
+ for(const style of PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden)){
+  const instruction=femaleHairLightnessInstruction(style.gender);
+  assert.match(instruction,/85%/);assert.match(instruction,/additional 15% lighter/);
+  assert.match(instruction,/length and endpoints/);assert.match(instruction,/Never resize or reshape the skull, face, eyes, gaze/);
+ }
+ assert.equal(femaleHairLightnessInstruction('male'),'');
+ assert.equal(femaleHairLightnessInstruction('female',{keepCurrentHair:true}),'');
 });
