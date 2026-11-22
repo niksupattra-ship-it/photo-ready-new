@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import sharp from 'sharp';
+import {readFile} from 'node:fs/promises';
+import {detectUniformDetails,matchUniformDetails,REAL_UNIFORM_DETAIL_TEMPLATES} from '../src/real-uniform-details.js';
+import {replaceHairstyleLayer} from '../src/replace-hairstyle-layer.js';
+const root=new URL('..',import.meta.url);
+async function pixels(file){return sharp(await readFile(new URL('public/assets/government-uniforms/'+file,root))).resize({width:640}).ensureAlpha().raw().toBuffer({resolveWithObject:true}).then(({data,info})=>({data,width:info.width,height:info.height}))}
+test('real female and male references and actual finished portraits locate their own two shoulders and buttons',async()=>{
+ for(const [source,portrait,count]of [['female-operational.png','female-operational-example.jpg',1],['male-government-employee.png','male-operational-example.png',3]]){
+  const a=detectUniformDetails(await pixels(source)),b=detectUniformDetails(await pixels(portrait));
+  assert(a&&b);assert.equal(a.boards.length,2);assert.equal(b.boards.length,2);assert.equal(b.buttons.length,count);
+  const matches=matchUniformDetails(a,b);assert.equal(matches.length,count+2);
+  assert(b.boards[0].cx<b.boards[1].cx);assert(b.boards.every(g=>g.w/g.h>2));
+  assert.notEqual(a.boards[0].cy,b.boards[0].cy,'AI composition is measured independently of native garment coordinates');
+ }
+});
+test('moving the actual portrait moves measured details; a missing shoulder refuses automatic replacement',async()=>{
+ const image=await pixels('female-operational-example.jpg'),original=detectUniformDetails(image);
+ const shifted=await sharp(image.data,{raw:{width:image.width,height:image.height,channels:4}}).extend({top:40,bottom:0,left:0,right:0,background:'#3683ff'}).raw().toBuffer({resolveWithObject:true});
+ const measured=detectUniformDetails({data:shifted.data,width:shifted.info.width,height:shifted.info.height});
+ assert(measured);for(let i=0;i<2;i++)assert(Math.abs(measured.boards[i].cy-original.boards[i].cy-40)<1);
+ const missing=new Uint8ClampedArray(image.data);
+ for(let y=350;y<560;y++)for(let x=0;x<280;x++)missing.set([30,130,255,255],(y*image.width+x)*4);
+ assert.equal(detectUniformDetails({...image,data:missing}),null);
+ assert.equal(detectUniformDetails({data:new Uint8Array(640*800*4).fill(255),width:640,height:800}),null);
+ assert.deepEqual(matchUniformDetails(null,original),[]);
+});
+test('switching a generated portrait removes only its linked real details; unrelated accessories survive',()=>{
+ const layers=[{id:'head',source:'old'},{id:'board',kind:'uniform-detail',realUniformDetail:true,hairHeadId:'head',source:'native-board'},{id:'pin',kind:'chest',source:'real-pin'}];
+ const next=replaceHairstyleLayer(layers,'head',{source:'new'});
+ assert.deepEqual(next.map(l=>l.id),['head','pin']);assert.equal(next[1].source,'real-pin');
+});
+
+test('saved work retains the original reversible image and validates its resource budget',async()=>{
+ const {validateSavedProject,assertSavedProjectResources}=await import('../src/saved-project.js');
+ const png='data:image/png;base64,'+(await sharp({create:{width:32,height:32,channels:4,background:'#fff'}}).png().toBuffer()).toString('base64');
+ const project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{id:'head',kind:'head',name:'หัว · คอ · ผม',source:png,realUniformOriginalSource:png,realUniformDetailsVersion:'real-uniform-details-v1',x:0,y:0,scale:1,rotation:0,opacity:1}]};
+ assert.equal(validateSavedProject(project),project);assertSavedProjectResources(project);
+ assert.throws(()=>validateSavedProject({...project,layers:[{...project.layers[0],realUniformOriginalSource:'https://example.invalid/image.png'}]}));
+});
+
+
+test('every supported real garment supplies both native boards and its actual button row',async()=>{
+ for(const path of REAL_UNIFORM_DETAIL_TEMPLATES){const measured=detectUniformDetails(await pixels(path.split('/').at(-1)));assert(measured,path);assert.equal(measured.boards.length,2);assert(measured.buttons.length>0,path)}
+});
+
+
+test('automatic details never modify a locked, hidden or manually masked portrait',async()=>{
+ const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const start=editor.indexOf(' const applyRealUniformDetails=async'),end=editor.indexOf(' useEffect(()=>{',start);
+ for(const patch of [{locked:true},{visible:false},{mask:'manual-mask'}]){
+  const head={id:'head',source:'original pixels',...patch};
+  const env={state:{current:[head]},governmentImageHead:head,realDetailEligible:true,ready:true,processActive:false,assetBusy:false,realDetailBusy:{current:false}};
+  const apply=Function('env','with(env){'+editor.slice(start,end)+';return applyRealUniformDetails}')(env);
+  await apply({automatic:true});assert.equal(head.source,'original pixels');assert.equal(env.realDetailBusy.current,false);
+ }
+ for(const archived of ['editingPurchasedImage','savedWorkUnlocked']){
+  const head={id:'head',jobId:'initial-job',source:'paid original pixels'};
+  const env={accountScope:'same-account',governmentTemplate:'/assets/government-uniforms/female-operational.png',realDetailInitialJobs:{current:new Set(['initial-job'])},realDetailMemory:{current:new Map()},state:{current:[head]},governmentImageHead:head,realDetailEligible:true,ready:true,processActive:false,assetBusy:false,realDetailBusy:{current:false},editingPurchasedImage:false,savedWorkUnlocked:false,[archived]:true};
+  const apply=Function('env','with(env){'+editor.slice(start,end)+';return applyRealUniformDetails}')(env);
+  await apply({automatic:true});assert.equal(head.source,'paid original pixels');
+ }
+});

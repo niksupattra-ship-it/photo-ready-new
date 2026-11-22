@@ -285,7 +285,7 @@ test('Thai government result edits only native insignia layers directly on pictu
  assert(css.includes('border:1.5px solid transparent'),'Unselected assets have no distracting outlines');
  assert(css.includes('touch-action:none')&&css.includes('thai-result-insignia-grip'),'Handles render above actual photo on mobile');
  assert(!drag.includes('type="range"')&&!css.includes('input[type="range"]'),'No insignia adjustment slider is introduced');
- assert(chooser.includes('quickResult')&&chooser.includes("...(!quickResult?[['shoulder','บ่า']]:[])"),'Quick picker only shows actual insignia, no garment badges');
+ assert(chooser.includes('quickResult')&&chooser.includes("...(onRealDetails?[['details','กระดุม/บ่า']]:[])"),'Native garment details have their own reversible control when available');
  assert(studio.includes('resultInsigniaDirect:true'),'Quick chooser creates the real Studio asset, not a fake overlay');
  assert(studio.includes('resultInsigniaHandles=governmentResult&&easyMode?layers.filter'),'Only actual editable insignia receive handles');
  assert(studio.includes("id:'collar-'+entry.side"),'Each collar pin gets its own on-photo drag handle');

@@ -4,9 +4,9 @@ import './government-insignia-chooser.css';
 
 // This panel uses the existing Studio asset library and its undo/export path.
 // It never creates an AI job or chooses a civil-service rank for the customer.
-export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[],selected={},busy=false,onChoose,onClose,quickResult=false,placementReview=false}){
+export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[],selected={},busy=false,onChoose,onClose,quickResult=false,placementReview=false,onRealDetails=null,realDetailsActive=false}){
  const [tab,setTab]=useState('collar');
- const tabs=[['collar','ปกคอ'],['chest','เข็มติดอก'],['ribbon','แพรแถบ'],...(!quickResult?[['shoulder','บ่า']]:[])];
+ const tabs=[['collar','ปกคอ'],['chest','เข็มติดอก'],['ribbon','แพรแถบ'],...(onRealDetails?[['details','กระดุม/บ่า']]:[])];
  const options=tab==='collar'?collarPins:tab==='chest'?chestPins:tab==='ribbon'?ribbons:[];
  // Use prebuilt small WebP menu images. Preserve the original PNG files
  // and paired left/right images for actual placement and full Studio.
@@ -20,9 +20,9 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
   <nav className="idprom-government-insignia-tabs" aria-label="ประเภทเครื่องหมาย">
    {tabs.map(([id,label])=><button type="button" key={id} className={tab===id?'selected':''} aria-pressed={tab===id} onClick={()=>setTab(id)}>{label}</button>)}
   </nav>
-  {tab==='shoulder'?<div className="idprom-government-insignia-note" role="status">
-   <strong>เครื่องหมายบ่า</strong>
-   <p>ในเวอร์ชันนี้ เครื่องหมายบ่าเป็นส่วนหนึ่งของแบบชุดที่เลือกไว้แล้ว หากต้องการเปลี่ยนระดับให้เปลี่ยนแบบชุดก่อนสร้าง AI ใหม่ ไม่วางเครื่องหมายใหม่ทับบ่าเดิม</p>
+  {tab==='details'?<div className="idprom-government-real-details">
+   <button type="button" disabled={busy} onClick={onRealDetails}>{realDetailsActive?'ใช้รายละเอียดภาพ AI เดิม':'วางกระดุมและบ่าจากชุดจริง'}</button>
+   <p>ตรวจตำแหน่งจากภาพนี้ · ลากชิ้นส่วนบนรูปเพื่อปรับตำแหน่งได้</p>
   </div>:<>
    <div className="idprom-government-insignia-options">
     <button type="button" className={!selected[tab]?'selected':''} disabled={busy} onClick={()=>onChoose(tab,null)}>

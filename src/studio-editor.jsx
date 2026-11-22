@@ -1,3 +1,4 @@
+import {REAL_UNIFORM_DETAILS_VERSION,REAL_UNIFORM_DETAIL_TEMPLATES} from './real-uniform-details.js';
 import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
 import {withoutObsoleteThaiNeckBridges} from './thai-collar-layers.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
@@ -109,7 +110,7 @@ export function CatalogPreview({src,eager=false,maleHair=false,englishHair=false
 }
 const STUDIO_DOWNLOAD_SIZES=photoSizesForLanguage(PHOTO_SIZES.filter(s=>['original','1-inch','1.5-inch','2-inch','2.5-inch'].includes(s.id)));
 const W=900,H=1200;
-const FRAME_SOURCE_FIELDS=['processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','englishNeckClipMask'];
+const FRAME_SOURCE_FIELDS=['realUniformOriginalSource','processedOriginalSource','hairOriginalSource','makeupBaseSource','makeupFullSource','studioSkinBaseSource','aiMakeupSource','englishNeckClipMask'];
 const canvas=()=>Object.assign(document.createElement('canvas'),{width:W,height:H});
 const nativeCanvas=()=>{const w=englishPreviewEnabled()?2304:2256,h=3072;return Object.assign(document.createElement('canvas'),{width:Math.round(Math.max(1,Math.min(8192,w))),height:Math.round(Math.max(1,Math.min(8192,h)))})};
 
@@ -686,7 +687,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const encode=source=>source instanceof HTMLCanvasElement?encodeCanvas(source):source;
   return state.current.map(l=>{
    const a=assets.current.get(l.id);
-   return {...l,source:encode(l.source),studioSkinBaseSource:encode(l.studioSkinBaseSource),aiMakeupSource:encode(l.aiMakeupSource),processedOriginalSource:encode(l.processedOriginalSource),collarParts:l.collarParts?{left:encode(l.collarParts.left),right:encode(l.collarParts.right)}:l.collarParts,makeupBaseSource:encode(l.makeupBaseSource),makeupFullSource:encode(l.makeupFullSource),mask:a==null?l.mask:encodeCanvas(a.mask)||l.mask,warpSource:a?.warped==null?null:encodeCanvas(a.warped)||null,warpBaseMask:encode(a?.warpBaseMask)||null,eraseRestoreSource:encode(a?.eraseRestoreSource)||null,warpRestoreBase:encode(a?.warpRestoreBase)||null};
+   return {...l,source:encode(l.source),studioSkinBaseSource:encode(l.studioSkinBaseSource),aiMakeupSource:encode(l.aiMakeupSource),processedOriginalSource:encode(l.processedOriginalSource),realUniformOriginalSource:encode(l.realUniformOriginalSource),collarParts:l.collarParts?{left:encode(l.collarParts.left),right:encode(l.collarParts.right)}:l.collarParts,makeupBaseSource:encode(l.makeupBaseSource),makeupFullSource:encode(l.makeupFullSource),mask:a==null?l.mask:encodeCanvas(a.mask)||l.mask,warpSource:a?.warped==null?null:encodeCanvas(a.warped)||null,warpBaseMask:encode(a?.warpBaseMask)||null,eraseRestoreSource:encode(a?.eraseRestoreSource)||null,warpRestoreBase:encode(a?.warpRestoreBase)||null};
   });
  };
  if(purchaseSnapshotRef)purchaseSnapshotRef.current=()=>{flushTransforms();return {layers:snapshot(),placement:placementRef.current,sourcePhoto,originalPreview:compareSourceRef.current,downloadChoice:pendingDownloadChoiceRef.current}};
@@ -950,7 +951,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(showPopup)setSavePopup({state:'saving',title:'บันทึกงานไว้แก้ไขต่อ',message:'กำลังบันทึกในบัญชีของคุณ กรุณารอผลยืนยันก่อนออกจากเว็บ · บันทึกได้สูงสุด 3 งาน'});
   try{
    if(!options.outputVerified&&!(await allowOutput({errorTitle:showPopup?'บันทึกงานไม่สำเร็จ':null}))){setHistoryNotice(null);return false}
-   flushTransforms();savedLayers=options.project?options.project.layers:state.current;const project=await makeSavedProject(options.project?{...options.project,layers:options.project.layers.map(l=>({...l,source:surfaceURL(l.source),studioSkinBaseSource:surfaceURL(l.studioSkinBaseSource),aiMakeupSource:surfaceURL(l.aiMakeupSource),processedOriginalSource:surfaceURL(l.processedOriginalSource),collarParts:l.collarParts?{left:surfaceURL(l.collarParts.left),right:surfaceURL(l.collarParts.right)}:l.collarParts,makeupBaseSource:surfaceURL(l.makeupBaseSource),makeupFullSource:surfaceURL(l.makeupFullSource),mask:surfaceURL(l.mask),warpSource:surfaceURL(l.warpSource),warpBaseMask:surfaceURL(l.warpBaseMask),eraseRestoreSource:surfaceURL(l.eraseRestoreSource),warpRestoreBase:surfaceURL(l.warpRestoreBase)}))}:{placement:placementRef.current,compareSource:compareSourceRef.current,sourcePhoto,layers:snapshot()});
+   flushTransforms();savedLayers=options.project?options.project.layers:state.current;const project=await makeSavedProject(options.project?{...options.project,layers:options.project.layers.map(l=>({...l,source:surfaceURL(l.source),studioSkinBaseSource:surfaceURL(l.studioSkinBaseSource),aiMakeupSource:surfaceURL(l.aiMakeupSource),processedOriginalSource:surfaceURL(l.processedOriginalSource),realUniformOriginalSource:surfaceURL(l.realUniformOriginalSource),collarParts:l.collarParts?{left:surfaceURL(l.collarParts.left),right:surfaceURL(l.collarParts.right)}:l.collarParts,makeupBaseSource:surfaceURL(l.makeupBaseSource),makeupFullSource:surfaceURL(l.makeupFullSource),mask:surfaceURL(l.mask),warpSource:surfaceURL(l.warpSource),warpBaseMask:surfaceURL(l.warpBaseMask),eraseRestoreSource:surfaceURL(l.eraseRestoreSource),warpRestoreBase:surfaceURL(l.warpRestoreBase)}))}:{placement:placementRef.current,compareSource:compareSourceRef.current,sourcePhoto,layers:snapshot()});
    if(outputScopeRef.current!==accountScope)throw Error('บัญชีเปลี่ยนแล้ว กรุณาบันทึกงานอีกครั้ง');
    if(staleBackground())return false;
    let message;if(onSaveWork&&!trialUnlocked){setStatus('กำลังบันทึกงานไว้ในบัญชี…');await onSaveWork(project,{auto:options.auto===true,workScope:options.workScope,createCopy:options.createCopy===true,...(options.workId!==undefined?{workId:options.workId}:{})});if(state.current===savedLayers)lastSavedLayersRef.current=savedLayers;message=''}else{const delivery=download(new Blob([JSON.stringify(project)],{type:'application/json'}),'IDPROM-Studio.idstudio');message=delivery==='panel'?'ไฟล์โปรเจกต์พร้อมแล้ว · เลือกบันทึกหรือแชร์ไฟล์':'ส่งคำขอดาวน์โหลดไฟล์โปรเจกต์แล้ว'}
@@ -1244,6 +1245,60 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    return detectWhiteGovernmentJacket(sampled.getContext('2d',{willReadFrequently:true}).getImageData(0,0,W,H))?.frame||null;
   }catch{return null}finally{sampled.width=sampled.height=1}
  };
+ const realDetailMemory=useRef(new Map()),realDetailSkip=useRef(new Set()),realDetailBusy=useRef(false),realDetailScope=useRef(accountScope),realDetailSeen=useRef(null);
+ const realDetailInitialJobs=useRef(new Set((initialLayers||[]).filter(l=>l.kind==='head'&&l.jobId).map(l=>l.jobId)));
+ const realDetailEligible=governmentResult&&REAL_UNIFORM_DETAIL_TEMPLATES.has(governmentTemplate)&&governmentImageHead?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&!layers.some(l=>layerKind(l)==='suit'&&l.visible);
+ const applyRealUniformDetails=async({automatic=false}={})=>{
+  const head=state.current.find(l=>l.id===governmentImageHead?.id);
+  if(!head||!realDetailEligible||!ready||processActive||assetBusy||realDetailBusy.current)return;
+  if(head.locked||head.visible===false){if(!automatic)setStatus('ปลดล็อกและแสดงเลเยอร์ภาพก่อนวางรายละเอียดชุดจริง');return}
+  if(automatic&&(head.mask||head.eraseRestoreSource))return;
+  const template=head.generatedOutfitTemplate||governmentTemplate,key=JSON.stringify([accountScope,head.jobId,template]);
+  if(automatic&&(editingPurchasedImage||savedWorkUnlocked)&&realDetailInitialJobs.current.has(head.jobId)&&!realDetailMemory.current.has(key))return;
+  if(automatic&&(head.realUniformDetailsVersion===REAL_UNIFORM_DETAILS_VERSION||realDetailSkip.current.has(key)))return;
+  if(assets.current.get(head.id)?.warped||head.warpSource){if(!automatic)setStatus('ย้อนการบิดภาพก่อนวางรายละเอียดชุดจริง');return}
+  const scope=outputScopeRef.current,previous=historySnapshot(),source=head.realUniformOriginalSource||head.source;
+  const current=()=>mounted.current&&outputScopeRef.current===scope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId&&l.source===head.source);
+  const detailOperation={scope};realDetailBusy.current=detailOperation;realDetailSkip.current.add(key);setAssetBusy(true);
+  try{
+   let next;
+   if(head.realUniformDetailsVersion===REAL_UNIFORM_DETAILS_VERSION&&!automatic){
+    const cached=realDetailMemory.current.get(key);
+    const restored=cached?.result.cleanedSource===head.source?source:await withDeadline(async()=>{const {restoreRealUniformDetails}=await import('./real-uniform-details-browser.js');return restoreRealUniformDetails({currentSource:head.source,originalSource:source,regions:head.realUniformDetailRegions})},{timeoutMs:12000});
+    next=previous.filter(l=>!l.realUniformDetail||l.hairHeadId!==head.id).map(l=>l.id===head.id?{...l,source:restored,realUniformDetailsVersion:null,realUniformOriginalSource:null,realUniformDetailRegions:null}:l);
+   }else{
+    setStatus('กำลังวางกระดุมและอินทรธนูจากชุดจริง…');
+    const cached=realDetailMemory.current.get(key);
+    const result=cached?.original===source?cached.result:await withDeadline(async()=>{
+     const {prepareRealUniformDetails}=await import('./real-uniform-details-browser.js');
+     return prepareRealUniformDetails({originalSource:source,templatePath:template});
+    },{timeoutMs:12000,message:'ตรวจรายละเอียดชุดยังไม่สำเร็จ · เก็บภาพเดิมไว้'});
+    if(!current())return;
+    if(!result){setStatus('ยังตรวจตำแหน่งบ่าจากภาพนี้ได้ไม่ชัด · เก็บภาพเดิมไว้');return}
+    const kept=previous.filter(l=>!l.realUniformDetail||l.hairHeadId!==head.id);
+    if(kept.length+result.parts.length>20){setStatus('พื้นที่เลเยอร์เต็ม · เก็บภาพเดิมไว้');return}
+    const f=head.sourceFrame||{x:0,y:0,w:W,h:H},pose=headPose(head);
+    const details=result.parts.map(part=>fresh({name:part.name+' · ชุดจริง',kind:'uniform-detail',realUniformDetail:true,hairHeadId:head.id,hairHeadPose:pose,...pose,source:part.source,sourceFrame:{x:f.x+part.frame.x*f.w/result.width,y:f.y+part.frame.y*f.h/result.height,w:part.frame.w*f.w/result.width,h:part.frame.h*f.h/result.height}}));
+    next=kept.map(l=>l.id===head.id?{...l,source:result.cleanedSource,realUniformOriginalSource:surfaceURL(source),realUniformDetailsVersion:REAL_UNIFORM_DETAILS_VERSION,realUniformDetailRegions:result.regions}:l);
+    next.splice(next.findIndex(l=>l.id===head.id)+1,0,...details);
+    realDetailMemory.current.set(key,{original:source,result});while(realDetailMemory.current.size>4)realDetailMemory.current.delete(realDetailMemory.current.keys().next().value);
+   }
+   if(!current())return;
+   if(!await hydrate(next,new Set(previous.filter(l=>next.includes(l)).map(l=>l.id)),current))throw Error('แสดงรายละเอียดชุดไม่สำเร็จ');
+   undo.current.push(previous);if(undo.current.length>15)undo.current.shift();redo.current=[];
+   if(next.some(l=>l.id===head.id&&l.realUniformDetailsVersion))realDetailSkip.current.delete(key);
+   setRevision(v=>v+1);setSelected(head.id);setStatus(next.some(l=>l.realUniformDetail&&l.hairHeadId===head.id)?'วางกระดุมและอินทรธนูจากชุดจริงแล้ว · ลากปรับบนรูปได้':'กลับไปใช้รายละเอียดภาพ AI เดิมแล้ว');
+  }catch(error){console.warn('Native uniform detail placement unavailable',error?.message);if(current())setStatus(/[ก-๙]/.test(error?.message||'')?error.message:'วางรายละเอียดชุดยังไม่สำเร็จ · ภาพเดิมยังอยู่')}
+  finally{if(realDetailBusy.current===detailOperation){realDetailBusy.current=false;if(mounted.current&&outputScopeRef.current===scope)setAssetBusy(false)}}
+ };
+ useEffect(()=>{
+  if(realDetailScope.current!==accountScope){realDetailMemory.current.clear();realDetailSkip.current.clear();realDetailScope.current=accountScope;realDetailSeen.current=null;if(realDetailBusy.current){realDetailBusy.current=false;setAssetBusy(false)}}
+  if(!realDetailEligible)realDetailSeen.current=null;
+  if(realDetailEligible&&ready&&!assetBusy&&!processActive){
+   const key=JSON.stringify([accountScope,governmentImageHead?.jobId,governmentTemplate]);
+   if(realDetailSeen.current!==key){realDetailSeen.current=key;if(!governmentImageHead?.realUniformDetailsVersion)void applyRealUniformDetails({automatic:true})}
+  }
+ },[ready,assetBusy,processActive,realDetailEligible,governmentImageHead?.jobId,governmentImageHead?.source,governmentImageHead?.realUniformDetailsVersion,governmentTemplate,accountScope]);
  const easyGovernmentInsigniaFitRef=useRef(null);
  const [easyInsigniaNeedsReview,setEasyInsigniaNeedsReview]=useState(false);
  const measureEasyGovernmentInsigniaFit=()=>{
@@ -1297,6 +1352,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const restoredSuit=kind==='suit'&&manualSuit&&!target&&!englishFlow&&option?.template===removedThaiSuitRef.current?.templatePath?removedThaiSuitRef.current:null;
   if(target?.locked){setStatus('ปลดล็อกเลเยอร์ '+ASSET_NAMES[kind]+' ก่อนเปลี่ยน');return}
   const bodyHead=outputHeads(state.current).find(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
+  if(kind==='suit'&&option&&bodyHead?.realUniformDetailsVersion&&bodyHead.locked){setStatus('ปลดล็อกเลเยอร์ภาพก่อนเปลี่ยนชุด');return}
   const repairSuitFit=Boolean(manualSuit&&target?.manualOutfitFitVersion!==ENGLISH_MANUAL_OUTFIT_VERSION)||Boolean(!manualSuit&&bodyHead&&option&&bodyHead.generatedOutfitTemplate!==option.template)||Boolean(target?.autoSuitFitVersion&&target.autoSuitFitVersion!==STUDIO_SUIT_FIT_VERSION)||state.current.some(l=>l.kind==='neck-fit');
   if(kind==='suit'&&option&&target?.templatePath===option.template&&!repairSuitFit&&!(manualSuit&&target.visible===false)&&!(manualSuit&&!englishFlow)){endSuitPreview(suitRequestRef.current);setAssetBusy(false);setSelected(target.id);return}
   const combinedBody=Boolean(bodyHead);
@@ -1363,6 +1419,16 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     if(manualSuit&&combinedBody)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);
     if(kind==='suit'&&combinedBody&&!manualSuit)next=next.map(l=>l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?{...l,englishNeckClipMask:null}:l);
     if(fitHead){try{const asset=assets.current.get(fitHead.id);if(!asset)throw Error('ยังเตรียมภาพหัวไม่สำเร็จ');setStatus('กำลังจัดหัวและคอให้พอดีกับชุด…');const fitting=fitStudioSuit({layers:next,previousSuit:target,nextSuit:created,headSource:asset.warped||sharedStudioSkinSource(fitHead)||asset.original,headMask:asset.mask,measureFace:onMeasureSuitFace});next=request?await request.wait(fitting):await fitting;fitWarning=next.find(l=>l.id===created.id)?.autoSuitFitWarning||''}catch(error){if(error.code==='SUIT_SELECTION_REPLACED')throw error;fitWarning='ยังจัดหัวอัตโนมัติไม่สำเร็จ สามารถปรับหัวและคอเสื้อเพิ่มเติมได้';next=next.map(l=>l.id===created.id?{...l,autoSuitFitVersion:null,autoCollarFitApplied:false,autoSuitFitWarning:fitWarning}:l)}}
+   }
+   if(kind==='suit'&&option&&combinedBody&&next.some(l=>l.realUniformDetailsVersion)){
+    next=next.filter(l=>!l.realUniformDetail);
+    const {restoreRealUniformDetails}=await import('./real-uniform-details-browser.js');
+    next=await Promise.all(next.map(async l=>{
+     if(!l.realUniformDetailsVersion||!l.realUniformOriginalSource)return l;
+     const restoring=withDeadline(()=>restoreRealUniformDetails({currentSource:surfaceURL(l.source),originalSource:surfaceURL(l.realUniformOriginalSource),regions:l.realUniformDetailRegions}),{timeoutMs:12000});
+     const original=request?await request.wait(restoring):await restoring;
+     return {...l,source:original,realUniformDetailsVersion:null,realUniformOriginalSource:null,realUniformDetailRegions:null};
+    }));
    }
    if(request&&suitRequestRef.current!==request)return;
    // Keep the provisional choice interactive until both its original PNG and
@@ -1991,22 +2057,22 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const easyControl=(layer,key,label,min,max,step=1)=>{const value=layer?.[key]??(key==='scale'?1:0);return <label key={key} className="easy-adjust-control"><span className="easy-adjust-label"><span className="easy-adjust-control-icon"><EasyUIIcon kind={key==='scale'?'scale':key==='rotation'?'rotation':key==='y'||key==='neckHeight'||key.endsWith('Y')?'vertical':'horizontal'} size={19}/></span><span>{label}</span></span><span className="easy-adjust-inline"><input type="range" aria-label={`${layer.name} ${label}`} min={min} max={max} step={step} value={value} disabled={layer.locked||!ready||blockingAssetBusy||processActive} onPointerDown={()=>{flushTransforms();remember()}} onKeyDown={e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)&&!e.repeat){flushTransforms();remember()}}} onChange={e=>{selectedRef.current=layer.id;setSelected(layer.id);change({[key]:Number(e.target.value)},false);flushTransforms();setRevision(v=>v+1)}}/><output>{Math.round(value*(key==='scale'?100:1))}{key==='scale'||key.startsWith('neck')?'%':key==='rotation'?'°':' px'}</output><span className="easy-adjust-stepper"><button type="button" aria-label={`ลด ${label}`} disabled={layer.locked||!ready||blockingAssetBusy||processActive||value<=min} onClick={()=>{flushTransforms();remember();selectedRef.current=layer.id;setSelected(layer.id);change({[key]:Math.max(min,Number((value-(key==='scale'?.01:1)).toFixed(3)))},false);flushTransforms();setRevision(v=>v+1)}}>−</button><button type="button" aria-label={`เพิ่ม ${label}`} disabled={layer.locked||!ready||blockingAssetBusy||processActive||value>=max} onClick={()=>{flushTransforms();remember();selectedRef.current=layer.id;setSelected(layer.id);change({[key]:Math.min(max,Number((value+(key==='scale'?.01:1)).toFixed(3)))},false);flushTransforms();setRevision(v=>v+1)}}>+</button></span></span></label>};
  const resetEasyAdjustment=id=>{const layer=state.current.find(l=>l.id===id);if(!layer||layer.locked||!ready||assetBusy||processActive)return;flushTransforms();remember();selectedRef.current=id;setSelected(id);change(layerKind(layer)==='suit'?{neckWidth:0,neckHeight:0}:{scale:1,x:0,y:0,rotation:0,...(layerKind(layer)==='collar'?{collarLeftX:0,collarLeftY:0,collarRightX:0,collarRightY:0}:{})},false);flushTransforms();setRevision(v=>v+1)};
  const easyAdjust=<EasyAdjustmentTabs onReset={resetEasyAdjustment}><h2>ปรับรูป</h2>{layers.filter(l=>['head','suit','collar','chest','ribbon'].includes(layerKind(l))).sort((a,b)=>['head','suit','collar','chest','ribbon'].indexOf(layerKind(a))-['head','suit','collar','chest','ribbon'].indexOf(layerKind(b))).map(layer=><section inert={Boolean(suitSelecting)} className="easy-adjust-group" key={layer.id} data-layer-id={layer.id} data-reset-disabled={layer.locked||!ready||blockingAssetBusy||processActive} data-label={layerKind(layer)==='head'?'หัวและใบหน้า':layerKind(layer)==='suit'?'คอเสื้อ':layer.name}><h3>{layerKind(layer)==='head'?'หัวและใบหน้า':layer.name}</h3>{layerKind(layer)==='suit'?<>{easyControl(layer,'neckWidth','บีบ–ขยายคอเสื้อ',-200,200)}{easyControl(layer,'neckHeight','ความสูงคอเสื้อ',-200,200)}</>:<>{easyControl(layer,'scale',layerKind(layer)==='head'?'ขนาดหัว':layerKind(layer)==='collar'?'ขนาดทั้งคู่':'ขนาด',.1,3,.01)}{easyControl(layer,'x','ซ้าย–ขวา',-900,900)}{easyControl(layer,'y','ขึ้น–ลง',-1200,1200)}{layerKind(layer)!=='head'&&easyControl(layer,'rotation',layerKind(layer)==='collar'?'หมุนทั้งคู่':'หมุน',-180,180)}{layerKind(layer)==='collar'&&<><div className="easy-collar-side-tabs" role="group" aria-label="เลือกข้างเข็มปกคอ">{[['left','เข็มปกคอซ้าย'],['right','เข็มปกคอขวา']].map(([side,label])=><button type="button" key={side} aria-pressed={easyCollarSide===side} onClick={()=>setEasyCollarSide(side)}>{label}</button>)}</div>{easyCollarSide==='left'?<>{easyControl(layer,'collarLeftX','ซ้าย–ขวา',-900,900)}{easyControl(layer,'collarLeftY','ขึ้น–ลง',-1200,1200)}</>:<>{easyControl(layer,'collarRightX','ซ้าย–ขวา',-900,900)}{easyControl(layer,'collarRightY','ขึ้น–ลง',-1200,1200)}</>}</>}</>}</section>)}</EasyAdjustmentTabs>;
- const governmentInsigniaUi=<GovernmentInsigniaChooser collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} selected={Object.fromEntries(['collar','chest','ribbon'].map(kind=>[kind,layers.find(l=>layerKind(l)===kind)?.assetId||null]))} busy={!ready||blockingAssetBusy||processActive} onChoose={(kind,option)=>void selectAsset(kind,option,{governmentAutoPlace:true})} onClose={()=>setGovernmentPanelOpen(false)}/>;
+ const governmentInsigniaUi=<GovernmentInsigniaChooser collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} onRealDetails={realDetailEligible?()=>void applyRealUniformDetails():null} realDetailsActive={Boolean(governmentImageHead?.realUniformDetailsVersion)} selected={Object.fromEntries(['collar','chest','ribbon'].map(kind=>[kind,layers.find(l=>layerKind(l)===kind)?.assetId||null]))} busy={!ready||blockingAssetBusy||processActive} onChoose={(kind,option)=>void selectAsset(kind,option,{governmentAutoPlace:true})} onClose={()=>setGovernmentPanelOpen(false)}/>;
  // The finished-photo controls edit the EXACT Studio asset layer, so undo,
  // saved work and purchased PNG/PDF receive the same placement.
  const resultInsigniaUi=governmentResult&&insigniaForLanguage()
   ?<GovernmentInsigniaChooser quickResult placementReview={easyInsigniaNeedsReview} collarPins={collarPins} chestPins={chestPins} ribbons={ribbons}
-   selected={Object.fromEntries(['collar','chest','ribbon'].map(kind=>[kind,layers.find(l=>layerKind(l)===kind)?.assetId||null]))}
+   onRealDetails={realDetailEligible?()=>void applyRealUniformDetails():null} realDetailsActive={Boolean(governmentImageHead?.realUniformDetailsVersion)} selected={Object.fromEntries(['collar','chest','ribbon'].map(kind=>[kind,layers.find(l=>layerKind(l)===kind)?.assetId||null]))}
    busy={!ready||blockingAssetBusy||processActive}
    onChoose={(kind,option)=>void selectAsset(kind,option,{resultInsigniaDirect:true})}/>
   :null;
- const resultInsigniaHandles=governmentResult&&easyMode?layers.filter(l=>['collar','chest','ribbon'].includes(layerKind(l))&&l.visible&&!l.locked).flatMap(l=>{
+ const resultInsigniaHandles=governmentResult&&easyMode?layers.filter(l=>['collar','chest','ribbon','uniform-detail'].includes(layerKind(l))&&l.visible&&!l.locked).flatMap(l=>{
   const asset=assets.current.get(l.id);
   if(!asset)return [];
   // Collar pins are individually editable, matching Studio's left/right
   // native parts. The pair is never silently fused into one draggable block.
   const boxes=asset.parts&&!asset.warped?pinBoxes(l,asset).map(entry=>({id:'collar-'+entry.side,bounds:entry.box}))
-   :[{id:layerKind(l),bounds:getBounds(asset,asset.warped||asset.original)}];
+   :[{id:l.realUniformDetail?l.id:layerKind(l),bounds:getBounds(asset,asset.warped||asset.original)}];
   return boxes.flatMap(({id,bounds})=>{
    if(!bounds)return [];
    const corners=[{x:bounds.x,y:bounds.y},{x:bounds.x+bounds.w,y:bounds.y},{x:bounds.x,y:bounds.y+bounds.h},{x:bounds.x+bounds.w,y:bounds.y+bounds.h}].map(p=>layerToScene(l,p));
@@ -2019,14 +2085,14 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const resultInsigniaKind=id=>id==='collar-left'||id==='collar-right'?'collar':id;
  const resultInsigniaStart=id=>{
   if(!ready||blockingAssetBusy||processActive||!easyMode)return;
-  const layer=state.current.find(l=>layerKind(l)===resultInsigniaKind(id)&&l.visible&&!l.locked);
+  const layer=state.current.find(l=>(l.id===id||layerKind(l)===resultInsigniaKind(id))&&l.visible&&!l.locked);
   if(!layer)return;
   flushTransforms();remember();
   selectedRef.current=layer.id;setSelected(layer.id);
  };
  const resultInsigniaTransform=(id,{dx=0,dy=0,scaleRatio=1}={})=>{
   if(!ready||blockingAssetBusy||processActive||!easyMode)return;
-  const layer=state.current.find(l=>layerKind(l)===resultInsigniaKind(id)&&l.visible&&!l.locked);
+  const layer=state.current.find(l=>(l.id===id||layerKind(l)===resultInsigniaKind(id))&&l.visible&&!l.locked);
   if(!layer||![dx,dy,scaleRatio].every(Number.isFinite))return;
   const ratio=Math.max(.7,Math.min(1.3,scaleRatio));
   let updated;
