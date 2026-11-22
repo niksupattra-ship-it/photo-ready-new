@@ -101,7 +101,10 @@ test('real-face Makeup uses the actual required production audit before a single
  assert(calls.every(r=>r.prompt.includes('FINAL SINGLE SKIN-TO-COLLAR SEAM V5')&&!r.prompt.includes('including its folded band')&&r.prompt.indexOf('FINAL SINGLE SKIN-TO-COLLAR SEAM V5')>r.prompt.indexOf('ORIGINAL SINGLE SHIRT COLLAR')));
  assert(calls.every(r=>r.prompt.includes('ORIGINAL SINGLE SHIRT COLLAR')&&!r.prompt.includes('REMOVE both pointed shirt-collar flaps')&&r.prompt.includes('FINAL THAI AI GARMENT AND REAR-HAIR PRIORITY V4')));
  const original=await sharp(new URL('../public/assets/government-uniforms/female-operational.png',import.meta.url).pathname).png().toBuffer();
- assert.deepEqual(await sharp(calls[0].outfit).raw().toBuffer(),await sharp(original).raw().toBuffer(),'Send original real garment pixels, never the locally retouched derivative');
+ const {prepareThaiNecklineReference}=await import('../thai-neckline-reference.js');
+ const expected=await prepareThaiNecklineReference(original,fields);
+ assert.deepEqual(await sharp(calls[0].outfit).raw().toBuffer(),await sharp(expected).raw().toBuffer(),'Actual request uses the cleaned original neck-cutout reference');
+ assert(calls.every(r=>r.prompt.includes('REAL GARMENT NECK CUTOUT — CLEAN REFERENCE V6')));
  assert.equal(calls.length,2);assert(calls.every(r=>r.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&r.prompt.includes('original catchlight pattern')));
  const adapted=applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,fields);
  for(const request of [{prompt:adapted},{prompt:adapted,thaiRealFaceVersion:'unknown'},{prompt:adapted+'\n'+adapted,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:adapted+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION}])await assert.rejects(audit.requestPortrait(request),{code:'MAKEUP_POLICY_MISMATCH'});
