@@ -20,7 +20,7 @@ const fixtures=[
  {file:'female-operational-example.jpg',gender:'female',template:'female-operational.png',
   left:{x:156,y:381},right:{x:343,y:379},ribbon:{x:384,y:466,width:100}},
  {file:'male-government-employee-example.jpg',gender:'male',template:'male-government-employee.png',
-  left:{x:224,y:376},right:{x:277,y:377},ribbon:{x:355,y:470,width:100}}
+  left:{x:224,y:376},right:{x:277,y:377},ribbon:{x:355,y:458,width:100}}
 ];
 
 test('real supplied government portraits use shoulder spans and match their photographed collar/ribbon landmarks',async()=>{

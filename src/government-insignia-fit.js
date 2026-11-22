@@ -1,3 +1,4 @@
+import {measureMalePockets} from './male-uniform-seams.js';
 import {measureMaleStandingCollar,measureMaleChestLine} from './male-standing-collar.js';
 // The government insignia placement guide only runs on completed Thai photos.
 // Unlike the old gender-only preset, it measures the white jacket in the
@@ -506,16 +507,34 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   collar.y=(standing.y-frame.y)/frame.h;
   collar.bandTop=(Math.max(standing.top.left,standing.top.right)-frame.y)/frame.h;
   collar.bandBottom=(standing.bottom-frame.y)/frame.h;
+  collar.bandFill=.65;
+  if(standing.seams){
+   collar.bands=Object.fromEntries(['left','right'].map(side=>[side,{top:(standing.seams[side].top-frame.y)/frame.h,bottom:(standing.seams[side].bottom-frame.y)/frame.h}]));
+  }
  }
  const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width};
  const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};
  const breast=standing?measureMaleChestLine(image,standing,g):null;
  if(breast){
   chest.y=(breast.y-frame.y)/frame.h;
-  chest.height=.075;
+  chest.height=.092;
   ribbon.centerY=chest.y;
   // The top remains available to inspection/support and legacy callers.
   ribbon.top=chest.y-(g.width*ribbon.width*.28/2)/frame.h;
+ }
+
+
+ const pockets=breast?measureMalePockets(image,standing,breast,g):null;
+ if(pockets){
+  const pocketWidth=(pockets.left.width+pockets.right.width)/2;
+  chest.x=(pockets.left.x-frame.x)/frame.w;
+  chest.height=pockets.left.width*.35/frame.w;
+  ribbon.x=(pockets.right.x-frame.x)/frame.w;
+  ribbon.width=pockets.right.width*.84/frame.w;
+  const badgeHeight=Math.max(frame.w*chest.height,frame.w*ribbon.width*.28);
+  const level=Math.min(pockets.left.top,pockets.right.top)-pocketWidth*.10-badgeHeight/2;
+  chest.y=(level-frame.y)/frame.h;ribbon.centerY=chest.y;
+  ribbon.top=chest.y-frame.w*ribbon.width*.28/2/frame.h;
  }
 
  // Use shoulder width, not total photo width, for ALL accessory sizes.
@@ -551,10 +570,10 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   fabricSupport(points[2],chest.width,1.15),
   fabricSupport(points[3],ribbon.width,.36,true)];
  const known=Boolean(GOVERNMENT_TEMPLATE_ANCHORS[String(templatePath).split('?')[0]]);
- const needsReview=!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&(!standing||!breast));
+ const needsReview=!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&(!standing?.seams||!pockets));
  return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
   needsReview,collarType:type,
-  measuredShoulder:g,...(breast?{measuredChestLine:breast}:{}),...(standing?{measuredStandingCollar:standing}:{}),referenceGeometryVersion:'reference-shoulder-v1'};
+  measuredShoulder:g,...(pockets?{measuredPockets:pockets}:{}),...(breast?{measuredChestLine:breast}:{}),...(standing?{measuredStandingCollar:standing}:{}),referenceGeometryVersion:'reference-shoulder-v1'};
 }
 
 // Easy finished-photo picker: the supplied white female jacket and reference
