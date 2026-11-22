@@ -48,8 +48,8 @@ test('full portrait A to B to A restores the accepted pixels and job without AI,
  const original=new File(['unchanged upload'],'original.png',{type:'image/png'});
  const history=createStudioPortraitHairHistory(),scope='same-wallet',template='/assets/government-uniforms/female-operational.png';
  const version='current-pipeline',lock={templatePath:template},a=new Blob(['complete shoulders A']),b=new Blob(['complete shoulders B']);
- const cachedFullPortraitResult=(hair,mode,finish,selectedTemplate)=>history.find({source:original,scope,template:selectedTemplate,mode,hair,finish,version:JSON.stringify([version,'collar-v6','complete-garment-compact-hair-v1'])});
- history.remember({source:original,scope,template,mode:'female',hair:'seedream-14',finish:'makeup',version:JSON.stringify([version,'collar-v6','complete-garment-compact-hair-v1']),master:a,lock,jobId:'job-A'});
+ const cachedFullPortraitResult=(hair,mode,finish,selectedTemplate)=>history.find({source:original,scope,template:selectedTemplate,mode,hair,finish,version:JSON.stringify([version,'collar-v6','complete-garment-rear-hair-v2'])});
+ history.remember({source:original,scope,template,mode:'female',hair:'seedream-14',finish:'makeup',version:JSON.stringify([version,'collar-v6','complete-garment-rear-hair-v2']),master:a,lock,jobId:'job-A'});
  let requests=0,rendered=null;
  const env={cancellationStillUnwinding:()=>false,busy:false,hairBusy:false,studioPhotoTransactionRef:{current:false},setBusy(){},beginProgress(){},activeProcessOperation:{},portraitFinishChoice,firstUploadedPhotoRef:{current:original},cachedFullPortraitResult,verifyOutputRights:async()=>({checked:true,unlocked:false,fullEdit:false}),
  aiFinishPortrait:async file=>{assert.equal(file,original);requests++;return Object.assign(b,{idpromJobId:'job-B',idpromTrial:true})},finishFirstPortraitMaster:async value=>value,composePortrait:async()=>({lock}),renderAdjustedFinal:async(master,...args)=>{rendered=master;args.at(-1).push({name:'หัว · คอ · ผม',source:'data:image/png;base64,eA=='})},backgroundRef:{current:''},assertProcessActive(){},HAIR_DESIGN_VERSION:'current',femaleFinishMetadata:()=>({}),
