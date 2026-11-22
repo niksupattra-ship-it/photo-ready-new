@@ -1,3 +1,4 @@
+import {THAI_REAL_FACE_VERSION} from '../../thai-real-face-policy.js';
 import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS} from '../../hairstyle-catalog.js';
 import {THAI_FREE_FEMALE_SUIT_IDS,THAI_FREE_MALE_SUIT_PATHS} from '../../thai-female-suit-policy.js';
 import React from 'react';
@@ -67,7 +68,7 @@ createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!s
  initialSourcePhoto={originalFile}
  initialLayers={[
   {name:'พื้นหลัง',kind:'background',source:blue.toDataURL()},
-  ...(freshSuitTest?[{id:'fixture-original',name:'รูปต้นฉบับ',kind:'source-photo',source:head.toDataURL(),...(workPro?{jobId:'fixture-government'}:{})}]:[{id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:unpaid,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{})}]),
+  ...(freshSuitTest?[{id:'fixture-original',name:'รูปต้นฉบับ',kind:'source-photo',source:head.toDataURL(),...(workPro?{jobId:'fixture-government'}:{})}]:[{id:'fixture-head',name:'หัว · คอ · ผม',kind:'head',source:head.toDataURL(),jobId:'fixture-government',portraitMode:gender,generatedOutfitTemplate:template,restrictedTrial:unpaid,...(fullbody?{portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}:{}),...(query.get('fit')==='1'?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION,sourceFrame:{x:0,y:0,w:900,h:1200}}:{})}]),
   {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id},
   ...(staleNeck?[{id:'stale-neck',name:'คอเก่า',kind:'neck-fit',hairHeadId:'fixture-head',source:stalePatch.toDataURL(),sourceFrame:{x:400,y:frame.y+frame.h*.18,w:100,h:40}}]:[])
  ]}

@@ -42,4 +42,28 @@ with sync_playwright() as p:
   assert result['newBottomAlpha']==255;assert result['width']==900 and result['height']==1200
   print(json.dumps({'viewport':width,**result}))
   page.close()
+ for gender in ['female','male']:
+  page=b.new_page(viewport={'width':390,'height':1000})
+  page.goto(BASE+'/scripts/fixtures/government-result-insignia.html?fullbody=1&composition=narrow&fit=1&gender='+gender,wait_until='domcontentloaded')
+  count=5 if gender=='male' else 3
+  page.wait_for_function('(count)=>insigniaFixture.snapshot()?.layers.filter(l=>l.realUniformDetail).length===count',arg=count,timeout=30000)
+  result=page.evaluate('''async()=>{
+   const layers=insigniaFixture.snapshot().layers,head=layers.find(l=>l.kind==='head'),f=head.sourceFrame;
+   const im=new Image();im.src=head.source;await im.decode();
+   const c=Object.assign(document.createElement('canvas'),{width:900,height:1200}),x=c.getContext('2d');x.drawImage(im,f.x,f.y,f.w,f.h);
+   const alpha=(xx,yy)=>x.getImageData(xx,yy,1,1).data[3];
+   if(Math.min(alpha(0,1180),alpha(899,1180),alpha(450,1199))<250)throw Error('Stored coat must fill left, right and bottom');
+   if(head.scale!==1||head.rotation!==0)throw Error('Do not carry zoom into the next hairstyle');
+   const {prepareRealUniformDetails}=await import('/src/real-uniform-details-browser.js');
+   const original=await prepareRealUniformDetails({originalSource:head.realUniformOriginalSource,templatePath:insigniaFixture.template});
+   const details=layers.filter(l=>l.realUniformDetail);
+   for(let i=0;i<details.length;i++){
+    const a=details[i].sourceFrame,p=original.parts[i].frame;
+    if(Math.abs(a.x-(f.x+p.x*f.w/original.width))>.01||Math.abs(a.y-(f.y+p.y*f.h/original.height))>.01)throw Error('Native details lost alignment');
+   }
+   return {nativeParts:details.length,left:alpha(0,1180),right:alpha(899,1180),bottom:alpha(450,1199),aiCalls:insigniaFixture.aiCalls};
+  }''')
+  assert result['aiCalls']==0
+  print(json.dumps({'storedScene':gender,**result}))
+  page.close()
  b.close()
