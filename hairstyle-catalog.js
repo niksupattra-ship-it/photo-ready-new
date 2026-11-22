@@ -1,7 +1,9 @@
+import {englishProfessionalDefaultHair} from './english-auto-hair.js';
 import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './english-female-hair-catalog.js';
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
+ {id:'thai-male-auto',gender:'male',name:'ผมชายอัตโนมัติ',promptOnly:true,autoHair:'english-male',src:'/assets/seedream-hairstyles/previews/thai-male-auto.webp'},
   {
     "id": "seedream-40",
     "gender": "female",
@@ -174,6 +176,7 @@ export const PRODUCTION_HAIR_CATALOG=[
   },
   {
     "id": "seedream-35",
+    "hidden": true,
     "gender": "male",
     "name": "ทรงผม 1",
     "file": "35.png",
@@ -272,9 +275,10 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
 // Keep the old hidden reference in the catalog for previously saved work.
-export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-79']);
+export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-42','seedream-79']);
+export const THAI_FREE_MALE_HAIR_IDS=Object.freeze(['thai-male-auto','seedream-36','seedream-28']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
-export function firstGenerationHairFor(gender,thaiMale=false){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:gender==='male'&&thaiMale?'seedream-35':''}
+export function firstGenerationHairFor(gender,thaiMale=false){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:gender==='male'&&thaiMale?THAI_FREE_MALE_HAIR_IDS[0]:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
 const compact={
@@ -327,6 +331,7 @@ export function selectedHairDesign(selected){
  return pair?{kind:pair[0],description:pair[1],...(selected.id==='seedream-20'?{faceFraming:true}:{})}:{kind:selected.gender==='male'?'short':'long',description:longDesigns[selected.id]||'the exact parting, fringe, texture, silhouette and cut length in Image 2'};
 }
 export function selectedHairInstruction(selected){
+ if(selected?.autoHair==='english-male')return englishProfessionalDefaultHair('male');
  if(selected?.promptOnly){
   const design=selectedHairDesign(selected);
   if(!design)return '';

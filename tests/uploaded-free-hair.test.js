@@ -13,7 +13,7 @@ const binary=asset=>readFile(new URL('../public'+asset,import.meta.url));
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const uploaded=productionHair('seedream-79');
 test('uploaded sleek hair replaces only the third Thai free choice, is unique, and works on a paid 89 photo',()=>{
- assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-79']);
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-42','seedream-79']);
  assert.equal(PRODUCTION_HAIR_CATALOG.filter(h=>h.id===uploaded.id).length,1);
  assert(!uploaded.hidden);assert.equal(uploaded.gender,'female');
  assert.equal(selectedHairDesign(uploaded).kind,'gathered');

@@ -44,12 +44,12 @@ test('actual credit handler accepts continuing English free hairstyle with daily
  const last=server.indexOf('\nconst upload=multer(',first);
  assert.ok(first>=0&&last>first);
  const source=server.slice(first,last);
- const {PRODUCTION_HAIR_CATALOG,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR}=await import('../hairstyle-catalog.js');
+ const {PRODUCTION_HAIR_CATALOG,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR}=await import('../hairstyle-catalog.js');
  const {isEnglishStudioFreeHair}=await import('../src/english-studio-hair-policy.js');
  const calls={free:0,paid:0,thai:0};
  let premium=false;
  const deps={walletId:req=>req.wallet,isPrivateOwner:()=>false,hasPrivateTrial:()=>false,
-  PRODUCTION_HAIR_CATALOG,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR,isEnglishStudioFreeHair,
+  PRODUCTION_HAIR_CATALOG,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR,isEnglishStudioFreeHair,
   getWallet:async()=>premium?{usdPremiumPurchased:true,usdPremiumActive:true,usdPremiumRemaining:12}:{usdPremiumPurchased:false},
   accountPolicy:()=>({canGeneratePremiumHair:async()=>{calls.thai++;return false}}),
   reserveEnglishDailyAiOutfit:async()=>{calls.free++;return calls.free<=2?{usageId:'free_fixture'+calls.free,trialPreview:true}:null},
@@ -75,7 +75,7 @@ test('actual credit handler accepts continuing English free hairstyle with daily
  const beforeThai=calls.thai;
  for(const id of THAI_FREE_FEMALE_HAIR_IDS)assert.equal((await check(id,'th')).status,200,id+' retains Thai basic access without premium');
  assert.equal(calls.thai,beforeThai,'Thai basic hair never requires Diamond entitlement');
- for(const id of ['seedream-42','seedream-40','seedream-27','female-default-reference','seedream-43'])assert.equal((await check(id,'th')).body?.error,'premium_hair_required',id+' is Thai Diamond');
+ for(const id of ['seedream-16','seedream-40','seedream-27','female-default-reference','seedream-43'])assert.equal((await check(id,'th')).body?.error,'premium_hair_required',id+' is Thai Diamond');
  premium=true;
  assert.equal((await check('seedream-42')).status,200,'active USD Premium can use English Diamond');
  assert.equal(calls.paid,1);

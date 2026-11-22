@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE} from '../thai-basic-ai-policy.js';
-import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS} from '../hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS} from '../hairstyle-catalog.js';
 
 const template='/assets/government-uniforms/female-operational.png';
 test('89 allows exactly the six current free hairstyles, only with the paid garment',()=>{
  for(const hair of PRODUCTION_HAIR_CATALOG){
-  const expected=THAI_FREE_FEMALE_HAIR_IDS.includes(hair.id)||['seedream-28','seedream-35','seedream-36'].includes(hair.id);
+  const expected=THAI_FREE_FEMALE_HAIR_IDS.includes(hair.id)||THAI_FREE_MALE_HAIR_IDS.includes(hair.id);
   const body={hairId:hair.id,neckOutfitReferencePath:template};
   assert.equal(basicThaiHairRequestAllowed(body,'hairstyle',[template]),expected,hair.id);
   assert.equal(basicThaiHairRequestAllowed(body,'ai-finish',[template]),false);
@@ -21,7 +21,7 @@ test('89 allows exactly the six current free hairstyles, only with the paid garm
 const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
 function authorization({basic=true,bundle={owned:false}}={}){
  const events=[];
- const deps={crypto,downloadHairAllowed:()=>true,PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE,
+ const deps={crypto,downloadHairAllowed:()=>true,PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS,basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE,
   walletId:()=> 'wallet',isPrivateOwner:()=>false,reserveThaiWorkAi:async()=>bundle,
   downloadPolicy:{paidWorkForSource:async()=> 'photo',basicThaiAiWork:async(wallet,work)=>{events.push(['work',wallet,work]);return basic?{templates:[template]}:null}},
   accountPolicy:()=>({canGeneratePremiumHair:async()=>false}),isThaiPremiumJobSuit:()=>false,
@@ -36,7 +36,7 @@ test('actual server blocks new garments, diamond hair and full reprocessing befo
  for(const [body,kind] of [[{},'ai-finish'],[{neckOutfitReferencePath:'new.png'},'hairstyle'],[{hairId:'seedream-40'},'hairstyle'],[{neckOutfitReferencePath:'new.png',interfaceLanguage:'en'},'hairstyle']]){
   const {request,res,events}=authorization();assert.equal(await request(body,kind),null);assert.equal(res.statusCode,403);assert.equal(res.body.error,'thai_basic_free_hair_only');assert(!events.some(e=>e[0]==='trial'));
  }
- for(const hairId of [...THAI_FREE_FEMALE_HAIR_IDS,'seedream-28','seedream-35','seedream-36']){
+ for(const hairId of [...THAI_FREE_FEMALE_HAIR_IDS,...THAI_FREE_MALE_HAIR_IDS]){
   const {request,res}=authorization();const credit=await request({hairId});assert(credit.usageId.startsWith('free_'));assert.equal(res.statusCode,200);
  }
 });

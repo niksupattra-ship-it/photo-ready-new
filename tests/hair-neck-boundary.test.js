@@ -94,7 +94,7 @@ test('explicit compact cuts receive a final output gate with clear sides of the 
 
 test('archived female style 41 retains its AI reference after the uploaded gathered style replaces its free slot',async()=>{
  const {THAI_FREE_FEMALE_HAIR_IDS,selectedHairInstruction}=await import('../hairstyle-catalog.js');
- assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-79']);
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-42','seedream-79']);
  const style=productionHair('seedream-41');
  assert.equal(style?.name,'ทรงผมหญิง 2');
  assert.equal(style?.src,'/assets/seedream-hairstyles/previews/41.webp');

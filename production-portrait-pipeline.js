@@ -1,3 +1,4 @@
+import {englishProfessionalDefaultHair} from './english-auto-hair.js';
 import {thaiRearHairReference,THAI_REAR_HAIR_FINAL_POLICY} from './thai-rear-hair-reference.js';
 import {THAI_REAR_HAIR_SHORT_NECK_VERSION,usesThaiRearHairShortNeck,thaiRearHairShortNeckInstruction} from './thai-rear-hair-short-neck.js';
 import {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
@@ -213,7 +214,9 @@ function onePassMakeupPriority(english=false){
 }
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  fields=thaiOutfitGenerationFields(fields);
- const chosen=validateProductionPortrait(input,fields);
+ const requestedHair=validateProductionPortrait(input,fields);
+ const requestedMaleAuto=requestedHair?.autoHair==='english-male';
+ const chosen=requestedMaleAuto?null:requestedHair;
  // Preserve old paired Makeup quality: first build the same Natural base
  // internally, then return ONLY the user-selected Makeup PNG. The internal
  // base is not a second deliverable and does not trigger extra credits.
@@ -221,7 +224,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  if(fields.singlePassPortraitVersion&&!singlePass)throw Error('ตัวเลือกการประมวลผลครั้งเดียวไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  const selectedSingleMakeup=isFemaleSingleFinish(fields)&&fields.femaleEyeStyle==='makeup';
  if(selectedSingleMakeup&&!singlePass)fields={...fields,femaleEyeStyle:'natural'};
- const selected=chosen||{gender:fields.portraitMode};
+ const selected=chosen||{gender:requestedHair?.gender||fields.portraitMode};
  // Current English requests never enter the Thai preparation, head cutout,
  // skin-board or discarded Thai prompt construction below. Old queued jobs
  // retain their released route; Thai requests keep the same processing.
@@ -363,6 +366,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   if(fields.femaleEyeStyle==='makeup')prompt+=onePassMakeupPriority(false);
   prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,false);
  }
+ if(requestedMaleAuto)prompt+='\n'+englishProfessionalDefaultHair('male');
  // Last hair-only authority after cosmetics and hairstyle/default instructions.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
  if(singlePass&&fields.femaleEyeStyle==='makeup'&&selected.gender==='female')prompt+='\n'+FINAL_SELECTED_MAKEUP_DELIVERY_AUDIT;

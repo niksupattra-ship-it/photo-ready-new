@@ -9,7 +9,7 @@ parser.add_argument('--base-url',default='http://127.0.0.1:5173')
 parser.add_argument('--output-dir',default='/tmp/idprom-picker-guides')
 parser.add_argument('--ids',help='Comma-separated catalogue IDs; leave every other reviewed guide untouched.')
 args=parser.parse_args();out=Path(args.output_dir);out.mkdir(parents=True,exist_ok=True)
-rows=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {PRODUCTION_HAIR_CATALOG} from './hairstyle-catalog.js'; console.log(JSON.stringify(PRODUCTION_HAIR_CATALOG.map(h=>({...h,preview:h.src}))))"],cwd=ROOT,text=True))
+rows=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {PRODUCTION_HAIR_CATALOG} from './hairstyle-catalog.js'; console.log(JSON.stringify(PRODUCTION_HAIR_CATALOG.filter(h=>!h.promptOnly).map(h=>({...h,preview:h.src}))))"],cwd=ROOT,text=True))
 if args.ids:
  wanted=set(args.ids.split(','));rows=[row for row in rows if row['id'] in wanted]
  if {row['id'] for row in rows}!=wanted:raise ValueError('Unknown catalogue hair ID')

@@ -377,12 +377,12 @@ test('Thai Step 2 circular background choices use original Studio export layer w
 });
 
 test('Thai hairstyle picker replaces the previous free gathered choice with the uploaded sleek style once',async()=>{
- const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
+ const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
  const main=await read('src/main.jsx'),ui=await read('src/thai-mobile-journey.jsx');
  const menuStart=main.indexOf('const BASIC_MALE_HAIR_IDS='),menuEnd=main.indexOf('const JOB_UNIFORMS=[',menuStart);
  assert(menuStart>=0&&menuEnd>menuStart);
- const ordered=new Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_FEMALE_HAIR_IDS',main.slice(menuStart,menuEnd)+'return STUDIO_FEMALE_HAIR_OPTIONS;')(PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS);
- assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-79']);
+ const ordered=new Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_FEMALE_HAIR_IDS','THAI_FREE_MALE_HAIR_IDS',main.slice(menuStart,menuEnd)+'return STUDIO_FEMALE_HAIR_OPTIONS;')(PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS);
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-42','seedream-79']);
  assert.deepEqual(ordered.slice(0,3).map(h=>h.id),THAI_FREE_FEMALE_HAIR_IDS);
  assert.equal(ordered.filter(h=>h.id==='seedream-79').length,1,'Only one card for the uploaded style');
  assert(!ordered.some(h=>h.id==='seedream-41'),'Previous free style remains archived, not selectable');
@@ -398,7 +398,7 @@ test('Thai hairstyle picker replaces the previous free gathered choice with the 
 });
 test('uploaded free gathered style uses its own preview and both Thai access gates accept it without Diamond',async()=>{
  const {readFile:readBinary}=await import('node:fs/promises');
- const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
+ const {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
  const matching=PRODUCTION_HAIR_CATALOG.filter(h=>h.id==='seedream-79');
  assert.equal(matching.length,1);
  assert.equal(matching[0].name,'ผมรวบเรียบ');

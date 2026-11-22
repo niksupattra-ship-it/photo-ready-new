@@ -60,7 +60,7 @@ import {encodeSavedWorkRequest} from './saved-work-request.js';
 import {decodedStudioImage} from './studio-image-cache.js';
 import {fitHairMasterFrame} from './hair-master-frame.js';
 import {createStudioPortraitHairHistory} from './studio-portrait-hair-history.js';
-import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,isTrialHairAllowed,HAIR_DESIGN_VERSION,selectedHairDesign} from '../hairstyle-catalog.js';
+import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS,isTrialHairAllowed,HAIR_DESIGN_VERSION,selectedHairDesign} from '../hairstyle-catalog.js';
 import {ENGLISH_FEMALE_HAIR_CATALOG} from '../english-female-hair-catalog.js';
 import {ENGLISH_MALE_HAIR_CATALOG} from '../english-male-hair-catalog.js';
 import {orderEnglishStudioHair,englishStudioDiamondActive} from './english-studio-hair-policy.js';
@@ -2671,7 +2671,7 @@ async function portraitCompletionEvidence(blob,includeGarments=false,{includeHai
 const selectedHairEvidenceCache=new Map();
 async function selectedHairEvidence(hairId){
  const selected=PRODUCTION_HAIR_CATALOG.find(item=>item.id===hairId);
- if(!selected||selected.hidden)return null;
+ if(!selected||selected.hidden||selected.promptOnly)return null;
  const key=HAIR_DESIGN_VERSION+'|'+selected.src;
  if(!selectedHairEvidenceCache.has(key)){
   const pending=(async()=>{
@@ -3615,11 +3615,11 @@ const COLLAR_PIN_OPTIONS=[
  {id:'nacc-pair',name:'ป.ป.ช.',left:'/assets/government-insignia/nacc-left.png',right:'/assets/government-insignia/nacc-right.png'}
 ];
 const BACKGROUND_OPTIONS=[{id:'default',name:'พื้นหลังเดิม',src:'/assets/background.jpg'},{id:'light-blue',name:'ฟ้าอ่อน',src:'/assets/background-options/light-blue.jpg'},{id:'deep-blue',name:'ฟ้าเข้ม',src:'/assets/background-options/deep-blue.jpg'},{id:'white',name:'ขาว',src:'/assets/background-options/white.jpg'},{id:'periwinkle',name:'ฟ้าอมม่วง',src:'/assets/background-options/periwinkle.jpg'}];
-const BASIC_MALE_HAIR_IDS=['seedream-35','seedream-36','seedream-28'];
-const MALE_HAIR_OPTIONS=[...BASIC_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)).filter(Boolean),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&h.interfaceLanguage!=='en'&&!BASIC_MALE_HAIR_IDS.includes(h.id))];
+const BASIC_MALE_HAIR_IDS=THAI_FREE_MALE_HAIR_IDS;
+const MALE_HAIR_OPTIONS=[...BASIC_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)).filter(Boolean),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&!h.hidden&&h.interfaceLanguage!=='en'&&!BASIC_MALE_HAIR_IDS.includes(h.id))];
 const HAIR_OPTIONS=PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden&&h.interfaceLanguage!=='en');
 const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS;
-const PRIORITY_PREMIUM_FEMALE_HAIR_IDS=['seedream-23','seedream-25'];
+const PRIORITY_PREMIUM_FEMALE_HAIR_IDS=['seedream-16','seedream-23','seedream-25'];
 const REMOVED_FEMALE_HAIR_IDS=new Set(['hair-21','hair-25','seedream-19','seedream-01','seedream-38','hair-26','seedream-25','seedream-27']);
 const STUDIO_FEMALE_HAIR_OPTIONS=[...BASIC_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...PRIORITY_PREMIUM_FEMALE_HAIR_IDS.map(id=>HAIR_OPTIONS.find(h=>h.id===id)).filter(Boolean),...HAIR_OPTIONS.filter(h=>!BASIC_FEMALE_HAIR_IDS.includes(h.id)&&!PRIORITY_PREMIUM_FEMALE_HAIR_IDS.includes(h.id))].filter(h=>!REMOVED_FEMALE_HAIR_IDS.has(h.id));
 const JOB_UNIFORMS=[
