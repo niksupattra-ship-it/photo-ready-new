@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
@@ -32,17 +33,24 @@ test('real garment v2 preserves alpha and every visible pixel outside local inne
   const file=`/assets/government-uniforms/female-${name}.png`,derived=collarlessTemplatePath(file);
   assert.equal(thaiCollarlessOutfitPath({...base,thaiCollarlessVersion:THAI_COLLARLESS_PRIMARY_VERSION,neckOutfitReferencePath:file},file),derived);
   assert.equal(thaiCollarlessOutfitPath({...base,thaiOutfitAiVersion:undefined},file),file);
-  const a=await sharp(root+'public'+file).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-  const b=await sharp(root+'public'+derived).ensureAlpha().raw().toBuffer({resolveWithObject:true});
-  assert.equal(a.info.width,b.info.width);assert.equal(a.info.height,b.info.height);
-  let alphaChanges=0,outsideChanges=0,insideChanges=0;
-  for(let y=0;y<a.info.height;y++)for(let x=0;x<a.info.width;x++){
-   const i=(y*a.info.width+x)*4;if(a.data[i+3]!==b.data[i+3])alphaChanges++;
-   if(!a.data[i+3])continue;
-   const changed=[0,1,2].some(c=>a.data[i+c]!==b.data[i+c]);
-   if(changed){if(x<710||x>=1340||y<180||y>=941)outsideChanges++;else insideChanges++;}
+  // Current uploads may replace the live PNG; archived V2 must retain the
+  // photographed source from its creation, not be rebuilt from a newer file.
+  const baseline=JSON.parse(await readFile(root+'tests/fixtures/archived-collarless-v2-source.json','utf8')).entries[name];
+  const bytes=await readFile(root+'public'+derived),hash=data=>createHash('sha256').update(data).digest('hex');
+  assert.equal(hash(bytes),baseline.derivedSha256,name+' immutable archived asset');
+  const b=await sharp(bytes).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  assert.equal(b.info.width,baseline.width);assert.equal(b.info.height,baseline.height);
+  const alpha=Buffer.alloc(b.info.width*b.info.height),outside=Buffer.alloc(b.data.length),inside=Buffer.alloc(b.data.length);
+  let outer=0,inner=0;
+  for(let y=0;y<b.info.height;y++)for(let x=0;x<b.info.width;x++){
+   const pixel=y*b.info.width+x,i=pixel*4;alpha[pixel]=b.data[i+3];
+   if(!b.data[i+3])continue;
+   if(x<710||x>=1340||y<180||y>=941){for(let c=0;c<3;c++)outside[outer++]=b.data[i+c]}
+   else {for(let c=0;c<3;c++)inside[inner++]=b.data[i+c]}
   }
-  assert.equal(alphaChanges,0,name+' alpha');assert.equal(outsideChanges,0,name+' real insignia and cloth');assert(insideChanges>10000);
+  assert.equal(hash(alpha),baseline.alphaSha256,name+' original alpha');
+  assert.equal(hash(outside.subarray(0,outer)),baseline.outsideVisibleRgbSha256,name+' original insignia and fabric');
+  assert.notEqual(hash(inside.subarray(0,inner)),baseline.insideVisibleRgbSha256,name+' edited inner collar');
   const details=await createEnglishOutfitDetailReference(await readFile(root+'public'+derived));
   const extended=await addThaiCollarlessReference(details,'/nonexistent-no-generated-guide',await readFile(root+'public'+derived));
   assert.equal((await sharp(extended).metadata()).width,2304);

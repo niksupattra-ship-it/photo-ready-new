@@ -1,0 +1,47 @@
+{
+  "sourceCommit": "113aa16efaf7943396a6d34dc59cc1c631eec4eb",
+  "region": {
+    "left": 710,
+    "right": 1340,
+    "top": 180,
+    "bottom": 941
+  },
+  "entries": {
+    "operational": {
+      "width": 2048,
+      "height": 1731,
+      "sourceSha256": "da6e11aed4e9043e013a908f6d2a43e6bd67cd16062b841a5353c2f1fb60804c",
+      "derivedSha256": "2d85ba1f5ac29d30c329f426af132c12342fa017e4014990de912ebeacb90ad6",
+      "alphaSha256": "0b62f4b675242cb0dc18f18bea16cdbe6dd36b39b64b3a95c1e9f3c2f9913b47",
+      "outsideVisibleRgbSha256": "15e56c2bedd24a4040f834852552349c570be73eab33c58c93bdf6dfbdf74682",
+      "insideVisibleRgbSha256": "a3b93deee2af22f80630880ca8da0f13de542d47c8b9d061fd341afd6f5e6597"
+    },
+    "academic": {
+      "width": 2048,
+      "height": 1731,
+      "sourceSha256": "2b9a923231061168be92023709c07fafa527463131c54969a40a5ee118d846b9",
+      "derivedSha256": "854f9cc10fe08459be5c00a49784399221c5aee44212e2ca8ffe0dabf5b7a7e9",
+      "alphaSha256": "a2c5a95f515e85bb143dd8aa016724f52418ab1655e4c84a29dc50da8420cd52",
+      "outsideVisibleRgbSha256": "00619e3d0b037adba4909f729e65f4653856242a63472c886e054f9bbbc49cf1",
+      "insideVisibleRgbSha256": "f79531db230d43fbea880fb17fec764b950fc13074a9b03ea6053172442f150f"
+    },
+    "senior": {
+      "width": 2048,
+      "height": 1731,
+      "sourceSha256": "59039a5e387a87d2825f73f6f83f51bf77182222f300ee32ef36eed837304b21",
+      "derivedSha256": "56b0dda004463a892ac430ba07d076d6fa349e75a05a379a49055239cd7c8010",
+      "alphaSha256": "6dc3e5b90b81d48467f9f4bfa38a0fab8b082f758db4c9ee7ac74fab4544e3cc",
+      "outsideVisibleRgbSha256": "0bf88d7ff0c663434ea33e32d948a0f888e4ffcd1dbc9cb49d5b8f00e9f730c9",
+      "insideVisibleRgbSha256": "eb52caf941eab36c1d1af9b07af63ca4413a36470d934dbc315e19d6980287b4"
+    },
+    "government-employee": {
+      "width": 2048,
+      "height": 1731,
+      "sourceSha256": "f0ba8a0364670db19434fb8123757e974936539daa76557a738d2915dcbedf95",
+      "derivedSha256": "b0ec5b06b34db6acaa6c29ed22e8b2c72269a50308424dffc21cf94b5e874482",
+      "alphaSha256": "dd3c1bb6d4b1df2a61fa33055cc5abeb98bd556dfd69cef31718e45b2aa6390b",
+      "outsideVisibleRgbSha256": "040e88acf31cf44448cc7cb86a7e7f1cdaefd790879b634f1521abf8eeec4fd5",
+      "insideVisibleRgbSha256": "0dda0198f8f23b6adafc5d8b6df8ab60b990f53d368989d2c4753d0cb7447a03"
+    }
+  }
+}
