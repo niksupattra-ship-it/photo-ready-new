@@ -820,3 +820,19 @@ test('all Thai Easy government outfits adapt insignia sizes to narrow, broad and
  assert(assetCode.includes('w=frame.w*v.width,h=w*c.height/c.width'),'Native artwork must retain its exact pixel aspect');
  assert(assetCode.includes('const frames=[left,right].map'),'Native collar pin pair remains separate');
 });
+
+test('Thai full-outfit previews are unlimited, watermarked and never spend paid credits',async()=>{
+ const store=await readFile(root+'payment-store.js','utf8');
+ const begin=store.indexOf('export async function thaiDailyOutfitAiAccess('),end=store.indexOf('const THAI_DAILY_AI_LIMIT=',begin);
+ let reservations=0;
+ const deps={getWallet:async id=>id==='wallet'?{id}:null,reserveTrialPreview:async()=>({usageId:'free_test_'+(++reservations),trialPreview:true,freeGeneration:true,unlimitedGeneration:true,generationRemaining:0,hairRemaining:0})};
+ const functions=Function('deps','with(deps){'+store.slice(begin,end).replaceAll('export async function','async function')+';return {thaiDailyOutfitAiAccess,reserveThaiDailyOutfitAi}}')(deps);
+ assert.equal((await functions.thaiDailyOutfitAiAccess('wallet')).unlimited,true);
+ for(let i=0;i<30;i++){const r=await functions.reserveThaiDailyOutfitAi('wallet');assert.equal(r.trialPreview,true);assert.equal(r.unlimited,true);assert.equal(r.generationRemaining,0);assert.equal(r.hairRemaining,0);assert(r.usageId.startsWith('free_'))}
+ assert.equal(await functions.reserveThaiDailyOutfitAi('missing'),null);
+ assert.equal((await functions.thaiDailyOutfitAiAccess('missing')).allowed,false);
+ const server=await readFile(root+'server.js','utf8'),a=server.indexOf('async function requireCredit(req,res,kind){'),b=server.indexOf('\nconst upload=multer(',a);
+ const run=Function('deps','with(deps){'+server.slice(a,b)+';return requireCredit}')({...deps,crypto,walletId:()=> 'wallet',isPrivateOwner:()=>false,downloadHairAllowed:()=>true,PRODUCTION_HAIR_CATALOG:[{id:'seedream-14',gender:'female'}],THAI_FREE_FEMALE_HAIR_IDS:['seedream-14'],accountPolicy:()=>{throw Error('No paid credit spending')},...functions});
+ for(let i=0;i<5;i++){const result=await run({body:{hairId:'seedream-14',interfaceLanguage:'th',thaiOutfitAiVersion:'th-full-outfit-ai-v1'},get:()=>''},{status(){throw Error('Unlimited preview rejected')}},'ai-finish');assert.equal(result.trialPreview,true)}
+ assert(!server.includes('thai_outfit_ai_daily_limit'));
+});

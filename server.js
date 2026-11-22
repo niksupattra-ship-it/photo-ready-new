@@ -280,11 +280,10 @@ async function requireCredit(req,res,kind){
     res.status(403).json({error:'premium_hair_required',message:'Choose a 30-day package to unlock Diamond hairstyles.'});return null;
    }
    if(!englishRequest&&chosen&&((chosen.gender==='female'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(chosen.id))||(chosen.gender==='male'&&![28,36].includes(Number(chosen.id.slice(9)))))&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_hair_required',message:'ทรงเพชรปลดล็อกด้วยโปร 159 บาท หรือใช้ได้ขณะที่ยังมีสิทธิ์ดาวน์โหลดโปร 159 เหลืออยู่'});return null}
-   // Thai complete-outfit AI has its own two-per-Bangkok-day quota.
-   // Ordinary Thai hair/photo generations keep their existing free policy.
+   // Thai complete-outfit previews are unlimited and remain watermarked.
    if(req.body?.thaiOutfitAiVersion==='th-full-outfit-ai-v1'&&!englishRequest){
     const daily=await reserveThaiDailyOutfitAi(wid);
-    if(!daily){res.status(402).json({error:'thai_outfit_ai_daily_limit',message:'ใช้สิทธิ์เปลี่ยนชุดด้วย AI ฟรีครบ 2 ครั้งวันนี้แล้ว กรุณาลองใหม่วันพรุ่งนี้'});return null}
+    if(!daily){res.status(402).json({error:'wallet_required',message:'กรุณารีเฟรชหน้าแล้วลองใหม่'});return null}
     return daily;
    }
    // Purchased English Premium continues using its existing 20-credit cycle.
@@ -426,7 +425,7 @@ app.post("/api/hairstyle/edit",upload.single("image"),async(req,res)=>{
  }
 });
 
-// Read-only Thai AI outfit quota; regular hairstyle and manual PNG routes never spend it.
+// Read-only eligibility for unlimited Thai watermarked AI outfit previews.
 app.get('/api/thai-outfit-ai/access',async(req,res)=>{
  try{
   const wid=walletId(req);
