@@ -1,3 +1,4 @@
+import {measureMaleStandingCollar} from './male-standing-collar.js';
 // The government insignia placement guide only runs on completed Thai photos.
 // Unlike the old gender-only preset, it measures the white jacket in the
 // actual rendered result. A low-confidence scan must not invent coordinates.
@@ -498,6 +499,14 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   left:posX(ref.collar.left),right:posX(ref.collar.right),
   y:posY(ref.collar.down),width:ref.collar.width
  };
+ const standing=male&&type==='stand'?measureMaleStandingCollar(image,g):null;
+ if(standing){
+  collar.left=(standing.left.x-frame.x)/frame.w;
+  collar.right=(standing.right.x-frame.x)/frame.w;
+  collar.y=(standing.y-frame.y)/frame.h;
+  collar.bandTop=(Math.max(standing.top.left,standing.top.right)-frame.y)/frame.h;
+  collar.bandBottom=(standing.bottom-frame.y)/frame.h;
+ }
  const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width};
  const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};
  // Use shoulder width, not total photo width, for ALL accessory sizes.
@@ -533,10 +542,10 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   fabricSupport(points[2],chest.width,1.15),
   fabricSupport(points[3],ribbon.width,.36,true)];
  const known=Boolean(GOVERNMENT_TEMPLATE_ANCHORS[String(templatePath).split('?')[0]]);
- const needsReview=!known||!g.stable||support.some(value=>value<.84);
+ const needsReview=!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&!standing);
  return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
   needsReview,collarType:type,
-  measuredShoulder:g,referenceGeometryVersion:'reference-shoulder-v1'};
+  measuredShoulder:g,...(standing?{measuredStandingCollar:standing}:{}),referenceGeometryVersion:'reference-shoulder-v1'};
 }
 
 // Easy finished-photo picker: the supplied white female jacket and reference
