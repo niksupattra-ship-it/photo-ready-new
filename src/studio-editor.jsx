@@ -1258,7 +1258,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(automatic&&(head.realUniformDetailsVersion===REAL_UNIFORM_DETAILS_VERSION||realDetailSkip.current.has(key)))return;
   if(assets.current.get(head.id)?.warped||head.warpSource){if(!automatic)setStatus('ย้อนการบิดภาพก่อนวางรายละเอียดชุดจริง');return}
   const scope=outputScopeRef.current,previous=historySnapshot(),source=head.realUniformOriginalSource||head.source;
-  const current=()=>mounted.current&&outputScopeRef.current===scope&&state.current.some(l=>l.id===head.id&&l.jobId===head.jobId&&l.source===head.source);
+  const current=()=>mounted.current&&outputScopeRef.current===scope&&state.current.some(l=>l===head);
   const detailOperation={scope};realDetailBusy.current=detailOperation;realDetailSkip.current.add(key);setAssetBusy(true);
   try{
    let next;
