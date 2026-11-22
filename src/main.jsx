@@ -5529,7 +5529,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const entry=rememberHairResult(id,master,mode,finishStyle);entry.confirmed=true;
   if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
    const template=head.generatedOutfitTemplate||editCache.current?.lock?.templatePath;
-   if(template)fullPortraitHairHistoryRef.current.remember({source,scope:hairResultScope(),template,mode,hair:id||'',finish:finishStyle,version:JSON.stringify([hairResultKey(id,mode,finishStyle,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2']),master,lock:editCache.current.lock,jobId:head.jobId,isTrial:entry.isTrial,femaleFinishSingleVersion:head.femaleFinishSingleVersion,qualityReviewNeeded:head.qualityReviewNeeded});
+   if(template)fullPortraitHairHistoryRef.current.remember({source,scope:hairResultScope(),template,mode,hair:id||'',finish:finishStyle,version:JSON.stringify([hairResultKey(id,mode,finishStyle,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2',THAI_REAR_HAIR_SHORT_NECK_VERSION]),master,lock:editCache.current.lock,jobId:head.jobId,isTrial:entry.isTrial,femaleFinishSingleVersion:head.femaleFinishSingleVersion,qualityReviewNeeded:head.qualityReviewNeeded});
   }
 
  };
@@ -5555,7 +5555,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const finish=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
   return fullPortraitHairHistoryRef.current.find({
    source,scope:hairResultScope(),template:template||editCache.current?.lock?.templatePath||activeUniformTemplate||'',
-   mode,hair:id||'',finish,version:JSON.stringify([hairResultKey(id,mode,finish,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2'])
+   mode,hair:id||'',finish,version:JSON.stringify([hairResultKey(id,mode,finish,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2',THAI_REAR_HAIR_SHORT_NECK_VERSION])
   });
  };
  const canReuseHair=(id,portraitMode,femaleEyeStyle,template)=>{
@@ -6080,7 +6080,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     fullPortraitHairHistoryRef.current.remember({
      source:file,scope:hairResultScope(),template,mode:portraitMode,
      hair:selectedHair||'',finish:femaleEyeStyle,
-     version:JSON.stringify([hairResultKey(selectedHair,portraitMode,femaleEyeStyle,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2']),
+     version:JSON.stringify([hairResultKey(selectedHair,portraitMode,femaleEyeStyle,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2',THAI_REAR_HAIR_SHORT_NECK_VERSION]),
      master,lock:composed.lock,jobId,isTrial,
      fullEdit:Boolean(aiHead.idpromFullEdit),
      femaleFinishSingleVersion:aiHead.idpromFemaleFinishSingleVersion,
