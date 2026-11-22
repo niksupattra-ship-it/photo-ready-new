@@ -21,8 +21,14 @@ async function cropped(src){
 }
 async function buildNativeAsset(kind,option,frame,preset,maxDensity=2){
  if(kind==='suit'||kind==='background'){const im=await load(kind==='suit'?option.template:option.src);const source=make(im.naturalWidth||im.width,im.naturalHeight||im.height);source.getContext('2d').drawImage(im,0,0);return {source,sourceFrame:kind==='suit'?frame:{x:0,y:0,w:900,h:1200},collarParts:null}}
- if(['chest','collar','ribbon'].includes(kind)&&Number.isFinite(option.sizeScale)&&option.sizeScale>0)preset={...preset,[kind]:{...preset[kind],width:preset[kind].width*option.sizeScale}};
- if(kind==='chest'||kind==='ribbon'){const c=await cropped(option.src),v=preset[kind],w=frame.w*v.width,h=w*c.height/c.width;return {source:c,sourceFrame:{x:frame.x+frame.w*v.x-w/2,y:frame.y+frame.h*(kind==='ribbon'?v.top:v.y)-(kind==='ribbon'?0:h/2),w,h},collarParts:null}}
+ if(['chest','collar','ribbon'].includes(kind)&&!Number.isFinite(preset[kind]?.height)&&Number.isFinite(option.sizeScale)&&option.sizeScale>0)preset={...preset,[kind]:{...preset[kind],width:preset[kind].width*option.sizeScale}};
+ if(kind==='chest'||kind==='ribbon'){
+  const c=await cropped(option.src),v=preset[kind];
+  let w=frame.w*v.width,h=w*c.height/c.width;
+  if(Number.isFinite(v.height)){h=frame.w*v.height;w=h*c.width/c.height}
+  const centered=kind==='chest'||Number.isFinite(v.centerY),y=kind==='chest'?v.y:(v.centerY??v.top);
+  return {source:c,sourceFrame:{x:frame.x+frame.w*v.x-w/2,y:frame.y+frame.h*y-(centered?h/2:0),w,h},collarParts:null};
+ }
  const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar;
  let w=frame.w*v.width,y=frame.y+frame.h*v.y;
  if(Number.isFinite(v.bandTop)&&Number.isFinite(v.bandBottom)&&v.bandBottom>v.bandTop){

@@ -1,3 +1,4 @@
+import {detectUniformDetails} from './real-uniform-details.js';
 // Actual standing-collar fabric and first placket button, never face landmarks.
 // Read-only measurement; white/gold source pixels are not edited.
 export function measureMaleStandingCollar(image,shoulders){
@@ -31,10 +32,35 @@ export function measureMaleStandingCollar(image,shoulders){
   }
   return null;
  };
- const leftX=button.x-span*.060,rightX=button.x+span*.060;
+ const leftX=button.x-span*.0575,rightX=button.x+span*.0575;
  const leftTop=topAt(leftX),rightTop=topAt(rightX),bottom=button.y-button.h*.55;
  if(leftTop===null||rightTop===null||Math.abs(leftTop-rightTop)>span*.04)return null;
  if([leftTop,rightTop].some(top=>bottom-top<span*.035||bottom-top>span*.22))return null;
  const leftY=leftTop+(bottom-leftTop)*.45,rightY=rightTop+(bottom-rightTop)*.45;
  return {left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:Math.max(leftTop,rightTop)+(bottom-Math.max(leftTop,rightTop))*.48,button,bottom,top:{left:leftTop,right:rightTop},confidence:'standing-collar-fabric-button'};
+}
+
+// Approved male portrait: breast emblems share a level 56% of the distance
+// from the first placket button to the next, above both pocket flaps.
+export function measureMaleChestLine(image,standing,shoulders){
+ if(!standing||!shoulders)return null;
+ // The displayed/export canvas may be 2x the logical scene. Measure a
+ // bounded read-only sample and convert every landmark back to its own pixels.
+ const factor=Math.min(1,900/image.width,1600/image.height);
+ let sample=image;
+ if(factor<1){
+  const width=Math.round(image.width*factor),height=Math.round(image.height*factor),data=new Uint8ClampedArray(width*height*4);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+   const i=(Math.min(image.height-1,Math.floor(y/factor))*image.width+Math.min(image.width-1,Math.floor(x/factor)))*4;
+   data.set(image.data.subarray(i,i+4),(y*width+x)*4);
+  }
+  sample={data,width,height};
+ }
+ const details=detectUniformDetails(sample);if(!details)return null;
+ const buttons=details.buttons.map(b=>({...b,cx:b.cx/factor,cy:b.cy/factor}));
+ const first=buttons.find(b=>Math.abs(b.cy-standing.button.y)<shoulders.width*.035);
+ if(!first)return null;
+ const second=buttons.find(b=>b.cy>first.cy+shoulders.width*.12&&b.cy<first.cy+shoulders.width*.35);
+ if(!second||Math.abs(second.cx-first.cx)>shoulders.width*.035)return null;
+ return {y:first.cy+(second.cy-first.cy)*.56,first:first.cy,second:second.cy,confidence:'male-placket-reference'};
 }

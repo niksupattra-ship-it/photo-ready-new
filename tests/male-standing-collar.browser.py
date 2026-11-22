@@ -9,7 +9,7 @@ with sync_playwright() as p:
   page.goto(BASE+'/scripts/fixtures/government-result-insignia.html?fullbody=1&gender=male',wait_until='domcontentloaded')
   page.wait_for_function('insigniaFixture.snapshot()?.layers.filter(l=>l.realUniformDetail).length===5',timeout=30000)
   original=page.evaluate('insigniaFixture.snapshot().layers.find(l=>l.kind==="head").source')
-  fit=page.evaluate('''async()=>{const {governmentReferenceLandmarkFit}=await import('/src/government-insignia-fit.js');const c=insigniaCanvas(),fit=governmentReferenceLandmarkFit(c.getContext('2d').getImageData(0,0,c.width,c.height),'male',insigniaFixture.template);if(!fit?.measuredStandingCollar)throw Error('Actual native button must be measurable');return {y:(fit.frame.y+fit.frame.h*fit.preset.collar.y)/c.height*1200,button:fit.measuredStandingCollar.button.y/c.height*1200}}''')
+  fit=page.evaluate('''async()=>{const {governmentReferenceLandmarkFit}=await import('/src/government-insignia-fit.js');const c=insigniaCanvas(),fit=governmentReferenceLandmarkFit(c.getContext('2d').getImageData(0,0,c.width,c.height),'male',insigniaFixture.template);if(!fit?.measuredStandingCollar)throw Error('Actual native button must be measurable');return {y:(fit.frame.y+fit.frame.h*fit.preset.collar.y)/c.height*1200,button:fit.measuredStandingCollar.button.y/c.height*1200,breastY:fit.measuredChestLine.y/c.height*1200,span:fit.frame.w/c.width*900}}''')
   # Mobile initially shows the compact result toolbar rather than a panel.
   if width<600:page.get_by_role('button',name='เครื่องหมาย',exact=True).click()
   page.get_by_role('button',name='มท.',exact=True).click()
@@ -20,8 +20,24 @@ with sync_playwright() as p:
   assert page.evaluate('insigniaFixture.snapshot().layers.find(l=>l.kind==="head").source')==original
   narrow=page.evaluate('''async()=>{const {nativeAsset}=await import('/src/studio-source.js');const a=await nativeAsset('collar',{left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},{x:0,y:0,w:900,h:1200},{collar:{left:.45,right:.55,y:.501,width:.06,bandTop:.5,bandBottom:.517}});const c=a.source,px=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let top=c.height,bottom=0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(px[(y*c.width+x)*4+3]>8){top=Math.min(top,y);bottom=Math.max(bottom,y)}return {top:a.sourceFrame.y+top/c.height*a.sourceFrame.h,bottom:a.sourceFrame.y+(bottom+1)/c.height*a.sourceFrame.h}}''')
   assert narrow['top']>=599 and narrow['bottom']<=621.5,narrow
+  # All breast emblems must share the approved placket-derived level. Native
+  # artwork keeps its aspect and round emblems must not inherit female boosts.
+  page.get_by_label('ประเภทเครื่องหมาย',exact=True).get_by_role('button',name='เข็มติดอก',exact=True).click()
+  page.get_by_role('button',name='อบต.',exact=True).click()
+  page.wait_for_function('insigniaFixture.snapshot().layers.some(l=>l.kind==="chest")')
+  page.get_by_label('ประเภทเครื่องหมาย',exact=True).get_by_role('button',name='แพรแถบ',exact=True).click()
+  page.get_by_role('button',name='2515',exact=True).click()
+  page.wait_for_function('insigniaFixture.snapshot().layers.some(l=>l.kind==="ribbon")')
+  breast=page.evaluate('''()=>{
+   const layers=insigniaFixture.snapshot().layers,chest=layers.find(l=>l.kind==='chest').sourceFrame,ribbon=layers.find(l=>l.kind==='ribbon').sourceFrame;
+   return {chestY:chest.y+chest.h/2,ribbonY:ribbon.y+ribbon.h/2,chestH:chest.h,ribbonW:ribbon.w};
+  }''')
+  assert abs(breast['chestY']-fit['breastY'])<1
+  assert abs(breast['ribbonY']-fit['breastY'])<1
+  assert abs(breast['chestH']-fit['span']*.075)<1
+  assert abs(breast['ribbonW']-fit['span']*.230)<1
   assert page.evaluate('insigniaFixture.aiCalls')==0
   assert not errors,errors
-  print(json.dumps({'width':width,'standingCollarMeasured':True,'expectedY':fit['y'],'placedY':placed['y'],'nativeSourceUnchanged':True,'aiCalls':0}))
+  print(json.dumps({'width':width,'standingCollarMeasured':True,'expectedY':fit['y'],'placedY':placed['y'],'nativeSourceUnchanged':True,'breast':breast,'aiCalls':0}))
   page.close()
  b.close()
