@@ -481,7 +481,8 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  useEffect(()=>attachPaidBeforeUnload(hasDownloadExitRight),[hasDownloadExitRight]);
  const visibleProcessRemaining=typeof processRemaining==='number'&&!hasCredits&&paidSessionOutput?0:processRemaining;
  const canChooseHair=state.current.some(l=>l.name==='หัว · คอ · ผม')||trialUnlocked||hasCredits||(allOptionsAvailable&&!paidSessionOutput);
- const canRestoreHair=(id,mode=hairGender,finish)=>{const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');return !processHairPending&&!state.current.some(l=>l.id===sourceLayerRef.current)&&canReuseHair(id,mode,portraitFinishChoice(finish,head?.femaleEyeStyle,head?.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle),state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head?.generatedOutfitTemplate)};
+ const hairOutfitReference=head=>{const right=verifiedJobs[head?.jobId];return right?.basicFreeHairOnly?(right.basicAiOutfitTemplates?.includes(head?.generatedOutfitTemplate)?head.generatedOutfitTemplate:right.basicAiOutfitTemplates?.[0]??head?.generatedOutfitTemplate??''):(state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head?.generatedOutfitTemplate||'')};
+ const canRestoreHair=(id,mode=hairGender,finish)=>{const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');return !processHairPending&&!state.current.some(l=>l.id===sourceLayerRef.current)&&canReuseHair(id,mode,portraitFinishChoice(finish,head?.femaleEyeStyle,head?.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle),hairOutfitReference(head))};
  const hasFreeHair=head=>Boolean(head&&(head.freeHairBaseOriginal===true||isFreeFemaleHair(head.hairId)||state.current.some(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId))));
  const freeHairAllowed=head=>Boolean(head?.jobId&&(head.portraitMode||portraitMode)==='female'&&hairGender==='female'&&!processHairPending&&!state.current.some(l=>l.id===sourceLayerRef.current)&&(!head.hairId||head.hairId==='original'||(isFreeFemaleHair(head.hairId)&&head.freeHairBaseOriginal===true&&head.freeHairSourceJobId===head.jobId))&&!state.current.some(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&!isFreeFemaleHair(l.hairId))&&(!head.freeHairBaseOriginal||(head.freeHairSourceJobId===head.jobId&&typeof head.hairOriginalSource==='string')));
  const showFreeHairNotice=()=>{setAppearanceError(null);setStatus(FREE_FEMALE_HAIR_MESSAGE);setSavePopup({state:'info',title:'ทรงผมปรับแต่งเอง',message:FREE_FEMALE_HAIR_MESSAGE})};
@@ -1856,7 +1857,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   }
   setAssetBusy(true);setStatus(reused?'กำลังแสดงภาพที่เคยสร้างไว้…':appearanceKind==='makeup'?'กำลังสร้างภาพ'+(finish!=='natural'?'แต่งหน้า':'ไม่แต่งหน้า')+'…':'กำลังเปลี่ยนทรงผม ปรับผิว และเก็บขอบ…');
   try{
-   const result=stagedResult=localFinish?await onLocalPortraitFinish(cleanHead,finish,{isCurrent:localCurrent}):await onChangeHair(id,mode,finish,state.current.find(l=>layerKind(l)==='suit')?.templatePath||placementRef.current?.templatePath||head.generatedOutfitTemplate||'',{restoreOnly});
+   const result=stagedResult=localFinish?await onLocalPortraitFinish(cleanHead,finish,{isCurrent:localCurrent}):await onChangeHair(id,mode,finish,hairOutfitReference(head),{restoreOnly});
    reused=result?.reused===true;
    assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');

@@ -70,3 +70,14 @@ test('both Studio create actions reject a verified 89 work, manual PNG selection
  }
  assert(!editor.slice(editor.indexOf(' const selectAsset='),editor.indexOf('  const target=',editor.indexOf(' const selectAsset='))).includes('basicFreeHairOnly'));
 });
+test('free hair uses the paid garment even after a different manual PNG is selected, and cache lookup shares that reference',async()=>{
+ const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const helper=editor.split('\n').find(l=>l.trim().startsWith('const hairOutfitReference='));assert(helper);
+ const head={jobId:'paid',generatedOutfitTemplate:template};
+ const env={verifiedJobs:{paid:{basicFreeHairOnly:true,basicAiOutfitTemplates:[template]}},state:{current:[{kind:'suit',templatePath:'/manual.png'}]},layerKind:l=>l.kind,placementRef:{current:{templatePath:'/manual.png'}}};
+ const run=Function('env','with(env){'+helper+';return hairOutfitReference}')(env);
+ assert.equal(run(head),template);
+ assert.equal(run({...head,generatedOutfitTemplate:'/unproven.png'}),template);
+ env.verifiedJobs={};assert.equal(run(head),'/manual.png');
+ const cacheLine=editor.split('\n').find(l=>l.trim().startsWith('const canRestoreHair='));assert(cacheLine.includes('hairOutfitReference(head)'));
+});

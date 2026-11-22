@@ -757,7 +757,7 @@ app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-st
  // Account-wide owner/private access is not a paid grant for this work.
  const paidDownload=await downloadPolicy.allowed(wid,req.params.id,options);
  const basic=await downloadPolicy.basicThaiAiWork(wid,await downloadPolicy.scopeForJob(wid,req.params.id));
- res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id),paidDownload,basicFreeHairOnly:Boolean(basic)});
+ res.json({unlocked,fullEdit:unlocked,premiumHair:await policy.premiumHair(wid,req.params.id),paidDownload,basicFreeHairOnly:Boolean(basic),basicAiOutfitTemplates:basic?.templates||[]});
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});

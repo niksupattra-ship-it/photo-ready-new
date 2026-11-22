@@ -76,7 +76,7 @@ createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!s
  femaleHair={(freshSuitTest||basic89)?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
  paidOutputIds={unpaid?[]:['fixture-government']} editableOutputIds={unpaid?[]:['fixture-government']} hasCredits={!unpaid} allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
  onChangeHair={basic89?async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_PROVIDER')}:undefined}
- onVerifyOutput={async()=>({basicFreeHairOnly:basic89,unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!basic89&&!unpaid&&(suitTest?(pro||workPro):true)})}
+ onVerifyOutput={async()=>({basicFreeHairOnly:basic89,basicAiOutfitTemplates:basic89?[template]:[],unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!basic89&&!unpaid&&(suitTest?(pro||workPro):true)})}
  purchaseSnapshotRef={snapshotRef} onReceiveImage={async blob=>{window.insigniaFixture.exports.push({type:blob.type,size:blob.size,url:URL.createObjectURL(blob)});return {delivery:'fixture'}}}
  onBeforeProcess={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onProcessPhoto={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
