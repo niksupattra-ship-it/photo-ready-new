@@ -1,3 +1,4 @@
+import {measureStandingCollarSeams} from './male-uniform-seams.js';
 import {detectUniformDetails} from './real-uniform-details.js';
 // Actual standing-collar fabric and first placket button, never face landmarks.
 // Read-only measurement; white/gold source pixels are not edited.
@@ -37,7 +38,13 @@ export function measureMaleStandingCollar(image,shoulders){
  if(leftTop===null||rightTop===null||Math.abs(leftTop-rightTop)>span*.04)return null;
  if([leftTop,rightTop].some(top=>bottom-top<span*.035||bottom-top>span*.22))return null;
  const leftY=leftTop+(bottom-leftTop)*.45,rightY=rightTop+(bottom-rightTop)*.45;
- return {left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:Math.max(leftTop,rightTop)+(bottom-Math.max(leftTop,rightTop))*.48,button,bottom,top:{left:leftTop,right:rightTop},confidence:'standing-collar-fabric-button'};
+ const standing={left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:Math.max(leftTop,rightTop)+(bottom-Math.max(leftTop,rightTop))*.48,button,bottom,top:{left:leftTop,right:rightTop},confidence:'standing-collar-fabric-button'};
+ const seams=measureStandingCollarSeams(image,standing,g);
+ if(seams){
+  for(const side of ['left','right'])standing[side].y=(seams[side].top+seams[side].bottom)/2;
+  standing.y=(standing.left.y+standing.right.y)/2;standing.seams=seams;
+ }
+ return standing;
 }
 
 // Approved male portrait: breast emblems share a level 56% of the distance

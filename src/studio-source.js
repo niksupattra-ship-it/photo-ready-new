@@ -31,12 +31,18 @@ async function buildNativeAsset(kind,option,frame,preset,maxDensity=2){
  }
  const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar;
  let w=frame.w*v.width,y=frame.y+frame.h*v.y;
- if(Number.isFinite(v.bandTop)&&Number.isFinite(v.bandBottom)&&v.bandBottom>v.bandTop){
-  const top=frame.y+frame.h*v.bandTop,bottom=frame.y+frame.h*v.bandBottom,ratio=Math.max(left.height/left.width,right.height/right.width);
-  w=Math.min(w,(bottom-top)*.82/ratio);
-  const half=w*ratio/2;y=Math.max(top+half,Math.min(bottom-half,y));
+ const ratio=Math.max(left.height/left.width,right.height/right.width);
+ const bands=v.bands||((Number.isFinite(v.bandTop)&&Number.isFinite(v.bandBottom))?{left:{top:v.bandTop,bottom:v.bandBottom},right:{top:v.bandTop,bottom:v.bandBottom}}:null);
+ if(bands){
+  const available=(Math.min(bands.left.bottom,bands.right.bottom)-Math.max(bands.left.top,bands.right.top))*frame.h;
+  if(available>0)w=Math.min(w,available*(v.bandFill??.82)/ratio);
  }
- const frames=[left,right].map((c,i)=>({x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:y-w*c.height/c.width/2,w,h:w*c.height/c.width}));
+ const frames=[left,right].map((c,i)=>{
+  const band=bands?.[i?'right':'left'],h=w*c.height/c.width;
+  let cy=y;
+  if(band){const top=frame.y+frame.h*Math.max(bands.left.top,bands.right.top),bottom=frame.y+frame.h*Math.min(bands.left.bottom,bands.right.bottom),half=w*ratio/2;cy=Math.max(top+half,Math.min(bottom-half,y))}
+  return {x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:cy-h/2,w,h};
+ });
  // Preserve native insignia detail and room for the existing independent +/-300px controls.
  const f={x:-128,y:-128,w:0,h:0};f.w=1156;f.h=1456;
  const density=Math.min(maxDensity,Math.max(left.width/w,right.width/w)),bw=Math.ceil(f.w*density),bh=Math.ceil(f.h*density);if(bw>16384||bh>8192)throw Error('ภาพเข็มมีขนาดใหญ่เกินขีดจำกัดเลเยอร์');
