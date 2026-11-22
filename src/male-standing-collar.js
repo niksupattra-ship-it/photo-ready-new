@@ -36,5 +36,5 @@ export function measureMaleStandingCollar(image,shoulders){
  if(leftTop===null||rightTop===null||Math.abs(leftTop-rightTop)>span*.04)return null;
  if([leftTop,rightTop].some(top=>bottom-top<span*.035||bottom-top>span*.22))return null;
  const leftY=leftTop+(bottom-leftTop)*.45,rightY=rightTop+(bottom-rightTop)*.45;
- return {left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:(leftY+rightY)/2,button,top:{left:leftTop,right:rightTop},confidence:'standing-collar-fabric-button'};
+ return {left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:Math.max(leftTop,rightTop)+(bottom-Math.max(leftTop,rightTop))*.48,button,bottom,top:{left:leftTop,right:rightTop},confidence:'standing-collar-fabric-button'};
 }

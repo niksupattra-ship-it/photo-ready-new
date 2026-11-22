@@ -504,6 +504,8 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   collar.left=(standing.left.x-frame.x)/frame.w;
   collar.right=(standing.right.x-frame.x)/frame.w;
   collar.y=(standing.y-frame.y)/frame.h;
+  collar.bandTop=(Math.max(standing.top.left,standing.top.right)-frame.y)/frame.h;
+  collar.bandBottom=(standing.bottom-frame.y)/frame.h;
  }
  const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width};
  const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};

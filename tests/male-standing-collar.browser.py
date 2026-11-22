@@ -18,6 +18,8 @@ with sync_playwright() as p:
   assert abs(placed['y']-fit['y'])<3,(fit,placed)
   assert placed['y']<fit['button']
   assert page.evaluate('insigniaFixture.snapshot().layers.find(l=>l.kind==="head").source')==original
+  narrow=page.evaluate('''async()=>{const {nativeAsset}=await import('/src/studio-source.js');const a=await nativeAsset('collar',{left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},{x:0,y:0,w:900,h:1200},{collar:{left:.45,right:.55,y:.501,width:.06,bandTop:.5,bandBottom:.517}});const c=a.source,px=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let top=c.height,bottom=0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(px[(y*c.width+x)*4+3]>8){top=Math.min(top,y);bottom=Math.max(bottom,y)}return {top:a.sourceFrame.y+top/c.height*a.sourceFrame.h,bottom:a.sourceFrame.y+(bottom+1)/c.height*a.sourceFrame.h}}''')
+  assert narrow['top']>=599 and narrow['bottom']<=621.5,narrow
   assert page.evaluate('insigniaFixture.aiCalls')==0
   assert not errors,errors
   print(json.dumps({'width':width,'standingCollarMeasured':True,'expectedY':fit['y'],'placedY':placed['y'],'nativeSourceUnchanged':True,'aiCalls':0}))

@@ -23,7 +23,13 @@ async function buildNativeAsset(kind,option,frame,preset,maxDensity=2){
  if(kind==='suit'||kind==='background'){const im=await load(kind==='suit'?option.template:option.src);const source=make(im.naturalWidth||im.width,im.naturalHeight||im.height);source.getContext('2d').drawImage(im,0,0);return {source,sourceFrame:kind==='suit'?frame:{x:0,y:0,w:900,h:1200},collarParts:null}}
  if(['chest','collar','ribbon'].includes(kind)&&Number.isFinite(option.sizeScale)&&option.sizeScale>0)preset={...preset,[kind]:{...preset[kind],width:preset[kind].width*option.sizeScale}};
  if(kind==='chest'||kind==='ribbon'){const c=await cropped(option.src),v=preset[kind],w=frame.w*v.width,h=w*c.height/c.width;return {source:c,sourceFrame:{x:frame.x+frame.w*v.x-w/2,y:frame.y+frame.h*(kind==='ribbon'?v.top:v.y)-(kind==='ribbon'?0:h/2),w,h},collarParts:null}}
- const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar,w=frame.w*v.width,y=frame.y+frame.h*v.y;
+ const left=await cropped(option.left),right=await cropped(option.right),v=preset.collar;
+ let w=frame.w*v.width,y=frame.y+frame.h*v.y;
+ if(Number.isFinite(v.bandTop)&&Number.isFinite(v.bandBottom)&&v.bandBottom>v.bandTop){
+  const top=frame.y+frame.h*v.bandTop,bottom=frame.y+frame.h*v.bandBottom,ratio=Math.max(left.height/left.width,right.height/right.width);
+  w=Math.min(w,(bottom-top)*.82/ratio);
+  const half=w*ratio/2;y=Math.max(top+half,Math.min(bottom-half,y));
+ }
  const frames=[left,right].map((c,i)=>({x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:y-w*c.height/c.width/2,w,h:w*c.height/c.width}));
  // Preserve native insignia detail and room for the existing independent +/-300px controls.
  const f={x:-128,y:-128,w:0,h:0};f.w=1156;f.h=1456;
