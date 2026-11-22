@@ -97,8 +97,10 @@ test('real-face Makeup uses the actual required production audit before a single
   const result=await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:{...fields,...(sourceJobId?{sourceJobId,creditKind:'hairstyle'}:{})},root:new URL('..',import.meta.url).pathname,key:'inert',requestPortrait:audit.requestPortrait,removeBackground:async()=>png});
   assert(result.length);
  }
- assert.equal((await sharp(calls[0].outfitDetailReference).metadata()).width,2304);
- assert(calls.every(r=>r.prompt.includes('REMOVE both pointed shirt-collar flaps')));
+ assert.equal((await sharp(calls[0].outfitDetailReference).metadata()).width,1536);
+ assert(calls.every(r=>r.prompt.includes('REMOVE both pointed shirt-collar flaps')&&r.prompt.includes('FINAL THAI AI GARMENT AND REAR-HAIR PRIORITY V3')));
+ const original=await sharp(new URL('../public/assets/government-uniforms/female-operational.png',import.meta.url).pathname).png().toBuffer();
+ assert.deepEqual(await sharp(calls[0].outfit).raw().toBuffer(),await sharp(original).raw().toBuffer(),'Send original real garment pixels, never the locally retouched derivative');
  assert.equal(calls.length,2);assert(calls.every(r=>r.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&r.prompt.includes('original catchlight pattern')));
  const adapted=applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,fields);
  for(const request of [{prompt:adapted},{prompt:adapted,thaiRealFaceVersion:'unknown'},{prompt:adapted+'\n'+adapted,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:adapted+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION}])await assert.rejects(audit.requestPortrait(request),{code:'MAKEUP_POLICY_MISMATCH'});

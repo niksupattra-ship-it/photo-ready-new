@@ -1,4 +1,4 @@
-import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction} from './thai-collarless-neckline.js';
+import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction} from './thai-collarless-neckline.js';
 import {applyThaiRealFacePolicy,usesThaiRealFace,THAI_REAL_FACE_VERSION} from './thai-real-face-policy.js';
 import {usesThaiSingleCollar,thaiSingleCollarInstruction} from './thai-single-collar-policy.js';
 import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction,usesThaiIdentityLockedHead,thaiIdentityLockInstruction,usesThaiAdaptiveHead,usesThaiFaceShapeLock,thaiFaceShapeLockInstruction} from './thai-outfit-ai-policy.js';
@@ -567,7 +567,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   :thaiCalibrated?thaiOutfitCalibratedProfile(selected.gender,fields.thaiOutfitAppearanceVersion)
   :newEnglishProfile||legacyV8Profile;
  const identityHeadScale=(thaiCalibrated||thaiAdaptive)?layoutProfile.identityHeadScale:fields.englishStudioFinishVersion==='en-fixed-face-scale-pair-v6'?.70:fields.englishStudioFinishVersion==='en-outfit-proportional-head-v7'?.75:legacyV8Profile?.identityHeadScale??newEnglishProfile?.identityHeadScale??ENGLISH_TEMPLATE_PROPORTION_PROFILE.identityHeadScale;
- const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
+ const frontShield=!usesThaiAiGarmentOnly(fields)&&requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly;
  const layoutOptions=identityLayout?{headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,...(thaiCalibrated||thaiAdaptive?{fixedIdentityEnvelope:true}:{}),...(thaiAdaptive?{stableGarmentFrame:true}:{})}:layoutProfile?{profile:layoutProfile}:undefined;
  // Thai v7 generates a single coherent garment/neck directly from the
  // immutable uploaded photo and a separate outfit reference. No pre-AI
@@ -581,7 +581,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  let prompt=thaiSingleAi?englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:null,naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY}):templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile)&&!thaiCalibrated&&!thaiAdaptive,maleBodyBalance:Boolean(legacyV9&&selected.gender==='male')&&!thaiCalibrated&&!thaiAdaptive,femaleBodyBalance:matchedFemale&&!thaiCalibrated&&!thaiAdaptive,femaleBalancedHead:balancedFemale&&!thaiCalibrated&&!thaiAdaptive,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
  let outfitDetailReference=!headOnly&&fields.englishOutfitFidelityVersion===ENGLISH_OUTFIT_FIDELITY_VERSION?await createEnglishOutfitDetailReference(originalOutfit):null;
  const collarless=usesThaiCollarlessNeckline(fields);
- if(collarless)outfitDetailReference=await addThaiCollarlessReference(outfitDetailReference,root,usesThaiCollarlessPrimary(fields)?originalOutfit:null);
+ if(collarless&&!usesThaiAiGarmentOnly(fields))outfitDetailReference=await addThaiCollarlessReference(outfitDetailReference,root,usesThaiCollarlessPrimary(fields)?originalOutfit:null);
  const makeupStudioReference=makeupFinish?await loadMakeupStudioReference(root):null;
  if(makeupStudioReference)prompt+=makeupStudioReferenceInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,!templateBody&&compositionReference].filter(Boolean).length);
  if(singlePass){
@@ -619,8 +619,9 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  Generate the COMPLETE portrait in this SINGLE AI call. Do not output separate neck, face, clothing layers, a composite, a mask or a repair instruction.
  `;
  if(!headOnly&&selected.gender==='female'&&file===ENGLISH_CIVIL_SERVICE_TEMPLATE&&fields.englishCivilServiceFabricVersion===ENGLISH_CIVIL_SERVICE_FABRIC_VERSION)prompt+=ENGLISH_CIVIL_SERVICE_FABRIC_POLICY;
- if(collarless)prompt+=usesThaiCollarlessPrimary(fields)?thaiCollarlessPrimaryInstruction(outfitIndex,outfitDetailIndex):thaiCollarlessInstruction(outfitIndex,outfitDetailIndex);
+ if(collarless&&!usesThaiAiGarmentOnly(fields))prompt+=usesThaiCollarlessPrimary(fields)?thaiCollarlessPrimaryInstruction(outfitIndex,outfitDetailIndex):thaiCollarlessInstruction(outfitIndex,outfitDetailIndex);
  prompt=applyThaiRealFacePolicy(prompt,fields);
+ if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction(outfitIndex,outfitDetailIndex,collarless);
  await onStage('generation');
  const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
