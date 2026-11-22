@@ -77,7 +77,7 @@ test('Thai first-generation female reference is the visible free centre-parted c
 
 
 test('Thai hairstyle 16 is free while withdrawn hairstyle 26 is absent from the picker',async()=>{
- assert.deepEqual([...THAI_FREE_FEMALE_HAIR_IDS],['seedream-14','seedream-16','seedream-41']);
+ assert.deepEqual([...THAI_FREE_FEMALE_HAIR_IDS],['seedream-14','seedream-16','seedream-79']);
  const added=PRODUCTION_HAIR_CATALOG.find(h=>h.id==='seedream-16');
  const withdrawn=PRODUCTION_HAIR_CATALOG.find(h=>h.id==='seedream-26');
  assert.equal(added?.gender,'female');

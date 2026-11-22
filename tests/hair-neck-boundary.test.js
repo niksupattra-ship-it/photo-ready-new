@@ -92,9 +92,9 @@ test('explicit compact cuts receive a final output gate with clear sides of the 
  assert.doesNotMatch(selectedHairBoundaryInstruction(productionHair('seedream-44')),/OUTPUT GATE — CLEAN NECK/);
 });
 
-test('original seedream female style 41 replaces the prior free gathered hairstyle without changing its AI reference',async()=>{
+test('archived female style 41 retains its AI reference after the uploaded gathered style replaces its free slot',async()=>{
  const {THAI_FREE_FEMALE_HAIR_IDS,selectedHairInstruction}=await import('../hairstyle-catalog.js');
- assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-41']);
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-14','seedream-16','seedream-79']);
  const style=productionHair('seedream-41');
  assert.equal(style?.name,'ทรงผมหญิง 2');
  assert.equal(style?.src,'/assets/seedream-hairstyles/previews/41.webp');

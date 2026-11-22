@@ -7,8 +7,12 @@ ROOT=Path(__file__).resolve().parent.parent
 parser=argparse.ArgumentParser(description='Extract hair masks from the actual catalogue picker images using the pinned local models.')
 parser.add_argument('--base-url',default='http://127.0.0.1:5173')
 parser.add_argument('--output-dir',default='/tmp/idprom-picker-guides')
+parser.add_argument('--ids',help='Comma-separated catalogue IDs; leave every other reviewed guide untouched.')
 args=parser.parse_args();out=Path(args.output_dir);out.mkdir(parents=True,exist_ok=True)
 rows=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {PRODUCTION_HAIR_CATALOG} from './hairstyle-catalog.js'; console.log(JSON.stringify(PRODUCTION_HAIR_CATALOG.map(h=>({...h,preview:h.src}))))"],cwd=ROOT,text=True))
+if args.ids:
+ wanted=set(args.ids.split(','));rows=[row for row in rows if row['id'] in wanted]
+ if {row['id'] for row in rows}!=wanted:raise ValueError('Unknown catalogue hair ID')
 base=args.base_url.rstrip('/')
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
