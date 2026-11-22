@@ -4,10 +4,10 @@ import {verifyPaymentAmount,settleCheckout} from './stripe-payment-validation.js
 import {promptpayIntentStore} from './promptpay-intent-store.js';
 const FLOW='idprom_promptpay_v1';
 // Both basic prices remain recognizable for pending historical payments.
-const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2']);
+const CURRENT=new Set(['download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2','download_159_work_ai10_v3']);
 // Old unbound premium reservations used this description with their Stripe key.
 const LEGACY_PREMIUM_DESCRIPTION='IDพร้อม — ดาวน์โหลดงานนี้ พร้อมปลดล็อกทรงผมหญิงทั้งหมด';
-const publicPackageId=id=>['download_159_hair_v1','download_159_ai10_v2'].includes(id)?'159':id==='download_89_v1'?'89':'119';
+const publicPackageId=id=>['download_159_hair_v1','download_159_ai10_v2','download_159_work_ai10_v3'].includes(id)?'159':id==='download_89_v1'?'89':'119';
 const keyFor=value=>crypto.createHash('sha256').update(value).digest('hex');
 const warnReconciliation=error=>console.warn('IDPROM payment reconciliation pending',String(error?.code||'storage_unavailable').replace(/[^A-Za-z0-9_:-]/g,'').slice(0,40));
 async function afterGrant(out,run){
@@ -27,7 +27,7 @@ export async function reconcileDuplicatePayment(out,{receiptId,paymentIntentId,a
 export async function settlePromptpay(intent,creditPaid,options={}){
  if(intent?.status!=='succeeded'||intent.metadata?.flow!==FLOW)throw Error('payment_not_paid');
  const {wallet_id:walletId,package_id:packageId,job_id:jobId=''}=intent.metadata;
- if(!walletId||!/^pi_[A-Za-z0-9]+$/.test(intent.id||'')||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2'].includes(packageId))throw Error('invalid_payment_metadata');
+ if(!walletId||!/^pi_[A-Za-z0-9]+$/.test(intent.id||'')||!['79_v2','89_image_v3','159_v4','159_v5','89_v4','159_v6','download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2','download_159_work_ai10_v3'].includes(packageId))throw Error('invalid_payment_metadata');
  const offer=packageFor(packageId);
  verifyPaymentAmount(intent,offer);if(offer.requiresImage&&!jobId)throw Error('image_required');
  const out=await creditPaid(walletId,intent.id,packageId,jobId);
@@ -36,10 +36,10 @@ export async function settlePromptpay(intent,creditPaid,options={}){
  return reconciled;
 }
 function details(intent){const qr=intent.status==='requires_action'?intent.next_action?.promptpay_display_qr_code:null;return {paymentIntentId:intent.id,status:intent.status,amount:intent.amount/100,qrImage:qr?.image_url_png||null,expiresAt:qr?.expires_at||null,jobId:intent.metadata?.job_id||'',packageId:publicPackageId(intent.metadata?.package_id),packageKey:intent.metadata?.package_id}}
-export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked=async()=>false,isPremium=async()=>false,scopeForJob=async(w,id)=>'job:'+id,walletRights=async()=>({}),intentStore=promptpayIntentStore,recordDownloadRefund,pendingDownloadRefunds=async()=>[],appUrl=''}={}){
+export function registerPromptpayApi(app,{validateWorkAiPurchase=async()=>true,stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,isUnlocked=async()=>false,isPremium=async()=>false,scopeForJob=async(w,id)=>'job:'+id,walletRights=async()=>({}),intentStore=promptpayIntentStore,recordDownloadRefund,pendingDownloadRefunds=async()=>[],appUrl=''}={}){
  let reconciliationFlight=null;
  const settlementOptions={stripePost,stripeGet,recordDownloadRefund,onSettlement:intent=>reconcileSiblings(intent.metadata.wallet_id,intent.metadata.job_id,intent.id)};
- const covered=async(wid,job,offer)=>offer==='download_159_ai10_v2'?false:offer==='download_159_hair_v1'?isPremium(wid,job):isUnlocked(wid,job);
+ const covered=async(wid,job,offer)=>['download_159_ai10_v2','download_159_work_ai10_v3'].includes(offer)?false:offer==='download_159_hair_v1'?isPremium(wid,job):isUnlocked(wid,job);
  const closeGranted=async(row,id,out)=>!row||out.reconciliationPending?out:afterGrant(out,()=>intentStore.close(row.id,id));
  const owned=async(req)=>{const id=String(req.params.id||'');if(!/^pi_[A-Za-z0-9]+$/.test(id))throw Error('invalid_payment_id');const intent=await stripeGet('payment_intents/'+id);if(!req.accountUser||intent.metadata?.wallet_id!==req.accountUser.wallet_id||intent.metadata?.flow!==FLOW)throw Error('payment_not_owned');return intent};
  const cancel=async intent=>{
@@ -172,7 +172,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   res.set('Cache-Control','no-store');const user=req.accountUser;if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบใหม่'});
   const offer=checkoutPackage(req.body?.packageId),jobId=String(req.body?.jobId||'');
   const job=jobId&&await getAiJobResult(jobId,user.wallet_id);if(!job||job.status!=='completed')return res.status(400).json({error:'image_required',message:'กรุณาสร้างรูปให้สำเร็จก่อนปลดล็อกดาวน์โหลด'});
-  const scope=await scopeForJob(user.wallet_id,jobId);await ensureWallet(user.wallet_id);
+  const scope=await scopeForJob(user.wallet_id,jobId);if(offer.id==='download_159_work_ai10_v3'&&(scope.startsWith('job:')||!await validateWorkAiPurchase(user.wallet_id,scope)))return res.status(409).json({error:'photo_work_required',message:'กรุณาเปิดรูปหน้าตรงให้พร้อมในสตูดิโอก่อน'});await ensureWallet(user.wallet_id);
   const attempt=String(req.get('X-Checkout-Attempt')||'');if(!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
   const pending=String(req.body?.pendingPaymentIntentId||'');
   if(pending){
@@ -238,7 +238,7 @@ export function registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getA
   })().finally(()=>{reconciliationFlight=null});return reconciliationFlight;
  },async checkout(req,res){try{
   const user=req.accountUser;if(!user)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบก่อนชำระเงิน'});
-  const offer=checkoutPackage(req.body?.packageId),jobId=String(req.body?.jobId||'');const scope=await scopeForJob(user.wallet_id,jobId);
+  const offer=checkoutPackage(req.body?.packageId),jobId=String(req.body?.jobId||'');const scope=await scopeForJob(user.wallet_id,jobId);if(offer.id==='download_159_work_ai10_v3'&&(scope.startsWith('job:')||!await validateWorkAiPurchase(user.wallet_id,scope)))return res.status(409).json({error:'photo_work_required'});
   if(await covered(user.wallet_id,jobId,offer.id))return res.status(409).json({error:'already_unlocked',message:'งานนี้ปลดล็อกแล้ว กรุณาดาวน์โหลดโดยไม่ต้องชำระซ้ำ'});
   await ensureWallet(user.wallet_id);const attempt=String(req.get('X-Checkout-Attempt')||crypto.randomBytes(18).toString('hex'));if(!/^[A-Za-z0-9_-]{16,80}$/.test(attempt))return res.status(400).json({error:'invalid_attempt'});
   const base=appUrl||`${req.protocol}://${req.get('host')}`,payload={mode:'payment','line_items[0][price_data][currency]':'thb','line_items[0][price_data][unit_amount]':offer.price*100,'line_items[0][price_data][product_data][name]':`IDพร้อม — ${offer.name}`,'line_items[0][quantity]':1,'payment_method_types[0]':'promptpay',success_url:`${base}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${base}/?payment=cancelled`,'metadata[wallet_id]':user.wallet_id,'metadata[package_id]':offer.id,'metadata[job_id]':jobId};

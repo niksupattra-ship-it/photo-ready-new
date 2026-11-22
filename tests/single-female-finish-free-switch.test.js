@@ -373,7 +373,7 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(snapshot,/canvasRef\.current/,'Screenshot must come from the current displayed Studio canvas');
  assert.match(snapshot,/ctx\.drawImage\(current,0,0,thumb\.width,thumb\.height\)/,'Snapshot contains the on-screen photo, not the original upload');
  assert.match(snapshot,/ctx\.fillText\('IDพร้อม',0,0\)/,'Use the same watermark style as download checkout');
- assert.match(snapshot,/onRequestUnlock\?\.\(\{reason:suit\?'diamond-suit':'diamond-hair',hairId,template:suit\?\.template,preview,jobId:/,'Use existing checkout callback with the clicked image');
+ assert.match(snapshot,/onRequestUnlock\?\.\(\{easyMode,reason:suit\?'diamond-suit':'diamond-hair',hairId,template:suit\?\.template,preview,jobId:/,'Use existing checkout callback with the clicked image');
  assert.doesNotMatch(snapshot,/void applyHair|onChangeHair|processPhoto\(|onProcessPhoto\(/,'Preview capture must never call AI');
  assert.match(choose,/if\(englishFlow&&englishInlineAi\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'English in-photo Diamond hair opens checkout');
  assert.match(choose,/if\(!englishFlow\)\{\s*if\(isPremiumHair\(id\)&&!premiumHairAllowed[\s\S]*?\{openDiamondHairOffer\(id\);return\}/,'Thai Diamond hair opens checkout');
@@ -381,9 +381,9 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(studio,/if\(hair&&isPremiumHair\(hair\)&&!premiumHairAllowed&&!canRestoreHair\(hair,gender,finish\)\)\{openDiamondHairOffer\(hair\);return\}/,'Final English Create retains Diamond safeguard');
  assert.match(main,/setCheckoutPreview\(\{kind:'diamond-hair',jobId:context\.jobId\|\|'',preview:context\.preview\|\|null\}\)/,'Checkout snapshots are bound to this explicit Diamond click');
  assert.match(main,/if\(checkoutPreview\?\.kind==='diamond-hair'\)return checkoutPreview\.preview\|\|undefined/,'Do not show an older photo when a new Studio upload has no job');
- assert.match(main,/<PackageOffers preview=\{checkoutImagePreview\(true\)\} diamondHairOffer=/,'Diamond click uses the same PackageOffers component as Download');
+ assert.match(main,/<PackageOffers[\s\S]*?preview=\{checkoutImagePreview\(true\)\} diamondHairOffer=/,'Diamond click uses the same PackageOffers component as Download');
  assert.match(main,/preview=\{checkoutImagePreview\(\)\}/,'Same captured photo can appear in checkout summary');
- assert.match(offers,/const \[selected,setSelected\]=useState\(diamondHairOffer\?'159':'89'\)/,'Thai Diamond checkout preselects 159 rather than basic');
+ assert.match(offers,/const \[selected,setSelected\]=useState\(diamondHairOffer&&studioMode\?'159':'89'\)/,'Thai Diamond checkout preselects 159 rather than basic');
  assert.match(offers,/diamondHairOffer&&preview&&<figure className="en-diamond-photo-preview">/,'English Diamond offer shows the current photo with the Premium plan');
  assert.match(styles,/\.en-diamond-photo-preview img/,'English preview remains visible on desktop and mobile');
 });

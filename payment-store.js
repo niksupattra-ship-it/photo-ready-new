@@ -1,9 +1,14 @@
+import {createThaiWorkAiCredits,THAI_WORK_AI_PACKAGE} from './thai-work-ai-credits.js';
 import crypto from 'crypto';
 import pg from 'pg';
 import {packageFor,remaining} from './package-rules.js';
 const {Pool}=pg;
 if(!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for payment storage');
 const pool=new Pool({connectionTimeoutMillis:5000,connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false}});
+const thaiWorkAi=createThaiWorkAiCredits(pool,{prepare:()=>ready()});
+export const thaiWorkAiPurchaseAllowed=(wallet,work)=>thaiWorkAi.eligible(wallet,work);
+export const prepareThaiWorkAi=()=>thaiWorkAi.ready();
+export const reserveThaiWorkAi=(wallet,work,key,authenticated)=>thaiWorkAi.reserve(wallet,work,key,authenticated);
 // Balance display must not queue behind schema migration or entitlement repair.
 let balancePool;
 function balanceReader(){return balancePool||(balancePool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL.includes('localhost')?false:{rejectUnauthorized:false},max:2,connectionTimeoutMillis:2000,statement_timeout:5000,query_timeout:5500,idleTimeoutMillis:10000,options:'-c default_transaction_read_only=on'}))}
@@ -150,7 +155,7 @@ export async function newWallet(){await ready();const id='wal_'+crypto.randomByt
 export async function getWallet(id){if(!id)return null;await ready();const {rows}=await pool.query('SELECT generation_remaining,hair_remaining,usd_premium_remaining,usd_premium_expires_at,usd_premium_cycle FROM wallets WHERE id=$1',[id]);return rows[0]?{...shape(id,rows[0]),...await imageEntitlements(id)}:null}
 export async function ensureWallet(id){await ready();await pool.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[id]);return getWallet(id)}
 export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
- await ready();const p=packageFor(packageId);if(p.requiresImage&&!jobId)throw Error('image_required');
+ await ready();if(packageId===THAI_WORK_AI_PACKAGE)await thaiWorkAi.ready();const p=packageFor(packageId);if(p.requiresImage&&!jobId)throw Error('image_required');
  let result;const c=await pool.connect();try{
   await c.query('BEGIN');
   await c.query('INSERT INTO wallets(id,credits,generation_remaining,hair_remaining) VALUES($1,0,0,0) ON CONFLICT(id) DO NOTHING',[walletId]);
@@ -173,10 +178,11 @@ export async function creditPaid(walletId,sessionId,packageId='149',jobId=''){
    }
   }
   if(ins.rowCount){
+   if(packageId===THAI_WORK_AI_PACKAGE)await thaiWorkAi.grant(c,walletId,jobId,sessionId);
    if(p.usdPremium)await c.query("UPDATE wallets SET usd_premium_remaining=20,usd_premium_expires_at=clock_timestamp()+interval '30 days',usd_premium_cycle=$2 WHERE id=$1",[walletId,sessionId]);
    if(p.fullEdit&&(p.g+p.h)>0)await c.query('UPDATE wallets SET full_edit_remaining=full_edit_remaining+$2 WHERE id=$1',[walletId,p.g+p.h]);
    await c.query('UPDATE wallets SET generation_remaining=generation_remaining+$2,hair_remaining=hair_remaining+$3 WHERE id=$1',[walletId,p.g,p.h]);
-   if(!overlap&&jobId&&(['download_159_hair_v1','download_159_ai10_v2'].includes(packageId)||p.usdPremium))await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
+   if(!overlap&&jobId&&(['download_159_hair_v1','download_159_ai10_v2',THAI_WORK_AI_PACKAGE].includes(packageId)||p.usdPremium))await c.query('INSERT INTO premium_hair_unlocks(wallet_id,job_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[walletId,jobId]);
    if(!overlap&&jobId)await c.query(p.currency==='usd'?
     "INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit,created_at) SELECT $1,j.id,$3,j.created_at FROM ai_jobs j WHERE j.id=$2 AND j.wallet_id=$1 AND j.status='completed' ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit":
     'INSERT INTO paid_image_unlocks(wallet_id,job_id,full_edit) VALUES($1,$2,$3) ON CONFLICT(wallet_id,job_id) DO UPDATE SET full_edit=paid_image_unlocks.full_edit OR EXCLUDED.full_edit',[walletId,jobId,Boolean(p.fullEdit)]);
@@ -350,7 +356,7 @@ export async function refundCredit(usageId){
   await c.query('SELECT id FROM wallets WHERE id=$1 FOR UPDATE',[owner.rows[0].wallet_id]);
   const u=await c.query("SELECT wallet_id,kind,status,credit_column,full_edit_output,usd_premium_cycle FROM credit_usage WHERE id=$1 FOR UPDATE",[usageId]);
   if(!u.rows[0]||u.rows[0].status!=='reserved'){await c.query('ROLLBACK');return false}
-  if(u.rows[0].kind==='thai-daily-outfit-ai'){
+  if(['thai-daily-outfit-ai','thai-work-ai10'].includes(u.rows[0].kind)){
     // Thai outfit slots are isolated from ordinary portrait and hair credits.
     await c.query("UPDATE credit_usage SET status='refunded',refunded_at=now() WHERE id=$1",[usageId]);
     await c.query('COMMIT');return true;

@@ -13,7 +13,7 @@ test('server gates only English AI while preserving Premium credits and Thai wor
 });
 test('English unlimited PNG suits remain selectable and Edit with AI opens packages when exhausted',async()=>{
  const e=await read('src/studio-editor.jsx'),m=await read('src/main.jsx');
- for(const x of ["const manualSuit=englishFlow&&kind==='suit'&&!aiSetup","if(kind==='suit'&&option&&!englishFlow&&suitPolicy.limited","if(kind==='suit'&&option&&!englishFlow&&!canUseAllSuits","visiblePicker==='suit'&&!englishFlow&&isJobOutfit(o)","if(!await englishOutfitAiAllowed()","if(access?.allowed===false)onRequestUnlock?.()"])assert.ok(e.includes(x),x);
+ for(const x of ["const manualSuit=englishFlow&&kind==='suit'&&!aiSetup","if(!await englishOutfitAiAllowed()","if(access?.allowed===false)onRequestUnlock?.()"])assert.ok(e.includes(x),x);
  assert.ok(m.includes("onCheckEnglishOutfitAi={async()=>{"));
  assert.ok(m.includes('/api/english-ai-outfit/access'));
 });

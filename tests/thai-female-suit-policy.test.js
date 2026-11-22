@@ -24,14 +24,14 @@ test('actual server blocks unpaid premium suit generation before reserving credi
  assert.equal(reservations,4);assert.equal((await check(premium,'en')).status,200);
  pro=true;assert.equal((await check(premium)).status,200);assert.equal(reservations,5);pro=false;for(const path of THAI_FREE_MALE_SUIT_PATHS)assert.equal((await check(path)).result.trialPreview,true);assert.equal((await check('/assets/job-uniforms/male-job-charcoal-burgundy-tie.png')).error,'premium_suit_required');assert.equal((await check(THAI_FREE_MALE_SUIT_PATHS[0],'th','seedream-35')).status,200);
 });
-test('manual suit authorization also rejects Pro outfits without Pro, preserving English and existing work rights',async()=>{
+test('manual suit authorization accepts every Thai outfit without Pro and preserves English policy',async()=>{
  const source=await readFile(new URL('../server.js',import.meta.url),'utf8');const a=source.indexOf("app.post('/api/images/:id/suits'"),b=source.indexOf('\napp.',a+1);
  let handler,pro=false,work=false,selections=0;
- const deps={app:{post:(path,fn)=>handler=fn},walletId:()=> 'wallet',isThaiPremiumJobSuit,accountPolicy:()=>({canGeneratePremiumHair:async()=>pro,premiumHair:async()=>work,suits:async()=>{selections++;return {limited:true,choices:[]}}})};
+ const deps={app:{post:(path,fn)=>handler=fn},walletId:()=> 'wallet',isThaiPremiumJobSuit,accountPolicy:()=>({canGeneratePremiumHair:async()=>pro,premiumHair:async()=>work,ownedJob:async()=>({}),suits:async()=>{selections++;return {limited:true,choices:[]}}})};
  Function('deps','with(deps){'+source.slice(a,b)+'}')(deps);
  const premium='/assets/job-uniforms/female-job-taupe-cream-blouse.png';
  async function check(templates,interfaceLanguage='th'){let status=200;const res={set(){return this},status(n){status=n;return this},json(){return this}};await handler({body:{templates,interfaceLanguage},params:{id:'job'},get:()=>''},res);return status}
- assert.equal(await check([premium]),403);assert.equal(selections,0);
+ assert.equal(await check([premium]),200);assert.equal(selections,0);
  for(const path of THAI_FREE_FEMALE_SUIT_PATHS)assert.equal(await check([path]),200);
  assert.equal(await check([premium],'en'),200);pro=true;assert.equal(await check([premium]),200);pro=false;work=true;assert.equal(await check([premium]),200);
 });

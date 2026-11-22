@@ -1,5 +1,6 @@
 // Versioned IDs preserve the rights of payments created before these offers.
 export const PACKAGES=Object.freeze({
+ 'download_159_work_ai10_v3':{price:159,g:0,h:0,name:'ใช้ AI 10 ครั้ง สำหรับรูปนี้',requiresImage:true,fullEdit:true,workAi10:true},
  'download_159_ai10_v2':{price:159,g:10,h:0,name:'รับรูปนี้ + แก้ไขด้วย AI 10 ครั้ง (ชุดและทรงผมรวมกัน)',requiresImage:true,fullEdit:true},
  'download_159_hair_v1':{price:159,g:0,h:0,name:'รับรูปนี้ + ทรงผม',requiresImage:true,fullEdit:true},
  // Current English offers use new IDs; past Stripe receipts still resolve their original package IDs.
@@ -24,7 +25,7 @@ export const PACKAGES=Object.freeze({
 export function packageFor(id){const p=PACKAGES[String(id)];if(!p)throw Error('invalid_package');return p;}
 // Fresh basic purchases use the current 89-baht offer. Frozen 119-baht
 // reservations and receipts still resolve through packageFor, never this alias.
-export function checkoutPackage(id){const key=['159','download_159_hair_v1'].includes(String(id))?'download_159_hair_v1':['89','download_89_v1','119','download_119_v1'].includes(String(id))?'download_89_v1':null;if(!key)throw Error('invalid_package');return {id:key,...packageFor(key)}}
+export function checkoutPackage(id){const key=['159','download_159_work_ai10_v3'].includes(String(id))?'download_159_work_ai10_v3':String(id)==='download_159_hair_v1'?'download_159_hair_v1':['89','download_89_v1','119','download_119_v1'].includes(String(id))?'download_89_v1':null;if(!key)throw Error('invalid_package');return {id:key,...packageFor(key)}}
 export function remaining(row){return Number(row?.generation_remaining||0)+Number(row?.hair_remaining||0);}
 
 

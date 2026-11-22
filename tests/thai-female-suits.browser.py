@@ -9,11 +9,10 @@ with sync_playwright() as pw:
   names=panel.locator('.english-outfit-card > button:first-child').evaluate_all('(els)=>els.map(e=>e.getAttribute("aria-label"))')
   assert names==['เลือกชุด ฟรี 1','เลือกชุด ฟรี 2','เลือกชุด ฟรี 3','เลือกชุด ฟรี 4','เลือกชุด ชุดโปร'],names
   premium=panel.get_by_role('button',name='เลือกชุด ชุดโปร',exact=True);premium.click()
+  p.wait_for_function('insigniaLayers().some(l=>l.templatePath==="/assets/job-uniforms/female-job-taupe-cream-blouse.png")')
+  assert p.evaluate('insigniaFixture.paymentCalls===0')
   if not pro:
-   p.wait_for_function('insigniaFixture.paymentCalls===1');assert p.evaluate('insigniaFixture.offer.reason')=='diamond-suit'
-   assert p.evaluate('!insigniaLayers().some(l=>l.templatePath==="/assets/job-uniforms/female-job-taupe-cream-blouse.png")')
-   panel.get_by_role('button',name='ใส่ชุดด้วย AI ชุดโปร',exact=True).click();p.wait_for_function('insigniaFixture.paymentCalls===2')
-  else:p.wait_for_function('insigniaLayers().some(l=>l.templatePath==="/assets/job-uniforms/female-job-taupe-cream-blouse.png")')
+   panel.get_by_role('button',name='ใส่ชุดด้วย AI ชุดโปร',exact=True).click();p.wait_for_function('insigniaFixture.paymentCalls===1');assert p.evaluate('insigniaFixture.offer.reason')=='diamond-suit'
   panel.get_by_role('button',name='เลือกชุด ฟรี 4',exact=True).click()
   p.wait_for_function('insigniaLayers().some(l=>l.templatePath==="/assets/job-uniforms/female-job-ivory-bow-blouse.png")')
   assert p.evaluate('insigniaFixture.aiCalls===0');assert not errors,errors
@@ -44,7 +43,7 @@ with sync_playwright() as pw:
   panel=p.locator('#studio-suit-choices');expect(panel).to_be_visible(timeout=30000)
   cards=panel.locator('.english-outfit-card > button:first-child');assert cards.evaluate_all('(els)=>els.map(e=>e.getAttribute("aria-label"))')==['เลือกชุด ฟรีชาย 1','เลือกชุด ฟรีชาย 2','เลือกชุด ฟรีชาย 3','เลือกชุด ฟรีชาย 4','เลือกชุด ชุดโปรชาย']
   assert all('ฟรีชาย' not in card.inner_text() and 'ชุดโปรชาย' not in card.inner_text() for card in cards.all())
-  panel.get_by_role('button',name='เลือกชุด ชุดโปรชาย',exact=True).click();p.wait_for_function('insigniaFixture.paymentCalls===1');assert p.evaluate('insigniaFixture.offer.reason')=='diamond-suit'
+  panel.get_by_role('button',name='เลือกชุด ชุดโปรชาย',exact=True).click();p.wait_for_function('insigniaLayers().some(l=>l.templatePath==="/assets/job-uniforms/male-job-charcoal-burgundy-tie.png")');assert p.evaluate('insigniaFixture.paymentCalls===0');panel.get_by_role('button',name='ใส่ชุดด้วย AI ชุดโปรชาย',exact=True).click();p.wait_for_function('insigniaFixture.paymentCalls===1')
   panel.get_by_role('button',name='เลือกชุด ฟรีชาย 3',exact=True).click();p.wait_for_function('insigniaLayers().some(l=>l.templatePath==="/assets/job-uniforms/male-open-collar-suit.png")')
   print(json.dumps({'male':True,'width':width,'fourFreeFirst':True,'noNames':True,'proGate':True}));p.close()
  b.close()
