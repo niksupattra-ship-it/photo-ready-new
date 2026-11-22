@@ -1,4 +1,5 @@
 import {thaiRearHairReference,THAI_REAR_HAIR_FINAL_POLICY} from './thai-rear-hair-reference.js';
+import {THAI_REAR_HAIR_SHORT_NECK_VERSION,usesThaiRearHairShortNeck,thaiRearHairShortNeckInstruction} from './thai-rear-hair-short-neck.js';
 import {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
 import {prepareThaiNecklineReference,usesCleanThaiNecklineReference,CLEAN_NECK_REFERENCE_POLICY} from './thai-neckline-reference.js';
 import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction} from './thai-collarless-neckline.js';
@@ -101,6 +102,7 @@ export async function checkedFemaleMakeupReference(image){
 export function validateProductionPortrait(input,fields={}){
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
+ if(fields.thaiRearHairShortNeckVersion!==undefined&&!usesThaiRearHairShortNeck(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพชุดไทยล่าสุด');
  if(fields.thaiOutfitAppearanceVersion!==undefined&&(!isThaiOutfitAppearance(fields)||!usesEnglishStudioFinish(fields)||fields.englishOutfitFidelityVersion!==ENGLISH_OUTFIT_FIDELITY_VERSION))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การแสดงสีชุดล่าสุด');
  if(fields.englishHairFit!==undefined){if(!usesEnglishStudioFinish(fields)&&!isEnglishHeadPortrait(fields))throw Error('Invalid English hair placement option');parseEnglishHairFit(fields.englishHairFit)}
  validateCurrentHairRequest(fields);
@@ -634,6 +636,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  }
 
  if(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION)prompt+='\n'+THAI_REAR_HAIR_FINAL_POLICY;
+ if(usesThaiRearHairShortNeck(fields))prompt+='\n'+thaiRearHairShortNeckInstruction({gender:selected.gender,hairKind:keepCurrentHair?'long':chosen?selectedHairDesign(chosen)?.kind:null});
  await onStage('generation');
  const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
