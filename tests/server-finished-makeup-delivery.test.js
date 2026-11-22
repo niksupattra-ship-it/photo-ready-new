@@ -81,6 +81,7 @@ test('real-face Makeup uses the actual required production audit before a single
  const {processProductionPortrait}=await import('../production-portrait-pipeline.js');
  const {createMakeupRequestAudit}=await import('../makeup-generation-audit.js');
  const {THAI_REAL_FACE_VERSION,applyThaiRealFacePolicy}=await import('../thai-real-face-policy.js');
+ const {THAI_REAR_HAIR_SHORT_NECK_VERSION}=await import('../thai-rear-hair-short-neck.js');
  const {THAI_COLLARLESS_VERSION}=await import('../thai-collarless-version.js');
  const {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION}=await import('../thai-outfit-ai-policy.js');
  const {MAKEUP_STUDIO_RETOUCH_POLICY}=await import('../makeup-studio-retouch-policy.js');
@@ -90,7 +91,7 @@ test('real-face Makeup uses the actual required production audit before a single
  const {FEMALE_SINGLE_FINISH_VERSION}=await import('../female-single-finish-policy.js');
  const {ORIGINAL_PORTRAIT_AI_VERSION}=await import('../original-portrait-ai.js');
  const sharp=(await import('sharp')).default;
- const fields={interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53})};
+ const fields={thaiRearHairShortNeckVersion:THAI_REAR_HAIR_SHORT_NECK_VERSION,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'makeup',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53})};
  const png=await sharp({create:{width:120,height:160,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:120,channels:4,background:'#b38a72'}}).png().toBuffer(),left:20,top:20}]).png().toBuffer();
  const calls=[],audit=createMakeupRequestAudit(async request=>{calls.push(request);return {png}},{requirePolicy:true});
  for(const sourceJobId of [undefined,'previous-completed-job']){
@@ -129,6 +130,17 @@ test('real-face Makeup uses the actual required production audit before a single
   assert.deepEqual(call.hair,await thaiRearHairReference({selected,hair:await loadCatalogueHairGuide(hairId,root),root}));
   assert(call.prompt.lastIndexOf('FINAL THAI GARMENT OCCLUSION AUTHORITY')>call.prompt.lastIndexOf('FINAL SELECTED HAIR BOUNDARY AUTHORITY'),'Rear placement must override conflicting endpoint retention');
  }
+
+ assert(calls.every(call=>call.prompt.includes('FINAL COLLAR MEASUREMENT CHECK V2')));
+ const {ENGLISH_TEMPLATE_BODY_FINISH_VERSION}=await import('../english-template-body-policy.js');
+ const maleFields={...fields,portraitMode:'male',hairId:'original',femaleEyeStyle:'natural',englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,neckOutfitReferencePath:'/assets/job-uniforms/male-job-blue-navy-tie.png'};
+ for(const key of ['studioSkinVersion','singlePassPortraitVersion','femaleFinishSingleVersion'])delete maleFields[key];
+ const maleCalls=[];
+ await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields:maleFields,root,key:'inert',requestPortrait:async request=>{maleCalls.push(request);return {png}},removeBackground:async()=>png});
+ assert.equal(maleCalls.length,1);
+ assert.match(maleCalls[0].prompt,/FINAL COLLAR MEASUREMENT CHECK V2/);
+ assert.match(maleCalls[0].prompt,/TOP of the actual collar TOUCHING SKIN/);
+ assert.match(maleCalls[0].prompt,/never squeeze the face or shorten its lower half/);
  const adapted=applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,fields);
  for(const request of [{prompt:adapted},{prompt:adapted,thaiRealFaceVersion:'unknown'},{prompt:adapted+'\n'+adapted,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{prompt:adapted+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY,thaiRealFaceVersion:THAI_REAL_FACE_VERSION}])await assert.rejects(audit.requestPortrait(request),{code:'MAKEUP_POLICY_MISMATCH'});
  assert.equal(calls.length,5,'Invalid policy must still be rejected before provider billing');
