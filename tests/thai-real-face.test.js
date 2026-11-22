@@ -25,3 +25,26 @@ test('request and both cache identities carry the new revision without changing 
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
  assert(pipeline.indexOf('prompt=applyThaiRealFacePolicy(prompt,fields)')<pipeline.indexOf('const result=await requestPortrait({key,prompt,'));
 });
+test('actual new Thai full-outfit request ends with the face/eye, no-bun and full-frame contract inside one provider call',async()=>{
+ const sharp=(await import('sharp')).default;
+ const {processProductionPortrait}=await import('../production-portrait-pipeline.js');
+ const {createMakeupRequestAudit}=await import('../makeup-generation-audit.js');
+ const {THAI_OUTFIT_APPEARANCE_VERSION}=await import('../thai-outfit-ai-policy.js');
+ const {ENGLISH_OUTFIT_FIDELITY_VERSION}=await import('../english-outfit-fidelity-version.js');
+ const {ORIGINAL_PORTRAIT_AI_VERSION}=await import('../original-portrait-ai.js');
+ const {SINGLE_PASS_PORTRAIT_VERSION}=await import('../single-pass-portrait-policy.js');
+ const {FEMALE_SINGLE_FINISH_VERSION}=await import('../female-single-finish-policy.js');
+ const {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION}=await import('../english-template-body-policy.js');
+ const {thaiFinalOriginalIdentity,THAI_REAL_FACE_PREVIOUS_VERSION}=await import('../thai-real-face-policy.js');
+ const png=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:115,channels:4,background:'#bd9788'}}).png().toBuffer(),left:8,top:13}]).png().toBuffer();
+ const base={...fields,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,portraitMode:'female',femaleEyeStyle:'makeup',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:SINGLE_PASS_PORTRAIT_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',hairId:'seedream-79',hairReferenceVersion:'picker-hair-v1'};
+ for(const version of [THAI_REAL_FACE_VERSION,THAI_REAL_FACE_PREVIOUS_VERSION]){
+  const calls=[],input={buffer:png,mimetype:'image/png'},request={...base,thaiRealFaceVersion:version};
+  const audit=createMakeupRequestAudit(async p=>{calls.push(p);return {png}},{requirePolicy:true});
+  await processProductionPortrait({input,fields:request,root:new URL('..',import.meta.url).pathname,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
+  assert.equal(calls.length,1);assert.equal(audit.snapshot().providerCalls,1);
+  assert.equal(calls[0].thaiRealFaceVersion,version);assert(calls[0].portrait?.length);assert(input.buffer.equals(png),'Untouched original identity bytes must not be rewritten');
+  if(version===THAI_REAL_FACE_VERSION)assert(calls[0].prompt.endsWith(thaiFinalOriginalIdentity(request)));
+  else assert(!calls[0].prompt.includes('THAI PHOTOGRAPHIC IDENTITY AND COMPLETE FRAME — FINAL V2 CONTRACT'));
+ }
+});

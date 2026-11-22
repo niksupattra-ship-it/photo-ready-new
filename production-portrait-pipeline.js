@@ -3,7 +3,7 @@ import {THAI_REAR_HAIR_SHORT_NECK_VERSION,usesThaiRearHairShortNeck,thaiRearHair
 import {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
 import {prepareThaiNecklineReference,usesCleanThaiNecklineReference,CLEAN_NECK_REFERENCE_POLICY} from './thai-neckline-reference.js';
 import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction} from './thai-collarless-neckline.js';
-import {applyThaiRealFacePolicy,usesThaiRealFace,THAI_REAL_FACE_VERSION} from './thai-real-face-policy.js';
+import {applyThaiRealFacePolicy,usesThaiRealFace,thaiFinalOriginalIdentity} from './thai-real-face-policy.js';
 import {usesThaiSingleCollar,thaiSingleCollarInstruction} from './thai-single-collar-policy.js';
 import {isThaiOutfitAi,isThaiOutfitPath,isThaiOutfitAppearance,usesThaiHistoricOutfitPrompt,usesThaiEnglishParityOutfit,thaiEnglishParityRearHairInstruction,requiresThaiNativeFrontShield,usesThaiShoulderAwareShield,usesThaiNecklineProtectedShield,thaiOutfitGenerationFields,thaiOutfitAppearanceInstruction,usesThaiSingleAiOutfit,usesThaiCalibratedHead,thaiOutfitCalibratedProfile,thaiCalibratedHeadInstruction,usesThaiIdentityLockedHead,thaiIdentityLockInstruction,usesThaiAdaptiveHead,usesThaiFaceShapeLock,thaiFaceShapeLockInstruction} from './thai-outfit-ai-policy.js';
 import {parseThaiAdaptiveFace,thaiAdaptiveHeadProfile,thaiAdaptiveProportionInstruction} from './thai-adaptive-proportion.js';
@@ -637,8 +637,9 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
 
  if(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION)prompt+='\n'+THAI_REAR_HAIR_FINAL_POLICY;
  if(usesThaiRearHairShortNeck(fields))prompt+='\n'+thaiRearHairShortNeckInstruction({gender:selected.gender,hairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:null,version:fields.thaiRearHairShortNeckVersion});
+ prompt+=thaiFinalOriginalIdentity(fields);
  await onStage('generation');
- const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
