@@ -46,7 +46,7 @@ async function run({id,language='th',finish='natural',gender=productionHair(id)?
 }
 
 test('Thai compact female crown/short and male short cuts end with the hard exclusion and full negative-space board',async()=>{
- for(const [id,finishes] of [['seedream-41',['natural','makeup']],['seedream-01',['natural','makeup']],['seedream-36',['natural']]])for(const finish of finishes){
+ for(const [id,finishes] of [['seedream-79',['natural','makeup']],['seedream-41',['natural','makeup']],['seedream-01',['natural','makeup']],['seedream-36',['natural']]])for(const finish of finishes){
   const got=await run({id,finish});assert.match(got.final,/ZERO visible hair/);
   assert.match(got.final,/BELOW the lower edge of EITHER ear/);
   assert.match(got.final,/Sideburns and tapered scalp roots must stop ABOVE/);

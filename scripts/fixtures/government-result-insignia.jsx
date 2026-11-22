@@ -1,3 +1,4 @@
+import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS} from '../../hairstyle-catalog.js';
 import {THAI_FREE_FEMALE_SUIT_IDS,THAI_FREE_MALE_SUIT_PATHS} from '../../thai-female-suit-policy.js';
 import React from 'react';
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
@@ -9,7 +10,7 @@ import '../../src/style.css';
 // and insignia PNGs. The painted head is deliberately not a customer photograph.
 // Every authority/payment/provider callback is inert and recorded for assertions.
 const query=new URLSearchParams(location.search);
-const basic89=query.get('basic89')==='1';
+const basic89=query.get('basic89')==='1',uploadedHair=query.get('uploadedHair')==='1';
 const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
 const studio=query.get('studio')==='1',unpaid=query.get('unpaid')==='1';
@@ -73,11 +74,11 @@ createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!s
  templates={suitTest?suitTemplates:[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
  collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]}
  maleHair={(freshSuitTest||basic89)?[{id:'seedream-35',name:'ฟรีผมชาย',src:'/assets/seedream-hairstyles/previews/35-restored.webp'}]:[]}
- femaleHair={(freshSuitTest||basic89)?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
+ femaleHair={uploadedHair?[...THAI_FREE_FEMALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden&&h.interfaceLanguage!=='en'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(h.id))]:(freshSuitTest||basic89)?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
  paidOutputIds={unpaid?[]:['fixture-government']} editableOutputIds={unpaid?[]:['fixture-government']} hasCredits={!unpaid} allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
- onChangeHair={basic89?async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_PROVIDER')}:undefined}
+ onChangeHair={basic89?async(id,mode,finish,outfit)=>{window.insigniaFixture.aiCalls++;window.insigniaFixture.hairRequest={id,mode,finish,outfit};throw Error('FIXTURE_NO_PROVIDER')}:undefined}
  onVerifyOutput={async()=>({basicFreeHairOnly:basic89,basicAiOutfitTemplates:basic89?[template]:[],unlocked:!unpaid,fullEdit:!unpaid,paidDownload:!unpaid,premiumHair:!basic89&&!unpaid&&(suitTest?(pro||workPro):true)})}
  purchaseSnapshotRef={snapshotRef} onReceiveImage={async blob=>{window.insigniaFixture.exports.push({type:blob.type,size:blob.size,url:URL.createObjectURL(blob)});return {delivery:'fixture'}}}
- onBeforeProcess={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
+ onBeforeProcess={basic89?async()=>true:async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onProcessPhoto={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onRequestUnlock={context=>{window.insigniaFixture.paymentCalls++;window.insigniaFixture.offer=context;if(!suitTest&&!unpaid)throw Error('FIXTURE_NO_PAYMENT')}} onClose={()=>{}}/>);

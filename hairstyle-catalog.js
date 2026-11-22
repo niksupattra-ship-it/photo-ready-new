@@ -11,10 +11,18 @@ export const PRODUCTION_HAIR_CATALOG=[
   },
   {
     "id": "seedream-41",
+    "hidden": true,
     "gender": "female",
     "name": "ทรงผมหญิง 2",
     "file": "41.png",
     "src": "/assets/seedream-hairstyles/previews/41.webp"
+  },
+  {
+    "id": "seedream-79",
+    "gender": "female",
+    "name": "ผมรวบเรียบ",
+    "file": "79.png",
+    "src": "/assets/seedream-hairstyles/previews/79.webp"
   },
   {
     "id": "seedream-42",
@@ -264,12 +272,13 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
 // Keep the old hidden reference in the catalog for previously saved work.
-export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-41']);
+export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-16','seedream-79']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
 export function firstGenerationHairFor(gender,thaiMale=false){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:gender==='male'&&thaiMale?'seedream-35':''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
 const compact={
+ 'seedream-79':['gathered','sleek near-centre side part with the exact gentle diagonal crown sweep, dark hair lying close to the scalp and fully gathered invisibly behind the head, open forehead, clear ears and completely bare neck; no braids, fringe, visible bun, ponytail or hanging lengths'],
  'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
  'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],

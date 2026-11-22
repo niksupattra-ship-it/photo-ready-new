@@ -39,8 +39,8 @@ test('twenty English styles retain their own IDs, exact source PNGs, picker bind
 test('Thai still lists the existing catalogue; new IDs require a current English catalogue request',async()=>{
  const raw=await readFile(root+'src/main.jsx','utf8'),declaration=raw.match(/const HAIR_OPTIONS=.*?;/)[0];
  const thai=Function('PRODUCTION_HAIR_CATALOG',declaration+'return HAIR_OPTIONS;')(PRODUCTION_HAIR_CATALOG);
- assert(thai.length>10);assert(thai.some(h=>h.id==='seedream-41'));assert(thai.every(h=>h.interfaceLanguage!=='en'));
- assert(raw.includes('femaleHair={englishPreviewEnabled()?ENGLISH_FEMALE_HAIR_CATALOG:STUDIO_FEMALE_HAIR_OPTIONS}'));
+ assert(thai.length>10);assert(thai.some(h=>h.id==='seedream-79'));assert(thai.every(h=>h.interfaceLanguage!=='en'));
+ assert(raw.includes("femaleHair={englishPreviewEnabled()?orderEnglishStudioHair(ENGLISH_FEMALE_HAIR_CATALOG,'female'):STUDIO_FEMALE_HAIR_OPTIONS}"));
  for(const hair of ENGLISH_FEMALE_HAIR_CATALOG){
   assert.equal(validateProductionPortrait({buffer:image,mimetype:'image/png'},{...fields,hairId:hair.id}).id,hair.id);
   for(const patch of [{interfaceLanguage:'th',portraitComposition:undefined,englishStudioFinishVersion:undefined},{hairReferenceVersion:undefined},{englishStudioFinishVersion:undefined},{portraitComposition:undefined,englishStudioFinishVersion:undefined}])assert.throws(()=>validateProductionPortrait({buffer:image,mimetype:'image/png'},{...fields,hairId:hair.id,...patch}));
