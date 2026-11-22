@@ -15,14 +15,14 @@ test('four photographed Thai female job outfits come first; all other female job
 test('actual server blocks unpaid premium suit generation before reserving credits; free four, Pro and English retain access',async()=>{
  const server=await readFile(new URL('../server.js',import.meta.url),'utf8');const a=server.indexOf('async function requireCredit(req,res,kind){'),b=server.indexOf('\nconst upload=multer(',a);
  let pro=false,reservations=0;
- const deps={crypto,isThaiPremiumJobSuit,walletId:()=> 'wallet',isPrivateOwner:()=>false,downloadHairAllowed:()=>true,PRODUCTION_HAIR_CATALOG:[{id:'seedream-35',gender:'male'}],THAI_FREE_FEMALE_HAIR_IDS:[],getWallet:async()=>({usdPremiumPurchased:false}),accountPolicy:()=>({canGeneratePremiumHair:async()=>pro}),reserveThaiDailyOutfitAi:async()=>{reservations++;return {usageId:'free_fixture',trialPreview:true}},reserveEnglishDailyAiOutfit:async()=>({usageId:'en_free',trialPreview:true})};
+ const deps={crypto,isThaiPremiumJobSuit,walletId:()=> 'wallet',isPrivateOwner:()=>false,downloadHairAllowed:()=>true,PRODUCTION_HAIR_CATALOG:[{id:'thai-male-auto',gender:'male'}],THAI_FREE_FEMALE_HAIR_IDS:[],THAI_FREE_MALE_HAIR_IDS:['thai-male-auto','seedream-36','seedream-28'],getWallet:async()=>({usdPremiumPurchased:false}),accountPolicy:()=>({canGeneratePremiumHair:async()=>pro}),reserveThaiDailyOutfitAi:async()=>{reservations++;return {usageId:'free_fixture',trialPreview:true}},reserveEnglishDailyAiOutfit:async()=>({usageId:'en_free',trialPreview:true})};
  const run=Function('deps','with(deps){'+server.slice(a,b)+';return requireCredit}')(deps);
  async function check(path,language='th',hairId='') {let status=200,error;const res={status(n){status=n;return this},json(v){error=v.error;return this}};const result=await run({body:{interfaceLanguage:language,thaiOutfitAiVersion:'th-full-outfit-ai-v1',neckOutfitReferencePath:path,hairId},get:()=>''},res,'ai-finish');return {result,status,error}}
  const premium='/assets/job-uniforms/female-job-taupe-cream-blouse.png';
  assert.equal((await check(premium)).error,'premium_suit_required');assert.equal(reservations,0);
  for(const path of THAI_FREE_FEMALE_SUIT_PATHS)assert.equal((await check(path)).result.trialPreview,true);
  assert.equal(reservations,4);assert.equal((await check(premium,'en')).status,200);
- pro=true;assert.equal((await check(premium)).status,200);assert.equal(reservations,5);pro=false;for(const path of THAI_FREE_MALE_SUIT_PATHS)assert.equal((await check(path)).result.trialPreview,true);assert.equal((await check('/assets/job-uniforms/male-job-charcoal-burgundy-tie.png')).error,'premium_suit_required');assert.equal((await check(THAI_FREE_MALE_SUIT_PATHS[0],'th','seedream-35')).status,200);
+ pro=true;assert.equal((await check(premium)).status,200);assert.equal(reservations,5);pro=false;for(const path of THAI_FREE_MALE_SUIT_PATHS)assert.equal((await check(path)).result.trialPreview,true);assert.equal((await check('/assets/job-uniforms/male-job-charcoal-burgundy-tie.png')).error,'premium_suit_required');assert.equal((await check(THAI_FREE_MALE_SUIT_PATHS[0],'th','thai-male-auto')).status,200);
 });
 test('manual suit authorization accepts every Thai outfit without Pro and preserves English policy',async()=>{
  const source=await readFile(new URL('../server.js',import.meta.url),'utf8');const a=source.indexOf("app.post('/api/images/:id/suits'"),b=source.indexOf('\napp.',a+1);
@@ -42,9 +42,9 @@ test('male screenshot outfits are free in exact order and all other male job out
  for(const path of THAI_FREE_MALE_SUIT_PATHS)assert(!isThaiPremiumJobSuit(path));
  assert(isThaiPremiumMaleSuit('/assets/job-uniforms/male-job-charcoal-burgundy-tie.png'));
  assert(isThaiPremiumMaleSuit('/assets/job-uniforms/female-navy-suit-6.png'));
- const {firstGenerationHairFor,PRODUCTION_HAIR_CATALOG}=await import('../hairstyle-catalog.js');
- assert.equal(firstGenerationHairFor('male',true),'seedream-35');assert.equal(firstGenerationHairFor('male'),'');
+ const {firstGenerationHairFor,PRODUCTION_HAIR_CATALOG,THAI_FREE_MALE_HAIR_IDS}=await import('../hairstyle-catalog.js');
+ assert.equal(firstGenerationHairFor('male',true),'thai-male-auto');assert.equal(firstGenerationHairFor('male'),'');
  const old=PRODUCTION_HAIR_CATALOG.find(h=>h.id==='seedream-35');assert.equal(old.file,'35.png');assert(old.src.includes('35-restored.webp'));
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');const a=main.indexOf('const BASIC_MALE_HAIR_IDS='),b=main.indexOf('const HAIR_OPTIONS=',a);
- const shown=Function('PRODUCTION_HAIR_CATALOG',main.slice(a,b)+';return MALE_HAIR_OPTIONS')(PRODUCTION_HAIR_CATALOG);assert.deepEqual(shown.slice(0,3).map(h=>h.id),['seedream-35','seedream-36','seedream-28']);assert.equal(shown.filter(h=>h.id==='seedream-35').length,1);
+ const shown=Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_MALE_HAIR_IDS',main.slice(a,b)+';return MALE_HAIR_OPTIONS')(PRODUCTION_HAIR_CATALOG,THAI_FREE_MALE_HAIR_IDS);assert.deepEqual(shown.slice(0,3).map(h=>h.id),['thai-male-auto','seedream-36','seedream-28']);assert.equal(shown.filter(h=>h.id==='seedream-35').length,0);
 });

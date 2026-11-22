@@ -77,7 +77,7 @@ test('Thai first-generation female reference is the visible free centre-parted c
 
 
 test('Thai hairstyle 16 is free while withdrawn hairstyle 26 is absent from the picker',async()=>{
- assert.deepEqual([...THAI_FREE_FEMALE_HAIR_IDS],['seedream-14','seedream-16','seedream-79']);
+ assert.deepEqual([...THAI_FREE_FEMALE_HAIR_IDS],['seedream-14','seedream-42','seedream-79']);
  const added=PRODUCTION_HAIR_CATALOG.find(h=>h.id==='seedream-16');
  const withdrawn=PRODUCTION_HAIR_CATALOG.find(h=>h.id==='seedream-26');
  assert.equal(added?.gender,'female');
@@ -91,7 +91,7 @@ test('Thai female picker starts with the three requested free cuts, and hides on
  const [main,studio,easy]=await Promise.all(['../src/main.jsx','../src/studio-editor.jsx','../src/easy-mode.jsx'].map(p=>readFile(new URL(p,import.meta.url),'utf8')));
  assert.match(main,/const BASIC_FEMALE_HAIR_IDS=THAI_FREE_FEMALE_HAIR_IDS/);
  assert.match(studio,/!THAI_FREE_FEMALE_HAIR_IDS\.includes\(id\)/);
- assert.match(studio,/\{\(englishFlow\|\|hairGender!=='female'\)&&<button className=\{'studio-none-choice'/);
- assert.match(easy,/\{\(englishPreviewEnabled\(\)\|\|gender!=='female'\)&&<button type="button" className=\{"easy-no-hair"/);
+ assert(studio.includes("(englishFlow||hairGender!=='female')&&(englishFlow||!maleHair.some(h=>h.id==='thai-male-auto'))"));
+ assert(easy.includes("(englishPreviewEnabled()||gender!=='female')&&(englishPreviewEnabled()||!choices.some(h=>h.id==='thai-male-auto'))"));
  assert.match(studio,/selectedHair=\{selectedHair\} templates=/);
 });
