@@ -868,3 +868,17 @@ test('Inconclusive Thai face-shape landmarks retain finished image for review, b
  assert(app.includes("result.idpromQualityReviewNeeded=true;"),'Unmeasurable finished image retains review flag');
  assert(app.includes("if(!englishPreviewEnabled()){"),'The inconclusive result exception must not apply to English photos');
 });
+
+
+test('neck V2 measures the skin-touching collar and preserves archived V1 instructions exactly',async()=>{
+ const {createHash}=await import('node:crypto');
+ const {THAI_REAR_HAIR_SHORT_NECK_PREVIOUS_VERSION:previous,THAI_REAR_HAIR_SHORT_NECK_VERSION:current,usesThaiRearHairShortNeck,thaiRearHairShortNeckInstruction:rule}=await import('../thai-rear-hair-short-neck.js');
+ for(const [gender,hairKind,digest] of [['female','long','fa39f0c3c169fe7bf5498a6dbeb430d877c3d06aa59788147d0a559cacfad920'],['male','short','8d332475d776f195584bce2dcbf99e8cf1836758608226904cbd6ea6bd5569da']]){
+  assert.equal(createHash('sha256').update(rule({gender,hairKind,version:previous})).digest('hex'),digest);
+  const latest=rule({gender,hairKind,version:current});
+  assert.match(latest,/TOP of the actual collar TOUCHING SKIN/);
+  assert.match(latest,/never squeeze the face or shorten its lower half/);
+  assert.match(latest,/natural individual neck length.*takes precedence/);
+ }
+ assert(usesThaiRearHairShortNeck({thaiOutfitAiVersion:'th-full-outfit-ai-v1',thaiRearHairShortNeckVersion:previous}));
+});
