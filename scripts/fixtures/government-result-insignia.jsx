@@ -1,3 +1,4 @@
+import {THAI_FREE_FEMALE_SUIT_IDS} from '../../thai-female-suit-policy.js';
 import React from 'react';
 import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
 import {createRoot} from 'react-dom/client';
@@ -11,6 +12,8 @@ const query=new URLSearchParams(location.search);
 const gender=query.get('gender')==='male'?'male':'female';
 const narrow=query.get('composition')==='narrow';
 const studio=query.get('studio')==='1';
+const suitTest=query.get('femaleSuits')==='1',pro=query.get('pro')==='1';
+const suitTemplates=[{id:'female-job-taupe-cream-blouse',name:'ชุดโปร',template:'/assets/job-uniforms/female-job-taupe-cream-blouse.png',gender:'female',cat:'job',group:'สมัครงาน'},...THAI_FREE_FEMALE_SUIT_IDS.map((id,i)=>({id,name:'ฟรี '+(i+1),template:'/assets/job-uniforms/'+id+'.png',gender:'female',cat:'job',group:'สมัครงาน'}))];
 const fullbody=query.get('fullbody')==='1';
 const staleNeck=query.get('staleNeck')==='1';
 const stalePatch=Object.assign(document.createElement('canvas'),{width:100,height:40});stalePatch.getContext('2d').fillStyle='#ff00ff';stalePatch.getContext('2d').fillRect(0,0,100,40);
@@ -62,11 +65,11 @@ createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!s
   {name:'ชุด',kind:'suit',visible:!fullbody,source:nativeSuit.toDataURL(),sourceFrame:frame,collarFrame:frame,templatePath:template,assetId:templateInfo.id},
   ...(staleNeck?[{id:'stale-neck',name:'คอเก่า',kind:'neck-fit',hairHeadId:'fixture-head',source:stalePatch.toDataURL(),sourceFrame:{x:400,y:frame.y+frame.h*.18,w:100,h:40}}]:[])
  ]}
- templates={[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
+ templates={suitTest?suitTemplates:[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
  collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]} maleHair={[]} femaleHair={[]}
- paidOutputIds={['fixture-government']} editableOutputIds={['fixture-government']} hasCredits paidHairAccess
- onVerifyOutput={async()=>({unlocked:true,fullEdit:true,paidDownload:true,premiumHair:true})}
+ paidOutputIds={['fixture-government']} editableOutputIds={['fixture-government']} hasCredits allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
+ onVerifyOutput={async()=>({unlocked:true,fullEdit:true,paidDownload:true,premiumHair:suitTest?pro:true})}
  purchaseSnapshotRef={snapshotRef} onReceiveImage={async blob=>{window.insigniaFixture.exports.push({type:blob.type,size:blob.size,url:URL.createObjectURL(blob)});return {delivery:'fixture'}}}
  onBeforeProcess={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
  onProcessPhoto={async()=>{window.insigniaFixture.aiCalls++;throw Error('FIXTURE_NO_AI')}}
- onRequestUnlock={()=>{window.insigniaFixture.paymentCalls++;throw Error('FIXTURE_NO_PAYMENT')}} onClose={()=>{}}/>);
+ onRequestUnlock={context=>{window.insigniaFixture.paymentCalls++;window.insigniaFixture.offer=context;if(!suitTest)throw Error('FIXTURE_NO_PAYMENT')}} onClose={()=>{}}/>);

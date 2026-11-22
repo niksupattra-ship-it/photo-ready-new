@@ -1,3 +1,4 @@
+import {isThaiPremiumFemaleSuit} from './thai-female-suit-policy.js';
 import {PORTRAIT_UPLOAD_LIMITS} from './portrait-upload-limits.js';
 import {loadCurrentHairReference} from './english-current-hair.js';
 import {correctEnglishProportions,validateEnglishProportionMetrics} from './english-proportion-correction.js';
@@ -273,6 +274,7 @@ async function requireCredit(req,res,kind){
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
    const englishRequest=req.body?.interfaceLanguage==='en';
    const englishWallet=englishRequest?await getWallet(wid):null;
+   if(!englishRequest&&req.body?.neckOutfitReferencePath&&isThaiPremiumFemaleSuit(req.body.neckOutfitReferencePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดหญิงเพิ่มเติม'});return null}
    // English Studio's two free styles per gender are different from Thai's.
    // Use the SAME source of truth as the English picker, including subsequent
    // changes to a completed portrait. Do not run the Thai premium-hair check.
@@ -734,7 +736,9 @@ app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-st
 }catch(e){res.status(e.status||503).json({error:'output_rights_unavailable'})}});
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});
- res.json(await accountPolicy(req).suits(walletId(req),req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
+ const wid=walletId(req),policy=accountPolicy(req);
+ if(req.body?.interfaceLanguage!=='en'&&templates.some(isThaiPremiumFemaleSuit)&&!await policy.canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))&&!await policy.premiumHair(wid,req.params.id))return res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดหญิงเพิ่มเติม'});
+ res.json(await policy.suits(wid,req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
 }catch(e){res.status(e.status||503).json({message:e.message||'ตรวจสอบชุดไม่สำเร็จ กรุณาลองใหม่'})}});
 app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{
  if(!req.accountUser)return res.status(401).json({error:'auth_required',message:'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ดาวน์โหลด'});
