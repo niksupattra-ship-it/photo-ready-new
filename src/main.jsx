@@ -3559,11 +3559,12 @@ const RIBBON_OPTIONS=[
  {id:'2543-2547',name:'2543-2547',src:'/assets/ribbons/2543-2547.png'},
  {id:'2548-2549',name:'2548-2549',src:'/assets/ribbons/2548-2549.png'}
 ];
+// Match visible artwork height to PAO, preserving each emblem's native aspect ratio.
 const CHEST_PIN_OPTIONS=[
  {id:'pao',name:'อบจ.',src:'/assets/government-insignia/chest-pao.png'},
- {id:'sao',name:'อบต.',sizeScale:1.12,src:'/assets/government-insignia/chest-sao.png'},
- {id:'municipality',name:'ทต.',sizeScale:1.12,src:'/assets/government-insignia/chest-municipality.png'},
- {id:'bma',name:'กทม.',src:'/assets/government-insignia/chest-bma.png'}
+ {id:'sao',name:'อบต.',sizeScale:1.42,src:'/assets/government-insignia/chest-sao.png'},
+ {id:'municipality',name:'ทต.',sizeScale:1.44,src:'/assets/government-insignia/chest-municipality.png'},
+ {id:'bma',name:'กทม.',sizeScale:1.47,src:'/assets/government-insignia/chest-bma.png'}
 ];
 const COLLAR_PIN_OPTIONS=[
  {id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},
