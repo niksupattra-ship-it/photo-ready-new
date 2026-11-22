@@ -358,7 +358,7 @@ test('Thai PNG suit reinsert restores identical frame and user transform instead
 test('new checkout restores original prices and sold AI10 receipt terms remain frozen',()=>{
  const basic=checkoutPackage('89'),fresh=checkoutPackage('159');
  assert.equal(basic.id,'download_89_v1');assert.equal(basic.price,89);
- assert.equal(fresh.id,'download_159_hair_v1');assert.equal(fresh.price,159);assert.equal(fresh.g+fresh.h,0);assert.equal(fresh.requiresImage,true);assert.equal(fresh.fullEdit,true);
+ assert.equal(fresh.id,'download_159_work_ai10_v3');assert.equal(fresh.price,159);assert.equal(fresh.g+fresh.h,0);assert.equal(fresh.requiresImage,true);assert.equal(fresh.fullEdit,true);
  assert.equal(packageFor('download_159_ai10_v2').g,10);
  assert.equal(packageFor('download_159_hair_v1').g,0);
  assert.throws(()=>checkoutPackage('download_159_ai10_v2'));
@@ -427,9 +427,9 @@ test('Studio suit permission subscription is stable during parent progress rende
 });
 test('Thai frontend and regular usage restore the pre-AI-bundle behavior',async()=>{
  const [ed,main,easy,offers,server]=await Promise.all(['src/studio-editor.jsx','src/main.jsx','src/easy-mode.jsx','src/package-offers.jsx','server.js'].map(p=>readFile(root+p,'utf8')));
- assert.match(offers,/price:'159',name:'รับรูปนี้ \+ ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผมและชุดสมัครงานเพิ่มเติม'/);
- assert.match(offers,/price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'/);
- assert.doesNotMatch(offers,/AI 10 ครั้ง/);
+ assert.match(offers,/price:'159',name:'ใช้ AI 10 ครั้ง สำหรับรูปนี้',features:''/);
+ assert.match(offers,/price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ'/);
+ assert.match(offers,/OFFERS.filter\(offer=>studioMode\|\|offer.price==='89'\)/);
  assert.doesNotMatch(ed,/onSuitAi|studio-ai-trial-note|thaiOutfitAi:!englishFlow/);
  assert.doesNotMatch(easy,/initialOutfitAi|onSuitAi/);
  assert.doesNotMatch(main,/onCheckEnglishOutfitAi=\{async\(\)=>\{[^\n]*thai-ai-edit/);

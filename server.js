@@ -40,7 +40,7 @@ import crypto from "crypto";
 import sharp from "sharp";
 import {editHairstyle,providerStatus} from "./hairstyle-engine/index.js";
 import { fileURLToPath } from "url";
-import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,reserveThaiDailyOutfitAi,thaiDailyOutfitAiAccess,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
+import {newWallet,getWallet,getWalletBalance,ensureWallet,creditPaid,recordDownloadRefund,pendingDownloadRefunds,redeemPromo199,redeemPromoPackage,reserveCredit,reserveUsdPremiumCredit,reserveTrialPreview,englishDailyAiOutfitAccess,reserveEnglishDailyAiOutfit,thaiWorkAiPurchaseAllowed,prepareThaiWorkAi,reserveThaiWorkAi,reserveThaiDailyOutfitAi,thaiDailyOutfitAiAccess,commitCredit,refundCredit,walletHistory,imageEntitlements,creditOutputFullEdit,trialOptionAccess} from "./payment-store.js";
 import {createAiJob,getAiJobBySubmission,createSourceDownloadJob,claimAiJob,touchAiJob,completeAiJob,failAiJob,getAiJob,getAiJobResult,getAiJobEditContext,getAiJobsAccess,queuedAiJobs,claimTrialImage,settleAiJobDelivery,claimEnglishProportionCorrection,finishEnglishProportionCorrection,failEnglishProportionCorrection,queueFemaleAlternateFinish,claimFemaleAlternateFinish,touchFemaleAlternateFinish,completeFemaleAlternateFinish,failFemaleAlternateFinish,queuedFemaleAlternateFinishes} from "./job-store.js";
 import {checkoutPackage,packageFor} from './package-rules.js';
 import {registerUser,loginUser,authUser,walletHasAccount,createPasswordReset,resetPassword} from "./auth-store.js";
@@ -225,7 +225,7 @@ app.post('/api/payments/english-checkout',async(req,res)=>{
  }
 });
 app.post('/api/payments/checkout',(req,res)=>paymentApi.checkout(req,res));
-paymentApi=registerPromptpayApi(app,{stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,recordDownloadRefund,pendingDownloadRefunds,appUrl:APP_URL,scopeForJob:(wid,id)=>downloadPolicy.scopeForJob(wid,id),walletRights:getWallet,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
+paymentApi=registerPromptpayApi(app,{validateWorkAiPurchase:thaiWorkAiPurchaseAllowed,stripePost,stripeGet,ensureWallet,getAiJobResult,creditPaid,recordDownloadRefund,pendingDownloadRefunds,appUrl:APP_URL,scopeForJob:(wid,id)=>downloadPolicy.scopeForJob(wid,id),walletRights:getWallet,isUnlocked:(wid,id)=>downloadPolicy.allowed(wid,id),isPremium:(wid,id)=>downloadPolicy.premiumHair(wid,id)});
 setInterval(()=>{void paymentApi.retryReconciliations().catch(error=>console.warn('IDPROM payment reconciliation:',error.code||'storage_unavailable'))},60000).unref();
 // Trial identity is a signed, first-party browser cookie, independent of IP.
 // Paid requests bypass this entirely; existing wallet IDs and balances stay intact.
@@ -274,6 +274,10 @@ async function requireCredit(req,res,kind){
    const chosen=PRODUCTION_HAIR_CATALOG.find(h=>h.id===req.body?.hairId);
    const englishRequest=req.body?.interfaceLanguage==='en';
    const englishWallet=englishRequest?await getWallet(wid):null;
+   if(!englishRequest&&req.body?.downloadWorkId){
+    const bundle=await reserveThaiWorkAi(wid,req.body.downloadWorkId,'',req.accountUser?.wallet_id===wid);
+    if(bundle.owned){if(bundle.credit)return bundle.credit;res.status(bundle.error==='auth_required'?401:402).json({error:bundle.error,message:bundle.error==='auth_required'?'กรุณาเข้าสู่ระบบเพื่อใช้สิทธิ์ AI ของรูปนี้':bundle.error==='thai_work_ai_expired'?'สิทธิ์ AI สำหรับรูปนี้หมดอายุแล้ว':'ใช้ AI สำหรับรูปนี้ครบแล้ว'});return null}
+   }
    if(!englishRequest&&req.body?.neckOutfitReferencePath&&isThaiPremiumJobSuit(req.body.neckOutfitReferencePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))){res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดสมัครงานเพิ่มเติม'});return null}
    // English Studio's two free styles per gender are different from Thai's.
    // Use the SAME source of truth as the English picker, including subsequent
@@ -494,6 +498,7 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
    current=Promise.resolve().then(async()=>{
     if(!process.env.ARK_API_KEY)throw Object.assign(Error('AI ใส่ชุดยังไม่พร้อม'),{status:503,publicMessage:'AI ใส่ชุดยังไม่พร้อม'});
     let paidUse=null;
+    if(!plan?.usdPremiumPurchased){const scope=await downloadPolicy.scopeForJob(wid,jobId),access=await reserveThaiWorkAi(wid,scope,'',req.accountUser?.wallet_id===wid);if(access.owned){if(!access.credit)throw Object.assign(Error(access.error),{status:access.error==='auth_required'?401:402});paidUse=access.credit}else if(isThaiPremiumJobSuit(templatePath)&&!await accountPolicy(req).canGeneratePremiumHair(wid,scope))throw Object.assign(Error('premium_suit_required'),{status:403})}
     if(plan?.usdPremiumPurchased){
      paidUse=await reserveUsdPremiumCredit(wid,'ai-finish');
      if(!paidUse.usageId)throw Object.assign(Error('credits_exhausted'),{status:402,publicMessage:'No Premium AI generations left. Manual outfit selection remains available.'});
@@ -628,12 +633,13 @@ const activeFemaleAlternateFinishes=new Set();
 async function runFemaleAlternateFinish(id){
  if(activeFemaleAlternateFinishes.has(id))return;
  activeFemaleAlternateFinishes.add(id);
- let claimed=null,heartbeat=null,finish=null;
+ let claimed=null,heartbeat=null,finish=null,finishCredit=null;
  try{
   claimed=await claimFemaleAlternateFinish(id);
   if(!claimed)return;
   const fields=claimed.fields||{},wid=claimed.wallet_id;
   finish=fields.alternateFinish;
+  if(fields.interfaceLanguage!=='en'){const access=await reserveThaiWorkAi(wid,fields.downloadWorkId,'finish:'+id+':'+finish);if(access.owned){if(!access.credit)throw Error(access.error);finishCredit=access.credit}}
   if(!['natural','makeup'].includes(finish)||fields.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('Invalid alternate finish');
   heartbeat=setInterval(()=>{void touchFemaleAlternateFinish(id).catch(()=>{})},30000);heartbeat.unref?.();
   let result;
@@ -667,10 +673,12 @@ async function runFemaleAlternateFinish(id){
    });
   }
   if(!await completeFemaleAlternateFinish(id,wid,finish,result,legacyAiMakeup?NATURAL_MASTER_MAKEUP_VERSION:null,finish==='makeup'?audit.snapshot().makeupPolicyVersion:null))throw Error('Alternate finish was superseded');
+  if(finishCredit)await commitCredit(finishCredit.usageId);
   if(finish==='makeup')console.info('Makeup generation audit',id,{route:'alternate',...audit.snapshot()});
   console.info('Alternate finish completed',id,finish);
  }catch(error){
   console.error('Alternate finish error',id,error?.code||error?.message);
+  if(finishCredit)await refundCredit(finishCredit.usageId).catch(()=>{});
   if(claimed&&finish)await failFemaleAlternateFinish(id,finish).catch(()=>{});
  }finally{clearInterval(heartbeat);activeFemaleAlternateFinishes.delete(id)}
 }
@@ -679,6 +687,7 @@ app.post('/api/ai-jobs/:id/finish',async(req,res)=>{
  try{
   const finish=String(req.body?.finish||''),hair=String(req.body?.hairId||'original'),outfit=String(req.body?.templatePath||'');
   if(!['natural','makeup'].includes(finish)||hair.length>160||outfit.length>512)return res.status(400).json({error:'invalid_finish_request'});
+  if(!req.accountUser){const job=await getAiJobResult(req.params.id,walletId(req));if(job?.fields?.downloadWorkId){const access=await reserveThaiWorkAi(walletId(req),job.fields.downloadWorkId,'',false);if(access.owned)return res.status(401).json({error:'auth_required'})}}
   const result=await queueFemaleAlternateFinish(req.params.id,walletId(req),finish,hair,outfit);
   if(result.status===202)setImmediate(()=>runFemaleAlternateFinish(req.params.id));
   else if(result.status===200&&finish==='makeup')console.info('Makeup generation audit',req.params.id,{route:'stored-result',providerCalls:0,makeupPolicyVersion:result.makeupPolicyVersion||null});
@@ -737,7 +746,8 @@ app.get('/api/images/:id/rights',async(req,res)=>{res.set('Cache-Control','no-st
 app.post('/api/images/:id/suits',async(req,res)=>{res.set('Cache-Control','no-store');try{
  const templates=Array.isArray(req.body?.templates)?req.body.templates:[];if(templates.length>2)return res.status(400).json({message:'ข้อมูลชุดไม่ถูกต้อง'});
  const wid=walletId(req),policy=accountPolicy(req);
- if(req.body?.interfaceLanguage!=='en'&&templates.some(isThaiPremiumJobSuit)&&!await policy.canGeneratePremiumHair(wid,String(req.body?.downloadWorkId||''))&&!await policy.premiumHair(wid,req.params.id))return res.status(403).json({error:'premium_suit_required',message:'สมัครโปร 159 บาทเพื่อปลดล็อกชุดสมัครงานเพิ่มเติม'});
+
+ if(req.body?.interfaceLanguage!=='en'){await policy.ownedJob(wid,req.params.id);return res.json({limited:false,choices:[]})}
  res.json(await policy.suits(wid,req.params.id,templates,req.get('X-IDPROM-Saved-Work')||''));
 }catch(e){res.status(e.status||503).json({message:e.message||'ตรวจสอบชุดไม่สำเร็จ กรุณาลองใหม่'})}});
 app.post('/api/images/:id/unlock',async(req,res)=>{res.set('Cache-Control','no-store');try{
@@ -780,7 +790,8 @@ app.use((err,req,res,next)=>{
   next(err);
 });
 
-app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
+let thaiWorkAiReady=false;void prepareThaiWorkAi().then(()=>{thaiWorkAiReady=true}).catch(error=>console.error('Thai work AI schema unavailable',error.code||error.message));
+app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,thaiWorkAiReady,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
 // Serve an indexable English landing at /en/ with the same built app and APIs.
 // All Thai pages and Stripe endpoints continue to use their existing routes.
 // Keep the original Thai photo-information/catalogue page indexable at its own URL.

@@ -6,8 +6,8 @@ import {ServiceTermsLink} from './service-terms.jsx';
 function OfferDiamond(){return <svg className="offer-diamond" viewBox="0 0 40 34" aria-hidden="true" focusable="false"><path d="M2 11 10 2h20l8 9-18 21Z" fill="#58bdf1" stroke="#329bd3" strokeWidth="1.2" strokeLinejoin="round"/><path d="M2 11h36L20 32Z" fill="#299ddd"/><path d="m10 2 5 9h10l5-9Z" fill="#c3f2ff"/><path d="m15 11 5 21 5-21Z" fill="#87dbfa"/><path d="M2 11 10 2l5 9Zm23 0 5-9 8 9Z" fill="#6ed0f5"/><path d="m6 9 5-5h4" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>}
 
 const OFFERS=[
- {price:'89',name:'รับรูปนี้',features:'เลือกชุด 3 ชุด · ทรงผมพื้นฐาน'},
- {price:'159',name:'รับรูปนี้ + ทรงผม',features:'เลือกชุด 5 ชุด · ปลดล็อกทรงผมและชุดสมัครงานเพิ่มเติม'}
+ {price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ'},
+ {price:'159',name:'ใช้ AI 10 ครั้ง สำหรับรูปนี้',features:''}
 ];
 function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={},diamondHairOffer=false}){
  const ready=Boolean(hasTrial)&&!payBusy;
@@ -58,25 +58,26 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
  </div>;
 }
 
-export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=false,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,onBackToPhoto,isAuthenticated=true,premiumState={}}){
+export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=false,studioMode=false,onOpenStudio,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,onBackToPhoto,isAuthenticated=true,premiumState={}}){
  const english=englishPreviewEnabled();
- const [selected,setSelected]=useState(diamondHairOffer?'159':'89');
- useEffect(()=>{if(diamondHairOffer)setSelected('159')},[diamondHairOffer]);
+ const [selected,setSelected]=useState(diamondHairOffer&&studioMode?'159':'89');
+ useEffect(()=>{setSelected(diamondHairOffer&&studioMode?'159':'89')},[diamondHairOffer,studioMode]);
  if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} onBackToPhoto={onBackToPhoto} premiumState={premiumState} diamondHairOffer={diamondHairOffer}/>;
  const disabled=payBusy||!hasTrial;
  const premiumCredits=Math.max(0,Math.floor(Number(premiumCreditBalance)||0)),credits=Math.max(0,Math.floor(Number(creditBalance)||0))+premiumCredits;
  const usePremium=isAuthenticated&&premiumCredits>0;
  const showMessage=payMsg&&!['สร้างและปรับแต่งฟรี','เลือกแพ็กเกจเพื่อ'].some(p=>payMsg.startsWith(p));
- const choose=price=>{setSelected(price);if(price==='159'&&usePremium)onUseCredit({premium:true});else startCheckout(price)};
+ const choose=price=>{setSelected(price);startCheckout(price)};
  return <div className="idprom-ready-offer paired-offers">
   <header className="offer-step"><span aria-hidden="true">6</span><h2>เลือกรูปแบบรับภาพ</h2></header>
   <div className="offer-choice-layout">
    <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
-    {OFFERS.map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
-     <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
-     <button type="button" className="ready-pay" disabled={disabled} onClick={()=>choose(offer.price)}>{payBusy?'กำลังเตรียม…':offer.price==='159'&&usePremium?'ใช้ 1 สิทธิ์โปร 159':'เลือกโปร '+offer.price+' บาท'}</button>
+    {OFFERS.filter(offer=>studioMode||offer.price==='89').map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
+     <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').filter(Boolean).map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
+     <button type="button" className="ready-pay" disabled={disabled} onClick={()=>choose(offer.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+offer.price+' บาท'}</button>
      {offer.price==='89'&&<button type="button" className="single-photo-back" disabled={disabled} onClick={()=>onBackToPhoto?.('89')}>← ย้อนกลับไปแก้ไขรูปนี้</button>}
+    {!studioMode&&offer.price==='89'&&<button type="button" className="single-photo-back" disabled={payBusy} onClick={()=>onOpenStudio?.()}>ปลดล็อกใช้งานมากขึ้น ไปที่สตูดิโอ →</button>}
     </section>)}
    </div>
   </div>
@@ -92,10 +93,10 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
    <ol>
     <li>อัปโหลดรูปหน้าตรง เลือกชุด ทรงผม และปรับแต่งภาพ</li>
     <li>ตรวจภาพตัวอย่าง ใบหน้า ชุด พื้นหลัง และขนาดให้เรียบร้อยก่อนชำระเงิน</li>
-    <li>เลือก 89 บาท เพื่อรับรูปนี้และเลือกชุดรวม 3 ชุดพร้อมทรงผมพื้นฐาน หรือ 159 บาท เพื่อรับรูปนี้และเลือกชุดรวม 5 ชุดพร้อมทรงผมเพิ่มเติม</li>
+    <li>{studioMode?'เลือก 89 บาทเพื่อรับรูปนี้ หรือ 159 บาท: ใช้ AI 10 ครั้ง สำหรับรูปนี้':'เลือก 89 บาทเพื่อรับรูปนี้'}</li>
     <li>เข้าสู่ระบบและชำระเงินหรือใช้สิทธิ์ที่มี แล้วเลือกดาวน์โหลด PNG หรือ PDF ไม่มีลายน้ำ</li>
    </ol>
-   <p>แพ็กเกจปลดล็อกสำหรับงานที่เลือกเท่านั้น ชุดที่ใช้อยู่ขณะปลดล็อกนับรวมในจำนวนชุด หลังเลือกครบยังสลับใช้ชุดเดิมได้ แต่รูปต้นฉบับใหม่เป็นคนละงาน</p>
+   <p>แพ็กเกจสำหรับรูปนี้ กลับมาใช้งานรูปเดิมได้ภายใน 7 วัน</p>
    <p>ตรวจสอบว่าไฟล์ดาวน์โหลดและเปิดได้ก่อนออกจากหน้าเว็บ อ่านรายละเอียดสิทธิ์และข้อกำหนดเพิ่มเติมด้านล่าง</p>
   </div></details>
   <ServiceTermsLink/>

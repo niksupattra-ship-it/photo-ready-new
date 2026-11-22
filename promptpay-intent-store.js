@@ -56,7 +56,7 @@ export function createPromptpayIntentStore(pool,{prepare=async()=>{}}={}){
    // Unbound rows need their original creation/recovery path, never this poller.
    return (await pool.query(`WITH pending AS (
     SELECT id FROM promptpay_work_intents WHERE active AND intent_id IS NOT NULL
-     AND package_id IN ('download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2')
+     AND package_id IN ('download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2','download_159_work_ai10_v3')
     ORDER BY updated_at,id LIMIT 10 FOR UPDATE SKIP LOCKED
    ) UPDATE promptpay_work_intents r SET updated_at=clock_timestamp()
     FROM pending p WHERE r.id=p.id RETURNING r.*`)).rows;
