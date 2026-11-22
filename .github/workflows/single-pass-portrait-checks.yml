@@ -2,6 +2,7 @@ name: Single-pass portrait quality gates
 on:
   push:
     branches:
+      - main
       - feature/single-ai-portrait-selection-20261115
   pull_request:
     branches: [main]
@@ -14,10 +15,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
       - run: npm ci
       - name: Confirm one AI call and preserve legacy results
         run: node --test tests/single-female-finish-free-switch.test.js
-      - name: Full build and existing regression suite
+      - name: Full regression suite
+        timeout-minutes: 10
+        env:
+          VIPS_CONCURRENCY: 2
+        run: npm run test:release
+      - name: Verify original assets and build production client
+        timeout-minutes: 5
+        env:
+          VIPS_CONCURRENCY: 2
         run: npm run build
