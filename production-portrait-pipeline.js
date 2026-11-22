@@ -1,3 +1,4 @@
+import {femaleHairLightnessInstruction} from './hairstyle-fit-policy.js';
 import {englishProfessionalDefaultHair} from './english-auto-hair.js';
 import {thaiRearHairReference,THAI_REAR_HAIR_FINAL_POLICY} from './thai-rear-hair-reference.js';
 import {THAI_REAR_HAIR_SHORT_NECK_VERSION,usesThaiRearHairShortNeck,thaiRearHairShortNeckInstruction} from './thai-rear-hair-short-neck.js';
@@ -367,6 +368,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
   prompt+=onePassSkinQualityPriority(fields.femaleEyeStyle,false);
  }
  if(requestedMaleAuto)prompt+='\n'+englishProfessionalDefaultHair('male');
+ prompt+=femaleHairLightnessInstruction(selected.gender,{keepCurrentHair:fields.keepCurrentHair==='1'});
  // Last hair-only authority after cosmetics and hairstyle/default instructions.
  prompt+='\n'+VISIBLE_NAPE_BUN_PROHIBITION;
  if(singlePass&&fields.femaleEyeStyle==='makeup'&&selected.gender==='female')prompt+='\n'+FINAL_SELECTED_MAKEUP_DELIVERY_AUDIT;
@@ -589,6 +591,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const refs={gender:selected.gender,keepCurrentHair,selectedHairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:selected.gender==='male'?'short':null,hairIndex:hair?2:null,autoHairSourceIndex:!keepCurrentHair&&!chosen&&selected.gender==='female'?(autoFemaleHairSource?2:1):null,identityIndex:identityLayout?1:identity?2+Number(Boolean(visualHairReference)):null,hairFitIndex,hairGuidance:(headOnly||templateBody)&&!keepCurrentHair&&chosen?(templateBody?selectedHairInstruction(chosen)+'\n':'')+catalogueHairInstruction(chosen,selectedHairDesign(chosen)?.kind)+'\n'+PICKER_HAIR_PRIORITY+'\n'+SOFT_HAIR_TEXTURE_POLICY:''};
  const makeupFinish=singlePass&&fields.femaleEyeStyle==='makeup';
  let prompt=thaiSingleAi?englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:null,naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY}):templateBody?englishTemplateBodyPrompt({...refs,outfitIndex,identityLayout,proportionLock:Boolean(layoutProfile),naturalHeadNeck:Boolean(newEnglishProfile)&&!thaiCalibrated&&!thaiAdaptive,maleBodyBalance:Boolean(legacyV9&&selected.gender==='male')&&!thaiCalibrated&&!thaiAdaptive,femaleBodyBalance:matchedFemale&&!thaiCalibrated&&!thaiAdaptive,femaleBalancedHead:balancedFemale&&!thaiCalibrated&&!thaiAdaptive,makeupFinish}):headOnly?englishHeadPortraitPrompt({...refs,makeupFinish}):englishBodyPortraitPrompt({...refs,outfitIndex,layoutIndex:outfitIndex+1+Number(Boolean(hairPlacementReference)),naturalSkinPolicy:makeupFinish?SINGLE_PASS_MAKEUP_APPEARANCE_CONTEXT:englishNaturalStudioSkin(),scalpFitPolicy:keepCurrentHair?'':ENGLISH_SCALP_ATTACHMENT_POLICY});
+ prompt+=femaleHairLightnessInstruction(selected.gender,{keepCurrentHair});
  let outfitDetailReference=!headOnly&&fields.englishOutfitFidelityVersion===ENGLISH_OUTFIT_FIDELITY_VERSION?await createEnglishOutfitDetailReference(originalOutfit):null;
  const collarless=usesThaiCollarlessNeckline(fields);
  if(collarless&&!usesThaiAiGarmentOnly(fields))outfitDetailReference=await addThaiCollarlessReference(outfitDetailReference,root,usesThaiCollarlessPrimary(fields)?originalOutfit:null);

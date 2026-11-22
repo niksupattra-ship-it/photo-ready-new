@@ -43,6 +43,8 @@ test('actual new Thai full-outfit request ends with the face/eye, no-bun and ful
   const audit=createMakeupRequestAudit(async p=>{calls.push(p);return {png}},{requirePolicy:true});
   await processProductionPortrait({input,fields:request,root:new URL('..',import.meta.url).pathname,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
   assert.equal(calls.length,1);assert.equal(audit.snapshot().providerCalls,1);
+  assert.match(calls[0].prompt,/FEMALE HAIR LIGHTNESS.*ADDITIONAL 15% REDUCTION/);
+  assert.match(calls[0].prompt,/85% of the previous light-hair target/);
   assert.equal(calls[0].thaiRealFaceVersion,version);assert(calls[0].portrait?.length);assert(input.buffer.equals(png),'Untouched original identity bytes must not be rewritten');
   if(version===THAI_REAL_FACE_VERSION)assert(calls[0].prompt.endsWith(thaiFinalOriginalIdentity(request)));
   else assert(!calls[0].prompt.includes('THAI PHOTOGRAPHIC IDENTITY AND COMPLETE FRAME — FINAL V2 CONTRACT'));

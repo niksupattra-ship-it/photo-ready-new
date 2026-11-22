@@ -47,6 +47,7 @@ test('production sends boundary context and final selected rule in its existing 
   const h=productionHair(id),calls=[];
   await processProductionPortrait({input:{buffer:input,mimetype:'image/png'},fields:{interfaceLanguage:'en',portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitMode:h.gender,femaleEyeStyle:'natural',hairReferenceVersion:HAIR_REFERENCE_VERSION,hairId:id,neckOutfitReferencePath:'/assets/job-uniforms/male-job-navy-three-piece-burgundy-tie.png'},root,key:'inert',requestPortrait:async r=>{calls.push(r);return{png:matte}},removeBackground:async()=>matte});
   assert.equal(calls.length,1);assert.equal((await sharp(calls[0].hair).metadata()).width,1024);
+  assert.equal(calls[0].prompt.includes('FEMALE HAIR LIGHTNESS'),h.gender==='female');
   assert(calls[0].prompt.endsWith(englishSelectedHairBoundaryInstruction(h)),'Selected endpoints must be the final authority, after generic cleanup');
  }
 });
