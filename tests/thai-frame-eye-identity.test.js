@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {planThaiBodyFrame} from '../src/thai-body-framing.js';
+import {planThaiBodyFrame,fitThaiBodyScene} from '../src/thai-body-framing.js';
 import {eyeIdentityMetrics,compareThaiEyeIdentity} from '../src/thai-eye-identity.js';
 import {inspectThaiGatheredBun} from '../src/thai-gathered-bun-check.js';
 import {THAI_REAL_FACE_VERSION,THAI_REAL_FACE_PREVIOUS_VERSION,thaiFinalOriginalIdentity} from '../thai-real-face-policy.js';
@@ -12,19 +12,19 @@ const hash=b=>createHash('sha256').update(b).digest('hex');
 function portrait(w=300,h=400,bottom=390){const pixels=new Uint8ClampedArray(w*h*4);for(let y=60;y<bottom;y++)for(let x=60;x<w-60;x++)pixels[(y*w+x)*4+3]=255;return pixels}
 test('native portrait placement removes the reported lower transparent strip with one uniform scale, without modifying pixels',()=>{
  const w=300,h=400,pixels=portrait(w,h),before=hash(pixels),plan=planThaiBodyFrame(pixels,w,h);
- assert(plan.applied);assert.equal(plan.reason,'bottom_anchored');assert(Math.abs(plan.y+(plan.bottom+1)*plan.scale-1200)<1e-8);
+ assert(plan.applied);assert.equal(plan.reason,'bottom_anchored');assert(Math.abs(plan.y+(plan.bottom+1)*plan.scale-1202)<1e-8);
  assert(Math.abs(plan.scale*300/(plan.scale*400)-.75)<1e-12);assert.equal(hash(pixels),before);
  for(let x=0;x<20;x++)pixels[((h-1)*w+x)*4+3]=100;
  assert.equal(planThaiBodyFrame(pixels,w,h).bottom,389,'Ignore sparse/soft matte noise below the coat');
  for(let y=390;y<h;y++)for(const x of [...Array.from({length:40},(_,i)=>i+10),...Array.from({length:40},(_,i)=>i+250)])pixels[(y*w+x)*4+3]=255;
  assert.equal(planThaiBodyFrame(pixels,w,h).bottom,389,'Side hair does not conceal a floating central coat hem');
- const full=planThaiBodyFrame(portrait(w,h,h),w,h);assert.equal(full.scale,3);assert.equal(full.y,0);
+ const full=planThaiBodyFrame(portrait(w,h,h),w,h);assert(full.scale>3);assert(full.crown*full.scale+full.y>=-1e-8);
 });
 test('different native aspect ratios and excessive padding retain the crown and never squeeze/stretch a face',()=>{
  for(const [w,h,bottom] of [[300,440,430],[340,400,390],[300,400,300]]){
   const plan=planThaiBodyFrame(portrait(w,h,bottom),w,h);
-  assert(plan.crown*plan.scale+plan.y>=0);assert(plan.scale/(Math.min(900/w,1200/h))<=1.22);
-  assert(Math.abs((plan.bottom+1)*plan.scale+plan.y-1200)<1e-8);
+  assert(plan.crown*plan.scale+plan.y>=-1e-8);
+  assert(Math.abs((plan.bottom+1)*plan.scale+plan.y-1202)<1e-8);
  }
  assert.equal(planThaiBodyFrame(new Uint8Array(40),300,400).reason,'unmeasurable');
 });
@@ -56,4 +56,19 @@ test('new Thai-only final contract prevents visible buns, floating coats and bea
  assert(main.includes('headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION'));
  assert(main.includes('inspectThaiGatheredBun(await portraitCompletionEvidence(result,false))'));
  assert(main.includes("if((!faceLock.ok&&faceLock.reason==='face_geometry_changed')||eyeLock.action==='reject')"));
+});
+
+test('undersized male coat fills both sides and bottom with one scale; saved native details follow and cached switching stays idempotent',()=>{
+ const w=300,h=400,pixels=new Uint8ClampedArray(w*h*4);
+ for(let y=72;y<190;y++)for(let x=115;x<185;x++)pixels[(y*w+x)*4+3]=255;
+ for(let y=190;y<390;y++)for(let x=22;x<278;x++)pixels[(y*w+x)*4+3]=255;
+ const before=hash(pixels),plan=planThaiBodyFrame(pixels,w,h);
+ assert(Math.abs(plan.x+22*plan.scale+2)<1e-8);assert(Math.abs(plan.x+278*plan.scale-902)<1e-8);
+ assert(Math.abs(plan.y+390*plan.scale-1202)<1e-8);assert(plan.y+72*plan.scale>0);assert.equal(hash(pixels),before);
+ const head={id:'h',kind:'head',source:'native',sourceFrame:{x:0,y:0,w:900,h:1200}},pin={id:'p',kind:'uniform-detail',realUniformDetail:true,hairHeadId:'h',source:'native-button',sourceFrame:{x:400,y:700,w:40,h:40}},bg={kind:'background'};
+ const layers=[bg,head,pin],fitted=fitThaiBodyScene(layers,head,plan,w,h),q=plan.scale/3;
+ assert.equal(fitted[0],bg);assert.equal(fitted[1].source,'native');assert.equal(fitted[2].source,'native-button');
+ assert(Math.abs(fitted[2].sourceFrame.x-(plan.x+400*q))<1e-8);
+ assert.equal(fitThaiBodyScene(fitted,fitted[1],plan,w,h),fitted,'Reopening/switching never zooms twice');
+ const edited=[head,{...pin,x:20}];assert.equal(fitThaiBodyScene(edited,head,plan,w,h),edited,'Preserve manual edits');
 });

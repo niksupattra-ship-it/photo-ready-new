@@ -1,3 +1,5 @@
+import {planThaiBodyFrame,fitThaiBodyScene} from './thai-body-framing.js';
+import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
 import {REAL_UNIFORM_DETAILS_VERSION,REAL_UNIFORM_DETAIL_TEMPLATES} from './real-uniform-details.js';
 import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
 import {withoutObsoleteThaiNeckBridges} from './thai-collar-layers.js';
@@ -768,6 +770,18 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     try{await hydrateLayer(l)}catch(error){firstFailure=error;throw error}
    }
   }));
+  if(!englishFlow){
+   const heads=next.filter(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
+   const head=heads.length===1?heads[0]:null,asset=head&&map.get(head.id);
+   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&asset?.original&&!asset.warped){
+    const im=asset.original,c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height});
+    try{
+     const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
+     const plan=planThaiBodyFrame(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height),fitted=fitThaiBodyScene(next,head,plan,c.width,c.height);
+     if(fitted!==next){next=fitted;for(const l of next){const a=map.get(l.id);if(a&&a.sourceFrame!==l.sourceFrame)map.set(l.id,{...a,sourceFrame:l.sourceFrame,bounds:null,thumbnail:null,dirty:true})}}
+    }finally{c.width=c.height=1}
+   }
+  }
   if(!mounted.current||token!==loading.current||!canCommit())return false;assets.current=map;state.current=next;setLayers(next);setSelected(next.find(l=>l.id===selectedRef.current)?.id||(touch?null:lastItem(next)?.id)||null);setReady(true);setStatus('');return true;
  }catch(e){lastHydrateErrorRef.current=e;if(mounted.current&&token===loading.current&&canCommit()){setReady(assets.current.size>0);setStatus(e.message)}return false}finally{if(token===loading.current)hydratingRef.current=false}}
  useEffect(()=>{mounted.current=true;hydrate(state.current);return()=>{mounted.current=false;++loading.current}},[]);
@@ -1298,7 +1312,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(realDetailScope.current!==accountScope){realDetailMemory.current.clear();realDetailSkip.current.clear();realDetailScope.current=accountScope;realDetailSeen.current=null;if(realDetailBusy.current){realDetailBusy.current=false;setAssetBusy(false)}}
   if(!realDetailEligible)realDetailSeen.current=null;
   if(realDetailEligible&&ready&&!assetBusy&&!processActive){
-   const key=JSON.stringify([accountScope,governmentImageHead?.jobId,governmentTemplate]);
+   const key=JSON.stringify([accountScope,governmentImageHead?.jobId,governmentTemplate,governmentImageHead?.hairId,governmentImageHead?.hairPolicyVersion]);
    if(realDetailSeen.current!==key){realDetailSeen.current=key;if(!governmentImageHead?.realUniformDetailsVersion)void applyRealUniformDetails({automatic:true})}
   }
  },[ready,assetBusy,processActive,realDetailEligible,governmentImageHead?.jobId,governmentImageHead?.source,governmentImageHead?.realUniformDetailsVersion,governmentTemplate,accountScope]);

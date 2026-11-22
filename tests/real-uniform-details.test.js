@@ -62,3 +62,15 @@ test('automatic details never modify a locked, hidden or manually masked portrai
   await apply({automatic:true});assert.equal(head.source,'paid original pixels');
  }
 });
+
+test('native detail auto-placement follows cached hairstyle changes even when the job id is reused, and respects undo within the same style',async()=>{
+ const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const start=editor.indexOf(' useEffect(()=>{\n  if(realDetailScope.current'),end=editor.indexOf(' const easyGovernmentInsigniaFitRef',start);
+ let calls=0;
+ const env={useEffect:cb=>cb(),realDetailScope:{current:'account'},accountScope:'account',realDetailEligible:true,ready:true,assetBusy:false,processActive:false,governmentTemplate:'/assets/government-uniforms/male-government-employee.png',governmentImageHead:{jobId:'cached-job',hairId:'thai-male-auto'},realDetailSeen:{current:null},applyRealUniformDetails:()=>{calls++}};
+ const effect=Function('env','with(env){'+editor.slice(start,end)+'}');
+ effect(env);assert.equal(calls,1);
+ effect(env);assert.equal(calls,1,'Undo native details does not immediately reapply');
+ env.governmentImageHead={jobId:'cached-job',hairId:'seedream-36'};effect(env);assert.equal(calls,2,'Same-job cached hair needs its own boards/buttons');
+ env.governmentImageHead={jobId:'cached-job',hairId:'thai-male-auto',realUniformDetailsVersion:'real-uniform-details-v1'};effect(env);assert.equal(calls,2,'Restored native layers are not pasted twice');
+});
