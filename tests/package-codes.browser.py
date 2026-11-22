@@ -84,7 +84,7 @@ class Case:
    p.get_by_role('button',name='ใช้โค้ด',exact=True).evaluate('(e)=>{e.click();e.click()}');p.wait_for_timeout(150);assert self.pending is not None;assert len(self.code_calls())==3;p.keyboard.press('Escape');assert p.get_by_role('dialog',name='ใส่โค้ด',exact=True).count()==1;assert len(self.downloads)==0;r,d=self.pending;self.pending=None;self.reply(r,d)
   else:p.get_by_role('button',name='ใช้โค้ด',exact=True).click()
   p.get_by_role('heading',name='ใช้โค้ดสำเร็จ',exact=True).wait_for();assert len(self.downloads)==0,'Code entry must not auto-download an original-size file';p.get_by_role('button',name='กลับไปดาวน์โหลดรูป',exact=True).click();self.ensure_mode();p.wait_for_timeout(100)
-  assert p.locator('.easy-watermark'if self.mode=='easy'else'.studio-trial-watermark').count()==0,'Authoritatively redeemed work still displays preview watermark'
+  assert p.locator('.idprom-preview-watermark[aria-label]'if self.mode=='easy'else'.studio-trial-watermark').count()==0,'Authoritatively redeemed work still displays preview watermark'
   self.verify_hair();self.download('first');self.download('repeat');assert len(self.code_calls())==3;assert any(c['url'].endswith('/suits')and c.get('limit')==(5 if self.premium else 3)for c in self.calls);assert not self.errors,self.errors
   p.screenshot(path=str(OUT/(self.name+'-success.png')))
   # Prove the home shortcut is absent for an authenticated account that really
