@@ -1,3 +1,4 @@
+import {prepareThaiNecklineReference,usesCleanThaiNecklineReference,CLEAN_NECK_REFERENCE_POLICY} from './thai-neckline-reference.js';
 import {usesThaiCollarlessNeckline,addThaiCollarlessReference,thaiCollarlessInstruction,thaiCollarlessOutfitPath,usesThaiCollarlessPrimary,thaiCollarlessPrimaryInstruction,usesThaiAiGarmentOnly,thaiAiGarmentInstruction,usesThaiOriginalCollar,usesThaiSingleSkinCollarSeam,thaiSingleSkinCollarSeamInstruction} from './thai-collarless-neckline.js';
 import {applyThaiRealFacePolicy,usesThaiRealFace,THAI_REAL_FACE_VERSION} from './thai-real-face-policy.js';
 import {usesThaiSingleCollar,thaiSingleCollarInstruction} from './thai-single-collar-policy.js';
@@ -520,7 +521,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  let originalOutfit=null;
  const outfitTask=(async()=>{
   if(headOnly){await access(path.join(root,'public',file.slice(1)));return null}
-  originalOutfit=await readFile(path.join(root,'public',thaiCollarlessOutfitPath(fields,file).slice(1)));
+  originalOutfit=await prepareThaiNecklineReference(await readFile(path.join(root,'public',thaiCollarlessOutfitPath(fields,file).slice(1))),fields);
   return sharp(originalOutfit).resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
  })();
  const hairTask=(async()=>{
@@ -623,6 +624,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  prompt=applyThaiRealFacePolicy(prompt,fields);
  if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction(outfitIndex,outfitDetailIndex,collarless,usesThaiOriginalCollar(fields),usesThaiSingleSkinCollarSeam(fields));
  if(usesThaiSingleSkinCollarSeam(fields))prompt+=thaiSingleSkinCollarSeamInstruction();
+ if(usesCleanThaiNecklineReference(fields))prompt+=CLEAN_NECK_REFERENCE_POLICY;
  await onStage('generation');
  const result=await requestPortrait({key,prompt,...(usesThaiRealFace(fields)?{thaiRealFaceVersion:THAI_REAL_FACE_VERSION}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');

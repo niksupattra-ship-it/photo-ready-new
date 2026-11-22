@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
-import {THAI_COLLARLESS_VERSION,THAI_COLLARLESS_PREVIOUS_VERSION,THAI_COLLARLESS_PRIMARY_VERSION,THAI_AI_COLLARLESS_VERSION,THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION,collarlessTemplatePath} from './thai-collarless-version.js';
+import {THAI_COLLARLESS_VERSION,THAI_COLLARLESS_PREVIOUS_VERSION,THAI_COLLARLESS_PRIMARY_VERSION,THAI_AI_COLLARLESS_VERSION,THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION,THAI_SKIN_COLLAR_PREVIOUS_VERSION,collarlessTemplatePath} from './thai-collarless-version.js';
 export {THAI_COLLARLESS_VERSION} from './thai-collarless-version.js';
 export const usesThaiCollarlessNeckline=fields=>isThaiOutfitAi(fields)&&[THAI_AI_COLLARLESS_VERSION,THAI_COLLARLESS_PRIMARY_VERSION,THAI_COLLARLESS_PREVIOUS_VERSION].includes(fields.thaiCollarlessVersion)&&fields.portraitMode==='female'&&/^\/assets\/government-uniforms\/female-(operational|academic|senior|government-employee)\.png$/.test(fields.neckOutfitReferencePath||'');
 export const usesThaiCollarlessPrimary=fields=>usesThaiCollarlessNeckline(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_PRIMARY_VERSION;
@@ -23,8 +23,8 @@ REMOVE both pointed shirt-collar flaps immediately beside the tie knot. Continue
 The original inner shirt collar visible in Image ${outfitIndex}, the layout and the first two detail panels is intentionally OBSOLETE for this request. Earlier exact-garment/single-collar instructions must preserve the selected OUTER jacket and tie, but must not restore that inner pointed shirt collar. The third panel changes only this neckline construction, never the person's face, hair, skin, garment colour, outer silhouette, camera framing or insignia. Deliver the collarless inner shirt in the SAME original AI generation, without a mask, extra provider request or post-image patch.`;
 }
 
-export const usesThaiOriginalCollar=fields=>isThaiOutfitAi(fields)&&[THAI_COLLARLESS_VERSION,THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION].includes(fields.thaiCollarlessVersion)&&fields.portraitMode==='female'&&/^\/assets\/government-uniforms\/female-(operational|academic|senior|government-employee)\.png$/.test(fields.neckOutfitReferencePath||'');
-export const usesThaiAiGarmentOnly=fields=>isThaiOutfitAi(fields)&&[THAI_COLLARLESS_VERSION,THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION,THAI_AI_COLLARLESS_VERSION].includes(fields.thaiCollarlessVersion);
+export const usesThaiOriginalCollar=fields=>isThaiOutfitAi(fields)&&[THAI_COLLARLESS_VERSION,THAI_SKIN_COLLAR_PREVIOUS_VERSION,THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION].includes(fields.thaiCollarlessVersion)&&fields.portraitMode==='female'&&/^\/assets\/government-uniforms\/female-(operational|academic|senior|government-employee)\.png$/.test(fields.neckOutfitReferencePath||'');
+export const usesThaiAiGarmentOnly=fields=>isThaiOutfitAi(fields)&&[THAI_COLLARLESS_VERSION,THAI_SKIN_COLLAR_PREVIOUS_VERSION,THAI_ORIGINAL_COLLAR_PREVIOUS_VERSION,THAI_AI_COLLARLESS_VERSION].includes(fields.thaiCollarlessVersion);
 export function thaiAiGarmentInstruction(outfitIndex,detailIndex,collarless,originalCollar=false,singleSkinSeam=false){
  if(!Number.isInteger(outfitIndex)||!Number.isInteger(detailIndex))throw Error('missing_real_garment_reference');
  const instruction=`
@@ -36,7 +36,7 @@ Keep the same original face, eyes, expression, anatomy, skin finish and camera p
  return singleSkinSeam?instruction.replace('including its folded band, left and right pointed collar leaves','including its left and right pointed collar leaves'):instruction;
 }
 
-export const usesThaiSingleSkinCollarSeam=fields=>usesThaiOriginalCollar(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION;
+export const usesThaiSingleSkinCollarSeam=fields=>usesThaiOriginalCollar(fields)&&[THAI_COLLARLESS_VERSION,THAI_SKIN_COLLAR_PREVIOUS_VERSION].includes(fields.thaiCollarlessVersion);
 export function thaiSingleSkinCollarSeamInstruction(){return `
 FINAL SINGLE SKIN-TO-COLLAR SEAM V5 — BASE OF THE NECK ONLY:
 The correction concerns the NARROW EDGE immediately touching the neck skin, not the shadows under the pointed collar leaves beside the tie. At the base of the neck, bare skin must meet the selected real shirt collar DIRECTLY along ONE clean continuous seam. Do not insert another pale white, cream, grey, lavender or skin-coloured collar-shaped rim between the skin and that collar. No second shirt underneath, parallel curved neckline, exposed inner collar stand, extra upright band, thin old-shirt strip or doubled edge against the neck skin.
