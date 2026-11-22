@@ -25,11 +25,11 @@ test('third neckline panel preserves both selected-outfit colour/rank detail pan
  await assert.rejects(addThaiCollarlessReference(null,root));
 });
 test('real garment v2 preserves alpha and every visible pixel outside local inner-collar edit, including original insignia',async()=>{
- const {collarlessTemplatePath}=await import('../thai-collarless-version.js');
+ const {collarlessTemplatePath,THAI_COLLARLESS_PRIMARY_VERSION}=await import('../thai-collarless-version.js');
  const {thaiCollarlessOutfitPath}=await import('../thai-collarless-neckline.js');
  for(const name of ['operational','academic','senior','government-employee']){
   const file=`/assets/government-uniforms/female-${name}.png`,derived=collarlessTemplatePath(file);
-  assert.equal(thaiCollarlessOutfitPath({...base,neckOutfitReferencePath:file},file),derived);
+  assert.equal(thaiCollarlessOutfitPath({...base,thaiCollarlessVersion:THAI_COLLARLESS_PRIMARY_VERSION,neckOutfitReferencePath:file},file),derived);
   assert.equal(thaiCollarlessOutfitPath({...base,thaiOutfitAiVersion:undefined},file),file);
   const a=await sharp(root+'public'+file).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   const b=await sharp(root+'public'+derived).ensureAlpha().raw().toBuffer({resolveWithObject:true});
@@ -46,4 +46,15 @@ test('real garment v2 preserves alpha and every visible pixel outside local inne
   const extended=await addThaiCollarlessReference(details,'/nonexistent-no-generated-guide',await readFile(root+'public'+derived));
   assert.equal((await sharp(extended).metadata()).width,2304);
  }
+});
+
+test('new AI-only jobs use original real references and force rear hair over forward reference placement',async()=>{
+ const {usesThaiAiGarmentOnly,thaiAiGarmentInstruction,thaiCollarlessOutfitPath}=await import('../thai-collarless-neckline.js');
+ assert(usesThaiAiGarmentOnly(base));assert(usesThaiAiGarmentOnly({...base,portraitMode:'male'}));
+ assert(!usesThaiAiGarmentOnly({...base,thaiOutfitAiVersion:undefined}));
+ assert.equal(thaiCollarlessOutfitPath(base,base.neckOutfitReferencePath),base.neckOutfitReferencePath);
+ const text=thaiAiGarmentInstruction(3,5,true);assert.match(text,/ORIGINAL REAL garment/);assert.match(text,/overrides forward-draped hair/);assert.match(text,/REMOVE both pointed shirt-collar flaps/);assert.match(text,/no post-generation garment overlay/);
+ const pipeline=await readFile(root+'production-portrait-pipeline.js','utf8'),native=await readFile(root+'src/studio-source.js','utf8');
+ assert(!native.includes('collarlessTemplatePath'));assert(pipeline.includes('const frontShield=!usesThaiAiGarmentOnly(fields)&&requiresThaiNativeFrontShield(fields)'),'AI-only revision cannot enable a legacy garment mask');assert(pipeline.includes('collarless&&!usesThaiAiGarmentOnly(fields)'));
+ assert(pipeline.indexOf('if(usesThaiAiGarmentOnly(fields))prompt+=thaiAiGarmentInstruction')>pipeline.indexOf('prompt=applyThaiRealFacePolicy(prompt,fields);',pipeline.indexOf('const collarless=')));
 });

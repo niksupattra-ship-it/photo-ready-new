@@ -312,7 +312,7 @@ test('Thai v6 bypasses all native post-mask layers while v3-v5 archived jobs rem
  assert.equal(usesThaiShoulderAwareShield({...core,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_LEGACY_SHIELD_VERSION}),false);
  assert.equal(requiresThaiNativeFrontShield({thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,interfaceLanguage:'en'}),false);
  const source=await readFile(root+'production-portrait-pipeline.js','utf8');
- assert(source.includes('const frontShield=requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly'));
+ assert(source.includes('const frontShield=!usesThaiAiGarmentOnly(fields)&&requiresThaiNativeFrontShield(fields)&&templateBody&&!headOnly'));
  assert(source.includes('const delivered=frontShield?await shieldThaiNativeUniformFront(transparent,nativeFrontGeometry,{legacy:!usesThaiShoulderAwareShield(fields),necklineProtected:usesThaiNecklineProtectedShield(fields)}):transparent'));
  const layout=await readFile(root+'english-body-layout.js','utf8');
  assert(layout.includes('if(!returnNativeForeground)return composition'),'All English output remains original one-pass composition');
