@@ -77,8 +77,6 @@
  .package-choice-modal .offer-name{font-size:15px}
 }
 
-.paired-offers .offer-code-entry{display:block;margin:12px auto 0;min-height:44px;padding:10px 24px;border:1px solid #9566e8;border-radius:10px;background:#fff;color:#7138c5;font:inherit;font-weight:700;cursor:pointer}.paired-offers .offer-code-entry:disabled{opacity:.5;cursor:default}
-
 .paired-offers .offer-payment-method{display:flex;justify-content:center;margin:12px 0 0}.paired-offers .offer-payment-method img{display:block;width:108px;height:auto;object-fit:contain}
 
 /* English USD package selection — native, accessible, live checkout actions. */
@@ -161,7 +159,7 @@
  .package-choice-modal:has(.paired-offers) .offer-choice-layout{display:block;margin:0}
  .package-choice-modal:has(.paired-offers) .offer-preview{display:none}
  .package-choice-modal:has(.paired-offers) .offer-pair{display:grid;grid-template-columns:1fr;gap:12px}
- .package-choice-modal:has(.paired-offers) .offer-card{position:relative;padding:15px 13px;border:1.5px solid #d6ccdf;border-radius:12px;min-height:110px}
+ .package-choice-modal:has(.paired-offers) .offer-card{position:relative;padding:15px 13px;border:1.5px solid #d6ccdf;border-radius:12px;min-height:0}
  .package-choice-modal:has(.paired-offers) .offer-card.selected{border-color:#8341d8;box-shadow:inset 0 0 0 1px #8341d8;background:#f9f5ff}
  .package-choice-modal:has(.paired-offers) .offer-choice-label{display:grid;grid-template-columns:23px 1fr;gap:9px;align-items:center}
  .package-choice-modal:has(.paired-offers) .offer-choice-label input{width:19px;height:19px;accent-color:#7838c7;margin:0}
@@ -175,8 +173,6 @@
  .package-choice-modal:has(.paired-offers) .ready-pay{display:none}
  .package-choice-modal:has(.paired-offers) .offer-card .single-photo-back{display:none}
  .package-choice-modal:has(.paired-offers) .idprom-thai-package-cta{margin-top:14px}
- .package-choice-modal:has(.paired-offers) .idprom-thai-package-cta p{padding:13px 12px;background:#f6f3fc;border-radius:10px;text-align:left;color:#50446a;font-size:12px;line-height:1.5;margin:0 0 15px}
- .package-choice-modal:has(.paired-offers) .idprom-thai-package-cta p span{color:#2b9a68;font-weight:800;margin-right:7px}
  .package-choice-modal:has(.paired-offers) .idprom-thai-checkout-next{min-height:51px;width:100%;border:0;border-radius:11px;background:linear-gradient(110deg,#9b4ae8,#6f32c4);color:white;font:inherit;font-size:15px;font-weight:800;cursor:pointer}
  .package-choice-modal:has(.paired-offers) .idprom-thai-checkout-next:disabled{opacity:.6;cursor:default}
  .package-choice-modal:has(.paired-offers) .offer-image-scope{border:0;background:#faf8ff;color:#776a8e;font-weight:500;font-size:11px;margin:9px 0 0;padding:8px}
@@ -195,9 +191,8 @@
 .paired-offers .offer-name{font-size:16px;font-weight:850;color:#342244}
 .paired-offers .offer-price{color:#7534c6;font-size:26px;font-weight:900}
 .paired-offers .offer-features{color:#6c617b;font-size:12px}
-.paired-offers .idprom-thai-package-cta{margin:18px auto 0;max-width:460px}
-.paired-offers .idprom-thai-package-cta p{background:#f6f2fc;color:#554568;border-radius:12px;padding:16px;font-size:13px;line-height:1.65}
-.paired-offers .idprom-thai-package-cta p span{font-weight:900;color:#159663}
+.paired-offers .offer-selection{min-width:0;width:100%}
+.paired-offers .idprom-thai-package-cta{margin:12px 0 0}
 .paired-offers .idprom-thai-checkout-next{display:block;width:100%;min-height:54px;border:0;border-radius:13px;background:linear-gradient(105deg,#9649e1,#6932bd);color:#fff;font-weight:800;font-size:16px;cursor:pointer}
 .paired-offers .idprom-thai-checkout-next:disabled{opacity:.55;cursor:default}
 .paired-offers .idprom-thai-offer-code-link{display:block;background:transparent;border:0;color:#7036bd;text-decoration:underline;font-size:13px;margin:12px auto 0;cursor:pointer}
@@ -210,8 +205,6 @@
  .paired-offers .offer-choice-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:23px;align-items:start}
  .paired-offers .offer-preview{display:block;max-width:190px;margin:0}
  .paired-offers .offer-preview img{width:100%;height:auto;max-height:280px;object-fit:contain;border-radius:12px}
- .paired-offers .idprom-thai-package-cta{max-width:100%;padding-left:213px}
- .paired-offers .offer-usage-terms,.paired-offers .offer-payment-method{margin-left:213px}
 }
 @media(max-width:640px){
  .package-choice-modal:has(.paired-offers) .idprom-thai-package-cta{margin-top:14px}

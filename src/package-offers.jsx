@@ -71,7 +71,8 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
  return <div className="idprom-ready-offer paired-offers">
   <header className="offer-step"><span aria-hidden="true">6</span><h2>เลือกรูปแบบรับภาพ</h2></header>
   <div className="offer-choice-layout">
-   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
+   <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}</figure>
+   <div className="offer-selection">
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
     {OFFERS.filter(offer=>studioMode||offer.price==='89').map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
      <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').filter(Boolean).map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
@@ -80,12 +81,12 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
     {!studioMode&&offer.price==='89'&&<button type="button" className="single-photo-back" disabled={payBusy} onClick={()=>onOpenStudio?.()}>ปลดล็อกใช้งานมากขึ้น ไปที่สตูดิโอ →</button>}
     </section>)}
    </div>
+    <div className="idprom-thai-package-cta">
+     <button type="button" className="idprom-thai-checkout-next" disabled={disabled} onClick={()=>choose(selected)}>{payBusy?'กำลังเตรียม…':`ดำเนินการต่อ · ฿${selected}`}</button>
+    </div>
+    {onOpenCode&&<button type="button" className="idprom-thai-offer-code-link" disabled={payBusy} onClick={onOpenCode}>มีโค้ดส่วนลด? ใส่โค้ด</button>}
+   </div>
   </div>
-  <div className="idprom-thai-package-cta">
-   <p><span aria-hidden="true">✓</span> ไฟล์ความละเอียดสูง · ไม่มีลายน้ำ · PNG / PDF</p>
-   <button type="button" className="idprom-thai-checkout-next" disabled={disabled} onClick={()=>choose(selected)}>{payBusy?'กำลังเตรียม…':`ดำเนินการต่อ · ฿${selected}`}</button>
-  </div>
-  {onOpenCode&&<button type="button" className="idprom-thai-offer-code-link" disabled={payBusy} onClick={onOpenCode}>มีโค้ดส่วนลด? ใส่โค้ด</button>}
   <div className="offer-image-scope"><span className="offer-scope-label"><span aria-hidden="true">ⓘ</span> สำหรับงานนี้เท่านั้น</span>{!hasTrial&&<span className="offer-scope-guidance">กรุณาปรับแต่งรูปให้พร้อมดาวน์โหลดก่อนชำระเงิน</span>}</div>
   {isAuthenticated&&credits>0&&<div className="ready-credit"><span>สิทธิ์คงเหลือ {credits} งาน</span><button type="button" disabled={disabled} onClick={()=>onUseCredit({premium:usePremium})}>ใช้ 1 สิทธิ์{usePremium?'โปร 159':''}รับรูปนี้</button></div>}
   {showMessage&&<p role="status" className="ready-message">{payMsg}</p>}
