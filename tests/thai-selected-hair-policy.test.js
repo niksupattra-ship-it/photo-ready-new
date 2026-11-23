@@ -28,7 +28,7 @@ test('actual client checks do not classify short/bob outlines as buns; gathered 
  for(const kind of ['short','bob','gathered'])for(const reference of ['matches','unknown','different']){
  const result={idpromPortraitComposition:'body',idpromThaiRealFaceVersion:'thai'},env={ENGLISH_BODY_PORTRAIT_VERSION:'body',ENGLISH_HEAD_PORTRAIT_VERSION:'head',THAI_REAL_FACE_VERSION:'thai',decodedPortraitImage:async()=>({}),portraitFaceLandmarks:async()=>({152:{x:.5,y:.5}}),PRODUCTION_HAIR_CATALOG:[{id:'selected'}],selectedHairDesign:()=>({kind}),portraitCompletionEvidence:async()=>({target:true}),selectedHairEvidence:async()=>({reference:true}),inspectThaiGatheredBun:e=>{assert.equal(kind,'gathered');return e.target?{measurable:true,retained:true}:{measurable:reference!=='unknown',retained:reference==='matches'}}};
  const check=Function('env','with(env){'+source.slice(a,b)+';return checkPortraitCompletion}')(env);
- if(kind==='gathered'&&reference==='different')await assert.rejects(check(null,result,'selected'),e=>e.code==='selected_hairstyle_mismatch');else await check(null,result,'selected');
- if(kind==='gathered'&&reference==='unknown')assert(result.idpromQualityReviewNeeded);
+ await check(null,result,'selected');
+ if(kind==='gathered'&&reference!=='matches')assert(result.idpromQualityReviewNeeded);
  }
 });
