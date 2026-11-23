@@ -4,13 +4,14 @@ import {seedreamReviewPayload} from './seedream-review-transport.js';
 export const OPENAI_PORTRAIT_MODEL='gpt-image-2.5-sunburst';
 export const OPENAI_RESPONSES_MODEL='gpt-5.5';
 export const OPENAI_PORTRAIT_ENDPOINT='https://api.openai.com/v1/responses';
+export const OPENAI_SKIN_DETAIL_INSTRUCTION=`PHOTOGRAPHIC SKIN DETAIL ONLY: Retain the subject's real pores, fine lines, subtle imperfections, age-defining texture and natural tonal variation from the original identity photograph. Preserve fine skin detail beneath the selected finish; do not replace it with waxy, porcelain, plastic, airbrushed or blurred skin, synthetic pore patterns, sharpening halos or glossy painted highlights. Natural keeps the existing Natural treatment; Makeup keeps the selected makeup colours, placement, coverage and lighting, with photographic texture visible beneath pigment. This instruction changes skin rendering only: preserve all existing identity, expression, eye colour/catchlights, hairstyle, clothing, insignia, anatomy, proportions, framing and placement instructions. Do not add a second retouching or generation pass.`;
 export function openaiPortraitPayload(options){
  if(typeof options.prompt!=='string'||!options.prompt.trim())throw Object.assign(Error('ไม่มีคำสั่งสร้างภาพ OpenAI'),{status:400,code:'openai_prompt_invalid'});
  const refs=seedreamReviewPayload(options).image,images=Array.isArray(refs)?refs:[refs];
  // Responses accepts the complete long input. Do not shorten, deduplicate,
  // rewrite or rearrange any existing application instruction/reference image.
- return {model:OPENAI_RESPONSES_MODEL,store:false,truncation:'disabled',input:[{role:'user',content:[{type:'input_text',text:options.prompt},...images.map(image_url=>({type:'input_image',image_url,detail:'high'}))]}],
-  tools:[{type:'image_generation',model:OPENAI_PORTRAIT_MODEL,action:'edit',quality:'high',output_format:'png',size:/^\d+x\d+$/.test(options.size||'')?options.size:'1728x2304'}],
+ return {model:OPENAI_RESPONSES_MODEL,store:false,truncation:'disabled',input:[{role:'user',content:[{type:'input_text',text:options.prompt+'\n\n'+OPENAI_SKIN_DETAIL_INSTRUCTION},...images.map(image_url=>({type:'input_image',image_url,detail:'high'}))]}],
+  tools:[{type:'image_generation',model:OPENAI_PORTRAIT_MODEL,action:'edit',quality:'high',output_format:'png',size:/^\d+x\d+$/.test(options.size||'')?options.size:'1824x2432'}],
   tool_choice:{type:'image_generation'},max_tool_calls:1,parallel_tool_calls:false};
 }
 export async function requestOpenAIPortrait(options,{fetchImpl=fetch,timeoutMs=240000}={}){
