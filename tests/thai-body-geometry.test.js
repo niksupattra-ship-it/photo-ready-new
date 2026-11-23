@@ -47,7 +47,7 @@ test('measure face versus actual garment shoulders, excluding long hair silhouet
  assert.equal(inspectThaiBodyGeometry(thaiBodyGeometry(portrait({faceWidth:130}))).reason,'head_body_size_changed');
  const crown={...a,crownRatio:1.6};assert.equal(inspectThaiBodyGeometry(crown).reason,'excessive_crown_height');
  const raisedSide=portrait();for(let y=10;y<40;y++)for(let x=96;x<114;x++){const i=(y*raisedSide.width+x)*4;raisedSide.pixels.set([20,20,25,255],i);raisedSide.hair.set([255,255,255,255],i)}
- assert.equal(inspectThaiBodyGeometry(thaiBodyGeometry(raisedSide)).reason,'excessive_crown_height','Check elevated side crowns as well as center-parted hair');
+ assert.equal(inspectThaiBodyGeometry(thaiBodyGeometry(raisedSide)).reason,'whole_head_too_large','Check elevated side crowns as well as center-parted hair');
 });
 test('accepted same-photo proportions constrain new hairstyles; unknown measurements are review-only, not a retry',()=>{
  const reference={faceToShoulder:.34,crownRatio:1.05,neckGap:.04};
@@ -108,4 +108,14 @@ test('new-policy Natural-to-Makeup also forwards single-attempt mode and uses on
   return requestReviewSeedream(options,{fetchImpl:async()=>{attempts++;return {ok:true,status:200,headers:{get:()=>null},json:async()=>({data:[{b64_json:png.toString('base64')}]})}}});
  }});
  assert.equal(attempts,1);assert(result.length>0);
+});
+
+test('whole-head checks include hair width/height even with unchanged face and neck, excluding long ends below the chin',()=>{
+ const source=portrait(),a=thaiBodyGeometry(source);assert(a.head);
+ const wide=portrait();for(let y=80;y<200;y++)for(let x=65;x<235;x++){const i=(y*wide.width+x)*4;wide.pixels.set([20,20,25,255],i);wide.hair.set([255,255,255,255],i)}
+ const b=thaiBodyGeometry(wide);assert.equal(b.faceToShoulder,a.faceToShoulder);assert.equal(b.neckGap,a.neckGap);assert(b.head.width>a.head.width*1.5);
+ assert.equal(inspectThaiBodyGeometry(b).reason,'whole_head_too_large');
+ const ends=portrait();for(let y=230;y<390;y++)for(let x=5;x<295;x++){const i=(y*ends.width+x)*4;ends.hair.set([255,255,255,255],i)}
+ assert.deepEqual(thaiBodyGeometry(ends).head,a.head,'Hanging lengths are not part of the head-size rectangle');
+ assert.equal(inspectThaiBodyGeometry({...a,neckGap:.23}).reason,'head_body_join_changed');
 });

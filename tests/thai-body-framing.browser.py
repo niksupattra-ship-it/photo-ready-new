@@ -21,7 +21,7 @@ with sync_playwright() as p:
    const blob=await canvasPng(native);blob.idpromPortraitComposition='en-outfit-body-v1';
    const digest=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await b.arrayBuffer())),n=>n.toString(16).padStart(2,'0')).join('');
    const before=await digest(blob);
-   const env={planThaiBodyFrame,THAI_REAL_FACE_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head-portrait-v1',decodedPortraitImage,canvasFor,canvasPng};
+   const env={planThaiBodyFrame,THAI_REAL_FACE_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head-portrait-v1',decodedPortraitImage,canvasFor,canvasPng,measureThaiBodyGeometry:async()=>({nativeHead:{left:315,right:585,top:175,bottom:525,width:270,height:350,centerX:450}})};
    const start=source.indexOf('async function composePortrait('),end=source.indexOf(" const [bg,uniformImg]=",start);
    const compose=Function('env','with(env){'+source.slice(start,end)+'};return composePortrait}')(env);
    const renderStart=source.indexOf('async function renderAdjustedFinal('),body=source.indexOf(' if(headMasterBlob.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)',renderStart),renderEnd=source.indexOf(' // V80 MASTER-RESOLUTION COMPOSITE:',body);
@@ -36,6 +36,7 @@ with sync_playwright() as p:
    if(await digest(blob)!==before)throw Error('Native face/output pixels changed');
    if(Math.abs((900*fit.lock.scale)/(1200*fit.lock.scale)-.75)>1e-12)throw Error('Non-uniform image stretch');
    if(plan.crown*plan.scale+plan.y<0)throw Error('Hair crown clipped');
+   if(Math.abs(plan.crown*fit.lock.scale+fit.lock.hY-60)>2)throw Error('Must retain 5% crown headroom');
    const frame=await decodedPortraitImage(framed);
    return {nativeUnchanged:true,uniformScale:true,oldBottomAlpha:0,newBottomAlpha:await alpha(framed),width:frame.width,height:frame.height,lock:fit.lock};
   }''')

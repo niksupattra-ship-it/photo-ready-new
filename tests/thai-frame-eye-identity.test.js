@@ -1,3 +1,4 @@
+import {layerToScene} from '../src/studio-transform.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -12,7 +13,7 @@ const hash=b=>createHash('sha256').update(b).digest('hex');
 function portrait(w=300,h=400,bottom=390){const pixels=new Uint8ClampedArray(w*h*4);for(let y=60;y<bottom;y++)for(let x=60;x<w-60;x++)pixels[(y*w+x)*4+3]=255;return pixels}
 test('native portrait placement removes the reported lower transparent strip with one uniform scale, without modifying pixels',()=>{
  const w=300,h=400,pixels=portrait(w,h),before=hash(pixels),plan=planThaiBodyFrame(pixels,w,h);
- assert(plan.applied);assert.equal(plan.reason,'bottom_anchored');assert(Math.abs(plan.y+(plan.bottom+1)*plan.scale-1202)<1e-8);
+ assert(plan.applied);assert.equal(plan.reason,'head_anchored');assert(plan.y+(plan.bottom+1)*plan.scale>=1202-1e-8);assert(Math.abs(plan.y+plan.crown*plan.scale-60)<1e-8);
  assert(Math.abs(plan.scale*300/(plan.scale*400)-.75)<1e-12);assert.equal(hash(pixels),before);
  for(let x=0;x<20;x++)pixels[((h-1)*w+x)*4+3]=100;
  assert.equal(planThaiBodyFrame(pixels,w,h).bottom,389,'Ignore sparse/soft matte noise below the coat');
@@ -24,7 +25,7 @@ test('different native aspect ratios and excessive padding retain the crown and 
  for(const [w,h,bottom] of [[300,440,430],[340,400,390],[300,400,300]]){
   const plan=planThaiBodyFrame(portrait(w,h,bottom),w,h);
   assert(plan.crown*plan.scale+plan.y>=-1e-8);
-  assert(Math.abs((plan.bottom+1)*plan.scale+plan.y-1202)<1e-8);
+  assert((plan.bottom+1)*plan.scale+plan.y>=1202-1e-8);assert(Math.abs(plan.crown*plan.scale+plan.y-60)<1e-8);
  }
  assert.equal(planThaiBodyFrame(new Uint8Array(40),300,400).reason,'unmeasurable');
 });
@@ -63,12 +64,30 @@ test('undersized male coat fills both sides and bottom with one scale; saved nat
  for(let y=72;y<190;y++)for(let x=115;x<185;x++)pixels[(y*w+x)*4+3]=255;
  for(let y=190;y<390;y++)for(let x=22;x<278;x++)pixels[(y*w+x)*4+3]=255;
  const before=hash(pixels),plan=planThaiBodyFrame(pixels,w,h);
- assert(Math.abs(plan.x+22*plan.scale+2)<1e-8);assert(Math.abs(plan.x+278*plan.scale-902)<1e-8);
- assert(Math.abs(plan.y+390*plan.scale-1202)<1e-8);assert(plan.y+72*plan.scale>0);assert.equal(hash(pixels),before);
+ assert(plan.x+22*plan.scale<=-2+1e-8);assert(plan.x+278*plan.scale>=902-1e-8);
+ assert(plan.y+390*plan.scale>=1202-1e-8);assert(Math.abs(plan.y+72*plan.scale-60)<1e-8);assert(plan.y+72*plan.scale>0);assert.equal(hash(pixels),before);
  const head={id:'h',kind:'head',source:'native',sourceFrame:{x:0,y:0,w:900,h:1200}},pin={id:'p',kind:'uniform-detail',realUniformDetail:true,hairHeadId:'h',source:'native-button',sourceFrame:{x:400,y:700,w:40,h:40}},bg={kind:'background'};
  const layers=[bg,head,pin],fitted=fitThaiBodyScene(layers,head,plan,w,h),q=plan.scale/3;
  assert.equal(fitted[0],bg);assert.equal(fitted[1].source,'native');assert.equal(fitted[2].source,'native-button');
  assert(Math.abs(fitted[2].sourceFrame.x-(plan.x+400*q))<1e-8);
  assert.equal(fitThaiBodyScene(fitted,fitted[1],plan,w,h),fitted,'Reopening/switching never zooms twice');
- const edited=[head,{...pin,x:20}];assert.equal(fitThaiBodyScene(edited,head,plan,w,h),edited,'Preserve manual edits');
+ const edited=[{...head,x:20},pin];assert.equal(fitThaiBodyScene(edited,edited[0],plan,w,h),edited,'Preserve manual head positioning');
+ const accessory={...pin,x:20,y:-8,scale:1.2,rotation:12,squeezeX:.9,squeezeY:1.1,mask:'manual accessory mask'};
+ const transformed=fitThaiBodyScene([head,accessory],head,plan,w,h)[1],point={x:415,y:720},old=layerToScene(accessory,point),moved={x:q*point.x+plan.x,y:q*point.y+plan.y},actual=layerToScene(transformed,moved);
+ assert(Math.abs(actual.x-(q*old.x+plan.x))<1e-8);assert(Math.abs(actual.y-(q*old.y+plan.y))<1e-8);assert.equal(transformed.mask,accessory.mask);
+});
+
+test('ID framing measures the entire head including hair, keeps 5% headroom, and permits lower-coat overflow without stretching',()=>{
+ const w=900,h=1200,pixels=new Uint8ClampedArray(w*h*4);
+ for(let y=20;y<1200;y++)for(let x=30;x<870;x++)pixels[(y*w+x)*4+3]=255;
+ const head={left:260,right:640,top:20,bottom:450,width:380,height:430,centerX:450};
+ const before=hash(pixels),plan=planThaiBodyFrame(pixels,w,h,{head});
+ assert(Math.abs(plan.y+head.top*plan.scale-60)<1e-8);
+ assert(head.width*plan.scale<=900*.46+1e-8);assert(head.height*plan.scale<=1200*.44+1e-8);
+ assert(plan.y+1200*plan.scale>1200,'Crop the lower body instead of pushing the crown up');
+ assert.equal(hash(pixels),before);
+ const mask='all-white saved mask',layer={id:'head',kind:'head',source:'native',mask,sourceFrame:{x:0,y:0,w:900,h:1200}};
+ const fixed=fitThaiBodyScene([layer],layer,plan,w,h,{opaqueMaskIds:new Set(['head'])});
+ assert.equal(fixed[0].mask,mask);assert.notEqual(fixed[0].sourceFrame,layer.sourceFrame);
+ assert.equal(fitThaiBodyScene(fixed,fixed[0],plan,w,h,{opaqueMaskIds:new Set(['head'])}),fixed);
 });
