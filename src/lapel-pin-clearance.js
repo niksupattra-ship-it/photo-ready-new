@@ -6,25 +6,27 @@ export function clearLapelPins(image,frame,collar){
  const rx=bw*.72,ry=bw*.90,step=Math.max(1,Math.round(span/500));
  const delta=Math.max(1,Math.round(span*.004));
  const light=(x,y)=>{x=Math.round(x);y=Math.round(y);if(x<2||y<2||x>=width-2||y>=height-2)return null;const i=(y*width+x)*4;return data[i+3]>=190?[data[i],data[i+1],data[i+2]]:null};
- const safe=(x,y)=>{
-  for(let dy=-ry;dy<=ry;dy+=step)for(let dx=-rx;dx<=rx;dx+=step){
+ const safe=(x,y,side)=>{
+  const sx=side===0?bw*.9:rx,sy=side===0?bw*1.1:ry,contrast=side===0?6:11;
+  for(let dy=-sy;dy<=sy;dy+=step)for(let dx=-sx;dx<=sx;dx+=step){
    const p=light(x+dx,y+dy);if(!p||Math.min(...p)<170||Math.max(...p)-Math.min(...p)>55)return false;
    const lum=p.reduce((a,b)=>a+b,0)/3;
-   for(const [a,b]of [[delta,0],[-delta,0],[0,delta],[0,-delta]]){const q=light(x+dx+a,y+dy+b);if(!q||Math.abs(lum-q.reduce((a,b)=>a+b,0)/3)>11)return false}
+   for(const [a,b]of [[delta,0],[-delta,0],[0,delta],[0,-delta]]){const q=light(x+dx+a,y+dy+b);if(!q||Math.abs(lum-q.reduce((a,b)=>a+b,0)/3)>contrast)return false}
   }
   return true;
  };
  const ox=[collar.left,collar.right].map(x=>frame.x+span*x),oy=frame.y+frame.h*collar.y;
- if(ox.every(x=>safe(x,oy)))return {collar,clear:true};
+ if(ox.every((x,side)=>safe(x,oy,side)))return {collar,clear:true};
  // Keep one level for the pair, while each side finds its nearest clear
  // fabric patch. Search locally so a collar cannot migrate to a shoulder.
  const reach=span*.065,grid=Math.max(2,span*.006);let best=null;
- for(let dy=-reach;dy<=reach;dy+=grid){
+ const offsets=[0];for(let d=grid;d<=reach;d+=grid)offsets.push(-d,d);
+ for(const dy of offsets){
   const pair=ox.map((x,side)=>{
    let found=null;
-   for(let dx=-reach;dx<=reach;dx+=grid){
+   for(const dx of offsets){
     const px=x+dx;if(side===0?px>frame.x+span*.44:px<frame.x+span*.56)continue;
-    if(!safe(px,oy+dy))continue;
+    if(!safe(px,oy+dy,side))continue;
     const score=dx*dx;if(!found||score<found.score)found={x:px,score};
    }
    return found;
