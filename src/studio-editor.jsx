@@ -1,5 +1,6 @@
+import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE} from '../thai-female-head-size.js';
 import {PreviewWatermark} from './preview-watermark.jsx';
-import {planThaiBodyFrame,fitThaiBodyScene,THAI_PNG_GARMENT_FRAME_VERSION} from './thai-body-framing.js';
+import {planThaiBodyFrame,fitThaiBodyScene} from './thai-body-framing.js';
 import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
 import {REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
 import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
@@ -774,14 +775,14 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow){
    const heads=next.filter(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
    const head=heads.length===1?heads[0]:null,asset=head&&map.get(head.id);
-   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&head.thaiPngGarmentFrameVersion!==THAI_PNG_GARMENT_FRAME_VERSION&&asset?.original&&!asset.warped){
+   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&asset?.original&&!asset.warped){
     const im=asset.original,c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height});
     try{
      const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
      let bounds=null;try{bounds=await onMeasurePortraitHead?.(head.realUniformOriginalSource||head.source)}catch{}
      const opaqueMaskIds=new Set();
      for(const layer of next)if(layer.mask){const mask=map.get(layer.id)?.mask;if(mask){const data=mask.getContext('2d').getImageData(0,0,mask.width,mask.height).data;let opaque=true;for(let i=3;i<data.length;i+=4)if(data[i]!==255){opaque=false;break}if(opaque)opaqueMaskIds.add(layer.id)}}
-     const plan=planThaiBodyFrame(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height,{head:bounds}),fitted=fitThaiBodyScene(next,head,plan,c.width,c.height,{opaqueMaskIds});
+     const plan=planThaiBodyFrame(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height,{head:bounds,headScale:head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION?THAI_FEMALE_HEAD_SCALE:1}),fitted=fitThaiBodyScene(next,head,plan,c.width,c.height,{opaqueMaskIds});
      if(fitted!==next){next=fitted;for(const l of next){const a=map.get(l.id);if(a&&a.sourceFrame!==l.sourceFrame)map.set(l.id,{...a,sourceFrame:l.sourceFrame,bounds:null,thumbnail:null,dirty:true})}}
     }finally{c.width=c.height=1}
    }

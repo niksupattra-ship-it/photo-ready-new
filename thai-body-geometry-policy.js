@@ -1,3 +1,4 @@
+import {usesThaiFemaleSmallerHead,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from './thai-female-head-size.js';
 import {thaiBodyGeometryInstruction as archivedBodyInstruction} from './thai-body-geometry-v4.js';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 export const THAI_BODY_GEOMETRY_PREVIOUS_VERSION='thai-one-call-unified-proportions-v4';
@@ -13,6 +14,7 @@ export function parseThaiBodyReference(value,{legacy=false,strict=false}={}){
 export function thaiBodyGeometryInstruction(fields,gender='female'){
  if(!usesThaiBodyGeometry(fields))return '';
  if(fields.thaiBodyGeometryVersion!==THAI_BODY_GEOMETRY_VERSION)return archivedBodyInstruction(fields,gender);
+ if(usesThaiFemaleSmallerHead(fields,gender))return '\n'+THAI_FEMALE_HEAD_SIZE_INSTRUCTION;
  return `\nONE AUTHORITATIVE HEAD / SHOULDER PROPORTION — SINGLE GENERATION:
 Create one coherent photographic person from the untouched original identity and selected garment. Identity locks protect intrinsic facial anatomy, original eyes/gaze, expression and the head's width-to-height ratio; they do NOT lock source-photo zoom, head pixel size, selfie perspective, reference-model torso width or garment pixel dimensions. This block supersedes earlier fixed head-scale or fixed shoulder-width instructions for this new portrait only.
 Use ONE face-to-shoulder target: cheek-to-cheek width around 0.30 of the complete clothed shoulder span (normally 0.28–0.33). Measure actual fabric shoulder ends, not the PNG canvas, hair tips or background. Fit the ENTIRE head including scalp hair with uniform scale relative to naturally proportioned shoulders and chest; allow coherent shoulder breadth and body framing to balance with it. Never narrow the torso to accommodate the uploaded crop or preserve an already oversized previous generated head. Preserve the selected garment design, collar/tie construction and insignia, not the reference model's absolute body dimensions.

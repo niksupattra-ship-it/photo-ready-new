@@ -84,8 +84,8 @@ test('ID framing measures the entire head including hair, anchors the hem and le
  const before=hash(pixels),plan=planThaiBodyFrame(pixels,w,h,{head});
  assert(plan.y+head.top*plan.scale>=0);
  assert(head.width*plan.scale<=900*.46+1e-8);assert(head.height*plan.scale<=1200*.44+1e-8);
- assert(Math.abs(plan.y+1200*plan.scale-1202)<1e-8,'The coat must reach the bottom even when the head is capped');
- assert(plan.crownLimited);assert(Math.abs(plan.headroom-24)<1e-8,'Only reserve crown clearance if the desired fit clips the hair');
+ assert(plan.y+1200*plan.scale>=1202-1e-8,'PR143 allows lower cloth to overflow to preserve crown clearance');
+ assert(plan.crownLimited);assert(Math.abs(plan.headroom-108)<1e-8,'PR143 reserves minimum 9% crown clearance');
  assert.equal(hash(pixels),before);
  const mask='all-white saved mask',layer={id:'head',kind:'head',source:'native',mask,sourceFrame:{x:0,y:0,w:900,h:1200}};
  const fixed=fitThaiBodyScene([layer],layer,plan,w,h,{opaqueMaskIds:new Set(['head'])});

@@ -1,7 +1,9 @@
+import {pr143ReferenceHead} from '../thai-female-head-size.js';
 // Placement only: one uniform transform of the untouched native portrait.
 // Measure supported opaque rows, ignoring isolated matte noise below the coat.
-export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null}={}){
+export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,headScale=1}={}){
  if(![width,height,W,H].every(n=>Number.isInteger(n)&&n>0))return {scale:1,x:0,y:0,applied:false,reason:'unmeasurable'};
+ head=pr143ReferenceHead(head,headScale);
  const contain=Math.min(W/width,H/height),fallback={scale:contain,x:(W-width*contain)/2,y:(H-height*contain)/2,applied:false};
  if(pixels?.length!==width*height*4)return {...fallback,reason:'unmeasurable'};
  let crown=-1,bottom=-1;
@@ -28,11 +30,17 @@ export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null}={
  // Anchor the supported coat hem first. A smaller head can sit lower in
  // the frame; no forced top margin may lift the hem off the bottom edge.
  const headLimit=head?Math.min(H*.42/head.height,W*.44/head.width):Infinity;
- const desired=Math.min(fill,headLimit),heightLimit=(H+bleed)/(bottom+1-top);
- // Only reserve a small crown clearance when the desired scale would clip it.
- const crownLimited=desired>heightLimit;
- const scale=crownLimited?(H+bleed-H*.02)/(bottom+1-top):desired;
- const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale,y=H+bleed-(bottom+1)*scale;
+ const desired=Math.min(fill,headLimit);
+ // Keep the existing uniform scale and horizontal placement. Translate the
+ // complete subject down only when its crown violates the minimum clearance.
+ // Lower cloth may bleed outside the frame; never shrink the portrait to fit.
+ const heightLimit=(H+bleed)/(bottom+1-top);
+ const scale=desired>heightLimit?(H+bleed-H*.02)/(bottom+1-top):desired;
+ const minimumHeadroom=H*.09;
+ const bottomY=H+bleed-(bottom+1)*scale;
+ const y=Math.max(bottomY,minimumHeadroom-top*scale);
+ const crownLimited=y>bottomY+.001;
+ const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale;
  return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'bottom_anchored',bottom,crown:top,coat,headroom:y+top*scale,headFitLimited:fill>headLimit,crownLimited};
 }
 
@@ -54,24 +62,4 @@ export function fitThaiBodyScene(layers,head,plan,width,height,{opaqueMaskIds=ne
   for(const key of ['collarLeftX','collarLeftY','collarRightX','collarRightY'])if(Number.isFinite(l[key]))pins[key]=l[key]*q;
   return {...l,x,y,...pins,sourceFrame:frame(l.sourceFrame||{x:0,y:0,w:900,h:1200}),...(l.collarFrame?{collarFrame:frame(l.collarFrame)}:{})};
  });
-}
-
-// New Thai female placement: fit the actual garment, not a maximum head size.
-// Keep all portrait pixels in one uniform transform. Lower cloth may bleed off
-// the canvas when the crown needs clearance; never shrink the suit for its hem.
-export const THAI_PNG_GARMENT_FRAME_VERSION='thai-female-native-png-frame-v1';
-export function planThaiPngGarmentFrame(pixels,width,height,templatePixels,templateWidth,templateHeight,{W=900,H=1200,head=null}={}){
- const source=planThaiBodyFrame(pixels,width,height,{W,H,head});
- const template=planThaiBodyFrame(templatePixels,templateWidth,templateHeight,{W,H});
- if(!source.coat||!template.coat)return {...source,reason:'native_png_unmeasurable'};
- const bleed=2,templateScale=(W+bleed*2)/template.coat.width;
- const templateCenter=(template.coat.left+template.coat.right+1)/2;
- const templateX=W/2-templateCenter*templateScale;
- const left=templateX+template.coat.left*templateScale;
- const right=templateX+(template.coat.right+1)*templateScale;
- const scale=(right-left)/source.coat.width;
- const x=left-source.coat.left*scale;
- const y=Math.max(H+bleed-(source.bottom+1)*scale,H*.06-source.crown*scale);
- if(![scale,x,y].every(Number.isFinite)||scale<=0)return source;
- return {...source,scale,x,y,applied:true,reason:'native_png_frame',headroom:y+source.crown*scale,headFitLimited:false,crownLimited:false,template:{left,right,bottom:H+bleed}};
 }
