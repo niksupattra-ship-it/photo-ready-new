@@ -1,1 +1,1 @@
-export const THAI_FEMALE_OPENAI_VERSION='thai-female-openai-clear-pore-skin-v6';
+export const THAI_FEMALE_OPENAI_VERSION='thai-female-openai-dewy-reference-v7';
