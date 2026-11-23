@@ -12,7 +12,7 @@ import sharp from 'sharp';
 import {thaiBodyGeometry,inspectThaiBodyGeometry,checkNewThaiBodyGeometry} from '../src/thai-body-geometry.js';
 import {THAI_BODY_GEOMETRY_VERSION,parseThaiBodyReference,thaiBodyGeometryInstruction} from '../thai-body-geometry-policy.js';
 import {requestReviewSeedream} from '../seedream-review-transport.js';
-import {processProductionPortrait} from '../production-portrait-pipeline.js';
+import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION} from '../thai-outfit-ai-policy.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 const hash=b=>createHash('sha256').update(b).digest('hex');
@@ -87,6 +87,7 @@ test('actual Thai hairstyle pipeline sends original identity, proportion targets
  }
  assert.equal(thaiBodyGeometryInstruction({interfaceLanguage:'en',thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION}),'');
  assert.equal(thaiBodyGeometryInstruction({...base,thaiBodyGeometryVersion:'archived'}),'');
+ assert.throws(()=>validateProductionPortrait({buffer:png,mimetype:'image/png'},{...base,englishStudioFinishVersion:undefined}),'A one-call body contract cannot fall through to a legacy multi-stage route');
 });
 
 test('the real client quality-failure path marks a definite body error as rejected, preventing its automatic recovery/generation branch',async()=>{

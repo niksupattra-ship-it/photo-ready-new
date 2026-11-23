@@ -105,7 +105,7 @@ export async function checkedFemaleMakeupReference(image){
 export function validateProductionPortrait(input,fields={}){
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
- if(fields.thaiBodyGeometryVersion!==undefined&&!usesThaiBodyGeometry(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
+ if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
  if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference)))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
  if(fields.thaiRearHairShortNeckVersion!==undefined&&!usesThaiRearHairShortNeck(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพชุดไทยล่าสุด');
  if(fields.thaiOutfitAppearanceVersion!==undefined&&(!isThaiOutfitAppearance(fields)||!usesEnglishStudioFinish(fields)||fields.englishOutfitFidelityVersion!==ENGLISH_OUTFIT_FIDELITY_VERSION))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การแสดงสีชุดล่าสุด');
@@ -115,6 +115,7 @@ export function validateProductionPortrait(input,fields={}){
  if(fields.mode||fields.hairRootTarget||fields.maleHairReplacement)throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนประมวลผลล่าสุด');
  if(fields.hairReferenceVersion&&fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION)throw Error('ข้อมูลทรงผมไม่ตรงกับชุดล่าสุด กรุณารีเฟรชหน้าเว็บ');
  const id=fields.hairId||'original',selected=productionHair(id);
+ if(usesThaiBodyGeometry(fields)&&(selected?.gender||fields.portraitMode)==='female'&&!isSinglePassPortrait(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพครั้งเดียว');
  if(selected?.interfaceLanguage==='en'&&(!isEnglishBodyPortrait(fields)||!usesEnglishStudioFinish(fields)||fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION))throw Error('Please refresh the English Studio and choose a hairstyle again.');
  if(fields.femaleFinishPair&&(!isAiMakeupPairVersion(fields.femaleFinishPair)||(selected?.gender||fields.portraitMode)!=='female'||fields.femaleEyeStyle!=='natural'||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกภาพแต่งหน้าคู่ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  // Reject mixed old/new variants before credits are reserved.
