@@ -202,7 +202,7 @@ test('Thai V11 landmarks ignore source canvas crop and choose a bounded per-pers
  const client=await readFile(root+'src/main.jsx','utf8');
  assert(client.includes('measureThaiAdaptiveFace(face,W,H)'), 'One source landmark analysis also measures V11');
  assert(client.includes("fd.append('thaiAdaptiveFaceGeometry',JSON.stringify(measured.geometry))"));
- assert(client.includes('Thai V11: a non-generative check of original vs completed face geometry'));
+ assert(client.includes('const faceLock=compareThaiFaceShape(original,generated)'),'Retain the actual identity check without the removed duplicate advisory pass');
 });
 
 test('Thai native uniform reliably occludes hair over both jacket fronts and clips hanging outer hair without touching face',async()=>{

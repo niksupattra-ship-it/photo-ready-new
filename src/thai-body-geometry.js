@@ -1,4 +1,3 @@
-import {planThaiBodyFrame} from './thai-body-framing.js';
 import {measureGovernmentShoulderGeometry} from './government-insignia-fit.js';
 import {parseThaiBodyReference,THAI_BODY_GEOMETRY_VERSION} from '../thai-body-geometry-policy.js';
 
@@ -34,18 +33,16 @@ export function thaiBodyGeometry({pixels,hair,clothing,width:w,height:h,face}={}
  const measured=g?.stable?g:null;
  const head=measureThaiWholeHead({pixels,hair,width:w,height:h,face});
  const crown=head?.top??null;
- return {faceToShoulder:measured?faceWidth/measured.width:null,crownRatio:crown===null?null:(eyeY-crown)/eyeToChin,neckGap:measured?(measured.top-chin.y)/measured.width:null,shoulderWidth:measured?.width,faceWidth,crownY:crown,head,headFitLimited:head?planThaiBodyFrame(pixels,w,h,{head}).headFitLimited:null,wholeHeadWidthToShoulder:head&&measured?head.width/measured.width:null,wholeHeadHeightToShoulder:head&&measured?head.height/measured.width:null};
+ return {faceToShoulder:measured?faceWidth/measured.width:null,crownRatio:crown===null?null:(eyeY-crown)/eyeToChin,neckGap:measured?(measured.top-chin.y)/measured.width:null,shoulderWidth:measured?.width,faceWidth,crownY:crown,head,wholeHeadWidthToShoulder:head&&measured?head.width/measured.width:null,wholeHeadHeightToShoulder:head&&measured?head.height/measured.width:null};
 }
-export function inspectThaiBodyGeometry(metrics,{reference=null,gender='female',strict=false}={}){
+export function inspectThaiBodyGeometry(metrics,{reference=null,gender='female'}={}){
  if(!metrics||!Number.isFinite(metrics.faceToShoulder))return {action:'review',reason:'body_geometry_unmeasurable'};
- const p=parseThaiBodyReference(reference,{strict}),ratio=metrics.faceToShoulder;
- if(strict&&(!Number.isFinite(metrics.wholeHeadWidthToShoulder)||!Number.isFinite(metrics.wholeHeadHeightToShoulder)||!Number.isFinite(metrics.neckGap)||typeof metrics.headFitLimited!=='boolean'))return {action:'review',reason:'whole_head_unmeasurable',metrics};
- if(strict&&metrics.headFitLimited)return {action:'reject',reason:'portrait_framing_conflict',metrics};
- if(Number.isFinite(metrics.wholeHeadWidthToShoulder)&&metrics.wholeHeadWidthToShoulder>(strict ? .50 : .58)||Number.isFinite(metrics.wholeHeadHeightToShoulder)&&metrics.wholeHeadHeightToShoulder>(strict ? .62 : .72))return {action:'reject',reason:'whole_head_too_large',metrics};
+ const p=parseThaiBodyReference(reference),ratio=metrics.faceToShoulder;
+ if(Number.isFinite(metrics.wholeHeadWidthToShoulder)&&metrics.wholeHeadWidthToShoulder>.58||Number.isFinite(metrics.wholeHeadHeightToShoulder)&&metrics.wholeHeadHeightToShoulder>.72)return {action:'reject',reason:'whole_head_too_large',metrics};
  if(p&&['wholeHeadWidthToShoulder','wholeHeadHeightToShoulder'].some(k=>Number.isFinite(p[k])&&Number.isFinite(metrics[k])&&metrics[k]>p[k]*1.10))return {action:'reject',reason:'whole_head_size_changed',metrics};
- if(Number.isFinite(metrics.neckGap)&&metrics.neckGap>(strict ? .13 : .18))return {action:'reject',reason:'head_body_join_changed',metrics};
+ if(Number.isFinite(metrics.neckGap)&&metrics.neckGap>.18)return {action:'reject',reason:'head_body_join_changed',metrics};
 
- if(ratio>(strict ? .365 : .405)||ratio<.265)return {action:'reject',reason:'head_body_size_changed',metrics};
+ if(ratio>.405||ratio<.265)return {action:'reject',reason:'head_body_size_changed',metrics};
  if(p&&Math.abs(ratio/p.faceToShoulder-1)>.08)return {action:'reject',reason:'head_body_size_changed',metrics};
  if(gender==='female'&&Number.isFinite(metrics.crownRatio)){
   if(metrics.crownRatio>1.4||(p&&metrics.crownRatio>p.crownRatio*1.12&&metrics.crownRatio-p.crownRatio>.10))return {action:'reject',reason:'excessive_crown_height',metrics};
@@ -57,12 +54,10 @@ export function inspectThaiBodyGeometry(metrics,{reference=null,gender='female',
 export async function checkNewThaiBodyGeometry({result,reused=false,reference=null,gender='female',measure}){
  if((reused||result?.idpromReused)&&(result?.idpromBodyGeometryVersion!==THAI_BODY_GEOMETRY_VERSION||result?.idpromBodyGeometryAccepted))return {action:'cached',reason:'accepted_pixels_unchanged'};
  let metrics=null;try{metrics=await measure(result)}catch{}
- const strict=result?.idpromBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION;
- const check=inspectThaiBodyGeometry(metrics,{reference,gender,strict});
- if(check.action==='reject'||(strict&&check.action==='review')){
-  const error=Error('ระบบยังจัดสัดส่วนศีรษะกับลำตัวให้พอดีไม่ได้ · เก็บรูปเดิมไว้');
-  error.code='face_proportion_changed';error.geometryReason=check.reason;throw error;
- }
+ const assessment=inspectThaiBodyGeometry(metrics,{reference,gender});
+ // Body/fabric measurements are advisory: model/mask uncertainty must not
+ // cancel a completed image. Original-face and eye checks run separately.
+ const check=assessment.action==='reject'?{...assessment,action:'review'}:assessment;
  if(check.action==='review')result.idpromQualityReviewNeeded=true;
  result.idpromBodyGeometryAccepted=true;
  return check;
