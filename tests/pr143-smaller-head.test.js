@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {createThaiAdaptiveComposition} from '../thai-adaptive-composition.js';
-import {usesThaiFemaleSmallerHead,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from '../thai-female-head-size.js';
+import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from '../thai-female-head-size.js';
 import {thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION} from '../thai-body-geometry-policy.js';
 import {THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
@@ -14,7 +14,9 @@ import {ENGLISH_OUTFIT_FIDELITY_VERSION} from '../english-outfit-fidelity-versio
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION} from '../english-template-body-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
-import {processProductionPortrait} from '../production-portrait-pipeline.js';
+import {createEnglishBodyLayout,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE} from '../english-body-layout.js';
+import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
+import {processProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
 const root=new URL('..',import.meta.url).pathname;
 test('new version only opts Thai females into the smaller head; other locales/genders and stored old jobs stay PR143',()=>{
  const fields={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION};
@@ -37,7 +39,7 @@ test('actual guide shrinks only head width and height about 10%, retaining chin 
 test('Natural and Makeup use one generation with the smaller-head guide and final fixed-body instruction',async()=>{
  const png=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:115,channels:4,background:'#bd9887'}}).png().toBuffer(),left:8,top:13}]).png().toBuffer();
  for(const finish of ['natural','makeup']){
-  let calls=0;const fields={portraitMode:'female',femaleEyeStyle:finish,thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitComposition:'en-outfit-body-v1',hairReferenceVersion:'picker-hair-v1',hairId:'seedream-14',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:'single-pass-portrait-v1',femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION};
+  let calls=0;const fields={portraitMode:'female',femaleEyeStyle:finish,thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitComposition:'en-outfit-body-v1',hairReferenceVersion:'picker-hair-v1',hairId:'seedream-14',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:'single-pass-portrait-v1',femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,thaiFemaleHeadSizeVersion:'thai-pr143-female-head-90-full-body-v2'};
   const result=await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields,root,key:'inert',removeBackground:async()=>png,requestPortrait:async options=>{calls++;assert(options.adaptiveComposition?.length);const expectedGuide=await createThaiAdaptiveComposition({outfit:options.outfit,identity:options.identity,evidence:fields.thaiAdaptiveFaceGeometry,gender:'female',smallerFemaleHead:true});assert(options.adaptiveComposition.equals(expectedGuide),'Actual provider receives the reduced-head guide despite internal locale normalization');assert(options.prompt.endsWith(THAI_FEMALE_HEAD_SIZE_INSTRUCTION));assert(!options.prompt.includes('cheek-to-cheek width around 0.30'));assert(!options.prompt.includes('27–31%'));assert.equal(options.prompt.split(THAI_FEMALE_HEAD_SIZE_INSTRUCTION).length-1,1);return {png}}});assert(result.length);assert.equal(calls,1);
  }
 });
@@ -77,4 +79,33 @@ test('new generated head is smaller but coat fills frame independently of head s
   }
   assert.equal(plans[0].scale,plans[1].scale);assert.equal(plans[0].x,plans[1].x);
  }
+});
+
+
+test('new Thai Makeup uses the actual English female Makeup Image 1 and head builder, not a late adaptive board',async()=>{
+ const png=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:115,channels:4,background:'#bd9887'}}).png().toBuffer(),left:8,top:13}]).png().toBuffer();
+ const input={buffer:png,mimetype:'image/png'},box=[.2,.1,.8,.7];
+ const common={interfaceLanguage:'en',portraitMode:'female',femaleEyeStyle:'makeup',portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify(box),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:'single-pass-portrait-v1',femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
+ const requests=[];
+ for(const thai of [false,true]){
+  let count=0;
+  const fields=thai?{...common,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiRearHairShortNeckVersion:'thai-natural-neck-rear-hair-v2',thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION}:common;
+  await processProductionPortrait({input,fields,root,key:'inert',removeBackground:async()=>png,requestPortrait:async options=>{count++;requests.push(options);return {png}}});assert.equal(count,1);
+ }
+ const [english,thai]=requests;
+ assert(thai.portrait.equals(english.portrait),'Actual primary AI input must be byte-identical to English for identical source/outfit');
+ assert.equal(thai.identity,null);assert(!thai.adaptiveComposition);assert(thai.outfit.equals(english.outfit));assert.equal(thai.size,english.size);
+ const identity=await portraitIdentityCrop(input,box),expected=await createEnglishBodyLayout(thai.outfit,{headScale:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE});assert(thai.portrait.equals(expected));
+ for(const text of ['IMAGE 1 IS THE BASE CANVAS AND BODY GEOMETRY AUTHORITY','ENGLISH FEMALE V2 — BALANCED HEAD/BODY','38–40%','Keep the garment at EXACTLY this template size'])assert(thai.prompt.includes(text)&&english.prompt.includes(text));
+ for(const text of ['No mannequin, composited head','Image 1 is the uploaded PERSON','ONE AUTHORITATIVE HEAD / SHOULDER PROPORTION','Scale and move the whole portrait uniformly only','MEASURED COMPOSITION — IMAGE','FINAL COLLAR MEASUREMENT CHECK V2'])assert(!thai.prompt.includes(text),text);
+ assert(thai.makeupStudioReference?.equals(english.makeupStudioReference));
+});
+
+
+test('English Makeup head reuse is limited to new Thai female Makeup, retaining old jobs and Natural',()=>{
+ const fields={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION,femaleEyeStyle:'makeup'};
+ assert(usesThaiEnglishMakeupHead(fields,'female'));assert(!usesThaiEnglishMakeupHead(fields,'male'));
+ assert(!usesThaiEnglishMakeupHead({...fields,femaleEyeStyle:'natural'},'female'));
+ assert(!usesThaiEnglishMakeupHead({...fields,thaiOutfitAiVersion:undefined,interfaceLanguage:'en'},'female'));
+ for(const version of ['thai-pr143-female-head-90-full-body-v2','thai-pr143-female-head-90-v1',undefined])assert(!usesThaiEnglishMakeupHead({...fields,thaiFemaleHeadSizeVersion:version},'female'));
 });

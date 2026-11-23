@@ -1,4 +1,4 @@
-import {usesThaiFemaleSmallerHead,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from './thai-female-head-size.js';
+import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from './thai-female-head-size.js';
 import {createThaiAdaptiveComposition,thaiAdaptiveCompositionInstruction} from './thai-adaptive-composition.js';
 import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION,usesUnifiedThaiBodyGeometry} from './thai-body-geometry-policy.js';
 import {femaleHairLightnessInstruction} from './hairstyle-fit-policy.js';
@@ -523,9 +523,13 @@ export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,sh
 }
 
 async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
+ const thaiEnglishMakeupHead=usesThaiEnglishMakeupHead(fields,selected.gender);
+ // Reuse the actual English female Makeup Image 1 builder and head policy.
+ // Thai wardrobe, hair and result placement stay in their existing paths.
+ if(thaiEnglishMakeupHead)fields={...fields,englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION};
  const headOnly=isEnglishHeadPortrait(fields);
  const templateBody=isEnglishTemplateBody(fields);
- const thaiSingleAi=usesThaiSingleAiOutfit(fields)||usesThaiBodyGeometry(fields);
+ const thaiSingleAi=!thaiEnglishMakeupHead&&(usesThaiSingleAiOutfit(fields)||usesThaiBodyGeometry(fields));
  const file=checkedOutfitReferencePath(fields.neckOutfitReferencePath);
  const keepCurrentHair=fields.keepCurrentHair==='1';
  if(fields.preserveHairJobId&&!currentHair)throw Error('Previous hairstyle reference is unavailable.');
@@ -564,8 +568,8 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
   fit&&!(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&selectedHairDesign(chosen)?.kind==='long')?createEnglishHairFitGuide({fit,hair,selected:chosen,root}):Promise.resolve(null)
  ]);
  const visualHairReference=isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION&&!keepCurrentHair?await thaiRearHairReference({selected:chosen,hair:preparedVisualHairReference,root}):preparedVisualHairReference;
- const thaiCalibrated=templateBody&&!thaiSingleAi&&usesThaiCalibratedHead(fields);
- const thaiAdaptive=templateBody&&!thaiSingleAi&&usesThaiAdaptiveHead(fields);
+ const thaiCalibrated=templateBody&&!thaiEnglishMakeupHead&&!thaiSingleAi&&usesThaiCalibratedHead(fields);
+ const thaiAdaptive=templateBody&&!thaiEnglishMakeupHead&&!thaiSingleAi&&usesThaiAdaptiveHead(fields);
  const thaiFace=thaiAdaptive?parseThaiAdaptiveFace(fields.thaiAdaptiveFaceGeometry,{required:true}):null;
  const identityLayout=!thaiSingleAi&&usesEnglishIdentityLayout(fields)&&Boolean(identityBox&&identity);
  const identityReference=identityLayout?null:identity;
@@ -649,11 +653,10 @@ ${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-ch
  }
 
  if(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION)prompt+='\n'+THAI_REAR_HAIR_FINAL_POLICY;
- if(usesThaiRearHairShortNeck(fields))prompt+='\n'+thaiRearHairShortNeckInstruction({gender:selected.gender,hairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:null,version:fields.thaiRearHairShortNeckVersion,allowWholeHeadFit:usesUnifiedThaiBodyGeometry(fields)});
- prompt+=thaiBodyGeometryInstruction(fields,selected.gender);
- prompt+=thaiFinalOriginalIdentity(fields);
+ if(!thaiEnglishMakeupHead&&usesThaiRearHairShortNeck(fields))prompt+='\n'+thaiRearHairShortNeckInstruction({gender:selected.gender,hairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:null,version:fields.thaiRearHairShortNeckVersion,allowWholeHeadFit:usesUnifiedThaiBodyGeometry(fields)});
+ if(!thaiEnglishMakeupHead){prompt+=thaiBodyGeometryInstruction(fields,selected.gender);prompt+=thaiFinalOriginalIdentity(fields);}
  await onStage('generation');
- const adaptiveComposition=usesThaiBodyGeometry(fields)&&fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION?await createThaiAdaptiveComposition({outfit,identity,evidence:fields.thaiAdaptiveFaceGeometry,gender:selected.gender,smallerFemaleHead:usesThaiFemaleSmallerHead(fields,selected.gender)}):null;
+ const adaptiveComposition=!thaiEnglishMakeupHead&&usesThaiBodyGeometry(fields)&&fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION?await createThaiAdaptiveComposition({outfit,identity,evidence:fields.thaiAdaptiveFaceGeometry,gender:selected.gender,smallerFemaleHead:usesThaiFemaleSmallerHead(fields,selected.gender)}):null;
  if(adaptiveComposition)prompt+=thaiAdaptiveCompositionInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,makeupStudioReference,outfitDetailReference].filter(Boolean).length);
  if(adaptiveComposition&&usesThaiFemaleSmallerHead(fields,selected.gender)){prompt=prompt.replaceAll(ENGLISH_HEAD_BODY_POLICY,'').replaceAll(THAI_FEMALE_HEAD_SIZE_INSTRUCTION,'');prompt+='\n'+THAI_FEMALE_HEAD_SIZE_INSTRUCTION;}
  const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
