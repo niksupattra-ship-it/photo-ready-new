@@ -1,3 +1,6 @@
+import {openaiApiKey} from './openai-api-key.js';
+import {openaiReadiness} from './openai-readiness.js';
+import {sanitizeAiError} from './ai-error-sanitizer.js';
 import {portraitProviderFor} from './portrait-provider-policy.js';
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
 import {basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE} from './thai-basic-ai-policy.js';
@@ -481,8 +484,8 @@ const aiFinishHandler=async(req,res)=>{
   return res.type('image/png').send(data);
  }catch(e){
   if(creditUse)await refundCredit(creditUse.usageId);
-  console.error('Combined portrait:',e.message);
-  return res.status(e.status>=400&&e.status<600?e.status:500).send('ประมวลผลไม่สำเร็จ: '+e.message);
+  console.error('Combined portrait:',sanitizeAiError(e.message));
+  return res.status(e.status>=400&&e.status<600?e.status:500).send('ประมวลผลไม่สำเร็จ: '+sanitizeAiError(e.message));
  }
 };
 
@@ -555,11 +558,11 @@ async function runAiJob(id){
    if(job.fields?.femaleEyeStyle==='makeup')console.info('Makeup generation audit',id,{route:'direct',...req.makeupGenerationAudit});
    console.info('AI job completed',id,{hasMakeup:Boolean(req.aiMakeupVariant),elapsedMs:Date.now()-started});
   }else{
-   const failure=out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`;
+   const failure=sanitizeAiError(out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);
    console.error('AI job failed',id,{httpStatus:out.statusCode,error:failure});
    await refundCredit(job.usage_id);await failAiJob(id,failure);
   }
- }catch(e){console.error('AI job failed',id,e);if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job worker stopped',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
+ }catch(e){console.error('AI job failed',id,{code:e.code||'unknown',error:sanitizeAiError(e.message)});if(job?.usage_id)try{await refundCredit(job.usage_id)}catch{};try{await failAiJob(id,e.message)}catch{}}finally{clearInterval(heartbeat);console.info('AI job worker stopped',id,Date.now()-started+'ms');activeAiJobs.delete(id)}
 }
 // Query by a random wallet-scoped upload nonce, so a lost POST response can
 // attach to the existing AI job without re-uploading or spending another credit.
@@ -808,8 +811,12 @@ app.use((err,req,res,next)=>{
   next(err);
 });
 
+let openaiPortraitStatus={state:'checking'};
+const originalOpenaiSetting=process.env.OPENAI_API_KEY;
+try{process.env.OPENAI_API_KEY=openaiApiKey(originalOpenaiSetting)}catch{process.env.OPENAI_API_KEY=''}
+void openaiReadiness(originalOpenaiSetting).then(status=>{openaiPortraitStatus=status;console.info('OpenAI portrait readiness',JSON.stringify(status))}).catch(()=>{openaiPortraitStatus={state:'unavailable'}});
 let thaiWorkAiReady=false;void prepareThaiWorkAi().then(()=>{thaiWorkAiReady=true}).catch(error=>console.error('Thai work AI schema unavailable',error.code||error.message));
-app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,thaiWorkAiReady,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
+app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,thaiWorkAiReady,openaiPortrait:openaiPortraitStatus,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
 // Serve an indexable English landing at /en/ with the same built app and APIs.
 // All Thai pages and Stripe endpoints continue to use their existing routes.
 // Keep the original Thai photo-information/catalogue page indexable at its own URL.

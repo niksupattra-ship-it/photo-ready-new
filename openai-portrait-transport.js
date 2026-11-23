@@ -1,3 +1,5 @@
+import {sanitizeAiError} from './ai-error-sanitizer.js';
+import {openaiApiKey} from './openai-api-key.js';
 import {seedreamReviewPayload} from './seedream-review-transport.js';
 export const OPENAI_PORTRAIT_MODEL='gpt-image-2.5-sunburst';
 export const OPENAI_RESPONSES_MODEL='gpt-5.5';
@@ -12,11 +14,11 @@ export function openaiPortraitPayload(options){
   tool_choice:{type:'image_generation'},max_tool_calls:1,parallel_tool_calls:false};
 }
 export async function requestOpenAIPortrait(options,{fetchImpl=fetch,timeoutMs=240000}={}){
- if(!options.key)throw Object.assign(Error('ยังไม่ได้ตั้งค่า OPENAI_API_KEY'),{status:503,code:'openai_not_configured'});
+ const key=openaiApiKey(options.key);
  const payload=openaiPortraitPayload(options),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);timer.unref?.();
  try{
   // One submission. Never retry a billable call or silently use another vendor.
-  const response=await fetchImpl(OPENAI_PORTRAIT_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${options.key}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
+  const response=await fetchImpl(OPENAI_PORTRAIT_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
   let body;try{body=await response.json()}catch{throw Object.assign(Error('OpenAI ส่งข้อมูลตอบกลับไม่สมบูรณ์'),{status:502,code:'openai_response_invalid'})}
   if(!response.ok){const rejected=['moderation_blocked','content_policy_violation','safety_violations'].includes(body?.error?.code);throw Object.assign(Error(rejected?'OpenAI ไม่อนุญาตให้สร้างภาพนี้':`OpenAI ประมวลผลไม่สำเร็จ (${response.status})`),{status:response.status,code:rejected?'AI_OUTPUT_REJECTED':'openai_failed'})}
   const generated=(body?.output||[]).filter(item=>item.type==='image_generation_call'&&item.status==='completed');
@@ -24,6 +26,6 @@ export async function requestOpenAIPortrait(options,{fetchImpl=fetch,timeoutMs=2
   const png=Buffer.from(generated[0].result,'base64');
   if(png.length<8||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Object.assign(Error('OpenAI ส่งผลลัพธ์ที่ไม่ใช่ PNG'),{status:502,code:'openai_invalid_png'});
   return {png,provider:'openai',requestId:response.headers?.get?.('x-request-id')||''};
- }catch(error){if(controller.signal.aborted)throw Object.assign(Error('OpenAI ประมวลผลใช้เวลานานเกินไป'),{status:504,code:'openai_timeout'});throw error}
+ }catch(error){if(controller.signal.aborted)throw Object.assign(Error('OpenAI ประมวลผลใช้เวลานานเกินไป'),{status:504,code:'openai_timeout'});if(['AI_OUTPUT_REJECTED','openai_failed','openai_response_invalid','openai_empty_result','openai_invalid_png'].includes(error?.code))throw Object.assign(Error(sanitizeAiError(error.message)),{status:error.status,code:error.code});throw Object.assign(Error('เชื่อมต่อ OpenAI ไม่สำเร็จ กรุณาลองอีกครั้ง'),{status:502,code:'openai_transport_failed'})}
  finally{clearTimeout(timer)}
 }
