@@ -22,10 +22,11 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
  const {key}=options;
  if(!key)throw Object.assign(Error('ยังไม่ได้ตั้งค่า ARK_API_KEY '),{status:500});
  const payload=JSON.stringify(seedreamReviewPayload(options));
- // Retry only temporary transport/provider failures within the SAME queued
+ // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
- // rejections are never retried.
- for(let attempt=0;attempt<2;attempt++){
+ // rejections are never retried. singleAttempt disables every automatic retry.
+ const attempts=options.singleAttempt?1:2;
+ for(let attempt=0;attempt<attempts;attempt++){
   const signal=AbortSignal.timeout(timeoutMs);
   let response,body;
   try{
@@ -36,12 +37,12 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
    });
   }catch(error){
    const timedOut=signal.aborted;
-   if(attempt===0){console.warn('Temporary image-provider transport failure; retrying once',timedOut?'timeout':'network');await new Promise(resolve=>setTimeout(resolve,900));continue}
+   if(attempt+1<attempts){console.warn('Temporary image-provider transport failure; retrying once',timedOut?'timeout':'network');await new Promise(resolve=>setTimeout(resolve,900));continue}
    if(timedOut)throw Object.assign(Error('Seedream ใช้เวลาเกิน 4 นาที กรุณาลองใหม่'),{status:504,code:'seedream_timeout'});
    throw error;
   }
   try{body=await response.json()}catch{
-   if(attempt===0&&[200,408,429,500,502,503,504].includes(response.status)){
+   if(attempt+1<attempts&&[200,408,429,500,502,503,504].includes(response.status)){
     console.warn('Temporary image-provider response format; retrying once',response.status);
     await new Promise(resolve=>setTimeout(resolve,900));continue;
    }
@@ -49,7 +50,7 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
   }
   if(!response.ok){
    const detail=String(body?.error?.message||body?.message||'คำขอไม่สำเร็จ').slice(0,600);
-   if(attempt===0&&[408,425,429,500,502,503,504].includes(response.status)){
+   if(attempt+1<attempts&&[408,425,429,500,502,503,504].includes(response.status)){
     const retryAfter=Math.min(3000,Math.max(0,Number(response.headers?.get?.('retry-after'))*1000||1000));
     console.warn('Temporary image-provider status; retrying once',response.status);
     await new Promise(resolve=>setTimeout(resolve,retryAfter));continue;
@@ -58,12 +59,12 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
   }
   const b64=body?.data?.[0]?.b64_json;
   if(typeof b64!=='string'||!b64.length){
-   if(attempt===0){console.warn('Image-provider response has no PNG; retrying once');continue}
+   if(attempt+1<attempts){console.warn('Image-provider response has no PNG; retrying once');continue}
    throw Object.assign(Error('Seedream ไม่ได้ส่งภาพกลับมา'),{status:502,code:'seedream_empty_result'});
   }
   const png=Buffer.from(b64,'base64');
   if(png.length<8||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))){
-   if(attempt===0){console.warn('Image-provider returned invalid PNG; retrying once');continue}
+   if(attempt+1<attempts){console.warn('Image-provider returned invalid PNG; retrying once');continue}
    throw Object.assign(Error('Seedream ส่งผลลัพธ์ที่ไม่ใช่ PNG'),{status:502,code:'seedream_invalid_png'});
   }
   return {png,requestId:response.headers?.get?.('x-request-id')||''};
