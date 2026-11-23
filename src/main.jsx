@@ -556,7 +556,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
   if(headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
    const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
-   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION?THAI_FEMALE_HEAD_SCALE:1});scale=plan.scale;hX=plan.x;hY=plan.y;}
+   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:(headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1')?THAI_FEMALE_HEAD_SCALE:1,fullBodyFrame:headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION});scale=plan.scale;hX=plan.x;hY=plan.y;}
    finally{native.width=native.height=1}
   }
   return {blob:placementOnly?null:headBlob,lock:{W:900,H:1200,hX,hY,scale,headW:w,headH:h,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
