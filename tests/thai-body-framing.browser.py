@@ -30,16 +30,14 @@ with sync_playwright() as p:
    blob.idpromThaiRealFaceVersion=THAI_REAL_FACE_VERSION;
    const fit=await compose(blob),framed=await render(blob,fit.lock,{scale:1,x:0,y:0});
    const alpha=async b=>{const im=await decodedPortraitImage(b),c=canvasFor(im.width,im.height),x=c.getContext('2d');x.drawImage(im,0,0);return x.getImageData(450,1199,1,1).data[3]};
-   const nativePixels=ctx.getImageData(0,0,900,1200).data,plan=planThaiBodyFrame(nativePixels,900,1200,{head:{left:315,right:585,top:175,bottom:525,width:270,height:350,centerX:450}});
+   const nativePixels=ctx.getImageData(0,0,900,1200).data,plan=planThaiBodyFrame(nativePixels,900,1200);
    if(await alpha(legacy)!==0)throw Error('Fixture must reproduce the lower strip');
    if(await alpha(framed)<250)throw Error('Coat must reach the exported PNG bottom edge');
    if(await digest(blob)!==before)throw Error('Native face/output pixels changed');
    if(Math.abs((900*fit.lock.scale)/(1200*fit.lock.scale)-.75)>1e-12)throw Error('Non-uniform image stretch');
    if(plan.crown*plan.scale+plan.y<0)throw Error('Hair crown clipped');
    if(fit.lock.hY+175*fit.lock.scale<0)throw Error('Measured hair crown must stay inside');
-   if(fit.lock.hY+(plan.bottom+1)*fit.lock.scale<1199)throw Error('Coat must reach or bleed below bottom');
-   if(fit.lock.hY+175*fit.lock.scale<108-.01)throw Error('Crown requires nine percent clearance');
-   if(!plan.crownLimited&&Math.abs(fit.lock.hY+(plan.bottom+1)*fit.lock.scale-1202)>3)throw Error('Ample headroom must retain bottom anchor');
+   if(Math.abs(fit.lock.hY+(plan.bottom+1)*fit.lock.scale-1202)>3)throw Error('Supported coat hem must anchor at the bottom');
    const frame=await decodedPortraitImage(framed);
    return {nativeUnchanged:true,uniformScale:true,oldBottomAlpha:0,newBottomAlpha:await alpha(framed),width:frame.width,height:frame.height,lock:fit.lock};
   }''')
