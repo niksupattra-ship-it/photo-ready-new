@@ -1,5 +1,23 @@
 import {measureGovernmentShoulderGeometry} from './government-insignia-fit.js';
 import {parseThaiBodyReference,THAI_BODY_GEOMETRY_VERSION} from '../thai-body-geometry-policy.js';
+
+export function measureThaiWholeHead({pixels,hair,width:w,height:h,face}={}){
+ if(!pixels||hair?.length!==pixels.length||pixels.length!==w*h*4||![10,152,234,454].every(i=>face?.[i]&&Number.isFinite(face[i].x)&&Number.isFinite(face[i].y)))return null;
+ const chin=face[152].y*h,faceWidth=Math.abs(face[454].x-face[234].x)*w,faceHeight=(face[152].y-face[10].y)*h,cx=(face[234].x+face[454].x)*w/2;
+ if(faceWidth<20||faceHeight<20)return null;
+ const lo=Math.max(0,Math.floor(cx-faceWidth*1.4)),hi=Math.min(w,Math.ceil(cx+faceWidth*1.4)),columns=new Uint32Array(w),rowMinimum=Math.max(4,Math.ceil(faceWidth*.12));
+ let top=null;
+ for(let y=0;y<=Math.min(h-1,Math.floor(chin));y++){
+  let count=0;
+  for(let x=lo;x<hi;x++){const i=(y*w+x)*4;if(hair[i+3]>=160&&pixels[i+3]>=160){count++;columns[x]++}}
+  if(top===null&&y<face[10].y*h&&count>=rowMinimum)top=y;
+ }
+ if(top===null)return null;
+ let left=Math.min(face[234].x,face[454].x)*w,right=Math.max(face[234].x,face[454].x)*w;
+ const support=Math.max(3,Math.ceil(faceHeight*.025));
+ for(let x=lo;x<hi;x++)if(columns[x]>=support){left=Math.min(left,x);right=Math.max(right,x+1)}
+ return {left,right,top,bottom:chin,width:right-left,height:chin-top,centerX:(left+right)/2};
+}
 // Geometry evidence only. No pixel writes, fitting/warping or provider calls.
 export function thaiBodyGeometry({pixels,hair,clothing,width:w,height:h,face}={}){
  if(!pixels||pixels.length!==w*h*4||![10,33,263,152,234,454].every(i=>face?.[i]&&Number.isFinite(face[i].x)&&Number.isFinite(face[i].y)))return null;
@@ -12,20 +30,18 @@ export function thaiBodyGeometry({pixels,hair,clothing,width:w,height:h,face}={}
   garment=measureGovernmentShoulderGeometry({data:visible,width:w,height:h});
  }
  const g=garment?.stable?garment:measureGovernmentShoulderGeometry({data:pixels,width:w,height:h});
- if(!g||!g.stable)return null;
- let crown=null;
- if(hair?.length===pixels.length){
-  const x0=Math.max(0,Math.floor(cx-faceWidth*.6)),x1=Math.min(w,Math.ceil(cx+faceWidth*.6)),minimum=Math.max(4,Math.ceil(faceWidth*.12));
-  for(let y=0;y<Math.min(h,forehead.y);y++){
-   let count=0;for(let x=x0;x<x1;x++){const i=(y*w+x)*4;if(hair[i+3]>160&&pixels[i+3]>160)count++}
-   if(count>=minimum){crown=y;break}
-  }
- }
- return {faceToShoulder:faceWidth/g.width,crownRatio:crown===null?null:(eyeY-crown)/eyeToChin,neckGap:(g.top-chin.y)/g.width,shoulderWidth:g.width,faceWidth,crownY:crown};
+ const measured=g?.stable?g:null;
+ const head=measureThaiWholeHead({pixels,hair,width:w,height:h,face});
+ const crown=head?.top??null;
+ return {faceToShoulder:measured?faceWidth/measured.width:null,crownRatio:crown===null?null:(eyeY-crown)/eyeToChin,neckGap:measured?(measured.top-chin.y)/measured.width:null,shoulderWidth:measured?.width,faceWidth,crownY:crown,head,wholeHeadWidthToShoulder:head&&measured?head.width/measured.width:null,wholeHeadHeightToShoulder:head&&measured?head.height/measured.width:null};
 }
 export function inspectThaiBodyGeometry(metrics,{reference=null,gender='female'}={}){
  if(!metrics||!Number.isFinite(metrics.faceToShoulder))return {action:'review',reason:'body_geometry_unmeasurable'};
  const p=parseThaiBodyReference(reference),ratio=metrics.faceToShoulder;
+ if(Number.isFinite(metrics.wholeHeadWidthToShoulder)&&metrics.wholeHeadWidthToShoulder>.58||Number.isFinite(metrics.wholeHeadHeightToShoulder)&&metrics.wholeHeadHeightToShoulder>.72)return {action:'reject',reason:'whole_head_too_large',metrics};
+ if(p&&['wholeHeadWidthToShoulder','wholeHeadHeightToShoulder'].some(k=>Number.isFinite(p[k])&&Number.isFinite(metrics[k])&&metrics[k]>p[k]*1.10))return {action:'reject',reason:'whole_head_size_changed',metrics};
+ if(Number.isFinite(metrics.neckGap)&&metrics.neckGap>.18)return {action:'reject',reason:'head_body_join_changed',metrics};
+
  if(ratio>.405||ratio<.265)return {action:'reject',reason:'head_body_size_changed',metrics};
  if(p&&Math.abs(ratio/p.faceToShoulder-1)>.08)return {action:'reject',reason:'head_body_size_changed',metrics};
  if(gender==='female'&&Number.isFinite(metrics.crownRatio)){

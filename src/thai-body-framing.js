@@ -1,6 +1,6 @@
 // Placement only: one uniform transform of the untouched native portrait.
 // Measure supported opaque rows, ignoring isolated matte noise below the coat.
-export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200}={}){
+export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null}={}){
  if(![width,height,W,H].every(n=>Number.isInteger(n)&&n>0))return {scale:1,x:0,y:0,applied:false,reason:'unmeasurable'};
  const contain=Math.min(W/width,H/height),fallback={scale:contain,x:(W-width*contain)/2,y:(H-height*contain)/2,applied:false};
  if(pixels?.length!==width*height*4)return {...fallback,reason:'unmeasurable'};
@@ -24,21 +24,32 @@ export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200}={}){
  rows.sort((a,b)=>a.width-b.width);
  const coat=rows[Math.floor(rows.length*.1)];
  const bleed=2,fill=coat?(W+bleed*2)/coat.width:W/width;
- // Preserve the crown. If the native torso is impossibly narrow, retain a
- // safe whole-person crop rather than stretching the face independently.
- const crownLimit=(H+bleed)/(bottom+1-crown),scale=Math.min(Math.max(W/width,(H+bleed)/(bottom+1),fill),crownLimit);
- const y=H+bleed-(bottom+1)*scale,center=coat?(coat.left+coat.right+1)/2:width/2,x=W/2-center*scale;
- return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'bottom_anchored',bottom,crown,coat};
+ const headroom=H*.05,top=head?.top??crown;
+ // The crown determines placement. The hem may overflow the bottom crop.
+ // Fit the complete head, including hair, with ONE uniform portrait scale.
+ const headLimit=head?Math.min(H*.44/head.height,W*.46/head.width):Infinity;
+ const minimum=(H+bleed-headroom)/(bottom+1-top);
+ const scale=Math.max(minimum,Math.min(fill,headLimit));
+ const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale,y=headroom-top*scale;
+ return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'head_anchored',bottom,crown:top,coat,headroom,headFitLimited:minimum>headLimit};
 }
 
 // Upgrade untouched stored placements, including every linked native detail,
 // without rewriting a source image or carrying zoom into future hair swaps.
-export function fitThaiBodyScene(layers,head,plan,width,height){
+export function fitThaiBodyScene(layers,head,plan,width,height,{opaqueMaskIds=new Set()}={}){
  if(!head?.sourceFrame||!plan?.coat)return layers;
  const subject=layers.filter(l=>l.kind!=='background'&&l.kind!=='source-photo');
- if(subject.some(l=>l.locked||l.mask||l.warpSource||l.eraseRestoreSource||Math.abs(l.x||0)>.001||Math.abs(l.y||0)>.001||Math.abs((l.scale??1)-1)>.000001||Math.abs(l.rotation||0)>.001||Math.abs((l.squeezeX??1)-1)>.000001||Math.abs((l.squeezeY??1)-1)>.000001))return layers;
+ if(head.locked||(head.mask&&!opaqueMaskIds.has(head.id))||head.warpSource||head.eraseRestoreSource||Math.abs(head.x||0)>.001||Math.abs(head.y||0)>.001||Math.abs((head.scale??1)-1)>.000001||Math.abs(head.rotation||0)>.001||Math.abs((head.squeezeX??1)-1)>.000001||Math.abs((head.squeezeY??1)-1)>.000001||head.neckWidth||head.neckHeight)return layers;
  const f=head.sourceFrame,q=plan.scale/(f.w/width),tx=plan.x-q*f.x,ty=plan.y-q*f.y;
  if(Math.abs(q-1)<.000001&&Math.abs(tx)<.001&&Math.abs(ty)<.001)return layers;
  const frame=f=>({x:q*f.x+tx,y:q*f.y+ty,w:q*f.w,h:q*f.h});
- return layers.map(l=>subject.includes(l)?{...l,sourceFrame:frame(l.sourceFrame||{x:0,y:0,w:900,h:1200}),...(l.collarFrame?{collarFrame:frame(l.collarFrame)}:{})}:l);
+ return layers.map(l=>{
+  if(!subject.includes(l))return l;
+  // Conjugate each accessory pose by the same global portrait transform.
+  // This preserves manual offsets, rotation and masks instead of resetting them.
+  const vx=tx+(q-1)*450,vy=ty+(q-1)*600,r=(l.rotation||0)*Math.PI/180,sx=(l.scale??1)*(l.squeezeX??1),sy=(l.scale??1)*(l.squeezeY??1);
+  const x=q*(l.x||0)+vx-(Math.cos(r)*sx*vx-Math.sin(r)*sy*vy),y=q*(l.y||0)+vy-(Math.sin(r)*sx*vx+Math.cos(r)*sy*vy),pins={};
+  for(const key of ['collarLeftX','collarLeftY','collarRightX','collarRightY'])if(Number.isFinite(l[key]))pins[key]=l[key]*q;
+  return {...l,x,y,...pins,sourceFrame:frame(l.sourceFrame||{x:0,y:0,w:900,h:1200}),...(l.collarFrame?{collarFrame:frame(l.collarFrame)}:{})};
+ });
 }
