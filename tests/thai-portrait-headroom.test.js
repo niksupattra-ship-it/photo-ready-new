@@ -12,3 +12,6 @@ test('native insignia follow the exact same translation; pixels, scale and relat
  const h={id:'head',kind:'head',source:'unchanged',sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1};const pin={id:'pin',kind:'collar',source:'original-insignia',sourceFrame:{x:100,y:600,w:90,h:30},x:0,y:0,scale:1};
  const plan={scale:1,x:0,y:100,coat:{}};const result=fitThaiBodyScene([h,pin],h,plan,900,1200);assert.equal(result[0].source,h.source);assert.equal(result[1].source,pin.source);assert.equal(result[1].sourceFrame.y-pin.sourceFrame.y,100);assert.equal(result[0].sourceFrame.y-h.sourceFrame.y,100);assert.equal(result[1].sourceFrame.w,90);assert.equal(result[0].sourceFrame.w,900);
 });
+test('the previous crown-limited scale is preserved exactly, only y changes',()=>{
+ const p=planThaiBodyFrame(pixels,900,1200,{head:{top:0,height:400,width:300,centerX:450}});assert.equal(p.scale,(1202-24)/1200);assert.equal(p.y,108);
+});
