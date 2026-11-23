@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {portraitProviderFor,isThaiFemalePortrait} from '../portrait-provider-policy.js';
-import {requestOpenAIPortrait,openaiPortraitPayload,OPENAI_PORTRAIT_MODEL,OPENAI_RESPONSES_MODEL,OPENAI_PORTRAIT_ENDPOINT} from '../openai-portrait-transport.js';
+import {requestOpenAIPortrait,openaiPortraitPayload,OPENAI_PORTRAIT_MODEL,OPENAI_RESPONSES_MODEL,OPENAI_PORTRAIT_ENDPOINT,OPENAI_SKIN_DETAIL_INSTRUCTION} from '../openai-portrait-transport.js';
 import {requestReviewSeedream,seedreamReviewPayload} from '../seedream-review-transport.js';
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
 import {THAI_BODY_GEOMETRY_VERSION} from '../thai-body-geometry-policy.js';
@@ -25,7 +25,7 @@ test('only Thai females choose OpenAI; English and males retain exact Seedream f
 });
 test('OpenAI receives the exact original long prompt and every numbered reference byte in one image edit',async()=>{
  const options={key:env.OPENAI_API_KEY,prompt:'Keep ALL original instructions.\n'.repeat(3000),size:'1824x2432',portrait:png,portraitMime:'image/png',hair:Buffer.from('hair'),identity:Buffer.from('identity'),makeup:Buffer.from('makeup'),outfit:Buffer.from('outfit'),skinReference:Buffer.from('skin'),neckReference:Buffer.from('neck'),neckShapeReference:Buffer.from('shape'),hairPlacementReference:Buffer.from('placement'),compositionReference:Buffer.from('composition'),makeupStudioReference:Buffer.from('makeup-guide'),outfitDetailReference:Buffer.from('outfit-detail'),adaptiveComposition:Buffer.from('adaptive')};let count=0;
- const result=await requestOpenAIPortrait(options,{fetchImpl:async(url,init)=>{count++;assert.equal(url,OPENAI_PORTRAIT_ENDPOINT);assert.equal(init.headers.Authorization,'Bearer openai-test');const body=JSON.parse(init.body);assert.equal(body.model,OPENAI_RESPONSES_MODEL);assert.equal(body.tools[0].model,OPENAI_PORTRAIT_MODEL);assert.equal(body.tools[0].quality,'high');assert.equal(body.tools[0].size,options.size);assert.equal(body.input[0].content[0].text,options.prompt);assert.equal(body.max_tool_calls,1);assert.equal(body.parallel_tool_calls,false);assert.equal(body.store,false);const refs=seedreamReviewPayload(options).image;assert.deepEqual(body.input[0].content.slice(1).map(x=>x.image_url),refs);return ok()}});
+ const result=await requestOpenAIPortrait(options,{fetchImpl:async(url,init)=>{count++;assert.equal(url,OPENAI_PORTRAIT_ENDPOINT);assert.equal(init.headers.Authorization,'Bearer openai-test');const body=JSON.parse(init.body);assert.equal(body.model,OPENAI_RESPONSES_MODEL);assert.equal(body.tools[0].model,OPENAI_PORTRAIT_MODEL);assert.equal(body.tools[0].quality,'high');assert.equal(body.tools[0].size,options.size);assert.equal(body.input[0].content[0].text,options.prompt+'\n\n'+OPENAI_SKIN_DETAIL_INSTRUCTION);assert.equal(body.max_tool_calls,1);assert.equal(body.parallel_tool_calls,false);assert.equal(body.store,false);const refs=seedreamReviewPayload(options).image;assert.deepEqual(body.input[0].content.slice(1).map(x=>x.image_url),refs);return ok()}});
  assert.equal(count,1);assert(result.png.equals(png));assert.equal(result.provider,'openai');
 });
 test('refusal, quota/server failure, invalid output and timeout never retry or switch provider',async()=>{
@@ -37,7 +37,7 @@ test('actual Thai female Natural and Makeup requests send the same assembled ref
   const fields={portraitMode:'female',femaleEyeStyle:finish,thaiOutfitAiVersion:'th-full-outfit-ai-v1',thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitComposition:'en-outfit-body-v1',hairReferenceVersion:'picker-hair-v1',hairId:'seedream-14',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:'single-pass-portrait-v1',femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION};
   if(!bodyPortrait)for(const key of ['thaiOutfitAiVersion','thaiOutfitAppearanceVersion','thaiBodyGeometryVersion','thaiRealFaceVersion','thaiCollarlessVersion','englishOutfitFidelityVersion','englishStudioFinishVersion','portraitComposition','neckOutfitReferencePath','thaiAdaptiveFaceGeometry'])delete fields[key];
   const provider=portraitProviderFor(fields,env);let requests=0;
-  const result=await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields,root,key:provider.key,removeBackground:async()=>png,requestPortrait:options=>provider.requestPortrait(options,{fetchImpl:async(_url,{body})=>{requests++;const payload=JSON.parse(body);assert.equal(payload.input[0].content[0].text,options.prompt);const refs=seedreamReviewPayload(options).image;assert.deepEqual(payload.input[0].content.slice(1).map(x=>x.image_url),Array.isArray(refs)?refs:[refs]);if(bodyPortrait){assert.equal(payload.tools[0].size,options.size);assert.match(options.prompt,/MEASURED COMPOSITION/)}return ok()}})});
+  const result=await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields,root,key:provider.key,removeBackground:async()=>png,requestPortrait:options=>provider.requestPortrait(options,{fetchImpl:async(_url,{body})=>{requests++;const payload=JSON.parse(body);assert.equal(payload.input[0].content[0].text,options.prompt+'\n\n'+OPENAI_SKIN_DETAIL_INSTRUCTION);const refs=seedreamReviewPayload(options).image;assert.deepEqual(payload.input[0].content.slice(1).map(x=>x.image_url),Array.isArray(refs)?refs:[refs]);if(bodyPortrait){assert.equal(payload.tools[0].size,options.size);assert.match(options.prompt,/MEASURED COMPOSITION/)}return ok()}})});
   assert(result.length);assert.equal(requests,1);
  }
 });
@@ -47,6 +47,18 @@ test('server routes direct/queued portrait, alternate finish and owned job outfi
 });
 
 test('long prompts are never shortened, and incomplete/multiple image responses never trigger another call',async()=>{
- const prompt='exact original input\n'.repeat(4000);assert.equal(openaiPortraitPayload({portrait:png,prompt}).input[0].content[0].text,prompt);
+ const prompt='exact original input\n'.repeat(4000);assert.equal(openaiPortraitPayload({portrait:png,prompt}).input[0].content[0].text,prompt+'\n\n'+OPENAI_SKIN_DETAIL_INSTRUCTION);
  for(const output of [[{type:'image_generation_call',status:'in_progress',result:png.toString('base64')}],[{type:'image_generation_call',status:'completed',result:png.toString('base64')},{type:'image_generation_call',status:'completed',result:png.toString('base64')}],[]]){let calls=0;await assert.rejects(requestOpenAIPortrait({key:'test',portrait:png,prompt},{fetchImpl:async()=>{calls++;return {ok:true,status:200,json:async()=>({output})}}}),e=>e.code==='openai_empty_result');assert.equal(calls,1)}
+});
+
+test('skin detail request preserves explicit dimensions and uses portrait 2K default without another edit',()=>{
+ const base={portrait:png,prompt:'Natural or selected Makeup'};
+ const payload=openaiPortraitPayload(base);
+ assert.equal(payload.tools[0].size,'1824x2432');
+ assert.equal(payload.tools[0].quality,'high');
+ assert.equal(payload.tools[0].model,OPENAI_PORTRAIT_MODEL);
+ assert.equal(payload.max_tool_calls,1);
+ assert.equal(openaiPortraitPayload({...base,size:'2048x2048'}).tools[0].size,'2048x2048');
+ assert.match(payload.input[0].content[0].text,/Makeup keeps the selected makeup colours/);
+ assert.equal(base.prompt,'Natural or selected Makeup');
 });

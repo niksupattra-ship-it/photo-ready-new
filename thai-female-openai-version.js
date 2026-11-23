@@ -1,1 +1,1 @@
-export const THAI_FEMALE_OPENAI_VERSION='thai-female-openai-image-v1';
+export const THAI_FEMALE_OPENAI_VERSION='thai-female-openai-skin-detail-v2';
