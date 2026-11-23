@@ -1,8 +1,8 @@
-import {thaiBodyGeometryInstruction as archivedBodyInstruction} from './thai-body-geometry-v3.js';
+import {thaiBodyGeometryInstruction as archivedBodyInstruction} from './thai-body-geometry-v4.js';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
-export const THAI_BODY_GEOMETRY_PREVIOUS_VERSION='thai-one-call-balanced-head-v3';
-export const THAI_BODY_GEOMETRY_VERSION='thai-one-call-unified-proportions-v4';
-export const usesThaiBodyGeometry=fields=>isThaiOutfitAi(fields)&&['thai-one-call-body-geometry-v1','thai-one-call-whole-head-v2',THAI_BODY_GEOMETRY_PREVIOUS_VERSION,THAI_BODY_GEOMETRY_VERSION].includes(fields.thaiBodyGeometryVersion);
+export const THAI_BODY_GEOMETRY_PREVIOUS_VERSION='thai-one-call-unified-proportions-v4';
+export const THAI_BODY_GEOMETRY_VERSION='thai-one-call-adaptive-board-v5';
+export const usesThaiBodyGeometry=fields=>isThaiOutfitAi(fields)&&['thai-one-call-body-geometry-v1','thai-one-call-whole-head-v2','thai-one-call-balanced-head-v3',THAI_BODY_GEOMETRY_PREVIOUS_VERSION,THAI_BODY_GEOMETRY_VERSION].includes(fields.thaiBodyGeometryVersion);
 export function parseThaiBodyReference(value,{legacy=false,strict=false}={}){
  if(!value)return null;
  let p;try{p=typeof value==='string'?JSON.parse(value):value}catch{return null}
@@ -20,4 +20,4 @@ Whole head means supported highest hair point to chin and outer hair at face lev
 ${gender==='female'?'Preserve the selected female parting, braids/curls and cut length, with long lengths behind both shoulders. No tall hair dome or visible bun.':''}
 Frame continuous cloth through the bottom crop. Let the full head sit lower if it fits; add crown clearance only when needed to avoid clipping. Do not enlarge the head to fill empty space or preserve a complete hem/button. Resolve all proportions inside this ONE existing AI request; never run a second repair or generation call.`;
 }
-export const usesUnifiedThaiBodyGeometry=fields=>isThaiOutfitAi(fields)&&fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION;
+export const usesUnifiedThaiBodyGeometry=fields=>isThaiOutfitAi(fields)&&[THAI_BODY_GEOMETRY_VERSION,THAI_BODY_GEOMETRY_PREVIOUS_VERSION].includes(fields.thaiBodyGeometryVersion);

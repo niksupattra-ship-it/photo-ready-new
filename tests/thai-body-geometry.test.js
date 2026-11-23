@@ -83,7 +83,8 @@ test('actual Thai hairstyle pipeline sends original identity, proportion targets
  await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields,root:new URL('..',import.meta.url).pathname,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
  assert.equal(attempts,1);assert.equal(hash(png),before);
  assert.match(payload.prompt,/ONE AUTHORITATIVE HEAD \/ SHOULDER PROPORTION/);assert.match(payload.prompt,/cheek-to-cheek width around 0.30/);assert.doesNotMatch(payload.prompt,/around 0.34|0.3400|Keep shoulders, collar, epaulettes and garment dimensions fixed/);assert.match(payload.prompt,/Identity locks protect intrinsic facial anatomy, original eyes\/gaze/);assert.match(payload.prompt,/uniform scale relative to naturally proportioned shoulders/);if(choice.portraitMode==='female')assert.match(payload.prompt,/No tall hair dome or visible bun/);
- assert.equal(audit.snapshot().providerCalls,1);
+ assert.match(payload.prompt,/MEASURED COMPOSITION/);assert.match(payload.prompt,new RegExp('MEASURED COMPOSITION — IMAGE '+payload.image.length));assert(payload.image.at(-1).startsWith('data:image/png;base64,'));
+  assert.equal(audit.snapshot().providerCalls,1);
  }
  assert.equal(thaiBodyGeometryInstruction({interfaceLanguage:'en',thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION}),'');
  assert.equal(thaiBodyGeometryInstruction({...base,thaiBodyGeometryVersion:'archived'}),'');
