@@ -1,3 +1,4 @@
+import {portraitProviderFor} from './portrait-provider-policy.js';
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
 import {basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE} from './thai-basic-ai-policy.js';
 import {PORTRAIT_UPLOAD_LIMITS} from './portrait-upload-limits.js';
@@ -466,14 +467,14 @@ const aiFinishHandler=async(req,res)=>{
   const input=req.files?.image?.[0];
   try{validateProductionPortrait(input,req.body)}catch(e){return res.status(400).send(e.message)}
   if(req.files?.mask?.length)return res.status(400).send('ขั้นตอนใหม่ไม่ใช้ mask กรุณารีเฟรชหน้าเว็บ');
-  if(!process.env.ARK_API_KEY)return res.status(500).send('ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์');
+  const provider=portraitProviderFor(req.body);
   if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!creditUse)return;}
   // Matting must be available before spending on external image generation.
   await getModnetSession();
   const currentHair=await loadCurrentHairReference(req.body,walletId(req),getAiJobResult);
   const selectedMakeup=req.body?.portraitMode==='female'&&req.body?.femaleEyeStyle==='makeup';
-  const audit=createMakeupRequestAudit(requestReviewSeedream,{requirePolicy:selectedMakeup&&isSinglePassPortrait(req.body)});
-  const data=await processProductionPortrait({input,fields:req.body,currentHair,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:process.env.ARK_API_KEY,requestPortrait:audit.requestPortrait});
+  const audit=createMakeupRequestAudit(provider.requestPortrait,{requirePolicy:selectedMakeup&&isSinglePassPortrait(req.body)});
+  const data=await processProductionPortrait({input,fields:req.body,currentHair,root:dir,removeBackground:input=>modnetRemoveBackground(input,{refine:false}),onStage:req.onPortraitStage,onMakeupVariant:async png=>{req.aiMakeupVariant=png},key:provider.key,requestPortrait:audit.requestPortrait});
   req.makeupGenerationAudit=audit.snapshot();
   if(!req.deferCreditCommit)await commitCredit(creditUse.usageId);
   res.set('Cache-Control','no-store');res.set('X-Credits-Remaining',String(creditUse.credits));
@@ -496,7 +497,7 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
   const wid=walletId(req),jobId=String(req.body?.jobId||''),templatePath=String(req.body?.templatePath||'');
   if(!wid||!/^job_[a-f0-9]{36}$/.test(jobId))return res.status(403).send('ไม่พบสิทธิ์งานที่สร้าง');
   if(!isJobOutfitTemplate(templatePath))return res.status(400).send('รองรับเฉพาะชุดสมัครงาน');
-  const owned=await getAiJobResult(jobId,wid);
+  const owned=await getAiJobEditContext(jobId,wid);
   if(!owned||owned.status!=='completed'||!owned.result?.length)return res.status(403).send('ต้องใช้รูปที่ประมวลผลสำเร็จจากบัญชีนี้');
   if(!req.files?.image?.[0]?.buffer||!req.files?.head?.[0]?.buffer||req.files.image[0].mimetype!=='image/png'||req.files.head[0].mimetype!=='image/png')return res.status(400).send('กรุณาส่งภาพ PNG หลังประมวลผล');
   // Each caller must prove account access even when another request already
@@ -509,7 +510,7 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
    // Publish the pending promise before reserving credit or starting AI. Concurrent taps
    // and HTTP retries must share the same reservation and provider request.
    current=Promise.resolve().then(async()=>{
-    if(!process.env.ARK_API_KEY)throw Object.assign(Error('AI ใส่ชุดยังไม่พร้อม'),{status:503,publicMessage:'AI ใส่ชุดยังไม่พร้อม'});
+    const provider=portraitProviderFor(owned.fields||{});
     let paidUse=null;
     const scope=await downloadPolicy.scopeForJob(wid,jobId);
     if(await downloadPolicy.basicThaiAiWork(wid,scope))throw Object.assign(Error('thai_basic_free_hair_only'),{status:403,publicMessage:THAI_BASIC_AI_MESSAGE});
@@ -519,7 +520,7 @@ app.post('/api/job-outfit/generate',upload.fields([{name:'image',maxCount:1},{na
      if(!paidUse.usageId)throw Object.assign(Error('credits_exhausted'),{status:402,publicMessage:'No Premium AI generations left. Manual outfit selection remains available.'});
     }
     try{
-     const result=await generateJobOutfit({root:dir,templatePath,image:req.files.image[0].buffer,head:req.files.head[0].buffer,placement:req.body?.placement,headFrame:req.body?.headFrame,key:process.env.ARK_API_KEY,removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
+     const result=await generateJobOutfit({root:dir,templatePath,image:req.files.image[0].buffer,head:req.files.head[0].buffer,placement:req.body?.placement,headFrame:req.body?.headFrame,key:provider.key,requestPortrait:provider.requestPortrait,removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
      if(!result?.png?.length)throw Error('AI did not return a completed photo');
      if(paidUse)await commitCredit(paidUse.usageId);
      return result;
@@ -658,7 +659,8 @@ async function runFemaleAlternateFinish(id){
   if(!['natural','makeup'].includes(finish)||fields.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('Invalid alternate finish');
   heartbeat=setInterval(()=>{void touchFemaleAlternateFinish(id).catch(()=>{})},30000);heartbeat.unref?.();
   let result;
-  const audit=createMakeupRequestAudit(requestReviewSeedream,{requirePolicy:finish==='makeup'&&shouldUseNaturalMasterMakeup(fields,finish)});
+  const provider=portraitProviderFor(fields);
+  const audit=createMakeupRequestAudit(provider.requestPortrait,{requirePolicy:finish==='makeup'&&shouldUseNaturalMasterMakeup(fields,finish)});
   const legacyAiMakeup=shouldUseNaturalMasterMakeup(fields,finish);
   if(legacyAiMakeup){
    // Preserve the established makeup appearance: edit the ACTUAL completed
@@ -668,7 +670,7 @@ async function runFemaleAlternateFinish(id){
    if(naturalJob?.status!=='completed'||!naturalJob.result?.length)throw Error('Completed Natural image is unavailable; original result preserved');
    console.info('Alternate finish from completed Natural master',id,NATURAL_MASTER_MAKEUP_VERSION);
    result=await generateMakeupFromCompletedNatural({
-    natural:naturalJob.result,fields,key:process.env.ARK_API_KEY,requestPortrait:audit.requestPortrait
+    natural:naturalJob.result,fields,key:provider.key,requestPortrait:audit.requestPortrait
    });
   }else{
    // Makeup -> Natural has no Natural master. Keep the existing original-upload
@@ -683,7 +685,7 @@ async function runFemaleAlternateFinish(id){
    result=await processProductionPortrait({
     input:original,fields:nextFields,root:dir,currentHair,
     removeBackground:source=>modnetRemoveBackground(source,{refine:false}),
-    key:process.env.ARK_API_KEY,
+    key:provider.key,
     requestPortrait:audit.requestPortrait,onStage:async stage=>{console.info('Alternate finish stage',id,stage)}
    });
   }

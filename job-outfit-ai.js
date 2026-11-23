@@ -122,7 +122,7 @@ async function preserveOriginalHead(body,protectedHead,frame,width,height){
  * to the template alpha. Background is removed locally; original finished
  * head is composited over the result to enforce exact facial identity.
  */
-export async function generateJobOutfit({root,templatePath,image,head,placement,headFrame,key,removeBackground}){
+export async function generateJobOutfit({root,templatePath,image,head,placement,headFrame,key,removeBackground,requestPortrait=requestReviewSeedream}){
  if(!isJobOutfitTemplate(templatePath))throw Object.assign(Error('รองรับ AI ชุดสมัครงานเท่านั้น'),{status:400});
  if(!Buffer.isBuffer(image)||!image.length||!Buffer.isBuffer(head)||!head.length)
   throw Object.assign(Error('ไม่มีภาพหัวที่ประมวลผลสำเร็จ'),{status:400});
@@ -141,7 +141,7 @@ export async function generateJobOutfit({root,templatePath,image,head,placement,
   throw Object.assign(Error('ขนาดต้นแบบชุดไม่ถูกต้อง'),{status:400});
  const reference=await sharp(template).flatten({background:'#ffffff'}).png().toBuffer();
  const faceOnly=await protectedJobHead(head,frame,width,height);
- const generated=await requestReviewSeedream({
+ const generated=await requestPortrait({
   key,prompt:OUTFIT_PROMPT,size:'2K',portrait:image,portraitMime:'image/png',
   hair:reference,identity:faceOnly
  });
