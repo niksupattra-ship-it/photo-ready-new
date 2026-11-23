@@ -36,7 +36,8 @@ with sync_playwright() as p:
    if(await digest(blob)!==before)throw Error('Native face/output pixels changed');
    if(Math.abs((900*fit.lock.scale)/(1200*fit.lock.scale)-.75)>1e-12)throw Error('Non-uniform image stretch');
    if(plan.crown*plan.scale+plan.y<0)throw Error('Hair crown clipped');
-   if(Math.abs(plan.crown*fit.lock.scale+fit.lock.hY-60)>2)throw Error('Must retain 5% crown headroom');
+   if(fit.lock.hY+175*fit.lock.scale<0)throw Error('Measured hair crown must stay inside');
+   if(Math.abs(fit.lock.hY+(plan.bottom+1)*fit.lock.scale-1202)>3)throw Error('Supported coat hem must anchor at the bottom');
    const frame=await decodedPortraitImage(framed);
    return {nativeUnchanged:true,uniformScale:true,oldBottomAlpha:0,newBottomAlpha:await alpha(framed),width:frame.width,height:frame.height,lock:fit.lock};
   }''')

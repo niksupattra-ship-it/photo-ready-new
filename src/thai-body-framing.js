@@ -24,14 +24,16 @@ export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null}={
  rows.sort((a,b)=>a.width-b.width);
  const coat=rows[Math.floor(rows.length*.1)];
  const bleed=2,fill=coat?(W+bleed*2)/coat.width:W/width;
- const headroom=H*.05,top=head?.top??crown;
- // The crown determines placement. The hem may overflow the bottom crop.
- // Fit the complete head, including hair, with ONE uniform portrait scale.
- const headLimit=head?Math.min(H*.44/head.height,W*.46/head.width):Infinity;
- const minimum=(H+bleed-headroom)/(bottom+1-top);
- const scale=Math.min(Math.max(minimum,fill),headLimit);
- const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale,y=headroom-top*scale;
- return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'head_anchored',bottom,crown:top,coat,headroom,headFitLimited:Math.max(minimum,fill)>headLimit};
+ const top=head?.top??crown;
+ // Anchor the supported coat hem first. A smaller head can sit lower in
+ // the frame; no forced top margin may lift the hem off the bottom edge.
+ const headLimit=head?Math.min(H*.42/head.height,W*.44/head.width):Infinity;
+ const desired=Math.min(fill,headLimit),heightLimit=(H+bleed)/(bottom+1-top);
+ // Only reserve a small crown clearance when the desired scale would clip it.
+ const crownLimited=desired>heightLimit;
+ const scale=crownLimited?(H+bleed-H*.02)/(bottom+1-top):desired;
+ const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale,y=H+bleed-(bottom+1)*scale;
+ return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'bottom_anchored',bottom,crown:top,coat,headroom:y+top*scale,headFitLimited:fill>headLimit,crownLimited};
 }
 
 // Upgrade untouched stored placements, including every linked native detail,
