@@ -89,7 +89,7 @@ test('new Thai Makeup uses the actual English female Makeup Image 1 and head bui
  const requests=[];
  for(const thai of [false,true]){
   let count=0;
-  const fields=thai?{...common,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION}:common;
+  const fields=thai?{...common,interfaceLanguage:'th',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiRearHairShortNeckVersion:'thai-natural-neck-rear-hair-v2',thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION}:common;
   await processProductionPortrait({input,fields,root,key:'inert',removeBackground:async()=>png,requestPortrait:async options=>{count++;requests.push(options);return {png}}});assert.equal(count,1);
  }
  const [english,thai]=requests;
@@ -97,7 +97,7 @@ test('new Thai Makeup uses the actual English female Makeup Image 1 and head bui
  assert.equal(thai.identity,null);assert(!thai.adaptiveComposition);assert(thai.outfit.equals(english.outfit));assert.equal(thai.size,english.size);
  const identity=await portraitIdentityCrop(input,box),expected=await createEnglishBodyLayout(thai.outfit,{headScale:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE});assert(thai.portrait.equals(expected));
  for(const text of ['IMAGE 1 IS THE BASE CANVAS AND BODY GEOMETRY AUTHORITY','ENGLISH FEMALE V2 — BALANCED HEAD/BODY','38–40%','Keep the garment at EXACTLY this template size'])assert(thai.prompt.includes(text)&&english.prompt.includes(text));
- for(const text of ['No mannequin, composited head','Image 1 is the uploaded PERSON','ONE AUTHORITATIVE HEAD / SHOULDER PROPORTION','Scale and move the whole portrait uniformly only','MEASURED COMPOSITION — IMAGE'])assert(!thai.prompt.includes(text),text);
+ for(const text of ['No mannequin, composited head','Image 1 is the uploaded PERSON','ONE AUTHORITATIVE HEAD / SHOULDER PROPORTION','Scale and move the whole portrait uniformly only','MEASURED COMPOSITION — IMAGE','FINAL COLLAR MEASUREMENT CHECK V2'])assert(!thai.prompt.includes(text),text);
  assert(thai.makeupStudioReference?.equals(english.makeupStudioReference));
 });
 

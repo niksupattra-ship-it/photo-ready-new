@@ -851,7 +851,7 @@ test('New Thai results lock natural chin-to-collar length and place long hair be
  assert(main.includes("fd.append('thaiRearHairShortNeckVersion',THAI_REAR_HAIR_SHORT_NECK_VERSION)"));
  assert.equal((main.match(/\.\.\.\(thaiWholeOutfit\?\[THAI_REAR_HAIR_SHORT_NECK_VERSION\]:\[\]\)/g)||[]).length,2,'both cache keys invalidate old finished photo');
  assert(pipeline.includes('if(!thaiEnglishMakeupHead&&usesThaiRearHairShortNeck(fields))prompt+='));
- assert(pipeline.indexOf('if(usesThaiRearHairShortNeck(fields))prompt+=')>pipeline.indexOf("prompt+='\\n'+THAI_REAR_HAIR_FINAL_POLICY"),'new priority must be truly last');
+ assert(pipeline.indexOf('if(!thaiEnglishMakeupHead&&usesThaiRearHairShortNeck(fields))prompt+=')>pipeline.indexOf("prompt+='\\n'+THAI_REAR_HAIR_FINAL_POLICY"),'new priority must be truly last');
 });
 
 test('Inconclusive Thai face-shape landmarks retain finished image for review, but major distortion is blocked',async()=>{
