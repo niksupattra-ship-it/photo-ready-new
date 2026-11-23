@@ -1,3 +1,4 @@
+import {ENGLISH_ANATOMY_CAMERA_POLICY} from '../english-body-portrait.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeOpenAIUprightPose,OPENAI_UPRIGHT_POSE_INSTRUCTION} from '../openai-upright-pose.js';
@@ -22,4 +23,13 @@ test('existing face-shape guard accepts coherent head-roll straightening but sti
  const straight=faceProportions(landmarks(0),1000,1000),tilted=faceProportions(landmarks(.23),1000,1000);
  assert.equal(compareThaiFaceShape(tilted,straight).ok,true);
  assert.equal(compareThaiFaceShape(tilted,{...straight,jawWidth:straight.jawWidth*.75}).ok,false);
+});
+
+test('the complete known old neck-anchor section is replaced without swallowing adjacent pose and body rules',()=>{
+ const next=normalizeOpenAIUprightPose(ENGLISH_ANATOMY_CAMERA_POLICY,true);
+ assert(!next.includes('without increasing or decreasing the gap'));
+ assert(!next.includes('do not recompute neck length from the reduced face height'));
+ assert(next.includes('2. NEW UPRIGHT NECK AND COLLAR ANCHOR.'));
+ assert(next.includes('1. IDENTITY IS NOT POSE.'));assert(next.includes('3. BALANCE.'));assert(next.includes('4. CAMERA AND FRAME.'));
+ assert.equal(normalizeOpenAIUprightPose(next,true),next);
 });

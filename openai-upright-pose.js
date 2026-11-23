@@ -4,6 +4,8 @@ Identity is not source pose: preserve the same real cheeks, jaw, chin, nose, lip
 export function normalizeOpenAIUprightPose(prompt,enabled=false){
  if(!enabled)return prompt;
  return prompt
+  .replace(/2\. NECK LENGTH AND COLLAR ANCHOR\.[\s\S]*?(?=\n3\. BALANCE\.)/, '2. NEW UPRIGHT NECK AND COLLAR ANCHOR. Reconstruct a compact natural upright neck from the actual jaw into the selected collar opening, not from the uploaded neck lean or a fixed old chin-to-collar gap. Preserve the garment and its collar dimensions, natural broad neck support, complete clavicle transitions and continuous jaw-to-neck anatomy. Do not lift shoulders, elongate a neck column or distort facial features. Keep the head frontal and shoulders level.')
+  .replaceAll('keeping the chin at the existing guide chin anchor and the chin-to-collar gap unchanged.', 'seating the chin above the newly reconstructed upright neck and the selected collar with a natural compact anatomical gap.')
   .replaceAll('neck width/length and head scale.', 'a naturally proportioned new upright neck and the established head scale.')
   .replaceAll('Keep pose, outfit, collar, fabric, buttons, insignia, background, canvas dimensions and existing alpha requirements.', 'Set a coherent upright frontal head and new neck pose; keep outfit, collar, fabric, buttons, insignia, background, canvas dimensions and existing alpha requirements.')
   .replaceAll('Keep neck width, neck length, shoulders, torso and outfit unchanged at the guide’s scale.', 'Keep shoulders, torso and outfit unchanged at the guide’s scale; reconstruct a naturally proportioned upright neck seated in the selected collar.')
