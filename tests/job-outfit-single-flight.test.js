@@ -33,5 +33,5 @@ test('exhausted credit does not cache a failed result, and ownership is still ch
 });
 
 test('job outfit provider is selected from owned job language/gender and never from editor claims',async()=>{
- for(const [fields,key] of [[{portraitMode:'female'},'inert-openai'],[{portraitMode:'male'},'inert'],[{portraitMode:'female',interfaceLanguage:'en'},'inert']]){const f=fixture({fields});assert.equal((await f.request()).status,200);assert.equal(f.providers()[0].key,key);assert.equal(typeof f.providers()[0].requestPortrait,'function');assert.deepEqual(f.counts(),{generated:1,reserved:1,committed:1,refunded:0})}
+ for(const [fields,key] of [[{portraitMode:'female'},'inert'],[{portraitMode:'male'},'inert'],[{portraitMode:'female',interfaceLanguage:'en'},'inert']]){const f=fixture({fields});assert.equal((await f.request()).status,200);assert.equal(f.providers()[0].key,key);assert.equal(typeof f.providers()[0].requestPortrait,'function');assert.deepEqual(f.counts(),{generated:1,reserved:1,committed:1,refunded:0})}
 });

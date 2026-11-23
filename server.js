@@ -1,5 +1,4 @@
 import {openaiApiKey} from './openai-api-key.js';
-import {openaiReadiness} from './openai-readiness.js';
 import {sanitizeAiError} from './ai-error-sanitizer.js';
 import {portraitProviderFor} from './portrait-provider-policy.js';
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
@@ -17,7 +16,7 @@ import {preparePortraitUpload} from './portrait-upload.js';
 import {PRODUCTION_HAIR_CATALOG,isTrialHairAllowed,downloadHairAllowed,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS,FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {isEnglishStudioFreeHair} from './src/english-studio-hair-policy.js';
 import {processProductionPortrait,validateProductionPortrait} from './production-portrait-pipeline.js';
-import {requestReviewSeedream} from './seedream-review-transport.js';
+import {requestReviewSeedream,REVIEW_SEEDREAM_MODEL} from './seedream-review-transport.js';
 import {createMakeupRequestAudit} from './makeup-generation-audit.js';
 import {isSinglePassPortrait} from './single-pass-portrait-policy.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from './female-single-finish-policy.js';
@@ -811,12 +810,12 @@ app.use((err,req,res,next)=>{
   next(err);
 });
 
-let openaiPortraitStatus={state:'checking'};
+const openaiPortraitStatus={state:'inactive',reason:'portraits_use_seedream'};
 const originalOpenaiSetting=process.env.OPENAI_API_KEY;
 try{process.env.OPENAI_API_KEY=openaiApiKey(originalOpenaiSetting)}catch{process.env.OPENAI_API_KEY=''}
-void openaiReadiness(originalOpenaiSetting).then(status=>{openaiPortraitStatus=status;console.info('OpenAI portrait readiness',JSON.stringify(status))}).catch(()=>{openaiPortraitStatus={state:'unavailable'}});
+
 let thaiWorkAiReady=false;void prepareThaiWorkAi().then(()=>{thaiWorkAiReady=true}).catch(error=>console.error('Thai work AI schema unavailable',error.code||error.message));
-app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,thaiWorkAiReady,openaiPortrait:openaiPortraitStatus,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
+app.get("/api/health",(req,res)=>res.status(modnetReady?200:503).json({ok:modnetReady,provider:"MODNet-local",configured:true,mattingReady:modnetReady,thaiWorkAiReady,portraitGeneration:{provider:'seedream',model:REVIEW_SEEDREAM_MODEL,configured:Boolean(process.env.ARK_API_KEY)},openaiPortrait:openaiPortraitStatus,mattingModelSha256:MODNET_MODEL_SHA256,removeBgCreditRequired:false}));
 // Serve an indexable English landing at /en/ with the same built app and APIs.
 // All Thai pages and Stripe endpoints continue to use their existing routes.
 // Keep the original Thai photo-information/catalogue page indexable at its own URL.

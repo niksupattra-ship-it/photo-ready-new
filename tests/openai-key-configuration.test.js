@@ -11,7 +11,7 @@ const fake='sk-proj-test_credential_NOT_REAL_123456789',other='not-real-second-s
 const pasted=fake+'"\nREMOVEBG_API_KEY="'+other+'"';
 test('the exact pasted dotenv failure shape produces one valid Authorization header',async()=>{
  const png=await sharp({create:{width:2,height:2,channels:4,background:'#888'}}).png().toBuffer();let calls=0;
- const p=portraitProviderFor({portraitMode:'female'},{OPENAI_API_KEY:pasted});assert.equal(p.key,fake);
+ const p=portraitProviderFor({portraitMode:'female'},{OPENAI_API_KEY:pasted,ARK_API_KEY:'ark-test'});assert.equal(p.key,'ark-test');
  const r=await requestOpenAIPortrait({key:pasted,prompt:'Original unchanged instructions',portrait:png},{fetchImpl:async(_url,init)=>{calls++;const headers=new Headers(init.headers);assert.equal(headers.get('Authorization'),'Bearer '+fake);assert(!headers.get('Authorization').includes(other));return {ok:true,status:200,headers:{get:()=>null},json:async()=>({output:[{type:'image_generation_call',status:'completed',result:png.toString('base64')}]})}}});assert(r.png.equals(png));assert.equal(calls,1);
 });
 test('bare, quoted and named dotenv keys normalize without executing or printing trailing assignments',()=>{
