@@ -2727,7 +2727,7 @@ async function checkPortraitCompletion(originalFile,result,hairId){
   if(result.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION&&selectedHairDesign(PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId))?.kind==='gathered'){
    try{
     const compact=inspectThaiGatheredBun(await portraitCompletionEvidence(result,false));
-    if(compact.retained){const reference=inspectThaiGatheredBun(await selectedHairEvidence(hairId));if(!reference.measurable)result.idpromQualityReviewNeeded=true;else if(!reference.retained)throw Object.assign(Error('ทรงผมมีส่วนเกินที่ไม่ตรงกับภาพอ้างอิง · เก็บภาพเดิมไว้'),{code:'selected_hairstyle_mismatch'});}
+    if(compact.retained){const reference=inspectThaiGatheredBun(await selectedHairEvidence(hairId));if(!reference.measurable)result.idpromQualityReviewNeeded=true;else if(!reference.retained){result.idpromQualityReviewNeeded=true;console.warn('Thai selected-hair silhouette needs review; local hair mask is not a definite style mismatch');}}
     if(!compact.measurable)result.idpromQualityReviewNeeded=true;
    }catch(error){
     if(error?.code==='selected_hairstyle_mismatch')throw error;
@@ -3041,10 +3041,11 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
     const triage=triageThaiFaceShape(original,generated);
     if(cached.value.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
      const eyeLock=compareThaiEyeIdentity(original?.eyeIdentity,generated?.eyeIdentity);
-     if((!faceLock.ok&&faceLock.reason==='face_geometry_changed')||eyeLock.action==='reject'){
-      const error=Error('AI เปลี่ยนโครงหน้าหรือดวงตาจากต้นฉบับ · เก็บรูปเดิมไว้');error.code='face_proportion_changed';throw error;
-     }
-     if(eyeLock.action==='review')cached.value.idpromQualityReviewNeeded=true;
+     // A 2D iris/eyelid estimate varies with expression, makeup and source
+     // resolution. It cannot establish an identity change on its own.
+     // Keep the original-eye prompt and review signal; severe face geometry
+     // still rejects below through the shared triage, exactly once.
+     if(eyeLock.action!=='accept')cached.value.idpromQualityReviewNeeded=true;
     }
     if(triage.action==='review'){
      cached.value.idpromQualityReviewNeeded=true;
