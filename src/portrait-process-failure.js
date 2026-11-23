@@ -22,6 +22,13 @@ export function describePortraitFailure(error,english=false){
  if(code==='PORTRAIT_MODEL_UNAVAILABLE'||code==='PORTRAIT_MODEL_TIMEOUT'||stage==='prepare_model'){
   return make('model_initialization','Photo tools could not start','The face-analysis tools did not finish loading. Tap Retry to prepare them again; no new AI generation was submitted.','เตรียมเครื่องมือตรวจใบหน้าไม่สำเร็จ','ระบบยังโหลดเครื่องมือตรวจใบหน้าไม่ครบ กด “ลองอีกครั้ง” เพื่อเตรียมใหม่ ขั้นตอนนี้ยังไม่ได้ส่งงานสร้างภาพและยังไม่ใช้สิทธิ์');
  }
+ const providerFailure=['openai_quota_exceeded','openai_request_limit','openai_rate_limited','openai_throttled'].find(value=>code===value||message.includes('['+value+']'))||(/OpenAI.*(?:HTTP\s*429|\(429\))/i.test(message)?'openai_throttled':null);
+ if(providerFailure){
+  if(providerFailure==='openai_quota_exceeded')return make(providerFailure,'AI provider billing limit','The service owner must check OpenAI API billing and spending limits. Your previous photo is kept.','วงเงินผู้ให้บริการ AI ไม่เพียงพอ','ผู้ดูแลต้องตรวจสอบเครดิตและวงเงิน OpenAI API รูปเดิมของคุณยังอยู่');
+  if(providerFailure==='openai_request_limit')return make(providerFailure,'AI request exceeds provider limits','The service owner must check the OpenAI model request limits. Your previous photo is kept.','คำขอเกินขีดจำกัดของผู้ให้บริการ AI','ผู้ดูแลต้องตรวจสอบ Limits ของโมเดล OpenAI รูปเดิมของคุณยังอยู่');
+  if(providerFailure==='openai_rate_limited')return make(providerFailure,'AI provider temporarily busy','OpenAI is rate limiting requests. Wait before trying again; your previous photo is kept.','ผู้ให้บริการ AI จำกัดคำขอชั่วคราว','กรุณารอสักครู่ก่อนลองใหม่ รูปเดิมของคุณยังอยู่');
+  return make(providerFailure,'AI provider rejected the request','OpenAI returned HTTP 429. The service owner must check API billing and request limits. Your previous photo is kept.','ผู้ให้บริการ AI ปฏิเสธคำขอ','OpenAI ตอบ HTTP 429 ผู้ดูแลต้องตรวจสอบวงเงินและข้อจำกัด API รูปเดิมของคุณยังอยู่');
+ }
  if(status===429||code==='ACTIVE_AI_JOB'){
   return make('active_ai_job','A photo is already processing','Finish or cancel the previous AI job before starting another.','มีงาน AI กำลังประมวลผล','รอให้งานเดิมเสร็จหรือยกเลิกก่อน แล้วจึงสร้างภาพใหม่');
  }
