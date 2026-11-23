@@ -45,6 +45,6 @@ test('new Thai male/female requests get one collar policy in the original single
 test('Thai browser cache/submission keys and payload opt in while English and pricing stay separate',async()=>{
  const source=await readFile(root+'src/main.jsx','utf8'),editor=await readFile(root+'src/studio-editor.jsx','utf8');
  assert(source.includes("fd.append('thaiSingleCollarVersion',THAI_SINGLE_COLLAR_VERSION)"));
- assert.equal((source.match(/thaiWholeOutfit\?\[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION,THAI_PROPORTION_AUTHORITY_VERSION\]/g)||[]).length,2);
+ assert.equal((source.match(/thaiWholeOutfit\?\[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION\]/g)||[]).length,2);
  assert(editor.includes('if(!englishFlow)next=withoutObsoleteThaiNeckBridges(next)'));
 });
