@@ -1,3 +1,4 @@
+import {normalizeOpenAIUprightPose,OPENAI_UPRIGHT_POSE_INSTRUCTION} from './openai-upright-pose.js';
 import {normalizeOpenAIPhotographicFinish,OPENAI_DEWY_MAKEUP_LIGHT,OPENAI_DEWY_MAKEUP_PALETTE,OPENAI_DEWY_MAKEUP_BALANCE} from './openai-photographic-finish.js';
 import {sanitizeAiError} from './ai-error-sanitizer.js';
 import {openaiApiKey} from './openai-api-key.js';
@@ -9,14 +10,14 @@ export const OPENAI_SKIN_DETAIL_INSTRUCTION=`FINAL PHOTOGRAPHIC MATERIAL AUTHORI
 export const OPENAI_FULL_FRAME_INSTRUCTION=`FINAL FULL-BODY CAMERA AND NECK COMPOSITION: Compose one coherent 3:4 studio photograph. Keep the real face, skull and intrinsic facial proportions unchanged; source selfie zoom is not a framing constraint. Fit the entire head naturally to the existing authoritative head-to-shoulder proportion, with a compact natural neck centred under the chin and seated continuously inside the single selected collar. Align chin, neck centre, tie knot when present and sternum on the body's frontal axis; preserve natural left/right anatomy rather than artificially mirroring it. No slanted pasted neck, elongated neck column, double collar or detached head. Set the camera and torso framing together so the actual sleeves and garment occupy BOTH lower side edges and continue beyond the BOTTOM crop. Place the complete hair crown approximately 5–9% below the top, never a large empty upper field. It is acceptable to crop the lower torso, sleeves or lower buttons; never retain a complete garment hem at the expense of filling the frame. Keep both shoulder boards and shoulder tops intact. Resolve the required head, neck and torso proportions together inside this generation, without enlarging only the head, stretching clothing or borrowing the source model's body width. Keep the selected garment design and genuine insignia unchanged.`;
 export const OPENAI_MAKEUP_DETAIL_INSTRUCTION='SELECTED MAKEUP — CUSTOMER DEWY REFERENCE FINISH:\n'+OPENAI_DEWY_MAKEUP_LIGHT+'\n'+OPENAI_DEWY_MAKEUP_PALETTE+'\n'+OPENAI_DEWY_MAKEUP_BALANCE;
 export function openaiPhotographicInstruction(options){
- return OPENAI_SKIN_DETAIL_INSTRUCTION+(options.makeupStudioReference?.length?'\n\n'+OPENAI_MAKEUP_DETAIL_INSTRUCTION:'')+(options.thaiRealFaceVersion?'\n\n'+OPENAI_FULL_FRAME_INSTRUCTION:'');
+ return OPENAI_SKIN_DETAIL_INSTRUCTION+(options.makeupStudioReference?.length?'\n\n'+OPENAI_MAKEUP_DETAIL_INSTRUCTION:'')+(options.thaiRealFaceVersion?'\n\n'+OPENAI_FULL_FRAME_INSTRUCTION+'\n\n'+OPENAI_UPRIGHT_POSE_INSTRUCTION:'');
 }
 export function openaiPortraitPayload(options){
  if(typeof options.prompt!=='string'||!options.prompt.trim())throw Object.assign(Error('ไม่มีคำสั่งสร้างภาพ OpenAI'),{status:400,code:'openai_prompt_invalid'});
  const refs=seedreamReviewPayload(options).image,images=Array.isArray(refs)?refs:[refs];
  // Responses accepts the complete long input. Only the known Makeup finish
  // is normalized; identity, geometry and ordered reference images stay intact.
- return {model:OPENAI_RESPONSES_MODEL,store:false,truncation:'disabled',input:[{role:'user',content:[{type:'input_text',text:normalizeOpenAIPhotographicFinish(options.prompt)+'\n\n'+openaiPhotographicInstruction(options)},...images.map(image_url=>({type:'input_image',image_url,detail:'high'}))]}],
+ return {model:OPENAI_RESPONSES_MODEL,store:false,truncation:'disabled',input:[{role:'user',content:[{type:'input_text',text:normalizeOpenAIUprightPose(normalizeOpenAIPhotographicFinish(options.prompt),Boolean(options.thaiRealFaceVersion))+'\n\n'+openaiPhotographicInstruction(options)},...images.map(image_url=>({type:'input_image',image_url,detail:'high'}))]}],
   tools:[{type:'image_generation',model:OPENAI_PORTRAIT_MODEL,action:'edit',quality:'xhigh',output_format:'png',size:/^\d+x\d+$/.test(options.size||'')?options.size:'1824x2432'}],
   tool_choice:{type:'image_generation'},max_tool_calls:1,parallel_tool_calls:false};
 }
