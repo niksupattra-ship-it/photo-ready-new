@@ -60,7 +60,7 @@ test('skin detail request preserves explicit dimensions and uses portrait 2K def
  assert.equal(payload.tools[0].model,OPENAI_PORTRAIT_MODEL);
  assert.equal(payload.max_tool_calls,1);
  assert.equal(openaiPortraitPayload({...base,size:'2048x2048'}).tools[0].size,'2048x2048');
- assert.match(payload.input[0].content[0].text,/Makeup retains the requested temporary-blemish correction/);
+ assert.match(payload.input[0].content[0].text,/Makeup keeps its existing cosmetic palette and placement/);
  assert.equal(base.prompt,'Natural or selected Makeup');
 });
 
@@ -72,4 +72,9 @@ test('camera framing is limited to the full-body request, while makeup detail ne
  assert(makeup.includes(OPENAI_MAKEUP_DETAIL_INSTRUCTION));
  assert(!makeup.includes(OPENAI_FULL_FRAME_INSTRUCTION),'Dedicated makeup edits must preserve their existing frame');
  assert(!openaiPhotographicInstruction({}).includes(OPENAI_FULL_FRAME_INSTRUCTION),'Head-only edits keep their original scope');
+});
+
+test('skin finish requests clear pigmentation and fair rosy tone while keeping pore and scene protection',()=>{
+ const text=openaiPhotographicInstruction({});
+ for(const phrase of ['remove visible cosmetic freckles, dark spots','Genuine identifying moles and birthmarks remain','retaining fine real pore structure','visibly fairer, brighter, smoother','Natural applies this photographic retouch without blush','never overrides facial anatomy, eyes, hair or garment locks'])assert(text.includes(phrase),phrase);
 });
