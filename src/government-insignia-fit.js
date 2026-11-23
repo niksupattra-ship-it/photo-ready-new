@@ -1,3 +1,4 @@
+import {clearLapelPins} from './lapel-pin-clearance.js';
 import {measureMalePockets} from './male-uniform-seams.js';
 import {measureMaleStandingCollar,measureMaleChestLine} from './male-standing-collar.js';
 // The government insignia placement guide only runs on completed Thai photos.
@@ -496,10 +497,12 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  const frame={x:g.left,y:g.top,w:g.width,h:h-g.top};
  const posX=value=>(g.width*value)/frame.w;
  const posY=value=>(g.width*value)/frame.h;
- const collar={
+ let collar={
   left:posX(ref.collar.left),right:posX(ref.collar.right),
   y:posY(ref.collar.down),width:ref.collar.width
  };
+ const lapelClearance=!male&&type==='lapel'?clearLapelPins(image,frame,collar):null;
+ if(lapelClearance)collar=lapelClearance.collar;
  const standing=male&&type==='stand'?measureMaleStandingCollar(image,g):null;
  if(standing){
   collar.left=(standing.left.x-frame.x)/frame.w;
@@ -570,7 +573,7 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   fabricSupport(points[2],chest.width,1.15),
   fabricSupport(points[3],ribbon.width,.36,true)];
  const known=Boolean(GOVERNMENT_TEMPLATE_ANCHORS[String(templatePath).split('?')[0]]);
- const needsReview=!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&(!standing?.seams||!pockets));
+ const needsReview=lapelClearance?.clear===false||!known||!g.stable||support.some(value=>value<.84)||(male&&type==='stand'&&(!standing?.seams||!pockets));
  return {frame,preset:{collar,chest,ribbon},confidence:'reference-shoulder-landmarks',
   needsReview,collarType:type,
   measuredShoulder:g,...(pockets?{measuredPockets:pockets}:{}),...(breast?{measuredChestLine:breast}:{}),...(standing?{measuredStandingCollar:standing}:{}),referenceGeometryVersion:'reference-shoulder-v1'};

@@ -60,7 +60,7 @@ with sync_playwright() as pw:
    launch=page.get_by_role('navigation',name='เครื่องมือรูปที่เสร็จแล้ว').get_by_role('button',name='เครื่องหมาย',exact=True) if width<=720 else page.get_by_role('button',name='◈ ปิดเครื่องหมาย',exact=True)
    expect(launch).to_be_enabled(timeout=30000);launch.click() if width<=720 else None
    pick(page,'ปกคอ','มท.','collar','garuda-pair')
-   expect(page.locator('.thai-result-insignia-handle')).to_have_count(2)
+   expect(page.locator('.thai-result-insignia-handle[data-kind^="collar-"]')).to_have_count(2)
    original=selected(page,'collar')
    assert original['hasCollarParts'] and original['scale']==1
    assert original.get('squeezeX',1)==1 and original.get('squeezeY',1)==1
