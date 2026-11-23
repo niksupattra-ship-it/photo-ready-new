@@ -58,14 +58,14 @@ test('accepted same-photo proportions constrain new hairstyles; unknown measurem
  assert.equal(inspectThaiBodyGeometry({...reference,crownRatio:null}).action,'review');
  assert.equal(parseThaiBodyReference({...reference,faceToShoulder:.6}),null,'Do not anchor a new request to an already oversized head');
 });
-test('fresh definite failure keeps the accepted image, cached switches do not remeasure or call AI, and ambiguous evidence preserves the result for review',async()=>{
+test('body warnings preserve completed pixels; cache switches do not remeasure or call AI',async()=>{
  const accepted={source:'accepted previous portrait'},before=structuredClone(accepted);let measured=0;
  for(const result of [{idpromReused:true},{}]){
   const reused=!result.idpromReused;const report=await checkNewThaiBodyGeometry({result,reused,measure:()=>{throw Error('must not run')}});assert.equal(report.action,'cached');
  }
- await assert.rejects(checkNewThaiBodyGeometry({result:{},measure:async()=>{measured++;return {faceToShoulder:.50}}}),e=>e.code==='face_proportion_changed'&&e.geometryReason==='head_body_size_changed');
+ assert.equal((await checkNewThaiBodyGeometry({result:{},measure:async()=>{measured++;return {faceToShoulder:.50}}})).action,'review');
  assert.equal(measured,1);assert.deepEqual(accepted,before);
- await assert.rejects(checkNewThaiBodyGeometry({result:{idpromReused:true,idpromBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION},measure:async()=>({faceToShoulder:.5})}),e=>e.code==='face_proportion_changed','Recovering an unvalidated new job must still run the quality gate');
+ assert.equal((await checkNewThaiBodyGeometry({result:{idpromReused:true,idpromBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION},measure:async()=>({faceToShoulder:.5})})).action,'review');
  const uncertain={};assert.equal((await checkNewThaiBodyGeometry({result:uncertain,measure:async()=>{throw Error('local model unavailable')}})).action,'review');assert(uncertain.idpromQualityReviewNeeded);
 });
 test('new-policy provider transport makes exactly one HTTP attempt for network, status, malformed, empty and invalid PNG failures',async()=>{
@@ -90,14 +90,16 @@ test('actual Thai hairstyle pipeline sends original identity, proportion targets
  assert.throws(()=>validateProductionPortrait({buffer:png,mimetype:'image/png'},{...base,englishStudioFinishVersion:undefined}),'A one-call body contract cannot fall through to a legacy multi-stage route');
 });
 
-test('the real client quality-failure path marks a definite body error as rejected, preventing its automatic recovery/generation branch',async()=>{
- const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),start=main.indexOf(' // New Thai full-outfit images must preserve the original cheek'),end=main.indexOf(' // Thai V11:',start);
+test('the real client quality-failure path marks a definite identity error as rejected, preventing its automatic recovery/generation branch',async()=>{
+ const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),start=main.indexOf(' // New Thai full-outfit images must preserve the original cheek'),end=main.indexOf(" if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value",start);
  let deleted=0;const operation={serverCompleted:true},accepted={source:'previous accepted pixels'},before=structuredClone(accepted);
- const env={thaiWholeOutfit:true,cached:{value:{idpromPortraitComposition:'en-outfit-body-v1'},reused:false},ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',gender:'female',options:{},checkNewThaiBodyGeometry,measureThaiBodyGeometry:async()=>({faceToShoulder:.6}),operation,portraitResultCache:{delete:()=>deleted++},key:'rejected new result'};
+ const env={hairId:'original',originalFile:{},thaiWholeOutfit:true,cached:{value:{idpromPortraitComposition:'en-outfit-body-v1',idpromThaiRealFaceVersion:'test-current'},reused:false},THAI_REAL_FACE_VERSION:'test-current',portraitFaceMetrics:async()=>({}),compareThaiFaceShape:()=>({ok:false,reason:'face_geometry_changed'}),triageThaiFaceShape:()=>({action:'review'}),compareThaiEyeIdentity:()=>({action:'accept'}),ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',gender:'female',options:{},checkNewThaiBodyGeometry,measureThaiBodyGeometry:async()=>({faceToShoulder:.6}),operation,portraitResultCache:{delete:()=>deleted++},key:'rejected new result'};
  const run=Function('env','with(env){return (async()=>{'+main.slice(start,end)+'})()}');
  await assert.rejects(run(env),e=>e.code==='face_proportion_changed'&&e.idpromProcessStage==='quality_check');
  assert.equal(operation.qualityRejected,true);assert.equal(deleted,1);assert.deepEqual(accepted,before);
  assert.equal(Boolean(operation.serverCompleted&&!operation.qualityRejected&&!operation.cancelled),false,'Do not enter processStudioPhoto automatic recovery for a definite image-quality failure');
+ deleted=0;const completed={serverCompleted:true};Object.assign(env,{operation:completed,compareThaiFaceShape:()=>({ok:true}),triageThaiFaceShape:()=>({action:'accept'}),checkPortraitCompletion:async()=>{},assertCurrentOperation:()=>{}});
+ await run(env);assert.equal(completed.qualityRejected,undefined);assert.equal(deleted,0);assert.equal(env.cached.value.idpromQualityReviewNeeded,true,'Body estimates must not cancel or remove an otherwise completed identity-preserving image');
 });
 
 test('new-policy Natural-to-Makeup also forwards single-attempt mode and uses only its existing one provider request',async()=>{
@@ -120,16 +122,16 @@ test('whole-head checks include hair width/height even with unchanged face and n
  assert.equal(inspectThaiBodyGeometry({...a,neckGap:.23}).reason,'head_body_join_changed');
 });
 
-test('V3 never delivers an oversized or unmeasured new head as ready, and never retries the provider',async()=>{
+test('body estimates, unavailable models and frame conflicts cannot fail a completed V3 image or retry the provider',async()=>{
  const good={faceToShoulder:.31,crownRatio:1.05,neckGap:.04,wholeHeadWidthToShoulder:.44,wholeHeadHeightToShoulder:.56,headFitLimited:false};
  assert.equal(inspectThaiBodyGeometry(good,{strict:true}).action,'accept');
  for(const metrics of [{...good,wholeHeadWidthToShoulder:.54},{...good,wholeHeadHeightToShoulder:.68},{...good,faceToShoulder:.39},{...good,neckGap:.16},{...good,headFitLimited:true},null]){
   const result={idpromBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION};let calls=0;
-  await assert.rejects(checkNewThaiBodyGeometry({result,measure:async()=>{calls++;return metrics}}),e=>e.code==='face_proportion_changed');
-  assert.equal(calls,1);assert.equal(result.idpromBodyGeometryAccepted,undefined);
+  const report=await checkNewThaiBodyGeometry({result,measure:async()=>{calls++;return metrics}});assert.notEqual(report.action,'reject');
+  assert.equal(calls,1);assert.equal(result.idpromBodyGeometryAccepted,true);
  }
  const unknown={idpromBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION};
- await assert.rejects(checkNewThaiBodyGeometry({result:unknown,measure:async()=>{throw Error('model unavailable')}}),e=>e.geometryReason==='body_geometry_unmeasurable');
+ assert.equal((await checkNewThaiBodyGeometry({result:unknown,measure:async()=>{throw Error('model unavailable')}})).reason,'body_geometry_unmeasurable');assert.equal(unknown.idpromQualityReviewNeeded,true);
  for(const version of ['thai-one-call-body-geometry-v1','thai-one-call-whole-head-v2']){
   let calls=0;assert.equal((await checkNewThaiBodyGeometry({result:{idpromReused:true,idpromBodyGeometryVersion:version},measure:async()=>{calls++}})).action,'cached');assert.equal(calls,0);
  }
