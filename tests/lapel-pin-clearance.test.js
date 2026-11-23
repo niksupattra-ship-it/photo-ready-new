@@ -28,3 +28,8 @@ test('clear flat fabric preserves existing coordinates and uncertain fabric stay
  assert.deepEqual(clearLapelPins(image,frame,collar),{collar,clear:true});
  image.data.fill(0);assert.deepEqual(clearLapelPins(image,frame,collar),{collar,clear:false});
 });
+test('left badge rejects a faint seam across its outer footprint while the already-clear right badge stays put',()=>{
+ const {image,frame,collar}=sample();image.data.fill(255);
+ for(let y=215;y<285;y++)for(let x=168;x<171;x++)image.data.set([247,247,247,255],(y*image.width+x)*4);
+ const before=image.data.slice(),r=clearLapelPins(image,frame,collar);assert(r.clear);assert.notEqual(r.collar.left,collar.left);assert.equal(r.collar.right,collar.right);assert.equal(r.collar.y,collar.y);assert.deepEqual(image.data,before);
+});

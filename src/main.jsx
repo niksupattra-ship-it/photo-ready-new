@@ -3613,7 +3613,7 @@ const CHEST_PIN_OPTIONS=[
 ];
 const COLLAR_PIN_OPTIONS=[
  {id:'garuda-pair',name:'มท.',left:'/assets/government-insignia/garuda-left.png',right:'/assets/government-insignia/garuda-right.png'},
- {id:'education-pair',name:'ศึกษาธิการ',sizeScale:.8,left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'},
+ {id:'education-pair',name:'ศึกษาธิการ',sizeScale:.65,left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'},
  {id:'public-health-pair',name:'สาธารณสุข',left:'/assets/government-insignia/public-health-left.png',right:'/assets/government-insignia/public-health-right.png'},
  {id:'finance-pair',name:'การคลัง',left:'/assets/government-insignia/finance-left.png',right:'/assets/government-insignia/finance-right.png'},
  {id:'agriculture-pair',name:'เกษตร',left:'/assets/government-insignia/agriculture-left.png',right:'/assets/government-insignia/agriculture-right.png'},
