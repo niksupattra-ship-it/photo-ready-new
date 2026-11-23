@@ -7,7 +7,7 @@ export const THAI_REAR_HAIR_SHORT_NECK_VERSION='thai-natural-neck-rear-hair-v2';
 export const usesThaiRearHairShortNeck=fields=>isThaiOutfitAi(fields)&&
  [THAI_REAR_HAIR_SHORT_NECK_VERSION,THAI_REAR_HAIR_SHORT_NECK_PREVIOUS_VERSION].includes(fields?.thaiRearHairShortNeckVersion);
 
-export function thaiRearHairShortNeckInstruction({gender='female',hairKind=null,version=THAI_REAR_HAIR_SHORT_NECK_VERSION}={}){
+function archivedThaiRearHairShortNeckInstruction({gender='female',hairKind=null,version=THAI_REAR_HAIR_SHORT_NECK_VERSION}={}){
  const long=gender==='female'&&hairKind==='long';
  const originalRule=`
 FINAL THAI FACE-TO-COLLAR AND OPAQUE OUTFIT GEOMETRY — HIGHEST PRIORITY:
@@ -21,4 +21,15 @@ LAST VISUAL CHECK OF THE SINGLE FINISHED PHOTO: both shoulder boards remain comp
 FINAL COLLAR MEASUREMENT CHECK V2: Measure visible FRONT neck from the underside of the chin to the TOP of the actual collar TOUCHING SKIN. Never measure to the lower tie knot, jacket V opening, pocket or button. A deep shirt opening must not produce an extra-long neck. For a high standing collar, leave only a modest natural front-neck gap above that collar.
 Use roughly one fifth to one quarter of forehead-to-chin face height as a photographic check against an invented stretched neck, not as a universal anatomy target. Clearly visible natural individual neck length in the original frontal photo takes precedence. If the generated head floats too high, seat the ENTIRE head lower toward the fixed real collar with uniform placement. Preserve head width, head height, original face/eye geometry, chin and jaw shape; never squeeze the face or shorten its lower half. Keep shoulders, collar, epaulettes and garment dimensions fixed. No extra AI request, pasted head, skin patch, mask or post-render neck warp. Long hair remains behind the opaque garment.
 `;
+}
+
+// Only the unified new generation may rebalance whole-head scale and torso
+// breadth. Queued versions keep their released neck/hair instructions exact.
+export function thaiRearHairShortNeckInstruction(options={}){
+ const text=archivedThaiRearHairShortNeckInstruction(options);
+ if(!options.allowWholeHeadFit||options.version===THAI_REAR_HAIR_SHORT_NECK_PREVIOUS_VERSION)return text;
+ return text.replace('and head scale.','and intrinsic facial proportions.')
+  .replace('The collar and black tie knot remain at their correct selected-uniform positions; bring the head and its own short continuous anatomical neck into alignment instead of moving or elongating the garment.',"Preserve the selected collar and tie construction, not the reference model's pixel coordinates or torso width. Balance the whole head and continuous clothed shoulders in this generation while seating a natural short neck into that collar.")
+  .replace('Preserve head width, head height, original face/eye geometry,','Preserve the original head aspect ratio, face/eye geometry,')
+  .replace('Keep shoulders, collar, epaulettes and garment dimensions fixed.','Preserve the selected collar, epaulettes and garment design while allowing coherent shoulder breadth and whole-head scale to be balanced together by the single final proportion instruction.');
 }

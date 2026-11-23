@@ -1,4 +1,4 @@
-import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION} from './thai-body-geometry-policy.js';
+import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION,usesUnifiedThaiBodyGeometry} from './thai-body-geometry-policy.js';
 import {femaleHairLightnessInstruction} from './hairstyle-fit-policy.js';
 import {englishProfessionalDefaultHair} from './english-auto-hair.js';
 import {thaiRearHairReference,THAI_REAR_HAIR_FINAL_POLICY} from './thai-rear-hair-reference.js';
@@ -106,7 +106,7 @@ export function validateProductionPortrait(input,fields={}){
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
- if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion==='thai-one-call-body-geometry-v1',strict:fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
+ if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion==='thai-one-call-body-geometry-v1',strict:['thai-one-call-balanced-head-v3',THAI_BODY_GEOMETRY_VERSION].includes(fields.thaiBodyGeometryVersion)})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
  if(fields.thaiRearHairShortNeckVersion!==undefined&&!usesThaiRearHairShortNeck(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพชุดไทยล่าสุด');
  if(fields.thaiOutfitAppearanceVersion!==undefined&&(!isThaiOutfitAppearance(fields)||!usesEnglishStudioFinish(fields)||fields.englishOutfitFidelityVersion!==ENGLISH_OUTFIT_FIDELITY_VERSION))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การแสดงสีชุดล่าสุด');
  if(fields.englishHairFit!==undefined){if(!usesEnglishStudioFinish(fields)&&!isEnglishHeadPortrait(fields))throw Error('Invalid English hair placement option');parseEnglishHairFit(fields.englishHairFit)}
@@ -628,7 +628,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(thaiSingleAi)prompt+=`
  THAI FULL-OUTFIT V8 — REAL-SOURCE GEOMETRY, ONE GARMENT:
  No mannequin, composited head, scale template or separate neck photo was supplied. Any instruction above asking to copy or shrink an unseen composition guide is inapplicable. Infer a real frontal head, neck, shoulder and torso from the ORIGINAL person's identity and the selected garment; do not carry over the uploaded image's crop size or selfie perspective. The generated portrait must keep the entire real face, natural hair crown, both full shoulders and the selected garment to its lower edge, all at one camera distance.
- PROPORTION CHECK: Measure cheek-to-cheek width against the complete clothed shoulder span IN THE FINAL OUTPUT, not against the source photo crop or empty garment margins. Target a natural photographic face-to-shoulder width around 0.34 (allow roughly 0.32 to 0.38 for individual anatomy and garment type). Maintain a natural face height and a compact supporting neck. Never enlarge just the head to fill the frame, never enlarge the garment while leaving the head tiny, and never stretch the body or face. Use the real shoulder width of the garment, not its transparent PNG canvas width. Keep shoulder ends level and body centred.
+${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-cheek width against the complete clothed shoulder span IN THE FINAL OUTPUT, not against the source photo crop or empty garment margins. Target a natural photographic face-to-shoulder width around 0.34 (allow roughly 0.32 to 0.38 for individual anatomy and garment type). Maintain a natural face height and a compact supporting neck. Never enlarge just the head to fill the frame, never enlarge the garment while leaving the head tiny, and never stretch the body or face. Use the real shoulder width of the garment, not its transparent PNG canvas width. Keep shoulder ends level and body centred.`}
  NECK JOIN: The chin, visible skin neck, one inner shirt collar, one tie knot and jacket lapels belong to the SAME single finished body. No doubled collar edge, pasted neck band, old shirt remnant, second tie or repeated shirt outline. Reconstruct clothing below the chin afresh from Image ${outfitIndex}.
  THAI FULL-OUTFIT V7 — ONE GENERATED GARMENT, NO SURROGATE COLLAR:
  Image 1 is the uploaded PERSON, not a composited body or outfit. It supplies facial identity, expression and natural head/skin detail ONLY. Any shirt, collar, necktie, jacket, insignia or garment visible in Image 1 belongs to the OLD clothing and must be completely replaced below the chin; none may remain as an underlayer, double seam or extra collar.
@@ -647,7 +647,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  }
 
  if(isThaiOutfitAi(fields)&&fields.thaiCollarlessVersion===THAI_COLLARLESS_VERSION)prompt+='\n'+THAI_REAR_HAIR_FINAL_POLICY;
- if(usesThaiRearHairShortNeck(fields))prompt+='\n'+thaiRearHairShortNeckInstruction({gender:selected.gender,hairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:null,version:fields.thaiRearHairShortNeckVersion});
+ if(usesThaiRearHairShortNeck(fields))prompt+='\n'+thaiRearHairShortNeckInstruction({gender:selected.gender,hairKind:keepCurrentHair?null:chosen?selectedHairDesign(chosen)?.kind:null,version:fields.thaiRearHairShortNeckVersion,allowWholeHeadFit:usesUnifiedThaiBodyGeometry(fields)});
  prompt+=thaiBodyGeometryInstruction(fields,selected.gender);
  prompt+=thaiFinalOriginalIdentity(fields);
  await onStage('generation');
