@@ -74,7 +74,7 @@ test('new-policy provider transport makes exactly one HTTP attempt for network, 
 });
 test('actual Thai hairstyle pipeline sends original identity, proportion targets and selected hair through ONE provider HTTP call',async()=>{
  const png=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:115,channels:4,background:'#bd9887'}}).png().toBuffer(),left:8,top:13}]).png().toBuffer();
- const base={englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitMode:'female',femaleEyeStyle:'natural',hairReferenceVersion:'picker-hair-v1',hairId:'seedream-14',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',thaiBodyReference:JSON.stringify({faceToShoulder:.34,crownRatio:1.05,neckGap:.04})};
+ const base={thaiRearHairShortNeckVersion:'thai-natural-neck-rear-hair-v2',englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,portraitComposition:'en-outfit-body-v1',englishStudioFinishVersion:ENGLISH_TEMPLATE_BODY_FINISH_VERSION,portraitMode:'female',femaleEyeStyle:'natural',hairReferenceVersion:'picker-hair-v1',hairId:'seedream-14',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',thaiBodyReference:JSON.stringify({faceToShoulder:.34,crownRatio:1.05,neckGap:.04})};
  for(const choice of [{portraitMode:'female',hairId:'seedream-14',femaleEyeStyle:'natural'},{portraitMode:'female',hairId:'seedream-79',femaleEyeStyle:'makeup'},{portraitMode:'male',hairId:'thai-male-auto',femaleEyeStyle:'natural',neckOutfitReferencePath:'/assets/government-uniforms/male-government-employee.png'}]){
  let attempts=0,payload;
  const before=hash(png);
@@ -82,7 +82,7 @@ test('actual Thai hairstyle pipeline sends original identity, proportion targets
  const audit=createMakeupRequestAudit(async options=>{assert.equal(options.singleAttempt,true);assert(options.portrait.equals(png));assert.equal(options.compositionReference,undefined,'No composited head/body starter is sent');return requestReviewSeedream(options,{fetchImpl:async(_url,init)=>{attempts++;payload=JSON.parse(init.body);return {ok:true,status:200,headers:{get:()=>null},json:async()=>({data:[{b64_json:png.toString('base64')}]})}}})},{requirePolicy:choice.femaleEyeStyle==='makeup'});
  await processProductionPortrait({input:{buffer:png,mimetype:'image/png'},fields,root:new URL('..',import.meta.url).pathname,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
  assert.equal(attempts,1);assert.equal(hash(png),before);
- assert.match(payload.prompt,/ONE-CALL HEAD \/ BODY GEOMETRY LOCK/);assert.match(payload.prompt,/0.3400/);assert.match(payload.prompt,/A different hairstyle changes HAIR ONLY/);if(choice.portraitMode==='female')assert.match(payload.prompt,/No visible bun/);
+ assert.match(payload.prompt,/ONE AUTHORITATIVE HEAD \/ SHOULDER PROPORTION/);assert.match(payload.prompt,/cheek-to-cheek width around 0.30/);assert.doesNotMatch(payload.prompt,/around 0.34|0.3400|Keep shoulders, collar, epaulettes and garment dimensions fixed/);assert.match(payload.prompt,/Identity locks protect intrinsic facial anatomy, original eyes\/gaze/);assert.match(payload.prompt,/uniform scale relative to naturally proportioned shoulders/);if(choice.portraitMode==='female')assert.match(payload.prompt,/No tall hair dome or visible bun/);
  assert.equal(audit.snapshot().providerCalls,1);
  }
  assert.equal(thaiBodyGeometryInstruction({interfaceLanguage:'en',thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION}),'');
@@ -136,4 +136,16 @@ test('body estimates, unavailable models and frame conflicts cannot fail a compl
   let calls=0;assert.equal((await checkNewThaiBodyGeometry({result:{idpromReused:true,idpromBodyGeometryVersion:version},measure:async()=>{calls++}})).action,'cached');assert.equal(calls,0);
  }
  assert.equal(parseThaiBodyReference({...good,faceToShoulder:.39},{strict:true}),null,'Do not preserve an already oversized accepted head as the next target');
+});
+
+test('released V1/V2/V3 body and neck instructions remain byte-identical; only V4 releases absolute head/garment size locks',async()=>{
+ const {thaiRearHairShortNeckInstruction:neck}=await import('../thai-rear-hair-short-neck.js');
+ const texts=[];
+ for(const version of ['thai-one-call-body-geometry-v1','thai-one-call-whole-head-v2','thai-one-call-balanced-head-v3'])for(const gender of ['female','male'])for(const ref of [undefined,JSON.stringify({faceToShoulder:.34,crownRatio:1.05,neckGap:.04})])texts.push(thaiBodyGeometryInstruction({thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiBodyGeometryVersion:version,thaiBodyReference:ref},gender));
+ assert.equal(hash(JSON.stringify(texts)),'79ac761c1284bbd01b784053cd9df520c9e95ded1d1f9f84d976c1920a6d466b');
+ const ns=[];for(const version of ['thai-natural-neck-rear-hair-v1','thai-natural-neck-rear-hair-v2'])for(const gender of ['female','male'])for(const hairKind of ['long','short','gathered',null])ns.push(neck({version,gender,hairKind,allowWholeHeadFit:false}));
+ assert.equal(hash(JSON.stringify(ns)),'23945b0a5e92a93c677a7e7526127623f7a9ede11fa673494589a0ea3e0d4c7e');
+ const updated=neck({version:'thai-natural-neck-rear-hair-v2',gender:'female',hairKind:'long',allowWholeHeadFit:true});
+ assert.doesNotMatch(updated,/preserve .*head scale|Preserve head width, head height|Keep shoulders, collar, epaulettes and garment dimensions fixed/);
+ assert.match(updated,/original head aspect ratio, face\/eye geometry/);assert.match(updated,/original chin at a natural short distance/);assert.match(updated,/fully opaque jacket/);
 });
