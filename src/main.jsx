@@ -127,7 +127,7 @@ import {fitYoucamToNative} from './youcam-native-face.js';
 import {buildYoucamHairLayers} from './youcam-hair-mask.js';
 import {composeYoucamHeadMasks} from './youcam-head-mask.js';
 import {faceProportions,compareFaceProportions,compareThaiFaceShape,triageThaiFaceShape} from './face-proportion-check.js';
-import {planThaiBodyFrame} from './thai-body-framing.js';
+import {planThaiBodyFrame,planThaiPngGarmentFrame,THAI_PNG_GARMENT_FRAME_VERSION} from './thai-body-framing.js';
 import {eyeIdentityMetrics,compareThaiEyeIdentity} from './thai-eye-identity.js';
 import {portraitProtectedFeatures} from './portrait-feature-check.js';
 import {createPortraitFaceCache} from './portrait-analysis-cache.js';
@@ -541,7 +541,7 @@ async function alphaBounds(img){
  return r>=l?{l,t,r,b,w:r-l+1,h:b-t+1}:{l:0,t:0,r:c.width-1,b:c.height-1,w:c.width,h:c.height};
 }
 
-async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png',{placementOnly=false}={}){
+async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/assets/uniform.png',{placementOnly=false,nativeGarmentFrame=false}={}){
  if(headBlob.idpromPortraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){
   const [head,uniform]=await Promise.all([decodedPortraitImage(headBlob),loadImage(templatePath)]),width=head.naturalWidth||head.width,height=head.naturalHeight||head.height;
   const face=await portraitFaceLandmarks(headBlob,head),bounds=await alphaBounds(head),c=canvasFor(uniform.naturalWidth||uniform.width,uniform.naturalHeight||uniform.height),x=c.getContext('2d',{willReadFrequently:true});x.drawImage(uniform,0,0);
@@ -555,7 +555,13 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
   if(headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
    const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
-   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head});scale=plan.scale;hX=plan.x;hY=plan.y;}
+   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const pixels=ctx.getImageData(0,0,w,h).data;let plan=planThaiBodyFrame(pixels,w,h,{head});
+    if(nativeGarmentFrame||headBlob.idpromThaiPngGarmentFrameVersion===THAI_PNG_GARMENT_FRAME_VERSION){
+     try{const uniform=await loadImage(templatePath),u=canvasFor(uniform.naturalWidth||uniform.width,uniform.naturalHeight||uniform.height);
+     try{const ux=u.getContext('2d',{willReadFrequently:true});ux.drawImage(uniform,0,0);plan=planThaiPngGarmentFrame(pixels,w,h,ux.getImageData(0,0,u.width,u.height).data,u.width,u.height,{head});if(plan.reason==='native_png_frame')headBlob.idpromThaiPngGarmentFrameVersion=THAI_PNG_GARMENT_FRAME_VERSION;}
+     finally{u.width=u.height=1}}catch{ /* Keep the completed portrait if the optional native guide cannot load. */ }
+    }
+    scale=plan.scale;hX=plan.x;hY=plan.y;}
    finally{native.width=native.height=1}
   }
   return {blob:placementOnly?null:headBlob,lock:{W:900,H:1200,hX,hY,scale,headW:w,headH:h,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
@@ -1178,7 +1184,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    if(liveCanvas){const x=liveCanvas.getContext('2d');x.clearRect(0,0,liveCanvas.width,liveCanvas.height);x.drawImage(output,0,0,liveCanvas.width,liveCanvas.height)}
    return canvasPng(output);
   }
-  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,...(headMasterBlob.idpromThaiRealFaceVersion?{thaiRealFaceVersion:headMasterBlob.idpromThaiRealFaceVersion}:{}),...(headMasterBlob.idpromEnglishStudioFinishVersion?{englishStudioFinishVersion:headMasterBlob.idpromEnglishStudioFinishVersion}:{}),...(headMasterBlob.idpromEnglishHeadBalanceVersion?{englishHeadBalanceVersion:headMasterBlob.idpromEnglishHeadBalanceVersion,englishHeadBalance:headMasterBlob.idpromEnglishHeadBalance}:{}),generatedOutfitTemplate:lock.templatePath,source:await blobDataURL(headMasterBlob),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
+  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,...(headMasterBlob.idpromThaiPngGarmentFrameVersion?{thaiPngGarmentFrameVersion:headMasterBlob.idpromThaiPngGarmentFrameVersion}:{}),...(headMasterBlob.idpromThaiRealFaceVersion?{thaiRealFaceVersion:headMasterBlob.idpromThaiRealFaceVersion}:{}),...(headMasterBlob.idpromEnglishStudioFinishVersion?{englishStudioFinishVersion:headMasterBlob.idpromEnglishStudioFinishVersion}:{}),...(headMasterBlob.idpromEnglishHeadBalanceVersion?{englishHeadBalanceVersion:headMasterBlob.idpromEnglishHeadBalanceVersion,englishHeadBalance:headMasterBlob.idpromEnglishHeadBalance}:{}),generatedOutfitTemplate:lock.templatePath,source:await blobDataURL(headMasterBlob),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
   return studioLayers;
  }
  // V80 MASTER-RESOLUTION COMPOSITE:
@@ -5956,7 +5962,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   setProgressStage(60,'กำลังเตรียมภาพบุคคล');
   const headNeckTransparent=await finishFirstPortraitMaster(aiHeadNeck,originalFile,{portraitMode});
   setProgressStage(78,'กำลังประกอบกับชุด');
-  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate);
+  const composed=await composePortrait(headNeckTransparent,{scale:1,x:0,y:0},uniformTemplate,{nativeGarmentFrame:!englishPreviewEnabled()&&(portraitMode||originalFile?.idpromPortraitMode||gender)==='female'});
   
   setProgressStage(88,'กำลังจัดตำแหน่งภาพ');
   assertProcessActive();
@@ -6106,7 +6112,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     master=await finishFirstPortraitMaster(aiHead);
    }
    failureStage='compose';
-   const composed=cached?{lock:cached.lock}:await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
+   const composed=cached?{lock:cached.lock}:await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true,nativeGarmentFrame:!englishPreviewEnabled()&&portraitMode==='female'});
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    assertProcessActive();
@@ -6192,7 +6198,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;
   if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;
   master.idpromFemaleEyeStyle=finish;
-  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(head.portraitComposition)){master.idpromPortraitComposition=head.portraitComposition;master.idpromEnglishFramingVersion=head.portraitFramingVersion;delete master.idpromEnglishStudioFinishVersion;if(head.englishStudioFinishVersion)master.idpromEnglishStudioFinishVersion=head.englishStudioFinishVersion;for(const [field,key]of [['thaiRealFaceVersion','idpromThaiRealFaceVersion'],['englishHeadBalanceVersion','idpromEnglishHeadBalanceVersion'],['englishHeadBalance','idpromEnglishHeadBalance']]){delete master[key];if(head[field])master[key]=head[field]}}
+  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(head.portraitComposition)){master.idpromPortraitComposition=head.portraitComposition;master.idpromEnglishFramingVersion=head.portraitFramingVersion;delete master.idpromEnglishStudioFinishVersion;if(head.englishStudioFinishVersion)master.idpromEnglishStudioFinishVersion=head.englishStudioFinishVersion;for(const [field,key]of [['thaiPngGarmentFrameVersion','idpromThaiPngGarmentFrameVersion'],['thaiRealFaceVersion','idpromThaiRealFaceVersion'],['englishHeadBalanceVersion','idpromEnglishHeadBalanceVersion'],['englishHeadBalance','idpromEnglishHeadBalance']]){delete master[key];if(head[field])master[key]=head[field]}}
   delete master.idpromStudioCosmeticsVersion;delete master.idpromStudioMakeupVersion;delete master.idpromNaturalStudioSkinVersion;
   if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(head.studioMakeupVersion)master.idpromStudioMakeupVersion=head.studioMakeupVersion;
   if(finish==='natural')master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;

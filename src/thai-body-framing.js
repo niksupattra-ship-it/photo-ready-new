@@ -55,3 +55,23 @@ export function fitThaiBodyScene(layers,head,plan,width,height,{opaqueMaskIds=ne
   return {...l,x,y,...pins,sourceFrame:frame(l.sourceFrame||{x:0,y:0,w:900,h:1200}),...(l.collarFrame?{collarFrame:frame(l.collarFrame)}:{})};
  });
 }
+
+// New Thai female placement: fit the actual garment, not a maximum head size.
+// Keep all portrait pixels in one uniform transform. Lower cloth may bleed off
+// the canvas when the crown needs clearance; never shrink the suit for its hem.
+export const THAI_PNG_GARMENT_FRAME_VERSION='thai-female-native-png-frame-v1';
+export function planThaiPngGarmentFrame(pixels,width,height,templatePixels,templateWidth,templateHeight,{W=900,H=1200,head=null}={}){
+ const source=planThaiBodyFrame(pixels,width,height,{W,H,head});
+ const template=planThaiBodyFrame(templatePixels,templateWidth,templateHeight,{W,H});
+ if(!source.coat||!template.coat)return {...source,reason:'native_png_unmeasurable'};
+ const bleed=2,templateScale=(W+bleed*2)/template.coat.width;
+ const templateCenter=(template.coat.left+template.coat.right+1)/2;
+ const templateX=W/2-templateCenter*templateScale;
+ const left=templateX+template.coat.left*templateScale;
+ const right=templateX+(template.coat.right+1)*templateScale;
+ const scale=(right-left)/source.coat.width;
+ const x=left-source.coat.left*scale;
+ const y=Math.max(H+bleed-(source.bottom+1)*scale,H*.06-source.crown*scale);
+ if(![scale,x,y].every(Number.isFinite)||scale<=0)return source;
+ return {...source,scale,x,y,applied:true,reason:'native_png_frame',headroom:y+source.crown*scale,headFitLimited:false,crownLimited:false,template:{left,right,bottom:H+bleed}};
+}

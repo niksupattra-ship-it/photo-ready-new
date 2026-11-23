@@ -1,5 +1,5 @@
 import {PreviewWatermark} from './preview-watermark.jsx';
-import {planThaiBodyFrame,fitThaiBodyScene} from './thai-body-framing.js';
+import {planThaiBodyFrame,fitThaiBodyScene,THAI_PNG_GARMENT_FRAME_VERSION} from './thai-body-framing.js';
 import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
 import {REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
 import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
@@ -774,7 +774,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow){
    const heads=next.filter(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
    const head=heads.length===1?heads[0]:null,asset=head&&map.get(head.id);
-   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&asset?.original&&!asset.warped){
+   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&head.thaiPngGarmentFrameVersion!==THAI_PNG_GARMENT_FRAME_VERSION&&asset?.original&&!asset.warped){
     const im=asset.original,c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height});
     try{
      const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
