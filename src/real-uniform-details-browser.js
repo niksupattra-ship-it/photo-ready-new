@@ -1,3 +1,4 @@
+import {extendShoulderCleanup} from './shoulder-edge-cleanup.js';
 import {detectUniformDetails,matchUniformDetails,insideDetail,REAL_UNIFORM_DETAILS_VERSION,REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
 const make=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
 const load=source=>source instanceof HTMLCanvasElement?Promise.resolve(source):new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('โหลดภาพชุดจริงไม่สำเร็จ'));im.src=source});
@@ -9,12 +10,15 @@ function cleanOldDetails(im,analysis,parts){
   const hull=expanded(g,2),left=Math.max(0,Math.floor(Math.min(...hull.map(p=>p.x)))),right=Math.min(w-1,Math.ceil(Math.max(...hull.map(p=>p.x)))),top=Math.max(0,Math.floor(Math.min(...hull.map(p=>p.y)))),bottom=Math.min(h-1,Math.ceil(Math.max(...hull.map(p=>p.y))));
   for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)if(insideDetail(x+.5,y+.5,hull))mask[y*w+x]=1;
  }
+ const originalMask=mask.slice();
+ const regions=parts.map(({target:g})=>{const region=expanded(g,2);return g.kind==='shoulder'?extendShoulderCleanup(mask,pixels,g,region):region});
  const fill=new Uint8ClampedArray(data.length),directions=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
  for(let n=0;n<mask.length;n++)if(mask[n]){
   const x=n%w,y=Math.floor(n/w);let best=null;
   for(const [dx,dy]of directions)for(let d=1;d<=240;d++){
    const xx=x+dx*d,yy=y+dy*d;if(xx<0||xx>=w||yy<0||yy>=h)break;
    const next=yy*w+xx;if(mask[next])continue;
+   if(!originalMask[n]){const i=next*4,r=data[i],g=data[i+1],b=data[i+2];if(data[i+3]>=190&&Math.max(r,g,b)<=125&&Math.max(r,g,b)-Math.min(r,g,b)<=45)continue;}
    const distance=d*Math.hypot(dx,dy);if(!best||distance<best.distance)best={index:next*4,distance};break;
   }
   if(!best)throw Error('เก็บรายละเอียดชุดเดิมไม่สำเร็จ · เก็บภาพเดิมไว้');
@@ -24,7 +28,7 @@ function cleanOldDetails(im,analysis,parts){
  // Replace ONLY pixels of the measured old objects, including alpha. Every
  // face/skin/cloth pixel outside these measured regions remains byte-identical.
  for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n])native.data.set(fill.subarray(n*4,n*4+4),(y*im.width+x)*4)}
- ctx.putImageData(native,0,0);return cleaned;
+ ctx.putImageData(native,0,0);return {cleaned,regions};
 }
 function sourceCutout(im,g,scale){
  const hull=expanded(g,.8).map(p=>({x:p.x*scale,y:p.y*scale}));
@@ -37,7 +41,7 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
  if(portrait.width*portrait.height>33554432)throw Error('ภาพใหญ่เกินสำหรับวางรายละเอียดชุด');
  const [a,b]=[analyze(reference),analyze(portrait)],pairs=matchUniformDetails(a.geometry,b.geometry,{maleReference:realUniformDetailsVersionFor(templatePath)!==REAL_UNIFORM_DETAILS_VERSION});
  if(!pairs.length)return null;
- const cleaned=cleanOldDetails(portrait,b,pairs),parts=[];
+ const {cleaned,regions}=cleanOldDetails(portrait,b,pairs),parts=[];
  for(const {source,target,name}of pairs){
   const s=a.scale,t=b.scale,patch=sourceCutout(reference,source,s),c=Math.cos(target.angle),sn=Math.sin(target.angle);
   let sx=target.w*t/(source.w*s),sy=target.h*t/(source.h*s);
@@ -48,7 +52,7 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
   ctx.translate(target.cx*t-left,target.cy*t-top);ctx.rotate(target.angle);ctx.scale(sx,sy);ctx.rotate(-source.angle);ctx.imageSmoothingQuality='high';ctx.drawImage(patch.canvas,patch.left-source.cx*s,patch.top-source.cy*s);
   parts.push({name,kind:source.kind,source:canvas.toDataURL('image/png'),frame:{x:left,y:top,w:canvas.width,h:canvas.height}});
  }
- return {regions:pairs.map(({target})=>expanded(target,2)),version:realUniformDetailsVersionFor(templatePath),cleanedSource:cleaned.toDataURL('image/png'),parts,width:portrait.width,height:portrait.height};
+ return {regions,version:realUniformDetailsVersionFor(templatePath),cleanedSource:cleaned.toDataURL('image/png'),parts,width:portrait.width,height:portrait.height};
 }
 
 // Restore only the old detail locations, keeping any later face/makeup edits.
