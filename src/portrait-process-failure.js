@@ -16,12 +16,6 @@ export function describePortraitFailure(error,english=false){
  if(code==='AI_INPUT_REJECTED'||code==='AI_OUTPUT_REJECTED'||/SensitiveContentDetected/.test(message)){
   return make('provider_rejected','Image could not be generated','The image provider did not return a usable image. No photo will be substituted for a rejected output.','AI ไม่อนุญาตให้สร้างภาพนี้','ผู้ให้บริการ AI ไม่ส่งผลลัพธ์สำหรับภาพนี้ ระบบจะไม่ใช้ภาพอื่นแทน');
  }
- if(!english&&code==='face_proportion_changed'){
-  return make('quality_check','Face proportions changed','The generated face differs substantially from the source. The previous photo is preserved.','โครงหน้าที่ AI สร้างเปลี่ยนจากต้นฉบับมากเกินไป','ระบบตรวจพบสัดส่วนใบหน้าเปลี่ยนชัดเจน จึงเก็บรูปเดิมไว้และไม่ใช้ผลนี้');
- }
- if(!english&&code==='selected_hairstyle_mismatch'){
-  return make('quality_check','Hairstyle does not match','The selected hairstyle check failed. The previous photo is preserved.','ทรงผมที่สร้างยังไม่ตรงกับแบบที่เลือก','ระบบเก็บรูปเดิมไว้และไม่ใช้ผลทรงผมนี้');
- }
  if(stage==='quality_check'||code==='portrait_finish_incomplete'||code==='selected_hairstyle_mismatch'){
   return make('quality_check','The AI result needs another attempt','The generated result did not pass the face, hairstyle or cutout check. The previous photo is preserved.','ผลลัพธ์ AI ยังไม่ผ่านการตรวจ','รูปที่สร้างยังไม่ตรงเงื่อนไขใบหน้า ทรงผม หรือขอบภาพ ระบบเก็บรูปเดิมไว้');
  }

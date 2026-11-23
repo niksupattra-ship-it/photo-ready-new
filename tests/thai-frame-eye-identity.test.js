@@ -56,8 +56,7 @@ test('new Thai-only final contract prevents visible buns, floating coats and bea
  assert(main.includes('blob.idpromThaiRealFaceVersion=j.thaiRealFaceVersion'));
  assert(main.includes('headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION'));
  assert(main.includes('inspectThaiGatheredBun(await portraitCompletionEvidence(result,false))'));
- assert(main.includes("if(eyeLock.action!=='accept')cached.value.idpromQualityReviewNeeded=true"));
- assert(main.includes("triage.action==='reject'"));
+ assert(main.includes("if((!faceLock.ok&&faceLock.reason==='face_geometry_changed')||eyeLock.action==='reject')"));
 });
 
 test('undersized male coat fills both sides and bottom with one scale; saved native details follow and cached switching stays idempotent',()=>{

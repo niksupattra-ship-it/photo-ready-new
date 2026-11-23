@@ -1,4 +1,3 @@
-import {THAI_SELECTED_HAIR_VERSION} from '../thai-selected-hair-policy.js';
 import {THAI_BODY_GEOMETRY_VERSION,parseThaiBodyReference} from '../thai-body-geometry-policy.js';
 import {thaiBodyGeometry,checkNewThaiBodyGeometry} from './thai-body-geometry.js';
 import {orderThaiFemaleSuits} from '../thai-female-suit-policy.js';
@@ -2724,10 +2723,10 @@ async function checkPortraitCompletion(originalFile,result,hairId){
    }
    throw Error('No clear face was found in the generated portrait.');
   }
-  if(result.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION&&selectedHairDesign(PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId))?.kind==='gathered'){
+  if(result.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION&&['short','gathered'].includes(selectedHairDesign(PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId))?.kind)){
    try{
     const compact=inspectThaiGatheredBun(await portraitCompletionEvidence(result,false));
-    if(compact.retained){const reference=inspectThaiGatheredBun(await selectedHairEvidence(hairId));if(!reference.measurable)result.idpromQualityReviewNeeded=true;else if(!reference.retained){result.idpromQualityReviewNeeded=true;console.warn('Thai selected-hair silhouette needs review; local hair mask is not a definite style mismatch');}}
+    if(compact.retained)throw Object.assign(Error('AI ยังสร้างมวยผมหรือผมก้อนข้างคอ · เก็บภาพเดิมไว้'),{code:'selected_hairstyle_mismatch'});
     if(!compact.measurable)result.idpromQualityReviewNeeded=true;
    }catch(error){
     if(error?.code==='selected_hairstyle_mismatch')throw error;
@@ -2981,7 +2980,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION,THAI_SELECTED_HAIR_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),...(englishPreviewEnabled()&&gender==='female'&&template===ENGLISH_CIVIL_SERVICE_TEMPLATE?[ENGLISH_CIVIL_SERVICE_FABRIC_VERSION]:[]),gender==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',...(gender==='female'&&options.femaleEyeStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),englishPreviewEnabled()?ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender)+':'+(gender==='female'&&(!hairId||hairId==='original')&&!options.keepCurrentHair?ENGLISH_AUTO_HAIR_VERSION:'en-western-business-auto-hair-v1'):thaiWholeOutfit?THAI_OUTFIT_AI_VERSION+':'+ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender):gender==='female'?'head-only:'+THAI_NECK_BACKING_VERSION:'head-only',gender==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',options.keepCurrentHair?'keep-current-hair:'+String(options.preserveHairJobId||'input'):'catalogue-hair',AI_MAKEUP_PAIR_VERSION,...(englishPreviewEnabled()?[ENGLISH_MAKEUP_LIGHT_LOCK_VERSION]:[]),makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,template,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
+ const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),...(englishPreviewEnabled()&&gender==='female'&&template===ENGLISH_CIVIL_SERVICE_TEMPLATE?[ENGLISH_CIVIL_SERVICE_FABRIC_VERSION]:[]),gender==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',...(gender==='female'&&options.femaleEyeStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),englishPreviewEnabled()?ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender)+':'+(gender==='female'&&(!hairId||hairId==='original')&&!options.keepCurrentHair?ENGLISH_AUTO_HAIR_VERSION:'en-western-business-auto-hair-v1'):thaiWholeOutfit?THAI_OUTFIT_AI_VERSION+':'+ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender):gender==='female'?'head-only:'+THAI_NECK_BACKING_VERSION:'head-only',gender==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',options.keepCurrentHair?'keep-current-hair:'+String(options.preserveHairJobId||'input'):'catalogue-hair',AI_MAKEUP_PAIR_VERSION,...(englishPreviewEnabled()?[ENGLISH_MAKEUP_LIGHT_LOCK_VERSION]:[]),makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,template,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
  if(options.creditKind==='hairstyle'&&gender!=='female')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -3041,11 +3040,10 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
     const triage=triageThaiFaceShape(original,generated);
     if(cached.value.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
      const eyeLock=compareThaiEyeIdentity(original?.eyeIdentity,generated?.eyeIdentity);
-     // A 2D iris/eyelid estimate varies with expression, makeup and source
-     // resolution. It cannot establish an identity change on its own.
-     // Keep the original-eye prompt and review signal; severe face geometry
-     // still rejects below through the shared triage, exactly once.
-     if(eyeLock.action!=='accept')cached.value.idpromQualityReviewNeeded=true;
+     if((!faceLock.ok&&faceLock.reason==='face_geometry_changed')||eyeLock.action==='reject'){
+      const error=Error('AI เปลี่ยนโครงหน้าหรือดวงตาจากต้นฉบับ · เก็บรูปเดิมไว้');error.code='face_proportion_changed';throw error;
+     }
+     if(eyeLock.action==='review')cached.value.idpromQualityReviewNeeded=true;
     }
     if(triage.action==='review'){
      cached.value.idpromQualityReviewNeeded=true;
@@ -3215,7 +3213,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
  const thaiWholeOutfit=!englishPreviewEnabled()&&!options.manualOutfitFallback&&isThaiOutfitPath(options.templatePath||options.jobContext?.uniformTemplate||'');
- const submissionKey=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION,THAI_SELECTED_HAIR_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),options.portraitMode==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':thaiWholeOutfit?THAI_OUTFIT_AI_VERSION:'th']);
+ const submissionKey=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),options.portraitMode==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':thaiWholeOutfit?THAI_OUTFIT_AI_VERSION:'th']);
  const sourceDigest=await resultSourceDigest(originalFile);
  const ownerScope=walletScope(authToken(),currentWalletId());
  const priorJob=readActiveAiJob();
@@ -3280,7 +3278,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // needs a measured FACE identity envelope. Without it the server falls back
  // to the original camera crop and head/body scale varies by upload.
  if(thaiWholeOutfit){
-  if(selected&&!selected.hidden){fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);if(!selected.promptOnly&&!options.keepCurrentHair)fd.append('thaiSelectedHairVersion',THAI_SELECTED_HAIR_VERSION);}
+  if(selected&&!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);
   const measured=await replacementFaceIdentityBox(aiInput,{returnEvidence:true});
   fd.append('faceIdentityBox',JSON.stringify(measured.box));
   fd.append('thaiAdaptiveFaceGeometry',JSON.stringify(measured.geometry));
