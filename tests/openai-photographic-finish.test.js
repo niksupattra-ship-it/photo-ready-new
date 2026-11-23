@@ -1,3 +1,4 @@
+import {makeupStudioReferenceInstruction} from '../makeup-studio-reference.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
@@ -28,4 +29,19 @@ test('requested pigment repair removes recognized freckle preservation without c
  assert(after.startsWith('Identity and scene.'));assert(after.endsWith('Eyes and garment.'));
  assert(after.includes('genuine identifying moles'));assert(after.includes('retaining fine pore texture'));
  assert.equal(normalizeOpenAIPhotographicFinish(after),after);
+});
+
+test('new Makeup reference finish replaces prior matte/light/palette authorities while keeping identity and scene',()=>{
+ const p=normalizeOpenAIPhotographicFinish(MAKEUP_STUDIO_RETOUCH_POLICY);
+ for(const label of ['LIGHT AND SURFACE — LOCALIZED DEWY PHOTOGRAPHIC HIGHLIGHTS','BALANCED APPLICATION — SAME PERSON, DEWY REFERENCE FINISH','PROTECTED PERSON AND SCENE','Keep original eye openings, iris colour, pupils, gaze and catchlights unchanged'])assert(p.includes(label),label);
+ for(const old of ['LIGHT AND SURFACE — BROAD SOFTBOX','Reduce oily/wet-looking skin shine','Give the under-eye area a gently even','reduced skin sheen on both sides','the same modest brightness lift and low-sheen finish specified above'])assert(!p.includes(old),old);
+ assert.equal(normalizeOpenAIPhotographicFinish(p),p);
+});
+
+test('older identity-free lighting guide retains reference number but delegates dewy rather than matte finish',()=>{
+ const before=makeupStudioReferenceInstruction(7),after=normalizeOpenAIPhotographicFinish(before);
+ assert(after.includes('MAKEUP LIGHT GUIDE — IMAGE 7'));
+ assert(!after.includes('The requested soft satin skin, reduced shine'));
+ assert(after.includes('localized dewy highlights'));
+ assert(after.includes('Keep the garment, hair, canvas and all earlier indexed reference roles unchanged'));
 });
