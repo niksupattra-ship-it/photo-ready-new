@@ -21,7 +21,7 @@ test('new Thai Natural preserves original prompt text and adds protection withou
 test('request and both cache identities carry the new revision without changing original-upload generation',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
  assert(main.includes("fd.append('thaiRealFaceVersion',THAI_REAL_FACE_VERSION)"));
- assert.equal((main.match(/thaiWholeOutfit\?\[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION\]/g)||[]).length,2);
+ assert.equal((main.match(/thaiWholeOutfit\?\[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION,THAI_PROPORTION_AUTHORITY_VERSION\]/g)||[]).length,2);
  const pipeline=await readFile(new URL('../production-portrait-pipeline.js',import.meta.url),'utf8');
  assert(pipeline.indexOf('prompt=applyThaiRealFacePolicy(prompt,fields)')<pipeline.indexOf('const result=await requestPortrait({key,prompt,'));
 });
