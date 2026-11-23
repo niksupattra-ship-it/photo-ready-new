@@ -19,3 +19,13 @@ test('Natural and unknown prompt bytes remain unchanged and normalization is ide
  assert.equal(normalizeOpenAIPhotographicFinish(original),original);
  assert.equal(normalizeOpenAIPhotographicFinish(OPENAI_CRISP_MAKEUP_POLICY),OPENAI_CRISP_MAKEUP_POLICY);
 });
+
+test('requested pigment repair removes recognized freckle preservation without changing identity and scene text',()=>{
+ const before='Identity and scene. Preserve stable moles, freckles, birthmarks, normal age lines and uncertain identifying marks. Keep permanent features such as distinctive freckles and moles. Do not whiten or transplant another face. Eyes and garment.';
+ const after=normalizeOpenAIPhotographicFinish(before);
+ assert(!after.includes('Preserve stable moles, freckles'));
+ assert(!after.includes('Keep permanent features such as distinctive freckles'));
+ assert(after.startsWith('Identity and scene.'));assert(after.endsWith('Eyes and garment.'));
+ assert(after.includes('genuine identifying moles'));assert(after.includes('retaining fine pore texture'));
+ assert.equal(normalizeOpenAIPhotographicFinish(after),after);
+});
