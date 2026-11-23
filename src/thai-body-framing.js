@@ -29,9 +29,9 @@ export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null}={
  // Fit the complete head, including hair, with ONE uniform portrait scale.
  const headLimit=head?Math.min(H*.44/head.height,W*.46/head.width):Infinity;
  const minimum=(H+bleed-headroom)/(bottom+1-top);
- const scale=Math.max(minimum,Math.min(fill,headLimit));
+ const scale=Math.min(Math.max(minimum,fill),headLimit);
  const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale,y=headroom-top*scale;
- return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'head_anchored',bottom,crown:top,coat,headroom,headFitLimited:minimum>headLimit};
+ return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'head_anchored',bottom,crown:top,coat,headroom,headFitLimited:Math.max(minimum,fill)>headLimit};
 }
 
 // Upgrade untouched stored placements, including every linked native detail,
