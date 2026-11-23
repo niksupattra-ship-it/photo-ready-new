@@ -1,3 +1,4 @@
+import {usesThaiBodyGeometry} from './thai-body-geometry-policy.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {requestReviewSeedream} from './seedream-review-transport.js';
 import {isEnglishBodyPortrait} from './english-body-portrait.js';
@@ -23,7 +24,7 @@ export async function generateMakeupFromCompletedNatural({natural,fields,key,req
  const headOnly=english&&isEnglishHeadPortrait(fields);
  const templateBody=english&&isEnglishTemplateBody(fields);
  return createAiMakeupVariant(natural,{
-  key,requestPortrait,
+  key,requestPortrait:usesThaiBodyGeometry(fields)?options=>requestPortrait({...options,singleAttempt:true}):requestPortrait,
   preserveOutfit:english&&!headOnly,
   englishReferenceFinish:english&&!headOnly&&!templateBody,
   englishHeadFinish:headOnly,
