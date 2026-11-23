@@ -1,9 +1,9 @@
 import {pr143ReferenceHead} from '../thai-female-head-size.js';
 // Placement only: one uniform transform of the untouched native portrait.
 // Measure supported opaque rows, ignoring isolated matte noise below the coat.
-export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,headScale=1}={}){
+export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,headScale=1,fullBodyFrame=false}={}){
  if(![width,height,W,H].every(n=>Number.isInteger(n)&&n>0))return {scale:1,x:0,y:0,applied:false,reason:'unmeasurable'};
- head=pr143ReferenceHead(head,headScale);
+ if(!fullBodyFrame)head=pr143ReferenceHead(head,headScale);
  const contain=Math.min(W/width,H/height),fallback={scale:contain,x:(W-width*contain)/2,y:(H-height*contain)/2,applied:false};
  if(pixels?.length!==width*height*4)return {...fallback,reason:'unmeasurable'};
  let crown=-1,bottom=-1;
@@ -30,18 +30,20 @@ export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,he
  // Anchor the supported coat hem first. A smaller head can sit lower in
  // the frame; no forced top margin may lift the hem off the bottom edge.
  const headLimit=head?Math.min(H*.42/head.height,W*.44/head.width):Infinity;
- const desired=Math.min(fill,headLimit);
+ // New head-only generations use coat width as the sole scale authority.
+ // A large detected head or tall source must never shrink the whole person.
+ const desired=fullBodyFrame?fill:Math.min(fill,headLimit);
  // Keep the existing uniform scale and horizontal placement. Translate the
  // complete subject down only when its crown violates the minimum clearance.
  // Lower cloth may bleed outside the frame; never shrink the portrait to fit.
  const heightLimit=(H+bleed)/(bottom+1-top);
- const scale=desired>heightLimit?(H+bleed-H*.02)/(bottom+1-top):desired;
+ const scale=!fullBodyFrame&&desired>heightLimit?(H+bleed-H*.02)/(bottom+1-top):desired;
  const minimumHeadroom=H*.09;
  const bottomY=H+bleed-(bottom+1)*scale;
  const y=Math.max(bottomY,minimumHeadroom-top*scale);
  const crownLimited=y>bottomY+.001;
- const center=head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale;
- return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'bottom_anchored',bottom,crown:top,coat,headroom:y+top*scale,headFitLimited:fill>headLimit,crownLimited};
+ const center=fullBodyFrame&&coat?(coat.left+coat.right+1)/2:head?.centerX??(coat?(coat.left+coat.right+1)/2:width/2),x=W/2-center*scale;
+ return {scale,x,y,applied:Math.abs(scale-contain)>.000001||Math.abs(y-fallback.y)>.001||Math.abs(x-fallback.x)>.001,reason:'bottom_anchored',bottom,crown:top,coat,headroom:y+top*scale,headFitLimited:!fullBodyFrame&&fill>headLimit,crownLimited};
 }
 
 // Upgrade untouched stored placements, including every linked native detail,

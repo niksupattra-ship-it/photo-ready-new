@@ -60,5 +60,21 @@ test('generated-head size metadata survives server recovery, alternate finish an
  assert(store.includes('AS "thaiFemaleHeadSizeVersion"'));
  assert(main.includes('blob.idpromThaiFemaleHeadSizeVersion=j.thaiFemaleHeadSizeVersion'));assert(main.includes('blob.idpromThaiFemaleHeadSizeVersion=job.thaiFemaleHeadSizeVersion'));
  assert(main.includes('thaiFemaleHeadSizeVersion:headMasterBlob.idpromThaiFemaleHeadSizeVersion'));
- assert(editor.includes('headScale:head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION?THAI_FEMALE_HEAD_SCALE:1'));
+ assert(editor.includes('fullBodyFrame:head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION'));
+});
+
+
+test('new generated head is smaller but coat fills frame independently of head size or source padding',()=>{
+ for(const [left,right,bottom] of [[20,280,399],[70,250,370],[5,295,399]]){
+  const W=300,H=400,p=new Uint8ClampedArray(W*H*4);
+  for(let y=170;y<=bottom;y++)for(let x=left;x<right;x++)p[(y*W+x)*4+3]=255;
+  for(let y=15;y<170;y++)for(let x=100;x<200;x++)p[(y*W+x)*4+3]=255;
+  const plans=[{top:15,width:130,height:180,centerX:140},{top:33,width:117,height:162,centerX:160}].map(head=>planThaiBodyFrame(p,W,H,{head,headScale:.9,fullBodyFrame:true}));
+  for(const plan of plans){
+   assert.equal(plan.scale,904/(right-left));
+   assert(plan.x+left*plan.scale<=0);assert(plan.x+right*plan.scale>=900);
+   assert(plan.y+(bottom+1)*plan.scale>=1200);assert.equal(plan.headFitLimited,false);
+  }
+  assert.equal(plans[0].scale,plans[1].scale);assert.equal(plans[0].x,plans[1].x);
+ }
 });
