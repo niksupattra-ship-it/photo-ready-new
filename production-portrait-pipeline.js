@@ -1,3 +1,4 @@
+import {createThaiAdaptiveComposition,thaiAdaptiveCompositionInstruction} from './thai-adaptive-composition.js';
 import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION,usesUnifiedThaiBodyGeometry} from './thai-body-geometry-policy.js';
 import {femaleHairLightnessInstruction} from './hairstyle-fit-policy.js';
 import {englishProfessionalDefaultHair} from './english-auto-hair.js';
@@ -106,7 +107,7 @@ export function validateProductionPortrait(input,fields={}){
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
- if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion==='thai-one-call-body-geometry-v1',strict:['thai-one-call-balanced-head-v3',THAI_BODY_GEOMETRY_VERSION].includes(fields.thaiBodyGeometryVersion)})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
+ if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion==='thai-one-call-body-geometry-v1',strict:['thai-one-call-balanced-head-v3','thai-one-call-unified-proportions-v4',THAI_BODY_GEOMETRY_VERSION].includes(fields.thaiBodyGeometryVersion)})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
  if(fields.thaiRearHairShortNeckVersion!==undefined&&!usesThaiRearHairShortNeck(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพชุดไทยล่าสุด');
  if(fields.thaiOutfitAppearanceVersion!==undefined&&(!isThaiOutfitAppearance(fields)||!usesEnglishStudioFinish(fields)||fields.englishOutfitFidelityVersion!==ENGLISH_OUTFIT_FIDELITY_VERSION))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การแสดงสีชุดล่าสุด');
  if(fields.englishHairFit!==undefined){if(!usesEnglishStudioFinish(fields)&&!isEnglishHeadPortrait(fields))throw Error('Invalid English hair placement option');parseEnglishHairFit(fields.englishHairFit)}
@@ -651,7 +652,9 @@ ${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-ch
  prompt+=thaiBodyGeometryInstruction(fields,selected.gender);
  prompt+=thaiFinalOriginalIdentity(fields);
  await onStage('generation');
- const result=await requestPortrait({key,prompt,...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ const adaptiveComposition=usesThaiBodyGeometry(fields)&&fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION?await createThaiAdaptiveComposition({outfit,identity,evidence:fields.thaiAdaptiveFaceGeometry,gender:selected.gender}):null;
+ if(adaptiveComposition)prompt+=thaiAdaptiveCompositionInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,makeupStudioReference,outfitDetailReference].filter(Boolean).length);
+ const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
