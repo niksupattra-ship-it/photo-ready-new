@@ -91,3 +91,16 @@ test('ID framing measures the entire head including hair, keeps 5% headroom, and
  assert.equal(fixed[0].mask,mask);assert.notEqual(fixed[0].sourceFrame,layer.sourceFrame);
  assert.equal(fitThaiBodyScene(fixed,fixed[0],plan,w,h,{opaqueMaskIds:new Set(['head'])}),fixed);
 });
+
+test('short native coats cannot override the whole-head cap to fill the hem at any ID photo aspect or pixel size',()=>{
+ const w=900,h=1200,pixels=new Uint8ClampedArray(w*h*4);
+ for(let y=20;y<1200;y++)for(let x=30;x<870;x++)pixels[(y*w+x)*4+3]=255;
+ const head={left:240,right:660,top:20,bottom:700,width:420,height:680,centerX:450},before=hash(pixels);
+ for(const [W,H]of [[300,400],[900,1200],[1800,2400],[600,600],[330,480],[350,450],[480,630],[620,780]]){
+  const plan=planThaiBodyFrame(pixels,w,h,{W,H,head});
+  assert(head.height*plan.scale<=H*.44+1e-8);assert(head.width*plan.scale<=W*.46+1e-8);
+  assert(Math.abs(plan.y+head.top*plan.scale-H*.05)<1e-8);
+  assert.equal(plan.headFitLimited,true,'Report incompatible source coverage rather than enlarging the head');
+ }
+ assert.equal(hash(pixels),before);
+});

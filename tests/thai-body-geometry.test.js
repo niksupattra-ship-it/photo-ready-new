@@ -119,3 +119,19 @@ test('whole-head checks include hair width/height even with unchanged face and n
  assert.deepEqual(thaiBodyGeometry(ends).head,a.head,'Hanging lengths are not part of the head-size rectangle');
  assert.equal(inspectThaiBodyGeometry({...a,neckGap:.23}).reason,'head_body_join_changed');
 });
+
+test('V3 never delivers an oversized or unmeasured new head as ready, and never retries the provider',async()=>{
+ const good={faceToShoulder:.31,crownRatio:1.05,neckGap:.04,wholeHeadWidthToShoulder:.44,wholeHeadHeightToShoulder:.56,headFitLimited:false};
+ assert.equal(inspectThaiBodyGeometry(good,{strict:true}).action,'accept');
+ for(const metrics of [{...good,wholeHeadWidthToShoulder:.54},{...good,wholeHeadHeightToShoulder:.68},{...good,faceToShoulder:.39},{...good,neckGap:.16},{...good,headFitLimited:true},null]){
+  const result={idpromBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION};let calls=0;
+  await assert.rejects(checkNewThaiBodyGeometry({result,measure:async()=>{calls++;return metrics}}),e=>e.code==='face_proportion_changed');
+  assert.equal(calls,1);assert.equal(result.idpromBodyGeometryAccepted,undefined);
+ }
+ const unknown={idpromBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION};
+ await assert.rejects(checkNewThaiBodyGeometry({result:unknown,measure:async()=>{throw Error('model unavailable')}}),e=>e.geometryReason==='body_geometry_unmeasurable');
+ for(const version of ['thai-one-call-body-geometry-v1','thai-one-call-whole-head-v2']){
+  let calls=0;assert.equal((await checkNewThaiBodyGeometry({result:{idpromReused:true,idpromBodyGeometryVersion:version},measure:async()=>{calls++}})).action,'cached');assert.equal(calls,0);
+ }
+ assert.equal(parseThaiBodyReference({...good,faceToShoulder:.39},{strict:true}),null,'Do not preserve an already oversized accepted head as the next target');
+});

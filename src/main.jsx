@@ -2986,7 +2986,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const cached=await portraitResultCache.get(key,async()=>{
   assertCurrentOperation();
   if(thaiWholeOutfit&&options.bodyReferenceBlob){
-   try{options.thaiBodyReference=parseThaiBodyReference(await measureThaiBodyGeometry(options.bodyReferenceBlob))}catch{options.thaiBodyReference=null}
+   try{options.thaiBodyReference=parseThaiBodyReference(await measureThaiBodyGeometry(options.bodyReferenceBlob),{strict:true})}catch{options.thaiBodyReference=null}
    assertCurrentOperation();
   }
   let result=await aiFinishPortraitUncached(originalFile,hairId,options,neckline);

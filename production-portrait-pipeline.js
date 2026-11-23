@@ -1,4 +1,4 @@
-import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_PREVIOUS_VERSION} from './thai-body-geometry-policy.js';
+import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION} from './thai-body-geometry-policy.js';
 import {femaleHairLightnessInstruction} from './hairstyle-fit-policy.js';
 import {englishProfessionalDefaultHair} from './english-auto-hair.js';
 import {thaiRearHairReference,THAI_REAR_HAIR_FINAL_POLICY} from './thai-rear-hair-reference.js';
@@ -106,7 +106,7 @@ export function validateProductionPortrait(input,fields={}){
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
- if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_PREVIOUS_VERSION})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
+ if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion==='thai-one-call-body-geometry-v1',strict:fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
  if(fields.thaiRearHairShortNeckVersion!==undefined&&!usesThaiRearHairShortNeck(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพชุดไทยล่าสุด');
  if(fields.thaiOutfitAppearanceVersion!==undefined&&(!isThaiOutfitAppearance(fields)||!usesEnglishStudioFinish(fields)||fields.englishOutfitFidelityVersion!==ENGLISH_OUTFIT_FIDELITY_VERSION))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การแสดงสีชุดล่าสุด');
  if(fields.englishHairFit!==undefined){if(!usesEnglishStudioFinish(fields)&&!isEnglishHeadPortrait(fields))throw Error('Invalid English hair placement option');parseEnglishHairFit(fields.englishHairFit)}
