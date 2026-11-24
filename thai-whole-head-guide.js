@@ -1,6 +1,6 @@
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v1';
-export const usesThaiWholeHeadGuide=fields=>isThaiOutfitAi(fields)&&fields?.portraitComposition==='en-outfit-body-v1'&&fields?.thaiWholeHeadGuideVersion===THAI_WHOLE_HEAD_GUIDE_VERSION;
+export const usesThaiWholeHeadGuide=fields=>isThaiOutfitAi(fields)&&fields?.portraitMode==='female'&&fields?.portraitComposition==='en-outfit-body-v1'&&fields?.thaiWholeHeadGuideVersion===THAI_WHOLE_HEAD_GUIDE_VERSION;
 export const THAI_WHOLE_HEAD_LIMITS=Object.freeze({width:.40,height:.54});
 // Scan the selected transparent hair reference ABOVE the chin only. Long
 // lengths below the chin describe hairstyle length, not skull/crown height.
