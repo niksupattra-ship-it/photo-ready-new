@@ -1,6 +1,7 @@
 // Keep a same-origin, stable runtime available when a deployment replaces a
 // hashed Vite chunk while an older tab is still open. Never reload the photo.
-export function createVisionRuntimeLoader(importRuntime=()=>import('@mediapipe/tasks-vision'),importFallback=()=>import(/* @vite-ignore */ '/assets/vision/mediapipe-1.0.1/vision_bundle.mjs')){
+const fallbackRuntimeUrl='/assets/vision/mediapipe-1.0.1/vision_bundle.mjs';
+export function createVisionRuntimeLoader(importRuntime=()=>import('@mediapipe/tasks-vision'),importFallback=()=>import(/* @vite-ignore */ fallbackRuntimeUrl)){
  let pending;
  return()=>{
   if(!pending){
