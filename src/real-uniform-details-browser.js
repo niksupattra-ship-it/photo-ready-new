@@ -28,7 +28,7 @@ function cleanOldDetails(im,analysis,parts,replacements){
  const cleaned=make(im.width,im.height),ctx=cleaned.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);const native=ctx.getImageData(0,0,im.width,im.height);
  // Replace ONLY pixels of the measured old objects, including alpha. Every
  // face/skin/cloth pixel outside these measured regions remains byte-identical.
- for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n]&&(!covered||covered[(y*im.width+x)*4+3]===255))native.data.set(fill.subarray(n*4,n*4+4),(y*im.width+x)*4)}
+ for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n]&&(!covered||covered[(y*im.width+x)*4+3]===255)){const i=(y*im.width+x)*4;const originalAlpha=native.data[i+3];if(fill[n*4+3]>=originalAlpha){native.data.set(fill.subarray(n*4,n*4+3),i);native.data[i+3]=originalAlpha}}}
  ctx.putImageData(native,0,0);return cleaned;
 }
 function sourceCutout(im,g,scale){
@@ -53,7 +53,7 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
   ctx.translate(target.cx*t-left,target.cy*t-top);ctx.rotate(target.angle);ctx.scale(sx,sy);ctx.rotate(-source.angle);ctx.imageSmoothingQuality='high';ctx.drawImage(patch.canvas,patch.left-source.cx*s,patch.top-source.cy*s);
   parts.push({canvas,name,kind:source.kind,source:canvas.toDataURL('image/png'),frame:{x:left,y:top,w:canvas.width,h:canvas.height}});
  }
- const cleaned=cleanOldDetails(portrait,b,pairs,realUniformDetailsVersionFor(templatePath)===REAL_UNIFORM_DETAILS_VERSION?parts:null);
+ const cleaned=cleanOldDetails(portrait,b,pairs,parts);
  for(const part of parts)delete part.canvas;
  return {regions:pairs.map(({target})=>expanded(target,2)),version:realUniformDetailsVersionFor(templatePath),cleanedSource:cleaned.toDataURL('image/png'),parts,width:portrait.width,height:portrait.height};
 }
