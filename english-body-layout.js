@@ -97,6 +97,8 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
   const hx=Math.round(cx-rearHairGuide.centerX*q),hy=Math.round(chin-rearHairGuide.chinY*q);
   const left=Math.max(0,-hx),top=Math.max(0,-hy),width=Math.min(hw-left,W-Math.max(0,hx)),height=Math.min(hh-top,H-Math.max(0,hy));
   if(width>0&&height>0){const hairView=await sharp(rearHairGuide.buffer).resize(hw,hh).extract({left,top,width,height}).png().toBuffer();overlays.push({input:hairView,left:Math.max(0,hx),top:Math.max(0,hy)});}
+  // The newly generated supporting neck is also in front of rear hair.
+  overlays.push({input:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${neckShape}</svg>`),left:0,top:0});
  }
  overlays.push({input:visible,left:Math.max(0,gx),top:Math.max(0,gy)});
  const composition=await sharp(shape).composite(overlays).png().toBuffer();
