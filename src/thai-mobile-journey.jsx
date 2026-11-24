@@ -1,3 +1,4 @@
+import './photo-upload-scan.css';
 import {FittedPreviewWatermark} from './preview-watermark.jsx';
 import {isJobOutfit} from './outfit-choice-preview.js';
 import React,{useEffect,useRef,useState} from 'react';
@@ -142,9 +143,8 @@ export function ThaiMobileJourney({
    </section>:processing?<section className="thai-mobile-processing" role="status" aria-live="polite" aria-label="กำลังสร้างรูป">
     <div className="thai-mobile-processing-card">
      <div className="thai-mobile-processing-step">ขั้นตอน 4 / 8</div>
-     <div className="thai-mobile-processing-ring" role="progressbar" aria-label="ความคืบหน้าการสร้างรูป" aria-valuemin={0} aria-valuemax={100} aria-valuenow={shownProgress} style={{'--thai-processing-percent':shownProgress+'%'}}>
-      <span>{shownProgress}%</span>
-     </div>
+     <div className="portrait-processing-scan">{sourcePreview&&<img src={sourcePreview} alt="รูปที่กำลังประมวลผล"/>}{shownProgress<100&&<div className="photo-upload-scan-beam" aria-hidden="true"/>}</div>
+     <div className="photo-scan-progress" role="progressbar" aria-label="ความคืบหน้าการสร้างรูป" aria-valuemin={0} aria-valuemax={100} aria-valuenow={shownProgress}><strong>{shownProgress}%</strong><div className="photo-scan-track"><i style={{width:shownProgress+'%'}}/></div></div>
      <h1>กำลังสร้างรูป...</h1>
      <p className="thai-mobile-processing-subtitle">AI กำลังประมวลผลรูปของคุณ</p>
      <p className="thai-mobile-processing-note"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5 20 6v5.8c0 5.4-3.1 8.6-8 10-4.9-1.4-8-4.6-8-10V6Z"/><path d="m8.7 12.2 2.2 2.1 4.6-4.7"/></svg><span>ระบบจะนำรูปที่เสร็จแล้วมาแสดงอัตโนมัติ</span></p>

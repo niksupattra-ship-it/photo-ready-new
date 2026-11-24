@@ -1,5 +1,5 @@
 import React,{useLayoutEffect,useState} from 'react';
-import {ProcessingIndicator} from './processing-indicator.jsx';
+import './photo-upload-scan.css';
 import './studio-image-processing.css';
 
 // Keep the processing UI on the rendered photograph, not in a modal.
@@ -26,7 +26,8 @@ export function StudioImageProcessing({stageRef,canvasRef,viewKey,progress,title
   return()=>{cancelAnimationFrame(frame);observer?.disconnect();window.removeEventListener('resize',schedule)};
  },[stageRef,canvasRef,viewKey]);
  return <div className="studio-image-processing" style={bounds||{inset:0}} role="status" aria-live="polite" aria-busy={Number(progress)<100} onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onPointerCancel={e=>e.stopPropagation()} onWheel={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
-  <ProcessingIndicator value={progress}/>
+  {Number(progress)<100&&<div className="photo-upload-scan-beam" aria-hidden="true"/>}
+  <div className="photo-scan-progress" role="progressbar" aria-label="ความคืบหน้าประมวลผล" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0,Math.min(100,Math.floor(Number(progress)||0)))}><strong>{Math.max(0,Math.min(100,Math.floor(Number(progress)||0)))}%</strong><div className="photo-scan-track"><i style={{width:Math.max(0,Math.min(100,Number(progress)||0))+'%'}}/></div></div>
   <strong className="studio-image-processing-title">{title}</strong>
   {description&&<span className="studio-image-processing-stage">{description}</span>}
   {onCancel&&<button type="button" className="studio-image-processing-cancel" disabled={cancelDisabled} onClick={e=>{e.stopPropagation();onCancel()}}>ยกเลิก</button>}
