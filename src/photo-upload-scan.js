@@ -18,7 +18,7 @@ export async function inspectUploadPortrait(file,{onProgress=()=>{},signal}={}){
 
 // One transient dialog owns the candidate only. The editor is untouched until
 // this resolves true; rejecting/cancelling never resets paid work or its history.
-export async function scanNewPortrait(file,{inspect=inspectUploadPortrait}={}){
+export async function scanNewPortrait(file,{inspect=inspectUploadPortrait,onChangePhoto}={}){
  const previous=document.activeElement,url=URL.createObjectURL(file),host=document.createElement('div');host.className='photo-upload-scan';
  host.innerHTML='<section class="photo-upload-scan-card" role="dialog" aria-modal="true" aria-labelledby="photo-upload-scan-title"><button type="button" class="photo-upload-scan-close" aria-label="ยกเลิก">×</button><h2 id="photo-upload-scan-title">กำลังตรวจรูปก่อนเริ่ม</h2><div class="photo-upload-scan-image"><img alt="รูปที่กำลังตรวจ"/><div class="photo-upload-scan-beam" aria-hidden="true"></div></div><div class="photo-scan-progress" role="progressbar" aria-label="ความคืบหน้าตรวจรูป" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><strong>0%</strong><div class="photo-scan-track"><i></i></div></div><div class="photo-upload-scan-copy" role="status" aria-live="polite">กำลังตรวจหัว คอ ไหล่ ต้นแขน และลำตัวช่วงบน…</div><div class="photo-upload-scan-actions"></div></section>';
  host.querySelector('img').src=url;document.body.append(host);const oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';
@@ -37,14 +37,10 @@ export async function scanNewPortrait(file,{inspect=inspectUploadPortrait}={}){
   if(!report||!['pass','reject','uncertain','unavailable'].includes(report.status))report={status:'unavailable'};
   host.dataset.state=report.status;
   if(report.status==='pass'){const bar=host.querySelector('.photo-scan-progress');bar.setAttribute('aria-valuenow','100');bar.querySelector('strong').textContent='100%';bar.querySelector('i').style.width='100%';title.textContent='รูปพร้อมใช้งาน';copy.textContent='ตรวจหัว คอ ไหล่ และลำตัวช่วงบนแล้ว กำลังไปขั้นตอนถัดไป';setTimeout(()=>finish(true),450);return}
-  const technical=report.status==='unavailable',uncertain=report.status==='uncertain';
-  title.textContent=technical?'เครื่องมือตรวจยังไม่พร้อม':uncertain?'ยังตรวจรูปได้ไม่ครบ':'แนะนำให้เปลี่ยนรูป';
-  copy.replaceChildren();
-  const lines=technical?['การตรวจใช้เวลานานหรือเครื่องมือตรวจยังไม่พร้อม กรุณาตรวจอีกครั้ง หรือใช้รูปนี้ต่อ ยังไม่ได้ส่งงาน AI']:uncertain?report.uncertain:report.issues;
-  for(const text of Array.isArray(lines)?lines:['ยังตรวจรูปได้ไม่ครบ กรุณาตรวจอีกครั้ง']){const p=document.createElement('p');p.textContent=text;copy.append(p)}
-  const hint=document.createElement('p');hint.textContent='เลือกรูปที่เห็นยอดผม คอ ไหล่ทั้งสองข้าง ต้นแขน และช่วงอก ไม่จำเป็นต้องเห็นมือหรือแขนเต็ม';copy.append(hint);
-  button('กลับไปเลือกรูปใหม่',()=>finish(false));
-  if(technical||uncertain){button('ตรวจอีกครั้ง',run);button('ใช้รูปนี้ต่อ',()=>finish(true))}
+  title.textContent='กรุณาใช้รูปที่เห็นคอ ไหล่ และอกส่วนบน';
+  copy.textContent='';copy.hidden=true;
+  button('เปลี่ยนรูปใหม่',()=>{finish(false);if(onChangePhoto)setTimeout(onChangePhoto,0)});
+  button('ปิด',()=>finish(false));
  };
  void run();return answer;
 }
