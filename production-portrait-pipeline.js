@@ -1,4 +1,4 @@
-import {THAI_WHOLE_HEAD_GUIDE_VERSION,usesThaiWholeHeadGuide,thaiWholeHeadInstruction} from './thai-whole-head-guide.js';
+import {usesCropIndependentWholeHead,usesThaiWholeHeadGuide,thaiWholeHeadInstruction} from './thai-whole-head-guide.js';
 import {usesThaiCollarContext,thaiCollarContextInstruction} from './thai-collar-context.js';
 import {usesThaiPortraitPolish,THAI_PORTRAIT_HEAD_SCALE,thaiPortraitHeadInstruction,thaiPortraitSkinInstruction} from './thai-portrait-polish.js';
 import {thaiSoftEyeMakeupInstruction} from './thai-soft-eye-makeup.js';
@@ -608,7 +608,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  if(frontalPose)layoutOptions={headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,poseOnlyHead:true};
  if(newThaiNeck)layoutOptions={...(layoutOptions||{}),...(garmentNeck?{garmentBalancedNeck:true}:{neckHeadRatio:THAI_NEW_NECK_GAP})};
  if((selectedRearHair||wholeHeadGuide)&&chosen&&!keepCurrentHair){const rearHairGuide=await selectedRearLayoutHair({selected:chosen,hair,root});if(rearHairGuide)layoutOptions={...(layoutOptions||{}),rearHairGuide};}
- if(wholeHeadGuide)layoutOptions={...(layoutOptions||{}),identity,headScale:identityHeadScale,canvasWidth:1824,wholeHeadGuide,...(fields.thaiWholeHeadGuideVersion===THAI_WHOLE_HEAD_GUIDE_VERSION?{fixedIdentityEnvelope:true}:{}),poseOnlyHead:true,garmentBalancedNeck:true,stableGarmentFrame:!thaiEnglishMakeupHead};
+ if(wholeHeadGuide)layoutOptions={...(layoutOptions||{}),identity,headScale:identityHeadScale,canvasWidth:1824,wholeHeadGuide,...(usesCropIndependentWholeHead(fields.thaiWholeHeadGuideVersion)?{fixedIdentityEnvelope:true}:{}),poseOnlyHead:true,garmentBalancedNeck:true,stableGarmentFrame:!thaiEnglishMakeupHead};
  if(usesThaiPortraitPolish(fields))layoutOptions={...(layoutOptions||{}),headOnlyScale:THAI_PORTRAIT_HEAD_SCALE};
  let measuredCollarContext=null;
  const collarContext=usesThaiCollarContext(fields)?{template:file,onMeasured:value=>{measuredCollarContext=value}}:null;
