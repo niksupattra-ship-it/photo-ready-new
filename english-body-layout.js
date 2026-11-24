@@ -26,7 +26,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null}={}){
  if(neckHeadRatio!==null&&(!Number.isFinite(neckHeadRatio)||neckHeadRatio<.10||neckHeadRatio>.25))throw Error('Invalid neck guide gap.');
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
@@ -89,6 +89,16 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
   const mask=await sharp(Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" rx="${width*.18}" fill="white"/></svg>`)).blur(Math.max(.3,width*.008)).png().toBuffer();
   const photo=await sharp(fit||identity).resize(width,height).ensureAlpha().composite([{input:mask,blend:'dest-in'}]).png().toBuffer();
   overlays.push({input:photo,left:Math.max(0,Math.round(cx-width/2)),top:Math.max(0,Math.round(chin-height))});
+ }
+ // Conditioning only: exact selected hair goes BEHIND the opaque garment.
+ if(rearHairGuide){
+  const q=Math.min(headWidth/rearHairGuide.faceWidth,headHeight/rearHairGuide.faceHeight)*scale;
+  const hw=Math.max(1,Math.round(rearHairGuide.width*q)),hh=Math.max(1,Math.round(rearHairGuide.height*q));
+  const hx=Math.round(cx-rearHairGuide.centerX*q),hy=Math.round(chin-rearHairGuide.chinY*q);
+  const left=Math.max(0,-hx),top=Math.max(0,-hy),width=Math.min(hw-left,W-Math.max(0,hx)),height=Math.min(hh-top,H-Math.max(0,hy));
+  if(width>0&&height>0){const hairView=await sharp(rearHairGuide.buffer).resize(hw,hh).extract({left,top,width,height}).png().toBuffer();overlays.push({input:hairView,left:Math.max(0,hx),top:Math.max(0,hy)});}
+  // The newly generated supporting neck is also in front of rear hair.
+  overlays.push({input:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${neckShape}</svg>`),left:0,top:0});
  }
  overlays.push({input:visible,left:Math.max(0,gx),top:Math.max(0,gy)});
  const composition=await sharp(shape).composite(overlays).png().toBuffer();

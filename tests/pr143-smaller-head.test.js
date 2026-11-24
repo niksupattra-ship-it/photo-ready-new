@@ -1,3 +1,6 @@
+import {selectedRearLayoutHair} from '../thai-selected-rear-layout.js';
+import {productionHair} from '../hairstyle-catalog.js';
+import {loadCatalogueHairGuide} from '../catalogue-hair-guide.js';
 import {garmentNeckBalance} from '../garment-neck-balance.js';
 import {measureUniformAnchors} from '../src/portrait-uniform-fit.js';
 import {sanitizeAiError,sanitizedAiJob} from '../ai-error-sanitizer.js';
@@ -161,4 +164,33 @@ test('recovery preserves actual generation version instead of relabelling old ne
  assert(main.includes('if(isKnownThaiHeadVersion(j.thaiFemaleHeadSizeVersion))'));assert(main.includes('if(isKnownThaiHeadVersion(job.thaiFemaleHeadSizeVersion))'));
  assert.equal(main.split('finished.idpromThaiFemaleHeadSizeVersion=cached.value.idpromThaiFemaleHeadSizeVersion').length-1,2);
  assert(!main.includes('finished.idpromThaiFemaleHeadSizeVersion=THAI_FEMALE_HEAD_SIZE_VERSION'));
+});
+
+
+test('selected Thai hair is visibly conditioned behind the fixed opaque uniform without changing head/neck/body geometry',async()=>{
+ const outfit=await readFile(root+'public/assets/government-uniforms/female-operational.png'),identity=await sharp({create:{width:120,height:174,channels:3,background:'#01fe23'}}).png().toBuffer();
+ const opts={headScale:.95,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE,garmentBalancedNeck:true,poseOnlyHead:true,returnNativeForeground:true};
+ const baseline=await createEnglishBodyLayout(outfit,opts),dec=b=>sharp(b).ensureAlpha().raw().toBuffer({resolveWithObject:true}),base=await dec(baseline.composition),mask=await dec(baseline.nativeForeground);let previous=null;
+ for(const id of ['seedream-14','seedream-16','seedream-41']){
+  const selected=productionHair(id),hair=await loadCatalogueHairGuide(id,root),rearHairGuide=await selectedRearLayoutHair({selected,hair,root});assert(rearHairGuide);
+  const result=await createEnglishBodyLayout(outfit,{...opts,rearHairGuide}),fresh=await dec(result.composition);assert.deepEqual(fresh.info,base.info);assert(result.nativeForeground.equals(baseline.nativeForeground));
+  let visibleHair=0,cloth=0;
+  for(let i=0;i<mask.data.length;i+=4){if(mask.data[i+3]===255){cloth++;for(let k=0;k<4;k++)assert.equal(fresh.data[i+k],base.data[i+k],'Opaque coat/collar/insignia pixels stay in front');}else if(i/4<base.info.width*base.info.height*.55&&fresh.data[i]!==base.data[i])visibleHair++;}
+  assert(cloth>10000);assert(visibleHair>1000,'Selected roots/crown must actually appear in the primary board');
+  if(previous)assert(!result.composition.equals(previous),'Distinct selected styles must produce distinct primary reference pixels');previous=result.composition;
+ }
+ assert.equal(await selectedRearLayoutHair({selected:productionHair('seedream-14'),hair:Buffer.from('invalid'),root}),null,'Optional guide errors do not cancel generation');
+});
+
+
+test('new Thai selected-hair request uses its exact rear-layout board and final behind-shoulder contract in one call',async()=>{
+ const png=await sharp({create:{width:96,height:128,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).composite([{input:await sharp({create:{width:80,height:115,channels:4,background:'#bd9887'}}).png().toBuffer(),left:8,top:13}]).png().toBuffer(),box=[.2,.1,.8,.7],input={buffer:png,mimetype:'image/png'};
+ const fields={portraitMode:'female',femaleEyeStyle:'makeup',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,portraitComposition:'en-outfit-body-v1',hairReferenceVersion:'picker-hair-v1',hairId:'seedream-14',neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png',faceIdentityBox:JSON.stringify(box),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,singlePassPortraitVersion:'single-pass-portrait-v1',femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION};
+ let calls=0;await processProductionPortrait({input,fields,root,key:'inert',removeBackground:async()=>png,requestPortrait:async args=>{
+  calls++;const selected=productionHair('seedream-14'),hair=await loadCatalogueHairGuide(selected.id,root),rearHairGuide=await selectedRearLayoutHair({selected,hair,root}),identity=await portraitIdentityCrop(input,box);
+  const expected=await createEnglishBodyLayout(args.outfit,{headScale:.95,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE,garmentBalancedNeck:true,poseOnlyHead:true,rearHairGuide});assert(args.portrait.equals(expected));assert(args.identity.equals(identity));
+  assert(args.prompt.includes('Use ONLY the selected seedream-14 hairstyle (long) from Image 2'));
+  assert(args.prompt.includes('ZERO hair laid on it'));assert(!args.prompt.includes('including any intended shoulder-side lengths'));assert(!args.prompt.includes('preserve the actual connected lengths, ends and shoulder-side silhouette'));
+  assert(args.prompt.lastIndexOf('FINAL SELECTED HAIR AND PHYSICAL OCCLUSION CONTRACT')>args.prompt.lastIndexOf('FRONTAL CAMERA AND HEAD-NECK POSTURE'));return {png};
+ }});assert.equal(calls,1);
 });
