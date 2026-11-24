@@ -1,3 +1,4 @@
+import {measureHairCrown,fitWholeHeadGuide} from './thai-whole-head-guide.js';
 import {measureGarmentCollarContext} from './thai-collar-context.js';
 import {garmentNeckBalance} from './garment-neck-balance.js';
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
@@ -27,7 +28,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null,headOnlyScale=1,collarContext=null}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null,headOnlyScale=1,collarContext=null,wholeHeadGuide=null}={}){
  if(!Number.isFinite(headOnlyScale)||headOnlyScale<.75||headOnlyScale>1)throw Error('Invalid whole-head-only scale.');
  if(neckHeadRatio!==null&&(!Number.isFinite(neckHeadRatio)||neckHeadRatio<.10||neckHeadRatio>.25))throw Error('Invalid neck guide gap.');
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
@@ -65,6 +66,13 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // Reduce only the displayed head AFTER the native garment/camera transform
  // and collar anchor are fixed. Never reframe the coat because the head shrank.
  headWidth*=headOnlyScale;headHeight*=headOnlyScale;
+ let measuredWholeHead=null;
+ if(wholeHeadGuide){
+  let hair=null;if(rearHairGuide){const raw=await sharp(rearHairGuide.buffer).ensureAlpha().raw().toBuffer();hair=measureHairCrown(raw,rearHairGuide.width,rearHairGuide.height,rearHairGuide)}
+  measuredWholeHead=fitWholeHeadGuide({faceWidth:headWidth,faceHeight:headHeight,shoulderWidth:span,hair});
+  if(measuredWholeHead){headWidth=measuredWholeHead.faceWidth;headHeight=measuredWholeHead.faceHeight;wholeHeadGuide.onMeasured?.(measuredWholeHead)}
+ }
+
  const measuredCollar=collarContext?measureGarmentCollarContext(uniform,headHeight,collarContext.template):null;
  if(measuredCollar){chinY=measuredCollar.chinY;collarContext.onMeasured?.(measuredCollar)}
  const supportingNeckLength=measuredCollar?.gap??neckLength;
@@ -116,6 +124,6 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // translation as the AI's Image 1 guide, without changing English output.
  const nativeForeground=await sharp({create:{width:W,height:H,channels:4,background:{r:0,g:0,b:0,alpha:0}}})
   .composite([{input:visible,left:Math.max(0,gx),top:Math.max(0,gy)}]).png().toBuffer();
- return {composition,nativeForeground,shoulderTopY:y+uniform.bounds.t*scale,collarTopY:collar,centerX:cx,shoulderSpan:span*scale,...(measuredCollar?{measuredCollar}: {})};
+ return {composition,nativeForeground,shoulderTopY:y+uniform.bounds.t*scale,collarTopY:collar,centerX:cx,shoulderSpan:span*scale,...(measuredCollar?{measuredCollar}: {}),...(measuredWholeHead?{measuredWholeHead}: {})};
 
 }
