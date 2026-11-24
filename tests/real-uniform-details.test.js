@@ -1,3 +1,4 @@
+import {retainedGovernmentInsignia} from '../src/government-insignia-retention.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
@@ -35,7 +36,7 @@ test('switching a generated portrait removes only its linked real details; unrel
 test('saved work retains the original reversible image and validates its resource budget',async()=>{
  const {validateSavedProject,assertSavedProjectResources}=await import('../src/saved-project.js');
  const png='data:image/png;base64,'+(await sharp({create:{width:32,height:32,channels:4,background:'#fff'}}).png().toBuffer()).toString('base64');
- const project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{id:'head',kind:'head',name:'หัว · คอ · ผม',source:png,realUniformOriginalSource:png,realUniformDetailsVersion:'real-uniform-details-v1',x:0,y:0,scale:1,rotation:0,opacity:1}]};
+ const project={format:'idprom-studio',version:1,width:900,height:1200,layers:[{id:'head',kind:'head',name:'หัว · คอ · ผม',source:png,realUniformOriginalSource:png,realUniformDetailsVersion:'real-uniform-details-v4-covered-cleanup',x:0,y:0,scale:1,rotation:0,opacity:1}]};
  assert.equal(validateSavedProject(project),project);assertSavedProjectResources(project);
  assert.throws(()=>validateSavedProject({...project,layers:[{...project.layers[0],realUniformOriginalSource:'https://example.invalid/image.png'}]}));
 });
@@ -85,7 +86,7 @@ test('restored male placement preserves native insignia aspect and approved butt
   else assert(Math.abs(p.target.w/p.target.h-p.source.w/p.source.h)<1e-10);
  }
  assert.deepEqual(portrait,before,'Read-only placement geometry never rewrites the native or AI photo');
- assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/female-operational.png'),'real-uniform-details-v1');
+ assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/female-operational.png'),'real-uniform-details-v4-covered-cleanup');
  assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/interior-01.png'),'real-uniform-details-v2-male-reference');
  const measured=matchUniformDetails(reference,portrait);for(const part of measured){const original=part.source.kind==='button'?portrait.buttons[measured.filter(p=>p.source.kind==='button').indexOf(part)]:portrait.boards[part.name.endsWith('ขวา')?1:0];assert.equal(part.target.w,original.w);assert.equal(part.target.h,original.h);assert.equal(part.target.angle,original.angle)}
  const browser=await readFile(new URL('../src/real-uniform-details-browser.js',import.meta.url),'utf8');assert(browser.includes('maleReference:realUniformDetailsVersionFor(templatePath)!==REAL_UNIFORM_DETAILS_VERSION'),'Male native aspect is restored while the female path is unchanged');
@@ -95,4 +96,13 @@ test('detail revision upgrades preserve manual moves and unrelated chest/collar 
  const head={id:'head',x:3,y:4,scale:.95,rotation:2},part={id:'board',realUniformDetail:true,hairHeadId:'head',hairHeadPose:{x:3,y:4,scale:.95,rotation:2},x:3,y:4,scale:.95,rotation:2};
  assert.equal(hasAdjustedRealUniformDetails([part,{kind:'chest',x:90}],head),false);
  for(const patch of [{x:11},{y:8},{scale:1.1},{locked:true},{visible:false},{opacity:.5}])assert.equal(hasAdjustedRealUniformDetails([{...part,...patch}],head),true);
+});
+
+
+test('same government outfit keeps selected native insignia and exact manual edits across a new full portrait',()=>{
+ const head={generatedOutfitTemplate:'/assets/government-uniforms/female-operational.png'};
+ const insignia=[{kind:'collar',id:'c',assetId:'garuda',collarLeftX:12,collarRightY:3,visible:true},{kind:'chest',id:'b',assetId:'pao',x:4,scale:1.12},{kind:'ribbon',id:'r',assetId:'2515',visible:false,locked:true}];
+ assert.deepEqual(retainedGovernmentInsignia([{kind:'uniform-detail'},...insignia],head,{...head,jobId:'new'}),insignia);
+ assert.equal(retainedGovernmentInsignia(insignia,head,head)[0],insignia[0],'Keep original native source and manual controls');
+ for(const [old,next,options] of [[head,head,{englishFlow:true}],[null,head,{}],[head,{generatedOutfitTemplate:'/assets/government-uniforms/female-senior.png'},{}]])assert.deepEqual(retainedGovernmentInsignia(insignia,old,next,options),[]);
 });

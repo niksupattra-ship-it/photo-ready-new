@@ -1,5 +1,5 @@
 // Pure image geometry. Never infer details from face landmarks or fixed output coordinates.
-export const REAL_UNIFORM_DETAILS_VERSION='real-uniform-details-v1';
+export const REAL_UNIFORM_DETAILS_VERSION='real-uniform-details-v4-covered-cleanup';
 export const REAL_UNIFORM_DETAIL_TEMPLATES=new Set(['female-operational','female-academic','female-senior','female-government-employee','male-government-employee','interior-01','interior-02','interior-03'].map(name=>'/assets/government-uniforms/'+name+'.png'));
 export function realUniformDetailsVersionFor(template=''){return /\/(?:male-government-employee|interior-0[123])\.png$/.test(template)?'real-uniform-details-v2-male-reference':REAL_UNIFORM_DETAILS_VERSION}
 const gold=(r,g,b,a)=>a>100&&r>115&&g>75&&r>b+28&&g>b+12&&r>g*.82;
