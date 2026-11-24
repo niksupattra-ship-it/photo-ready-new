@@ -1,4 +1,4 @@
-import {measureHairCrown,fitWholeHeadGuide} from './thai-whole-head-guide.js';
+import {measureHairCrown,fitWholeHeadGuide,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION} from './thai-whole-head-guide.js';
 import {measureGarmentCollarContext} from './thai-collar-context.js';
 import {garmentNeckBalance} from './garment-neck-balance.js';
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
@@ -66,14 +66,16 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // Reduce only the displayed head AFTER the native garment/camera transform
  // and collar anchor are fixed. Never reframe the coat because the head shrank.
  headWidth*=headOnlyScale;headHeight*=headOnlyScale;
- let measuredWholeHead=null;
+ let measuredWholeHead=null,collarHeadHeight=null;
  if(wholeHeadGuide){
   let hair=null;if(rearHairGuide){const raw=await sharp(rearHairGuide.buffer).ensureAlpha().raw().toBuffer();hair=measureHairCrown(raw,rearHairGuide.width,rearHairGuide.height,rearHairGuide)}
-  measuredWholeHead=fitWholeHeadGuide({faceWidth:headWidth,faceHeight:headHeight,shoulderWidth:span,hair});
+  const before={faceWidth:headWidth,faceHeight:headHeight,shoulderWidth:span,hair};
+  collarHeadHeight=fitWholeHeadGuide({...before,version:LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION})?.faceHeight??null;
+  measuredWholeHead=fitWholeHeadGuide({...before,version:wholeHeadGuide.version});
   if(measuredWholeHead){headWidth=measuredWholeHead.faceWidth;headHeight=measuredWholeHead.faceHeight;wholeHeadGuide.onMeasured?.(measuredWholeHead)}
  }
 
- const measuredCollar=collarContext?measureGarmentCollarContext(uniform,headHeight,collarContext.template):null;
+ const measuredCollar=collarContext?measureGarmentCollarContext(uniform,collarHeadHeight??headHeight,collarContext.template):null;
  if(measuredCollar){chinY=measuredCollar.chinY;collarContext.onMeasured?.(measuredCollar)}
  const supportingNeckLength=measuredCollar?.gap??neckLength;
  headTop=chinY-headHeight;
