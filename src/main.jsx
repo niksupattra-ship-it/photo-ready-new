@@ -1,4 +1,4 @@
-import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE} from '../thai-female-head-size.js';
+import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,usesThaiFrontalPose} from '../thai-female-head-size.js';
 import {THAI_BODY_GEOMETRY_VERSION,parseThaiBodyReference} from '../thai-body-geometry-policy.js';
 import {thaiBodyGeometry,checkNewThaiBodyGeometry} from './thai-body-geometry.js';
 import {orderThaiFemaleSuits} from '../thai-female-suit-policy.js';
@@ -556,7 +556,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
   if(headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
    const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
-   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:(headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4')?THAI_FEMALE_HEAD_SCALE:1,fullBodyFrame:headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'});scale=plan.scale;hX=plan.x;hY=plan.y;}
+   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:(headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5')?THAI_FEMALE_HEAD_SCALE:1,fullBodyFrame:headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'});scale=plan.scale;hX=plan.x;hY=plan.y;}
    finally{native.width=native.height=1}
   }
   return {blob:placementOnly?null:headBlob,lock:{W:900,H:1200,hX,hY,scale,headW:w,headH:h,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
@@ -3043,8 +3043,14 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
     const triage=triageThaiFaceShape(original,generated);
     if(cached.value.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
      const eyeLock=compareThaiEyeIdentity(original?.eyeIdentity,generated?.eyeIdentity);
+     const frontalPose=usesThaiFrontalPose({thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiFemaleHeadSizeVersion:cached.value.idpromThaiFemaleHeadSizeVersion,femaleEyeStyle:options.femaleEyeStyle},gender);
+     if(frontalPose){
+      if(eyeLock.action==='reject'||triage.action==='reject'){const error=Error('AI เปลี่ยนโครงหน้าหรือดวงตาจากต้นฉบับ · เก็บรูปเดิมไว้');error.code='face_proportion_changed';throw error;}
+      if(!faceLock.ok)cached.value.idpromQualityReviewNeeded=true;
+     }else{
      if((!faceLock.ok&&faceLock.reason==='face_geometry_changed')||eyeLock.action==='reject'){
       const error=Error('AI เปลี่ยนโครงหน้าหรือดวงตาจากต้นฉบับ · เก็บรูปเดิมไว้');error.code='face_proportion_changed';throw error;
+     }
      }
      if(eyeLock.action==='review')cached.value.idpromQualityReviewNeeded=true;
     }

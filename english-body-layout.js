@@ -26,7 +26,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false}={}){
  if(neckHeadRatio!==null&&(!Number.isFinite(neckHeadRatio)||neckHeadRatio<.10||neckHeadRatio>.25))throw Error('Invalid neck guide gap.');
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
@@ -76,7 +76,7 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  if(iw<1||ih<1)throw Error('Could not prepare the outfit layout reference.');
  const visible=await sharp(garment).extract({left:il,top:it,width:iw,height:ih}).png().toBuffer();
  const overlays=[];
- if(faceAspect){
+ if(faceAspect&&!poseOnlyHead){
   // Fixed Thai envelope: fit the original face crop inside the target head
   // rectangle with one uniform scaling factor. A wide, tall or close selfie
   // NEVER stretches the person's face or changes the outer head envelope.
