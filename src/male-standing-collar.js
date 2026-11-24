@@ -33,12 +33,23 @@ export function measureMaleStandingCollar(image,shoulders){
   }
   return null;
  };
- const leftX=button.x-span*.0575,rightX=button.x+span*.0575;
+ // Locate the vertical collar closure above the first button, independently
+ // of the torso placket. Compare the narrow seam with fabric on both sides.
+ const light=(x,y)=>{x=Math.round(x);y=Math.round(y);if(!fabric(x,y))return null;const i=(y*w+x)*4;return (data[i]+data[i+1]+data[i+2])/3};
+ const d=Math.max(2,Math.round(span*.008)),start=Math.round(button.y-span*.12),end=Math.round(button.y-span*.035);
+ let closure=null;
+ for(let x=Math.round(button.x-span*.065);x<=button.x+span*.065;x++){
+  let score=0,hits=0;
+  for(let y=start;y<=end;y++){const c=light(x,y),l=light(x-d,y),r=light(x+d,y);if(c===null||l===null||r===null)continue;const contrast=(l+r)/2-c;if(contrast>2){score+=Math.min(contrast,20);hits++}}
+  if(hits>=Math.max(4,(end-start)*.35)){const strength=score/(end-start+1);if(!closure||strength>closure.strength)closure={x,strength}}
+ }
+ const collarCenterX=closure?.x??button.x;
+ const leftX=collarCenterX-span*.0575,rightX=collarCenterX+span*.0575;
  const leftTop=topAt(leftX),rightTop=topAt(rightX),bottom=button.y-button.h*.55;
  if(leftTop===null||rightTop===null||Math.abs(leftTop-rightTop)>span*.04)return null;
  if([leftTop,rightTop].some(top=>bottom-top<span*.035||bottom-top>span*.22))return null;
  const leftY=leftTop+(bottom-leftTop)*.45,rightY=rightTop+(bottom-rightTop)*.45;
- const standing={left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:Math.max(leftTop,rightTop)+(bottom-Math.max(leftTop,rightTop))*.48,button,bottom,top:{left:leftTop,right:rightTop},confidence:'standing-collar-fabric-button'};
+ const standing={left:{x:leftX,y:leftY},right:{x:rightX,y:rightY},y:Math.max(leftTop,rightTop)+(bottom-Math.max(leftTop,rightTop))*.48,button,bottom,top:{left:leftTop,right:rightTop},collarCenterX,confidence:closure?'standing-collar-closure':'standing-collar-fabric-button'};
  const seams=measureStandingCollarSeams(image,standing,g);
  if(seams){
   for(const side of ['left','right'])standing[side].y=(seams[side].top+seams[side].bottom)/2;
