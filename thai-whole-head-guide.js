@@ -2,12 +2,14 @@ import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 export const LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v1';
 export const PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v2-female105';
 export const CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v3-crop-independent';
-export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v4-female102-lower005';
-export const usesCropIndependentWholeHead=version=>[CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
-export const usesThaiWholeHeadGuide=fields=>isThaiOutfitAi(fields)&&fields?.portraitMode==='female'&&fields?.portraitComposition==='en-outfit-body-v1'&&[LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION,PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION,CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(fields?.thaiWholeHeadGuideVersion);
-export const THAI_WHOLE_HEAD_LIMITS=Object.freeze({width:.43,height:.58});
+export const LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v4-female102-lower005';
+export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v5-female105';
+export const usesLoweredWholeHead=version=>[LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
+export const usesCropIndependentWholeHead=version=>[CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
+export const usesThaiWholeHeadGuide=fields=>isThaiOutfitAi(fields)&&fields?.portraitMode==='female'&&fields?.portraitComposition==='en-outfit-body-v1'&&[LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION,PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION,CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(fields?.thaiWholeHeadGuideVersion);
+export const THAI_WHOLE_HEAD_LIMITS=Object.freeze({width:.43*1.05,height:.58*1.05});
 const legacyLimits=Object.freeze({width:.40,height:.54});
-export const wholeHeadGuideLimits=version=>version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?legacyLimits:version===THAI_WHOLE_HEAD_GUIDE_VERSION?THAI_WHOLE_HEAD_LIMITS:{width:.42,height:.567};
+export const wholeHeadGuideLimits=version=>version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?legacyLimits:version===THAI_WHOLE_HEAD_GUIDE_VERSION?THAI_WHOLE_HEAD_LIMITS:version===LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION?{width:.43,height:.58}:{width:.42,height:.567};
 // Scan the selected transparent hair reference ABOVE the chin only. Long
 // lengths below the chin describe hairstyle length, not skull/crown height.
 export function measureHairCrown(pixels,width,height,hair){
@@ -30,12 +32,12 @@ export function fitWholeHeadGuide({faceWidth,faceHeight,shoulderWidth,hair=null,
   const q=Math.min(faceWidth/hair.faceWidth,faceHeight/hair.faceHeight);
   width=Math.max(width,hair.width*q);height=Math.max(height,hair.height*q);
  }
- const limits=wholeHeadGuideLimits(version),maximumScale=version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?1:version===THAI_WHOLE_HEAD_GUIDE_VERSION?1.075:1.05,scale=Math.min(maximumScale,shoulderWidth*limits.width/width,shoulderWidth*limits.height/height);
+ const limits=wholeHeadGuideLimits(version),maximumScale=version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?1:version===THAI_WHOLE_HEAD_GUIDE_VERSION?1.075*1.05:version===LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION?1.075:1.05,scale=Math.min(maximumScale,shoulderWidth*limits.width/width,shoulderWidth*limits.height/height);
  return {scale,faceWidth:faceWidth*scale,faceHeight:faceHeight*scale,width:width*scale,height:height*scale,widthToShoulder:width*scale/shoulderWidth,heightToShoulder:height*scale/shoulderWidth,version};
 }
 export function thaiWholeHeadInstruction(fields){
  if(!usesThaiWholeHeadGuide(fields))return '';
- const limits=wholeHeadGuideLimits(fields.thaiWholeHeadGuideVersion),width=Number((limits.width*100).toFixed(1)),height=Number((limits.height*100).toFixed(1));
+ const limits=wholeHeadGuideLimits(fields.thaiWholeHeadGuideVersion),width=Number((limits.width*100).toFixed(2)),height=Number((limits.height*100).toFixed(2));
  return `\nWHOLE HEAD INCLUDING HAIR — FINAL COMPOSITION AUTHORITY:
 Generate the COMPLETE head, neck, shoulders and outfit together in this SAME ONE image generation. Image 1 is a neutral composition board, never a donor identity; the separate original-person image supplies every authentic facial feature. The composition board has already fitted the entire crown-to-chin silhouette INCLUDING scalp, ears and selected upper hair volume against this selected garment's measured shoulder span. Match this bounded whole-head silhouette, not merely the face oval. Its whole-head width is at most ${width}% and crown-to-chin height at most ${height}% of the fixed clothed shoulder span; narrower/taller individual faces keep their own aspect and may occupy less of either limit. These are OUTER HEAD limits, never target face-width percentages. Long hair below the chin is hairstyle length, not extra skull height.
 Keep the selected garment at its exact board size and position: shoulder endpoints, collar, torso, sleeves and lower cloth never shrink or narrow to compensate for the head. Face close-ups and uploaded selfie framing establish identity/detail ONLY, never camera zoom or head/body scale.${usesCropIndependentWholeHead(fields.thaiWholeHeadGuideVersion)?" The identity crop rectangle is NOT a skull measurement: ignore its padding, hair length, visible neck and original collar when deciding anatomy or scale. Match the board's shoulder endpoints and jaw-to-collar contact together; never raise the jaw or narrow the shoulders to accommodate the identity photo.":''} Do not restore an older larger female head envelope or apply another percentage shrink after matching this board. Fit hairstyle volume inside the crown envelope without narrowing, lengthening, widening or otherwise reshaping the person's facial anatomy, eyes, gaze, expression or authentic jaw. Follow the garment-specific short chin-to-upper-collar anchor already shown; do not lengthen the neck when the head gets smaller. Preserve the selected hairstyle and its actual lengths behind the shoulders.
