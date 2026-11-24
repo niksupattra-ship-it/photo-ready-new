@@ -1533,7 +1533,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    return true;
   };
   setAssetBusy(true);let url;
-  try{file=await preparePhotoInput(file);if(!englishFlow&&!await scanNewPortrait(file))return;if(!canCommitReplacement())return;url=URL.createObjectURL(file);const im=await image(url),ratio=Math.min(W/im.width,H/im.height),w=im.width*ratio,h=im.height*ratio,source=nativeSource(im);
+  try{file=await preparePhotoInput(file);if(!englishFlow&&!await scanNewPortrait(file,{onChangePhoto:()=>photoInputRef.current?.click()}))return;if(!canCommitReplacement())return;url=URL.createObjectURL(file);const im=await image(url),ratio=Math.min(W/im.width,H/im.height),w=im.width*ratio,h=im.height*ratio,source=nativeSource(im);
    const previous=historySnapshot(),photo=fresh({name:'รูปที่เพิ่ม',kind:'source-photo',source,sourceFrame:{x:(W-w)/2,y:(H-h)/2,w,h}});
    const next=replaceStudioSourceLayers(previous,photo);
    if(!canCommitReplacement())return;
