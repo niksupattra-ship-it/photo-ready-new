@@ -2980,7 +2980,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const template=options.templatePath||options.jobContext?.uniformTemplate||'';
  const gender=PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||options.portraitMode||originalFile.idpromPortraitMode||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
  const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(template)&&!options.manualOutfitFallback;
- options={...options,portraitMode:gender,requiresSegmentation:!(englishPreviewEnabled()||thaiWholeOutfit),femaleEyeStyle:gender==='female'?portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle):'natural'};
+ options={...options,portraitMode:gender,requiresSegmentation:!(englishPreviewEnabled()||thaiWholeOutfit),femaleEyeStyle:gender==='female'?(thaiWholeOutfit?'makeup':portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle)):'natural'};
  const requestedFinish=options.femaleEyeStyle;
  // New jobs produce the selected finish, not an automatic Natural+Makeup pair.
  // Every new generation starts from the upload; never inherit a generated finish.
