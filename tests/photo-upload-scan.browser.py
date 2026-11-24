@@ -14,11 +14,19 @@ with sync_playwright() as pw:
  const {inspectUploadPortrait}=await import('/src/photo-upload-scan.js');const results=[];
  for(const path of ['/assets/home-previews/easy-original-v20261031.webp','/assets/home-previews/government-uniforms--female-operational-example.webp','/assets/home-previews/government-uniforms--male-academic-example.webp']){const blob=await(await fetch(path)).blob();results.push(await inspectUploadPortrait(blob))}
  const im=new Image();im.src='/assets/home-previews/government-uniforms--female-operational-example.webp';await im.decode();
- for(const crop of ['head','chest']){const c=document.createElement('canvas');const y=crop==='head'?im.height*.14:0;const h=crop==='head'?im.height-y:im.height*.52;c.width=im.width;c.height=h;c.getContext('2d').drawImage(im,0,y,im.width,h,0,0,c.width,c.height);const b=await new Promise(r=>c.toBlob(r));results.push(await inspectUploadPortrait(b))}
+ for(const crop of ['head','chest']){const c=document.createElement('canvas');const y=crop==='head'?im.height*.27:0;const h=crop==='head'?im.height-y:im.height*.52;c.width=im.width;c.height=h;c.getContext('2d').drawImage(im,0,y,im.width,h,0,0,c.width,c.height);const b=await new Promise(r=>c.toBlob(r));results.push(await inspectUploadPortrait(b))}
+ const {runPhotoScanWorker}=await import('/src/photo-scan-worker-client.js');
+ const shirt=new Image();shirt.src='/assets/home-previews/easy-original-v20261031.webp';await shirt.decode();
+ const evidence=await runPhotoScanWorker(await createImageBitmap(shirt)),a=evidence.pose[11],b=evidence.pose[12],fh=Math.max(...evidence.faces[0].map(p=>p.y))-Math.min(...evidence.faces[0].map(p=>p.y));
+ const lo=Math.max(0,Math.min(a.x,b.x)-.008),hi=Math.min(1,Math.max(a.x,b.x)+.008),end=Math.min(1,Math.max(a.y,b.y)+fh*.35);
+ const tight=document.createElement('canvas');tight.width=Math.round((hi-lo)*shirt.width);tight.height=Math.round(end*shirt.height);tight.getContext('2d').drawImage(shirt,lo*shirt.width,0,(hi-lo)*shirt.width,end*shirt.height,0,0,tight.width,tight.height);
+ results.push(await inspectUploadPortrait(await new Promise(r=>tight.toBlob(r))));
+ const small=document.createElement('canvas');small.width=174;small.height=242;small.getContext('2d').drawImage(im,0,0,174,242);results.push(await inspectUploadPortrait(await new Promise(r=>small.toBlob(r))));
  return results;
  }''')
  assert all(x['status']=='pass' for x in actual[:3]),actual
  assert actual[3]['status']=='reject' and actual[4]['status']!='pass',actual
+ assert actual[5]['status']=='pass' and actual[6]['status']=='pass',actual
  print(json.dumps(actual,ensure_ascii=False))
  for width in [1280,390]:
   page.set_viewport_size({'width':width,'height':900 if width>600 else 844})

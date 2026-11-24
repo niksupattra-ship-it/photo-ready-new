@@ -14,4 +14,6 @@ The browser loads every vision resource from this versioned, same-origin
 directory. No CDN or Google Storage request is needed while processing photos.
 
 The lite pose landmarker is used only when checking a newly selected Thai portrait.
-Its optional body mask helps detect a cropped crown; hands and full arms are not required.
+It checks the face, neck connection, shoulders and upper chest. Hair above the
+face, margins outside the shoulders, hands and full arms are not requirements.
+Pose segmentation masks are disabled; only landmark evidence is needed.
