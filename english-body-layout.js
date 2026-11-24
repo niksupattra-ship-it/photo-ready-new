@@ -26,7 +26,8 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null,headOnlyScale=1}={}){
+ if(!Number.isFinite(headOnlyScale)||headOnlyScale<.75||headOnlyScale>1)throw Error('Invalid whole-head-only scale.');
  if(neckHeadRatio!==null&&(!Number.isFinite(neckHeadRatio)||neckHeadRatio<.10||neckHeadRatio>.25))throw Error('Invalid neck guide gap.');
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
@@ -38,13 +39,13 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // The previous min(..., referenceHeadHeight/faceAspect) silently capped the
  // English face width, so raising headScale alone did not visibly enlarge it.
  // v9 keeps the original crop aspect ratio and sizes the face by shoulder span.
- const headWidth=profile?.headWidthToShoulder?referenceHeadWidth*headScale:Math.min(referenceHeadWidth*headScale,faceAspect?referenceHeadHeight/(faceAspect+.12):Infinity);
+ let headWidth=profile?.headWidthToShoulder?referenceHeadWidth*headScale:Math.min(referenceHeadWidth*headScale,faceAspect?referenceHeadHeight/(faceAspect+.12):Infinity);
  // Thai v9 only: source crop aspect must not change the guide's physical
  // skull height or alter camera framing. Older English/Thai compositions
  // retain their exact original geometry.
- const headHeight=fixedIdentityEnvelope?referenceHeadHeight*headScale:faceAspect?headWidth*(faceAspect+.12):referenceHeadHeight*headScale;
+ let headHeight=fixedIdentityEnvelope?referenceHeadHeight*headScale:faceAspect?headWidth*(faceAspect+.12):referenceHeadHeight*headScale;
  const frameNeckLength=span*(profile?.chinToCollar??.045),neckLength=garmentBalancedNeck?garmentNeckBalance(data,info.width,info.height,uniform,headHeight).gap:neckHeadRatio===null?frameNeckLength:Math.max(span*.06,Math.min(span*.09,headHeight*neckHeadRatio)),neckWidth=span*(profile?.neckToShoulder??.22);
- const chinY=uniform.collarTopY-neckLength,headTop=chinY-headHeight;
+ const chinY=uniform.collarTopY-neckLength;let headTop=chinY-headHeight;
  // Keep the original body/canvas transform; change only the head anchor and neck.
  const frameChinY=uniform.collarTopY-frameNeckLength;
  const left=Math.min(uniform.bounds.l,uniform.centerX-referenceHeadWidth/2),right=Math.max(uniform.bounds.r+1,uniform.centerX+referenceHeadWidth/2);
@@ -60,6 +61,9 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  const bottom=uniform.bounds.b+1;
  const W=canvasWidth,H=canvasWidth*4/3,pad=canvasWidth/32,scale=Math.min((W-2*pad)/(right-left),(H-2*pad)/(bottom-top));
  const x=(W-(right-left)*scale)/2-left*scale,y=H-pad-bottom*scale;
+ // Reduce only the displayed head AFTER the native garment/camera transform
+ // and collar anchor are fixed. Never reframe the coat because the head shrank.
+ headWidth*=headOnlyScale;headHeight*=headOnlyScale;headTop=chinY-headHeight;
  const cx=x+uniform.centerX*scale,headY=y+headTop*scale,chin=y+chinY*scale,collar=y+uniform.collarTopY*scale;
  // The cervical reference ends at the collar/shoulder junction. A deep V
  // exposes chest below it and must not become a longer reference neck.
