@@ -75,7 +75,7 @@ test('native detail auto-placement follows cached hairstyle changes even when th
  env.governmentImageHead={jobId:'cached-job',hairId:'thai-male-auto',realUniformDetailsVersion:realUniformDetailsVersionFor(env.governmentTemplate)};effect(env);assert.equal(calls,2,'Restored native layers are not pasted twice');
 });
 
-test('legacy v2 male sizing remains explicit while new male placement uses the same measured geometry as female',async()=>{
+test('restored male placement preserves native insignia aspect and approved button size',async()=>{
  const reference=detectUniformDetails(await pixels('male-government-employee.png')),portrait=detectUniformDetails(await pixels('male-operational-example.png'));
  const before=structuredClone(portrait),parts=matchUniformDetails(reference,portrait,{maleReference:true});
  const xs=portrait.boards.flatMap(b=>b.hull.map(p=>p.x)),span=Math.max(...xs)-Math.min(...xs);
@@ -86,9 +86,9 @@ test('legacy v2 male sizing remains explicit while new male placement uses the s
  }
  assert.deepEqual(portrait,before,'Read-only placement geometry never rewrites the native or AI photo');
  assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/female-operational.png'),'real-uniform-details-v1');
- assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/interior-01.png'),'real-uniform-details-v3-male-measured');
+ assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/interior-01.png'),'real-uniform-details-v2-male-reference');
  const measured=matchUniformDetails(reference,portrait);for(const part of measured){const original=part.source.kind==='button'?portrait.buttons[measured.filter(p=>p.source.kind==='button').indexOf(part)]:portrait.boards[part.name.endsWith('ขวา')?1:0];assert.equal(part.target.w,original.w);assert.equal(part.target.h,original.h);assert.equal(part.target.angle,original.angle)}
- const browser=await readFile(new URL('../src/real-uniform-details-browser.js',import.meta.url),'utf8');assert(!browser.includes('maleReference:'),'Male and female use the same measured placement path');
+ const browser=await readFile(new URL('../src/real-uniform-details-browser.js',import.meta.url),'utf8');assert(browser.includes('maleReference:realUniformDetailsVersionFor(templatePath)!==REAL_UNIFORM_DETAILS_VERSION'),'Male native aspect is restored while the female path is unchanged');
 });
 
 test('detail revision upgrades preserve manual moves and unrelated chest/collar accessories',()=>{

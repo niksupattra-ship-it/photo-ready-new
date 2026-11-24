@@ -1,4 +1,4 @@
-import {detectUniformDetails,matchUniformDetails,insideDetail,REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
+import {detectUniformDetails,matchUniformDetails,insideDetail,REAL_UNIFORM_DETAILS_VERSION,REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
 const make=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height:h});
 const load=source=>source instanceof HTMLCanvasElement?Promise.resolve(source):new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('โหลดภาพชุดจริงไม่สำเร็จ'));im.src=source});
 function analyze(im){const scale=640/im.width,c=make(640,Math.round(im.height*scale));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return {pixels:c.getContext('2d').getImageData(0,0,c.width,c.height),geometry:detectUniformDetails(c.getContext('2d').getImageData(0,0,c.width,c.height)),scale:im.width/640}}
@@ -35,7 +35,7 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
  if(!REAL_UNIFORM_DETAIL_TEMPLATES.has(templatePath))return null;
  const [portrait,reference]=await Promise.all([load(originalSource),load(templatePath)]);
  if(portrait.width*portrait.height>33554432)throw Error('ภาพใหญ่เกินสำหรับวางรายละเอียดชุด');
- const [a,b]=[analyze(reference),analyze(portrait)],pairs=matchUniformDetails(a.geometry,b.geometry);
+ const [a,b]=[analyze(reference),analyze(portrait)],pairs=matchUniformDetails(a.geometry,b.geometry,{maleReference:realUniformDetailsVersionFor(templatePath)!==REAL_UNIFORM_DETAILS_VERSION});
  if(!pairs.length)return null;
  const cleaned=cleanOldDetails(portrait,b,pairs),parts=[];
  for(const {source,target,name}of pairs){

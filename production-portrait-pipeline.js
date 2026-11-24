@@ -529,7 +529,7 @@ export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,sh
 }
 
 async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
- const wholeHeadGuide=usesThaiWholeHeadGuide(fields)?{}:null;
+ const wholeHeadGuide=usesThaiWholeHeadGuide(fields)?{version:fields.thaiWholeHeadGuideVersion}:null;
  const thaiEnglishMakeupHead=usesThaiEnglishMakeupHead(fields,selected.gender);
  const newThaiNeck=usesThaiNewNeck(fields,selected.gender);
  const garmentNeck=usesThaiGarmentNeck(fields,selected.gender);
