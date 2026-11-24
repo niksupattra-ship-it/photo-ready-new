@@ -13,6 +13,7 @@ for(const [name,model] of Object.entries(manifest.models)){
  const bytes=await readFile(path.join(assets,name));
  if(bytes.length!==model.bytes||createHash('sha256').update(bytes).digest('hex')!==model.sha256)throw Error('Bundled vision model checksum mismatch: '+name);
 }
+await copyFile(path.join(runtime,'vision_bundle.mjs'),path.join(assets,'vision_bundle.mjs'));
 const wasm=path.join(assets,'wasm');await mkdir(wasm,{recursive:true});
 for(const variant of ['vision_wasm_internal','vision_wasm_module_internal','vision_wasm_nosimd_internal'])for(const extension of ['js','wasm']){
  const name=variant+'.'+extension;await copyFile(path.join(runtime,'wasm',name),path.join(wasm,name));
