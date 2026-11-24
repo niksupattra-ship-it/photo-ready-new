@@ -1,3 +1,4 @@
+import {FEMALE_EXACT_PROMPT_VERSION} from './female-exact-prompt-policy.js';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 export const LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v1';
 export const PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v2-female105';
@@ -10,7 +11,7 @@ export const UNIFIED_POSE_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulde
 export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v9-camera-detail';
 export const usesUnifiedFemalePoseVersion=version=>[UNIFIED_POSE_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
 // Version new render caches only; accepted hairstyle results and in-flight recovery stay intact.
-export const thaiFemaleGuideCacheRevision=(thaiWholeOutfit,gender,version=THAI_WHOLE_HEAD_GUIDE_VERSION)=>thaiWholeOutfit&&gender==='female'?[version]:[];
+export const thaiFemaleGuideCacheRevision=(thaiWholeOutfit,gender,version=FEMALE_EXACT_PROMPT_VERSION)=>thaiWholeOutfit&&gender==='female'?[version]:[];
 export const usesNestedWholeHead=version=>[NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION,UNIFIED_POSE_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
 export const usesLoweredWholeHead=version=>[LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION,UNIFIED_POSE_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
 export const usesCropIndependentWholeHead=version=>[CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION,UNIFIED_POSE_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);

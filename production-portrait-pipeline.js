@@ -1,3 +1,5 @@
+import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
+import {generateExactFemalePortrait} from './female-exact-reference-request.js';
 import {usesThaiCameraPhotography,applyThaiCameraPhotography} from './thai-camera-photography.js';
 import {usesFemaleFrontalContract,applyFemaleFrontalContract} from './thai-female-frontal-contract.js';
 import {usesNestedWholeHead,usesCropIndependentWholeHead,usesThaiWholeHeadGuide,thaiWholeHeadInstruction} from './thai-whole-head-guide.js';
@@ -229,8 +231,18 @@ function onePassMakeupPriority(english=false){
 }
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  fields=thaiOutfitGenerationFields(fields);
+ if(hasFemaleExactPromptMarker(fields)){if(!usesFemaleExactPrompt(fields))throw Error('คำสั่งผู้หญิงไม่ตรงรุ่น กรุณารีเฟรชหน้าเว็บ');fields={...fields,femaleEyeStyle:'makeup'};}
  if(usesThaiWholeHeadGuide(fields)&&usesNestedWholeHead(fields.thaiWholeHeadGuideVersion))fields={...fields,femaleEyeStyle:'makeup'};
  const requestedHair=validateProductionPortrait(input,fields);
+ // Exclusive early return: a failure here never invokes the legacy builders,
+ // paired Makeup, reference boards or another generation.
+ if(usesFemaleExactPrompt(fields)){
+  const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
+  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
+  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
+  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
+  return transparent;
+ }
  const requestedMaleAuto=requestedHair?.autoHair==='english-male';
  const chosen=requestedMaleAuto?null:requestedHair;
  // Preserve old paired Makeup quality: first build the same Natural base
