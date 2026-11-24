@@ -3,13 +3,14 @@ export const LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guid
 export const PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v2-female105';
 export const CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v3-crop-independent';
 export const LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v4-female102-lower005';
-export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v5-female105';
-export const usesLoweredWholeHead=version=>[LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
-export const usesCropIndependentWholeHead=version=>[CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
-export const usesThaiWholeHeadGuide=fields=>isThaiOutfitAi(fields)&&fields?.portraitMode==='female'&&fields?.portraitComposition==='en-outfit-body-v1'&&[LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION,PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION,CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(fields?.thaiWholeHeadGuideVersion);
-export const THAI_WHOLE_HEAD_LIMITS=Object.freeze({width:.43*1.05,height:.58*1.05});
+export const ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v5-female105';
+export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v6-face-range-makeup';
+export const usesLoweredWholeHead=version=>[LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
+export const usesCropIndependentWholeHead=version=>[CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
+export const usesThaiWholeHeadGuide=fields=>isThaiOutfitAi(fields)&&fields?.portraitMode==='female'&&fields?.portraitComposition==='en-outfit-body-v1'&&[LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION,PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION,CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(fields?.thaiWholeHeadGuideVersion);
+export const THAI_WHOLE_HEAD_LIMITS=Object.freeze({width:.48,height:.62});
 const legacyLimits=Object.freeze({width:.40,height:.54});
-export const wholeHeadGuideLimits=version=>version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?legacyLimits:version===THAI_WHOLE_HEAD_GUIDE_VERSION?THAI_WHOLE_HEAD_LIMITS:version===LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION?{width:.43,height:.58}:{width:.42,height:.567};
+export const wholeHeadGuideLimits=version=>version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?legacyLimits:version===THAI_WHOLE_HEAD_GUIDE_VERSION?THAI_WHOLE_HEAD_LIMITS:version===ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION?{width:.43*1.05,height:.58*1.05}:version===LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION?{width:.43,height:.58}:{width:.42,height:.567};
 // Scan the selected transparent hair reference ABOVE the chin only. Long
 // lengths below the chin describe hairstyle length, not skull/crown height.
 export function measureHairCrown(pixels,width,height,hair){
@@ -25,6 +26,14 @@ export function measureHairCrown(pixels,width,height,hair){
 }
 export function fitWholeHeadGuide({faceWidth,faceHeight,shoulderWidth,hair=null,version=THAI_WHOLE_HEAD_GUIDE_VERSION}){
  if(![faceWidth,faceHeight,shoulderWidth].every(n=>Number.isFinite(n)&&n>0))return null;
+ if(version===THAI_WHOLE_HEAD_GUIDE_VERSION){
+  // Two nested guide envelopes: face size cannot be reduced by a voluminous
+  // hairstyle. Keep facial aspect; selected hair is bounded separately.
+  const scale=Math.min(shoulderWidth*.40/faceWidth,shoulderWidth*.62/(faceHeight*1.16));
+  const fw=faceWidth*scale,fh=faceHeight*scale;
+  const width=Math.max(fw*1.16,shoulderWidth*.47),height=Math.max(fh*1.16,shoulderWidth*.61);
+  return {scale,faceWidth:fw,faceHeight:fh,width,height,widthToShoulder:width/shoulderWidth,heightToShoulder:height/shoulderWidth,faceWidthToShoulder:fw/shoulderWidth,rangeSatisfied:fw>=shoulderWidth*.39&&fw<=shoulderWidth*.41,widthRange:[.46,.48],heightRange:[.60,.62],faceWidthRange:[.39,.41],version};
+ }
  // A neutral pose board still needs room for ears and the scalp ABOVE the
  // facial oval. Otherwise "head height" is merely forehead-to-chin again.
  let width=faceWidth*1.16,height=faceHeight*1.16;
@@ -32,11 +41,18 @@ export function fitWholeHeadGuide({faceWidth,faceHeight,shoulderWidth,hair=null,
   const q=Math.min(faceWidth/hair.faceWidth,faceHeight/hair.faceHeight);
   width=Math.max(width,hair.width*q);height=Math.max(height,hair.height*q);
  }
- const limits=wholeHeadGuideLimits(version),maximumScale=version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?1:version===THAI_WHOLE_HEAD_GUIDE_VERSION?1.075*1.05:version===LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION?1.075:1.05,scale=Math.min(maximumScale,shoulderWidth*limits.width/width,shoulderWidth*limits.height/height);
+ const limits=wholeHeadGuideLimits(version),maximumScale=version===LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION?1:version===ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION?1.075*1.05:version===LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION?1.075:1.05,scale=Math.min(maximumScale,shoulderWidth*limits.width/width,shoulderWidth*limits.height/height);
  return {scale,faceWidth:faceWidth*scale,faceHeight:faceHeight*scale,width:width*scale,height:height*scale,widthToShoulder:width*scale/shoulderWidth,heightToShoulder:height*scale/shoulderWidth,version};
 }
 export function thaiWholeHeadInstruction(fields){
  if(!usesThaiWholeHeadGuide(fields))return '';
+ if(fields.thaiWholeHeadGuideVersion===THAI_WHOLE_HEAD_GUIDE_VERSION)return `
+WHOLE HEAD INCLUDING HAIR — NESTED FACE AND CROWN ENVELOPES:
+Generate the complete head, hair, neck and selected outfit in this SAME ONE image generation. Image 1 is a neutral geometry board; the separate original-person image alone supplies identity, authentic facial anatomy, eyes, gaze and expression.
+Use the fixed garment shoulder span as 100%. Place the visible facial oval between 39% and 41% of that span in width, targeting 40%. Fit the upper head INCLUDING scalp, ears and hair between 46% and 48% in width and between 60% and 62% in crown-to-chin height. These OUTER HEAD limits exclude long hair ends below the chin. The inner facial oval must not become tiny merely because hair fills the outer envelope. Keep the natural intrinsic facial aspect, never stretch or flatten a face to fill a box; unusual anatomy uses the nearest coherent fit without changing identity.
+Match the board's centerline, eye line and chin anchor together. Keep the current short jaw-to-upper-shirt-collar contact. The lower tie knot and jacket V are upper chest, never extra neck. The uploaded identity crop's padding, original clothing, visible neck and selfie zoom must not change these positions.
+Keep all selected garment shoulder endpoints, collar, chest, sleeves and lower cloth at their exact board size and camera placement. Keep selected hair design and length, fitting upper hair volume to the outer scalp envelope. Never shrink the garment or lengthen the neck to compensate. The face envelope sets a minimum and maximum; do not add another percentage shrink after matching it.
+Use only the selected light natural Makeup appearance, retaining authentic facial geometry. Produce ONE coherent photorealistic full portrait without visible guide lines, donor identity, pasted head, local face warp, corrective pass or additional AI request.`;
  const limits=wholeHeadGuideLimits(fields.thaiWholeHeadGuideVersion),width=Number((limits.width*100).toFixed(2)),height=Number((limits.height*100).toFixed(2));
  return `\nWHOLE HEAD INCLUDING HAIR — FINAL COMPOSITION AUTHORITY:
 Generate the COMPLETE head, neck, shoulders and outfit together in this SAME ONE image generation. Image 1 is a neutral composition board, never a donor identity; the separate original-person image supplies every authentic facial feature. The composition board has already fitted the entire crown-to-chin silhouette INCLUDING scalp, ears and selected upper hair volume against this selected garment's measured shoulder span. Match this bounded whole-head silhouette, not merely the face oval. Its whole-head width is at most ${width}% and crown-to-chin height at most ${height}% of the fixed clothed shoulder span; narrower/taller individual faces keep their own aspect and may occupy less of either limit. These are OUTER HEAD limits, never target face-width percentages. Long hair below the chin is hairstyle length, not extra skull height.
