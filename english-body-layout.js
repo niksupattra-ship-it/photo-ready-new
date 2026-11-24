@@ -35,6 +35,7 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
  const {data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  const uniform=measureUniformAnchors(data,info.width,info.height),span=uniform.shoulderWidth;
+ wholeHeadGuide?.onGarmentMeasured?.({collarToHem:uniform.bounds.b+1-uniform.collarTopY,shoulderWidth:span});
  const referenceHeadWidth=span*(profile?.headWidthToShoulder??.40);
  const referenceHeadHeight=span*(profile?.headHeightToShoulder??.54);
  const face=identity?await sharp(identity).metadata():null,faceAspect=face?.width&&face?.height?face.height/face.width:null;
