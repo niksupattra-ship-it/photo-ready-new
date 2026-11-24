@@ -1,7 +1,7 @@
 // Pure image geometry. Never infer details from face landmarks or fixed output coordinates.
 export const REAL_UNIFORM_DETAILS_VERSION='real-uniform-details-v1';
 export const REAL_UNIFORM_DETAIL_TEMPLATES=new Set(['female-operational','female-academic','female-senior','female-government-employee','male-government-employee','interior-01','interior-02','interior-03'].map(name=>'/assets/government-uniforms/'+name+'.png'));
-export function realUniformDetailsVersionFor(template=''){return /\/(?:male-government-employee|interior-0[123])\.png$/.test(template)?'real-uniform-details-v2-male-reference':REAL_UNIFORM_DETAILS_VERSION}
+export function realUniformDetailsVersionFor(template=''){return /\/(?:male-government-employee|interior-0[123])\.png$/.test(template)?'real-uniform-details-v3-male-measured':REAL_UNIFORM_DETAILS_VERSION}
 const gold=(r,g,b,a)=>a>100&&r>115&&g>75&&r>b+28&&g>b+12&&r>g*.82;
 const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
 export function detailHull(points){
@@ -62,6 +62,8 @@ export function detectUniformDetails({data,width:w,height:h}={}){
  return {boards,buttons,width:w,height:h};
 }
 // Match only actual detected buttons. Never invent a row from a fixed template.
+// maleReference is the archived v2 override; current placement uses the same
+// measured target geometry for both genders.
 export function matchUniformDetails(reference,portrait,{maleReference=false}={}){
  if(!reference||!portrait)return [];
  if(reference.boards.some((g,i)=>{const target=portrait.boards[i];if(!target)return true;const ratio=(target.w/target.h)/(g.w/g.h);return ratio<.6||ratio>1.65}))return [];
@@ -75,4 +77,15 @@ export function matchUniformDetails(reference,portrait,{maleReference=false}={})
   return parts.map(p=>({...p,target:{...p.target,...(p.source.kind==='button'?{w:span*.053,h:span*.053}:{h:p.target.w*p.source.h/p.source.w})}}));
  }
  return parts;
+}
+
+// A revision upgrade must not reset a user's individually moved/hidden detail.
+export function hasAdjustedRealUniformDetails(layers,head){
+ const defaults={x:0,y:0,scale:1,rotation:0,squeezeX:1,squeezeY:1};
+ return layers.some(part=>{
+  if(!part.realUniformDetail||part.hairHeadId!==head.id)return false;
+  if(part.locked||part.visible===false||part.warpSource||part.eraseRestoreSource||part.mask||(part.opacity??1)!==1)return true;
+  const original=part.hairHeadPose||head;
+  return Object.entries(defaults).some(([key,value])=>Math.abs((part[key]??value)-(original[key]??value))>.000001);
+ });
 }
