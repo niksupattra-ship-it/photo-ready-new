@@ -22,8 +22,8 @@ with sync_playwright() as pw:
  print(json.dumps(actual,ensure_ascii=False))
  for width in [1280,390]:
   page.set_viewport_size({'width':width,'height':900 if width>600 else 844})
-  page.evaluate('''async()=>{const {scanNewPortrait}=await import('/src/photo-upload-scan.js');window.scanFinish=null;window.scanResult=null;const blob=await(await fetch('/assets/home-previews/easy-original-v20261031.webp')).blob();window.scanNewPortrait=scanNewPortrait;window.scanBlob=blob;scanNewPortrait(blob,{inspect:()=>new Promise(r=>window.scanFinish=r)}).then(v=>window.scanResult=v)}''')
-  dialog=page.get_by_role('dialog');dialog.wait_for();assert page.locator('.photo-upload-scan-beam').is_visible()
+  page.evaluate('''async()=>{const {scanNewPortrait}=await import('/src/photo-upload-scan.js');window.scanFinish=null;window.scanResult=null;const blob=await(await fetch('/assets/home-previews/easy-original-v20261031.webp')).blob();window.scanNewPortrait=scanNewPortrait;window.scanBlob=blob;scanNewPortrait(blob,{inspect:(file,options)=>{window.scanProgress=options.onProgress;return new Promise(r=>window.scanFinish=r)}}).then(v=>window.scanResult=v)}''')
+  dialog=page.get_by_role('dialog');dialog.wait_for();page.evaluate("scanProgress(45,'กำลังตรวจใบหน้า')");assert page.get_by_role('progressbar').get_attribute('aria-valuenow')=='45';assert page.locator('.photo-upload-scan-beam').is_visible()
   assert dialog.bounding_box()['width']<=width
   page.screenshot(path=str(OUT/f'scanning-{width}.png'))
   page.evaluate("scanFinish({status:'reject',issues:['ภาพตัดสูงเกินไป กรุณาให้เห็นช่วงอก'],uncertain:[]})")
