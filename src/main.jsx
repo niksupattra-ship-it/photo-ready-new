@@ -1,4 +1,4 @@
-import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,usesThaiFrontalPose} from '../thai-female-head-size.js';
+import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,usesThaiFrontalPose,isKnownThaiHeadVersion} from '../thai-female-head-size.js';
 import {THAI_BODY_GEOMETRY_VERSION,parseThaiBodyReference} from '../thai-body-geometry-policy.js';
 import {thaiBodyGeometry,checkNewThaiBodyGeometry} from './thai-body-geometry.js';
 import {orderThaiFemaleSuits} from '../thai-female-suit-policy.js';
@@ -272,7 +272,7 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
    if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female')blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
    blob.idpromTrial=original.trial;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;
    if(j.thaiRealFaceVersion)blob.idpromThaiRealFaceVersion=j.thaiRealFaceVersion;
-   if(j.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION)blob.idpromThaiFemaleHeadSizeVersion=j.thaiFemaleHeadSizeVersion;
+   if(isKnownThaiHeadVersion(j.thaiFemaleHeadSizeVersion))blob.idpromThaiFemaleHeadSizeVersion=j.thaiFemaleHeadSizeVersion;
  if(j.thaiBodyGeometryVersion){blob.idpromBodyGeometryVersion=j.thaiBodyGeometryVersion;blob.idpromBodyReference=parseThaiBodyReference(j.thaiBodyReference);}
    if(j.femaleFinishSingleVersion)blob.idpromFemaleFinishSingleVersion=j.femaleFinishSingleVersion;
    if(j.femaleEyeStyle==='makeup')blob.idpromMakeupPolicyVersion=j.makeupPolicyVersion||null;
@@ -2957,7 +2957,7 @@ async function requestFreeFemaleAlternate(jobId,finish,hairId,templatePath,onSta
  if(finish==='natural')blob.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  blob.idpromJobId=jobId;blob.idpromTrial=!rights.unlocked;blob.idpromFullEdit=rights.fullEdit;blob.idpromReused=true;
  if(job.thaiRealFaceVersion)blob.idpromThaiRealFaceVersion=job.thaiRealFaceVersion;
- if(job.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION)blob.idpromThaiFemaleHeadSizeVersion=job.thaiFemaleHeadSizeVersion;
+ if(isKnownThaiHeadVersion(job.thaiFemaleHeadSizeVersion))blob.idpromThaiFemaleHeadSizeVersion=job.thaiFemaleHeadSizeVersion;
  if(job.thaiBodyGeometryVersion){blob.idpromBodyGeometryVersion=job.thaiBodyGeometryVersion;blob.idpromBodyReference=parseThaiBodyReference(job.thaiBodyReference);}
  blob.idpromFemaleFinishSingleVersion=FEMALE_SINGLE_FINISH_VERSION;
  if(finish==='makeup'){
@@ -3115,7 +3115,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   const finishMeta=femaleFinishMetadata(cached.value);if(finishMeta.femaleFinishProfile)result.idpromFemaleFinishProfile=finishMeta.femaleFinishProfile;if(finishMeta.femaleFinishReference)result.idpromFemaleFinishReference=finishMeta.femaleFinishReference;
   if(firstPortrait)result.idpromPortraitCacheKey=key;
   const finished=await finishRequested(result);
-  if(thaiWholeOutfit&&gender==='female')finished.idpromThaiFemaleHeadSizeVersion=THAI_FEMALE_HEAD_SIZE_VERSION;
+  if(thaiWholeOutfit&&gender==='female'&&isKnownThaiHeadVersion(cached.value.idpromThaiFemaleHeadSizeVersion))finished.idpromThaiFemaleHeadSizeVersion=cached.value.idpromThaiFemaleHeadSizeVersion;
   if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
   assertCurrentOperation();
   writeActiveAiJob({...(readActiveAiJob()?.jobId===jobId?readActiveAiJob():{}),jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
@@ -3124,7 +3124,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   return finished;
  }
  const finished=await finishRequested(cached.value);
- if(thaiWholeOutfit&&gender==='female')finished.idpromThaiFemaleHeadSizeVersion=THAI_FEMALE_HEAD_SIZE_VERSION;
+ if(thaiWholeOutfit&&gender==='female'&&isKnownThaiHeadVersion(cached.value.idpromThaiFemaleHeadSizeVersion))finished.idpromThaiFemaleHeadSizeVersion=cached.value.idpromThaiFemaleHeadSizeVersion;
  if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
  window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:cached.value.idpromJobId,isTrial:cached.value.idpromTrial,fullEdit:cached.value.idpromFullEdit}}));
  return finished;

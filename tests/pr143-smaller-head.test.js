@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {createThaiAdaptiveComposition} from '../thai-adaptive-composition.js';
-import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,usesThaiFrontalPose,THAI_NEW_NECK_GAP,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from '../thai-female-head-size.js';
+import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,usesThaiFrontalPose,isKnownThaiHeadVersion,THAI_NEW_NECK_GAP,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from '../thai-female-head-size.js';
 import {thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION} from '../thai-body-geometry-policy.js';
 import {THAI_OUTFIT_APPEARANCE_VERSION,THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
@@ -151,4 +151,14 @@ test('frontal reconstruction is limited to the new Thai female Makeup version wi
  assert(!usesThaiFrontalPose({...fields,femaleEyeStyle:'natural'},'female'));assert(!usesThaiFrontalPose({...fields,thaiOutfitAiVersion:undefined,interfaceLanguage:'en'},'female'));
  for(const version of ['thai-english-makeup-garment-neck-v5','thai-english-makeup-new-neck-v4','thai-english-makeup-head-v3'])assert(!usesThaiFrontalPose({...fields,thaiFemaleHeadSizeVersion:version},'female'));
  const main=await readFile(root+'src/main.jsx','utf8');assert(main.includes("if(eyeLock.action==='reject'||triage.action==='reject')"));assert(main.includes("if(!faceLock.ok)cached.value.idpromQualityReviewNeeded=true"));
+});
+
+
+test('recovery preserves actual generation version instead of relabelling old neck poses as current',async()=>{
+ for(const v of [THAI_FEMALE_HEAD_SIZE_VERSION,'thai-english-makeup-garment-neck-v5','thai-english-makeup-new-neck-v4','thai-english-makeup-head-v3','thai-pr143-female-head-90-v1'])assert(isKnownThaiHeadVersion(v));
+ for(const v of [null,undefined,'unknown'])assert(!isKnownThaiHeadVersion(v));
+ const main=await readFile(root+'src/main.jsx','utf8');
+ assert(main.includes('if(isKnownThaiHeadVersion(j.thaiFemaleHeadSizeVersion))'));assert(main.includes('if(isKnownThaiHeadVersion(job.thaiFemaleHeadSizeVersion))'));
+ assert.equal(main.split('finished.idpromThaiFemaleHeadSizeVersion=cached.value.idpromThaiFemaleHeadSizeVersion').length-1,2);
+ assert(!main.includes('finished.idpromThaiFemaleHeadSizeVersion=THAI_FEMALE_HEAD_SIZE_VERSION'));
 });
