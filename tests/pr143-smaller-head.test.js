@@ -1,3 +1,5 @@
+import {garmentNeckBalance} from '../garment-neck-balance.js';
+import {measureUniformAnchors} from '../src/portrait-uniform-fit.js';
 import {sanitizeAiError,sanitizedAiJob} from '../ai-error-sanitizer.js';
 import {planThaiBodyFrame} from '../src/thai-body-framing.js';
 import test from 'node:test';
@@ -99,7 +101,7 @@ test('new Thai Makeup uses the actual English female Makeup Image 1 and head bui
  for(const text of ['IMAGE 1 IS THE BASE CANVAS AND BODY GEOMETRY AUTHORITY','ENGLISH FEMALE V2 — BALANCED HEAD/BODY','38–40%','Keep the garment at EXACTLY this template size'])assert(thai.prompt.includes(text)&&english.prompt.includes(text));
  for(const text of ['No mannequin, composited head','Image 1 is the uploaded PERSON','ONE AUTHORITATIVE HEAD / SHOULDER PROPORTION','Scale and move the whole portrait uniformly only','MEASURED COMPOSITION — IMAGE','FINAL COLLAR MEASUREMENT CHECK V2'])assert(!thai.prompt.includes(text),text);
  assert(thai.makeupStudioReference?.equals(english.makeupStudioReference));
- const expectedNeck=await createEnglishBodyLayout(thai.outfit,{headScale:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE,neckHeadRatio:THAI_NEW_NECK_GAP});
+ const expectedNeck=await createEnglishBodyLayout(thai.outfit,{headScale:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE.identityHeadScale,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE,garmentBalancedNeck:true});
  assert(newNeck.portrait.equals(expectedNeck));assert(!newNeck.adaptiveComposition);assert(newNeck.outfit.equals(thai.outfit));
  assert(newNeck.prompt.includes('uploaded neck length, thickness, folds, tilt and posture have NO authority'));
  assert(!/\b(?:naturally )?short (?:supporting |naturally widening )?neck\b/i.test(newNeck.prompt));
@@ -118,4 +120,20 @@ test('English Makeup head reuse is limited to new Thai female Makeup, retaining 
  assert(!usesThaiEnglishMakeupHead({...fields,femaleEyeStyle:'natural'},'female'));
  assert(!usesThaiEnglishMakeupHead({...fields,thaiOutfitAiVersion:undefined,interfaceLanguage:'en'},'female'));
  for(const version of ['thai-pr143-female-head-90-full-body-v2','thai-pr143-female-head-90-v1',undefined])assert(!usesThaiEnglishMakeupHead({...fields,thaiFemaleHeadSizeVersion:version},'female'));
+});
+
+
+test('garment-derived neck height varies with actual collar/shoulder geometry while head size and suit pixels stay fixed',async()=>{
+ const identity=await sharp({create:{width:120,height:174,channels:3,background:'#01fe23'}}).png().toBuffer(),gaps=[];
+ for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-ivory-bow-blouse.png','job-uniforms/female-job-navy-collared.png','student-uniforms/female-01.png']){
+  const outfit=await readFile(root+'public/assets/'+path),{data,info}=await sharp(outfit).ensureAlpha().raw().toBuffer({resolveWithObject:true}),u=measureUniformAnchors(data,info.width,info.height);
+  const headHeight=u.shoulderWidth*.41*.95*(174/120+.12),m=garmentNeckBalance(data,info.width,info.height,u,headHeight);
+  assert.equal(m.reason,'garment_shoulders');assert(m.gap/u.shoulderWidth>=.012-1e-8&&m.gap/u.shoulderWidth<=.045+1e-8);gaps.push(m.gap/u.shoulderWidth);
+  const opts={headScale:.95,identity,canvasWidth:1824,profile:ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE},oldGuide=await createEnglishBodyLayout(outfit,{...opts,neckHeadRatio:THAI_NEW_NECK_GAP}),guide=await createEnglishBodyLayout(outfit,{...opts,garmentBalancedNeck:true});
+  const dec=b=>sharp(b).ensureAlpha().raw().toBuffer({resolveWithObject:true}),[a,b]=await Promise.all([dec(oldGuide),dec(guide)]),offset=Math.floor(a.info.height*.7)*a.info.width*4;
+  assert.deepEqual(a.info,b.info);assert(a.data.subarray(offset).equals(b.data.subarray(offset)),'Native lower garment remains exactly in place');
+  const bounds=d=>{let l=1824,r=-1,t=2432,z=-1;for(let y=0;y<2432;y++)for(let x=0;x<1824;x++){const i=(y*1824+x)*4;if(Math.abs(d[i]-1)<2&&Math.abs(d[i+1]-254)<2&&Math.abs(d[i+2]-35)<2){l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);z=Math.max(z,y)}}return {width:r-l+1,height:z-t+1,top:t,bottom:z}};
+  const old=bounds(a.data),next=bounds(b.data);assert(old.width>20);assert.equal(next.width,old.width);assert.equal(next.height,old.height);assert(next.bottom>old.bottom,'Lower the unchanged head toward this collar to remove the excessive gap');
+ }
+ assert(Math.max(...gaps)-Math.min(...gaps)>.01,'Different collar/shoulder constructions must produce different neck gaps');
 });
