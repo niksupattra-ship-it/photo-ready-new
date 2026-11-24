@@ -39,7 +39,8 @@ export async function scanNewPortrait(file,{inspect=inspectUploadPortrait,onChan
   if(report.status==='pass'){const bar=host.querySelector('.photo-scan-progress');bar.setAttribute('aria-valuenow','100');bar.querySelector('strong').textContent='100%';bar.querySelector('i').style.width='100%';title.textContent='รูปพร้อมใช้งาน';copy.textContent='ตรวจหัว คอ ไหล่ และลำตัวช่วงบนแล้ว กำลังไปขั้นตอนถัดไป';setTimeout(()=>finish(true),450);return}
   title.textContent='กรุณาใช้รูปที่เห็นคอ ไหล่ และอกส่วนบน';
   copy.textContent='';copy.hidden=true;
-  button('เปลี่ยนรูป',()=>{finish(false);if(onChangePhoto)setTimeout(onChangePhoto,0)});
+  button('เปลี่ยนรูปใหม่',()=>{finish(false);if(onChangePhoto)setTimeout(onChangePhoto,0)});
+  button('ปิด',()=>finish(false));
  };
  void run();return answer;
 }
