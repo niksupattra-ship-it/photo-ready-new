@@ -1,4 +1,4 @@
-import {measureHairCrown,fitWholeHeadGuide,THAI_WHOLE_HEAD_GUIDE_VERSION,usesLoweredWholeHead,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION} from './thai-whole-head-guide.js';
+import {measureHairCrown,fitWholeHeadGuide,usesNestedWholeHead,usesLoweredWholeHead,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION} from './thai-whole-head-guide.js';
 import {measureGarmentCollarContext} from './thai-collar-context.js';
 import {garmentNeckBalance} from './garment-neck-balance.js';
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
@@ -90,7 +90,7 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  const neckBase=collar+span*.035*scale;
  const skinWidth=span*(profile?.chestToShoulder??.40)*scale,neck=neckWidth*scale,upperNeck=faceAspect?headWidth*.60*scale:neck;
  const neckShape=faceAspect?`<path d="M ${cx-upperNeck/2} ${chin-supportingNeckLength*scale*.35} L ${cx-neck/2} ${neckBase} L ${cx+neck/2} ${neckBase} L ${cx+upperNeck/2} ${chin-supportingNeckLength*scale*.35} Z" fill="#929ba8"/>`:`<rect x="${cx-neck/2}" y="${chin-supportingNeckLength*scale*.35}" width="${neck}" height="${neckBase-chin+neckLength*scale*.35}" fill="#929ba8"/>`;
- const rangeGuide=wholeHeadGuide?.version===THAI_WHOLE_HEAD_GUIDE_VERSION&&measuredWholeHead;
+ const rangeGuide=usesNestedWholeHead(wholeHeadGuide?.version)&&measuredWholeHead;
  const outerHead=rangeGuide?`<ellipse cx="${cx}" cy="${chin-rangeGuide.height*scale/2}" rx="${rangeGuide.width*scale/2}" ry="${rangeGuide.height*scale/2}" fill="#929ba8"/>`:'';
  const shape=Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#929ba8"/><stop offset="1" stop-color="#bec5ce"/></linearGradient></defs><rect width="100%" height="100%" fill="#e5e8ed"/><path d="M ${cx-neck/2} ${neckBase} Q ${cx-neck/2} ${skinBottom-neck*.25} ${cx-skinWidth/2} ${skinBottom} L ${cx+skinWidth/2} ${skinBottom} Q ${cx+neck/2} ${skinBottom-neck*.25} ${cx+neck/2} ${neckBase} Z" fill="url(#skin)"/>${neckShape}${outerHead}<ellipse cx="${cx}" cy="${headY+headHeight*scale/2}" rx="${headWidth*scale/2}" ry="${headHeight*scale/2}" fill="#aab2bd"/><g fill="#697585" stroke="#697585" stroke-width="${headWidth*scale*.012}" stroke-linecap="round"><circle cx="${cx-headWidth*scale*.19}" cy="${headY+headHeight*scale*.45}" r="${headWidth*scale*.017}"/><circle cx="${cx+headWidth*scale*.19}" cy="${headY+headHeight*scale*.45}" r="${headWidth*scale*.017}"/><path d="M ${cx} ${headY+headHeight*scale*.52} L ${cx} ${headY+headHeight*scale*.64}" fill="none"/></g></svg>`);
  const garment=await sharp(outfit).resize({width:Math.max(1,Math.round(info.width*scale)),height:Math.max(1,Math.round(info.height*scale))}).png().toBuffer();

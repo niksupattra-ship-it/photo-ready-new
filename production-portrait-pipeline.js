@@ -1,4 +1,4 @@
-import {THAI_WHOLE_HEAD_GUIDE_VERSION,usesCropIndependentWholeHead,usesThaiWholeHeadGuide,thaiWholeHeadInstruction} from './thai-whole-head-guide.js';
+import {usesNestedWholeHead,usesCropIndependentWholeHead,usesThaiWholeHeadGuide,thaiWholeHeadInstruction} from './thai-whole-head-guide.js';
 import {usesThaiCollarContext,thaiCollarContextInstruction} from './thai-collar-context.js';
 import {usesThaiPortraitPolish,THAI_PORTRAIT_HEAD_SCALE,thaiPortraitHeadInstruction,thaiPortraitSkinInstruction} from './thai-portrait-polish.js';
 import {thaiSoftEyeMakeupInstruction} from './thai-soft-eye-makeup.js';
@@ -227,7 +227,7 @@ function onePassMakeupPriority(english=false){
 }
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  fields=thaiOutfitGenerationFields(fields);
- if(usesThaiWholeHeadGuide(fields)&&fields.thaiWholeHeadGuideVersion===THAI_WHOLE_HEAD_GUIDE_VERSION)fields={...fields,femaleEyeStyle:'makeup'};
+ if(usesThaiWholeHeadGuide(fields)&&usesNestedWholeHead(fields.thaiWholeHeadGuideVersion))fields={...fields,femaleEyeStyle:'makeup'};
  const requestedHair=validateProductionPortrait(input,fields);
  const requestedMaleAuto=requestedHair?.autoHair==='english-male';
  const chosen=requestedMaleAuto?null:requestedHair;
