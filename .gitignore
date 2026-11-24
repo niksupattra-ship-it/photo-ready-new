@@ -5,3 +5,6 @@ public/assets/vision/mediapipe-1.0.1/wasm/
 
 # Local payment data
 .data/
+
+# Copied from the pinned package during predev/prebuild
+public/assets/vision/mediapipe-1.0.1/vision_bundle.mjs

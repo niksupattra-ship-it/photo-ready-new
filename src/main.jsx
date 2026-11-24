@@ -114,7 +114,7 @@ import {requestPromptpay} from './promptpay-request.js';
 import {deadlineFetch} from './deadline-fetch.js';
 import React,{useEffect,useRef,useState}from'react';
 import{createRoot}from'react-dom/client';
-import {loadVisionRuntime} from './vision-runtime.js';
+import {loadVisionRuntime,createCompatibleVisionModel} from './vision-runtime.js';
 import {VISION_WASM_ROOT,FACE_LANDMARK_MODEL,PERSON_SEGMENTATION_MODEL} from './vision-assets.js';
 import'./style.css';
 import './home-layout.css';
@@ -349,12 +349,11 @@ async function getLandmarker(){
   let expired;
   const pending=withDeadline(async()=>{
   const {FilesetResolver,FaceLandmarker,ImageSegmenter}=await loadVisionRuntime();
-  const vision=await FilesetResolver.forVisionTasks(VISION_WASM_ROOT);
   if(expired)throw expired;
-  return FaceLandmarker.createFromOptions(vision,{
+  return createCompatibleVisionModel({resolver:FilesetResolver,root:VISION_WASM_ROOT,create:(vision,options)=>{if(expired)throw expired;return FaceLandmarker.createFromOptions(vision,options)},options:{
    baseOptions:{modelAssetPath:FACE_LANDMARK_MODEL},
    runningMode:'IMAGE',numFaces:1,minFaceDetectionConfidence:.5,minFacePresenceConfidence:.5
-  });
+  }});
   },{timeoutMs:60000,message:'โหลดข้อมูลสำหรับปรับภาพใช้เวลานาน กรุณาลองอีกครั้ง',code:'PORTRAIT_MODEL_TIMEOUT',onTimeout:error=>{expired=error},onLateResolve:model=>model?.close?.()});
   landmarkerPromise=pending;
   pending.catch(()=>{if(landmarkerPromise===pending)landmarkerPromise=null});
