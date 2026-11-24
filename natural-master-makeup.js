@@ -1,3 +1,4 @@
+import {thaiPortraitSkinInstruction} from './thai-portrait-polish.js';
 import {thaiSoftEyeMakeupInstruction} from './thai-soft-eye-makeup.js';
 import {usesThaiBodyGeometry} from './thai-body-geometry-policy.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
@@ -25,7 +26,7 @@ export async function generateMakeupFromCompletedNatural({natural,fields,key,req
  const headOnly=english&&isEnglishHeadPortrait(fields);
  const templateBody=english&&isEnglishTemplateBody(fields);
  return createAiMakeupVariant(natural,{
-  key,requestPortrait:options=>requestPortrait({...options,...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),prompt:options.prompt+thaiSoftEyeMakeupInstruction({...fields,femaleEyeStyle:'makeup'})}),
+  key,requestPortrait:options=>requestPortrait({...options,...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),prompt:options.prompt+thaiPortraitSkinInstruction({...fields,femaleEyeStyle:'makeup'})+thaiSoftEyeMakeupInstruction({...fields,femaleEyeStyle:'makeup'})}),
   preserveOutfit:english&&!headOnly,
   englishReferenceFinish:english&&!headOnly&&!templateBody,
   englishHeadFinish:headOnly,

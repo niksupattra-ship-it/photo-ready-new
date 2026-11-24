@@ -1,3 +1,4 @@
+import {THAI_PORTRAIT_POLISH_VERSION} from '../thai-portrait-polish.js';
 import {THAI_SOFT_EYE_MAKEUP_VERSION} from '../thai-soft-eye-makeup.js';
 import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,usesThaiFrontalPose,isKnownThaiHeadVersion} from '../thai-female-head-size.js';
 import {THAI_BODY_GEOMETRY_VERSION,parseThaiBodyReference} from '../thai-body-geometry-policy.js';
@@ -272,6 +273,7 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
    }
    if(j.studioSkinVersion===STUDIO_SKIN_WORKFLOW_VERSION&&j.portraitMode==='female')blob.idpromStudioSkinVersion=STUDIO_SKIN_WORKFLOW_VERSION;
    blob.idpromTrial=original.trial;blob.idpromJobId=jobId;blob.idpromFullEdit=verified.fullEdit;
+   if(j.thaiPortraitPolishVersion)blob.idpromThaiPortraitPolishVersion=j.thaiPortraitPolishVersion;
    if(j.thaiRealFaceVersion)blob.idpromThaiRealFaceVersion=j.thaiRealFaceVersion;
    if(isKnownThaiHeadVersion(j.thaiFemaleHeadSizeVersion))blob.idpromThaiFemaleHeadSizeVersion=j.thaiFemaleHeadSizeVersion;
  if(j.thaiBodyGeometryVersion){blob.idpromBodyGeometryVersion=j.thaiBodyGeometryVersion;blob.idpromBodyReference=parseThaiBodyReference(j.thaiBodyReference);}
@@ -557,7 +559,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
   if(headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION){
    const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
-   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:(headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6')?THAI_FEMALE_HEAD_SCALE:1,fullBodyFrame:headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6'});scale=plan.scale;hX=plan.x;hY=plan.y;}
+   try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:(headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6')?THAI_FEMALE_HEAD_SCALE:1,fullBodyFrame:headBlob.idpromThaiPortraitPolishVersion===THAI_PORTRAIT_POLISH_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6'});scale=plan.scale;hX=plan.x;hY=plan.y;}
    finally{native.width=native.height=1}
   }
   return {blob:placementOnly?null:headBlob,lock:{W:900,H:1200,hX,hY,scale,headW:w,headH:h,uX:0,uY:0,uW:900,uH:1200,templatePath,portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION}};
@@ -1180,7 +1182,7 @@ async function renderAdjustedFinal(headMasterBlob,lock,adjust,collarWarp=0,neckA
    if(liveCanvas){const x=liveCanvas.getContext('2d');x.clearRect(0,0,liveCanvas.width,liveCanvas.height);x.drawImage(output,0,0,liveCanvas.width,liveCanvas.height)}
    return canvasPng(output);
   }
-  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,...(headMasterBlob.idpromThaiFemaleHeadSizeVersion?{thaiFemaleHeadSizeVersion:headMasterBlob.idpromThaiFemaleHeadSizeVersion}:{}),...(headMasterBlob.idpromThaiRealFaceVersion?{thaiRealFaceVersion:headMasterBlob.idpromThaiRealFaceVersion}:{}),...(headMasterBlob.idpromEnglishStudioFinishVersion?{englishStudioFinishVersion:headMasterBlob.idpromEnglishStudioFinishVersion}:{}),...(headMasterBlob.idpromEnglishHeadBalanceVersion?{englishHeadBalanceVersion:headMasterBlob.idpromEnglishHeadBalanceVersion,englishHeadBalance:headMasterBlob.idpromEnglishHeadBalance}:{}),generatedOutfitTemplate:lock.templatePath,source:await blobDataURL(headMasterBlob),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
+  studioLayers.push({name:'หัว · คอ · ผม',...naturalStudioSkinMetadata(headMasterBlob),...studioSkinWorkflowMetadata(headMasterBlob),portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,portraitFramingVersion:headMasterBlob.idpromEnglishFramingVersion,...(headMasterBlob.idpromThaiFemaleHeadSizeVersion?{thaiFemaleHeadSizeVersion:headMasterBlob.idpromThaiFemaleHeadSizeVersion}:{}),...(headMasterBlob.idpromThaiPortraitPolishVersion?{thaiPortraitPolishVersion:headMasterBlob.idpromThaiPortraitPolishVersion}:{}),...(headMasterBlob.idpromThaiRealFaceVersion?{thaiRealFaceVersion:headMasterBlob.idpromThaiRealFaceVersion}:{}),...(headMasterBlob.idpromEnglishStudioFinishVersion?{englishStudioFinishVersion:headMasterBlob.idpromEnglishStudioFinishVersion}:{}),...(headMasterBlob.idpromEnglishHeadBalanceVersion?{englishHeadBalanceVersion:headMasterBlob.idpromEnglishHeadBalanceVersion,englishHeadBalance:headMasterBlob.idpromEnglishHeadBalance}:{}),generatedOutfitTemplate:lock.templatePath,source:await blobDataURL(headMasterBlob),sourceFrame:{x:lock.hX,y:lock.hY,w:w*lock.scale,h:h*lock.scale}});
   return studioLayers;
  }
  // V80 MASTER-RESOLUTION COMPOSITE:
@@ -2957,6 +2959,7 @@ async function requestFreeFemaleAlternate(jobId,finish,hairId,templatePath,onSta
  if(job.studioSkinVersion===ORIGINAL_PORTRAIT_AI_VERSION)markOriginalPortraitAiFinish(blob,finish,job.studioSkinVersion);
  if(finish==='natural')blob.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  blob.idpromJobId=jobId;blob.idpromTrial=!rights.unlocked;blob.idpromFullEdit=rights.fullEdit;blob.idpromReused=true;
+ if(job.thaiPortraitPolishVersion)blob.idpromThaiPortraitPolishVersion=job.thaiPortraitPolishVersion;
  if(job.thaiRealFaceVersion)blob.idpromThaiRealFaceVersion=job.thaiRealFaceVersion;
  if(isKnownThaiHeadVersion(job.thaiFemaleHeadSizeVersion))blob.idpromThaiFemaleHeadSizeVersion=job.thaiFemaleHeadSizeVersion;
  if(job.thaiBodyGeometryVersion){blob.idpromBodyGeometryVersion=job.thaiBodyGeometryVersion;blob.idpromBodyReference=parseThaiBodyReference(job.thaiBodyReference);}
@@ -3117,6 +3120,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   if(firstPortrait)result.idpromPortraitCacheKey=key;
   const finished=await finishRequested(result);
   if(thaiWholeOutfit&&gender==='female'&&isKnownThaiHeadVersion(cached.value.idpromThaiFemaleHeadSizeVersion))finished.idpromThaiFemaleHeadSizeVersion=cached.value.idpromThaiFemaleHeadSizeVersion;
+ if(cached.value.idpromThaiPortraitPolishVersion)finished.idpromThaiPortraitPolishVersion=cached.value.idpromThaiPortraitPolishVersion;
   if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
   assertCurrentOperation();
   writeActiveAiJob({...(readActiveAiJob()?.jobId===jobId?readActiveAiJob():{}),jobId,hairId:hairId||'original',context:options.jobContext||null,trialPreview:result.idpromTrial,createdAt:Date.now()});
@@ -3126,6 +3130,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  }
  const finished=await finishRequested(cached.value);
  if(thaiWholeOutfit&&gender==='female'&&isKnownThaiHeadVersion(cached.value.idpromThaiFemaleHeadSizeVersion))finished.idpromThaiFemaleHeadSizeVersion=cached.value.idpromThaiFemaleHeadSizeVersion;
+ if(cached.value.idpromThaiPortraitPolishVersion)finished.idpromThaiPortraitPolishVersion=cached.value.idpromThaiPortraitPolishVersion;
  if(cached.value.idpromQualityReviewNeeded)finished.idpromQualityReviewNeeded=true;
  window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId:cached.value.idpromJobId,isTrial:cached.value.idpromTrial,fullEdit:cached.value.idpromFullEdit}}));
  return finished;
@@ -3276,7 +3281,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
   if(portraitMode==='female'&&neckOutfit===ENGLISH_CIVIL_SERVICE_TEMPLATE)fd.append('englishCivilServiceFabricVersion',ENGLISH_CIVIL_SERVICE_FABRIC_VERSION);
   // Rendering is shared, but the server still authorizes a Thai request as Thai.
   if(englishPreviewEnabled())fd.append('interfaceLanguage','en');
-  else {if(portraitMode==='female'){fd.append('thaiFemaleHeadSizeVersion',THAI_FEMALE_HEAD_SIZE_VERSION);fd.append('thaiSoftEyeMakeupVersion',THAI_SOFT_EYE_MAKEUP_VERSION);}fd.append('thaiBodyGeometryVersion',THAI_BODY_GEOMETRY_VERSION);if(options.thaiBodyReference)fd.append('thaiBodyReference',JSON.stringify(options.thaiBodyReference));fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION);fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION);fd.append('thaiSingleCollarVersion',THAI_SINGLE_COLLAR_VERSION);fd.append('thaiRealFaceVersion',THAI_REAL_FACE_VERSION);fd.append('thaiCollarlessVersion',THAI_COLLARLESS_VERSION);fd.append('thaiRearHairShortNeckVersion',THAI_REAR_HAIR_SHORT_NECK_VERSION);}
+  else {fd.append('thaiPortraitPolishVersion',THAI_PORTRAIT_POLISH_VERSION);if(portraitMode==='female'){fd.append('thaiFemaleHeadSizeVersion',THAI_FEMALE_HEAD_SIZE_VERSION);fd.append('thaiSoftEyeMakeupVersion',THAI_SOFT_EYE_MAKEUP_VERSION);}fd.append('thaiBodyGeometryVersion',THAI_BODY_GEOMETRY_VERSION);if(options.thaiBodyReference)fd.append('thaiBodyReference',JSON.stringify(options.thaiBodyReference));fd.append('thaiOutfitAiVersion',THAI_OUTFIT_AI_VERSION);fd.append('thaiOutfitAppearanceVersion',THAI_OUTFIT_APPEARANCE_VERSION);fd.append('thaiSingleCollarVersion',THAI_SINGLE_COLLAR_VERSION);fd.append('thaiRealFaceVersion',THAI_REAL_FACE_VERSION);fd.append('thaiCollarlessVersion',THAI_COLLARLESS_VERSION);fd.append('thaiRearHairShortNeckVersion',THAI_REAR_HAIR_SHORT_NECK_VERSION);}
   fd.append('portraitComposition',ENGLISH_BODY_PORTRAIT_VERSION);fd.append('englishStudioFinishVersion',englishTemplateBodyFinishForGender(portraitMode));
   if(options.keepCurrentHair){fd.append('keepCurrentHair','1');if(options.preserveHairJobId)fd.append('preserveHairJobId',options.preserveHairJobId);}
   else if(selected){const fit=await measureEnglishHairPlacement(aiInput);assertProcessActive(operation);if(fit)fd.append('englishHairFit',JSON.stringify(fit));}
@@ -6203,7 +6208,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   if(head.sharedPortraitBaseVersion)master.idpromSharedPortraitBaseVersion=head.sharedPortraitBaseVersion;
   if(head.studioSkinGeometry)master.idpromStudioSkinGeometry=head.studioSkinGeometry;
   master.idpromFemaleEyeStyle=finish;
-  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(head.portraitComposition)){master.idpromPortraitComposition=head.portraitComposition;master.idpromEnglishFramingVersion=head.portraitFramingVersion;delete master.idpromEnglishStudioFinishVersion;if(head.englishStudioFinishVersion)master.idpromEnglishStudioFinishVersion=head.englishStudioFinishVersion;for(const [field,key]of [['thaiFemaleHeadSizeVersion','idpromThaiFemaleHeadSizeVersion'],['thaiRealFaceVersion','idpromThaiRealFaceVersion'],['englishHeadBalanceVersion','idpromEnglishHeadBalanceVersion'],['englishHeadBalance','idpromEnglishHeadBalance']]){delete master[key];if(head[field])master[key]=head[field]}}
+  if([ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(head.portraitComposition)){master.idpromPortraitComposition=head.portraitComposition;master.idpromEnglishFramingVersion=head.portraitFramingVersion;delete master.idpromEnglishStudioFinishVersion;if(head.englishStudioFinishVersion)master.idpromEnglishStudioFinishVersion=head.englishStudioFinishVersion;for(const [field,key]of [['thaiPortraitPolishVersion','idpromThaiPortraitPolishVersion'],['thaiFemaleHeadSizeVersion','idpromThaiFemaleHeadSizeVersion'],['thaiRealFaceVersion','idpromThaiRealFaceVersion'],['englishHeadBalanceVersion','idpromEnglishHeadBalanceVersion'],['englishHeadBalance','idpromEnglishHeadBalance']]){delete master[key];if(head[field])master[key]=head[field]}}
   delete master.idpromStudioCosmeticsVersion;delete master.idpromStudioMakeupVersion;delete master.idpromNaturalStudioSkinVersion;
   if(head.studioCosmeticsVersion)master.idpromStudioCosmeticsVersion=head.studioCosmeticsVersion;if(head.studioMakeupVersion)master.idpromStudioMakeupVersion=head.studioMakeupVersion;
   if(finish==='natural')master.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;

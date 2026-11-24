@@ -67,7 +67,7 @@ test('generated-head size metadata survives server recovery, alternate finish an
  assert(store.includes('AS "thaiFemaleHeadSizeVersion"'));
  assert(main.includes('blob.idpromThaiFemaleHeadSizeVersion=j.thaiFemaleHeadSizeVersion'));assert(main.includes('blob.idpromThaiFemaleHeadSizeVersion=job.thaiFemaleHeadSizeVersion'));
  assert(main.includes('thaiFemaleHeadSizeVersion:headMasterBlob.idpromThaiFemaleHeadSizeVersion'));
- assert(editor.includes('fullBodyFrame:head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION'));
+ assert(editor.includes('head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION'));
 });
 
 
