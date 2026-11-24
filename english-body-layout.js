@@ -1,3 +1,4 @@
+import {measureGarmentCollarContext} from './thai-collar-context.js';
 import {garmentNeckBalance} from './garment-neck-balance.js';
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
 import sharp from 'sharp';
@@ -26,7 +27,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null,headOnlyScale=1}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false,poseOnlyHead=false,rearHairGuide=null,headOnlyScale=1,collarContext=null}={}){
  if(!Number.isFinite(headOnlyScale)||headOnlyScale<.75||headOnlyScale>1)throw Error('Invalid whole-head-only scale.');
  if(neckHeadRatio!==null&&(!Number.isFinite(neckHeadRatio)||neckHeadRatio<.10||neckHeadRatio>.25))throw Error('Invalid neck guide gap.');
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
@@ -45,7 +46,7 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // retain their exact original geometry.
  let headHeight=fixedIdentityEnvelope?referenceHeadHeight*headScale:faceAspect?headWidth*(faceAspect+.12):referenceHeadHeight*headScale;
  const frameNeckLength=span*(profile?.chinToCollar??.045),neckLength=garmentBalancedNeck?garmentNeckBalance(data,info.width,info.height,uniform,headHeight).gap:neckHeadRatio===null?frameNeckLength:Math.max(span*.06,Math.min(span*.09,headHeight*neckHeadRatio)),neckWidth=span*(profile?.neckToShoulder??.22);
- const chinY=uniform.collarTopY-neckLength;let headTop=chinY-headHeight;
+ let chinY=uniform.collarTopY-neckLength;let headTop=chinY-headHeight;
  // Keep the original body/canvas transform; change only the head anchor and neck.
  const frameChinY=uniform.collarTopY-frameNeckLength;
  const left=Math.min(uniform.bounds.l,uniform.centerX-referenceHeadWidth/2),right=Math.max(uniform.bounds.r+1,uniform.centerX+referenceHeadWidth/2);
@@ -63,14 +64,18 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  const x=(W-(right-left)*scale)/2-left*scale,y=H-pad-bottom*scale;
  // Reduce only the displayed head AFTER the native garment/camera transform
  // and collar anchor are fixed. Never reframe the coat because the head shrank.
- headWidth*=headOnlyScale;headHeight*=headOnlyScale;headTop=chinY-headHeight;
+ headWidth*=headOnlyScale;headHeight*=headOnlyScale;
+ const measuredCollar=collarContext?measureGarmentCollarContext(uniform,headHeight,collarContext.template):null;
+ if(measuredCollar){chinY=measuredCollar.chinY;collarContext.onMeasured?.(measuredCollar)}
+ const supportingNeckLength=measuredCollar?.gap??neckLength;
+ headTop=chinY-headHeight;
  const cx=x+uniform.centerX*scale,headY=y+headTop*scale,chin=y+chinY*scale,collar=y+uniform.collarTopY*scale;
  // The cervical reference ends at the collar/shoulder junction. A deep V
  // exposes chest below it and must not become a longer reference neck.
  const skinBottom=y+Math.max(uniform.socketY,uniform.collarTopY+span*.20)*scale;
  const neckBase=collar+span*.035*scale;
  const skinWidth=span*(profile?.chestToShoulder??.40)*scale,neck=neckWidth*scale,upperNeck=faceAspect?headWidth*.60*scale:neck;
- const neckShape=faceAspect?`<path d="M ${cx-upperNeck/2} ${chin-neckLength*scale*.35} L ${cx-neck/2} ${neckBase} L ${cx+neck/2} ${neckBase} L ${cx+upperNeck/2} ${chin-neckLength*scale*.35} Z" fill="#929ba8"/>`:`<rect x="${cx-neck/2}" y="${chin-neckLength*scale*.35}" width="${neck}" height="${neckBase-chin+neckLength*scale*.35}" fill="#929ba8"/>`;
+ const neckShape=faceAspect?`<path d="M ${cx-upperNeck/2} ${chin-supportingNeckLength*scale*.35} L ${cx-neck/2} ${neckBase} L ${cx+neck/2} ${neckBase} L ${cx+upperNeck/2} ${chin-supportingNeckLength*scale*.35} Z" fill="#929ba8"/>`:`<rect x="${cx-neck/2}" y="${chin-supportingNeckLength*scale*.35}" width="${neck}" height="${neckBase-chin+neckLength*scale*.35}" fill="#929ba8"/>`;
  const shape=Buffer.from(`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#929ba8"/><stop offset="1" stop-color="#bec5ce"/></linearGradient></defs><rect width="100%" height="100%" fill="#e5e8ed"/><path d="M ${cx-neck/2} ${neckBase} Q ${cx-neck/2} ${skinBottom-neck*.25} ${cx-skinWidth/2} ${skinBottom} L ${cx+skinWidth/2} ${skinBottom} Q ${cx+neck/2} ${skinBottom-neck*.25} ${cx+neck/2} ${neckBase} Z" fill="url(#skin)"/>${neckShape}<ellipse cx="${cx}" cy="${headY+headHeight*scale/2}" rx="${headWidth*scale/2}" ry="${headHeight*scale/2}" fill="#aab2bd"/><g fill="#697585" stroke="#697585" stroke-width="${headWidth*scale*.012}" stroke-linecap="round"><circle cx="${cx-headWidth*scale*.19}" cy="${headY+headHeight*scale*.45}" r="${headWidth*scale*.017}"/><circle cx="${cx+headWidth*scale*.19}" cy="${headY+headHeight*scale*.45}" r="${headWidth*scale*.017}"/><path d="M ${cx} ${headY+headHeight*scale*.52} L ${cx} ${headY+headHeight*scale*.64}" fill="none"/></g></svg>`);
  const garment=await sharp(outfit).resize({width:Math.max(1,Math.round(info.width*scale)),height:Math.max(1,Math.round(info.height*scale))}).png().toBuffer();
  // Clip only transparent template margins outside the guide board. The measured
@@ -111,6 +116,6 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // translation as the AI's Image 1 guide, without changing English output.
  const nativeForeground=await sharp({create:{width:W,height:H,channels:4,background:{r:0,g:0,b:0,alpha:0}}})
   .composite([{input:visible,left:Math.max(0,gx),top:Math.max(0,gy)}]).png().toBuffer();
- return {composition,nativeForeground,shoulderTopY:y+uniform.bounds.t*scale,collarTopY:collar,centerX:cx,shoulderSpan:span*scale};
+ return {composition,nativeForeground,shoulderTopY:y+uniform.bounds.t*scale,collarTopY:collar,centerX:cx,shoulderSpan:span*scale,...(measuredCollar?{measuredCollar}: {})};
 
 }
