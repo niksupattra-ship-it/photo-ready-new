@@ -1,4 +1,4 @@
-import {measureHairCrown,fitWholeHeadGuide,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION} from './thai-whole-head-guide.js';
+import {measureHairCrown,fitWholeHeadGuide,THAI_WHOLE_HEAD_GUIDE_VERSION,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION} from './thai-whole-head-guide.js';
 import {measureGarmentCollarContext} from './thai-collar-context.js';
 import {garmentNeckBalance} from './garment-neck-balance.js';
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
@@ -76,7 +76,11 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  }
 
  const measuredCollar=collarContext?measureGarmentCollarContext(uniform,collarHeadHeight??headHeight,collarContext.template):null;
- if(measuredCollar){chinY=measuredCollar.chinY;collarContext.onMeasured?.(measuredCollar)}
+ if(measuredCollar){
+  // New female guide only: move the complete head toward the existing collar.
+  // Keep the garment/camera, facial aspect and all previous version anchors.
+  if(wholeHeadGuide?.version===THAI_WHOLE_HEAD_GUIDE_VERSION){const lower=Math.max(0,Math.min(span*.005,measuredCollar.gap-span*.003));measuredCollar.chinY+=lower;measuredCollar.gap-=lower;}
+  chinY=measuredCollar.chinY;collarContext.onMeasured?.(measuredCollar)}
  const supportingNeckLength=measuredCollar?.gap??neckLength;
  headTop=chinY-headHeight;
  const cx=x+uniform.centerX*scale,headY=y+headTop*scale,chin=y+chinY*scale,collar=y+uniform.collarTopY*scale;
