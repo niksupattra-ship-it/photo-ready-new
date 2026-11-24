@@ -1,3 +1,4 @@
+import {thaiSoftEyeMakeupInstruction} from './thai-soft-eye-makeup.js';
 import {selectedRearLayoutHair,selectedRearHairContract} from './thai-selected-rear-layout.js';
 import {usesThaiNewNeck,usesThaiGarmentNeck,usesThaiFrontalPose,usesThaiSelectedRearHair,applyThaiFrontalPose,THAI_NEW_NECK_GAP,applyThaiNewNeck,applyThaiGarmentNeck} from './thai-female-head-size.js';
 import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from './thai-female-head-size.js';
@@ -671,6 +672,7 @@ ${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-ch
  if(newThaiNeck)prompt=garmentNeck?applyThaiGarmentNeck(prompt):applyThaiNewNeck(prompt);
  if(frontalPose)prompt=applyThaiFrontalPose(prompt);
  if(selectedRearHair)prompt=selectedRearHairContract(prompt,chosen,{keepCurrentHair,hairIndex:2});
+ prompt+=thaiSoftEyeMakeupInstruction(fields);
  const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
