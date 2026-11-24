@@ -1,4 +1,5 @@
-import {usesThaiNewNeck,usesThaiGarmentNeck,usesThaiFrontalPose,applyThaiFrontalPose,THAI_NEW_NECK_GAP,applyThaiNewNeck,applyThaiGarmentNeck} from './thai-female-head-size.js';
+import {selectedRearLayoutHair,selectedRearHairContract} from './thai-selected-rear-layout.js';
+import {usesThaiNewNeck,usesThaiGarmentNeck,usesThaiFrontalPose,usesThaiSelectedRearHair,applyThaiFrontalPose,THAI_NEW_NECK_GAP,applyThaiNewNeck,applyThaiGarmentNeck} from './thai-female-head-size.js';
 import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from './thai-female-head-size.js';
 import {createThaiAdaptiveComposition,thaiAdaptiveCompositionInstruction} from './thai-adaptive-composition.js';
 import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION,usesUnifiedThaiBodyGeometry} from './thai-body-geometry-policy.js';
@@ -528,6 +529,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  const newThaiNeck=usesThaiNewNeck(fields,selected.gender);
  const garmentNeck=usesThaiGarmentNeck(fields,selected.gender);
  const frontalPose=usesThaiFrontalPose(fields,selected.gender);
+ const selectedRearHair=usesThaiSelectedRearHair(fields,selected.gender);
  // Reuse the actual English female Makeup Image 1 builder and head policy.
  // Thai wardrobe, hair and result placement stay in their existing paths.
  if(thaiEnglishMakeupHead)fields={...fields,englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION};
@@ -600,6 +602,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // composition of a surrogate neck, copied face, or PNG clothing is sent.
  if(frontalPose)layoutOptions={headScale:identityHeadScale,identity,canvasWidth:1824,profile:layoutProfile,poseOnlyHead:true};
  if(newThaiNeck)layoutOptions={...(layoutOptions||{}),...(garmentNeck?{garmentBalancedNeck:true}:{neckHeadRatio:THAI_NEW_NECK_GAP})};
+ if(selectedRearHair&&chosen&&!keepCurrentHair){const rearHairGuide=await selectedRearLayoutHair({selected:chosen,hair,root});if(rearHairGuide)layoutOptions={...(layoutOptions||{}),rearHairGuide};}
  const layoutResult=headOnly||thaiSingleAi?null:await createEnglishBodyLayout(outfit,frontShield?{...(layoutOptions||{}),returnNativeForeground:true}:layoutOptions);
  const compositionReference=frontShield?layoutResult.composition:layoutResult;
  const nativeFrontGeometry=frontShield?layoutResult:null;
@@ -667,6 +670,7 @@ ${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-ch
  if(adaptiveComposition&&usesThaiFemaleSmallerHead(fields,selected.gender)){prompt=prompt.replaceAll(ENGLISH_HEAD_BODY_POLICY,'').replaceAll(THAI_FEMALE_HEAD_SIZE_INSTRUCTION,'');prompt+='\n'+THAI_FEMALE_HEAD_SIZE_INSTRUCTION;}
  if(newThaiNeck)prompt=garmentNeck?applyThaiGarmentNeck(prompt):applyThaiNewNeck(prompt);
  if(frontalPose)prompt=applyThaiFrontalPose(prompt);
+ if(selectedRearHair)prompt=selectedRearHairContract(prompt,chosen,{keepCurrentHair,hairIndex:2});
  const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
