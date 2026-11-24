@@ -1365,6 +1365,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   return fit;
  };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false,governmentAutoPlace=false,resultInsigniaDirect=false}={})=>{
+  // Both editors place government insignia using the finished-photo reference fit.
+  // Keep the same native dimensions, shoulder landmarks and manual corrections.
+  if(governmentResult&&['collar','chest','ribbon'].includes(kind))resultInsigniaDirect=true;
   if(easyMode&&kind==='suit'&&option&&suitNeedsPro(option)){
    setStatus('ชุดนี้ต้องมีสิทธิ์โปร 159 จึงจะเลือกได้');return;
   }
