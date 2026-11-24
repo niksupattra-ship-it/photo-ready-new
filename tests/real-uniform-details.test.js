@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
-import {detectUniformDetails,matchUniformDetails,REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from '../src/real-uniform-details.js';
+import {detectUniformDetails,matchUniformDetails,REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor,hasAdjustedRealUniformDetails} from '../src/real-uniform-details.js';
 import {replaceHairstyleLayer} from '../src/replace-hairstyle-layer.js';
 const root=new URL('..',import.meta.url);
 async function pixels(file){return sharp(await readFile(new URL('public/assets/government-uniforms/'+file,root))).resize({width:640}).ensureAlpha().raw().toBuffer({resolveWithObject:true}).then(({data,info})=>({data,width:info.width,height:info.height}))}
@@ -75,7 +75,7 @@ test('native detail auto-placement follows cached hairstyle changes even when th
  env.governmentImageHead={jobId:'cached-job',hairId:'thai-male-auto',realUniformDetailsVersion:realUniformDetailsVersionFor(env.governmentTemplate)};effect(env);assert.equal(calls,2,'Restored native layers are not pasted twice');
 });
 
-test('male native details retain the real board aspect and approved button diameter without copying AI bulk',async()=>{
+test('legacy v2 male sizing remains explicit while new male placement uses the same measured geometry as female',async()=>{
  const reference=detectUniformDetails(await pixels('male-government-employee.png')),portrait=detectUniformDetails(await pixels('male-operational-example.png'));
  const before=structuredClone(portrait),parts=matchUniformDetails(reference,portrait,{maleReference:true});
  const xs=portrait.boards.flatMap(b=>b.hull.map(p=>p.x)),span=Math.max(...xs)-Math.min(...xs);
@@ -86,5 +86,13 @@ test('male native details retain the real board aspect and approved button diame
  }
  assert.deepEqual(portrait,before,'Read-only placement geometry never rewrites the native or AI photo');
  assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/female-operational.png'),'real-uniform-details-v1');
- assert.notEqual(realUniformDetailsVersionFor('/assets/government-uniforms/interior-01.png'),'real-uniform-details-v1');
+ assert.equal(realUniformDetailsVersionFor('/assets/government-uniforms/interior-01.png'),'real-uniform-details-v3-male-measured');
+ const measured=matchUniformDetails(reference,portrait);for(const part of measured){const original=part.source.kind==='button'?portrait.buttons[measured.filter(p=>p.source.kind==='button').indexOf(part)]:portrait.boards[part.name.endsWith('ขวา')?1:0];assert.equal(part.target.w,original.w);assert.equal(part.target.h,original.h);assert.equal(part.target.angle,original.angle)}
+ const browser=await readFile(new URL('../src/real-uniform-details-browser.js',import.meta.url),'utf8');assert(!browser.includes('maleReference:'),'Male and female use the same measured placement path');
+});
+
+test('detail revision upgrades preserve manual moves and unrelated chest/collar accessories',()=>{
+ const head={id:'head',x:3,y:4,scale:.95,rotation:2},part={id:'board',realUniformDetail:true,hairHeadId:'head',hairHeadPose:{x:3,y:4,scale:.95,rotation:2},x:3,y:4,scale:.95,rotation:2};
+ assert.equal(hasAdjustedRealUniformDetails([part,{kind:'chest',x:90}],head),false);
+ for(const patch of [{x:11},{y:8},{scale:1.1},{locked:true},{visible:false},{opacity:.5}])assert.equal(hasAdjustedRealUniformDetails([{...part,...patch}],head),true);
 });

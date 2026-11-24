@@ -4,7 +4,7 @@ import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE} from '../thai-fema
 import {PreviewWatermark} from './preview-watermark.jsx';
 import {planThaiBodyFrame,fitThaiBodyScene} from './thai-body-framing.js';
 import {THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
-import {REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor} from './real-uniform-details.js';
+import {REAL_UNIFORM_DETAIL_TEMPLATES,realUniformDetailsVersionFor,hasAdjustedRealUniformDetails} from './real-uniform-details.js';
 import {orderThaiFemaleSuits,isThaiPremiumJobSuit} from '../thai-female-suit-policy.js';
 import {withoutObsoleteThaiNeckBridges} from './thai-collar-layers.js';
 import {ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender} from '../english-template-body-policy.js';
@@ -1277,6 +1277,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!head||!realDetailEligible||!ready||processActive||assetBusy||realDetailBusy.current)return;
   if(head.locked||head.visible===false){if(!automatic)setStatus('ปลดล็อกและแสดงเลเยอร์ภาพก่อนวางรายละเอียดชุดจริง');return}
   if(automatic&&(head.mask||head.eraseRestoreSource))return;
+  if(automatic&&head.realUniformDetailsVersion&&hasAdjustedRealUniformDetails(state.current,head))return;
   const template=head.generatedOutfitTemplate||governmentTemplate,key=JSON.stringify([accountScope,head.jobId,template]);
   if(automatic&&(editingPurchasedImage||savedWorkUnlocked)&&realDetailInitialJobs.current.has(head.jobId)&&!realDetailMemory.current.has(key))return;
   const detailVersion=realUniformDetailsVersionFor(template);
