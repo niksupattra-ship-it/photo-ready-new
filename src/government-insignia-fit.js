@@ -482,7 +482,7 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  // origin and remain dimensionless across every resulting photo size.
  const male=gender==='male';
  const ref=type==='stand'?{
-  collar:{left:.4425,right:.5575,down:.028,width:.0664},
+  collar:{left:.4425,right:.5575,down:.028,width:male?.078:.0664},
   chest:{x:.265,down:.245,width:.074},
   ribbon:{x:.737,down:.230,width:.230}
  }:type==='shirt'?{
@@ -510,17 +510,17 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   collar.y=(standing.y-frame.y)/frame.h;
   collar.bandTop=(Math.max(standing.top.left,standing.top.right)-frame.y)/frame.h;
   collar.bandBottom=(standing.bottom-frame.y)/frame.h;
-  collar.bandFill=.65;
+  collar.bandFill=.80;
   if(standing.seams){
    collar.bands=Object.fromEntries(['left','right'].map(side=>[side,{top:(standing.seams[side].top-frame.y)/frame.h,bottom:(standing.seams[side].bottom-frame.y)/frame.h}]));
   }
  }
- const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width};
+ const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width*(male?1.09:1)};
  const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};
  const breast=standing?measureMaleChestLine(image,standing,g):null;
  if(breast){
   chest.y=(breast.y-frame.y)/frame.h;
-  chest.height=.092;
+  chest.height=.100;
   ribbon.centerY=chest.y;
   // The top remains available to inspection/support and legacy callers.
   ribbon.top=chest.y-(g.width*ribbon.width*.28/2)/frame.h;
@@ -531,7 +531,7 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
  if(pockets){
   const pocketWidth=(pockets.left.width+pockets.right.width)/2;
   chest.x=(pockets.left.x-frame.x)/frame.w;
-  chest.height=pockets.left.width*.35/frame.w;
+  chest.height=pockets.left.width*.38/frame.w;
   ribbon.x=(pockets.right.x-frame.x)/frame.w;
   ribbon.width=pockets.right.width*.84/frame.w;
   const badgeHeight=Math.max(frame.w*chest.height,frame.w*ribbon.width*.28);

@@ -33,14 +33,16 @@ async function buildNativeAsset(kind,option,frame,preset,maxDensity=2){
  let w=frame.w*v.width,y=frame.y+frame.h*v.y;
  const ratio=Math.max(left.height/left.width,right.height/right.width);
  const bands=v.bands||((Number.isFinite(v.bandTop)&&Number.isFinite(v.bandBottom))?{left:{top:v.bandTop,bottom:v.bandBottom},right:{top:v.bandTop,bottom:v.bandBottom}}:null);
+ // Equal-sized pins use the shallower band, while each center follows its
+ // own collar seam. A shared intersection wrongly pushed the left pin down.
  if(bands){
-  const available=(Math.min(bands.left.bottom,bands.right.bottom)-Math.max(bands.left.top,bands.right.top))*frame.h;
+  const available=Math.min(...Object.values(bands).map(band=>band.bottom-band.top))*frame.h;
   if(available>0)w=Math.min(w,available*(v.bandFill??.82)/ratio);
  }
  const frames=[left,right].map((c,i)=>{
   const band=bands?.[i?'right':'left'],h=w*c.height/c.width;
   let cy=y;
-  if(band){const top=frame.y+frame.h*Math.max(bands.left.top,bands.right.top),bottom=frame.y+frame.h*Math.min(bands.left.bottom,bands.right.bottom),half=w*ratio/2;cy=Math.max(top+half,Math.min(bottom-half,y))}
+  if(band){const top=frame.y+frame.h*band.top,bottom=frame.y+frame.h*band.bottom;cy=(top+bottom)/2}
   return {x:frame.x+frame.w*(i?v.right:v.left)-w/2,y:cy-h/2,w,h};
  });
  // Preserve native insignia detail and room for the existing independent +/-300px controls.
