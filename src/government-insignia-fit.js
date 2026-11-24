@@ -510,10 +510,17 @@ export function governmentReferenceLandmarkFit(image,gender='female',templatePat
   collar.y=(standing.y-frame.y)/frame.h;
   collar.bandTop=(Math.max(standing.top.left,standing.top.right)-frame.y)/frame.h;
   collar.bandBottom=(standing.bottom-frame.y)/frame.h;
-  collar.bandFill=.80;
+  collar.bandFill=.90;
+  collar.width*=1.08;
+  // Use the common safe collar band so both pins have identical height and level.
   if(standing.seams){
-   collar.bands=Object.fromEntries(['left','right'].map(side=>[side,{top:(standing.seams[side].top-frame.y)/frame.h,bottom:(standing.seams[side].bottom-frame.y)/frame.h}]));
+   const top=Math.max(standing.seams.left.top,standing.seams.right.top),bottom=Math.min(standing.seams.left.bottom,standing.seams.right.bottom);
+   if(bottom>top){collar.bandTop=(top-frame.y)/frame.h;collar.bandBottom=(bottom-frame.y)/frame.h;}
   }
+  const center=(standing.button.x-frame.x)/frame.w;
+  const gap=(collar.right-collar.left)/2;
+  collar.left=center-gap;collar.right=center+gap;
+  collar.y=(collar.bandTop+collar.bandBottom)/2;
  }
  const chest={x:posX(ref.chest.x),y:posY(ref.chest.down),width:ref.chest.width*(male?1.09:1)};
  const ribbon={x:posX(ref.ribbon.x),top:posY(ref.ribbon.down),width:ref.ribbon.width};
