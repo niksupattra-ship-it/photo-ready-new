@@ -3,7 +3,7 @@ const make=(w,h)=>Object.assign(document.createElement('canvas'),{width:w,height
 const load=source=>source instanceof HTMLCanvasElement?Promise.resolve(source):new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('โหลดภาพชุดจริงไม่สำเร็จ'));im.src=source});
 function analyze(im){const scale=640/im.width,c=make(640,Math.round(im.height*scale));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return {pixels:c.getContext('2d').getImageData(0,0,c.width,c.height),geometry:detectUniformDetails(c.getContext('2d').getImageData(0,0,c.width,c.height)),scale:im.width/640}}
 const expanded=(g,pad)=>g.hull.map(p=>{const dx=p.x-g.cx,dy=p.y-g.cy,d=Math.hypot(dx,dy)||1;return {x:p.x+pad*dx/d,y:p.y+pad*dy/d}});
-function cleanOldDetails(im,analysis,parts){
+function cleanOldDetails(im,analysis,parts,replacements){
  const {pixels,scale}=analysis,{width:w,height:h,data}=pixels,mask=new Uint8Array(w*h);
  for(const {target:g}of parts){
   const hull=expanded(g,2),left=Math.max(0,Math.floor(Math.min(...hull.map(p=>p.x)))),right=Math.min(w-1,Math.ceil(Math.max(...hull.map(p=>p.x)))),top=Math.max(0,Math.floor(Math.min(...hull.map(p=>p.y)))),bottom=Math.min(h-1,Math.ceil(Math.max(...hull.map(p=>p.y))));
@@ -20,10 +20,15 @@ function cleanOldDetails(im,analysis,parts){
   if(!best)throw Error('เก็บรายละเอียดชุดเดิมไม่สำเร็จ · เก็บภาพเดิมไว้');
   fill.set(data.subarray(best.index,best.index+4),n*4);
  }
+ // Never erase an old board outside the opaque replacement footprint.
+ // Different AI/native outlines must not expose blue holes along an edge.
+ const coverage=make(im.width,im.height),coverageContext=coverage.getContext('2d');
+ for(const part of replacements||[])coverageContext.drawImage(part.canvas,part.frame.x,part.frame.y);
+ const covered=replacements?coverageContext.getImageData(0,0,im.width,im.height).data:null;
  const cleaned=make(im.width,im.height),ctx=cleaned.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);const native=ctx.getImageData(0,0,im.width,im.height);
  // Replace ONLY pixels of the measured old objects, including alpha. Every
  // face/skin/cloth pixel outside these measured regions remains byte-identical.
- for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n])native.data.set(fill.subarray(n*4,n*4+4),(y*im.width+x)*4)}
+ for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n]&&(!covered||covered[(y*im.width+x)*4+3]===255))native.data.set(fill.subarray(n*4,n*4+4),(y*im.width+x)*4)}
  ctx.putImageData(native,0,0);return cleaned;
 }
 function sourceCutout(im,g,scale){
@@ -37,7 +42,7 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
  if(portrait.width*portrait.height>33554432)throw Error('ภาพใหญ่เกินสำหรับวางรายละเอียดชุด');
  const [a,b]=[analyze(reference),analyze(portrait)],pairs=matchUniformDetails(a.geometry,b.geometry,{maleReference:realUniformDetailsVersionFor(templatePath)!==REAL_UNIFORM_DETAILS_VERSION});
  if(!pairs.length)return null;
- const cleaned=cleanOldDetails(portrait,b,pairs),parts=[];
+ const parts=[];
  for(const {source,target,name}of pairs){
   const s=a.scale,t=b.scale,patch=sourceCutout(reference,source,s),c=Math.cos(target.angle),sn=Math.sin(target.angle);
   let sx=target.w*t/(source.w*s),sy=target.h*t/(source.h*s);
@@ -46,8 +51,10 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
   const halfW=(Math.abs(drawW*c)+Math.abs(drawH*sn))/2+4,halfH=(Math.abs(drawW*sn)+Math.abs(drawH*c))/2+4;
   const left=Math.floor(target.cx*t-halfW),top=Math.floor(target.cy*t-halfH),canvas=make(Math.ceil(halfW*2),Math.ceil(halfH*2)),ctx=canvas.getContext('2d');
   ctx.translate(target.cx*t-left,target.cy*t-top);ctx.rotate(target.angle);ctx.scale(sx,sy);ctx.rotate(-source.angle);ctx.imageSmoothingQuality='high';ctx.drawImage(patch.canvas,patch.left-source.cx*s,patch.top-source.cy*s);
-  parts.push({name,kind:source.kind,source:canvas.toDataURL('image/png'),frame:{x:left,y:top,w:canvas.width,h:canvas.height}});
+  parts.push({canvas,name,kind:source.kind,source:canvas.toDataURL('image/png'),frame:{x:left,y:top,w:canvas.width,h:canvas.height}});
  }
+ const cleaned=cleanOldDetails(portrait,b,pairs,realUniformDetailsVersionFor(templatePath)===REAL_UNIFORM_DETAILS_VERSION?parts:null);
+ for(const part of parts)delete part.canvas;
  return {regions:pairs.map(({target})=>expanded(target,2)),version:realUniformDetailsVersionFor(templatePath),cleanedSource:cleaned.toDataURL('image/png'),parts,width:portrait.width,height:portrait.height};
 }
 

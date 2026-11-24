@@ -1,3 +1,4 @@
+import {retainedGovernmentInsignia,isGovernmentAccessory} from './government-insignia-retention.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
 import {THAI_PORTRAIT_POLISH_VERSION} from '../thai-portrait-polish.js';
 import {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE} from '../thai-female-head-size.js';
@@ -1617,9 +1618,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode,undefined,generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};
    if(englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&chosenPortraitMode==='female'&&!chosenHair&&!options.generationOptions?.keepCurrentHair)head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION;const anchor=options.manualOutfitFallback&&oldHead?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?suit:oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));
-   if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l);
+   if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){const retained=retainedGovernmentInsignia(previous,oldHead,head,{englishFlow});next=[...next.filter(l=>!isGovernmentAccessory(l)).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l),...retained];}
    if(head.portraitComposition===ENGLISH_HEAD_PORTRAIT_VERSION){const p=result.placement,frame={x:p.uX,y:p.uY,w:p.uW,h:p.uH};next=next.filter(l=>!['collar','chest','ribbon'].includes(layerKind(l))).map(l=>layerKind(l)==='suit'?{...l,sourceFrame:frame,collarFrame:{...frame},x:0,y:0,scale:1,squeezeX:1,squeezeY:1,rotation:0,visible:true}:l);}
-   const i=next.findIndex(l=>layerKind(l)==='suit');next.splice(i<0?next.length:i,0,head);
+   const i=next.findIndex(l=>layerKind(l)==='suit'||isGovernmentAccessory(l));next.splice(i<0?next.length:i,0,head);
    if(options.manualOutfitFallback&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION){
     next=next.map(l=>layerKind(l)==='suit'?{...l,visible:true}:l);
     const nativeSuit=next.find(l=>layerKind(l)==='suit');
