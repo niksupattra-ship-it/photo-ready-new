@@ -1,3 +1,4 @@
+import {garmentNeckBalance} from './garment-neck-balance.js';
 import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
 import sharp from 'sharp';
 import {measureUniformAnchors} from './src/portrait-uniform-fit.js';
@@ -25,7 +26,7 @@ export const ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE=Object.freeze({
  chinToCollar:.020,neckToShoulder:.255,chestToShoulder:.46
 });
 // Conditioning reference only. Never paste this mannequin into delivered pixels.
-export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null}={}){
+export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCALE,identity=null,canvasWidth=768,profile=null,returnNativeForeground=false,fixedIdentityEnvelope=false,stableGarmentFrame=false,neckHeadRatio=null,garmentBalancedNeck=false}={}){
  if(neckHeadRatio!==null&&(!Number.isFinite(neckHeadRatio)||neckHeadRatio<.10||neckHeadRatio>.25))throw Error('Invalid neck guide gap.');
  if(![768,1824].includes(canvasWidth))throw Error('Invalid layout canvas size.');
  if(!Number.isFinite(headScale)||headScale<=0||headScale>1)throw Error('Invalid English head reference scale.');
@@ -42,7 +43,7 @@ export async function createEnglishBodyLayout(outfit,{headScale=ENGLISH_HEAD_SCA
  // skull height or alter camera framing. Older English/Thai compositions
  // retain their exact original geometry.
  const headHeight=fixedIdentityEnvelope?referenceHeadHeight*headScale:faceAspect?headWidth*(faceAspect+.12):referenceHeadHeight*headScale;
- const frameNeckLength=span*(profile?.chinToCollar??.045),neckLength=neckHeadRatio===null?frameNeckLength:Math.max(span*.06,Math.min(span*.09,headHeight*neckHeadRatio)),neckWidth=span*(profile?.neckToShoulder??.22);
+ const frameNeckLength=span*(profile?.chinToCollar??.045),neckLength=garmentBalancedNeck?garmentNeckBalance(data,info.width,info.height,uniform,headHeight).gap:neckHeadRatio===null?frameNeckLength:Math.max(span*.06,Math.min(span*.09,headHeight*neckHeadRatio)),neckWidth=span*(profile?.neckToShoulder??.22);
  const chinY=uniform.collarTopY-neckLength,headTop=chinY-headHeight;
  // Keep the original body/canvas transform; change only the head anchor and neck.
  const frameChinY=uniform.collarTopY-frameNeckLength;

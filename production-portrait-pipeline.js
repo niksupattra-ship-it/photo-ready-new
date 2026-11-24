@@ -1,4 +1,4 @@
-import {usesThaiNewNeck,THAI_NEW_NECK_GAP,applyThaiNewNeck} from './thai-female-head-size.js';
+import {usesThaiNewNeck,usesThaiGarmentNeck,THAI_NEW_NECK_GAP,applyThaiNewNeck,applyThaiGarmentNeck} from './thai-female-head-size.js';
 import {usesThaiFemaleSmallerHead,usesThaiEnglishMakeupHead,THAI_FEMALE_HEAD_SIZE_INSTRUCTION} from './thai-female-head-size.js';
 import {createThaiAdaptiveComposition,thaiAdaptiveCompositionInstruction} from './thai-adaptive-composition.js';
 import {usesThaiBodyGeometry,parseThaiBodyReference,thaiBodyGeometryInstruction,THAI_BODY_GEOMETRY_VERSION,usesUnifiedThaiBodyGeometry} from './thai-body-geometry-policy.js';
@@ -526,6 +526,7 @@ export async function shieldThaiNativeUniformFront(portrait,{nativeForeground,sh
 async function processEnglishStudioPortrait({input,fields,root,removeBackground,key,onStage,onMakeupVariant,currentHair,requestPortrait,chosen,selected,selectedSingleMakeup=false,singlePass=false}){
  const thaiEnglishMakeupHead=usesThaiEnglishMakeupHead(fields,selected.gender);
  const newThaiNeck=usesThaiNewNeck(fields,selected.gender);
+ const garmentNeck=usesThaiGarmentNeck(fields,selected.gender);
  // Reuse the actual English female Makeup Image 1 builder and head policy.
  // Thai wardrobe, hair and result placement stay in their existing paths.
  if(thaiEnglishMakeupHead)fields={...fields,englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION};
@@ -596,7 +597,7 @@ async function processEnglishStudioPortrait({input,fields,root,removeBackground,
  // Thai v7 generates a single coherent garment/neck directly from the
  // immutable uploaded photo and a separate outfit reference. No pre-AI
  // composition of a surrogate neck, copied face, or PNG clothing is sent.
- if(newThaiNeck)layoutOptions={...(layoutOptions||{}),neckHeadRatio:THAI_NEW_NECK_GAP};
+ if(newThaiNeck)layoutOptions={...(layoutOptions||{}),...(garmentNeck?{garmentBalancedNeck:true}:{neckHeadRatio:THAI_NEW_NECK_GAP})};
  const layoutResult=headOnly||thaiSingleAi?null:await createEnglishBodyLayout(outfit,frontShield?{...(layoutOptions||{}),returnNativeForeground:true}:layoutOptions);
  const compositionReference=frontShield?layoutResult.composition:layoutResult;
  const nativeFrontGeometry=frontShield?layoutResult:null;
@@ -662,7 +663,7 @@ ${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-ch
  const adaptiveComposition=!thaiEnglishMakeupHead&&usesThaiBodyGeometry(fields)&&fields.thaiBodyGeometryVersion===THAI_BODY_GEOMETRY_VERSION?await createThaiAdaptiveComposition({outfit,identity,evidence:fields.thaiAdaptiveFaceGeometry,gender:selected.gender,smallerFemaleHead:usesThaiFemaleSmallerHead(fields,selected.gender)}):null;
  if(adaptiveComposition)prompt+=thaiAdaptiveCompositionInstruction(2+[visualHairReference,identityReference,outfit,hairPlacementReference,makeupStudioReference,outfitDetailReference].filter(Boolean).length);
  if(adaptiveComposition&&usesThaiFemaleSmallerHead(fields,selected.gender)){prompt=prompt.replaceAll(ENGLISH_HEAD_BODY_POLICY,'').replaceAll(THAI_FEMALE_HEAD_SIZE_INSTRUCTION,'');prompt+='\n'+THAI_FEMALE_HEAD_SIZE_INSTRUCTION;}
- if(newThaiNeck)prompt=applyThaiNewNeck(prompt);
+ if(newThaiNeck)prompt=garmentNeck?applyThaiGarmentNeck(prompt):applyThaiNewNeck(prompt);
  const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
