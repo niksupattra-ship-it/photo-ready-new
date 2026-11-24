@@ -1,0 +1,16 @@
+import {THAI_WHOLE_HEAD_GUIDE_VERSION,usesThaiWholeHeadGuide} from './thai-whole-head-guide.js';
+export const usesThaiCameraPhotography=fields=>usesThaiWholeHeadGuide(fields)&&fields.thaiWholeHeadGuideVersion===THAI_WHOLE_HEAD_GUIDE_VERSION;
+export function applyThaiCameraPhotography(prompt,fields,garment){
+ if(!usesThaiCameraPhotography(fields))return prompt;
+ // Cropping lower cloth is compatible with a fixed native scale. Squashing
+ // the whole torso to retain every lower pixel is not.
+ prompt=prompt.replaceAll("Do not enlarge, widen, narrow, lengthen, shorten, stretch, squeeze, zoom, crop or shift the garment to fit the uploaded person's body.","Keep the garment's native width-to-height aspect, fixed shoulder/collar positions and camera scale. Never squash its vertical length to fit the output; lower cloth may continue below the frame while the visible upper garment remains unchanged.");
+ const measured=Number.isFinite(garment?.collarToHem)&&garment.collarToHem>0&&Number.isFinite(garment?.shoulderWidth)&&garment.shoulderWidth>0
+  ?` The selected native PNG has COLLAR-TO-LOWER-CLOTH / SHOULDER-SPAN = ${(garment.collarToHem/garment.shoulderWidth).toFixed(4)}; preserve this vertical-to-horizontal garment ratio.`:'';
+ return prompt+`\nNATIVE GARMENT LENGTH — NO SQUAT TORSO:
+Reconstruct the garment with its original vertical proportions, not a shortened or top-compressed body.${measured} Keep collar, lapel notch, chest seams, buttons and lower cloth at their native proportional distances. Changing head size never scales the torso vertically. If lower cloth would leave the picture, continue it below the output edge rather than pulling every button and the chest upward. Do not invent extra height by stretching the neck or move the fixed shoulder/collar landmarks.
+CAMERA-FOCUSED FINE DETAIL — MAKEUP WITH PHOTOGRAPHIC TEXTURE:
+Render a sharply focused real-camera portrait with restrained studio Makeup and broad soft lighting. Soft LIGHT means gentle illumination, not optical blur, haze, soft-focus diffusion or smearing facial texture. Keep visible fine, irregular skin pores and natural local tonal detail after removing temporary blemishes. Clean skin must not become a smooth wax sheet, gelatin, painted foundation panel or repetitive synthetic pore pattern. Keep the same authentic complexion, facial anatomy and expression.
+Resolve the person's individual eyebrow hairs as separate fine shafts following their original growth and natural density; preserve the gaps and skin between them. No melted brow, gel-like eyebrow, blurred clump, uniform dark stamp or painted solid fill. Eyelashes remain individually separated at their actual natural length; iris detail, eyelid margins and lip boundaries are sharply photographed. Do not fabricate additional brow hairs or eyelashes or change their real shapes to simulate detail. Keep hair strands, fabric weave and metal insignia crisp without halos, gritty oversharpening or HDR microcontrast.
+Keep the approved light cosmetic colour and clear skin finish. This focused optical rendering replaces the extra skin soft-mist treatment; it does not remove Makeup or demand acne/wrinkles as texture. Complete the original photograph in the SAME single generation. No second AI call, local skin smoothing, sharpening filter, face mask, face warp or post-AI detail reconstruction.`;
+}
