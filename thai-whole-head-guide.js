@@ -7,6 +7,8 @@ export const ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-gu
 export const NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v6-face-range-makeup';
 export const FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v7-range98-frontal';
 export const THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v8-range97-pose-contract';
+// Version new render caches only; accepted hairstyle results and in-flight recovery stay intact.
+export const thaiFemaleGuideCacheRevision=(thaiWholeOutfit,gender,version=THAI_WHOLE_HEAD_GUIDE_VERSION)=>thaiWholeOutfit&&gender==='female'?[version]:[];
 export const usesNestedWholeHead=version=>[NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
 export const usesLoweredWholeHead=version=>[LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);
 export const usesCropIndependentWholeHead=version=>[CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION,NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION,THAI_WHOLE_HEAD_GUIDE_VERSION].includes(version);

@@ -1,3 +1,4 @@
+import {createAiResultCache} from '../src/ai-result-cache.js';
 import {applyFemaleFrontalContract} from '../thai-female-frontal-contract.js';
 import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
 import {normalizeThaiRealFaceAppearance} from '../thai-real-face-policy.js';
@@ -5,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
-import {measureHairCrown,fitWholeHeadGuide,THAI_WHOLE_HEAD_GUIDE_VERSION as VERSION,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION as LEGACY,PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION as PREVIOUS,CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION as CROP,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION as LOWERED,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION as ENLARGED,NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION as NESTED,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION as FRONTAL,usesThaiWholeHeadGuide,thaiWholeHeadInstruction} from '../thai-whole-head-guide.js';
+import {measureHairCrown,fitWholeHeadGuide,THAI_WHOLE_HEAD_GUIDE_VERSION as VERSION,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION as LEGACY,PREVIOUS_THAI_WHOLE_HEAD_GUIDE_VERSION as PREVIOUS,CROP_INDEPENDENT_THAI_WHOLE_HEAD_GUIDE_VERSION as CROP,LOWERED_THAI_WHOLE_HEAD_GUIDE_VERSION as LOWERED,ENLARGED_THAI_WHOLE_HEAD_GUIDE_VERSION as ENLARGED,NESTED_THAI_WHOLE_HEAD_GUIDE_VERSION as NESTED,FRONTAL_THAI_WHOLE_HEAD_GUIDE_VERSION as FRONTAL,usesThaiWholeHeadGuide,thaiWholeHeadInstruction,thaiFemaleGuideCacheRevision} from '../thai-whole-head-guide.js';
 import {createEnglishBodyLayout,ENGLISH_FEMALE_BALANCED_PROPORTION_PROFILE as PROFILE} from '../english-body-layout.js';
 import {selectedRearLayoutHair} from '../thai-selected-rear-layout.js';
 import {loadCatalogueHairGuide} from '../catalogue-hair-guide.js';
@@ -103,4 +104,17 @@ test('new female frontal contract removes 2D pose locks while keeping audited Ma
   assert.equal(applyFemaleFrontalContract(prompt,{...fields,portraitMode:'male'}),prompt);
   assert.equal(applyFemaleFrontalContract(prompt,{...fields,thaiWholeHeadGuideVersion:FRONTAL}),prompt);
  }
+});
+
+
+test('explicit new female render cache separates guide revisions while keeping old results and other genders reusable',async()=>{
+ const cache=createAiResultCache(),key=version=>JSON.stringify(['same-source',...thaiFemaleGuideCacheRevision(true,'female',version),'same-hair','makeup','same-outfit']);let calls=0;
+ const old=await cache.get(key(FRONTAL),async()=>{calls++;return {size:1,guide:FRONTAL}});
+ const next=await cache.get(key(VERSION),async()=>{calls++;return {size:1,guide:VERSION}});
+ assert(!old.reused&&!next.reused);assert.equal(calls,2);
+ assert((await cache.get(key(FRONTAL),()=>{throw Error('Do not delete accepted old result')})).reused);
+ assert((await cache.get(key(VERSION),()=>{throw Error('Do not duplicate new request')})).reused);
+ assert.deepEqual(thaiFemaleGuideCacheRevision(true,'male'),[]);assert.deepEqual(thaiFemaleGuideCacheRevision(false,'female'),[]);
+ const main=await readFile(root+'src/main.jsx','utf8');assert(main.includes('...thaiFemaleGuideCacheRevision(thaiWholeOutfit,gender)'));
+ const recovery=main.slice(main.indexOf('const submissionKey=JSON.stringify'),main.indexOf('const sourceDigest=await resultSourceDigest(originalFile)',main.indexOf('const submissionKey=JSON.stringify')));assert(!recovery.includes('thaiFemaleGuideCacheRevision'),'An in-flight owned request must still be recoverable without a second AI call');
 });
