@@ -1,3 +1,4 @@
+import {seedreamLabPayload} from './seedream-review-transport.js';
 import {sanitizeAiError} from './ai-error-sanitizer.js';
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
 import {basicThaiHairRequestAllowed,THAI_BASIC_AI_MESSAGE} from './thai-basic-ai-policy.js';
@@ -430,7 +431,7 @@ app.post('/api/seedream-sandbox',seedreamSandboxUpload.fields([{name:'person',ma
  const {randomUUID}=await import('node:crypto');const id=randomUUID(),job={};sandboxJobs.set(id,job);setTimeout(()=>sandboxJobs.delete(id),600000).unref();
  res.status(202).json({id});
  void (async()=>{try{
- const response=await fetch('https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(240000),body:JSON.stringify({model:'dola-seedream-5-0-flash-260915',prompt,image,size:'2K',output_format:'png',response_format:'b64_json',watermark:false})});
+ const response=await fetch('https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(240000),body:JSON.stringify(seedreamLabPayload(prompt,image))});
  const body=await response.json();if(!response.ok)throw Error(String(body?.error?.message||'Seedream request failed').slice(0,1000));
  const raw=body?.data?.[0]?.b64_json;if(!raw)throw Error('Seedream did not return an image');job.png=Buffer.from(raw,'base64');
  }catch(e){job.error=String(e.message||'Request failed').slice(0,1000)}})();
