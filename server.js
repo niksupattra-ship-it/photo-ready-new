@@ -410,7 +410,8 @@ async function modnetRemoveBackground(input,{refine=true}={}){
 }
 
 // Isolated Seedream sandbox: caller supplies their own Ark key; no wallet or production image pipeline.
-app.post('/api/seedream-sandbox',upload.fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1},{name:'hair',maxCount:1}]),async(req,res)=>{
+const seedreamSandboxUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3,fields:2,parts:5,fieldSize:64*1024}});
+app.post('/api/seedream-sandbox',seedreamSandboxUpload.fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1},{name:'hair',maxCount:1}]),async(req,res)=>{
  res.set('Cache-Control','no-store');
  try{
   const key=String(req.body?.key||'').trim(),prompt=String(req.body?.prompt||'').trim();
