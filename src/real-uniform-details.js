@@ -1,7 +1,7 @@
 // Pure image geometry. Never infer details from face landmarks or fixed output coordinates.
 export const REAL_UNIFORM_DETAILS_VERSION='real-uniform-details-v5-alpha-safe-cleanup';
 export const REAL_UNIFORM_DETAIL_TEMPLATES=new Set(['female-operational','female-academic','female-senior','female-government-employee','male-government-employee','interior-01','interior-02','interior-03'].map(name=>'/assets/government-uniforms/'+name+'.png'));
-export function realUniformDetailsVersionFor(template=''){return /\/(?:male-government-employee|interior-0[123])\.png$/.test(template)?'real-uniform-details-v4-male-reference-overlay':REAL_UNIFORM_DETAILS_VERSION}
+export function realUniformDetailsVersionFor(template=''){return /\/(?:male-government-employee|interior-0[123])\.png$/.test(template)?'real-uniform-details-v5-male-equal-boards':REAL_UNIFORM_DETAILS_VERSION}
 const gold=(r,g,b,a)=>a>100&&r>115&&g>75&&r>b+28&&g>b+12&&r>g*.82;
 const cross=(o,a,b)=>(a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
 export function detailHull(points){
@@ -74,7 +74,16 @@ export function matchUniformDetails(reference,portrait,{maleReference=false}={})
  }
  if(maleReference){
   const xs=portrait.boards.flatMap(b=>b.hull.map(p=>p.x)),span=Math.max(...xs)-Math.min(...xs);
-  return parts.map(p=>({...p,target:{...p.target,...(p.source.kind==='button'?{w:span*.053,h:span*.053}:{h:p.target.w*p.source.h/p.source.w})}}));
+  const [left,right]=portrait.boards;
+  const width=Math.max(left.w,right.w);
+  const height=width*Math.max(...reference.boards.map(g=>g.h/g.w));
+  return parts.map((p,i)=>{
+   if(p.source.kind==='button')return {...p,target:{...p.target,w:span*.053,h:span*.053}};
+   const g=p.target,sign=i===0?-1:1;
+   // Anchor the outer shoulder end; extend a fragmented detection inward.
+   const delta=(width-g.w)/2;
+   return {...p,target:{...g,w:width,h:height,cx:g.cx-sign*delta*Math.cos(g.angle),cy:g.cy-sign*delta*Math.sin(g.angle)}};
+  });
  }
  return parts;
 }
