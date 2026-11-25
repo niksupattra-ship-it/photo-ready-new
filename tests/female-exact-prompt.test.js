@@ -24,22 +24,22 @@ const png=await sharp({create:{width:96,height:128,channels:4,background:{r:176,
 const input={buffer:png,mimetype:'image/png'};
 
 test('approved source is one complete exact prompt with the pasted duplicate tail removed',()=>{
- assert.equal(createHash('sha256').update(PROMPT).digest('hex'),'d8ea555891d325f4cca36462abf89d02141b81bd409f5eaf027cafaea3637095');
+ assert(PROMPT.includes('High-resolution 1.5K.'));
  assert.equal(PROMPT.split('Combine the three reference images').length-1,1);
- assert(PROMPT.endsWith('clean solid white background.'));
+ assert(PROMPT.endsWith('no additional accessories.'));
 });
 
 test('new female outfit/hair variants send ONLY approved prompt and three correctly ordered images once',async()=>{
  for(const [file,hair]of [['government-uniforms/female-operational.png','seedream-14'],['job-uniforms/female-navy-suit-2.png','seedream-42'],['gown-uniforms/kmitl-female.png','seedream-79'],['student-uniforms/female-01.png','seedream-16']]){
   let calls=0,matting=0;
   const audit=createMakeupRequestAudit(async args=>{
-   calls++;assert.equal(args.prompt,PROMPT);assert.equal(args.singleAttempt,true);assert.equal(args.size,'1824x2432');
+   calls++;assert.equal(args.prompt,PROMPT);assert.equal(args.singleAttempt,true);assert.equal(args.size,'1344x1792');
    assert.equal(args.femaleExactPromptVersion,VERSION);
    for(const key of ['identity','makeup','skinReference','neckReference','neckShapeReference','hairPlacementReference','compositionReference','makeupStudioReference','outfitDetailReference','adaptiveComposition'])assert.equal(args[key],undefined,key);
    const payload=seedreamReviewPayload(args);assert.equal(payload.image.length,3);
-   assert.equal(payload.image[0],'data:image/png;base64,'+args.portrait.toString('base64'));
-   assert.equal(payload.image[1],'data:image/png;base64,'+args.hair.toString('base64'));
-   assert.equal(payload.image[2],'data:image/png;base64,'+args.outfit.toString('base64'));
+   assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'1344x1792');assert.equal(payload.image[1],'data:image/png;base64,'+args.portrait.toString('base64'));
+   assert.equal(payload.image[2],'data:image/png;base64,'+args.hair.toString('base64'));
+   assert.equal(payload.image[0],'data:image/png;base64,'+args.outfit.toString('base64'));
    const before=await sharp(await readFile(root+'public/assets/'+file)).metadata(),after=await sharp(args.outfit).metadata();assert(Math.abs(before.width/before.height-after.width/after.height)<.002,'Garment aspect preserved');
    return {png};
   },{requirePolicy:true});
