@@ -33,14 +33,14 @@ test('new female outfit/hair variants send ONLY approved prompt and three correc
  for(const [file,hair]of [['government-uniforms/female-operational.png','seedream-14'],['job-uniforms/female-navy-suit-2.png','seedream-42'],['gown-uniforms/kmitl-female.png','seedream-79'],['student-uniforms/female-01.png','seedream-16']]){
   let calls=0,matting=0;
   const audit=createMakeupRequestAudit(async args=>{
-   calls++;assert.equal(args.prompt,PROMPT);assert.equal(args.singleAttempt,true);assert.equal(args.size,'1.5K');
+   calls++;assert.equal(args.prompt,PROMPT);assert.equal(args.singleAttempt,true);assert.equal(args.size,'960x1280');
    assert.equal(args.femaleExactPromptVersion,VERSION);
    for(const key of ['identity','makeup','skinReference','neckReference','neckShapeReference','hairPlacementReference','compositionReference','makeupStudioReference','outfitDetailReference','adaptiveComposition'])assert.equal(args[key],undefined,key);
    const payload=seedreamReviewPayload(args);assert.equal(payload.image.length,3);
-   assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'1.5K');assert.equal(payload.image[0],'data:image/png;base64,'+args.portrait.toString('base64'));
+   assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'960x1280');assert.equal(payload.image[0],'data:image/png;base64,'+args.portrait.toString('base64'));
    assert.equal(payload.image[2],'data:image/png;base64,'+args.hair.toString('base64'));
    assert.equal(payload.image[1],'data:image/png;base64,'+args.outfit.toString('base64'));
-   const before=await sharp(await readFile(root+'public/assets/'+file)).metadata(),after=await sharp(args.outfit).metadata();assert(Math.abs(before.width/before.height-after.width/after.height)<.002,'Garment aspect preserved');
+   assert.deepEqual(args.outfit,await readFile(root+'public/assets/'+file));assert.deepEqual(args.portrait,input.buffer);assert.deepEqual(args.hair,await readFile(root+'public/assets/catalogue-hair-guides/v1/'+hair+'.png'));
    return {png};
   },{requirePolicy:true});
   const out=await processProductionPortrait({input,fields:{...base,hairId:hair,neckOutfitReferencePath:'/assets/'+file},root,key:'inert',requestPortrait:audit.requestPortrait,removeBackground:async()=>{matting++;return png}});

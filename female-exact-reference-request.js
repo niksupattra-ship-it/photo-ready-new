@@ -4,12 +4,12 @@ import {readFile} from 'node:fs/promises';
 import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_EXACT_PROMPT,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
 import {isThaiOutfitPath} from './thai-outfit-ai-policy.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
-import {prepareFreePngReference} from './free-png-reference.js';
+
 
 export async function generateExactFemalePortrait({input,fields,root,key,chosen,currentHair,requestPortrait,onStage}){
  if(!usesFemaleExactPrompt(fields)||!isThaiOutfitPath(fields.neckOutfitReferencePath)||chosen&&chosen.gender!=='female')throw Error('ข้อมูลคำสั่งหรือรูปอ้างอิงผู้หญิงไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  if(fields.preserveHairJobId&&!currentHair)throw Error('ไม่พบรูปทรงผมเดิม · เก็บภาพเดิมไว้');
- const source=async buffer=>sharp(buffer,{limitInputPixels:33554432}).rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).png().toBuffer();
+ const mime=async buffer=>{const {format}=await sharp(buffer,{limitInputPixels:33554432}).metadata();const type={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}[format];if(!type)throw Error('Unsupported reference image format');return type;};
  const hairReference=async()=>{
   let buffer;
   if(fields.keepCurrentHair==='1'||!chosen)buffer=currentHair||input.buffer;
@@ -17,13 +17,13 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
   else{
    if(!chosen.file||path.basename(chosen.file)!==chosen.file)throw Error('ไม่พบรูปทรงผมที่เลือก');
    buffer=await readFile(path.join(root,'public/assets',chosen.referenceDirectory==='hair'?'hair':'seedream-hairstyles/references',chosen.file));
-   if(chosen.referenceDirectory==='hair')buffer=await prepareFreePngReference(buffer,chosen.id);
+
   }
-  return sharp(buffer,{limitInputPixels:33554432}).rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).png().toBuffer();
+  return buffer;
  };
  // Transport sends original person, selected garment, then hairstyle to match ModelArk trial. No neutral board, alternate skin
  // reference, old hair contract, geometry prompt or native outfit repair.
- const [portrait,hair,outfit]=await Promise.all([source(input.buffer),hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1))).then(source)]);
+ const [portrait,hair,outfit]=await Promise.all([input.buffer,hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))]);
  await onStage('generation');
- return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'1.5K',portrait,portraitMime:'image/png',hair,outfit});
+ return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'960x1280',portrait,portraitMime:await mime(portrait),hair,hairMime:await mime(hair),outfit,outfitMime:await mime(outfit)});
 }
