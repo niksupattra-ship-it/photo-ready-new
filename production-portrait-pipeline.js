@@ -239,7 +239,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  if(usesFemaleExactPrompt(fields)){
   const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
   await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
-  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
+  const {png:transparent,alpha}=await preserveExactFemalePixels(result.png,matted);
   if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
   return transparent;
  }
@@ -769,3 +769,11 @@ async function cleanTrialCutoutEdges(input){
 
 
 
+
+// Use the matting service only as an alpha mask; never use its resampled RGB.
+export async function preserveExactFemalePixels(original,matted){
+ const {data,info}=await sharp(original).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const mask=await sharp(matted).ensureAlpha().extractChannel(3).resize(info.width,info.height,{fit:'fill'}).raw().toBuffer();
+ let min=255,max=0;for(let i=0;i<mask.length;i++){const a=mask[i];data[i*4+3]=a;min=Math.min(min,a);max=Math.max(max,a);}
+ return {png:await sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer(),alpha:{min,max}};
+}

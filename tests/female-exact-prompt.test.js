@@ -79,3 +79,5 @@ test('original and retained hairstyles still use the same exact prompt and three
   assert.equal(calls,1);
  }
 });
+
+ test('exact female matting retains native RGB and dimensions even when mask service resizes or recolors',async()=>{const {preserveExactFemalePixels}=await import('../production-portrait-pipeline.js');const mask=await sharp({create:{width:48,height:64,channels:4,background:{r:0,g:0,b:0,alpha:.5}}}).png().toBuffer();const out=await preserveExactFemalePixels(png,mask);const {data,info}=await sharp(out.png).raw().toBuffer({resolveWithObject:true});const original=await sharp(png).raw().toBuffer();assert.equal(info.width,96);assert.equal(info.height,128);for(let i=0;i<data.length;i+=4){assert.deepEqual(data.subarray(i,i+3),original.subarray(i,i+3));assert.equal(data[i+3],128);}});
