@@ -411,22 +411,29 @@ async function modnetRemoveBackground(input,{refine=true}={}){
 
 // Isolated Seedream sandbox: caller supplies their own Ark key; no wallet or production image pipeline.
 const seedreamSandboxUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3,fields:2,parts:5,fieldSize:64*1024}});
+const sandboxJobs=new Map();
+app.get('/api/seedream-sandbox/:id',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ const job=sandboxJobs.get(req.params.id);
+ if(!job)return res.status(404).json({error:'งานหมดอายุหรือเซิร์ฟเวอร์เริ่มใหม่'});
+ if(job.png)return res.type('png').send(job.png);
+ if(job.error)return res.status(502).json({error:job.error});
+ res.status(202).json({status:'processing'});
+});
 app.post('/api/seedream-sandbox',seedreamSandboxUpload.fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1},{name:'hair',maxCount:1}]),async(req,res)=>{
  res.set('Cache-Control','no-store');
  try{
-  const key=String(req.body?.key||'').trim(),prompt=String(req.body?.prompt||'').trim();
-  if(!key||!prompt||prompt.length>20000)return res.status(400).json({error:'กรุณากรอก API key และ Prompt'});
-  const image=['person','outfit','hair'].map(name=>{
-   const file=req.files?.[name]?.[0];
-   if(!file||!['image/png','image/jpeg','image/webp'].includes(file.mimetype))throw Error('กรุณาแนบภาพ JPG, PNG หรือ WEBP ทั้งสามรูป');
-   return 'data:'+file.mimetype+';base64,'+file.buffer.toString('base64');
-  });
-  const response=await fetch('https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(240000),body:JSON.stringify({model:'dola-seedream-5-0-flash-260915',prompt,image,size:'2K',output_format:'png',response_format:'b64_json',watermark:false})});
-  const body=await response.json();
-  if(!response.ok)return res.status(response.status).json({error:String(body?.error?.message||'Seedream request failed').slice(0,1000)});
-  const raw=body?.data?.[0]?.b64_json;
-  if(!raw)return res.status(502).json({error:'Seedream did not return an image'});
-  res.type('png').send(Buffer.from(raw,'base64'));
+ const key=String(req.body?.key||'').trim(),prompt=String(req.body?.prompt||'');
+ if(!key||!prompt.trim()||prompt.length>20000)return res.status(400).json({error:'กรุณากรอก API key และ Prompt'});
+ const image=['person','outfit','hair'].map(name=>{const file=req.files?.[name]?.[0];if(!file||!['image/png','image/jpeg','image/webp'].includes(file.mimetype))throw Error('กรุณาแนบภาพทั้งสามรูป');return 'data:'+file.mimetype+';base64,'+file.buffer.toString('base64')});
+ if(sandboxJobs.size>=20)return res.status(503).json({error:'หน้าทดลองเต็ม กรุณารอ'});
+ const {randomUUID}=await import('node:crypto');const id=randomUUID(),job={};sandboxJobs.set(id,job);setTimeout(()=>sandboxJobs.delete(id),600000).unref();
+ res.status(202).json({id});
+ void (async()=>{try{
+ const response=await fetch('https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(240000),body:JSON.stringify({model:'dola-seedream-5-0-flash-260915',prompt,image,size:'2K',output_format:'png',response_format:'b64_json',watermark:false})});
+ const body=await response.json();if(!response.ok)throw Error(String(body?.error?.message||'Seedream request failed').slice(0,1000));
+ const raw=body?.data?.[0]?.b64_json;if(!raw)throw Error('Seedream did not return an image');job.png=Buffer.from(raw,'base64');
+ }catch(e){job.error=String(e.message||'Request failed').slice(0,1000)}})();
  }catch(e){res.status(400).json({error:String(e.message||'Request failed').slice(0,1000)})}
 });
 
