@@ -9,9 +9,9 @@ test('face truncation and multiple people still require replacement',()=>{
  assert.equal(assessUploadPortrait({faces:[face,face]}).status,'reject');
  assert.equal(assessUploadPortrait({faces:[]}).status,'reject');
 });
-test('clear shoulder/upper chest truncation rejects but uncertain pose is advisory',()=>{
+test('mid-chest cutoff rejects too-tight crops but uncertain pose is advisory',()=>{
  const cropped=evidence();cropped.pose[11].x=-.15;assert.equal(assessUploadPortrait(cropped).status,'reject');
- const chest=evidence();chest.pose[11].y=chest.pose[12].y=.94;assert.match(assessUploadPortrait(chest).issues.join(),/อกส่วนบน/);
+ const chest=evidence();chest.pose[11].y=chest.pose[12].y=.94;assert.match(assessUploadPortrait(chest).issues.join(),/กลางอก/);
  const unknown=evidence();unknown.pose[11].visibility=.1;assert.equal(assessUploadPortrait(unknown).status,'uncertain');assert.deepEqual(assessUploadPortrait(unknown).issues,[]);
 });
 test('missing or invalid measurements are uncertain rather than false failures',()=>{
@@ -20,6 +20,14 @@ test('missing or invalid measurements are uncertain rather than false failures',
 });
 
 test('upper chest and shoulders at image sides pass without arm margins or full crown',()=>{
- const input=evidence();input.pose[11]={x:-.035,y:.89,visibility:.55};input.pose[12]={x:.985,y:.89,visibility:.55};
+ const input=evidence();input.pose[11]={x:-.035,y:.79,visibility:.55};input.pose[12]={x:.985,y:.79,visibility:.55};
  assert.equal(assessUploadPortrait({...input,crownTouchesEdge:true}).status,'pass');
+});
+
+test('mid-chest crop passes where old lower-chest cutoff rejected',()=>{
+ const p=evidence();p.pose[11].y=p.pose[12].y=.78;
+ assert.equal(assessUploadPortrait(p).status,'pass');
+ const tooHigh=evidence();tooHigh.pose[11].y=tooHigh.pose[12].y=.86;
+ assert.equal(assessUploadPortrait(tooHigh).status,'reject');
+ assert.match(assessUploadPortrait(tooHigh).issues.join(),/กลางอก/);
 });
