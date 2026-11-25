@@ -37,9 +37,9 @@ test('new female outfit/hair variants send ONLY approved prompt and three correc
    assert.equal(args.femaleExactPromptVersion,VERSION);
    for(const key of ['identity','makeup','skinReference','neckReference','neckShapeReference','hairPlacementReference','compositionReference','makeupStudioReference','outfitDetailReference','adaptiveComposition'])assert.equal(args[key],undefined,key);
    const payload=seedreamReviewPayload(args);assert.equal(payload.image.length,3);
-   assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'1.5K');assert.equal(payload.image[0],'data:image/png;base64,'+args.portrait.toString('base64'));
+   assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'1.5K');assert.equal(payload.image[1],'data:image/png;base64,'+args.portrait.toString('base64'));
    assert.equal(payload.image[2],'data:image/png;base64,'+args.hair.toString('base64'));
-   assert.equal(payload.image[1],'data:image/png;base64,'+args.outfit.toString('base64'));
+   assert.equal(payload.image[0],'data:image/png;base64,'+args.outfit.toString('base64'));
    assert.deepEqual(args.outfit,await readFile(root+'public/assets/'+file));assert.deepEqual(args.portrait,input.buffer);
    return {png};
   },{requirePolicy:true});
