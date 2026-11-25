@@ -123,7 +123,7 @@ export function ThaiMobileJourney({
  );
  return <div className={'thai-mobile-flow'+(resultReadyPage?' thai-mobile-flow-ready':'')+(choicePage?' thai-mobile-flow-choice':'')+(processingPage?' thai-mobile-flow-processing':'')}>
   <header className="thai-mobile-header">
-   <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span>{resultReadyPage||choicePage||processingPage?<><strong>IDพร้อม</strong><small>AI ID PHOTO</small></>:'ID PROM TH'}</span></div>
+   <div className="thai-mobile-brand"><span className="thai-mobile-camera" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span>{resultReadyPage||choicePage||processingPage?<><strong>IDพร้อม</strong><small>ID PHOTO STUDIO</small></>:'ID PROM TH'}</span></div>
    <div className="thai-mobile-member">
 
     {memberMenu}
@@ -221,7 +221,7 @@ export function ThaiMobileJourney({
      <div className="thai-mobile-choice-footer">
       {!!notice&&<p className="thai-mobile-alert" role="alert">{notice}</p>}
       <button className="thai-mobile-primary thai-mobile-choice-create" type="button" disabled={!canSubmit} onClick={create}><span aria-hidden="true">✦</span> สร้างรูป</button>
-      <p className="thai-mobile-choice-caption"><span aria-hidden="true">ⓘ</span> สร้างภาพด้วย AI เพียง 1 ครั้ง จากตัวเลือกที่เลือกไว้</p>
+      <p className="thai-mobile-choice-caption"><span aria-hidden="true">ⓘ</span> ตัดต่อรูปตามตัวเลือกที่เลือกไว้ 1 ครั้ง</p>
      </div>
     </div>
    </section>:<section className={'thai-mobile-result'+(resultReadyPage?' thai-mobile-result-ready-page':'')} aria-label="ผลลัพธ์รูปติดบัตร">
