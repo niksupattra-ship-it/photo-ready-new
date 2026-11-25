@@ -6,7 +6,7 @@ export function IdpromSimpleHome({onUpload,loading=false,sourcePreview=null,stat
  const [page,setPage]=useState('welcome');
  return <div className="idprom-simple-home">
   <header className="idprom-simple-header">
-   <a className="idprom-simple-brand" href="/" aria-label="IDพร้อม หน้าแรก"><span className="idprom-camera-icon" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span><strong>IDพร้อม</strong><small>รูปติดบัตรด้วย AI</small></span></a>
+   <a className="idprom-simple-brand" href="/" aria-label="IDพร้อม หน้าแรก"><span className="idprom-camera-icon" aria-hidden="true"><svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 10h5l2-3h7l2 3h4a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V13a3 3 0 0 1 3-3Z"/><circle cx="16" cy="19" r="6"/><path d="M24 14h.01"/></svg></span><span><strong>IDพร้อม</strong><small>รูปติดบัตรออนไลน์</small></span></a>
    <div className="idprom-simple-header-right">{memberMenu}<a href="/id-photo/" className="idprom-simple-info-link">ข้อมูลบริการ</a></div>
   </header>
   <main className="idprom-simple-content">
