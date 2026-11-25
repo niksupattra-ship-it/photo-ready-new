@@ -1,7 +1,8 @@
 // Transport for the isolated review server; no production route or key fallback.
+import {FEMALE_EXACT_PROMPT_VERSION} from './female-exact-prompt-policy.js';
 export const REVIEW_SEEDREAM_MODEL='dola-seedream-5-0-flash-260915';
 export const REVIEW_SEEDREAM_ENDPOINT='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
-export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,identity,makeup,outfit,skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,size='2K'}){
+export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,identity,makeup,outfit,skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,size='2K'}){
  if(!portrait?.length)throw Error('ไม่มีภาพคนสำหรับ Seedream');
  const image=[`data:${portraitMime};base64,${Buffer.from(portrait).toString('base64')}`];
  if(hair?.length)image.push(`data:image/png;base64,${Buffer.from(hair).toString('base64')}`);
@@ -17,7 +18,10 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(makeupStudioReference?.length)image.push(`data:image/jpeg;base64,${Buffer.from(makeupStudioReference).toString('base64')}`);
  if(outfitDetailReference?.length)image.push(`data:image/png;base64,${Buffer.from(outfitDetailReference).toString('base64')}`);
  if(adaptiveComposition?.length)image.push(`data:image/png;base64,${Buffer.from(adaptiveComposition).toString('base64')}`);
- return {model:REVIEW_SEEDREAM_MODEL,prompt,image:image.length===1?image[0]:image,size,output_format:'png',response_format:'b64_json',watermark:false};
+ const femalePro=femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION;
+ if(femalePro&&(!hair?.length||!outfit?.length||image.length!==3))throw Error('Female Pro requires exactly three references');
+ const ordered=femalePro?[image[2],image[0],image[1]]:image;
+ return {model:femalePro?'dola-seedream-5-0-pro-260628':REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'1344x1792':size,output_format:'png',response_format:'b64_json',watermark:false};
 }
 export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
  const {key}=options;
