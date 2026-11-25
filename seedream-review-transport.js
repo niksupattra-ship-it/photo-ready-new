@@ -21,7 +21,7 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  const femalePro=femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION;
  if(femalePro&&(!hair?.length||!outfit?.length||image.length!==3))throw Error('Female Pro requires exactly three references');
  const ordered=femalePro?[image[0],image[2],image[1]]:image;
- return {model:REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'1.5K':size,output_format:'png',response_format:'b64_json',watermark:false};
+ return {model:REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'2K':size,output_format:'png',response_format:'b64_json',watermark:false};
 }
 export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
  const {key}=options;
