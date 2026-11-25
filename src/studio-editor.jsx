@@ -779,7 +779,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow){
    const heads=next.filter(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
    const head=heads.length===1?heads[0]:null,asset=head&&map.get(head.id);
-   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&asset?.original&&!asset.warped){
+   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&head.portraitFramingVersion!=='seedream-lab-native-frame-v1'&&asset?.original&&!asset.warped){
     const im=asset.original,c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height});
     try{
      const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
@@ -1892,7 +1892,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||'')||portraitFinishChoice(result.layer.femaleEyeStyle,result.layer.initialFemaleEyeStyle)!==finish)throw Error('ผลลัพธ์ไม่ตรงกับเมคอัพหรือทรงผมที่เลือก');
-   const replacement={...result.layer,...headPose(placedHead),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:localFinish?head.hairPolicyVersion:mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
+   const replacement={...result.layer,...(result.layer.portraitFramingVersion==='seedream-lab-native-frame-v1'?{x:0,y:0,scale:1,rotation:0}:headPose(placedHead)),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:localFinish?head.hairPolicyVersion:mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
    assertAppearanceCurrent();
    let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
