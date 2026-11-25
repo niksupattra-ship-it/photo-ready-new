@@ -238,10 +238,8 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  // paired Makeup, reference boards or another generation.
  if(usesFemaleExactPrompt(fields)){
   const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
-  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
-  const {png:transparent,alpha}=await preserveExactFemalePixels(result.png,matted);
-  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
-  return transparent;
+  // Match ModelArk: deliver the generated image without any pixel processing.
+  return result.png;
  }
  const requestedMaleAuto=requestedHair?.autoHair==='english-male';
  const chosen=requestedMaleAuto?null:requestedHair;
