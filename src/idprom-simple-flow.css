@@ -197,3 +197,12 @@
  .idprom-simple-header .idprom-member-popover button{background:#f7f3ff!important;color:#6330b5!important;border:1px solid #e6dcf8!important;border-radius:10px!important;min-height:44px;text-align:left!important;padding:10px 12px!important;font-weight:600;white-space:normal}
  .idprom-simple-header .idprom-member-popover>button{margin-top:8px!important}
 }
+
+/* Isolate mobile page artwork below the sticky account menu. */
+@media(max-width:640px){
+ .idprom-simple-home{isolation:isolate}
+ .idprom-simple-home .idprom-simple-content{position:relative;z-index:0;isolation:isolate}
+ .idprom-simple-home .idprom-simple-photo-stack{isolation:isolate;z-index:0}
+ .idprom-simple-home .idprom-simple-header{z-index:1000!important;overflow:visible}
+ .idprom-simple-home .idprom-simple-header .idprom-member-popover{z-index:1001!important;max-width:calc(100vw - 24px);overflow-wrap:anywhere}
+}
