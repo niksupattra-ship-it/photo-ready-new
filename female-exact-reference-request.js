@@ -21,10 +21,9 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
   }
   return sharp(buffer,{limitInputPixels:33554432}).rotate().resize({width:2048,height:2048,fit:'inside',withoutEnlargement:true}).flatten({background:'#ffffff'}).png().toBuffer();
  };
- // EXACTLY Image 1 = original person, Image 2 = selected/current hairstyle,
- // Image 3 = unmodified selected garment. No neutral board, alternate skin
+ // Transport sends original person, selected garment, then hairstyle to match ModelArk trial. No neutral board, alternate skin
  // reference, old hair contract, geometry prompt or native outfit repair.
  const [portrait,hair,outfit]=await Promise.all([source(input.buffer),hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1))).then(source)]);
  await onStage('generation');
- return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'1344x1792',portrait,portraitMime:'image/png',hair,outfit});
+ return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'1.5K',portrait,portraitMime:'image/png',hair,outfit});
 }
