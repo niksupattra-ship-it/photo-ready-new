@@ -2944,7 +2944,7 @@ async function requestFreeFemaleAlternate(jobId,finish,hairId,templatePath,onSta
   if(j.status!=='completed')throw Error('งานรูปต้นฉบับยังไม่พร้อม');
   if(j.femaleFinishSingleVersion!==FEMALE_SINGLE_FINISH_VERSION)throw Error('รูปเดิมไม่รองรับการสร้างการแต่งหน้าแยกกันฟรี');
   if(finish===j.femaleEyeStyle||j.alternateFinish===finish&&j.alternateFinishStatus==='completed')break;
-  if(j.alternateFinishStatus==='failed')throw Error('AI สร้างภาพอีกแบบไม่สำเร็จ รูปเดิมยังอยู่และไม่เสียเครดิต');
+  if(j.alternateFinishStatus==='failed')throw Error('ตัดต่อภาพอีกแบบไม่สำเร็จ รูปเดิมยังอยู่และไม่เสียเครดิต');
   if(Date.now()>deadline)throw Object.assign(Error('ระบบกำลังประมวลผลอีกแบบ กรุณาเปิดงานเดิมเพื่อรับผล'),{code:'AI_JOB_POLL_TIMEOUT'});
   onStatus?.('processing',j.alternateFinishStatus==='processing'?'makeup':'generation');
   await waitForPortraitOperation(900,operation);
@@ -4996,7 +4996,7 @@ function App(){
      // The next click must refetch this same completed provider result rather
      // than replaying a failed local postprocessing promise from the cache.
      portraitResultCache.clear();
-     setMsg('AI สร้างภาพเสร็จแล้ว แต่ Studio ยังเปิดผลไม่ได้ · กดประมวลผลอีกครั้งเพื่อรับงานเดิม ไม่หักเครดิตซ้ำ');
+     setMsg('ตัดต่อภาพเสร็จแล้ว แต่ Studio ยังเปิดผลไม่ได้ · กดประมวลผลอีกครั้งเพื่อรับงานเดิม ไม่หักเครดิตซ้ำ');
     }else{
      operation.cancelled=true;portraitResultCache.clear();
      // A rejected result cannot be retried via its old idempotency nonce.
@@ -5673,7 +5673,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    let nextMaster,generatedResult=null;
    if(cached){nextMaster=cached.master;if(sharedStudioSkinSource(nextMaster)&&(!hasOriginalPortraitAiFinish(nextMaster,finishStyle)||portraitMakeupNeedsUpdate(nextMaster))){const base=nextMaster;nextMaster=await finishSharedStudioSkin(base,{style:finishStyle,prepare:prepareSharedPortraitMakeup,toBlob:canvasPng,signal:{get aborted(){return Boolean(activeProcessOperation?.cancelled)}}});portraitGeometryBases.set(nextMaster,portraitGeometryBases.get(base)||base)}}else{
      // Only the untouched first upload is submitted for the new hairstyle.
-     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,freeOppositeFinish,templatePath:['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?(outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate):(editCache.current?.lock?.templatePath||activeUniformTemplate),onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing')setProgressStage(42,'AI กำลังสร้างทรงผมและปรับผิว')}});
+     const aiHeadNeck=await aiFinishPortrait(firstUploadedPhoto,id||'',{portraitMode,femaleEyeStyle:finishStyle,maleHairReplacement:/^manhair-\d{2}$/.test(id||''),creditKind:'hairstyle',sourceJobId,freeOppositeFinish,templatePath:['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?(outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate):(editCache.current?.lock?.templatePath||activeUniformTemplate),onJobStatus:(status,stage)=>{if(status==='queued')setProgressStage(18,'กำลังรอคิว');else if(stage==='matting')setProgressStage(65,'กำลังแยกพื้นหลัง');else if(stage==='edges')setProgressStage(78,'กำลังเก็บขอบ');else if(stage==='makeup')setProgressStage(85,'กำลังเตรียมภาพแต่งหน้า');else if(status==='processing')setProgressStage(42,'กำลังปรับทรงผมและผิว')}});
      generatedResult=aiHeadNeck;
      if(!studioOnly&&aiHeadNeck?.idpromTrial){studioTrialRef.current=true;setTrialPreview(true);}
      setProgressStage(60,'กำลังรับภาพพื้นหลังโปร่งใส');
@@ -6115,7 +6115,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
      idpromQualityReviewNeeded:cached.qualityReviewNeeded,idpromReused:true};
     master=cached.master;
    }else{
-    const generate=()=>aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'AI กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
+    const generate=()=>aiFinishPortrait(file,selectedHair||'',{...generationOptions,portraitMode,femaleEyeStyle,templatePath:template,onJobStatus:(status,stage)=>{if(stage==='makeup')setProgressStage(85,'กำลังเตรียมภาพแต่งหน้า');else if(status==='processing'&&['skin-prepare','skin-finish'].includes(stage))setProgressStage(64,'กำลังเก็บผิวและปรับแสง…')}});
     try{aiHead=await generate()}
     catch(error){
      // Recover the same server job only when AI finished successfully.
@@ -6338,7 +6338,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    }
    setUniformCategory(item.cat);setSelectedStyle(item.title);studioOriginRef.current={starter:true};setStudioData(null);setScreen('studio');
   };
-  return <>{LegacyPaidWarningUI()}{easyLanding}{authOpen&&screen==='home'&&AuthUI()}{!landingPhotoPendingRef.current&&(seoInformationPage||englishPreviewEnabled())&&<main className="profile-home studio-home studio-home-below-easy">{seoInformationPage&&<div className="idprom-seo-entry"><h1>รูปติดบัตรและชุดสำหรับสมัครงาน ข้าราชการ และชุดครุย</h1><p>ข้อมูลชุดและตัวอย่างรูปสำหรับเลือกแบบ ก่อนเริ่มทำรูปติดบัตรด้วย AI</p><a href="/">เริ่มทำรูปติดบัตร →</a></div>}{SavedWorkUI()}
+  return <>{LegacyPaidWarningUI()}{easyLanding}{authOpen&&screen==='home'&&AuthUI()}{!landingPhotoPendingRef.current&&(seoInformationPage||englishPreviewEnabled())&&<main className="profile-home studio-home studio-home-below-easy">{seoInformationPage&&<div className="idprom-seo-entry"><h1>รูปติดบัตรและชุดสำหรับสมัครงาน ข้าราชการ และชุดครุย</h1><p>ข้อมูลชุดและตัวอย่างรูปสำหรับเลือกแบบ ก่อนเริ่มทำรูปติดบัตรออนไลน์</p><a href="/">เริ่มทำรูปติดบัตร →</a></div>}{SavedWorkUI()}
    
    {homeInfoOpen&&<div className="studio-home-help" role="status">เลือกประเภทและแบบชุด → เพิ่มรูปต้นฉบับ → ประมวลผล → ปรับแต่ง → ดาวน์โหลด</div>}
    <div className="studio-home-inner">{checkoutRecovery&&<CheckoutRecovery payment={checkoutRecovery} busy={checkoutRecoveryBusy} message={checkoutRecoveryMessage} onResume={resumeStoredCheckout}/>}
