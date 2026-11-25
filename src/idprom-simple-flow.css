@@ -178,3 +178,22 @@
   width:100%;max-width:425px;min-height:272px;padding:28px 22px;
  }
 }
+
+/* Keep Thai mobile account controls and popover inside the viewport. */
+@media(max-width:640px){
+ .idprom-simple-header{padding:10px 12px;gap:8px;flex-wrap:wrap;justify-content:space-between}
+ .idprom-simple-brand{flex:0 1 auto;min-width:0;gap:7px}
+ .idprom-simple-brand strong{font-size:20px;white-space:nowrap}
+ .idprom-simple-brand small{font-size:10px;white-space:nowrap}
+ .idprom-simple-header-right{gap:6px;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;max-width:100%;min-width:0}
+ .idprom-simple-header .idprom-camera-icon{width:38px;height:38px;flex-shrink:0}
+ .idprom-simple-header .idprom-member-menu{position:static!important}
+ .idprom-simple-header .idprom-member-popover{position:absolute!important;left:auto!important;right:12px!important;top:calc(100% + 6px)!important;width:min(320px,calc(100vw - 24px))!important;max-height:calc(100dvh - 120px);overflow:auto;box-sizing:border-box;background:#fff!important;color:#241638!important;border:1px solid #e8dff5;border-radius:16px!important;padding:16px!important;box-shadow:0 12px 36px #30204b26!important;text-align:left}
+ .idprom-simple-header .idprom-member-popover>div{border-bottom-color:#eee7f7!important}
+ .idprom-simple-header .idprom-member-popover>div>div{color:#6b5c80!important}
+ .idprom-simple-header .idprom-member-popover>div>div:first-child:not(:last-child){color:#6b5c80!important}
+ .idprom-simple-header .idprom-member-popover>div:first-child>div:first-child:not(:last-child){background:#7438d1!important;color:#fff!important}
+ .idprom-simple-header .idprom-member-popover>div>div>div{color:#514263!important}
+ .idprom-simple-header .idprom-member-popover button{background:#f7f3ff!important;color:#6330b5!important;border:1px solid #e6dcf8!important;border-radius:10px!important;min-height:44px;text-align:left!important;padding:10px 12px!important;font-weight:600;white-space:normal}
+ .idprom-simple-header .idprom-member-popover>button{margin-top:8px!important}
+}
