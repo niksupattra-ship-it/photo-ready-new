@@ -3,7 +3,7 @@
 const finitePoint=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
 const planarDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 export function assessCloseSelfiePerspective(face){
- // MediaPipe normalized Z is relative to face width. It is an estimate,
+ // Diagnostic only: not used to approve or reject uploads. MediaPipe Z is
  // not a measured camera distance or proof of altered anatomy.
  const needed=[1,4,33,263,234,454];
  if(!needed.every(i=>finitePoint(face?.[i])))return {status:'unknown'};
@@ -32,17 +32,21 @@ export function assessUploadPortrait({faces=[],pose=[]}={}){
  const xs=face.map(p=>p.x),ys=face.map(p=>p.y),left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys),height=bottom-top,width=right-left;
  if(height<=0||width<=0)return {status:'uncertain',issues:[],uncertain:['ยังวัดกรอบหน้าไม่ได้ชัดเจน']};
  if(left<.008||right>.992||top<.008||bottom>.992)issues.push('ใบหน้าชิดหรือล้นขอบภาพ กรุณาเลือกรูปที่เห็นใบหน้าครบ');
- const perspective=assessCloseSelfiePerspective(face);
- if(perspective.status==='extreme')uncertain.push('ใบหน้าอาจผิดสัดส่วนจากกล้องเซลฟีที่ใกล้มาก แนะนำให้ถ่ายใหม่โดยถอยกล้องออก');
- else if(perspective.status==='suspected')uncertain.push('มุมกล้องอาจทำให้ใบหน้าไม่สมส่วน แนะนำใช้รูปที่ถ่ายไกลขึ้น');
- const a=pose[11],b=pose[12];
- const visible=p=>finitePoint(p)&&(p.visibility??0)>=.35;
- if(visible(a)&&visible(b)){
-  const shoulderLeft=Math.min(a.x,b.x),shoulderRight=Math.max(a.x,b.x),span=shoulderRight-shoulderLeft;
-  // Cropped shoulders are permitted: selected suit supplies the body.
-  // Warn only for clear pose disagreement, not image-edge cropping.
-  if(span<width*.85)uncertain.push('มุมลำตัวหรือไหล่อาจเอียง แนะนำรูปหันตรง');
+ // Close camera distance or apparent nose depth is not a valid automatic
+ // rejection criterion. Perspective cannot be inferred reliably from one face.
+ // Use only clearly observable pose; a zoom crop with straight face passes.
+ const le=face[33],re=face[263],nose=face[1],chin=face[152];
+ if([le,re,nose,chin].every(finitePoint)){
+  const eyeDistance=planarDistance(le,re);
+  if(eyeDistance>.03){
+   const roll=Math.abs(re.y-le.y)/eyeDistance;
+   const noseOffset=Math.abs(nose.x-(le.x+re.x)/2)/eyeDistance;
+   // Large measured tilt/turn is advisory, not a camera-distance judgment.
+   if(roll>.32&&noseOffset>.30)
+    uncertain.push('ใบหน้าอาจเอียงหรือหันข้างมาก กรุณาตรวจว่าหน้าตรงก่อนใช้รูป');
+  }
  }
+
  // No pose at all is allowed with a visible complete face; a zoom crop is valid.
  return {status:issues.length?'reject':uncertain.length?'uncertain':'pass',issues:[...new Set(issues)],uncertain:[...new Set(uncertain)]};
 }
