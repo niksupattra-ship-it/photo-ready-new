@@ -2982,7 +2982,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const gender=options.portraitMode||originalFile.idpromPortraitMode||PRODUCTION_HAIR_CATALOG.find(h=>h.id===hairId)?.gender||(/female|woman|women/i.test(template)?'female':/male|man|men/i.test(template)?'male':'female');
  const thaiWholeOutfit=!englishPreviewEnabled()&&isThaiOutfitPath(template)&&!options.manualOutfitFallback;
  if(thaiWholeOutfit&&gender==='female')options={...options,freeOppositeFinish:false,bodyReferenceBlob:null,thaiBodyReference:null};
- options={...options,portraitMode:gender,requiresSegmentation:!(englishPreviewEnabled()||thaiWholeOutfit),femaleEyeStyle:gender==='female'?(thaiWholeOutfit?'natural':portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle)):'natural'};
+ options={...options,portraitMode:gender,requiresSegmentation:!(englishPreviewEnabled()||thaiWholeOutfit),femaleEyeStyle:gender==='female'?(thaiWholeOutfit?'makeup':portraitFinishChoice(options.femaleEyeStyle,originalFile.idpromFemaleEyeStyle)):'natural'};
  const requestedFinish=options.femaleEyeStyle;
  // New jobs produce the selected finish, not an automatic Natural+Makeup pair.
  // Every new generation starts from the upload; never inherit a generated finish.
@@ -3076,7 +3076,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
   }
   if(gender!=='female'&&![ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_HEAD_PORTRAIT_VERSION].includes(cached.value.idpromPortraitComposition))
    await checkPortraitProportions(originalFile,cached.value);
-  await checkPortraitCompletion(originalFile,cached.value,hairId);
+  if(!(thaiWholeOutfit&&gender==='female'))await checkPortraitCompletion(originalFile,cached.value,hairId);
   assertCurrentOperation();
  }catch(error){
   if(!error.idpromProcessStage)error.idpromProcessStage='quality_check';
@@ -3093,7 +3093,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
  const finishRequested=async base=>{
-  if(gender!=='female'||!sharedStudioSkinSource(base))return base;
+  if(thaiWholeOutfit||gender!=='female'||!sharedStudioSkinSource(base))return base;
   // Natural was already finished before caching. Copy its exact bytes and
   // metadata rather than decode and rebuild the identical base a second time.
   if(requestedFinish==='natural'&&base.idpromFemaleEyeStyle==='natural'&&base.idpromNaturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION){
