@@ -53,9 +53,13 @@ export async function prepareRealUniformDetails({originalSource,templatePath}){
   ctx.translate(target.cx*t-left,target.cy*t-top);ctx.rotate(target.angle);ctx.scale(sx,sy);ctx.rotate(-source.angle);ctx.imageSmoothingQuality='high';ctx.drawImage(patch.canvas,patch.left-source.cx*s,patch.top-source.cy*s);
   parts.push({canvas,name,kind:source.kind,source:canvas.toDataURL('image/png'),frame:{x:left,y:top,w:canvas.width,h:canvas.height}});
  }
- const cleaned=cleanOldDetails(portrait,b,pairs,parts);
+ // Male reference patches already cover the detected detail. Avoid allocating
+ // multiple full-resolution RGBA buffers on mobile and never erase shoulder alpha.
+ const maleReference=realUniformDetailsVersionFor(templatePath)!==REAL_UNIFORM_DETAILS_VERSION;
+ const cleaned=maleReference?null:cleanOldDetails(portrait,b,pairs,parts);
+ const cleanedSource=cleaned?cleaned.toDataURL('image/png'):typeof originalSource==='string'?originalSource:(()=>{const c=make(portrait.width,portrait.height);c.getContext('2d').drawImage(portrait,0,0);return c.toDataURL('image/png')})();
  for(const part of parts)delete part.canvas;
- return {regions:pairs.map(({target})=>expanded(target,2)),version:realUniformDetailsVersionFor(templatePath),cleanedSource:cleaned.toDataURL('image/png'),parts,width:portrait.width,height:portrait.height};
+ return {regions:pairs.map(({target})=>expanded(target,2)),version:realUniformDetailsVersionFor(templatePath),cleanedSource,parts,width:portrait.width,height:portrait.height};
 }
 
 // Restore only the old detail locations, keeping any later face/makeup edits.
