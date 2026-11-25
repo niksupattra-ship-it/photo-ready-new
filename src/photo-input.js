@@ -87,7 +87,6 @@ async function prepare(file){
   });
   const name=String(file.name||'portrait').replace(/\.[^.]*$/,'')+(outputType==='image/jpeg'?'.jpg':'.png');
   const result=new File([blob],name,{type:outputType,lastModified:file.lastModified||Date.now()});
-  if(supportedTypes.has(type))Object.defineProperty(result,'idpromRawUpload',{value:file});
   for(const key of ['idpromFemaleEyeStyle','idpromPortraitMode'])if(key in file)result[key]=file[key];
   return result;
  }finally{
