@@ -409,6 +409,26 @@ async function modnetRemoveBackground(input,{refine=true}={}){
   return sharp(rgba,{raw:{width:W,height:H,channels:4}}).png().toBuffer();
 }
 
+// Isolated Seedream sandbox: caller supplies their own Ark key; no wallet or production image pipeline.
+app.post('/api/seedream-sandbox',upload.fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1},{name:'hair',maxCount:1}]),async(req,res)=>{
+ res.set('Cache-Control','no-store');
+ try{
+  const key=String(req.body?.key||'').trim(),prompt=String(req.body?.prompt||'').trim();
+  if(!key||!prompt||prompt.length>20000)return res.status(400).json({error:'กรุณากรอก API key และ Prompt'});
+  const image=['person','outfit','hair'].map(name=>{
+   const file=req.files?.[name]?.[0];
+   if(!file||!['image/png','image/jpeg','image/webp'].includes(file.mimetype))throw Error('กรุณาแนบภาพ JPG, PNG หรือ WEBP ทั้งสามรูป');
+   return 'data:'+file.mimetype+';base64,'+file.buffer.toString('base64');
+  });
+  const response=await fetch('https://ark.ap-southeast.bytepluses.com/api/v3/images/generations',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},signal:AbortSignal.timeout(240000),body:JSON.stringify({model:'dola-seedream-5-0-flash-260915',prompt,image,size:'2K',output_format:'png',response_format:'b64_json',watermark:false})});
+  const body=await response.json();
+  if(!response.ok)return res.status(response.status).json({error:String(body?.error?.message||'Seedream request failed').slice(0,1000)});
+  const raw=body?.data?.[0]?.b64_json;
+  if(!raw)return res.status(502).json({error:'Seedream did not return an image'});
+  res.type('png').send(Buffer.from(raw,'base64'));
+ }catch(e){res.status(400).json({error:String(e.message||'Request failed').slice(0,1000)})}
+});
+
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
   try{
     if(!req.file) return res.status(400).send("กรุณาเลือกรูป");
