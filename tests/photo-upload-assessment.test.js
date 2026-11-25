@@ -31,17 +31,16 @@ test('face truncation and multiple people still reject',()=>{
  assert.equal(assessUploadPortrait({faces:[face,face]}).status,'reject');
  assert.equal(assessUploadPortrait({faces:[]}).status,'reject');
 });
-test('synthetic exaggerated close selfie geometry triggers advisory only, not certain-distance claim',()=>{
+test('close selfie perspective estimate is diagnostic only: straight front-facing face is accepted',()=>{
  const normal=fullFace();
  assert.equal(assessCloseSelfiePerspective(normal).status,'normal');
  assert.equal(assessUploadPortrait({faces:[normal]}).status,'pass');
  const suspect=fullFace({noseZ:-.21,sideToEye:1.55});
  assert.equal(assessCloseSelfiePerspective(suspect).status,'suspected');
- const advice=assessUploadPortrait({faces:[suspect]});
- assert.equal(advice.status,'uncertain');assert.match(advice.uncertain.join(),/มุมกล้อง/);
+ assert.equal(assessUploadPortrait({faces:[suspect]}).status,'pass');
  const extreme=fullFace({noseZ:-.29,sideToEye:1.42});
  assert.equal(assessCloseSelfiePerspective(extreme).status,'extreme');
- assert.equal(assessUploadPortrait({faces:[extreme]}).status,'uncertain');
+ assert.equal(assessUploadPortrait({faces:[extreme]}).status,'pass');
 });
 test('landmark depth missing cannot classify a selfie as distorted',()=>{
  const f=fullFace();delete f[4].z;
@@ -55,4 +54,16 @@ test('upload dialog has a review-and-continue option without weakening rejected 
  assert(src.includes("if(report.status==='uncertain')button('ใช้รูปนี้ต่อ',()=>finish(true))"));
  assert(src.includes("if(report.status==='pass')"));
  assert(!src.includes('กรุณาใช้รูปที่เห็นคอ ไหล่ และอกส่วนล่าง'));
+});
+
+test('obvious sideways tilt and turn may warn without blocking centered zoom portraits',()=>{
+ const f=fullFace();
+ f[33]={...f[33],y:.25};
+ f[263]={...f[263],y:.48};
+ f[1]={...f[1],x:.64};
+ const a=assessUploadPortrait({faces:[f]});
+ assert.equal(a.status,'uncertain');
+ assert.match(a.uncertain.join(),/เอียง/);
+ const cropped=fullFace({noseZ:-.28,sideToEye:1.4});
+ assert.equal(assessUploadPortrait({faces:[cropped],pose:[]}).status,'pass');
 });
