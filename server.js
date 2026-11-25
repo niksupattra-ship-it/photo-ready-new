@@ -821,7 +821,9 @@ app.get(['/id-photo','/id-photo/'],async(_req,res)=>{
   res.set({'Cache-Control':'no-cache','Content-Language':'th'}).type('html').send(html);
  }catch(error){console.error('Thai guide unavailable:',error.message);res.status(503).send('Temporary guide unavailable')}
 });
-registerEnglishLanding(app,{loadIndex:()=>readFile(path.join(dir,'dist','index.html'),'utf8')});
+// English public pages temporarily disabled; retain API and payment callbacks.
+app.get(/^\/en(?:\/.*)?$/i,(_req,res)=>res.status(503).set({'Cache-Control':'no-store','Retry-After':'86400','X-Robots-Tag':'noindex'}).type('html').send('<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Temporarily unavailable | IDProm</title></head><body><main style="font-family:system-ui;text-align:center;padding:48px 20px"><h1>English version temporarily unavailable</h1><p><a href="/">Visit Thai website</a></p></main></body></html>'));
+app.get('/',(req,res,next)=>{if(req.query.lang!=='en')return next();const url=new URL(req.originalUrl,'https://idpromth.com');url.searchParams.delete('lang');return res.redirect(302,url.pathname+url.search);});
 app.use(express.static(path.join(dir,"dist"),{setHeaders:publicAssetHeaders}));
 // Unknown English guide URLs must not masquerade as an indexable Thai app page.
 app.get(/^\/en\/.+$/,(_req,res)=>res.status(404).set({'Cache-Control':'no-cache','Content-Language':'en'}).type('html').send('<!doctype html><html lang="en"><head><meta charset="UTF-8"><title>Page not found | IDProm</title></head><body><h1>Page not found</h1><p><a href="/en/">Open the English photo editor</a></p></body></html>'));
