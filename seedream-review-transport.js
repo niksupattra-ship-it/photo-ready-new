@@ -2,13 +2,13 @@
 import {FEMALE_EXACT_PROMPT_VERSION} from './female-exact-prompt-policy.js';
 export const REVIEW_SEEDREAM_MODEL='dola-seedream-5-0-flash-260915';
 export const REVIEW_SEEDREAM_ENDPOINT='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
-export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,identity,makeup,outfit,skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,size='2K'}){
+export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,hairMime='image/png',identity,makeup,outfit,outfitMime='image/png',skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,size='2K'}){
  if(!portrait?.length)throw Error('ไม่มีภาพคนสำหรับ Seedream');
  const image=[`data:${portraitMime};base64,${Buffer.from(portrait).toString('base64')}`];
- if(hair?.length)image.push(`data:image/png;base64,${Buffer.from(hair).toString('base64')}`);
+ if(hair?.length)image.push(`data:${hairMime};base64,${Buffer.from(hair).toString('base64')}`);
  if(identity?.length)image.push(`data:image/png;base64,${Buffer.from(identity).toString('base64')}`);
  if(makeup?.length)image.push(`data:image/jpeg;base64,${Buffer.from(makeup).toString('base64')}`);
- if(outfit?.length)image.push(`data:image/png;base64,${Buffer.from(outfit).toString('base64')}`);
+ if(outfit?.length)image.push(`data:${outfitMime};base64,${Buffer.from(outfit).toString('base64')}`);
  if(skinReference?.length)image.push(`data:image/jpeg;base64,${Buffer.from(skinReference).toString('base64')}`);
  if(neckReference?.length)image.push(`data:image/png;base64,${Buffer.from(neckReference).toString('base64')}`);
  if(neckShapeReference?.length)image.push(`data:image/png;base64,${Buffer.from(neckShapeReference).toString('base64')}`);

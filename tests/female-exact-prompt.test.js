@@ -40,7 +40,7 @@ test('new female outfit/hair variants send ONLY approved prompt and three correc
    assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'1.5K');assert.equal(payload.image[0],'data:image/png;base64,'+args.portrait.toString('base64'));
    assert.equal(payload.image[2],'data:image/png;base64,'+args.hair.toString('base64'));
    assert.equal(payload.image[1],'data:image/png;base64,'+args.outfit.toString('base64'));
-   const before=await sharp(await readFile(root+'public/assets/'+file)).metadata(),after=await sharp(args.outfit).metadata();assert(Math.abs(before.width/before.height-after.width/after.height)<.002,'Garment aspect preserved');
+   assert.deepEqual(args.outfit,await readFile(root+'public/assets/'+file));assert.deepEqual(args.portrait,input.buffer);
    return {png};
   },{requirePolicy:true});
   const out=await processProductionPortrait({input,fields:{...base,hairId:hair,neckOutfitReferencePath:'/assets/'+file},root,key:'inert',requestPortrait:audit.requestPortrait,removeBackground:async()=>{matting++;return png}});
