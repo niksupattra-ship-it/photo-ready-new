@@ -21,9 +21,9 @@ export async function proLabPayload({prompt,order='person-outfit-hair',files}){
 }
 
 // Separate BYOK experiment: never touches production prompts, wallet or matting.
-export function registerSeedreamProLab(app,{fetchImpl=fetch,timeoutMs=240000,ttlMs=600000,route='/api/seedream-pro-lab',payloadFor=proLabPayload}={}){
+export function registerSeedreamProLab(app,{fetchImpl=fetch,timeoutMs=240000,ttlMs=600000,route='/api/seedream-pro-lab',payloadFor=proLabPayload,extraFiles=[]}={}){
  const jobs=new Map();
- const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3,fields:4,parts:7,fieldSize:64*1024}}).fields([{name:'outfit',maxCount:1},{name:'person',maxCount:1},{name:'hair',maxCount:1}]);
+ const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3+extraFiles.length,fields:4,parts:7+extraFiles.length,fieldSize:64*1024}}).fields([{name:'outfit',maxCount:1},{name:'person',maxCount:1},{name:'hair',maxCount:1},...extraFiles.map(name=>({name,maxCount:1}))]);
  app.get(route+'/:id',(req,res)=>{
   res.set('Cache-Control','no-store');
   const job=jobs.get(req.params.id);
