@@ -8,6 +8,27 @@ import {registerFemaleFullLab} from '../female-full-lab.js';
 import {registerSeedreamProLab} from '../seedream-pro-lab.js';
 import express from 'express';
 import {randomUUID} from 'node:crypto';
+import {createFemaleLabGuide,FEMALE_GUIDE_INSTRUCTION} from '../female-lab-guide.js';
+
+test('outfit guide is independent of source pose and its preview never calls AI',async t=>{
+ const outfit=await readFile(new URL('../public/assets/government-uniforms/female-operational.png',import.meta.url));
+ const guide=await createFemaleLabGuide(outfit),meta=await sharp(guide).metadata();
+ assert.equal(meta.width,768);assert.equal(meta.height,1024);
+ const files={outfit:[{buffer:outfit}],hair:[{buffer:outfit}]};
+ const payloads=[];
+ for(const [w,h]of [[32,64],[96,32]]){
+  const portrait=await sharp({create:{width:w,height:h,channels:4,background:'#bb9988'}}).png().toBuffer();
+  payloads.push(await femaleFlashLabPayload({prompt:femaleFullLabPrompt(),order:'person-outfit-hair',files:{...files,person:[{buffer:portrait}]}}));
+ }
+ assert.equal(payloads[0].image[3],payloads[1].image[3]);
+ assert.deepEqual(Buffer.from(payloads[0].image[3].split(',')[1],'base64'),guide);
+ assert.equal(payloads[0].prompt.split(FEMALE_GUIDE_INSTRUCTION).length,2);
+ let calls=0;const app=express();registerFemaleFullLab(app,{fetchImpl:async()=>{calls++;throw Error('unexpected generation');}});
+ const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();server.close();});
+ const form=new FormData();form.set('outfit',new Blob([outfit],{type:'image/png'}),'outfit.png');
+ const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/female-full-lab/guide',{method:'POST',body:form});
+ assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),guide);assert.equal(calls,0);
+});
 
 test('female endpoint sends Flash once and does not change the existing Pro endpoint',async t=>{
  const app=express(),requests=[];
@@ -28,6 +49,7 @@ test('female endpoint sends Flash once and does not change the existing Pro endp
  assert.equal(requests[0].model,'dola-seedream-5-0-flash-260915');assert.equal(requests[0].size,'2K');
  assert.equal(requests[1].model,'dola-seedream-5-0-pro-260628');assert.equal(requests[1].size,'1.5K');
  assert.equal(requests[0].prompt,requests[1].prompt);
+ assert.equal(requests[0].image.length,4);assert.equal(requests[1].image.length,3);
 });
 
 test('female full portrait sends the accessible makeup finish once with three original references',async()=>{
@@ -50,13 +72,13 @@ test('female full portrait sends the accessible makeup finish once with three or
  const files={};let index=0;
  for(const name of ['person','outfit','hair'])files[name]=[{buffer:await sharp({create:{width:32,height:48,channels:4,background:{r:++index*40,g:80,b:120,alpha:1}}}).png().toBuffer()}];
  const payload=await femaleFlashLabPayload({prompt,files,order:'person-outfit-hair'});
- assert.equal(payload.prompt,prompt);assert.equal(payload.model,'dola-seedream-5-0-flash-260915');assert.equal(payload.size,'2K');
+ assert.equal(payload.prompt,prompt);assert.equal(payload.image.length,4);assert.equal(payload.model,'dola-seedream-5-0-flash-260915');assert.equal(payload.size,'2K');
  for(const [i,name]of ['person','outfit','hair'].entries())assert.deepEqual(Buffer.from(payload.image[i].split(',')[1],'base64'),files[name][0].buffer);
 });
 
 test('new page isolates recovery and uses original catalogue pickers without postprocessing',async()=>{
  const html=await readFile(new URL('../public/female-full-lab.html',import.meta.url),'utf8');
- assert(html.includes('data-storage-key="female-full-lab-flash-active-v2"'));
+ assert(html.includes('data-storage-key="female-full-lab-guide-active-v3"'));
  assert(html.includes('data-skin-controls="off"'));
  assert(html.includes('data-prompt-url="/female-full-lab-prompt.txt"'));
  assert(html.includes('data-catalogue="outfit"'));assert(html.includes('data-catalogue="hair"'));
