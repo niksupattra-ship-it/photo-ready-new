@@ -28,7 +28,7 @@ test('actual current multipart metadata reproduces old 413 with tiny files, and 
 });
 test('413 and generic Thai failures show the requested copy while retaining internal diagnostics and useful English detail',async()=>{
  for(const error of [{status:413,stage:'submit_job',message:'Too many fields'},{code:'UNKNOWN',message:'private server response'}]){
-  const th=describePortraitFailure(error,false);assert.equal(th.title,'ประมวลผลไม่สำเร็จ');assert.equal(th.message,'กรุณาตรวจสอบรูปหน้าตรงหรือเปลี่ยนรูป');assert(!th.message.includes('private'));
+  const th=describePortraitFailure(error,false);assert.equal(th.title,error.status===413?'ส่งข้อมูลไม่สำเร็จ':'ประมวลผลไม่สำเร็จ');assert.match(th.message,error.status===413?/HTTP 413/:/UNKNOWN/);assert(!th.message.includes('private'));
  }
  const en=describePortraitFailure({status:413,stage:'submit_job'},true);assert.equal(en.status,413);assert.equal(en.stage,'submit_job');assert.match(en.message,/upload limit/);
  const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');assert(editor.includes("{englishFlow&&typeof portraitProcessError==='object'&&(portraitProcessError.stage||portraitProcessError.status)&&"));
