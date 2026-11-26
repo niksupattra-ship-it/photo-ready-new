@@ -81,3 +81,21 @@ test('original and retained hairstyles still use the same exact prompt and three
 });
 
  test('exact female matting retains native RGB and dimensions even when mask service resizes or recolors',async()=>{const {preserveExactFemalePixels}=await import('../production-portrait-pipeline.js');const mask=await sharp({create:{width:48,height:64,channels:4,background:{r:0,g:0,b:0,alpha:.5}}}).png().toBuffer();const out=await preserveExactFemalePixels(png,mask);const {data,info}=await sharp(out.png).raw().toBuffer({resolveWithObject:true});const original=await sharp(png).raw().toBuffer();assert.equal(info.width,96);assert.equal(info.height,128);for(let i=0;i<data.length;i+=4){assert.deepEqual(data.subarray(i,i+3),original.subarray(i,i+3));assert.equal(data[i+3],128);}});
+
+ test('exact female transport never retries even if caller omits singleAttempt',async()=>{
+ for(const singleAttempt of [undefined,false]){let calls=0;
+ await assert.rejects(requestReviewSeedream({key:'inert',prompt:PROMPT,portrait:png,hair:png,outfit:png,femaleExactPromptVersion:VERSION,singleAttempt},{fetchImpl:async()=>{calls++;return new Response(JSON.stringify({error:{message:'inert'}}),{status:503,headers:{'content-type':'application/json'}})}}));
+ assert.equal(calls,1);
+ }
+ });
+
+test('female render revisions cannot orphan an owned submission but real selection changes remain distinct',async()=>{
+ const {samePortraitSubmissionKey:same}=await import('../src/portrait-submission-key.js');
+ const base=['single-pass-portrait-v1','head-size','seedream-14','female-operational','makeup','female'];
+ const key=JSON.stringify(base),revised=JSON.stringify([base[0],VERSION,'direct-modelark-pro-garment-first-1p5k-v7',...base.slice(1)]);
+ assert(same(key,revised));assert(same(revised,key));
+ const previous=JSON.stringify([base[0],'thai-female-exact-three-ref-user-v1','direct-modelark-original-refs-v6',...base.slice(1)]);assert(same(previous,revised));
+ for(const index of [2,3,4,5]){const changed=[...base];changed[index]='different';assert(!same(revised,JSON.stringify(changed)));}
+ assert(!same(null,key));assert(!same('invalid',key));
+ const main=await readFile(root+'src/main.jsx','utf8');assert(main.includes('samePortraitSubmissionKey(priorJob.submissionKey,submissionKey)'));
+});

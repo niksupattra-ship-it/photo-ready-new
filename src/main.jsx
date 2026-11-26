@@ -1,3 +1,4 @@
+import {samePortraitSubmissionKey} from './portrait-submission-key.js';
 import {FEMALE_EXACT_PROMPT_VERSION} from '../female-exact-prompt-policy.js';
 import {THAI_WHOLE_HEAD_GUIDE_VERSION,thaiFemaleGuideCacheRevision} from '../thai-whole-head-guide.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
@@ -3093,7 +3094,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
    /No clear face was found|ไม่พบใบหน้าในผลลัพธ์|ตรวจ.*ใบหน้า.*ไม่พบ/i.test(String(error?.message||''));
   if(operation&&definiteQualityReject)operation.qualityRejected=true;
   else if(operation?.serverCompleted)error.idpromRecoverableJob=true;
-  portraitResultCache.delete(key);throw error;
+  if(definiteQualityReject)portraitResultCache.delete(key);throw error;
  }
  if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value.idpromNaturalStudioSkinVersion=NATURAL_STUDIO_SKIN_VERSION;
  if(firstPortrait)cached.value.idpromPortraitCacheKey=key;
@@ -3239,7 +3240,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // Persistent job: the server keeps processing even if this tab is closed.
  const operation=activeProcessOperation;assertProcessActive(operation);
  const thaiWholeOutfit=!englishPreviewEnabled()&&!options.manualOutfitFallback&&isThaiOutfitPath(options.templatePath||options.jobContext?.uniformTemplate||'');
- const submissionKey=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...thaiFemaleGuideCacheRevision(thaiWholeOutfit,options.portraitMode),...(thaiWholeOutfit&&options.portraitMode==='female'?['direct-modelark-pro-garment-first-1p5k-v7']:[]),...(!englishPreviewEnabled()&&options.portraitMode==='female'?[THAI_FEMALE_HEAD_SIZE_VERSION]:[]),...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),options.portraitMode==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':thaiWholeOutfit?THAI_OUTFIT_AI_VERSION:'th']);
+ const submissionKey=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...(!englishPreviewEnabled()&&options.portraitMode==='female'?[THAI_FEMALE_HEAD_SIZE_VERSION]:[]),...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),options.portraitMode==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',hairId||'original',options.templatePath||options.jobContext?.uniformTemplate||'',options.femaleEyeStyle||'natural',options.creditKind||'',Boolean(options.keepCurrentHair),options.sourceJobId||'',options.portraitMode||'',englishPreviewEnabled()?'en':thaiWholeOutfit?THAI_OUTFIT_AI_VERSION:'th']);
  const sourceDigest=await resultSourceDigest(originalFile);
  const ownerScope=walletScope(authToken(),currentWalletId());
  const priorJob=readActiveAiJob();
@@ -3247,7 +3248,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // A server-side generation can finish even if this browser crashes while
  // decoding / rendering its result. On the SAME source, settings and account,
  // attach to that job first, rather than reserving another AI generation.
- if(priorJob?.scope===ownerScope&&priorJob.sourceDigest===sourceDigest&&priorJob.submissionKey===submissionKey&&/^job_[a-f0-9]{36}$/.test(priorJob.jobId||'')){
+ if(priorJob?.scope===ownerScope&&priorJob.sourceDigest===sourceDigest&&samePortraitSubmissionKey(priorJob.submissionKey,submissionKey)&&/^job_[a-f0-9]{36}$/.test(priorJob.jobId||'')){
   try{
    const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(priorJob.jobId),{headers:operation?.headers||walletHeaders(),cache:'no-store',signal:operation?.readController?.signal},20000);
    assertProcessActive(operation);
