@@ -24,7 +24,7 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(adaptiveComposition?.length)image.push(`data:image/png;base64,${Buffer.from(adaptiveComposition).toString('base64')}`);
  const femalePro=femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION;
  if(femalePro&&(!hair?.length||!outfit?.length||image.length!==3))throw Error('Female Pro requires exactly three references');
- if(femalePro)return {...seedreamLabPayload(prompt,[image[2],image[0],image[1]]),model:'dola-seedream-5-0-pro-260628'};
+ if(femalePro)return {...seedreamLabPayload(prompt,[image[2],image[0],image[1]]),model:'dola-seedream-5-0-pro-260628',size:'1.5K'};
  const ordered=image;
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'2K':size,output_format:'png',response_format:'b64_json',watermark:false};
 }
