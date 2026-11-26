@@ -34,8 +34,9 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
  const payload=JSON.stringify(seedreamReviewPayload(options));
  // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
- // rejections are never retried. singleAttempt disables every automatic retry.
- const attempts=options.singleAttempt?1:2;
+ // rejections are never retried. Exact female requests always make one attempt,
+ // including callers that omit singleAttempt. Other callers can opt out too.
+ const attempts=options.singleAttempt||options.femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION?1:2;
  for(let attempt=0;attempt<attempts;attempt++){
   const signal=AbortSignal.timeout(timeoutMs);
   let response,body;

@@ -9,7 +9,7 @@ const a=editor.indexOf(' const selectAsset=async('),b=editor.indexOf('  const ta
 assert(a>=0&&b>a);
 function selection({easyMode=true,englishFlow=false,pro=false,currentWorkPro=false,otherWorkPro=false}={}){
  const events=[];
- const env={easyMode,englishFlow,isThaiPremiumJobSuit,premiumHairCreditAvailable:pro,
+ const env={governmentResult:false,easyMode,englishFlow,isThaiPremiumJobSuit,premiumHairCreditAvailable:pro,
   layers:[{kind:'head',jobId:'current-work'}],layerKind:l=>l.kind,
   verifiedJobs:{...(currentWorkPro?{'current-work':{premiumHair:true}}:{}),...(otherWorkPro?{'other-work':{premiumHair:true}}:{})},
   ready:true,processActive:false,comparing:false,assetBusy:false,suitRequestRef:{current:null},thaiOutfitAiDraft:{stage:'existing-draft'},

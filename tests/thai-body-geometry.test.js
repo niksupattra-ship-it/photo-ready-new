@@ -95,16 +95,18 @@ test('actual Thai hairstyle pipeline sends original identity, proportion targets
 test('the real client quality-failure path marks a definite identity error as rejected, preventing its automatic recovery/generation branch',async()=>{
  const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8'),start=main.indexOf(' // New Thai full-outfit images must preserve the original cheek'),end=main.indexOf(" if(gender==='female'&&options.femaleEyeStyle==='natural')cached.value",start);
  let deleted=0;const operation={serverCompleted:true},accepted={source:'previous accepted pixels'},before=structuredClone(accepted);
- const env={usesThaiFrontalPose,THAI_OUTFIT_AI_VERSION,hairId:'original',originalFile:{},thaiWholeOutfit:true,cached:{value:{idpromPortraitComposition:'en-outfit-body-v1',idpromThaiRealFaceVersion:'test-current'},reused:false},THAI_REAL_FACE_VERSION:'test-current',portraitFaceMetrics:async()=>({}),compareThaiFaceShape:()=>({ok:false,reason:'face_geometry_changed'}),triageThaiFaceShape:()=>({action:'review'}),compareThaiEyeIdentity:()=>({action:'accept'}),ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',gender:'female',options:{},checkNewThaiBodyGeometry,measureThaiBodyGeometry:async()=>({faceToShoulder:.6}),operation,portraitResultCache:{delete:()=>deleted++},key:'rejected new result'};
+ const env={assertCurrentOperation:()=>{},checkPortraitCompletion:async()=>{},usesThaiFrontalPose,THAI_OUTFIT_AI_VERSION,hairId:'original',originalFile:{},thaiWholeOutfit:true,cached:{value:{idpromPortraitComposition:'en-outfit-body-v1',idpromThaiRealFaceVersion:'test-current'},reused:false},THAI_REAL_FACE_VERSION:'test-current',portraitFaceMetrics:async()=>({}),compareThaiFaceShape:()=>({ok:false,reason:'face_geometry_changed'}),triageThaiFaceShape:()=>({action:'review'}),compareThaiEyeIdentity:()=>({action:'accept'}),ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head',gender:'male',options:{},checkNewThaiBodyGeometry,measureThaiBodyGeometry:async()=>({faceToShoulder:.6}),operation,portraitResultCache:{delete:()=>deleted++},key:'rejected new result'};
  const run=Function('env','with(env){return (async()=>{'+main.slice(start,end)+'})()}');
  await assert.rejects(run(env),e=>e.code==='face_proportion_changed'&&e.idpromProcessStage==='quality_check');
  assert.equal(operation.qualityRejected,true);assert.equal(deleted,1);assert.deepEqual(accepted,before);
  assert.equal(Boolean(operation.serverCompleted&&!operation.qualityRejected&&!operation.cancelled),false,'Do not enter processStudioPhoto automatic recovery for a definite image-quality failure');
  deleted=0;const completed={serverCompleted:true};Object.assign(env,{operation:completed,compareThaiFaceShape:()=>({ok:true}),triageThaiFaceShape:()=>({action:'accept'}),checkPortraitCompletion:async()=>{},assertCurrentOperation:()=>{}});
- await run(env);assert.equal(completed.qualityRejected,undefined);assert.equal(deleted,0);assert.equal(env.cached.value.idpromQualityReviewNeeded,true,'Body estimates must not cancel or remove an otherwise completed identity-preserving image');
- env.cached.value.idpromThaiFemaleHeadSizeVersion=THAI_FEMALE_HEAD_SIZE_VERSION;env.options.femaleEyeStyle='makeup';
- Object.assign(env,{operation:{serverCompleted:true},compareThaiFaceShape:()=>({ok:false,reason:'face_geometry_changed'}),triageThaiFaceShape:()=>({action:'review'})});
- await run(env);assert.equal(env.operation.qualityRejected,undefined,'Mild frontal-projection differences remain review-only');
+ await run(env);assert.equal(completed.qualityRejected,undefined);assert.equal(deleted,0);assert.equal(deleted,0,'Completed identity-preserving images remain cached');
+ Object.assign(env,{gender:'female',operation:{serverCompleted:true},assertCurrentOperation:()=>{throw Error('LOCAL_DECODE_FAILURE')}});
+ await assert.rejects(run(env),e=>e.idpromRecoverableJob===true);assert.equal(deleted,0,'Local failures must preserve completed cached pixels');
+ Object.assign(env,{gender:'male',assertCurrentOperation:()=>{}});
+ Object.assign(env,{operation:{serverCompleted:true},compareThaiFaceShape:()=>({ok:true}),triageThaiFaceShape:()=>({action:'review'})});
+ await run(env);assert.equal(env.operation.qualityRejected,undefined);
  Object.assign(env,{operation:{serverCompleted:true},triageThaiFaceShape:()=>({action:'reject'})});
  await assert.rejects(run(env),e=>e.code==='face_proportion_changed');assert.equal(env.operation.qualityRejected,true);
  Object.assign(env,{operation:{serverCompleted:true},triageThaiFaceShape:()=>({action:'accept'}),compareThaiEyeIdentity:()=>({action:'reject'})});
