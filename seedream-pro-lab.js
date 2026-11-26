@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 
 export const PRO_LAB_MODEL='dola-seedream-5-0-pro-260628';
 const endpoint='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
-export async function proLabPayload({prompt,order='outfit-person-hair',files}){
+export async function proLabPayload({prompt,order='person-outfit-hair',files}){
  if(typeof prompt!=='string'||!prompt.trim()||prompt.length>20000)throw Error('กรุณากรอก Prompt');
  if(!['outfit-person-hair','person-outfit-hair'].includes(order))throw Error('ลำดับภาพไม่ถูกต้อง');
  const image=[];

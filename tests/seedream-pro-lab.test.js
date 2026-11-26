@@ -21,9 +21,9 @@ test('Pro lab uses original bytes, the exact prompt and both explicit orders, on
  await assert.rejects(proLabPayload({prompt:'x',files:{}}));
 });
 async function fixture(t,fetchImpl){const app=express();registerSeedreamProLab(app,{fetchImpl});const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();server.close();});return 'http://127.0.0.1:'+server.address().port;}
-function form(id,key='inert-test-key',prompt='EXACT PROMPT'){const f=new FormData();f.set('requestId',id);f.set('key',key);f.set('prompt',prompt);f.set('order','outfit-person-hair');for(const [name,arr]of Object.entries(files))f.set(name,new Blob([arr[0].buffer]),name+'.png');return f;}
+function form(id,key='inert-test-key',prompt='EXACT PROMPT'){const f=new FormData();f.set('requestId',id);f.set('key',key);f.set('prompt',prompt);f.set('order','person-outfit-hair');for(const [name,arr]of Object.entries(files))f.set(name,new Blob([arr[0].buffer]),name+'.png');return f;}
 test('isolated route returns native PNG, never generates twice for the same submission and rejects changed input',async t=>{
- let calls=0;const base=await fixture(t,async(url,options)=>{calls++;assert.equal(options.headers.Authorization,'Bearer inert-test-key');const p=JSON.parse(options.body);assert.equal(p.model,PRO_LAB_MODEL);return Response.json({data:[{b64_json:png.toString('base64')}]});});
+ let calls=0;const base=await fixture(t,async(url,options)=>{calls++;assert.equal(options.headers.Authorization,'Bearer inert-test-key');const p=JSON.parse(options.body);assert.equal(p.model,PRO_LAB_MODEL);assert.deepEqual(Buffer.from(p.image[0].split(',')[1],'base64'),jpeg);return Response.json({data:[{b64_json:png.toString('base64')}]});});
  const id=randomUUID();for(let n=0;n<2;n++){const r=await fetch(base+'/api/seedream-pro-lab',{method:'POST',body:form(id)});assert.equal(r.status,202);assert.equal((await r.json()).id,id);}
  const result=await fetch(base+'/api/seedream-pro-lab/'+id);assert.equal(result.status,200);assert.equal(result.headers.get('cache-control'),'no-store');assert.deepEqual(Buffer.from(await result.arrayBuffer()),png);assert.equal(calls,1);
  const changed=await fetch(base+'/api/seedream-pro-lab',{method:'POST',body:form(id,'inert-test-key','OTHER')});assert.equal(changed.status,409);assert.equal(calls,1);
@@ -39,4 +39,15 @@ test('lab is registered separately and does not change production prompt, model,
  const server=await readFile(new URL('../server.js',import.meta.url),'utf8'),lab=await readFile(new URL('../seedream-pro-lab.js',import.meta.url),'utf8');
  assert(server.includes('registerSeedreamProLab(app);'));assert(!lab.includes('process.env'));assert(!lab.includes('removeBackground'));assert(!lab.includes('reserveCredit'));
  const prompt=await readFile(new URL('../public/seedream-pro-lab-prompt.txt',import.meta.url),'utf8');assert.equal(prompt.length,5589);assert(prompt.startsWith('Combine the three reference images'));assert(prompt.includes('Image 1: Fixed clothing'));
+});
+
+test('default order matches the confirmed Seedream edit screen, preserving the supplied prompt verbatim',async()=>{
+ const {createHash}=await import('node:crypto');
+ const prompt=await readFile(new URL('../public/seedream-pro-lab-prompt.txt',import.meta.url),'utf8');
+ const p=await proLabPayload({prompt,files});
+ assert.deepEqual(p.image.map(v=>Buffer.from(v.split(',')[1],'base64')),[jpeg,png,webp]);
+ assert.equal(p.prompt,prompt);assert.equal(createHash('sha256').update(p.prompt).digest('hex'),'e8b1e2acbe9373e39693e2921cc2ebe00ca93d01e8a619a8dbf10ebb10112848');
+ const html=await readFile(new URL('../public/seedream-pro-lab.html',import.meta.url),'utf8');
+ assert(html.indexOf('data-kind="person"')<html.indexOf('data-kind="outfit"'));
+ assert(html.includes('<select name="order" id="order"><option value="person-outfit-hair">'));
 });
