@@ -1,3 +1,4 @@
+import {addSkinControls} from './seedream-pro-skin-controls.js';
 const $=id=>document.getElementById(id),form=$('form'),go=$('go'),status=$('status'),check=$('check'),results=$('results');
 const storageKey='seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
 const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
@@ -39,8 +40,8 @@ function showResult(blob,snapshot){
  const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt='ภาพต้นฉบับจาก Seedream Pro';preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
- const download=document.createElement('a');download.className='download';download.href=url;download.download='seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;
- if(results.children.length>5){results.lastElementChild.remove();URL.revokeObjectURL(urls.shift());}card.scrollIntoView({behavior:'smooth',block:'start'});
+ const download=document.createElement('a');download.className='download';download.href=url;download.download='seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;addSkinControls({card,preview,image,blob,originalUrl:url});
+ if(results.children.length>5){results.lastElementChild.skinControlsDispose?.();results.lastElementChild.remove();URL.revokeObjectURL(urls.shift());}card.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function poll(id,snapshot){
  if(checking)return;checking=true;check.hidden=true;
