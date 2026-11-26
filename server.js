@@ -1,3 +1,4 @@
+import {registerGptImageLab} from './gpt-image-lab.js';
 import {registerSeedreamProLab} from './seedream-pro-lab.js';
 import {seedreamLabPayload} from './seedream-review-transport.js';
 import {sanitizeAiError} from './ai-error-sanitizer.js';
@@ -440,6 +441,7 @@ app.post('/api/seedream-sandbox',seedreamSandboxUpload.fields([{name:'person',ma
 });
 
 registerSeedreamProLab(app);
+registerGptImageLab(app);
 
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
   try{
