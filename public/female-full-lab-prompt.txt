@@ -1,0 +1,28 @@
+Create exactly one photorealistic female studio ID portrait by combining these three original references in ONE image-generation request.
+REFERENCE ASSIGNMENT:
+Image 1: The customer's identity and original facial anatomy only. Do not copy its original clothing, hairstyle, camera distance or crop.
+Image 2: The selected garment and fixed body template. Preserve shoulder width and slope, collar height and opening, lapels, fabric, seams, tie, buttons, shoulder boards and every existing insignia. Preserve the original garment silhouette and full upper-body area. Do not add, remove, mirror, relocate or redesign insignia.
+Image 3: The selected hairstyle only. Follow its hairline, parting, connected lengths, silhouette and texture; never borrow the reference model's face.
+COMPOSITION:
+Create the face, hairstyle, neck and clothed upper body together as one coherent photograph. Fit the head and naturally compact neck into the existing collar of Image 2. Keep the garment's original proportions; do not stretch or compress either axis. Keep a balanced adult head-to-shoulder ratio and a neutral upright posture. Centre the head over the collar; avoid camera roll and forward head posture while retaining the customer's real facial asymmetry. Do not force mirrored facial features. Show the entire crown and selected hairstyle, both shoulders and the original upper-body garment area. Use a vertical 3:4 frame with a plain white background.
+MAKEUP — THE ONLY FEMALE FINISH:
+FEMALE MAKEUP — ADAPTIVE SOFT CLEAR KOREAN STUDIO STYLE:
+Image 1, the original uploaded photograph in THIS request, is the sole source for this woman's identity, natural complexion, undertone, skin condition and existing facial anatomy. Evaluate that underlying skin and create a fresh, polished studio portrait that looks professionally retouched in-camera. The goal is a clean premium beauty finish, not a heavily filtered or overly stylized effect.
+SKIN — NATURAL SOFT-FOCUS ROSY FINISH, FEMALE MAKEUP OPTION ONLY: Conceal temporary acne, localized red/brown post-acne patches and visible rough-skin texture to the nearby healthy skin tone. Gently reduce harsh pores, dull patches and uneven skin contrast, then finish with a bright soft-diffused studio complexion. Keep real pores and normal skin variation, but remove obvious blemish and coarse texture so the skin looks smooth, luminous and camera-ready.
+EYES AND BROWS: Let the original complexion and real lid area determine a very delicate nude-pink upper-lid tint. Keep any upper-lid tint extremely sheer, low in saturation and close to the neighbouring skin tone, with a refined soft-pink warmth. Preserve the original brow structure and maintain the real eye shape, spacing and asymmetry.
+LIPS AND CHEEKS: Choose a soft translucent rose-pink or peach-rose lip tint that flatters the original undertone, with a gentle inner-to-outer gradient and light hydrated gloss. Apply a subtle natural blush on the cheeks so the face looks healthy and polished without looking too heavy. Neutralize unwanted redness and keep the finish clean and fresh.
+IDENTITY AND SCOPE: Preserve the original eyes, nose, mouth, jaw, chin, both ears and facial proportions. Never slim, stretch, mirror or reshape the face or borrow anatomy from the hairstyle reference. Keep the person's natural structure while adding refined studio makeup.
+
+FEMALE ACNE AND ROUGH-SKIN PRIORITY — MAKEUP OPTION ONLY: Identity preservation protects facial anatomy and genuine stable moles/freckles; it does not require preserving all rough texture or uneven skin. Clear visible acne, temporary redness and dark post-acne marks thoroughly, then finish with balanced studio skin and a polished complexion. Keep real skin grain, but remove harsh texture that makes the portrait look dated or unretouched.
+
+FEMALE EYE IDENTITY PRIORITY — NATURAL AND MAKEUP OPTIONS, INITIAL AND HAIRSTYLE-CHANGE PORTRAITS: Image 1 is the sole authority for BOTH eyes and the person's real intrinsic facial geometry. Keep the original eye shape, lid crease structure, eye size, spacing, asymmetry and iris colour; do not widen, lift, flatten or mirror the eyes. Preserve the original brow shape, brow density and face proportions.
+
+FINAL FEMALE IDENTITY / EYE / GEOMETRY LOCK — ALL NATURAL AND MAKEUP FINISHES:
+Image 1 is the immutable authority for the person's identity and facial geometry. Preserve the exact original gaze direction and eye expression, each eye's shape, opening, eyelid boundaries, crease,
+inner and outer corners, spacing, iris and pupil size/position, and natural left/right asymmetry. Do not retouch, redraw, enlarge, shrink, lift, lower, rotate, recolour or otherwise alter the eyes or gaze.
+Preserve the original face width, face height, aspect ratio, forehead, temples, cheeks, jaw angles, chin, nose, mouth and feature spacing. Do not stretch, elongate, compress, squeeze, widen, narrow,
+slim, reshape, symmetrize or change the apparent age of the face. No face morphing or beauty-geometry correction. Makeup, blemish repair, skin finish and lighting may change surface colour/texture only;
+they must not move facial landmarks or change the face's proportions. Preserve intrinsic head proportions. Use Image 2 for the final garment frame.
+
+FINAL OUTPUT:
+Return the complete clothed portrait as one PNG. Do not return an isolated head or neck, a mask, a collage or separate body parts. Keep fine eyebrow hairs, real pores and individual hair strands sharp without waxy smoothing. Keep the face, ears and neck coherent under soft frontal studio lighting. No added text, accessories or watermark.

@@ -7,7 +7,7 @@
     "predev": "node scripts/prepare-vision-assets.mjs && node scripts/build-background-picker-previews.mjs",
     "dev": "vite",
     "prebuild": "npm run check:assets",
-    "build": "node scripts/build-uniform-quick-previews.mjs && node scripts/build-hair-picker-thumbnails.mjs && node scripts/build-background-picker-previews.mjs && node scripts/build-studio-starters.mjs && node scripts/build-pro-lab-catalogue.mjs && vite build",
+    "build": "node scripts/build-uniform-quick-previews.mjs && node scripts/build-hair-picker-thumbnails.mjs && node scripts/build-background-picker-previews.mjs && node scripts/build-studio-starters.mjs && node scripts/build-pro-lab-catalogue.mjs && node scripts/build-female-full-lab.mjs && vite build",
     "start": "node server.js",
     "test:english-full": "node --test --test-concurrency=1 tests/english-template-body.test.js tests/english-male-hair-catalog.test.js tests/english-female-hair-catalog.test.js",
     "test:female-finishes": "node --test --test-concurrency=1 tests/single-female-finish-free-switch.test.js tests/english-female-matched-proportions.test.js tests/english-female-balanced-head.test.js",
