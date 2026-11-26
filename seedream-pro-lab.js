@@ -21,10 +21,10 @@ export async function proLabPayload({prompt,order='person-outfit-hair',files}){
 }
 
 // Separate BYOK experiment: never touches production prompts, wallet or matting.
-export function registerSeedreamProLab(app,{fetchImpl=fetch,timeoutMs=240000,ttlMs=600000,route='/api/seedream-pro-lab',payloadFor=proLabPayload,extraFiles=[]}={}){
+export function registerSeedreamProLab(app,{fetchImpl=fetch,timeoutMs=240000,ttlMs=600000}={}){
  const jobs=new Map();
- const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3+extraFiles.length,fields:4,parts:7+extraFiles.length,fieldSize:64*1024}}).fields([{name:'outfit',maxCount:1},{name:'person',maxCount:1},{name:'hair',maxCount:1},...extraFiles.map(name=>({name,maxCount:1}))]);
- app.get(route+'/:id',(req,res)=>{
+ const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3,fields:4,parts:7,fieldSize:64*1024}}).fields([{name:'outfit',maxCount:1},{name:'person',maxCount:1},{name:'hair',maxCount:1}]);
+ app.get('/api/seedream-pro-lab/:id',(req,res)=>{
   res.set('Cache-Control','no-store');
   const job=jobs.get(req.params.id);
   if(!job)return res.status(404).json({error:'งานหมดอายุหรือเซิร์ฟเวอร์เริ่มใหม่'});
@@ -32,14 +32,14 @@ export function registerSeedreamProLab(app,{fetchImpl=fetch,timeoutMs=240000,ttl
   if(job.error)return res.status(502).json({error:job.error});
   res.status(202).json({status:'processing'});
  });
- app.post(route,(req,res)=>upload(req,res,async uploadError=>{
+ app.post('/api/seedream-pro-lab',(req,res)=>upload(req,res,async uploadError=>{
   res.set('Cache-Control','no-store');
   if(uploadError)return res.status(400).json({error:'ไฟล์ไม่ถูกต้องหรือใหญ่เกิน 20 MB ต่อรูป'});
   try{
    const key=String(req.body?.key||'').trim(),id=String(req.body?.requestId||'');
    if(!key)return res.status(400).json({error:'กรุณากรอก API key สำหรับทดลอง'});
    if(!/^[a-f0-9-]{36}$/.test(id))return res.status(400).json({error:'กรุณาโหลดหน้าทดลองใหม่'});
-   const payload=await payloadFor({prompt:req.body?.prompt,order:req.body?.order,files:req.files});
+   const payload=await proLabPayload({prompt:req.body?.prompt,order:req.body?.order,files:req.files});
    const body=JSON.stringify(payload),fingerprint=createHash('sha256').update(key).update(body).digest('hex');
    const prior=jobs.get(id);
    if(prior){if(prior.fingerprint!==fingerprint)return res.status(409).json({error:'ข้อมูลไม่ตรงกับงานเดิม กรุณาเริ่มงานใหม่'});return res.status(202).json({id});}

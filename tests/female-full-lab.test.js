@@ -86,5 +86,9 @@ test('new page isolates recovery and uses original catalogue pickers without pos
  assert(html.includes('data-skin-controls="off"'));
  assert(html.includes('data-prompt-url="/female-full-lab-prompt.txt"'));
  assert(html.includes('data-catalogue="outfit"'));assert(html.includes('data-catalogue="hair"'));
+ assert(html.includes('src="/female-full-lab-client.js"'));
+ assert(!html.includes('src="/seedream-pro-lab.js"'));
+ const proClient=await readFile(new URL('../public/seedream-pro-lab.js',import.meta.url),'utf8');
+ assert(!proClient.includes('prepareLabSubmission'));assert(!proClient.includes('female-lab-guide.js'));
  assert(!html.includes('value="outfit-person-hair"'));assert(!html.includes('value="male"'));
 });
