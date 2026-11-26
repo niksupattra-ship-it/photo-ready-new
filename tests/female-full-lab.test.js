@@ -40,6 +40,12 @@ test('female full portrait sends the accessible makeup finish once with three or
  for(const term of ['SOFT-FOCUS','soft-diffused','Gently reduce harsh pores','remove harsh texture'])assert(!prompt.includes(term));
  assert(prompt.includes('individual eyebrow hairs separated'));
  assert(prompt.includes('Repair individual temporary blemishes locally'));
+ assert(prompt.includes('40–43%'));
+ assert(prompt.includes('Aim for 41.5%'));
+ assert(prompt.includes('excluding shoulder-board overhangs'));
+ assert(prompt.includes('Remove ALL visible temporary acne'));
+ assert(!prompt.includes('existing head/body framing'));
+ assert(!prompt.includes('balanced adult head-to-shoulder ratio'));
  assert(prompt.includes('Keep the original eye shape'));
  const files={};let index=0;
  for(const name of ['person','outfit','hair'])files[name]=[{buffer:await sharp({create:{width:32,height:48,channels:4,background:{r:++index*40,g:80,b:120,alpha:1}}}).png().toBuffer()}];
