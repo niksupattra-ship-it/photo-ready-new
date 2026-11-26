@@ -1,4 +1,5 @@
 import {femaleFinishFor} from './review-portrait-finish.js';
+import {FEMALE_GUIDE_INSTRUCTION} from './female-lab-guide.js';
 
 // Reuse only the accessible cosmetics specification. The legacy head/neck
 // cutout task is deliberately excluded from this full-portrait experiment.
@@ -10,18 +11,20 @@ export function femaleFullLabPrompt(){
   .replace('both ears, head scale and facial proportions','both ears and facial proportions')
   .replace('Preserve the original face width, face height, aspect ratio,','Preserve the original facial width-to-height ratio and internal proportions,')
   .replace('Keep the original head scale and framing.','Preserve intrinsic head proportions. Use Image 2 for the final garment frame.');
- return `Create exactly one photorealistic female studio ID portrait by combining these three original references in ONE image-generation request.
+ return `Create exactly one photorealistic female studio ID portrait from three original references and one spatial guide in ONE image-generation request.
 REFERENCE ASSIGNMENT:
 Image 1: The customer's identity and original facial anatomy only. Do not copy its original clothing, hairstyle, camera distance or crop.
 Image 2: The selected garment and fixed body template. Preserve shoulder width and slope, collar height and opening, lapels, fabric, seams, tie, buttons, shoulder boards and every existing insignia. Preserve the original garment silhouette and full upper-body area. Do not add, remove, mirror, relocate or redesign insignia.
 Image 3: The selected hairstyle only. Follow its hairline, parting, connected lengths, silhouette and texture; never borrow the reference model's face.
+${FEMALE_GUIDE_INSTRUCTION}
 COMPOSITION:
 Create the face, hairstyle, neck and clothed upper body together as one coherent photograph. Fit the head and naturally compact neck into the existing collar of Image 2. Keep the garment's original proportions; do not stretch or compress either axis. Use a neutral upright posture. HEAD SIZE TARGET: The head INCLUDING the hair around the skull must measure 40–43% of the fixed garment shoulder span. Measure shoulder span horizontally between the two outer shoulder/sleeve endpoints in Image 2, excluding shoulder-board overhangs; do not use the canvas width, face-only width or loose hanging hair lengths. Aim for 41.5%, within the 40–43% range. Fit the entire head with ONE uniform scale in both axes; preserve its intrinsic width-to-height ratio and all internal facial proportions. Keep the garment scale, shoulder endpoints, collar position and all insignia unchanged. Do not enlarge or narrow the body to meet the ratio, and do not enlarge the head to shorten the neck. Fit a naturally compact neck to the existing collar without moving the collar or stretching the face. Check this head-to-shoulder relationship before returning the complete image. Centre the head over the collar; avoid camera roll and forward head posture while retaining the customer's real facial asymmetry. Do not force mirrored facial features. Show the entire crown and selected hairstyle, both shoulders and the original upper-body garment area. Use a vertical 3:4 frame with a plain white background.
 MAKEUP — THE ONLY FEMALE FINISH:
 ${makeup}
 PHOTOGRAPHIC DETAIL:
-Keep individual eyebrow hairs separated, with the original direction, density and natural gaps. Keep eyelashes, eyelid edges, iris details and lip texture clearly resolved. Use clean optical focus on the face with soft studio illumination; softness describes the light, not a blur applied to the image. Maintain comparable fine detail across the face, hair, fabric and insignia. No painted brows, waxy skin, halos, oversharpening or invented skin texture. Preserve the customer's identity and the fixed garment frame; apply only the head placement and uniform scale specified in COMPOSITION.
+Keep individual eyebrow hairs separated, with the original direction, density and natural gaps. Keep eyelashes, eyelid edges, iris details and lip texture clearly resolved. Use clean optical focus on the face with soft studio illumination; softness describes the light, not a blur applied to the image. Maintain comparable fine detail across the face, hair, fabric and insignia. No painted brows, waxy skin, halos, oversharpening or repetitive synthetic pore patterns. Preserve the customer's identity and the fixed garment frame; apply only the head placement and uniform scale specified in COMPOSITION.
 FINAL OUTPUT:
+FINAL CLEAN-SKIN CHECK: Inspect the entire forehead including the hairline, both temples, both cheeks, nose, mouth-adjacent skin and chin. Remove every visible active pimple, whitehead and temporary red/brown acne mark in these areas. Temporary acne is not identity and must not be retained under any identity or texture-preservation instruction. Reconstruct each repaired spot with matching nearby fine skin texture and even healthy colour while preserving permanent moles, freckles, pores and real eyebrow hairs. Do not leave red dots or raised acne bumps. Retain natural facial shadows and blush rather than flattening facial depth.
 Return the complete clothed portrait as one PNG. Do not return an isolated head or neck, a mask, a collage or separate body parts. Keep fine eyebrow hairs, real pores and individual hair strands sharp without waxy smoothing. Keep the face, ears and neck coherent under soft frontal studio lighting. No added text, accessories or watermark.
 `;
 }
