@@ -1,0 +1,1036 @@
+{
+  "outfits": [
+    {
+      "id": "female-job-navy-notch-white-shirt",
+      "name": "สูทหญิงกรมท่า เชิ้ตขาว",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-notch-white-shirt.webp",
+      "reference": "/assets/job-uniforms/female-job-navy-notch-white-shirt.png",
+      "sha256": "ae3fffd8ca5d61ac39793e29f159d89ba28204b0a32d49a92bc95eea0593d033"
+    },
+    {
+      "id": "female-job-navy-double-breasted-cream-blouse",
+      "name": "สูทหญิงกรมท่ากระดุมสองแถว เสื้อในครีม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-double-breasted-cream-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-navy-double-breasted-cream-blouse.png",
+      "sha256": "03092bd7317bd3e71d37c7e69d300590ead7ddb6ae8a3e32ad693913c1d6042c"
+    },
+    {
+      "id": "female-job-navy-white-collar",
+      "name": "ชุดสมัครงานหญิงกรมท่าปกขาว",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-white-collar.webp",
+      "reference": "/assets/job-uniforms/female-job-navy-white-collar.png",
+      "sha256": "a6751479fa2d41a465851bf0a744e82fab158e1d877d9cd4dd240ff180c1a656"
+    },
+    {
+      "id": "female-job-ivory-bow-blouse",
+      "name": "เสื้อหญิงไอวอรีผูกโบ",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-bow-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-ivory-bow-blouse.png",
+      "sha256": "0310c8fcc39cf001055d1ab06328cc8b5ac85d67c9ae29eb7e7413ca0766b528"
+    },
+    {
+      "id": "male-job-blue-navy-tie",
+      "name": "สูทชายสีน้ำเงิน เนกไทกรมท่า",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-blue-navy-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-blue-navy-tie.png",
+      "sha256": "9fb1f30315dbfa574a546a71e53578144063b51c7e283d1a60bef8eda1ec8266"
+    },
+    {
+      "id": "male-job-navy-three-piece-burgundy-tie",
+      "name": "สูทชายกรมท่าสามชิ้น เสื้อกั๊ก เนกไทแดงไวน์",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-three-piece-burgundy-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-navy-three-piece-burgundy-tie.png",
+      "sha256": "3e4e630620be5814548ed8b54347fff6af21cd8b3a752aab55eb6d9d45a2d7c8"
+    },
+    {
+      "id": "male-white-shirt-v132",
+      "name": "เชิ้ตชาย",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/male-white-shirt-v132-example.png",
+      "reference": "/assets/job-uniforms/male-open-collar-suit.png",
+      "sha256": "43f25b051930a907d5401c27eb1748b09a9175fa16af7a31dcadf44033734e78"
+    },
+    {
+      "id": "male-job-navy-burgundy-shirt",
+      "name": "สูทชายกรมท่าเชิ้ตแดงไวน์",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-burgundy-shirt.webp",
+      "reference": "/assets/job-uniforms/male-job-navy-burgundy-shirt.webp",
+      "sha256": "5d138e2014750fad9d51951d8be08611d7365469ef12ea50db26e881d8f317c1"
+    },
+    {
+      "id": "female-job-light-pink-tweed-pearl-trim",
+      "name": "แจ็กเก็ตหญิงทวีดชมพูอ่อนขอบครีม กระดุมมุก",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-light-pink-tweed-pearl-trim.webp",
+      "reference": "/assets/job-uniforms/female-job-light-pink-tweed-pearl-trim.png",
+      "sha256": "745605274ab7dbffc7b2c0a1437dec1944109392b05940aad81a21254679be28"
+    },
+    {
+      "id": "female-job-navy-suit-gathered-cream-blouse",
+      "name": "สูทหญิงกรมท่า เสื้อในครีมคอจีบ",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-suit-gathered-cream-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-navy-suit-gathered-cream-blouse.png",
+      "sha256": "7504b9d6ace959ecd941be6cd6e7a99f63447c26a610621b3c7ba21fdf2d1573"
+    },
+    {
+      "id": "female-job-dusty-rose-tweed-pearl-buttons",
+      "name": "แจ็กเก็ตหญิงทวีดชมพูกุหลาบ กระดุมมุก",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-dusty-rose-tweed-pearl-buttons.webp",
+      "reference": "/assets/job-uniforms/female-job-dusty-rose-tweed-pearl-buttons.png",
+      "sha256": "952aae65216ee702b4cc7f14d39cd88393ca32fe6c10906a66f7767c8f3dc98b"
+    },
+    {
+      "id": "female-job-ivory-tweed-cream-trim-gold-buttons",
+      "name": "แจ็กเก็ตหญิงทวีดไอวอรีขอบครีม กระดุมทอง",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-tweed-cream-trim-gold-buttons.webp",
+      "reference": "/assets/job-uniforms/female-job-ivory-tweed-cream-trim-gold-buttons.png",
+      "sha256": "de3a19004ca3d1976f4c8c9bae5a67807d29e9e4ef6b5bd403416ccf7488277c"
+    },
+    {
+      "id": "male-job-navy-v-neck-knit-shirt",
+      "name": "เสื้อไหมพรมชายกรมท่าคอวี สวมทับเชิ้ต",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-v-neck-knit-shirt.webp",
+      "reference": "/assets/job-uniforms/male-job-navy-v-neck-knit-shirt.png",
+      "sha256": "4a84ddbf58881bcc2786f352d0b791121db34222c0870ef37cef432fe2287c30"
+    },
+    {
+      "id": "male-job-blue-two-button-navy-tie",
+      "name": "สูทชายสีน้ำเงินสองกระดุม เนกไทกรมท่า",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-blue-two-button-navy-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-blue-two-button-navy-tie.png",
+      "sha256": "1a6f1dfcd97720ea08097c562efd9f430f5b71719cbfaaa95dcfbce8ddb2924f"
+    },
+    {
+      "id": "female-job-taupe-cream-blouse",
+      "name": "สูทหญิงเบจ เสื้อในครีม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-taupe-cream-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-taupe-cream-blouse.png",
+      "sha256": "8ef1c3497a1780f835c75c6811aff74244c7b079117fa37e27bc84134ce32b12"
+    },
+    {
+      "id": "female-job-light-blue-shirt",
+      "name": "เชิ้ตหญิงฟ้าอ่อน",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-light-blue-shirt.webp",
+      "reference": "/assets/job-uniforms/female-job-light-blue-shirt.png",
+      "sha256": "aa59daa958e0b465fd0dd54986575958b4eb45c12cb24653493cc0b7cf6b569e"
+    },
+    {
+      "id": "female-job-ivory-tweed-gold-buttons",
+      "name": "แจ็กเก็ตหญิงทวีดไอวอรี กระดุมทอง",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-ivory-tweed-gold-buttons.webp",
+      "reference": "/assets/job-uniforms/female-job-ivory-tweed-gold-buttons.png",
+      "sha256": "c2033f6a5bc9c56deb3b05764c6e7e4ef6c8e4f909454c6f478363a341d24696"
+    },
+    {
+      "id": "male-job-navy-double-breasted-black-tie",
+      "name": "สูทชายกรมท่ากระดุมสองแถว เนกไทดำ",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-double-breasted-black-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-navy-double-breasted-black-tie.png",
+      "sha256": "370aa64187d76fe4b6fdf237ced007055f38c6905aa6f71365da069a66312fc7"
+    },
+    {
+      "id": "male-job-charcoal-burgundy-tie",
+      "name": "สูทชายเทาเข้ม เนกไทแดงไวน์",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-charcoal-burgundy-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-charcoal-burgundy-tie.png",
+      "sha256": "a8ddf44b03e44c70a19811a0e62825ebdc710f77cd3d0f1fc131ae2e945dabf8"
+    },
+    {
+      "id": "male-job-navy-solid-tie",
+      "name": "สูทชายกรมท่าเนกไทสีพื้น",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-solid-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-navy-solid-tie.webp",
+      "sha256": "b612e73632cff7810e13650759cf6a70975a4be9849f20ac9af841503887dc35"
+    },
+    {
+      "id": "male-job-navy-striped-tie",
+      "name": "สูทชายกรมท่าเนกไทลายเฉียง",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-navy-striped-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-navy-striped-tie.webp",
+      "sha256": "4c84024291311f00673060aea0d62d7b12e6074bdd774e954ed9beee34f9d0fe"
+    },
+    {
+      "id": "male-job-charcoal-patterned-tie",
+      "name": "สูทชายเทาเข้มเนกไทลาย",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-charcoal-patterned-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-charcoal-patterned-tie.webp",
+      "sha256": "a988dffb2bc73c8a167e66a7919fecb629e3c8049ffbf9fb8dc4a9e691e0c30b"
+    },
+    {
+      "id": "male-job-black-solid-tie",
+      "name": "สูทชายดำเนกไทสีพื้น",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--male-job-black-solid-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-black-solid-tie.webp",
+      "sha256": "8d81f5160424799edbda83b9bc7398338d6dd6690068800b1321f7dcf571df03"
+    },
+    {
+      "id": "female-white-shirt",
+      "name": "เชิ้ตหญิง",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-white-shirt-example.png",
+      "reference": "/assets/job-uniforms/female-white-shirt.png",
+      "sha256": "717f9e1bf7a99a577fdfc88ac8c89a13c3737d65fe93118c921a22f85bf24d7e"
+    },
+    {
+      "id": "female-white-shirt-02",
+      "name": "เชิ้ตหญิง แบบ 2",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-white-shirt-02-example.png",
+      "reference": "/assets/job-uniforms/female-white-shirt-02.png",
+      "sha256": "3ffb65d09ad4d37f75230e2deccc618a3e830d595e83b5cb83d6c602fda5db34"
+    },
+    {
+      "id": "female-navy-suit-6",
+      "name": "สูทชาย แบบ 6",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/previews/female-navy-suit-6.webp",
+      "reference": "/assets/job-uniforms/female-navy-suit-6.png",
+      "sha256": "145f040e24efc9f6141289fac389d54719b88f34b9e263069b3b5372ae6676df"
+    },
+    {
+      "id": "female-navy-suit-7",
+      "name": "สูทชาย แบบ 7",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/previews/female-navy-suit-7.webp",
+      "reference": "/assets/job-uniforms/female-navy-suit-7.png",
+      "sha256": "f20504396a09175c990e5ac8468a8acb8970e958cf45db4a1a0990bfa05843bf"
+    },
+    {
+      "id": "male-navy-suit-5",
+      "name": "สูทหญิง แบบ 5",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/previews/male-navy-suit-5.webp",
+      "reference": "/assets/job-uniforms/male-navy-suit-5.png",
+      "sha256": "2dc3eb72428ed05dd8e56d3e0e5f48794a0a4d97164b965e277b49e1ed787310"
+    },
+    {
+      "id": "female-job-navy-collared",
+      "name": "ชุดสมัครงานหญิงกรมท่าคอเชิ้ต",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-navy-collared.webp",
+      "reference": "/assets/job-uniforms/female-job-navy-collared.png",
+      "sha256": "b951ef9b297710482097f4455f606ca12966f679d696d738345630ba2f1b0378"
+    },
+    {
+      "id": "female-job-black-round-collar",
+      "name": "ชุดสมัครงานหญิงดำคอมน",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-black-round-collar.webp",
+      "reference": "/assets/job-uniforms/female-job-black-round-collar.png",
+      "sha256": "98131dc631958e732bc9f3585b834557ca1d2897b5f95979cd0301b42592eae5"
+    },
+    {
+      "id": "female-job-tan-round-collar",
+      "name": "ชุดสมัครงานหญิงน้ำตาลคอมน",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-tan-round-collar.webp",
+      "reference": "/assets/job-uniforms/female-job-tan-round-collar.png",
+      "sha256": "bdedd85692c4ce3ccfd45d64dd294c548eaaa2a5048c301a2bab32eca50c09d5"
+    },
+    {
+      "id": "female-job-burgundy-patterned-blouse",
+      "name": "ชุดสมัครงานหญิงแดงไวน์เชิ้ตลาย",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-burgundy-patterned-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-burgundy-patterned-blouse.png",
+      "sha256": "ab073296cf6e3f8d6da1630b37e60d22584f57b3afd6b3950f607cfc79f298ff"
+    },
+    {
+      "id": "female-job-black-cream-blouse",
+      "name": "ชุดสมัครงานหญิงดำเสื้อในครีม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/uniform-quick-previews/job-uniforms--female-job-black-cream-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-black-cream-blouse.png",
+      "sha256": "8769693f2106a183811da3cdaf095714d0b5b937db32a85cbe78d8bb55d7ffd3"
+    },
+    {
+      "id": "female-job-ivory-tweed-burgundy-trim-gold-buttons",
+      "name": "แจ็กเก็ตหญิงทวีดสีไอวอรี ขอบแดงไวน์ กระดุมทอง",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-ivory-tweed-burgundy-trim-gold-buttons.webp",
+      "reference": "/assets/job-uniforms/female-job-ivory-tweed-burgundy-trim-gold-buttons.webp",
+      "sha256": "80bad15c4eecb1f34913315fd302fbbc5b9a752ad96c5477ebbafd470e360e7b"
+    },
+    {
+      "id": "female-job-ivory-bow-collar-blouse",
+      "name": "เสื้อหญิงสีไอวอรีคอผูกโบใหญ่",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-ivory-bow-collar-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-ivory-bow-collar-blouse.webp",
+      "sha256": "bf7b9be6c28b0bdba55d1ed42c655dc4500f56ed3eef5fc443cb36d356ca09cd"
+    },
+    {
+      "id": "female-job-powder-blue-knit-peter-pan-collar",
+      "name": "คาร์ดิแกนหญิงไหมพรมสีฟ้าอ่อน ปกบัวสีขาว",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-powder-blue-knit-peter-pan-collar.webp",
+      "reference": "/assets/job-uniforms/female-job-powder-blue-knit-peter-pan-collar.webp",
+      "sha256": "c6394bb9545987c7ea61ea999be8d4db7475d53ded57ad0d71cf3355eac7fb63"
+    },
+    {
+      "id": "female-job-taupe-ribbed-round-neck-cardigan",
+      "name": "คาร์ดิแกนหญิงไหมพรมสีเบจ คอกลม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-taupe-ribbed-round-neck-cardigan.webp",
+      "reference": "/assets/job-uniforms/female-job-taupe-ribbed-round-neck-cardigan.webp",
+      "sha256": "93004c15737182a04eb6bb7589c4f3ab74473287438237e604d3b7df698c7c02"
+    },
+    {
+      "id": "female-job-dusty-blue-tailored-blazer-ivory-top",
+      "name": "สูทหญิงสีฟ้าหม่นปกเทเลอร์ เสื้อในไอวอรี",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-dusty-blue-tailored-blazer-ivory-top.webp",
+      "reference": "/assets/job-uniforms/female-job-dusty-blue-tailored-blazer-ivory-top.webp",
+      "sha256": "92be548a5bd9c86f3dba8bdef985e368384aec1554dcde2264d776821c704053"
+    },
+    {
+      "id": "female-job-blush-pink-tweed-burgundy-trim",
+      "name": "แจ็กเก็ตหญิงทวีดชมพูอ่อน ขอบแดงไวน์",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-blush-pink-tweed-burgundy-trim.webp",
+      "reference": "/assets/job-uniforms/female-job-blush-pink-tweed-burgundy-trim.webp",
+      "sha256": "39527bc4ad92189ac76b4e8506c2f95d524be9c2ca0b7a290265155a4191eeb2"
+    },
+    {
+      "id": "female-job-sand-beige-wide-lapel-blazer",
+      "name": "สูทหญิงสีเบจทรายปกกว้าง เสื้อในครีม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-sand-beige-wide-lapel-blazer.webp",
+      "reference": "/assets/job-uniforms/female-job-sand-beige-wide-lapel-blazer.webp",
+      "sha256": "4724255953b88f39dc55f3a75e6dc1c4f39e222236c61f858fa417048dd46199"
+    },
+    {
+      "id": "female-job-charcoal-pinstripe-tailored-blazer",
+      "name": "สูทหญิงสีเทาเข้มลายทาง ปกเทเลอร์",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-charcoal-pinstripe-tailored-blazer.webp",
+      "reference": "/assets/job-uniforms/female-job-charcoal-pinstripe-tailored-blazer.webp",
+      "sha256": "3c7aab06ea01b2f7e1e6e6f39cb6a12965f93fc90ae76a18dced6a81a8aec7ec"
+    },
+    {
+      "id": "female-job-ivory-pleated-round-neck-blouse",
+      "name": "เสื้อหญิงสีไอวอรีคอจีบ แขนยาว",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-ivory-pleated-round-neck-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-ivory-pleated-round-neck-blouse.webp",
+      "sha256": "bcefc4f5653dc2edfe3b29f5586359195d0c962cfff10db2165b50c659aec658"
+    },
+    {
+      "id": "female-job-deep-navy-double-breasted-blazer",
+      "name": "สูทหญิงกรมท่ากระดุมสองแถว ปกแหลม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-deep-navy-double-breasted-blazer.webp",
+      "reference": "/assets/job-uniforms/female-job-deep-navy-double-breasted-blazer.webp",
+      "sha256": "5eed9cd787c67f8732e79aca1918cc13dff60a0b6a4783249d915d15e0d5059b"
+    },
+    {
+      "id": "female-job-warm-taupe-blazer-beige-shirt",
+      "name": "สูทหญิงสีน้ำตาลเทา เสื้อเชิ้ตเบจ",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-warm-taupe-blazer-beige-shirt.webp",
+      "reference": "/assets/job-uniforms/female-job-warm-taupe-blazer-beige-shirt.webp",
+      "sha256": "02b5d473c0a6508fa1fed571eddbfe18a9c4b1c77184f65a30e6f29d118fd9f6"
+    },
+    {
+      "id": "female-job-cream-neck-tie-blouse",
+      "name": "เสื้อหญิงสีครีมผูกโบคอเสื้อ",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-cream-neck-tie-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-cream-neck-tie-blouse.webp",
+      "sha256": "4611f94f75a63ea9f6f0c0ca114e9bd5088f1e21838150065df5ac28241a0f7f"
+    },
+    {
+      "id": "female-job-sage-blue-mandarin-collar-jacket",
+      "name": "แจ็กเก็ตหญิงสีฟ้าอมเขียวคอตั้ง เสื้อในครีม",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-sage-blue-mandarin-collar-jacket.webp",
+      "reference": "/assets/job-uniforms/female-job-sage-blue-mandarin-collar-jacket.webp",
+      "sha256": "fcf0457da5fe7d76af21eabe4a72ea726d38640e5f18f6bf436c9803f27c66f6"
+    },
+    {
+      "id": "female-job-rose-pink-tweed-collarless-pockets",
+      "name": "แจ็กเก็ตหญิงทวีดชมพูกุหลาบ คอกลมมีกระเป๋า",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-rose-pink-tweed-collarless-pockets.webp",
+      "reference": "/assets/job-uniforms/female-job-rose-pink-tweed-collarless-pockets.webp",
+      "sha256": "be75d793dd984168fdc859764a2622dde6ea191d079ea2b3064be9b89b79bcda"
+    },
+    {
+      "id": "female-job-midnight-navy-blazer-cream-ruffle-blouse",
+      "name": "สูทหญิงกรมท่า เสื้อในครีมคอจีบ",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-midnight-navy-blazer-cream-ruffle-blouse.webp",
+      "reference": "/assets/job-uniforms/female-job-midnight-navy-blazer-cream-ruffle-blouse.webp",
+      "sha256": "cdd54719d399cea37469e0a48425d485bb097b9bc7ba61cd505bbcc28b83753b"
+    },
+    {
+      "id": "female-job-royal-blue-blazer-white-collar-shirt",
+      "name": "สูทหญิงสีน้ำเงินสด เสื้อเชิ้ตคอปกสีขาว",
+      "gender": "female",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/female-job-royal-blue-blazer-white-collar-shirt.webp",
+      "reference": "/assets/job-uniforms/female-job-royal-blue-blazer-white-collar-shirt.webp",
+      "sha256": "272a83c0ddb2dd13bac8aff2808c3ca39ca04a054d55f1fc9e277c6147bbf107"
+    },
+    {
+      "id": "male-job-black-suit-silver-gray-tie",
+      "name": "สูทชายสีดำ เสื้อเชิ้ตขาว เนกไทเทาเงิน",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/male-job-black-suit-silver-gray-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-black-suit-silver-gray-tie.webp",
+      "sha256": "2ccd667e69410bc10b9eda332697418fb956d8d3ca6fc1ccec90f1049270ff88"
+    },
+    {
+      "id": "male-job-slate-navy-suit-burgundy-tie",
+      "name": "สูทชายสีน้ำเงินเทา เสื้อเชิ้ตขาว เนกไทแดงไวน์",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/male-job-slate-navy-suit-burgundy-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-slate-navy-suit-burgundy-tie.webp",
+      "sha256": "8ed8112d58ce117a359a4b1b6317119dbd050033040494aba41ced0843e91493"
+    },
+    {
+      "id": "male-job-charcoal-gray-suit-burgundy-tie",
+      "name": "สูทชายสีเทาถ่าน เสื้อเชิ้ตขาว เนกไทแดงไวน์",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/male-job-charcoal-gray-suit-burgundy-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-charcoal-gray-suit-burgundy-tie.webp",
+      "sha256": "cc72d907390534e07c2fe17df12e774f8bfd6207cbaf8d1859d9c72cc07b610d"
+    },
+    {
+      "id": "male-job-midnight-black-suit-textured-silver-tie",
+      "name": "สูทชายสีดำเข้ม เสื้อเชิ้ตขาว เนกไทเงินลายทอ",
+      "gender": "male",
+      "group": "job",
+      "groupName": "สมัครงาน",
+      "preview": "/assets/job-uniforms/male-job-midnight-black-suit-textured-silver-tie.webp",
+      "reference": "/assets/job-uniforms/male-job-midnight-black-suit-textured-silver-tie.webp",
+      "sha256": "ca16efd61e57476a2e7b4b55c5a3e87261a4e33937ab8698e290eb17f225268d"
+    },
+    {
+      "id": "female-operational",
+      "name": "ปฏิบัติงาน",
+      "gender": "female",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/female-operational-example.jpg",
+      "reference": "/assets/government-uniforms/female-operational.png",
+      "sha256": "3c5dc5878b58d5baa6cef8a9a70ec9ceb5d9c0fa64a56c8bf1ca04484ec812e4"
+    },
+    {
+      "id": "female-academic",
+      "name": "ปฏิบัติการ",
+      "gender": "female",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/female-academic-example.jpg",
+      "reference": "/assets/government-uniforms/female-academic.png",
+      "sha256": "19865c0ed64413d72df24b5774596161bd3f3ea1a6b35bdfb8b7830129c255f4"
+    },
+    {
+      "id": "female-senior",
+      "name": "ชำนาญการ / อาวุโส",
+      "gender": "female",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/female-senior-example.jpg",
+      "reference": "/assets/government-uniforms/female-senior.png",
+      "sha256": "8ad65190f43d8bd2b6acac708f2975b53b321d5c785d8c79e657711f47ea843d"
+    },
+    {
+      "id": "female-government-employee",
+      "name": "พนักงานราชการ",
+      "gender": "female",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/female-government-employee-example.jpg",
+      "reference": "/assets/government-uniforms/female-government-employee.png",
+      "sha256": "60ef648be3b51233eb5781db74f4494315403db3326aafdbb4bd9a6c6675f229"
+    },
+    {
+      "id": "interior-01",
+      "name": "ปฏิบัติงาน",
+      "gender": "male",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/male-operational-example.png",
+      "reference": "/assets/government-uniforms/interior-01.png",
+      "sha256": "392e2ba9ef0eb30909601f315ad225b7f81f6d3e147b7e5eb83a5ef33737c87c"
+    },
+    {
+      "id": "interior-02",
+      "name": "ปฏิบัติการ",
+      "gender": "male",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/male-academic-example.png",
+      "reference": "/assets/government-uniforms/interior-02.png",
+      "sha256": "f06d669001094fa6fb17ea4c6d029a48e597380dd89ea86d7f08d011d44a685b"
+    },
+    {
+      "id": "interior-03",
+      "name": "ชำนาญการ / อาวุโส",
+      "gender": "male",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/male-senior-example.png",
+      "reference": "/assets/government-uniforms/interior-03.png",
+      "sha256": "d12e9f02fec9d8f6f903b47985733f08e22d1ec8845970b15258c6aa31429efb"
+    },
+    {
+      "id": "male-government-employee",
+      "name": "พนักงานราชการ",
+      "gender": "male",
+      "group": "government",
+      "groupName": "ข้าราชการ",
+      "preview": "/assets/government-uniforms/male-government-employee-example.jpg",
+      "reference": "/assets/government-uniforms/male-government-employee.png",
+      "sha256": "0b813ff4fdcd5cb45dde566c6fa4511cfc41d7e0b5c803537922e94c3dbd249a"
+    },
+    {
+      "id": "kmitl-female",
+      "name": "ครุย สจล. หญิง",
+      "gender": "female",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/kmitl-female-example.jpg",
+      "reference": "/assets/gown-uniforms/kmitl-female.png",
+      "sha256": "1dc8c143d541bd4556fbbff07baec3a9d3b021b4d672b67c5997c4ad578a9252"
+    },
+    {
+      "id": "kmitl-male",
+      "name": "ครุย สจล. ชาย",
+      "gender": "male",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/kmitl-male-example.jpg",
+      "reference": "/assets/gown-uniforms/kmitl-male.png",
+      "sha256": "70e7bf1cec2609cb3d343048493749ac585e809041c9c56de9e3cfdc47285f57"
+    },
+    {
+      "id": "khon-kaen-female",
+      "name": "ขอนแก่นหญิง",
+      "gender": "female",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/previews/khon-kaen-female.webp",
+      "reference": "/assets/gown-uniforms/khon-kaen-female.png",
+      "sha256": "9055df3136a50eb854b9b342eecbe87893aca52efaa8d5dccf04e53701f825bf"
+    },
+    {
+      "id": "khon-kaen-male",
+      "name": "ขอนแก่นชาย",
+      "gender": "male",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/previews/khon-kaen-male.webp",
+      "reference": "/assets/gown-uniforms/khon-kaen-male.png",
+      "sha256": "51aa0f99003c4f9a64934ec53abbd91767ff12b9beb7227308ad15b3b42dc9e6"
+    },
+    {
+      "id": "thai-bar-female",
+      "name": "เนติบัณฑิตหญิง",
+      "gender": "female",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/previews/thai-bar-female.webp",
+      "reference": "/assets/gown-uniforms/thai-bar-female.png",
+      "sha256": "7dc615bec190211de0b564b3eb3f86773f29c5d1dc4ef29c924aeb2139fd3a5c"
+    },
+    {
+      "id": "thai-bar-male",
+      "name": "เนติบัณฑิตชาย",
+      "gender": "male",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/previews/thai-bar-male.webp",
+      "reference": "/assets/gown-uniforms/thai-bar-male.png",
+      "sha256": "469a4020e91fb39a4b4a2f24049c0ff071240a40e2169349be7e022e0ac1674d"
+    },
+    {
+      "id": "stou-operational",
+      "name": "มสธ.ปฏิบัติงาน",
+      "gender": "all",
+      "group": "gown",
+      "groupName": "ชุดครุย",
+      "preview": "/assets/gown-uniforms/previews/stou-operational.webp",
+      "reference": "/assets/gown-uniforms/stou-operational.png",
+      "sha256": "b6a3cc1f5ebc091ffe9dd9260a11da51d541145dfa489fb80db28c7417045137"
+    },
+    {
+      "id": "student-female-01",
+      "name": "นักศึกษาหญิง แบบ 1",
+      "gender": "female",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/female-01.jpg",
+      "reference": "/assets/student-uniforms/female-01.png",
+      "sha256": "bf5c4b082fcc520238167cbfe4396e720c96f66ca9a5bee2eb05a2c035fb7e9c"
+    },
+    {
+      "id": "student-female-02",
+      "name": "นักศึกษาหญิง แบบ 2",
+      "gender": "female",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/female-02.jpg",
+      "reference": "/assets/student-uniforms/female-02.png",
+      "sha256": "2a8f92db48faa2d3096bbc10f0c88c31e55523ca458617b5fc9df62a310c7e08"
+    },
+    {
+      "id": "student-male-01",
+      "name": "นักศึกษาชาย แบบ 1",
+      "gender": "male",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/male-01.jpg",
+      "reference": "/assets/student-uniforms/male-01.png",
+      "sha256": "886dbf2a811b42cae48b9971a036faddd364d927a7355c25e34763db20dc67e6"
+    },
+    {
+      "id": "student-male-02",
+      "name": "นักศึกษาชาย แบบ 2",
+      "gender": "male",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/male-02.jpg",
+      "reference": "/assets/student-uniforms/male-02.png",
+      "sha256": "241854ed02de623cc7e73b310301c2d64d036829193ee00255b03afee2fdb13f"
+    },
+    {
+      "id": "student-female-rajamangala",
+      "name": "ราชมงคล",
+      "gender": "female",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/female-rajamangala.webp",
+      "reference": "/assets/student-uniforms/female-rajamangala.png",
+      "sha256": "6b17a968381a3bce18739ed7055bbd3e9e792b9da0f6b8529e195c0994d45990"
+    },
+    {
+      "id": "student-female-msu",
+      "name": "มมส",
+      "gender": "female",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/female-msu.webp",
+      "reference": "/assets/student-uniforms/female-msu.png",
+      "sha256": "83557d8b1c95280226c89bcf33d53dec6ab04b49c80b8d3b73883a173c9152b3"
+    },
+    {
+      "id": "student-female-rajabhat",
+      "name": "ราชภัฏ",
+      "gender": "female",
+      "group": "student",
+      "groupName": "นักศึกษา",
+      "preview": "/assets/student-uniforms/previews/female-rajabhat.webp",
+      "reference": "/assets/student-uniforms/female-rajabhat.png",
+      "sha256": "4470a46ae305d79e3cadc3f874c2196c5ebfcacbd3aefd66905814c2b396754d"
+    }
+  ],
+  "hairs": [
+    {
+      "id": "seedream-14",
+      "name": "ทรงผม 14",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/14.webp",
+      "reference": "/assets/seedream-hairstyles/references/14.png",
+      "sha256": "20c0f0ae2f38995b614175dd5d51d359103a3d0d5cef6c164ce7c57989ffd02d"
+    },
+    {
+      "id": "seedream-42",
+      "name": "ทรงผมหญิง 3",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/42.webp",
+      "reference": "/assets/seedream-hairstyles/references/42.png",
+      "sha256": "8691bfc5c31cd35fc30b5068fbe06d2eeb108da2e6db8b62e43d3fcef5b83a87"
+    },
+    {
+      "id": "seedream-79",
+      "name": "ผมรวบเรียบ",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/79.webp",
+      "reference": "/assets/seedream-hairstyles/references/79.png",
+      "sha256": "8e52bd34075a5aec417c0cd8f7b837d5dafe2afec2dd777a253993883c1aa1ed"
+    },
+    {
+      "id": "seedream-16",
+      "name": "ทรงผม 16",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/16.webp",
+      "reference": "/assets/seedream-hairstyles/references/16.png",
+      "sha256": "f9b2c9d6070796c24bd0d0ab96a01d186598a1e77238c7578ca07755058dd405"
+    },
+    {
+      "id": "seedream-23",
+      "name": "ทรงผม 23",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/23.webp",
+      "reference": "/assets/seedream-hairstyles/references/23.png",
+      "sha256": "d4219418fe42797bbb86c5fbc1e4a98fa907fa8e7ebbe13bcd4a205828dddc4e"
+    },
+    {
+      "id": "seedream-40",
+      "name": "ทรงผมหญิง 1",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/40.webp",
+      "reference": "/assets/seedream-hairstyles/references/40.png",
+      "sha256": "ba0f160de80e63541b54d508cae470222be1a8ebba9aed04ee2e83fe9448243d"
+    },
+    {
+      "id": "seedream-43",
+      "name": "ทรงผมหญิง 4",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/43.webp",
+      "reference": "/assets/seedream-hairstyles/references/43.png",
+      "sha256": "26f82adcbdc81179cf11f0cd4006866394fb09c7c30bac7211a0c41f9cd33d30"
+    },
+    {
+      "id": "seedream-07",
+      "name": "ทรงผม 7",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/7.webp",
+      "reference": "/assets/seedream-hairstyles/references/7.png",
+      "sha256": "85a4c6a1cb2a6a46c796070fffe768d06a7531dd091e4fe74602e74daa6fee2e"
+    },
+    {
+      "id": "seedream-03",
+      "name": "ทรงผม 3",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/3.webp",
+      "reference": "/assets/seedream-hairstyles/references/3.png",
+      "sha256": "a6222d14efb219d7afa211666d3f83601d8d3e25113e316a94515a81f1a00f92"
+    },
+    {
+      "id": "seedream-05",
+      "name": "ทรงผม 5",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/5.webp",
+      "reference": "/assets/seedream-hairstyles/references/5.png",
+      "sha256": "8abd2d69039e09b264c80b4988acdf439289c38c58eef85e2bc1fe43af4b4a40"
+    },
+    {
+      "id": "seedream-15",
+      "name": "ทรงผม 15",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/15.webp",
+      "reference": "/assets/seedream-hairstyles/references/15.png",
+      "sha256": "afa9c194be4993b365d09cd19bd21ad7d50ff9d295697d1bf43c27ec40233055"
+    },
+    {
+      "id": "seedream-18",
+      "name": "ทรงผม 18",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/18.webp",
+      "reference": "/assets/seedream-hairstyles/references/18.png",
+      "sha256": "0c02be790e351a4e4d1a9490131d4241b3a3b962e4d312353f8f203f9e6333e3"
+    },
+    {
+      "id": "seedream-20",
+      "name": "ทรงผม 20",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/20.webp",
+      "reference": "/assets/seedream-hairstyles/references/20.png",
+      "sha256": "e540adf78035cc8aa04341ea19ca3dd7f1dcbc7bfea905939e2a5bc6a0255dd5"
+    },
+    {
+      "id": "seedream-10",
+      "name": "ทรงผม 10",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/10.webp",
+      "reference": "/assets/seedream-hairstyles/references/10.png",
+      "sha256": "a39c28eba2d29187c12e7095fc0c77055520e45345baafadf712737ca2193491"
+    },
+    {
+      "id": "seedream-02",
+      "name": "ทรงผม 2",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/2.webp",
+      "reference": "/assets/seedream-hairstyles/references/2.png",
+      "sha256": "1a02bc891a847fe1b99453aaf6334bba80b8e2883bfde2695900d9fbdf6cb925"
+    },
+    {
+      "id": "seedream-04",
+      "name": "ทรงผม 4",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/4.webp",
+      "reference": "/assets/seedream-hairstyles/references/4.png",
+      "sha256": "c3cc35321cfe11ba050035fe4e0d82e83eb557e1b6802145a452210c4c9ff9fa"
+    },
+    {
+      "id": "seedream-06",
+      "name": "ทรงผม 6",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/6.webp",
+      "reference": "/assets/seedream-hairstyles/references/6.png",
+      "sha256": "a6b162d0adc88c24c0ca9d23e1f7580e7952c6d372f765201aebbba286bdc795"
+    },
+    {
+      "id": "seedream-24",
+      "name": "ทรงผม 24",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/24.webp",
+      "reference": "/assets/seedream-hairstyles/references/24.png",
+      "sha256": "e2f4e38fb0d59ab5f44645620e5e6592c14e00205fedab8afac801659e567e52"
+    },
+    {
+      "id": "seedream-39",
+      "name": "ทรงผม 39",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/39.webp",
+      "reference": "/assets/seedream-hairstyles/references/39.png",
+      "sha256": "ada75ad6f83da15679f6c4f8624e4bf043e0281b76a4a75eeff83fb1dad12225"
+    },
+    {
+      "id": "seedream-36",
+      "name": "ทรงผม 36",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/36.webp",
+      "reference": "/assets/seedream-hairstyles/references/36.png",
+      "sha256": "66a6bcba5a435fc07dda8e9a9c96326b182eac0243c71649b2dbec0f34dba623"
+    },
+    {
+      "id": "seedream-28",
+      "name": "ทรงผม 28",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/28.webp",
+      "reference": "/assets/seedream-hairstyles/references/28.png",
+      "sha256": "9f35df1405c9464789c91a476ccf70368f2e657ed1790844e37acc5789ea9add"
+    },
+    {
+      "id": "seedream-29",
+      "name": "ทรงผม 29",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/29.webp",
+      "reference": "/assets/seedream-hairstyles/references/29.png",
+      "sha256": "7e66a6ee0baad53cd929ed418196ce429179a26d3a28494594f807dd1349c4fc"
+    },
+    {
+      "id": "seedream-30",
+      "name": "ทรงผม 30",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/30.webp",
+      "reference": "/assets/seedream-hairstyles/references/30.png",
+      "sha256": "e565d10b04b8d8a80b9207373f64def9017a16d9475b201546561aaf5a6fbd7c"
+    },
+    {
+      "id": "seedream-31",
+      "name": "ทรงผม 31",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/31.webp",
+      "reference": "/assets/seedream-hairstyles/references/31.png",
+      "sha256": "8eba1b0c1589fd0593ba7a2a2e9540f9abeb7008639d0ea69ab8674cc371559a"
+    },
+    {
+      "id": "seedream-32",
+      "name": "ทรงผม 32",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/32.webp",
+      "reference": "/assets/seedream-hairstyles/references/32.png",
+      "sha256": "d90f97df9ab4f0227694ebd72dca4e8cebf4c4c123b115950d9d974b7537c5f8"
+    },
+    {
+      "id": "seedream-33",
+      "name": "ทรงผม 33",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/33.webp",
+      "reference": "/assets/seedream-hairstyles/references/33.png",
+      "sha256": "c3e481ac0415d58eda2ee9bf55e1e68b9b5c5bed3674a74caf8e4b23264b1213"
+    },
+    {
+      "id": "seedream-34",
+      "name": "ทรงผม 34",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/34.webp",
+      "reference": "/assets/seedream-hairstyles/references/34.png",
+      "sha256": "df141685df1fa5d53a43f143d8e0b8e2713dcecfadd851a1bee17726e0e81154"
+    },
+    {
+      "id": "seedream-37",
+      "name": "ทรงผม 37",
+      "gender": "male",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/37.webp",
+      "reference": "/assets/seedream-hairstyles/references/37.png",
+      "sha256": "e2ce29f80ceb70f595cb704e3ec2fefb0a20e01510c7bad31c8de13221b28742"
+    }
+  ]
+}
