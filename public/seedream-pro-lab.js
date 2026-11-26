@@ -1,6 +1,7 @@
 import {addSkinControls} from './seedream-pro-skin-controls.js';
 const $=id=>document.getElementById(id),form=$('form'),go=$('go'),status=$('status'),check=$('check'),results=$('results');
-const storageKey='seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
+const labConfig=document.documentElement.dataset;
+const storageKey=labConfig.storageKey||'seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
 const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
 function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;input.dispatchEvent(new Event('change'));}}orderLabels();}
 const setBusy=value=>{busy=value;for(const control of form.elements)control.disabled=value;};
@@ -40,7 +41,7 @@ function showResult(blob,snapshot){
  const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt='ภาพต้นฉบับจาก Seedream Pro';preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
- const download=document.createElement('a');download.className='download';download.href=url;download.download='seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;addSkinControls({card,preview,image,blob,originalUrl:url});
+ const download=document.createElement('a');download.className='download';download.href=url;download.download='seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
  if(results.children.length>5){results.lastElementChild.skinControlsDispose?.();results.lastElementChild.remove();URL.revokeObjectURL(urls.shift());}card.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function poll(id,snapshot){
@@ -67,6 +68,6 @@ form.addEventListener('submit',async event=>{
   await poll(id,snapshot);
  }catch(error){status.textContent=error.message||'การเชื่อมต่อขัดข้อง';check.hidden=!activeId;}
 });
-try{const response=await fetch('/seedream-pro-lab-prompt.txt',{cache:'no-store'});if(!response.ok)throw Error();$('prompt').value=await response.text();go.disabled=false;}catch{status.textContent='โหลด Prompt ไม่สำเร็จ วาง Prompt ของคุณเพื่อเริ่มได้เลย';go.disabled=false;}
+try{const response=await fetch(labConfig.promptUrl||'/seedream-pro-lab-prompt.txt',{cache:'no-store'});if(!response.ok)throw Error();$('prompt').value=await response.text();go.disabled=false;}catch{status.textContent='โหลด Prompt ไม่สำเร็จ วาง Prompt ของคุณเพื่อเริ่มได้เลย';go.disabled=false;}
 try{activeId=sessionStorage.getItem(storageKey);}catch{}
 if(activeId){setBusy(true);void poll(activeId,null);}orderLabels();
