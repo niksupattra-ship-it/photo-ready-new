@@ -74,7 +74,7 @@ try{const r=await fetch('/api/gpt-image-lab',{method:'POST',body:form,cache:'no-
 export function registerGptImageLab(app,{fetchImpl=fetch,timeoutMs=600000,ttlMs=900000}={}){
  const jobs=new Map();
  let uploading=0;
- const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3,fields:5,parts:8,fieldSize:128*1024}}).fields([{name:'outfit',maxCount:1},{name:'person',maxCount:1},{name:'hair',maxCount:1}]);
+ const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:3,fields:6,parts:10,fieldSize:128*1024}}).fields([{name:'outfit',maxCount:1},{name:'person',maxCount:1},{name:'hair',maxCount:1}]);
  app.get(['/gpt-image-lab','/gpt-image-lab/'],(_req,res)=>res.set({'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex, nofollow'}).type('html').send(page));
  app.get('/api/gpt-image-lab/:id',(req,res)=>{
   res.set('Cache-Control','no-store');
