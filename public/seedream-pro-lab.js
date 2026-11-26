@@ -1,6 +1,8 @@
 import {addSkinControls} from './seedream-pro-skin-controls.js';
 const $=id=>document.getElementById(id),form=$('form'),go=$('go'),status=$('status'),check=$('check'),results=$('results');
 const labConfig=document.documentElement.dataset;
+const labEndpoint=labConfig.endpoint||'/api/seedream-pro-lab';
+const modelLabel=labConfig.modelLabel||'Dola-Seedream-5.0-pro',sizeLabel=labConfig.sizeLabel||'1.5K';
 const storageKey=labConfig.storageKey||'seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
 const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
 function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;input.dispatchEvent(new Event('change'));}}orderLabels();}
@@ -37,8 +39,8 @@ function showResult(blob,snapshot){
  const url=URL.createObjectURL(blob);urls.push(url);const card=document.createElement('article');card.className='result';
  const time=document.createElement('time');time.textContent=new Date().toLocaleString('th-TH');
  const caption=document.createElement('p');caption.className='caption';caption.textContent=snapshot?.prompt||'ภาพดิบจาก AI · กู้คืนงานเดิม';
- const settings=document.createElement('div');settings.className='settings';for(const value of ['Dola-Seedream-5.0-pro','1.5K','Smart ratio','1 ภาพ',snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
- const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt='ภาพต้นฉบับจาก Seedream Pro';preview.append(image);
+ const settings=document.createElement('div');settings.className='settings';for(const value of [modelLabel,sizeLabel,'Smart ratio','1 ภาพ',snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
+ const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt='ภาพต้นฉบับจาก '+modelLabel;preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
  const download=document.createElement('a');download.className='download';download.href=url;download.download='seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
@@ -48,7 +50,7 @@ async function poll(id,snapshot){
  if(checking)return;checking=true;check.hidden=true;
  try{
   for(let n=0;n<150;n++){
-   let response;try{response=await fetch('/api/seedream-pro-lab/'+encodeURIComponent(id),{cache:'no-store',signal:AbortSignal.timeout(20000)});}catch{throw Error('การเชื่อมต่อขัดข้อง กดตรวจผลอีกครั้งได้โดยไม่สร้างงานใหม่');}
+   let response;try{response=await fetch(labEndpoint+'/'+encodeURIComponent(id),{cache:'no-store',signal:AbortSignal.timeout(20000)});}catch{throw Error('การเชื่อมต่อขัดข้อง กดตรวจผลอีกครั้งได้โดยไม่สร้างงานใหม่');}
    if(response.status===202){status.textContent='กำลังสร้างภาพ…';await new Promise(resolve=>setTimeout(resolve,2000));continue;}
    if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ประมวลผลไม่สำเร็จ');}
    const blob=await response.blob();if(blob.type!=='image/png')throw Error('ข้อมูลภาพไม่สมบูรณ์ กรุณาตรวจผลอีกครั้ง');
@@ -62,7 +64,7 @@ form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy||referenceLoading)return;
  const data=new FormData(form),id=crypto.randomUUID(),snapshot={prompt:data.get('prompt'),order:data.get('order'),files:Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]))};data.append('requestId',id);activeId=id;remember(id);setBusy(true);status.textContent='กำลังส่งภาพ…';
  try{
-  const response=await fetch('/api/seedream-pro-lab',{method:'POST',body:data,signal:AbortSignal.timeout(60000)});
+  const response=await fetch(labEndpoint,{method:'POST',body:data,signal:AbortSignal.timeout(60000)});
   if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ส่งภาพไม่สำเร็จ');}
   const result=await response.json();if(result.id!==id)throw Error('ยังยืนยันงานไม่ได้ กรุณากดตรวจผลอีกครั้ง');
   await poll(id,snapshot);
