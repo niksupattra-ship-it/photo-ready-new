@@ -1616,11 +1616,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const previous=historySnapshot(),suit=previous.find(l=>layerKind(l)==='suit');if(touch){setPicker(false);setTouchMore(false);setTouchMenu(false);setTouchOpen(false)}setHairConfirmed(false);setProcessingPhoto(true);setStatus(PHOTO_EDITING_TITLE);
   let stagedResult,startedHydratingResult=false;
   const generationOptions={...options.generationOptions,...(options.manualOutfitFallback?{manualOutfitFallback:true}:{})};
+   const selectedTemplate=options.outfitAiCreate&&options.generationOptions?.templatePath?options.generationOptions.templatePath:suit?.templatePath||placementRef.current?.templatePath||oldHead?.generatedOutfitTemplate;
   if(!firstGeneration&&oldHead?.jobId){
    generationOptions.sourceJobId=oldHead.jobId;
    if(oldHead.portraitMode===chosenPortraitMode&&!generationOptions.keepCurrentHair&&((oldHead.hairId||'')!==chosenHair||cachedSelectedResult))generationOptions.creditKind='hairstyle';
   }else{delete generationOptions.sourceJobId;delete generationOptions.creditKind;}
-  try{const result=stagedResult=await onProcessPhoto(sourcePhoto,suit?.templatePath||placementRef.current?.templatePath,chosenHair,chosenPortraitMode,undefined,generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};
+  try{const result=stagedResult=await onProcessPhoto(sourcePhoto,selectedTemplate,chosenHair,chosenPortraitMode,undefined,generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};
    if(englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&chosenPortraitMode==='female'&&!chosenHair&&!options.generationOptions?.keepCurrentHair)head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION;const anchor=options.manualOutfitFallback&&oldHead?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?suit:oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
    let next=previous.filter(l=>l.id!==oldHead?.id&&l.id!==sourceLayerRef.current&&(!oldHead||l.hairHeadId!==oldHead.id));
    if(head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){const retained=retainedGovernmentInsignia(previous,oldHead||{generatedOutfitTemplate:suit?.templatePath},head,{englishFlow});next=[...next.filter(l=>!isGovernmentAccessory(l)).map(l=>layerKind(l)==='suit'?{...l,visible:false}:l),...retained];}
@@ -1780,7 +1781,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!mounted.current||state.current.find(l=>layerKind(l)==='suit')?.templatePath!==outfit.template)return;
   }
   setThaiOutfitAiDraft(null);setThaiPendingHair(null);setThaiChoiceFlow(null);
-  await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode,!englishFlow),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true});
+  await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode,!englishFlow),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true,generationOptions:{templatePath:outfit.template}});
  };
  useEffect(()=>{
   if(englishFlow||!bodyOutfitRequest||assetBusy||processActive||!ready)return;
