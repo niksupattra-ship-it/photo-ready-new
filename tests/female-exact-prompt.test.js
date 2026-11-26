@@ -94,6 +94,7 @@ test('female render revisions cannot orphan an owned submission but real selecti
  const base=['single-pass-portrait-v1','head-size','seedream-14','female-operational','makeup','female'];
  const key=JSON.stringify(base),revised=JSON.stringify([base[0],VERSION,'direct-modelark-pro-garment-first-1p5k-v7',...base.slice(1)]);
  assert(same(key,revised));assert(same(revised,key));
+ const previous=JSON.stringify([base[0],'thai-female-exact-three-ref-user-v1','direct-modelark-original-refs-v6',...base.slice(1)]);assert(same(previous,revised));
  for(const index of [2,3,4,5]){const changed=[...base];changed[index]='different';assert(!same(revised,JSON.stringify(changed)));}
  assert(!same(null,key));assert(!same('invalid',key));
  const main=await readFile(root+'src/main.jsx','utf8');assert(main.includes('samePortraitSubmissionKey(priorJob.submissionKey,submissionKey)'));
