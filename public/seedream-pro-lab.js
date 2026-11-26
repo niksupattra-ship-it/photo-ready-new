@@ -8,7 +8,7 @@ const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
 function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;input.dispatchEvent(new Event('change'));}}orderLabels();}
 const setBusy=value=>{busy=value;for(const control of form.elements)control.disabled=value;};
 const remember=id=>{try{id?sessionStorage.setItem(storageKey,id):sessionStorage.removeItem(storageKey)}catch{}};
-function orderLabels(){const order=$('order').value.split('-');for(const name of order){const label=form.querySelector(`[data-kind="${name}"]`);label.style.order=order.indexOf(name);label.querySelector('.number').textContent=`Image ${order.indexOf(name)+1} · ${labels[name]}`;}}
+function orderLabels(){const order=$('order').value.split('-');for(const name of order){const label=form.querySelector(`[data-kind="${name}"]`);label.style.order=order.indexOf(name);label.querySelector('.number').textContent=labConfig.facePreparation?'ต้นฉบับ · '+labels[name]:`Image ${order.indexOf(name)+1} · ${labels[name]}`;}}
 $('order').addEventListener('change',orderLabels);
 for(const input of form.querySelectorAll('input[type=file]'))input.addEventListener('change',()=>{const img=input.parentElement.querySelector('img'),placeholder=img.nextElementSibling;if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);img.hidden=!input.files.length;placeholder.hidden=!!input.files.length;if(input.files.length){img.src=URL.createObjectURL(input.files[0]);img.dataset.url=img.src;}const selected=form.querySelector(`[data-selection="${input.name}"]`);if(selected)selected.textContent=input.dataset.catalogueName||input.files[0]?.name||'';delete input.dataset.catalogueName;});
 const picker=$('catalogue-dialog'),grid=$('catalogue-grid'),pickerStatus=$('catalogue-status');let cataloguePromise,pickerKind='outfit',selectionSequence=0,selectionAbort=null;
@@ -64,6 +64,7 @@ form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy||referenceLoading)return;
  const data=new FormData(form),id=crypto.randomUUID(),snapshot={prompt:data.get('prompt'),order:data.get('order'),files:Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]))};data.append('requestId',id);activeId=id;remember(id);setBusy(true);status.textContent='กำลังส่งภาพ…';
  try{
+  if(labConfig.facePreparation){status.textContent='กำลังเตรียมใบหน้าสำหรับภาพหลัก…';const {prepareLabSubmission}=await import('./female-lab-guide.js');try{await prepareLabSubmission(data);}catch(error){activeId=null;remember(null);setBusy(false);throw error;}status.textContent='กำลังส่งภาพ…';}
   const response=await fetch(labEndpoint,{method:'POST',body:data,signal:AbortSignal.timeout(60000)});
   if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ส่งภาพไม่สำเร็จ');}
   const result=await response.json();if(result.id!==id)throw Error('ยังยืนยันงานไม่ได้ กรุณากดตรวจผลอีกครั้ง');
