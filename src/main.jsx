@@ -1,4 +1,5 @@
-import {FEMALE_EXACT_PROMPT_VERSION} from '../female-exact-prompt-policy.js';
+import {FEMALE_PREPLACED_PROMPT_VERSION as FEMALE_EXACT_PROMPT_VERSION} from '../female-exact-prompt-policy.js';
+import {captureFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
 import {THAI_WHOLE_HEAD_GUIDE_VERSION,thaiFemaleGuideCacheRevision} from '../thai-whole-head-guide.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
 import {THAI_COLLAR_CONTEXT_VERSION} from '../thai-collar-context.js';
@@ -2991,7 +2992,7 @@ async function aiFinishPortrait(originalFile,hairId,options={}){
  const makeupGuideKey='upload-adaptive-korean-v1';
  const neckline=null; // Current pipeline uses a fixed neck cutout; no template segmentation before AI.
  const firstPortrait=(!hairId||hairId==='original')&&options.creditKind!=='hairstyle';
- const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...thaiFemaleGuideCacheRevision(thaiWholeOutfit,gender),...(thaiWholeOutfit&&gender==='female'?['direct-modelark-pro-lab-v8']:[]),...(!englishPreviewEnabled()&&gender==='female'?[THAI_FEMALE_HEAD_SIZE_VERSION]:[]),...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),...(englishPreviewEnabled()&&gender==='female'&&template===ENGLISH_CIVIL_SERVICE_TEMPLATE?[ENGLISH_CIVIL_SERVICE_FABRIC_VERSION]:[]),gender==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',...(gender==='female'&&options.femaleEyeStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),englishPreviewEnabled()?ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender)+':'+(gender==='female'&&(!hairId||hairId==='original')&&!options.keepCurrentHair?ENGLISH_AUTO_HAIR_VERSION:'en-western-business-auto-hair-v1'):thaiWholeOutfit?THAI_OUTFIT_AI_VERSION+':'+ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender):gender==='female'?'head-only:'+THAI_NECK_BACKING_VERSION:'head-only',gender==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',options.keepCurrentHair?'keep-current-hair:'+String(options.preserveHairJobId||'input'):'catalogue-hair',AI_MAKEUP_PAIR_VERSION,...(englishPreviewEnabled()?[ENGLISH_MAKEUP_LIGHT_LOCK_VERSION]:[]),makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,template,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
+ const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION,...thaiFemaleGuideCacheRevision(thaiWholeOutfit,gender),...(thaiWholeOutfit&&gender==='female'?['preplaced-flash-lab-v9-collar']:[]),...(!englishPreviewEnabled()&&gender==='female'?[THAI_FEMALE_HEAD_SIZE_VERSION]:[]),...(thaiWholeOutfit?[THAI_OUTFIT_APPEARANCE_VERSION,THAI_SINGLE_COLLAR_VERSION,THAI_REAL_FACE_VERSION,THAI_COLLARLESS_VERSION]:[]),...(thaiWholeOutfit?['complete-garment-rear-hair-v2']:[]),...(thaiWholeOutfit?[THAI_REAR_HAIR_SHORT_NECK_VERSION]:[]),...(englishPreviewEnabled()&&gender==='female'&&template===ENGLISH_CIVIL_SERVICE_TEMPLATE?[ENGLISH_CIVIL_SERVICE_FABRIC_VERSION]:[]),gender==='female'?SINGLE_PASS_SKIN_QUALITY_VERSION:'male-unchanged',...(gender==='female'&&options.femaleEyeStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),englishPreviewEnabled()?ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender)+':'+(gender==='female'&&(!hairId||hairId==='original')&&!options.keepCurrentHair?ENGLISH_AUTO_HAIR_VERSION:'en-western-business-auto-hair-v1'):thaiWholeOutfit?THAI_OUTFIT_AI_VERSION+':'+ENGLISH_OUTFIT_FIDELITY_VERSION+':'+ENGLISH_BODY_PORTRAIT_VERSION+':'+ENGLISH_TEMPLATE_BODY_FRAMING_VERSION+':'+englishTemplateBodyFinishForGender(gender):gender==='female'?'head-only:'+THAI_NECK_BACKING_VERSION:'head-only',gender==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,'download-v1',uploadGenerationScope(originalFile),'garment-alpha-v1',options.keepCurrentHair?'keep-current-hair:'+String(options.preserveHairJobId||'input'):'catalogue-hair',AI_MAKEUP_PAIR_VERSION,...(englishPreviewEnabled()?[ENGLISH_MAKEUP_LIGHT_LOCK_VERSION]:[]),makeupGuideKey,originalFile.idpromStudioSourceReplacement===true?'replacement-identity-v1':'initial',gender==='male'?'combined-seedream-server4-catalog34-male-shave-v19-measured-roll':options.femaleEyeStyle==='makeup'?'combined-seedream-server4-catalog34-makeup-source-eye-lock-v32-no-local-tone-measured-roll':'combined-seedream-server4-catalog34-eye-choice-v19-measured-roll',scope,digest,hairId||'original',options.portraitMode,options.femaleEyeStyle,neckline,template,...(options.femaleEyeStyle==='soft-rosy-v1'?['soft-radiance-korean-brows-v7']:[]),...(['korean-rosy-v1','soft-rosy-v1'].includes(options.femaleEyeStyle)?[options.templatePath||'']:[]),...(gender==='female'&&options.femaleEyeStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(gender==='female'?[ORIGINAL_PORTRAIT_AI_VERSION,'native-aspect-hair-edges-v1']:[])]);
  if(options.creditKind==='hairstyle'&&gender!=='female')portraitResultCache.delete(key);
  assertCurrentOperation();
  const cached=await portraitResultCache.get(key,async()=>{
@@ -3159,7 +3160,7 @@ async function measuredHairRootTarget(blob){
   return calculateHairRootTarget({brow,foreheadTop});
  }finally{URL.revokeObjectURL(url)}
 }
-async function replacementFaceIdentityBox(blob,{protectFeatures=false,returnEvidence=false}={}){
+async function replacementFaceIdentityBox(blob,{protectFeatures=false,returnEvidence=false,includeFemalePreparation=false}={}){
  const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
  const face=await portraitFaceLandmarks(blob,image);
  const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
@@ -3170,7 +3171,7 @@ async function replacementFaceIdentityBox(blob,{protectFeatures=false,returnEvid
  if((box[2]-box[0])*W<16||(box[3]-box[1])*H<16)throw Error('ใบหน้าในรูปใหม่เล็กเกินไป กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
  // V11 measurements come from exactly the same landmark analysis as the
  // identity crop. No second model load, AI generation, or face pixel rewrite.
- return returnEvidence?{box,geometry:measureThaiAdaptiveFace(face,W,H)}:box;
+ return returnEvidence?{box,geometry:measureThaiAdaptiveFace(face,W,H),...(includeFemalePreparation?{femalePreplacedFace:captureFemaleFaceEvidence(face,W,H)}:{})}:box;
 }
 const englishHairPlacementCache=new WeakMap();
 function measureEnglishHairPlacement(blob){
@@ -3305,9 +3306,10 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // to the original camera crop and head/body scale varies by upload.
  if(thaiWholeOutfit){
   if(selected&&!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);
-  const measured=await replacementFaceIdentityBox(aiInput,{returnEvidence:true});
+  const measured=await replacementFaceIdentityBox(aiInput,{returnEvidence:true,includeFemalePreparation:portraitMode==='female'});
   fd.append('faceIdentityBox',JSON.stringify(measured.box));
   fd.append('thaiAdaptiveFaceGeometry',JSON.stringify(measured.geometry));
+  if(measured.femalePreplacedFace)fd.append('femalePreplacedFace',JSON.stringify(measured.femalePreplacedFace));
   assertProcessActive(operation);
  }
  else if(selected){if(!selected.hidden)fd.append('hairReferenceVersion',HAIR_REFERENCE_VERSION);fd.append('faceIdentityBox',JSON.stringify(await replacementFaceIdentityBox(aiInput)));assertProcessActive(operation)}

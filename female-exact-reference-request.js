@@ -1,7 +1,10 @@
 import sharp from 'sharp';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
-import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_EXACT_PROMPT,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
+import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_EXACT_PROMPT,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
+import {prepareFemaleFace} from './female-preplaced-face.js';
+import {PRODUCTION_FEMALE_V9_PROMPT} from './production-female-v9-prompt.js';
+import {productionFemaleV9Payload} from './production-female-v9-payload.js';
 import {isThaiOutfitPath} from './thai-outfit-ai-policy.js';
 
 
@@ -23,6 +26,13 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
  // Transport sends original person, selected garment, then hairstyle to match ModelArk trial. No neutral board, alternate skin
  // reference, old hair contract, geometry prompt or native outfit repair.
  const [portrait,hair,outfit]=await Promise.all([input.buffer,hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))]);
+ if(fields.thaiWholeHeadGuideVersion===FEMALE_PREPLACED_PROMPT_VERSION){
+  await onStage('preparing');
+  const face=await prepareFemaleFace(portrait,fields.femalePreplacedFace),prompt=PRODUCTION_FEMALE_V9_PROMPT;
+  const preparedFemalePayload=await productionFemaleV9Payload({prompt,order:'person-outfit-hair',files:{person:[{buffer:portrait}],face:[{buffer:face}],outfit:[{buffer:outfit}],hair:[{buffer:hair}]}});
+  await onStage('generation');
+  return requestPortrait({key,prompt,preparedFemalePayload,femalePreplacedVersion:FEMALE_PREPLACED_PROMPT_VERSION,singleAttempt:true});
+ }
  await onStage('generation');
  return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'1.5K',portrait,portraitMime:await mime(portrait),hair,hairMime:await mime(hair),outfit,outfitMime:await mime(outfit)});
 }

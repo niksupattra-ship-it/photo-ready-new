@@ -1,4 +1,6 @@
 import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
+import {FEMALE_PREPLACED_PROMPT_VERSION} from './female-exact-prompt-policy.js';
+import {parseFemaleFaceEvidence} from './female-preplaced-face-contract.js';
 import {generateExactFemalePortrait} from './female-exact-reference-request.js';
 import {usesThaiCameraPhotography,applyThaiCameraPhotography} from './thai-camera-photography.js';
 import {usesFemaleFrontalContract,applyFemaleFrontalContract} from './thai-female-frontal-contract.js';
@@ -115,6 +117,7 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
+ if(fields.thaiWholeHeadGuideVersion===FEMALE_PREPLACED_PROMPT_VERSION)parseFemaleFaceEvidence(fields.femalePreplacedFace);
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
