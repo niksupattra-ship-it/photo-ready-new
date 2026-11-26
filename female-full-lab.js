@@ -1,4 +1,5 @@
-import {proLabPayload,registerSeedreamProLab} from './seedream-pro-lab.js';
+import {proLabPayload} from './seedream-pro-lab.js';
+import {registerFemaleLabTransport} from './female-full-lab-transport.js';
 import {seedreamLabPayload} from './seedream-review-transport.js';
 import multer from 'multer';
 import {createFemaleLabBase,FEMALE_GUIDE_INSTRUCTION} from './female-lab-guide.js';
@@ -20,5 +21,5 @@ export function registerFemaleFullLab(app,options={}){
   try{res.type('png').send(await createFemaleLabBase(req.files.outfit[0].buffer,req.files.face[0].buffer));}
   catch{res.status(400).json({error:'สร้างไกด์จากชุดนี้ไม่ได้ กรุณาเลือกชุดจากเว็บหลัก'});}
  }));
- registerSeedreamProLab(app,{...options,route:'/api/female-full-lab',payloadFor:femaleFlashLabPayload,extraFiles:['face']});
+ registerFemaleLabTransport(app,{...options,route:'/api/female-full-lab',payloadFor:femaleFlashLabPayload,extraFiles:['face']});
 }
