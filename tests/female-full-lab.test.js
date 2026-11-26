@@ -33,10 +33,14 @@ test('female endpoint sends Flash once and does not change the existing Pro endp
 test('female full portrait sends the accessible makeup finish once with three original references',async()=>{
  const prompt=femaleFullLabPrompt();
  assert.equal(prompt,await readFile(new URL('../public/female-full-lab-prompt.txt',import.meta.url),'utf8'));
- assert.equal(prompt.split('FEMALE MAKEUP — ADAPTIVE SOFT CLEAR KOREAN STUDIO STYLE:').length,2);
+ assert.equal(prompt.split('FEMALE MAKEUP — CLEAR PHOTOGRAPHIC KOREAN STUDIO STYLE:').length,2);
  assert(!prompt.includes('FEMALE NATURAL STUDIO PORTRAIT'));
  assert(!prompt.includes('Keep the original head scale and framing.'));
  assert(!prompt.includes('DEEP WIDE ROUND U'));
+ for(const term of ['SOFT-FOCUS','soft-diffused','Gently reduce harsh pores','remove harsh texture'])assert(!prompt.includes(term));
+ assert(prompt.includes('individual eyebrow hairs separated'));
+ assert(prompt.includes('Repair individual temporary blemishes locally'));
+ assert(prompt.includes('Keep the original eye shape'));
  const files={};let index=0;
  for(const name of ['person','outfit','hair'])files[name]=[{buffer:await sharp({create:{width:32,height:48,channels:4,background:{r:++index*40,g:80,b:120,alpha:1}}}).png().toBuffer()}];
  const payload=await femaleFlashLabPayload({prompt,files,order:'person-outfit-hair'});
