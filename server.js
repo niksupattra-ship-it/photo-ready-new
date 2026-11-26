@@ -1,3 +1,4 @@
+import {registerSeedreamProLab} from './seedream-pro-lab.js';
 import {seedreamLabPayload} from './seedream-review-transport.js';
 import {sanitizeAiError} from './ai-error-sanitizer.js';
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
@@ -437,6 +438,8 @@ app.post('/api/seedream-sandbox',seedreamSandboxUpload.fields([{name:'person',ma
  }catch(e){job.error=String(e.message||'Request failed').slice(0,1000)}})();
  }catch(e){res.status(400).json({error:String(e.message||'Request failed').slice(0,1000)})}
 });
+
+registerSeedreamProLab(app);
 
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
   try{
