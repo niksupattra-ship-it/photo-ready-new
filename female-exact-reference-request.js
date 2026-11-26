@@ -24,5 +24,5 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
  // reference, old hair contract, geometry prompt or native outfit repair.
  const [portrait,hair,outfit]=await Promise.all([input.buffer,hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))]);
  await onStage('generation');
- return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'1.5K',portrait,portraitMime:await mime(portrait),hair,hairMime:await mime(hair),outfit,outfitMime:await mime(outfit)});
+ return requestPortrait({key,prompt:FEMALE_EXACT_PROMPT,femaleExactPromptVersion:FEMALE_EXACT_PROMPT_VERSION,singleAttempt:true,size:'2K',portrait,portraitMime:await mime(portrait),hair,hairMime:await mime(hair),outfit,outfitMime:await mime(outfit)});
 }

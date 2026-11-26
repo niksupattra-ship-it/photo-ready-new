@@ -54,7 +54,7 @@ test('male breast badges use the actual pocket centers and widths above their se
   const fit=governmentReferenceLandmarkFit({data,width:info.width,height:info.height},'male','/assets/government-uniforms/male-government-employee.png'),line=fit.measuredChestLine;
   assert(line,file);assert(Math.abs(line.y-(line.first+(line.second-line.first)*.56))<1e-8);
   const {chest,ribbon,collar}=fit.preset;
-  assert.equal(chest.y,ribbon.centerY);assert.equal(collar.bandFill,.85);
+  assert.equal(chest.y,ribbon.centerY);assert.equal(collar.bandFill,.80);
   const pockets=fit.measuredPockets;assert(pockets);
   assert(Math.abs(fit.frame.w*chest.height-pockets.left.width*.38)<1e-8);
   assert(fit.frame.w*chest.height>fit.frame.w*.075,'Increase the previously undersized chest emblem');

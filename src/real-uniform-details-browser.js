@@ -7,7 +7,7 @@ function cleanOldDetails(im,analysis,parts,replacements){
  const {pixels,scale}=analysis,{width:w,height:h,data}=pixels,mask=new Uint8Array(w*h);
  for(const {target:g}of parts){
   const hull=expanded(g,2),left=Math.max(0,Math.floor(Math.min(...hull.map(p=>p.x)))),right=Math.min(w-1,Math.ceil(Math.max(...hull.map(p=>p.x)))),top=Math.max(0,Math.floor(Math.min(...hull.map(p=>p.y)))),bottom=Math.min(h-1,Math.ceil(Math.max(...hull.map(p=>p.y))));
-  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)if(insideDetail(x+.5,y+.5,hull))mask[y*w+x]=g.kind==='shoulder'?2:1;
+  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)if(insideDetail(x+.5,y+.5,hull))mask[y*w+x]=1;
  }
  const fill=new Uint8ClampedArray(data.length),directions=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
  for(let n=0;n<mask.length;n++)if(mask[n]){
@@ -15,22 +15,20 @@ function cleanOldDetails(im,analysis,parts,replacements){
   for(const [dx,dy]of directions)for(let d=1;d<=240;d++){
    const xx=x+dx*d,yy=y+dy*d;if(xx<0||xx>=w||yy<0||yy>=h)break;
    const next=yy*w+xx;if(mask[next])continue;
-   if(mask[n]===2){const i=next*4,r=data[i],g=data[i+1],b=data[i+2];if(dy<=0||data[i+3]<250||Math.min(r,g,b)<135||Math.max(r,g,b)-Math.min(r,g,b)>65)continue;}
    const distance=d*Math.hypot(dx,dy);if(!best||distance<best.distance)best={index:next*4,distance};break;
   }
-  if(!best&&mask[n]===2)continue;
   if(!best)throw Error('เก็บรายละเอียดชุดเดิมไม่สำเร็จ · เก็บภาพเดิมไว้');
   fill.set(data.subarray(best.index,best.index+4),n*4);
  }
- // Remove the complete detected old shoulder board using opaque nearby cloth.
- // Preserve original alpha; other details remain limited to replacement coverage.
+ // Never erase an old board outside the opaque replacement footprint.
+ // Different AI/native outlines must not expose blue holes along an edge.
  const coverage=make(im.width,im.height),coverageContext=coverage.getContext('2d');
  for(const part of replacements||[])coverageContext.drawImage(part.canvas,part.frame.x,part.frame.y);
  const covered=replacements?coverageContext.getImageData(0,0,im.width,im.height).data:null;
  const cleaned=make(im.width,im.height),ctx=cleaned.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);const native=ctx.getImageData(0,0,im.width,im.height);
  // Replace ONLY pixels of the measured old objects, including alpha. Every
  // face/skin/cloth pixel outside these measured regions remains byte-identical.
- for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n]&&(mask[n]===2||!covered||covered[(y*im.width+x)*4+3]===255)){const i=(y*im.width+x)*4;const originalAlpha=native.data[i+3];if(fill[n*4+3]>=originalAlpha){native.data.set(fill.subarray(n*4,n*4+3),i);native.data[i+3]=originalAlpha}}}
+ for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){const n=Math.min(h-1,Math.floor(y/scale))*w+Math.min(w-1,Math.floor(x/scale));if(mask[n]&&(!covered||covered[(y*im.width+x)*4+3]===255)){const i=(y*im.width+x)*4;const originalAlpha=native.data[i+3];if(fill[n*4+3]>=originalAlpha){native.data.set(fill.subarray(n*4,n*4+3),i);native.data[i+3]=originalAlpha}}}
  ctx.putImageData(native,0,0);return cleaned;
 }
 function sourceCutout(im,g,scale){
