@@ -51,3 +51,18 @@ test('default order matches the confirmed Seedream edit screen, preserving the s
  assert(html.indexOf('data-kind="person"')<html.indexOf('data-kind="outfit"'));
  assert(html.includes('<select name="order" id="order"><option value="person-outfit-hair">'));
 });
+
+test('main-site catalogue stays synchronized and selects original image bytes rather than thumbnail files',async()=>{
+ const {buildProLabCatalogue}=await import('../scripts/build-pro-lab-catalogue.mjs');
+ const {createHash}=await import('node:crypto');
+ const actual=JSON.parse(await readFile(new URL('../public/seedream-pro-lab-catalogue.json',import.meta.url),'utf8'));
+ assert.deepEqual(actual,await buildProLabCatalogue());
+ assert(actual.outfits.length>60);assert(actual.hairs.length>20);
+ assert.deepEqual(actual.hairs.filter(h=>h.gender==='female').slice(0,3).map(h=>h.id),['seedream-14','seedream-42','seedream-79']);
+ assert(!actual.hairs.some(h=>h.id==='seedream-41'||h.id==='thai-male-auto'));
+ const hair=actual.hairs.find(h=>h.id==='seedream-14');assert.equal(hair.reference,'/assets/seedream-hairstyles/references/14.png');
+ const outfit=actual.outfits.find(o=>o.id==='female-operational');assert.equal(outfit.reference,'/assets/government-uniforms/female-operational.png');
+ for(const item of [...actual.outfits,...actual.hairs]){
+  const bytes=await readFile(new URL('../public'+item.reference,import.meta.url));assert.equal(createHash('sha256').update(bytes).digest('hex'),item.sha256);assert(!item.reference.includes('/previews/'));
+ }
+});
