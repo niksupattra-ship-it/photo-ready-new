@@ -1,8 +1,9 @@
 import multer from 'multer';
 import sharp from 'sharp';
 import {createHash} from 'node:crypto';
+import {seedreamProPayload} from './seedream-pro-payload.js';
 
-export const PRO_LAB_MODEL='dola-seedream-5-0-pro-260628';
+export {PRO_LAB_MODEL} from './seedream-pro-payload.js';
 const endpoint='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
 export async function proLabPayload({prompt,order='person-outfit-hair',files}){
  if(typeof prompt!=='string'||!prompt.trim()||prompt.length>20000)throw Error('กรุณากรอก Prompt');
@@ -16,7 +17,7 @@ export async function proLabPayload({prompt,order='person-outfit-hair',files}){
   if(!mime)throw Error('รองรับภาพ PNG, JPG และ WebP');
   image.push(`data:${mime};base64,${file.buffer.toString('base64')}`);
  }
- return {model:PRO_LAB_MODEL,prompt,image,size:'1.5K',output_format:'png',response_format:'b64_json',watermark:false};
+ return seedreamProPayload(prompt,image);
 }
 
 // Separate BYOK experiment: never touches production prompts, wallet or matting.

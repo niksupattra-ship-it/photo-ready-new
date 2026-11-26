@@ -1,5 +1,6 @@
 // Transport for the isolated review server; no production route or key fallback.
 import {FEMALE_EXACT_PROMPT_VERSION} from './female-exact-prompt-policy.js';
+import {seedreamProPayload} from './seedream-pro-payload.js';
 export const REVIEW_SEEDREAM_MODEL='dola-seedream-5-0-flash-260915';
 export const REVIEW_SEEDREAM_ENDPOINT='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
 export function seedreamLabPayload(prompt,image){
@@ -24,7 +25,7 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(adaptiveComposition?.length)image.push(`data:image/png;base64,${Buffer.from(adaptiveComposition).toString('base64')}`);
  const femalePro=femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION;
  if(femalePro&&(!hair?.length||!outfit?.length||image.length!==3))throw Error('Female Pro requires exactly three references');
- if(femalePro)return seedreamLabPayload(prompt,[image[0],image[2],image[1]]);
+ if(femalePro)return seedreamProPayload(prompt,[image[0],image[2],image[1]]);
  const ordered=image;
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'2K':size,output_format:'png',response_format:'b64_json',watermark:false};
 }
@@ -35,7 +36,7 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
  // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
  // rejections are never retried. singleAttempt disables every automatic retry.
- const attempts=options.singleAttempt?1:2;
+ const attempts=options.singleAttempt||options.femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION?1:2;
  for(let attempt=0;attempt<attempts;attempt++){
   const signal=AbortSignal.timeout(timeoutMs);
   let response,body;
