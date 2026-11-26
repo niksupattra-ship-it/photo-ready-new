@@ -8,7 +8,25 @@ import {registerFemaleFullLab} from '../female-full-lab.js';
 import {registerSeedreamProLab} from '../seedream-pro-lab.js';
 import express from 'express';
 import {randomUUID} from 'node:crypto';
-import {createFemaleLabBase,FEMALE_GUIDE_INSTRUCTION} from '../female-lab-guide.js';
+import {createFemaleLabBase,FEMALE_GUIDE_INSTRUCTION,femaleLabChinPlacement} from '../female-lab-guide.js';
+import {createEnglishBodyLayout} from '../english-body-layout.js';
+
+test('lab seats chin at each upper collar without changing outfit scale or foreground',async()=>{
+ const catalogue=JSON.parse(await readFile(new URL('../public/seedream-pro-lab-catalogue.json',import.meta.url),'utf8'));
+ const outfits=[catalogue.outfits.find(o=>o.id==='female-operational'),catalogue.outfits.find(o=>o.reference.includes('peter-pan')),catalogue.outfits.find(o=>o.reference.includes('female-job-navy-notch'))];
+ for(const item of outfits){
+  assert(item);const outfit=await readFile(new URL('../public'+item.reference,import.meta.url));
+  const options={headScale:1,canvasWidth:768,fixedIdentityEnvelope:true,stableGarmentFrame:true,returnNativeForeground:true,profile:{headWidthToShoulder:.415,headHeightToShoulder:.56,chinToCollar:.045,neckToShoulder:.22,chestToShoulder:.40}};
+  const old=await createEnglishBodyLayout(outfit,options),next=await createEnglishBodyLayout(outfit,{...options,collarContext:{template:''}});
+  assert.deepEqual(next.nativeForeground,old.nativeForeground);
+  assert.equal(next.shoulderSpan,old.shoulderSpan);assert.equal(next.centerX,old.centerX);
+  const chin=femaleLabChinPlacement(next),previous=old.collarTopY-old.shoulderSpan*.045;
+  assert(chin>previous,item.id);
+  const c=next.measuredCollar,k=next.shoulderSpan/c.shoulderWidth,contact=next.collarTopY+(c.contactY-c.upperCollarY)*k;
+  assert(contact>chin);assert(contact-chin<=next.shoulderSpan*.020001);
+ }
+ assert.throws(()=>femaleLabChinPlacement({}));
+});
 
 test('outfit guide is independent of source pose and its preview never calls AI',async t=>{
  const outfit=await readFile(new URL('../public/assets/government-uniforms/female-operational.png',import.meta.url));
