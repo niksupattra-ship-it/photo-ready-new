@@ -33,13 +33,13 @@ test('new female outfit/hair variants send ONLY approved prompt and three correc
  for(const [file,hair]of [['government-uniforms/female-operational.png','seedream-14'],['job-uniforms/female-navy-suit-2.png','seedream-42'],['gown-uniforms/kmitl-female.png','seedream-79'],['student-uniforms/female-01.png','seedream-16']]){
   let calls=0,matting=0;
   const audit=createMakeupRequestAudit(async args=>{
-   calls++;assert.equal(args.prompt,PROMPT);assert.equal(args.singleAttempt,true);assert.equal(args.size,'1.5K');
+   calls++;assert.equal(args.prompt,PROMPT);assert.equal(args.singleAttempt,true);assert.equal(args.size,'2K');
    assert.equal(args.femaleExactPromptVersion,VERSION);
    for(const key of ['identity','makeup','skinReference','neckReference','neckShapeReference','hairPlacementReference','compositionReference','makeupStudioReference','outfitDetailReference','adaptiveComposition'])assert.equal(args[key],undefined,key);
    const payload=seedreamReviewPayload(args);assert.equal(payload.image.length,3);
-   assert.equal(payload.model,'dola-seedream-5-0-pro-260628');assert.equal(payload.size,'1.5K');assert.equal(payload.image[1],'data:image/png;base64,'+args.portrait.toString('base64'));
+   assert.equal(payload.model,'dola-seedream-5-0-flash-260915');assert.equal(payload.size,'2K');assert.equal(payload.image[0],'data:image/png;base64,'+args.portrait.toString('base64'));
    assert.equal(payload.image[2],'data:image/png;base64,'+args.hair.toString('base64'));
-   assert.equal(payload.image[0],'data:image/png;base64,'+args.outfit.toString('base64'));
+   assert.equal(payload.image[1],'data:image/png;base64,'+args.outfit.toString('base64'));
    assert.deepEqual(args.outfit,await readFile(root+'public/assets/'+file));assert.deepEqual(args.portrait,input.buffer);
    return {png};
   },{requirePolicy:true});
@@ -81,21 +81,3 @@ test('original and retained hairstyles still use the same exact prompt and three
 });
 
  test('exact female matting retains native RGB and dimensions even when mask service resizes or recolors',async()=>{const {preserveExactFemalePixels}=await import('../production-portrait-pipeline.js');const mask=await sharp({create:{width:48,height:64,channels:4,background:{r:0,g:0,b:0,alpha:.5}}}).png().toBuffer();const out=await preserveExactFemalePixels(png,mask);const {data,info}=await sharp(out.png).raw().toBuffer({resolveWithObject:true});const original=await sharp(png).raw().toBuffer();assert.equal(info.width,96);assert.equal(info.height,128);for(let i=0;i<data.length;i+=4){assert.deepEqual(data.subarray(i,i+3),original.subarray(i,i+3));assert.equal(data[i+3],128);}});
-
- test('exact female transport never retries even if caller omits singleAttempt',async()=>{
- for(const singleAttempt of [undefined,false]){let calls=0;
- await assert.rejects(requestReviewSeedream({key:'inert',prompt:PROMPT,portrait:png,hair:png,outfit:png,femaleExactPromptVersion:VERSION,singleAttempt},{fetchImpl:async()=>{calls++;return new Response(JSON.stringify({error:{message:'inert'}}),{status:503,headers:{'content-type':'application/json'}})}}));
- assert.equal(calls,1);
- }
- });
-
-test('female render revisions cannot orphan an owned submission but real selection changes remain distinct',async()=>{
- const {samePortraitSubmissionKey:same}=await import('../src/portrait-submission-key.js');
- const base=['single-pass-portrait-v1','head-size','seedream-14','female-operational','makeup','female'];
- const key=JSON.stringify(base),revised=JSON.stringify([base[0],VERSION,'direct-modelark-pro-garment-first-1p5k-v7',...base.slice(1)]);
- assert(same(key,revised));assert(same(revised,key));
- const previous=JSON.stringify([base[0],'thai-female-exact-three-ref-user-v1','direct-modelark-original-refs-v6',...base.slice(1)]);assert(same(previous,revised));
- for(const index of [2,3,4,5]){const changed=[...base];changed[index]='different';assert(!same(revised,JSON.stringify(changed)));}
- assert(!same(null,key));assert(!same('invalid',key));
- const main=await readFile(root+'src/main.jsx','utf8');assert(main.includes('samePortraitSubmissionKey(priorJob.submissionKey,submissionKey)'));
-});

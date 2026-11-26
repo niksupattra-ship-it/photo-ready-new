@@ -24,7 +24,7 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(adaptiveComposition?.length)image.push(`data:image/png;base64,${Buffer.from(adaptiveComposition).toString('base64')}`);
  const femalePro=femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION;
  if(femalePro&&(!hair?.length||!outfit?.length||image.length!==3))throw Error('Female Pro requires exactly three references');
- if(femalePro)return {...seedreamLabPayload(prompt,[image[2],image[0],image[1]]),model:'dola-seedream-5-0-pro-260628',size:'1.5K'};
+ if(femalePro)return seedreamLabPayload(prompt,[image[0],image[2],image[1]]);
  const ordered=image;
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'2K':size,output_format:'png',response_format:'b64_json',watermark:false};
 }
@@ -34,9 +34,8 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
  const payload=JSON.stringify(seedreamReviewPayload(options));
  // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
- // rejections are never retried. Exact female requests always make one attempt,
- // including callers that omit singleAttempt. Other callers can opt out too.
- const attempts=options.singleAttempt||options.femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION?1:2;
+ // rejections are never retried. singleAttempt disables every automatic retry.
+ const attempts=options.singleAttempt?1:2;
  for(let attempt=0;attempt<attempts;attempt++){
   const signal=AbortSignal.timeout(timeoutMs);
   let response,body;

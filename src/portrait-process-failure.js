@@ -8,7 +8,7 @@ export function describePortraitFailure(error,english=false){
  const hint=(en,th)=>english?en:th;
  const make=(key,enTitle,enMessage,thTitle,thMessage)=>({
   code:key,title:hint(enTitle,thTitle),message:hint(enMessage,thMessage),
-  ...(stage?{stage}:{}),...(status?{status}:{}),diagnosticCode:code.replace(/[^a-zA-Z0-9_-]/g,'').slice(0,70)
+  ...(stage?{stage}:{}),...(status?{status}:{})
  });
  if(error?.idpromRecoverableJob){
   return make('recover_result','AI finished — recover your photo','The photo was generated, but Studio could not finish displaying it. Choose Recover original result to reopen the SAME job without another AI generation or credit reservation.','AI สร้างรูปเสร็จแล้ว · รับผลเดิมได้','AI สร้างรูปสำเร็จ แต่ Studio เปิดผลไม่ครบ กด “รับผลเดิม” เพื่อเปิดงานเดิม โดยไม่สร้างซ้ำหรือจองเครดิตใหม่');
@@ -32,7 +32,7 @@ export function describePortraitFailure(error,english=false){
   return make('auth_required','Access verification needed','Sign in and check that your account can use this photo.','กรุณาตรวจสอบสิทธิ์','เข้าสู่ระบบและตรวจสอบสิทธิ์การใช้รูปนี้');
  }
  if(status===413){
-  return make('upload_validation','Could not complete processing','The uploaded request exceeded an upload limit. Choose another photo or try again.','ส่งข้อมูลไม่สำเร็จ','ข้อมูลที่ส่งเกินข้อจำกัดการอัปโหลด (HTTP 413) กรุณาตรวจสอบงานเดิมก่อนลองอีกครั้ง');
+  return make('upload_validation','Could not complete processing','The uploaded request exceeded an upload limit. Choose another photo or try again.','ประมวลผลไม่สำเร็จ','กรุณาตรวจสอบรูปหน้าตรงหรือเปลี่ยนรูป');
  }
  if(stage==='submit_job'&&(code==='REQUEST_TIMEOUT'||/failed to fetch|networkerror|fetch failed|load failed|network request failed/i.test(message))){
   return make('upload','Photo upload interrupted','The photo could not be uploaded or its receipt could not be confirmed. Your previous photo is kept. Check the existing job before trying again.','ส่งรูปไม่สำเร็จ','การอัปโหลดหรือการยืนยันรับรูปสะดุด รูปเดิมยังอยู่ กรุณาตรวจสอบงานเดิมก่อนลองอีกครั้ง');
@@ -61,5 +61,5 @@ export function describePortraitFailure(error,english=false){
  if(status>=500){
   return make('server','Photo service unavailable','The photo service encountered an error. Check the current job before trying again.','ระบบสร้างภาพขัดข้อง','ตรวจสอบสถานะงานเดิมก่อนลองอีกครั้ง');
  }
- return make('unknown','Could not complete processing','The previous photo has been kept. Try again; if the issue continues, report the error stage shown below.','ประมวลผลไม่สำเร็จ',`ระบบพบข้อผิดพลาด กรุณาตรวจสอบงานเดิมก่อนลองอีกครั้ง (${[stage.replace(/[^a-zA-Z0-9_-]/g,''),status||'',code.replace(/[^a-zA-Z0-9_-]/g,'')].filter(Boolean).join(' / ')||'UNKNOWN'})`);
+ return make('unknown','Could not complete processing','The previous photo has been kept. Try again; if the issue continues, report the error stage shown below.','ประมวลผลไม่สำเร็จ','กรุณาตรวจสอบรูปหน้าตรงหรือเปลี่ยนรูป');
 }
