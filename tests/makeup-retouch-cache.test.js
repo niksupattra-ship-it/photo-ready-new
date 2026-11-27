@@ -10,7 +10,7 @@ import {portraitFinishChoice} from '../src/portrait-finish-choice.js';
 import {HAIR_DESIGN_VERSION} from '../hairstyle-catalog.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
-import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../female-portrait-prompt.js';
 const main=await readFile(new URL('../src/main.jsx',import.meta.url),'utf8');
 const start=main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION'),end=main.indexOf('\n',start);
 assert(start>=0&&end>start);const expression=main.slice(start,end).trim().replace(/^const key=/,'').replace(/;$/,'');

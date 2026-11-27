@@ -2,16 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {femalePromptCacheKey,FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
-import {FEMALE_AGE_LOCK_PRO_PROMPT,FEMALE_SOFT_KOREAN_PRO_PROMPT} from '../female-soft-korean-pro-prompt.js';
+import {FEMALE_PORTRAIT_PROMPT} from '../female-portrait-prompt.js';
 import {thaiFemaleGuideCacheRevision} from '../thai-whole-head-guide.js';
 import {createAiResultCache} from '../src/ai-result-cache.js';
 import {createStudioPortraitHairHistory} from '../src/studio-portrait-hair-history.js';
 import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 
 test('changed skin instructions cannot restore a completed older portrait or recover its job',async()=>{
- const old=femalePromptCacheKey(FEMALE_SOFT_KOREAN_PRO_PROMPT),current=FEMALE_CURRENT_PROMPT_CACHE_KEY;
+ const old=femalePromptCacheKey('previous skin instructions'),current=FEMALE_CURRENT_PROMPT_CACHE_KEY;
  assert.notEqual(old,current);
- assert.notEqual(femalePromptCacheKey(FEMALE_AGE_LOCK_PRO_PROMPT+' changed'),current);
+ assert.notEqual(femalePromptCacheKey(FEMALE_PORTRAIT_PROMPT+' changed'),current);
  const cache=createAiResultCache();let calls=0;
  await cache.get(old,async()=>{calls++;return new Blob(['old']);});
  const fresh=await cache.get(current,async()=>{calls++;return new Blob(['new']);});

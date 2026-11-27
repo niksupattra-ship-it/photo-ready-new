@@ -5,7 +5,7 @@ import {decodedStudioImage} from '../../src/studio-image-cache.js';
 import {copyStudioSkinBlobMetadata} from '../../src/shared-studio-skin.js';
 import {portraitFinishChoice} from '../../src/portrait-finish-choice.js';
 import {planEnglishHeadBalance,applyEnglishHeadBalance,balancedEnglishLandmarks,ENGLISH_HEAD_BALANCE_VERSION} from '../../src/english-head-balance.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../../male-portrait-prompt.js';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION} from '../../english-template-body-policy.js';
 import source from '../../src/main.jsx?raw';import '../../src/style.css';
 const W=450,H=600,c=Object.assign(document.createElement('canvas'),{width:W,height:H}),ctx=c.getContext('2d'),labels=new Uint8Array(W*H),face=[];

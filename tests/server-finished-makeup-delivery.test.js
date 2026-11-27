@@ -65,7 +65,7 @@ test('explicit Makeup does not fall back to a Natural-only local cache',async()=
 });
 test('audit records actual successful provider requests and rejects a missing or duplicate required policy before submission',async()=>{
  const {createMakeupRequestAudit}=await import('../makeup-generation-audit.js');
- const {MAKEUP_STUDIO_RETOUCH_POLICY,MAKEUP_STUDIO_RETOUCH_VERSION}=await import('../makeup-studio-retouch-policy.js');
+ const {MAKEUP_STUDIO_RETOUCH_POLICY,MAKEUP_STUDIO_RETOUCH_VERSION}=await import('../female-portrait-prompt.js');
  let calls=0;
  const a=createMakeupRequestAudit(async()=>{calls++;return {png:Buffer.from('fixture')}},{requirePolicy:true});
  for(const prompt of ['legacy prompt',MAKEUP_STUDIO_RETOUCH_POLICY+'\n'+MAKEUP_STUDIO_RETOUCH_POLICY])await assert.rejects(a.requestPortrait({prompt}),{code:'MAKEUP_POLICY_MISMATCH'});
@@ -84,7 +84,7 @@ test('real-face Makeup uses the actual required production audit before a single
  const {THAI_REAR_HAIR_SHORT_NECK_VERSION}=await import('../thai-rear-hair-short-neck.js');
  const {THAI_COLLARLESS_VERSION}=await import('../thai-collarless-version.js');
  const {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION}=await import('../thai-outfit-ai-policy.js');
- const {MAKEUP_STUDIO_RETOUCH_POLICY}=await import('../makeup-studio-retouch-policy.js');
+ const {MAKEUP_STUDIO_RETOUCH_POLICY}=await import('../female-portrait-prompt.js');
  const {ENGLISH_OUTFIT_FIDELITY_VERSION}=await import('../english-outfit-fidelity-version.js');
  const {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION}=await import('../english-template-body-policy.js');
  const {SINGLE_PASS_PORTRAIT_VERSION}=await import('../single-pass-portrait-policy.js');

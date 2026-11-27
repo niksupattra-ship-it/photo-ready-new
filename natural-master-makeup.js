@@ -3,7 +3,7 @@ import {thaiSoftEyeMakeupInstruction} from './thai-soft-eye-makeup.js';
 import {usesThaiBodyGeometry} from './thai-body-geometry-policy.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {requestReviewSeedream} from './seedream-review-transport.js';
-import {isEnglishBodyPortrait} from './english-body-portrait.js';
+import {isEnglishBodyPortrait} from './male-portrait-prompt.js';
 import {usesEnglishStudioFinish} from './english-studio-finish-policy.js';
 import {isEnglishHeadPortrait} from './english-head-portrait.js';
 import {isEnglishTemplateBody} from './english-template-body-policy.js';

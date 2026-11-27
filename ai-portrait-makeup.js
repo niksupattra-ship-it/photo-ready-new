@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import {restoreEnglishMakeupSilhouette} from './english-makeup-edge-repair.js';
-import {ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY} from './english-studio-finish.js';
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from './makeup-studio-retouch-policy.js';
+import {ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY} from './female-portrait-prompt.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from './female-portrait-prompt.js';
 import {loadMakeupStudioReference,makeupStudioReferenceInstruction} from './makeup-studio-reference.js';
 export {AI_MAKEUP_PAIR_VERSION} from './ai-makeup-pair-policy.js';
 // Only the input/edit contract belongs here. Every route uses the same final

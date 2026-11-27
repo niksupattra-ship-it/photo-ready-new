@@ -1,9 +1,6 @@
-import {FEMALE_SOFT_KOREAN_PRO_PROMPT,FEMALE_AGE_LOCK_PRO_PROMPT} from './female-soft-korean-pro-prompt.js';
+import {FEMALE_LAB_PROCESS_VERSION,FEMALE_PORTRAIT_PROMPT} from './female-portrait-prompt.js';
 // Transport for the isolated review server; no production route or key fallback.
-import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from './female-exact-prompt-policy.js';
 import {PRO_LAB_MODEL} from './seedream-pro-payload.js';
-import {FEMALE_MATCHED_PRO_PROMPT} from './female-matched-pro-prompt.js';
-import {seedreamProPayload} from './seedream-pro-payload.js';
 export const REVIEW_SEEDREAM_MODEL='dola-seedream-5-0-flash-260915';
 export const REVIEW_SEEDREAM_ENDPOINT='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
 export function seedreamLabPayload(prompt,image){
@@ -11,15 +8,11 @@ export function seedreamLabPayload(prompt,image){
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image,size:'2K',output_format:'png',response_format:'b64_json',watermark:false};
 }
 export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,hairMime='image/png',identity,makeup,outfit,outfitMime='image/png',skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,femalePreplacedVersion,preparedFemalePayload,size='2K'}){
- if([FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(femalePreplacedVersion)){
-  const expectedPrompt=[FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(femalePreplacedVersion)?FEMALE_AGE_LOCK_PRO_PROMPT:femalePreplacedVersion===FEMALE_SOFT_KOREAN_PRO_VERSION?FEMALE_SOFT_KOREAN_PRO_PROMPT:FEMALE_MATCHED_PRO_PROMPT;
-  if(prompt!==expectedPrompt||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==PRO_LAB_MODEL||preparedFemalePayload?.size!=='2K'||preparedFemalePayload?.image?.length!==4)throw Error('Invalid matched Pro female payload');
-  return preparedFemalePayload;
- }
  if(femalePreplacedVersion){
-  if(![FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION].includes(femalePreplacedVersion)||preparedFemalePayload?.model!==REVIEW_SEEDREAM_MODEL||preparedFemalePayload?.size!=='2K'||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.image?.length!==4)throw Error('Invalid preplaced female payload');
+  if(femalePreplacedVersion!==FEMALE_LAB_PROCESS_VERSION||prompt!==FEMALE_PORTRAIT_PROMPT||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==PRO_LAB_MODEL||preparedFemalePayload?.size!=='2K'||preparedFemalePayload?.image?.length!==4)throw Error('Invalid current female payload');
   return preparedFemalePayload;
  }
+ if(femaleExactPromptVersion)throw Error('Retired female prompt; refresh the page');
  if(!portrait?.length)throw Error('ไม่มีภาพคนสำหรับ Seedream');
  const image=[`data:${portraitMime};base64,${Buffer.from(portrait).toString('base64')}`];
  if(hair?.length)image.push(`data:${hairMime};base64,${Buffer.from(hair).toString('base64')}`);
@@ -35,11 +28,7 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(makeupStudioReference?.length)image.push(`data:image/jpeg;base64,${Buffer.from(makeupStudioReference).toString('base64')}`);
  if(outfitDetailReference?.length)image.push(`data:image/png;base64,${Buffer.from(outfitDetailReference).toString('base64')}`);
  if(adaptiveComposition?.length)image.push(`data:image/png;base64,${Buffer.from(adaptiveComposition).toString('base64')}`);
- const femalePro=femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION;
- if(femalePro&&(!hair?.length||!outfit?.length||image.length!==3))throw Error('Female Pro requires exactly three references');
- if(femalePro)return seedreamProPayload(prompt,[image[0],image[2],image[1]]);
- const ordered=image;
- return {model:REVIEW_SEEDREAM_MODEL,prompt,image:ordered.length===1?ordered[0]:ordered,size:femalePro?'2K':size,output_format:'png',response_format:'b64_json',watermark:false};
+ return {model:REVIEW_SEEDREAM_MODEL,prompt,image:image.length===1?image[0]:image,size,output_format:'png',response_format:'b64_json',watermark:false};
 }
 export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
  const {key}=options;
@@ -48,7 +37,7 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
  // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
  // rejections are never retried. singleAttempt disables every automatic retry.
- const attempts=options.singleAttempt||[FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(options.femalePreplacedVersion)||[FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION].includes(options.femalePreplacedVersion)||options.femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION?1:2;
+ const attempts=options.singleAttempt||options.femalePreplacedVersion?1:2;
  for(let attempt=0;attempt<attempts;attempt++){
   const signal=AbortSignal.timeout(timeoutMs);
   let response,body;

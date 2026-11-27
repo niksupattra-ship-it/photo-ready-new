@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {applyThaiRealFacePolicy,THAI_REAL_FACE_VERSION} from '../thai-real-face-policy.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../female-portrait-prompt.js';
 const fields={thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION};
 test('English and archived Thai prompt bytes remain unchanged without explicit new Thai version',()=>{
  for(const request of [{},{interfaceLanguage:'en',thaiRealFaceVersion:THAI_REAL_FACE_VERSION},{thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION},{...fields,thaiRealFaceVersion:'unknown'}])assert.equal(applyThaiRealFacePolicy(MAKEUP_STUDIO_RETOUCH_POLICY,request),MAKEUP_STUDIO_RETOUCH_POLICY);

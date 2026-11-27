@@ -1,4 +1,4 @@
-import {FEMALE_EXACT_PROMPT_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_LAB_PROCESS_VERSION as FEMALE_EXACT_PROMPT_VERSION} from './female-portrait-prompt.js';
 import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from './female-prompt-cache-key.js';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 export const LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION='thai-crown-chin-shoulder-guide-v1';

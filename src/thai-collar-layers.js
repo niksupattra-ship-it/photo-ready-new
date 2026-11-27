@@ -1,4 +1,4 @@
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../male-portrait-prompt.js';
 // A complete AI body already owns its neck and shirt. Old head-only neck
 // bridges must not paint a second join over it after restore or hair changes.
 export function withoutObsoleteThaiNeckBridges(layers){

@@ -1,0 +1,274 @@
+[
+  {
+    "kind": "head",
+    "options": {
+      "gender": "female",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "7fa5b55a4d6d096330b8610a5c109ca9dcbfd8088ddd18f8df4a2a674b85feb2"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "female",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "89b8723e489f9f969eabf8db45ab5ff6e7c6d2f19c60101be41b2c713b63c7d4"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "female",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "3df9484660a613bd8c01817084a027aab717e99b723e8e69e3783bf32d90a19d"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "female",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "f3ee1f19b6dfc58e93c0a725b0034b0cfda23e3ad7116bc81209e7e98ac571db"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "female",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "60de10aa549980c798d04c281950e888609adedbc96275b6d6488d9bfe2f9cf0"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "female",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "5bbc550ea2a6930bc9d625c8487d25617d1414707af033ef07bd16c74cc80e42"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "female",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "d9b7b6e37c6d39ca0d23181d1ababef9083b861d5ae84affd5777c71aeb4349b"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "female",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": false,
+      "femaleBalancedHead": true,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "ca03ebeec2e4ddec4a7ea916fa744a3a2eac177a6febf0ed4da768901b575299"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "male",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "df970418476f7cc81bec79ccc58625d7f20b3c8238c80a1ac545a6311dbaf912"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "male",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "c60d8f189142687d5cf3a21c103fc6438531febde35a0457e84d55221151151f"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "male",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "a99fdb241625537903c357555ee21e43f20fe506b785ceaf23f8412cbabe707b"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "male",
+      "hairIndex": null,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "cdf734f49c502c963b9cf8069e16071b3945b53f831553e6da93f84383e2a1fd"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "male",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "a84efdf3848d62ec0619b8354552cd14ebe31ac6ab5911389fa3de37b6bb6fe6"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "male",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": false,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "51ca73e6da533a3f588befcca428fc0600a0d534904abaab369cebe5e13c93f2"
+  },
+  {
+    "kind": "head",
+    "options": {
+      "gender": "male",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "e81a37448508147a5e65ff32e68decbfebf5c45aa1474fcd5c1bb447f88578a1"
+  },
+  {
+    "kind": "body",
+    "options": {
+      "gender": "male",
+      "hairIndex": 3,
+      "identityIndex": 2,
+      "outfitIndex": 4,
+      "hairFitIndex": 5,
+      "makeupFinish": true,
+      "proportionLock": true,
+      "naturalHeadNeck": true,
+      "maleBodyBalance": true,
+      "femaleBalancedHead": false,
+      "hairGuidance": "exact selected hair"
+    },
+    "sha256": "fb08dbf898bd500e533d86b1f038ff51a42dd66396a46f61b97a4350497462a3"
+  }
+]

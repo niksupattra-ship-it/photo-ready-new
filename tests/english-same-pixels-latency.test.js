@@ -108,7 +108,7 @@ test('detail reference retains original material colour without enhancement and 
 
 test('English women can generate the single selected civil-service outfit from its actual template',async()=>{
  const {ENGLISH_CIVIL_SERVICE_OUTFIT:o}=await import('../english-civil-service-outfit.js');
- const {isEnglishBodyOutfitPath}=await import('../english-body-portrait.js');
+ const {isEnglishBodyOutfitPath}=await import('../male-portrait-prompt.js');
  const {ENGLISH_OUTFIT_FIDELITY_VERSION}=await import('../english-outfit-fidelity-version.js');
  assert.equal(isEnglishBodyOutfitPath(o.template),true);
  assert.equal(isEnglishBodyOutfitPath('/assets/government-uniforms/female-academic.png'),false,'Only one government outfit is added');

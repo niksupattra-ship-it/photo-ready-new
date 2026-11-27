@@ -1,9 +1,9 @@
-import {FEMALE_LAB_PROCESS_VERSION} from '../../female-exact-prompt-policy.js';
+import {FEMALE_LAB_PROCESS_VERSION} from '../../female-portrait-prompt.js';
 import {THAI_REAL_FACE_VERSION} from '../../thai-real-face-policy.js';
 import {PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS} from '../../hairstyle-catalog.js';
 import {THAI_FREE_FEMALE_SUIT_IDS,THAI_FREE_MALE_SUIT_PATHS} from '../../thai-female-suit-policy.js';
 import React from 'react';
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../male-portrait-prompt.js';
 import {createRoot} from 'react-dom/client';
 import {StudioEditor} from '../../src/studio-editor.jsx';
 import '../../src/style.css';

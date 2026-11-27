@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_OUTPUT_SIZE,ENGLISH_ANATOMY_CAMERA_POLICY,isEnglishBodyPortrait} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_OUTPUT_SIZE,ENGLISH_ANATOMY_CAMERA_POLICY,isEnglishBodyPortrait} from '../male-portrait-prompt.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 const root=new URL('..',import.meta.url).pathname;
 const template='/assets/job-uniforms/female-formal-suit.png';

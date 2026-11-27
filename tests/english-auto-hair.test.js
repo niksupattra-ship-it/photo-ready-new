@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {englishProfessionalDefaultHair,ENGLISH_AUTO_FEMALE_EDGE_POLICY,ENGLISH_AUTO_HAIR_VERSION} from '../english-auto-hair.js';
-import {englishBodyPortraitPrompt} from '../english-body-portrait.js';
-import {englishHeadPortraitPrompt} from '../english-head-prompt.js';
-import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
+import {englishBodyPortraitPrompt} from '../male-portrait-prompt.js';
+import {englishHeadPortraitPrompt} from '../male-portrait-prompt.js';
+import {englishTemplateBodyPrompt} from '../male-portrait-prompt.js';
 import {FIRST_GENERATION_FEMALE_HAIR,THAI_FREE_FEMALE_HAIR_IDS,PRODUCTION_HAIR_CATALOG,firstGenerationHairFor} from '../hairstyle-catalog.js';
 
 const prompts=[

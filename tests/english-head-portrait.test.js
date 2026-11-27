@@ -4,12 +4,11 @@ import sharp from 'sharp';
 import {readFile,readdir} from 'node:fs/promises';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
-import {englishHeadMakeupPrompt} from '../english-head-prompt.js';
 import {measureUniformAnchors} from '../src/portrait-uniform-fit.js';
 import {englishHeadCutoutAlpha,englishNeckClipAlpha} from '../src/english-head-cutout.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../female-portrait-prompt.js';
 const root=new URL('..',import.meta.url).pathname;
 const face={10:{x:.5,y:.20},152:{x:.5,y:.67},234:{x:.23,y:.43},454:{x:.77,y:.43}};
 const fields={interfaceLanguage:'en',portraitComposition:ENGLISH_HEAD_PORTRAIT_VERSION,englishStudioFinishVersion:ENGLISH_HEAD_FINISH_VERSION,portraitMode:'female',hairId:'original',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishPair:AI_MAKEUP_PAIR_VERSION,neckOutfitReferencePath:'/assets/job-uniforms/female-job-ivory-bow-blouse.png'};
@@ -47,7 +46,6 @@ test('head cleanup preserves every facial RGB/alpha pixel, leaves rounded contin
  for(let y=0;y<chin;y++)for(let x=0;x<width;x++)assert.equal(alpha[y*width+x],255);
  for(let y=chin;y<200;y++)assert.equal(alpha[y*width+100],255,'continuous supporting neck');
  for(let y=201;y<height;y++)assert.equal(alpha[y*width+100],0,'no old shirt below neck');
- assert(englishHeadMakeupPrompt().includes('iris colour/texture'));
 });
 test('collar clipping follows native garment rows, never cuts a rectangular neck at the chin, and retains selected long hair',()=>{
  const width=200,height=260,uniform={width:200,height:100,collarTopY:0,centerX:100,shoulderWidth:180},uniformPixels=new Uint8ClampedArray(200*100*4),labels={width,height,data:new Uint8Array(width*height).fill(2)};

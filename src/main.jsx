@@ -1,7 +1,7 @@
 import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
-import {FEMALE_LAB_PROCESS_VERSION as FEMALE_EXACT_PROMPT_VERSION,FEMALE_AGE_LOCK_PRO_VERSION} from '../female-exact-prompt-policy.js';
+import {FEMALE_LAB_PROCESS_VERSION as FEMALE_EXACT_PROMPT_VERSION} from '../female-portrait-prompt.js';
 import {measureFemaleReference} from '../female-reference-evidence-client.js';
-import {FEMALE_HAIR_SUBMISSION_REVISION,sameHairIntentBeforeUpgrade,shouldRecoverHairSubmission} from './female-hair-submission.js';
+import {FEMALE_HAIR_SUBMISSION_REVISION,shouldRecoverHairSubmission} from './female-hair-submission.js';
 import {THAI_WHOLE_HEAD_GUIDE_VERSION,thaiFemaleGuideCacheRevision} from '../thai-whole-head-guide.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
 import {THAI_COLLAR_CONTEXT_VERSION} from '../thai-collar-context.js';
@@ -24,7 +24,7 @@ import {ENGLISH_STUDIO_FINISH_VERSION} from '../english-studio-finish-policy.js'
 import {englishHairFitEvidence} from './english-hair-fit.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
 import {englishHeadCutoutAlpha,englishNeckClipAlpha} from './english-head-cutout.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../male-portrait-prompt.js';
 import {THAI_OUTFIT_AI_VERSION,THAI_OUTFIT_APPEARANCE_VERSION,isThaiOutfitPath} from '../thai-outfit-ai-policy.js';
 import {measureThaiAdaptiveFace} from '../thai-adaptive-proportion.js';
 import {ENGLISH_AUTO_HAIR_VERSION} from '../english-auto-hair.js';
@@ -36,7 +36,7 @@ import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {FEMALE_SINGLE_FINISH_VERSION} from '../female-single-finish-policy.js';
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
-import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../female-portrait-prompt.js';
 import {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION} from '../english-makeup-light-policy.js';
 import {measureUniformAnchors,planPortraitUniformFit} from './portrait-uniform-fit.js';
 import {expandPortraitHairProtection} from './portrait-hair-protection.js';
@@ -565,7 +565,7 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const image=await decodedPortraitImage(headBlob),w=image.naturalWidth||image.width,h=image.naturalHeight||image.height;
   let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
   const completedLabFrame=headBlob.idpromMakeupPolicyVersion===FEMALE_EXACT_PROMPT_VERSION;
-  const rearHairFrame=headBlob.idpromMakeupPolicyVersion===FEMALE_AGE_LOCK_PRO_VERSION;
+  const rearHairFrame=headBlob.idpromMakeupPolicyVersion==='thai-female-exact-three-ref-pro-v12-age-face-lock';
   if(!completedLabFrame&&(rearHairFrame||headBlob.idpromEnglishFramingVersion!=='seedream-lab-native-frame-v1'&&headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION&&!headBlob.idpromThaiFemaleHeadSizeVersion&&!/female/i.test(templatePath))){
    const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
    try{ctx.drawImage(image,0,0);let head=null;try{head=(await measureThaiBodyGeometry(headBlob))?.nativeHead||null}catch{}const plan=planThaiBodyFrame(ctx.getImageData(0,0,w,h).data,w,h,{head,headScale:(headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6')?THAI_FEMALE_HEAD_SCALE:1,crownFromAlpha:rearHairFrame,fullBodyFrame:rearHairFrame||headBlob.idpromThaiPortraitPolishVersion===THAI_PORTRAIT_POLISH_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||headBlob.idpromThaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6'});scale=plan.scale;hX=plan.x;hY=plan.y;}
@@ -3255,7 +3255,7 @@ async function aiFinishPortraitUncached(originalFile,hairId,options={},neckline=
  // A server-side generation can finish even if this browser crashes while
  // decoding / rendering its result. On the SAME source, settings and account,
  // attach to that job first, rather than reserving another AI generation.
- if(priorJob?.scope===ownerScope&&priorJob.sourceDigest===sourceDigest&&(priorJob.submissionKey===submissionKey||sameHairIntentBeforeUpgrade(priorJob.submissionKey,submissionKey))&&/^job_[a-f0-9]{36}$/.test(priorJob.jobId||'')){
+ if(priorJob?.scope===ownerScope&&priorJob.sourceDigest===sourceDigest&&priorJob.submissionKey===submissionKey&&/^job_[a-f0-9]{36}$/.test(priorJob.jobId||'')){
   try{
    const response=await portraitFetch('/api/ai-jobs/'+encodeURIComponent(priorJob.jobId),{headers:operation?.headers||walletHeaders(),cache:'no-store',signal:operation?.readController?.signal},20000);
    assertProcessActive(operation);

@@ -1,15 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {englishBodyPortraitPrompt} from '../english-body-portrait.js';
-import {englishTemplateBodyPrompt,englishTemplateMakeupPrompt} from '../english-template-body-prompt.js';
+import {englishBodyPortraitPrompt} from '../male-portrait-prompt.js';
+import {englishTemplateBodyPrompt} from '../male-portrait-prompt.js';
 import {ENGLISH_MANUAL_OUTFIT_VERSION} from '../src/english-manual-outfit.js';
 
 test('English AI must reproduce inner shirt and unchanged suit details in every English portrait route',()=>{
  const options={gender:'female',outfitIndex:2,identityIndex:1,identityLayout:true,proportionLock:true,naturalHeadNeck:true};
  const body=englishBodyPortraitPrompt(options);
  const template=englishTemplateBodyPrompt(options);
- const makeup=englishTemplateMakeupPrompt();
  assert.match(body,/if an inner shirt is visible between the jacket lapels, reproduce that fabric/);
  assert.match(body,/instead of substituting bare skin/);
  assert.match(body,/original button count/);
@@ -19,8 +18,6 @@ test('English AI must reproduce inner shirt and unchanged suit details in every 
  assert.match(template,/Every opaque garment part in Images 1 and 2 is fixed/);
  assert.match(template,/the V opening must display exactly what the selected template shows/);
  assert.match(template,/an open V exposes exactly the template's existing material/);
- assert.match(makeup,/including any inner blouse\/shirt\/camisole visible at the chest opening/);
- assert.match(makeup,/Never remove existing inner fabric or convert it to skin/);
 });
 test('English native outfit overlay uses Thai shared placement and never computes face-dependent dimensions',async()=>{
  const src=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');

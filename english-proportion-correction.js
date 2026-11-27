@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {requestReviewSeedream} from './seedream-review-transport.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
-import {isEnglishBodyOutfitPath,ENGLISH_HEAD_BODY_POLICY,ENGLISH_OUTFIT_LIGHTING_POLICY} from './english-body-portrait.js';
+import {isEnglishBodyOutfitPath,ENGLISH_HEAD_BODY_POLICY,ENGLISH_OUTFIT_LIGHTING_POLICY} from './male-portrait-prompt.js';
 export function validateEnglishProportionMetrics(value){
  if(!value||![value.faceRatio,value.headRatio,value.headScale].every(Number.isFinite)||value.faceRatio<.1||value.faceRatio>1||value.headRatio<.15||value.headRatio>2||value.headScale<.76||value.headScale>.94)throw Object.assign(Error('Invalid proportion measurements'),{status:400});
  return {faceRatio:value.faceRatio,headRatio:value.headRatio,headScale:value.headScale};

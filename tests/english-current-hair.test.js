@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {loadCurrentHairReference,validateCurrentHairRequest} from '../english-current-hair.js';
-import {englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
+import {englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from '../male-portrait-prompt.js';
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 const fields={interfaceLanguage:'en',portraitComposition:ENGLISH_BODY_PORTRAIT_VERSION,hairId:'original',keepCurrentHair:'1',preserveHairJobId:'previous',portraitMode:'female',femaleEyeStyle:'natural',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,neckOutfitReferencePath:'/assets/job-uniforms/female-formal-suit.png'};

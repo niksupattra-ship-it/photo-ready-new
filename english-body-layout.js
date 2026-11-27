@@ -1,7 +1,7 @@
 import {measureHairCrown,fitWholeHeadGuide,usesNestedWholeHead,usesLoweredWholeHead,LEGACY_THAI_WHOLE_HEAD_GUIDE_VERSION} from './thai-whole-head-guide.js';
 import {measureGarmentCollarContext} from './thai-collar-context.js';
 import {garmentNeckBalance} from './garment-neck-balance.js';
-import {ENGLISH_HEAD_SCALE} from './english-body-portrait.js';
+import {ENGLISH_HEAD_SCALE} from './male-portrait-prompt.js';
 import sharp from 'sharp';
 import {measureUniformAnchors} from './src/portrait-uniform-fit.js';
 // v9 is opt-in for English template portraits. Legacy generations retain their pixels.

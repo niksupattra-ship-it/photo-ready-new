@@ -3,13 +3,12 @@ import multer from 'multer';
 import {fileURLToPath} from 'node:url';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
-import {createFemaleLabBase} from './production-female-v9-layout.js';
+import {createFemaleLabBase} from './female-portrait-layout.js';
 import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
-import {productionFemalePromptFor} from './production-female-skin-prompt.js';
-import {FEMALE_LAB_PROCESS_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_PORTRAIT_PROMPT} from './female-portrait-prompt.js';
 
 const route='/api/female-production-lab';
-export const productionLabPrompt=()=>productionFemalePromptFor(FEMALE_LAB_PROCESS_VERSION);
+export const productionLabPrompt=()=>FEMALE_PORTRAIT_PROMPT;
 export async function productionLabPayload({prompt,order,files,fields}){
  prompt=typeof prompt==='string'?prompt.replace(/\r\n/g,'\n'):prompt;
  if(prompt!==productionLabPrompt())throw Error('Prompt does not match current production');

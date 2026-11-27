@@ -64,7 +64,7 @@ form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy||referenceLoading)return;
  const data=new FormData(form),id=crypto.randomUUID(),snapshot={prompt:data.get('prompt'),order:data.get('order'),files:Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]))};data.append('requestId',id);activeId=id;remember(id);setBusy(true);status.textContent='กำลังส่งภาพ…';
  try{
-  if(labConfig.facePreparation){status.textContent='กำลังเตรียมใบหน้าสำหรับภาพหลัก…';const {prepareLabSubmission}=await import(labConfig.guideModule||'./female-lab-guide.js');try{await prepareLabSubmission(data);}catch(error){activeId=null;remember(null);setBusy(false);throw error;}status.textContent='กำลังส่งภาพ…';}
+  if(labConfig.facePreparation){status.textContent='กำลังเตรียมใบหน้าสำหรับภาพหลัก…';const {prepareLabSubmission}=await import(labConfig.guideModule||'./female-production-lab-guide.js');try{await prepareLabSubmission(data);}catch(error){activeId=null;remember(null);setBusy(false);throw error;}status.textContent='กำลังส่งภาพ…';}
   const response=await fetch(labEndpoint,{method:'POST',body:data,signal:AbortSignal.timeout(60000)});
   if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ส่งภาพไม่สำเร็จ');}
   const result=await response.json();if(result.id!==id)throw Error('ยังยืนยันงานไม่ได้ กรุณากดตรวจผลอีกครั้ง');

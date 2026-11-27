@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {createAiMakeupVariant,AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../female-portrait-prompt.js';
 import {finishSharedStudioSkin,copyStudioSkinBlobMetadata} from '../src/shared-studio-skin.js';
 import {useAiMakeupPixels} from '../src/ai-makeup-pair.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,originalPortraitAiMetadata} from '../original-portrait-ai.js';
@@ -85,7 +85,7 @@ test('Thai AI makeup uses one soft satin, brighter and even photographic finish,
 
 test('all English makeup modes share the Thai reference finish and retain mode-specific geometry and clean edges',async()=>{
  const {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK}=await import('../english-makeup-light-policy.js');
- const {ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY}=await import('../english-studio-finish.js');
+ const {ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY}=await import('../female-portrait-prompt.js');
  const natural=await png({r:132,g:119,b:101,alpha:1},28,36);
  assert.equal(ENGLISH_MAKEUP_LIGHT_LOCK_VERSION,'en-makeup-pressed-powder-v6','Shared Natural/cache identities do not change just to revise Makeup');
  const modes={englishReferenceFinish:'ENGLISH FINISHED-PORTRAIT GEOMETRY LOCK',englishHeadFinish:'ENGLISH CLOSE-UP HEAD/NECK MASTER LOCK',englishTemplateFinish:'ENGLISH COMPLETE-OUTFIT GEOMETRY LOCK'};
