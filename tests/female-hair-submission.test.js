@@ -10,3 +10,12 @@ test('old in-flight same-intent hair jobs resume without resubmission, but old c
  for(const other of [JSON.stringify(['pipeline','seedream-24','outfit-A','makeup']),JSON.stringify(['pipeline','seedream-05','outfit-B','makeup']),JSON.stringify(['pipeline','seedream-05','outfit-A','natural']),'bad-json'])assert(!sameHairIntentBeforeUpgrade(other,current));
  assert(!sameHairIntentBeforeUpgrade(previous,JSON.stringify(['pipeline',REV,REV,'seedream-05','outfit-A','makeup'])));
 });
+
+test('v8 in-flight hair work recovers across rear-hair upgrade, while completed v8 cannot replace new work',()=>{
+ const old=JSON.stringify(['pipeline','female-reference-only-hair-v8','seedream-05','outfit-A']);
+ const current=JSON.stringify(['pipeline',REV,'seedream-05','outfit-A']);
+ assert(sameHairIntentBeforeUpgrade(old,current));
+ assert(shouldRecoverHairSubmission(old,current,'processing'));
+ assert(!shouldRecoverHairSubmission(old,current,'completed'));
+ assert(!sameHairIntentBeforeUpgrade(old,JSON.stringify(['pipeline',REV,'seedream-14','outfit-A'])));
+});

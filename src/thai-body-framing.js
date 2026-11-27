@@ -1,7 +1,7 @@
 import {pr143ReferenceHead} from '../thai-female-head-size.js';
 // Placement only: one uniform transform of the untouched native portrait.
 // Measure supported opaque rows, ignoring isolated matte noise below the coat.
-export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,headScale=1,fullBodyFrame=false}={}){
+export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,headScale=1,fullBodyFrame=false,crownFromAlpha=false}={}){
  if(![width,height,W,H].every(n=>Number.isInteger(n)&&n>0))return {scale:1,x:0,y:0,applied:false,reason:'unmeasurable'};
  if(!fullBodyFrame)head=pr143ReferenceHead(head,headScale);
  const contain=Math.min(W/width,H/height),fallback={scale:contain,x:(W-width*contain)/2,y:(H-height*contain)/2,applied:false};
@@ -26,7 +26,7 @@ export function planThaiBodyFrame(pixels,width,height,{W=900,H=1200,head=null,he
  rows.sort((a,b)=>a.width-b.width);
  const coat=rows[Math.floor(rows.length*.1)];
  const bleed=2,fill=coat?(W+bleed*2)/coat.width:W/width;
- const top=head?.top??crown;
+ const top=crownFromAlpha?crown:head?.top??crown;
  // Anchor the supported coat hem first. A smaller head can sit lower in
  // the frame; no forced top margin may lift the hem off the bottom edge.
  const headLimit=head?Math.min(H*.42/head.height,W*.44/head.width):Infinity;
