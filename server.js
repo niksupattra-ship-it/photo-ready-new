@@ -1,3 +1,4 @@
+import {femaleBytesHash} from './female-request-proof.js';
 import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from './female-prompt-cache-key.js';
 import {usesFemaleExactPrompt} from './female-portrait-prompt.js';
 import {registerGptImageLab} from './gpt-image-lab.js';
@@ -591,6 +592,7 @@ async function runAiJob(id){
   if(out.statusCode>=200&&out.statusCode<300&&out.payload?.length){
    await completeAiJob(id,out.payload,req.aiMakeupVariant,job.fields?.femaleEyeStyle==='makeup'?req.makeupGenerationAudit?.makeupPolicyVersion:null);
    if(job.fields?.femaleEyeStyle==='makeup')console.info('Makeup generation audit',id,{route:'direct',...req.makeupGenerationAudit});
+   if(req.makeupGenerationAudit?.femaleRequestProof)console.info('Female job proof:',JSON.stringify({jobId:id,...req.makeupGenerationAudit.femaleRequestProof,deliveredPngSha256:femaleBytesHash(out.payload)}));
    console.info('AI job completed',id,{hasMakeup:Boolean(req.aiMakeupVariant),elapsedMs:Date.now()-started});
   }else{
    const failure=sanitizeAiError(out.payload?.toString('utf8')||`AI processing failed (${out.statusCode})`);
