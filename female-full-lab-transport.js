@@ -1,5 +1,6 @@
 import multer from 'multer';
 import {createHash} from 'node:crypto';
+import {femaleRequestProof,logFemaleRequestProof} from './female-request-proof.js';
 
 import {proLabPayload} from './seedream-pro-lab.js';
 const endpoint='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
@@ -25,10 +26,12 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
    if(!/^[a-f0-9-]{36}$/.test(id))return res.status(400).json({error:'กรุณาโหลดหน้าทดลองใหม่'});
    const payload=await payloadFor({prompt:req.body?.prompt,order:req.body?.order,files:req.files,fields:req.body});
    const body=JSON.stringify(payload),fingerprint=createHash('sha256').update(key).update(body).digest('hex');
+   const proof=route==='/api/female-production-lab'?femaleRequestProof(payload):null;
    const prior=jobs.get(id);
    if(prior){if(prior.fingerprint!==fingerprint)return res.status(409).json({error:'ข้อมูลไม่ตรงกับงานเดิม กรุณาเริ่มงานใหม่'});return res.status(202).json({id});}
    if(jobs.size>=20)return res.status(503).json({error:'หน้าทดลองเต็ม กรุณารอสักครู่'});
    const job={fingerprint};jobs.set(id,job);setTimeout(()=>jobs.delete(id),ttlMs).unref();
+   if(proof)logFemaleRequestProof('lab',proof,{requestId:id});
    res.status(202).json({id});
    void(async()=>{try{
     const response=await fetchImpl(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(timeoutMs)});
@@ -40,6 +43,7 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
     const png=Buffer.from(encoded,'base64');
     if(!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Error('AI ส่งไฟล์ภาพไม่สมบูรณ์');
     job.png=await processResult(png);
+    if(proof)logFemaleRequestProof('lab',proof,{phase:'result',requestId:id,png,delivered:job.png});
    }catch(error){job.error=error?.name==='TimeoutError'?'AI ใช้เวลาเกิน 4 นาที':String(error?.message||'เชื่อมต่อ AI ไม่สำเร็จ').replaceAll(key,'[redacted]').slice(0,800);}})();
   }catch{res.status(400).json({error:'กรุณาตรวจ Prompt ลำดับภาพ และไฟล์ภาพทั้ง 3 รูป'});}
  }));
