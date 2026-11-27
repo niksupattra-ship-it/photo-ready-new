@@ -10,7 +10,7 @@ self.onmessage=async({data:{blob,evidenceOnly=false}})=>{
   if(w*h>33554432)throw Error('รูปใหญ่เกินไป กรุณาใช้รูปไม่เกิน 32 ล้านพิกเซล');
   const k=Math.min(1,960/w,960/h),small=new OffscreenCanvas(Math.round(w*k),Math.round(h*k));small.getContext('2d').drawImage(bitmap,0,0,small.width,small.height);
   const faces=face.detect(small).faceLandmarks;if(faces?.length!==1)throw Error('กรุณาใช้รูปหน้าตรงที่เห็นใบหน้าคนเดียวชัดเจน');
-  if(evidenceOnly){const {captureFemaleFaceEvidence}=await import('/api/female-production-lab/face-contract.js');self.postMessage({evidence:captureFemaleFaceEvidence(faces[0],w,h)});return;}
+  if(evidenceOnly){const {captureFemaleFaceEvidence}=await import('/api/female-production-lab/face-contract.js');self.postMessage({evidence:captureFemaleFaceEvidence(faces[0],w,h),landmarks:faces[0],width:w,height:h});return;}
   const points=faces[0].map(p=>({x:p.x*w,y:p.y*h})),left=points[33],right=points[263],angle=Math.atan2(right.y-left.y,right.x-left.x);
   const c=Math.cos(-angle),s=Math.sin(-angle),mid={x:(left.x+right.x)/2,y:(left.y+right.y)/2};
   const rotate=p=>({x:c*(p.x-mid.x)-s*(p.y-mid.y),y:s*(p.x-mid.x)+c*(p.y-mid.y)});
