@@ -49,3 +49,16 @@ test('lab guide, immutable prompt, async submission, matting and framed PNG use 
  assert.equal(result?.status,200);const meta=await sharp(Buffer.from(await result.arrayBuffer())).metadata();assert.equal(meta.width,900);assert.equal(meta.height,1200);assert.equal(calls,1);assert.equal(mattes,1);
  assert.equal((await fetch(base,{method:'POST',body:f})).status,202);assert.equal(calls,1);
 });
+
+test('detailed 2K PNG larger than the SVG XML text limit is framed without embedding image bytes as XML',async()=>{
+ const {randomBytes}=await import('node:crypto');
+ const {productionLabResult}=await import('../female-production-lab.js');
+ const width=1536,height=2048;
+ const png=await sharp(randomBytes(width*height*3),{raw:{width,height,channels:3}}).png().toBuffer();
+ assert(png.length>8_000_000);
+ const mask=await sharp({create:{width:width-2,height:height-2,channels:4,background:'#fff'}}).extend({top:1,bottom:1,left:1,right:1,background:'#00000000'}).png().toBuffer();
+ let calls=0;const result=await productionLabResult(png,async original=>{assert.equal(original,png);calls++;return mask;});
+ const m=await sharp(result).metadata();assert.equal(m.width,900);assert.equal(m.height,1200);assert.equal(calls,1);
+ const {data}=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
+ assert(data.some(v=>v!==data[0]),'The actual image must be composited, not replaced by a blank output');
+});
