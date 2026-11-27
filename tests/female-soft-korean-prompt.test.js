@@ -21,3 +21,17 @@ test('archived Pro jobs retain their old prompt while the new eye-locked version
   assert.throws(()=>seedreamReviewPayload({prompt:text+'\nextra eye instructions',femalePreplacedVersion:version,preparedFemalePayload:{...payload,prompt:text+'\nextra eye instructions'}}),/Invalid matched Pro/);
  }
 });
+
+test('age and facial structure lock preserves mature contours, old eye lock and all noncosmetic instructions',async()=>{
+ const {FEMALE_AGE_LOCK_PRO_PROMPT:next}=await import('../female-soft-korean-pro-prompt.js');
+ const {FEMALE_AGE_LOCK_PRO_VERSION}=await import('../female-exact-prompt-policy.js');
+ assert.equal(next.slice(0,next.indexOf('SOFT KOREAN MAKEUP')),prompt.slice(0,prompt.indexOf('SOFT KOREAN MAKEUP')));
+ assert.equal(next.slice(next.indexOf('PROFESSIONAL CAMERA QUALITY:')),prompt.slice(prompt.indexOf('PROFESSIONAL CAMERA QUALITY:')));
+ for(const term of ['same apparent age and maturity as Image 2','Do not make the person look younger or older','Keep age-defining expression lines','jaw width and angles','facial width-to-height ratio','natural asymmetry','never internal facial anatomy','EYES — ORIGINAL IDENTITY LOCK','naturally fair, softly rosy finish'])assert(next.includes(term),term);
+ assert(!next.includes('Refine coarse pores and superficial fine lines'));
+ assert(prompt.includes('Refine coarse pores and superficial fine lines'),'Queued v11 prompts stay intact');
+ assert.equal(productionFemalePromptFor(FEMALE_SOFT_KOREAN_PRO_VERSION),prompt);
+ assert.equal(productionFemalePromptFor(FEMALE_AGE_LOCK_PRO_VERSION),next);
+ const payload={model:'dola-seedream-5-0-pro-260628',size:'2K',prompt:next,image:['prepared','identity','hair','outfit']};
+ assert.equal(seedreamReviewPayload({prompt:next,femalePreplacedVersion:FEMALE_AGE_LOCK_PRO_VERSION,preparedFemalePayload:payload}),payload);
+});

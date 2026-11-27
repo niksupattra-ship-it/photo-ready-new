@@ -64,7 +64,7 @@ test('frontend-safe evidence stays small and production submission recovery rema
  assert(generation.includes("from './production-female-skin-prompt.js'"));assert(!generation.includes("from './female-full-lab-prompt.js'"));
  assert(JSON.stringify(evidence).length<12000);assert.deepEqual(parseFemaleFaceEvidence(JSON.stringify(evidence)),evidence);
  const source=await readFile(root+'src/main.jsx','utf8');assert(source.includes("if(measured.femalePreplacedFace)fd.append('femalePreplacedFace'"));
- assert(source.includes('FEMALE_SOFT_KOREAN_PRO_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
+ assert(source.includes('FEMALE_AGE_LOCK_PRO_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
 });
 
 
@@ -146,7 +146,7 @@ test('rear-hair production version keeps one Flash request with original face an
 });
 
 test('current production matches the active Pro lab request exactly across outfit and hair changes',async()=>{
- const {FEMALE_SOFT_KOREAN_PRO_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {FEMALE_AGE_LOCK_PRO_VERSION}=await import('../female-exact-prompt-policy.js');
  const {productionLabPayload,productionLabPrompt}=await import('../female-production-lab.js');
  const {FEMALE_GUIDE_INSTRUCTION}=await import('../production-female-v9-layout.js');
  const prompt=productionLabPrompt();
@@ -160,9 +160,9 @@ test('current production matches the active Pro lab request exactly across outfi
    calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
    assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,4);assert.equal(expected.size,'2K');return {png};
   },{requirePolicy:true});
-  await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_SOFT_KOREAN_PRO_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
-  assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_SOFT_KOREAN_PRO_VERSION);
+  await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_AGE_LOCK_PRO_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
+  assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_AGE_LOCK_PRO_VERSION);
   let attempts=0;
-  await assert.rejects(requestReviewSeedream({key:'inert',prompt,preparedFemalePayload:expected,femalePreplacedVersion:FEMALE_SOFT_KOREAN_PRO_VERSION},{fetchImpl:async()=>{attempts++;return Response.json({error:{message:'inert'}},{status:503});}}));assert.equal(attempts,1);
+  await assert.rejects(requestReviewSeedream({key:'inert',prompt,preparedFemalePayload:expected,femalePreplacedVersion:FEMALE_AGE_LOCK_PRO_VERSION},{fetchImpl:async()=>{attempts++;return Response.json({error:{message:'inert'}},{status:503});}}));assert.equal(attempts,1);
  }
 });

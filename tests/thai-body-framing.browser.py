@@ -10,7 +10,7 @@ with sync_playwright() as p:
   result=page.evaluate('''async()=>{
    const source=(await import('/src/main.jsx?raw')).default;
    const {planThaiBodyFrame}=await import('/src/thai-body-framing.js');
-   const {FEMALE_SOFT_KOREAN_PRO_VERSION:FEMALE_EXACT_PROMPT_VERSION}=await import('/female-exact-prompt-policy.js');
+   const {FEMALE_AGE_LOCK_PRO_VERSION:FEMALE_EXACT_PROMPT_VERSION}=await import('/female-exact-prompt-policy.js');
    const {THAI_REAL_FACE_VERSION}=await import('/thai-real-face-policy.js');
    const {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE}=await import('/thai-female-head-size.js');
    const {THAI_PORTRAIT_POLISH_VERSION}=await import('/thai-portrait-polish.js');

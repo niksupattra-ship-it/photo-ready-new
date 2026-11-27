@@ -92,7 +92,7 @@ test('new female requests never retry even when singleAttempt is omitted, and ma
 test('new female render cache changes while owned submission recovery keys and accepted hair history stay unchanged',async()=>{
  const main=await readFile(root+'src/main.jsx','utf8');
  const render=main.slice(main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION'),main.indexOf(' if(options.creditKind',main.indexOf(' const key=JSON.stringify([SINGLE_PASS_PORTRAIT_VERSION')));
- assert(render.includes("thaiWholeOutfit&&gender==='female'?['soft-korean-pro-v14-eye-lock']"));
+ assert(render.includes("thaiWholeOutfit&&gender==='female'?['age-face-lock-pro-v15']"));
  const submission=main.slice(main.indexOf(' const submissionKey=JSON.stringify'),main.indexOf(' const sourceDigest=',main.indexOf(' const submissionKey=JSON.stringify')));
  assert(!submission.includes('direct-modelark-pro-lab-v8'));assert(submission.includes('direct-modelark-original-refs-v6'));
 });
