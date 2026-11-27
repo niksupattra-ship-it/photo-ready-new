@@ -9,9 +9,9 @@ test('face truncation and multiple people still require replacement',()=>{
  assert.equal(assessUploadPortrait({faces:[face,face]}).status,'reject');
  assert.equal(assessUploadPortrait({faces:[]}).status,'reject');
 });
-test('mid-chest cutoff rejects too-tight crops but uncertain pose is advisory',()=>{
+test('upper-chest cutoff rejects too-tight crops but uncertain pose is advisory',()=>{
  const cropped=evidence();cropped.pose[11].x=-.15;assert.equal(assessUploadPortrait(cropped).status,'reject');
- const chest=evidence();chest.pose[11].y=chest.pose[12].y=.94;assert.match(assessUploadPortrait(chest).issues.join(),/กลางอก/);
+ const chest=evidence();chest.pose[11].y=chest.pose[12].y=.94;assert.match(assessUploadPortrait(chest).issues.join(),/อกบน/);
  const unknown=evidence();unknown.pose[11].visibility=.1;assert.equal(assessUploadPortrait(unknown).status,'uncertain');assert.deepEqual(assessUploadPortrait(unknown).issues,[]);
 });
 test('missing or invalid measurements are uncertain rather than false failures',()=>{
@@ -24,10 +24,17 @@ test('upper chest and shoulders at image sides pass without arm margins or full 
  assert.equal(assessUploadPortrait({...input,crownTouchesEdge:true}).status,'pass');
 });
 
-test('mid-chest crop passes where old lower-chest cutoff rejected',()=>{
+test('upper-chest crop passes where mid-chest cutoff rejected',()=>{
  const p=evidence();p.pose[11].y=p.pose[12].y=.78;
  assert.equal(assessUploadPortrait(p).status,'pass');
- const tooHigh=evidence();tooHigh.pose[11].y=tooHigh.pose[12].y=.86;
+ const upper=evidence();upper.pose[11].y=upper.pose[12].y=.86;
+ assert.equal(assessUploadPortrait(upper).status,'pass');
+ const tooHigh=evidence();tooHigh.pose[11].y=tooHigh.pose[12].y=.94;
  assert.equal(assessUploadPortrait(tooHigh).status,'reject');
- assert.match(assessUploadPortrait(tooHigh).issues.join(),/กลางอก/);
+ assert.match(assessUploadPortrait(tooHigh).issues.join(),/อกบน/);
 });
+
+ test('upper-chest margin is required below the lower shoulder too',()=>{
+ const p=evidence();p.pose[11].y=.83;p.pose[12].y=.85;assert.equal(assessUploadPortrait(p).status,'pass');
+ p.pose[12].y=.96;assert.equal(assessUploadPortrait(p).status,'reject');
+ });

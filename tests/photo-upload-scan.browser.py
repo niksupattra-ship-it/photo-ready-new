@@ -35,11 +35,11 @@ with sync_playwright() as pw:
   assert dialog.bounding_box()['width']<=width
   page.screenshot(path=str(OUT/f'scanning-{width}.png'))
   page.evaluate("scanFinish({status:'reject',issues:['ภาพตัดสูงเกินไป กรุณาให้เห็นช่วงอก'],uncertain:[]})")
-  page.get_by_text('กรุณาใช้รูปที่เห็นคอ ไหล่ และอกส่วนบน',exact=True).wait_for();assert page.locator('.photo-upload-scan-actions button').count()==2
+  page.get_by_text('กรุณาใช้รูปที่เห็นใบหน้า คอ ไหล่ และอกบน',exact=True).wait_for();assert page.locator('.photo-upload-scan-actions button').count()==2
   page.screenshot(path=str(OUT/f'rejected-{width}.png'))
   page.get_by_role('button',name='เปลี่ยนรูปใหม่',exact=True).click();page.wait_for_function('scanResult===false')
   page.evaluate("scanResult=null;void scanNewPortrait(scanBlob,{inspect:async()=>{throw Error('offline')}}).then(v=>scanResult=v)")
-  page.get_by_text('กรุณาใช้รูปที่เห็นคอ ไหล่ และอกส่วนบน',exact=True).wait_for();assert page.locator('.photo-upload-scan-actions button').count()==2
+  page.get_by_text('กรุณาใช้รูปที่เห็นใบหน้า คอ ไหล่ และอกบน',exact=True).wait_for();assert page.locator('.photo-upload-scan-actions button').count()==2
   page.get_by_role('button',name='ปิด',exact=True).click();page.wait_for_function('scanResult===false')
   page.evaluate("scanResult=null;void scanNewPortrait(scanBlob,{inspect:async()=>({status:'pass'})}).then(v=>scanResult=v)")
   page.wait_for_function('scanResult===true')
@@ -52,7 +52,7 @@ with sync_playwright() as pw:
  before_source=page.locator('.thai-mobile-choice-photo-wrap img').get_attribute('src')
  inputs=page.locator('input[type=file][accept*="image/heic"]')
  inputs.set_input_files({'name':'invalid.png','mimeType':'image/png','buffer':(ROOT/'public/assets/background.jpg').read_bytes()})
- page.get_by_text('กรุณาใช้รูปที่เห็นคอ ไหล่ และอกส่วนบน',exact=True).wait_for()
+ page.get_by_text('กรุณาใช้รูปที่เห็นใบหน้า คอ ไหล่ และอกบน',exact=True).wait_for()
  with page.expect_file_chooser() as chooser:
   page.get_by_role('button',name='เปลี่ยนรูปใหม่',exact=True).click()
  page.wait_for_timeout(500)

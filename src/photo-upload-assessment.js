@@ -1,5 +1,5 @@
 // Normalized landmark evidence only; no pixels, identity, or server requests.
-// Require face, neck connection, shoulders and mid-chest framing.
+// Require face, neck connection, shoulders and upper-chest framing.
 // Hair above the face, arm margins, elbows, wrists and hips are not gates.
 export function assessUploadPortrait({faces=[],pose=[]}={}){
  const issues=[],uncertain=[];
@@ -19,8 +19,8 @@ export function assessUploadPortrait({faces=[],pose=[]}={}){
   // Standing collars can cover the neck skin. Measure the anatomical
   // chin-to-shoulder connection, never require a bare-skin neck patch.
   if(shoulderY<bottom-height*.12)uncertain.push('ยังยืนยันช่วงต่อคอและไหล่ไม่ได้ชัดเจน');
-  // Face height and shoulder span jointly estimate mid-chest margin; no lower-chest requirement.
-  if(1-Math.max(a.y,b.y)<Math.max(.08,height*.50,span*.20))issues.push('ภาพตัดสูงเกินไป กรุณาใช้รูปที่เห็นถึงกลางอก');
+  // Require a short upper-chest margin below both shoulders; arms and mid-chest are unnecessary.
+  if(1-Math.max(a.y,b.y)<Math.max(.05,height*.25,span*.10))issues.push('ภาพตัดสูงเกินไป กรุณาใช้รูปที่เห็นถึงอกบน');
  }
  return {status:issues.length?'reject':uncertain.length?'uncertain':'pass',issues:[...new Set(issues)],uncertain};
 }
