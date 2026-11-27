@@ -770,7 +770,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/42.webp",
       "reference": "/assets/seedream-hairstyles/references/42.png",
-      "sha256": "e2c387d11602ed48ca7be766782f4235a9390b4053c47d5c20dfa335ac0ac474"
+      "sha256": "1b9bcca55056b3818c7e6f4a5226f08746211fe64ec88be87a3cf85bac37a1e7"
     },
     {
       "id": "seedream-79",
@@ -800,7 +800,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/23.webp",
       "reference": "/assets/seedream-hairstyles/references/23.png",
-      "sha256": "4809203c9abd6ade8509ac6356e96a3d5e182ab8be928cf3503d11bb4666735f"
+      "sha256": "d4219418fe42797bbb86c5fbc1e4a98fa907fa8e7ebbe13bcd4a205828dddc4e"
     },
     {
       "id": "seedream-40",
@@ -810,7 +810,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/40.webp",
       "reference": "/assets/seedream-hairstyles/references/40.png",
-      "sha256": "e7958de289a2f336b6b9f3eb82cf632c76cbf964fa8c1696d4ccad3b095a69d9"
+      "sha256": "ba0f160de80e63541b54d508cae470222be1a8ebba9aed04ee2e83fe9448243d"
     },
     {
       "id": "seedream-43",
@@ -820,7 +820,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/43.webp",
       "reference": "/assets/seedream-hairstyles/references/43.png",
-      "sha256": "1d2297b397d525befd408b51e7ac394693f7c0c469c69003bb24e98fefc3156d"
+      "sha256": "6bbe534bb74a3ad8f8dc1ead37fcc28134f6021cfbb5a8b981d58ef0b6a2f71d"
     },
     {
       "id": "seedream-07",
@@ -930,7 +930,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/24.webp",
       "reference": "/assets/seedream-hairstyles/references/24.png",
-      "sha256": "bab6137ce6c7d7973df91b210614ba76a3d9b02d42f8f606b80956646389cd28"
+      "sha256": "e2f4e38fb0d59ab5f44645620e5e6592c14e00205fedab8afac801659e567e52"
     },
     {
       "id": "seedream-39",
@@ -940,7 +940,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/39.webp",
       "reference": "/assets/seedream-hairstyles/references/39.png",
-      "sha256": "8fb93fe85dac631a3a614bfed9d1d13981797bbb0320f25741d3bdc7ba832afa"
+      "sha256": "ada75ad6f83da15679f6c4f8624e4bf043e0281b76a4a75eeff83fb1dad12225"
     },
     {
       "id": "seedream-36",
@@ -1030,7 +1030,7 @@
       "groupName": "ทรงผม",
       "preview": "/assets/seedream-hairstyles/previews/37.webp",
       "reference": "/assets/seedream-hairstyles/references/37.png",
-      "sha256": "04973a031219d7cdd4778548fb850bbc44ad1c9a3948e760ec74dc4a0c17720f"
+      "sha256": "e2ce29f80ceb70f595cb704e3ec2fefb0a20e01510c7bad31c8de13221b28742"
     }
   ]
 }

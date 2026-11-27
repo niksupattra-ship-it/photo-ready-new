@@ -1,4 +1,3 @@
-import {requireCurrentPortraitReferences} from './portrait-reference-revision.js';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 import {prepareFemaleLabForeground} from './female-lab-output.js';
 import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
@@ -120,7 +119,6 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
- if(fields.portraitMode==='female'&&hasFemaleExactPromptMarker(fields))requireCurrentPortraitReferences(fields);
  if([FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(fields.thaiWholeHeadGuideVersion))parseFemaleFaceEvidence(fields.femalePreplacedFace);
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
