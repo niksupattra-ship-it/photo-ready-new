@@ -1,7 +1,7 @@
 import {FEMALE_SOFT_KOREAN_PRO_PROMPT,FEMALE_AGE_LOCK_PRO_PROMPT} from './female-soft-korean-pro-prompt.js';
 import {FEMALE_MATCHED_PRO_PROMPT} from './female-matched-pro-prompt.js';
 import {PRODUCTION_FEMALE_V9_PROMPT} from './production-female-v9-prompt.js';
-import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from './female-exact-prompt-policy.js';
 
 // New production finish only. Keep the approved v9 composition and the lab intact.
 export const PRODUCTION_FEMALE_LUMINOUS_PROMPT=PRODUCTION_FEMALE_V9_PROMPT
@@ -20,7 +20,7 @@ export const PRODUCTION_FEMALE_REAR_HAIR_PROMPT=PRODUCTION_FEMALE_HAIR_REPLACEME
  +'\nHAIR OCCLUSION — ALL HAIRSTYLES, INCLUDING ORIGINAL HAIR: Keep all hair behind the garment. The collar, lapels, both shoulders, shoulder boards, upper chest, embroidery and every insignia must remain fully visible and unobstructed. No strands, locks, braids, ponytails or long panels may lie over the front of the jacket, shirt, collar or shoulder boards. For long hair, route the lengths behind both shoulders and the back; do not shorten the chosen hairstyle to clear the garment. Short cuts and bobs retain their exact lower edge beside the face and neck, with their ends behind any overlapping collar or shoulder. This occlusion requirement takes priority over front-draped hair in any reference. Do not alter the face, garment, head scale or chin/collar relationship. Return hair already correctly occluded in the single finished portrait; no separate hair layer.';
 
 export function productionFemalePromptFor(version){
- if(version===FEMALE_AGE_LOCK_PRO_VERSION)return FEMALE_AGE_LOCK_PRO_PROMPT;
+ if([FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(version))return FEMALE_AGE_LOCK_PRO_PROMPT;
  if(version===FEMALE_SOFT_KOREAN_PRO_VERSION)return FEMALE_SOFT_KOREAN_PRO_PROMPT;
  if(version===FEMALE_MATCHED_PRO_VERSION)return FEMALE_MATCHED_PRO_PROMPT;
  if(version===FEMALE_REAR_HAIR_VERSION)return PRODUCTION_FEMALE_REAR_HAIR_PROMPT;

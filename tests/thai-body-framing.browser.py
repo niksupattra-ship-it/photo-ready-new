@@ -10,7 +10,7 @@ with sync_playwright() as p:
   result=page.evaluate('''async()=>{
    const source=(await import('/src/main.jsx?raw')).default;
    const {planThaiBodyFrame}=await import('/src/thai-body-framing.js');
-   const {FEMALE_AGE_LOCK_PRO_VERSION:FEMALE_EXACT_PROMPT_VERSION}=await import('/female-exact-prompt-policy.js');
+   const {FEMALE_LAB_PROCESS_VERSION:FEMALE_EXACT_PROMPT_VERSION,FEMALE_AGE_LOCK_PRO_VERSION}=await import('/female-exact-prompt-policy.js');
    const {THAI_REAL_FACE_VERSION}=await import('/thai-real-face-policy.js');
    const {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE}=await import('/thai-female-head-size.js');
    const {THAI_PORTRAIT_POLISH_VERSION}=await import('/thai-portrait-polish.js');
@@ -24,7 +24,7 @@ with sync_playwright() as p:
    const blob=await canvasPng(native);blob.idpromPortraitComposition='en-outfit-body-v1';
    const digest=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await b.arrayBuffer())),n=>n.toString(16).padStart(2,'0')).join('');
    const before=await digest(blob);
-   const env={FEMALE_EXACT_PROMPT_VERSION,THAI_PORTRAIT_POLISH_VERSION,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,planThaiBodyFrame,THAI_REAL_FACE_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head-portrait-v1',decodedPortraitImage,canvasFor,canvasPng,measureThaiBodyGeometry:async()=>({nativeHead:{left:315,right:585,top:175,bottom:525,width:270,height:350,centerX:450}})};
+   const env={FEMALE_EXACT_PROMPT_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,THAI_PORTRAIT_POLISH_VERSION,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,planThaiBodyFrame,THAI_REAL_FACE_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head-portrait-v1',decodedPortraitImage,canvasFor,canvasPng,measureThaiBodyGeometry:async()=>({nativeHead:{left:315,right:585,top:175,bottom:525,width:270,height:350,centerX:450}})};
    const start=source.indexOf('async function composePortrait('),end=source.indexOf(" const [bg,uniformImg]=",start);
    const compose=Function('env','with(env){'+source.slice(start,end)+'};return composePortrait}')(env);
    const renderStart=source.indexOf('async function renderAdjustedFinal('),body=source.indexOf(' if(headMasterBlob.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)',renderStart),renderEnd=source.indexOf(' // V80 MASTER-RESOLUTION COMPOSITE:',body);
@@ -32,8 +32,7 @@ with sync_playwright() as p:
    blob.idpromMakeupPolicyVersion=FEMALE_EXACT_PROMPT_VERSION;
    blob.idpromEnglishFramingVersion='seedream-lab-native-frame-v1';
    const femaleFit=await compose(blob,{scale:1,x:0,y:0},'/assets/government-uniforms/female-operational.png');
-   const femalePlan=planThaiBodyFrame(ctx.getImageData(0,0,900,1200).data,900,1200,{fullBodyFrame:true,crownFromAlpha:true});
-   if(Math.abs(femaleFit.lock.scale-femalePlan.scale)>1e-8||Math.abs(femaleFit.lock.hY-femalePlan.y)>1e-8)throw Error('Female native-frame output bypassed side-fill/crown placement');
+   if(femaleFit.lock.scale!==1||femaleFit.lock.hX!==0||femaleFit.lock.hY!==0)throw Error('Completed lab foreground was reframed again');
    delete blob.idpromMakeupPolicyVersion;delete blob.idpromEnglishFramingVersion;
    const old=await compose(blob),legacy=await render(blob,old.lock,{scale:1,x:0,y:0});
    blob.idpromThaiRealFaceVersion=THAI_REAL_FACE_VERSION;blob.idpromThaiPortraitPolishVersion=THAI_PORTRAIT_POLISH_VERSION;
@@ -79,4 +78,10 @@ with sync_playwright() as p:
   assert result['aiCalls']==0
   print(json.dumps({'storedScene':gender,**result}))
   page.close()
+ page=b.new_page(viewport={'width':390,'height':1000})
+ page.goto(BASE+'/scripts/fixtures/government-result-insignia.html?fullbody=1&composition=narrow&fit=1&gender=female&labComplete=1',wait_until='domcontentloaded')
+ page.wait_for_function('window.insigniaFixture?.snapshot()?.layers.some(l=>l.kind==="head")')
+ page.wait_for_timeout(1500)
+ result=page.evaluate("""()=>{const layers=insigniaFixture.snapshot().layers,head=layers.find(l=>l.kind==='head');if(head.source!==completedLabOriginalSource)throw Error('Completed lab pixels were modified');if(head.sourceFrame.x!==0||head.sourceFrame.y!==0||head.sourceFrame.w!==900||head.sourceFrame.h!==1200)throw Error('Completed lab frame was moved');if(layers.some(l=>l.realUniformDetail))throw Error('Automatic garment replacement altered the lab output');return {completedLabPixelsUnchanged:true,extraFraming:false,automaticGarmentReplacement:false}}""")
+ print(json.dumps(result));page.close()
  b.close()

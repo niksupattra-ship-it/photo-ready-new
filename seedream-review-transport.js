@@ -1,6 +1,6 @@
 import {FEMALE_SOFT_KOREAN_PRO_PROMPT,FEMALE_AGE_LOCK_PRO_PROMPT} from './female-soft-korean-pro-prompt.js';
 // Transport for the isolated review server; no production route or key fallback.
-import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from './female-exact-prompt-policy.js';
 import {PRO_LAB_MODEL} from './seedream-pro-payload.js';
 import {FEMALE_MATCHED_PRO_PROMPT} from './female-matched-pro-prompt.js';
 import {seedreamProPayload} from './seedream-pro-payload.js';
@@ -11,8 +11,8 @@ export function seedreamLabPayload(prompt,image){
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image,size:'2K',output_format:'png',response_format:'b64_json',watermark:false};
 }
 export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,hairMime='image/png',identity,makeup,outfit,outfitMime='image/png',skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,femalePreplacedVersion,preparedFemalePayload,size='2K'}){
- if([FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION].includes(femalePreplacedVersion)){
-  const expectedPrompt=femalePreplacedVersion===FEMALE_AGE_LOCK_PRO_VERSION?FEMALE_AGE_LOCK_PRO_PROMPT:femalePreplacedVersion===FEMALE_SOFT_KOREAN_PRO_VERSION?FEMALE_SOFT_KOREAN_PRO_PROMPT:FEMALE_MATCHED_PRO_PROMPT;
+ if([FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(femalePreplacedVersion)){
+  const expectedPrompt=[FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(femalePreplacedVersion)?FEMALE_AGE_LOCK_PRO_PROMPT:femalePreplacedVersion===FEMALE_SOFT_KOREAN_PRO_VERSION?FEMALE_SOFT_KOREAN_PRO_PROMPT:FEMALE_MATCHED_PRO_PROMPT;
   if(prompt!==expectedPrompt||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==PRO_LAB_MODEL||preparedFemalePayload?.size!=='2K'||preparedFemalePayload?.image?.length!==4)throw Error('Invalid matched Pro female payload');
   return preparedFemalePayload;
  }
@@ -48,7 +48,7 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
  // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
  // rejections are never retried. singleAttempt disables every automatic retry.
- const attempts=options.singleAttempt||[FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION].includes(options.femalePreplacedVersion)||[FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION].includes(options.femalePreplacedVersion)||options.femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION?1:2;
+ const attempts=options.singleAttempt||[FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(options.femalePreplacedVersion)||[FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION].includes(options.femalePreplacedVersion)||options.femaleExactPromptVersion===FEMALE_EXACT_PROMPT_VERSION?1:2;
  for(let attempt=0;attempt<attempts;attempt++){
   const signal=AbortSignal.timeout(timeoutMs);
   let response,body;
