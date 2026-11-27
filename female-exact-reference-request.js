@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
-import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_EXACT_PROMPT,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
+import {FEMALE_EXACT_PROMPT_VERSION,FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_EXACT_PROMPT,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
 import {productionFemalePromptFor} from './production-female-skin-prompt.js';
 import {productionFemaleV9Payload} from './production-female-v9-payload.js';
@@ -27,11 +27,11 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
  // Transport sends original person, selected garment, then hairstyle to match ModelArk trial. No neutral board, alternate skin
  // reference, old hair contract, geometry prompt or native outfit repair.
  const [portrait,hair,outfit]=await Promise.all([input.buffer,hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))]);
- if([FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion)){
+ if([FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion)){
   await onStage('preparing');
   const face=await prepareFemaleFace(portrait,fields.femalePreplacedFace),prompt=productionFemalePromptFor(fields.thaiWholeHeadGuideVersion);
-  const payloadOptions={prompt,order:'person-outfit-hair',identityFaceOnly:[FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion)&&Boolean(chosen)&&fields.keepCurrentHair!=='1',files:{person:[{buffer:portrait}],face:[{buffer:face}],outfit:[{buffer:outfit}],hair:[{buffer:hair}]}};
-  const preparedFemalePayload=[FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion)?await femaleMatchedProPayload(payloadOptions):await productionFemaleV9Payload(payloadOptions);
+  const payloadOptions={prompt,order:'person-outfit-hair',identityFaceOnly:[FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion)&&Boolean(chosen)&&fields.keepCurrentHair!=='1',files:{person:[{buffer:portrait}],face:[{buffer:face}],outfit:[{buffer:outfit}],hair:[{buffer:hair}]}};
+  const preparedFemalePayload=[FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion)?await femaleMatchedProPayload(payloadOptions):await productionFemaleV9Payload(payloadOptions);
   await onStage('generation');
   return requestPortrait({key,prompt,preparedFemalePayload,femalePreplacedVersion:fields.thaiWholeHeadGuideVersion,singleAttempt:true});
  }

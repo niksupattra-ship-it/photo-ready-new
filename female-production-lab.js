@@ -6,12 +6,12 @@ import {prepareFemaleFace} from './female-preplaced-face.js';
 import {createFemaleLabBase} from './production-female-v9-layout.js';
 import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import {productionFemalePromptFor} from './production-female-skin-prompt.js';
-import {FEMALE_SOFT_KOREAN_PRO_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_AGE_LOCK_PRO_VERSION} from './female-exact-prompt-policy.js';
 import {preserveExactFemalePixels} from './production-portrait-pipeline.js';
 import {planThaiBodyFrame} from './src/thai-body-framing.js';
 
 const route='/api/female-production-lab';
-export const productionLabPrompt=()=>productionFemalePromptFor(FEMALE_SOFT_KOREAN_PRO_VERSION);
+export const productionLabPrompt=()=>productionFemalePromptFor(FEMALE_AGE_LOCK_PRO_VERSION);
 export async function productionLabPayload({prompt,order,files,fields}){
  prompt=typeof prompt==='string'?prompt.replace(/\r\n/g,'\n'):prompt;
  if(prompt!==productionLabPrompt())throw Error('Prompt does not match current production');
