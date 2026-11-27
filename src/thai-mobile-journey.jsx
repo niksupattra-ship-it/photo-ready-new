@@ -36,6 +36,28 @@ export function ThaiMobileJourney({
  const [notice,setNotice]=useState('');
  const [changedHair,setChangedHair]=useState(false);
  const [resultInsigniaOpen,setResultInsigniaOpen]=useState(false);
+ const mobileResultPanelOpen=compactResult&&hasResult&&section==='result'&&(resultHairOpen||resultInsigniaOpen||resultBackgroundOpen);
+ useEffect(()=>{
+  if(!mobileResultPanelOpen)return;
+  const token=crypto.randomUUID();
+  window.history.pushState({...window.history.state,idpromResultPanel:token},'');
+  const back=event=>{
+   event.idpromResultPanelHandled=true;
+   event.stopImmediatePropagation();
+   setResultHairOpen(false);setResultInsigniaOpen(false);setResultBackgroundOpen(false);
+  };
+  // Handle this sheet before the Studio exit guard receives the back action.
+  window.addEventListener('popstate',back,true);
+  return()=>{
+   window.removeEventListener('popstate',back,true);
+   if(window.history.state?.idpromResultPanel===token){
+    window.idpromResultPanelBackPending=true;
+    const consume=event=>{event.idpromResultPanelHandled=true;event.stopImmediatePropagation();setTimeout(()=>{window.idpromResultPanelBackPending=false},0)};
+    window.addEventListener('popstate',consume,{capture:true,once:true});
+    window.history.back();
+   }
+  };
+ },[mobileResultPanelOpen]);
  const [moreSuits,setMoreSuits]=useState(false),[moreHair,setMoreHair]=useState(false);
  const actionAwaitingRef=useRef(null);
  const resultRef=useRef(false);
@@ -119,8 +141,8 @@ export function ThaiMobileJourney({
    </button>)}
   </div>
  </div>;
- const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว"/>{watermarked&&<FittedPreviewWatermark/>}
-  {governmentResult&&resultInsigniaOpen&&<ResultInsigniaDrag handles={insigniaHandles} busy={busy||!ready} onStart={onInsigniaStart} onTransform={onInsigniaTransform} onEnd={onInsigniaEnd}/>}
+ const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว" onClick={()=>{if(compactResult){setResultInsigniaOpen(false);setResultHairOpen(false);setResultBackgroundOpen(false)}}}/>{watermarked&&<FittedPreviewWatermark/>}
+  {governmentResult&&resultInsigniaOpen&&<ResultInsigniaDrag handles={insigniaHandles} onBackdropClick={compactResult?()=>setResultInsigniaOpen(false):undefined} busy={busy||!ready} onStart={onInsigniaStart} onTransform={onInsigniaTransform} onEnd={onInsigniaEnd}/>}
  </div>:
   <div className="thai-mobile-photo thai-mobile-source">{sourcePreview?<img src={sourcePreview} alt="รูปต้นฉบับที่เลือก" />:<span>เพิ่มรูปเพื่อเริ่มทำ</span>}</div>;
  const optionImg=t=>outfitChoicePreview(t,t?.preview||t?.src||t?.template);
@@ -254,7 +276,6 @@ export function ThaiMobileJourney({
     {section==='result'?<>
      {compactResult&&<div className="thai-mobile-result-tool-slot">
       {resultHairOpen||resultInsigniaOpen||resultBackgroundOpen?<section className="thai-mobile-result-tool-panel" aria-label={resultHairOpen?'เลือกทรงผม':resultBackgroundOpen?'เลือกพื้นหลัง':'เลือกเครื่องหมาย'}>
-       <header className="thai-mobile-result-tool-heading"><button type="button" aria-label="ย้อนกลับไปแถวเครื่องมือ" disabled={busy} onClick={()=>{setResultHairOpen(false);setResultInsigniaOpen(false);setResultBackgroundOpen(false)}}>←</button></header>
        {resultHairOpen?resultHairChoices:resultBackgroundOpen?resultBackgroundChoices:<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">{resultInsignia}</div>}
       </section>:<>
      <nav className="thai-mobile-result-icon-row" aria-label="เครื่องมือรูปที่เสร็จแล้ว" style={{'--result-action-count':governmentResult&&resultInsignia?5:4}}>

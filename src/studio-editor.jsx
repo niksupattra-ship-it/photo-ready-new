@@ -706,7 +706,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const requestLogout=()=>requestExit('logout');
  const finishWarningExit=warning=>{if(!warningIsCurrent(warning))return;if(warning.logout)onLogout?.({confirmed:true});else onClose(snapshot())};
  exitRequestRef.current=requestExit;
- useEffect(()=>{if(!touch)return;const token=uid(),prior=window.history.state,guard={...prior,idpromStudioExit:token};let active=true;window.history.pushState(guard,'');const back=()=>{if(!active)return;window.history.pushState(guard,'');exitRequestRef.current()};window.addEventListener('popstate',back);return()=>{active=false;window.removeEventListener('popstate',back);if(window.history.state?.idpromStudioExit===token)window.history.back()}},[touch]);
+ useEffect(()=>{if(!touch)return;const token=uid(),prior=window.history.state,guard={...prior,idpromStudioExit:token};let active=true;window.history.pushState(guard,'');const back=event=>{if(!active||window.idpromResultPanelBackPending||event.idpromResultPanelHandled||document.querySelector('.thai-mobile-result-tool-panel'))return;window.history.pushState(guard,'');exitRequestRef.current()};window.addEventListener('popstate',back);return()=>{active=false;window.removeEventListener('popstate',back);if(window.history.state?.idpromStudioExit===token)window.history.back()}},[touch]);
 
 
  const snapshot=()=>{

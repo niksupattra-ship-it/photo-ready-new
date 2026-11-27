@@ -7,7 +7,8 @@ import './result-insignia-drag.css';
 // Pointer coordinates are normalized to the Studio 900x1200 canvas.
 const W=900,H=1200,clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=false}){
+export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,onBackdropClick,busy=false}){
+ const badgePointer=useRef(false);
  const area=useRef(null),pointers=useRef(new Map()),gesture=useRef(null);
  const pending=useRef(null),frameId=useRef(null),transformRef=useRef(onTransform);
  transformRef.current=onTransform;
@@ -50,6 +51,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
   const owningId=moveGrip?.closest?.('[data-kind]')?.dataset.kind;
   const target=selected?handles.find(h=>(h.id||h.kind)===selected.id):
    owningId?handles.find(h=>(h.id||h.kind)===owningId):hit(p);
+  badgePointer.current=Boolean(target);
   if(!target)return;
   if(!gesture.current){
    const mode='move';
@@ -89,6 +91,7 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
  if(!handles.length)return null;
  return <div className="thai-result-insignia-interaction" ref={area}
    aria-label="แตะเครื่องหมายแล้วลากลูกศรเพื่อย้าย ใช้สองนิ้วเพื่อย่อขยาย"
+   onClick={e=>{const p=locate(e);if(!badgePointer.current&&p&&!hit(p)&&!e.target.closest?.('[data-insignia-move]'))onBackdropClick?.()}}
    onPointerDown={begin} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish}
    onLostPointerCapture={e=>{if(pointers.current.has(e.pointerId))finish(e)}}>
    {handles.map(({kind,id,box})=>{
