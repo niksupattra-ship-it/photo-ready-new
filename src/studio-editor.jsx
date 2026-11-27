@@ -1,3 +1,4 @@
+import {refitGovernmentInsignia} from './refit-government-insignia.js';
 import {currentGuideOutfit,femaleOutfitGuideRequest} from './portrait-guide-outfit.js';
 import {FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from '../female-exact-prompt-policy.js';
 import {retainedGovernmentInsignia,isGovernmentAccessory} from './government-insignia-retention.js';
@@ -1335,10 +1336,10 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  },[ready,assetBusy,processActive,realDetailEligible,governmentImageHead?.jobId,governmentImageHead?.source,governmentImageHead?.realUniformDetailsVersion,governmentTemplate,accountScope]);
  const easyGovernmentInsigniaFitRef=useRef(null);
  const [easyInsigniaNeedsReview,setEasyInsigniaNeedsReview]=useState(false);
- const measureEasyGovernmentInsigniaFit=()=>{
+ const measureEasyGovernmentInsigniaFit=(resultHead=null)=>{
   // The result is tied to this exact generated photo and outfit. Switching
   // insignia must not re-measure a scene that already has badges drawn on it.
-  const head=governmentImageHead;
+  const head=resultHead||governmentImageHead;
   if(!head)return null;
   const suit=state.current.find(l=>layerKind(l)==='suit'&&l.visible);
   const gender=head.portraitMode||hairGender;
@@ -1370,6 +1371,15 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(fit?.referenceGeometryVersion!=='reference-shoulder-v1')fit=balanceEasyGovernmentBadgeSizes(fit);
   easyGovernmentInsigniaFitRef.current={signature,fit};
   return fit;
+ };
+ const refitSelectedInsigniaAfterResult=async(previousHead,nextHead)=>{
+  if(!retainedGovernmentInsignia(state.current,previousHead,nextHead,{englishFlow}).length)return;
+  const fit=measureEasyGovernmentInsigniaFit(nextHead);
+  const current=state.current,next=await refitGovernmentInsignia(current,previousHead,nextHead,{englishFlow,fit,options:{collar:collarPins,chest:chestPins,ribbon:ribbons},nativeAsset});
+  if(next!==current){
+   if(!await hydrate(next,new Set(current.filter(layer=>next.includes(layer)).map(layer=>layer.id))))throw Error('จัดเครื่องหมายบนภาพใหม่ไม่สำเร็จ');
+   setEasyInsigniaNeedsReview(Boolean(fit?.needsReview));
+  }
  };
  const selectAsset=async(kind,option,{aiSetup=false,manualOverride=false,governmentAutoPlace=false,resultInsigniaDirect=false}={})=>{
   // Both editors place government insignia using the finished-photo reference fit.
@@ -1655,7 +1665,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
     await new Promise(resolve=>setTimeout(resolve,180));
     hydrated=await hydrate(next);
    }
-   if(hydrated){if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;
+   if(hydrated){await refitSelectedInsigniaAfterResult(oldHead,head);if(isProcessCancelled()){await hydrate(previous);throw Error('ยกเลิกการประมวลผลแล้ว')}await onFinishProcess?.(true);result.commit?.();if(result.layer.outputUnlocked===true&&result.layer.jobId)sessionUnlockedJobs.current.add(result.layer.jobId);hairStyleMemory.current.clear();youcamHairMemory.current.clear();placementRef.current=result.placement;
     if(oldHead&&!newSourcePending)rememberProcessedHistory(previous);
     else resetPhotoHistory();
     resetBrushSession();setTool('move');setSelected(head.id);setRevision(v=>v+1);if(touch){setTouchMore(false);setTouchOpen(false)}sourceLayerRef.current=null;setProcessHairPending(false);setHairConfirmed(true);setSelectedHair(chosenHair);pendingHairProcessRef.current=null;setThaiPendingHair(null);setThaiChoiceFlow(null);setThaiHairFinishChoice(null);if(englishFlow){setEnglishStep(null);setEnglishRoute('review')}else if(easyMode){setPicker(false)}setStatus('ประมวลผลแล้ว · เลือกทรงใหม่เพื่อประมวลผลจากรูปต้นฉบับ');trackPhotoType(chosenPortraitMode,'apply');retryProcessOptionsRef.current=null;reportProcessedResult(result.layer,{reused:result.reused===true})}else {const hydrateError=lastHydrateErrorRef.current||Error('แสดงภาพไม่สำเร็จ');hydrateError.idpromProcessStage='studio_hydrate';throw hydrateError;}
@@ -1926,6 +1936,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!localFinish&&replacement.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION&&next.some(l=>layerKind(l)==='suit'&&l.autoSuitFitVersion))next=await refitActiveSuit(next);
    assertAppearanceCurrent();
    if(!await hydrate(next,new Set(previous.filter(l=>next.includes(l)).map(l=>l.id)),localFinish?localCurrent:undefined))throw Error('แสดงภาพไม่สำเร็จ');
+   if(!localFinish)await refitSelectedInsigniaAfterResult(head,finishedReplacement);
    assertAppearanceCurrent();
    if(!reused)await onFinishProcess?.(true);
    result.commit?.();
