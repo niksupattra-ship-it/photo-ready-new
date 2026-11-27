@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
 import {createFemaleLabBase} from './production-female-v9-layout.js';
+import {PRO_LAB_MODEL} from './seedream-pro-payload.js';
 import {productionFemaleV9Payload} from './production-female-v9-payload.js';
 import {productionFemalePromptFor} from './production-female-skin-prompt.js';
 import {FEMALE_REAR_HAIR_VERSION} from './female-exact-prompt-policy.js';
@@ -19,7 +20,9 @@ export async function productionLabPayload({prompt,order,files,fields}){
  const person=files?.person?.[0]?.buffer;
  if(!person)throw Error('Missing original portrait');
  const face=await prepareFemaleFace(person,fields?.femalePreplacedFace);
- return productionFemaleV9Payload({prompt,order,identityFaceOnly:true,files:{...files,face:[{buffer:face}]}});
+ const payload=await productionFemaleV9Payload({prompt,order,identityFaceOnly:true,files:{...files,face:[{buffer:face}]}});
+ // Isolated model comparison: keep the exact production prompt, references and 2K settings.
+ return {...payload,model:PRO_LAB_MODEL};
 }
 export async function productionLabResult(original,removeBackground){
  const {png,alpha}=await preserveExactFemalePixels(original,await removeBackground(original));
