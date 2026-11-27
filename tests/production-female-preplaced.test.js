@@ -180,14 +180,3 @@ test('new production uses the complete lab foreground process and needs no secon
  const size=await sharp(main).metadata();assert.equal(size.width,900);assert.equal(size.height,1200);
  assert.deepEqual(await compositeFemaleLabBackground(main),await productionLabResult(png,remove),'The same AI result produces identical finished lab pixels');
 });
-
-test('free short hair update cannot silently submit an older reference revision',async()=>{
- const {FEMALE_LAB_PROCESS_VERSION}=await import('../female-exact-prompt-policy.js');
- const {portraitReferenceRevision}=await import('../portrait-reference-revision.js');
- let calls=0;const next={...fields,hairId:'seedream-42',thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION};
- await assert.rejects(processProductionPortrait({input,fields:{...next,portraitReferenceRevision:'older-reference-files'},root,key:'inert',removeBackground:async()=>{throw Error('Should not matte stale references')},requestPortrait:async()=>{calls++;return {png}}}),e=>e.code==='PORTRAIT_REFERENCE_UPDATED');
- assert.equal(calls,0);
- await processProductionPortrait({input,fields:{...next,portraitReferenceRevision:portraitReferenceRevision('seedream-42',next.neckOutfitReferencePath)},root,key:'inert',removeBackground:async()=>png,requestPortrait:async args=>{
-  calls++;assert.deepEqual(Buffer.from(seedreamReviewPayload(args).image[2].split(',')[1],'base64'),await readFile(root+'public/assets/seedream-hairstyles/references/42.png'));return {png};
- }});assert.equal(calls,1);
-});

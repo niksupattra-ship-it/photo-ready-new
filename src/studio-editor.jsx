@@ -1,4 +1,3 @@
-import {portraitReferenceRevision} from '../portrait-reference-revision.js';
 import {currentGuideOutfit,femaleOutfitGuideRequest} from './portrait-guide-outfit.js';
 import {FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from '../female-exact-prompt-policy.js';
 import {retainedGovernmentInsignia,isGovernmentAccessory} from './government-insignia-retention.js';
@@ -621,7 +620,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const chosenFinish=hairGender==='female'?'makeup':'natural';
   const finishChanged=Boolean(hairGender==='female'&&activeHead&&currentFinish!==chosenFinish);
   if(!pending&&!finishChanged)return;
-  if(activeHead&&!finishChanged&&(pending?.hairId||activeHead.hairId||'')===(activeHead.hairId||'')&&!isFreeFemaleHair(pending?.hairId||'')&&(hairGender!=='female'||activeHead.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||(activeHead.hairReferenceContractVersion===FEMALE_LAB_PROCESS_VERSION&&activeHead.hairReferenceRevision===portraitReferenceRevision(activeHead.hairId,activeHead.generatedOutfitTemplate||hairOutfitReference(activeHead))))){
+  if(activeHead&&!finishChanged&&(pending?.hairId||activeHead.hairId||'')===(activeHead.hairId||'')&&!isFreeFemaleHair(pending?.hairId||'')){
    // Exactly the already visible combination: no request, no credit, no delay.
    setThaiPendingHair(null);setThaiChoiceFlow(null);setStatus('');return;
   }
@@ -1873,7 +1872,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?'makeup':'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if((englishFlow||mode!=='female'||head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||(head.hairReferenceContractVersion===FEMALE_LAB_PROCESS_VERSION&&head.hairReferenceRevision===portraitReferenceRevision(id,head.generatedOutfitTemplate||hairOutfitReference(head))))&&head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setThaiPendingHair(null);setTool('move');return}
+  if((englishFlow||mode!=='female'||head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||head.hairReferenceContractVersion===FEMALE_LAB_PROCESS_VERSION)&&head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setThaiPendingHair(null);setTool('move');return}
   // A previously generated full outfit must switch to the editable native
   // outfit/head workflow once the Thai outfit quota is exhausted.
   if(!englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&!canRestoreHair(id,mode,finish)&&await thaiManualAfterOutfitQuota()){
