@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {planEnglishManualOutfit,planEnglishFixedPatternOutfit,ENGLISH_MANUAL_OUTFIT_VERSION,ENGLISH_FIXED_PATTERN_WIDTH} from '../src/english-manual-outfit.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../male-portrait-prompt.js';
 const uniform=(w,h)=>({width:w,height:h,bounds:{l:0,r:w-1,t:0,b:h-1,w,h},shoulderWidth:w*.9,centerX:w/2,collarTopY:0});
 const face={152:{x:.5,y:.43},234:{x:.36,y:.28},454:{x:.64,y:.28}};
 const head={sourceFrame:{x:0,y:0,w:900,h:1200},x:0,y:0,scale:1,rotation:0};

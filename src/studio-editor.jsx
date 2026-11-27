@@ -1,7 +1,7 @@
 import {refineLapelCollarFit} from './lapel-pin-clearance.js';
 import {refitGovernmentInsignia} from './refit-government-insignia.js';
 import {currentGuideOutfit,femaleOutfitGuideRequest} from './portrait-guide-outfit.js';
-import {FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from '../female-exact-prompt-policy.js';
+import {FEMALE_LAB_PROCESS_VERSION} from '../female-portrait-prompt.js';
 import {retainedGovernmentInsignia,isGovernmentAccessory} from './government-insignia-retention.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
 import {THAI_PORTRAIT_POLISH_VERSION} from '../thai-portrait-polish.js';
@@ -19,7 +19,7 @@ import {describePortraitFailure} from './portrait-process-failure.js';
 import {StudioImageProcessing} from './studio-image-processing.jsx';
 import {EnglishDownload} from './english-download.jsx';
 import {rememberDownloadChoice,downloadChoiceForJobs} from './download-choice.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../male-portrait-prompt.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION} from '../english-head-portrait.js';
 import {PROCESS_FAILURE_MESSAGE,PROCESS_FAILURE_HINT,PHOTO_EDITING_TITLE,PHOTO_EDITING_WAIT,photoEditingStage} from './processing-copy.js';
 import {outfitChoicePreview,outfitPickerPreview,isJobOutfit} from './outfit-choice-preview.js';
@@ -798,7 +798,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow){
    const heads=next.filter(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
    const head=heads.length===1?heads[0]:null,asset=head&&map.get(head.id);
-   const rearHairFrame=head?.hairReferenceContractVersion===FEMALE_AGE_LOCK_PRO_VERSION;
+   const rearHairFrame=head?.hairReferenceContractVersion==='thai-female-exact-three-ref-pro-v12-age-face-lock';
    if(head?.hairReferenceContractVersion!==FEMALE_LAB_PROCESS_VERSION&&(rearHairFrame||head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&head.portraitFramingVersion!=='seedream-lab-native-frame-v1' )&&asset?.original&&!asset.warped){
     const im=asset.original,c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height});
     try{

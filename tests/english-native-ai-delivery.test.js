@@ -5,13 +5,13 @@ import {ENGLISH_MAKEUP_LIGHT_LOCK_VERSION} from '../english-makeup-light-policy.
 import {SINGLE_PASS_PORTRAIT_VERSION} from '../single-pass-portrait-policy.js';
 import {SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
 import {ENGLISH_AUTO_HAIR_VERSION} from '../english-auto-hair.js';
-import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_VERSION} from '../female-portrait-prompt.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_TEMPLATE_BODY_FRAMING_VERSION,englishTemplateBodyFinishForGender,isEnglishTemplateBodyFinish,isEnglishTemplateBody} from '../english-template-body-policy.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../male-portrait-prompt.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION,ENGLISH_HEAD_PLACEMENT_VERSION} from '../english-head-portrait.js';
 import {ENGLISH_STUDIO_FINISH_VERSION} from '../english-studio-finish-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION,isOriginalPortraitAiRequest} from '../original-portrait-ai.js';

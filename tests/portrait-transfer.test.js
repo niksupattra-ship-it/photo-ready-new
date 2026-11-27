@@ -1,3 +1,5 @@
+import {usesFemaleExactPrompt} from '../female-portrait-prompt.js';
+import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -54,7 +56,7 @@ test('actual production submission validates reused originals before reservation
   beginWork:async(w,image,_id,_saved,original)=>{assert.equal(w,wallet);assert.deepEqual(image,png);assert.deepEqual(original,png);return work},
   attach:async()=>events.push('attach')
  };
- const env={app,crypto:{randomBytes:await import('node:crypto').then(m=>m.randomBytes)},preparePortraitUpload,downloadPolicy:policy,recoverPortraitWork,isOriginalPortraitAiRequest,validateOriginalPortraitUpload,validateProductionPortrait,
+ const env={usesFemaleExactPrompt,FEMALE_CURRENT_PROMPT_CACHE_KEY,app,crypto:{randomBytes:await import('node:crypto').then(m=>m.randomBytes)},preparePortraitUpload,downloadPolicy:policy,recoverPortraitWork,isOriginalPortraitAiRequest,validateOriginalPortraitUpload,validateProductionPortrait,
   upload:multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:2,fields:20,parts:24}}),walletId:req=>req.get('X-Wallet-Id'),getAiJobResult:async()=>null,loadCurrentHairReference:async()=>{},
   requireCredit:async()=>{events.push('reserve');return {usageId:'test-usage'}},refundCredit:async()=>events.push('refund'),
   createAiJob:async job=>{assert.deepEqual(job.image.buffer,png);assert.equal(job.fields.reuseOriginalSource,undefined);events.push('create');return 'job_'+'a'.repeat(36)},failAiJob:async()=>events.push('fail'),

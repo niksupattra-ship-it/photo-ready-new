@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {createEnglishBodyLayout,ENGLISH_MALE_TEMPLATE_PROPORTION_PROFILE,ENGLISH_FEMALE_MATCHED_PROPORTION_PROFILE,ENGLISH_TEMPLATE_PROPORTION_PROFILE} from '../english-body-layout.js';
 import {processProductionPortrait,validateProductionPortrait,portraitIdentityCrop} from '../production-portrait-pipeline.js';
-import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
+import {englishTemplateBodyPrompt} from '../male-portrait-prompt.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,englishTemplateBodyFinishForGender,isEnglishTemplateBodyFinish,usesEnglishIdentityLayout,ENGLISH_TEMPLATE_BODY_SIZE} from '../english-template-body-policy.js';
 

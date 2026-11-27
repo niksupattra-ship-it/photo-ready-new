@@ -1,9 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
-import {englishHeadPortraitPrompt} from '../english-head-prompt.js';
-import {englishNaturalStudioSkin,ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY} from '../english-studio-finish.js';
+import {englishTemplateBodyPrompt} from '../male-portrait-prompt.js';
+import {englishHeadPortraitPrompt} from '../male-portrait-prompt.js';
+import {englishNaturalStudioSkin,ENGLISH_CLEAN_EAR_AND_SILHOUETTE_POLICY} from '../female-portrait-prompt.js';
 import {ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK} from '../english-makeup-light-policy.js';
 const s=readFileSync(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
 const u=readFileSync(new URL('../src/english-portrait-flow.jsx',import.meta.url),'utf8');

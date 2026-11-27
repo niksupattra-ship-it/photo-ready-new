@@ -10,7 +10,7 @@ import {ENGLISH_MALE_HAIR_CATALOG} from '../../english-male-hair-catalog.js';
 import {englishPreviewEnabled} from '../../src/english-preview.js';
 import {createRoot} from 'react-dom/client';
 import {StudioEditor} from '../../src/studio-editor.jsx';
-import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION,ENGLISH_BODY_FRAMING_VERSION} from '../../male-portrait-prompt.js';
 import source from '../../src/main.jsx?raw';
 import '../../src/style.css';
 const catalog=name=>Function(source.match(new RegExp('const '+name+'=\\[[\\s\\S]*?\\n\\];'))[0]+';return '+name)();

@@ -1,5 +1,5 @@
 import {thaiOutfitGenerationFields} from './thai-outfit-ai-policy.js';
-import {isEnglishBodyPortrait} from './english-body-portrait.js';
+import {isEnglishBodyPortrait} from './male-portrait-prompt.js';
 import {isEnglishHeadPortrait} from './english-head-portrait.js';
 export function validateCurrentHairRequest(fields={}){
  fields=thaiOutfitGenerationFields(fields);

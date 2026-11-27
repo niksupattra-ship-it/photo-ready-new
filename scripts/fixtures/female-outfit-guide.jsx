@@ -1,4 +1,4 @@
-import {FEMALE_LAB_PROCESS_VERSION} from '../../female-exact-prompt-policy.js';
+import {FEMALE_LAB_PROCESS_VERSION} from '../../female-portrait-prompt.js';
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {StudioEditor} from '../../src/studio-editor.jsx';

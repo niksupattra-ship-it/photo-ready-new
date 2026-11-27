@@ -10,7 +10,7 @@ import {SINGLE_PASS_SKIN_QUALITY_VERSION,onePassSkinQualityPriority} from '../si
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {generateMakeupFromCompletedNatural,shouldUseNaturalMasterMakeup} from '../natural-master-makeup.js';
 import {AI_MAKEUP_PROMPT} from '../ai-portrait-makeup.js';
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from '../female-portrait-prompt.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
 import {ENGLISH_STUDIO_FREE_HAIR_IDS,isEnglishStudioFreeHair,isEnglishStudioDiamondHair,orderEnglishStudioHair,englishStudioDiamondActive} from '../src/english-studio-hair-policy.js';

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
-import {MAKEUP_STUDIO_RETOUCH_VERSION,MAKEUP_STUDIO_RETOUCH_POLICY} from '../makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_VERSION,MAKEUP_STUDIO_RETOUCH_POLICY} from '../female-portrait-prompt.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {loadMakeupStudioReference,makeupStudioReferenceInstruction} from '../makeup-studio-reference.js';
 import {onePassSkinQualityPriority,SINGLE_PASS_SKIN_QUALITY_VERSION} from '../single-pass-skin-quality.js';
@@ -17,8 +17,8 @@ import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {ENGLISH_STUDIO_FINISH_VERSION} from '../english-studio-finish-policy.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,ENGLISH_HEAD_FINISH_VERSION} from '../english-head-portrait.js';
 import {ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION} from '../english-template-body-policy.js';
-import {englishHeadPortraitPrompt} from '../english-head-prompt.js';
-import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
+import {englishHeadPortraitPrompt} from '../male-portrait-prompt.js';
+import {englishTemplateBodyPrompt} from '../male-portrait-prompt.js';
 
 // Real prompt preparation, image codecs and established edge handling, with an
 // inert provider. No customer, account, payment or live image AI is contacted.

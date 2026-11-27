@@ -1,7 +1,7 @@
 // Visual revision of the current ONE-provider-call female portrait flow.
 // This changes only new Natural/Makeup generation prompts, not the v1 request
 // protocol, old queued jobs, saved images, credits, or the two-pass legacy route.
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from './makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from './female-portrait-prompt.js';
 export const SINGLE_PASS_SKIN_QUALITY_VERSION='one-pass-studio-skin-finish-v8-ai-only-even-bright-complexion';
 
 const SHARED_SKIN=`FINAL ONE-PASS STUDIO SKIN AND LIGHTING AUTHORITY — AI ONLY, USE INSIDE THE SAME PORTRAIT GENERATION:

@@ -1,9 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {decontaminateEnglishBlueEdgeRgba as fix} from '../english-blue-edge-clean.js';
-import {englishTemplateBodyPrompt} from '../english-template-body-prompt.js';
-import {englishHeadPortraitPrompt} from '../english-head-prompt.js';
-import {englishNaturalStudioSkin} from '../english-studio-finish.js';
+import {englishTemplateBodyPrompt} from '../male-portrait-prompt.js';
+import {englishHeadPortraitPrompt} from '../male-portrait-prompt.js';
+import {englishNaturalStudioSkin} from '../female-portrait-prompt.js';
 import {ENGLISH_MAKEUP_NATURAL_LIGHT_LOCK} from '../english-makeup-light-policy.js';
 test('Remove only English edge blue spill; keep every alpha and portrait interior',()=>{
  const w=24,h=24,p=Buffer.alloc(w*h*4);

@@ -8,10 +8,10 @@ import {registerFemaleProductionLab,productionLabPayload,productionLabPrompt} fr
 import {FEMALE_FACE_OUTLINE,captureFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
 import {prepareFemaleFace} from '../female-preplaced-face.js';
 import {PRO_LAB_MODEL} from '../seedream-pro-payload.js';
-import {productionFemaleV9Payload} from '../production-female-v9-payload.js';
-import {createFemaleLabBase} from '../production-female-v9-layout.js';
-import {productionFemalePromptFor} from '../production-female-skin-prompt.js';
-import {FEMALE_LAB_PROCESS_VERSION} from '../female-exact-prompt-policy.js';
+import {currentFemalePortraitPayload} from '../female-portrait-payload.js';
+import {createFemaleLabBase} from '../female-portrait-layout.js';
+import {FEMALE_PORTRAIT_PROMPT} from '../female-portrait-prompt.js';
+import {FEMALE_LAB_PROCESS_VERSION} from '../female-portrait-prompt.js';
 const landmarks=[];
 for(const [i,id]of FEMALE_FACE_OUTLINE.entries()){const a=2*Math.PI*i/FEMALE_FACE_OUTLINE.length;landmarks[id]={x:.5+.22*Math.sin(a),y:.475-.275*Math.cos(a)};}
 for(const [id,x,y]of [[33,.35,.4],[263,.65,.4],[1,.5,.55],[152,.5,.75],[234,.28,.5],[454,.72,.5]])landmarks[id]={x,y};
@@ -22,13 +22,13 @@ const hair=await asset('seedream-hairstyles/references/5.png');
 const fields={femalePreplacedFace:JSON.stringify(evidence)};
 
 test('active Pro lab shares production prompt and four-reference payload for every outfit category',async()=>{
- assert.equal(productionLabPrompt(),productionFemalePromptFor(FEMALE_LAB_PROCESS_VERSION));
+ assert.equal(productionLabPrompt(),FEMALE_PORTRAIT_PROMPT);
  const face=await prepareFemaleFace(person,evidence);
  for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-navy-notch-white-shirt.png','gown-uniforms/kmitl-female.png','student-uniforms/female-01.png']){
   const files={person:[{buffer:person}],outfit:[{buffer:await asset(path)}],hair:[{buffer:hair}]};
-  const expected=await productionFemaleV9Payload({prompt:productionLabPrompt(),order:'person-outfit-hair',identityFaceOnly:true,files:{...files,face:[{buffer:face}]},appendGuideInstruction:false});
+  const expected=await currentFemalePortraitPayload({prompt:productionLabPrompt(),order:'person-outfit-hair',identityFaceOnly:true,files:{...files,face:[{buffer:face}]},appendGuideInstruction:false});
   assert.deepEqual(await productionLabPayload({prompt:productionLabPrompt(),order:'person-outfit-hair',files,fields}),{...expected,model:PRO_LAB_MODEL});
-  assert.equal(expected.model,'dola-seedream-5-0-flash-260915');
+  assert.equal(expected.model,PRO_LAB_MODEL);
  }
 });
 test('lab guide, immutable prompt, async submission, matting and framed PNG use no production wallet',async t=>{

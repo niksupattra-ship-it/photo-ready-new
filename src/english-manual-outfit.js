@@ -3,7 +3,7 @@ import {measureUniformAnchors,placeUniformForPortrait} from './portrait-uniform-
 import {layerToScene} from './studio-transform.js';
 import {createFaceMeasurementCache} from './studio-face-measurement-cache.js';
 import {ENGLISH_HEAD_PORTRAIT_VERSION,fitEnglishHeadTemplate} from '../english-head-portrait.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../male-portrait-prompt.js';
 
 export const ENGLISH_MANUAL_OUTFIT_VERSION='native-fixed-pattern-full-bleed-v5-no-auto-placement';
 // Legacy calculation retained for older test fixtures only. The live English PNG outfit

@@ -2,7 +2,7 @@ import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {StudioEditor} from '../../src/studio-editor.jsx';
 import {startEnglishPreview,englishPreviewEnabled} from '../../src/english-preview.js';
-import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../english-body-portrait.js';
+import {ENGLISH_BODY_PORTRAIT_VERSION} from '../../male-portrait-prompt.js';
 import source from '../../src/main.jsx?raw';
 import '../../src/style.css';
 const params=new URLSearchParams(location.search),processed=params.get('processed')!=='0',en=englishPreviewEnabled();

@@ -10,7 +10,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {processProductionPortrait,validateProductionPortrait} from '../production-portrait-pipeline.js';
 import {ENGLISH_STUDIO_FINISH_VERSION} from '../english-studio-finish-policy.js';
-import {ENGLISH_REFERENCE_SKIN,englishNaturalStudioSkin,englishReferenceMakeupPrompt} from '../english-studio-finish.js';
+import {ENGLISH_REFERENCE_SKIN,englishNaturalStudioSkin,englishReferenceMakeupPrompt} from '../female-portrait-prompt.js';
 import {AI_MAKEUP_PAIR_VERSION} from '../ai-makeup-pair-policy.js';
 import {ORIGINAL_PORTRAIT_AI_VERSION} from '../original-portrait-ai.js';
 import {HAIR_REFERENCE_VERSION} from '../catalogue-hair-policy.js';

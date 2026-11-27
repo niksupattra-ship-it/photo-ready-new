@@ -1,7 +1,7 @@
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 import {prepareFemaleLabForeground} from './female-lab-output.js';
-import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
-import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from './female-exact-prompt-policy.js';
+import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-portrait-prompt.js';
+import {FEMALE_LAB_PROCESS_VERSION} from './female-portrait-prompt.js';
 import {parseFemaleFaceEvidence} from './female-preplaced-face-contract.js';
 import {generateExactFemalePortrait} from './female-exact-reference-request.js';
 import {usesThaiCameraPhotography,applyThaiCameraPhotography} from './thai-camera-photography.js';
@@ -32,7 +32,7 @@ import {createEnglishBodyLayout,ENGLISH_TEMPLATE_PROPORTION_PROFILE,ENGLISH_MALE
 import {usesCompleteThaiNeckBacking,completeThaiNeckPrompt,completeThaiNeckGuideInstruction} from './thai-neck-backing-policy.js';
 import {prepareThaiNeckCanvas} from './thai-neck-canvas.js';
 import {validateCurrentHairRequest} from './english-current-hair.js';
-import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,ENGLISH_HEAD_BODY_POLICY,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './english-body-portrait.js';
+import {isEnglishBodyOutfitPath,isEnglishBodyPortrait,ENGLISH_BODY_OUTPUT_SIZE,ENGLISH_HEAD_BODY_POLICY,englishBodyPortraitPrompt,ENGLISH_BODY_PORTRAIT_VERSION} from './male-portrait-prompt.js';
 import {createAiMakeupVariant} from './ai-portrait-makeup.js';
 import {isSinglePassPortrait} from './single-pass-portrait-policy.js';
 import {onePassSkinQualityPriority} from './single-pass-skin-quality.js';
@@ -65,12 +65,12 @@ import {compactHairIdentityCanvas,COMPACT_IDENTITY_CANVAS_INSTRUCTION} from './c
 import {thaiCompactHairReference,THAI_COMPACT_HAIR_REFERENCE_CONTEXT} from './thai-compact-hair-reference.js';
 import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {usesEnglishStudioFinish,validateEnglishStudioFinish} from './english-studio-finish-policy.js';
-import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './english-studio-finish.js';
+import {englishNaturalStudioSkin,ENGLISH_SCALP_ATTACHMENT_POLICY} from './female-portrait-prompt.js';
 import {parseEnglishHairFit,createEnglishHairFitGuide} from './english-hair-fit-guide.js';
 import {isEnglishHeadPortrait,ENGLISH_HEAD_FINISH_VERSION} from './english-head-portrait.js';
-import {englishHeadPortraitPrompt} from './english-head-prompt.js';
+import {englishHeadPortraitPrompt} from './male-portrait-prompt.js';
 import {isEnglishTemplateBody,ENGLISH_TEMPLATE_BODY_SIZE,ENGLISH_TEMPLATE_BODY_FINISH_VERSION,ENGLISH_FEMALE_MATCHED_PROPORTION_VERSION,ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,usesEnglishIdentityLayout} from './english-template-body-policy.js';
-import {englishTemplateBodyPrompt} from './english-template-body-prompt.js';
+import {englishTemplateBodyPrompt} from './male-portrait-prompt.js';
 
 export function checkedOutfitReferencePath(value){
  if(typeof value!=='string'||!/^\/assets\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.(?:png|webp)$/.test(value))throw Error('ข้อมูลชุดอ้างอิงไม่ถูกต้อง');
@@ -119,7 +119,7 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
- if([FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(fields.thaiWholeHeadGuideVersion))parseFemaleFaceEvidence(fields.femalePreplacedFace);
+ if(fields.thaiWholeHeadGuideVersion===FEMALE_LAB_PROCESS_VERSION)parseFemaleFaceEvidence(fields.femalePreplacedFace);
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
@@ -237,19 +237,14 @@ function onePassMakeupPriority(english=false){
 export async function processProductionPortrait({input,fields,root,removeBackground,key,onStage=async()=>{},onMakeupVariant,currentHair=null,requestPortrait=requestReviewSeedream}){
  fields=thaiOutfitGenerationFields(fields);
  if(hasFemaleExactPromptMarker(fields)){if(!usesFemaleExactPrompt(fields))throw Error('คำสั่งผู้หญิงไม่ตรงรุ่น กรุณารีเฟรชหน้าเว็บ');fields={...fields,femaleEyeStyle:'makeup'};}
+ if(fields.portraitMode==='female'&&isThaiOutfitAi(fields)&&fields.portraitComposition==='en-outfit-body-v1'&&!usesFemaleExactPrompt(fields))throw Error('คำสั่งผู้หญิงไม่ตรงรุ่น กรุณารีเฟรชหน้าเว็บ');
  if(usesThaiWholeHeadGuide(fields)&&usesNestedWholeHead(fields.thaiWholeHeadGuideVersion))fields={...fields,femaleEyeStyle:'makeup'};
  const requestedHair=validateProductionPortrait(input,fields);
  // Exclusive early return: a failure here never invokes the legacy builders,
  // paired Makeup, reference boards or another generation.
  if(usesFemaleExactPrompt(fields)){
   const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
-  if(fields.thaiWholeHeadGuideVersion===FEMALE_LAB_PROCESS_VERSION){
-   await onStage('matting');const foreground=await prepareFemaleLabForeground(result.png,removeBackground);await onStage('edges');return foreground;
-  }
-  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
-  const {png:transparent,alpha}=await preserveExactFemalePixels(result.png,matted);
-  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
-  return transparent;
+  await onStage('matting');const foreground=await prepareFemaleLabForeground(result.png,removeBackground);await onStage('edges');return foreground;
  }
  const requestedMaleAuto=requestedHair?.autoHair==='english-male';
  const chosen=requestedMaleAuto?null:requestedHair;

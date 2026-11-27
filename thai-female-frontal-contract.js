@@ -1,5 +1,5 @@
 import {usesUnifiedFemalePoseVersion,usesThaiWholeHeadGuide} from './thai-whole-head-guide.js';
-import {MAKEUP_STUDIO_RETOUCH_POLICY} from './makeup-studio-retouch-policy.js';
+import {MAKEUP_STUDIO_RETOUCH_POLICY} from './female-portrait-prompt.js';
 import {normalizeThaiRealFaceAppearance} from './thai-real-face-policy.js';
 export const usesFemaleFrontalContract=fields=>usesThaiWholeHeadGuide(fields)&&usesUnifiedFemalePoseVersion(fields.thaiWholeHeadGuideVersion);
 // Remove legacy 2D pose locks only from NEW female full-image requests. Keep
