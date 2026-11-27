@@ -38,12 +38,12 @@ for(const id of ['catalogue-gender','catalogue-category','catalogue-search'])$(i
 function showResult(blob,snapshot){
  const url=URL.createObjectURL(blob);urls.push(url);const card=document.createElement('article');card.className='result';
  const time=document.createElement('time');time.textContent=new Date().toLocaleString('th-TH');
- const caption=document.createElement('p');caption.className='caption';caption.textContent=snapshot?.prompt||'ภาพดิบจาก AI · กู้คืนงานเดิม';
+ const caption=document.createElement('p');caption.className='caption';caption.textContent=snapshot?.prompt||labConfig.resultLabel||'ภาพดิบจาก AI · กู้คืนงานเดิม';
  const settings=document.createElement('div');settings.className='settings';for(const value of [modelLabel,sizeLabel,'Smart ratio','1 ภาพ',snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
- const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt='ภาพต้นฉบับจาก '+modelLabel;preview.append(image);
+ const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt=labConfig.resultLabel||'ภาพต้นฉบับจาก '+modelLabel;preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
- const download=document.createElement('a');download.className='download';download.href=url;download.download='seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
+ const download=document.createElement('a');download.className='download';download.href=url;download.download=labConfig.downloadName||'seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
  if(results.children.length>5){results.lastElementChild.skinControlsDispose?.();results.lastElementChild.remove();URL.revokeObjectURL(urls.shift());}card.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function poll(id,snapshot){
@@ -54,7 +54,7 @@ async function poll(id,snapshot){
    if(response.status===202){status.textContent='กำลังสร้างภาพ…';await new Promise(resolve=>setTimeout(resolve,2000));continue;}
    if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ประมวลผลไม่สำเร็จ');}
    const blob=await response.blob();if(blob.type!=='image/png')throw Error('ข้อมูลภาพไม่สมบูรณ์ กรุณาตรวจผลอีกครั้ง');
-   showResult(blob,snapshot);activeId=null;remember(null);setBusy(false);status.textContent='สร้างเสร็จแล้ว · ภาพดิบจาก AI';return;
+   showResult(blob,snapshot);activeId=null;remember(null);setBusy(false);status.textContent=labConfig.resultLabel||'สร้างเสร็จแล้ว · ภาพดิบจาก AI';return;
   }
   throw Error('ยังไม่พบผลลัพธ์ กดตรวจผลอีกครั้งได้โดยไม่สร้างงานใหม่');
  }catch(error){status.textContent=error.message;check.hidden=!activeId;}finally{checking=false;}
@@ -64,7 +64,7 @@ form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy||referenceLoading)return;
  const data=new FormData(form),id=crypto.randomUUID(),snapshot={prompt:data.get('prompt'),order:data.get('order'),files:Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]))};data.append('requestId',id);activeId=id;remember(id);setBusy(true);status.textContent='กำลังส่งภาพ…';
  try{
-  if(labConfig.facePreparation){status.textContent='กำลังเตรียมใบหน้าสำหรับภาพหลัก…';const {prepareLabSubmission}=await import('./female-lab-guide.js');try{await prepareLabSubmission(data);}catch(error){activeId=null;remember(null);setBusy(false);throw error;}status.textContent='กำลังส่งภาพ…';}
+  if(labConfig.facePreparation){status.textContent='กำลังเตรียมใบหน้าสำหรับภาพหลัก…';const {prepareLabSubmission}=await import(labConfig.guideModule||'./female-lab-guide.js');try{await prepareLabSubmission(data);}catch(error){activeId=null;remember(null);setBusy(false);throw error;}status.textContent='กำลังส่งภาพ…';}
   const response=await fetch(labEndpoint,{method:'POST',body:data,signal:AbortSignal.timeout(60000)});
   if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ส่งภาพไม่สำเร็จ');}
   const result=await response.json();if(result.id!==id)throw Error('ยังยืนยันงานไม่ได้ กรุณากดตรวจผลอีกครั้ง');
