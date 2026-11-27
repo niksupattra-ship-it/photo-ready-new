@@ -7,7 +7,7 @@ import {FEMALE_PORTRAIT_PROMPT,FEMALE_LAB_PROCESS_VERSION} from '../female-portr
 import {createMakeupRequestAudit} from '../makeup-generation-audit.js';
 const png=await sharp({create:{width:16,height:16,channels:3,background:'#abc'}}).png().toBuffer();
 const image='data:image/png;base64,'+png.toString('base64');
-const payload={model:'dola-seedream-5-0-pro-260628',prompt:FEMALE_PORTRAIT_PROMPT,image:[image,image,image,image],size:'2K',response_format:'b64_json',output_format:'png',watermark:false};
+const payload={model:'dola-seedream-5-0-pro-260628',prompt:FEMALE_PORTRAIT_PROMPT,image:[image,image,image,image],size:'1.5K',response_format:'b64_json',output_format:'png',watermark:false};
 
 test('proof locates changed provider inputs without retaining photos or prompt text',()=>{
  const proof=femaleRequestProof(payload);

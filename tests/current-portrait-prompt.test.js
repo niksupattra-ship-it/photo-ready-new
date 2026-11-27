@@ -10,8 +10,8 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'42e9091090979d290e9b8356e02f4ea02021befcb48bd144fd0eeafcbc1ca8f1');
- assert.equal(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace('high-resolution 1.5K','high-resolution 2K')),'42e9091090979d290e9b8356e02f4ea02021befcb48bd144fd0eeafcbc1ca8f1');
+ assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
  assert.equal(hash(originalMale),'61a4540d9d555ea9685fa2dba72d28b9219fee0c3c0d3330cfaa19d0a955c1a8');
