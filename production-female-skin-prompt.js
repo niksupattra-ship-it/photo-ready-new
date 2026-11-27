@@ -1,5 +1,5 @@
 import {PRODUCTION_FEMALE_V9_PROMPT} from './production-female-v9-prompt.js';
-import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION} from './female-exact-prompt-policy.js';
 
 // New production finish only. Keep the approved v9 composition and the lab intact.
 export const PRODUCTION_FEMALE_LUMINOUS_PROMPT=PRODUCTION_FEMALE_V9_PROMPT
@@ -8,7 +8,11 @@ export const PRODUCTION_FEMALE_LUMINOUS_PROMPT=PRODUCTION_FEMALE_V9_PROMPT
  .replace('Use clean optical focus on the face with soft studio illumination; softness describes the light, not a blur applied to the image.','Use clean optical focus on the facial features with broad, softly diffused frontal softbox lighting and gentle fill. Make the facial illumination airy, luminous and softly graduated, with delicate highlights and natural three-dimensional shadows. Diffuse the LIGHT, not the eyes, eyebrows, lashes or hair; avoid harsh flash hotspots, deep patchy shadows, glow halos and overexposure.')
  .replace(/^FINAL CLEAN-SKIN CHECK:.*$/m,`FINAL CLEAN-SKIN CHECK: Inspect the forehead, hairline, temples, both cheeks, nose, under-eyes, mouth-adjacent skin and chin. Leave no visible acne, temporary red/brown acne marks, skin wrinkle lines, rough patches or coarse enlarged pores. Keep a fine, even photographic skin texture and consistent complexion across face, ears and neck. Preserve permanent moles/freckles, sharp real eyebrow hairs, original eye details, lip contours and natural facial depth. Face lighting must be soft, luminous and evenly graduated. Do not alter face geometry, head size, chin placement, collar or garment to achieve this finish.`);
 
+export const PRODUCTION_FEMALE_HAIR_REPLACEMENT_PROMPT=PRODUCTION_FEMALE_LUMINOUS_PROMPT
+ .replace('Image 3: The selected hairstyle only. Follow its hairline, parting, connected lengths, silhouette and texture; never borrow the reference model\'s face.', `Image 3: MANDATORY COMPLETE HAIRSTYLE REPLACEMENT. This selected reference is the ONLY authority for the final cut length, fringe, parting, silhouette, volume, curl and connected rear lengths. Replace the previous hairstyle completely; do not blend old and new styles. For a short cut or bob, reproduce the exact short lower edge visible in Image 3 and remove every old long panel behind the ears, down the neck, beside the shoulders and over the chest. Do not add a hidden long rear curtain beneath a short bob. For a gathered/updo reference, leave no hanging tail, long panel or bun absent from that reference. For a long reference, follow its actual ends without inventing extra lengths. Image 2 provides facial identity only and must NEVER set the hairstyle. Preserve the face, skin finish, prepared head scale, chin/collar alignment, garment, insignia and background. Final hair check: the cut, part, fringe and rear silhouette must match Image 3, with no remnants of the previous style. Never borrow the hair model's face.`);
+
 export function productionFemalePromptFor(version){
+ if(version===FEMALE_HAIR_REPLACEMENT_VERSION)return PRODUCTION_FEMALE_HAIR_REPLACEMENT_PROMPT;
  if(version===FEMALE_LUMINOUS_PROMPT_VERSION)return PRODUCTION_FEMALE_LUMINOUS_PROMPT;
  if(version===FEMALE_PREPLACED_PROMPT_VERSION)return PRODUCTION_FEMALE_V9_PROMPT;
  throw Error('Unsupported female finish version');
