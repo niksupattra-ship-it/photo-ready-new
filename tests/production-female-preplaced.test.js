@@ -64,7 +64,7 @@ test('frontend-safe evidence stays small and production submission recovery rema
  assert(generation.includes("from './production-female-skin-prompt.js'"));assert(!generation.includes("from './female-full-lab-prompt.js'"));
  assert(JSON.stringify(evidence).length<12000);assert.deepEqual(parseFemaleFaceEvidence(JSON.stringify(evidence)),evidence);
  const source=await readFile(root+'src/main.jsx','utf8');assert(source.includes("if(measured.femalePreplacedFace)fd.append('femalePreplacedFace'"));
- assert(source.includes('FEMALE_AGE_LOCK_PRO_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
+ assert(source.includes('FEMALE_LAB_PROCESS_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
 });
 
 
@@ -146,7 +146,7 @@ test('rear-hair production version keeps one Flash request with original face an
 });
 
 test('current production matches the active Pro lab request exactly across outfit and hair changes',async()=>{
- const {FEMALE_AGE_LOCK_PRO_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {FEMALE_LAB_PROCESS_VERSION}=await import('../female-exact-prompt-policy.js');
  const {productionLabPayload,productionLabPrompt}=await import('../female-production-lab.js');
  const {FEMALE_GUIDE_INSTRUCTION}=await import('../production-female-v9-layout.js');
  const prompt=productionLabPrompt();
@@ -160,9 +160,23 @@ test('current production matches the active Pro lab request exactly across outfi
    calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
    assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,4);assert.equal(expected.size,'2K');return {png};
   },{requirePolicy:true});
-  await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_AGE_LOCK_PRO_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
-  assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_AGE_LOCK_PRO_VERSION);
+  await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
+  assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_LAB_PROCESS_VERSION);
   let attempts=0;
-  await assert.rejects(requestReviewSeedream({key:'inert',prompt,preparedFemalePayload:expected,femalePreplacedVersion:FEMALE_AGE_LOCK_PRO_VERSION},{fetchImpl:async()=>{attempts++;return Response.json({error:{message:'inert'}},{status:503});}}));assert.equal(attempts,1);
+  await assert.rejects(requestReviewSeedream({key:'inert',prompt,preparedFemalePayload:expected,femalePreplacedVersion:FEMALE_LAB_PROCESS_VERSION},{fetchImpl:async()=>{attempts++;return Response.json({error:{message:'inert'}},{status:503});}}));assert.equal(attempts,1);
  }
+});
+
+test('new production uses the complete lab foreground process and needs no second framing pass',async()=>{
+ const {FEMALE_LAB_PROCESS_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {prepareFemaleLabForeground,compositeFemaleLabBackground}=await import('../female-lab-output.js');
+ const {productionLabResult}=await import('../female-production-lab.js');
+ const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:580,channels:4,background:'#ffffff'}}).png().toBuffer(),left:60,top:60}]).png().toBuffer();
+ const remove=async()=>mask;
+ let calls=0,mattes=0;
+ const main=await processProductionPortrait({input,fields:{...fields,thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION},root,key:'inert',removeBackground:async()=>{mattes++;return mask},requestPortrait:createMakeupRequestAudit(async()=>{calls++;return {png};},{requirePolicy:true}).requestPortrait});
+ assert.equal(calls,1);assert.equal(mattes,1);
+ const expected=await prepareFemaleLabForeground(png,remove);assert.deepEqual(main,expected);
+ const size=await sharp(main).metadata();assert.equal(size.width,900);assert.equal(size.height,1200);
+ assert.deepEqual(await compositeFemaleLabBackground(main),await productionLabResult(png,remove),'The same AI result produces identical finished lab pixels');
 });

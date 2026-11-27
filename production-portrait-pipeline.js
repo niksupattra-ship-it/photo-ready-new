@@ -1,5 +1,7 @@
+import {preserveExactFemalePixels} from './female-exact-matting.js';
+import {prepareFemaleLabForeground} from './female-lab-output.js';
 import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-exact-prompt-policy.js';
-import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from './female-exact-prompt-policy.js';
 import {parseFemaleFaceEvidence} from './female-preplaced-face-contract.js';
 import {generateExactFemalePortrait} from './female-exact-reference-request.js';
 import {usesThaiCameraPhotography,applyThaiCameraPhotography} from './thai-camera-photography.js';
@@ -117,7 +119,7 @@ export async function checkedFemaleMakeupReference(image){
 }
 
 export function validateProductionPortrait(input,fields={}){
- if([FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION].includes(fields.thaiWholeHeadGuideVersion))parseFemaleFaceEvidence(fields.femalePreplacedFace);
+ if([FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION,FEMALE_MATCHED_PRO_VERSION,FEMALE_SOFT_KOREAN_PRO_VERSION,FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION].includes(fields.thaiWholeHeadGuideVersion))parseFemaleFaceEvidence(fields.femalePreplacedFace);
  fields=thaiOutfitGenerationFields(fields);
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
@@ -241,6 +243,9 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  // paired Makeup, reference boards or another generation.
  if(usesFemaleExactPrompt(fields)){
   const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
+  if(fields.thaiWholeHeadGuideVersion===FEMALE_LAB_PROCESS_VERSION){
+   await onStage('matting');const foreground=await prepareFemaleLabForeground(result.png,removeBackground);await onStage('edges');return foreground;
+  }
   await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
   const {png:transparent,alpha}=await preserveExactFemalePixels(result.png,matted);
   if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
@@ -773,11 +778,4 @@ async function cleanTrialCutoutEdges(input){
 
 
 
-// Use the matting service only as an alpha mask; never use its resampled RGB.
-export async function preserveExactFemalePixels(original,matted){
- const {data,info}=await sharp(original).ensureAlpha().raw().toBuffer({resolveWithObject:true});
- const mask=await sharp(matted).ensureAlpha().extractChannel(3).resize(info.width,info.height,{fit:'fill'}).toColourspace('b-w').raw().toBuffer();
- if(mask.length!==info.width*info.height)throw Error('Invalid alpha mask dimensions');
- let min=255,max=0;for(let i=0;i<mask.length;i++){const a=mask[i];data[i*4+3]=a;min=Math.min(min,a);max=Math.max(max,a);}
- return {png:await sharp(data,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer(),alpha:{min,max}};
-}
+export {preserveExactFemalePixels} from './female-exact-matting.js';
