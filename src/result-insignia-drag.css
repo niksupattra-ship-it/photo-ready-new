@@ -12,15 +12,15 @@
 }
 .idstudio .thai-result-insignia-move-arrow{
  position:absolute;top:50%;left:calc(100% + 8px);transform:translateY(-50%);
- width:44px;height:44px;min-width:44px;min-height:44px;padding:9px;
- display:grid;place-items:center;border:1px solid #b8a0eb;border-radius:50%;
- background:rgba(255,255,255,.94);color:#7541ce;box-shadow:0 2px 7px #36215c26;
+ width:44px;height:44px;min-width:44px;min-height:44px;padding:8px;box-sizing:border-box;
+ display:grid;place-items:center;border:1px solid #d9ccec;border-radius:12px;
+ background:#fff;color:#6436bc;box-shadow:0 2px 8px #35204f20;
  pointer-events:auto;cursor:grab;touch-action:none;user-select:none;
 }
 .idstudio .thai-result-insignia-move-arrow.on-left{left:auto;right:calc(100% + 8px)}
 .idstudio .thai-result-insignia-move-arrow:active{cursor:grabbing}
 .idstudio .thai-result-insignia-move-arrow:focus-visible{outline:2px solid #7541ce;outline-offset:2px}
-.thai-result-insignia-move-arrow svg{width:24px;height:24px;pointer-events:none}
+.thai-result-insignia-move-arrow svg{display:block;width:26px;height:26px;fill:none;stroke:currentColor;pointer-events:none}
 .thai-mobile-result-insignia-panel{
  width:100%;max-width:100%;margin-top:15px;
  border-radius:16px;border:1px solid #e6dbfa;background:#fbf8ff;
