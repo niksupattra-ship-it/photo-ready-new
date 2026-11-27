@@ -564,7 +564,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(isPremiumHair(id)&&!premiumHairAllowed&&!canRestoreHair(id,hairGender,easyFaceFinish)){openDiamondHairOffer(id);return}
    if(!isFreeFemaleHair(id)&&!canRestoreHair(id,hairGender,easyFaceFinish)&&!paidHairAccess&&(trialHairRemaining<=0||!isTrialHairAllowed(id))){openDiamondHairOffer(id);return}
    setThaiPendingHair(null);setThaiChoiceFlow(null);setThaiHairFinishChoice(null);
-   void applyHair(id);return;
+   confirmThaiHair({hairId:id||'',portraitMode:hairGender,first:false});return;
   }
   // Hairstyle selection changes only the draft; the other choice opens next.
   if(!englishFlow){
@@ -620,11 +620,12 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(head?.portraitMode==='female')setEasyFaceFinish(portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle));
   setStatus('');
  };
- const confirmThaiHair=()=>{
+ const confirmThaiHair=(immediateChoice=null)=>{
   if(englishFlow||processRequestRef.current||processActive||assetBusy||!ready||!sourcePhoto)return;
   const activeHead=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
-  const pending=thaiPendingHair;
-  if(hairGender==='female'&&thaiChoiceFlow?.step!=='ready')return;
+  const direct=typeof immediateChoice?.hairId==='string'?immediateChoice:null;
+  const pending=direct||thaiPendingHair;
+  if(!direct&&hairGender==='female'&&thaiChoiceFlow?.step!=='ready')return;
   if(!currentSuit)return;
   const currentFinish=activeHead?portraitFinishChoice(activeHead.femaleEyeStyle,activeHead.initialFemaleEyeStyle):'natural';
   const chosenFinish=hairGender==='female'?'makeup':'natural';
