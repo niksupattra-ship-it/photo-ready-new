@@ -58,6 +58,9 @@ export function describePortraitFailure(error,english=false){
  if(stage==='compose'){
   return make('compose','Could not display the generated photo','The AI output may already be complete. Check the current job before starting another generation.','ประกอบภาพไม่สำเร็จ','งาน AI อาจสร้างเสร็จแล้ว กรุณาตรวจสอบงานเดิมก่อนสร้างใหม่');
  }
+ if(/XML parse error|Buffer size limit exceeded|XML_PARSE_HUGE/.test(message)){
+  return make('guide_preparation','Could not prepare the face guide','The server could not prepare this image. Your original photo has been kept. Try again.','เตรียมไกด์ใบหน้าไม่สำเร็จ','ระบบเตรียมภาพขัดข้อง รูปต้นฉบับยังอยู่ กรุณาลองอีกครั้ง');
+ }
  if(status>=500){
   return make('server','Photo service unavailable','The photo service encountered an error. Check the current job before trying again.','ระบบสร้างภาพขัดข้อง','ตรวจสอบสถานะงานเดิมก่อนลองอีกครั้ง');
  }

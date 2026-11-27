@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {FEMALE_LAB_PROCESS_VERSION as VERSION} from '../female-portrait-prompt.js';
@@ -73,4 +73,14 @@ test('new production uses the complete lab foreground process and needs no secon
  const expected=await prepareFemaleLabForeground(png,remove);assert.deepEqual(main,expected);
  const size=await sharp(main).metadata();assert.equal(size.width,900);assert.equal(size.height,1200);
  assert.deepEqual(await compositeFemaleLabBackground(main),await productionLabResult(png,remove),'The same AI result produces identical finished lab pixels');
+});
+
+test('valid high-detail source over SVG attribute limit still prepares exact face guide',async()=>{
+ const width=1800,height=1800;
+ const source=await sharp(randomBytes(width*height*3),{raw:{width,height,channels:3}}).png().toBuffer();
+ assert(source.length*4/3>10000000);
+ const face=await prepareFemaleFace(source,captureFemaleFaceEvidence(landmarks,width,height));
+ const metadata=await sharp(face).metadata();assert.equal(metadata.format,'png');assert(metadata.width>0&&metadata.height>0);
+ const {data,info}=await sharp(face).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ assert.equal(data[3],0);assert(data.some((value,index)=>index%info.channels===3&&value>200));
 });
