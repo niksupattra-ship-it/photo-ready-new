@@ -22,7 +22,6 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
   </nav>
   {tab==='details'?<div className="idprom-government-real-details">
    <button type="button" disabled={busy} onClick={onRealDetails}>{realDetailsActive?'ใช้รายละเอียดภาพ AI เดิม':'วางกระดุมและบ่าจากชุดจริง'}</button>
-   <p>ตรวจตำแหน่งจากภาพนี้ · ลากชิ้นส่วนบนรูปเพื่อปรับตำแหน่งได้</p>
   </div>:<>
    <div className="idprom-government-insignia-options">
     <button type="button" className={!selected[tab]?'selected':''} disabled={busy} onClick={()=>onChoose(tab,null)}>
@@ -43,7 +42,6 @@ export function GovernmentInsigniaChooser({collarPins=[],chestPins=[],ribbons=[]
    {!options.length&&<p className="idprom-government-insignia-note">ไม่มีเครื่องหมายในหมวดนี้</p>}
    {!quickResult&&<p className="idprom-government-insignia-help">เลือกแล้วแสดงบนภาพทันที ไม่เรียก AI ใหม่ · ตรวจชนิดเครื่องหมายและสิทธิ์ที่ได้รับจริงก่อนดาวน์โหลด</p>}
   </>}
-  {quickResult&&placementReview&&<p className="idprom-government-insignia-help" role="status">ระบบยังระบุตำแหน่งจากชุดนี้ได้ไม่ชัด ตรวจตำแหน่งบนรูปแล้วลากเครื่องหมายปรับก่อนรับรูป</p>}
   {onClose&&<button className="idprom-government-insignia-done" type="button" onClick={onClose}>เสร็จแล้ว · กลับไปดูรูป</button>}
  </section>;
 }
