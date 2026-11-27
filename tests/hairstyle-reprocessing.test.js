@@ -53,7 +53,7 @@ test('full portrait A to B to A restores the accepted pixels and job without AI,
  history.remember({source:original,scope,template,mode:'female',hair:'seedream-14',finish:'makeup',version:JSON.stringify([version,'collar-v6','complete-garment-rear-hair-v2']),master:a,lock,jobId:'job-A'});
  let requests=0,rendered=null,unwinding=false;
  const env={englishPreviewEnabled:()=>false,isThaiOutfitPath:()=>true,createPortraitOperation,portraitOperationScope:()=>scope,walletHeaders:()=>({}),cancellationStillUnwinding:()=>unwinding,busy:false,hairBusy:false,studioPhotoTransactionRef:{current:false},setBusy(){},beginProgress(){},activeProcessOperation:{},portraitFinishChoice,firstUploadedPhotoRef:{current:original},cachedFullPortraitResult,verifyOutputRights:async()=>({checked:true,unlocked:false,fullEdit:false}),
- aiFinishPortrait:async file=>{assert.equal(file,original);requests++;return Object.assign(b,{idpromJobId:'job-B',idpromTrial:true})},finishFirstPortraitMaster:async value=>value,composePortrait:async()=>({lock}),renderAdjustedFinal:async(master,...args)=>{rendered=master;args.at(-1).push({name:'หัว · คอ · ผม',source:'data:image/png;base64,eA=='})},backgroundRef:{current:''},assertProcessActive(){},HAIR_DESIGN_VERSION:'current',femaleFinishMetadata:()=>({}),
+ aiFinishPortrait:async file=>{assert.equal(file,original);requests++;return Object.assign(b,{idpromJobId:'job-B',idpromTrial:true})},finishFirstPortraitMaster:async value=>value,composePortrait:async()=>({lock}),renderAdjustedFinal:async(master,...args)=>{rendered=master;args.at(-1).push({name:'หัว · คอ · ผม',source:'data:image/png;base64,eA=='})},backgroundRef:{current:''},assertProcessActive(){},HAIR_DESIGN_VERSION:'current',femaleFinishMetadata:()=>({}),femaleHairContractMetadata:extract('function femaleHairContractMetadata','function femaleFinishHeadMetadata','femaleHairContractMetadata',{}),
  setF(){},initialFemaleMakeupRef:{current:null},femaleFinishAnchor:()=>null,editCache:{current:{master:a,lock}},initialProcessedMasterRef:{current:a},currentOutputJobRef:{current:'job-A'},currentOutputTrialRef:{current:true},studioTrialRef:{current:true},setOutputJobId(){},setTrialPreview(){},setLiveCanvasVisible(){},liveAdjustRef:{current:{}},setHeadAdjust(){},liveCollarWarpRef:{current:0},setCollarWarp(){},liveCollarHeightRef:{current:0},setCollarHeight(){},liveNeckAdjustRef:{current:{}},setNeckAdjust(){},setPlacementLocked(){},lockedPlacementRef:{current:null},lockedMasterRef:{current:null},preparedHairBaseRef:{current:null},lastHairDonorRef:{current:null},cleanHairBaseRef:{current:null},initialStyledHairRef:{current:null},studioHairOriginRef:{current:''},setHairId(){},rememberHairResult:()=>({}),fullPortraitHairHistoryRef:{current:history},hairResultScope:()=>scope,hairResultKey:()=>version,THAI_COLLARLESS_VERSION:'collar-v6',window:{dispatchEvent(){}},CustomEvent:class{},setProgressStage(){},analyticsProcessFailure(){},SINGLE_PASS_PORTRAIT_VERSION:'single'};
  const process=extract(' const processStudioPhoto=async',' const applyStudioMakeup=','processStudioPhoto',env);
  const next=await process(original,template,'seedream-41','female','makeup',{creditKind:'hairstyle'});
@@ -77,4 +77,16 @@ test('Thai finished-photo hair click restores immediately instead of creating a 
  const choose=Function('env','with(env){'+editor.slice(start,end)+';return chooseHair}')(env);
  choose('seedream-14');
  assert.deepEqual(calls,[['pending',null],['restore','seedream-14',{restoreOnly:true}]]);
+});
+
+test('restored old hair contracts remain viewable but cannot be reused as the newly corrected hairstyle',()=>{
+ const source=new File(['original'],'source.png'),template='/assets/government-uniforms/female-operational.png',current='thai-female-exact-three-ref-flash-v8-hair-replacement';
+ let remembered=0,saved={jobId:'old',master:Object.assign(new Blob(['old long hair']),{idpromMakeupPolicyVersion:'thai-female-exact-three-ref-flash-v7-luminous-skin'})};
+ const env={firstUploadedPhotoRef:{current:source},editCache:{current:{master:saved.master,lock:{templatePath:template}}},isFreeFemaleHair:()=>false,hairResultMode:()=> 'female',englishPreviewEnabled:()=>false,isThaiOutfitPath:()=>true,FEMALE_EXACT_PROMPT_VERSION:current,rememberHairResult:()=>{remembered++;},portraitFinishChoice,fullPortraitHairHistoryRef:{current:{find:()=>saved}},hairResultScope:()=> 'owner',hairResultKey:()=> 'key',THAI_COLLARLESS_VERSION:'collar',activeUniformTemplate:template};
+ const restore=extract(' const rememberRestoredHairResult=',' const restoreHairResultRights=','rememberRestoredHairResult',env);
+ restore({hairId:'seedream-05',portraitMode:'female',jobId:'old'});assert.equal(remembered,0);
+ const lookup=extract(' const cachedFullPortraitResult=',' const canReuseHair=','cachedFullPortraitResult',env);
+ assert.equal(lookup('seedream-05','female','makeup',template),null);
+ saved.master.idpromMakeupPolicyVersion=current;assert.equal(lookup('seedream-05','female','makeup',template),saved);
+ saved.master.idpromMakeupPolicyVersion='older';env.englishPreviewEnabled=()=>true;assert.equal(lookup('seedream-05','female','makeup',template),saved);
 });
