@@ -52,7 +52,7 @@ test('current production matches the active Pro lab request exactly across outfi
   const expected=await productionLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}});
   let calls=0;const audit=createMakeupRequestAudit(async args=>{
    calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
-   assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,4);assert.equal(expected.size,'1.5K');return {png};
+   assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,4);assert.equal(expected.size,'2K');return {png};
   },{requirePolicy:true});
   await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
   assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_LAB_PROCESS_VERSION);
