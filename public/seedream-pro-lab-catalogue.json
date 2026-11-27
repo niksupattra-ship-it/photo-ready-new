@@ -753,6 +753,36 @@
   ],
   "hairs": [
     {
+      "id": "seedream-80",
+      "name": "ผมยาวแสกกลางใหม่",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/80.webp",
+      "reference": "/assets/seedream-hairstyles/references/80.png",
+      "sha256": "96793115ad25d5ea67128e0f230e592f99cca129e925ee67fd2c0b4425ec5f22"
+    },
+    {
+      "id": "seedream-81",
+      "name": "ผมสั้นรวบเรียบใหม่",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/81.webp",
+      "reference": "/assets/seedream-hairstyles/references/81.png",
+      "sha256": "9dc2c72445d5cff4aa957f63f9b6c89657ad9d7f1f57f8a1657acb11a24ff1d2"
+    },
+    {
+      "id": "seedream-79",
+      "name": "ผมรวบเรียบ",
+      "gender": "female",
+      "group": "hair",
+      "groupName": "ทรงผม",
+      "preview": "/assets/seedream-hairstyles/previews/79.webp",
+      "reference": "/assets/seedream-hairstyles/references/79.png",
+      "sha256": "a3b2d8987e89d1b37b7d4cdcd540e6caadc6649d35aed7e26cb641ab73a7774e"
+    },
+    {
       "id": "seedream-14",
       "name": "ทรงผม 14",
       "gender": "female",
@@ -771,16 +801,6 @@
       "preview": "/assets/seedream-hairstyles/previews/42.webp",
       "reference": "/assets/seedream-hairstyles/references/42.png",
       "sha256": "e2c387d11602ed48ca7be766782f4235a9390b4053c47d5c20dfa335ac0ac474"
-    },
-    {
-      "id": "seedream-79",
-      "name": "ผมรวบเรียบ",
-      "gender": "female",
-      "group": "hair",
-      "groupName": "ทรงผม",
-      "preview": "/assets/seedream-hairstyles/previews/79.webp",
-      "reference": "/assets/seedream-hairstyles/references/79.png",
-      "sha256": "a3b2d8987e89d1b37b7d4cdcd540e6caadc6649d35aed7e26cb641ab73a7774e"
     },
     {
       "id": "seedream-16",

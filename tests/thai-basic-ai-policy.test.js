@@ -15,7 +15,7 @@ test('89 allows exactly the six current free hairstyles, only with the paid garm
   assert.equal(basicThaiHairRequestAllowed({...body,neckOutfitReferencePath:'another.png'},'hairstyle',[template]),false);
  }
  assert.equal(basicThaiHairRequestAllowed({hairId:'original',neckOutfitReferencePath:template},'hairstyle',[template]),false);
- assert.equal(basicThaiHairRequestAllowed({hairId:'seedream-14',neckOutfitReferencePath:template,outfitReferencePath:'other.png'},'hairstyle',[template]),false);
+ assert.equal(basicThaiHairRequestAllowed({hairId:THAI_FREE_FEMALE_HAIR_IDS[0],neckOutfitReferencePath:template,outfitReferencePath:'other.png'},'hairstyle',[template]),false);
 });
 
 const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
@@ -29,7 +29,7 @@ function authorization({basic=true,bundle={owned:false}}={}){
  const a=server.indexOf('async function requireCredit(req,res,kind){'),b=server.indexOf('\nconst upload=multer(',a);
  const run=Function('deps','with(deps){'+server.slice(a,b)+';return requireCredit}')(deps);
  const res={statusCode:200,status(n){this.statusCode=n;return this},json(data){this.body=data;return this}};
- const request=async(body={},kind='hairstyle',upload={})=>run({...upload,accountUser:{wallet_id:'wallet'},get:()=>'',body:{downloadWorkId:'photo',hairId:'seedream-14',neckOutfitReferencePath:template,thaiOutfitAiVersion:'th-full-outfit-ai-v1',...body}},res,kind);
+ const request=async(body={},kind='hairstyle',upload={})=>run({...upload,accountUser:{wallet_id:'wallet'},get:()=>'',body:{downloadWorkId:'photo',hairId:THAI_FREE_FEMALE_HAIR_IDS[0],neckOutfitReferencePath:template,thaiOutfitAiVersion:'th-full-outfit-ai-v1',...body}},res,kind);
  return {request,res,events};
 }
 test('actual server blocks new garments, diamond hair and full reprocessing before free AI reservation, including language spoofing',async()=>{
@@ -74,7 +74,7 @@ test('free hair uses the paid garment even after a different manual PNG is selec
  const editor=await readFile(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const helper=editor.split('\n').find(l=>l.trim().startsWith('const hairOutfitReference='));assert(helper);
  const head={jobId:'paid',generatedOutfitTemplate:template};
- const env={verifiedJobs:{paid:{basicFreeHairOnly:true,basicAiOutfitTemplates:[template]}},state:{current:[{kind:'suit',templatePath:'/manual.png'}]},layerKind:l=>l.kind,placementRef:{current:{templatePath:'/manual.png'}}};
+ const env={englishFlow:false,verifiedJobs:{paid:{basicFreeHairOnly:true,basicAiOutfitTemplates:[template]}},state:{current:[{kind:'suit',templatePath:'/manual.png'}]},layerKind:l=>l.kind,placementRef:{current:{templatePath:'/manual.png'}}};
  const run=Function('env','with(env){'+helper+';return hairOutfitReference}')(env);
  assert.equal(run(head),template);
  assert.equal(run({...head,generatedOutfitTemplate:'/unproven.png'}),template);

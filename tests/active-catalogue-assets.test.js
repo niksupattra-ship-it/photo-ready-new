@@ -23,3 +23,21 @@ test('display lookup maps never point at a missing preview or native source',asy
   for(const [source,preview]of Object.entries(map)){await access(new URL('public'+source,root));await access(new URL('public'+preview,root))}
  }
 });
+
+test('new uploads occupy the first two free slots and the unchanged old cuts become premium',async()=>{
+ const {THAI_FREE_FEMALE_HAIR_IDS,firstGenerationHairFor,selectedHairDesign}=await import('../hairstyle-catalog.js');
+ const {basicThaiHairRequestAllowed}=await import('../thai-basic-ai-policy.js');
+ const {createHash}=await import('node:crypto');
+ assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-80','seedream-81','seedream-79']);
+ assert.equal(firstGenerationHairFor('female'),'seedream-80');
+ const hashes={80:'96793115ad25d5ea67128e0f230e592f99cca129e925ee67fd2c0b4425ec5f22',81:'9dc2c72445d5cff4aa957f63f9b6c89657ad9d7f1f57f8a1657acb11a24ff1d2',14:'2afd9404fcd8a8984afab608684eda6a4c123b16bc434f1eef2ac5cb461319a4',42:'e2c387d11602ed48ca7be766782f4235a9390b4053c47d5c20dfa335ac0ac474'};
+ for(const number of [80,81,14,42]){
+  const hair=productionHair('seedream-'+number);assert(hair);
+  const bytes=await readFile(new URL('public/assets/seedream-hairstyles/references/'+hair.file,root));
+  assert.equal(createHash('sha256').update(bytes).digest('hex'),hashes[number]);
+  assert.equal(basicThaiHairRequestAllowed({hairId:hair.id,neckOutfitReferencePath:'/same.png'},'hairstyle',['/same.png']),number>=80);
+ }
+ assert.equal(selectedHairDesign(productionHair('seedream-80')).kind,'long');
+ assert.equal(selectedHairDesign(productionHair('seedream-81')).kind,'gathered');
+ const lab=await buildProLabCatalogue();assert.deepEqual(lab.hairs.filter(h=>h.gender==='female').slice(0,3).map(h=>h.id),THAI_FREE_FEMALE_HAIR_IDS);
+});
