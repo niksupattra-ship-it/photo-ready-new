@@ -10,7 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace('high-resolution 1.5K','high-resolution 2K')),'42e9091090979d290e9b8356e02f4ea02021befcb48bd144fd0eeafcbc1ca8f1');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'d130993f81841d585384ce49dee5d142530cab3c2ee1447b4901a6978ae9ffa9');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
@@ -44,4 +44,8 @@ test('English creation accepts only the current contract for the selected gender
   assert.doesNotThrow(()=>validateEnglishStudioFinish(fields));
   for(const version of ['en-female-matched-head-body-v1','en-body-proportion-lock-v8','en-template-locked-body-v3'])assert.throws(()=>validateEnglishStudioFinish({...fields,englishStudioFinishVersion:version}),/Retired English/);
  }
+});
+
+test('female cosmetics preserve identity, age, eyes and lip geometry at 2K',()=>{
+ for(const text of ['exact same person as Image 2','original position, thickness and natural shape','existing eyelashes with subtle mascara','soft rose-pink lip tint within the original lip border','no facial reshaping, age reduction','Preserve the same apparent age','Keep the natural original eye expression','high-resolution 2K'])assert(FEMALE_PORTRAIT_PROMPT.includes(text),text);
 });
