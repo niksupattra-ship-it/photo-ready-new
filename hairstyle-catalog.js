@@ -3,265 +3,37 @@ import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './englis
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
- {id:'thai-male-auto',gender:'male',name:'ผมชายอัตโนมัติ',promptOnly:true,autoHair:'english-male',src:'/assets/seedream-hairstyles/previews/thai-male-auto-formal.webp'},
-  {
-    "id": "seedream-40",
-    "gender": "female",
-    "name": "ทรงผมหญิง 1",
-    "file": "40.png",
-    "src": "/assets/seedream-hairstyles/previews/40.webp"
-  },
-  {
-    "id": "seedream-41",
-    "hidden": true,
-    "gender": "female",
-    "name": "ทรงผมหญิง 2",
-    "file": "41.png",
-    "src": "/assets/seedream-hairstyles/previews/41.webp"
-  },
-  {
-    "id": "seedream-79",
-    "gender": "female",
-    "name": "ผมรวบเรียบ",
-    "file": "79.png",
-    "src": "/assets/seedream-hairstyles/previews/79.webp"
-  },
-  {
-    "id": "seedream-42",
-    "gender": "female",
-    "name": "ทรงผมหญิง 3",
-    "file": "42.png",
-    "src": "/assets/seedream-hairstyles/previews/42.webp"
-  },
-  {
-    "id": "seedream-43",
-    "gender": "female",
-    "name": "ทรงผมหญิง 4",
-    "file": "43.png",
-    "src": "/assets/seedream-hairstyles/previews/43.webp"
-  },
-  {
-    "id": "seedream-07",
-    "gender": "female",
-    "name": "ทรงผม 7",
-    "file": "7.png",
-    "src": "/assets/seedream-hairstyles/previews/7.webp"
-  },
-  {
-    "id": "seedream-14",
-    "gender": "female",
-    "name": "ทรงผม 14",
-    "file": "14.png",
-    "src": "/assets/seedream-hairstyles/previews/14.webp"
-  },
-  {
-    "id": "seedream-25",
-    "gender": "female",
-    "name": "ทรงผม 25",
-    "file": "25.png",
-    "src": "/assets/seedream-hairstyles/previews/25.webp"
-  },
-  {
-    "id": "seedream-03",
-    "gender": "female",
-    "name": "ทรงผม 3",
-    "file": "3.png",
-    "src": "/assets/seedream-hairstyles/previews/3.webp"
-  },
-  {
-    "id": "seedream-05",
-    "gender": "female",
-    "name": "ทรงผม 5",
-    "file": "5.png",
-    "src": "/assets/seedream-hairstyles/previews/5.webp"
-  },
-  {
-    "id": "seedream-15",
-    "gender": "female",
-    "name": "ทรงผม 15",
-    "file": "15.png",
-    "src": "/assets/seedream-hairstyles/previews/15.webp"
-  },
-  {
-    "id": "seedream-16",
-    "gender": "female",
-    "name": "ทรงผม 16",
-    "file": "16.png",
-    "src": "/assets/seedream-hairstyles/previews/16.webp"
-  },
-  {
-    "id": "seedream-18",
-    "gender": "female",
-    "name": "ทรงผม 18",
-    "file": "18.png",
-    "src": "/assets/seedream-hairstyles/previews/18.webp"
-  },
-  {
-    "id": "seedream-20",
-    "gender": "female",
-    "name": "ทรงผม 20",
-    "file": "20.png",
-    "src": "/assets/seedream-hairstyles/previews/20.webp"
-  },
-  {
-    "id": "seedream-26",
-    "gender": "female",
-    "hidden": true,
-    "name": "ทรงผม 26",
-    "file": "26.png",
-    "src": "/assets/seedream-hairstyles/previews/26.webp"
-  },
-  {
-    "id": "seedream-27",
-    "gender": "female",
-    "name": "ทรงผม 27",
-    "file": "27.png",
-    "src": "/assets/seedream-hairstyles/previews/27.webp"
-  },
-  {
-    "id": "seedream-10",
-    "gender": "female",
-    "name": "ทรงผม 10",
-    "file": "10.png",
-    "src": "/assets/seedream-hairstyles/previews/10.webp"
-  },
-  {
-    "id": "seedream-19",
-    "gender": "female",
-    "name": "ทรงผม 19",
-    "file": "19.png",
-    "src": "/assets/seedream-hairstyles/previews/19.webp"
-  },
-  {
-    "id": "seedream-01",
-    "gender": "female",
-    "name": "ทรงผม 1",
-    "file": "1.png",
-    "src": "/assets/seedream-hairstyles/previews/1.webp"
-  },
-  {
-    "id": "seedream-02",
-    "gender": "female",
-    "name": "ทรงผม 2",
-    "file": "2.png",
-    "src": "/assets/seedream-hairstyles/previews/2.webp"
-  },
-  {
-    "id": "seedream-04",
-    "gender": "female",
-    "name": "ทรงผม 4",
-    "file": "4.png",
-    "src": "/assets/seedream-hairstyles/previews/4.webp"
-  },
-  {
-    "id": "seedream-06",
-    "gender": "female",
-    "name": "ทรงผม 6",
-    "file": "6.png",
-    "src": "/assets/seedream-hairstyles/previews/6.webp"
-  },
-  {
-    "id": "seedream-23",
-    "gender": "female",
-    "name": "ทรงผม 23",
-    "file": "23.png",
-    "src": "/assets/seedream-hairstyles/previews/23.webp"
-  },
-  {
-    "id": "seedream-24",
-    "gender": "female",
-    "name": "ทรงผม 24",
-    "file": "24.png",
-    "src": "/assets/seedream-hairstyles/previews/24.webp"
-  },
-  {
-    "id": "seedream-35",
-    "hidden": true,
-    "gender": "male",
-    "name": "ทรงผม 1",
-    "file": "35.png",
-    "src": "/assets/seedream-hairstyles/previews/35-restored.webp"
-  },
-  {
-    "id": "seedream-28",
-    "gender": "male",
-    "name": "ทรงผม 28",
-    "file": "28.png",
-    "src": "/assets/seedream-hairstyles/previews/28.webp"
-  },
-  {
-    "id": "seedream-29",
-    "gender": "male",
-    "name": "ทรงผม 29",
-    "file": "29.png",
-    "src": "/assets/seedream-hairstyles/previews/29.webp"
-  },
-  {
-    "id": "seedream-30",
-    "gender": "male",
-    "name": "ทรงผม 30",
-    "file": "30.png",
-    "src": "/assets/seedream-hairstyles/previews/30.webp"
-  },
-  {
-    "id": "seedream-31",
-    "gender": "male",
-    "name": "ทรงผม 31",
-    "file": "31.png",
-    "src": "/assets/seedream-hairstyles/previews/31.webp"
-  },
-  {
-    "id": "seedream-32",
-    "gender": "male",
-    "name": "ทรงผม 32",
-    "file": "32.png",
-    "src": "/assets/seedream-hairstyles/previews/32.webp"
-  },
-  {
-    "id": "seedream-33",
-    "gender": "male",
-    "name": "ทรงผม 33",
-    "file": "33.png",
-    "src": "/assets/seedream-hairstyles/previews/33.webp"
-  },
-  {
-    "id": "seedream-34",
-    "gender": "male",
-    "name": "ทรงผม 34",
-    "file": "34.png",
-    "src": "/assets/seedream-hairstyles/previews/34.webp"
-  },
-  {
-    "id": "seedream-36",
-    "gender": "male",
-    "name": "ทรงผม 36",
-    "file": "36.png",
-    "src": "/assets/seedream-hairstyles/previews/36.webp"
-  },
-  {
-    "id": "seedream-37",
-    "gender": "male",
-    "name": "ทรงผม 37",
-    "file": "37.png",
-    "src": "/assets/seedream-hairstyles/previews/37.webp"
-  },
-{
-  "id": "seedream-38",
-  "gender": "female",
-  "name": "ทรงผม 38",
-  "file": "38.png",
-  "src": "/assets/seedream-hairstyles/previews/38.webp"
-},
-{
-  "id": "seedream-39",
-  "gender": "female",
-  "name": "ทรงผม 39",
-  "file": "39.png",
-  "src": "/assets/seedream-hairstyles/previews/39.webp"
-}
-  ,{id:'female-default-reference',gender:'female',name:'Internal female first-photo reference',file:'first-female-default.png',src:'/assets/seedream-hairstyles/references/first-female-default.png',hidden:true}
-  ,...ENGLISH_FEMALE_HAIR_CATALOG
-  ,...ENGLISH_MALE_HAIR_CATALOG
+ {"id": "thai-male-auto", "gender": "male", "name": "ผมชายอัตโนมัติ", "promptOnly": true, "autoHair": "english-male", "src": "/assets/seedream-hairstyles/previews/thai-male-auto-formal.webp"},
+ {"id": "seedream-40", "gender": "female", "name": "ทรงผมหญิง 1", "file": "40.png", "src": "/assets/seedream-hairstyles/previews/40.webp"},
+ {"id": "seedream-79", "gender": "female", "name": "ผมรวบเรียบ", "file": "79.png", "src": "/assets/seedream-hairstyles/previews/79.webp"},
+ {"id": "seedream-42", "gender": "female", "name": "ทรงผมหญิง 3", "file": "42.png", "src": "/assets/seedream-hairstyles/previews/42.webp"},
+ {"id": "seedream-43", "gender": "female", "name": "ทรงผมหญิง 4", "file": "43.png", "src": "/assets/seedream-hairstyles/previews/43.webp"},
+ {"id": "seedream-07", "gender": "female", "name": "ทรงผม 7", "file": "7.png", "src": "/assets/seedream-hairstyles/previews/7.webp"},
+ {"id": "seedream-14", "gender": "female", "name": "ทรงผม 14", "file": "14.png", "src": "/assets/seedream-hairstyles/previews/14.webp"},
+ {"id": "seedream-03", "gender": "female", "name": "ทรงผม 3", "file": "3.png", "src": "/assets/seedream-hairstyles/previews/3.webp"},
+ {"id": "seedream-05", "gender": "female", "name": "ทรงผม 5", "file": "5.png", "src": "/assets/seedream-hairstyles/previews/5.webp"},
+ {"id": "seedream-15", "gender": "female", "name": "ทรงผม 15", "file": "15.png", "src": "/assets/seedream-hairstyles/previews/15.webp"},
+ {"id": "seedream-16", "gender": "female", "name": "ทรงผม 16", "file": "16.png", "src": "/assets/seedream-hairstyles/previews/16.webp"},
+ {"id": "seedream-18", "gender": "female", "name": "ทรงผม 18", "file": "18.png", "src": "/assets/seedream-hairstyles/previews/18.webp"},
+ {"id": "seedream-20", "gender": "female", "name": "ทรงผม 20", "file": "20.png", "src": "/assets/seedream-hairstyles/previews/20.webp"},
+ {"id": "seedream-10", "gender": "female", "name": "ทรงผม 10", "file": "10.png", "src": "/assets/seedream-hairstyles/previews/10.webp"},
+ {"id": "seedream-02", "gender": "female", "name": "ทรงผม 2", "file": "2.png", "src": "/assets/seedream-hairstyles/previews/2.webp"},
+ {"id": "seedream-04", "gender": "female", "name": "ทรงผม 4", "file": "4.png", "src": "/assets/seedream-hairstyles/previews/4.webp"},
+ {"id": "seedream-06", "gender": "female", "name": "ทรงผม 6", "file": "6.png", "src": "/assets/seedream-hairstyles/previews/6.webp"},
+ {"id": "seedream-23", "gender": "female", "name": "ทรงผม 23", "file": "23.png", "src": "/assets/seedream-hairstyles/previews/23.webp"},
+ {"id": "seedream-24", "gender": "female", "name": "ทรงผม 24", "file": "24.png", "src": "/assets/seedream-hairstyles/previews/24.webp"},
+ {"id": "seedream-28", "gender": "male", "name": "ทรงผม 28", "file": "28.png", "src": "/assets/seedream-hairstyles/previews/28.webp"},
+ {"id": "seedream-29", "gender": "male", "name": "ทรงผม 29", "file": "29.png", "src": "/assets/seedream-hairstyles/previews/29.webp"},
+ {"id": "seedream-30", "gender": "male", "name": "ทรงผม 30", "file": "30.png", "src": "/assets/seedream-hairstyles/previews/30.webp"},
+ {"id": "seedream-31", "gender": "male", "name": "ทรงผม 31", "file": "31.png", "src": "/assets/seedream-hairstyles/previews/31.webp"},
+ {"id": "seedream-32", "gender": "male", "name": "ทรงผม 32", "file": "32.png", "src": "/assets/seedream-hairstyles/previews/32.webp"},
+ {"id": "seedream-33", "gender": "male", "name": "ทรงผม 33", "file": "33.png", "src": "/assets/seedream-hairstyles/previews/33.webp"},
+ {"id": "seedream-34", "gender": "male", "name": "ทรงผม 34", "file": "34.png", "src": "/assets/seedream-hairstyles/previews/34.webp"},
+ {"id": "seedream-36", "gender": "male", "name": "ทรงผม 36", "file": "36.png", "src": "/assets/seedream-hairstyles/previews/36.webp"},
+ {"id": "seedream-37", "gender": "male", "name": "ทรงผม 37", "file": "37.png", "src": "/assets/seedream-hairstyles/previews/37.webp"},
+ {"id": "seedream-39", "gender": "female", "name": "ทรงผม 39", "file": "39.png", "src": "/assets/seedream-hairstyles/previews/39.webp"},
+ ...ENGLISH_FEMALE_HAIR_CATALOG,
+ ...ENGLISH_MALE_HAIR_CATALOG
 ];
 export const FREE_PNG_HAIR_CATALOG=[21,25,26].map(number=>({id:'hair-'+number,gender:'female',name:'ทรงผม '+number,file:'hair-'+number+'.png',referenceDirectory:'hair',src:'/assets/hairstyle-previews/hair-'+number+'.png'}));
 export function productionHair(id){return PRODUCTION_HAIR_CATALOG.find(item=>item.id===id)||FREE_PNG_HAIR_CATALOG.find(item=>item.id===id)||null}
@@ -274,7 +46,7 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // Increment when generated style semantics change; old successful results must not
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
-// Keep the old hidden reference in the catalog for previously saved work.
+// Retired non-selectable references are removed; saved completed pixels remain in work history.
 export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-42','seedream-79']);
 export const THAI_FREE_MALE_HAIR_IDS=Object.freeze(['thai-male-auto','seedream-36','seedream-28']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
@@ -283,22 +55,17 @@ export function firstGenerationHairFor(gender,thaiMale=false){return gender==='f
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
 const compact={
  'seedream-79':['gathered','sleek near-centre side part with the exact gentle diagonal crown sweep, dark hair lying close to the scalp and fully gathered invisibly behind the head, open forehead, clear ears and completely bare neck; no braids, fringe, visible bun, ponytail or hanging lengths'],
- 'female-default-reference':['long','natural sleek centre-parted straight dark hair, open forehead, fine hairline, side sections kept behind the ears and smooth long hair behind both shoulders to the length shown in the reference; no fringe or gathered bun'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
- 'seedream-41':['gathered','centre-parted braided crown updo with flat interwoven braids following the scalp, open forehead, visible ears and a clean neck; no raised bun or loose rear lengths'],
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
  'seedream-37':['short','very short uniform male buzz cut close to the skull, fine dark stubble across the top, smoothly short tapered sides and a natural softly squared front hairline; no parting, long top or forehead fringe'],
- 'seedream-01':['short','neck-length layered shag with a centre-parted fringe; only the short ends shown in the reference'],
  'seedream-05':['bob','sleek centre-parted short bob ending at the jaw'],
  'seedream-09':['gathered','fully gathered braided crown updo; no loose side or back lengths'],
  'seedream-10':['bob','side-parted rounded jaw-length bob'],
  'seedream-12':['short','compact side-swept pixie with short tapered sides and nape'],
  'seedream-13':['gathered','fully gathered braided updo, open forehead and clean neck'],
- 'seedream-19':['bob','straight shoulder-skimming blunt bob with a centre part and completely open forehead, NO forehead bangs or fringe; stop at the reference ends'],
  'seedream-20':['gathered','compact centre-parted hairstyle lying close to the scalp; clean temples and ears, no loose temple pieces, no visible bun and no hanging back curtain'],
  'seedream-22':['short','neck-length layered shag with centre-parted fringe; no extensions below its short ends'],
  'seedream-24':['bob','short textured chin-length bob with a light fringe'],
- 'seedream-27':['gathered','fully gathered swept-back hairstyle with open forehead and clean neck'],
 };
 const longDesigns={
  "seedream-42": "sleek straight dark hair with a precise centre part, a low compact crown, sides tucked behind both visible ears and long smooth rear panels ending at the exact reference length; no forehead fringe or added volume",
