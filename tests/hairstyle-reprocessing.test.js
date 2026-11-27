@@ -73,7 +73,7 @@ test('full portrait A to B to A restores the accepted pixels and job without AI,
 test('Thai finished-photo hair click restores immediately instead of creating a pending AI draft',()=>{
  const editor=readFileSync(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
  const start=editor.indexOf(' const chooseHair=id=>{'),end=editor.indexOf('// Select the finish',start);
- const calls=[],env={hairGender:'female',englishFlow:false,processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,processHairPending:false,state:{current:[{id:'head',kind:'head'}]},sourceLayerRef:{current:'upload'},layerKind:l=>l.kind,canRestoreHair:()=>true,easyFaceFinish:'makeup',setThaiPendingHair:v=>calls.push(['pending',v]),setThaiChoiceFlow(){},setThaiHairFinishChoice(){},applyHair:(...args)=>calls.push(['restore',...args])};
+ const calls=[],env={thaiOutfitAiDraft:null,hairGender:'female',englishFlow:false,processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,processHairPending:false,state:{current:[{id:'head',kind:'head'}]},sourceLayerRef:{current:'upload'},layerKind:l=>l.kind,canRestoreHair:()=>true,easyFaceFinish:'makeup',setThaiPendingHair:v=>calls.push(['pending',v]),setThaiChoiceFlow(){},setThaiHairFinishChoice(){},applyHair:(...args)=>calls.push(['restore',...args])};
  const choose=Function('env','with(env){'+editor.slice(start,end)+';return chooseHair}')(env);
  choose('seedream-14');
  assert.deepEqual(calls,[['pending',null],['restore','seedream-14',{restoreOnly:true}]]);
@@ -89,4 +89,13 @@ test('restored old hair contracts remain viewable but cannot be reused as the ne
  assert.equal(lookup('seedream-05','female','makeup',template),null);
  saved.master.idpromMakeupPolicyVersion=current;assert.equal(lookup('seedream-05','female','makeup',template),saved);
  saved.master.idpromMakeupPolicyVersion='older';env.englishPreviewEnabled=()=>true;assert.equal(lookup('seedream-05','female','makeup',template),saved);
+});
+
+
+test('choosing cached hair inside a new outfit draft keeps that outfit draft ready for explicit creation',()=>{
+ const editor=readFileSync(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const start=editor.indexOf(' const chooseHair=id=>{'),end=editor.indexOf('// Select the finish',start),calls=[];
+ const env={thaiOutfitAiDraft:{outfit:{template:'new-outfit'}},hairGender:'female',englishFlow:false,processRequestRef:{current:false},processActive:false,assetBusy:false,ready:true,processHairPending:false,state:{current:[{id:'head',kind:'head'}]},sourceLayerRef:{current:'upload'},layerKind:l=>l.kind,canRestoreHair:()=>true,easyFaceFinish:'makeup',isPremiumHair:()=>false,isFreeFemaleHair:()=>false,paidHairAccess:true,setSelectedHair(){},setAppearanceError(){},setPortraitProcessError(){},setThaiPendingHair:v=>calls.push(['pending',v]),setThaiChoiceFlow:v=>calls.push(['flow',v]),setThaiHairFinishChoice(){},setStatus(){},applyHair:()=>{throw Error('Must not restore the previous outfit');}};
+ const choose=Function('env','with(env){'+editor.slice(start,end)+';return chooseHair}')(env);choose('seedream-05');
+ assert.deepEqual(calls,[['pending',{hairId:'seedream-05',portraitMode:'female',first:false}],['flow',{origin:'hair',step:'ready'}]]);
 });

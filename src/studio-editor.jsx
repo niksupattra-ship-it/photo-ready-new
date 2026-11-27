@@ -552,7 +552,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    return;
   }
   const pendingNewPhoto=processHairPending||state.current.some(l=>l.id===sourceLayerRef.current)||!state.current.some(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
-  if(!englishFlow&&!pendingNewPhoto&&canRestoreHair(id,hairGender,easyFaceFinish)){
+  if(!englishFlow&&!thaiOutfitAiDraft&&!pendingNewPhoto&&canRestoreHair(id,hairGender,easyFaceFinish)){
    setThaiPendingHair(null);setThaiChoiceFlow(null);setThaiHairFinishChoice(null);
    void applyHair(id,{restoreOnly:true});return;
   }
@@ -1788,7 +1788,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    if(!mounted.current||state.current.find(l=>layerKind(l)==='suit')?.templatePath!==outfit.template)return;
   }
   setThaiOutfitAiDraft(null);setThaiPendingHair(null);setThaiChoiceFlow(null);
-  await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode,!englishFlow),portraitMode:draft.portraitMode,continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true});
+  await processPhoto({hairId:hair||firstGenerationHairFor(draft.portraitMode,!englishFlow),portraitMode:draft.portraitMode,...(draft.portraitMode==='female'?{outfitTemplate:outfit.template}:{}),continueWithoutSave:true,explicitCreate:true,outfitAiCreate:true});
  };
  useEffect(()=>{
   if(englishFlow||!bodyOutfitRequest||assetBusy||processActive||!ready)return;
