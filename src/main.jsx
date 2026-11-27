@@ -6145,7 +6145,8 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     master=await finishFirstPortraitMaster(aiHead);
    }
    failureStage='compose';
-   const composed=cached?{lock:cached.lock}:await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
+   const nativeFemaleFrame=portraitMode==='female'&&!englishPreviewEnabled()&&master.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION;
+   const composed=cached&&!nativeFemaleFrame?{lock:cached.lock}:await composePortrait(master,{scale:1,x:0,y:0},template,{placementOnly:true});
    const layers=[];layers.headOnly=true;
    await renderAdjustedFinal(master,composed.lock,{scale:1,x:0,y:0,rotation:0},0,{width:0,length:0},backgroundRef.current,null,{},null,{},false,null,0,null,{},layers);
    assertProcessActive();

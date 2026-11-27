@@ -11,13 +11,14 @@ with sync_playwright() as pw:
    def expose(route):
     r=route.fetch();s=re.sub(r'const openBackgroundColor\s*=\s*\(\)\s*=>\s*\{'," window.__parity={choose:id=>chooseHair(id),confirm:()=>confirmThaiHair(),ready:ready&&!assetBusy&&!processActive,pending:thaiPendingHair,flow:thaiChoiceFlow,head:state.current.find(l=>l.kind==='head')};\n const openBackgroundColor=()=>{",r.text(),count=1);route.fulfill(response=r,body=s)
    p.route('**/src/studio-editor.jsx*',expose);p.route('**/api/**',lambda r:r.abort())
-   p.goto(BASE+'/scripts/fixtures/female-outfit-guide.html?continuous=1'+('&easy=1' if mode=='easy' else ''));p.wait_for_function('__parity.ready');p.wait_for_timeout(400)
+   p.goto(BASE+'/scripts/fixtures/female-outfit-guide.html?continuous=1'+('&easy=1' if mode=='easy' else '&posed=1'));p.wait_for_function('__parity.ready');p.wait_for_timeout(400)
    p.evaluate("__parity.choose('seedream-06')")
    if mode=='easy':
     p.wait_for_function("__parity.pending?.hairId==='seedream-06'&&__parity.flow?.step==='ready'");assert p.evaluate('restoredHairCalls.length')==0;p.evaluate('__parity.confirm()')
-   p.wait_for_function('restoredHairCalls.length===1&&__parity.ready')
-   requests.append(p.evaluate('({args:restoredHairCalls[0],source:__parity.head.source,frame:__parity.head.sourceFrame,outfit:__parity.head.generatedOutfitTemplate,finish:__parity.head.femaleEyeStyle})'))
-   assert p.evaluate('guideCalls.length')==0;assert not errors,errors;p.close()
+   p.wait_for_function('guideCalls.length===1&&__parity.ready')
+   requests.append(p.evaluate('({args:guideCalls[0],source:__parity.head.source,frame:__parity.head.sourceFrame,outfit:__parity.head.generatedOutfitTemplate,finish:__parity.head.femaleEyeStyle,pose:{x:__parity.head.x,y:__parity.head.y,scale:__parity.head.scale}})'))
+   assert p.evaluate('restoredHairCalls.length')==0;assert not errors,errors;p.close()
+  assert requests[1]['pose']=={'x':0,'y':0,'scale':1}
   assert requests[0]==requests[1],'The identical accepted outfit/hair must have the same request, image source and placement'
   print(json.dumps({'width':width,'sameHairRequest':True,'sameResultPixelsAndFrame':True,'providerCalls':0}),flush=True)
  b.close()

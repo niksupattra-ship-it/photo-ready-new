@@ -556,7 +556,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const pendingNewPhoto=processHairPending||state.current.some(l=>l.id===sourceLayerRef.current)||!state.current.some(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
   if(!englishFlow&&!thaiOutfitAiDraft&&!pendingNewPhoto&&canRestoreHair(id,hairGender,easyFaceFinish)){
    setThaiPendingHair(null);setThaiChoiceFlow(null);setThaiHairFinishChoice(null);
-   void applyHair(id,{restoreOnly:true});return;
+   const head=state.current.find(l=>layerKind(l)==='head'||l.name==='หัว · คอ · ผม');
+   if(head?.portraitMode==='female'&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)confirmThaiHair({hairId:id||'',portraitMode:'female',first:false});
+   else void applyHair(id,{restoreOnly:true});return;
   }
   // A finished Studio portrait continues within its current outfit immediately.
   // A new outfit draft still requires a fresh hair choice and explicit Create.
@@ -662,6 +664,10 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
      if(state.current.find(l=>l.id===activeHead.id)?.femaleEyeStyle===chosenFinish)void applyFreeHair(selection.hairId);
     });
    }else void applyFreeHair(selection.hairId);
+  }else if(selection.portraitMode==='female'&&activeHead.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
+   // Same immutable-source generation, result composition and neutral placement
+   // as first processing, in Easy and Studio, including accepted cache restores.
+   void processPhoto({hairId:selection.hairId,portraitMode:'female',outfitTemplate:hairOutfitReference(activeHead),continueWithoutSave:true});
   }else void applyHair(selection.hairId,{femaleEyeStyle:chosenFinish,portraitMode:selection.portraitMode,appearanceKind:finishChanged&&(selection.hairId||'')===(activeHead.hairId||'')?'makeup':'hair'});
  };
  const cancelThaiHair=()=>{
@@ -1922,7 +1928,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    assertAppearanceCurrent();
    if(!result?.layer?.source)throw Error('ไม่ได้รับภาพทรงผม');
    if((result.layer.hairId||'')!==(id||'')||portraitFinishChoice(result.layer.femaleEyeStyle,result.layer.initialFemaleEyeStyle)!==finish)throw Error('ผลลัพธ์ไม่ตรงกับเมคอัพหรือทรงผมที่เลือก');
-   const replacement={...result.layer,...(result.layer.portraitFramingVersion==='seedream-lab-native-frame-v1'?{x:0,y:0,scale:1,rotation:0}:headPose(placedHead)),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:localFinish?head.hairPolicyVersion:mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
+   const replacement={...result.layer,...((result.layer.portraitFramingVersion==='seedream-lab-native-frame-v1'||!englishFlow&&mode==='female'&&result.layer.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)?{x:0,y:0,scale:1,rotation:0}:headPose(placedHead)),...(!localFinish?{squeezeX:1,squeezeY:1}:{}),id:head.id,name:placedHead.name||result.layer.name,kind:'head',hairId:id||'',visible:placedHead.visible!==false,locked:placedHead.locked??false,opacity:placedHead.opacity??1,sourceFrame:result.layer.sourceFrame?{...result.layer.sourceFrame}:null,hairPolicyVersion:localFinish?head.hairPolicyVersion:mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,processedOriginalSource:result.layer.source};
    const finishedReplacement=await preserveLocalSkinLook(head,replacement,{render:onMakeup,mix:mixMakeupLookSources,toSource:surfaceURL});
    assertAppearanceCurrent();
    let next=replaceHairstyleLayer(previous,head.id,finishedReplacement);
