@@ -1,3 +1,4 @@
+import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
 import {FEMALE_LAB_PROCESS_VERSION as FEMALE_EXACT_PROMPT_VERSION,FEMALE_AGE_LOCK_PRO_VERSION} from '../female-exact-prompt-policy.js';
 import {measureFemaleReference} from '../female-reference-evidence-client.js';
 import {FEMALE_HAIR_SUBMISSION_REVISION,sameHairIntentBeforeUpgrade,shouldRecoverHairSubmission} from './female-hair-submission.js';
@@ -285,6 +286,7 @@ async function waitForAiJob(jobId,onStatus,operation=activeProcessOperation){
  if(j.thaiBodyGeometryVersion){blob.idpromBodyGeometryVersion=j.thaiBodyGeometryVersion;blob.idpromBodyReference=parseThaiBodyReference(j.thaiBodyReference);}
    if(j.femaleFinishSingleVersion)blob.idpromFemaleFinishSingleVersion=j.femaleFinishSingleVersion;
    if(j.femaleEyeStyle==='makeup')blob.idpromMakeupPolicyVersion=j.makeupPolicyVersion||null;
+   if(j.femalePromptCacheKey)blob.idpromFemalePromptCacheKey=j.femalePromptCacheKey;
    blob.idpromEnglishProportionCorrection=j.proportionCorrection;
    return blob;
   }
@@ -5566,7 +5568,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const source=firstUploadedPhotoRef.current,mode=hairResultMode(id,portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(femaleEyeStyle,source?.idpromFemaleEyeStyle):'natural';
   const makeupKey=mode==='female'&&finishStyle==='makeup'?'upload-adaptive-korean-v1':'';
-  return JSON.stringify([...(!englishPreviewEnabled()&&mode==='female'?[FEMALE_EXACT_PROMPT_VERSION]:[]),...(!englishPreviewEnabled()&&mode==='female'?[THAI_FEMALE_HEAD_SIZE_VERSION]:[]),mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,mode,id||'original',...(mode==='female'&&finishStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),finishStyle==='makeup'?'makeup-source-eye-lock-v32-no-local-tone':finishStyle==='soft-rosy-v1'?'soft-rosy-v1-soft-radiance-korean-brows-v7':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference',...(['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?[outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate??'']:[]),...(mode==='female'&&finishStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(mode==='female'?[ORIGINAL_PORTRAIT_AI_VERSION]:[])]);
+  return JSON.stringify([...thaiFemaleGuideCacheRevision(!englishPreviewEnabled(),mode),...(!englishPreviewEnabled()&&mode==='female'?[FEMALE_EXACT_PROMPT_VERSION]:[]),...(!englishPreviewEnabled()&&mode==='female'?[THAI_FEMALE_HEAD_SIZE_VERSION]:[]),mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION,mode,id||'original',...(mode==='female'&&finishStyle==='makeup'?[MAKEUP_STUDIO_RETOUCH_VERSION]:[]),finishStyle==='makeup'?'makeup-source-eye-lock-v32-no-local-tone':finishStyle==='soft-rosy-v1'?'soft-rosy-v1-soft-radiance-korean-brows-v7':finishStyle,mode==='male'?'shave-v19-measured-roll':'unchanged',makeupKey?'female-makeup-reference-v1:'+makeupKey:'no-makeup-reference',...(['korean-rosy-v1','soft-rosy-v1'].includes(finishStyle)?[outfitReferencePath??editCache.current?.lock?.templatePath??activeUniformTemplate??'']:[]),...(mode==='female'&&finishStyle==='natural'?[NATURAL_STUDIO_SKIN_VERSION]:[]),...(mode==='female'?[ORIGINAL_PORTRAIT_AI_VERSION]:[])]);
  };
  const hairResultScope=()=>JSON.stringify([currentResultCacheScope(),privateTrialRequested()]);
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
@@ -5647,7 +5649,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
    source,scope:hairResultScope(),template:template||editCache.current?.lock?.templatePath||activeUniformTemplate||'',
    mode,hair:id||'',finish,version:JSON.stringify([hairResultKey(id,mode,finish,template),THAI_COLLARLESS_VERSION,'complete-garment-rear-hair-v2'])
   });
-  if(saved&&mode==='female'&&!englishPreviewEnabled()&&isThaiOutfitPath(template||editCache.current?.lock?.templatePath)&&saved.master?.idpromMakeupPolicyVersion!==FEMALE_EXACT_PROMPT_VERSION)return null;
+  if(saved&&mode==='female'&&!englishPreviewEnabled()&&isThaiOutfitPath(template||editCache.current?.lock?.templatePath)&&(saved.master?.idpromMakeupPolicyVersion!==FEMALE_EXACT_PROMPT_VERSION||saved.master?.idpromFemalePromptCacheKey!==FEMALE_CURRENT_PROMPT_CACHE_KEY))return null;
   return saved;
  };
  const canReuseHair=(id,portraitMode,femaleEyeStyle,template)=>{
