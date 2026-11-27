@@ -1,3 +1,4 @@
+import {refineLapelCollarFit} from './lapel-pin-clearance.js';
 import {refitGovernmentInsignia} from './refit-government-insignia.js';
 import {currentGuideOutfit,femaleOutfitGuideRequest} from './portrait-guide-outfit.js';
 import {FEMALE_AGE_LOCK_PRO_VERSION,FEMALE_LAB_PROCESS_VERSION} from '../female-exact-prompt-policy.js';
@@ -1368,6 +1369,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
    paintLayers(ctx,[garment,...details.map(d=>d.layer)],assets.current,state.current);
    const pixels=ctx.getImageData(0,0,W,H);
    fit=easyGovernmentNativeReferenceFit(suit,gender,W,H)||governmentReferenceLandmarkFit(pixels,gender,selectedTemplate);
+   fit=refineLapelCollarFit(pixels,fit);
   }catch(error){console.warn('Government shoulder geometry unavailable',error?.message)}
   finally{sampled.width=sampled.height=1}
   // Retain an editable native-template fallback when image segmentation
