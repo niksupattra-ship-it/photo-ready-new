@@ -1,0 +1,10 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {StudioEditor} from '../../src/studio-editor.jsx';
+import '../../src/style.css';
+const c=Object.assign(document.createElement('canvas'),{width:900,height:1200});c.getContext('2d').fillRect(0,0,900,1200);const source=c.toDataURL();
+const file=new File([await(await fetch(source)).blob()],'original.png',{type:'image/png'});file.idpromPortraitMode='female';file.idpromFemaleEyeStyle='makeup';
+const templates=[['government','government-uniforms/female-operational.png'],['job','job-uniforms/female-job-navy-notch-white-shirt.png'],['gown','gown-uniforms/kmitl-female.png'],['student','student-uniforms/female-01.png']].map(([id,path])=>({id,cat:id,gender:'female',name:id,title:id,template:'/assets/'+path,img:'/assets/'+path,preview:'/assets/'+path,group:id}));
+const outfit='/assets/government-uniforms/female-academic.png';
+window.guideCalls=[];
+createRoot(document.getElementById('root')).render(<StudioEditor initialSourcePhoto={file} initialLayers={[{kind:'background',name:'พื้นหลัง',source},{id:'accepted-head',kind:'head',name:'หัว · คอ · ผม',source,sourceFrame:{x:0,y:0,w:900,h:1200},jobId:'accepted-job',portraitMode:'female',femaleEyeStyle:'makeup',hairId:'seedream-05',portraitComposition:'en-outfit-body-v1',generatedOutfitTemplate:outfit},{id:'suit',kind:'suit',name:'ชุด',source,templatePath:outfit,visible:false,sourceFrame:{x:0,y:600,w:900,h:600}}]} templates={templates} freeTemplatePaths={templates.map(t=>t.template)} placement={{W:900,H:1200,uX:0,uY:600,uW:900,uH:600,templatePath:outfit}} maleHair={[]} femaleHair={[]} backgrounds={[]} collarPins={[]} chestPins={[]} ribbons={[]} hasCredits paidHairAccess paidOutputIds={['accepted-job']} onVerifyOutput={async()=>({checked:true,unlocked:true,fullEdit:true})} onBeforeProcess={async()=>true} onProcessPhoto={async(...args)=>{window.guideCalls.push({original:args[0]===file,template:args[1],hair:args[2],gender:args[3],options:args[5]});throw Error('FIXTURE_AI_BOUNDARY');}} />);

@@ -107,3 +107,18 @@ test('new selected short/bob/gathered styles use the exact file and face-only id
  // Explicitly retained/original hair continues to have the original hair reference.
  await processProductionPortrait({input,fields:{...fields,hairId:'original',hairReferenceVersion:undefined,thaiWholeHeadGuideVersion:FEMALE_HAIR_REPLACEMENT_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:async args=>{assert.deepEqual(Buffer.from(seedreamReviewPayload(args).image[2].split(',')[1],'base64'),png);return {png};}});
 });
+
+
+test('rebuilding each female outfit category recomputes its preplaced edit canvas from original face',async()=>{
+ const {FEMALE_HAIR_REPLACEMENT_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {createFemaleLabBase}=await import('../production-female-v9-layout.js');
+ const face=await prepareFemaleFace(png,evidence);
+ for(const path of ['job-uniforms/female-job-navy-notch-white-shirt.png','government-uniforms/female-operational.png','gown-uniforms/kmitl-female.png','student-uniforms/female-01.png']){
+  const outfit=await readFile(root+'public/assets/'+path),expected=await createFemaleLabBase(outfit,face);let calls=0;
+  await processProductionPortrait({input,fields:{...fields,neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_HAIR_REPLACEMENT_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:async args=>{
+   calls++;const payload=seedreamReviewPayload(args);
+   assert.deepEqual(Buffer.from(payload.image[0].split(',')[1],'base64'),expected);
+   assert.deepEqual(Buffer.from(payload.image[3].split(',')[1],'base64'),outfit);return {png};
+  }});assert.equal(calls,1);
+ }
+});
