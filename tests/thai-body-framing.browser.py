@@ -10,7 +10,7 @@ with sync_playwright() as p:
   result=page.evaluate('''async()=>{
    const source=(await import('/src/main.jsx?raw')).default;
    const {planThaiBodyFrame}=await import('/src/thai-body-framing.js');
-   const {FEMALE_REAR_HAIR_VERSION:FEMALE_EXACT_PROMPT_VERSION}=await import('/female-exact-prompt-policy.js');
+   const {FEMALE_MATCHED_PRO_VERSION:FEMALE_EXACT_PROMPT_VERSION}=await import('/female-exact-prompt-policy.js');
    const {THAI_REAL_FACE_VERSION}=await import('/thai-real-face-policy.js');
    const {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE}=await import('/thai-female-head-size.js');
    const {THAI_PORTRAIT_POLISH_VERSION}=await import('/thai-portrait-polish.js');
@@ -59,7 +59,7 @@ with sync_playwright() as p:
   page=b.new_page(viewport={'width':390,'height':1000})
   page.goto(BASE+'/scripts/fixtures/government-result-insignia.html?fullbody=1&composition=narrow&fit=1&gender='+gender,wait_until='domcontentloaded')
   count=5 if gender=='male' else 3
-  page.wait_for_function('(count)=>insigniaFixture.snapshot()?.layers.filter(l=>l.realUniformDetail).length===count',arg=count,timeout=30000)
+  page.wait_for_function('(count)=>window.insigniaFixture?.snapshot()?.layers.filter(l=>l.realUniformDetail).length===count',arg=count,timeout=30000)
   result=page.evaluate('''async()=>{
    const layers=insigniaFixture.snapshot().layers,head=layers.find(l=>l.kind==='head'),f=head.sourceFrame;
    const im=new Image();im.src=head.source;await im.decode();

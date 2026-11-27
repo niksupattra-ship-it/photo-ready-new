@@ -64,7 +64,7 @@ test('frontend-safe evidence stays small and production submission recovery rema
  assert(generation.includes("from './production-female-skin-prompt.js'"));assert(!generation.includes("from './female-full-lab-prompt.js'"));
  assert(JSON.stringify(evidence).length<12000);assert.deepEqual(parseFemaleFaceEvidence(JSON.stringify(evidence)),evidence);
  const source=await readFile(root+'src/main.jsx','utf8');assert(source.includes("if(measured.femalePreplacedFace)fd.append('femalePreplacedFace'"));
- assert(source.includes('FEMALE_REAR_HAIR_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
+ assert(source.includes('FEMALE_MATCHED_PRO_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
 });
 
 
@@ -142,5 +142,27 @@ test('rear-hair production version keeps one Flash request with original face an
    assert.deepEqual(Buffer.from(payload.image[2].split(',')[1],'base64'),file?await readFile(root+'public/assets/seedream-hairstyles/references/'+file):png);
    return {png};
   },{requirePolicy:true}).requestPortrait});assert.equal(calls,1);
+ }
+});
+
+test('current production matches the active Pro lab request exactly across outfit and hair changes',async()=>{
+ const {FEMALE_MATCHED_PRO_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {productionLabPayload,productionLabPrompt}=await import('../female-production-lab.js');
+ const {FEMALE_GUIDE_INSTRUCTION}=await import('../production-female-v9-layout.js');
+ const prompt=productionLabPrompt();
+ assert.equal(prompt.split('Combine the four reference images').length,2);
+ assert(!prompt.includes(FEMALE_GUIDE_INSTRUCTION));assert(!prompt.includes('HAIR OCCLUSION'));
+ for(const text of ['Image 1: Primary edit canvas','Image 2: Original facial identity only','Image 3: Mandatory hairstyle reference','Image 4: Fixed clothing and body template','Completely replace the original hairstyle with Image 3','Do not retain any hairstyle elements from Image 2'])assert(prompt.includes(text),text);
+ for(const [path,id,file]of [['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-05','5.png'],['government-uniforms/female-operational.png','seedream-14','14.png'],['gown-uniforms/kmitl-female.png','seedream-79','79.png'],['student-uniforms/female-01.png','seedream-24','24.png']]){
+  const outfit=await readFile(root+'public/assets/'+path),hair=await readFile(root+'public/assets/seedream-hairstyles/references/'+file);
+  const expected=await productionLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}});
+  let calls=0;const audit=createMakeupRequestAudit(async args=>{
+   calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
+   assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,4);assert.equal(expected.size,'2K');return {png};
+  },{requirePolicy:true});
+  await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_MATCHED_PRO_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
+  assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_MATCHED_PRO_VERSION);
+  let attempts=0;
+  await assert.rejects(requestReviewSeedream({key:'inert',prompt,preparedFemalePayload:expected,femalePreplacedVersion:FEMALE_MATCHED_PRO_VERSION},{fetchImpl:async()=>{attempts++;return Response.json({error:{message:'inert'}},{status:503});}}));assert.equal(attempts,1);
  }
 });

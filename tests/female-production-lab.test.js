@@ -11,7 +11,7 @@ import {PRO_LAB_MODEL} from '../seedream-pro-payload.js';
 import {productionFemaleV9Payload} from '../production-female-v9-payload.js';
 import {createFemaleLabBase} from '../production-female-v9-layout.js';
 import {productionFemalePromptFor} from '../production-female-skin-prompt.js';
-import {FEMALE_REAR_HAIR_VERSION} from '../female-exact-prompt-policy.js';
+import {FEMALE_MATCHED_PRO_VERSION} from '../female-exact-prompt-policy.js';
 const landmarks=[];
 for(const [i,id]of FEMALE_FACE_OUTLINE.entries()){const a=2*Math.PI*i/FEMALE_FACE_OUTLINE.length;landmarks[id]={x:.5+.22*Math.sin(a),y:.475-.275*Math.cos(a)};}
 for(const [id,x,y]of [[33,.35,.4],[263,.65,.4],[1,.5,.55],[152,.5,.75],[234,.28,.5],[454,.72,.5]])landmarks[id]={x,y};
@@ -21,12 +21,12 @@ const asset=path=>readFile(new URL('../public/assets/'+path,import.meta.url));
 const hair=await asset('seedream-hairstyles/references/5.png');
 const fields={femalePreplacedFace:JSON.stringify(evidence)};
 
-test('Pro lab changes only the model while preserving production payload for every outfit category',async()=>{
- assert.equal(productionLabPrompt(),productionFemalePromptFor(FEMALE_REAR_HAIR_VERSION));
+test('active Pro lab shares production prompt and four-reference payload for every outfit category',async()=>{
+ assert.equal(productionLabPrompt(),productionFemalePromptFor(FEMALE_MATCHED_PRO_VERSION));
  const face=await prepareFemaleFace(person,evidence);
  for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-navy-notch-white-shirt.png','gown-uniforms/kmitl-female.png','student-uniforms/female-01.png']){
   const files={person:[{buffer:person}],outfit:[{buffer:await asset(path)}],hair:[{buffer:hair}]};
-  const expected=await productionFemaleV9Payload({prompt:productionLabPrompt(),order:'person-outfit-hair',identityFaceOnly:true,files:{...files,face:[{buffer:face}]}});
+  const expected=await productionFemaleV9Payload({prompt:productionLabPrompt(),order:'person-outfit-hair',identityFaceOnly:true,files:{...files,face:[{buffer:face}]},appendGuideInstruction:false});
   assert.deepEqual(await productionLabPayload({prompt:productionLabPrompt(),order:'person-outfit-hair',files,fields}),{...expected,model:PRO_LAB_MODEL});
   assert.equal(expected.model,'dola-seedream-5-0-flash-260915');
  }

@@ -5,24 +5,22 @@ import {fileURLToPath} from 'node:url';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
 import {createFemaleLabBase} from './production-female-v9-layout.js';
-import {PRO_LAB_MODEL} from './seedream-pro-payload.js';
-import {productionFemaleV9Payload} from './production-female-v9-payload.js';
+import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import {productionFemalePromptFor} from './production-female-skin-prompt.js';
-import {FEMALE_REAR_HAIR_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_MATCHED_PRO_VERSION} from './female-exact-prompt-policy.js';
 import {preserveExactFemalePixels} from './production-portrait-pipeline.js';
 import {planThaiBodyFrame} from './src/thai-body-framing.js';
 
 const route='/api/female-production-lab';
-export const productionLabPrompt=()=>productionFemalePromptFor(FEMALE_REAR_HAIR_VERSION);
+export const productionLabPrompt=()=>productionFemalePromptFor(FEMALE_MATCHED_PRO_VERSION);
 export async function productionLabPayload({prompt,order,files,fields}){
  prompt=typeof prompt==='string'?prompt.replace(/\r\n/g,'\n'):prompt;
  if(prompt!==productionLabPrompt())throw Error('Prompt does not match current production');
  const person=files?.person?.[0]?.buffer;
  if(!person)throw Error('Missing original portrait');
  const face=await prepareFemaleFace(person,fields?.femalePreplacedFace);
- const payload=await productionFemaleV9Payload({prompt,order,identityFaceOnly:true,files:{...files,face:[{buffer:face}]}});
- // Isolated model comparison: keep the exact production prompt, references and 2K settings.
- return {...payload,model:PRO_LAB_MODEL};
+ if(order!=='person-outfit-hair')throw Error('Invalid reference order');
+ return femaleMatchedProPayload({identityFaceOnly:true,files:{...files,face:[{buffer:face}]}});
 }
 export async function productionLabResult(original,removeBackground){
  const {png,alpha}=await preserveExactFemalePixels(original,await removeBackground(original));
