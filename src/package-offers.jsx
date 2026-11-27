@@ -6,7 +6,7 @@ import {ServiceTermsLink} from './service-terms.jsx';
 function OfferDiamond(){return <svg className="offer-diamond" viewBox="0 0 40 34" aria-hidden="true" focusable="false"><path d="M2 11 10 2h20l8 9-18 21Z" fill="#58bdf1" stroke="#329bd3" strokeWidth="1.2" strokeLinejoin="round"/><path d="M2 11h36L20 32Z" fill="#299ddd"/><path d="m10 2 5 9h10l5-9Z" fill="#c3f2ff"/><path d="m15 11 5 21 5-21Z" fill="#87dbfa"/><path d="M2 11 10 2l5 9Zm23 0 5-9 8 9Z" fill="#6ed0f5"/><path d="m6 9 5-5h4" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>}
 
 const OFFERS=[
- {price:'89',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ'},
+ {price:'99',name:'รับรูปนี้',features:'ดาวน์โหลดรูปไม่มีลายน้ำ'},
  {price:'159',name:'ใช้ AI 10 ครั้ง สำหรับรูปนี้',features:''}
 ];
 function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPhoto,premiumState={},diamondHairOffer=false}){
@@ -60,8 +60,8 @@ function EnglishOffers({preview,payBusy,payMsg,hasTrial,startCheckout,onBackToPh
 
 export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=false,studioMode=false,onOpenStudio,creditBalance=0,premiumCreditBalance=0,onUseCredit,startCheckout,onOpenCode,onBackToPhoto,isAuthenticated=true,premiumState={}}){
  const english=englishPreviewEnabled();
- const [selected,setSelected]=useState(diamondHairOffer&&studioMode?'159':'89');
- useEffect(()=>{setSelected(diamondHairOffer&&studioMode?'159':'89')},[diamondHairOffer,studioMode]);
+ const [selected,setSelected]=useState(diamondHairOffer&&studioMode?'159':'99');
+ useEffect(()=>{setSelected(diamondHairOffer&&studioMode?'159':'99')},[diamondHairOffer,studioMode]);
  if(english)return <EnglishOffers preview={preview} payBusy={payBusy} payMsg={payMsg} hasTrial={hasTrial} startCheckout={startCheckout} onBackToPhoto={onBackToPhoto} premiumState={premiumState} diamondHairOffer={diamondHairOffer}/>;
  const disabled=payBusy||!hasTrial;
  const premiumCredits=Math.max(0,Math.floor(Number(premiumCreditBalance)||0)),credits=Math.max(0,Math.floor(Number(creditBalance)||0))+premiumCredits;
@@ -74,11 +74,11 @@ export function PackageOffers({preview,payBusy,payMsg,hasTrial,diamondHairOffer=
    <figure className="offer-preview">{preview?<img src={preview} alt="รูปที่จะซื้อ"/>:<span>รูปที่เลือก</span>}{onOpenCode&&<figcaption><button type="button" className="offer-code-entry" disabled={payBusy} onClick={onOpenCode}>ใส่โค้ด</button></figcaption>}</figure>
    <div className="offer-selection">
    <div className="offer-pair" role="radiogroup" aria-label="เลือกแพ็กเกจ">
-    {OFFERS.filter(offer=>studioMode||offer.price==='89').map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
+    {OFFERS.filter(offer=>studioMode||offer.price==='99').map(offer=><section key={offer.price} className={'offer-card'+(offer.price==='159'?' premium':'')+(selected===offer.price?' selected':'')} aria-label={offer.name+' '+offer.price+' บาท'}>
      <label className="offer-choice-label"><input type="radio" name="photo-package" value={offer.price} checked={selected===offer.price} disabled={disabled} onChange={()=>setSelected(offer.price)} aria-label={'โปร '+offer.price+' บาท'}/><span className="offer-copy"><span className="offer-price">{offer.price} <small>บาท</small>{offer.price==='159'&&<OfferDiamond/>}</span><strong className="offer-name">{offer.name}</strong><span className="offer-features">{offer.features.split(' · ').filter(Boolean).map(feature=><span key={feature}>{feature}</span>)}</span></span></label>
      <button type="button" className="ready-pay" disabled={disabled} onClick={()=>choose(offer.price)}>{payBusy?'กำลังเตรียม…':'เลือกโปร '+offer.price+' บาท'}</button>
-     {offer.price==='89'&&<button type="button" className="single-photo-back" disabled={disabled} onClick={()=>onBackToPhoto?.('89')}>← ย้อนกลับไปแก้ไขรูปนี้</button>}
-    {!studioMode&&offer.price==='89'&&<button type="button" className="single-photo-back" disabled={payBusy} onClick={()=>onOpenStudio?.()}>ปลดล็อกใช้งานมากขึ้น ไปที่สตูดิโอ →</button>}
+     {offer.price==='99'&&<button type="button" className="single-photo-back" disabled={disabled} onClick={()=>onBackToPhoto?.('99')}>← ย้อนกลับไปแก้ไขรูปนี้</button>}
+    {!studioMode&&offer.price==='99'&&<button type="button" className="single-photo-back" disabled={payBusy} onClick={()=>onOpenStudio?.()}>ปลดล็อกใช้งานมากขึ้น ไปที่สตูดิโอ →</button>}
     </section>)}
    </div>
     <div className="idprom-thai-package-cta">

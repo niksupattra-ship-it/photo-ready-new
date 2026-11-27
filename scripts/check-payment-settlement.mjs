@@ -29,8 +29,10 @@ await check('every frozen Checkout package retains its original grant and image 
  }
  let received;await settleCheckout(checkout('149',{metadata:{wallet_id:'walletA'}}),async(...args)=>{received=args});assert.deepEqual(received,['walletA','cs_test_fixture','149','']);
 });
-await check('fresh basic aliases resolve89 while frozen89/119/159 amounts remain exact',async()=>{
- for(const id of ['89','download_89_v1','119','download_119_v1'])assert.deepEqual(checkoutPackage(id),{id:'download_89_v1',...PACKAGES.download_89_v1});
+await check('fresh basic aliases resolve99 while frozen89/119/159 amounts remain exact',async()=>{
+ for(const id of ['99','download_99_v1','89','download_89_v1','119','download_119_v1'])assert.deepEqual(checkoutPackage(id),{id:'download_99_v1',...PACKAGES.download_99_v1});
+ const {price:newPrice,...newRights}=PACKAGES.download_99_v1;const {price:oldPrice,...oldRights}=PACKAGES.download_89_v1;assert.equal(newPrice,99);assert.deepEqual(newRights,oldRights);
+ await settlePromptpay(intent('download_99_v1'),async()=>{});await assert.rejects(settlePromptpay(intent('download_99_v1',{amount:8900,amount_received:8900}),async()=>{}));
  assert.equal(checkoutPackage('159').price,159);assert.equal(PACKAGES.download_119_v1.price,119);assert.equal(PACKAGES.download_89_v1.price,89);
  let grants=0;const grant=async()=>{grants++};await settlePromptpay(intent('download_89_v1'),grant);await settleCheckout(checkout('download_89_v1'),grant);assert.equal(grants,2);
  for(const overrides of [{amount:11900,amount_received:11900},{amount:8899,amount_received:8899},{amount:8900,amount_received:8899},{amount:8900,amount_received:'8900'},{currency:'usd'},{metadata:{flow:'idprom_promptpay_v1',wallet_id:'walletA',package_id:'download_89_v1'}}])await assert.rejects(settlePromptpay(intent('download_89_v1',overrides),grant));
@@ -94,20 +96,20 @@ try{
  });
  await check('Checkout confirmation cannot transfer another account purchase',async()=>{const out=await request('/api/payments/confirm',{account:'walletB',method:'POST',body:{sessionId:'cs_test_fixture'}});assert.equal(out.status,403);assert.equal(out.data.error,'wallet_mismatch');assert.equal(ledger.size,1)});
  await check('Checkout retries use stable optional keys and fixed PromptPay THB prices',async()=>{
-  createResult=checkout('download_89_v1',{payment_status:'unpaid',status:'open',url:'https://checkout.stripe.com/fixture'});posted.length=0;
+  createResult=checkout('download_99_v1',{payment_status:'unpaid',status:'open',url:'https://checkout.stripe.com/fixture'});posted.length=0;
   for(let i=0;i<2;i++)assert.equal((await request('/api/payments/checkout',{method:'POST',body:{packageId:'119',jobId:'jobA'},headers:{'X-Checkout-Attempt':'attempt_fixture_123'}})).status,200);
-  assert.equal(posted[0].key,posted[1].key);assert(posted[0].key);assert.equal(posted[0].params['line_items[0][price_data][unit_amount]'],8900);assert.equal(posted[0].params['payment_method_types[0]'],'promptpay');
+  assert.equal(posted[0].key,posted[1].key);assert(posted[0].key);assert.equal(posted[0].params['line_items[0][price_data][unit_amount]'],9900);assert.equal(posted[0].params['payment_method_types[0]'],'promptpay');
  });
  await check('PromptPay creation requires account, owned completed image, current offer and attempt',async()=>{
   const valid={packageId:'119',jobId:'jobA'};
   assert.equal((await request('/api/payments/promptpay',{method:'POST',account:'',body:valid})).status,401);
   for(const body of [{...valid,jobId:'someone-else'},valid,{...valid,packageId:'149'}])assert.equal((await request('/api/payments/promptpay',{method:'POST',body})).status,400);
  });
- await check('fresh basic PromptPay retries use the89 key and return settled rights if already paid',async()=>{
-  createResult=intent('download_89_v1');posted.length=0;const attempt='attempt_fixture_123';
+ await check('fresh basic PromptPay retries use the99 key and return settled rights if already paid',async()=>{
+  createResult=intent('download_99_v1');posted.length=0;const attempt='attempt_fixture_123';
   const out=await request('/api/payments/promptpay',{method:'POST',body:{packageId:'119',jobId:'jobA'},headers:{'X-Checkout-Attempt':attempt}});
   assert.equal(out.status,200);assert.equal(out.data.ok,true);assert(out.data.unlockedJobIds.includes('jobA'));
-  assert.equal(posted[0].key,crypto.createHash('sha256').update('idprom_promptpay_v1'+'walletA'+'download_89_v1'+attempt).digest('hex'));
+  assert.equal(posted[0].key,crypto.createHash('sha256').update('idprom_promptpay_v1'+'walletA'+'download_99_v1'+attempt).digest('hex'));
  });
  await check('owned polling reconciles a lost PromptPay webhook and duplicate webhook remains one grant',async()=>{
   const paid=intent('download_159_hair_v1',{id:'pi_lostcallback'});gateway.set('payment_intents/'+paid.id,paid);

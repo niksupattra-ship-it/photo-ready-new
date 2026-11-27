@@ -33,8 +33,8 @@ export function createPromptpayIntentStore(pool,{prepare=async()=>{}}={}){
    return transaction(walletId,scope,async c=>{
     // A stale client can retry an old basic checkout after the price cutover.
     // Keep its exact historical reservation/key even when its public alias now
-    // resolves to 89; never create a second charge for the same basic attempt.
-    const replayPackages=packageId==='download_89_v1'?['download_89_v1','download_119_v1']:[packageId];
+    // resolves to 99; never create a second charge for the same basic attempt.
+    const replayPackages=['download_99_v1','download_89_v1'].includes(packageId)?['download_99_v1','download_89_v1','download_119_v1']:[packageId];
     const replay=await c.query('SELECT * FROM promptpay_work_intents WHERE wallet_id=$1 AND package_id=ANY($2::text[]) AND attempt_key=$3 ORDER BY created_at,id LIMIT 1',[walletId,replayPackages,attempt]);
     if(replay.rows[0]){if(replay.rows[0].work_scope!==scope)throw Error('payment_attempt_mismatch');return replay.rows[0]}
     const active=await c.query('SELECT * FROM promptpay_work_intents WHERE wallet_id=$1 AND work_scope=$2 AND active',[walletId,scope]);
@@ -56,7 +56,7 @@ export function createPromptpayIntentStore(pool,{prepare=async()=>{}}={}){
    // Unbound rows need their original creation/recovery path, never this poller.
    return (await pool.query(`WITH pending AS (
     SELECT id FROM promptpay_work_intents WHERE active AND intent_id IS NOT NULL
-     AND package_id IN ('download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2','download_159_work_ai10_v3')
+     AND package_id IN ('download_99_v1','download_89_v1','download_119_v1','download_159_hair_v1','download_159_ai10_v2','download_159_work_ai10_v3')
     ORDER BY updated_at,id LIMIT 10 FOR UPDATE SKIP LOCKED
    ) UPDATE promptpay_work_intents r SET updated_at=clock_timestamp()
     FROM pending p WHERE r.id=p.id RETURNING r.*`)).rows;
