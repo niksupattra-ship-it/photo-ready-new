@@ -98,14 +98,14 @@ export function ResultInsigniaDrag({handles=[],onStart,onTransform,onEnd,busy=fa
       data-kind={id||kind} style={{left:left+'%',top:top+'%',width:width+'%',height:height+'%'}}>
       {active===(id||kind)&&<button type="button"
        className={'thai-result-insignia-move-arrow'+(left+width>75?' on-left':'')}
-       data-insignia-move="true" aria-label="ลากเพื่อย้ายเครื่องหมาย"
+       data-insignia-move="true" aria-label="ลากเพื่อย้ายเครื่องหมาย" title="ลากเพื่อย้าย"
        onKeyDown={e=>{
         const delta={ArrowUp:[0,-8],ArrowDown:[0,8],ArrowLeft:[-8,0],ArrowRight:[8,0]}[e.key];
         if(!delta)return;e.preventDefault();e.stopPropagation();const pinId=id||kind;
         onStart?.(pinId);onTransform?.(pinId,{dx:delta[0],dy:delta[1],scaleRatio:1});onEnd?.(pinId);
        }}>
-       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 3v18M3 12h18M8 7l4-4 4 4M8 17l4 4 4-4M7 8l-4 4 4 4M17 8l4 4-4 4"/>
+       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" d="M12 2v20M2 12h20M9 5l3-3 3 3M19 9l3 3-3 3M15 19l-3 3-3-3M5 15l-3-3 3-3"/>
        </svg>
       </button>}
 
