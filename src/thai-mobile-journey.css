@@ -730,41 +730,41 @@
 }
 
 /* Thai Step 2 background colors: compact Studio-backed swatches after chosen outfit. */
-.thai-mobile-flow-choice .thai-mobile-choice-background-colors{
+.thai-mobile-flow-choice .thai-mobile-choice-background-colors,.thai-mobile-result-background-panel .thai-mobile-choice-background-colors{
  display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 15px;
  padding:2px 0 1px;
 }
-.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option{
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option,.idstudio .thai-mobile-result-background-panel .thai-mobile-choice-background-option{
  display:flex;flex-direction:column;align-items:center;gap:6px;
  width:66px;min-height:65px;margin:0;padding:4px 2px;
  border:1px solid transparent;border-radius:11px;
  background:transparent;color:#604378;cursor:pointer;
  font-size:11px;font-weight:650;box-shadow:none;
 }
-.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option:hover:not(:disabled){
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option:hover:not(:disabled),.idstudio .thai-mobile-result-background-panel .thai-mobile-choice-background-option:hover:not(:disabled){
  background:#f3eafa;border-color:#e4cffb;
 }
-.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option.selected{
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option.selected,.idstudio .thai-mobile-result-background-panel .thai-mobile-choice-background-option.selected{
  border-color:#9d57dc;background:#f4eaff;color:#5921a6;
 }
-.thai-mobile-flow-choice .thai-mobile-choice-background-dot{
+.thai-mobile-flow-choice .thai-mobile-choice-background-dot,.thai-mobile-result-background-panel .thai-mobile-choice-background-dot{
  display:block;width:31px;height:31px;flex:none;
  border:1.5px solid #d4c6e7;border-radius:50%;
  box-shadow:0 1px 4px #36255319;
 }
-.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option.selected .thai-mobile-choice-background-dot{
+.idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option.selected .thai-mobile-choice-background-dot,.idstudio .thai-mobile-result-background-panel .thai-mobile-choice-background-option.selected .thai-mobile-choice-background-dot{
  outline:2px solid #8034cc;outline-offset:3px;
 }
-.thai-mobile-flow-choice .thai-mobile-choice-background-name{
+.thai-mobile-flow-choice .thai-mobile-choice-background-name,.thai-mobile-result-background-panel .thai-mobile-choice-background-name{
  display:block;font-size:10px;line-height:1.25;white-space:nowrap;
 }
 @media(max-width:720px){
- .thai-mobile-flow-choice .thai-mobile-choice-background-colors{gap:7px 9px}
- .idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option{
+ .thai-mobile-flow-choice .thai-mobile-choice-background-colors, .thai-mobile-result-background-panel .thai-mobile-choice-background-colors{gap:7px 9px}
+ .idstudio .thai-mobile-flow-choice .thai-mobile-choice-background-option, .idstudio .thai-mobile-result-background-panel .thai-mobile-choice-background-option{
   width:56px;min-height:60px;padding:4px 1px;font-size:10px;
  }
- .thai-mobile-flow-choice .thai-mobile-choice-background-dot{width:28px;height:28px}
- .thai-mobile-flow-choice .thai-mobile-choice-background-name{font-size:9.5px}
+ .thai-mobile-flow-choice .thai-mobile-choice-background-dot, .thai-mobile-result-background-panel .thai-mobile-choice-background-dot{width:28px;height:28px}
+ .thai-mobile-flow-choice .thai-mobile-choice-background-name, .thai-mobile-result-background-panel .thai-mobile-choice-background-name{font-size:9.5px}
 }
 
 /* Direct Studio access on the completed Thai photo, above checkout/download. */
@@ -833,3 +833,7 @@
 .thai-mobile-result-replace-photo svg{display:block;width:27px;height:27px}
 .idstudio .thai-mobile-flow .thai-mobile-result-tool-heading button{display:flex;align-items:center;justify-content:center;min-width:40px;font-size:24px;line-height:1;padding:4px 8px}
 .thai-mobile-choice-outfit-panel .thai-mobile-choice-tiles button.unavailable:disabled{opacity:.42;filter:grayscale(.8);cursor:not-allowed}
+
+.thai-mobile-result-background-inline{width:100%;min-width:0}
+.thai-mobile-result-background-panel{padding:12px;border:1px solid #e6dbfa;border-radius:0 0 14px 14px;background:#fbf8ff}
+.thai-mobile-result-tool-panel .thai-mobile-result-background-panel{border:0;border-radius:0;padding:8px 0}

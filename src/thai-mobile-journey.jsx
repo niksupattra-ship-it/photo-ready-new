@@ -25,6 +25,7 @@ export function ThaiMobileJourney({
  const [compactResult,setCompactResult]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:720px)').matches);
  useEffect(()=>{const mq=window.matchMedia('(max-width:720px)'),change=()=>setCompactResult(mq.matches);change();mq.addEventListener('change',change);return()=>mq.removeEventListener('change',change)},[]);
  const [resultHairOpen,setResultHairOpen]=useState(false);
+ const [resultBackgroundOpen,setResultBackgroundOpen]=useState(!compactResult);
  const [section,setSection]=useState(()=>hasResult?'result':'choose');
  const [category,setCategory]=useState('สมัครงาน');
  const [draftHair,setDraftHair]=useState('');
@@ -49,7 +50,7 @@ export function ThaiMobileJourney({
   if(srcRef.current!==sourcePreview){srcRef.current=sourcePreview;setDraftHair('');setSelectedStyle(false);setOutfitChosen(false);setChosenOutfitTemplate('');setDraftBackground('');setNotice('');setMoreSuits(false);setMoreHair(false);setResultInsigniaOpen(false);setResultHairOpen(false);setSection('choose')}
  },[sourcePreview]);
  useEffect(()=>{
-  if(hasResult&&!resultRef.current){setSection('result');setChangedHair(false);setNotice('')}
+  if(hasResult&&!resultRef.current){setSection('result');setResultBackgroundOpen(!compactResult);setChangedHair(false);setNotice('')}
   if(!hasResult&&resultRef.current){setResultInsigniaOpen(false);setResultHairOpen(false);setSection('choose')}
   resultRef.current=hasResult;
  },[hasResult]);
@@ -87,7 +88,7 @@ export function ThaiMobileJourney({
  const chooseHair=h=>{if(!h||(!hasResult&&!hairUnlocked)||busy)return;setDraftHair(h.id);setSelectedStyle(true);setNotice('');onHair?.(h.id);if(hasResult)setChangedHair(!h.cached)};
  const chooseSuit=t=>{if(!t||t.locked||!suitUnlocked||busy||suitLoading)return;setOutfitChosen(true);setChosenOutfitTemplate(t.template);setNotice('');onSuit?.(t)};
  const pickBackground=option=>{
-  if(!option||!outfitReady||busy||suitLoading)return;
+  if(!option||(!hasResult&&!outfitReady)||busy||suitLoading)return;
   setDraftBackground(option.id);setNotice('');onBackground?.(option);
  };
  const bgPalette={'default':'#8cbee9','light-blue':'#b9e5fb','deep-blue':'#2877d7','white':'#ffffff','periwinkle':'#b7b8ee'};
@@ -107,6 +108,17 @@ export function ThaiMobileJourney({
   setNotice('');
   onGenerateHair?.(draftHair);
  };
+ const resultBackgroundChoices=<div className="thai-mobile-result-background-panel" aria-label="เปลี่ยนพื้นหลังรูปที่สร้างแล้ว">
+  <div className="thai-mobile-choice-background-colors" role="group" aria-label="สีพื้นหลังรูปที่สร้างแล้ว">
+   {backgrounds.filter(b=>bgPalette[b.id]).map(b=><button key={b.id} type="button"
+    className={'thai-mobile-choice-background-option'+((draftBackground||currentBackground)===b.id?' selected':'')}
+    title={b.name} aria-label={b.name} aria-pressed={(draftBackground||currentBackground)===b.id}
+    disabled={!ready||busy||suitLoading} onClick={()=>pickBackground(b)}>
+    <span className="thai-mobile-choice-background-dot" style={{backgroundColor:bgPalette[b.id]}} aria-hidden="true"/>
+    <span className="thai-mobile-choice-background-name">{b.name}</span>
+   </button>)}
+  </div>
+ </div>;
  const preview=hasResult?<div className="thai-mobile-photo"><canvas ref={canvas} aria-label="รูปติดบัตรที่สร้างแล้ว"/>{watermarked&&<FittedPreviewWatermark/>}
   {governmentResult&&resultInsigniaOpen&&<ResultInsigniaDrag handles={insigniaHandles} busy={busy||!ready} onStart={onInsigniaStart} onTransform={onInsigniaTransform} onEnd={onInsigniaEnd}/>}
  </div>:
@@ -241,13 +253,14 @@ export function ThaiMobileJourney({
     <div className="thai-mobile-result-controls">
     {section==='result'?<>
      {compactResult&&<div className="thai-mobile-result-tool-slot">
-      {resultHairOpen||resultInsigniaOpen?<section className="thai-mobile-result-tool-panel" aria-label={resultHairOpen?'เลือกทรงผม':'เลือกเครื่องหมาย'}>
-       <header className="thai-mobile-result-tool-heading"><button type="button" aria-label="ย้อนกลับไปแถวเครื่องมือ" disabled={busy} onClick={()=>{setResultHairOpen(false);setResultInsigniaOpen(false)}}>←</button></header>
-       {resultHairOpen?resultHairChoices:<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">{resultInsignia}</div>}
+      {resultHairOpen||resultInsigniaOpen||resultBackgroundOpen?<section className="thai-mobile-result-tool-panel" aria-label={resultHairOpen?'เลือกทรงผม':resultBackgroundOpen?'เลือกพื้นหลัง':'เลือกเครื่องหมาย'}>
+       <header className="thai-mobile-result-tool-heading"><button type="button" aria-label="ย้อนกลับไปแถวเครื่องมือ" disabled={busy} onClick={()=>{setResultHairOpen(false);setResultInsigniaOpen(false);setResultBackgroundOpen(false)}}>←</button></header>
+       {resultHairOpen?resultHairChoices:resultBackgroundOpen?resultBackgroundChoices:<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">{resultInsignia}</div>}
       </section>:<>
-     <nav className="thai-mobile-result-icon-row" aria-label="เครื่องมือรูปที่เสร็จแล้ว" style={{'--result-action-count':governmentResult&&resultInsignia?4:3}}>
-      <button type="button" disabled={!ready||busy} aria-expanded={resultHairOpen} onClick={()=>{setResultHairOpen(v=>!v);setResultInsigniaOpen(false)}}><StudioChoiceIcon kind="hair"/><small>ทรงผม</small></button>
-      {governmentResult&&resultInsignia&&<button type="button" disabled={!ready||busy} aria-expanded={resultInsigniaOpen} onClick={()=>{setResultInsigniaOpen(v=>!v);setResultHairOpen(false)}}><StudioChoiceIcon kind="chest"/><small>เครื่องหมาย</small></button>}
+     <nav className="thai-mobile-result-icon-row" aria-label="เครื่องมือรูปที่เสร็จแล้ว" style={{'--result-action-count':governmentResult&&resultInsignia?5:4}}>
+      <button type="button" disabled={!ready||busy} aria-expanded={resultHairOpen} onClick={()=>{setResultHairOpen(v=>!v);setResultInsigniaOpen(false);setResultBackgroundOpen(false)}}><StudioChoiceIcon kind="hair"/><small>ทรงผม</small></button>
+      {governmentResult&&resultInsignia&&<button type="button" disabled={!ready||busy} aria-expanded={resultInsigniaOpen} onClick={()=>{setResultInsigniaOpen(v=>!v);setResultHairOpen(false);setResultBackgroundOpen(false)}}><StudioChoiceIcon kind="chest"/><small>เครื่องหมาย</small></button>}
+      <button type="button" disabled={!ready||busy} aria-expanded={resultBackgroundOpen} onClick={()=>{setResultBackgroundOpen(v=>!v);setResultHairOpen(false);setResultInsigniaOpen(false)}}><StudioChoiceIcon kind="background"/><small>พื้นหลัง</small></button>
       <button type="button" disabled={!ready||busy} onClick={onDownload}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg><small>ดาวน์โหลด</small></button>
       <button type="button" disabled={!ready||busy} onClick={onStudio}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="8" cy="6" r="2" fill="white"/><circle cx="16" cy="12" r="2" fill="white"/><circle cx="9" cy="18" r="2" fill="white"/></svg><small>ปรับในสตู</small></button>
      </nav>
@@ -259,6 +272,10 @@ export function ThaiMobileJourney({
       {resultInsigniaOpen&&!compactResult&&<div className="thai-mobile-result-insignia-panel" aria-label="เลือกและวางเครื่องหมายบนรูป">
        {resultInsignia}
       </div>}
+     </div>}
+     {!compactResult&&<div className="thai-mobile-result-background-inline">
+      <button type="button" className={'thai-mobile-result-insignia-launch'+(resultBackgroundOpen?' active':'')} aria-expanded={resultBackgroundOpen} disabled={!ready||busy} onClick={()=>setResultBackgroundOpen(v=>!v)}>{resultBackgroundOpen?'ปิดตัวเลือกพื้นหลัง':'เปลี่ยนพื้นหลัง'}</button>
+      {resultBackgroundOpen&&resultBackgroundChoices}
      </div>}
      <button type="button" className="thai-mobile-primary thai-mobile-result-download" disabled={!ready||busy} onClick={onDownload}><span aria-hidden="true">↓</span> ดาวน์โหลดรูป</button>
      <button type="button" className="thai-mobile-result-studio" disabled={!ready||busy} onClick={onStudio}><span aria-hidden="true">⚙</span> ปรับแต่งในสตูดิโอ</button>

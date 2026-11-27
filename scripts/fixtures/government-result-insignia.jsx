@@ -64,6 +64,7 @@ const collarPins=[{id:'garuda-pair',name:'มท.',left:'/assets/government-insi
  {id:'education-pair',name:'ศึกษาธิการ',left:'/assets/government-insignia/education-left.png',right:'/assets/government-insignia/education-right.png'}];
 const chestPins=[{id:'pao',name:'อบจ.',src:'/assets/government-insignia/chest-pao.png'},{id:'sao',name:'อบต.',sizeScale:1.42,src:'/assets/government-insignia/chest-sao.png'}];
 const ribbons=[{id:'2504-2514',name:'2504-2514',src:'/assets/ribbons/2504-2514.png'},{id:'2515',name:'2515',src:'/assets/ribbons/2515.png'}];
+const resultBackgrounds=query.has('backgrounds')?[['default','ฟ้า','#3687df'],['light-blue','ฟ้าอ่อน','#b9e5fb'],['deep-blue','น้ำเงิน','#2877d7'],['white','ขาว','#fff'],['periwinkle','ม่วงอ่อน','#b7b8ee']].map(([id,name,color])=>{const c=document.createElement('canvas');c.width=900;c.height=1200;const x=c.getContext('2d');x.fillStyle=color;x.fillRect(0,0,900,1200);return {id,name,src:c.toDataURL()}}):[];
 const templateInfo={id:'government-fixture',name:'ชุดข้าราชการ',title:'ชุดข้าราชการ',cat:'government',gender,template,preview:template,img:template,group:'ข้าราชการ'};
 window.completedLabOriginalSource=head.toDataURL();
 createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!studio}
@@ -75,7 +76,7 @@ createRoot(document.getElementById('root')).render(<StudioEditor initialEasy={!s
   ...(staleNeck?[{id:'stale-neck',name:'คอเก่า',kind:'neck-fit',hairHeadId:'fixture-head',source:stalePatch.toDataURL(),sourceFrame:{x:400,y:frame.y+frame.h*.18,w:100,h:40}}]:[])
  ]}
  templates={suitTest?suitTemplates:[templateInfo]} freeTemplatePaths={[template]} placement={{W:900,H:1200,uX:frame.x,uY:frame.y,uW:frame.w,uH:frame.h,templatePath:template}}
- collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={[]}
+ collarPins={collarPins} chestPins={chestPins} ribbons={ribbons} backgrounds={resultBackgrounds}
  maleHair={uploadedHair?[...THAI_FREE_MALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='male'&&!h.hidden&&h.interfaceLanguage!=='en'&&!THAI_FREE_MALE_HAIR_IDS.includes(h.id))]:(freshSuitTest||basic89)?[{id:'thai-male-auto',name:'ฟรีผมชาย',src:'/assets/seedream-hairstyles/previews/thai-male-auto.webp'}]:[]}
  femaleHair={uploadedHair?[...THAI_FREE_FEMALE_HAIR_IDS.map(id=>PRODUCTION_HAIR_CATALOG.find(h=>h.id===id)),...PRODUCTION_HAIR_CATALOG.filter(h=>h.gender==='female'&&!h.hidden&&h.interfaceLanguage!=='en'&&!THAI_FREE_FEMALE_HAIR_IDS.includes(h.id))]:(freshSuitTest||basic89)?[{id:'seedream-14',name:'ฟรีผมหญิง',src:'/assets/seedream-hairstyles/previews/14.webp'}]:[]}
  paidOutputIds={unpaid?[]:['fixture-government']} editableOutputIds={unpaid?[]:['fixture-government']} hasCredits={!unpaid} allOptionsAvailable paidHairAccess premiumHairCreditAvailable={pro}
