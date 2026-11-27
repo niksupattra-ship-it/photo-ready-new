@@ -1,8 +1,9 @@
+import {refreshLabReferences} from './female-lab-reference-sync.js';
 import {measureFemaleReference} from './female-reference-evidence-client.js';
 const form=document.getElementById('form'),panel=document.getElementById('guide-panel'),image=document.getElementById('guide-image'),status=document.getElementById('guide-status');
 let sequence=0,controller,url;
 export async function prepareEvidence(file){return (await measureFemaleReference(file)).evidence;}
-export async function prepareLabSubmission(data){data.set('femalePreplacedFace',JSON.stringify(await prepareEvidence(data.get('person'))));}
+export async function prepareLabSubmission(data){await refreshLabReferences(form,data);data.set('femalePreplacedFace',JSON.stringify(await prepareEvidence(data.get('person'))));}
 async function preview(){
  const current=++sequence;controller?.abort();controller=new AbortController();const active=controller;
  if(url)URL.revokeObjectURL(url);image.removeAttribute('src');image.hidden=true;

@@ -5,12 +5,13 @@ const labEndpoint=labConfig.endpoint||'/api/seedream-pro-lab';
 const modelLabel=labConfig.modelLabel||'Dola-Seedream-5.0-pro',sizeLabel=labConfig.sizeLabel||'1.5K';
 const storageKey=labConfig.storageKey||'seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
 const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
-function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;input.dispatchEvent(new Event('change'));}}orderLabels();}
+const catalogueSnapshot=()=>Object.fromEntries(['outfit','hair'].filter(k=>form.elements[k].dataset.catalogueId).map(k=>{const d=form.elements[k].dataset;return [k,{id:d.catalogueId,reference:d.catalogueReference,sha256:d.catalogueSha256}]}));
+function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;const saved=snapshot.catalogue?.[name];if(saved){input.catalogueFile=snapshot.files[name];input.dataset.catalogueId=saved.id;input.dataset.catalogueReference=saved.reference;input.dataset.catalogueSha256=saved.sha256;}input.dispatchEvent(new Event('change'));}}orderLabels();}
 const setBusy=value=>{busy=value;for(const control of form.elements)control.disabled=value;};
 const remember=id=>{try{id?sessionStorage.setItem(storageKey,id):sessionStorage.removeItem(storageKey)}catch{}};
 function orderLabels(){const order=$('order').value.split('-');for(const name of order){const label=form.querySelector(`[data-kind="${name}"]`);label.style.order=order.indexOf(name);label.querySelector('.number').textContent=labConfig.facePreparation?'ต้นฉบับ · '+labels[name]:`Image ${order.indexOf(name)+1} · ${labels[name]}`;}}
 $('order').addEventListener('change',orderLabels);
-for(const input of form.querySelectorAll('input[type=file]'))input.addEventListener('change',()=>{const img=input.parentElement.querySelector('img'),placeholder=img.nextElementSibling;if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);img.hidden=!input.files.length;placeholder.hidden=!!input.files.length;if(input.files.length){img.src=URL.createObjectURL(input.files[0]);img.dataset.url=img.src;}const selected=form.querySelector(`[data-selection="${input.name}"]`);if(selected)selected.textContent=input.dataset.catalogueName||input.files[0]?.name||'';delete input.dataset.catalogueName;});
+for(const input of form.querySelectorAll('input[type=file]'))input.addEventListener('change',()=>{const img=input.parentElement.querySelector('img'),placeholder=img.nextElementSibling;if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);img.hidden=!input.files.length;placeholder.hidden=!!input.files.length;if(input.files.length){img.src=URL.createObjectURL(input.files[0]);img.dataset.url=img.src;}const selected=form.querySelector(`[data-selection="${input.name}"]`);if(selected)selected.textContent=input.dataset.catalogueName||input.files[0]?.name||'';delete input.dataset.catalogueName;if(input.catalogueFile!==input.files[0]){delete input.catalogueFile;delete input.dataset.catalogueId;delete input.dataset.catalogueReference;delete input.dataset.catalogueSha256;}});
 const picker=$('catalogue-dialog'),grid=$('catalogue-grid'),pickerStatus=$('catalogue-status');let cataloguePromise,pickerKind='outfit',selectionSequence=0,selectionAbort=null;
 function renderCatalogue(catalogue){
  const gender=$('catalogue-gender').value,category=$('catalogue-category').value,search=$('catalogue-search').value.trim().toLocaleLowerCase();
@@ -25,7 +26,7 @@ async function selectCatalogueItem(item){
   if(sequence!==selectionSequence||!picker.open)return;
   const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer())),v=>v.toString(16).padStart(2,'0')).join('');if(hash!==item.sha256)throw Error('ไฟล์บนเว็บกำลังอัปเดต กรุณารีเฟรชแล้วเลือกใหม่');
   if(sequence!==selectionSequence||!picker.open)return;
-  const input=form.elements[kind],transfer=new DataTransfer();transfer.items.add(new File([blob],item.reference.split('/').at(-1),{type:blob.type}));input.files=transfer.files;input.dataset.catalogueName=item.name;input.dispatchEvent(new Event('change'));picker.close();
+  const input=form.elements[kind],transfer=new DataTransfer();transfer.items.add(new File([blob],item.reference.split('/').at(-1),{type:blob.type}));input.files=transfer.files;input.catalogueFile=input.files[0];input.dataset.catalogueId=item.id;input.dataset.catalogueReference=item.reference;input.dataset.catalogueSha256=item.sha256;input.dataset.catalogueName=item.name;input.dispatchEvent(new Event('change'));picker.close();
  }catch(error){if(sequence===selectionSequence&&picker.open)pickerStatus.textContent=error.message||'เลือกไฟล์ไม่สำเร็จ';}finally{if(selectionAbort===controller){selectionAbort=null;referenceLoading=false;if(!busy)go.disabled=false;for(const button of grid.querySelectorAll('button'))button.disabled=false;}}
 }
 async function openCatalogue(kind){
@@ -62,9 +63,10 @@ async function poll(id,snapshot){
 check.onclick=()=>activeId&&poll(activeId,null);
 form.addEventListener('submit',async event=>{
  event.preventDefault();if(busy||referenceLoading)return;
- const data=new FormData(form),id=crypto.randomUUID(),snapshot={prompt:data.get('prompt'),order:data.get('order'),files:Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]))};data.append('requestId',id);activeId=id;remember(id);setBusy(true);status.textContent='กำลังส่งภาพ…';
+ const data=new FormData(form),id=crypto.randomUUID(),snapshot={prompt:data.get('prompt'),order:data.get('order'),catalogue:catalogueSnapshot(),files:Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]))};data.append('requestId',id);activeId=id;remember(id);setBusy(true);status.textContent='กำลังส่งภาพ…';
  try{
   if(labConfig.facePreparation){status.textContent='กำลังเตรียมใบหน้าสำหรับภาพหลัก…';const {prepareLabSubmission}=await import(labConfig.guideModule||'./female-lab-guide.js');try{await prepareLabSubmission(data);}catch(error){activeId=null;remember(null);setBusy(false);throw error;}status.textContent='กำลังส่งภาพ…';}
+  snapshot.files=Object.fromEntries(Object.keys(labels).map(name=>[name,data.get(name)]));snapshot.catalogue=catalogueSnapshot();
   const response=await fetch(labEndpoint,{method:'POST',body:data,signal:AbortSignal.timeout(60000)});
   if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ส่งภาพไม่สำเร็จ');}
   const result=await response.json();if(result.id!==id)throw Error('ยังยืนยันงานไม่ได้ กรุณากดตรวจผลอีกครั้ง');
