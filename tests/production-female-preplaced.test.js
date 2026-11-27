@@ -61,8 +61,25 @@ test('new female provider failures never retry or perform legacy generation',asy
 test('frontend-safe evidence stays small and production submission recovery remains stable',async()=>{
  assert.equal(PRODUCTION_FEMALE_V9_PROMPT,femaleFullLabPrompt());
  const generation=await readFile(root+'female-exact-reference-request.js','utf8');
- assert(generation.includes("from './production-female-v9-prompt.js'"));assert(!generation.includes("from './female-full-lab-prompt.js'"));
+ assert(generation.includes("from './production-female-skin-prompt.js'"));assert(!generation.includes("from './female-full-lab-prompt.js'"));
  assert(JSON.stringify(evidence).length<12000);assert.deepEqual(parseFemaleFaceEvidence(JSON.stringify(evidence)),evidence);
  const source=await readFile(root+'src/main.jsx','utf8');assert(source.includes("if(measured.femalePreplacedFace)fd.append('femalePreplacedFace'"));
- assert(source.includes('FEMALE_PREPLACED_PROMPT_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
+ assert(source.includes('FEMALE_LUMINOUS_PROMPT_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
+});
+
+
+test('new production skin finish changes only cosmetics/light, preserving v9 references and lab prompt',async()=>{
+ const {FEMALE_LUMINOUS_PROMPT_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {PRODUCTION_FEMALE_LUMINOUS_PROMPT,productionFemalePromptFor}=await import('../production-female-skin-prompt.js');
+ const old=PRODUCTION_FEMALE_V9_PROMPT,prompt=PRODUCTION_FEMALE_LUMINOUS_PROMPT;
+ const composition=s=>s.slice(0,s.indexOf('MAKEUP — THE ONLY FEMALE FINISH:'));
+ assert.equal(composition(prompt),composition(old));assert.equal(femaleFullLabPrompt(),old);
+ for(const term of ['skin wrinkles and fine lines','fine, subtle, evenly distributed photographic pores','softly diffused frontal softbox']){assert(prompt.includes(term),term);}
+ assert(!prompt.includes('Do not blur, diffuse, airbrush, denoise or globally smooth the skin.'));
+ assert.equal(productionFemalePromptFor(VERSION),old);
+ const calls=[],run=version=>processProductionPortrait({input,fields:{...fields,thaiWholeHeadGuideVersion:version},root,key:'inert',requestPortrait:createMakeupRequestAudit(async args=>{calls.push(args);return {png};},{requirePolicy:true}).requestPortrait,removeBackground:async()=>png});
+ await run(VERSION);await run(FEMALE_LUMINOUS_PROMPT_VERSION);
+ assert.equal(calls.length,2);assert.equal(calls[1].prompt,prompt);assert.equal(calls[1].femalePreplacedVersion,FEMALE_LUMINOUS_PROMPT_VERSION);
+ const before=seedreamReviewPayload(calls[0]),after=seedreamReviewPayload(calls[1]);
+ assert.deepEqual(before.image,after.image);assert.equal(after.model,before.model);assert.equal(after.size,before.size);
 });
