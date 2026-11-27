@@ -1,3 +1,4 @@
+import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
 import {readFileSync} from 'node:fs';
 import {createPortraitOperation} from '../src/portrait-operation.js';
 import {test} from 'node:test';
@@ -82,12 +83,14 @@ test('Thai finished-photo hair click restores immediately instead of creating a 
 test('restored old hair contracts remain viewable but cannot be reused as the newly corrected hairstyle',()=>{
  const source=new File(['original'],'source.png'),template='/assets/government-uniforms/female-operational.png',current='thai-female-exact-three-ref-flash-v8-hair-replacement';
  let remembered=0,saved={jobId:'old',master:Object.assign(new Blob(['old long hair']),{idpromMakeupPolicyVersion:'thai-female-exact-three-ref-flash-v7-luminous-skin'})};
- const env={firstUploadedPhotoRef:{current:source},editCache:{current:{master:saved.master,lock:{templatePath:template}}},isFreeFemaleHair:()=>false,hairResultMode:()=> 'female',englishPreviewEnabled:()=>false,isThaiOutfitPath:()=>true,FEMALE_EXACT_PROMPT_VERSION:current,rememberHairResult:()=>{remembered++;},portraitFinishChoice,fullPortraitHairHistoryRef:{current:{find:()=>saved}},hairResultScope:()=> 'owner',hairResultKey:()=> 'key',THAI_COLLARLESS_VERSION:'collar',activeUniformTemplate:template};
+ const env={FEMALE_CURRENT_PROMPT_CACHE_KEY,firstUploadedPhotoRef:{current:source},editCache:{current:{master:saved.master,lock:{templatePath:template}}},isFreeFemaleHair:()=>false,hairResultMode:()=> 'female',englishPreviewEnabled:()=>false,isThaiOutfitPath:()=>true,FEMALE_EXACT_PROMPT_VERSION:current,rememberHairResult:()=>{remembered++;},portraitFinishChoice,fullPortraitHairHistoryRef:{current:{find:()=>saved}},hairResultScope:()=> 'owner',hairResultKey:()=> 'key',THAI_COLLARLESS_VERSION:'collar',activeUniformTemplate:template};
  const restore=extract(' const rememberRestoredHairResult=',' const restoreHairResultRights=','rememberRestoredHairResult',env);
  restore({hairId:'seedream-05',portraitMode:'female',jobId:'old'});assert.equal(remembered,0);
  const lookup=extract(' const cachedFullPortraitResult=',' const canReuseHair=','cachedFullPortraitResult',env);
  assert.equal(lookup('seedream-05','female','makeup',template),null);
- saved.master.idpromMakeupPolicyVersion=current;assert.equal(lookup('seedream-05','female','makeup',template),saved);
+ saved.master.idpromMakeupPolicyVersion=current;assert.equal(lookup('seedream-05','female','makeup',template),null,'An old completed job without prompt provenance must not be stamped as current');
+ saved.master.idpromFemalePromptCacheKey=FEMALE_CURRENT_PROMPT_CACHE_KEY;assert.equal(lookup('seedream-05','female','makeup',template),saved);
+ saved.master.idpromFemalePromptCacheKey='previous-prompt';assert.equal(lookup('seedream-05','female','makeup',template),null);
  saved.master.idpromMakeupPolicyVersion='older';env.englishPreviewEnabled=()=>true;assert.equal(lookup('seedream-05','female','makeup',template),saved);
 });
 
