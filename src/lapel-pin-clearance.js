@@ -1,13 +1,13 @@
 // Read-only fabric evidence. Test the complete native badge footprint plus
 // clearance, not a few white centre pixels which can miss a pale seam.
-export function clearLapelPins(image,frame,collar){
+export function clearLapelPins(image,frame,collar,{extraMargin=0,balanced=false}={}){
  const {data,width,height}=image,span=frame.w,bw=span*collar.width;
  if(!data||data.length!==width*height*4||bw<3)return {collar,clear:false};
- const rx=bw*.72,ry=bw*.90,step=Math.max(1,Math.round(span/500));
+ const step=Math.max(1,Math.round(span/500));
  const delta=Math.max(1,Math.round(span*.004));
  const light=(x,y)=>{x=Math.round(x);y=Math.round(y);if(x<2||y<2||x>=width-2||y>=height-2)return null;const i=(y*width+x)*4;return data[i+3]>=190?[data[i],data[i+1],data[i+2]]:null};
  const safe=(x,y,side)=>{
-  const sx=side===0?bw*.9:rx,sy=side===0?bw*1.1:ry,contrast=side===0?6:11;
+  const margin=bw*extraMargin,sx=bw*((side===0||balanced)?0.9:0.72)+margin,sy=bw*((side===0||balanced)?1.1:.9)+margin,contrast=(side===0||balanced)?6:11;
   for(let dy=-sy;dy<=sy;dy+=step)for(let dx=-sx;dx<=sx;dx+=step){
    const p=light(x+dx,y+dy);if(!p||Math.min(...p)<170||Math.max(...p)-Math.min(...p)>55)return false;
    const lum=p.reduce((a,b)=>a+b,0)/3;
@@ -37,4 +37,14 @@ export function clearLapelPins(image,frame,collar){
  }
  if(!best)return {collar,clear:false};
  return {collar:{...collar,left:(best.pair[0].x-frame.x)/span,right:(best.pair[1].x-frame.x)/span,y:(best.y-frame.y)/frame.h},clear:true};
+}
+
+// Final finished-photo placement: slightly smaller pins, lifted away from the
+// lower lapel edge, then validate both complete footprints against pale seams.
+export function refineLapelCollarFit(image,fit){
+ if(fit?.collarType!=='lapel'||!fit.preset?.collar||!fit.frame)return fit;
+ const original=fit.preset.collar,frame=fit.frame;
+ const collar={...original,width:original.width*.98,y:original.y-original.width*frame.w/frame.h*.12};
+ const result=clearLapelPins(image,frame,collar,{extraMargin:.12,balanced:true});
+ return {...fit,preset:{...fit.preset,collar:result.collar},needsReview:Boolean(fit.needsReview||!result.clear)};
 }

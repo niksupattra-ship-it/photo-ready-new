@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {clearLapelPins} from '../src/lapel-pin-clearance.js';
+import {clearLapelPins,refineLapelCollarFit} from '../src/lapel-pin-clearance.js';
 function sample(scale=1){
  const width=500*scale,height=600*scale,data=new Uint8ClampedArray(width*height*4);
  for(let i=0;i<data.length;i+=4)data.set([238,235,245,255],i);
@@ -32,4 +32,16 @@ test('left badge rejects a faint seam across its outer footprint while the alrea
  const {image,frame,collar}=sample();image.data.fill(255);
  for(let y=215;y<285;y++)for(let x=168;x<171;x++)image.data.set([247,247,247,255],(y*image.width+x)*4);
  const before=image.data.slice(),r=clearLapelPins(image,frame,collar);assert(r.clear);assert.notEqual(r.collar.left,collar.left);assert.equal(r.collar.right,collar.right);assert.equal(r.collar.y,collar.y);assert.deepEqual(image.data,before);
+});
+
+test('finished lapel pins shrink 2%, clear a pale lower edge and leave chest/ribbon placements unchanged',()=>{
+ const {image,frame,collar}=sample();image.data.fill(255);
+ for(let y=267;y<270;y++)for(let x=100;x<400;x++)image.data.set([247,247,247,255],(y*image.width+x)*4);
+ const chest={x:.25,y:.5,width:.07},ribbon={x:.75,top:.5,width:.2};
+ const fit={frame,preset:{collar,chest,ribbon},collarType:'lapel',needsReview:false},before=image.data.slice();
+ const result=refineLapelCollarFit(image,fit),c=result.preset.collar;
+ assert.equal(c.width,collar.width*.98);assert(c.y<collar.y);assert.equal(result.needsReview,false);
+ assert(frame.y+c.y*frame.h+frame.w*c.width*1.22<267,'Complete pin and clearance stay above the lower seam');
+ assert.equal(result.preset.chest,chest);assert.equal(result.preset.ribbon,ribbon);assert.deepEqual(image.data,before);
+ assert.equal(refineLapelCollarFit(image,{...fit,collarType:'stand'}).preset,fit.preset);
 });
