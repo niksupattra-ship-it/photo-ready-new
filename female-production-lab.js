@@ -38,6 +38,7 @@ export async function productionLabResult(original,removeBackground){
   .resize(900,1200,{fit:'fill'}).composite([{input:visible,left:destX,top:destY}]).png().toBuffer();
 }
 export function registerFemaleProductionLab(app,{removeBackground, ...options}={}){
+ app.get('/female-reference-evidence-client.js',(_req,res)=>res.type('application/javascript').sendFile(fileURLToPath(new URL('./female-reference-evidence-client.js',import.meta.url))));
  app.get(route+'/prompt',(_req,res)=>res.set('Cache-Control','no-store').type('text').send(productionLabPrompt()));
  app.get(route+'/face-contract.js',(_req,res)=>res.type('application/javascript').sendFile(fileURLToPath(new URL('./female-preplaced-face-contract.js',import.meta.url))));
  const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:2,fields:1,parts:3,fieldSize:12000}}).fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1}]);

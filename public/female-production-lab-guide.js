@@ -1,14 +1,7 @@
+import {measureFemaleReference} from './female-reference-evidence-client.js';
 const form=document.getElementById('form'),panel=document.getElementById('guide-panel'),image=document.getElementById('guide-image'),status=document.getElementById('guide-status');
-const cache=new WeakMap();let sequence=0,controller,url;
-export function prepareEvidence(file){
- if(!file?.size)return Promise.reject(Error('กรุณาเลือกรูปหน้าตรง'));
- if(!cache.has(file))cache.set(file,new Promise((resolve,reject)=>{
-  const worker=new Worker('/female-face-worker.js'),timer=setTimeout(()=>{worker.terminate();cache.delete(file);reject(Error('ตรวจหน้าเกินเวลา กรุณาลองใหม่'));},60000);
-  const done=()=>{clearTimeout(timer);worker.terminate();};
-  worker.onmessage=({data})=>{done();if(data.error||!data.evidence){cache.delete(file);reject(Error(data.error||'ไม่พบข้อมูลใบหน้า'));}else resolve(data.evidence);};
-  worker.onerror=()=>{done();cache.delete(file);reject(Error('โหลดเครื่องมือตรวจใบหน้าไม่สำเร็จ'));};worker.postMessage({blob:file,evidenceOnly:true});
- }));return cache.get(file);
-}
+let sequence=0,controller,url;
+export async function prepareEvidence(file){return (await measureFemaleReference(file)).evidence;}
 export async function prepareLabSubmission(data){data.set('femalePreplacedFace',JSON.stringify(await prepareEvidence(data.get('person'))));}
 async function preview(){
  const current=++sequence;controller?.abort();controller=new AbortController();const active=controller;

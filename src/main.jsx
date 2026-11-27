@@ -1,5 +1,5 @@
 import {FEMALE_AGE_LOCK_PRO_VERSION as FEMALE_EXACT_PROMPT_VERSION} from '../female-exact-prompt-policy.js';
-import {captureFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
+import {measureFemaleReference} from '../female-reference-evidence-client.js';
 import {FEMALE_HAIR_SUBMISSION_REVISION,sameHairIntentBeforeUpgrade,shouldRecoverHairSubmission} from './female-hair-submission.js';
 import {THAI_WHOLE_HEAD_GUIDE_VERSION,thaiFemaleGuideCacheRevision} from '../thai-whole-head-guide.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
@@ -3164,17 +3164,18 @@ async function measuredHairRootTarget(blob){
  }finally{URL.revokeObjectURL(url)}
 }
 async function replacementFaceIdentityBox(blob,{protectFeatures=false,returnEvidence=false,includeFemalePreparation=false}={}){
- const image=await decodedPortraitImage(blob),W=image.naturalWidth,H=image.naturalHeight;
- const face=await portraitFaceLandmarks(blob,image);
+ const shared=includeFemalePreparation?await measureFemaleReference(blob):null;
+ const image=shared?null:await decodedPortraitImage(blob),W=shared?.width??image.naturalWidth,H=shared?.height??image.naturalHeight;
+ const face=shared?.landmarks??await portraitFaceLandmarks(blob,image);
  const ids=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
  if(!face||ids.some(id=>!Number.isFinite(face[id]?.x)||!Number.isFinite(face[id]?.y)))throw Error('ตรวจใบหน้าในรูปใหม่ไม่สำเร็จ กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
  if(protectFeatures&&!portraitProtectedFeatures(face,W,H))throw Error('ตรวจรูปตาในต้นฉบับไม่ครบ กรุณาใช้รูปหน้าตรงที่เห็นตาชัด');
  const xs=ids.map(id=>face[id].x),ys=ids.map(id=>face[id].y);
  const box=[Math.max(0,Math.min(...xs)),Math.max(0,Math.min(...ys)),Math.min(1,Math.max(...xs)),Math.min(1,Math.max(...ys))];
  if((box[2]-box[0])*W<16||(box[3]-box[1])*H<16)throw Error('ใบหน้าในรูปใหม่เล็กเกินไป กรุณาใช้รูปที่เห็นใบหน้าชัดเจน');
- // V11 measurements come from exactly the same landmark analysis as the
- // identity crop. No second model load, AI generation, or face pixel rewrite.
- return returnEvidence?{box,geometry:measureThaiAdaptiveFace(face,W,H),...(includeFemalePreparation?{femalePreplacedFace:captureFemaleFaceEvidence(face,W,H)}:{})}:box;
+ // Female production and lab use the same worker, downsampling, landmarks
+ // and evidence. Other portrait flows retain their existing analysis.
+ return returnEvidence?{box,geometry:measureThaiAdaptiveFace(face,W,H),...(includeFemalePreparation?{femalePreplacedFace:shared.evidence}:{})}:box;
 }
 const englishHairPlacementCache=new WeakMap();
 function measureEnglishHairPlacement(blob){
