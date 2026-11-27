@@ -38,13 +38,14 @@ def drag(page,identifier,dx,dy,touch=False):
  page.wait_for_timeout(160)
 def resize(page,identifier):
  box=handle_box(page,identifier)
- # Select first, then drag the outside part of its SE grip. A touch inside
- # the real badge body intentionally starts a move, even when grips overlap.
+ # Select the badge, then pinch using the outside arrow without obscuring art.
  page.mouse.click(box['x']+box['width']/2,box['y']+box['height']/2)
- grip=page.locator(f'[data-kind="{identifier}"] [data-insignia-resize="se"]')
- expect(grip).to_be_visible();r=grip.bounding_box()
- x=r['x']+r['width']/2+8;y=r['y']+r['height']/2+8
- page.mouse.move(x,y);page.mouse.down();page.mouse.move(x+14,y+14,steps=5);page.mouse.up();page.wait_for_timeout(160)
+ arrow=page.locator(f'[data-kind="{identifier}"] [data-insignia-move]');expect(arrow).to_be_visible();r=arrow.bounding_box()
+ x=r['x']+r['width']/2;y=r['y']+r['height']/2;c=page.context.new_cdp_session(page)
+ c.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':x-8,'y':y,'id':1}]})
+ c.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':x-8,'y':y,'id':1},{'x':x+8,'y':y,'id':2}]})
+ c.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':x-14,'y':y,'id':1},{'x':x+14,'y':y,'id':2}]})
+ c.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]});c.detach();page.wait_for_timeout(160)
 
 with sync_playwright() as pw:
  browser=pw.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
