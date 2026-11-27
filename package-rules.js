@@ -9,6 +9,7 @@ export const PACKAGES=Object.freeze({
  'usd_single_490_v1':{price:4.90,priceCents:490,currency:'usd',g:0,h:0,name:'Single Image',requiresImage:true,fullEdit:true},
  'usd_premium_990_v1':{price:9.90,priceCents:990,currency:'usd',g:0,h:0,name:'Premium · 20 AI generations · 30 days',requiresImage:true,fullEdit:true,usdPremium:true},
  'download_119_v1':{price:119,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
+ 'download_99_v1':{price:99,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
  'download_89_v1':{price:89,g:0,h:0,name:'ปลดล็อกดาวน์โหลดงานนี้ ไม่มีลายน้ำ ทุกขนาด',requiresImage:true,fullEdit:true},
  '89_v4':{price:89,g:2,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 2 ครั้ง',requiresImage:false,fullEdit:true},
  '159_v6':{price:159,g:10,h:0,name:'ประมวลผลรูปหรือเปลี่ยนผมรวม 10 ครั้ง',requiresImage:false,fullEdit:true},
@@ -23,9 +24,9 @@ export const PACKAGES=Object.freeze({
  '199':{price:199,g:2,h:3,legacy:true}
 });
 export function packageFor(id){const p=PACKAGES[String(id)];if(!p)throw Error('invalid_package');return p;}
-// Fresh basic purchases use the current 89-baht offer. Frozen 119-baht
+// Fresh basic purchases use the current 99-baht offer. Frozen 89/119-baht
 // reservations and receipts still resolve through packageFor, never this alias.
-export function checkoutPackage(id){const key=['159','download_159_work_ai10_v3'].includes(String(id))?'download_159_work_ai10_v3':String(id)==='download_159_hair_v1'?'download_159_hair_v1':['89','download_89_v1','119','download_119_v1'].includes(String(id))?'download_89_v1':null;if(!key)throw Error('invalid_package');return {id:key,...packageFor(key)}}
+export function checkoutPackage(id){const key=['159','download_159_work_ai10_v3'].includes(String(id))?'download_159_work_ai10_v3':String(id)==='download_159_hair_v1'?'download_159_hair_v1':['99','download_99_v1','89','download_89_v1','119','download_119_v1'].includes(String(id))?'download_99_v1':null;if(!key)throw Error('invalid_package');return {id:key,...packageFor(key)}}
 export function remaining(row){return Number(row?.generation_remaining||0)+Number(row?.hair_remaining||0);}
 
 

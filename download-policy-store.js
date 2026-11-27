@@ -129,7 +129,7 @@ export function createDownloadPolicy(pool,{prepareSavedWorks=async()=>{}}={}){
   async basicThaiAiWork(wallet,work){
    if(!wallet||!work)return null;await ready();
    const receipt=await pool.query(`SELECT 1 FROM download_payment_receipts r WHERE r.wallet_id=$1 AND r.work_scope=$2
-    AND r.package_id='download_89_v1' AND NOT r.overlap AND r.refund_status='not_required'
+    AND r.package_id IN ('download_99_v1','download_89_v1') AND NOT r.overlap AND r.refund_status='not_required'
     AND NOT EXISTS(SELECT 1 FROM thai_work_ai_grants g WHERE g.wallet_id=$1 AND g.work_id=$2) LIMIT 1`,[wallet,work]);
    if(!receipt.rowCount)return null;
    const paid=await pool.query(`SELECT DISTINCT COALESCE(j.fields->>'neckOutfitReferencePath',j.fields->>'outfitReferencePath','') AS template
