@@ -1,5 +1,5 @@
 import {PRODUCTION_FEMALE_V9_PROMPT} from './production-female-v9-prompt.js';
-import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION} from './female-exact-prompt-policy.js';
+import {FEMALE_PREPLACED_PROMPT_VERSION,FEMALE_LUMINOUS_PROMPT_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION,FEMALE_REAR_HAIR_VERSION} from './female-exact-prompt-policy.js';
 
 // New production finish only. Keep the approved v9 composition and the lab intact.
 export const PRODUCTION_FEMALE_LUMINOUS_PROMPT=PRODUCTION_FEMALE_V9_PROMPT
@@ -11,7 +11,14 @@ export const PRODUCTION_FEMALE_LUMINOUS_PROMPT=PRODUCTION_FEMALE_V9_PROMPT
 export const PRODUCTION_FEMALE_HAIR_REPLACEMENT_PROMPT=PRODUCTION_FEMALE_LUMINOUS_PROMPT
  .replace('Image 3: The selected hairstyle only. Follow its hairline, parting, connected lengths, silhouette and texture; never borrow the reference model\'s face.', `Image 3: MANDATORY COMPLETE HAIRSTYLE REPLACEMENT. This selected reference is the ONLY authority for the final cut length, fringe, parting, silhouette, volume, curl and connected rear lengths. Replace the previous hairstyle completely; do not blend old and new styles. For a short cut or bob, reproduce the exact short lower edge visible in Image 3 and remove every old long panel behind the ears, down the neck, beside the shoulders and over the chest. Do not add a hidden long rear curtain beneath a short bob. For a gathered/updo reference, leave no hanging tail, long panel or bun absent from that reference. For a long reference, follow its actual ends without inventing extra lengths. Image 2 provides facial identity only and must NEVER set the hairstyle. Preserve the face, skin finish, prepared head scale, chin/collar alignment, garment, insignia and background. Final hair check: the cut, part, fringe and rear silhouette must match Image 3, with no remnants of the previous style. Never borrow the hair model's face.`);
 
+// Placement behind the garment overrides a reference's front-draped lengths;
+// retain the selected cut, texture and length without covering the uniform.
+export const PRODUCTION_FEMALE_REAR_HAIR_PROMPT=PRODUCTION_FEMALE_HAIR_REPLACEMENT_PROMPT
+ .replace('For a long reference, follow its actual ends without inventing extra lengths.', 'For a long reference, preserve its actual length and texture, routing all lengths behind the shoulders and torso rather than over the front of the garment.')
+ +'\nHAIR OCCLUSION — ALL HAIRSTYLES, INCLUDING ORIGINAL HAIR: Keep all hair behind the garment. The collar, lapels, both shoulders, shoulder boards, upper chest, embroidery and every insignia must remain fully visible and unobstructed. No strands, locks, braids, ponytails or long panels may lie over the front of the jacket, shirt, collar or shoulder boards. For long hair, route the lengths behind both shoulders and the back; do not shorten the chosen hairstyle to clear the garment. Short cuts and bobs retain their exact lower edge beside the face and neck, with their ends behind any overlapping collar or shoulder. This occlusion requirement takes priority over front-draped hair in any reference. Do not alter the face, garment, head scale or chin/collar relationship. Return hair already correctly occluded in the single finished portrait; no separate hair layer.';
+
 export function productionFemalePromptFor(version){
+ if(version===FEMALE_REAR_HAIR_VERSION)return PRODUCTION_FEMALE_REAR_HAIR_PROMPT;
  if(version===FEMALE_HAIR_REPLACEMENT_VERSION)return PRODUCTION_FEMALE_HAIR_REPLACEMENT_PROMPT;
  if(version===FEMALE_LUMINOUS_PROMPT_VERSION)return PRODUCTION_FEMALE_LUMINOUS_PROMPT;
  if(version===FEMALE_PREPLACED_PROMPT_VERSION)return PRODUCTION_FEMALE_V9_PROMPT;

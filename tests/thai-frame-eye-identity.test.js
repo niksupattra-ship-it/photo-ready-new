@@ -106,3 +106,19 @@ test('short native coats cannot override the whole-head cap to fill the hem at a
  }
  assert.equal(hash(pixels),before);
 });
+
+
+test('female full-body framing fills coat sides and clears actual hair crown without deforming pixels',()=>{
+ const w=300,h=400;
+ for(const crown of [0,12,60]){
+  const pixels=portrait(w,h,400);
+  for(let y=crown;y<65;y++)for(let x=115;x<185;x++)pixels[(y*w+x)*4+3]=255;
+  const before=hash(pixels),head={top:90,height:150,width:80,centerX:150};
+  const plan=planThaiBodyFrame(pixels,w,h,{head,fullBodyFrame:true,crownFromAlpha:true});
+  assert.equal(plan.crown,crown);assert(plan.headroom>=108-1e-8);
+  assert(plan.x+plan.coat.left*plan.scale<=0);
+  assert(plan.x+(plan.coat.right+1)*plan.scale>=900);
+  assert.equal(hash(pixels),before);
+  assert.equal(plan.scale,(900+4)/plan.coat.width);
+ }
+});

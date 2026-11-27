@@ -64,7 +64,7 @@ test('frontend-safe evidence stays small and production submission recovery rema
  assert(generation.includes("from './production-female-skin-prompt.js'"));assert(!generation.includes("from './female-full-lab-prompt.js'"));
  assert(JSON.stringify(evidence).length<12000);assert.deepEqual(parseFemaleFaceEvidence(JSON.stringify(evidence)),evidence);
  const source=await readFile(root+'src/main.jsx','utf8');assert(source.includes("if(measured.femalePreplacedFace)fd.append('femalePreplacedFace'"));
- assert(source.includes('FEMALE_HAIR_REPLACEMENT_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
+ assert(source.includes('FEMALE_REAR_HAIR_VERSION as FEMALE_EXACT_PROMPT_VERSION'));
 });
 
 
@@ -120,5 +120,27 @@ test('rebuilding each female outfit category recomputes its preplaced edit canva
    assert.deepEqual(Buffer.from(payload.image[0].split(',')[1],'base64'),expected);
    assert.deepEqual(Buffer.from(payload.image[3].split(',')[1],'base64'),outfit);return {png};
   }});assert.equal(calls,1);
+ }
+});
+
+
+test('rear-hair production version keeps one Flash request with original face and exact hair reference',async()=>{
+ const {FEMALE_REAR_HAIR_VERSION,FEMALE_HAIR_REPLACEMENT_VERSION}=await import('../female-exact-prompt-policy.js');
+ const {productionFemalePromptFor}=await import('../production-female-skin-prompt.js');
+ const prompt=productionFemalePromptFor(FEMALE_REAR_HAIR_VERSION);
+ assert(prompt.includes('HAIR OCCLUSION — ALL HAIRSTYLES, INCLUDING ORIGINAL HAIR'));
+ assert(!prompt.includes('For a long reference, follow its actual ends without inventing extra lengths.'));
+ const old=productionFemalePromptFor(FEMALE_HAIR_REPLACEMENT_VERSION);
+ assert(!old.includes('HAIR OCCLUSION'));
+ assert.equal(prompt.slice(prompt.indexOf('MAKEUP — THE ONLY FEMALE FINISH:'),prompt.indexOf('\nHAIR OCCLUSION')),old.slice(old.indexOf('MAKEUP — THE ONLY FEMALE FINISH:')));
+ for(const [id,file] of [['seedream-05','5.png'],['seedream-14','14.png'],['seedream-79','79.png'],['original',null]]){
+  let calls=0;
+  await processProductionPortrait({input,fields:{...fields,hairId:id,thaiWholeHeadGuideVersion:FEMALE_REAR_HAIR_VERSION,...(!file?{hairReferenceVersion:undefined}:{})},root,key:'inert',removeBackground:async()=>png,requestPortrait:createMakeupRequestAudit(async args=>{
+   calls++;const payload=seedreamReviewPayload(args);assert.equal(payload.prompt,prompt);assert.equal(payload.image.length,4);
+   assert.equal(payload.model,'dola-seedream-5-0-flash-260915');assert.equal(payload.size,'2K');
+   if(file)assert.deepEqual(Buffer.from(payload.image[1].split(',')[1],'base64'),await prepareFemaleFace(png,evidence));
+   assert.deepEqual(Buffer.from(payload.image[2].split(',')[1],'base64'),file?await readFile(root+'public/assets/seedream-hairstyles/references/'+file):png);
+   return {png};
+  },{requirePolicy:true}).requestPortrait});assert.equal(calls,1);
  }
 });

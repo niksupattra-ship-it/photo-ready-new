@@ -1,5 +1,5 @@
 import {currentGuideOutfit,femaleOutfitGuideRequest} from './portrait-guide-outfit.js';
-import {FEMALE_HAIR_REPLACEMENT_VERSION} from '../female-exact-prompt-policy.js';
+import {FEMALE_REAR_HAIR_VERSION} from '../female-exact-prompt-policy.js';
 import {retainedGovernmentInsignia,isGovernmentAccessory} from './government-insignia-retention.js';
 import {scanNewPortrait} from './photo-upload-scan.js';
 import {THAI_PORTRAIT_POLISH_VERSION} from '../thai-portrait-polish.js';
@@ -781,14 +781,15 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow){
    const heads=next.filter(l=>l.kind==='head'&&l.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION);
    const head=heads.length===1?heads[0]:null,asset=head&&map.get(head.id);
-   if(head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&head.portraitFramingVersion!=='seedream-lab-native-frame-v1'&&asset?.original&&!asset.warped){
+   const rearHairFrame=head?.hairReferenceContractVersion===FEMALE_REAR_HAIR_VERSION;
+   if((rearHairFrame||head?.thaiRealFaceVersion===THAI_REAL_FACE_VERSION&&head.portraitFramingVersion!=='seedream-lab-native-frame-v1' )&&asset?.original&&!asset.warped){
     const im=asset.original,c=Object.assign(document.createElement('canvas'),{width:im.width,height:im.height});
     try{
      const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(im,0,0);
      let bounds=null;try{bounds=await onMeasurePortraitHead?.(head.realUniformOriginalSource||head.source)}catch{}
      const opaqueMaskIds=new Set();
      for(const layer of next)if(layer.mask){const mask=map.get(layer.id)?.mask;if(mask){const data=mask.getContext('2d').getImageData(0,0,mask.width,mask.height).data;let opaque=true;for(let i=3;i<data.length;i+=4)if(data[i]!==255){opaque=false;break}if(opaque)opaqueMaskIds.add(layer.id)}}
-     const plan=planThaiBodyFrame(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height,{head:bounds,headScale:(head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||head.thaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||head.thaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||head.thaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6')?THAI_FEMALE_HEAD_SCALE:1,fullBodyFrame:head.thaiPortraitPolishVersion===THAI_PORTRAIT_POLISH_VERSION||head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||head.thaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||head.thaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6'}),fitted=fitThaiBodyScene(next,head,plan,c.width,c.height,{opaqueMaskIds});
+     const plan=planThaiBodyFrame(ctx.getImageData(0,0,c.width,c.height).data,c.width,c.height,{head:bounds,headScale:(head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||head.thaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-v1'||head.thaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||head.thaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6')?THAI_FEMALE_HEAD_SCALE:1,crownFromAlpha:rearHairFrame,fullBodyFrame:rearHairFrame||head.thaiPortraitPolishVersion===THAI_PORTRAIT_POLISH_VERSION||head.thaiFemaleHeadSizeVersion===THAI_FEMALE_HEAD_SIZE_VERSION||head.thaiFemaleHeadSizeVersion==='thai-pr143-female-head-90-full-body-v2'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-head-v3'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-new-neck-v4'||head.thaiFemaleHeadSizeVersion==='thai-english-makeup-garment-neck-v5'||head.thaiFemaleHeadSizeVersion==='thai-frontal-head-neck-v6'}),fitted=fitThaiBodyScene(next,head,plan,c.width,c.height,{opaqueMaskIds});
      if(fitted!==next){next=fitted;for(const l of next){const a=map.get(l.id);if(a&&a.sourceFrame!==l.sourceFrame)map.set(l.id,{...a,sourceFrame:l.sourceFrame,bounds:null,thumbnail:null,dirty:true})}}
     }finally{c.width=c.height=1}
    }
@@ -1870,7 +1871,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const currentFinish=portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle,sourcePhoto?.idpromFemaleEyeStyle);
   const finish=mode==='female'?'makeup':'natural';
   const freeHair=appearanceKind==='makeup'?state.current.find(l=>l.kind==='hair-preview'&&l.hairHeadId===head.id&&isFreeFemaleHair(l.hairId)&&l.hairRole!=='back'):null;
-  if((englishFlow||mode!=='female'||head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||head.hairReferenceContractVersion===FEMALE_HAIR_REPLACEMENT_VERSION)&&head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setThaiPendingHair(null);setTool('move');return}
+  if((englishFlow||mode!=='female'||head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION||head.hairReferenceContractVersion===FEMALE_REAR_HAIR_VERSION)&&head.hairPolicyVersion===(mode==='female'?HAIR_DESIGN_VERSION+'-female-reference-v1':HAIR_DESIGN_VERSION)&&(head.hairId||'')===(id||'')&&(head.portraitMode||portraitMode)===mode&&currentFinish===finish&&(mode!=='female'||finish!=='natural'||head.naturalStudioSkinVersion===NATURAL_STUDIO_SKIN_VERSION)&&(mode!=='female'||hasOriginalPortraitAiFinish(head,finish))&&!(appearanceKind==='makeup'&&portraitMakeupNeedsUpdate(head))){setSelected(head.id);setSelectedHair(freeHair?.hairId||id||'');setThaiPendingHair(null);setTool('move');return}
   // A previously generated full outfit must switch to the editable native
   // outfit/head workflow once the Thai outfit quota is exhausted.
   if(!englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&!canRestoreHair(id,mode,finish)&&await thaiManualAfterOutfitQuota()){

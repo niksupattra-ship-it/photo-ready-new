@@ -10,6 +10,7 @@ with sync_playwright() as p:
   result=page.evaluate('''async()=>{
    const source=(await import('/src/main.jsx?raw')).default;
    const {planThaiBodyFrame}=await import('/src/thai-body-framing.js');
+   const {FEMALE_REAR_HAIR_VERSION:FEMALE_EXACT_PROMPT_VERSION}=await import('/female-exact-prompt-policy.js');
    const {THAI_REAL_FACE_VERSION}=await import('/thai-real-face-policy.js');
    const {THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE}=await import('/thai-female-head-size.js');
    const {THAI_PORTRAIT_POLISH_VERSION}=await import('/thai-portrait-polish.js');
@@ -23,11 +24,17 @@ with sync_playwright() as p:
    const blob=await canvasPng(native);blob.idpromPortraitComposition='en-outfit-body-v1';
    const digest=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await b.arrayBuffer())),n=>n.toString(16).padStart(2,'0')).join('');
    const before=await digest(blob);
-   const env={THAI_PORTRAIT_POLISH_VERSION,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,planThaiBodyFrame,THAI_REAL_FACE_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head-portrait-v1',decodedPortraitImage,canvasFor,canvasPng,measureThaiBodyGeometry:async()=>({nativeHead:{left:315,right:585,top:175,bottom:525,width:270,height:350,centerX:450}})};
+   const env={FEMALE_EXACT_PROMPT_VERSION,THAI_PORTRAIT_POLISH_VERSION,THAI_FEMALE_HEAD_SIZE_VERSION,THAI_FEMALE_HEAD_SCALE,planThaiBodyFrame,THAI_REAL_FACE_VERSION,ENGLISH_BODY_PORTRAIT_VERSION:'en-outfit-body-v1',ENGLISH_HEAD_PORTRAIT_VERSION:'en-head-portrait-v1',decodedPortraitImage,canvasFor,canvasPng,measureThaiBodyGeometry:async()=>({nativeHead:{left:315,right:585,top:175,bottom:525,width:270,height:350,centerX:450}})};
    const start=source.indexOf('async function composePortrait('),end=source.indexOf(" const [bg,uniformImg]=",start);
    const compose=Function('env','with(env){'+source.slice(start,end)+'};return composePortrait}')(env);
    const renderStart=source.indexOf('async function renderAdjustedFinal('),body=source.indexOf(' if(headMasterBlob.idpromPortraitComposition===ENGLISH_BODY_PORTRAIT_VERSION)',renderStart),renderEnd=source.indexOf(' // V80 MASTER-RESOLUTION COMPOSITE:',body);
    const render=Function('env','with(env){return async(headMasterBlob,lock,adjust,backgroundPath=null,liveCanvas=null,studioLayers=null)=>{'+source.slice(body,renderEnd)+'}}')(env);
+   blob.idpromMakeupPolicyVersion=FEMALE_EXACT_PROMPT_VERSION;
+   blob.idpromEnglishFramingVersion='seedream-lab-native-frame-v1';
+   const femaleFit=await compose(blob,{scale:1,x:0,y:0},'/assets/government-uniforms/female-operational.png');
+   const femalePlan=planThaiBodyFrame(ctx.getImageData(0,0,900,1200).data,900,1200,{fullBodyFrame:true,crownFromAlpha:true});
+   if(Math.abs(femaleFit.lock.scale-femalePlan.scale)>1e-8||Math.abs(femaleFit.lock.hY-femalePlan.y)>1e-8)throw Error('Female native-frame output bypassed side-fill/crown placement');
+   delete blob.idpromMakeupPolicyVersion;delete blob.idpromEnglishFramingVersion;
    const old=await compose(blob),legacy=await render(blob,old.lock,{scale:1,x:0,y:0});
    blob.idpromThaiRealFaceVersion=THAI_REAL_FACE_VERSION;blob.idpromThaiPortraitPolishVersion=THAI_PORTRAIT_POLISH_VERSION;
    const fit=await compose(blob),framed=await render(blob,fit.lock,{scale:1,x:0,y:0});
