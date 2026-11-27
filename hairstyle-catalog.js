@@ -3,6 +3,8 @@ import {ENGLISH_FEMALE_HAIR_CATALOG,englishFemaleHairInstruction} from './englis
 import {ENGLISH_MALE_HAIR_CATALOG,englishMaleHairInstruction} from './english-male-hair-catalog.js';
 // Current hairstyle choices; reference PNGs are never replaced by face previews.
 export const PRODUCTION_HAIR_CATALOG=[
+ {id:'seedream-80',gender:'female',name:'ผมยาวแสกกลางใหม่',file:'80.png',src:'/assets/seedream-hairstyles/previews/80.webp'},
+ {id:'seedream-81',gender:'female',name:'ผมสั้นรวบเรียบใหม่',file:'81.png',src:'/assets/seedream-hairstyles/previews/81.webp'},
  {"id": "thai-male-auto", "gender": "male", "name": "ผมชายอัตโนมัติ", "promptOnly": true, "autoHair": "english-male", "src": "/assets/seedream-hairstyles/previews/thai-male-auto-formal.webp"},
  {"id": "seedream-40", "gender": "female", "name": "ทรงผมหญิง 1", "file": "40.png", "src": "/assets/seedream-hairstyles/previews/40.webp"},
  {"id": "seedream-79", "gender": "female", "name": "ผมรวบเรียบ", "file": "79.png", "src": "/assets/seedream-hairstyles/previews/79.webp"},
@@ -47,13 +49,14 @@ export function isTrialHairAllowed(id){return !id||id==='original'||Boolean(prod
 // be reused under a newly selected silhouette policy.
 // Thai first-generation defaults: use the first of the three selectable free cuts.
 // Retired non-selectable references are removed; saved completed pixels remain in work history.
-export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-14','seedream-42','seedream-79']);
+export const THAI_FREE_FEMALE_HAIR_IDS=Object.freeze(['seedream-80','seedream-81','seedream-79']);
 export const THAI_FREE_MALE_HAIR_IDS=Object.freeze(['thai-male-auto','seedream-36','seedream-28']);
 export const FIRST_GENERATION_FEMALE_HAIR=THAI_FREE_FEMALE_HAIR_IDS[0];
 export function firstGenerationHairFor(gender,thaiMale=false){return gender==='female'?FIRST_GENERATION_FEMALE_HAIR:gender==='male'&&thaiMale?THAI_FREE_MALE_HAIR_IDS[0]:''}
 
 export const HAIR_DESIGN_VERSION='selected-silhouette-v29-face-only-compact-source';
 const compact={
+ 'seedream-81':['gathered','sleek dark hair with a soft near-centre side part, smooth compact crown, sides swept behind the ears and fully gathered out of view; no hanging hair, fringe or visible bun'],
  'seedream-79':['gathered','sleek near-centre side part with the exact gentle diagonal crown sweep, dark hair lying close to the scalp and fully gathered invisibly behind the head, open forehead, clear ears and completely bare neck; no braids, fringe, visible bun, ponytail or hanging lengths'],
  'seedream-40':['gathered','sleek centre-parted hair swept close to the scalp, ends tucked invisibly behind the skull above the nape with no neck bun, open forehead, clean visible ears and no hanging rear lengths'],
  'seedream-36':['short','textured centre-parted male haircut with a soft M-shaped forehead opening, integrated short curtain fringe, naturally layered top and short tapered sides; retain the actual reference parting and fringe'],
@@ -68,6 +71,7 @@ const compact={
  'seedream-24':['bob','short textured chin-length bob with a light fringe'],
 };
 const longDesigns={
+ 'seedream-80':'long straight dark hair with a centre part, smooth crown and full rear lengths behind the shoulders, matching the exact selected reference ends',
  "seedream-42": "sleek straight dark hair with a precise centre part, a low compact crown, sides tucked behind both visible ears and long smooth rear panels ending at the exact reference length; no forehead fringe or added volume",
  "seedream-43": "straight dark brown hair with a slightly off-centre side part and a gentle diagonal crown sweep, both ears visible with sides tucked behind them, smooth rear panels and the exact inward-tapered reference ends; no forehead fringe or added volume",
  "seedream-38": "long smooth straight dark brown hair, precise middle part, broad softly swept crown and upper sides, open forehead, fuller side panels with ears partly visible and softly tapered inward-curving lower ends; match Image 2 exactly without extra volume",
