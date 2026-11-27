@@ -503,7 +503,7 @@ const aiFinishHandler=async(req,res)=>{
  let creditUse=req.preReservedCreditUse||null;
  try{
   const input=req.files?.image?.[0];
-  try{validateProductionPortrait(input,req.body)}catch(e){return res.status(400).send(e.message)}
+  try{validateProductionPortrait(input,req.body)}catch(e){return res.status(e.status||400).send(e.message)}
   if(req.files?.mask?.length)return res.status(400).send('ขั้นตอนใหม่ไม่ใช้ mask กรุณารีเฟรชหน้าเว็บ');
   if(!process.env.ARK_API_KEY)return res.status(500).send('ยังไม่ได้ตั้งค่า ARK_API_KEY บนเซิร์ฟเวอร์');
   if(!creditUse){creditUse=await requireCredit(req,res,req.body?.creditKind==='hairstyle'?'hairstyle':'ai-finish');if(!creditUse)return;}
@@ -624,7 +624,7 @@ app.post('/api/ai-jobs',(req,res,next)=>{
   const image=req.files?.image?.[0],mask=req.files?.mask?.[0],originalSource=req.files?.originalSource?.[0];
   if(!image)return res.status(400).json({error:'image_required'});
   logStage('upload_ready',{imageBytes:image.buffer.length,sourceBytes:originalSource?.buffer?.length||0,storedSource:req.is('application/json')!==false});
-  try{if(req.body?.studioSkinVersion==='studio-original-ai-v3'&&(req.body.femaleEyeStyle||'natural')!=='natural')throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนปรับแสงผิวล่าสุด');validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(400).json({error:'invalid_portrait',message:e.message})}
+  try{if(req.body?.studioSkinVersion==='studio-original-ai-v3'&&(req.body.femaleEyeStyle||'natural')!=='natural')throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้ขั้นตอนปรับแสงผิวล่าสุด');validateProductionPortrait(image,req.body);validateOriginalPortraitUpload(req.body,image,originalSource);if(mask)throw Error('ขั้นตอนใหม่ไม่ใช้ mask');if(originalSource&&(!originalSource.buffer?.length||!['image/png','image/jpeg','image/webp'].includes(originalSource.mimetype)))throw Error('กรุณาใช้ต้นฉบับ PNG, JPG หรือ WEBP')}catch(e){return res.status(e.status||400).json({error:e.code||'invalid_portrait',message:e.message})}
   if(req.body?.mode==='hair-inpaint'&&!mask)return res.status(400).json({error:'mask_required'});
   const submissionId=String(req.body?.submissionId||'');
   if(submissionId&&!/^[a-f0-9]{32}$/.test(submissionId))return res.status(400).json({error:'invalid_submission_id'});
