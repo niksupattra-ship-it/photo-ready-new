@@ -1,3 +1,4 @@
+import {PORTRAIT_AI_OUTPUT_SIZE} from './seedream-pro-payload.js';
 import sharp from 'sharp';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
@@ -142,7 +143,7 @@ export async function generateJobOutfit({root,templatePath,image,head,placement,
  const reference=await sharp(template).flatten({background:'#ffffff'}).png().toBuffer();
  const faceOnly=await protectedJobHead(head,frame,width,height);
  const generated=await requestReviewSeedream({
-  key,prompt:OUTFIT_PROMPT,size:'2K',portrait:image,portraitMime:'image/png',
+  key,prompt:OUTFIT_PROMPT,size:PORTRAIT_AI_OUTPUT_SIZE,portrait:image,portraitMime:'image/png',
   hair:reference,identity:faceOnly
  });
  // Keep 3:4 camera coordinates without changing aspect ratio.

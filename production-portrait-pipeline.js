@@ -1,3 +1,4 @@
+import {PORTRAIT_AI_OUTPUT_SIZE} from './seedream-pro-payload.js';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 import {prepareFemaleLabForeground} from './female-lab-output.js';
 import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-portrait-prompt.js';
@@ -373,7 +374,7 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  let generationInput=portrait;
  if(preparedMakeup){
   await onStage('skin-prepare');
-  const preparedSkin=await requestPortrait({key,prompt:bounded?boundedPortraitPreparationPrompt():preparedNatural?naturalAiPreparationPrompt():originalAiClothedSkinPreparationPrompt(),size:'2K',portrait:input.buffer,portraitMime:input.mimetype,skinReference});
+  const preparedSkin=await requestPortrait({key,prompt:bounded?boundedPortraitPreparationPrompt():preparedNatural?naturalAiPreparationPrompt():originalAiClothedSkinPreparationPrompt(),size:PORTRAIT_AI_OUTPUT_SIZE,portrait:input.buffer,portraitMime:input.mimetype,skinReference});
   if(!preparedSkin?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_prepare_invalid'});
   generationInput={...portrait,buffer:preparedSkin.png,mimetype:'image/png'};
  }
@@ -405,14 +406,14 @@ FINAL CORRECTION FOR THIS SELECTED SIDE-PARTED GATHERED STYLE: From the front, s
  prompt+='\n'+selectedHairBoundaryInstruction(chosen,{portraitMode:selected.gender,english:englishBody,keepCurrentHair:fields.keepCurrentHair==='1',referenceBoard:compactHairBoard});
  if(chosen?.promptOnly)prompt+='\nFINAL INTERNAL PRESET LOCK: Apply the chosen standard hairstyle with low natural crown and centered part, no other hairstyle-reference image. Do not alter the uploaded customer face, expression, eyes, nose, lips, ears, jaw, scalp height, head size, natural facial proportions, skin, garment or framing. Keep any long lengths behind both shoulders; do not create hair on the outfit. This final hairstyle-only rule overrides generic reference-image terminology.';
  await onStage('generation');
- let result=await requestPortrait({key,prompt,size:englishBody?ENGLISH_BODY_OUTPUT_SIZE:completeNeck&&generationInput.neckCanvasSize||'2K',portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ let result=await requestPortrait({key,prompt,size:PORTRAIT_AI_OUTPUT_SIZE,portrait:generationInput.buffer,portraitMime:generationInput.mimetype,hair,identity,...(outfit?{outfit}:{}),...(skinReference?{skinReference}:{}),...(neckReference?{neckReference}:{}),...(neckShapeReference?{neckShapeReference}:{}),...(compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  if(preparedMakeup&&!result?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_finish_invalid'});
  if(!englishBody&&fields.studioSkinVersion===ORIGINAL_PORTRAIT_AI_POST_POLISH_VERSION&&needsOriginalAiSkinPolish({...fields,portraitMode:selected.gender})){
   await onStage('skin-finish');
   // Identity conditioning is an encoding/size conversion of the immutable
   // upload only. No source retouch, crop, skin blend or generated-face guide.
   const sourceIdentity=await sharp(input.buffer,{limitInputPixels:33554432}).rotate().resize({width:1024,height:1024,fit:'inside',withoutEnlargement:true}).png().toBuffer();
-  const polished=await requestPortrait({key,prompt:originalAiMakeupSkinPolishPrompt(fields.femaleEyeStyle),size:'2K',portrait:result.png,portraitMime:'image/png',identity:sourceIdentity,skinReference});
+  const polished=await requestPortrait({key,prompt:originalAiMakeupSkinPolishPrompt(fields.femaleEyeStyle),size:PORTRAIT_AI_OUTPUT_SIZE,portrait:result.png,portraitMime:'image/png',identity:sourceIdentity,skinReference});
   if(!polished?.png?.length)throw Object.assign(Error('สร้างรูปเมคอัพไม่สำเร็จ เก็บงานเดิมไว้'),{code:'original_makeup_polish_invalid'});
   result=polished;
  }
@@ -706,7 +707,7 @@ ${usesUnifiedThaiBodyGeometry(fields)?'':` PROPORTION CHECK: Measure cheek-to-ch
  prompt+=thaiSoftEyeMakeupInstruction(fields);
  prompt=applyFemaleFrontalContract(prompt,fields);
  prompt=applyThaiCameraPhotography(prompt,fields,measuredGarmentProportions);
- const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:templateBody?ENGLISH_TEMPLATE_BODY_SIZE:ENGLISH_BODY_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
+ const result=await requestPortrait({key,prompt,...(adaptiveComposition?{adaptiveComposition}:{}),...(usesThaiBodyGeometry(fields)?{singleAttempt:true}:{}),...(usesThaiRealFace(fields)?{thaiRealFaceVersion:fields.thaiRealFaceVersion}:{}),size:PORTRAIT_AI_OUTPUT_SIZE,portrait:templateBody&&!thaiSingleAi?compositionReference:englishGenerationInput.buffer,portraitMime:templateBody&&!thaiSingleAi?'image/png':englishGenerationInput.mimetype,hair:visualHairReference,identity:identityReference,outfit,...(outfitDetailReference?{outfitDetailReference}:{}),...(hairPlacementReference?{hairPlacementReference}:{}),...(!templateBody&&compositionReference?{compositionReference}:{}),...(makeupStudioReference?{makeupStudioReference}:{})});
  await onStage('matting');const matted=await removeBackground(result.png);await onStage('edges');
  const {png:transparent,alpha}=await preserveEnglishPortraitMatte(matted);
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait. Please try again.');
