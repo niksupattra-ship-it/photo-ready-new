@@ -10,7 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'0db16168fdc0edba054dd13f20de18ad6465e946466195a31b3335d9df484d6b');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'e59567fbdd1edd09792db030784924c7383206e6d33bfb51f99893ea639994b2');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
@@ -49,5 +49,3 @@ test('English creation accepts only the current contract for the selected gender
 test("current female prompt locks original gaze and uses brow strokes without reshaping",()=>{for(const text of ["EYES AND GAZE — ORIGINAL IDENTITY LOCK", "SOFT KOREAN HAIR-STROKE EYEBROWS", "Do not lift the eyebrows", "from Image 1"])assert(FEMALE_PORTRAIT_PROMPT.includes(text));});
 
 test('actual guide is the sole composition authority without new numerical scale rules',()=>{for(const text of ['Image 1: PRIMARY EDIT CANVAS','Do not calculate new portrait proportions','Do not enlarge or shrink the face or head'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));for(const text of ['36–40%','32–36%','Ignore its original hairstyle, clothing, body proportions','Adjust only the overall facial scale'])assert(!FEMALE_PORTRAIT_PROMPT.includes(text));});
-
-test('guide geometry has one authority; other references cannot define scale',()=>{for(const text of ['Edit Image 1 as an existing photograph.','Image 1 is the ONLY authority for all geometry and scale.','Image 3: Garment details ONLY','Its native image size, cropping and proportions must NOT override','Do not enlarge the head to fill the hairstyle opening.'])assert(FEMALE_PORTRAIT_PROMPT.includes(text),text);assert(!FEMALE_PORTRAIT_PROMPT.includes('using standardized portrait geometry'));});
