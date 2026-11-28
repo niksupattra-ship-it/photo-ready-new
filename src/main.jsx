@@ -1,4 +1,3 @@
-import {femaleDisplayPlacement} from '../female-display-placement.js';
 import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
 import {FEMALE_LAB_PROCESS_VERSION as FEMALE_EXACT_PROMPT_VERSION} from '../female-portrait-prompt.js';
 import {measureFemaleReference} from '../female-reference-evidence-client.js';
@@ -566,10 +565,6 @@ async function composePortrait(headBlob,adjust={scale:1,x:0,y:0},templatePath='/
   const image=await decodedPortraitImage(headBlob),w=image.naturalWidth||image.width,h=image.naturalHeight||image.height;
   let scale=Math.min(900/w,1200/h),hX=(900-w*scale)/2,hY=(1200-h*scale)/2;
   const completedLabFrame=headBlob.idpromMakeupPolicyVersion===FEMALE_EXACT_PROMPT_VERSION;
-  if(completedLabFrame){
-   const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
-   try{ctx.drawImage(image,0,0);const pose=femaleDisplayPlacement(ctx.getImageData(0,0,w,h).data,w,h);scale=pose.scale;hX=pose.x;hY=pose.y;}finally{native.width=native.height=1}
-  }
   const rearHairFrame=headBlob.idpromMakeupPolicyVersion==='thai-female-exact-three-ref-pro-v12-age-face-lock';
   if(!completedLabFrame&&(rearHairFrame||headBlob.idpromEnglishFramingVersion!=='seedream-lab-native-frame-v1'&&headBlob.idpromThaiRealFaceVersion===THAI_REAL_FACE_VERSION&&!headBlob.idpromThaiFemaleHeadSizeVersion&&!/female/i.test(templatePath))){
    const native=canvasFor(w,h),ctx=native.getContext('2d',{willReadFrequently:true});
