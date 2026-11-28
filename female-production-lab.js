@@ -32,5 +32,5 @@ export function registerFemaleProductionLab(app,{removeBackground, ...options}={
    res.type('png').send(await createFemaleLabBase(req.files.outfit[0].buffer,face));
   }catch{res.status(400).json({error:'เตรียมไกด์ไม่ได้ กรุณาใช้รูปหน้าตรงและเลือกชุดใหม่'});}
  }));
- registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:productionLabPayload,processResult:png=>completeFemaleLabResult(png,removeBackground)});
+ registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:productionLabPayload,processResult:(png,{files})=>completeFemaleLabResult(png,removeBackground,{outfit:files.outfit[0].buffer})});
 }

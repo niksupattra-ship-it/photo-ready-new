@@ -245,7 +245,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  // paired Makeup, reference boards or another generation.
  if(usesFemaleExactPrompt(fields)){
   const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
-  await onStage('matting');const foreground=await prepareFemaleLabForeground(result.png,removeBackground);await onStage('edges');return foreground;
+  await onStage('matting');const foreground=await prepareFemaleLabForeground(result.png,removeBackground,{outfit:await readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))});await onStage('edges');return foreground;
  }
  const requestedMaleAuto=requestedHair?.autoHair==='english-male';
  const chosen=requestedMaleAuto?null:requestedHair;
