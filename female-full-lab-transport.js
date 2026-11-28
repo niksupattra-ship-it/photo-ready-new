@@ -2,6 +2,8 @@ import multer from 'multer';
 import {createHash} from 'node:crypto';
 import {femaleRequestProof,logFemaleRequestProof} from './female-request-proof.js';
 
+import {requestReviewSeedream} from './seedream-review-transport.js';
+import {FEMALE_LAB_PROCESS_VERSION} from './female-portrait-prompt.js';
 import {proLabPayload} from './seedream-pro-lab.js';
 const endpoint='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
 
@@ -34,6 +36,14 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
    if(proof)logFemaleRequestProof('lab',proof,{requestId:id});
    res.status(202).json({id});
    void(async()=>{try{
+    if(proof){
+     // Both current female labs and production use exactly one provider transport.
+     // Lab credentials and jobs remain isolated from production wallet data.
+     const {png}=await requestReviewSeedream({key,prompt:payload.prompt,preparedFemalePayload:payload,femalePreplacedVersion:FEMALE_LAB_PROCESS_VERSION,singleAttempt:true},{fetchImpl,timeoutMs,logProof:false});
+     job.png=await processResult(png,{files:req.files,fields:req.body,payload});
+     logFemaleRequestProof('lab',proof,{phase:'result',requestId:id,png,delivered:job.png});
+     return;
+    }
     const response=await fetchImpl(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body,signal:AbortSignal.timeout(timeoutMs)});
     const result=await response.json();
     // Provider errors may echo input. Never include credentials in responses/logs.
