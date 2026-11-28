@@ -42,7 +42,7 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
     if(typeof encoded!=='string')throw Error('AI ไม่ได้ส่งภาพ PNG กลับมา');
     const png=Buffer.from(encoded,'base64');
     if(!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw Error('AI ส่งไฟล์ภาพไม่สมบูรณ์');
-    job.png=await processResult(png);
+    job.png=await processResult(png,{files:req.files,fields:req.body,payload});
     if(proof)logFemaleRequestProof('lab',proof,{phase:'result',requestId:id,png,delivered:job.png});
    }catch(error){job.error=error?.name==='TimeoutError'?'AI ใช้เวลาเกิน 4 นาที':String(error?.message||'เชื่อมต่อ AI ไม่สำเร็จ').replaceAll(key,'[redacted]').slice(0,800);}})();
   }catch{res.status(400).json({error:'กรุณาตรวจ Prompt ลำดับภาพ และไฟล์ภาพทั้ง 3 รูป'});}

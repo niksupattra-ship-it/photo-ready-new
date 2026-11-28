@@ -70,9 +70,9 @@ test('new production uses the complete lab foreground process and needs no secon
  let calls=0,mattes=0;
  const main=await processProductionPortrait({input,fields:{...fields,thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION},root,key:'inert',removeBackground:async()=>{mattes++;return mask},requestPortrait:createMakeupRequestAudit(async()=>{calls++;return {png};},{requirePolicy:true}).requestPortrait});
  assert.equal(calls,1);assert.equal(mattes,1);
- const expected=await prepareFemaleLabForeground(png,remove);assert.deepEqual(main,expected);
+ const nativeOutfit=await readFile(root+'public'+fields.neckOutfitReferencePath);const expected=await prepareFemaleLabForeground(png,remove,{outfit:nativeOutfit});assert.deepEqual(main,expected);
  const size=await sharp(main).metadata();assert.equal(size.width,900);assert.equal(size.height,1200);
- assert.deepEqual(await compositeFemaleLabBackground(main),await productionLabResult(png,remove),'The same AI result produces identical finished lab pixels');
+ assert.deepEqual(await compositeFemaleLabBackground(main),await productionLabResult(png,remove,{outfit:nativeOutfit}),'The same AI result produces identical finished lab pixels');
 });
 
 test('valid high-detail source over SVG attribute limit still prepares exact face guide',async()=>{
