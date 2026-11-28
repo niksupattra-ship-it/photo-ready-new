@@ -7,16 +7,16 @@ import {FEMALE_PORTRAIT_PROMPT,FEMALE_LAB_PROCESS_VERSION} from '../female-portr
 import {createMakeupRequestAudit} from '../makeup-generation-audit.js';
 const png=await sharp({create:{width:16,height:16,channels:3,background:'#abc'}}).png().toBuffer();
 const image='data:image/png;base64,'+png.toString('base64');
-const payload={model:'dola-seedream-5-0-flash-260915',prompt:FEMALE_PORTRAIT_PROMPT,image:[image,image],size:'2K',response_format:'b64_json',output_format:'png',watermark:false};
+const payload={model:'dola-seedream-5-0-flash-260915',prompt:FEMALE_PORTRAIT_PROMPT,image:[image,image,image,image],size:'2K',response_format:'b64_json',output_format:'png',watermark:false};
 
 test('proof locates changed provider inputs without retaining photos or prompt text',()=>{
  const proof=femaleRequestProof(payload);
  assert.equal(proof.requestSha256,femaleBytesHash(JSON.stringify(payload)));
- assert.deepEqual(proof.images.map(x=>x.role),['guide','hair']);
- for(let i=0;i<2;i++){
+ assert.deepEqual(proof.images.map(x=>x.role),['guide','identity','hair','outfit']);
+ for(let i=0;i<4;i++){
   const changed={...payload,image:payload.image.map((s,n)=>n===i?'data:image/png;base64,'+Buffer.from('different input').toString('base64'):s)};
   const next=femaleRequestProof(changed);assert.notEqual(proof.requestSha256,next.requestSha256);
-  assert.deepEqual(next.images.map((v,n)=>v.sha256!==proof.images[n].sha256),[0,1].map(n=>n===i));
+  assert.deepEqual(next.images.map((v,n)=>v.sha256!==proof.images[n].sha256),[0,1,2,3].map(n=>n===i));
  }
  assert.notEqual(proof.promptSha256,femaleRequestProof({...payload,prompt:payload.prompt+'changed'}).promptSha256);
  assert.notEqual(proof.requestSha256,femaleRequestProof({...payload,size:'1K'}).requestSha256);

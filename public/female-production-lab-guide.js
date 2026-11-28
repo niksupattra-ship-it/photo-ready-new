@@ -14,7 +14,7 @@ async function preview(){
   const r=await fetch('/api/female-production-lab/guide',{method:'POST',body:data,signal:AbortSignal.any([active.signal,AbortSignal.timeout(30000)])});
   if(!r.ok)throw Error('เตรียมไกด์ไม่สำเร็จ กรุณาเลือกรูปหน้าตรงและชุดใหม่');
   const blob=await r.blob();if(current!==sequence)return;url=URL.createObjectURL(blob);image.src=url;image.hidden=false;
-  status.textContent='ภาพไกด์นี้ส่งเป็นภาพที่ 1 · ภาพที่ 2 คือทรงผม · ไม่ส่งใบหน้าหรือชุดแยกเพิ่ม';
+  status.textContent='ภาพไกด์นี้ส่งเป็นภาพหลักให้ AI · เปลี่ยนเฉพาะทรงผมและผิว';
  }catch(e){if(current===sequence)status.textContent=e.message;}
 }
 for(const name of ['person','outfit'])form.elements[name].addEventListener('change',()=>void preview());
