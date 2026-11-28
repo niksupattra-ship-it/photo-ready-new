@@ -1,3 +1,5 @@
+import {createFixedFemaleLabBase,fixedLabFacePlacement,fixedFemaleLabPayload} from '../female-lab-fixed-guide.js';
+import {createFemaleGarmentLayout} from '../female-portrait-layout.js';
 import {LAB_FLASH_MODEL,LAB_FLASH_PROMPT,finishFemaleLabWithFlash} from '../female-lab-flash-finish.js';
 import {FEMALE_55_LAB_PROMPT} from '../female-55-lab-prompt.js';
 import test from 'node:test';
@@ -91,4 +93,27 @@ test('5.5 V6 restricts spot correction to photographic artifacts and preserves i
 test('Flash rejects a changed canvas rather than resizing or cropping the finished V6 image',async()=>{
  const other=await sharp({create:{width:481,height:640,channels:3,background:'#abc'}}).png().toBuffer();let calls=0;
  await assert.rejects(finishFemaleLabWithFlash(person,{key:'inert',fetchImpl:async()=>{calls++;return Response.json({data:[{b64_json:other.toString('base64')}]});}}),/Flash canvas changed/);assert.equal(calls,1);
+});
+
+test('experimental guide keeps the approved government guide and fixed original face pixels across four garment categories',async()=>{
+ const canonical=await asset('government-uniforms/female-operational.png');
+ const face=await prepareFemaleFace(person,evidence);
+ const target=await fixedLabFacePlacement(face,await createFemaleGarmentLayout(canonical));
+ const before=await createFemaleLabBase(canonical,face);
+ assert.deepEqual(await createFixedFemaleLabBase(canonical,face),before);
+ const original=await sharp(target.placed).ensureAlpha().raw().toBuffer();
+ for(const path of ['job-uniforms/female-job-navy-notch-white-shirt.png','gown-uniforms/kmitl-female.png','student-uniforms/female-01.png']){
+  const outfit=await asset(path),guide=await createFixedFemaleLabBase(outfit,face);
+  const {data,info}=await sharp(guide).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  assert.equal(info.width,768);assert.equal(info.height,1024);let checked=0;
+  for(let y=0;y<target.height;y++)for(let x=0;x<target.width;x++){
+   const src=(y*target.width+x)*4;if(original[src+3]!==255)continue;
+   const dest=((target.top+y)*768+target.left+x)*4;
+   for(let k=0;k<3;k++)assert.equal(data[dest+k],original[src+k],path);
+   checked++;
+  }
+  assert(checked>1000);
+  const payload=await fixedFemaleLabPayload({prompt:productionLabPrompt(),order:'person-outfit-hair',fields,files:{person:[{buffer:person}],outfit:[{buffer:outfit}],hair:[{buffer:hair}]}});
+  assert.deepEqual(payload.image.map(s=>Buffer.from(s.split(',')[1],'base64')),[guide,hair,outfit]);
+ }
 });
