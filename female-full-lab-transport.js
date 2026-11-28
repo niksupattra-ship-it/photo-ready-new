@@ -26,7 +26,7 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
    if(!/^[a-f0-9-]{36}$/.test(id))return res.status(400).json({error:'กรุณาโหลดหน้าทดลองใหม่'});
    const payload=await payloadFor({prompt:req.body?.prompt,order:req.body?.order,files:req.files,fields:req.body});
    const body=JSON.stringify(payload),fingerprint=createHash('sha256').update(key).update(body).digest('hex');
-   const proof=route==='/api/female-production-lab'?femaleRequestProof(payload):null;
+   const proof=['/api/female-production-lab','/api/female-guide-edit-lab'].includes(route)?femaleRequestProof(payload):null;
    const prior=jobs.get(id);
    if(prior){if(prior.fingerprint!==fingerprint)return res.status(409).json({error:'ข้อมูลไม่ตรงกับงานเดิม กรุณาเริ่มงานใหม่'});return res.status(202).json({id});}
    if(jobs.size>=20)return res.status(503).json({error:'หน้าทดลองเต็ม กรุณารอสักครู่'});

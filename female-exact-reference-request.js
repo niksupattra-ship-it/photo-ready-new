@@ -25,7 +25,7 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
  const [portrait,hair,outfit]=await Promise.all([input.buffer,hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))]);
  await onStage('preparing');
  const face=await prepareFemaleFace(portrait,fields.femalePreplacedFace),prompt=FEMALE_PORTRAIT_PROMPT;
- const preparedFemalePayload=await femaleMatchedProPayload({prompt,files:{person:[{buffer:portrait}],face:[{buffer:face}],outfit:[{buffer:outfit}],hair:[{buffer:hair}]}});
+ const preparedFemalePayload=await femaleMatchedProPayload({prompt,fields,files:{person:[{buffer:portrait}],face:[{buffer:face}],outfit:[{buffer:outfit}],hair:[{buffer:hair}]}});
  await onStage('generation');
  return requestPortrait({key,prompt,preparedFemalePayload,femalePreplacedVersion:fields.thaiWholeHeadGuideVersion,singleAttempt:true});
 }

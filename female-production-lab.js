@@ -1,4 +1,4 @@
-import {completeFemaleLabResult} from './female-lab-output.js';
+import {completeGuideEditLabResult} from './female-guide-edit-lab-frame.js';
 import multer from 'multer';
 import {fileURLToPath} from 'node:url';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
@@ -16,9 +16,9 @@ export async function productionLabPayload({prompt,order,files,fields}){
  if(!person)throw Error('Missing original portrait');
  const face=await prepareFemaleFace(person,fields?.femalePreplacedFace);
  if(order!=='person-outfit-hair')throw Error('Invalid reference order');
- return femaleMatchedProPayload({prompt,identityFaceOnly:true,files:{...files,face:[{buffer:face}]}});
+ return femaleMatchedProPayload({prompt,identityFaceOnly:true,fields,files:{...files,face:[{buffer:face}]}});
 }
-export {completeFemaleLabResult as productionLabResult} from './female-lab-output.js';
+export {completeGuideEditLabResult as productionLabResult} from './female-guide-edit-lab-frame.js';
 export function registerFemaleProductionLab(app,{removeBackground, ...options}={}){
  app.get('/female-reference-evidence-client.js',(_req,res)=>res.type('application/javascript').sendFile(fileURLToPath(new URL('./female-reference-evidence-client.js',import.meta.url))));
  app.get(route+'/prompt',(_req,res)=>res.set('Cache-Control','no-store').type('text').send(productionLabPrompt()));
@@ -32,5 +32,5 @@ export function registerFemaleProductionLab(app,{removeBackground, ...options}={
    res.type('png').send(await createFemaleLabBase(req.files.outfit[0].buffer,face));
   }catch{res.status(400).json({error:'เตรียมไกด์ไม่ได้ กรุณาใช้รูปหน้าตรงและเลือกชุดใหม่'});}
  }));
- registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:productionLabPayload,processResult:(png,{files})=>completeFemaleLabResult(png,removeBackground,{outfit:files.outfit[0].buffer})});
+ registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:productionLabPayload,processResult:png=>completeGuideEditLabResult(png,removeBackground)});
 }

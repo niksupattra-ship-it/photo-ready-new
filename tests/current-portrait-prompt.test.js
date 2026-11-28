@@ -10,8 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_REAR_HAIR_POLICY,'')),'02be5cf1349c9e226ba58fff856a6a2b28d044123142ae822ccc1fcc7ddf633a');
- assert(FEMALE_PORTRAIT_PROMPT.endsWith(FEMALE_REAR_HAIR_POLICY));assert(FEMALE_PORTRAIT_PROMPT.includes('BEHIND BOTH shoulders'));assert(FEMALE_PORTRAIT_PROMPT.includes('ZERO hair lying over them'));assert(FEMALE_PORTRAIT_PROMPT.includes('Short, bob and gathered cuts retain their genuine endpoints'));
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'3df2a2725f430649bfe7136699e8ba79b17c12b9433e2f1207a9a0ae0944e2b8','Exact PR #279 prompt');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
@@ -19,7 +18,7 @@ test('current female prompt, cache identity and male generator retain their appr
 });
 test('retired female requests fail before generating, with no fallback or cross-version recovery',async()=>{
  let calls=0;
- for(let n=5;n<=12;n++){
+ for(let n=5;n<=13;n++){
   const version='thai-female-exact-three-ref-pro-v'+n+'-retired';
   const fields={portraitMode:'female',portraitComposition:'en-outfit-body-v1',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiWholeHeadGuideVersion:version,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
   assert.equal(usesFemaleExactPrompt(fields),false);
@@ -47,6 +46,19 @@ test('English creation accepts only the current contract for the selected gender
  }
 });
 
-test("current female prompt locks original gaze and uses brow strokes without reshaping",()=>{for(const text of ["EYES AND GAZE — ORIGINAL IDENTITY LOCK", "SOFT KOREAN HAIR-STROKE EYEBROWS", "Do not lift the eyebrows", "from Image 1"])assert(FEMALE_PORTRAIT_PROMPT.includes(text));});
+test('PR #279 preserves original facial anatomy from independent Image 4',()=>{
+ for(const text of ['sole facial identity and facial-feature authority','Keep the original eye opening','do not reshape facial features'.replace('do not','Do not'),'delicate eyebrow hair strokes'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));
+});
+test('the original guide remains the placement authority without a new head or neck scale rule',()=>{
+ for(const text of ['EDIT IMAGE 1 IN PLACE','Keep the exact head-to-shoulder ratio and jaw-to-collar distance','Its close-up crop has NO authority over head size','Do not resize the head'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));
+ for(const text of ['36–40%','32–36%','slightly brighter soft frontal'])assert(!FEMALE_PORTRAIT_PROMPT.includes(text));
+});
 
-test('actual guide is the sole composition authority without new numerical scale rules',()=>{for(const text of ['Image 1: PRIMARY EDIT CANVAS','Do not calculate new portrait proportions','Do not enlarge or shrink the face or head'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));for(const text of ['36–40%','32–36%','Ignore its original hairstyle, clothing, body proportions','Adjust only the overall facial scale'])assert(!FEMALE_PORTRAIT_PROMPT.includes(text));});
+test('the retired live Flash contract and three-image payload cannot submit or reuse the restored Pro contract',async()=>{
+ const retired='thai-female-exact-three-ref-pro-v13-complete-lab-process';
+ const fields={portraitMode:'female',portraitComposition:'en-outfit-body-v1',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiWholeHeadGuideVersion:retired,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
+ let calls=0;await assert.rejects(processProductionPortrait({fields,input:{},requestPortrait:async()=>{calls++;}}),/รีเฟรช/);assert.equal(calls,0);
+ assert.equal(shouldRecoverHairSubmission(JSON.stringify([retired]),JSON.stringify([FEMALE_LAB_PROCESS_VERSION]),'completed'),false);
+ const options={femalePreplacedVersion:FEMALE_LAB_PROCESS_VERSION,prompt:FEMALE_PORTRAIT_PROMPT};
+ for(const payload of [{model:'dola-seedream-5-0-flash-260915',image:['a','b','c','d']},{model:'dola-seedream-5-0-pro-260628',image:['a','b','c']}])assert.throws(()=>seedreamReviewPayload({...options,preparedFemalePayload:{...payload,prompt:FEMALE_PORTRAIT_PROMPT,size:'2K'}}),/Invalid current female payload/);
+});

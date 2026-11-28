@@ -1,6 +1,6 @@
 import {PORTRAIT_AI_OUTPUT_SIZE} from './seedream-pro-payload.js';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
-import {prepareFemaleLabForeground} from './female-lab-output.js';
+import {prepareGuideEditForeground} from './female-guide-edit-lab-frame.js';
 import {hasFemaleExactPromptMarker,usesFemaleExactPrompt} from './female-portrait-prompt.js';
 import {FEMALE_LAB_PROCESS_VERSION} from './female-portrait-prompt.js';
 import {parseFemaleFaceEvidence} from './female-preplaced-face-contract.js';
@@ -245,7 +245,7 @@ export async function processProductionPortrait({input,fields,root,removeBackgro
  // paired Makeup, reference boards or another generation.
  if(usesFemaleExactPrompt(fields)){
   const result=await generateExactFemalePortrait({input,fields,root,key,chosen:requestedHair,currentHair,requestPortrait,onStage});
-  await onStage('matting');const foreground=await prepareFemaleLabForeground(result.png,removeBackground,{outfit:await readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))});await onStage('edges');return foreground;
+  await onStage('matting');const foreground=await prepareGuideEditForeground(result.png,removeBackground);await onStage('edges');return foreground;
  }
  const requestedMaleAuto=requestedHair?.autoHair==='english-male';
  const chosen=requestedMaleAuto?null:requestedHair;
