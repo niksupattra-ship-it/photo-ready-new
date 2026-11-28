@@ -93,3 +93,16 @@ test('previous generated portrait cannot replace selected hair PNG in exact Thai
  for(const extra of [{keepCurrentHair:'1'},{preserveHairJobId:'previous-job'}])await assert.rejects(processProductionPortrait({input,fields:{...fields,...extra},root,key:'inert',currentHair:png,removeBackground:async()=>png,requestPortrait:async()=>{calls++;return {png};}}));
  assert.equal(calls,0);
 });
+
+test('same upload and outfit repeatedly select long, gathered, long and gathered native PNGs',async()=>{
+ const {productionLabPayload,productionLabPrompt}=await import('../female-production-lab.js');
+ const outfit=await readFile(root+'public/assets/government-uniforms/female-operational.png');
+ let guide,calls=0;
+ for(const n of [80,79,80,79]){
+  const id='seedream-'+n,hair=await readFile(root+'public/assets/seedream-hairstyles/references/'+n+'.png');
+  const expected=await productionLabPayload({prompt:productionLabPrompt(),order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}});
+  if(guide)assert.equal(expected.image[0],guide);else guide=expected.image[0];
+  await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle'},root,key:'inert',currentHair:Buffer.from('must not become reference'),removeBackground:async()=>png,requestPortrait:createMakeupRequestAudit(async request=>{calls++;assert.deepEqual(seedreamReviewPayload(request),expected);return {png};},{requirePolicy:true}).requestPortrait});
+ }
+ assert.equal(calls,4);
+});
