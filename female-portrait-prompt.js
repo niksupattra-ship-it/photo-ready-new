@@ -3,7 +3,7 @@ import {ENGLISH_OUTFIT_LIGHTING_POLICY} from './male-portrait-prompt.js';
 import {isThaiOutfitAi} from './thai-outfit-ai-policy.js';
 
 // Single current Thai female prompt. Keep transport and image preparation separate.
-export const FEMALE_LAB_PROCESS_VERSION='thai-female-exact-four-ref-pro-v14-pr279';
+export const FEMALE_LAB_PROCESS_VERSION='thai-female-exact-three-ref-pro-v15-guide-only';
 export const FEMALE_REAR_HAIR_POLICY="\nFINAL REAR HAIR AND FIXED GARMENT OCCLUSION: Preserve the exact selected parting, fringe, crown structure, texture, colour and cut length from Image 2. Continuing long sections must descend entirely BEHIND BOTH shoulders and BEHIND the opaque selected garment. Both shoulder boards, shoulder seams, collar, tie, lapels and chest must remain fully visible with ZERO hair lying over them. If the hairstyle reference has front-draped sections, route those same lengths behind the shoulders; do not copy their front placement, shorten the cut, gather it, or invent extensions. Short, bob and gathered cuts retain their genuine endpoints without extra long strands. This is only a physical layering rule; it does not authorize changes to face, head, neck, clothing dimensions, insignia or the locked guide placement. Complete it in the same single image generation, without a garment overlay or repair pass. ";
 export {FEMALE_GUIDE_EDIT_LAB_PROMPT as FEMALE_PORTRAIT_PROMPT} from './female-guide-edit-prompt.js';
 

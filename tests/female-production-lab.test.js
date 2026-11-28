@@ -21,7 +21,7 @@ const asset=path=>readFile(new URL('../public/assets/'+path,import.meta.url));
 const hair=await asset('seedream-hairstyles/references/5.png');
 const fields={femalePreplacedFace:JSON.stringify(evidence)};
 
-test('active Pro lab shares production prompt and four-reference payload for every outfit category',async()=>{
+test('active Pro lab shares production prompt and three-reference guide-only payload for every outfit category',async()=>{
  assert.equal(productionLabPrompt(),FEMALE_PORTRAIT_PROMPT);
  const face=await prepareFemaleFace(person,evidence);
  for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-navy-notch-white-shirt.png','gown-uniforms/kmitl-female.png','student-uniforms/female-01.png']){
@@ -35,7 +35,7 @@ test('lab guide, immutable prompt, async submission, matting and framed PNG use 
  const outfit=await asset('government-uniforms/female-operational.png');
  let calls=0,mattes=0;
  const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:600,channels:4,background:'#ffffff'}}).png().toBuffer(),left:60,top:40}]).png().toBuffer();
- const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,4);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
+ const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,3);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();server.close();});const base='http://127.0.0.1:'+server.address().port+'/api/female-production-lab';
  assert.equal(await(await fetch(base+'/prompt')).text(),productionLabPrompt());
  assert((await(await fetch(base+'/face-contract.js')).text()).includes('captureFemaleFaceEvidence'));

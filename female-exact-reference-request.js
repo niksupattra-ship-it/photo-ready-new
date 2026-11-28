@@ -20,8 +20,8 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
   }
   return buffer;
  };
- // Transport sends original person, selected garment, then hairstyle to match ModelArk trial. No neutral board, alternate skin
- // reference, old hair contract, geometry prompt or native outfit repair.
+ // The original person is used only to prepare the guide. The provider gets
+ // guide, selected hair and garment, with no separate source-face reference.
  const [portrait,hair,outfit]=await Promise.all([input.buffer,hairReference(),readFile(path.join(root,'public',fields.neckOutfitReferencePath.slice(1)))]);
  await onStage('preparing');
  const face=await prepareFemaleFace(portrait,fields.femalePreplacedFace),prompt=FEMALE_PORTRAIT_PROMPT;

@@ -11,7 +11,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),'3df2a2725f430649bfe7136699e8ba79b17c12b9433e2f1207a9a0ae0944e2b8','PR #279 bytes remain unchanged apart from the requested lighting block');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),'b2827c47735a1dcdbaa34c33c2cd806713fbcd538ec6e671a88f10d18d3d5a0b','Approved guide-only prompt, with the existing lighting block kept separate');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  assert.notEqual(femalePromptCacheKey(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),FEMALE_CURRENT_PROMPT_CACHE_KEY,'Old lighting output must not share the new prompt cache');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
@@ -48,19 +48,20 @@ test('English creation accepts only the current contract for the selected gender
  }
 });
 
-test('PR #279 preserves original facial anatomy from independent Image 4',()=>{
- for(const text of ['sole facial identity and facial-feature authority','Keep the original eye opening','do not reshape facial features'.replace('do not','Do not'),'delicate eyebrow hair strokes'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));
+test('the prepared guide alone supplies facial identity and anatomy',()=>{
+ for(const text of ['face already present in Image 1','Keep the original eye opening','do not reshape facial features'.replace('do not','Do not'),'delicate eyebrow hair strokes'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));
 });
 test('the original guide remains the placement authority without a new head or neck scale rule',()=>{
- for(const text of ['EDIT IMAGE 1 IN PLACE','Keep the exact head-to-shoulder ratio and jaw-to-collar distance','Its close-up crop has NO authority over head size','Do not resize the head'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));
- for(const text of ['36–40%','32–36%','slightly brighter soft frontal'])assert(!FEMALE_PORTRAIT_PROMPT.includes(text));
+ for(const text of ['EDIT IMAGE 1 IN PLACE','Keep the exact head-to-shoulder ratio and jaw-to-collar distance','at its existing scale and position','Do not resize the head'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));
+ for(const text of ['Image 4','36–40%','32–36%','slightly brighter soft frontal'])assert(!FEMALE_PORTRAIT_PROMPT.includes(text));
 });
 
-test('the retired live Flash contract and three-image payload cannot submit or reuse the restored Pro contract',async()=>{
- const retired='thai-female-exact-three-ref-pro-v13-complete-lab-process';
+test('retired Flash and four-reference contracts cannot submit or recover guide-only jobs',async()=>{
+ for(const retired of ['thai-female-exact-three-ref-pro-v13-complete-lab-process','thai-female-exact-four-ref-pro-v14-pr279']){
  const fields={portraitMode:'female',portraitComposition:'en-outfit-body-v1',thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiWholeHeadGuideVersion:retired,neckOutfitReferencePath:'/assets/government-uniforms/female-operational.png'};
  let calls=0;await assert.rejects(processProductionPortrait({fields,input:{},requestPortrait:async()=>{calls++;}}),/รีเฟรช/);assert.equal(calls,0);
  assert.equal(shouldRecoverHairSubmission(JSON.stringify([retired]),JSON.stringify([FEMALE_LAB_PROCESS_VERSION]),'completed'),false);
+ }
  const options={femalePreplacedVersion:FEMALE_LAB_PROCESS_VERSION,prompt:FEMALE_PORTRAIT_PROMPT};
- for(const payload of [{model:'dola-seedream-5-0-flash-260915',image:['a','b','c','d']},{model:'dola-seedream-5-0-pro-260628',image:['a','b','c']}])assert.throws(()=>seedreamReviewPayload({...options,preparedFemalePayload:{...payload,prompt:FEMALE_PORTRAIT_PROMPT,size:'2K'}}),/Invalid current female payload/);
+ for(const payload of [{model:'dola-seedream-5-0-flash-260915',image:['a','b','c','d']},{model:'dola-seedream-5-0-pro-260628',image:['a','b','c','d']}])assert.throws(()=>seedreamReviewPayload({...options,preparedFemalePayload:{...payload,prompt:FEMALE_PORTRAIT_PROMPT,size:'2K'}}),/Invalid current female payload/);
 });

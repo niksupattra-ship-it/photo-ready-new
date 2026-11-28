@@ -1,4 +1,4 @@
-// PR #279 contract plus the requested face/neck flash lighting; browser-safe.
+// Shared guide-only Thai female contract; browser-safe.
 export const FEMALE_GUIDE_EDIT_FLASH_POLICY=`
 3. Soft frontal studio flash within this same image generation.
 Illuminate the face, ears and entire exposed neck together with one broad,
@@ -12,7 +12,7 @@ not underlying skin colour. Protect already bright skin and specular
 highlights from clipping. Retain fine pores, eyebrow hairs and sharp detail;
 no whitening, global exposure boost, oily hotspots, flat white skin,
 blur, pale patches, dark neck bands or bright compositing seams.
-Image 4 supplies facial identity, not mandatory source lighting.
+Image 1 supplies facial identity, not mandatory source lighting.
 This lighting edit must not move or reshape the face, head, chin, neck,
 shoulders or garment and must not alter the selected makeup colours.
 `;
@@ -21,22 +21,15 @@ export const FEMALE_GUIDE_EDIT_LAB_PROMPT=`EDIT IMAGE 1 IN PLACE. Preserve its e
 REFERENCE ROLES:
 Image 1: The prepared portrait guide. This controls head size, face position,
 chin position, neck length, shoulder width and garment placement.
-Its face is a small placement preview of the same person in Image 4;
-use Image 4 for the original person's facial details.
+Its existing photographed face is the sole facial identity and facial-feature
+authority. Preserve the same facial outline, features, expression and
+asymmetry already visible in this guide at its existing scale and position.
 
 Image 2: Hairstyle reference only. Do not copy its face, head size,
 neck, skin, body or clothing.
 
 Image 3: Selected garment detail reference only. Image 1 controls
 the garment's final size and position.
-
-Image 4: The original uploaded person's face, cropped separately at source
-detail without a beauty filter or generated reconstruction. This is the
-sole facial identity and facial-feature authority. Use its actual facial
-outline, eyes, eyelid folds, nose, lips, jaw, expression and asymmetry.
-Ignore its original hair, clothes, background and camera framing.
-Its close-up crop has NO authority over head size or neck/body placement.
-Fit this same face to Image 1's existing scale and position.
 
 ALLOWED EDITS:
 
@@ -57,7 +50,7 @@ Match the face, ears and neck continuously.
 ${FEMALE_GUIDE_EDIT_FLASH_POLICY}
 FACIAL IDENTITY AND GEOMETRY LOCK:
 
-Preserve the same person's face from Image 4:
+Preserve the same person's face already present in Image 1:
 the facial outline, eyes, eyelids, gaze, nose, lips, jaw, expression
 and individual asymmetry.
 Keep the original eye opening, feature spacing, nose width, lip contour,
@@ -80,7 +73,7 @@ Preserve the garment, insignia and background from Image 1.
 Do not change unrelated areas.
 
 FINAL CHECK:
-Compare facial features and expression with Image 4, and placement with Image 1.
+Compare facial features, expression and placement with Image 1.
 The face, head, neck, shoulders and garment must retain the same
 scale and placement. Only the selected hairstyle, skin surface
 and makeup should visibly change.
