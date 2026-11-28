@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import {readFile} from 'node:fs/promises';
 import {createFemaleGarmentLayout,createFemaleLabBase,femaleLabChinPlacement,guardCollarRegistration} from './female-portrait-layout.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
+import {seedreamProPayload} from './seedream-pro-payload.js';
 
 // Lab only. Use the previously approved government template as the reference
 // coordinate system; never change the production guide or either AI prompt.
@@ -25,8 +26,9 @@ export async function fixedLabFacePlacement(face,layout){
 }
 async function transformGarment(layout,target,face){
  const scale=target.span/layout.shoulderSpan;
- const width=Math.round(W*scale),height=Math.round(H*scale);
- const resized=await sharp(layout.nativeForeground).resize(width,height,{fit:'fill'}).png().toBuffer();
+ if(!Number.isFinite(scale)||scale<.5||scale>2)throw Error('Invalid garment scale');
+ const resized=await sharp(layout.nativeForeground).resize({width:Math.round(W*scale)}).png().toBuffer();
+ const {width,height}=await sharp(resized).metadata();
  const x=Math.round(target.cx-layout.centerX*scale);
  let y=Math.round(target.chin-femaleLabChinPlacement(layout)*scale);
  const alpha=await sharp(resized).ensureAlpha().extractChannel(3).raw().toBuffer();
@@ -64,11 +66,11 @@ export async function createFixedFemaleLabBase(outfit,face){
  const neck=Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="768" height="1024"><path d="M ${cx-span*.10} ${chin-span*.03} L ${cx-span*.12} ${collar+span*.10} L ${cx-span*.22} ${collar+span*.22} L ${cx+span*.22} ${collar+span*.22} L ${cx+span*.12} ${collar+span*.10} L ${cx+span*.10} ${chin-span*.03} Z" fill="${colour}"/></svg>`);
  return sharp({create:{width:W,height:H,channels:4,background:'#ffffff'}}).composite([{input:neck},{input:garment.visible,left:garment.left,top:garment.top},{input:target.placed,left:target.left,top:target.top}]).png().toBuffer();
 }
-export function fixedFemale55LabPayloadFrom(buildBaseline,baselinePrompt){
- return async options=>{
-  const payload=await buildBaseline(options);
-  const face=await prepareFemaleFace(options.files.person[0].buffer,options.fields?.femalePreplacedFace);
-  const guide=await createFixedFemaleLabBase(options.files.outfit[0].buffer,face);
-  return {...payload,image:['data:image/png;base64,'+guide.toString('base64'),...payload.image.slice(1)]};
- };
+export async function fixedFemaleLabPayload({prompt,order,files,fields}){
+ if(order!=='person-outfit-hair')throw Error('Invalid reference order');
+ const person=files?.person?.[0]?.buffer,outfit=files?.outfit?.[0]?.buffer,hair=files?.hair?.[0]?.buffer;
+ if(!person?.length||!outfit?.length||!hair?.length)throw Error('Missing references');
+ const reference=async buffer=>{const meta=await sharp(buffer,{limitInputPixels:33554432}).metadata(),mime={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}[meta.format];if(!mime)throw Error('Unsupported reference');return 'data:'+mime+';base64,'+buffer.toString('base64');};
+ const face=await prepareFemaleFace(person,fields?.femalePreplacedFace),guide=await createFixedFemaleLabBase(outfit,face);
+ return seedreamProPayload(prompt,['data:image/png;base64,'+guide.toString('base64'),await reference(hair),await reference(outfit)]);
 }
