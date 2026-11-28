@@ -16,6 +16,17 @@ Image 1 supplies facial identity, not mandatory source lighting.
 This lighting edit must not move or reshape the face, head, chin, neck,
 shoulders or garment and must not alter the selected makeup colours.
 `;
+export const FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY=`Image 2 is the COMPLETE selected hairstyle, including its empty spaces.
+Do not infer a hidden second hairstyle or extend the hair beyond its
+visible endpoints. Replace all conflicting hair; do not retain old hair.
+ONLY if Image 2 actually shows long connected lengths, reproduce those
+lengths behind both shoulders and the garment. For a bob, match its
+actual endpoints. If Image 2 shows only a compact crown or gathered
+hair with empty space below its tips, all space below both ears and
+beside both sides of the neck must be free of hair. No rear curtains,
+long side panels, tails, buns at neck level or loose strands. Preserve
+the person's ears, face, neck and garment. Use the existing background
+outside the person's natural outline, not hair, in these empty spaces.`;
 export const FEMALE_GUIDE_EDIT_LAB_PROMPT=`EDIT IMAGE 1 IN PLACE. Preserve its existing composition.
 
 REFERENCE ROLES:
@@ -38,9 +49,7 @@ Match its parting, fringe, texture, colour, length and styling.
 Fit the hairstyle around the existing anatomical head without
 enlarging the skull or moving the face.
 
-Keep continuing long hair behind both shoulders and behind the
-garment. Preserve the genuine endpoints of short, bob and gathered
-styles without adding extra lengths.
+${FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY}
 
 2. Retouch skin and apply the requested makeup.
 Even the skin tone, correct temporary blemishes and retain fine,
