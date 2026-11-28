@@ -44,9 +44,9 @@ test('current production matches the active Pro lab request exactly across outfi
  const {FEMALE_LAB_PROCESS_VERSION}=await import('../female-portrait-prompt.js');
  const {productionLabPayload,productionLabPrompt}=await import('../female-production-lab.js');
  const prompt=productionLabPrompt();
- assert.equal(prompt.split('Combine the three reference images').length,2);
+ assert.equal(prompt.split('Edit Image 1 as an existing photograph.').length,2);
  assert(!prompt.includes('HAIR OCCLUSION'));
- for(const text of ['Image 1: PRIMARY EDIT CANVAS','Image 2: Mandatory hairstyle reference','Image 3: Fixed clothing and body template','Completely replace the original hairstyle with Image 2','Do not retain any hairstyle elements from Image 1'])assert(prompt.includes(text),text);
+ for(const text of ['Image 1: PRIMARY EDIT CANVAS','Image 2: Mandatory hairstyle reference','Image 3: Garment details ONLY','Completely replace the original hairstyle with Image 2','Do not retain any hairstyle elements from Image 1'])assert(prompt.includes(text),text);
  for(const [path,id,file]of [['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-80','80.png'],['government-uniforms/female-operational.png','seedream-81','81.png'],['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-05','5.png'],['government-uniforms/female-operational.png','seedream-14','14.png'],['gown-uniforms/kmitl-female.png','seedream-79','79.png'],['student-uniforms/female-01.png','seedream-24','24.png']]){
   const outfit=await readFile(root+'public/assets/'+path),hair=await readFile(root+'public/assets/seedream-hairstyles/references/'+file);
   const expected=await productionLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}});
