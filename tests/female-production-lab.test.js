@@ -77,3 +77,9 @@ test('5.5 V5 restores V3 prompt except local photographic skin-light correction'
  assert.match(FEMALE_55_LAB_PROMPT,/Do not change the framing, camera viewpoint, hair or garment as part of this skin-light correction/);
  assert.doesNotMatch(FEMALE_55_LAB_PROMPT,/PHOTOGRAPHIC FINISH — PROFESSIONAL ID STUDIO/);
 });
+
+test('5.5 V6 restricts spot correction to photographic artifacts and preserves identifying marks',()=>{
+ assert.match(FEMALE_55_LAB_PROMPT,/spot-level tonal correction rather than global smoothing/);
+ assert.match(FEMALE_55_LAB_PROMPT,/permanent identifying marks/);
+ assert.match(FEMALE_55_LAB_PROMPT,/Do not alter any facial features, hair, garment, proportions or framing/);
+});
