@@ -1,17 +1,14 @@
 import sharp from 'sharp';
 import {fileURLToPath} from 'node:url';
-import {cleanFemaleWhiteEdge} from './female-white-edge-clean.js';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 import {planThaiBodyFrame} from './src/thai-body-framing.js';
 
 // The lab's complete post-AI foreground process, shared with new production jobs.
 export async function prepareFemaleLabForeground(original,removeBackground){
- let {png,alpha}=await preserveExactFemalePixels(original,await removeBackground(original));
+ const {png,alpha}=await preserveExactFemalePixels(original,await removeBackground(original));
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait');
  const {data,info}=await sharp(png).ensureAlpha().raw().toBuffer({resolveWithObject:true});
- const clean=cleanFemaleWhiteEdge(data,info.width,info.height);
- png=await sharp(clean,{raw:{width:info.width,height:info.height,channels:4}}).png().toBuffer();
- const frame=planThaiBodyFrame(clean,info.width,info.height,{fullBodyFrame:true,crownFromAlpha:true});
+ const frame=planThaiBodyFrame(data,info.width,info.height,{fullBodyFrame:true,crownFromAlpha:true});
  // Use raster pixels directly. Embedding a detailed 2K PNG as an SVG data URL
  // exceeds libxml's text-node limit, even when the PNG itself is valid.
  const scaled=await sharp(png).affine([frame.scale,0,0,frame.scale],{background:'#00000000',interpolator:sharp.interpolators.bicubic}).png().toBuffer();
