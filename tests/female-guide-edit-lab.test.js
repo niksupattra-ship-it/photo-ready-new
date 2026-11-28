@@ -1,3 +1,4 @@
+import {LAB_FLASH_MODEL,LAB_FLASH_PROMPT} from '../female-lab-flash-finish.js';
 import {FEMALE_55_LAB_PROMPT} from '../female-55-lab-prompt.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,17 +36,17 @@ test('both labs share the exact guide-only prompt and only guide, hair and garme
 test('trial page submits its exact guide and prompt once, recovers the same result and isolates baseline jobs',async t=>{
  const outfit=await asset('government-uniforms/female-operational.png');
  const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:580,channels:4,background:'#fff'}}).png().toBuffer(),left:60,top:60}]).png().toBuffer();
- let calls=0,mattes=0,captured;
+ let calls=0,mattes=0,captured,flashInput;
  const app=express();
  registerFemaleProductionLab(app,{fetchImpl:async()=>{throw Error('Baseline must not generate');}});
- registerFemaleGuideEditLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;captured=JSON.parse(options.body);return Response.json({data:[{b64_json:person.toString('base64')}]});}});
+ registerFemaleGuideEditLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);if(p.model===LAB_FLASH_MODEL){assert.equal(p.prompt,LAB_FLASH_PROMPT);flashInput=Buffer.from(p.image.split(',')[1],'base64');return Response.json({data:[{b64_json:flashInput.toString('base64')}]});}captured=p;return Response.json({data:[{b64_json:person.toString('base64')}]});}});
  app.use(express.static(root+'public'));
  const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));t.after(()=>{server.closeAllConnections();server.close();});
  const base='http://127.0.0.1:'+server.address().port;
  const html=await(await fetch(base+'/female-guide-edit-lab.html')).text();
  const data=name=>html.match(new RegExp('data-'+name+'="([^"]+)"'))?.[1];
  const endpoint=data('endpoint');assert.equal(endpoint,'/api/female-guide-edit-lab');
- assert.equal(data('storage-key'),'female-guide-edit-lab-guide-only-55-v6');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.5-261028');
+ assert.equal(data('storage-key'),'female-guide-edit-lab-guide-only-55-v6-flash-v1');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.5-261028');
  assert.equal(data('identity-endpoint'),undefined);assert(!html.includes('identity-image'));assert(!html.includes('female-guide-edit-identity-client.js'));
  assert.equal(data('guide-module'),'./female-production-lab-guide.js');assert(html.includes('href="/female-production-lab.html"'));
  assert.equal(await(await fetch(base+data('prompt-url'))).text(),FEMALE_55_LAB_PROMPT);
@@ -59,10 +60,11 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  request.set('prompt',FEMALE_55_LAB_PROMPT);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
  let response;for(let n=0;n<150;n++){response=await fetch(base+endpoint+'/'+id);if(response.status!==202)break;await new Promise(resolve=>setTimeout(resolve,20));}
- assert.equal(response.status,200);const result=Buffer.from(await response.arrayBuffer());assert.equal((await sharp(result).metadata()).format,'png');
+ assert.equal(response.status,200);assert.equal(response.headers.get('x-lab-flash-status'),'success');const result=Buffer.from(await response.arrayBuffer());assert.equal((await sharp(result).metadata()).format,'png');
+ assert.deepEqual(flashInput,Buffer.from(await(await fetch(base+endpoint+'/'+id+'/base')).arrayBuffer()));assert.deepEqual(result,flashInput);
  const delivered=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
  for(const x of [0,delivered.info.width-1]){const i=((delivered.info.height-1)*delivered.info.width+x)*3;assert.deepEqual([...delivered.data.subarray(i,i+3)],[176,143,127],'delivered lower corners contain the original person, not background margins');}
- assert.equal(calls,1);assert.equal(mattes,1);assert.equal(captured.prompt,FEMALE_55_LAB_PROMPT);assert.notEqual(captured.prompt,productionLabPrompt());
+ assert.equal(calls,2);assert.equal(mattes,1);assert.equal(captured.prompt,FEMALE_55_LAB_PROMPT);assert.notEqual(captured.prompt,productionLabPrompt());
  assert.equal(captured.size,'2K');assert.equal(captured.model,'dola-seedream-5-5-261028');assert.notEqual(captured.model,PRO_LAB_MODEL);
  assert.deepEqual(captured.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[guide,hair,outfit]);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
