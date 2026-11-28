@@ -44,7 +44,7 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  const html=await(await fetch(base+'/female-guide-edit-lab.html')).text();
  const data=name=>html.match(new RegExp('data-'+name+'="([^"]+)"'))?.[1];
  const endpoint=data('endpoint');assert.equal(endpoint,'/api/female-guide-edit-lab');
- assert.equal(data('storage-key'),'female-guide-edit-lab-guide-only-v9');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.0-pro-260628');
+ assert.equal(data('storage-key'),'female-guide-edit-lab-guide-only-55-v1');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.5-261028');
  assert.equal(data('identity-endpoint'),undefined);assert(!html.includes('identity-image'));assert(!html.includes('female-guide-edit-identity-client.js'));
  assert.equal(data('guide-module'),'./female-production-lab-guide.js');assert(html.includes('href="/female-production-lab.html"'));
  assert.equal(await(await fetch(base+data('prompt-url'))).text(),FEMALE_GUIDE_EDIT_LAB_PROMPT);
@@ -62,7 +62,7 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  const delivered=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
  for(const x of [0,delivered.info.width-1]){const i=((delivered.info.height-1)*delivered.info.width+x)*3;assert.deepEqual([...delivered.data.subarray(i,i+3)],[176,143,127],'delivered lower corners contain the original person, not background margins');}
  assert.equal(calls,1);assert.equal(mattes,1);assert.equal(captured.prompt,FEMALE_GUIDE_EDIT_LAB_PROMPT);
- assert.equal(captured.size,'2K');assert.equal(captured.model,PRO_LAB_MODEL);
+ assert.equal(captured.size,'2K');assert.equal(captured.model,'dola-seedream-5-5-261028');assert.notEqual(captured.model,PRO_LAB_MODEL);
  assert.deepEqual(captured.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[guide,hair,outfit]);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
  assert.equal(calls,1);assert.equal(mattes,1);
