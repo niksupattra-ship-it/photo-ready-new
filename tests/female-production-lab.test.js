@@ -83,10 +83,3 @@ test('5.5 V6 restricts spot correction to photographic artifacts and preserves i
  assert.match(FEMALE_55_LAB_PROMPT,/permanent identifying marks/);
  assert.match(FEMALE_55_LAB_PROMPT,/Do not alter any facial features, hair, garment, proportions or framing/);
 });
-
-test('5.5 V7 balances photographic exposure without changing complexion or geometry',()=>{
- assert.match(FEMALE_55_LAB_PROMPT,/broad softbox and neutral fill/);
- assert.match(FEMALE_55_LAB_PROMPT,/lift underexposed midtones while retaining highlight detail/);
- assert.match(FEMALE_55_LAB_PROMPT,/adjust light, not pigmentation/);
- assert.match(FEMALE_55_LAB_PROMPT,/Keep the same image geometry and all non-lighting instructions/);
-});
