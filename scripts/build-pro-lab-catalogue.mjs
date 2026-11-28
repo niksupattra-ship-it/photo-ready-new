@@ -15,7 +15,7 @@ export async function buildProLabCatalogue(){
  const start=source.indexOf('const BASIC_MALE_HAIR_IDS='),end=source.indexOf('const JOB_UNIFORMS=',start);
  if(start<0||end<start)throw Error('Missing visible hair selection');
  const hairOptions=Function('PRODUCTION_HAIR_CATALOG','THAI_FREE_FEMALE_HAIR_IDS','THAI_FREE_MALE_HAIR_IDS',source.slice(start,end)+';return [...STUDIO_FEMALE_HAIR_OPTIONS,...MALE_HAIR_OPTIONS]')(PRODUCTION_HAIR_CATALOG,THAI_FREE_FEMALE_HAIR_IDS,THAI_FREE_MALE_HAIR_IDS);
- const hairs=hairOptions.filter(item=>item.file&&!item.promptOnly).map(item=>({id:item.id,name:item.name,gender:item.gender,group:'hair',groupName:'ทรงผม',preview:item.src,reference:item.gender==='female'&&item.id?.startsWith('seedream-')?'/assets/catalogue-hair-guides/v1/'+item.id+'.png':'/assets/'+(item.referenceDirectory==='hair'?'hair/':'seedream-hairstyles/references/')+item.file}));
+ const hairs=hairOptions.filter(item=>item.file&&!item.promptOnly).map(item=>({id:item.id,name:item.name,gender:item.gender,group:'hair',groupName:'ทรงผม',preview:item.src,reference:'/assets/'+(item.referenceDirectory==='hair'?'hair/':'seedream-hairstyles/references/')+item.file}));
  for(const item of [...outfits,...hairs]){if(!item.reference.startsWith('/assets/')||item.reference.includes('..'))throw Error('Invalid catalogue path');const bytes=await readFile(new URL('public'+item.reference,root));item.sha256=createHash('sha256').update(bytes).digest('hex');}
  return {outfits,hairs};
 }
