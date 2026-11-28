@@ -2,7 +2,7 @@ import {addSkinControls} from './seedream-pro-skin-controls.js';
 const $=id=>document.getElementById(id),form=$('form'),go=$('go'),status=$('status'),check=$('check'),results=$('results');
 const labConfig=document.documentElement.dataset;
 const labEndpoint=labConfig.endpoint||'/api/seedream-pro-lab';
-const modelLabel=labConfig.modelLabel||'Dola-Seedream-5.0-pro',sizeLabel=labConfig.sizeLabel||'2K';
+const modelLabel=labConfig.modelLabel||'Dola-Seedream-5.0-pro',sizeLabel=labConfig.sizeLabel||'1.5K';
 const storageKey=labConfig.storageKey||'seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
 const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
 function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;input.dispatchEvent(new Event('change'));}}orderLabels();}
