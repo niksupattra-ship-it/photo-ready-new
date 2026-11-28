@@ -30,7 +30,7 @@ test('new uploads occupy the first two free slots and the unchanged old cuts bec
  const {createHash}=await import('node:crypto');
  assert.deepEqual(THAI_FREE_FEMALE_HAIR_IDS,['seedream-80','seedream-81','seedream-79']);
  assert.equal(firstGenerationHairFor('female'),'seedream-80');
- const hashes={80:'96793115ad25d5ea67128e0f230e592f99cca129e925ee67fd2c0b4425ec5f22',81:'9dc2c72445d5cff4aa957f63f9b6c89657ad9d7f1f57f8a1657acb11a24ff1d2',14:'2afd9404fcd8a8984afab608684eda6a4c123b16bc434f1eef2ac5cb461319a4',42:'e2c387d11602ed48ca7be766782f4235a9390b4053c47d5c20dfa335ac0ac474'};
+ const hashes={80:'c16f9d8c92cc5c9129d753a795ee5bf76d3a6939f2862531426df0c2c38882d7',81:'6ce45686690e403c2b282058d45808abb779aaff1095e91b9939796d1d1e06be',14:'2afd9404fcd8a8984afab608684eda6a4c123b16bc434f1eef2ac5cb461319a4',42:'e2c387d11602ed48ca7be766782f4235a9390b4053c47d5c20dfa335ac0ac474'};
  for(const number of [80,81,14,42]){
   const hair=productionHair('seedream-'+number);assert(hair);
   const bytes=await readFile(new URL('public/assets/seedream-hairstyles/references/'+hair.file,root));
