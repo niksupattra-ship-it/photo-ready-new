@@ -5578,6 +5578,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
  const rememberHairResult=(id,master,portraitMode,femaleEyeStyle,outfitReferencePath)=>{
   const key=hairResultKey(id,portraitMode,femaleEyeStyle,outfitReferencePath),previous=hairResultCacheRef.current.get(key),scope=hairResultScope();
   const entry={master,lock:editCache.current?.lock,sourcePhoto:firstUploadedPhotoRef.current,scope,jobId:currentOutputJobRef.current,isTrial:currentOutputTrialRef.current,studioTrial:studioTrialRef.current,confirmed:Boolean(previous?.confirmed&&previous.master===master&&previous.sourcePhoto===firstUploadedPhotoRef.current&&previous.scope===scope&&previous.jobId===currentOutputJobRef.current)};
+  if(!englishPreviewEnabled()&&hairResultMode(id,portraitMode)==='female')return entry;
   hairResultCacheRef.current.set(key,entry);
   // Exact processed-result history is keyed by AI job, not by hairstyle.
   // Several distinct jobs can legitimately share hair/finish choices; the
@@ -5596,6 +5597,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
   const mode=hairResultMode(id,head.portraitMode);
   const finishStyle=mode==='female'?portraitFinishChoice(head.femaleEyeStyle,head.initialFemaleEyeStyle):'natural';
   source.idpromPortraitMode=mode;source.idpromFemaleEyeStyle=finishStyle;
+  if(!englishPreviewEnabled()&&mode==='female')return;
   if(mode==='female'&&!englishPreviewEnabled()&&isThaiOutfitPath(editCache.current?.lock?.templatePath)&&head.hairReferenceContractVersion!==FEMALE_EXACT_PROMPT_VERSION)return;
   // Keep older work visible, but do not label old hair/neck pixels as a newly
   // repaired cached result when the user selects that hairstyle again.
@@ -6180,6 +6182,9 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
     preparedHairBaseRef.current=null;lastHairDonorRef.current=null;
     cleanHairBaseRef.current=null;initialStyledHairRef.current=null;
     studioHairOriginRef.current=selectedHair||'';setHairId(selectedHair||'');
+    if(!englishPreviewEnabled()&&portraitMode==='female'){
+     portraitResultCache.clear();hairResultCacheRef.current.clear();processedStudioHistoryRef.current.clear();fullPortraitHairHistoryRef.current.clear();
+    }else{
     const entry=rememberHairResult(selectedHair,master,portraitMode,femaleEyeStyle,template);entry.confirmed=true;
     // Store ONLY after successful hydration + commit, including the real job
     // identity. New photos/accounts/outfits cannot match this cache entry.
@@ -6192,6 +6197,7 @@ const selectionScope=liveLegacyWarningScope(),sequence=++photoPickSequenceRef.cu
      femaleFinishSingleVersion:aiHead.idpromFemaleFinishSingleVersion,
      qualityReviewNeeded:Boolean(aiHead.idpromQualityReviewNeeded)
     });
+    }
     studioPhotoTransactionRef.current=false;
     window.dispatchEvent(new CustomEvent('idprom-output-job',{detail:{jobId,isTrial,fullEdit:aiHead.idpromFullEdit}}));
    };
