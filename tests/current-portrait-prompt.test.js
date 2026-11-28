@@ -10,7 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'ccd5baae5c470a02ac6ae18fe5f62bb64e978c166e4900668fdd163fd43cb83f');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'045fd1d5f306c8f51562d4caf53e426bf8ccf474559edeba5570f87cf3296389');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
@@ -45,3 +45,5 @@ test('English creation accepts only the current contract for the selected gender
   for(const version of ['en-female-matched-head-body-v1','en-body-proportion-lock-v8','en-template-locked-body-v3'])assert.throws(()=>validateEnglishStudioFinish({...fields,englishStudioFinishVersion:version}),/Retired English/);
  }
 });
+
+test("current female prompt locks original gaze and uses brow strokes without reshaping",()=>{for(const text of ["EYES AND GAZE — ORIGINAL IDENTITY LOCK", "SOFT KOREAN HAIR-STROKE EYEBROWS", "Do not lift the eyebrows", "from Image 1"])assert(FEMALE_PORTRAIT_PROMPT.includes(text));});
