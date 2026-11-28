@@ -5,9 +5,16 @@ import {createFemaleGarmentLayout,femaleLabChinPlacement} from './female-portrai
 export const GUIDE_EDIT_FACE_SCALE=.95;
 export const GUIDE_EDIT_NECK_GAP_SCALE=.8;
 export function guideEditFacePlacement(layout){
- const span=layout.shoulderSpan,originalChin=femaleLabChinPlacement(layout);
+ const span=layout.shoulderSpan,originalChin=femaleLabChinPlacement(layout),context=layout.measuredCollar;
+ if(!Number.isFinite(context.contactY)||!(span>0))throw Error('Missing collar contact');
+ // collarTopY is the outer collar top. The skin contact is lower and must
+ // be mapped from native garment coordinates using the same garment scale.
+ const collarContactY=layout.collarTopY+(context.contactY-context.upperCollarY)*span/context.shoulderWidth;
+ const originalGap=collarContactY-originalChin;
+ if(!Number.isFinite(originalGap)||originalGap<=0)throw Error('Invalid collar contact gap');
+ const neckGap=originalGap*GUIDE_EDIT_NECK_GAP_SCALE;
  return {width:Math.round(span*.35*GUIDE_EDIT_FACE_SCALE),height:Math.round(span*.465*GUIDE_EDIT_FACE_SCALE),
-  chin:originalChin+Math.max(0,layout.collarTopY-originalChin)*(1-GUIDE_EDIT_NECK_GAP_SCALE)};
+  chin:collarContactY-neckGap,collarContactY,originalGap,neckGap};
 }
 
 export async function createGuideEditLabBase(outfit,face){
