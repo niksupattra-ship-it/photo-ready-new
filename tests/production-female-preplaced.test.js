@@ -46,7 +46,7 @@ test('current production matches the active Pro lab request exactly across outfi
  const prompt=productionLabPrompt();
  assert(prompt.includes('Image 1: PRIMARY EDIT CANVAS'));assert(prompt.includes('Image 3: Selected hairstyle only'));assert(prompt.includes('Image 4: Selected garment reference'));
  for(const [path,id,file]of [['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-80','80.png'],['government-uniforms/female-operational.png','seedream-81','81.png'],['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-05','5.png'],['government-uniforms/female-operational.png','seedream-14','14.png'],['gown-uniforms/kmitl-female.png','seedream-79','79.png'],['student-uniforms/female-01.png','seedream-24','24.png']]){
-  const outfit=await readFile(root+'public/assets/'+path),hair=await readFile(root+'public/assets/seedream-hairstyles/references/'+file);
+  const outfit=await readFile(root+'public/assets/'+path),hair=await readFile(root+'public/assets/catalogue-hair-guides/v1/'+id+'.png');
   const expected=await productionLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}});
   let calls=0;const audit=createMakeupRequestAudit(async args=>{
    calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
