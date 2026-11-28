@@ -30,7 +30,7 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
    const experimental=['/api/female-production-lab','/api/female-guide-edit-lab'].includes(route);
    const payload=experimental?{...originalPayload,model:'dola-seedream-5-5-261028'}:originalPayload;
    const body=JSON.stringify(payload),fingerprint=createHash('sha256').update(key).update(body).digest('hex');
-   const proof=['/api/female-production-lab','/api/female-guide-edit-lab'].includes(route)?femaleRequestProof(payload,{allowTwoReferences:experimental}):null;
+   const proof=['/api/female-production-lab','/api/female-guide-edit-lab'].includes(route)?femaleRequestProof(payload):null;
    const prior=jobs.get(id);
    if(prior){if(prior.fingerprint!==fingerprint)return res.status(409).json({error:'ข้อมูลไม่ตรงกับงานเดิม กรุณาเริ่มงานใหม่'});return res.status(202).json({id});}
    if(jobs.size>=20)return res.status(503).json({error:'หน้าทดลองเต็ม กรุณารอสักครู่'});
