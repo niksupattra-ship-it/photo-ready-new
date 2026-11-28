@@ -1,5 +1,7 @@
-import {productionLabPayload,productionLabPrompt,productionLabResult} from './female-production-lab.js';
+import {productionLabPayload,productionLabPrompt} from './female-production-lab.js';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
+import {PRO_LAB_MODEL} from './seedream-pro-payload.js';
+import {completeGuideEditLabResult} from './female-guide-edit-lab-frame.js';
 
 // Lab-only candidate. Production keeps its own immutable prompt and cache key.
 export const FEMALE_GUIDE_EDIT_LAB_PROMPT=`EDIT IMAGE 1 IN PLACE. Preserve its existing composition.
@@ -64,14 +66,14 @@ Return one edited portrait with the same aspect ratio and framing.`;
 export async function guideEditLabPayload(options){
  const prompt=typeof options.prompt==='string'?options.prompt.replace(/\r\n/g,'\n'):options.prompt;
  if(prompt!==FEMALE_GUIDE_EDIT_LAB_PROMPT)throw Error('Prompt does not match guide-edit experiment');
- // Reuse the exact baseline preparation; only the submitted prompt differs.
+ // Keep the exact baseline guide and references; the lab alone selects Pro.
  const payload=await productionLabPayload({...options,prompt:productionLabPrompt()});
- return {...payload,prompt};
+ return {...payload,prompt,model:PRO_LAB_MODEL};
 }
 
 export function registerFemaleGuideEditLab(app,{removeBackground,...options}={}){
  const route='/api/female-guide-edit-lab';
  app.get(route+'/prompt',(_req,res)=>res.set('Cache-Control','no-store').type('text').send(FEMALE_GUIDE_EDIT_LAB_PROMPT));
  registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:guideEditLabPayload,
-  processResult:(png,{files})=>productionLabResult(png,removeBackground,{outfit:files.outfit[0].buffer})});
+  processResult:png=>completeGuideEditLabResult(png,removeBackground)});
 }

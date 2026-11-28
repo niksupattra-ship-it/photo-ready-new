@@ -6,6 +6,7 @@ import express from 'express';
 import sharp from 'sharp';
 import {FEMALE_GUIDE_EDIT_LAB_PROMPT,guideEditLabPayload,registerFemaleGuideEditLab} from '../female-guide-edit-lab.js';
 import {productionLabPayload,productionLabPrompt,registerFemaleProductionLab} from '../female-production-lab.js';
+import {PRO_LAB_MODEL} from '../seedream-pro-payload.js';
 import {FEMALE_FACE_OUTLINE,captureFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
 
 const root=new URL('..',import.meta.url).pathname,landmarks=[];
@@ -16,14 +17,15 @@ const person=await sharp({create:{width:480,height:640,channels:4,background:'#b
 const hair=await readFile(root+'public/assets/seedream-hairstyles/references/5.png');
 const asset=path=>readFile(root+'public/assets/'+path);
 
-test('guide-edit lab changes only the prompt: guide pixels, hair, garment, model and output settings match production',async()=>{
+test('Pro guide-edit lab preserves baseline guide pixels, hair, garment and output settings',async()=>{
  const originalPrompt=productionLabPrompt();assert.notEqual(FEMALE_GUIDE_EDIT_LAB_PROMPT,originalPrompt);
  for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-navy-notch-white-shirt.png']){
   const files={person:[{buffer:person}],outfit:[{buffer:await asset(path)}],hair:[{buffer:hair}]};
   const options={files,fields,order:'person-outfit-hair'};
   const baseline=await productionLabPayload({...options,prompt:originalPrompt});
   const experiment=await guideEditLabPayload({...options,prompt:FEMALE_GUIDE_EDIT_LAB_PROMPT});
-  assert.deepEqual(experiment,{...baseline,prompt:FEMALE_GUIDE_EDIT_LAB_PROMPT});
+  assert.deepEqual(experiment,{...baseline,prompt:FEMALE_GUIDE_EDIT_LAB_PROMPT,model:PRO_LAB_MODEL});
+  assert.notEqual(experiment.model,baseline.model);
   assert.equal(productionLabPrompt(),originalPrompt);
   await assert.rejects(guideEditLabPayload({...options,prompt:originalPrompt}),/guide-edit experiment/);
  }
@@ -42,7 +44,7 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  const html=await(await fetch(base+'/female-guide-edit-lab.html')).text();
  const data=name=>html.match(new RegExp('data-'+name+'="([^"]+)"'))?.[1];
  const endpoint=data('endpoint');assert.equal(endpoint,'/api/female-guide-edit-lab');
- assert.equal(data('storage-key'),'female-guide-edit-lab-v1');assert.equal(data('face-preparation'),'on');
+ assert.equal(data('storage-key'),'female-guide-edit-lab-pro-full-frame-v2');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.0-pro-260628');
  assert.equal(data('guide-module'),'./female-production-lab-guide.js');assert(html.includes('href="/female-production-lab.html"'));
  assert.equal(await(await fetch(base+data('prompt-url'))).text(),FEMALE_GUIDE_EDIT_LAB_PROMPT);
  assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),productionLabPrompt());
@@ -55,8 +57,10 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
  let response;for(let n=0;n<150;n++){response=await fetch(base+endpoint+'/'+id);if(response.status!==202)break;await new Promise(resolve=>setTimeout(resolve,20));}
  assert.equal(response.status,200);const result=Buffer.from(await response.arrayBuffer());assert.equal((await sharp(result).metadata()).format,'png');
+ const delivered=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
+ for(const x of [0,delivered.info.width-1]){const i=((delivered.info.height-1)*delivered.info.width+x)*3;assert.deepEqual([...delivered.data.subarray(i,i+3)],[176,143,127],'delivered lower corners contain the original person, not background margins');}
  assert.equal(calls,1);assert.equal(mattes,1);assert.equal(captured.prompt,FEMALE_GUIDE_EDIT_LAB_PROMPT);
- assert.equal(captured.size,'2K');assert.equal(captured.model,'dola-seedream-5-0-flash-260915');
+ assert.equal(captured.size,'2K');assert.equal(captured.model,PRO_LAB_MODEL);
  assert.deepEqual(captured.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[guide,hair,outfit]);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
  assert.equal(calls,1);assert.equal(mattes,1);
