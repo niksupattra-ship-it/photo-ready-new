@@ -2,13 +2,13 @@ import {addSkinControls} from './seedream-pro-skin-controls.js';
 const $=id=>document.getElementById(id),form=$('form'),go=$('go'),status=$('status'),check=$('check'),results=$('results');
 const labConfig=document.documentElement.dataset;
 const labEndpoint=labConfig.endpoint||'/api/seedream-pro-lab';
-const modelLabel=labConfig.modelLabel||'Dola-Seedream-5.0-pro',sizeLabel=labConfig.sizeLabel||'1.5K';
+const modelLabel=labConfig.modelLabel||'Dola-Seedream-5.0-pro',sizeLabel=labConfig.sizeLabel||'2K';
 const storageKey=labConfig.storageKey||'seedream-pro-lab-active-v1';let activeId=null,busy=false,checking=false,referenceLoading=false;const urls=[];
 const labels={outfit:'ชุด',person:'คน',hair:'ผม'};
 function restoreSnapshot(snapshot){if(!snapshot)return;$('prompt').value=snapshot.prompt;$('order').value=snapshot.order;for(const name of Object.keys(labels)){if(snapshot.files?.[name]){const transfer=new DataTransfer();transfer.items.add(snapshot.files[name]);const input=form.elements[name];input.files=transfer.files;input.dispatchEvent(new Event('change'));}}orderLabels();}
 const setBusy=value=>{busy=value;for(const control of form.elements)control.disabled=value;};
 const remember=id=>{try{id?sessionStorage.setItem(storageKey,id):sessionStorage.removeItem(storageKey)}catch{}};
-function orderLabels(){const order=$('order').value.split('-');for(const name of order){const label=form.querySelector(`[data-kind="${name}"]`);label.style.order=order.indexOf(name);label.querySelector('.number').textContent=labConfig.facePreparation?'ต้นฉบับ · '+labels[name]:`Image ${order.indexOf(name)+1} · ${labels[name]}`;}}
+function orderLabels(){const order=(labConfig.referenceOrder||$('order').value).split('-');for(const name of order){const label=form.querySelector(`[data-kind="${name}"]`);label.style.order=order.indexOf(name);label.querySelector('.number').textContent=labConfig.facePreparation&&!labConfig.referenceOrder?'ต้นฉบับ · '+labels[name]:`Image ${order.indexOf(name)+1} · ${labels[name]}`;}}
 $('order').addEventListener('change',orderLabels);
 for(const input of form.querySelectorAll('input[type=file]'))input.addEventListener('change',()=>{const img=input.parentElement.querySelector('img'),placeholder=img.nextElementSibling;if(img.dataset.url)URL.revokeObjectURL(img.dataset.url);img.hidden=!input.files.length;placeholder.hidden=!!input.files.length;if(input.files.length){img.src=URL.createObjectURL(input.files[0]);img.dataset.url=img.src;}const selected=form.querySelector(`[data-selection="${input.name}"]`);if(selected)selected.textContent=input.dataset.catalogueName||input.files[0]?.name||'';delete input.dataset.catalogueName;});
 const picker=$('catalogue-dialog'),grid=$('catalogue-grid'),pickerStatus=$('catalogue-status');let cataloguePromise,pickerKind='outfit',selectionSequence=0,selectionAbort=null;

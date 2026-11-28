@@ -10,7 +10,7 @@ export function seedreamLabPayload(prompt,image){
 }
 export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,hairMime='image/png',identity,makeup,outfit,outfitMime='image/png',skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,femalePreplacedVersion,preparedFemalePayload}){
  if(femalePreplacedVersion){
-  if(femalePreplacedVersion!==FEMALE_LAB_PROCESS_VERSION||prompt!==FEMALE_PORTRAIT_PROMPT||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==PRO_LAB_MODEL||preparedFemalePayload?.size!==PORTRAIT_AI_OUTPUT_SIZE||preparedFemalePayload?.image?.length!==4)throw Error('Invalid current female payload');
+  if(femalePreplacedVersion!==FEMALE_LAB_PROCESS_VERSION||prompt!==FEMALE_PORTRAIT_PROMPT||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==PRO_LAB_MODEL||preparedFemalePayload?.size!==PORTRAIT_AI_OUTPUT_SIZE||preparedFemalePayload?.image?.length!==3)throw Error('Invalid current female payload');
   return preparedFemalePayload;
  }
  if(femaleExactPromptVersion)throw Error('Retired female prompt; refresh the page');
