@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import sharp from 'sharp';
 import {planGuideEditLabFrame,frameGuideEditLabForeground} from '../female-guide-edit-lab-frame.js';
-import {createFemaleGarmentLayout,femaleLabChinPlacement} from '../female-portrait-layout.js';
+import {createFemaleGarmentLayout,femaleLabChinPlacement,measureFemaleNeckSeat} from '../female-portrait-layout.js';
 
 function portrait(width,height,bodyWidth,crown=60,bottom=height){
  const data=Buffer.alloc(width*height*4),rect=(x,y,w,h,color)=>{for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)data.set(color,(yy*width+xx)*4);};
@@ -48,4 +48,13 @@ test('isolated alpha noise is ignored and impossible narrow masks retain a bound
  const data=portrait(300,400,180);data[(2*300+20)*4+3]=255;assert.equal(planGuideEditLabFrame(data,300,400).crown,60);
  assert.equal(planGuideEditLabFrame(Buffer.alloc(300*400*4),300,400),null);
  const narrow=portrait(300,400,80),plan=planGuideEditLabFrame(narrow,300,400);assert(plan);assert.equal(plan.fullWidth,false);assert(Number.isFinite(plan.scale));assert(Math.abs(plan.y+60*plan.scale-28)<1e-8);
+});
+
+test('garment-specific neck seating uses both shoulder roots and never moves into opaque collar',()=>{
+ const w=300,h=400,s=200,cx=150,t=100,layout={centerX:cx,shoulderSpan:s,collarTopY:t,measuredCollar:{chinY:99,upperCollarY:100,shoulderWidth:s}};
+ const make=(shoulderY,closed)=>{const data=Buffer.alloc(w*h*4);for(let y=t;y<h;y++)for(let x=0;x<w;x++){if((y>=shoulderY&&Math.abs(x-cx)>=35&&Math.abs(x-cx)<=100)||(closed&&y>=t&&Math.abs(x-cx)<=15))data[(y*w+x)*4+3]=255;}return data;};
+ const high=measureFemaleNeckSeat(make(110,false),w,h,layout),low=measureFemaleNeckSeat(make(145,false),w,h,layout),closed=measureFemaleNeckSeat(make(145,true),w,h,layout);
+ assert(low>high);assert(low<=t+s*.075);assert(closed<=t);
+ assert(femaleLabChinPlacement({...layout,neckSeatY:low})>femaleLabChinPlacement({...layout,neckSeatY:high}));
+ assert.equal(femaleLabChinPlacement({...layout,neckSeatY:closed}),t);
 });
