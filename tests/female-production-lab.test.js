@@ -1,3 +1,4 @@
+import {LAB_FLASH_MODEL,LAB_FLASH_PROMPT,finishFemaleLabWithFlash} from '../female-lab-flash-finish.js';
 import {FEMALE_55_LAB_PROMPT} from '../female-55-lab-prompt.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,9 +35,9 @@ test('active Pro lab shares production prompt and three-reference guide-only pay
 });
 test('lab guide, immutable prompt, async submission, matting and framed PNG use no production wallet',async t=>{
  const outfit=await asset('government-uniforms/female-operational.png');
- let calls=0,mattes=0;
+ let calls=0,mattes=0,flashInput,failFlash=false;
  const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:600,channels:4,background:'#ffffff'}}).png().toBuffer(),left:60,top:40}]).png().toBuffer();
- const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,'dola-seedream-5-5-261028');assert.notEqual(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,3);assert.equal(p.prompt,FEMALE_55_LAB_PROMPT);assert.notEqual(p.prompt,FEMALE_PORTRAIT_PROMPT);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
+ const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);if(p.model===LAB_FLASH_MODEL){assert.equal(p.prompt,LAB_FLASH_PROMPT);assert.equal(typeof p.image,'string');flashInput=Buffer.from(p.image.split(',')[1],'base64');if(failFlash)return {ok:false,status:502,json:async()=>({error:{message:'test failure'}})};return {ok:true,json:async()=>({data:[{b64_json:flashInput.toString('base64')}]})};}assert.equal(p.model,'dola-seedream-5-5-261028');assert.notEqual(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,3);assert.equal(p.prompt,FEMALE_55_LAB_PROMPT);assert.notEqual(p.prompt,FEMALE_PORTRAIT_PROMPT);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();server.close();});const base='http://127.0.0.1:'+server.address().port+'/api/female-production-lab';
  assert.equal(await(await fetch(base+'/prompt')).text(),FEMALE_55_LAB_PROMPT);
  assert((await(await fetch(base+'/face-contract.js')).text()).includes('captureFemaleFaceEvidence'));
@@ -47,8 +48,11 @@ test('lab guide, immutable prompt, async submission, matting and framed PNG use 
  const f=form(),id=randomUUID();f.set('key','inert-key');f.set('requestId',id);f.set('order','person-outfit-hair');f.set('prompt',FEMALE_55_LAB_PROMPT);
  assert.equal((await fetch(base,{method:'POST',body:f})).status,202);
  let result;for(let n=0;n<100;n++){r=await fetch(base+'/'+id);if(r.status!==202){result=r;break;}await new Promise(r=>setTimeout(r,20));}
- assert.equal(result?.status,200);const meta=await sharp(Buffer.from(await result.arrayBuffer())).metadata();const originalMeta=await sharp(person).metadata();assert.equal(meta.width,originalMeta.width);assert.equal(meta.height,originalMeta.height);assert.equal(calls,1);assert.equal(mattes,1);
- assert.equal((await fetch(base,{method:'POST',body:f})).status,202);assert.equal(calls,1);
+ assert.equal(result?.status,200);assert.equal(result.headers.get('x-lab-flash-status'),'success');const output=Buffer.from(await result.arrayBuffer());const baseImage=Buffer.from(await(await fetch(base+'/'+id+'/base')).arrayBuffer());assert.deepEqual(flashInput,baseImage);assert.deepEqual(output,baseImage);const meta=await sharp(output).metadata();const originalMeta=await sharp(person).metadata();assert.equal(meta.width,originalMeta.width);assert.equal(meta.height,originalMeta.height);assert.equal(calls,2);assert.equal(mattes,1);
+ assert.equal((await fetch(base,{method:'POST',body:f})).status,202);assert.equal(calls,2);
+ failFlash=true;const fallbackId=randomUUID();f.set('requestId',fallbackId);assert.equal((await fetch(base,{method:'POST',body:f})).status,202);
+ let fallback;for(let n=0;n<150;n++){fallback=await fetch(base+'/'+fallbackId);if(fallback.status!==202)break;await new Promise(r=>setTimeout(r,20));}
+ assert.equal(fallback.status,200);assert.equal(fallback.headers.get('x-lab-flash-status'),'fallback');assert.deepEqual(Buffer.from(await fallback.arrayBuffer()),Buffer.from(await(await fetch(base+'/'+fallbackId+'/base')).arrayBuffer()));assert.equal(calls,4);assert.equal(mattes,2);
 });
 
 test('detailed 2K PNG larger than the SVG XML text limit is framed without embedding image bytes as XML',async()=>{
@@ -82,4 +86,9 @@ test('5.5 V6 restricts spot correction to photographic artifacts and preserves i
  assert.match(FEMALE_55_LAB_PROMPT,/spot-level tonal correction rather than global smoothing/);
  assert.match(FEMALE_55_LAB_PROMPT,/permanent identifying marks/);
  assert.match(FEMALE_55_LAB_PROMPT,/Do not alter any facial features, hair, garment, proportions or framing/);
+});
+
+test('Flash rejects a changed canvas rather than resizing or cropping the finished V6 image',async()=>{
+ const other=await sharp({create:{width:481,height:640,channels:3,background:'#abc'}}).png().toBuffer();let calls=0;
+ await assert.rejects(finishFemaleLabWithFlash(person,{key:'inert',fetchImpl:async()=>{calls++;return Response.json({data:[{b64_json:other.toString('base64')}]});}}),/Flash canvas changed/);assert.equal(calls,1);
 });
