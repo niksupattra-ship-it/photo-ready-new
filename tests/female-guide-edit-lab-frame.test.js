@@ -58,3 +58,26 @@ test('garment-specific neck seating uses both shoulder roots and never moves int
  assert(femaleLabChinPlacement({...layout,neckSeatY:low})>femaleLabChinPlacement({...layout,neckSeatY:high}));
  assert.equal(femaleLabChinPlacement({...layout,neckSeatY:closed}),t);
 });
+
+test('shared fill corrects uneven exposure without changing alpha, geometry, lit skin or lower garment',async()=>{
+ const {balancePortraitFillPixels,balancePortraitFill}=await import('../female-portrait-fill-light.js');
+ const w=300,h=400,source=Buffer.alloc(w*h*4);
+ const paint=(x,y,rgb,a=255)=>source.set([...rgb,a],(y*w+x)*4);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+  if(y>=76&&y<184&&x>=100&&x<200)paint(x,y,x<150?[115,83,67]:[170,130,108]);
+  else if(y>=220)paint(x,y,[120,90,65]);
+  else if(x>=85&&x<215)paint(x,y,[18,16,15]);
+ }
+ const original=Buffer.from(source),out=balancePortraitFillPixels(source,w,h);
+ const pixel=(b,x,y)=>[...b.subarray((y*w+x)*4,(y*w+x)*4+4)];
+ assert(out[(120*w+125)*4]>source[(120*w+125)*4]);
+ assert(out[(120*w+125)*4]<=Math.ceil(115*1.12));
+ for(const [x,y] of [[175,120],[90,100],[150,240],[2,2]])assert.deepEqual(pixel(out,x,y),pixel(source,x,y));
+ for(let i=3;i<out.length;i+=4)assert.equal(out[i],source[i]);
+ assert.deepEqual(source,original);
+ const png=await sharp(source,{raw:{width:w,height:h,channels:4}}).png().toBuffer();
+ const got=await sharp(await balancePortraitFill(png)).ensureAlpha().raw().toBuffer();assert.deepEqual(got,out);
+ const uniform=Buffer.alloc(w*h*4);
+ for(let i=0;i<uniform.length;i+=4)uniform.set([85,60,45,255],i);
+ assert.deepEqual(balancePortraitFillPixels(uniform,w,h),uniform,'Do not brighten evenly lit complexion');
+});
