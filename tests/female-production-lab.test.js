@@ -1,3 +1,4 @@
+import {FEMALE_55_LAB_PROMPT} from '../female-55-lab-prompt.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -35,15 +36,15 @@ test('lab guide, immutable prompt, async submission, matting and framed PNG use 
  const outfit=await asset('government-uniforms/female-operational.png');
  let calls=0,mattes=0;
  const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:600,channels:4,background:'#ffffff'}}).png().toBuffer(),left:60,top:40}]).png().toBuffer();
- const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,'dola-seedream-5-5-261028');assert.notEqual(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,3);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
+ const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,'dola-seedream-5-5-261028');assert.notEqual(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,3);assert.equal(p.prompt,FEMALE_55_LAB_PROMPT);assert.notEqual(p.prompt,FEMALE_PORTRAIT_PROMPT);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();server.close();});const base='http://127.0.0.1:'+server.address().port+'/api/female-production-lab';
- assert.equal(await(await fetch(base+'/prompt')).text(),productionLabPrompt());
+ assert.equal(await(await fetch(base+'/prompt')).text(),FEMALE_55_LAB_PROMPT);
  assert((await(await fetch(base+'/face-contract.js')).text()).includes('captureFemaleFaceEvidence'));
  const form=()=>{const f=new FormData();for(const [name,data]of [['person',person],['outfit',outfit],['hair',hair]])f.set(name,new Blob([data],{type:'image/png'}),name+'.png');f.set('femalePreplacedFace',JSON.stringify(evidence));return f;};
  const guide=form();guide.delete('hair');let r=await fetch(base+'/guide',{method:'POST',body:guide});assert.equal(r.status,200);
  assert.deepEqual(Buffer.from(await r.arrayBuffer()),await createFemaleLabBase(outfit,await prepareFemaleFace(person,evidence)));assert.equal(calls,0);
  const invalid=form();invalid.set('key','inert-key');invalid.set('requestId',randomUUID());invalid.set('order','person-outfit-hair');invalid.set('prompt','changed prompt');assert.equal((await fetch(base,{method:'POST',body:invalid})).status,400);assert.equal(calls,0);
- const f=form(),id=randomUUID();f.set('key','inert-key');f.set('requestId',id);f.set('order','person-outfit-hair');f.set('prompt',productionLabPrompt());
+ const f=form(),id=randomUUID();f.set('key','inert-key');f.set('requestId',id);f.set('order','person-outfit-hair');f.set('prompt',FEMALE_55_LAB_PROMPT);
  assert.equal((await fetch(base,{method:'POST',body:f})).status,202);
  let result;for(let n=0;n<100;n++){r=await fetch(base+'/'+id);if(r.status!==202){result=r;break;}await new Promise(r=>setTimeout(r,20));}
  assert.equal(result?.status,200);const meta=await sharp(Buffer.from(await result.arrayBuffer())).metadata();const originalMeta=await sharp(person).metadata();assert.equal(meta.width,originalMeta.width);assert.equal(meta.height,originalMeta.height);assert.equal(calls,1);assert.equal(mattes,1);

@@ -1,3 +1,4 @@
+import {FEMALE_55_LAB_PROMPT,female55LabPayloadFrom} from './female-55-lab-prompt.js';
 import {completeGuideEditLabResult} from './female-guide-edit-lab-frame.js';
 import multer from 'multer';
 import {fileURLToPath} from 'node:url';
@@ -21,7 +22,7 @@ export async function productionLabPayload({prompt,order,files,fields}){
 export {completeGuideEditLabResult as productionLabResult} from './female-guide-edit-lab-frame.js';
 export function registerFemaleProductionLab(app,{removeBackground, ...options}={}){
  app.get('/female-reference-evidence-client.js',(_req,res)=>res.type('application/javascript').sendFile(fileURLToPath(new URL('./female-reference-evidence-client.js',import.meta.url))));
- app.get(route+'/prompt',(_req,res)=>res.set('Cache-Control','no-store').type('text').send(productionLabPrompt()));
+ app.get(route+'/prompt',(_req,res)=>res.set('Cache-Control','no-store').type('text').send(FEMALE_55_LAB_PROMPT));
  app.get(route+'/face-contract.js',(_req,res)=>res.type('application/javascript').sendFile(fileURLToPath(new URL('./female-preplaced-face-contract.js',import.meta.url))));
  const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:2,fields:1,parts:3,fieldSize:12000}}).fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1}]);
  app.post(route+'/guide',(req,res)=>upload(req,res,async error=>{
@@ -32,5 +33,5 @@ export function registerFemaleProductionLab(app,{removeBackground, ...options}={
    res.type('png').send(await createFemaleLabBase(req.files.outfit[0].buffer,face));
   }catch{res.status(400).json({error:'เตรียมไกด์ไม่ได้ กรุณาใช้รูปหน้าตรงและเลือกชุดใหม่'});}
  }));
- registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:productionLabPayload,processResult:png=>completeGuideEditLabResult(png,removeBackground)});
+ registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:female55LabPayloadFrom(productionLabPayload,productionLabPrompt()),processResult:png=>completeGuideEditLabResult(png,removeBackground)});
 }
