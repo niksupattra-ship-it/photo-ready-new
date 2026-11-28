@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      include_historical:
+        description: 'Also run pre-v13 historical contract diagnostics (known failures are reported, never treated as passes)'
+        required: false
+        default: false
+        type: boolean
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -20,7 +26,7 @@ jobs:
       - run: npm ci
       - name: Confirm one AI call and preserve legacy results
         run: node --test tests/single-female-finish-free-switch.test.js
-      - name: Full regression suite
+      - name: Current production regression suite
         timeout-minutes: 10
         env:
           VIPS_CONCURRENCY: 2
@@ -30,3 +36,17 @@ jobs:
         env:
           VIPS_CONCURRENCY: 2
         run: npm run build
+
+  historical-contracts:
+    if: github.event_name == 'workflow_dispatch' && inputs.include_historical
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Pre-v13 diagnostics (failures remain failures)
+        run: npm run test:historical

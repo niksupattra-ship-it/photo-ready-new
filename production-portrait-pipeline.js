@@ -122,6 +122,8 @@ export async function checkedFemaleMakeupReference(image){
 export function validateProductionPortrait(input,fields={}){
  if(fields.thaiWholeHeadGuideVersion===FEMALE_LAB_PROCESS_VERSION)parseFemaleFaceEvidence(fields.femalePreplacedFace);
  fields=thaiOutfitGenerationFields(fields);
+ // Reject mixed old/new variants before provider/version-specific validation or credits.
+ if(fields.femaleFinishSingleVersion&&(!isFemaleSingleFinish(fields)||fields.femaleFinishPair||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกสร้างภาพเฉพาะรูปแบบไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  validateEnglishStudioFinish(fields);
  if(fields.thaiBodyGeometryVersion!==undefined&&(!usesThaiBodyGeometry(fields)||!usesEnglishStudioFinish(fields)||!isEnglishBodyPortrait(fields)))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อใช้การตรวจสัดส่วนล่าสุด');
  if(fields.thaiBodyReference!==undefined&&(!usesThaiBodyGeometry(fields)||!parseThaiBodyReference(fields.thaiBodyReference,{legacy:fields.thaiBodyGeometryVersion==='thai-one-call-body-geometry-v1',strict:['thai-one-call-balanced-head-v3','thai-one-call-unified-proportions-v4',THAI_BODY_GEOMETRY_VERSION].includes(fields.thaiBodyGeometryVersion)})))throw Error('ข้อมูลสัดส่วนรูปเดิมไม่ถูกต้อง กรุณาเปิดรูปเดิมอีกครั้ง');
@@ -136,8 +138,6 @@ export function validateProductionPortrait(input,fields={}){
  if(usesThaiBodyGeometry(fields)&&(selected?.gender||fields.portraitMode)==='female'&&!isSinglePassPortrait(fields))throw Error('กรุณารีเฟรชหน้าเว็บเพื่อสร้างภาพครั้งเดียว');
  if(selected?.interfaceLanguage==='en'&&(!isEnglishBodyPortrait(fields)||!usesEnglishStudioFinish(fields)||fields.hairReferenceVersion!==HAIR_REFERENCE_VERSION))throw Error('Please refresh the English Studio and choose a hairstyle again.');
  if(fields.femaleFinishPair&&(!isAiMakeupPairVersion(fields.femaleFinishPair)||(selected?.gender||fields.portraitMode)!=='female'||fields.femaleEyeStyle!=='natural'||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกภาพแต่งหน้าคู่ไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
- // Reject mixed old/new variants before credits are reserved.
- if(fields.femaleFinishSingleVersion&&(!isFemaleSingleFinish(fields)||fields.femaleFinishPair||!isOriginalPortraitAiRequest(fields)))throw Error('ตัวเลือกสร้างภาพเฉพาะรูปแบบไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
  if(fields.hairReferenceVersion&&!id.startsWith('seedream-')&&!selected?.promptOnly)throw Error('ภาพอ้างอิงนี้ใช้ได้เฉพาะทรงผมในแค็ตตาล็อก');
  if(id!=='original'&&!selected)throw Error('ทรงผมเดิมถูกนำออกแล้ว กรุณาเลือกทรงจากชุดล่าสุด');
  if(!selected&&!['female','male'].includes(fields.portraitMode))throw Error('กรุณาเลือกหญิงหรือชายก่อนประมวลผล');

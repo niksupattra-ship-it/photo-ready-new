@@ -7,7 +7,7 @@ import sharp from 'sharp';
 import {registerFemaleProductionLab,productionLabPayload,productionLabPrompt} from '../female-production-lab.js';
 import {FEMALE_FACE_OUTLINE,captureFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
 import {prepareFemaleFace} from '../female-preplaced-face.js';
-import {PRO_LAB_MODEL} from '../seedream-pro-payload.js';
+import {FEMALE_PORTRAIT_MODEL as PRO_LAB_MODEL} from '../seedream-pro-payload.js';
 import {currentFemalePortraitPayload} from '../female-portrait-payload.js';
 import {createFemaleLabBase} from '../female-portrait-layout.js';
 import {FEMALE_PORTRAIT_PROMPT} from '../female-portrait-prompt.js';
@@ -21,7 +21,7 @@ const asset=path=>readFile(new URL('../public/assets/'+path,import.meta.url));
 const hair=await asset('seedream-hairstyles/references/5.png');
 const fields={femalePreplacedFace:JSON.stringify(evidence)};
 
-test('active Pro lab shares production prompt and four-reference payload for every outfit category',async()=>{
+test('active Pro lab shares production prompt and three-reference payload for every outfit category',async()=>{
  assert.equal(productionLabPrompt(),FEMALE_PORTRAIT_PROMPT);
  const face=await prepareFemaleFace(person,evidence);
  for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-navy-notch-white-shirt.png','gown-uniforms/kmitl-female.png','student-uniforms/female-01.png']){
@@ -35,7 +35,7 @@ test('lab guide, immutable prompt, async submission, matting and framed PNG use 
  const outfit=await asset('government-uniforms/female-operational.png');
  let calls=0,mattes=0;
  const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:600,channels:4,background:'#ffffff'}}).png().toBuffer(),left:60,top:40}]).png().toBuffer();
- const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,4);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
+ const app=express();registerFemaleProductionLab(app,{removeBackground:async()=>{mattes++;return mask;},fetchImpl:async(_url,options)=>{calls++;const p=JSON.parse(options.body);assert.equal(p.model,PRO_LAB_MODEL);assert.equal(p.image.length,3);return {ok:true,json:async()=>({data:[{b64_json:person.toString('base64')}]})};}});
  const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));t.after(()=>{server.closeAllConnections();server.close();});const base='http://127.0.0.1:'+server.address().port+'/api/female-production-lab';
  assert.equal(await(await fetch(base+'/prompt')).text(),productionLabPrompt());
  assert((await(await fetch(base+'/face-contract.js')).text()).includes('captureFemaleFaceEvidence'));
@@ -46,7 +46,7 @@ test('lab guide, immutable prompt, async submission, matting and framed PNG use 
  const f=form(),id=randomUUID();f.set('key','inert-key');f.set('requestId',id);f.set('order','person-outfit-hair');f.set('prompt',productionLabPrompt());
  assert.equal((await fetch(base,{method:'POST',body:f})).status,202);
  let result;for(let n=0;n<100;n++){r=await fetch(base+'/'+id);if(r.status!==202){result=r;break;}await new Promise(r=>setTimeout(r,20));}
- assert.equal(result?.status,200);const meta=await sharp(Buffer.from(await result.arrayBuffer())).metadata();assert.equal(meta.width,900);assert.equal(meta.height,1200);assert.equal(calls,1);assert.equal(mattes,1);
+ assert.equal(result?.status,200);const meta=await sharp(Buffer.from(await result.arrayBuffer())).metadata();const originalMeta=await sharp(person).metadata();assert.equal(meta.width,originalMeta.width);assert.equal(meta.height,originalMeta.height);assert.equal(calls,1);assert.equal(mattes,1);
  assert.equal((await fetch(base,{method:'POST',body:f})).status,202);assert.equal(calls,1);
 });
 
@@ -58,7 +58,7 @@ test('detailed 2K PNG larger than the SVG XML text limit is framed without embed
  assert(png.length>8_000_000);
  const mask=await sharp({create:{width:width-2,height:height-2,channels:4,background:'#fff'}}).extend({top:1,bottom:1,left:1,right:1,background:'#00000000'}).png().toBuffer();
  let calls=0;const result=await productionLabResult(png,async original=>{assert.equal(original,png);calls++;return mask;});
- const m=await sharp(result).metadata();assert.equal(m.width,900);assert.equal(m.height,1200);assert.equal(calls,1);
+ const m=await sharp(result).metadata();assert.equal(m.width,width);assert.equal(m.height,height);assert.equal(calls,1);
  const {data}=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
  assert(data.some(v=>v!==data[0]),'The actual image must be composited, not replaced by a blank output');
 });

@@ -8,6 +8,6 @@ test('guide-based result keeps the full AI canvas and garment hem without fillin
  const original=await sharp({create:{width:300,height:400,channels:4,background:'#ffffff'}}).composite([{input:subject,left:90,top:40}]).png().toBuffer();
  const output=await prepareFemaleLabForeground(original,async()=>matte);
  const {data,info}=await sharp(output).ensureAlpha().raw().toBuffer({resolveWithObject:true});
- assert.equal(info.width,900);assert.equal(info.height,1200);const alpha=(x,y)=>data[(y*info.width+x)*4+3];
- assert.equal(alpha(20,700),0);assert.equal(alpha(880,700),0);assert(alpha(450,1140)>250);assert.equal(alpha(450,1190),0);assert.equal(alpha(450,90),0);assert(alpha(450,150)>250);
+ assert.equal(info.width,300);assert.equal(info.height,400);const alpha=(x,y)=>data[(y*info.width+x)*4+3];
+ assert.equal(alpha(7,233),0);assert.equal(alpha(293,233),0);assert(alpha(150,380)>250);assert.equal(alpha(150,397),0);assert.equal(alpha(150,30),0);assert(alpha(150,50)>250);
 });

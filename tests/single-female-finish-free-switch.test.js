@@ -307,10 +307,10 @@ test('English-only Studio remembers homepage gender and always reselects it for 
  assert.match(main,/if\(englishPreviewEnabled\(\)\)v\.idpromPortraitMode=gender/,'Upload captures the homepage sex');
  assert.match(main,/if\(englishPreviewEnabled\(\)&&f\)f\.idpromPortraitMode=gender/,'Homepage sex changes after upload stay in sync');
  assert.match(main,/initialGender=\{englishPreviewEnabled\(\)\?gender:null\}/,'Only English passes remembered gender to Studio');
- assert.match(studio,/englishFlow\?\(initialSourcePhoto\?\.idpromPortraitMode\|\|initialGender\):null/,'First visit restores sex from uploaded source');
+ assert.match(studio,/initialSourcePhoto\?\.idpromPortraitMode\|\|\(englishFlow\?initialGender:null\)/,'Explicit source gender is restored while homepage default remains English-only');
  const source=studio.slice(studio.indexOf(' const addSourcePhoto=async '),studio.indexOf(' useEffect(()=>{if(!initialSourcePhoto'));
- assert.match(source,/if\(englishFlow\)apiFile\.idpromPortraitMode=null/,'New Studio upload cannot inherit the previous image sex');
- assert.match(source,/else if\(englishFlow\)\{setPicker\(false\);setPortraitChoiceOpen\(true\)/,'Every Studio replacement opens a sex modal before creation');
+ assert.match(source,/apiFile\.idpromPortraitMode=selectedMode/,'New Studio upload cannot inherit the previous image sex');
+ assert.match(source,/setPortraitChoiceOpen\(!selectedMode\)/,'An upload without an explicit new type opens the type choice');
  assert.match(source,/if\(englishFlow\)\{setEnglishInlineAi\(null\);setEnglishDraft\(null\);setEnglishRoute\(null\);setEnglishStep\(null\)\}/,'English setup is suspended under the gender modal');
  assert.match(studio,/englishFlow\?'Choose the photo type':'กรุณาเลือกชนิดรูป'/,'Modal is localized in English without changing Thai copy');
  assert.match(studio,/if\(englishFlow\)\{trackPhotoType\(mode,'select'\);if\(sourcePhoto\)\{sourcePhoto\.idpromPortraitMode=mode/,'Chosen gender binds to the new uploaded photo');
@@ -383,7 +383,7 @@ test('Diamond hair in both locales opens existing Download packages with the act
  assert.match(main,/if\(checkoutPreview\?\.kind==='diamond-hair'\)return checkoutPreview\.preview\|\|undefined/,'Do not show an older photo when a new Studio upload has no job');
  assert.match(main,/<PackageOffers[\s\S]*?preview=\{checkoutImagePreview\(true\)\} diamondHairOffer=/,'Diamond click uses the same PackageOffers component as Download');
  assert.match(main,/preview=\{checkoutImagePreview\(\)\}/,'Same captured photo can appear in checkout summary');
- assert.match(offers,/const \[selected,setSelected\]=useState\(diamondHairOffer&&studioMode\?'159':'89'\)/,'Thai Diamond checkout preselects 159 rather than basic');
+ assert.match(offers,/const \[selected,setSelected\]=useState\(diamondHairOffer&&studioMode\?'159':'99'\)/,'Thai Diamond checkout preselects 159 rather than basic');
  assert.match(offers,/diamondHairOffer&&preview&&<figure className="en-diamond-photo-preview">/,'English Diamond offer shows the current photo with the Premium plan');
  assert.match(styles,/\.en-diamond-photo-preview img/,'English preview remains visible on desktop and mobile');
 });
