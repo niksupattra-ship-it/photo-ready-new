@@ -47,7 +47,7 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  const html=await(await fetch(base+'/female-guide-edit-lab.html')).text();
  const data=name=>html.match(new RegExp('data-'+name+'="([^"]+)"'))?.[1];
  const endpoint=data('endpoint');assert.equal(endpoint,'/api/female-guide-edit-lab');
- assert.equal(data('storage-key'),'female-guide-edit-lab-pr279-restored-v6');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.0-pro-260628');
+ assert.equal(data('storage-key'),'female-guide-edit-lab-pr279-soft-flash-v7');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.0-pro-260628');
  assert.equal(data('identity-endpoint'),'/api/female-guide-edit-lab/identity');assert(html.includes('id="identity-image"'));
  assert(html.includes('/female-guide-edit-identity-client.js'));
  assert.equal(data('guide-module'),'./female-production-lab-guide.js');assert(html.includes('href="/female-production-lab.html"'));

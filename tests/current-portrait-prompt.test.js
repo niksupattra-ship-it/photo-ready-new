@@ -5,13 +5,15 @@ import {readFile} from 'node:fs/promises';
 import {FEMALE_PORTRAIT_PROMPT,FEMALE_REAR_HAIR_POLICY,FEMALE_LAB_PROCESS_VERSION,usesFemaleExactPrompt} from '../female-portrait-prompt.js';
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
-import {FEMALE_CURRENT_PROMPT_CACHE_KEY} from '../female-prompt-cache-key.js';
+import {FEMALE_CURRENT_PROMPT_CACHE_KEY,femalePromptCacheKey} from '../female-prompt-cache-key.js';
+import {FEMALE_GUIDE_EDIT_FLASH_POLICY} from '../female-guide-edit-prompt.js';
 import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'3df2a2725f430649bfe7136699e8ba79b17c12b9433e2f1207a9a0ae0944e2b8','Exact PR #279 prompt');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),'3df2a2725f430649bfe7136699e8ba79b17c12b9433e2f1207a9a0ae0944e2b8','PR #279 bytes remain unchanged apart from the requested lighting block');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
+ assert.notEqual(femalePromptCacheKey(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),FEMALE_CURRENT_PROMPT_CACHE_KEY,'Old lighting output must not share the new prompt cache');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
  assert.equal(hash(originalMale),'61a4540d9d555ea9685fa2dba72d28b9219fee0c3c0d3330cfaa19d0a955c1a8');

@@ -1,4 +1,21 @@
-// Exact prompt restored from PR #279; browser-safe shared contract.
+// PR #279 contract plus the requested face/neck flash lighting; browser-safe.
+export const FEMALE_GUIDE_EDIT_FLASH_POLICY=`
+3. Soft frontal studio flash within this same image generation.
+Illuminate the face, ears and entire exposed neck together with one broad,
+softly diffused flash centred near the camera at eye level, with balanced
+fill. Gently lift deficient exposure and unwanted directional shadows on
+both sides of the face, beneath the eyes and across the neck. Blend light
+continuously through the jaw-to-neck transition, keeping subtle natural
+contour shadows and realistic three-dimensional depth. Preserve the
+original person's authentic complexion and undertone; change illumination,
+not underlying skin colour. Protect already bright skin and specular
+highlights from clipping. Retain fine pores, eyebrow hairs and sharp detail;
+no whitening, global exposure boost, oily hotspots, flat white skin,
+blur, pale patches, dark neck bands or bright compositing seams.
+Image 4 supplies facial identity, not mandatory source lighting.
+This lighting edit must not move or reshape the face, head, chin, neck,
+shoulders or garment and must not alter the selected makeup colours.
+`;
 export const FEMALE_GUIDE_EDIT_LAB_PROMPT=`EDIT IMAGE 1 IN PLACE. Preserve its existing composition.
 
 REFERENCE ROLES:
@@ -37,7 +54,7 @@ Even the skin tone, correct temporary blemishes and retain fine,
 natural photographic skin texture. Apply subtle rosy cheeks,
 natural glossy pink lips and delicate eyebrow hair strokes.
 Match the face, ears and neck continuously.
-
+${FEMALE_GUIDE_EDIT_FLASH_POLICY}
 FACIAL IDENTITY AND GEOMETRY LOCK:
 
 Preserve the same person's face from Image 4:
