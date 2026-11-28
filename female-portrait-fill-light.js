@@ -26,7 +26,7 @@ export function balancePortraitFillPixels(source,w,h){
  for(let y=Math.floor(h*.10);y<Math.ceil(h*.64);y++)for(let x=Math.floor(w*.15);x<Math.ceil(w*.85);x++){
   const i=(y*w+x)*4,r=source[i],g=source[i+1],b=source[i+2],a=source[i+3];
   if(a<200)continue;
-  const region=Math.max(ellipse(x/w,y/h,.5,.33,.31,.24),ellipse(x/w,y/h,.5,.48,.19,.16));
+  const region=Math.max(ellipse(x/w,y/h,.5,.33,.31,.20),ellipse(x/w,y/h,.5,.47,.19,.11));
   const L=luma(r,g,b);
   // Keep very dark detail, highlights and non-skin colours protected.
   const weight=region*warm(r,g,b)*smooth((L-lit*.40)/Math.max(12,lit*.23))*smooth((lit-L)/Math.max(18,lit*.28))*smooth((a-200)/55);
