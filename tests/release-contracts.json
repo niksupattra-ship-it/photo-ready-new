@@ -38,7 +38,8 @@
     "tests/pro-lab-skin-tone.test.js",
     "tests/female-result-headroom.test.js",
     "tests/female-guide-edit-lab.test.js",
-    "tests/female-guide-edit-lab-frame.test.js"
+    "tests/female-guide-edit-lab-frame.test.js",
+    "tests/female-guide-edit-layout.test.js"
   ],
   "historicalCommand": "npm run test:historical",
   "historicalStatus": "The pre-migration release command has 81 failures on unmodified 4fce1139. It includes positive creation assertions for retired Thai v1-v12 and retired English versions, removed catalogue assets and superseded UI/pricing. It remains available unchanged for investigation; its failures are not reported as passing. Current release tests enforce rejection of retired contracts, actual v13 request/lab parity, model/image order, native master pixels, original face/garment geometry, current catalogue integrity, wallet/checkout and recovery."

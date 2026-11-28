@@ -1,9 +1,11 @@
-import {productionLabPayload,productionLabPrompt} from './female-production-lab.js';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
-import {PRO_LAB_MODEL} from './seedream-pro-payload.js';
+import {seedreamProPayload} from './seedream-pro-payload.js';
 import {completeGuideEditLabResult} from './female-guide-edit-lab-frame.js';
 import {prepareGuideEditIdentity} from './female-guide-edit-identity.js';
+import {prepareFemaleFace} from './female-preplaced-face.js';
+import {createGuideEditLabBase} from './female-guide-edit-layout.js';
 import multer from 'multer';
+import sharp from 'sharp';
 
 // Lab-only candidate. Production keeps its own immutable prompt and cache key.
 export const FEMALE_GUIDE_EDIT_LAB_PROMPT=`EDIT IMAGE 1 IN PLACE. Preserve its existing composition.
@@ -41,7 +43,12 @@ styles without adding extra lengths.
 
 2. Retouch skin and apply the requested makeup.
 Even the skin tone, correct temporary blemishes and retain fine,
-natural photographic skin texture. Apply subtle rosy cheeks,
+natural photographic skin texture. Use slightly brighter soft frontal
+illumination across the face, ears and neck, gently lifting underexposed
+skin midtones while preserving the original person's authentic complexion
+and undertone. Retain highlight detail, natural contours and fine pores;
+do not bleach the skin, clip highlights, erase texture or alter facial anatomy.
+Apply subtle rosy cheeks,
 natural glossy pink lips and delicate eyebrow hair strokes.
 Match the face, ears and neck continuously.
 
@@ -80,15 +87,29 @@ Return one edited portrait with the same aspect ratio and framing.`;
 export async function guideEditLabPayload(options){
  const prompt=typeof options.prompt==='string'?options.prompt.replace(/\r\n/g,'\n'):options.prompt;
  if(prompt!==FEMALE_GUIDE_EDIT_LAB_PROMPT)throw Error('Prompt does not match guide-edit experiment');
- // Keep the baseline guide/hair/garment; append independent original face detail.
- const payload=await productionLabPayload({...options,prompt:productionLabPrompt()});
- const identity=await prepareGuideEditIdentity(options.files.person[0].buffer,options.fields?.femalePreplacedFace);
- return {...payload,prompt,model:PRO_LAB_MODEL,image:[...payload.image,'data:image/png;base64,'+identity.toString('base64')]};
+ if(options.order!=='person-outfit-hair')throw Error('Invalid reference order');
+ const person=options.files?.person?.[0]?.buffer,outfit=options.files?.outfit?.[0]?.buffer,hair=options.files?.hair?.[0]?.buffer;
+ if(!person?.length||!outfit?.length||!hair?.length)throw Error('Missing references');
+ const reference=async buffer=>{const meta=await sharp(buffer,{limitInputPixels:33554432}).metadata(),mime={png:'image/png',jpeg:'image/jpeg',webp:'image/webp'}[meta.format];if(!mime)throw Error('Unsupported reference');return 'data:'+mime+';base64,'+buffer.toString('base64');};
+ // Prepare the experimental guide once; never build/discard a production guide.
+ const face=await prepareFemaleFace(person,options.fields?.femalePreplacedFace),guide=await createGuideEditLabBase(outfit,face);
+ const identity=await prepareGuideEditIdentity(person,options.fields?.femalePreplacedFace);
+ const payload=seedreamProPayload(prompt,['data:image/png;base64,'+guide.toString('base64'),await reference(hair),await reference(outfit)]);
+ return {...payload,image:[...payload.image,'data:image/png;base64,'+identity.toString('base64')]};
 }
 
 export function registerFemaleGuideEditLab(app,{removeBackground,...options}={}){
  const route='/api/female-guide-edit-lab';
  app.get(route+'/prompt',(_req,res)=>res.set('Cache-Control','no-store').type('text').send(FEMALE_GUIDE_EDIT_LAB_PROMPT));
+ const guideUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:2,fields:1,parts:3,fieldSize:12000}}).fields([{name:'person',maxCount:1},{name:'outfit',maxCount:1}]);
+ app.post(route+'/guide',(req,res)=>guideUpload(req,res,async error=>{
+  res.set('Cache-Control','no-store');
+  try{
+   if(error||!req.files?.person?.[0]||!req.files?.outfit?.[0])throw Error('Missing guide references');
+   const face=await prepareFemaleFace(req.files.person[0].buffer,req.body.femalePreplacedFace);
+   res.type('png').send(await createGuideEditLabBase(req.files.outfit[0].buffer,face));
+  }catch{res.status(400).json({error:'เตรียมไกด์ไม่ได้ กรุณาเลือกรูปคนและชุดใหม่'});}
+ }));
  const identityUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:1,fields:1,parts:2,fieldSize:12000}}).single('person');
  app.post(route+'/identity',(req,res)=>identityUpload(req,res,async error=>{
   res.set('Cache-Control','no-store');
