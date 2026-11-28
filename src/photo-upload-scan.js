@@ -29,7 +29,7 @@ export async function scanNewPortrait(file,{inspect=inspectUploadPortrait,onChan
  const title=host.querySelector('h2'),copy=host.querySelector('.photo-upload-scan-copy'),actions=host.querySelector('.photo-upload-scan-actions');
  const button=(text,click)=>{const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=click;actions.append(b)};
  const run=async()=>{
-  controller?.abort();controller=new AbortController();const id=++attempt;host.dataset.state='scanning';title.textContent='กำลังตรวจรูปก่อนเริ่ม';copy.textContent='กำลังตรวจใบหน้า คอ ไหล่ และอกบน…';actions.replaceChildren();
+  controller?.abort();controller=new AbortController();const id=++attempt;host.dataset.state='scanning';title.textContent='กำลังตรวจรูปก่อนเริ่ม';copy.hidden=false;copy.textContent='กำลังตรวจใบหน้า คอ ไหล่ และอกบน…';actions.replaceChildren();
   const progress=(value,label)=>{if(done||id!==attempt)return;const safe=Math.max(0,Math.min(99,Math.floor(value)));const bar=host.querySelector('.photo-scan-progress');bar.setAttribute('aria-valuenow',safe);bar.querySelector('strong').textContent=safe+'%';bar.querySelector('i').style.width=safe+'%';if(label)copy.textContent=label};
   progress(0,'กำลังเตรียมตรวจรูป');
   let report;try{report=await withDeadline(()=>inspect(file,{onProgress:progress,signal:controller.signal}),{timeoutMs:40000,onTimeout:()=>controller?.abort()})}catch{report={status:'unavailable'}}
@@ -37,8 +37,21 @@ export async function scanNewPortrait(file,{inspect=inspectUploadPortrait,onChan
   if(!report||!['pass','reject','uncertain','unavailable'].includes(report.status))report={status:'unavailable'};
   host.dataset.state=report.status;
   if(report.status==='pass'){const bar=host.querySelector('.photo-scan-progress');bar.setAttribute('aria-valuenow','100');bar.querySelector('strong').textContent='100%';bar.querySelector('i').style.width='100%';title.textContent='รูปพร้อมใช้งาน';copy.textContent='ตรวจใบหน้า คอ ไหล่ และอกบนแล้ว กำลังไปขั้นตอนถัดไป';setTimeout(()=>finish(true),450);return}
-  title.textContent='กรุณาใช้รูปที่เห็นใบหน้า คอ ไหล่ และอกบน';
-  copy.textContent='';copy.hidden=true;
+  copy.hidden=false;
+  if(report.status==='unavailable'){
+   title.textContent='ยังตรวจรูปไม่สำเร็จ';
+   copy.textContent='ตัวสแกนโหลดไม่สำเร็จหรือใช้เวลานานเกินไป ยังไม่ได้ตัดสินว่ารูปไม่ผ่าน กรุณาลองตรวจอีกครั้ง';
+   button('ตรวจอีกครั้ง',run);
+  }else if(report.status==='uncertain'){
+   title.textContent='ยังยืนยันตำแหน่งในรูปได้ไม่ครบ';
+   copy.textContent=(report.uncertain||[]).join(' · ')||'ระบบวัดตำแหน่งได้ไม่ชัด หากเห็นใบหน้า คอ ไหล่ และอกบนครบ สามารถใช้รูปนี้ต่อได้';
+   button('ใช้รูปนี้ต่อ',()=>finish(true));
+   button('ตรวจอีกครั้ง',run);
+  }else{
+   title.textContent='กรุณาใช้รูปที่เห็นใบหน้า คอ ไหล่ และอกบน';
+   copy.textContent=(report.issues||[]).join(' · ')||'ตรวจใบหน้าหรือช่วงไหล่ไม่ครบ กรุณาเลือกภาพใหม่';
+   button('ตรวจอีกครั้ง',run);
+  }
   button('เปลี่ยนรูปใหม่',()=>{finish(false);if(onChangePhoto)setTimeout(onChangePhoto,0)});
   button('ปิด',()=>finish(false));
  };
