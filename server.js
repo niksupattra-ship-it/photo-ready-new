@@ -4,6 +4,7 @@ import {usesFemaleExactPrompt} from './female-portrait-prompt.js';
 import {registerGptImageLab} from './gpt-image-lab.js';
 import {registerSeedreamProLab} from './seedream-pro-lab.js';
 import {registerFemaleProductionLab} from './female-production-lab.js';
+import {registerFemaleGuideEditLab} from './female-guide-edit-lab.js';
 import {seedreamLabPayload} from './seedream-review-transport.js';
 import {sanitizeAiError} from './ai-error-sanitizer.js';
 import {isThaiPremiumJobSuit} from './thai-female-suit-policy.js';
@@ -446,6 +447,7 @@ app.post('/api/seedream-sandbox',seedreamSandboxUpload.fields([{name:'person',ma
 
 registerSeedreamProLab(app);
 registerFemaleProductionLab(app,{removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
+registerFemaleGuideEditLab(app,{removeBackground:buffer=>modnetRemoveBackground(buffer,{refine:false})});
 registerGptImageLab(app);
 
 app.post("/api/remove-background",upload.single("image"),async(req,res)=>{
