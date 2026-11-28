@@ -2,7 +2,6 @@ import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
 import {FEMALE_PORTRAIT_PROMPT,usesFemaleExactPrompt} from './female-portrait-prompt.js';
-import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
 import {isThaiOutfitPath} from './thai-outfit-ai-policy.js';
@@ -20,7 +19,10 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
    if(!/^hair-\d{2}\.png$/.test(chosen.file||'')||chosen.file!==id+'.png')throw Error('Invalid hair PNG');
    return readFile(path.join(root,'public/assets/hair',chosen.file));
   }
-  return loadCatalogueHairGuide(id,root);
+  if(!/^seedream-\d{2}$/.test(id))throw Error('Invalid hairstyle ID');
+  const file=String(Number(id.slice('seedream-'.length)))+'.png';
+  if(chosen&&chosen.file!==file)throw Error('Invalid hairstyle PNG mapping');
+  return readFile(path.join(root,'public/assets/seedream-hairstyles/references',file));
  };
  // The original person is used only to prepare the guide. The provider gets
  // guide, selected hair and garment, with no separate source-face reference.
