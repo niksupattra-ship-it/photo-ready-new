@@ -71,3 +71,11 @@ test('5.5 lab instructs exact hair silhouette and neutral professional photograp
  assert.match(FEMALE_55_LAB_PROMPT,/not added pink, red, peach or coral pigment/);
  assert.notEqual(FEMALE_55_LAB_PROMPT,FEMALE_PORTRAIT_PROMPT);
 });
+
+test('5.5 lab studio finish preserves photographed gaze and restricts retouching to photographic adjustments',()=>{
+ assert.match(FEMALE_55_LAB_PROMPT,/iris and pupil positions/);
+ assert.match(FEMALE_55_LAB_PROMPT,/without erasing natural skin texture, age characteristics or individual features/);
+ assert.match(FEMALE_55_LAB_PROMPT,/professional full-frame camera and portrait lens/);
+ assert.match(FEMALE_55_LAB_PROMPT,/exposure, white balance, colour casts, sensor noise and processing or compositing artifacts/);
+ assert.notEqual(FEMALE_55_LAB_PROMPT,FEMALE_PORTRAIT_PROMPT);
+});
