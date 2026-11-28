@@ -8,8 +8,6 @@ import {FEMALE_GUIDE_EDIT_LAB_PROMPT,guideEditLabPayload,registerFemaleGuideEdit
 import {productionLabPayload,productionLabPrompt,registerFemaleProductionLab} from '../female-production-lab.js';
 import {PRO_LAB_MODEL} from '../seedream-pro-payload.js';
 import {prepareGuideEditIdentity} from '../female-guide-edit-identity.js';
-import {prepareFemaleFace} from '../female-preplaced-face.js';
-import {createGuideEditLabBase} from '../female-guide-edit-layout.js';
 import {runInNewContext} from 'node:vm';
 import {FEMALE_FACE_OUTLINE,captureFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
 
@@ -21,20 +19,18 @@ const person=await sharp({create:{width:480,height:640,channels:4,background:'#b
 const hair=await readFile(root+'public/assets/seedream-hairstyles/references/5.png');
 const asset=path=>readFile(root+'public/assets/'+path);
 
-test('Pro lab uses the adjusted guide but retains exact hair, garment, original-face reference and output settings',async()=>{
- const originalPrompt=productionLabPrompt();assert.notEqual(FEMALE_GUIDE_EDIT_LAB_PROMPT,originalPrompt);
+test('both labs share the exact restored PR #279 prompt and guide, hair, garment and independent original-face references',async()=>{
+ const originalPrompt=productionLabPrompt();assert.equal(FEMALE_GUIDE_EDIT_LAB_PROMPT,originalPrompt);
  for(const path of ['government-uniforms/female-operational.png','job-uniforms/female-job-navy-notch-white-shirt.png']){
   const files={person:[{buffer:person}],outfit:[{buffer:await asset(path)}],hair:[{buffer:hair}]};
   const options={files,fields,order:'person-outfit-hair'};
   const baseline=await productionLabPayload({...options,prompt:originalPrompt});
   const experiment=await guideEditLabPayload({...options,prompt:FEMALE_GUIDE_EDIT_LAB_PROMPT});
   const identity=await prepareGuideEditIdentity(person,fields.femalePreplacedFace);
-  const guide=await createGuideEditLabBase(files.outfit[0].buffer,await prepareFemaleFace(person,fields.femalePreplacedFace));
-  assert.notEqual(experiment.image[0],baseline.image[0]);
-  assert.deepEqual(experiment,{...baseline,prompt:FEMALE_GUIDE_EDIT_LAB_PROMPT,model:PRO_LAB_MODEL,image:['data:image/png;base64,'+guide.toString('base64'),...baseline.image.slice(1),'data:image/png;base64,'+identity.toString('base64')]});
-  assert.notEqual(experiment.model,baseline.model);
+  assert.deepEqual(experiment,baseline);assert.equal(experiment.image.length,4);assert.equal(experiment.image[3],'data:image/png;base64,'+identity.toString('base64'));
+  assert.equal(experiment.model,baseline.model);
   assert.equal(productionLabPrompt(),originalPrompt);
-  await assert.rejects(guideEditLabPayload({...options,prompt:originalPrompt}),/guide-edit experiment/);
+  await assert.rejects(guideEditLabPayload({...options,prompt:originalPrompt+' changed'}),/guide-edit experiment/);
  }
 });
 
@@ -51,22 +47,20 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  const html=await(await fetch(base+'/female-guide-edit-lab.html')).text();
  const data=name=>html.match(new RegExp('data-'+name+'="([^"]+)"'))?.[1];
  const endpoint=data('endpoint');assert.equal(endpoint,'/api/female-guide-edit-lab');
- assert.equal(data('storage-key'),'female-guide-edit-lab-pro-contact-review-v5');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.0-pro-260628');
- assert.equal(data('guide-endpoint'),'/api/female-guide-edit-lab/guide');
+ assert.equal(data('storage-key'),'female-guide-edit-lab-pr279-restored-v6');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.0-pro-260628');
  assert.equal(data('identity-endpoint'),'/api/female-guide-edit-lab/identity');assert(html.includes('id="identity-image"'));
  assert(html.includes('/female-guide-edit-identity-client.js'));
  assert.equal(data('guide-module'),'./female-production-lab-guide.js');assert(html.includes('href="/female-production-lab.html"'));
  assert.equal(await(await fetch(base+data('prompt-url'))).text(),FEMALE_GUIDE_EDIT_LAB_PROMPT);
  assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),productionLabPrompt());
  const form=()=>{const f=new FormData();for(const [name,buffer] of [['person',person],['outfit',outfit],['hair',hair]])f.set(name,new Blob([buffer],{type:'image/png'}),name+'.png');f.set('femalePreplacedFace',fields.femalePreplacedFace);return f;};
- const guideForm=form();guideForm.delete('hair');const guideResponse=await fetch(base+data('guide-endpoint'),{method:'POST',body:guideForm});
+ const guideForm=form();guideForm.delete('hair');const guideResponse=await fetch(base+'/api/female-production-lab/guide',{method:'POST',body:guideForm});
  assert.equal(guideResponse.status,200);const guide=Buffer.from(await guideResponse.arrayBuffer());
- const baselineGuide=await fetch(base+'/api/female-production-lab/guide',{method:'POST',body:guideForm});assert.equal(baselineGuide.status,200);assert.notDeepEqual(guide,Buffer.from(await baselineGuide.arrayBuffer()));
  const identityForm=new FormData();identityForm.set('person',new Blob([person],{type:'image/png'}),'person.png');identityForm.set('femalePreplacedFace',fields.femalePreplacedFace);
  const identityResponse=await fetch(base+data('identity-endpoint'),{method:'POST',body:identityForm});assert.equal(identityResponse.status,200);
  const identity=Buffer.from(await identityResponse.arrayBuffer());assert.equal(calls,0);
  identityForm.set('femalePreplacedFace','{}');assert.equal((await fetch(base+data('identity-endpoint'),{method:'POST',body:identityForm})).status,400);assert.equal(calls,0);
- const request=form(),id=randomUUID();request.set('key','inert-test-key');request.set('requestId',id);request.set('order','person-outfit-hair');request.set('prompt',productionLabPrompt());
+ const request=form(),id=randomUUID();request.set('key','inert-test-key');request.set('requestId',id);request.set('order','person-outfit-hair');request.set('prompt',productionLabPrompt()+' changed');
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,400);assert.equal(calls,0);
  request.set('prompt',FEMALE_GUIDE_EDIT_LAB_PROMPT);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);

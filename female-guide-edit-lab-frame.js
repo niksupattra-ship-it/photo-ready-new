@@ -3,7 +3,7 @@ import {femaleMasterSize} from './female-body-guide-fit.js';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 import {compositeFemaleLabBackground} from './female-lab-output.js';
 
-// Lab-only framing: one uniform transform of the whole native-resolution person.
+// PR #279 framing shared by Thai female production and the labs: one uniform transform of the whole native-resolution person.
 export function planGuideEditLabFrame(pixels,width,height){
  if(![width,height].every(n=>Number.isInteger(n)&&n>0)||pixels?.length!==width*height*4)return null;
  const rows=[],support=Math.max(3,Math.ceil(width*.003));let crown=-1,bottom=-1,run=0;
@@ -52,8 +52,10 @@ export async function frameGuideEditLabForeground(png){
  return sharp({create:{...size,channels:4,background:'#00000000'}}).composite([{input:visible,left:dx,top:dy}]).png().toBuffer();
 }
 
-export async function completeGuideEditLabResult(original,removeBackground){
+export async function prepareGuideEditForeground(original,removeBackground){
  const {png,alpha}=await preserveExactFemalePixels(original,await removeBackground(original));
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait');
- return compositeFemaleLabBackground(await frameGuideEditLabForeground(png));
+ return frameGuideEditLabForeground(png);
 }
+
+export async function completeGuideEditLabResult(original,removeBackground){return compositeFemaleLabBackground(await prepareGuideEditForeground(original,removeBackground));}
