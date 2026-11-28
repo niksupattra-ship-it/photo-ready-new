@@ -53,7 +53,7 @@ test('current production matches the active Pro lab request exactly across outfi
   assert.deepEqual(expected,await guideEditLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}}));
   let calls=0;const audit=createMakeupRequestAudit(async args=>{
    calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
-   const {createFemaleLabBase}=await import('../female-portrait-layout.js');const face=await prepareFemaleFace(input.buffer,evidence);assert.deepEqual(expected.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[await createFemaleLabBase(outfit,face),hair,outfit]);assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,3);assert.equal(expected.size,'2K');return {png};
+   const {createFemaleLabBase}=await import('../female-portrait-layout.js');const face=await prepareFemaleFace(input.buffer,evidence);assert.deepEqual(expected.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[await createFemaleLabBase(outfit,face),hair,outfit]);assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,3);assert.notDeepEqual(hair,await readFile(root+'public/assets/seedream-hairstyles/previews/'+file.replace('.png','.webp')));assert.equal(expected.size,'2K');return {png};
   },{requirePolicy:true});
   await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
   assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_LAB_PROCESS_VERSION);
@@ -86,4 +86,10 @@ test('valid high-detail source over SVG attribute limit still prepares exact fac
  const metadata=await sharp(face).metadata();assert.equal(metadata.format,'png');assert(metadata.width>0&&metadata.height>0);
  const {data,info}=await sharp(face).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  assert.equal(data[3],0);assert(data.some((value,index)=>index%info.channels===3&&value>200));
+});
+
+test('previous generated portrait cannot replace selected hair PNG in exact Thai requests',async()=>{
+ let calls=0;
+ for(const extra of [{keepCurrentHair:'1'},{preserveHairJobId:'previous-job'}])await assert.rejects(processProductionPortrait({input,fields:{...fields,...extra},root,key:'inert',currentHair:png,removeBackground:async()=>png,requestPortrait:async()=>{calls++;return {png};}}));
+ assert.equal(calls,0);
 });
