@@ -5,8 +5,8 @@ export const femaleBytesHash=bytes=>createHash('sha256').update(bytes).digest('h
 // Fingerprint the actual provider body, never the caller's UI options. No key,
 // prompt text or photo bytes are retained in this diagnostic record.
 export function femaleRequestProof(payload){
- const roles=['guide','identity','hair','outfit'];
- if(!Array.isArray(payload.image)||payload.image.length!==4)throw Error('Expected four female references');
+ const roles=payload.image?.length===3?['identity','hair','outfit']:['guide','identity','hair','outfit'];
+ if(!Array.isArray(payload.image)||![3,4].includes(payload.image.length))throw Error('Expected three current or four historical female references');
  return {
   version:1,requestSha256:femaleBytesHash(JSON.stringify(payload)),
   promptSha256:femaleBytesHash(payload.prompt),model:payload.model,size:payload.size,

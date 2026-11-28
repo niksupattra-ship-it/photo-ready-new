@@ -36,7 +36,7 @@ function showResult(blob,snapshot){
  const url=URL.createObjectURL(blob);urls.push(url);const card=document.createElement('article');card.className='result';
  const time=document.createElement('time');time.textContent=new Date().toLocaleString('th-TH');
  const caption=document.createElement('p');caption.className='caption';caption.textContent=snapshot?.prompt||'ภาพดิบจาก AI · กู้คืนงานเดิม';
- const settings=document.createElement('div');settings.className='settings';for(const value of ['Dola-Seedream-5.0-pro','1.5K','Smart ratio','1 ภาพ',snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
+ const settings=document.createElement('div');settings.className='settings';for(const value of ['Dola-Seedream-5.0-pro','2K','Smart ratio','1 ภาพ',snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
  const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt='ภาพต้นฉบับจาก Seedream Pro';preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
