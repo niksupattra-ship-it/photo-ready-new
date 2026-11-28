@@ -72,10 +72,8 @@ test('5.5 lab instructs exact hair silhouette and neutral professional photograp
  assert.notEqual(FEMALE_55_LAB_PROMPT,FEMALE_PORTRAIT_PROMPT);
 });
 
-test('5.5 lab studio finish preserves photographed gaze and restricts retouching to photographic adjustments',()=>{
- assert.match(FEMALE_55_LAB_PROMPT,/iris and pupil positions/);
- assert.match(FEMALE_55_LAB_PROMPT,/without erasing natural skin texture, age characteristics or individual features/);
- assert.match(FEMALE_55_LAB_PROMPT,/professional full-frame camera and portrait lens/);
- assert.match(FEMALE_55_LAB_PROMPT,/exposure, white balance, colour casts, sensor noise and processing or compositing artifacts/);
- assert.notEqual(FEMALE_55_LAB_PROMPT,FEMALE_PORTRAIT_PROMPT);
+test('5.5 V5 restores V3 prompt except local photographic skin-light correction',()=>{
+ assert.match(FEMALE_55_LAB_PROMPT,/local photographic exposure and white-balance correction to the existing skin only/);
+ assert.match(FEMALE_55_LAB_PROMPT,/Do not change the framing, camera viewpoint, hair or garment as part of this skin-light correction/);
+ assert.doesNotMatch(FEMALE_55_LAB_PROMPT,/PHOTOGRAPHIC FINISH — PROFESSIONAL ID STUDIO/);
 });
