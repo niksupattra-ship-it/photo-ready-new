@@ -8,10 +8,10 @@ import {proLabPayload,registerSeedreamProLab,PRO_LAB_MODEL} from '../seedream-pr
 const png=await sharp({create:{width:48,height:64,channels:4,background:'#ba9689'}}).png().toBuffer();
 const jpeg=await sharp(png).jpeg().toBuffer(),webp=await sharp(png).webp().toBuffer();
 const files={outfit:[{buffer:png}],person:[{buffer:jpeg}],hair:[{buffer:webp}]};
-test('Pro lab uses original bytes, the exact prompt and both explicit orders, one Pro 2K result',async()=>{
+test('Pro lab uses original bytes, the exact prompt and both explicit orders, one Pro 1.5K result',async()=>{
  for(const order of ['outfit-person-hair','person-outfit-hair']){
   const p=await proLabPayload({prompt:'EXACT\nPROMPT',files,order});
-  assert.equal(p.model,PRO_LAB_MODEL);assert.equal(p.size,'2K');assert.equal(p.prompt,'EXACT\nPROMPT');
+  assert.equal(p.model,PRO_LAB_MODEL);assert.equal(p.size,'1.5K');assert.equal(p.prompt,'EXACT\nPROMPT');
   assert.equal(p.watermark,false);assert.equal(p.output_format,'png');assert.equal(p.image.length,3);
   for(const [i,name]of order.split('-').entries())assert.deepEqual(Buffer.from(p.image[i].split(',')[1],'base64'),files[name][0].buffer);
   assert.deepEqual(p.image.map(v=>v.slice(5,v.indexOf(';'))),order.split('-').map(k=>({outfit:'image/png',person:'image/jpeg',hair:'image/webp'})[k]));
