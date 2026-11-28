@@ -1,10 +1,11 @@
 import {measureFemaleReference} from './female-reference-evidence-client.js';
 const form=document.getElementById('form'),panel=document.getElementById('guide-panel'),image=document.getElementById('guide-image'),status=document.getElementById('guide-status');
-let sequence=0,controller,url;
+let sequence=0,controller,url,ready=null;
+export function guidePreviewFor(person,outfit){return ready&&ready.person===person&&ready.outfit===outfit?ready.blob:null;}
 export async function prepareEvidence(file){return (await measureFemaleReference(file)).evidence;}
 export async function prepareLabSubmission(data){data.set('femalePreplacedFace',JSON.stringify(await prepareEvidence(data.get('person'))));}
 async function preview(){
- const current=++sequence;controller?.abort();controller=new AbortController();const active=controller;
+ const current=++sequence;controller?.abort();controller=new AbortController();const active=controller;ready=null;
  if(url)URL.revokeObjectURL(url);image.removeAttribute('src');image.hidden=true;
  const person=form.elements.person.files[0],outfit=form.elements.outfit.files[0];panel.hidden=!person&&!outfit;
  if(!person||!outfit){status.textContent='เลือกรูปคนและชุดเพื่อดูไกด์';return;}
@@ -13,7 +14,7 @@ async function preview(){
   const data=new FormData();data.set('person',person);data.set('outfit',outfit);await prepareLabSubmission(data);if(current!==sequence)return;
   const r=await fetch(document.documentElement.dataset.guideEndpoint||'/api/female-production-lab/guide',{method:'POST',body:data,signal:AbortSignal.any([active.signal,AbortSignal.timeout(30000)])});
   if(!r.ok)throw Error('เตรียมไกด์ไม่สำเร็จ กรุณาเลือกรูปหน้าตรงและชุดใหม่');
-  const blob=await r.blob();if(current!==sequence)return;url=URL.createObjectURL(blob);image.src=url;image.hidden=false;
+  const blob=await r.blob();if(current!==sequence)return;ready={person,outfit,blob};url=URL.createObjectURL(blob);image.src=url;image.hidden=false;
   status.textContent=document.documentElement.dataset.identityEndpoint?'ไกด์นี้คือภาพที่ 1 ที่ส่งให้ AI จริง · ภาพที่ 2 ทรงผม · ภาพที่ 3 ชุด · ภาพที่ 4 ใบหน้าต้นฉบับ':'ไกด์นี้คือภาพที่ 1 ที่ส่งให้ AI จริง · ภาพที่ 2 ทรงผม · ภาพที่ 3 ชุด';
  }catch(e){if(current===sequence)status.textContent=e.message;}
 }
