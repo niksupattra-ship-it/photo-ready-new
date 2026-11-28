@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import {createFemaleGarmentLayout} from './female-portrait-layout.js';
-import {fitFemaleBodyToGuide} from './female-body-guide-fit.js';
+import {femaleDisplayPlacement} from './female-display-placement.js';
+import {fitFemaleBodyToGuide,renderFemalePlacement} from './female-body-guide-fit.js';
 import {fileURLToPath} from 'node:url';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 
@@ -14,6 +15,8 @@ export async function prepareFemaleLabForeground(original,removeBackground,{outf
  return sharp(png).resize(900,1200,{fit:'contain',background:'#00000000'}).png().toBuffer();
 }
 export async function compositeFemaleLabBackground(foreground){
+ const {data,info}=await sharp(foreground).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ foreground=await renderFemalePlacement(foreground,femaleDisplayPlacement(data,info.width,info.height));
  return sharp(fileURLToPath(new URL('./public/assets/background.jpg',import.meta.url))).resize(900,1200,{fit:'fill'}).composite([{input:foreground,left:0,top:0}]).png().toBuffer();
 }
 export async function completeFemaleLabResult(original,removeBackground,options){return compositeFemaleLabBackground(await prepareFemaleLabForeground(original,removeBackground,options));}
