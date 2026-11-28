@@ -6,12 +6,14 @@ import {FEMALE_PORTRAIT_PROMPT,FEMALE_REAR_HAIR_POLICY,FEMALE_LAB_PROCESS_VERSIO
 import {processProductionPortrait} from '../production-portrait-pipeline.js';
 import {seedreamReviewPayload} from '../seedream-review-transport.js';
 import {FEMALE_CURRENT_PROMPT_CACHE_KEY,femalePromptCacheKey} from '../female-prompt-cache-key.js';
-import {FEMALE_GUIDE_EDIT_FLASH_POLICY} from '../female-guide-edit-prompt.js';
+import {FEMALE_GUIDE_EDIT_FLASH_POLICY,FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY} from '../female-guide-edit-prompt.js';
 import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),'b2827c47735a1dcdbaa34c33c2cd806713fbcd538ec6e671a88f10d18d3d5a0b','Approved guide-only prompt, with the existing lighting block kept separate');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'').replace(FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY,`Keep continuing long hair behind both shoulders and behind the
+garment. Preserve the genuine endpoints of short, bob and gathered
+styles without adding extra lengths.`)),'b2827c47735a1dcdbaa34c33c2cd806713fbcd538ec6e671a88f10d18d3d5a0b','Approved guide-only prompt, with the existing lighting block kept separate');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  assert.notEqual(femalePromptCacheKey(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_GUIDE_EDIT_FLASH_POLICY,'')),FEMALE_CURRENT_PROMPT_CACHE_KEY,'Old lighting output must not share the new prompt cache');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
@@ -65,3 +67,5 @@ test('retired Flash and four-reference contracts cannot submit or recover guide-
  const options={femalePreplacedVersion:FEMALE_LAB_PROCESS_VERSION,prompt:FEMALE_PORTRAIT_PROMPT};
  for(const payload of [{model:'dola-seedream-5-0-flash-260915',image:['a','b','c','d']},{model:'dola-seedream-5-0-pro-260628',image:['a','b','c','d']}])assert.throws(()=>seedreamReviewPayload({...options,preparedFemalePayload:{...payload,prompt:FEMALE_PORTRAIT_PROMPT,size:'2K'}}),/Invalid current female payload/);
 });
+
+test('shared prompt explicitly treats blank selected hair reference space as no hair',()=>{assert(FEMALE_PORTRAIT_PROMPT.includes(FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY));assert.match(FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY,/ONLY if Image 2 actually shows long connected lengths/);assert.match(FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY,/below both ears and\s+beside both sides of the neck must be free of hair/);});

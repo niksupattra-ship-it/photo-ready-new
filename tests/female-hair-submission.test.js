@@ -26,3 +26,13 @@ test('Thai female Easy and Studio select the same draft and confirm a fresh orig
   assert.equal(calls.length,3);
  }
 });
+
+test('fresh Thai female output has independent layer identity and no previous completed-result memory',()=>{
+ const studio=readFileSync(new URL('../src/studio-editor.jsx',import.meta.url),'utf8');
+ const main=readFileSync(new URL('../src/main.jsx',import.meta.url),'utf8');
+ const create=studio.slice(studio.indexOf(' const processPhoto=async'),studio.indexOf(' const openEnglishManual='));
+ assert(create.includes("oldHead&&(englishFlow||chosenPortraitMode!=='female')?{id:oldHead.id}"));
+ assert(create.includes("if(!englishFlow&&chosenPortraitMode==='female')resetPhotoHistory()"));
+ assert(create.includes('mask:null,warpSource:null,warpBaseMask:null,eraseRestoreSource:null,warpRestoreBase:null'));
+ assert(main.includes('portraitResultCache.clear();hairResultCacheRef.current.clear();processedStudioHistoryRef.current.clear();fullPortraitHairHistoryRef.current.clear();'));
+});
