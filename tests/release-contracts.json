@@ -1,5 +1,5 @@
 {
-  "contract": "current-female-v14-pr279-and-current-english",
+  "contract": "current-female-v15-guide-only-and-current-english",
   "releaseFiles": [
     "tests/current-portrait-prompt.test.js",
     "tests/production-female-preplaced.test.js",

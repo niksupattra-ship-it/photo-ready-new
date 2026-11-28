@@ -23,7 +23,6 @@ const root=new URL('..',import.meta.url).pathname;
 const base={faceIdentityBox:JSON.stringify([.2,.1,.8,.7]),thaiAdaptiveFaceGeometry:JSON.stringify({version:1,faceAspect:1.48,jawRatio:.75,eyeRatio:.53}),portraitMode:'female',femaleEyeStyle:'makeup',thaiWholeHeadGuideVersion:VERSION,thaiOutfitAiVersion:THAI_OUTFIT_AI_VERSION,thaiOutfitAppearanceVersion:THAI_OUTFIT_APPEARANCE_VERSION,thaiBodyGeometryVersion:THAI_BODY_GEOMETRY_VERSION,thaiCollarlessVersion:THAI_COLLARLESS_VERSION,thaiRealFaceVersion:THAI_REAL_FACE_VERSION,thaiPortraitPolishVersion:THAI_PORTRAIT_POLISH_VERSION,thaiCollarContextVersion:THAI_COLLAR_CONTEXT_VERSION,thaiFemaleHeadSizeVersion:THAI_FEMALE_HEAD_SIZE_VERSION,englishStudioFinishVersion:ENGLISH_FEMALE_BALANCED_PROPORTION_VERSION,englishOutfitFidelityVersion:ENGLISH_OUTFIT_FIDELITY_VERSION,portraitComposition:'en-outfit-body-v1',studioSkinVersion:ORIGINAL_PORTRAIT_AI_VERSION,femaleFinishSingleVersion:FEMALE_SINGLE_FINISH_VERSION,singlePassPortraitVersion:'single-pass-portrait-v1',hairReferenceVersion:'picker-hair-v1'};
 
 import {captureFemaleFaceEvidence,FEMALE_FACE_OUTLINE,parseFemaleFaceEvidence} from '../female-preplaced-face-contract.js';
-import {prepareGuideEditIdentity} from '../female-guide-edit-identity.js';
 import {prepareFemaleFace} from '../female-preplaced-face.js';
 const landmarks=[];
 for(const [i,id]of FEMALE_FACE_OUTLINE.entries()){const a=2*Math.PI*i/FEMALE_FACE_OUTLINE.length;landmarks[id]={x:.5+.22*Math.sin(a),y:.475-.275*Math.cos(a)};}
@@ -47,14 +46,14 @@ test('current production matches the active Pro lab request exactly across outfi
  const {guideEditLabPayload}=await import('../female-guide-edit-lab.js');
  const prompt=productionLabPrompt();
  assert.equal(prompt, (await import('../female-guide-edit-lab.js')).FEMALE_GUIDE_EDIT_LAB_PROMPT);
- assert(prompt.includes('Image 4: The original uploaded'));
+ assert(!prompt.includes('Image 4'));assert(prompt.includes('face already present in Image 1'));
  for(const [path,id,file]of [['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-80','80.png'],['government-uniforms/female-operational.png','seedream-81','81.png'],['job-uniforms/female-job-navy-notch-white-shirt.png','seedream-05','5.png'],['government-uniforms/female-operational.png','seedream-14','14.png'],['gown-uniforms/kmitl-female.png','seedream-79','79.png'],['student-uniforms/female-01.png','seedream-24','24.png']]){
   const outfit=await readFile(root+'public/assets/'+path),hair=await readFile(root+'public/assets/seedream-hairstyles/references/'+file);
   const expected=await productionLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}});
   assert.deepEqual(expected,await guideEditLabPayload({prompt,order:'person-outfit-hair',files:{person:[input],outfit:[{buffer:outfit}],hair:[{buffer:hair}]},fields:{femalePreplacedFace:JSON.stringify(evidence)}}));
   let calls=0;const audit=createMakeupRequestAudit(async args=>{
    calls++;assert.equal(args.singleAttempt,true);assert.equal(args.prompt,prompt);assert.deepEqual(seedreamReviewPayload(args),expected);
-   const {createFemaleLabBase}=await import('../female-portrait-layout.js');const face=await prepareFemaleFace(input.buffer,evidence);assert.deepEqual(expected.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[await createFemaleLabBase(outfit,face),hair,outfit,await prepareGuideEditIdentity(png,evidence)]);assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,4);assert.equal(expected.size,'2K');return {png};
+   const {createFemaleLabBase}=await import('../female-portrait-layout.js');const face=await prepareFemaleFace(input.buffer,evidence);assert.deepEqual(expected.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[await createFemaleLabBase(outfit,face),hair,outfit]);assert.equal(expected.model,'dola-seedream-5-0-pro-260628');assert.equal(expected.image.length,3);assert.equal(expected.size,'2K');return {png};
   },{requirePolicy:true});
   await processProductionPortrait({input,fields:{...fields,hairId:id,sourceJobId:'previous-completed-job',creditKind:'hairstyle',neckOutfitReferencePath:'/assets/'+path,thaiWholeHeadGuideVersion:FEMALE_LAB_PROCESS_VERSION},root,key:'inert',removeBackground:async()=>png,requestPortrait:audit.requestPortrait});
   assert.equal(calls,1);assert.equal(audit.snapshot().makeupPolicyVersion,FEMALE_LAB_PROCESS_VERSION);

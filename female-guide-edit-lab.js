@@ -3,10 +3,9 @@ import {registerFemaleLabTransport} from './female-full-lab-transport.js';
 import {completeGuideEditLabResult} from './female-guide-edit-lab-frame.js';
 import {createFemaleLabBase} from './female-portrait-layout.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
-import {prepareGuideEditIdentity} from './female-guide-edit-identity.js';
 import multer from 'multer';
 
-// PR #279 request, shared with current Thai female production.
+// Guide-only request shared with current Thai female production.
 export {FEMALE_GUIDE_EDIT_LAB_PROMPT} from './female-guide-edit-prompt.js';
 import {FEMALE_GUIDE_EDIT_LAB_PROMPT} from './female-guide-edit-prompt.js';
 
@@ -27,14 +26,6 @@ export function registerFemaleGuideEditLab(app,{removeBackground,...options}={})
    const face=await prepareFemaleFace(req.files.person[0].buffer,req.body.femalePreplacedFace);
    res.type('png').send(await createFemaleLabBase(req.files.outfit[0].buffer,face));
   }catch{res.status(400).json({error:'เตรียมไกด์ไม่ได้ กรุณาใช้รูปหน้าตรงและเลือกชุดใหม่'});}
- }));
- const identityUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:1,fields:1,parts:2,fieldSize:12000}}).single('person');
- app.post(route+'/identity',(req,res)=>identityUpload(req,res,async error=>{
-  res.set('Cache-Control','no-store');
-  try{
-   if(error||!req.file?.buffer?.length)throw Error('Missing original portrait');
-   res.type('png').send(await prepareGuideEditIdentity(req.file.buffer,req.body.femalePreplacedFace));
-  }catch{res.status(400).json({error:'เตรียมภาพใบหน้าต้นฉบับไม่ได้ กรุณาเลือกรูปใหม่'});}
  }));
  registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:guideEditLabPayload,
   processResult:png=>completeGuideEditLabResult(png,removeBackground)});

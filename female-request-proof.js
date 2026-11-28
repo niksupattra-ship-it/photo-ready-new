@@ -6,7 +6,7 @@ export const femaleBytesHash=bytes=>createHash('sha256').update(bytes).digest('h
 // prompt text or photo bytes are retained in this diagnostic record.
 export function femaleRequestProof(payload){
  const roles=payload.image?.length===3?['guide','hair','outfit']:['guide','hair','outfit','identity'];
- if(!Array.isArray(payload.image)||![3,4].includes(payload.image.length))throw Error('Expected three legacy or four current female references');
+ if(!Array.isArray(payload.image)||![3,4].includes(payload.image.length))throw Error('Expected three current or four legacy female references');
  return {
   version:1,requestSha256:femaleBytesHash(JSON.stringify(payload)),
   promptSha256:femaleBytesHash(payload.prompt),model:payload.model,size:payload.size,
