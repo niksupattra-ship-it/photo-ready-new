@@ -633,7 +633,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const chosenFinish=hairGender==='female'?'makeup':'natural';
   const finishChanged=Boolean(hairGender==='female'&&activeHead&&currentFinish!==chosenFinish);
   if(!pending&&!finishChanged)return;
-  if(activeHead&&!finishChanged&&(pending?.hairId||activeHead.hairId||'')===(activeHead.hairId||'')&&!isFreeFemaleHair(pending?.hairId||'')){
+  if(hairGender!=='female'&&activeHead&&!finishChanged&&(pending?.hairId||activeHead.hairId||'')===(activeHead.hairId||'')&&!isFreeFemaleHair(pending?.hairId||'')){
    // Exactly the already visible combination: no request, no credit, no delay.
    setThaiPendingHair(null);setThaiChoiceFlow(null);setStatus('');return;
   }
@@ -664,9 +664,9 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
      if(state.current.find(l=>l.id===activeHead.id)?.femaleEyeStyle===chosenFinish)void applyFreeHair(selection.hairId);
     });
    }else void applyFreeHair(selection.hairId);
-  }else if(selection.portraitMode==='female'&&activeHead.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION){
-   // Same immutable-source generation, result composition and neutral placement
-   // as first processing, in Easy and Studio, including accepted cache restores.
+  }else if(selection.portraitMode==='female'){
+   // Every intentional female generation uses the same original-upload route
+   // as first processing, in both Easy and Studio. Never restore old pixels.
    void processPhoto({hairId:selection.hairId,portraitMode:'female',outfitTemplate:hairOutfitReference(activeHead),continueWithoutSave:true});
   }else void applyHair(selection.hairId,{femaleEyeStyle:chosenFinish,portraitMode:selection.portraitMode,appearanceKind:finishChanged&&(selection.hairId||'')===(activeHead.hairId||'')?'makeup':'hair'});
  };
@@ -1622,6 +1622,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   if(!englishFlow&&!options.recoverExistingJob&&!options.manualOutfitFallback&&!cachedSelectedResult){
    const manual=await thaiManualAfterOutfitQuota();
    if(manual){
+    if(chosenPortraitMode==='female'){setStatus('สิทธิ์สร้างภาพ AI ไม่พร้อม · เก็บภาพเดิมไว้ กรุณาตรวจสอบสิทธิ์ก่อนสร้างใหม่');return}
     if(options.outfitAiCreate){setStatus('ยังตรวจสอบสิทธิ์ทดลองใช้ฟรีไม่สำเร็จ · ยังแก้ไขเองและใช้ทรงผมฟรีได้');return}
     options={...options,manualOutfitFallback:true};
    }
@@ -1630,6 +1631,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   // suit layer. When the daily allowance is exhausted, restore the exact
   // selected native PNG as a real editable layer before replacing the head.
   if(!englishFlow&&options.manualOutfitFallback){
+   if(chosenPortraitMode==='female'){setStatus('กรุณาตรวจสอบสิทธิ์สร้างภาพ AI ก่อนเปลี่ยนทรงผม');return}
    const existingSuit=state.current.find(l=>layerKind(l)==='suit');
    const headTemplate=oldHead?.generatedOutfitTemplate;
    const templatePath=existingSuit?.templatePath||placementRef.current?.templatePath||headTemplate;
@@ -1654,7 +1656,7 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
   const generationOptions={...options.generationOptions,...(options.manualOutfitFallback?{manualOutfitFallback:true}:{})};
   if(!firstGeneration&&oldHead?.jobId){
    generationOptions.sourceJobId=oldHead.jobId;
-   if(oldHead.portraitMode===chosenPortraitMode&&!generationOptions.keepCurrentHair&&((oldHead.hairId||'')!==chosenHair||cachedSelectedResult))generationOptions.creditKind='hairstyle';
+   if(oldHead.portraitMode===chosenPortraitMode&&!generationOptions.keepCurrentHair&&((oldHead.hairId||'')!==chosenHair||cachedSelectedResult||!englishFlow&&chosenPortraitMode==='female'))generationOptions.creditKind='hairstyle';
   }else{delete generationOptions.sourceJobId;delete generationOptions.creditKind;}
   try{const result=stagedResult=await onProcessPhoto(sourcePhoto,guideTemplate,chosenHair,chosenPortraitMode,undefined,generationOptions);if(isProcessCancelled())throw Error('ยกเลิกการประมวลผลแล้ว');const head={...fresh(result.layer),...(oldHead?{id:oldHead.id}:{}),kind:'head',hairId:chosenHair,portraitMode:chosenPortraitMode,femaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.femaleEyeStyle),initialFemaleEyeStyle:portraitFinishChoice(sourcePhoto.idpromFemaleEyeStyle,result.layer.initialFemaleEyeStyle,result.layer.femaleEyeStyle),processedOriginalSource:result.layer.source};
    if(englishFlow&&head.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION&&chosenPortraitMode==='female'&&!chosenHair&&!options.generationOptions?.keepCurrentHair)head.englishAutoHairVersion=ENGLISH_AUTO_HAIR_VERSION;const anchor=options.manualOutfitFallback&&oldHead?.portraitComposition===ENGLISH_BODY_PORTRAIT_VERSION?suit:oldHead||suit;if(anchor&&head.portraitComposition!==ENGLISH_BODY_PORTRAIT_VERSION)Object.assign(head,{x:anchor.x,y:anchor.y,scale:anchor.scale,rotation:anchor.rotation,opacity:oldHead?.opacity??1});head.squeezeX=1;head.squeezeY=1;
