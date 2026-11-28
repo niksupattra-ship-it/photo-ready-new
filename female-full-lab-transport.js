@@ -26,7 +26,9 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
    const key=String(req.body?.key||'').trim(),id=String(req.body?.requestId||'');
    if(!key)return res.status(400).json({error:'กรุณากรอก API key สำหรับทดลอง'});
    if(!/^[a-f0-9-]{36}$/.test(id))return res.status(400).json({error:'กรุณาโหลดหน้าทดลองใหม่'});
-   const payload=await payloadFor({prompt:req.body?.prompt,order:req.body?.order,files:req.files,fields:req.body});
+   const originalPayload=await payloadFor({prompt:req.body?.prompt,order:req.body?.order,files:req.files,fields:req.body});
+   const experimental=['/api/female-production-lab','/api/female-guide-edit-lab'].includes(route);
+   const payload=experimental?{...originalPayload,model:'dola-seedream-5-5-261028'}:originalPayload;
    const body=JSON.stringify(payload),fingerprint=createHash('sha256').update(key).update(body).digest('hex');
    const proof=['/api/female-production-lab','/api/female-guide-edit-lab'].includes(route)?femaleRequestProof(payload):null;
    const prior=jobs.get(id);
@@ -36,7 +38,7 @@ export function registerFemaleLabTransport(app,{fetchImpl=fetch,timeoutMs=240000
    if(proof)logFemaleRequestProof('lab',proof,{requestId:id});
    res.status(202).json({id});
    void(async()=>{try{
-    if(proof){
+    if(proof&&!experimental){
      // Both current female labs and production use exactly one provider transport.
      // Lab credentials and jobs remain isolated from production wallet data.
      const {png}=await requestReviewSeedream({key,prompt:payload.prompt,preparedFemalePayload:payload,femalePreplacedVersion:FEMALE_LAB_PROCESS_VERSION,singleAttempt:true},{fetchImpl,timeoutMs,logProof:false});
