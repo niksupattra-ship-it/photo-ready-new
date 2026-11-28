@@ -11,7 +11,7 @@ async function preview(){
  status.textContent='กำลังจัดไกด์ใบหน้า–คอใหม่ตามชุด…';
  try{
   const data=new FormData();data.set('person',person);data.set('outfit',outfit);await prepareLabSubmission(data);if(current!==sequence)return;
-  const r=await fetch('/api/female-production-lab/guide',{method:'POST',body:data,signal:AbortSignal.any([active.signal,AbortSignal.timeout(30000)])});
+  const r=await fetch(document.documentElement.dataset.guideEndpoint||'/api/female-production-lab/guide',{method:'POST',body:data,signal:AbortSignal.any([active.signal,AbortSignal.timeout(30000)])});
   if(!r.ok)throw Error('เตรียมไกด์ไม่สำเร็จ กรุณาเลือกรูปหน้าตรงและชุดใหม่');
   const blob=await r.blob();if(current!==sequence)return;url=URL.createObjectURL(blob);image.src=url;image.hidden=false;
   status.textContent=document.documentElement.dataset.identityEndpoint?'ไกด์นี้คือภาพที่ 1 ที่ส่งให้ AI จริง · ภาพที่ 2 ทรงผม · ภาพที่ 3 ชุด · ภาพที่ 4 ใบหน้าต้นฉบับ':'ไกด์นี้คือภาพที่ 1 ที่ส่งให้ AI จริง · ภาพที่ 2 ทรงผม · ภาพที่ 3 ชุด';
