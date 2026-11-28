@@ -1299,7 +1299,6 @@ export function StudioEditor({onCheckoutPreview,onReceiveImage,onPurchased,initi
  const applyRealUniformDetails=async({automatic=false}={})=>{
   const head=state.current.find(l=>l.id===governmentImageHead?.id);
   if(!head||!realDetailEligible||!ready||processActive||assetBusy||realDetailBusy.current)return;
-  if(automatic&&head.hairReferenceContractVersion===FEMALE_LAB_PROCESS_VERSION)return;
   if(head.locked||head.visible===false){if(!automatic)setStatus('ปลดล็อกและแสดงเลเยอร์ภาพก่อนวางรายละเอียดชุดจริง');return}
   if(automatic&&(head.mask||head.eraseRestoreSource))return;
   if(automatic&&head.realUniformDetailsVersion&&hasAdjustedRealUniformDetails(state.current,head))return;
