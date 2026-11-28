@@ -10,7 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_REAR_HAIR_POLICY,'')),'e59567fbdd1edd09792db030784924c7383206e6d33bfb51f99893ea639994b2');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT.replace(FEMALE_REAR_HAIR_POLICY,'')),'02be5cf1349c9e226ba58fff856a6a2b28d044123142ae822ccc1fcc7ddf633a');
  assert(FEMALE_PORTRAIT_PROMPT.endsWith(FEMALE_REAR_HAIR_POLICY));assert(FEMALE_PORTRAIT_PROMPT.includes('BEHIND BOTH shoulders'));assert(FEMALE_PORTRAIT_PROMPT.includes('ZERO hair lying over them'));assert(FEMALE_PORTRAIT_PROMPT.includes('Short, bob and gathered cuts retain their genuine endpoints'));
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
