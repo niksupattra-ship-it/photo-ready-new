@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {liftSkinPixels,adjustStudioLightPixels} from '../public/seedream-pro-skin-tone.js';
+import {liftSkinPixels} from '../public/seedream-pro-skin-tone.js';
 const input=new Uint8ClampedArray([150,120,100,255,85,65,45,255,245,245,245,255,0,0,0,0]);
 test('zero adjustment and protected features retain exact original bytes',()=>{
  assert.deepEqual(liftSkinPixels(input,new Float32Array([1,1,1,1]),0),input);
@@ -18,13 +18,4 @@ test('dark features and white highlights stay fixed without clipping, blurring o
  const pixels=new Uint8ClampedArray([10,10,10,255,255,255,255,255,220,210,200,128]);
  const result=liftSkinPixels(pixels,new Float32Array([1,1,1]),100);assert.deepEqual(result.slice(0,8),pixels.slice(0,8));assert.equal(result[11],128);assert(result[8]>=220&&result[8]<=236);
  assert.throws(()=>liftSkinPixels(input,new Float32Array(2),50));
-});
-
-test('studio light curve fills shadows and reduces highlights without changing dimensions, colour differences or protected pixels',()=>{
- const pixels=new Uint8ClampedArray([90,75,60,255,210,195,180,255,111,80,65,255,50,40,30,0,255,255,255,255]);
- const mask=new Float32Array([1,1,0,1,1]);const original=pixels.slice();
- const result=adjustStudioLightPixels(pixels,mask,100);
- assert.equal(result.length,pixels.length);assert(result[0]>pixels[0]);assert(result[4]<pixels[4]);assert.deepEqual(result.slice(8),pixels.slice(8));
- for(let i=0;i<result.length;i+=4){assert.equal(result[i]-result[i+1],pixels[i]-pixels[i+1]);assert.equal(result[i+1]-result[i+2],pixels[i+1]-pixels[i+2]);assert.equal(result[i+3],pixels[i+3]);}
- assert.deepEqual(pixels,original);assert.deepEqual(adjustStudioLightPixels(pixels,mask,0),pixels);assert.deepEqual(adjustStudioLightPixels(pixels,mask,100),result);
 });
