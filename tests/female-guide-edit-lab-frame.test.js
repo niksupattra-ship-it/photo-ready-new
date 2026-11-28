@@ -81,3 +81,29 @@ test('shared fill corrects uneven exposure without changing alpha, geometry, lit
  for(let i=0;i<uniform.length;i+=4)uniform.set([85,60,45,255],i);
  assert.deepEqual(balancePortraitFillPixels(uniform,w,h),uniform,'Do not brighten evenly lit complexion');
 });
+
+test('inner collar registration uses paired fabric edges, refuses blocked openings and preserves original face coverage',async()=>{
+ const {measureFemaleInnerCollarSeat,guardCollarRegistration}=await import('../female-portrait-layout.js');
+ const w=300,h=400,s=200,cx=150,t=100,layout={centerX:cx,shoulderSpan:s,collarTopY:t,neckSeatY:107,measuredCollar:{chinY:99,upperCollarY:100,shoulderWidth:s}};
+ const data=Buffer.alloc(w*h*4);
+ for(let y=116;y<150;y++)for(let x=0;x<w;x++)if(Math.abs(x-cx)>=18&&Math.abs(x-cx)<=34)data[(y*w+x)*4+3]=255;
+ const seat=measureFemaleInnerCollarSeat(data,w,h,layout);
+ assert.equal(seat,121);
+ assert.equal(femaleLabChinPlacement({...layout,innerCollarSeatY:seat}),121);
+ const empty=Buffer.alloc(data.length);
+ assert.equal(measureFemaleInnerCollarSeat(empty,w,h,layout),null);
+ for(let y=100;y<150;y++)data[(y*w+cx)*4+3]=255;
+ assert.equal(measureFemaleInnerCollarSeat(data,w,h,layout),null);
+ const garmentAlpha=Buffer.alloc(w*h),faceWidth=20,faceHeight=40,faceAlpha=Buffer.alloc(faceWidth*faceHeight,255);
+ for(let y=115;y<h;y++)for(let x=140;x<160;x++)garmentAlpha[y*w+x]=255;
+ assert.equal(guardCollarRegistration({garmentAlpha,faceAlpha,faceWidth,faceHeight,w,h,cx,from:107,to:121}),115);
+});
+test('government garment guides retain native garment pixels and use bounded measured registration',async()=>{
+ const {createFemaleGarmentLayout,femaleLabChinPlacement}=await import('../female-portrait-layout.js');
+ for(const name of ['female-senior.png','female-operational.png','female-academic.png']){
+  const outfit=await readFile(new URL('../public/assets/government-uniforms/'+name,import.meta.url));
+  const layout=await createFemaleGarmentLayout(outfit),old=femaleLabChinPlacement({...layout,innerCollarSeatY:null}),next=femaleLabChinPlacement(layout);
+  assert(next>=old);assert(next-old<=layout.shoulderSpan*.12+1);
+  console.log('Government collar registration',name,JSON.stringify({old,next,inner:layout.innerCollarSeatY}));
+ }
+});
