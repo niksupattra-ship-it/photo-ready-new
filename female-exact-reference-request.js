@@ -2,6 +2,7 @@ import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
 import {FEMALE_PORTRAIT_PROMPT,usesFemaleExactPrompt} from './female-portrait-prompt.js';
+import {FIRST_GENERATION_FEMALE_HAIR} from './hairstyle-catalog.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
 import {isThaiOutfitPath} from './thai-outfit-ai-policy.js';
 
@@ -9,16 +10,19 @@ import {isThaiOutfitPath} from './thai-outfit-ai-policy.js';
 
 export async function generateExactFemalePortrait({input,fields,root,key,chosen,currentHair,requestPortrait,onStage}){
  if(!usesFemaleExactPrompt(fields)||!isThaiOutfitPath(fields.neckOutfitReferencePath)||chosen&&chosen.gender!=='female')throw Error('ข้อมูลคำสั่งหรือรูปอ้างอิงผู้หญิงไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
- if(fields.preserveHairJobId&&!currentHair)throw Error('ไม่พบรูปทรงผมเดิม · เก็บภาพเดิมไว้');
+ // A selected catalogue style must never fall back to a donor portrait or a
+ // previous generated portrait. The default also uses a separate hair-only PNG.
  const hairReference=async()=>{
-  let buffer;
-  if(fields.keepCurrentHair==='1'||!chosen)buffer=currentHair||input.buffer;
-  
-  else{
-   if(!chosen.file||path.basename(chosen.file)!==chosen.file)throw Error('ไม่พบรูปทรงผมที่เลือก');
-   buffer=await readFile(path.join(root,'public/assets',chosen.referenceDirectory==='hair'?'hair':'seedream-hairstyles/references',chosen.file));
+  const id=chosen?.id||FIRST_GENERATION_FEMALE_HAIR;
+  if(fields.keepCurrentHair==='1'||fields.preserveHairJobId)throw Error('กรุณาเลือกทรงผมจากรายการก่อนสร้างภาพ');
+  if(chosen?.referenceDirectory==='hair'){
+   if(!/^hair-\d{2}\.png$/.test(chosen.file||'')||chosen.file!==id+'.png')throw Error('Invalid hair PNG');
+   return readFile(path.join(root,'public/assets/hair',chosen.file));
   }
-  return buffer;
+  if(!/^seedream-\d{2}$/.test(id))throw Error('Invalid hairstyle ID');
+  const file=String(Number(id.slice('seedream-'.length)))+'.png';
+  if(chosen&&chosen.file!==file)throw Error('Invalid hairstyle PNG mapping');
+  return readFile(path.join(root,'public/assets/seedream-hairstyles/references',file));
  };
  // The original person is used only to prepare the guide. The provider gets
  // guide, selected hair and garment, with no separate source-face reference.
