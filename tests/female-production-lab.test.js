@@ -63,3 +63,11 @@ test('detailed 2K PNG larger than the SVG XML text limit is framed without embed
  const {data}=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
  assert(data.some(v=>v!==data[0]),'The actual image must be composited, not replaced by a blank output');
 });
+
+test('5.5 lab instructs exact hair silhouette and neutral professional photographic lighting',()=>{
+ assert.match(FEMALE_55_LAB_PROMPT,/STRICT VISUAL COPY/);
+ assert.match(FEMALE_55_LAB_PROMPT,/do not sweep it backwards, lift the roots/);
+ assert.match(FEMALE_55_LAB_PROMPT,/neutral-white diffused frontal studio strobe/);
+ assert.match(FEMALE_55_LAB_PROMPT,/not added pink, red, peach or coral pigment/);
+ assert.notEqual(FEMALE_55_LAB_PROMPT,FEMALE_PORTRAIT_PROMPT);
+});
