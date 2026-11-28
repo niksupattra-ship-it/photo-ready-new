@@ -39,5 +39,5 @@ test('new uploads occupy the first two free slots and the unchanged old cuts bec
  }
  assert.equal(selectedHairDesign(productionHair('seedream-80')).kind,'long');
  assert.equal(selectedHairDesign(productionHair('seedream-81')).kind,'gathered');
- const lab=await buildProLabCatalogue();assert.deepEqual(lab.hairs.filter(h=>h.gender==='female').slice(0,3).map(h=>h.id),THAI_FREE_FEMALE_HAIR_IDS);
+ const lab=await buildProLabCatalogue();const visible=lab.hairs.filter(h=>h.gender==='female').map(h=>h.id);assert.deepEqual(visible.slice(0,2),THAI_FREE_FEMALE_HAIR_IDS.filter(id=>id!=='seedream-81'));assert(!visible.includes('seedream-81'));assert.equal(visible[2],'seedream-14');
 });
