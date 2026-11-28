@@ -10,7 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'0202c46fe610b0d5144529980f8fce48680dc3a800dec721ea30bf77cb79ee4c');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'423d03127e7a58ab29160e98c1c7e3f9a4685822be72c2bced73a7801c68a72d');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
@@ -47,3 +47,5 @@ test('English creation accepts only the current contract for the selected gender
 });
 
 test('guide-based prompt changes only hair and skin without new proportions',()=>{for(const text of ['change ONLY the hairstyle and skin surface finish','Image 1: PRIMARY EDIT CANVAS','Keep this exact composition','Do not resize or move','SKIN SURFACE ONLY'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));assert(!FEMALE_PORTRAIT_PROMPT.includes('36–40%'));});
+
+test('short and gathered selections remove old hanging hair without white replacement',()=>{for(const text of ['Only when Image 3 actually contains long hanging hair','remove ALL old long hair','never fill old hair with white','Preserve the selected reference hair colour'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));});

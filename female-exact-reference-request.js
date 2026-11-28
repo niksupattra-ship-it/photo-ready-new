@@ -2,6 +2,7 @@ import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import path from 'node:path';
 import {readFile} from 'node:fs/promises';
 import {FEMALE_PORTRAIT_PROMPT,usesFemaleExactPrompt} from './female-portrait-prompt.js';
+import {loadCatalogueHairGuide} from './catalogue-hair-guide.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
 import {isThaiOutfitPath} from './thai-outfit-ai-policy.js';
 
@@ -16,7 +17,7 @@ export async function generateExactFemalePortrait({input,fields,root,key,chosen,
   
   else{
    if(!chosen.file||path.basename(chosen.file)!==chosen.file)throw Error('ไม่พบรูปทรงผมที่เลือก');
-   buffer=await readFile(path.join(root,'public/assets',chosen.referenceDirectory==='hair'?'hair':'seedream-hairstyles/references',chosen.file));
+   buffer=chosen.id?.startsWith('seedream-')?await loadCatalogueHairGuide(chosen.id,root):await readFile(path.join(root,'public/assets',chosen.referenceDirectory==='hair'?'hair':'seedream-hairstyles/references',chosen.file));
   }
   return buffer;
  };
