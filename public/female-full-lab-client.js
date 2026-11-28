@@ -43,8 +43,22 @@ function showResult(blob,snapshot){
  const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt=labConfig.resultLabel||'ภาพต้นฉบับจาก '+modelLabel;preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
- const download=document.createElement('a');download.className='download';download.href=url;download.download=labConfig.downloadName||'seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
+ const download=document.createElement('a');download.className='download';download.href=url;download.download=labConfig.downloadName||'seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url,mode:labConfig.skinControls});
  if(results.children.length>5){results.lastElementChild.skinControlsDispose?.();results.lastElementChild.remove();URL.revokeObjectURL(urls.shift());}card.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// Local file preview: never submitted to the generation endpoint.
+if(labConfig.skinControls==='studio-light'){
+ const section=document.createElement('section');section.className='lab-skin';
+ const label=document.createElement('label');label.textContent='ทดลองปรับแสงจากไฟล์ภาพเดิม (ไม่ใช้ API key)';
+ const input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';label.append(input);
+ const host=document.createElement('div');section.append(label,host);results.after(section);
+ let localCard,localUrl;
+ input.onchange=()=>{localCard?.skinControlsDispose?.();if(localUrl)URL.revokeObjectURL(localUrl);host.replaceChildren();localCard=null;localUrl=null;
+  const blob=input.files?.[0];if(!blob)return;
+  localUrl=URL.createObjectURL(blob);localCard=document.createElement('article');localCard.className='result';
+  const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.alt='ภาพเดิมสำหรับปรับแสง';image.src=localUrl;preview.append(image);localCard.append(preview);host.append(localCard);
+  addSkinControls({card:localCard,preview,image,blob,originalUrl:localUrl,mode:'studio-light'});
+ };
 }
 async function poll(id,snapshot){
  if(checking)return;checking=true;check.hidden=true;
