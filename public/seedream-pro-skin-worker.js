@@ -49,12 +49,12 @@ async function prepare(id,blob){
  if(portraits.size>=2)portraits.delete(portraits.keys().next().value);
  portraits.set(id,{w,h,source,mask});
 }
-async function handle({requestId,kind,id,blob,amount}){
+async function handle({requestId,kind,id,blob,amount,mode}){
  try{
   if(kind==='forget'){portraits.delete(id);return;}
   await prepare(id,blob);
   if(kind==='prepare'){self.postMessage({requestId,ok:true});return;}
-  const {w,h,source,mask}=portraits.get(id),canvas=make(w,h),ctx=canvas.getContext('2d');const {liftSkinPixels}=await tone;ctx.putImageData(new ImageData(liftSkinPixels(source,mask,amount),w,h),0,0);
+  const {w,h,source,mask}=portraits.get(id),canvas=make(w,h),ctx=canvas.getContext('2d');const {liftSkinPixels,adjustStudioLightPixels}=await tone;const pixels=mode==='studio-light'?adjustStudioLightPixels(source,mask,amount):liftSkinPixels(source,mask,amount);ctx.putImageData(new ImageData(pixels,w,h),0,0);
   const output=await canvas.convertToBlob({type:'image/png'});self.postMessage({requestId,ok:true,blob:output});
  }catch(error){self.postMessage({requestId,ok:false,error:/^(ตรวจ|ภาพใหญ่)/.test(error.message||'')?error.message:'ปรับผิวไม่พร้อม ภาพต้นฉบับยังอยู่'});}
 }
