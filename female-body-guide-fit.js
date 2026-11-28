@@ -15,7 +15,7 @@ function coatAnchor(data,w,h){
 export function planFemaleBodyGuide(source,target,w,h){
  const from=coatAnchor(source,w,h),to=coatAnchor(target,w,h),scale=to.width/from.width;
  if(scale<.5||scale>1.8)throw Error('สัดส่วนชุดจาก AI ต่างจากไกด์มากเกินไป กรุณาสร้างใหม่');
- return {scale,x:to.center-from.center*scale,y:to.bottom-from.bottom*scale,from,to};
+ return {scale,x:to.center-from.center*scale,y:h+2-from.bottom*scale,from,to};
 }
 export async function fitFemaleBodyToGuide(png,garmentGuide){
  const [src,target]=await Promise.all([png,garmentGuide].map(input=>sharp(input).resize(900,1200,{fit:'contain',background:'#00000000'}).ensureAlpha().raw().toBuffer()));
