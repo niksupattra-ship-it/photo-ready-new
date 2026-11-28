@@ -47,3 +47,11 @@ test('different provider outputs can be distinguished from different request inp
  assert.deepEqual(results[0].femaleRequestProof,results[1].femaleRequestProof);
  assert.notEqual(femaleBytesHash(results[0].png),femaleBytesHash(results[1].png));
 });
+
+test('two references are accepted only for the explicitly enabled experimental proof',()=>{
+ const two={...payload,model:'dola-seedream-5-5-261028',image:payload.image.slice(0,2)};
+ assert.throws(()=>femaleRequestProof(two));
+ const proof=femaleRequestProof(two,{allowTwoReferences:true});
+ assert.deepEqual(proof.images.map(x=>x.role),['guide','hair']);
+ assert.equal(proof.requestSha256,femaleBytesHash(JSON.stringify(two)));
+});
