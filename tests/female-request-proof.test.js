@@ -12,7 +12,7 @@ const payload={model:'dola-seedream-5-0-flash-260915',prompt:FEMALE_PORTRAIT_PRO
 test('proof locates changed provider inputs without retaining photos or prompt text',()=>{
  const proof=femaleRequestProof(payload);
  assert.equal(proof.requestSha256,femaleBytesHash(JSON.stringify(payload)));
- assert.deepEqual(proof.images.map(x=>x.role),['identity','hair','outfit']);
+ assert.deepEqual(proof.images.map(x=>x.role),['guide','hair','outfit']);
  for(let i=0;i<3;i++){
   const changed={...payload,image:payload.image.map((s,n)=>n===i?'data:image/png;base64,'+Buffer.from('different input').toString('base64'):s)};
   const next=femaleRequestProof(changed);assert.notEqual(proof.requestSha256,next.requestSha256);
