@@ -1,7 +1,7 @@
 import {FEMALE_LAB_PROCESS_VERSION,FEMALE_PORTRAIT_PROMPT} from './female-portrait-prompt.js';
 import {femaleRequestProof,logFemaleRequestProof} from './female-request-proof.js';
 // Transport for the isolated review server; no production route or key fallback.
-import {FEMALE_PORTRAIT_MODEL,FEMALE_PORTRAIT_SIZE,PORTRAIT_AI_OUTPUT_SIZE} from './seedream-pro-payload.js';
+import {FEMALE_PORTRAIT_MODEL,PORTRAIT_AI_OUTPUT_SIZE} from './seedream-pro-payload.js';
 export const REVIEW_SEEDREAM_MODEL='dola-seedream-5-0-flash-260915';
 export const REVIEW_SEEDREAM_ENDPOINT='https://ark.ap-southeast.bytepluses.com/api/v3/images/generations';
 export function seedreamLabPayload(prompt,image){
@@ -10,7 +10,7 @@ export function seedreamLabPayload(prompt,image){
 }
 export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',hair,hairMime='image/png',identity,makeup,outfit,outfitMime='image/png',skinReference,neckReference,neckShapeReference,hairPlacementReference,compositionReference,makeupStudioReference,outfitDetailReference,adaptiveComposition,femaleExactPromptVersion,femalePreplacedVersion,preparedFemalePayload}){
  if(femalePreplacedVersion){
-  if(femalePreplacedVersion!==FEMALE_LAB_PROCESS_VERSION||prompt!==FEMALE_PORTRAIT_PROMPT||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==FEMALE_PORTRAIT_MODEL||preparedFemalePayload?.size!==FEMALE_PORTRAIT_SIZE||preparedFemalePayload?.image?.length!==2)throw Error('Invalid current female payload');
+  if(femalePreplacedVersion!==FEMALE_LAB_PROCESS_VERSION||prompt!==FEMALE_PORTRAIT_PROMPT||preparedFemalePayload?.prompt!==prompt||preparedFemalePayload?.model!==FEMALE_PORTRAIT_MODEL||preparedFemalePayload?.size!==PORTRAIT_AI_OUTPUT_SIZE||preparedFemalePayload?.image?.length!==2)throw Error('Invalid current female payload');
   return preparedFemalePayload;
  }
  if(femaleExactPromptVersion)throw Error('Retired female prompt; refresh the page');
