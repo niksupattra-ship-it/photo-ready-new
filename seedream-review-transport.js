@@ -31,12 +31,12 @@ export function seedreamReviewPayload({prompt,portrait,portraitMime='image/png',
  if(adaptiveComposition?.length)image.push(`data:image/png;base64,${Buffer.from(adaptiveComposition).toString('base64')}`);
  return {model:REVIEW_SEEDREAM_MODEL,prompt,image:image.length===1?image[0]:image,size:PORTRAIT_AI_OUTPUT_SIZE,output_format:'png',response_format:'b64_json',watermark:false};
 }
-export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000}={}){
+export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=240000,logProof=true}={}){
  const {key}=options;
  if(!key)throw Object.assign(Error('ยังไม่ได้ตั้งค่า ARK_API_KEY '),{status:500});
  const prepared=seedreamReviewPayload(options),payload=JSON.stringify(prepared);
  const proof=options.femalePreplacedVersion===FEMALE_LAB_PROCESS_VERSION?femaleRequestProof(prepared):null;
- if(proof)logFemaleRequestProof('production',proof);
+ if(proof&&logProof)logFemaleRequestProof('production',proof);
  // Legacy requests retry only temporary transport/provider failures within the SAME queued
  // wallet job. No new credit is reserved, and image-content/moderation
  // rejections are never retried. singleAttempt disables every automatic retry.
@@ -83,7 +83,7 @@ export async function requestReviewSeedream(options,{fetchImpl=fetch,timeoutMs=2
    throw Object.assign(Error('Seedream ส่งผลลัพธ์ที่ไม่ใช่ PNG'),{status:502,code:'seedream_invalid_png'});
   }
   const requestId=response.headers?.get?.('x-request-id')||'';
-  if(proof)logFemaleRequestProof('production',proof,{phase:'result',requestId,png});
+  if(proof&&logProof)logFemaleRequestProof('production',proof,{phase:'result',requestId,png});
   return {png,requestId,...(proof?{femaleRequestProof:proof}:{})};
  }
  throw Object.assign(Error('ผู้ให้บริการ AI ไม่สามารถส่งภาพกลับมาได้'),{status:502,code:'seedream_unavailable'});
