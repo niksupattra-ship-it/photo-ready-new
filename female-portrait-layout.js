@@ -9,7 +9,10 @@ export function femaleLabChinPlacement(layout){
  if(!context||!Number.isFinite(context.chinY)||!Number.isFinite(context.upperCollarY)||!(context.shoulderWidth>0))throw Error('วัดขอบคอเสื้อไม่สำเร็จ กรุณาเลือกชุดอื่น');
  const scale=layout.shoulderSpan/context.shoulderWidth;
  const baseline=layout.collarTopY+(context.chinY-context.upperCollarY)*scale;
- return Math.max(baseline,Math.min(layout.neckSeatY??baseline,layout.collarTopY+layout.shoulderSpan*.075));
+ const original=Math.max(baseline,Math.min(layout.neckSeatY??baseline,layout.collarTopY+layout.shoulderSpan*.075));
+ // The actual paired inner collar edges, not the shoulder roots or tie knot,
+ // control the extra registration allowance. No garment or face is rescaled.
+ return Math.max(original,Math.min(layout.innerCollarSeatY??original,layout.collarTopY+layout.shoulderSpan*.12));
 }
 
 export async function createFemaleLabGuide(outfit){
@@ -28,8 +31,15 @@ export async function createFemaleLabBase(outfit,face){
  const meta=await sharp(face,{limitInputPixels:33554432}).metadata();
  if(meta.format!=='png'||!meta.hasAlpha||meta.width<32||meta.height<32)throw Error('ข้อมูลใบหน้าไม่ถูกต้อง');
  const layout=await createFemaleGarmentLayout(outfit);
- const span=layout.shoulderSpan,cx=layout.centerX,chin=femaleLabChinPlacement(layout);
+ const span=layout.shoulderSpan,cx=layout.centerX;
+ let chin=femaleLabChinPlacement(layout);
  const placed=await sharp(face).resize({width:Math.round(span*.35),height:Math.round(span*.465),fit:'inside'}).png().toBuffer(),size=await sharp(placed).metadata();
+ const previousChin=femaleLabChinPlacement({...layout,innerCollarSeatY:null});
+ if(chin>previousChin){
+  const garmentAlpha=await sharp(layout.nativeForeground).extractChannel(3).raw().toBuffer();
+  const faceAlpha=await sharp(placed).ensureAlpha().extractChannel(3).raw().toBuffer();
+  chin=guardCollarRegistration({garmentAlpha,faceAlpha,faceWidth:size.width,faceHeight:size.height,w:768,h:1024,cx,from:previousChin,to:chin});
+ }
  const {data}=await sharp(face).ensureAlpha().raw().toBuffer({resolveWithObject:true});let r=0,g=0,b=0,n=0;
  for(let i=0;i<data.length;i+=4)if(data[i+3]>192&&data[i]>data[i+1]&&data[i+1]>data[i+2]){r+=data[i];g+=data[i+1];b+=data[i+2];n++;}
  const colour=n?`rgb(${Math.round(r/n)},${Math.round(g/n)},${Math.round(b/n)})`:'#cba28c';
@@ -40,6 +50,7 @@ export async function createFemaleLabBase(outfit,face){
 export async function createFemaleGarmentLayout(outfit){const layout=await createEnglishBodyLayout(outfit,{headScale:1,canvasWidth:768,fixedIdentityEnvelope:true,stableGarmentFrame:true,returnNativeForeground:true,collarContext:{template:''},profile:{headWidthToShoulder:.415,headHeightToShoulder:.56,chinToCollar:.045,neckToShoulder:.22,chestToShoulder:.40}});
  const {data,info}=await sharp(layout.nativeForeground).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  layout.neckSeatY=measureFemaleNeckSeat(data,info.width,info.height,layout);
+ layout.innerCollarSeatY=measureFemaleInnerCollarSeat(data,info.width,info.height,layout);
  return layout;
 }
 
@@ -69,4 +80,44 @@ export function measureFemaleNeckSeat(data,w,h,layout){
   clear=y;
  }
  return Math.min(desired,clear);
+}
+
+ // Locate the paired inner fabric edges from the native garment alpha. Only
+ // accept a sustained bilateral contact while the central jaw corridor is
+ // clear. A deep V or tie knot is not a collar-registration target.
+export function measureFemaleInnerCollarSeat(data,w,h,layout){
+ const {centerX:cx,shoulderSpan:s,collarTopY:t}=layout;
+ if(data.length!==w*h*4||![cx,s,t].every(Number.isFinite)||s<=0)return null;
+ const alpha=(x,y)=>data[(y*w+x)*4+3];
+ const start=Math.max(0,Math.ceil(t)),end=Math.min(h-1,Math.floor(t+s*.12));
+ const required=Math.max(2,Math.ceil(s*.018)),runNeeded=Math.max(2,Math.ceil(s*.008));
+ let run=0,contact=null,lastClear=null;
+ for(let y=start;y<=end;y++){
+  let blocked=false,left=0,right=0;
+  for(let x=Math.max(0,Math.ceil(cx-s*.06));x<=Math.min(w-1,Math.floor(cx+s*.06));x++)if(alpha(x,y)>96){blocked=true;break;}
+  if(blocked)break;
+  lastClear=y;
+  for(let x=Math.max(0,Math.ceil(cx-s*.17));x<=Math.min(w-1,Math.floor(cx-s*.085));x++)if(alpha(x,y)>160)left++;
+  for(let x=Math.max(0,Math.ceil(cx+s*.085));x<=Math.min(w-1,Math.floor(cx+s*.17));x++)if(alpha(x,y)>160)right++;
+  if(left>=required&&right>=required){run++;if(run>=runNeeded&&contact===null)contact=y-run+1;}else run=0;
+ }
+ if(contact===null||lastClear===null)return null;
+ return Math.min(lastClear,contact+s*.025,t+s*.12);
+}
+
+// A translation is allowed only if it introduces no extra overlap with the
+// actual face alpha. This protects the original jaw outline and collar pixels.
+export function guardCollarRegistration({garmentAlpha,faceAlpha,faceWidth,faceHeight,w,h,cx,from,to}){
+ const left=Math.round(cx-faceWidth/2);
+ const overlap=chin=>{
+  const top=Math.round(chin-faceHeight);let n=0;
+  for(let y=0;y<faceHeight;y++)for(let x=0;x<faceWidth;x++){
+   const xx=x+left,yy=y+top;
+   if(xx>=0&&xx<w&&yy>=0&&yy<h&&faceAlpha[y*faceWidth+x]>160&&garmentAlpha[yy*w+xx]>96)n++;
+  }
+  return n;
+ };
+ const allowed=overlap(from);
+ for(let chin=Math.floor(to);chin>from;chin--)if(overlap(chin)<=allowed)return chin;
+ return from;
 }
