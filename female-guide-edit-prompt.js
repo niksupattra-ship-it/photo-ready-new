@@ -27,6 +27,14 @@ beside both sides of the neck must be free of hair. No rear curtains,
 long side panels, tails, buns at neck level or loose strands. Preserve
 the person's ears, face, neck and garment. Use the existing background
 outside the person's natural outline, not hair, in these empty spaces.`;
+export const FEMALE_GUIDE_EDIT_CHEEK_LIGHT_POLICY=`Even the illumination and retain the person's authentic complexion,
+undertone and fine natural photographic skin texture. Do not apply blush,
+rouge, pink, red, peach or coral cheek tint, or tinted under-eye makeup.
+Preserve the person's natural cheek colour and natural tonal variation.
+Use soft neutral studio fill light, not cosmetic pigment, to illuminate
+both cheeks. No added colour patches or artificial whitening.
+Keep natural glossy pink lips and delicate eyebrow hair strokes.
+Match the face, ears and neck continuously.`;
 export const FEMALE_GUIDE_EDIT_LAB_PROMPT=`EDIT IMAGE 1 IN PLACE. Preserve its existing composition.
 
 REFERENCE ROLES:
@@ -52,10 +60,7 @@ enlarging the skull or moving the face.
 ${FEMALE_GUIDE_EDIT_HAIR_EXTENT_POLICY}
 
 2. Retouch skin and apply the requested makeup.
-Even the skin tone, correct temporary blemishes and retain fine,
-natural photographic skin texture. Apply subtle rosy cheeks,
-natural glossy pink lips and delicate eyebrow hair strokes.
-Match the face, ears and neck continuously.
+${FEMALE_GUIDE_EDIT_CHEEK_LIGHT_POLICY}
 ${FEMALE_GUIDE_EDIT_FLASH_POLICY}
 FACIAL IDENTITY AND GEOMETRY LOCK:
 
