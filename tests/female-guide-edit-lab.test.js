@@ -1,3 +1,4 @@
+import {FEMALE_55_LAB_PROMPT} from '../female-55-lab-prompt.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -44,29 +45,29 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  const html=await(await fetch(base+'/female-guide-edit-lab.html')).text();
  const data=name=>html.match(new RegExp('data-'+name+'="([^"]+)"'))?.[1];
  const endpoint=data('endpoint');assert.equal(endpoint,'/api/female-guide-edit-lab');
- assert.equal(data('storage-key'),'female-guide-edit-lab-guide-only-55-v1');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.5-261028');
+ assert.equal(data('storage-key'),'female-guide-edit-lab-guide-only-55-v2');assert.equal(data('face-preparation'),'on');assert.equal(data('model-label'),'Dola-Seedream-5.5-261028');
  assert.equal(data('identity-endpoint'),undefined);assert(!html.includes('identity-image'));assert(!html.includes('female-guide-edit-identity-client.js'));
  assert.equal(data('guide-module'),'./female-production-lab-guide.js');assert(html.includes('href="/female-production-lab.html"'));
- assert.equal(await(await fetch(base+data('prompt-url'))).text(),FEMALE_GUIDE_EDIT_LAB_PROMPT);
- assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),productionLabPrompt());
+ assert.equal(await(await fetch(base+data('prompt-url'))).text(),FEMALE_55_LAB_PROMPT);
+ assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),FEMALE_55_LAB_PROMPT);
  const form=()=>{const f=new FormData();for(const [name,buffer] of [['person',person],['outfit',outfit],['hair',hair]])f.set(name,new Blob([buffer],{type:'image/png'}),name+'.png');f.set('femalePreplacedFace',fields.femalePreplacedFace);return f;};
  const guideForm=form();guideForm.delete('hair');const guideResponse=await fetch(base+'/api/female-production-lab/guide',{method:'POST',body:guideForm});
  assert.equal(guideResponse.status,200);const guide=Buffer.from(await guideResponse.arrayBuffer());
  assert.equal(calls,0);
  const request=form(),id=randomUUID();request.set('key','inert-test-key');request.set('requestId',id);request.set('order','person-outfit-hair');request.set('prompt',productionLabPrompt()+' changed');
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,400);assert.equal(calls,0);
- request.set('prompt',FEMALE_GUIDE_EDIT_LAB_PROMPT);
+ request.set('prompt',FEMALE_55_LAB_PROMPT);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
  let response;for(let n=0;n<150;n++){response=await fetch(base+endpoint+'/'+id);if(response.status!==202)break;await new Promise(resolve=>setTimeout(resolve,20));}
  assert.equal(response.status,200);const result=Buffer.from(await response.arrayBuffer());assert.equal((await sharp(result).metadata()).format,'png');
  const delivered=await sharp(result).removeAlpha().raw().toBuffer({resolveWithObject:true});
  for(const x of [0,delivered.info.width-1]){const i=((delivered.info.height-1)*delivered.info.width+x)*3;assert.deepEqual([...delivered.data.subarray(i,i+3)],[176,143,127],'delivered lower corners contain the original person, not background margins');}
- assert.equal(calls,1);assert.equal(mattes,1);assert.equal(captured.prompt,FEMALE_GUIDE_EDIT_LAB_PROMPT);
+ assert.equal(calls,1);assert.equal(mattes,1);assert.equal(captured.prompt,FEMALE_55_LAB_PROMPT);assert.notEqual(captured.prompt,productionLabPrompt());
  assert.equal(captured.size,'2K');assert.equal(captured.model,'dola-seedream-5-5-261028');assert.notEqual(captured.model,PRO_LAB_MODEL);
  assert.deepEqual(captured.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[guide,hair,outfit]);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
  assert.equal(calls,1);assert.equal(mattes,1);
  assert.deepEqual(Buffer.from(await(await fetch(base+endpoint+'/'+id)).arrayBuffer()),result);
  assert.equal((await fetch(base+'/api/female-production-lab/'+id)).status,404);
- assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),productionLabPrompt());
+ assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),FEMALE_55_LAB_PROMPT);
 });
