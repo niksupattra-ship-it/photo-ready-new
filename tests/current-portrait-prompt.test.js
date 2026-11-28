@@ -10,7 +10,7 @@ import {shouldRecoverHairSubmission} from '../src/female-hair-submission.js';
 import {THAI_OUTFIT_AI_VERSION} from '../thai-outfit-ai-policy.js';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 test('current female prompt, cache identity and male generator retain their approved bytes',async()=>{
- assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'0db16168fdc0edba054dd13f20de18ad6465e946466195a31b3335d9df484d6b');
+ assert.equal(hash(FEMALE_PORTRAIT_PROMPT),'51fcfec7a6e162405f508e5c9ecaedfa153167315318a7c6ed951c322759152d');
  assert.notEqual(FEMALE_CURRENT_PROMPT_CACHE_KEY,'female-prompt-12e89c3376650eab');
  const male=await readFile(new URL('../male-portrait-prompt.js',import.meta.url),'utf8');
  const originalMale=male.slice(male.indexOf("import {isThaiOutfitAi}"),male.indexOf('\n// Current English male templates')).trimEnd()+'\n';
@@ -51,3 +51,5 @@ test("current female prompt locks original gaze and uses brow strokes without re
 test('actual guide is the sole composition authority without new numerical scale rules',()=>{for(const text of ['Image 1: PRIMARY EDIT CANVAS','Do not calculate new portrait proportions','Do not enlarge or shrink the face or head'])assert(FEMALE_PORTRAIT_PROMPT.includes(text));for(const text of ['36–40%','32–36%','Ignore its original hairstyle, clothing, body proportions','Adjust only the overall facial scale'])assert(!FEMALE_PORTRAIT_PROMPT.includes(text));});
 
 test('guide geometry has one authority; other references cannot define scale',()=>{for(const text of ['Edit Image 1 as an existing photograph.','Image 1 is the ONLY authority for all geometry and scale.','Image 3: Garment details ONLY','Its native image size, cropping and proportions must NOT override','Do not enlarge the head to fill the hairstyle opening.'])assert(FEMALE_PORTRAIT_PROMPT.includes(text),text);assert(!FEMALE_PORTRAIT_PROMPT.includes('using standardized portrait geometry'));});
+
+test('prompt preserves the photographed guide face envelope rather than redrawing a larger head',()=>{for(const text of ['ORIGINAL FACE ENVELOPE — DO NOT ENLARGE','cheek-to-cheek width, forehead-to-chin height','Missing hair or scalp does not authorize enlarging the face','do not compensate by changing the garment or camera framing'])assert(FEMALE_PORTRAIT_PROMPT.includes(text),text);});
