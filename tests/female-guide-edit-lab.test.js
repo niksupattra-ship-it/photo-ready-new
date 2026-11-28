@@ -33,7 +33,7 @@ test('both labs share the exact guide-only prompt and only guide, hair and garme
  }
 });
 
-test('trial page submits its exact guide and prompt once, recovers the same result and isolates baseline jobs',async t=>{
+test('trial page submits one V6 request and one Flash request, recovers the same result and isolates baseline jobs',async t=>{
  const outfit=await asset('government-uniforms/female-operational.png');
  const mask=await sharp({create:{width:480,height:640,channels:4,background:'#00000000'}}).composite([{input:await sharp({create:{width:360,height:580,channels:4,background:'#fff'}}).png().toBuffer(),left:60,top:60}]).png().toBuffer();
  let calls=0,mattes=0,captured,flashInput;
@@ -68,7 +68,7 @@ test('trial page submits its exact guide and prompt once, recovers the same resu
  assert.equal(captured.size,'2K');assert.equal(captured.model,'dola-seedream-5-5-261028');assert.notEqual(captured.model,PRO_LAB_MODEL);
  assert.deepEqual(captured.image.map(value=>Buffer.from(value.split(',')[1],'base64')),[guide,hair,outfit]);
  assert.equal((await fetch(base+endpoint,{method:'POST',body:request})).status,202);
- assert.equal(calls,1);assert.equal(mattes,1);
+ assert.equal(calls,2);assert.equal(mattes,1);
  assert.deepEqual(Buffer.from(await(await fetch(base+endpoint+'/'+id)).arrayBuffer()),result);
  assert.equal((await fetch(base+'/api/female-production-lab/'+id)).status,404);
  assert.equal(await(await fetch(base+'/api/female-production-lab/prompt')).text(),FEMALE_55_LAB_PROMPT);
