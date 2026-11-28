@@ -773,16 +773,6 @@
       "sha256": "9dc2c72445d5cff4aa957f63f9b6c89657ad9d7f1f57f8a1657acb11a24ff1d2"
     },
     {
-      "id": "seedream-79",
-      "name": "ผมรวบเรียบ",
-      "gender": "female",
-      "group": "hair",
-      "groupName": "ทรงผม",
-      "preview": "/assets/seedream-hairstyles/previews/79.webp",
-      "reference": "/assets/seedream-hairstyles/references/79.png",
-      "sha256": "a3b2d8987e89d1b37b7d4cdcd540e6caadc6649d35aed7e26cb641ab73a7774e"
-    },
-    {
       "id": "seedream-14",
       "name": "ทรงผม 14",
       "gender": "female",

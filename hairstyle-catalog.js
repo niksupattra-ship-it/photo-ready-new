@@ -7,7 +7,7 @@ export const PRODUCTION_HAIR_CATALOG=[
  {id:'seedream-81',gender:'female',name:'ผมสั้นรวบเรียบใหม่',file:'81.png',src:'/assets/seedream-hairstyles/previews/81.webp'},
  {"id": "thai-male-auto", "gender": "male", "name": "ผมชายอัตโนมัติ", "promptOnly": true, "autoHair": "english-male", "src": "/assets/seedream-hairstyles/previews/thai-male-auto-formal.webp"},
  {"id": "seedream-40", "gender": "female", "name": "ทรงผมหญิง 1", "file": "40.png", "src": "/assets/seedream-hairstyles/previews/40.webp"},
- {"id": "seedream-79", "gender": "female", "name": "ผมรวบเรียบ", "file": "79.png", "src": "/assets/seedream-hairstyles/previews/79.webp"},
+ {"id": "seedream-79", "gender": "female", "hidden": true, "name": "ผมรวบเรียบ", "file": "79.png", "src": "/assets/seedream-hairstyles/previews/79.webp"},
  {"id": "seedream-42", "gender": "female", "name": "ทรงผมหญิง 3", "file": "42.png", "src": "/assets/seedream-hairstyles/previews/42.webp"},
  {"id": "seedream-43", "gender": "female", "name": "ทรงผมหญิง 4", "file": "43.png", "src": "/assets/seedream-hairstyles/previews/43.webp"},
  {"id": "seedream-07", "gender": "female", "name": "ทรงผม 7", "file": "7.png", "src": "/assets/seedream-hairstyles/previews/7.webp"},
