@@ -4,7 +4,7 @@ import multer from 'multer';
 import {fileURLToPath} from 'node:url';
 import {registerFemaleLabTransport} from './female-full-lab-transport.js';
 import {prepareFemaleFace} from './female-preplaced-face.js';
-import {createFemaleLabBase} from './female-portrait-layout.js';
+import {createFixedFemaleLabBase,fixedFemaleLabPayload} from './female-lab-fixed-guide.js';
 import {femaleMatchedProPayload} from './female-matched-pro-payload.js';
 import {FEMALE_PORTRAIT_PROMPT} from './female-portrait-prompt.js';
 
@@ -30,8 +30,8 @@ export function registerFemaleProductionLab(app,{removeBackground, ...options}={
   try{
    if(error||!req.files?.outfit?.[0]||!req.files?.person?.[0])throw Error('Missing references');
    const face=await prepareFemaleFace(req.files.person[0].buffer,req.body.femalePreplacedFace);
-   res.type('png').send(await createFemaleLabBase(req.files.outfit[0].buffer,face));
+   res.type('png').send(await createFixedFemaleLabBase(req.files.outfit[0].buffer,face));
   }catch{res.status(400).json({error:'เตรียมไกด์ไม่ได้ กรุณาใช้รูปหน้าตรงและเลือกชุดใหม่'});}
  }));
- registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:female55LabPayloadFrom(productionLabPayload,productionLabPrompt()),processResult:png=>completeGuideEditLabResult(png,removeBackground)});
+ registerFemaleLabTransport(app,{...options,route,fieldLimit:5,payloadFor:female55LabPayloadFrom(fixedFemaleLabPayload,productionLabPrompt()),processResult:png=>completeGuideEditLabResult(png,removeBackground)});
 }
