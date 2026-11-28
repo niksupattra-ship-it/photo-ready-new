@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import {balancePortraitFill} from './female-portrait-fill-light.js';
 import {femaleMasterSize} from './female-body-guide-fit.js';
 import {preserveExactFemalePixels} from './female-exact-matting.js';
 import {compositeFemaleLabBackground} from './female-lab-output.js';
@@ -55,7 +56,7 @@ export async function frameGuideEditLabForeground(png){
 export async function prepareGuideEditForeground(original,removeBackground){
  const {png,alpha}=await preserveExactFemalePixels(original,await removeBackground(original));
  if(!alpha||alpha.min>=250||alpha.max<=5)throw Error('Background removal did not produce a valid portrait');
- return frameGuideEditLabForeground(png);
+ return balancePortraitFill(await frameGuideEditLabForeground(png));
 }
 
 export async function completeGuideEditLabResult(original,removeBackground){return compositeFemaleLabBackground(await prepareGuideEditForeground(original,removeBackground));}
