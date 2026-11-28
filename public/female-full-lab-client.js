@@ -35,26 +35,26 @@ async function openCatalogue(kind){
 for(const button of form.querySelectorAll('[data-catalogue]'))button.onclick=()=>openCatalogue(button.dataset.catalogue);
 $('catalogue-close').onclick=()=>picker.close();picker.addEventListener('close',()=>{selectionSequence++;selectionAbort?.abort();});
 for(const id of ['catalogue-gender','catalogue-category','catalogue-search'])$(id).addEventListener(id==='catalogue-search'?'input':'change',async()=>{try{if(!referenceLoading&&cataloguePromise)renderCatalogue(await cataloguePromise);}catch{}});
-function showResult(blob,snapshot){
+function showResult(blob,snapshot,flashStatus=null,id=null){
  const url=URL.createObjectURL(blob);urls.push(url);const card=document.createElement('article');card.className='result';
  const time=document.createElement('time');time.textContent=new Date().toLocaleString('th-TH');
  const caption=document.createElement('p');caption.className='caption';caption.textContent=snapshot?.prompt||labConfig.resultLabel||'ภาพดิบจาก AI · กู้คืนงานเดิม';
- const settings=document.createElement('div');settings.className='settings';for(const value of [modelLabel,sizeLabel,'Smart ratio','1 ภาพ',labConfig.resultReferences||snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
+ const settings=document.createElement('div');settings.className='settings';for(const value of [modelLabel,flashStatus==='success'?'Flash 5.0 · ผลขั้นที่ 2':flashStatus==='fallback'?'Flash ไม่สำเร็จ · ใช้ V6 เดิม':null,sizeLabel,'Smart ratio','1 ภาพ',labConfig.resultReferences||snapshot?.order?.split('-').map(k=>labels[k]).join(' · ')].filter(Boolean)){const tag=document.createElement('span');tag.textContent=value;settings.append(tag);}
  const preview=document.createElement('div');preview.className='preview';const image=document.createElement('img');image.src=url;image.alt=labConfig.resultLabel||'ภาพต้นฉบับจาก '+modelLabel;preview.append(image);
  const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.type='button';edit.textContent='แก้ไข';edit.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.scrollIntoView({behavior:'smooth'});$('prompt').focus();};
  const regenerate=document.createElement('button');regenerate.type='button';regenerate.textContent='สร้างอีกครั้ง';regenerate.onclick=()=>{if(busy)return;restoreSnapshot(snapshot);form.requestSubmit();};
- const download=document.createElement('a');download.className='download';download.href=url;download.download=labConfig.downloadName||'seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
+ const download=document.createElement('a');download.className='download';download.href=url;download.download=labConfig.downloadName||'seedream-pro-original.png';download.textContent='ดาวน์โหลด PNG';actions.append(edit,regenerate,download);if(flashStatus&&id){const baseUrl=labEndpoint+'/'+encodeURIComponent(id)+'/base';const baseDownload=document.createElement('a');baseDownload.className='download';baseDownload.href=baseUrl;baseDownload.download='female-v6-original.png';baseDownload.textContent='ดาวน์โหลด V6 ก่อน Flash';actions.append(baseDownload);if(flashStatus==='success'){const compare=document.createElement('button');compare.type='button';compare.textContent='ดู V6 ก่อน Flash';let showingBase=false;compare.onclick=()=>{showingBase=!showingBase;image.src=showingBase?baseUrl:url;compare.textContent=showingBase?'ดูผล Flash':'ดู V6 ก่อน Flash';};actions.prepend(compare);}}card.append(time,caption,settings,preview,actions);results.prepend(card);results.hidden=false;if(labConfig.skinControls!=='off')addSkinControls({card,preview,image,blob,originalUrl:url});
  if(results.children.length>5){results.lastElementChild.skinControlsDispose?.();results.lastElementChild.remove();URL.revokeObjectURL(urls.shift());}card.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function poll(id,snapshot){
  if(checking)return;checking=true;check.hidden=true;
  try{
-  for(let n=0;n<150;n++){
+  for(let n=0;n<(labConfig.flashFinish==='on'?300:150);n++){
    let response;try{response=await fetch(labEndpoint+'/'+encodeURIComponent(id),{cache:'no-store',signal:AbortSignal.timeout(20000)});}catch{throw Error('การเชื่อมต่อขัดข้อง กดตรวจผลอีกครั้งได้โดยไม่สร้างงานใหม่');}
-   if(response.status===202){status.textContent='กำลังสร้างภาพ…';await new Promise(resolve=>setTimeout(resolve,2000));continue;}
+   if(response.status===202){const state=await response.json().catch(()=>({}));status.textContent=state.phase==='flash'?'กำลังส่งภาพ V6 ที่เสร็จแล้วไป Flash 5.0…':'กำลังสร้างภาพ…';await new Promise(resolve=>setTimeout(resolve,2000));continue;}
    if(!response.ok){const detail=await response.json();activeId=null;remember(null);setBusy(false);throw Error(detail.error||'ประมวลผลไม่สำเร็จ');}
    const blob=await response.blob();if(blob.type!=='image/png')throw Error('ข้อมูลภาพไม่สมบูรณ์ กรุณาตรวจผลอีกครั้ง');
-   showResult(blob,snapshot);activeId=null;remember(null);setBusy(false);status.textContent=labConfig.resultLabel||'สร้างเสร็จแล้ว · ภาพดิบจาก AI';return;
+   const flashStatus=response.headers.get('x-lab-flash-status');showResult(blob,snapshot,flashStatus,id);activeId=null;remember(null);setBusy(false);status.textContent=flashStatus==='fallback'?'Flash ไม่สำเร็จ · แสดงภาพ V6 เดิม':flashStatus==='success'?'สร้างเสร็จ · V6 และ Flash 5.0':labConfig.resultLabel||'สร้างเสร็จแล้ว · ภาพดิบจาก AI';return;
   }
   throw Error('ยังไม่พบผลลัพธ์ กดตรวจผลอีกครั้งได้โดยไม่สร้างงานใหม่');
  }catch(error){status.textContent=error.message;check.hidden=!activeId;}finally{checking=false;}
